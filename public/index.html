@@ -76,6 +76,15 @@
   </div>
   <div id="list"></div>
   <div class="card">
+    <h2>Example graphics</h2>
+    <p class="page__help">Double-click <b>Make Examples (Mac).command</b> (or <b>Make Examples (Windows).bat</b>) in the PlayHQ Graphics folder
+      to take a 1920 x 1080 picture of every graphic on this page with PlayHQ's data right now. They are saved in
+      <b>Examples/&lt;date and time&gt;</b> with an <b>index.html</b> that shows them all, and keep the transparent background OBS sees.
+      The pictures use the game, round and court picked on the control page, so pick those first. The Clash is shown at the end of its animation.</p>
+    <p class="page__help">It uses the helper if it is running, otherwise starts it for the run, and needs Google Chrome (or Edge, Brave or
+      Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
+  </div>
+  <div class="card">
     <h2>Data and bandwidth</h2>
     <p class="page__help">Only <b>scoreboard.html</b> and <b>ticker.html</b> keep asking for new data (the control page does too, but it isn't in OBS).
       Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.

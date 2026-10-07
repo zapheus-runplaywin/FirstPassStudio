@@ -25,6 +25,14 @@ loads once when OBS shows it: in each Browser source tick **Refresh browser when
 right-click the source and choose **Refresh** to get the latest. Divisions are numbered in name order, as listed on the
 http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
 
+## Example graphics
+
+Double-click `Make Examples (Mac).command` (or `Make Examples (Windows).bat`, or run `node examples.js`) to save a
+1920 x 1080 picture of every graphic with PlayHQ's current data in `Examples/<date and time>/`, with an `index.html`
+to look through them. Pictures keep the transparent background. They follow the game, round and court picked on the
+control page. It uses the running helper or starts one for the run, and needs Node 22+ and Google Chrome, Edge, Brave
+or Chromium (set `CHROME_PATH` for another one).
+
 ## Debug log
 
 Everything goes into `logs/playhq-graphics.log`: each page opening, errors and warnings from every page
