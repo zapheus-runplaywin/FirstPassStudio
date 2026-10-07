@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thunder League Scoreboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scoreboard.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/scoreboard.html
+       Options: &board=2 (a second court, run from control.html?board=2)
+                &position=above-ticker (default: bottom centre, just above ticker.html) | top-center | bottom-center | top-left | bottom-left -->
+  <div class="scorebug" id="bug" hidden>
+    <div class="scorebug__tab scorebug__live" id="live" hidden>PlayHQ Live</div>
+    <div class="scorebug__tab scorebug__court" id="court"></div>
+    <div class="scorebug__main">
+      <div class="team team--home"><span class="team__name" id="homeName"></span></div>
+      <div class="score" id="homeScore"></div>
+      <div class="score" id="awayScore"></div>
+      <div class="team team--away"><span class="team__name" id="awayName"></span></div>
+      <div class="period"><span id="period"></span><span class="clock" id="clock"></span></div>
+    </div>
+  </div>
+  <script src="scoreboard.js"></script>
+  <script src="autoreload.js"></script>
+</body>
+</html>

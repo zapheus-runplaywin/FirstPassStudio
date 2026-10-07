@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Top Shooters</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/topshooters.html
+       Season shooting leaders for the division of the game picked on the scoreboard, from PlayHQ's
+       stats for every finished game.
+       Loads once: tick "Refresh browser when scene becomes active".
+       Options: ?division=1  ?sort=goals or ?sort=super (default is points: goals + 2 per super shot)  ?limit=8 -->
+  <main class="card shooters" id="card" hidden>
+    <header class="matchup__header">
+      <div class="tab">Top shooters</div>
+      <div class="matchup__division" id="division"></div>
+    </header>
+    <table class="shooters__table">
+      <thead><tr><th>#</th><th></th><th class="left">Player</th><th>Goals</th><th>Super</th><th>Points</th><th>Accuracy</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <footer class="card__footer" id="footer"></footer>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script src="season.js"></script>
+  <script>
+    const sort = new URLSearchParams(location.search).get('sort') || 'points';
+    loadJson('/api/topshooters', d => {
+      const list = sort === 'goals' ? d.goals : /super/.test(sort) ? d.superGoals : d.points;
+      if (!list.length) throw new Error(d.error || 'No shooting stats found in the finished games yet');
+      document.getElementById('division').textContent = `${d.division}  ·  ${sort === 'goals' ? 'Most goals' : /super/.test(sort) ? 'Most super shots' : 'Most points'}`;
+      const body = document.getElementById('rows');
+      list.forEach((p, i) => {
+        const tr = el('tr');
+        const who = el('td', 'left');
+        who.append(el('div', 'shooters__name', p.name), el('div', 'shooters__team', p.team));
+        const made = p.goals + p.superGoals, tried = p.shots;
+        const logo = el('td'); logo.append(logoEl({ name: p.team, logo: p.logo }, 'shooters__logo'));
+        tr.append(el('td', 'shooters__rank', i + 1), logo, who, el('td', '', p.goals), el('td', '', p.superGoals),
+          el('td', 'shooters__points', p.points), el('td', '', tried ? `${Math.round(made / tried * 100)}%` : '–'));
+        body.append(tr);
+      });
+      document.getElementById('footer').textContent = `From ${d.gamesRead} of ${d.gamesFinished} finished games`;
+      document.getElementById('card').hidden = false;
+    });
+  </script>
+</body>
+</html>

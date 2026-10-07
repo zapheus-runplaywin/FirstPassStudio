@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shooting Stats</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080, for quarter breaks:
+       http://localhost:8080/shooting.html
+       Options: &title=Half%20time (otherwise it names the break from the quarter on the scoreboard)
+                &board=2 for a second court. -->
+  <main class="card shooting" id="card" hidden>
+    <header class="shooting__header">
+      <div class="tab" id="title">Shooting stats</div>
+      <div class="shooting__score">
+        <div class="side"><span id="homeName"></span></div>
+        <div class="big"><span id="homeGoals"></span><span class="dash">–</span><span id="awayGoals"></span></div>
+        <div class="side side--away"><span id="awayName"></span></div>
+      </div>
+    </header>
+    <div class="shooting__teams">
+      <section class="shooting__team" id="home"></section>
+      <section class="shooting__team" id="away"></section>
+    </div>
+    <footer class="card__footer" id="footer"></footer>
+  </main>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const BREAKS = { 1: 'Quarter time', 2: 'Half time', 3: 'Three quarter time', 4: 'Full time', 5: 'Extra time' };
+    const pct = (g, a) => (a ? `${Math.round((g / a) * 100)}%` : '–');
+
+    function teamBlock(section, team) {
+      section.replaceChildren();
+      const head = el('div', 'shooting__team-head');
+      head.appendChild(logoEl(team, 'shooting__logo'));
+      head.appendChild(el('h2', '', team.name));
+      section.appendChild(head);
+
+      // Shooters: anyone with a shot or a goal, otherwise whoever is listed at GS and GA.
+      const sh = p => p.shooting || {};
+      let shooters = team.players.filter(p => sh(p).shots || sh(p).goals || sh(p).superGoals);
+      if (!shooters.length) shooters = team.players.filter(p => p.position === 'GS' || p.position === 'GA');
+      shooters.sort((a, b) => (sh(b).points || 0) - (sh(a).points || 0));
+
+      const t = el('table');
+      const hr = t.createTHead().insertRow();
+      ['Shooter', 'Goals', 'Super', 'Shots', '%'].forEach((h, i) => hr.appendChild(el('th', i ? 'n' : '', h)));
+      const body = t.createTBody();
+      const sum = { goals: 0, superGoals: 0, shots: 0 };
+      shooters.forEach((p, i) => {
+        const s = sh(p);
+        sum.goals += s.goals || 0; sum.superGoals += s.superGoals || 0; sum.shots += s.shots || 0;
+        const r = body.insertRow();
+        r.style.animationDelay = `${i * 80}ms`;
+        const nameCell = el('td', 'who');
+        if (p.position) nameCell.appendChild(el('span', 'pos', p.position));
+        nameCell.appendChild(document.createTextNode(p.name));
+        r.appendChild(nameCell);
+        r.appendChild(el('td', 'n', s.goals || 0));
+        r.appendChild(el('td', 'n', s.superGoals || 0));
+        r.appendChild(el('td', 'n', s.shots ?? '–'));
+        r.appendChild(el('td', 'n', pct((s.goals || 0) + (s.superGoals || 0), s.shots)));
+      });
+      // Team row: PlayHQ's team totals when there are some (not every goal is credited to a player).
+      const tot = team.totals && team.totals.shots != null ? team.totals : sum;
+      const f = t.createTFoot().insertRow();
+      f.appendChild(el('td', 'who', 'Team'));
+      f.appendChild(el('td', 'n', tot.goals ?? 0));
+      f.appendChild(el('td', 'n', tot.superGoals ?? 0));
+      f.appendChild(el('td', 'n', tot.shots ?? 0));
+      f.appendChild(el('td', 'n', pct((tot.goals || 0) + (tot.superGoals || 0), tot.shots)));
+      section.appendChild(t);
+      if (!team.players.length) section.appendChild(el('p', 'teamlist__empty', 'Stats not available from PlayHQ yet.'));
+    }
+
+    loadTeams(data => {
+      document.getElementById('title').textContent = params.get('title') || `Shooting stats  ·  ${BREAKS[data.period] || ''}`.replace(/\s·\s$/, '');
+      document.getElementById('homeName').textContent = data.home.name;
+      document.getElementById('awayName').textContent = data.away.name;
+      // The big score is the scoreboard's score; the tables are PlayHQ's shooting stats.
+      teamBlock(document.getElementById('home'), data.home);
+      teamBlock(document.getElementById('away'), data.away);
+      document.getElementById('homeGoals').textContent = data.score ? data.score.home : '';
+      document.getElementById('awayGoals').textContent = data.score ? data.score.away : '';
+      document.getElementById('footer').textContent = [data.competition, data.division, data.court].filter(Boolean).join('  ·  ');
+      document.getElementById('card').hidden = false;
+    });
+  </script>
+</body>
+</html>

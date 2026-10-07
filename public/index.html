@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PlayHQ Graphics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; background: #f4f4f7; color: #1b1b24; margin: 0; padding: 32px 16px; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; }
+  .sub { color: #555; margin: 0 0 24px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { margin: 0 0 8px; font-size: 18px; }
+  code { display: block; background: #eef; padding: 8px 10px; border-radius: 6px; word-break: break-all; }
+  .row { display: flex; gap: 8px; margin-top: 8px; }
+  button, a.btn { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid #4b1d8f; background: #4b1d8f; color: #fff; cursor: pointer; text-decoration: none; }
+  a.btn { background: #fff; color: #4b1d8f; }
+  .page { padding: 10px 0; border-top: 1px solid #eee; }
+  .page:first-child { border-top: 0; padding-top: 0; }
+  .page__name { font-weight: 700; margin-bottom: 4px; }
+  .page__help { margin: 8px 0 0; font-size: 14px; color: #555; line-height: 1.5; }
+  .page__help code { display: inline; padding: 1px 5px; white-space: nowrap; }
+  .error { background: #fde8e8; color: #8a1111; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+<main>
+  <h1>PlayHQ Graphics</h1>
+  <p class="sub" id="sub">Loading from PlayHQ…</p>
+  <div class="card">
+    <h2>Live scoreboard</h2>
+    <code id="sbUrl"></code>
+    <div class="row"><button id="sbCopy">Copy link</button><a class="btn" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn" href="/api.html" target="_blank">Stream Deck API docs</a></div>
+    <p class="page__help">Sits centred at the bottom, just above the score ticker with a small gap, so both can be on together.
+      <code>?position=top-center</code>, <code>bottom-center</code>, <code>top-left</code> or <code>bottom-left</code> moves it.</p>
+  </div>
+  <div class="card">
+    <h2>Control page settings (every page follows these)</h2>
+    <p class="page__help">Every graphic uses the round, game and court set on the <a href="/control.html" target="_blank">scoreboard control page</a>.
+      A setting added to a page's own link (like <code>?division=2</code> or <code>?round=6</code>) overrides it for that page only.</p>
+    <ul class="page__help">
+      <li><b>Round:</b> <b>Automatic</b> picks the round played in the next 5 days, counting today, so a Tuesday round is picked from the
+        Friday before. Otherwise it's the last round played (<code>roundLookaheadDays</code> in <code>config.json</code>).
+        Pick a round from the list to test with it, then set it back to <b>Automatic</b>.</li>
+      <li><b>Always a game on:</b> when the helper starts, or the scoreboard is cleared, it puts a game on straight away with
+        <b>Follow PlayHQ</b> on: the game for now on the court, otherwise this round's first game on that court, otherwise this
+        round's first game. The board is only left empty if PlayHQ can't be reached or the competition isn't found (check
+        <code>organisationUrl</code> and <code>competitionName</code> in <code>config.json</code>).</li>
+      <li><b>Game:</b> tick <b>Pick the game automatically for court</b> and set the court (default <code>defaultCourt</code> in
+        <code>config.json</code>, e.g. <code>Indoor 01</code> or just <code>1</code>). It shows the first game of the day on that court,
+        then switches to each next game 10 minutes before it starts, with the quarter back to Q1 and a full clock. A final
+        (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a round picked
+        by hand, its games are treated as if they were today, so the switching can be tested any time.</li>
+      <li><b>Overrides:</b> picking a game from the list turns automatic selection off until you tick it again or change the court. Pressing a score
+        button switches scores to manual, and any clock button switches the clock to manual.</li>
+      <li><b>Follow PlayHQ:</b> the score and quarter come from PlayHQ's live scoring every 5 seconds. Tick
+        <b>Follow the PlayHQ scorer's clock</b> to run the clock from the scorer's clock too.</li>
+      <li><b>Pages that use the picked game's division:</b> ladder (without <code>?division=</code>), ladder bar, top shooters,
+        title, match up, The Clash, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
+      <li><b>Stream Deck:</b> <code>/deck/auto/on</code>, <code>/deck/auto/off</code>, <code>/deck/auto/toggle</code>,
+        <code>/deck/court/2</code> and <code>/deck/clock/playhq/on</code>. See the Stream Deck API docs above for the rest.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Game graphics (for the game picked on the scoreboard)</h2>
+    <div id="gamePages"></div>
+  </div>
+  <div class="card">
+    <h2>Round fixture and results (current round, all divisions)</h2>
+    <div id="fixturePages"></div>
+  </div>
+  <div class="card" id="shootersCard" hidden>
+    <h2>Top shooters (season)</h2>
+    <div id="shooterPages"></div>
+  </div>
+  <div id="list"></div>
+  <div class="card">
+    <h2>Data and bandwidth</h2>
+    <p class="page__help">Only <b>scoreboard.html</b> and <b>ticker.html</b> keep asking for new data (the control page does too, but it isn't in OBS).
+      Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.
+      The Clash only retries if the helper isn't running.</p>
+    <p class="page__help">Pages only ever talk to the helper on this computer, which uses no internet. The helper is the only thing that
+      contacts PlayHQ, and it caches what it gets:</p>
+    <ul class="page__help">
+      <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page).</li>
+      <li>Ticker: other courts' scores at most every 30 seconds.</li>
+      <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
+    </ul>
+    <p class="page__help">Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
+      <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard and control page.</p>
+  </div>
+  <p class="sub">Something not working? The debug log is in the <b>logs</b> folder, or <a href="/api/log" target="_blank">open the debug log</a>. Send <code style="display:inline">logs/playhq-graphics.log</code> to Claude.</p>
+  <p class="sub">In OBS add a <b>Browser</b> source, paste a link, and set width 1920 and height 1080. Toggle each source's visibility to show or hide it.</p>
+</main>
+<script>
+function copy(text, button) {
+  const done = () => { button.textContent = 'Copied'; setTimeout(() => { button.textContent = 'Copy link'; }, 1500); };
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).then(done);
+  const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
+  document.execCommand('copy'); t.remove(); done();
+}
+// One line per page: name, full link, Copy link and Preview.
+function pageRow(name, path, help) {
+  const url = `${location.origin}${path}`;
+  const row = document.createElement('div');
+  row.className = 'page';
+  row.innerHTML = '<div class="page__name"></div><code></code><div class="row"><button>Copy link</button><a class="btn" target="_blank">Preview</a></div>';
+  row.querySelector('.page__name').textContent = name;
+  row.querySelector('code').textContent = url;
+  row.querySelector('a').href = url;
+  row.querySelector('button').onclick = e => copy(url, e.target);
+  if (help) {
+    const p = document.createElement('p');
+    p.className = 'page__help';
+    p.innerHTML = help; // our own text below, not data
+    row.appendChild(p);
+  }
+  return row;
+}
+document.getElementById('sbUrl').textContent = `${location.origin}/scoreboard.html`;
+document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreboard.html`, e.target);
+[['Title banner', '/title.html'], ['Match up (with form and head to head)', '/matchup.html'], ['The Clash (animated match up)', '/clash.html',
+  'Plays when the page loads: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
+  'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=RIVALS</code> changes the big word, and ' +
+  '<code>?title=Grand%20Final</code> changes the bottom line. Combine them with &amp;, e.g. <code>/clash.html?out=10&amp;word=RIVALS</code>.'], ['Up next (half time)', '/upnext.html'], ['Home team list', '/teamlist.html?side=home'],
+ ['Away team list', '/teamlist.html?side=away'], ['Shooting stats', '/shooting.html'],
+ ['Full time card', '/fulltime.html'], ['Ladder lower third', '/ladderbar.html'], ['Score ticker (other courts, updates itself)', '/ticker.html']]
+  .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
+document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
+document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
+(async () => {
+  const list = document.getElementById('list');
+  const sub = document.getElementById('sub');
+  try {
+    const res = await fetch('/api/structure');
+    const st = await res.json();
+    if (!res.ok) throw new Error(st.error);
+    sub.textContent = `${st.organisation} · ${st.competition} · ${st.season.name}`;
+    st.grades.forEach(g => document.getElementById('shooterPages').appendChild(pageRow(`Top shooters: ${g.name}`, `/topshooters.html?division=${g.division}`)));
+    document.getElementById('shootersCard').hidden = !st.grades.length;
+    st.grades.forEach(g => {
+      const url = `${location.origin}/ladder.html?division=${g.division}`;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `<h2></h2><code></code><div class="row"><button>Copy link</button><a class="btn" target="_blank">Preview</a></div>`;
+      card.querySelector('h2').textContent = `Ladder: ${g.name}`;
+      card.querySelector('code').textContent = url;
+      card.querySelector('a').href = url;
+      card.querySelector('button').onclick = e => copy(url, e.target);
+      list.appendChild(card);
+    });
+  } catch (err) {
+    console.warn("Home page could not load from PlayHQ:", err.message);
+    sub.textContent = '';
+    list.innerHTML = '<div class="card error"></div>';
+    list.firstChild.textContent = `Couldn't load from PlayHQ: ${err.message}`;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scoreboard API</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/swagger-ui/swagger-ui.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+  body { margin: 0; background: #fff; }
+  .topbar-thunder {
+    background: var(--purple); color: #fff; padding: 14px 20px; border-bottom: 5px solid var(--pink);
+    font-family: "Segoe UI", Arial, sans-serif; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .topbar-thunder h1 { margin: 0; font-size: 22px; }
+  .topbar-thunder a { color: var(--yellow); text-decoration: none; font-weight: 600; }
+  .topbar-thunder .spacer { flex: 1; }
+  .swagger-ui .info .title { color: var(--purple); }
+  .swagger-ui .btn.execute { background: var(--purple); border-color: var(--purple); }
+  .swagger-ui .opblock.opblock-get { border-color: var(--purple); background: rgba(127, 64, 146, 0.06); }
+  .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--purple); }
+  .swagger-ui .opblock.opblock-get .opblock-summary { border-color: var(--purple); }
+  #fallback { font-family: "Segoe UI", Arial, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+  <div class="topbar-thunder">
+    <h1>Scoreboard API</h1>
+    <span class="spacer"></span>
+    <a href="/">Home</a>
+    <a href="/control.html">Scoreboard control</a>
+    <a href="/openapi.yaml" download>Download openapi.yaml</a>
+  </div>
+  <div id="swagger"></div>
+  <div id="fallback" hidden>
+    <p>The documentation viewer did not load.
+       The raw document is at <a href="/openapi.yaml">/openapi.yaml</a>, and STREAMDECK.md in the folder lists every link.</p>
+  </div>
+  <script src="vendor/swagger-ui/swagger-ui-bundle.js"></script>
+  <script>
+    // "Try it out" on any link sends it to the scoreboard for real.
+    if (window.SwaggerUIBundle) {
+      SwaggerUIBundle({
+        url: '/openapi.yaml',
+        dom_id: '#swagger',
+        deepLinking: true,
+        docExpansion: 'list',
+        defaultModelsExpandDepth: 0,
+        tryItOutEnabled: true,
+      });
+    } else {
+      document.getElementById('fallback').hidden = false;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round Fixture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/fixtures.html
+       Shows the current round of every division, sorted by time. Loads once: tick
+       "Refresh browser when scene becomes active" in OBS to get the latest.
+       Options: ?division=1 (one division only)  ?round=6 (a different round)
+       http://localhost:8080/results.html is the same page showing only finished games with scores. -->
+  <main class="card fixtures" id="card" hidden>
+    <header class="fixtures__header">
+      <div class="tab" id="comp"></div>
+      <h1 class="fixtures__round" id="round"></h1>
+      <div class="fixtures__venue" id="venue"></div>
+    </header>
+    <div class="fixtures__list" id="list"></div>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const DONE = /COMPLETE|FINAL|RESULT|FORFEIT/i;
+    const RESULTS = /results/.test(location.pathname) || params.has('results');
+    if (RESULTS) document.title = 'Round Results';
+
+    function clock(time) {
+      const [h, m] = String(time || '').split(':').map(Number);
+      return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : (time || 'TBC');
+    }
+    function team(t, side) {
+      const box = el('div', `fixture__team fixture__team--${side}`);
+      box.append(logoEl(t, 'fixture__logo'), el('span', 'fixture__name', t.name));
+      return box;
+    }
+
+    async function load() {
+      const msg = document.getElementById('message');
+      try {
+        const query = new URLSearchParams(location.search);
+        if (RESULTS) query.set('results', '1');
+        const res = await fetch(`/api/fixtures?${query}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        document.getElementById('comp').textContent = data.competition || 'Thunder League';
+        document.getElementById('round').textContent = [data.division, data.round].filter(Boolean).join('  ·  ') + (RESULTS ? ' results' : '') || 'Fixture';
+        const day = data.games[0] && data.games[0].date ? new Date(`${data.games[0].date}T00:00:00`) : null;
+        document.getElementById('venue').textContent = [day && !isNaN(day) ? day.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) : '', data.venueName].filter(Boolean).join('  ·  ');
+        const list = document.getElementById('list');
+        list.replaceChildren();
+        const oneDivision = !!data.division;
+        let lastTime = null;
+        for (const g of data.games) {
+          const row = el('div', 'fixture');
+          const t = clock(g.time);
+          row.append(el('div', 'fixture__time' + (t === lastTime ? ' fixture__time--same' : ''), t));
+          lastTime = t;
+          const where = el('div', 'fixture__where');
+          where.append(el('span', 'fixture__court', g.court || ''));
+          if (!oneDivision) where.append(el('span', 'fixture__division', g.division));
+          row.append(where, team(g.home, 'home'));
+          const played = (RESULTS || DONE.test(g.status || '')) && g.home.score !== null && g.away.score !== null;
+          row.append(el('div', 'fixture__vs' + (played ? ' fixture__vs--score' : ''), played ? `${g.home.score} – ${g.away.score}` : 'VS'));
+          row.append(team(g.away, 'away'));
+          list.append(row);
+        }
+        if (!data.games.length) list.append(el('div', 'fixture fixture--empty', RESULTS ? 'No results yet this round' : 'No games found for this round'));
+        msg.hidden = true;
+        document.getElementById('card').hidden = false;
+        // Shrink to fit 1080 high when there are a lot of games.
+        const card = document.getElementById('card');
+        const scale = Math.min(1, 1020 / card.offsetHeight);
+        card.style.transform = scale < 1 ? `scale(${scale})` : '';
+      } catch (err) {
+        console.warn("Fixture unavailable:", err.message);
+        msg.textContent = `Fixture unavailable: ${err.message}`;
+        msg.hidden = false;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

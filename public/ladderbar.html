@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ladder Lower Third</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body class="lower">
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/ladderbar.html
+       Both teams' ladder position and record for the game picked on the scoreboard control page.
+       Sits at the bottom of the screen. Loads once: tick "Refresh browser when scene becomes active".
+       Options: ?board=2 -->
+  <div class="ladderbar" id="bar" hidden>
+    <div class="ladderbar__side" id="home"></div>
+    <div class="ladderbar__mid"><div class="ladderbar__label">Ladder</div><div class="ladderbar__div" id="division"></div></div>
+    <div class="ladderbar__side ladderbar__side--away" id="away"></div>
+  </div>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script src="season.js"></script>
+  <script>
+    function side(id, t) {
+      const box = document.getElementById(id);
+      const l = t.ladder;
+      const info = el('div', 'ladderbar__info');
+      info.append(el('div', 'ladderbar__name', t.name));
+      info.append(el('div', 'ladderbar__record', l ? `${record(l)}  ·  ${l.points ?? 0} pts${l.percentage != null ? '  ·  ' + Number(l.percentage).toFixed(1) + '%' : ''}` : 'Not on the ladder yet'));
+      box.replaceChildren(logoEl(t, 'ladderbar__logo'), info, el('div', 'ladderbar__pos', l ? ordinal(l.position) : '–'));
+    }
+    loadJson('/api/ladderbar', d => {
+      document.getElementById('division').textContent = d.division;
+      side('home', d.home); side('away', d.away);
+      document.getElementById('bar').hidden = false;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scoreboard Control</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 20px 16px 40px; background: #f5f1f7; color: #241228; }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; color: var(--purple); }
+  .sub { color: #6b5a70; margin: 0 0 16px; }
+  section { background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: #6b5a70; margin: 0 0 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  select, input { font: inherit; padding: 7px 9px; border: 1px solid #cdbfd3; border-radius: 6px; }
+  select { flex: 1 1 360px; min-width: 0; }
+  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 6px; border: 0; background: var(--purple); color: #fff; cursor: pointer; }
+  button.alt { background: #ece3f0; color: var(--purple); }
+  button.on { background: var(--pink); color: #fff; }
+  .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .team { border: 2px solid #ece3f0; border-radius: 10px; padding: 12px; text-align: center; }
+  .team input { width: 100%; text-align: center; font-weight: 700; margin-bottom: 8px; }
+  .big { font-size: 64px; font-weight: 800; color: var(--purple); line-height: 1; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+  .team .row { justify-content: center; }
+  .plus { background: var(--yellow); color: var(--text-on-yellow); font-size: 22px; padding: 12px 26px; }
+  .clockface { font-size: 32px; font-weight: 800; color: var(--purple); min-width: 100px; font-variant-numeric: tabular-nums; }
+  a.btnlink { font-weight: 600; padding: 8px 14px; border-radius: 6px; background: #ece3f0; color: var(--purple); text-decoration: none; }
+  .note { font-size: 14px; color: #6b5a70; margin: 8px 0 0; }
+  .error { color: #a1123c; }
+  .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
+             background: repeating-conic-gradient(#ddd 0 25%, #f4f4f4 0 50%) 0 0 / 24px 24px; }
+  .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+  @media (max-width: 600px) { .teams { grid-template-columns: 1fr; } }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+<main>
+  <h1>Scoreboard control</h1>
+  <p class="sub" id="sub">Board 1. Add <b>http://localhost:8080/scoreboard.html</b> to OBS as a Browser source (1920 × 1080).</p>
+
+  <section>
+    <h2>Game</h2>
+    <div class="row">
+      <label>Round <select id="round"><option value="">Automatic</option></select></label>
+    </div>
+    <p class="note" id="roundNote"></p>
+    <div class="row" style="margin-top:10px">
+      <label><input id="autoSelect" type="checkbox"> Pick the game automatically for court</label>
+      <input id="autoCourt" list="courtList" placeholder="none set" style="width:140px">
+      <datalist id="courtList"></datalist>
+    </div>
+    <p class="note" id="autoNote"></p>
+    <div class="row" style="margin-top:10px">
+      <select id="games"><option>Loading this round's games from PlayHQ…</option></select>
+      <button id="useGame">Use this game</button>
+      <button class="alt" id="reloadGames">Refresh list</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span>Scores:</span>
+      <button class="alt" id="srcPlayhq">Follow PlayHQ</button>
+      <button class="alt" id="srcManual">Manual</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>Check PlayHQ every <input id="refreshSec" type="number" min="3" max="120" style="width:70px"> seconds</label>
+    </div>
+    <p class="note" id="sourceNote"></p>
+    <div class="row" style="margin-top:10px">
+      <label>Court shown above the clock <input id="court" placeholder="Court 1" style="width:140px"></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Score</h2>
+    <div class="teams">
+      <div class="team">
+        <input id="homeName" aria-label="Home team name">
+        <div class="big" id="homeScore">0</div>
+        <div class="row"><button class="plus" data-side="home" data-delta="1">+1</button><button class="plus" data-side="home" data-delta="2" title="Super shot">+2</button><button class="alt" data-side="home" data-delta="-1">−1</button><button class="alt" data-side="home" data-delta="-2">−2</button></div>
+      </div>
+      <div class="team">
+        <input id="awayName" aria-label="Away team name">
+        <div class="big" id="awayScore">0</div>
+        <div class="row"><button class="plus" data-side="away" data-delta="1">+1</button><button class="plus" data-side="away" data-delta="2" title="Super shot">+2</button><button class="alt" data-side="away" data-delta="-1">−1</button><button class="alt" data-side="away" data-delta="-2">−2</button></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="alt" id="resetScores">Reset scores to 0</button></div>
+    <p class="note">Keyboard: <b>A</b> / <b>Z</b> home +1 / −1, <b>K</b> / <b>M</b> away +1 / −1. Hold <b>Shift</b> for +2 / −2 (super shot). <b>Space</b> starts or stops the clock. Stream Deck links are in STREAMDECK.md.</p>
+  </section>
+
+  <section>
+    <h2>Quarter and clock</h2>
+    <div class="row" id="periods"></div>
+    <div class="row" style="margin-top:10px">
+      <span class="clockface" id="clockface">10:00</span>
+      <button id="clockToggle">Start</button>
+      <button class="alt" id="clockMinus">−10 s</button>
+      <button class="alt" id="clockPlus">+10 s</button>
+      <button class="alt" id="clockReset">Reset clock</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>Match venue clock <input id="clockSetValue" placeholder="12:34" inputmode="numeric" style="width:80px"></label>
+      <button class="alt" id="clockSet">Set</button>
+      <label>Length <input id="clockLength" type="number" min="1" max="60" style="width:70px"> min</label>
+      <label><input id="showClock" type="checkbox"> Show clock</label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label><input id="followClock" type="checkbox"> Follow the PlayHQ scorer's clock</label>
+      <span class="note" id="clockNote"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Title, match up, team lists and shooting stats</h2>
+    <p class="note" id="teamsNote">Pick a PlayHQ game above to load its team lists.</p>
+    <div class="row" style="margin-top:10px">
+      <a class="btnlink" href="/title.html" target="_blank" id="titlelink">Title</a>
+      <a class="btnlink" href="/matchup.html" target="_blank" id="matchup">Match up</a>
+      <a class="btnlink" href="/clash.html" target="_blank" id="clash">The Clash</a>
+      <a class="btnlink" href="/upnext.html" target="_blank" id="upnext">Up next</a>
+      <a class="btnlink" href="/fulltime.html" target="_blank" id="fulltime">Full time</a>
+      <a class="btnlink" href="/ladderbar.html" target="_blank" id="ladderbar">Ladder bar</a>
+      <a class="btnlink" href="/ticker.html" target="_blank" id="ticker">Ticker</a>
+      <a class="btnlink" href="/topshooters.html" target="_blank" id="shooters">Top shooters</a>
+      <a class="btnlink" href="/teamlist.html?side=home" target="_blank" id="tlHome">Home team list</a>
+      <a class="btnlink" href="/teamlist.html?side=away" target="_blank" id="tlAway">Away team list</a>
+      <a class="btnlink" href="/shooting.html" target="_blank" id="shoot">Shooting stats</a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Preview</h2>
+    <div class="preview" id="preview"><iframe id="frame" title="Scoreboard preview"></iframe></div>
+    <div class="row" style="margin-top:10px"><button class="alt" id="resetAll">Clear scoreboard</button></div>
+  </section>
+</main>
+<script>
+(function () {
+  const boardId = new URLSearchParams(location.search).get('board') || '1';
+  const api = `/api/scoreboard?board=${encodeURIComponent(boardId)}`;
+  const $ = id => document.getElementById(id);
+  let state = null, games = [], serverOffset = 0;
+
+  $('sub').innerHTML = `Board ${boardId}. Add <b>${location.origin}/scoreboard.html${boardId === '1' ? '' : '?board=' + boardId}</b> to OBS as a Browser source (1920 × 1080).`;
+  $('frame').src = `/scoreboard.html?board=${encodeURIComponent(boardId)}`;
+  const fit = () => { $('frame').style.transform = `scale(${$('preview').clientWidth / 1920})`; };
+  addEventListener('resize', fit); fit();
+
+  async function act(action) {
+    const res = await fetch(api, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) });
+    apply(await res.json());
+  }
+
+  function apply(s) {
+    state = s; serverOffset = s.serverNow - Date.now();
+    $('homeScore').textContent = s.home.score ?? 0;
+    $('awayScore').textContent = s.away.score ?? 0;
+    if (document.activeElement !== $('homeName')) $('homeName').value = s.home.name;
+    if (document.activeElement !== $('awayName')) $('awayName').value = s.away.name;
+    if (document.activeElement !== $('refreshSec')) $('refreshSec').value = s.playhqRefreshSec || 5;
+    if (document.activeElement !== $('court')) $('court').value = s.court || '';
+    $('srcPlayhq').classList.toggle('on', s.source === 'playhq');
+    $('srcManual').classList.toggle('on', s.source === 'manual');
+    $('srcPlayhq').disabled = !s.gameId;
+    $('sourceNote').textContent = s.source === 'playhq'
+      ? `Scores update from PlayHQ every ${s.playhqRefreshSec || 5} seconds, if the game is being live-scored there. Pressing a score button switches to manual.`
+      : 'Scores only change when you press the buttons here.';
+    if (s.playhqError && s.source === 'playhq') $('sourceNote').textContent += ` Last PlayHQ error: ${s.playhqError}`;
+    $('clockToggle').textContent = s.clock.running ? 'Stop' : 'Start';
+    $('clockToggle').classList.toggle('on', s.clock.running);
+    if (document.activeElement !== $('clockLength')) $('clockLength').value = Math.round(s.clock.lengthSec / 60);
+    $('showClock').checked = s.showClock;
+    $('autoSelect').checked = !!s.autoSelect;
+    const gi = games.findIndex(g => g.id === s.gameId);
+    if (gi >= 0 && document.activeElement !== $('games') && $('games').value !== String(gi)) $('games').value = gi;
+    if (document.activeElement !== $('autoCourt')) $('autoCourt').value = s.autoCourt || '';
+    $('autoNote').textContent = s.autoSelect
+      ? `${s.autoNote || 'Finding the game…'}${s.autoHold ? '' : ' Picking a game from the list turns this off.'}`
+      : `Off, so the game stays as picked from the list${s.court ? ` (now on ${s.court})` : ''}. Tick the box, or change the court, to follow ${s.autoCourt || 'a court'} automatically.`;
+    $('followClock').checked = !!s.followPlayhqClock;
+    $('clockNote').textContent = !s.followPlayhqClock ? 'Clock buttons work it by hand.'
+      : s.source !== 'playhq' ? 'Turn on Follow PlayHQ above for this to work.'
+      : s.playhqClock ? `PlayHQ: ${s.playhqClock.time} ${String(s.playhqClock.status || '').toLowerCase()}. Pressing a clock button switches it back to manual.`
+      : 'Waiting for the PlayHQ scorer to start the clock.';
+    [...$('periods').children].forEach(b => b.classList.toggle('on', Number(b.dataset.p) === s.period));
+  }
+
+  function tick() {
+    if (!state) return;
+    const c = state.clock;
+    const elapsed = state.clockElapsedMs + (c.running ? Date.now() + serverOffset - state.serverNow : 0);
+    const s = Math.ceil(Math.max(0, c.lengthSec * 1000 - elapsed) / 1000);
+    $('clockface').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  async function poll() {
+    try { apply(await (await fetch(api, { cache: 'no-store' })).json()); } catch {}
+  }
+
+  // The round every page uses: automatic by date, or one picked here (for testing).
+  async function loadRounds(post) {
+    try {
+      const res = await fetch('/api/rounds', post ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(post) } : { cache: 'no-store' });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      const sel = $('round');
+      const nice = r => r.name + (r.date ? ` (${new Date(r.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })})` : '');
+      sel.innerHTML = '';
+      const auto = document.createElement('option');
+      auto.value = ''; auto.textContent = `Automatic: ${d.auto || '?'}`;
+      sel.appendChild(auto);
+      d.rounds.forEach(r => { const o = document.createElement('option'); o.value = r.key; o.textContent = nice(r); sel.appendChild(o); });
+      sel.value = d.choice || '';
+      $('roundNote').textContent = d.choice
+        ? `Picked by hand: every page uses this round until you set it back to Automatic.`
+        : `Automatic picks the round played in the next ${d.lookaheadDays} days (counting today), otherwise the last round played.`;
+    } catch (err) { $('roundNote').textContent = `Couldn't load the rounds from PlayHQ (${err.message}).`; }
+  }
+  $('round').onchange = async () => { await loadRounds({ round: $('round').value }); loadGames(); };
+  loadRounds();
+
+  async function loadGames() {
+    const sel = $('games');
+    sel.innerHTML = '<option>Loading this round\'s games from PlayHQ…</option>';
+    try {
+      const res = await fetch('/api/games', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      games = data.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '').localeCompare(String(b.time || '')) || a.court.localeCompare(b.court));
+      sel.innerHTML = '';
+      $('courtList').innerHTML = [...new Set(games.map(g => g.court).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+        .map(c => `<option value="${c.replace(/"/g, '&quot;')}">`).join('');
+      if (!games.length) sel.innerHTML = '<option>No games in the current round. Type team names below instead.</option>';
+      games.forEach((g, i) => {
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = [g.division, g.round, g.date, g.time, g.court, `${g.home.name} v ${g.away.name}`].filter(Boolean).join(' · ');
+        if (state && state.gameId === g.id) o.selected = true;
+        sel.appendChild(o);
+      });
+    } catch (err) {
+      sel.innerHTML = '';
+      const o = document.createElement('option');
+      o.textContent = `Couldn't load games from PlayHQ (${err.message}). Type team names below instead.`;
+      sel.appendChild(o);
+    }
+  }
+
+  for (let p = 1; p <= 4; p++) {
+    const b = document.createElement('button');
+    b.className = 'alt'; b.dataset.p = p; b.textContent = `Q${p}`;
+    b.onclick = () => act({ type: 'period', value: p });
+    $('periods').appendChild(b);
+  }
+  const et = document.createElement('button');
+  et.className = 'alt'; et.dataset.p = 5; et.textContent = 'Extra time';
+  et.onclick = () => act({ type: 'period', value: 5 });
+  $('periods').appendChild(et);
+
+  document.querySelectorAll('[data-delta]').forEach(b => b.onclick = () => act({ type: 'score', side: b.dataset.side, delta: Number(b.dataset.delta) }));
+  $('autoSelect').onchange = () => act({ type: 'autoSelect', value: $('autoSelect').checked });
+  $('autoCourt').onchange = () => act({ type: 'autoCourt', value: $('autoCourt').value.trim() });
+  $('useGame').onclick = () => { const g = games[$('games').value]; if (g) act({ type: 'selectGame', game: g }); };
+  $('reloadGames').onclick = loadGames;
+  $('srcPlayhq').onclick = () => act({ type: 'source', value: 'playhq' });
+  $('srcManual').onclick = () => act({ type: 'source', value: 'manual' });
+  $('homeName').onchange = () => act({ type: 'setTeams', home: $('homeName').value });
+  $('awayName').onchange = () => act({ type: 'setTeams', away: $('awayName').value });
+  $('refreshSec').onchange = () => act({ type: 'playhqRefresh', value: Number($('refreshSec').value) });
+  $('court').onchange = () => act({ type: 'setTeams', court: $('court').value.trim() });
+  $('clockToggle').onclick = () => act({ type: state && state.clock.running ? 'clockStop' : 'clockStart' });
+  function setClock() {
+    const m = $('clockSetValue').value.trim().match(/^(\d{1,2})(?:[:.](\d{1,2}))?$/);
+    if (!m) { $('clockSetValue').focus(); return; }
+    act({ type: 'clockSet', secondsLeft: Number(m[1]) * 60 + Number(m[2] || 0) });
+    $('clockSetValue').value = '';
+  }
+  $('clockSet').onclick = setClock;
+  $('clockSetValue').onkeydown = e => { if (e.key === 'Enter') setClock(); };
+  $('clockReset').onclick = () => act({ type: 'clockReset' });
+  $('clockMinus').onclick = () => act({ type: 'clockAdjust', deltaSec: -10 });
+  $('clockPlus').onclick = () => act({ type: 'clockAdjust', deltaSec: 10 });
+  $('clockLength').onchange = () => act({ type: 'clockLength', value: Number($('clockLength').value) * 60 });
+  $('showClock').onchange = () => act({ type: 'showClock', value: $('showClock').checked });
+  $('followClock').onchange = () => act({ type: 'followPlayhqClock', value: $('followClock').checked });
+  $('resetScores').onclick = () => { if (confirm('Set both scores back to 0?')) act({ type: 'resetScores' }); };
+  $('resetAll').onclick = () => { if (confirm('Clear the teams, scores and clock?')) act({ type: 'reset' }); };
+
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    const keys = { a: ['home', 1], z: ['home', -1], k: ['away', 1], m: ['away', -1] };
+    const k = keys[e.key.toLowerCase()];
+    if (k) act({ type: 'score', side: k[0], delta: k[1] * (e.shiftKey ? 2 : 1) });
+    if (e.code === 'Space') { e.preventDefault(); $('clockToggle').click(); }
+  });
+
+  async function pollTeams() {
+    try {
+      const t = await (await fetch(`/api/teams?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+      const count = side => `${t[side].name}: ${t[side].players.length} players${t[side].logo ? '' : ' (no logo found)'}`;
+      $('teamsNote').textContent = t.error && !t.home.players.length ? `Not available: ${t.error}` : `${count('home')}. ${count('away')}.${t.error ? ' Last update failed: ' + t.error : ''}`;
+      $('teamsNote').classList.toggle('error', !!t.error);
+    } catch {}
+  }
+  const q = boardId === '1' ? '' : `board=${encodeURIComponent(boardId)}`;
+  if (q) { $('titlelink').href += '?' + q; $('matchup').href += '?' + q; $('clash').href += '?' + q; $('upnext').href += '?' + q; $('fulltime').href += '?' + q; $('ladderbar').href += '?' + q; $('ticker').href += '?' + q; $('shooters').href += '?' + q; $('tlHome').href += '&' + q; $('tlAway').href += '&' + q; $('shoot').href += '?' + q; }
+  pollTeams(); setInterval(pollTeams, 10000);
+  poll().then(loadGames);
+  setInterval(poll, 2000);
+  setInterval(tick, 250);
+})();
+</script>
+<script src="autoreload.js"></script>
+</body>
+</html>

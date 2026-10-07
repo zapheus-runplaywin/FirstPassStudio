@@ -1,0 +1,13 @@
+/* Thunder League colours, shared by every overlay. Change them here. */
+:root {
+  --font: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --purple: #7f4092;
+  --purple-dark: #4a1f57;
+  --purple-deep: rgba(38, 14, 46, 0.92);
+  --purple-deep-alt: rgba(58, 24, 70, 0.92);
+  --yellow: #ffcd00;
+  --pink: #e6007e;
+  --text: #ffffff;
+  --text-on-yellow: #2b0f36;
+  --muted: #d9c3e3;
+}

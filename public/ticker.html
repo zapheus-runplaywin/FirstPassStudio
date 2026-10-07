@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Score Ticker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body class="lower">
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/ticker.html
+       Scrolling scores from the other games in this round (leaves out the game on the scoreboard).
+       Like the scoreboard, it updates its scores itself every 30 seconds.
+       Options: ?board=2  ?refresh=60 (seconds; 0 = load once)  ?speed=120 (pixels per second) -->
+  <div class="ticker" id="ticker" hidden>
+    <div class="ticker__label">Around the courts</div>
+    <div class="ticker__window"><div class="ticker__track" id="track"></div></div>
+  </div>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script src="season.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const refresh = params.has('refresh') ? Number(params.get('refresh')) : 30;
+    const speed = Number(params.get('speed')) || 120;
+    const track = document.getElementById('track');
+    let pending = null;
+
+    function items(games) {
+      const frag = document.createDocumentFragment();
+      if (!games.length) frag.append(el('span', 'ticker__item', 'Scores from the other courts will appear here'));
+      for (const g of games) {
+        const it = el('span', 'ticker__item');
+        it.append(el('span', 'ticker__div', g.division.replace(/division/i, 'Div')),
+          el('span', 'ticker__team', g.home.name), el('span', 'ticker__score', `${g.home.score ?? 0} – ${g.away.score ?? 0}`),
+          el('span', 'ticker__team', g.away.name), el('span', 'ticker__state' + (g.live ? ' is-live' : ''), g.live ? 'Live' : g.finished ? 'FT' : ''));
+        frag.append(it);
+      }
+      return frag;
+    }
+    function show(games) {
+      // Two copies side by side so the scroll loops without a gap.
+      track.replaceChildren(items(games), items(games));
+      const half = track.scrollWidth / 2;
+      track.style.setProperty('--shift', `-${half}px`);
+      track.style.animationDuration = `${Math.max(10, half / speed)}s`;
+    }
+    track.addEventListener('animationiteration', () => { if (pending) { show(pending); pending = null; } });
+    async function load(first) {
+      try {
+        const d = await (await fetch(`/api/ticker?board=${encodeURIComponent(params.get('board') || '1')}`, { cache: 'no-store' })).json();
+        if (d.error) throw new Error(d.error);
+        if (first) {
+          // Unhide first: a hidden ticker has no width, which left the scroll distance at 0.
+          document.getElementById('ticker').hidden = false;
+          show(d.games);
+          document.fonts.ready.then(() => show(d.games)); // re-measure once the font has loaded
+        } else pending = d.games;
+      } catch (err) { console.warn('Ticker unavailable:', err.message); }
+    }
+    load(true);
+    if (refresh > 0) setInterval(load, Math.max(10, refresh) * 1000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Title</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<style>
+  html, body { margin: 0; background: transparent; font-family: var(--font); }
+  body { display: flex; justify-content: center; padding-top: 40px; }
+  body.bottom { align-items: flex-end; min-height: 100vh; box-sizing: border-box; padding: 0 0 60px; }
+  .title { display: flex; flex-direction: column; align-items: center; text-transform: uppercase; filter: drop-shadow(0 6px 16px rgba(0,0,0,.45)); }
+  .title[hidden] { display: none; }
+  .title__round {
+    background: var(--yellow); color: var(--text-on-yellow);
+    font-weight: 800; font-size: 28px; letter-spacing: .04em;
+    padding: 6px 64px 4px; min-width: 260px; text-align: center;
+    border-radius: 22px 22px 0 0;
+  }
+  .title__round:empty { display: none; }
+  .title__body { min-width: 620px; border-radius: 48px; overflow: hidden; text-align: center; }
+  .title__comp {
+    background: radial-gradient(ellipse at center, #a463b8 0%, var(--purple) 60%, #6e3480 100%);
+    color: var(--text); font-weight: 800; font-size: 40px; letter-spacing: .02em;
+    padding: 10px 70px 8px; white-space: nowrap;
+  }
+  .title__venue {
+    background: radial-gradient(ellipse at center, #6a3f78 0%, var(--purple-dark) 100%);
+    color: var(--text); font-weight: 700; font-size: 32px; letter-spacing: .02em;
+    padding: 8px 70px 10px; white-space: nowrap;
+  }
+  .title__venue:empty { display: none; }
+  .fire { font-size: .9em; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/title.html
+       Round comes from the game picked on the scoreboard control page; the venue from
+       "venueName" in config.json (or PlayHQ's venue if that is blank).
+       Options: ?board=2 for a second court, ?position=bottom, ?fire=0 to drop the flames. -->
+  <div class="title" id="title" hidden>
+    <div class="title__round" id="round"></div>
+    <div class="title__body">
+      <div class="title__comp" id="comp"></div>
+      <div class="title__venue" id="venue"></div>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const boardId = params.get('board') || '1';
+    const fire = params.get('fire') !== '0';
+    if (params.get('position') === 'bottom') document.body.classList.add('bottom');
+    let last = '';
+
+    function setComp(name) {
+      const comp = document.getElementById('comp');
+      comp.replaceChildren();
+      const flame = () => { const s = document.createElement('span'); s.className = 'fire'; s.textContent = '🔥'; return s; };
+      if (fire) comp.append(flame(), ' ');
+      comp.append(name);
+      if (fire) comp.append(' ', flame());
+    }
+
+    async function load() {
+      try {
+        const s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        const view = JSON.stringify([s.round, s.competition, s.venueName]);
+        if (view === last) return;
+        last = view;
+        document.getElementById('round').textContent = s.round || '';
+        setComp(s.competition || 'Thunder League');
+        document.getElementById('venue').textContent = s.venueName || '';
+        document.getElementById('title').hidden = false;
+      } catch (err) { console.warn('Title unavailable:', err.message); }
+    }
+    load();
+  </script>
+</body>
+</html>

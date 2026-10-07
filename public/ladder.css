@@ -1,0 +1,59 @@
+/* Ladder layout. Colours come from theme.css. The page background stays transparent for OBS. */
+:root {
+  --width: 1100px;            /* ladder width */
+  --top: 90px;                /* distance from the top of the 1080p frame */
+  --header-bg: var(--purple);
+  --header-text: var(--text);
+  --accent: var(--yellow);    /* division label and position numbers */
+  --stripe: var(--pink);      /* accent line under the banner */
+  --row-bg: var(--purple-deep);
+  --row-alt-bg: var(--purple-deep-alt);
+  --row-text: var(--text);
+  --muted-text: var(--muted); /* column headings */
+  --points-bg: var(--yellow);
+  --points-text: var(--text-on-yellow);
+  --row-height: 54px;
+  --radius: 10px;
+}
+
+html, body { margin: 0; background: transparent; }
+body { font-family: var(--font); color: var(--row-text); overflow: hidden; }
+
+.ladder { width: var(--width); margin: var(--top) auto 0; }
+.ladder[hidden] { display: none; }
+
+.ladder__header {
+  background: var(--header-bg); color: var(--header-text);
+  padding: 18px 28px 16px; border-radius: var(--radius) var(--radius) 0 0;
+  border-bottom: 5px solid var(--stripe);
+}
+.ladder__org { font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
+.ladder__title { margin: 4px 0 0; font-size: 40px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
+.ladder__division { color: var(--accent); }
+
+.pool__name { background: var(--header-bg); color: var(--accent); margin: 0; padding: 6px 28px; font-size: 20px; text-transform: uppercase; }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+thead th {
+  background: var(--row-bg); color: var(--muted-text);
+  font-size: 15px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 10px 8px; text-align: center;
+}
+tbody tr { height: var(--row-height); background: var(--row-bg); animation: slide-in 0.45s ease-out both; }
+tbody tr:nth-child(even) { background: var(--row-alt-bg); }
+td { font-size: 24px; text-align: center; padding: 0 8px; }
+th.team, td.team { text-align: left; padding-left: 20px; }
+td.team { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px; }
+td.position { color: var(--accent); font-weight: 800; width: 64px; }
+td.points { background: var(--points-bg); color: var(--points-text); font-weight: 800; width: 84px; }
+th.points { width: 84px; }
+tbody tr:nth-child(-n+4) td.position { box-shadow: inset 5px 0 0 var(--stripe); }
+tbody tr:last-child td:first-child { border-bottom-left-radius: var(--radius); }
+tbody tr:last-child td:last-child { border-bottom-right-radius: var(--radius); }
+
+@keyframes slide-in { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: none; } }
+
+.message {
+  position: fixed; left: 24px; bottom: 24px; margin: 0; padding: 10px 14px; max-width: 900px;
+  background: rgba(150, 20, 20, 0.9); color: #fff; font-size: 18px; border-radius: 6px;
+}

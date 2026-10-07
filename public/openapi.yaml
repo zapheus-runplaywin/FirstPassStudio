@@ -1,0 +1,320 @@
+openapi: 3.0.3
+info:
+  title: Thunder League Scoreboard control
+  version: "1.0"
+  description: |
+    Control links for the live scoreboard, made for Stream Deck "Website" buttons
+    (tick "GET request in background"). Every control is a plain GET request.
+
+    The helper must be running (`Start (Mac).command`). If the Stream Deck is on a
+    different computer, use the helper computer's IP address instead of localhost.
+
+    Every request takes an optional `board` query parameter (default `1`) so a
+    second court can run its own scoreboard, e.g. `?board=2`.
+servers:
+  - url: /
+    description: The helper this page was opened from
+  - url: http://localhost:8080
+    description: The helper on this computer
+
+tags:
+  - name: Game
+  - name: Scores
+  - name: Scoring mode
+  - name: Clock
+  - name: Quarter
+  - name: Status
+
+paths:
+  /deck/{side}/{change}:
+    get:
+      tags: [Scores]
+      summary: Change a team's score
+      description: |
+        `add2` / `minus2` are for super shots. Any score change switches the
+        scoreboard to manual scoring.
+
+        Examples: `/deck/home/add1`, `/deck/away/add2`, `/deck/home/minus1`.
+      operationId: changeScore
+      parameters:
+        - name: side
+          in: path
+          required: true
+          schema: { type: string, enum: [home, away] }
+        - name: change
+          in: path
+          required: true
+          schema: { type: string, enum: [add1, add2, minus1, minus2] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/scores/reset:
+    get:
+      tags: [Scores]
+      summary: Set both scores back to 0
+      description: Also switches the scoreboard to manual scoring. Team names, quarter and clock are kept.
+      operationId: resetScores
+      parameters:
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /deck/source/{mode}:
+    get:
+      tags: [Scoring mode]
+      summary: Follow PlayHQ or score manually
+      description: |
+        `playhq` takes scores from PlayHQ every 5 seconds, or as set on the control page (only works once a
+        game has been picked on the control page, and only if the game is
+        live-scored in PlayHQ). `manual` uses the score buttons. `toggle` swaps
+        between the two.
+      operationId: setSource
+      parameters:
+        - name: mode
+          in: path
+          required: true
+          schema: { type: string, enum: [playhq, manual, toggle] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/clock/{action}:
+    get:
+      tags: [Clock]
+      summary: Start, stop, toggle or reset the clock
+      description: |
+        `toggle` starts a stopped clock and stops a running one.
+        `reset` stops the clock and puts it back to a full quarter (10:00 unless
+        `quarterMinutes` in config.json or `/deck/clock/length` says otherwise).
+      operationId: clockControl
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [start, stop, toggle, reset] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/clock/set/{time}:
+    get:
+      tags: [Clock]
+      summary: Set the time left on the clock
+      description: |
+        Use it to match the venue clock. `m:ss` or whole minutes, e.g. `/deck/clock/set/7:30`
+        or `/deck/clock/set/10`. Keeps running if the clock was running. A time longer
+        than the quarter is allowed; the next reset goes back to the normal length.
+      operationId: clockSet
+      parameters:
+        - name: time
+          in: path
+          required: true
+          schema: { type: string, pattern: '^\d{1,2}([:.]\d{1,2})?$', example: '10:00' }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/clock/adjust/{amount}:
+    get:
+      tags: [Clock]
+      summary: Add time to or take time off the clock
+      description: |
+        A positive amount adds time, a negative one takes it off. End with `m` for
+        minutes or `s` for seconds; a bare number is seconds.
+
+        Examples: `1m`, `-1m`, `10s`, `-10s`, `1s`, `-1s`, `90`.
+      operationId: clockAdjust
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[+-]?\d+(\.\d+)?[msMS]?$', example: '-10s' }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/clock/adjust:
+    get:
+      tags: [Clock]
+      summary: Add or take off minutes and seconds together
+      description: 'Example: `/deck/clock/adjust?minutes=-1&seconds=-15` takes 1:15 off.'
+      operationId: clockAdjustQuery
+      parameters:
+        - name: minutes
+          in: query
+          schema: { type: number, example: 1 }
+        - name: seconds
+          in: query
+          schema: { type: number, example: -15 }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/clock/length/{minutes}:
+    get:
+      tags: [Clock]
+      summary: Change the quarter length
+      description: Sets how long a quarter is and puts that much on the clock. Lasts until the scoreboard is cleared or the helper is set up again.
+      operationId: clockLength
+      parameters:
+        - name: minutes
+          in: path
+          required: true
+          schema: { type: number, minimum: 1, example: 10 }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/clock/playhq/{mode}:
+    get:
+      tags: [Clock]
+      summary: Follow the PlayHQ scorer's clock
+      description: |
+        `on` makes the clock follow the game clock the PlayHQ scorer runs (while the score follows PlayHQ),
+        `off` stops it, `toggle` switches. Any other clock button also turns it off.
+      operationId: clockFollowPlayhq
+      parameters:
+        - name: mode
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/auto/{mode}:
+    get:
+      tags: [Game]
+      summary: Turn automatic game selection on or off
+      description: |
+        With it on, the scoreboard shows today's game on the chosen court, switching to the next
+        game 10 minutes before it starts (finals stay on until PlayHQ marks them finished).
+        Picking a game by hand on the control page turns it off.
+      operationId: autoSelect
+      parameters:
+        - name: mode
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/court/{court}:
+    get:
+      tags: [Game]
+      summary: Choose the court for automatic game selection
+      description: The court's name as PlayHQ shows it (`Indoor%2001`) or just its number (`2`).
+      operationId: autoCourt
+      parameters:
+        - name: court
+          in: path
+          required: true
+          schema: { type: string, example: '2' }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/quarter/{quarter}:
+    get:
+      tags: [Quarter]
+      summary: Change the quarter
+      description: |
+        `1` to `4`, `5` for extra time (shown as ET), or `next` / `prev`.
+        Doesn't touch the clock: also call `/deck/clock/reset` when a new quarter starts
+        (a Stream Deck Multi Action can do both). `/deck/period/{quarter}` does the same.
+      operationId: setQuarter
+      parameters:
+        - name: quarter
+          in: path
+          required: true
+          schema: { type: string, enum: ['1', '2', '3', '4', '5', next, prev] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /api/scoreboard:
+    get:
+      tags: [Status]
+      summary: Read the full scoreboard
+      description: Everything the overlay shows. Useful for a Stream Deck plugin that displays the score or clock on a key.
+      operationId: getScoreboard
+      parameters:
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200':
+          description: Current scoreboard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scoreboard' }
+
+components:
+  parameters:
+    board:
+      name: board
+      in: query
+      required: false
+      description: Which scoreboard (court) to control.
+      schema: { type: string, default: '1' }
+
+  responses:
+    Ok:
+      description: Done. Returns a short summary of the scoreboard after the change.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/DeckResult' }
+    UnknownLink:
+      description: The link isn't one of the ones listed here.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    DeckResult:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        home: { type: integer, description: Home score, example: 12 }
+        away: { type: integer, description: Away score, example: 9 }
+        source: { type: string, enum: [playhq, manual] }
+        clockRunning: { type: boolean }
+    Error:
+      type: object
+      properties:
+        error: { type: string, example: 'Unknown Stream Deck link /deck/clock/adjust/abc. See STREAMDECK.md.' }
+    Team:
+      type: object
+      properties:
+        name: { type: string, example: "Travis' Disciples" }
+        score: { type: integer, example: 12 }
+    Scoreboard:
+      type: object
+      properties:
+        source: { type: string, enum: [playhq, manual] }
+        gameId: { type: string, nullable: true }
+        competition: { type: string, example: Thunder League }
+        division: { type: string, example: Division 1 }
+        court: { type: string, example: Court 1 }
+        home: { $ref: '#/components/schemas/Team' }
+        away: { $ref: '#/components/schemas/Team' }
+        period: { type: integer, description: 'Quarter, 1 to 4, or 5 for extra time', example: 2 }
+        showClock: { type: boolean }
+        clock:
+          type: object
+          properties:
+            lengthSec: { type: integer, description: Quarter length in seconds, example: 600 }
+            running: { type: boolean }
+        clockElapsedMs: { type: integer, description: 'Time gone in this quarter, in milliseconds, at serverNow' }
+        serverNow: { type: integer, description: Server time in milliseconds since 1970 }

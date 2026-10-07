@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Clash</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,800;0,900;1,900&display=swap">
+<link rel="stylesheet" href="theme.css">
+<script src="log.js"></script>
+<style>
+  /* Animated match up for the game picked on the scoreboard control page.
+     Transparent everywhere except the graphics themselves. */
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: var(--font); }
+  .stage { position: absolute; inset: 0; visibility: hidden; }
+  .stage.go { visibility: visible; }
+  canvas { position: absolute; inset: 0; pointer-events: none; }
+
+  /* Light streaks that tear across first */
+  .streak { position: absolute; left: -40%; width: 180%; height: 26px; opacity: 0; transform: skewX(-30deg) translateX(-100%);
+    border-radius: 13px; filter: blur(1px); }
+  .streak--1 { top: 360px; background: linear-gradient(90deg, transparent, var(--purple) 40%, #fff 50%, var(--purple) 60%, transparent); }
+  .streak--2 { top: 520px; height: 14px; background: linear-gradient(90deg, transparent, var(--yellow) 40%, #fff 50%, var(--yellow) 60%, transparent); }
+  .streak--3 { top: 640px; height: 34px; background: linear-gradient(90deg, transparent, var(--pink) 40%, #fff 50%, var(--pink) 60%, transparent); }
+  .go .streak--1 { animation: streakL .55s cubic-bezier(.6,0,.4,1) .05s forwards; }
+  .go .streak--2 { animation: streakR .5s cubic-bezier(.6,0,.4,1) .15s forwards; }
+  .go .streak--3 { animation: streakL .55s cubic-bezier(.6,0,.4,1) .25s forwards; }
+  @keyframes streakL { 0% { opacity: 1; transform: skewX(-30deg) translateX(-100%); } 100% { opacity: 1; transform: skewX(-30deg) translateX(100%); } }
+  @keyframes streakR { 0% { opacity: 1; transform: skewX(-30deg) translateX(100%); } 100% { opacity: 1; transform: skewX(-30deg) translateX(-100%); } }
+
+  /* Giant CLASH word behind everything */
+  .bigword { position: absolute; left: 0; right: 0; top: 250px; text-align: center; font-weight: 900; font-style: italic;
+    font-size: 400px; line-height: 1; letter-spacing: 10px; color: transparent;
+    -webkit-text-stroke: 5px rgba(255, 205, 0, .7); opacity: 0; text-shadow: 0 0 40px rgba(127, 64, 146, .35); }
+  .go .bigword { animation: bigIn .9s cubic-bezier(.2,.9,.2,1) .3s forwards, bigDrift 9s ease-in-out 1.2s infinite alternate; }
+  @keyframes bigIn { 0% { opacity: 0; transform: scale(1.8); filter: blur(14px); } 100% { opacity: 1; transform: scale(1); filter: blur(0); } }
+  @keyframes bigDrift { 0% { transform: scale(1) translateX(0); } 100% { transform: scale(1.04) translateX(-20px); } }
+
+  /* Diagonal split behind the logos: home side purple, away side pink, fading out to transparent */
+  .split { position: absolute; top: 150px; height: 680px; width: 900px; opacity: 0;
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+            mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); }
+  .split--home { left: 60px; background: linear-gradient(90deg, rgba(127, 64, 146, 0), rgba(127, 64, 146, .7) 75%, rgba(127, 64, 146, .85));
+    clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); }
+  .split--away { right: 60px; background: linear-gradient(270deg, rgba(230, 0, 126, 0), rgba(230, 0, 126, .55) 75%, rgba(230, 0, 126, .7));
+    clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%); }
+  .go .split--home { animation: splitL .6s cubic-bezier(.2,.9,.2,1) 2.08s forwards; }
+  .go .split--away { animation: splitR .6s cubic-bezier(.2,.9,.2,1) 2.08s forwards; }
+  @keyframes splitL { 0% { opacity: 0; transform: translateX(300px); } 100% { opacity: 1; transform: none; } }
+  @keyframes splitR { 0% { opacity: 0; transform: translateX(-300px); } 100% { opacity: 1; transform: none; } }
+
+  /* The two teams */
+  .team { position: absolute; top: 190px; width: 620px; display: flex; flex-direction: column; align-items: center; }
+  .team--home { left: 170px; }
+  .team--away { right: 170px; }
+  .logo-wrap { position: relative; width: 440px; height: 440px; }
+  .logo-wrap::before { content: ""; position: absolute; inset: -40px; border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle, rgba(255, 205, 0, .45), rgba(255, 205, 0, 0) 65%); }
+  .go .logo-wrap::before { animation: glowIn .5s ease-out 2.3s forwards, glowPulse 2.4s ease-in-out 2.9s infinite alternate; }
+  @keyframes glowIn { to { opacity: .8; } }
+  @keyframes glowPulse { 0% { opacity: .55; transform: scale(.95); } 100% { opacity: 1; transform: scale(1.06); } }
+  .logo { position: relative; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .55)); }
+  .logo-fallback { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--purple);
+    border: 10px solid var(--yellow); color: var(--yellow); font-weight: 900; font-size: 150px; box-sizing: border-box; }
+  .charge { opacity: 0; }
+  .go .team--home .charge { animation: chargeHome 1.15s cubic-bezier(.55,0,.25,1) 1.65s forwards, floatA 3.2s ease-in-out 2.9s infinite alternate; }
+  .go .team--away .charge { animation: chargeAway 1.15s cubic-bezier(.55,0,.25,1) 1.65s forwards, floatB 3.2s ease-in-out 2.9s infinite alternate; }
+  /* Both rush in, smash together in the middle, then recoil to their corners */
+  @keyframes chargeHome {
+    0%   { opacity: 1; transform: translateX(-1300px) skewX(-18deg) scale(.7); filter: blur(18px); }
+    38%  { opacity: 1; transform: translateX(430px) skewX(-8deg) scale(1.08); filter: blur(4px); }
+    48%  { transform: translateX(380px) scale(1.15) rotate(-6deg); filter: blur(0) brightness(2.2); }
+    72%  { transform: translateX(-40px) scale(.97) rotate(2deg); filter: brightness(1.1); }
+    100% { opacity: 1; transform: none; filter: none; }
+  }
+  @keyframes chargeAway {
+    0%   { opacity: 1; transform: translateX(1300px) skewX(18deg) scale(.7); filter: blur(18px); }
+    38%  { opacity: 1; transform: translateX(-430px) skewX(8deg) scale(1.08); filter: blur(4px); }
+    48%  { transform: translateX(-380px) scale(1.15) rotate(6deg); filter: blur(0) brightness(2.2); }
+    72%  { transform: translateX(40px) scale(.97) rotate(-2deg); filter: brightness(1.1); }
+    100% { opacity: 1; transform: none; filter: none; }
+  }
+  @keyframes floatA { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 1; transform: translateY(-12px); } }
+  @keyframes floatB { 0% { opacity: 1; transform: translateY(-12px); } 100% { opacity: 1; transform: translateY(0); } }
+
+  .plate { margin-top: 30px; padding: 16px 54px; min-width: 380px; max-width: 600px; box-sizing: border-box; text-align: center;
+    background: linear-gradient(180deg, #3b1748, #24092e); border-bottom: 6px solid var(--yellow);
+    clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); opacity: 0; }
+  .team--away .plate { border-bottom-color: var(--pink); }
+  .plate h2 { margin: 0; color: #fff; font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 50px;
+    line-height: 1.1; white-space: nowrap; letter-spacing: 1px; }
+  .go .plate { animation: plateIn .55s cubic-bezier(.2,.9,.2,1) 2.75s forwards; }
+  @keyframes plateIn { 0% { opacity: 0; clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%); } 100% { opacity: 1; clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); } }
+
+  /* Impact at the centre */
+  .impact { position: absolute; left: 960px; top: 420px; width: 0; height: 0; }
+  .flash { position: absolute; left: -700px; top: -700px; width: 1400px; height: 1400px; border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle, rgba(255, 255, 255, .95), rgba(255, 230, 120, .6) 18%, rgba(230, 0, 126, .25) 38%, rgba(230, 0, 126, 0) 60%); }
+  .go .flash { animation: flash .7s ease-out 2.18s forwards; }
+  @keyframes flash { 0% { opacity: 0; transform: scale(.2); } 15% { opacity: 1; } 100% { opacity: 0; transform: scale(1.3); } }
+  .ring { position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; border: 10px solid var(--yellow); opacity: 0; }
+  .ring--2 { border-color: #fff; border-width: 5px; }
+  .go .ring--1 { animation: ring .8s ease-out 2.2s forwards; }
+  .go .ring--2 { animation: ring 1s ease-out 2.3s forwards; }
+  @keyframes ring { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(9); border-width: 1px; } }
+
+  /* Lightning down the middle */
+  .bolt { position: absolute; left: 860px; top: 120px; width: 200px; height: 720px; overflow: visible; }
+  .bolt path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1400; stroke-dashoffset: 1400; }
+  .bolt .glow { stroke: rgba(255, 205, 0, .55); stroke-width: 26; filter: blur(8px); }
+  .bolt .core { stroke: #fff; stroke-width: 7; }
+  .go .bolt path { animation: bolt .35s ease-out 2.2s forwards; }
+  .go .bolt { animation: flicker 5s linear 3.3s infinite; }
+  @keyframes bolt { to { stroke-dashoffset: 0; } }
+  @keyframes flicker { 0%, 88%, 92%, 96%, 100% { opacity: 1; } 90%, 94% { opacity: .15; } }
+
+  /* VS stamp */
+  .vs { position: absolute; left: 760px; top: 300px; width: 400px; text-align: center; font-weight: 900; font-style: italic;
+    font-size: 210px; line-height: 1; color: var(--yellow); opacity: 0;
+    text-shadow: 0 0 0 transparent, 8px 8px 0 var(--purple-dark), 0 0 50px rgba(255, 205, 0, .6); -webkit-text-stroke: 3px #fff; }
+  .go .vs { animation: stamp .45s cubic-bezier(.3,1.6,.5,1) 2.35s forwards, vsPulse 1.8s ease-in-out 2.9s infinite alternate; }
+  @keyframes stamp { 0% { opacity: 0; transform: scale(4) rotate(-14deg); } 100% { opacity: 1; transform: scale(1) rotate(-6deg); } }
+  @keyframes vsPulse { 0% { opacity: 1; transform: scale(1) rotate(-6deg); } 100% { opacity: 1; transform: scale(1.06) rotate(-6deg); } }
+
+  /* Top tag and bottom "battle" banner */
+  .tag { position: absolute; left: 0; right: 0; top: 70px; display: flex; justify-content: center; opacity: 0; }
+  .tag span { background: var(--pink); color: #fff; font-weight: 800; letter-spacing: 6px; text-transform: uppercase;
+    font-size: 30px; padding: 10px 34px; clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); }
+  .go .tag { animation: drop .5s cubic-bezier(.2,.9,.2,1) 2.55s forwards; }
+  @keyframes drop { 0% { opacity: 0; transform: translateY(-60px); } 100% { opacity: 1; transform: none; } }
+  .battle { position: absolute; left: 0; right: 0; top: 860px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+  .battle__title { display: flex; align-items: center; gap: 28px; color: #fff; font-weight: 900; font-style: italic;
+    text-transform: uppercase; font-size: 64px; letter-spacing: 3px; text-shadow: 0 6px 20px rgba(0, 0, 0, .6); white-space: nowrap; }
+  .battle__title b { color: var(--yellow); font-weight: 900; }
+  .battle__title::before, .battle__title::after { content: ""; width: 160px; height: 6px; background: linear-gradient(90deg, transparent, var(--yellow)); }
+  .battle__title::after { transform: scaleX(-1); }
+  .battle__info { margin-top: 10px; background: rgba(38, 14, 46, .85); color: var(--muted); font-weight: 700; letter-spacing: 4px;
+    text-transform: uppercase; font-size: 26px; padding: 8px 30px; }
+  .battle__info:empty { display: none; }
+  .go .battle { animation: rise .6s cubic-bezier(.2,.9,.2,1) 3.1s forwards; }
+  @keyframes rise { 0% { opacity: 0; transform: translateY(60px) scale(.9); } 100% { opacity: 1; transform: none; } }
+
+  /* Screen shake on impact */
+  .go .shake { animation: shake .45s linear 2.2s; }
+  @keyframes shake {
+    0%, 100% { transform: none; } 10% { transform: translate(-18px, 8px); } 20% { transform: translate(16px, -10px); }
+    30% { transform: translate(-12px, 6px); } 45% { transform: translate(10px, -4px); } 60% { transform: translate(-6px, 3px); } 80% { transform: translate(3px, -2px); }
+  }
+
+  /* ?out=N: leave after N seconds */
+  .stage.leave { animation: leave .6s ease-in forwards; }
+  @keyframes leave { to { opacity: 0; transform: scale(1.08); filter: blur(10px); } }
+</style>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080, and tick "Refresh browser when scene becomes active"
+       so the animation plays each time the scene comes on:
+       http://localhost:8080/clash.html
+       Shows the game picked on the scoreboard control page. Options: ?board=2 for a second court,
+       ?out=10 to animate away after 10 seconds, ?word=RIVALS to change the big word behind the logos,
+       ?title=... to change the bottom line (default "Battle for <division>"). -->
+  <div class="stage" id="stage">
+    <canvas id="embers" width="1920" height="1080"></canvas>
+    <div class="shake">
+      <div class="streak streak--1"></div><div class="streak streak--2"></div><div class="streak streak--3"></div>
+      <div class="split split--home"></div><div class="split split--away"></div>
+      <div class="bigword" id="bigword">CLASH</div>
+      <div class="team team--home">
+        <div class="charge"><div class="logo-wrap"><div id="homeLogo"></div></div></div>
+        <div class="plate"><h2 id="homeName"></h2></div>
+      </div>
+      <div class="team team--away">
+        <div class="charge"><div class="logo-wrap"><div id="awayLogo"></div></div></div>
+        <div class="plate"><h2 id="awayName"></h2></div>
+      </div>
+      <svg class="bolt" viewBox="0 0 200 720" aria-hidden="true">
+        <path class="glow" d="M120 0 L70 170 L130 190 L60 380 L125 400 L50 600 L100 615 L80 720"/>
+        <path class="core" d="M120 0 L70 170 L130 190 L60 380 L125 400 L50 600 L100 615 L80 720"/>
+      </svg>
+      <div class="impact"><div class="flash"></div><div class="ring ring--1"></div><div class="ring ring--2"></div></div>
+      <div class="vs">VS</div>
+      <div class="tag"><span id="tag">The Clash</span></div>
+      <div class="battle"><div class="battle__title" id="battle"></div><div class="battle__info" id="info"></div></div>
+    </div>
+    <canvas id="sparks" width="1920" height="1080"></canvas>
+  </div>
+  <script src="teams.js"></script>
+  <script>
+    const opts = new URLSearchParams(location.search);
+    const boardId = opts.get('board') || '1';
+    const $ = id => document.getElementById(id);
+
+    function time12(t) {
+      const [h, m] = String(t || '').split(':').map(Number);
+      return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : '';
+    }
+    // Shrink a name until it fits its plate.
+    function fit(node, max) {
+      let size = 50;
+      node.style.fontSize = size + 'px';
+      while (node.scrollWidth > max && size > 26) node.style.fontSize = (size -= 2) + 'px';
+    }
+    function setLogo(id, team) {
+      const node = logoEl(team, 'logo');
+      $(id).replaceWith(node);
+      return node.tagName === 'IMG' ? Promise.race([node.decode().catch(() => {}), new Promise(r => setTimeout(r, 1500))]) : Promise.resolve();
+    }
+
+    // Sparks fly out from the centre at the moment of impact.
+    function sparks() {
+      const c = $('sparks'), ctx = c.getContext('2d');
+      const colours = ['#ffffff', '#ffcd00', '#ffe066', '#e6007e', '#c07ad6'];
+      const ps = Array.from({ length: 140 }, () => {
+        const a = Math.random() * Math.PI * 2, v = 8 + Math.random() * 26;
+        return { x: 960, y: 420, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .75, life: 1, decay: .012 + Math.random() * .02,
+          w: 2 + Math.random() * 4, col: colours[Math.floor(Math.random() * colours.length)] };
+      });
+      (function frame() {
+        ctx.clearRect(0, 0, 1920, 1080);
+        let alive = 0;
+        for (const p of ps) {
+          if (p.life <= 0) continue;
+          alive++;
+          const px = p.x, py = p.y;
+          p.x += p.vx; p.y += p.vy; p.vx *= .955; p.vy = p.vy * .955 + .35; p.life -= p.decay;
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.strokeStyle = p.col; ctx.lineWidth = p.w; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(p.x, p.y); ctx.stroke();
+        }
+        if (alive) requestAnimationFrame(frame); else ctx.clearRect(0, 0, 1920, 1080);
+      })();
+    }
+
+    // Embers drifting up for as long as the graphic is on screen.
+    function embers() {
+      const c = $('embers'), ctx = c.getContext('2d');
+      const make = () => ({ x: Math.random() * 1920, y: 1080 + Math.random() * 200, vy: .6 + Math.random() * 1.6,
+        sway: Math.random() * Math.PI * 2, r: 1 + Math.random() * 2.6, hue: Math.random() < .7 ? '255,205,0' : '230,0,126' });
+      const es = Array.from({ length: 70 }, make);
+      (function frame(t) {
+        ctx.clearRect(0, 0, 1920, 1080);
+        for (const e of es) {
+          e.y -= e.vy; e.x += Math.sin(t / 900 + e.sway) * .4;
+          if (e.y < 80) Object.assign(e, make(), { y: 1090 });
+          const a = Math.min(1, (1080 - e.y) / 300) * Math.min(1, (e.y - 80) / 300) * .8;
+          ctx.fillStyle = `rgba(${e.hue},${a})`;
+          ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2); ctx.fill();
+        }
+        requestAnimationFrame(frame);
+      })(0);
+    }
+
+    async function start() {
+      let s;
+      try { s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json(); }
+      catch (err) { console.warn('Clash: scoreboard unavailable:', err.message); return setTimeout(start, 3000); }
+      $('homeName').textContent = s.home.name;
+      $('awayName').textContent = s.away.name;
+      $('bigword').textContent = (opts.get('word') || 'CLASH').toUpperCase();
+      $('tag').textContent = [s.competition || 'The Clash', s.round].filter(Boolean).join('  ·  ');
+      const title = opts.get('title') || (s.division ? `Battle for <b>${s.division.replace(/[<>&]/g, '')}</b>` : 'The <b>battle</b> begins');
+      $('battle').innerHTML = opts.get('title') ? '' : title;
+      if (opts.get('title')) $('battle').textContent = opts.get('title');
+      $('info').textContent = [time12(s.time), s.court].filter(Boolean).join('   ·   ');
+      await Promise.all([
+        setLogo('homeLogo', { name: s.home.name, logo: s.logos && s.logos.home }),
+        setLogo('awayLogo', { name: s.away.name, logo: s.logos && s.logos.away }),
+        document.fonts ? document.fonts.ready : null,
+      ]);
+      fit($('homeName'), 500); fit($('awayName'), 500);
+      $('stage').classList.add('go');
+      setTimeout(sparks, 2200);
+      setTimeout(embers, 2500);
+      const out = Number(opts.get('out'));
+      if (out > 0) setTimeout(() => $('stage').classList.add('leave'), out * 1000);
+    }
+    start();
+  </script>
+</body>
+</html>

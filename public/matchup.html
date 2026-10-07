@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Match Up</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/matchup.html
+       Shows the game picked on the scoreboard control page. Add ?board=2 for a second court.
+       Also shows each team's last five results (W/L/D) and this season's head to head.
+       Options: ?form=0 hides the form, ?h2h=0 hides the head to head. -->
+  <main class="card matchup" id="card" hidden>
+    <header class="matchup__header">
+      <div class="tab" id="comp"></div>
+      <div class="matchup__division" id="division"></div>
+    </header>
+    <div class="matchup__teams">
+      <div class="matchup__team"><div id="homeLogo"></div><h2 id="homeName"></h2><div class="matchup__formwrap" id="homeFormWrap" hidden><div class="matchup__caption">Last 5</div><div class="matchup__form" id="homeForm"></div></div></div>
+      <div class="matchup__middle"><div class="matchup__vs">VS</div><div class="matchup__tally" id="tallyBox" hidden><div class="matchup__caption">Head to head</div><div class="matchup__tallynum" id="tally"></div></div></div>
+      <div class="matchup__team"><div id="awayLogo"></div><h2 id="awayName"></h2><div class="matchup__formwrap" id="awayFormWrap" hidden><div class="matchup__caption">Last 5</div><div class="matchup__form" id="awayForm"></div></div></div>
+    </div>
+    <section class="matchup__h2h" id="h2h" hidden></section>
+    <footer class="matchup__info" id="info"></footer>
+  </main>
+  <script src="teams.js"></script>
+  <script src="season.js"></script>
+  <script>
+    const boardId = new URLSearchParams(location.search).get('board') || '1';
+    let last = '';
+
+    function when(date, time) {
+      const parts = [];
+      if (date) {
+        const d = new Date(`${date}T00:00:00`);
+        parts.push(isNaN(d) ? date : d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }));
+      }
+      if (time) {
+        const [h, m] = String(time).split(':').map(Number);
+        parts.push(Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : time);
+      }
+      return parts.join('  ·  ');
+    }
+
+    function setLogo(id, name, logo) {
+      const node = logoEl({ name, logo }, 'matchup__logo');
+      node.id = id;
+      document.getElementById(id).replaceWith(node);
+    }
+
+    const opts = new URLSearchParams(location.search);
+    async function getJson(path) {
+      const d = await (await fetch(`${path}?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+      if (d.error) throw new Error(d.error);
+      return d;
+    }
+    // Last five results as W/L/D dots (left out quietly if PlayHQ has none yet).
+    async function loadForm() {
+      try {
+        const d = await getJson('/api/form');
+        for (const side of ['home', 'away']) {
+          const form = d[side].form;
+          document.getElementById(side + 'Form').replaceChildren(...form.map(f => el('div', `form-dot form-dot--${f.result}`, f.result)));
+          document.getElementById(side + 'FormWrap').hidden = !form.length;
+        }
+      } catch (err) { console.warn('Match up form unavailable:', err.message); }
+    }
+    // This season's meetings: the win tally under VS, and the last three games above the footer.
+    async function loadHeadToHead() {
+      try {
+        const d = await getJson('/api/headtohead');
+        const box = document.getElementById('h2h');
+        box.replaceChildren();
+        if (!d.games.length) {
+          box.append(el('div', 'matchup__h2hnone', 'First meeting this season'));
+        } else {
+          document.getElementById('tally').textContent = `${d.tally.home} – ${d.tally.away}` + (d.tally.draws ? ` (${d.tally.draws} D)` : '');
+          document.getElementById('tallyBox').hidden = false;
+          box.append(el('div', 'matchup__caption', 'Earlier this season'));
+          for (const g of d.games.slice(-3)) {
+            const row = el('div', 'matchup__h2hgame');
+            const winner = g.home.score > g.away.score ? 'home' : g.away.score > g.home.score ? 'away' : '';
+            row.append(el('span', 'matchup__h2hround', [g.round, shortDate(g.date)].filter(Boolean).join('  ·  ')),
+              el('span', 'matchup__h2hteam' + (winner === 'home' ? ' is-win' : ''), g.home.name),
+              el('span', 'matchup__h2hscore', `${g.home.score ?? '–'} – ${g.away.score ?? '–'}`),
+              el('span', 'matchup__h2hteam matchup__h2hteam--away' + (winner === 'away' ? ' is-win' : ''), g.away.name));
+            box.append(row);
+          }
+        }
+        box.hidden = false;
+      } catch (err) { console.warn('Match up head to head unavailable:', err.message); }
+    }
+
+    async function load() {
+      try {
+        const s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        const view = [s.competition, s.division, s.round, s.home.name, s.away.name, s.logos, s.date, s.time, s.court, s.venue];
+        const json = JSON.stringify(view);
+        if (json === last) return;
+        last = json;
+        document.getElementById('comp').textContent = s.competition || 'Match up';
+        document.getElementById('division').textContent = [s.division, s.round].filter(Boolean).join('  ·  ');
+        document.getElementById('homeName').textContent = s.home.name;
+        document.getElementById('awayName').textContent = s.away.name;
+        setLogo('homeLogo', s.home.name, s.logos && s.logos.home);
+        setLogo('awayLogo', s.away.name, s.logos && s.logos.away);
+        const info = document.getElementById('info');
+        info.replaceChildren();
+        [when(s.date, s.time), [s.court, s.venue].filter(Boolean).join(', ')].filter(Boolean)
+          .forEach(t => info.appendChild(el('span', '', t)));
+        document.getElementById('card').hidden = false;
+        if (opts.get('form') !== '0') loadForm();
+        if (opts.get('h2h') !== '0') loadHeadToHead();
+      } catch (err) { console.warn('Match up unavailable:', err.message); }
+    }
+    load();
+  </script>
+</body>
+</html>

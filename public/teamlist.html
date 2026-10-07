@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team List</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/teamlist.html?side=home   (or side=away)
+       Shows the team list of the game picked on the scoreboard control page.
+       Add &board=2 for a second court. -->
+  <main class="card teamlist" id="card" hidden>
+    <div class="teamlist__logo-wrap"><div id="logo"></div></div>
+    <section class="teamlist__body">
+      <div class="tab">Team list</div>
+      <h1 class="teamlist__name" id="name"></h1>
+      <ol class="teamlist__players" id="players"></ol>
+      <p class="teamlist__empty" id="empty" hidden>Team list not available from PlayHQ yet.</p>
+    </section>
+    <footer class="card__footer" id="footer"></footer>
+  </main>
+  <script src="teams.js"></script>
+  <script>
+    const side = new URLSearchParams(location.search).get('side') === 'away' ? 'away' : 'home';
+    const COURT = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
+    loadTeams(data => {
+      const team = data[side];
+      document.getElementById('name').textContent = team.name;
+      const logo = document.getElementById('logo');
+      logo.replaceWith(Object.assign(logoEl(team, 'teamlist__logo'), { id: 'logo' }));
+      const list = document.getElementById('players');
+      list.replaceChildren();
+      let benchShown = false;
+      team.players.forEach((p, i) => {
+        const onCourt = COURT.includes(p.position);
+        if (!onCourt && !benchShown && i > 0) { list.appendChild(el('li', 'teamlist__bench', 'Bench')); benchShown = true; }
+        const li = el('li', 'teamlist__player');
+        li.style.animationDelay = `${i * 70}ms`;
+        li.appendChild(el('span', 'pos', onCourt ? p.position : ''));
+        li.appendChild(el('span', 'num', p.number !== '' && p.number !== null ? p.number : ''));
+        const n = el('span', 'pname', p.name);
+        if (p.captain) n.appendChild(el('span', 'badge', 'Captain'));
+        if (p.viceCaptain) n.appendChild(el('span', 'badge', 'Vice captain'));
+        li.appendChild(n);
+        list.appendChild(li);
+      });
+      document.getElementById('empty').hidden = team.players.length > 0;
+      document.getElementById('footer').textContent = [data.competition, data.division, data.court].filter(Boolean).join('  ·  ');
+      document.getElementById('card').hidden = false;
+    });
+  </script>
+</body>
+</html>

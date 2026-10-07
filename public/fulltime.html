@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full Time</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/fulltime.html
+       Final score from the scoreboard, with each team's top shooter and shooting accuracy from
+       PlayHQ's game stats.
+       Loads once: tick "Refresh browser when scene becomes active". Options: ?board=2  ?title=Half%20time -->
+  <main class="card fulltime" id="card" hidden>
+    <header class="matchup__header">
+      <div class="tab" id="title">Full time</div>
+      <div class="matchup__division" id="division"></div>
+    </header>
+    <div class="fulltime__score">
+      <div class="fulltime__team" id="homeTeam"></div>
+      <div class="fulltime__nums"><span id="homeScore"></span><span class="fulltime__dash">–</span><span id="awayScore"></span></div>
+      <div class="fulltime__team" id="awayTeam"></div>
+    </div>
+    <div class="fulltime__stats" id="stats"></div>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    if (params.get('title')) document.getElementById('title').textContent = params.get('title');
+    function teamStats(t) {
+      const box = el('div', 'fulltime__panel');
+      const shooters = t.players.filter(p => p.shooting && (p.shooting.shots || p.shooting.goals || p.shooting.superGoals));
+      if (!shooters.length && !t.totals) return box;
+      const pts = p => p.shooting.points ?? (p.shooting.goals + 2 * p.shooting.superGoals);
+      const top = [...shooters].sort((a, b) => pts(b) - pts(a))[0];
+      const sum = shooters.reduce((n, p) => ({ made: n.made + p.shooting.goals + p.shooting.superGoals, shots: n.shots + (p.shooting.shots || 0) }), { made: 0, shots: 0 });
+      const team = t.totals && t.totals.shots ? { made: (t.totals.goals || 0) + (t.totals.superGoals || 0), shots: t.totals.shots } : sum;
+      if (top) {
+        const s = top.shooting;
+        box.append(el('div', 'fulltime__label', 'Top shooter'), el('div', 'fulltime__player', top.name),
+          el('div', 'fulltime__line', `${s.goals} goals${s.superGoals ? `  ·  ${s.superGoals} super` : ''}${s.shots ? `  ·  ${s.goals + s.superGoals}/${s.shots}` : ''}`));
+      }
+      box.append(el('div', 'fulltime__label', 'Team accuracy'), el('div', 'fulltime__pct', team.shots ? `${Math.round(team.made / team.shots * 100)}%` : '–'));
+      return box;
+    }
+    loadTeams(d => {
+      if (d.error) console.warn('Full time stats:', d.error);
+      document.getElementById('division').textContent = [d.division, d.court].filter(Boolean).join('  ·  ');
+      for (const side of ['home', 'away']) {
+        const t = d[side];
+        document.getElementById(side + 'Team').replaceChildren(logoEl(t, 'fulltime__logo'), el('div', 'fulltime__name', t.name));
+        const won = d.score[side] > d.score[side === 'home' ? 'away' : 'home'];
+        const num = document.getElementById(side + 'Score');
+        num.textContent = d.score[side];
+        num.className = won ? 'is-win' : '';
+      }
+      const stats = document.getElementById('stats');
+      stats.replaceChildren(teamStats(d.home), teamStats(d.away));
+      stats.hidden = !stats.textContent;
+      document.getElementById('card').hidden = false;
+    });
+  </script>
+</body>
+</html>

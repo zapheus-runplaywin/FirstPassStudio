@@ -1,0 +1,1358 @@
+// PlayHQ Graphics - local helper for OBS overlay pages.
+//
+// Why this exists: PlayHQ's public data (the same data www.playhq.com shows) is
+// served from https://api.playhq.com/graphql. It needs no API key, but it only
+// answers requests that look like they come from playhq.com and carry a guest
+// session cookie. A web page loaded in OBS can't set those, so this tiny server
+// fetches the data and hands it to the pages in public/.
+//
+// Run:  node server.js        (Node 18 or newer, nothing to install)
+// Then: http://localhost:8080/ lists the pages to add to OBS.
+
+'use strict';
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const ROOT = __dirname;
+const PUBLIC_DIR = path.join(ROOT, 'public');
+const CONFIG = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+const PORT = Number(process.env.PORT || CONFIG.port || 8080);
+const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
+const CACHE_MS = Math.max(15, Number(CONFIG.cacheSeconds || 60)) * 1000;
+
+// ─── Debug log ──────────────────────────────────────────────────────────────
+// logs/playhq-graphics.log: helper requests, PlayHQ calls, scoreboard changes and
+// errors from every page. Capped at logMaxMB (default 15): when full, the oldest
+// half is dropped so the newest lines are always kept.
+const LOG_DIR = path.join(ROOT, 'logs');
+const LOG_FILE = path.join(LOG_DIR, 'playhq-graphics.log');
+const LOG_MAX = Math.max(1, Number(CONFIG.logMaxMB) || 15) * 1024 * 1024;
+let logSize = 0;
+try { fs.mkdirSync(LOG_DIR, { recursive: true }); logSize = fs.statSync(LOG_FILE).size; } catch { /* new log */ }
+function log(level, source, message, extra) {
+  const time = new Date().toISOString();
+  let line = `${time} ${String(level).toUpperCase().padEnd(5)} [${source}] ${String(message).replace(/\s+/g, ' ').slice(0, 4000)}`;
+  if (extra !== undefined) line += ' ' + (typeof extra === 'string' ? extra : JSON.stringify(extra)).slice(0, 4000);
+  line += '\n';
+  try {
+    if (logSize + Buffer.byteLength(line) > LOG_MAX) {
+      const buf = fs.readFileSync(LOG_FILE);
+      let start = buf.length - Math.floor(LOG_MAX / 2);
+      start = Math.max(0, buf.indexOf(10, start) + 1);
+      const kept = Buffer.concat([Buffer.from(`${time} INFO  [log] Log reached ${LOG_MAX / 1048576} MB; older lines removed\n`), buf.subarray(start)]);
+      fs.writeFileSync(LOG_FILE, kept);
+      logSize = kept.length;
+    }
+    fs.appendFileSync(LOG_FILE, line);
+    logSize += Buffer.byteLength(line);
+  } catch (err) { console.error('Could not write the log:', err.message); }
+  if (level === 'error') console.error(line.trim());
+}
+process.on('uncaughtException', err => { log('error', 'helper', `Crash: ${err.stack || err.message}`); process.exit(1); });
+process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(err && err.stack) || err}`));
+
+// ─── Where the data comes from ──────────────────────────────────────────────
+// config.json holds the organisation's PlayHQ page link. From it we read the
+// sport "tenant" (e.g. netball-australia) and the 8-character organisation id.
+function parsePlayhqUrl(url) {
+  const m = String(url || '').match(/playhq\.com\/(?:[a-z]{2}\/)?([a-z0-9-]+)\/org\/[^/]+\/([0-9a-f]{8})/i);
+  return m ? { tenant: m[1], orgId: m[2] } : null;
+}
+const fromUrl = parsePlayhqUrl(CONFIG.organisationUrl) || {};
+const TENANT = CONFIG.tenant || fromUrl.tenant || 'netball-australia';
+const ORG_ID = CONFIG.organisationId || fromUrl.orgId || null;
+
+// ─── PlayHQ guest session ───────────────────────────────────────────────────
+const HEADERS = {
+  'accept': '*/*',
+  'content-type': 'application/json',
+  'origin': 'https://www.playhq.com',
+  'referer': 'https://www.playhq.com/',
+  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+  'tenant': TENANT,
+};
+const SESSION_QUERIES = [
+  { operationName: 'ProfileSearch', variables: { fullName: 'a' }, query: 'query ProfileSearch($fullName: String!) { profileSearch(fullName: $fullName) { result { id } } }' },
+  { operationName: 'TenantConfig', variables: {}, query: 'query TenantConfig { tenantConfiguration { label } }' },
+];
+let cookie = null, cookieAt = 0, cookiePromise = null;
+
+function readCookies(res) {
+  const list = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
+  const raw = list.length ? list.join('\n') : (res.headers.get('set-cookie') || '');
+  const jar = {};
+  for (const m of raw.matchAll(/(phq_[a-z_]+)=([^;,\s]*)/gi)) jar[m[1]] = m[2];
+  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+async function getSession(force) {
+  if (!force && cookie && Date.now() - cookieAt < 10 * 60 * 1000) return cookie;
+  if (cookiePromise) return cookiePromise;
+  cookiePromise = (async () => {
+    try {
+      for (const body of SESSION_QUERIES) {
+        const res = await fetch(API_URL, { method: 'POST', headers: { ...HEADERS, 'request-id': crypto.randomUUID() }, body: JSON.stringify(body) });
+        const c = readCookies(res);
+        if (c) { cookie = c; cookieAt = Date.now(); return cookie; }
+      }
+      // Some sessions answer without a cookie; carry on without one.
+      cookie = ''; cookieAt = Date.now();
+      return cookie;
+    } finally { cookiePromise = null; }
+  })();
+  return cookiePromise;
+}
+
+async function gql(operationName, query, variables, retried) {
+  const c = await getSession(retried);
+  const headers = { ...HEADERS, 'request-id': crypto.randomUUID() };
+  if (c) headers.cookie = c;
+  const started = Date.now();
+  let res;
+  try { res = await fetch(API_URL, { method: 'POST', headers, body: JSON.stringify({ operationName, query, variables }) }); }
+  catch (err) { log('error', 'playhq', `${operationName} could not reach PlayHQ: ${err.cause ? err.cause.message || err.cause.code : err.message}`, variables); throw err; }
+  const text = await res.text();
+  log(res.ok ? 'info' : 'warn', 'playhq', `${operationName} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`, variables);
+  if (!res.ok) log('warn', 'playhq', `${operationName} answer`, text.slice(0, 500));
+  if ((res.status === 401 || res.status === 403) && !retried) return gql(operationName, query, variables, true);
+  if (!res.ok) throw new Error(`PlayHQ answered HTTP ${res.status}${/Request blocked/i.test(text) ? ' (temporarily blocked, will retry)' : ''}`);
+  let json;
+  try { json = JSON.parse(text); } catch { throw new Error('PlayHQ sent something that was not JSON'); }
+  if (json.errors && json.errors.length) {
+    log('error', 'playhq', `${operationName} GraphQL errors`, json.errors);
+    const err = new Error(json.errors.map(e => e.message).join('; '));
+    err.graphql = json.errors;
+    throw err;
+  }
+  return json.data;
+}
+
+// ─── Queries ────────────────────────────────────────────────────────────────
+const Q_COMPETITIONS = `query discoverCompetitions($organisationID: ID!) {
+  discoverCompetitions(organisationID: $organisationID) {
+    id name
+    seasons(organisationID: $organisationID) { id name startDate endDate status { name value } }
+    organisation { id name }
+  }
+}`;
+const Q_SEASON = `query gradeListDiscoverSeason($id: String!) {
+  discoverSeason(seasonID: $id) {
+    id name
+    competition { id name organisation { id name } }
+    grades { id name }
+  }
+}`;
+
+// Ladder columns. If PlayHQ doesn't know one of these for a sport, it's dropped
+// automatically and the page just leaves that column out.
+const STANDING_FIELDS = ['played', 'won', 'lost', 'drawn', 'byes', 'forfeits', 'pointsFor', 'pointsAgainst', 'percentage', 'competitionPoints'];
+const unknownFields = new Set();
+
+async function fetchLadder(gradeId) {
+  for (let attempt = 0; attempt < STANDING_FIELDS.length + 1; attempt++) {
+    const fields = STANDING_FIELDS.filter(f => !unknownFields.has(f));
+    const q = `query gradeLadder($gradeID: ID!) {
+  discoverGrade(gradeID: $gradeID) {
+    id name
+    ladder { standings { team { id name } ${fields.join(' ')} } }
+  }
+}`;
+    try {
+      const data = await gql('gradeLadder', q, { gradeID: gradeId });
+      return data.discoverGrade;
+    } catch (err) {
+      const bad = (err.graphql || []).map(e => (e.message.match(/Cannot query field "(\w+)"/) || [])[1]).filter(Boolean);
+      if (!bad.length) throw err;
+      bad.forEach(f => unknownFields.add(f));
+    }
+  }
+  throw new Error('Could not read the ladder fields from PlayHQ');
+}
+
+function normaliseLadder(grade) {
+  const raw = grade && grade.ladder;
+  const pools = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return pools.map(pool => (pool.standings || []).map((s, i) => ({
+    position: i + 1,
+    team: s.team ? s.team.name : '',
+    played: s.played, won: s.won, lost: s.lost, drawn: s.drawn, byes: s.byes, forfeits: s.forfeits,
+    pointsFor: s.pointsFor, pointsAgainst: s.pointsAgainst,
+    percentage: s.percentage, points: s.competitionPoints,
+  })));
+}
+
+// ─── Finding the competition, season and divisions ──────────────────────────
+function pickSeason(seasons) {
+  if (CONFIG.seasonName) {
+    const s = seasons.find(x => x.name.toLowerCase().includes(CONFIG.seasonName.toLowerCase()));
+    if (s) return s;
+  }
+  const now = Date.now();
+  const t = d => (d ? Date.parse(d) : NaN);
+  const live = seasons.filter(s => /active|live|in.?progress/i.test(JSON.stringify(s.status || '')));
+  const current = seasons.filter(s => t(s.startDate) <= now && (isNaN(t(s.endDate)) || t(s.endDate) + 86400000 >= now));
+  const pool = live.length ? live : current.length ? current : seasons;
+  return pool.slice().sort((a, b) => (t(b.startDate) || 0) - (t(a.startDate) || 0))[0];
+}
+
+let structure = null, structureAt = 0;
+async function getStructure() {
+  if (structure && Date.now() - structureAt < 30 * 60 * 1000) return structure;
+  let seasonId = CONFIG.seasonId || null;
+  let orgName = CONFIG.organisationName, compName = CONFIG.competitionName, allCompetitions = [];
+  if (!seasonId) {
+    if (!ORG_ID) throw new Error('Add the organisation\'s PlayHQ link to config.json (organisationUrl) and restart.');
+    const data = await gql('discoverCompetitions', Q_COMPETITIONS, { organisationID: ORG_ID });
+    allCompetitions = data.discoverCompetitions || [];
+    const want = (CONFIG.competitionName || '').toLowerCase();
+    const comp = allCompetitions.find(c => c.name.toLowerCase() === want) || allCompetitions.find(c => c.name.toLowerCase().includes(want));
+    if (!comp) throw new Error(`No competition called "${CONFIG.competitionName}" found. PlayHQ lists: ${allCompetitions.map(c => c.name).join(', ') || 'none'}`);
+    const season = pickSeason(comp.seasons || []);
+    if (!season) throw new Error(`"${comp.name}" has no seasons on PlayHQ yet.`);
+    seasonId = season.id;
+    compName = comp.name;
+    if (comp.organisation && comp.organisation.name) orgName = CONFIG.organisationName || comp.organisation.name;
+  }
+  const s = (await gql('gradeListDiscoverSeason', Q_SEASON, { id: seasonId })).discoverSeason;
+  if (!s) throw new Error(`PlayHQ has no season with id ${seasonId}.`);
+  const grades = (s.grades || []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  structure = {
+    organisation: CONFIG.organisationName || (s.competition && s.competition.organisation && s.competition.organisation.name) || orgName,
+    competition: CONFIG.competitionName || compName || (s.competition && s.competition.name),
+    season: { id: s.id, name: s.name },
+    grades: grades.map((g, i) => ({ division: i + 1, id: g.id, name: g.name })),
+    otherCompetitions: allCompetitions.map(c => c.name),
+  };
+  structureAt = Date.now();
+  return structure;
+}
+
+const ladderCache = new Map();
+async function getLadder(gradeId) {
+  const hit = ladderCache.get(gradeId);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.value;
+  try {
+    const g = await fetchLadder(gradeId);
+    const value = { grade: g ? g.name : '', pools: normaliseLadder(g), updatedAt: new Date().toISOString() };
+    ladderCache.set(gradeId, { at: Date.now(), value });
+    return value;
+  } catch (err) {
+    if (hit) return { ...hit.value, stale: true, error: err.message }; // keep showing the last good ladder
+    throw err;
+  }
+}
+
+function findGrade(st, q) {
+  if (q.gradeId) return { id: q.gradeId, name: q.gradeId };
+  if (q.division && /^\d+$/.test(q.division)) return st.grades[Number(q.division) - 1];
+  if (q.division) return st.grades.find(g => g.name.toLowerCase().includes(q.division.toLowerCase()));
+  return st.grades[0];
+}
+
+// ─── Games (for the scoreboard) ─────────────────────────────────────────────
+const Q_ROUNDS = `query gradeRounds($gradeID: ID!) {
+  discoverGrade(gradeID: $gradeID) { id name rounds { id name current number } }
+}`;
+const TEAM = `__typename ... on DiscoverTeam { id name } ... on ProvisionalTeam { name }`;
+const SIDE = `outcome { value } statistics { count type { value } }`;
+const Q_ROUND_GAMES = `query discoverFixtureByRound($roundID: ID!) {
+  discoverFixtureByRound(roundID: $roundID) {
+    games {
+      id date dates
+      status { value }
+      home { ${TEAM} }
+      away { ${TEAM} }
+      result { home { ${SIDE} } away { ${SIDE} } }
+      allocation { time court { name venue { name } } }
+    }
+  }
+}`;
+
+function totalScore(side) {
+  const s = side && (side.statistics || []).find(x => x.type && x.type.value === 'TOTAL_SCORE');
+  return s && s.count !== null && s.count !== undefined ? s.count : null;
+}
+
+function outcomeOf(side) { return (side && side.outcome && side.outcome.value) || null; }
+
+const roundGamesCache = new Map();
+const roundGamesInFlight = new Map();
+async function getRoundGames(roundId, maxAgeMs) {
+  const hit = roundGamesCache.get(roundId);
+  if (hit && Date.now() - hit.at < maxAgeMs) return hit.games;
+  if (!roundGamesInFlight.has(roundId)) {
+    roundGamesInFlight.set(roundId, fetchRoundGames(roundId).finally(() => roundGamesInFlight.delete(roundId)));
+  }
+  return roundGamesInFlight.get(roundId);
+}
+async function fetchRoundGames(roundId) {
+  const data = await gql('discoverFixtureByRound', Q_ROUND_GAMES, { roundID: roundId });
+  const games = ((data.discoverFixtureByRound || {}).games || []).map(g => ({
+    id: g.id,
+    roundId,
+    status: g.status && g.status.value,
+    date: g.date || (g.dates || [])[0] || null,
+    time: g.allocation && g.allocation.time,
+    court: g.allocation && g.allocation.court ? g.allocation.court.name : '',
+    venue: g.allocation && g.allocation.court && g.allocation.court.venue ? g.allocation.court.venue.name : '',
+    home: { name: g.home ? g.home.name : 'TBC', score: totalScore(g.result && g.result.home), outcome: outcomeOf(g.result && g.result.home) },
+    away: { name: g.away ? g.away.name : 'TBC', score: totalScore(g.result && g.result.away), outcome: outcomeOf(g.result && g.result.away) },
+  }));
+  roundGamesCache.set(roundId, { at: Date.now(), games });
+  return games;
+}
+
+// ─── One game in detail (live score, line-ups, player stats) ────────────────
+// The same request the playhq.com game page makes. Unlike the round fixture, it
+// has the score while the game is being scored, and needs no API key.
+const STATS = 'statistics { count type { value } }';
+const LINEUP = `players {
+  playerNumber
+  player {
+    __typename
+    ... on DiscoverParticipant { id profile { firstName lastName } }
+    ... on DiscoverParticipantFillInPlayer { id profile { firstName lastName } }
+    ... on DiscoverGamePermitFillInPlayer { id profile { firstName lastName } }
+    ... on DiscoverRegularFillInPlayer { id name }
+    ... on DiscoverAnonymousParticipant { id name }
+  }
+  ${STATS}
+  playerPosition { shortName }
+  captain { name shortName }
+}`;
+const Q_GAME = `query discoverGame($gameID: ID!) {
+  discoverGame(gameID: $gameID) {
+    id date status { value }
+    home { ${TEAM} }
+    away { ${TEAM} }
+    result { home { score ${STATS} } away { score ${STATS} } }
+    statistics { home { ${LINEUP} ${STATS} } away { ${LINEUP} ${STATS} } }
+  }
+}`;
+
+const statCount = (list, type) => { const x = (list || []).find(s => s.type && s.type.value === type); return x ? x.count : null; };
+const POSITION_RANK = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
+function parseGame(g) {
+  const side = k => {
+    const result = g.result && g.result[k];
+    const st = g.statistics && g.statistics[k];
+    const teamStats = (st && st.statistics) || [];
+    // The official result once there is one, else the running total from the scorer.
+    let score = result && result.score != null ? result.score : statCount(result && result.statistics, 'TOTAL_SCORE');
+    if (score == null) score = statCount(teamStats, 'TOTAL_SCORE');
+    if (score == null && (statCount(teamStats, '1_POINT_SCORE') != null || statCount(teamStats, '2_POINT_SCORE') != null)) {
+      score = (statCount(teamStats, '1_POINT_SCORE') || 0) + 2 * (statCount(teamStats, '2_POINT_SCORE') || 0);
+    }
+    const players = ((st && st.players) || []).map(p => {
+      const who = p.player || {};
+      const name = who.profile ? `${who.profile.firstName || ''} ${who.profile.lastName || ''}`.trim() : (who.name || '');
+      const goals = statCount(p.statistics, '1_POINT_SCORE') || 0;
+      const superGoals = statCount(p.statistics, '2_POINT_SCORE') || 0;
+      return {
+        name, number: p.playerNumber || '', position: (p.playerPosition && p.playerPosition.shortName) || '',
+        private: who.__typename === 'DiscoverAnonymousParticipant',
+        captain: !!p.captain && !/vice/i.test(p.captain.name || ''), viceCaptain: !!p.captain && /vice/i.test(p.captain.name || ''),
+        // shots = every attempt, normal and super (PlayHQ records one attempt count).
+        shooting: { goals, superGoals, shots: statCount(p.statistics, 'GOAL_ATTEMPT'), points: goals + 2 * superGoals },
+      };
+    }).filter(p => p.name);
+    const rank = p => { const i = POSITION_RANK.indexOf(p.position); return i === -1 ? 99 : i; };
+    players.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+    const name = (g[k] && g[k].name) || '';
+    return { name, logo: logoFor(name), score, players };
+  };
+  return { id: g.id, status: g.status && g.status.value, home: side('home'), away: side('away') };
+}
+
+const gameCache = new Map();
+const gameInFlight = new Map();
+async function getGame(gameId, maxAgeMs) {
+  const hit = gameCache.get(gameId);
+  if (hit && Date.now() - hit.at < maxAgeMs) return hit.game;
+  if (!gameInFlight.has(gameId)) {
+    gameInFlight.set(gameId, (async () => {
+      const g = (await gql('discoverGame', Q_GAME, { gameID: gameId })).discoverGame;
+      if (!g) throw new Error(`PlayHQ has no game ${gameId}`);
+      const game = parseGame(g);
+      gameCache.set(gameId, { at: Date.now(), game });
+      return game;
+    })().finally(() => gameInFlight.delete(gameId)));
+  }
+  return gameInFlight.get(gameId);
+}
+
+// ─── Live scoring feed ──────────────────────────────────────────────────────
+// playhq.com's game page reads the running score and the scorer's game clock from
+// spectator.playhq.com while a game is on. Its tenant header is the short sport
+// label ("na" for netball-australia), which PlayHQ's tenantConfiguration gives.
+const SPECTATOR_URL = process.env.PLAYHQ_SPECTATOR_URL || 'https://spectator.playhq.com/graphql';
+const LIVE_STATS = 'statistics { type { value } count }';
+const Q_LIVE = `query game($id: ID!) {
+  game(id: $id) {
+    id status updatedAt break
+    statistics { home { statisticsV2 { type { value } count } } away { statisticsV2 { type { value } count } } }
+    result { home { ${LIVE_STATS} } away { ${LIVE_STATS} } currentPeriod { value } }
+    clock { period periodValue status time lastUpdatedAt }
+  }
+}`;
+let tenantLabel = CONFIG.spectatorTenant || '';
+async function getTenantLabel() {
+  if (tenantLabel) return tenantLabel;
+  try { tenantLabel = ((await gql('tenantLabel', 'query tenantLabel { tenantConfiguration { label } }', {})).tenantConfiguration || {}).label || ''; }
+  catch (err) { log('warn', 'live', `Could not read the tenant label: ${err.message}`); }
+  if (!tenantLabel) tenantLabel = TENANT === 'netball-australia' ? 'na' : TENANT;
+  return tenantLabel;
+}
+async function fetchLive(gameId) {
+  const headers = { ...HEADERS, 'x-phq-tenant': await getTenantLabel() };
+  const c = await getSession();
+  if (c) headers.cookie = c;
+  const started = Date.now();
+  const res = await fetch(SPECTATOR_URL, { method: 'POST', headers, body: JSON.stringify({ operationName: 'game', query: Q_LIVE, variables: { id: gameId } }) });
+  const text = await res.text();
+  log(res.ok ? 'info' : 'warn', 'live', `game ${gameId} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`);
+  if (!res.ok) { log('warn', 'live', 'answer', text.slice(0, 500)); throw new Error(`PlayHQ live feed answered HTTP ${res.status}`); }
+  const json = JSON.parse(text);
+  if (json.errors && json.errors.length) { log('error', 'live', 'GraphQL errors', json.errors); throw new Error(json.errors.map(e => e.message).join('; ')); }
+  const g = json.data && json.data.game;
+  if (!g) throw new Error(`PlayHQ live feed has no game ${gameId}`);
+  const side = k => {
+    const total = statCount(g.result && g.result[k] && g.result[k].statistics, 'TOTAL_SCORE');
+    const team = (g.statistics && g.statistics[k] && g.statistics[k].statisticsV2) || [];
+    return {
+      score: total ?? statCount(team, 'TOTAL_SCORE'),
+      goals: statCount(team, '1_POINT_SCORE'), superGoals: statCount(team, '2_POINT_SCORE'),
+      shots: statCount(team, 'GOAL_ATTEMPT'), misses: statCount(team, 'MISS'),
+    };
+  };
+  return { id: g.id, status: g.status, home: side('home'), away: side('away'), clock: g.clock || null, break: g.break || null,
+    period: (g.clock && g.clock.periodValue) || (g.result && g.result.currentPeriod && g.result.currentPeriod.value) || null };
+}
+const liveCache = new Map();
+const liveInFlight = new Map();
+async function getLive(gameId, maxAgeMs) {
+  const hit = liveCache.get(gameId);
+  if (hit && Date.now() - hit.at < maxAgeMs) return hit.live;
+  if (!liveInFlight.has(gameId)) {
+    liveInFlight.set(gameId, fetchLive(gameId)
+      .then(live => { liveCache.set(gameId, { at: Date.now(), live }); return live; })
+      .finally(() => liveInFlight.delete(gameId)));
+  }
+  return liveInFlight.get(gameId);
+}
+const PERIOD_NUMBER = { FIRST_QTR: 1, SECOND_QTR: 2, THIRD_QTR: 3, FOURTH_QTR: 4, FIRST_HALF: 1, SECOND_HALF: 2 };
+
+// Live score for any game: the live feed first, then the game page data, then the round fixture.
+async function liveScore(game, maxAgeMs) {
+  try {
+    const l = await getLive(game.id, maxAgeMs);
+    if (l.home.score != null || l.away.score != null) return { home: l.home.score ?? 0, away: l.away.score ?? 0, status: l.status, live: l };
+  } catch (err) { log('warn', 'live', `Live feed failed for ${game.id}: ${err.message}`); }
+  try {
+    const d = await getGame(game.id, maxAgeMs);
+    if (d.home.score != null || d.away.score != null) return { home: d.home.score ?? 0, away: d.away.score ?? 0, status: d.status };
+  } catch (err) { log('warn', 'live', `Game detail failed for ${game.id}: ${err.message}`); }
+  return null;
+}
+
+// A division's rounds (kept for 5 minutes).
+const roundsCache = new Map();
+async function getRounds(gradeId) {
+  const hit = roundsCache.get(gradeId);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.rounds;
+  const g = (await gql('gradeRounds', Q_ROUNDS, { gradeID: gradeId })).discoverGrade;
+  const rounds = (g && g.rounds) || [];
+  roundsCache.set(gradeId, { at: Date.now(), rounds });
+  return rounds;
+}
+
+// ─── Which round is "this round" ────────────────────────────────────────────
+// By date: the round being played in the next roundLookaheadDays days (default 5,
+// counting today, so a Tuesday round is picked from the Friday before), otherwise
+// the last round played. The control page can pick a round by hand instead
+// (kept in round-choice.json; blank means automatic).
+const ROUND_FILE = path.join(ROOT, 'round-choice.json');
+let roundChoice = '';
+try { roundChoice = String(JSON.parse(fs.readFileSync(ROUND_FILE, 'utf8')).round || ''); } catch { /* automatic */ }
+function setRoundChoice(value) {
+  roundChoice = String(value || '').trim();
+  fs.writeFile(ROUND_FILE, JSON.stringify({ round: roundChoice }, null, 2), () => {});
+  log('info', 'round', roundChoice ? `Round picked by hand: ${roundChoice}` : 'Round picked automatically by date');
+}
+const LOOKAHEAD_DAYS = Number(CONFIG.roundLookaheadDays) || 5;
+const roundKey = r => String(r.number ?? r.name);
+const dayDiff = (date, today) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+const roundDatesCache = new Map();
+// The first game date of each round in a division (kept for 30 minutes).
+async function roundDates(grade) {
+  const hit = roundDatesCache.get(grade.id);
+  if (hit && Date.now() - hit.at < 30 * 60 * 1000) return hit.dates;
+  const dates = new Map();
+  for (const r of await getRounds(grade.id)) {
+    const ds = (await getRoundGames(r.id, 30 * 60 * 1000)).map(g => g.date).filter(Boolean).sort();
+    if (ds.length) dates.set(r.id, ds[0]);
+  }
+  roundDatesCache.set(grade.id, { at: Date.now(), dates });
+  return dates;
+}
+async function pickRound(grade, choice = roundChoice) {
+  const rounds = await getRounds(grade.id);
+  if (!rounds.length) return null;
+  if (choice) {
+    const hit = rounds.find(r => roundKey(r) === choice || r.name.toLowerCase() === choice.toLowerCase());
+    if (hit) return hit;
+  }
+  try {
+    const dates = await roundDates(grade);
+    const today = localDate();
+    const dated = rounds.filter(r => dates.has(r.id)).map(r => ({ r, diff: dayDiff(dates.get(r.id), today) }));
+    const soon = dated.filter(x => x.diff >= 0 && x.diff < LOOKAHEAD_DAYS).sort((a, b) => a.diff - b.diff);
+    if (soon.length) return soon[0].r;
+    const past = dated.filter(x => x.diff < 0).sort((a, b) => b.diff - a.diff);
+    if (past.length) return past[0].r;
+    const future = dated.sort((a, b) => a.diff - b.diff);
+    if (future.length) return future[0].r;
+  } catch (err) { log('warn', 'round', `Could not work out the round by date: ${err.message}`); }
+  return rounds.find(r => r.current) || rounds[rounds.length - 1];
+}
+// For the control page: the round list, what's picked, and what automatic would pick.
+async function getRoundInfo() {
+  const st = await getStructure();
+  const grade = st.grades[0];
+  if (!grade) return { choice: roundChoice, auto: '', rounds: [] };
+  const auto = await pickRound(grade, '');
+  const dates = await roundDates(grade).catch(() => new Map());
+  return { choice: roundChoice, auto: auto ? auto.name : '', lookaheadDays: LOOKAHEAD_DAYS,
+    rounds: (await getRounds(grade.id)).map(r => ({ key: roundKey(r), name: r.name, date: dates.get(r.id) || '' })) };
+}
+
+// This round in every division, for the control page's game picker.
+async function getCurrentGames() {
+  const st = await getStructure();
+  const out = [];
+  for (const grade of st.grades) {
+    const round = await pickRound(grade);
+    if (!round) continue;
+    for (const game of await getRoundGames(round.id, 60 * 1000)) {
+      out.push({ ...game, division: grade.name, round: round.name });
+    }
+  }
+  return out;
+}
+
+// A whole round for the fixture page: every division (or one), sorted by time then court.
+// roundNumber picks a round by number; otherwise each division's current round.
+async function getFixtures(q) {
+  const st = await getStructure();
+  const grades = q.division ? [findGrade(st, q)].filter(Boolean) : st.grades;
+  const games = [], roundNames = [];
+  for (const grade of grades) {
+    const rounds = await getRounds(grade.id);
+    const round = q.round
+      ? rounds.find(r => String(r.number) === String(q.round) || r.name.toLowerCase() === String(q.round).toLowerCase())
+      : await pickRound(grade);
+    if (!round) continue;
+    roundNames.push(round.name);
+    for (const game of await getRoundGames(round.id, 60 * 1000)) {
+      if (q.results && !isFinished(game)) continue;
+      games.push({ ...game, division: grade.name, round: round.name,
+        home: { ...game.home, logo: logoFor(game.home.name) }, away: { ...game.away, logo: logoFor(game.away.name) } });
+    }
+  }
+  const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
+  games.sort((a, b) => key(a).localeCompare(key(b), 'en', { numeric: true }));
+  const round = roundNames.sort((a, b) => roundNames.filter(n => n === b).length - roundNames.filter(n => n === a).length)[0] || '';
+  return { competition: st.competition, venueName: CONFIG.venueName || (games[0] && games[0].venue) || '',
+    division: q.division ? (grades[0] && grades[0].name) || '' : '', round, games };
+}
+
+// The game after the one on the scoreboard: the next timeslot on the same court
+// (any court if that court has nothing later). With no game picked, it assumes the
+// stream is on the first timeslot and shows the game after it.
+async function getUpNext(boardId) {
+  const b = board(boardId);
+  const games = await getCurrentGames();
+  const key = g => `${g.date || ''} ${String(g.time || '').padStart(5, '0')}`;
+  games.sort((x, y) => key(x).localeCompare(key(y)));
+  const current = games.find(g => g.id === b.gameId) || games[0];
+  if (!current) return { error: 'No games found in the current round' };
+  const court = b.court || current.court;
+  const later = games.filter(g => g.id !== current.id && key(g) > key(current));
+  const next = later.find(g => court && g.court === court) || later[0];
+  const out = { competition: (structure && structure.competition) || CONFIG.competitionName, venueName: CONFIG.venueName || current.venue || '',
+    after: { home: current.home.name, away: current.away.name, court: current.court, time: current.time } };
+  if (!next) return { ...out, error: 'No later game in this round' };
+  return { ...out, ...next, logos: { home: logoFor(next.home.name), away: logoFor(next.away.name) } };
+}
+
+// ─── Scoreboard state (set from control.html, shown by scoreboard.html) ─────
+// Kept in scoreboard-state.json so a restart mid-game keeps the score.
+const STATE_FILE = path.join(ROOT, 'scoreboard-state.json');
+let boards = {};
+try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
+function saveBoards() { fs.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), () => {}); }
+
+const DEFAULT_REFRESH_SEC = Math.max(3, Number(CONFIG.playhqRefreshSeconds) || 5);
+const QUARTER_SEC = Math.round((Number(CONFIG.quarterMinutes) || 10) * 60);
+
+function newBoard() {
+  return {
+    source: 'manual',          // 'playhq' = scores follow PlayHQ, 'manual' = scores from the control page
+    gameId: null, roundId: null,
+    division: '', court: '', round: '', date: '', time: '', venue: '',
+    home: { name: 'Home', score: 0 },
+    away: { name: 'Away', score: 0 },
+    period: 1, periodLabel: 'Q',
+    clock: { lengthSec: QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null },
+    showClock: true,
+    followPlayhqClock: false,
+    autoSelect: CONFIG.autoSelectGame !== undefined ? !!CONFIG.autoSelectGame : !!CONFIG.defaultCourt, // pick the game from the court and the time
+    autoCourt: CONFIG.defaultCourt || '',  // true = the clock follows the PlayHQ scorer's game clock (while following PlayHQ)
+    playhqRefreshSec: DEFAULT_REFRESH_SEC,
+    updatedAt: Date.now(),
+  };
+}
+function board(id) {
+  const b = boards[id] || (boards[id] = newBoard());
+  if (b.autoSelect === undefined) { const n = newBoard(); b.autoSelect = n.autoSelect; b.autoCourt = n.autoCourt; } // saved before these existed
+  return b;
+}
+
+function clockElapsed(c) { return c.elapsedMs + (c.running && c.startedAt ? Date.now() - c.startedAt : 0); }
+
+// Clock buttons pressed by a person stop the clock following PlayHQ (like score buttons do for the score).
+const MANUAL_CLOCK = new Set(['clockStart', 'clockStop', 'clockToggle', 'clockReset', 'clockSet', 'clockAdjust']);
+function applyAction(b, a) {
+  if (MANUAL_CLOCK.has(a.type) && b.followPlayhqClock && !a.fromToggle) {
+    b.followPlayhqClock = false;
+    log('info', 'scoreboard', `Clock switched to manual by ${a.type}`);
+  }
+  const side = a.side === 'away' ? b.away : b.home;
+  switch (a.type) {
+    case 'score': side.score = Math.max(0, (Number(side.score) || 0) + Number(a.delta || 0)); b.source = 'manual'; break;
+    case 'setScore': side.score = Math.max(0, Number(a.value) || 0); b.source = 'manual'; break;
+    case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division; b.court = a.court ?? b.court; break;
+    case 'selectGame':
+      if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
+      Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
+        round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null });
+      b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
+      b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
+      break;
+    case 'source': {
+      const want = a.value === 'toggle' ? (b.source === 'playhq' ? 'manual' : 'playhq') : a.value;
+      b.source = want === 'playhq' && b.gameId ? 'playhq' : 'manual';
+      break;
+    }
+    case 'resetScores': b.home.score = 0; b.away.score = 0; b.source = 'manual'; break;
+    case 'clockToggle': applyAction(b, { type: b.clock.running ? 'clockStop' : 'clockStart', fromToggle: true }); break;
+    case 'autoSelect':
+      b.autoSelect = a.value === 'toggle' ? !b.autoSelect : !!a.value && a.value !== 'off';
+      b.autoHold = '';
+      break;
+    case 'autoCourt': // choosing a court means "follow this court", so it also turns automatic selection on
+      b.autoCourt = String(a.value || '').trim(); b.autoHold = '';
+      if (b.autoCourt && !b.autoSelect) { b.autoSelect = true; log('info', 'auto', `Court set to ${b.autoCourt}, so automatic game selection is on`); }
+      break;
+    case 'followPlayhqClock': {
+      b.followPlayhqClock = a.value === 'toggle' ? !b.followPlayhqClock : !!a.value && a.value !== 'off';
+      b.playhqClockKey = null; // apply the next PlayHQ reading straight away
+      break;
+    }
+    case 'period': {
+      const next = a.value === 'next' ? b.period + 1 : a.value === 'prev' ? b.period - 1 : Number(a.value) || 1;
+      b.period = Math.max(1, Math.min(5, next));
+      break;
+    }
+    case 'periodLabel': b.periodLabel = String(a.value || 'Q').slice(0, 6); break;
+    case 'clockStart': if (!b.clock.running) { b.clock.running = true; b.clock.startedAt = Date.now(); } break;
+    case 'clockStop': if (b.clock.running) { b.clock.elapsedMs = clockElapsed(b.clock); b.clock.running = false; b.clock.startedAt = null; } break;
+    case 'clockReset': b.clock = { ...b.clock, lengthSec: b.clock.baseSec || QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null }; break;
+    case 'clockSet': { // set the time left, e.g. to match the venue clock
+      const left = Math.max(0, Math.round(Number(a.secondsLeft) || 0));
+      if (left > b.clock.lengthSec) b.clock.lengthSec = left; // e.g. a longer extra-time period
+      b.clock.elapsedMs = (b.clock.lengthSec - left) * 1000;
+      if (b.clock.running) b.clock.startedAt = Date.now();
+      break;
+    }
+    case 'clockLength': b.clock.lengthSec = b.clock.baseSec = Math.max(60, Number(a.value) || QUARTER_SEC); break;
+    case 'clockAdjust': { // + adds time to the clock, - takes it off
+      const leftMs = b.clock.lengthSec * 1000 - clockElapsed(b.clock);
+      applyAction(b, { type: 'clockSet', secondsLeft: Math.max(0, leftMs / 1000 + Number(a.deltaSec || 0)) });
+      break;
+    }
+    case 'playhqRefresh': b.playhqRefreshSec = Math.max(3, Math.min(120, Math.round(Number(a.value) || DEFAULT_REFRESH_SEC))); break;
+    case 'showClock': b.showClock = !!a.value; break;
+    case 'reset': Object.assign(b, newBoard()); break;
+  }
+  b.updatedAt = Date.now();
+}
+
+// While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5).
+async function refreshFromPlayhq(b) {
+  if (b.source !== 'playhq' || !b.roundId) return;
+  try {
+    const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
+    let game = null;
+    const s = await liveScore({ id: b.gameId }, maxAge);
+    if (s) {
+      game = { id: b.gameId, status: s.status, home: { name: b.home.name, score: s.home }, away: { name: b.away.name, score: s.away } };
+      // Follow the scorer's quarter when it changes (the Stream Deck can still set it in between).
+      const q = s.live && PERIOD_NUMBER[s.live.period];
+      if (q && b.playhqPeriodSeen !== s.live.period) {
+        if (b.period !== q) { b.period = q; log('info', 'scoreboard', `PlayHQ moved to quarter ${q}`); }
+        b.playhqPeriodSeen = s.live.period;
+      }
+      if (s.live && s.live.clock) followClock(b, s.live);
+    } else {
+      // Last resort: the round fixture, which only has scores once a game is final.
+      game = (await getRoundGames(b.roundId, maxAge)).find(g => g.id === b.gameId);
+    }
+    if (!game) return;
+    // Log what PlayHQ reports each time it changes, including "no score yet", for debugging.
+    const seen = `${game.id} ${game.status} ${game.home.score} ${game.away.score}`;
+    if (b.playhqSeen !== seen) {
+      log('info', 'scoreboard', `PlayHQ says ${game.home.name} ${game.home.score ?? 'no score'} - ${game.away.score ?? 'no score'} ${game.away.name} (${game.status})`);
+      b.playhqSeen = seen;
+    }
+    if (game.home.score !== null) b.home.score = game.home.score;
+    if (game.away.score !== null) b.away.score = game.away.score;
+    b.playhqStatus = game.status;
+    b.playhqError = '';
+  } catch (err) {
+    if (b.playhqError !== err.message) log('error', 'scoreboard', `Following PlayHQ failed: ${err.message}`);
+    b.playhqError = err.message;
+  }
+}
+
+// ─── Automatic game selection ───────────────────────────────────────────────
+// With autoSelect on, the board shows today's game on its court (autoCourt, default
+// defaultCourt in config.json): the first game of the day until the next one is due,
+// then each game from autoSelectMinutesBefore (default 10) minutes before its start.
+// A finals game is kept until PlayHQ says it is finished, because of extra time.
+// Picking a game by hand turns autoSelect off.
+const AUTO_LEAD_MS = (Number(CONFIG.autoSelectMinutesBefore) || 10) * 60 * 1000;
+const courtKey = c => String(c || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b0+(\d)/g, '$1').trim();
+function sameCourt(court, wanted) {
+  const a = courtKey(court), w = courtKey(wanted);
+  if (!w) return false;
+  if (a === w) return true;
+  // "1" or "court 1" matches "Indoor 01"
+  const num = x => (x.match(/(\d+)\s*$/) || [])[1];
+  const word = w.replace(/\s*\d+$/, '');
+  return /^\d+$/.test(w) ? num(a) === w : !!num(a) && num(a) === num(w) && (word === 'court' || a.includes(word));
+}
+const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function startOf(g, date = g.date) {
+  const m = String(g.time || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!date || !m) return null;
+  return new Date(`${date}T${m[1].padStart(2, '0')}:${m[2]}:00`).getTime();
+}
+async function todaysGames(court) {
+  const st = await getStructure();
+  const today = localDate();
+  // With a round picked by hand on the control page (for testing), use that round's games
+  // on this court as if they were on today, so the timed switching can be tried out.
+  if (roundChoice) {
+    const games = (await getCurrentGames()).filter(g => sameCourt(g.court, court)).map(g => ({ ...g, date: today }));
+    return games.filter(g => startOf(g) !== null).sort((a, b) => startOf(a) - startOf(b));
+  }
+  const out = [];
+  for (const grade of st.grades) {
+    for (const g of await getSeasonGames(grade)) if (g.date === today && sameCourt(g.court, court)) out.push(g);
+  }
+  return out.filter(g => startOf(g) !== null).sort((a, b) => startOf(a) - startOf(b));
+}
+const isFinalsRound = g => /final/i.test(g.round || '');
+const autoBusy = new Set();
+// Put a game on the board, following PlayHQ, at Q1 with a full clock.
+function switchTo(b, boardId, pick, why) {
+  log('info', 'auto', `Board ${boardId}: ${why} ${pick.home.name} v ${pick.away.name} (${pick.date} ${pick.time}, ${pick.court}, ${pick.division})`);
+  applyAction(b, { type: 'selectGame', game: pick, auto: true });
+  applyAction(b, { type: 'period', value: 1 });
+  b.clock = { ...b.clock, lengthSec: b.clock.baseSec || QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null };
+  saveBoards();
+}
+const byStart = (x, y) => `${x.date || ''} ${String(x.time || '').padStart(8, '0')}`.localeCompare(`${y.date || ''} ${String(y.time || '').padStart(8, '0')}`);
+async function autoPick(boardId) {
+  const b = board(boardId);
+  // Runs while automatic selection is on, and whenever the board has no game at all.
+  if (autoBusy.has(boardId) || (!b.autoSelect && b.gameId)) return;
+  autoBusy.add(boardId);
+  try {
+    const court = b.autoCourt || CONFIG.defaultCourt || '';
+    const games = court && b.autoSelect ? await todaysGames(court) : [];
+    if (!games.length) {
+      // Not a game day on this court, no court set, or automatic selection is off with no game picked:
+      // start on this round's first game (on the court when it has games there), so a game is always on.
+      const round = await getCurrentGames();
+      const onCourt = court ? round.filter(g => sameCourt(g.court, court)) : [];
+      const pool = (onCourt.length ? onCourt : round).slice().sort(byStart);
+      if (!pool.length) { b.autoNote = 'PlayHQ has no games in this round yet.'; return; }
+      if (b.autoSelect) b.autoNote = !court ? `Set a court to follow its games through the night. Showing this round's first game.`
+        : `No games on ${court} today. Showing this round's first game${onCourt.length ? ` on ${court}` : ''}.`;
+      if (!b.gameId || (b.autoSelect && !pool.some(g => g.id === b.gameId))) {
+        switchTo(b, boardId, pool[0], !court ? 'no court set, so starting with this round\'s first game:'
+          : onCourt.length ? `no games on ${court} today, so starting with its first game this round:` : `no games on ${court} this round, so starting with this round's first game:`);
+      }
+      return;
+    }
+    const now = Date.now();
+    const due = games.filter(g => startOf(g) - AUTO_LEAD_MS <= now);
+    const pick = due.length ? due[due.length - 1] : games[0];
+    const next = games[games.indexOf(pick) + 1];
+    const at = g => new Date(startOf(g) - AUTO_LEAD_MS).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    b.autoNote = next ? `Next: ${next.home.name} v ${next.away.name} (${next.time.slice(0, 5)}), switches at ${at(next)}.` : 'Last game on this court today.';
+    if (pick.id === b.gameId) { b.autoHold = ''; return; }
+    // Keep a final on until PlayHQ says it is over (it may go to extra time).
+    const current = games.find(g => g.id === b.gameId);
+    if (current && isFinalsRound(current)) {
+      let status = current.status;
+      try { status = (await getLive(current.id, 20000)).status || status; } catch { /* use the fixture's status */ }
+      if (!isFinished({ ...current, status })) {
+        const hold = `Keeping the final on until PlayHQ marks it finished. To move on sooner, pick the next game from the list, then tick this again.`;
+        if (b.autoHold !== hold) log('info', 'auto', `Board ${boardId}: ${hold}`);
+        b.autoHold = hold; b.autoNote = hold;
+        return;
+      }
+    }
+    b.autoHold = '';
+    switchTo(b, boardId, pick, 'switching to');
+  } catch (err) {
+    b.autoNote = `Couldn't pick a game from PlayHQ: ${err.message}. Check organisationUrl and competitionName in config.json.`;
+    log('error', 'auto', b.autoNote);
+  } finally { autoBusy.delete(boardId); }
+}
+setInterval(() => { for (const id of Object.keys(boards)) autoPick(id); }, 15000);
+setTimeout(() => { board('1'); autoPick('1'); }, 3000); // board 1 starts with a game on, following PlayHQ
+
+// The scorer's game clock from PlayHQ's live feed. Seen so far (one finished game):
+// { period: "4th Quarter", periodValue: "FOURTH_QTR", status: "RESUME", time: "00:00", lastUpdatedAt: "<ms>" }.
+// Read as: `time` is the time left when the scorer last touched the clock (lastUpdatedAt),
+// and RESUME/START mean it is running. Every reading is logged so this can be checked.
+function followClock(b, live) {
+  const c = live.clock;
+  b.playhqClock = c;
+  const key = `${c.periodValue || c.period} ${c.status} ${c.time} ${c.lastUpdatedAt} ${live.break || ''}`;
+  if (b.playhqClockKey === key) return;
+  b.playhqClockKey = key;
+  const secs = parseClock(c.time);
+  const running = /^(RESUME|RESUMED|START|STARTED|RUNNING)$/i.test(c.status || '') && !live.break;
+  const updated = Number(c.lastUpdatedAt) || Date.parse(c.lastUpdatedAt) || 0;
+  const lagMs = running && updated ? Math.max(0, Math.min(120000, Date.now() - updated)) : 0;
+  log('info', 'clock', `PlayHQ clock ${c.periodValue || c.period || '?'} ${c.status || '?'} ${c.time ?? '?'} (updated ${updated ? Math.round((Date.now() - updated) / 1000) + 's ago' : '?'})${live.break ? ' break ' + live.break : ''}${b.followPlayhqClock ? '' : ' (not followed)'}`);
+  if (!b.followPlayhqClock || secs === null) return;
+  if (secs > b.clock.lengthSec) b.clock.lengthSec = secs;
+  const leftMs = Math.max(0, secs * 1000 - lagMs);
+  b.clock = { ...b.clock, elapsedMs: b.clock.lengthSec * 1000 - leftMs, running: running && leftMs > 0, startedAt: running && leftMs > 0 ? Date.now() : null };
+  b.updatedAt = Date.now();
+}
+
+// ─── Stream Deck links ──────────────────────────────────────────────────────
+// Plain GET links, so a Stream Deck "Website" button (with "GET request in
+// background" ticked) can press them. Full list in STREAMDECK.md.
+//   /deck/home/add1  add2  minus1  minus2     (same for /deck/away/...)
+//   /deck/clock/start  stop  toggle  reset
+//   /deck/clock/set/12:34   /deck/clock/length/10 (minutes per quarter)
+//   /deck/clock/playhq/on  off  toggle   (clock follows the PlayHQ scorer)
+//   /deck/clock/adjust/10  adjust/-10  adjust/1m  adjust/-1m   (seconds, or m for minutes)
+//   /deck/quarter/1 .. 4   /deck/quarter/5 (extra time)   /deck/quarter/next  prev
+//   /deck/source/playhq  manual  toggle
+//   /deck/scores/reset
+//   /deck/auto/on  off  toggle   (pick the game from the court and the time)
+//   /deck/court/Indoor%2001  or  /deck/court/1   (the court for automatic selection)
+// Add ?board=2 for a second court.
+function parseClock(t) {
+  const m = String(t || '').match(/^(\d{1,2})(?:[:.](\d{1,2}))?$/);
+  return m ? Number(m[1]) * 60 + Number(m[2] || 0) : null;
+}
+function deckAction(parts, q) {
+  const [what, verb, arg] = parts;
+  if (what === 'home' || what === 'away') {
+    const m = String(verb || '').match(/^(add|plus|minus|sub)(\d)$/);
+    if (m) return { type: 'score', side: what, delta: (m[1] === 'add' || m[1] === 'plus' ? 1 : -1) * Number(m[2]) };
+  }
+  if (what === 'clock') {
+    if (['start', 'stop', 'toggle', 'reset'].includes(verb)) return { type: 'clock' + verb[0].toUpperCase() + verb.slice(1) };
+    if (verb === 'set') { const secs = parseClock(arg || q.time); if (secs !== null) return { type: 'clockSet', secondsLeft: secs }; }
+    if (verb === 'adjust') {
+      // adjust/10, adjust/-10, adjust/30s, adjust/1m, adjust/-1m, or ?minutes=1&seconds=-30
+      let secs = null;
+      const m = String(arg ?? '').match(/^([+-]?\d+(?:\.\d+)?)([ms]?)$/i);
+      if (m) secs = Number(m[1]) * (m[2].toLowerCase() === 'm' ? 60 : 1);
+      else if (q.minutes !== undefined || q.seconds !== undefined) secs = Number(q.minutes || 0) * 60 + Number(q.seconds || 0);
+      if (Number.isFinite(secs)) return { type: 'clockAdjust', deltaSec: secs };
+    }
+    if (verb === 'playhq' && ['on', 'off', 'toggle'].includes(arg)) return { type: 'followPlayhqClock', value: arg === 'toggle' ? 'toggle' : arg === 'on' };
+    if (verb === 'length') { const mins = Number(arg ?? q.minutes); if (mins > 0) return { type: 'clockLength', value: mins * 60 }; }
+  }
+  if (what === 'auto' && ['on', 'off', 'toggle'].includes(verb)) return { type: 'autoSelect', value: verb === 'toggle' ? 'toggle' : verb === 'on' };
+  if (what === 'court' && verb) return { type: 'autoCourt', value: verb };
+  if (what === 'source' && ['playhq', 'manual', 'toggle'].includes(verb)) return { type: 'source', value: verb };
+  if (what === 'scores' && verb === 'reset') return { type: 'resetScores' };
+  if ((what === 'period' || what === 'quarter') && /^([1-5]|next|prev)$/.test(verb || '')) {
+    return { type: 'period', value: /^\d$/.test(verb) ? Number(verb) : verb };
+  }
+  return null;
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let s = '';
+    req.on('data', d => { s += d; if (s.length > 1e5) req.destroy(); });
+    req.on('end', () => { try { resolve(s ? JSON.parse(s) : {}); } catch (e) { reject(e); } });
+  });
+}
+
+// Pages reload themselves when this changes: after a restart, or when a file in
+// public/ or config.json is edited (so updated pages show in OBS on their own).
+const STARTED_AT = Date.now();
+function pageVersion() {
+  let latest = STARTED_AT;
+  const walk = dir => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p); else latest = Math.max(latest, fs.statSync(p).mtimeMs);
+    }
+  };
+  try { walk(PUBLIC_DIR); latest = Math.max(latest, fs.statSync(path.join(ROOT, 'config.json')).mtimeMs); } catch {}
+  return String(Math.round(latest));
+}
+
+// ─── Game Summary v2 (team lists and shooting stats) ────────────────────────
+// PlayHQ's REST "Summary for the Game v2". Settings in config.json:
+//   apiBaseUrl       default https://api.playhq.com
+//   gameSummaryPath  default /v2/games/{id}/summary
+//   apiKey           sent as x-api-key if set (PlayHQ normally issues one per association)
+//   apiTenant        sent as x-phq-tenant, default the tenant from organisationUrl
+// The last answer is saved to last-game-summary.json, so its layout can be checked.
+const SUMMARY_BASE = (CONFIG.apiBaseUrl || 'https://api.playhq.com').replace(/\/$/, '');
+const SUMMARY_PATH = CONFIG.gameSummaryPath || '/v2/games/{id}/summary';
+const API_TENANT = CONFIG.apiTenant || TENANT;
+
+async function fetchGameSummary(gameId) {
+  // Public "Summary for the Game": x-api-key (PlayHQ's Client ID) + x-phq-tenant, no login token.
+  // If the configured version isn't there, try the other one (v2 <-> v1).
+  const headers = { accept: 'application/json', 'x-phq-tenant': API_TENANT };
+  if (CONFIG.apiKey) headers['x-api-key'] = CONFIG.apiKey;
+  const other = /\/v2\//.test(SUMMARY_PATH) ? SUMMARY_PATH.replace('/v2/', '/v1/') : SUMMARY_PATH.replace('/v1/', '/v2/');
+  let url, res;
+  for (const p of [...new Set([SUMMARY_PATH, other])]) {
+    url = SUMMARY_BASE + p.replace('{id}', encodeURIComponent(gameId));
+    res = await fetch(url, { headers });
+    log(res.ok ? 'info' : 'warn', 'summary', `Game Summary HTTP ${res.status} ${url}${CONFIG.apiKey ? ' (with apiKey)' : ' (no apiKey)'}`);
+    if (res.status !== 404) break;
+  }
+  const text = await res.text();
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(`PlayHQ refused the Game Summary (HTTP ${res.status}).` +
+      (CONFIG.apiKey ? ' Check apiKey and apiTenant in config.json.'
+        : ' PlayHQ needs a Client ID for this: ask the association for it and put it in config.json as "apiKey".'));
+  }
+  if (!res.ok) throw new Error(`PlayHQ Game Summary answered HTTP ${res.status} for ${url}`);
+  let json;
+  try { json = JSON.parse(text); } catch { throw new Error('PlayHQ Game Summary was not JSON'); }
+  fs.writeFile(path.join(ROOT, 'last-game-summary.json'), JSON.stringify(json, null, 2), () => {});
+  return json;
+}
+
+// The summary's exact layout isn't known in advance, so read it loosely:
+// a "team" is any object with a name/id and a list of people who have names.
+const PERSON_LIST_KEYS = /^(players|participants|lineup|lineUp|lineups|appearances|members|roster|squad|teamList)$/i;
+function personName(p) {
+  if (!p || typeof p !== 'object') return '';
+  const inner = p.profile || p.participant || p.player || p.person || {};
+  const first = p.firstName || inner.firstName || '';
+  const last = p.lastName || inner.lastName || '';
+  return (first || last) ? `${first} ${last}`.trim() : (p.name || inner.name || p.displayName || p.fullName || '');
+}
+function statValue(x) {
+  const v = x && (x.value ?? x.count ?? x.total ?? x.amount);
+  return typeof v === 'object' && v !== null ? Number(v.value ?? v.count ?? 0) : Number(v || 0);
+}
+function statType(x) {
+  const t = x && (x.type ?? x.statisticType ?? x.name ?? x.key ?? x.code);
+  return String(typeof t === 'object' && t !== null ? (t.value || t.name || t.code || '') : t || '').toUpperCase();
+}
+// Collect every { type, value } statistic under a player, adding up repeats (e.g. per quarter).
+function collectStats(p) {
+  const out = {};
+  const seen = new Set();
+  const walk = (o, depth) => {
+    if (!o || typeof o !== 'object' || depth > 4 || seen.has(o)) return;
+    seen.add(o);
+    if (Array.isArray(o)) { o.forEach(x => walk(x, depth + 1)); return; }
+    const t = statType(o);
+    if (t && ('value' in o || 'count' in o || 'total' in o)) { out[t] = (out[t] || 0) + statValue(o); return; }
+    for (const [k, v] of Object.entries(o)) {
+      if (/^(scoreSubTotal|subTotals?|periods?|quarters?)$/i.test(k)) continue; // totals are enough
+      if (v && typeof v === 'object') walk(v, depth + 1);
+      else if (typeof v === 'number' && /goal|attempt|miss|super|shot/i.test(k)) out[k.toUpperCase()] = (out[k.toUpperCase()] || 0) + v;
+    }
+  };
+  walk(p.statistics || p.stats || p.scoreTotal || p.scores || p, 0);
+  return out;
+}
+function shooting(stats) {
+  let goals = 0, attempts = 0, misses = 0, superGoals = 0, superAttempts = 0, superMisses = 0, sawAttempts = false, sawSuperAttempts = false;
+  for (const [t, v] of Object.entries(stats)) {
+    const isSuper = /SUPER|2_?POINT|TWO_?POINT/.test(t);
+    if (/AGAINST|PENALTY|CONCEDED|INTERCEPT|REBOUND/.test(t)) continue;
+    if (/ATTEMPT/.test(t)) { if (isSuper) { superAttempts += v; sawSuperAttempts = true; } else { attempts += v; sawAttempts = true; } }
+    else if (/MISS/.test(t)) { if (isSuper) superMisses += v; else misses += v; }
+    else if (/GOAL|SHOT|SCORED/.test(t) && !/TOTAL_SCORE|POINTS/.test(t)) { if (isSuper) superGoals += v; else goals += v; }
+  }
+  if (!sawAttempts) attempts = goals + misses;
+  if (!sawSuperAttempts) superAttempts = superGoals + superMisses;
+  return { goals, attempts, superGoals, superAttempts };
+}
+
+const POSITION_ORDER = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
+function positionOf(p) {
+  const raw = p.playerPosition || p.position || p.positionName || (p.positions && p.positions[0]) || '';
+  const v = typeof raw === 'object' ? (raw.abbreviation || raw.shortName || raw.value || raw.name || '') : raw;
+  const s = String(v).toUpperCase().replace(/[^A-Z]/g, '');
+  const long = { GOALSHOOTER: 'GS', GOALATTACK: 'GA', WINGATTACK: 'WA', CENTRE: 'C', CENTER: 'C', WINGDEFENCE: 'WD', WINGDEFENSE: 'WD', GOALDEFENCE: 'GD', GOALDEFENSE: 'GD', GOALKEEPER: 'GK' };
+  return long[s] || (POSITION_ORDER.includes(s) ? s : String(v || ''));
+}
+
+function parseSummary(json, board) {
+  const teams = [];
+  const seen = new Set();
+  const walk = (o, parent, depth) => {
+    if (!o || typeof o !== 'object' || depth > 8 || seen.has(o)) return;
+    seen.add(o);
+    if (Array.isArray(o)) { o.forEach(x => walk(x, parent, depth + 1)); return; }
+    for (const [k, v] of Object.entries(o)) {
+      if (Array.isArray(v) && PERSON_LIST_KEYS.test(k) && v.some(personName)) {
+        const team = { id: o.id || (o.team && o.team.id) || null, name: o.name || (o.team && o.team.name) || o.teamName || '', isHome: o.isHomeTeam ?? (o.team && o.team.isHomeTeam), raw: o, players: v };
+        teams.push(team);
+      } else if (v && typeof v === 'object') walk(v, o, depth + 1);
+    }
+  };
+  walk(json, null, 0);
+
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const pick = (side, other) => {
+    const want = norm(board[side].name);
+    return teams.find(t => t.name && norm(t.name) === want)
+      || teams.find(t => t.isHome === (side === 'home') && t !== other)
+      || teams.filter(t => t !== other)[side === 'home' ? 0 : 0];
+  };
+  const home = pick('home', null);
+  const away = pick('away', home);
+  const build = (t, side) => {
+    const name = (t && t.name) || board[side].name;
+    const players = ((t && t.players) || []).map(p => {
+      const stats = collectStats(p);
+      const roles = JSON.stringify([p.roleType, p.role, p.roles, p.captainRole, p.isCaptain]).toUpperCase();
+      return {
+        name: personName(p),
+        number: p.playerNumber ?? p.number ?? p.jerseyNumber ?? (p.participant && p.participant.playerNumber) ?? '',
+        position: positionOf(p),
+        captain: /CAPTAIN|"C"|TRUE/.test(roles) && !/VICE/.test(roles),
+        viceCaptain: /VICE/.test(roles),
+        nonPlaying: /COACH|MANAGER|UMPIRE|OFFICIAL|TRAINER|SCORER/.test(roles),
+        stats,
+        shooting: (s => ({ ...s, shots: s.attempts + s.superAttempts, points: s.goals + 2 * s.superGoals }))(shooting(stats)),
+      };
+    }).filter(p => p.name && !p.nonPlaying);
+    const rank = p => { const i = POSITION_ORDER.indexOf(p.position); return i === -1 ? 99 : i; };
+    players.sort((a, b) => rank(a) - rank(b) || String(a.name).localeCompare(b.name));
+    return { name, logo: logoFor(name), players };
+  };
+  return { home: build(home, 'home'), away: build(away, 'away'), teamsFound: teams.length };
+}
+
+// ─── Team logos (public/logos) ──────────────────────────────────────────────
+// Matched to PlayHQ team names loosely ("Perth Coastal" finds "Perth Coastals.png").
+// For a name that doesn't match, add it to config.json "logoAliases": { "Team name": "file.png" }.
+function logoFor(teamName) {
+  const dir = path.join(PUBLIC_DIR, 'logos');
+  let files = [];
+  try { files = fs.readdirSync(dir).filter(f => /\.(png|jpe?g|webp|svg)$/i.test(f)); } catch { return null; }
+  const alias = (CONFIG.logoAliases || {})[teamName];
+  if (alias && files.includes(alias)) return '/logos/' + encodeURIComponent(alias);
+  const norm = s => String(s || '').toLowerCase().replace(/\.[a-z]+$/, '').replace(/[^a-z0-9]/g, '').replace(/s$/, '');
+  const want = norm(teamName);
+  if (!want) return null;
+  const hit = files.find(f => norm(f) === want) || files.find(f => want.includes(norm(f)) || norm(f).includes(want));
+  return hit ? '/logos/' + encodeURIComponent(hit) : null;
+}
+
+const summaryCache = new Map();
+async function getTeamSheets(boardId) {
+  const b = board(boardId);
+  const base = { home: { name: b.home.name, logo: logoFor(b.home.name), players: [] }, away: { name: b.away.name, logo: logoFor(b.away.name), players: [] } };
+  const meta = { division: b.division, court: b.court, period: b.period, score: { home: b.home.score, away: b.away.score }, competition: (structure && structure.competition) || CONFIG.competitionName };
+  if (!b.gameId) return { ...meta, ...base, error: 'No PlayHQ game picked on the control page yet.' };
+  const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
+  let gqlError = '';
+  try {
+    const g = await getGame(b.gameId, maxAge);
+    if (g.home.players.length || g.away.players.length || !CONFIG.apiKey) {
+      const error = g.home.players.length || g.away.players.length ? undefined : 'PlayHQ has no line-ups for this game yet.';
+      // Team totals from the live feed: PlayHQ doesn't credit every goal to a player.
+      try {
+        const l = await getLive(b.gameId, maxAge);
+        g.home.totals = l.home; g.away.totals = l.away;
+      } catch (err) { log('warn', 'teams', `Live totals failed: ${err.message}`); }
+      return { ...meta, home: g.home, away: g.away, error, updatedAt: new Date().toISOString() };
+    }
+  } catch (err) {
+    gqlError = err.message;
+    log('warn', 'teams', `Game detail failed: ${err.message}`);
+    if (!CONFIG.apiKey) return { ...meta, ...base, error: err.message };
+  }
+  // Only with an apiKey: PlayHQ's REST "Summary for the Game".
+  const hit = summaryCache.get(b.gameId);
+  try {
+    let json = hit && Date.now() - hit.at < maxAge ? hit.json : null;
+    if (!json) { json = await fetchGameSummary(b.gameId); summaryCache.set(b.gameId, { at: Date.now(), json }); }
+    const parsed = parseSummary(json, b);
+    if (!parsed.teamsFound) return { ...meta, ...base, error: 'PlayHQ answered, but no team lists were found in it (see last-game-summary.json).' };
+    return { ...meta, ...parsed, updatedAt: new Date().toISOString() };
+  } catch (err) {
+    if (hit) return { ...meta, ...parseSummary(hit.json, b), stale: true, error: err.message };
+    return { ...meta, ...base, error: err.message };
+  }
+}
+
+// ─── Season graphics: results, ladder bar, head to head, form, ticker, shooters ─
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const sameTeam = (a, b) => norm(a) && norm(a) === norm(b);
+
+// PlayHQ's status names aren't documented, so a game counts as finished when its
+// status says so, or when it has scores, isn't marked live and its date has passed.
+function isFinished(g) {
+  const st = g.status || '';
+  if (/COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(st)) return true;
+  if (/PROGRESS|LIVE|STARTED|UPCOMING|SCHEDULED/i.test(st)) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return g.home.score !== null && g.away.score !== null && !!g.date && g.date < today;
+}
+function isLive(g) { return /PROGRESS|LIVE|STARTED/i.test(g.status || ''); }
+function resultFor(g, teamName) {
+  const mine = sameTeam(g.home.name, teamName) ? g.home : g.away;
+  const theirs = mine === g.home ? g.away : g.home;
+  const o = String(mine.outcome || '').toUpperCase();
+  const r = /WIN|WON/.test(o) ? 'W' : /LOS/.test(o) ? 'L' : /DRAW/.test(o) ? 'D'
+    : mine.score > theirs.score ? 'W' : mine.score < theirs.score ? 'L' : 'D';
+  return { result: r, opponent: theirs.name, for: mine.score, against: theirs.score };
+}
+
+// Every game of a division this season (past rounds are kept for 10 minutes).
+async function getSeasonGames(grade) {
+  const out = [];
+  for (const r of await getRounds(grade.id)) {
+    for (const g of await getRoundGames(r.id, r.current ? 60 * 1000 : 10 * 60 * 1000)) {
+      out.push({ ...g, division: grade.name, round: r.name, roundNumber: r.number });
+    }
+  }
+  const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')}`;
+  return out.sort((a, b) => key(a).localeCompare(key(b)));
+}
+
+// The division of the game on the scoreboard (or ?division=).
+async function gradeFor(b, q) {
+  const st = await getStructure();
+  if (q && q.division) return findGrade(st, q);
+  return st.grades.find(g => g.name === b.division) || st.grades.find(g => norm(g.name) === norm(b.division)) || null;
+}
+function teamsOf(b) {
+  return { home: { name: b.home.name, logo: logoFor(b.home.name) }, away: { name: b.away.name, logo: logoFor(b.away.name) } };
+}
+function competitionName() { return (structure && structure.competition) || CONFIG.competitionName; }
+
+async function getLadderBar(boardId) {
+  const b = board(boardId);
+  const grade = await gradeFor(b);
+  if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
+  const rows = (await getLadder(grade.id)).pools.flat();
+  const row = name => rows.find(r => sameTeam(r.team, name)) || null;
+  const t = teamsOf(b);
+  return { competition: competitionName(), division: grade.name, teams: rows.length,
+    home: { ...t.home, ladder: row(b.home.name) }, away: { ...t.away, ladder: row(b.away.name) } };
+}
+
+async function getHeadToHead(boardId) {
+  const b = board(boardId);
+  const grade = await gradeFor(b);
+  if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
+  const games = (await getSeasonGames(grade)).filter(g => g.id !== b.gameId && isFinished(g) &&
+    ((sameTeam(g.home.name, b.home.name) && sameTeam(g.away.name, b.away.name)) || (sameTeam(g.home.name, b.away.name) && sameTeam(g.away.name, b.home.name))));
+  const tally = { home: 0, away: 0, draws: 0 };
+  for (const g of games) {
+    const r = resultFor(g, b.home.name).result;
+    if (r === 'W') tally.home++; else if (r === 'L') tally.away++; else tally.draws++;
+  }
+  return { competition: competitionName(), division: grade.name, ...teamsOf(b), tally,
+    games: games.map(g => ({ round: g.round, date: g.date, home: g.home, away: g.away })) };
+}
+
+async function getForm(boardId, count) {
+  const b = board(boardId);
+  const grade = await gradeFor(b);
+  if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
+  const finished = (await getSeasonGames(grade)).filter(g => g.id !== b.gameId && isFinished(g));
+  const n = Math.min(10, Math.max(1, Number(count) || 5));
+  const form = name => finished.filter(g => sameTeam(g.home.name, name) || sameTeam(g.away.name, name)).slice(-n)
+    .map(g => ({ round: g.round, ...resultFor(g, name) }));
+  const t = teamsOf(b);
+  return { competition: competitionName(), division: grade.name,
+    home: { ...t.home, form: form(b.home.name) }, away: { ...t.away, form: form(b.away.name) } };
+}
+
+// Live and finished scores from the current round, leaving out the game on the scoreboard.
+async function getTicker(boardId) {
+  const b = board(boardId);
+  const games = (await getCurrentGames()).filter(g => g.id !== b.gameId && (isLive(g) || isFinished(g) || (g.home.score !== null && g.away.score !== null)));
+  // The round fixture has no scores until a game is final, so read live games one by one.
+  await Promise.all(games.filter(isLive).map(async g => {
+    try {
+      const d = await liveScore(g, 20 * 1000);
+      if (d) { g.home = { ...g.home, score: d.home }; g.away = { ...g.away, score: d.away }; }
+    } catch (err) { log('warn', 'ticker', `Live score for ${g.home.name} v ${g.away.name} failed: ${err.message}`); }
+  }));
+  return { competition: competitionName(), games: games.map(g => ({ ...g, live: isLive(g), finished: isFinished(g) })) };
+}
+
+// Season shooting totals from the Game Summary of every finished game in a division.
+// Finished games don't change, so their summaries are kept until the helper restarts.
+const finishedSummaries = new Map();
+async function getTopShooters(q) {
+  const st = await getStructure();
+  const grade = findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' });
+  if (!grade) throw new Error(`No division "${q.division}"`);
+  const games = (await getSeasonGames(grade)).filter(isFinished);
+  const players = new Map();
+  let read = 0, failed = 0, lastError = '';
+  for (const g of games) {
+    let parsed = finishedSummaries.get(g.id);
+    if (!parsed) {
+      try {
+        parsed = await getGame(g.id, 60 * 60 * 1000);
+        finishedSummaries.set(g.id, parsed);
+      } catch (err) { failed++; lastError = err.message; continue; }
+    }
+    read++;
+    for (const side of ['home', 'away']) {
+      for (const p of parsed[side].players) {
+        const sh = p.shooting;
+        if (p.private || (!sh.goals && !sh.superGoals)) continue; // "Private player" can't be told apart
+        const team = parsed[side].name;
+        const k = norm(p.name) + '|' + norm(team);
+        const t = players.get(k) || { name: p.name, team, logo: logoFor(team), games: 0, goals: 0, superGoals: 0, shots: 0, points: 0 };
+        t.games++; t.goals += sh.goals; t.superGoals += sh.superGoals; t.shots += sh.shots || 0; t.points += sh.points;
+        players.set(k, t);
+      }
+    }
+  }
+  const limit = Math.min(20, Math.max(1, Number(q.limit) || 8));
+  const all = [...players.values()];
+  const by = f => [...all].sort((a, b) => f(b) - f(a) || a.name.localeCompare(b.name)).slice(0, limit);
+  if (failed) log('warn', 'shooters', `${failed} of ${games.length} games could not be read: ${lastError}`);
+  return { competition: competitionName(), division: grade.name, gamesRead: read, gamesFinished: games.length,
+    error: !read && failed ? lastError : undefined,
+    points: by(p => p.points), goals: by(p => p.goals), superGoals: by(p => p.superGoals) };
+}
+
+// ─── HTTP ───────────────────────────────────────────────────────────────────
+const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+
+function send(res, status, body, type) {
+  res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
+  res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+}
+
+// Requests that pages repeat every second or two are only logged when they fail.
+const QUIET = new Set(['/api/version', '/api/log']);
+http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  const q = Object.fromEntries(url.searchParams);
+  const started = Date.now();
+  res.on('finish', () => {
+    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams'));
+    const asset = req.method === 'GET' && !/\.html$|^\/$|^\/api\/|^\/deck\//.test(url.pathname);
+    if (res.statusCode >= 400 || !(polled || asset)) {
+      log(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http',
+        `${req.method} ${url.pathname}${url.search} ${res.statusCode} ${Date.now() - started}ms`);
+    }
+  });
+  try {
+    if (url.pathname === '/api/log') {
+      if (req.method === 'POST') {
+        const e = await readBody(req);
+        log(['error', 'warn'].includes(e.level) ? e.level : 'info', `page ${String(e.page || '?').slice(0, 80)}`, e.message || '', e.detail);
+        return send(res, 204, '');
+      }
+      // Open http://localhost:8080/api/log to read the log in a browser.
+      return fs.readFile(LOG_FILE, (err, buf) => send(res, 200, err ? 'The log is empty.' : buf, 'text/plain; charset=utf-8'));
+    }
+    if (url.pathname === '/api/structure') return send(res, 200, await getStructure());
+    if (url.pathname === '/api/ladder') {
+      const st = await getStructure();
+      // No ?division: the division of the game picked on the control page.
+      const grade = findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' });
+      if (!grade) return send(res, 404, { error: `No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}` });
+      const ladder = await getLadder(grade.id);
+      return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, ...ladder });
+    }
+    if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion() });
+    if (url.pathname === '/api/teams') return send(res, 200, await getTeamSheets(q.board || '1'));
+    if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
+    if (url.pathname === '/api/rounds') {
+      if (req.method === 'POST') setRoundChoice((await readBody(req)).round);
+      return send(res, 200, await getRoundInfo());
+    }
+    if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext(q.board || '1'));
+    if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar(q.board || '1'));
+    if (url.pathname === '/api/headtohead') return send(res, 200, await getHeadToHead(q.board || '1'));
+    if (url.pathname === '/api/form') return send(res, 200, await getForm(q.board || '1', q.count));
+    if (url.pathname === '/api/ticker') return send(res, 200, await getTicker(q.board || '1'));
+    if (url.pathname === '/api/topshooters') return send(res, 200, await getTopShooters(q));
+    if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
+    if (url.pathname.startsWith('/deck/')) {
+      const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);
+      const action = deckAction(parts, q);
+      if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See STREAMDECK.md.` });
+      const b = board(q.board || '1');
+      applyAction(b, action);
+      if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick(q.board || '1');
+      saveBoards();
+      log('info', 'deck', `Board ${q.board || '1'} ${action.type}: now ${b.home.score}-${b.away.score}, clock ${b.clock.running ? 'running' : 'stopped'}`, action);
+      return send(res, 200, { ok: true, home: b.home.score, away: b.away.score, source: b.source, clockRunning: b.clock.running });
+    }
+    if (url.pathname === '/api/scoreboard') {
+      const b = board(q.board || '1');
+      if (req.method === 'POST') {
+        const action = await readBody(req);
+        log('info', 'scoreboard', `Board ${q.board || '1'} ${action.type || '?'}`, action);
+        applyAction(b, action);
+        if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick(q.board || '1');
+        saveBoards();
+      }
+      else await refreshFromPlayhq(b);
+      let competition = CONFIG.competitionName;
+      if (structure) competition = structure.competition;
+      const logos = { home: logoFor(b.home.name), away: logoFor(b.away.name) };
+      const venueName = CONFIG.venueName || b.venue || '';
+      return send(res, 200, { ...b, competition, venueName, logos, clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() });
+    }
+    const ALIASES = { '/': 'index.html', '/results.html': 'fixtures.html' }; // results.html is the fixture page showing finished games
+    let file = path.normalize(path.join(PUBLIC_DIR, ALIASES[url.pathname] || decodeURIComponent(url.pathname)));
+    if (!file.startsWith(PUBLIC_DIR)) return send(res, 403, 'Forbidden', 'text/plain');
+    fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file)] || 'application/octet-stream'));
+  } catch (err) {
+    log('error', 'http', `${req.method} ${url.pathname}${url.search} failed: ${err.message}`, err.stack ? err.stack.split('\n').slice(1, 4).join(' | ') : undefined);
+    send(res, 502, { error: err.message });
+  }
+}).listen(PORT, () => {
+  log('info', 'helper', `Started on port ${PORT}, Node ${process.version}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
+  console.log(`Debug log: ${LOG_FILE}`);
+  console.log(`PlayHQ Graphics is running. Open http://localhost:${PORT}/ for the page links.`);
+  console.log(`Organisation ${ORG_ID || '(not set)'} on ${TENANT}. Leave this window open while streaming.`);
+});

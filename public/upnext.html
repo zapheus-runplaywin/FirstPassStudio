@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Up Next</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/upnext.html
+       Shows the game after the one picked on the scoreboard control page, on the same
+       court (for half time). With no game picked, it shows the second timeslot.
+       Loads once: tick "Refresh browser when scene becomes active" in OBS.
+       Options: ?board=2 for a second court. -->
+  <main class="card matchup upnext" id="card" hidden>
+    <header class="matchup__header">
+      <div class="upnext__tabs"><div class="tab upnext__tab">Up next</div><div class="tab" id="comp"></div></div>
+      <div class="matchup__division" id="division"></div>
+    </header>
+    <div class="matchup__teams">
+      <div class="matchup__team"><div id="homeLogo"></div><h2 id="homeName"></h2></div>
+      <div class="upnext__middle"><div class="matchup__vs">VS</div><div class="upnext__time" id="time"></div></div>
+      <div class="matchup__team"><div id="awayLogo"></div><h2 id="awayName"></h2></div>
+    </div>
+    <footer class="matchup__info" id="info"></footer>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const boardId = new URLSearchParams(location.search).get('board') || '1';
+
+    function clock(time) {
+      const [h, m] = String(time || '').split(':').map(Number);
+      return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : (time || '');
+    }
+    function setLogo(id, name, logo) {
+      const node = logoEl({ name, logo }, 'matchup__logo');
+      node.id = id;
+      document.getElementById(id).replaceWith(node);
+    }
+
+    (async () => {
+      const msg = document.getElementById('message');
+      try {
+        const g = await (await fetch(`/api/upnext?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        if (g.error) throw new Error(g.error);
+        document.getElementById('comp').textContent = g.competition || 'Thunder League';
+        document.getElementById('division').textContent = [g.division, g.round].filter(Boolean).join('  ·  ');
+        document.getElementById('homeName').textContent = g.home.name;
+        document.getElementById('awayName').textContent = g.away.name;
+        setLogo('homeLogo', g.home.name, g.logos && g.logos.home);
+        setLogo('awayLogo', g.away.name, g.logos && g.logos.away);
+        document.getElementById('time').textContent = clock(g.time);
+        const info = document.getElementById('info');
+        info.replaceChildren();
+        [g.court, g.venueName].filter(Boolean).forEach(t => info.appendChild(el('span', '', t)));
+        document.getElementById('card').hidden = false;
+      } catch (err) {
+        console.warn('Up next unavailable:', err.message);
+        msg.textContent = `Up next unavailable: ${err.message}`;
+        msg.hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>
