@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Competition Setup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 20px 16px 110px; background: #f4f4f7; color: #1b1b24; }
+  main { max-width: 1000px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; }
+  .sub { color: #555; margin: 0 0 16px; line-height: 1.5; }
+  section { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: 0 0 12px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin: 10px 0 4px; }
+  label.inline { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin: 10px 16px 0 0; }
+  input[type=text], input[type=number], input[type=url], select { font: inherit; padding: 7px 9px; border: 1px solid #c9c9d4; border-radius: 6px; width: 100%; }
+  input[type=number] { width: 100px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .row > input[type=text], .row > input[type=url], .row > select { flex: 1 1 260px; width: auto; }
+  button, a.btn { font: inherit; font-weight: 600; padding: 7px 14px; border-radius: 6px; border: 1px solid #4b1d8f; background: #4b1d8f; color: #fff; cursor: pointer; text-decoration: none; }
+  button.alt, a.btn { background: #fff; color: #4b1d8f; }
+  button.danger { background: #fff; color: #a1123c; border-color: #a1123c; }
+  button:disabled { opacity: .5; cursor: default; }
+  .help { font-size: 13px; color: #666; margin: 4px 0 0; line-height: 1.45; }
+  .note { font-size: 14px; color: #555; margin: 8px 0 0; }
+  .error { color: #a1123c; }
+  .ok { color: #11743b; }
+  /* Competition list */
+  .comps { display: grid; gap: 8px; }
+  .comp { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid #e6e6ee; border-radius: 8px; cursor: pointer; }
+  .comp.editing { border-color: #4b1d8f; background: #faf7fd; }
+  .comp__name { font-weight: 700; flex: 1; }
+  .comp__sub { font-weight: 400; color: #666; font-size: 13px; }
+  .badge { background: #11743b; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .05em; }
+  .badge.draft { background: #b0700b; }
+  /* Colours */
+  .colours { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+  .colour { display: grid; grid-template-columns: 44px 90px 1fr; align-items: center; gap: 8px; }
+  .colour input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid #c9c9d4; border-radius: 6px; background: none; }
+  .colour input[type=text] { font-family: monospace; padding: 5px 6px; }
+  .colour span { font-size: 13px; color: #444; line-height: 1.2; }
+  .lookgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  /* Preview, drawn with the colours above */
+  .preview { border-radius: 8px; padding: 16px; background: repeating-conic-gradient(#d6d6d6 0 25%, #eeeeee 0 50%) 0 0 / 22px 22px;
+    font-family: var(--font); color: var(--text); display: grid; gap: 14px; justify-items: center; }
+  .pv-title { display: flex; flex-direction: column; align-items: center; text-transform: uppercase; filter: drop-shadow(0 3px 8px rgba(0,0,0,.4)); }
+  .pv-title img { height: 54px; max-width: 220px; object-fit: contain; margin-bottom: 4px; }
+  .pv-round { background: var(--yellow); color: var(--text-on-yellow); font-weight: 800; font-size: 13px; padding: 3px 26px 2px; border-radius: 10px 10px 0 0; }
+  .pv-body { border-radius: 22px; overflow: hidden; text-align: center; }
+  .pv-comp { background: radial-gradient(ellipse at center, var(--purple-light) 0%, var(--purple) 60%, var(--purple-shade) 100%); font-weight: 800; font-size: 18px; padding: 5px 30px 4px; }
+  .pv-venue { background: radial-gradient(ellipse at center, var(--purple-dark-light) 0%, var(--purple-dark) 100%); font-weight: 700; font-size: 14px; padding: 4px 30px 5px; }
+  .pv-score { display: flex; align-items: stretch; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,.35); border-radius: 6px; overflow: hidden; }
+  .pv-score .t { background: var(--purple); padding: 8px 14px; font-size: 14px; text-transform: uppercase; min-width: 120px; text-align: center; }
+  .pv-score .s { background: var(--yellow); color: var(--text-on-yellow); padding: 8px 12px; font-size: 18px; }
+  .pv-score .c { background: var(--pink); padding: 8px 12px; font-size: 14px; }
+  .pv-ladder { width: 100%; max-width: 380px; border-radius: 8px; overflow: hidden; font-size: 13px; }
+  .pv-ladder .h { background: var(--purple); border-bottom: 3px solid var(--pink); padding: 8px 12px; font-weight: 800; text-transform: uppercase; }
+  .pv-ladder .h span { color: var(--yellow); }
+  .pv-ladder .r { display: grid; grid-template-columns: 28px 1fr 30px 44px; align-items: center; background: var(--purple-deep); height: 30px; }
+  .pv-ladder .r:nth-child(odd) { background: var(--purple-deep-alt); }
+  .pv-ladder .r.th { color: var(--muted); font-size: 11px; font-weight: 700; height: 24px; }
+  .pv-ladder .p { color: var(--yellow); font-weight: 800; text-align: center; }
+  .pv-ladder .r.fin .p { box-shadow: inset 4px 0 0 var(--pink); }
+  .pv-ladder .pts { background: var(--yellow); color: var(--text-on-yellow); font-weight: 800; text-align: center; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .pv-ladder .r.th .pts { background: transparent; color: var(--muted); }
+  /* Logos */
+  .drop { border: 2px dashed #b9b9c8; border-radius: 8px; padding: 14px; text-align: center; color: #555; margin-top: 8px; }
+  .drop.over { border-color: #4b1d8f; background: #faf7fd; }
+  .logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
+  .logo { border: 1px solid #e6e6ee; border-radius: 8px; padding: 8px; text-align: center; position: relative;
+    background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; }
+  .logo img { width: 90px; height: 90px; object-fit: contain; display: block; margin: 0 auto 4px; }
+  .logo div { font-size: 12px; word-break: break-word; background: rgba(255,255,255,.85); border-radius: 4px; }
+  .logo button { position: absolute; top: 4px; right: 4px; padding: 0 7px; font-size: 14px; line-height: 20px; }
+  .brandlogo { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .brandlogo img { height: 80px; max-width: 240px; object-fit: contain; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; border-radius: 6px; padding: 4px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  td, th { text-align: left; padding: 5px 6px; border-top: 1px solid #eee; vertical-align: middle; }
+  th { font-size: 12px; text-transform: uppercase; color: #666; letter-spacing: .05em; }
+  td img, td .none { width: 40px; height: 40px; object-fit: contain; display: block; }
+  td .none { border-radius: 50%; background: #eee; color: #888; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  td select { width: auto; max-width: 260px; }
+  /* Save bar */
+  .savebar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,.12); padding: 12px 16px; }
+  .savebar .row { max-width: 1000px; margin: 0 auto; }
+  .savebar .note { margin: 0; flex: 1; }
+  details summary { cursor: pointer; font-weight: 600; }
+  @media (max-width: 760px) { .grid, .colours, .lookgrid { grid-template-columns: 1fr; } }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+<main>
+  <h1>Competition setup</h1>
+  <p class="sub">Everything about a competition that doesn't come from PlayHQ: its PlayHQ link, names, game rules, colours, font and logos.
+    Each competition keeps its own setup. The one marked <b>In use</b> is what every graphic, the control page and the Stream Deck use.
+    <a href="/">Back to the page links</a></p>
+
+  <section>
+    <h2>Competitions</h2>
+    <div class="comps" id="comps"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="alt" id="newComp">New competition</button>
+      <span class="help">A new competition starts as a copy of the settings and colours of the one you're editing (not its logos).</span>
+    </div>
+  </section>
+
+  <div id="editor" hidden>
+    <section>
+      <h2>PlayHQ</h2>
+      <label for="name">Name for this setup</label>
+      <input type="text" id="name" data-key="name">
+      <label for="organisationUrl">Organisation's PlayHQ page</label>
+      <div class="row">
+        <input type="url" id="organisationUrl" data-key="organisationUrl" placeholder="https://www.playhq.com/netball-australia/org/…/…">
+        <button class="alt" id="find">Find its competitions</button>
+      </div>
+      <p class="help">Open the organisation that runs the competition on playhq.com and copy the address from the browser. For a carnival like the AMMNA
+        nationals, or the WA Netball League, that's the organisation the competition is listed under.</p>
+      <p class="note" id="findNote"></p>
+      <div class="grid">
+        <div>
+          <label for="competitionName">Competition on PlayHQ</label>
+          <input type="text" id="competitionName" data-key="competitionName" list="compList" placeholder="Press Find its competitions, or type its name">
+          <datalist id="compList"></datalist>
+        </div>
+        <div>
+          <label for="seasonName">Season</label>
+          <input type="text" id="seasonName" data-key="seasonName" list="seasonList" placeholder="Blank = the current season">
+          <datalist id="seasonList"></datalist>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Names on the graphics</h2>
+      <div class="grid">
+        <div>
+          <label for="displayName">Competition name</label>
+          <input type="text" id="displayName" data-key="displayName" placeholder="Blank = the name on PlayHQ">
+        </div>
+        <div>
+          <label for="organisationName">Organisation name (ladder heading)</label>
+          <input type="text" id="organisationName" data-key="organisationName" placeholder="Blank = the name on PlayHQ">
+        </div>
+        <div>
+          <label for="venueName">Venue (title banner, fixture, up next)</label>
+          <input type="text" id="venueName" data-key="venueName" placeholder="Blank = the venue on PlayHQ">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Game rules</h2>
+      <div class="row">
+        <label class="inline"><input type="radio" name="periodType" value="quarters"> Quarters</label>
+        <label class="inline"><input type="radio" name="periodType" value="halves"> Halves</label>
+        <label class="inline">Minutes each <input type="number" id="quarterMinutes" data-key="quarterMinutes" min="1" max="60"></label>
+      </div>
+      <div class="row">
+        <label class="inline"><input type="checkbox" id="superShots" data-key="superShots"> Super shots (2 points)</label>
+        <label class="inline">Finals marker on the top <input type="number" id="finalsPlaces" data-key="finalsPlaces" min="0" max="32"> teams of the ladder</label>
+      </div>
+      <p class="help">Halves give the control page H1 and H2 buttons and the shooting stats say "Half time" and "Full time". Without super shots the
+        Super columns are left off the shooting stats and top shooters (the control page keeps its +2 and −2 buttons). Set the finals marker to 0 for none.</p>
+    </section>
+
+    <section>
+      <h2>Game day</h2>
+      <div class="row">
+        <label class="inline">Court to follow <input type="text" id="defaultCourt" data-key="defaultCourt" placeholder="e.g. 1 or Indoor 01" style="width:150px"></label>
+        <label class="inline"><input type="checkbox" id="autoSelectGame" data-key="autoSelectGame"> Pick the game automatically</label>
+        <label class="inline">Switch <input type="number" id="autoSelectMinutesBefore" data-key="autoSelectMinutesBefore" min="0" max="60"> minutes before the next game</label>
+        <label class="inline">This round = played in the next <input type="number" id="roundLookaheadDays" data-key="roundLookaheadDays" min="1" max="14"> days</label>
+      </div>
+      <p class="help">These are the starting points; the control page can still change the court, pick a game by hand or force a round.
+        On a carnival day with several rounds, "this round" moves on to each round as its first game comes up.</p>
+    </section>
+
+    <section>
+      <h2>Colours and font</h2>
+      <div class="lookgrid">
+        <div>
+          <div class="colours" id="colours"></div>
+          <label class="inline">Dark panels see-through <input type="range" id="panelOpacity" min="0.3" max="1" step="0.01" style="width:140px"> <span id="opacityPct"></span></label>
+          <label for="font">Font</label>
+          <select id="font" data-key="font"></select>
+          <div class="row" style="margin-top:10px"><button class="alt" id="resetColours">Use the default colours</button></div>
+        </div>
+        <div>
+          <div class="preview" id="preview">
+            <div class="pv-title"><img id="pvLogo" alt="" hidden><div class="pv-round">Round 6</div>
+              <div class="pv-body"><div class="pv-comp" id="pvComp">Competition</div><div class="pv-venue" id="pvVenue">Venue</div></div></div>
+            <div class="pv-score"><div class="t">Home team</div><div class="s">12</div><div class="s">10</div><div class="t">Away team</div><div class="c" id="pvClock">Q2 7:42</div></div>
+            <div class="pv-ladder" id="pvLadder"></div>
+          </div>
+          <p class="help">A rough preview with your colours. After saving, every graphic in OBS reloads with them.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Competition logo</h2>
+      <p class="help">Shown above the title banner and in the corner of the ladder. A PNG with a transparent background looks best.</p>
+      <div class="brandlogo" id="brandLogo"></div>
+      <div class="row" style="margin-top:8px"><input type="file" id="brandFile" accept="image/*"></div>
+    </section>
+
+    <section>
+      <h2>Team logos</h2>
+      <p class="help">Logos are matched to PlayHQ team names by their file name ("Perth Coastals.png" for Perth Coastal), so name each file after its team.
+        Any team without a logo shows its initials in a circle.</p>
+      <div class="drop" id="drop">Drop team logo files here, or <input type="file" id="logoFiles" accept="image/*" multiple></div>
+      <p class="note" id="uploadNote"></p>
+      <div class="logos" id="logos"></div>
+      <h2 style="margin-top:18px">Teams on PlayHQ</h2>
+      <p class="note" id="teamsNote"></p>
+      <table id="teams" hidden><thead><tr><th>Logo</th><th>Team</th><th>Division</th><th>Use</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Graphics</h2>
+      <div class="row">
+        <label class="inline"><input type="checkbox" id="titleFlames" data-key="titleFlames"> Flames either side of the title banner</label>
+        <label class="inline">The Clash big word <input type="text" id="clashWord" data-key="clashWord" style="width:160px"></label>
+      </div>
+      <details style="margin-top:14px">
+        <summary>PlayHQ Client ID (most competitions don't need one)</summary>
+        <p class="help">Only used if PlayHQ's game page data has no line-ups and the association has given you a Client ID for PlayHQ's Game Summary.</p>
+        <div class="grid">
+          <div><label for="apiKey">Client ID</label><input type="text" id="apiKey" data-key="apiKey"></div>
+          <div><label for="apiTenant">Tenant</label><input type="text" id="apiTenant" data-key="apiTenant" placeholder="Blank = from the PlayHQ link"></div>
+        </div>
+      </details>
+      <div class="row" style="margin-top:16px"><button class="danger" id="deleteComp">Delete this competition</button></div>
+    </section>
+  </div>
+</main>
+
+<div class="savebar"><div class="row">
+  <p class="note" id="saveNote"></p>
+  <button class="alt" id="useComp" hidden>Save and use this competition</button>
+  <button id="save">Save</button>
+</div></div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const COLOURS = [
+    ['main', 'Main', 'banners, headers, team name panels'], ['dark', 'Main, dark', 'venue bar, shadows'],
+    ['highlight', 'Highlight', 'round tab, scores, points, VS'], ['accent', 'Accent', 'stripes, tabs, the clock box'],
+    ['panel', 'Panels', 'behind tables and team lists'], ['panelAlt', 'Panels, alternate', 'every second row'],
+    ['text', 'Text', 'on the main colour and panels'], ['textOnHighlight', 'Text on highlight', 'scores, points'],
+    ['muted', 'Small print', 'column headings, footers'],
+  ];
+  let info = null;     // { active, competitions, fonts, defaults }
+  let editing = null;  // id being edited
+  let form = null;     // settings being edited
+  let files = { logos: [], brand: [] };
+  let dirty = false;
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { cache: 'no-store', ...opts });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+  const post = (path, body) => api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const imgUrl = (kind, name) => `/api/setup/${editing}/image?kind=${kind}&name=${encodeURIComponent(name)}&v=${Date.now() % 1e7}`;
+  function note(id, text, cls) { $(id).textContent = text; $(id).className = 'note' + (cls ? ' ' + cls : ''); }
+  function markDirty() { dirty = true; note('saveNote', 'Not saved yet.'); }
+
+  // ─── Competition list ───────────────────────────────────────────────────
+  async function loadList(pick) {
+    info = await api('/api/setup');
+    $('font').replaceChildren(...info.fonts.map(f => Object.assign(el('option', '', f), { value: f })));
+    const comps = $('comps');
+    comps.replaceChildren();
+    for (const c of info.competitions) {
+      const row = el('div', 'comp' + (c.id === (pick || editing) ? ' editing' : ''));
+      const name = el('div', 'comp__name', c.name);
+      name.append(el('div', 'comp__sub', c.competitionName ? `PlayHQ: ${c.competitionName}` : 'No PlayHQ competition yet'));
+      row.append(name);
+      if (!c.organisationUrl || !c.competitionName) row.append(el('span', 'badge draft', 'Needs PlayHQ link'));
+      if (c.active) row.append(el('span', 'badge', 'In use'));
+      else {
+        const use = el('button', 'alt', 'Use this one');
+        use.onclick = e => { e.stopPropagation(); activate(c.id); };
+        row.append(use);
+      }
+      row.onclick = () => { if (c.id !== editing) open(c.id); };
+      comps.append(row);
+    }
+    const want = pick || editing || info.active;
+    if (want !== editing) await open(want);
+  }
+
+  async function open(id) {
+    if (dirty && !confirm('Leave without saving your changes?')) return;
+    const d = await api(`/api/setup/${id}`);
+    editing = id; form = d.settings; files = { logos: d.logos, brand: d.brand }; dirty = false;
+    [...$('comps').children].forEach((row, i) => row.classList.toggle('editing', info.competitions[i].id === id));
+    fill(); note('saveNote', d.active ? 'This competition is in use.' : 'Not in use. Save and use it to put it on the graphics.');
+    $('useComp').hidden = d.active;
+    $('deleteComp').disabled = d.active;
+    $('editor').hidden = false;
+    $('findNote').textContent = '';
+    loadTeams(d.active);
+  }
+
+  async function activate(id) {
+    if (!confirm('Switch every graphic, the control page and the Stream Deck to this competition? The scoreboard starts again on its first game.')) return;
+    try {
+      if (id === editing && dirty) await save(true);
+      await post(`/api/setup/${id}/activate`, {});
+      editing = null; dirty = false;
+      await loadList(id);
+      note('saveNote', 'Now in use. Graphics in OBS reload on their own.', 'ok');
+    } catch (err) { note('saveNote', `Couldn't switch: ${err.message}`, 'error'); }
+  }
+
+  // ─── The form ───────────────────────────────────────────────────────────
+  function fill() {
+    document.querySelectorAll('[data-key]').forEach(i => {
+      const v = form[i.dataset.key];
+      if (i.type === 'checkbox') i.checked = !!v; else i.value = v ?? '';
+    });
+    document.querySelectorAll('[name=periodType]').forEach(r => { r.checked = r.value === form.periodType; });
+    $('panelOpacity').value = form.panelOpacity;
+    buildColours();
+    renderBrand(); renderLogos(); preview();
+  }
+  document.querySelectorAll('[data-key]').forEach(i => {
+    i.addEventListener(i.type === 'checkbox' || i.tagName === 'SELECT' ? 'change' : 'input', () => {
+      form[i.dataset.key] = i.type === 'checkbox' ? i.checked : i.type === 'number' ? Number(i.value) : i.value;
+      markDirty(); preview();
+    });
+  });
+  document.querySelectorAll('[name=periodType]').forEach(r => r.onchange = () => { form.periodType = r.value; markDirty(); preview(); });
+  $('panelOpacity').oninput = () => { form.panelOpacity = Number($('panelOpacity').value); markDirty(); preview(); };
+
+  function buildColours() {
+    const box = $('colours');
+    box.replaceChildren();
+    for (const [key, label, help] of COLOURS) {
+      const row = el('div', 'colour');
+      const pick = Object.assign(el('input'), { type: 'color', value: form.colours[key] });
+      const hex = Object.assign(el('input'), { type: 'text', value: form.colours[key], maxLength: 7 });
+      const text = el('span'); text.append(el('b', '', label), el('br'), help);
+      pick.oninput = () => { hex.value = pick.value; form.colours[key] = pick.value; markDirty(); preview(); };
+      hex.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(hex.value)) { pick.value = hex.value; form.colours[key] = hex.value.toLowerCase(); markDirty(); preview(); } };
+      row.append(pick, hex, text);
+      box.append(row);
+    }
+  }
+  $('resetColours').onclick = () => { form.colours = { ...info.defaults.colours }; form.panelOpacity = info.defaults.panelOpacity; $('panelOpacity').value = form.panelOpacity; buildColours(); markDirty(); preview(); };
+
+  // The same colour variables the helper writes into theme.css.
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const mix = (h, o, t) => '#' + rgb(h).map((v, i) => Math.round(v + (rgb(o)[i] - v) * t).toString(16).padStart(2, '0')).join('');
+  let fontLink = null;
+  function preview() {
+    const c = form.colours, o = form.panelOpacity, p = $('preview').style;
+    const vars = { '--purple': c.main, '--purple-light': mix(c.main, '#ffffff', .25), '--purple-shade': mix(c.main, '#000000', .15),
+      '--purple-dark': c.dark, '--purple-dark-light': mix(c.dark, '#ffffff', .15), '--purple-deep': `rgba(${rgb(c.panel)}, ${o})`,
+      '--purple-deep-alt': `rgba(${rgb(c.panelAlt)}, ${o})`, '--yellow': c.highlight, '--pink': c.accent, '--text': c.text,
+      '--text-on-yellow': c.textOnHighlight, '--muted': c.muted, '--font': `"${form.font}", "Montserrat", Arial, sans-serif` };
+    for (const [k, v] of Object.entries(vars)) p.setProperty(k, v);
+    $('opacityPct').textContent = `${Math.round((1 - o) * 100)}%`;
+    if (!fontLink) { fontLink = el('link'); fontLink.rel = 'stylesheet'; document.head.append(fontLink); }
+    fontLink.href = `https://fonts.googleapis.com/css2?family=${form.font.replace(/ /g, '+')}&display=swap`;
+    $('pvComp').textContent = (form.titleFlames ? '🔥 ' : '') + (form.displayName || form.competitionName || form.name) + (form.titleFlames ? ' 🔥' : '');
+    $('pvVenue').textContent = form.venueName || 'Venue';
+    $('pvClock').textContent = `${form.periodType === 'halves' ? 'H' : 'Q'}2 7:42`;
+    $('pvLogo').hidden = !form.competitionLogo;
+    if (form.competitionLogo) $('pvLogo').src = imgUrl('brand', form.competitionLogo);
+    const lad = $('pvLadder');
+    lad.replaceChildren();
+    const head = el('div', 'h', (form.displayName || form.competitionName || form.name) + ' '); head.append(el('span', '', 'Division 1'));
+    lad.append(head);
+    const th = el('div', 'r th'); th.append(el('div', 'p', '#'), el('div', '', 'TEAM'), el('div', '', 'P'), el('div', 'pts', 'PTS')); lad.append(th);
+    ['Team A', 'Team B', 'Team C', 'Team D', 'Team E', 'Team F'].forEach((t, i) => {
+      const r = el('div', 'r' + (i < form.finalsPlaces ? ' fin' : ''));
+      r.append(el('div', 'p', i + 1), el('div', '', t), el('div', '', 8), el('div', 'pts', 28 - i * 4));
+      lad.append(r);
+    });
+  }
+
+  // ─── PlayHQ lookup ──────────────────────────────────────────────────────
+  let found = null;
+  $('find').onclick = async () => {
+    note('findNote', 'Asking PlayHQ…');
+    try {
+      found = await api(`/api/setup-find?url=${encodeURIComponent($('organisationUrl').value.trim())}`);
+      $('compList').replaceChildren(...found.competitions.map(c => Object.assign(el('option'), { value: c.name })));
+      note('findNote', found.competitions.length
+        ? `${found.organisation || 'This organisation'} has ${found.competitions.length} competition${found.competitions.length === 1 ? '' : 's'} on PlayHQ: ${found.competitions.map(c => c.name).join(', ')}. Pick one in the box below.`
+        : 'PlayHQ lists no competitions for this organisation.', found.competitions.length ? 'ok' : 'error');
+      seasons();
+    } catch (err) { note('findNote', `PlayHQ said: ${err.message}`, 'error'); }
+  };
+  function seasons() {
+    const c = found && found.competitions.find(x => x.name.toLowerCase() === String(form.competitionName).toLowerCase());
+    $('seasonList').replaceChildren(...(c ? c.seasons : []).map(s => Object.assign(el('option'), { value: s })));
+    if (c) $('seasonName').placeholder = `Blank = the current season${c.currentSeason ? ` (${c.currentSeason})` : ''}`;
+  }
+  $('competitionName').addEventListener('change', seasons);
+
+  // ─── Logos ──────────────────────────────────────────────────────────────
+  function renderBrand() {
+    const box = $('brandLogo');
+    box.replaceChildren();
+    if (form.competitionLogo && files.brand.includes(form.competitionLogo)) {
+      const img = el('img'); img.src = imgUrl('brand', form.competitionLogo);
+      const remove = el('button', 'alt', 'Remove');
+      remove.onclick = async () => {
+        const d = await api(`/api/setup/${editing}/image?kind=brand&name=${encodeURIComponent(form.competitionLogo)}`, { method: 'DELETE' });
+        files.brand = d.brand; form.competitionLogo = ''; markDirty(); renderBrand(); preview();
+      };
+      box.append(img, el('span', '', form.competitionLogo), remove);
+    } else box.append(el('span', 'help', 'No competition logo.'));
+  }
+  $('brandFile').onchange = async () => {
+    const f = $('brandFile').files[0];
+    if (!f) return;
+    try {
+      const d = await upload('brand', f);
+      files.brand = d.brand; form.competitionLogo = d.name; markDirty(); renderBrand(); preview();
+      note('saveNote', 'Competition logo added. Press Save to use it.');
+    } catch (err) { note('saveNote', `Couldn't add the logo: ${err.message}`, 'error'); }
+    $('brandFile').value = '';
+  };
+  async function upload(kind, file) {
+    return api(`/api/setup/${editing}/image?kind=${kind}&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+  }
+  async function uploadLogos(list) {
+    const imgs = [...list].filter(f => /\.(png|jpe?g|webp|svg|gif)$/i.test(f.name));
+    if (!imgs.length) return note('uploadNote', 'Those aren\'t image files (PNG, JPG, WebP, SVG or GIF).', 'error');
+    let done = 0;
+    for (const f of imgs) {
+      note('uploadNote', `Adding ${f.name}…`);
+      try { files.logos = (await upload('logos', f)).logos; done++; }
+      catch (err) { note('uploadNote', `Couldn't add ${f.name}: ${err.message}`, 'error'); return; }
+    }
+    note('uploadNote', `Added ${done} logo${done === 1 ? '' : 's'}.`, 'ok');
+    renderLogos(); loadTeams(editing === info.active);
+  }
+  $('logoFiles').onchange = () => { uploadLogos($('logoFiles').files); $('logoFiles').value = ''; };
+  const drop = $('drop');
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); uploadLogos(e.dataTransfer.files); };
+  function renderLogos() {
+    const box = $('logos');
+    box.replaceChildren();
+    if (!files.logos.length) box.append(el('p', 'help', 'No team logos yet.'));
+    for (const name of files.logos) {
+      const card = el('div', 'logo');
+      const img = el('img'); img.src = imgUrl('logos', name); img.alt = '';
+      const del = el('button', 'alt', '×'); del.title = `Remove ${name}`;
+      del.onclick = async () => {
+        if (!confirm(`Remove ${name}?`)) return;
+        files.logos = (await api(`/api/setup/${editing}/image?kind=logos&name=${encodeURIComponent(name)}`, { method: 'DELETE' })).logos;
+        renderLogos(); loadTeams(editing === info.active);
+      };
+      card.append(img, el('div', '', name), del);
+      box.append(card);
+    }
+  }
+
+  // Teams from PlayHQ, for the competition in use: which logo each gets, and a way to pick another.
+  async function loadTeams(active) {
+    const table = $('teams'), body = table.tBodies[0];
+    table.hidden = true;
+    if (!active) return note('teamsNote', 'Use this competition (or save its PlayHQ link and switch to it) to see its teams and which logo each one gets.');
+    note('teamsNote', 'Loading the teams from PlayHQ…');
+    try {
+      const d = await api('/api/setup-teams');
+      body.replaceChildren();
+      for (const t of d.teams) {
+        const tr = body.insertRow();
+        const pic = tr.insertCell();
+        const show = file => pic.replaceChildren(file ? Object.assign(el('img'), { src: imgUrl('logos', file) }) : el('div', 'none', 'none'));
+        const matched = t.logo ? decodeURIComponent(t.logo.replace(/^\/logos\//, '')) : '';
+        show(form.logoAliases[t.name] || (t.alias ? '' : matched));
+        tr.insertCell().textContent = t.name;
+        tr.insertCell().textContent = t.division;
+        const sel = el('select');
+        sel.append(Object.assign(el('option', '', matched && !t.alias ? `Matched by name: ${matched}` : 'Match by name'), { value: '' }));
+        files.logos.forEach(f => sel.append(Object.assign(el('option', '', f), { value: f })));
+        sel.value = form.logoAliases[t.name] || '';
+        sel.onchange = () => {
+          if (sel.value) form.logoAliases[t.name] = sel.value; else delete form.logoAliases[t.name];
+          show(sel.value || (t.alias ? '' : matched)); markDirty();
+        };
+        tr.insertCell().append(sel);
+      }
+      table.hidden = !d.teams.length;
+      const missing = d.teams.filter(t => !t.logo).length;
+      note('teamsNote', d.teams.length ? `${d.teams.length} teams in ${d.competition} ${d.season}${missing ? `, ${missing} without a logo` : ', all with a logo'}.` : 'PlayHQ has no teams for this competition yet.', missing ? '' : 'ok');
+    } catch (err) { note('teamsNote', `Couldn't load the teams from PlayHQ: ${err.message}`, 'error'); }
+  }
+
+  // ─── Save, new, delete ──────────────────────────────────────────────────
+  async function save(quiet) {
+    const d = await post(`/api/setup/${editing}`, form);
+    form = d.settings; dirty = false;
+    if (!quiet) note('saveNote', d.active ? 'Saved. Graphics in OBS reload with the changes on their own.' : 'Saved.', 'ok');
+    const before = JSON.stringify(info.competitions);
+    info = await api('/api/setup');
+    if (JSON.stringify(info.competitions) !== before) { const id = editing; editing = null; await loadList(id); }
+    if (d.active) loadTeams(true);
+    return d;
+  }
+  $('save').onclick = () => save().catch(err => note('saveNote', `Couldn't save: ${err.message}`, 'error'));
+  $('useComp').onclick = () => activate(editing);
+  $('newComp').onclick = async () => {
+    const name = prompt('Name for the new competition (e.g. AMMNA Nationals 2027)');
+    if (!name) return;
+    try {
+      if (dirty && confirm('Save your changes first?')) await save(true);
+      dirty = false;
+      const d = await post('/api/setup-new', { name, from: editing });
+      editing = null;
+      await loadList(d.id);
+      note('saveNote', 'New competition made. Add its PlayHQ link, colours and logos, then Save and use it.', 'ok');
+    } catch (err) { note('saveNote', `Couldn't make it: ${err.message}`, 'error'); }
+  };
+  $('deleteComp').onclick = async () => {
+    if (!confirm(`Delete ${form.name}, with its settings and logos? This can't be undone.`)) return;
+    try {
+      await api(`/api/setup/${editing}`, { method: 'DELETE' });
+      dirty = false; editing = null;
+      await loadList(info.active);
+    } catch (err) { note('saveNote', `Couldn't delete: ${err.message}`, 'error'); }
+  };
+  addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  loadList().catch(err => note('saveNote', `Couldn't load the competitions: ${err.message}`, 'error'));
+})();
+</script>
+</body>
+</html>

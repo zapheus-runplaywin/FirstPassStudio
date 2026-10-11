@@ -49,7 +49,7 @@
       try {
         const g = await (await fetch(`/api/upnext?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
         if (g.error) throw new Error(g.error);
-        document.getElementById('comp').textContent = g.competition || 'Thunder League';
+        document.getElementById('comp').textContent = g.competition || '';
         document.getElementById('division').textContent = [g.division, g.round].filter(Boolean).join('  ·  ');
         document.getElementById('homeName').textContent = g.home.name;
         document.getElementById('awayName').textContent = g.away.name;

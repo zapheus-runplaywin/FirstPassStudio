@@ -69,7 +69,7 @@ Follow PlayHQ only works once a game has been picked on the control page.
 - Any amount works in an adjust link: `adjust/2m`, `adjust/-30s`, `adjust/90s`. A number on its own counts as seconds.
 - Change the time in a set link to anything, e.g. `/deck/clock/set/7:30`.
 - Following the PlayHQ clock only works while the score is following PlayHQ. Pressing any other clock button switches the clock back to manual.
-- Quarters are 10 minutes. To change that, edit `quarterMinutes` in `config.json`, or use
+- Quarters are 10 minutes. To change that, set the length on the competition setup page (setup.html), or use
   `/deck/clock/length/12` (minutes) from a button.
 
 ## Quarter
@@ -83,6 +83,8 @@ Follow PlayHQ only works once a game has been picked on the control page.
 | Extra time | http://localhost:8080/deck/quarter/5 |
 | Next quarter | http://localhost:8080/deck/quarter/next |
 | Previous quarter | http://localhost:8080/deck/quarter/prev |
+
+For a competition played in halves (set on the competition setup page), 1 and 2 are the halves and next goes from 2 to extra time.
 
 Changing the quarter doesn't touch the clock. Press Reset clock as well when the new quarter starts.
 (Tip: a Stream Deck **Multi Action** can do both from one key.)

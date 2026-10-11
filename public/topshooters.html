@@ -23,7 +23,7 @@
       <div class="matchup__division" id="division"></div>
     </header>
     <table class="shooters__table">
-      <thead><tr><th>#</th><th></th><th class="left">Player</th><th>Goals</th><th>Super</th><th>Points</th><th>Accuracy</th></tr></thead>
+      <thead><tr><th>#</th><th></th><th class="left">Player</th><th>Goals</th><th class="super">Super</th><th>Points</th><th>Accuracy</th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
     <footer class="card__footer" id="footer"></footer>
@@ -34,6 +34,8 @@
   <script>
     const sort = new URLSearchParams(location.search).get('sort') || 'points';
     loadJson('/api/topshooters', d => {
+      const supers = !d.rules || d.rules.superShots !== false; // the Super column, when the competition plays super shots
+      if (!supers) document.querySelector('th.super').remove();
       const list = sort === 'goals' ? d.goals : /super/.test(sort) ? d.superGoals : d.points;
       if (!list.length) throw new Error(d.error || 'No shooting stats found in the finished games yet');
       document.getElementById('division').textContent = `${d.division}  ·  ${sort === 'goals' ? 'Most goals' : /super/.test(sort) ? 'Most super shots' : 'Most points'}`;
@@ -44,8 +46,8 @@
         who.append(el('div', 'shooters__name', p.name), el('div', 'shooters__team', p.team));
         const made = p.goals + p.superGoals, tried = p.shots;
         const logo = el('td'); logo.append(logoEl({ name: p.team, logo: p.logo }, 'shooters__logo'));
-        tr.append(el('td', 'shooters__rank', i + 1), logo, who, el('td', '', p.goals), el('td', '', p.superGoals),
-          el('td', 'shooters__points', p.points), el('td', '', tried ? `${Math.round(made / tried * 100)}%` : '–'));
+        tr.append(...[el('td', 'shooters__rank', i + 1), logo, who, el('td', '', p.goals), supers && el('td', '', p.superGoals),
+          el('td', 'shooters__points', p.points), el('td', '', tried ? `${Math.round(made / tried * 100)}%` : '–')].filter(Boolean));
         body.append(tr);
       });
       document.getElementById('footer').textContent = `From ${d.gamesRead} of ${d.gamesFinished} finished games`;

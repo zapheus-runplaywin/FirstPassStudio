@@ -1,0 +1,17 @@
+{
+  "name": "AMMNA Nationals",
+  "organisationUrl": "",
+  "competitionName": "",
+  "organisationName": "Australian Mens and Mixed Netball Association",
+  "venueName": "",
+  "periodType": "quarters",
+  "quarterMinutes": 10,
+  "superShots": false,
+  "finalsPlaces": 4,
+  "defaultCourt": "",
+  "autoSelectGame": true,
+  "autoSelectMinutesBefore": 5,
+  "roundLookaheadDays": 5,
+  "titleFlames": false,
+  "clashWord": "CLASH"
+}

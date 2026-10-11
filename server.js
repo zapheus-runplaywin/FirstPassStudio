@@ -15,13 +15,18 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const competitions = require('./competitions');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const CONFIG = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
-const PORT = Number(process.env.PORT || CONFIG.port || 8080);
+// config.json holds this computer's settings (port, cache, log size). Everything about
+// the competition lives in competitions/<id>/settings.json, edited on setup.html.
+// CONFIG is the two together, for the competition in use.
+const MACHINE = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+let CONFIG = { ...MACHINE };
+const PORT = Number(process.env.PORT || MACHINE.port || 8080);
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
-const CACHE_MS = Math.max(15, Number(CONFIG.cacheSeconds || 60)) * 1000;
+const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
 
 // ─── Debug log ──────────────────────────────────────────────────────────────
 // logs/playhq-graphics.log: helper requests, PlayHQ calls, scoreboard changes and
@@ -29,7 +34,7 @@ const CACHE_MS = Math.max(15, Number(CONFIG.cacheSeconds || 60)) * 1000;
 // half is dropped so the newest lines are always kept.
 const LOG_DIR = path.join(ROOT, 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'playhq-graphics.log');
-const LOG_MAX = Math.max(1, Number(CONFIG.logMaxMB) || 15) * 1024 * 1024;
+const LOG_MAX = Math.max(1, Number(MACHINE.logMaxMB) || 15) * 1024 * 1024;
 let logSize = 0;
 try { fs.mkdirSync(LOG_DIR, { recursive: true }); logSize = fs.statSync(LOG_FILE).size; } catch { /* new log */ }
 function log(level, source, message, extra) {
@@ -61,9 +66,7 @@ function parsePlayhqUrl(url) {
   const m = String(url || '').match(/playhq\.com\/(?:[a-z]{2}\/)?([a-z0-9-]+)\/org\/[^/]+\/([0-9a-f]{8})/i);
   return m ? { tenant: m[1], orgId: m[2] } : null;
 }
-const fromUrl = parsePlayhqUrl(CONFIG.organisationUrl) || {};
-const TENANT = CONFIG.tenant || fromUrl.tenant || 'netball-australia';
-const ORG_ID = CONFIG.organisationId || fromUrl.orgId || null;
+let TENANT = 'netball-australia', ORG_ID = null;
 
 // ─── PlayHQ guest session ───────────────────────────────────────────────────
 const HEADERS = {
@@ -72,7 +75,6 @@ const HEADERS = {
   'origin': 'https://www.playhq.com',
   'referer': 'https://www.playhq.com/',
   'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-  'tenant': TENANT,
 };
 const SESSION_QUERIES = [
   { operationName: 'ProfileSearch', variables: { fullName: 'a' }, query: 'query ProfileSearch($fullName: String!) { profileSearch(fullName: $fullName) { result { id } } }' },
@@ -94,7 +96,7 @@ async function getSession(force) {
   cookiePromise = (async () => {
     try {
       for (const body of SESSION_QUERIES) {
-        const res = await fetch(API_URL, { method: 'POST', headers: { ...HEADERS, 'request-id': crypto.randomUUID() }, body: JSON.stringify(body) });
+        const res = await fetch(API_URL, { method: 'POST', headers: { ...HEADERS, tenant: TENANT, 'request-id': crypto.randomUUID() }, body: JSON.stringify(body) });
         const c = readCookies(res);
         if (c) { cookie = c; cookieAt = Date.now(); return cookie; }
       }
@@ -106,9 +108,9 @@ async function getSession(force) {
   return cookiePromise;
 }
 
-async function gql(operationName, query, variables, retried) {
+async function gql(operationName, query, variables, retried, tenant = TENANT) {
   const c = await getSession(retried);
-  const headers = { ...HEADERS, 'request-id': crypto.randomUUID() };
+  const headers = { ...HEADERS, tenant, 'request-id': crypto.randomUUID() };
   if (c) headers.cookie = c;
   const started = Date.now();
   let res;
@@ -117,7 +119,7 @@ async function gql(operationName, query, variables, retried) {
   const text = await res.text();
   log(res.ok ? 'info' : 'warn', 'playhq', `${operationName} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`, variables);
   if (!res.ok) log('warn', 'playhq', `${operationName} answer`, text.slice(0, 500));
-  if ((res.status === 401 || res.status === 403) && !retried) return gql(operationName, query, variables, true);
+  if ((res.status === 401 || res.status === 403) && !retried) return gql(operationName, query, variables, true, tenant);
   if (!res.ok) throw new Error(`PlayHQ answered HTTP ${res.status}${/Request blocked/i.test(text) ? ' (temporarily blocked, will retry)' : ''}`);
   let json;
   try { json = JSON.parse(text); } catch { throw new Error('PlayHQ sent something that was not JSON'); }
@@ -204,11 +206,12 @@ async function getStructure() {
   let seasonId = CONFIG.seasonId || null;
   let orgName = CONFIG.organisationName, compName = CONFIG.competitionName, allCompetitions = [];
   if (!seasonId) {
-    if (!ORG_ID) throw new Error('Add the organisation\'s PlayHQ link to config.json (organisationUrl) and restart.');
+    if (!ORG_ID) throw new Error(`Add the organisation's PlayHQ link for ${CONFIG.name} on the competition setup page (http://localhost:${PORT}/setup.html).`);
     const data = await gql('discoverCompetitions', Q_COMPETITIONS, { organisationID: ORG_ID });
     allCompetitions = data.discoverCompetitions || [];
     const want = (CONFIG.competitionName || '').toLowerCase();
     const comp = allCompetitions.find(c => c.name.toLowerCase() === want) || allCompetitions.find(c => c.name.toLowerCase().includes(want));
+    if (!want) throw new Error(`Pick ${CONFIG.name}'s PlayHQ competition on the competition setup page (http://localhost:${PORT}/setup.html).`);
     if (!comp) throw new Error(`No competition called "${CONFIG.competitionName}" found. PlayHQ lists: ${allCompetitions.map(c => c.name).join(', ') || 'none'}`);
     const season = pickSeason(comp.seasons || []);
     if (!season) throw new Error(`"${comp.name}" has no seasons on PlayHQ yet.`);
@@ -221,7 +224,7 @@ async function getStructure() {
   const grades = (s.grades || []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   structure = {
     organisation: CONFIG.organisationName || (s.competition && s.competition.organisation && s.competition.organisation.name) || orgName,
-    competition: CONFIG.competitionName || compName || (s.competition && s.competition.name),
+    competition: CONFIG.displayName || CONFIG.competitionName || compName || (s.competition && s.competition.name),
     season: { id: s.id, name: s.name },
     grades: grades.map((g, i) => ({ division: i + 1, id: g.id, name: g.name })),
     otherCompetitions: allCompetitions.map(c => c.name),
@@ -398,7 +401,7 @@ const Q_LIVE = `query game($id: ID!) {
     clock { period periodValue status time lastUpdatedAt }
   }
 }`;
-let tenantLabel = CONFIG.spectatorTenant || '';
+let tenantLabel = '';
 async function getTenantLabel() {
   if (tenantLabel) return tenantLabel;
   try { tenantLabel = ((await gql('tenantLabel', 'query tenantLabel { tenantConfiguration { label } }', {})).tenantConfiguration || {}).label || ''; }
@@ -482,19 +485,23 @@ function setRoundChoice(value) {
   fs.writeFile(ROUND_FILE, JSON.stringify({ round: roundChoice }, null, 2), () => {});
   log('info', 'round', roundChoice ? `Round picked by hand: ${roundChoice}` : 'Round picked automatically by date');
 }
-const LOOKAHEAD_DAYS = Number(CONFIG.roundLookaheadDays) || 5;
+let LOOKAHEAD_DAYS = 5;
 const roundKey = r => String(r.number ?? r.name);
 const dayDiff = (date, today) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
 const roundDatesCache = new Map();
-// The first game date of each round in a division (kept for 30 minutes).
+// The first game date of each round in a division, and its first game's start time (kept for 30 minutes).
 async function roundDates(grade) {
   const hit = roundDatesCache.get(grade.id);
   if (hit && Date.now() - hit.at < 30 * 60 * 1000) return hit.dates;
-  const dates = new Map();
+  const dates = new Map(), starts = new Map();
   for (const r of await getRounds(grade.id)) {
-    const ds = (await getRoundGames(r.id, 30 * 60 * 1000)).map(g => g.date).filter(Boolean).sort();
-    if (ds.length) dates.set(r.id, ds[0]);
+    const games = (await getRoundGames(r.id, 30 * 60 * 1000)).filter(g => g.date).sort(byStart);
+    if (!games.length) continue;
+    dates.set(r.id, games[0].date);
+    const first = games.map(g => startOf(g)).find(t => t !== null);
+    if (first) starts.set(r.id, first);
   }
+  dates.starts = starts;
   roundDatesCache.set(grade.id, { at: Date.now(), dates });
   return dates;
 }
@@ -509,6 +516,13 @@ async function pickRound(grade, choice = roundChoice) {
     const dates = await roundDates(grade);
     const today = localDate();
     const dated = rounds.filter(r => dates.has(r.id)).map(r => ({ r, diff: dayDiff(dates.get(r.id), today) }));
+    // A carnival plays several rounds on one day: today, it's the last round that has started
+    // (or is about to, autoSelectMinutesBefore ahead), else today's first round.
+    const todays = dated.filter(x => x.diff === 0 && dates.starts && dates.starts.has(x.r.id)).sort((a, b) => dates.starts.get(a.r.id) - dates.starts.get(b.r.id));
+    if (todays.length > 1) {
+      const started = todays.filter(x => dates.starts.get(x.r.id) - AUTO_LEAD_MS <= Date.now());
+      return (started.length ? started[started.length - 1] : todays[0]).r;
+    }
     const soon = dated.filter(x => x.diff >= 0 && x.diff < LOOKAHEAD_DAYS).sort((a, b) => a.diff - b.diff);
     if (soon.length) return soon[0].r;
     const past = dated.filter(x => x.diff < 0).sort((a, b) => b.diff - a.diff);
@@ -565,7 +579,7 @@ async function getFixtures(q) {
   const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
   games.sort((a, b) => key(a).localeCompare(key(b), 'en', { numeric: true }));
   const round = roundNames.sort((a, b) => roundNames.filter(n => n === b).length - roundNames.filter(n => n === a).length)[0] || '';
-  return { competition: st.competition, venueName: CONFIG.venueName || (games[0] && games[0].venue) || '',
+  return { competition: st.competition, rules: rules(), venueName: CONFIG.venueName || (games[0] && games[0].venue) || '',
     division: q.division ? (grades[0] && grades[0].name) || '' : '', round, games };
 }
 
@@ -577,12 +591,20 @@ async function getUpNext(boardId) {
   const games = await getCurrentGames();
   const key = g => `${g.date || ''} ${String(g.time || '').padStart(5, '0')}`;
   games.sort((x, y) => key(x).localeCompare(key(y)));
-  const current = games.find(g => g.id === b.gameId) || games[0];
+  let current = games.find(g => g.id === b.gameId) || games[0];
+  // A carnival day has several rounds: the next game may be in the next round, so add the rest of that day's games.
+  if (current && current.date) {
+    for (const grade of (await getStructure()).grades) {
+      for (const g of await getSeasonGames(grade)) if (g.date === current.date && !games.some(x => x.id === g.id)) games.push(g);
+    }
+    games.sort((x, y) => key(x).localeCompare(key(y)));
+    current = games.find(g => g.id === current.id);
+  }
   if (!current) return { error: 'No games found in the current round' };
   const court = b.court || current.court;
   const later = games.filter(g => g.id !== current.id && key(g) > key(current));
   const next = later.find(g => court && g.court === court) || later[0];
-  const out = { competition: (structure && structure.competition) || CONFIG.competitionName, venueName: CONFIG.venueName || current.venue || '',
+  const out = { competition: competitionName(), venueName: CONFIG.venueName || current.venue || '',
     after: { home: current.home.name, away: current.away.name, court: current.court, time: current.time } };
   if (!next) return { ...out, error: 'No later game in this round' };
   return { ...out, ...next, logos: { home: logoFor(next.home.name), away: logoFor(next.away.name) } };
@@ -595,8 +617,8 @@ let boards = {};
 try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
 function saveBoards() { fs.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), () => {}); }
 
-const DEFAULT_REFRESH_SEC = Math.max(3, Number(CONFIG.playhqRefreshSeconds) || 5);
-const QUARTER_SEC = Math.round((Number(CONFIG.quarterMinutes) || 10) * 60);
+const DEFAULT_REFRESH_SEC = Math.max(3, Number(MACHINE.playhqRefreshSeconds) || 5);
+let QUARTER_SEC = 600;
 
 function newBoard() {
   return {
@@ -663,7 +685,11 @@ function applyAction(b, a) {
       break;
     }
     case 'period': {
-      const next = a.value === 'next' ? b.period + 1 : a.value === 'prev' ? b.period - 1 : Number(a.value) || 1;
+      // Quarters 1-4 or halves 1-2, then 5 for extra time.
+      const last = CONFIG.periodType === 'halves' ? 2 : 4;
+      let next = a.value === 'next' ? b.period + 1 : a.value === 'prev' ? b.period - 1 : Number(a.value) || 1;
+      if (next > last && next < 5) next = a.value === 'prev' ? last : 5;
+      if (a.value === 'prev' && b.period === 5) next = last;
       b.period = Math.max(1, Math.min(5, next));
       break;
     }
@@ -734,7 +760,7 @@ async function refreshFromPlayhq(b) {
 // then each game from autoSelectMinutesBefore (default 10) minutes before its start.
 // A finals game is kept until PlayHQ says it is finished, because of extra time.
 // Picking a game by hand turns autoSelect off.
-const AUTO_LEAD_MS = (Number(CONFIG.autoSelectMinutesBefore) || 10) * 60 * 1000;
+let AUTO_LEAD_MS = 10 * 60 * 1000;
 const courtKey = c => String(c || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b0+(\d)/g, '$1').trim();
 function sameCourt(court, wanted) {
   const a = courtKey(court), w = courtKey(wanted);
@@ -822,7 +848,7 @@ async function autoPick(boardId) {
     b.autoHold = '';
     switchTo(b, boardId, pick, 'switching to');
   } catch (err) {
-    b.autoNote = `Couldn't pick a game from PlayHQ: ${err.message}. Check organisationUrl and competitionName in config.json.`;
+    b.autoNote = `Couldn't pick a game from PlayHQ: ${err.message}${/setup page/.test(err.message) ? '' : ' Check the PlayHQ link and competition on the competition setup page.'}`;
     log('error', 'auto', b.autoNote);
   } finally { autoBusy.delete(boardId); }
 }
@@ -919,7 +945,128 @@ function pageVersion() {
     }
   };
   try { walk(PUBLIC_DIR); latest = Math.max(latest, fs.statSync(path.join(ROOT, 'config.json')).mtimeMs); } catch {}
+  // The competition setup too: switching competition, or saving its colours or logos, reloads every page.
+  try { latest = Math.max(latest, fs.statSync(path.join(competitions.DIR, 'active.json')).mtimeMs); walk(path.join(competitions.DIR, competitions.activeId())); } catch {}
   return String(Math.round(latest));
+}
+
+// ─── Competition setup (setup.html) ─────────────────────────────────────────
+// Puts the competition picked on the setup page to use. A different competition (or a
+// different PlayHQ link) clears everything cached from PlayHQ; switching competition also
+// sets the round back to automatic and puts that competition's first game on every board.
+const MACHINE_KEYS = ['port', 'cacheSeconds', 'playhqRefreshSeconds', 'logMaxMB', 'apiBaseUrl', 'gameSummaryPath'];
+function applyCompetition(why) {
+  const id = competitions.activeId();
+  const prev = CONFIG;
+  CONFIG = { ...Object.fromEntries(MACHINE_KEYS.filter(k => MACHINE[k] !== undefined).map(k => [k, MACHINE[k]])), ...competitions.get(id), id };
+  const u = parsePlayhqUrl(CONFIG.organisationUrl) || {};
+  TENANT = u.tenant || 'netball-australia';
+  ORG_ID = u.orgId || null;
+  LOOKAHEAD_DAYS = CONFIG.roundLookaheadDays || 5;
+  AUTO_LEAD_MS = (Number(CONFIG.autoSelectMinutesBefore) ?? 10) * 60 * 1000;
+  QUARTER_SEC = Math.round((Number(CONFIG.quarterMinutes) || 10) * 60);
+  structure = null; // names may have changed
+  const switched = prev.id && prev.id !== id;
+  const sourceChanged = switched || ['organisationUrl', 'competitionName', 'seasonName'].some(k => prev[k] !== CONFIG[k]);
+  if (prev.id && sourceChanged) {
+    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, roundDatesCache, summaryCache, finishedSummaries]) cache.clear();
+    tenantLabel = ''; cookie = null;
+  }
+  for (const b of Object.values(boards)) { // a new quarter length applies to clocks that haven't started
+    if (!b.clock.running && !b.clock.elapsedMs) b.clock.lengthSec = b.clock.baseSec = QUARTER_SEC;
+  }
+  log('info', 'setup', `${why}: ${CONFIG.name} (${CONFIG.competitionName || 'no PlayHQ competition set'}, organisation ${ORG_ID || 'not set'} on ${TENANT})`);
+  if (prev.id && sourceChanged) {
+    if (roundChoice) setRoundChoice('');
+    for (const bid of Object.keys(boards)) { Object.assign(boards[bid], newBoard()); autoPick(bid); }
+    saveBoards();
+  }
+}
+
+// What the setup page shows for one competition.
+function setupInfo(id) {
+  return { id, active: id === competitions.activeId(), settings: competitions.get(id),
+    logos: competitions.images(id, 'logos'), brand: competitions.images(id, 'brand') };
+}
+
+// The organisation's competitions and seasons on PlayHQ, to pick from on the setup page.
+async function findCompetitions(organisationUrl) {
+  const u = parsePlayhqUrl(organisationUrl);
+  if (!u) throw new Error('That doesn\'t look like a PlayHQ organisation link. Open the organisation on playhq.com and copy the address, e.g. https://www.playhq.com/netball-australia/org/<name>/<8 characters>.');
+  const data = await gql('discoverCompetitions', Q_COMPETITIONS, { organisationID: u.orgId }, false, u.tenant);
+  const list = data.discoverCompetitions || [];
+  return { tenant: u.tenant, organisationId: u.orgId, organisation: (list.find(c => c.organisation) || {}).organisation?.name || '',
+    competitions: list.map(c => ({ name: c.name, seasons: (c.seasons || []).map(x => x.name), currentSeason: (pickSeason(c.seasons || []) || {}).name || '' })) };
+}
+
+// Every team in the competition in use, with the logo each one gets, for the setup page.
+async function setupTeams() {
+  const st = await getStructure();
+  const teams = new Map();
+  const add = (name, division) => { if (name && name !== 'TBC' && !teams.has(norm(name))) teams.set(norm(name), { name, division }); };
+  for (const grade of st.grades) {
+    try { for (const row of (await getLadder(grade.id)).pools.flat()) add(row.team, grade.name); } catch (err) { log('warn', 'setup', `Ladder for ${grade.name}: ${err.message}`); }
+  }
+  try { for (const g of await getCurrentGames()) { add(g.home.name, g.division); add(g.away.name, g.division); } } catch { /* the ladders are enough */ }
+  return { competition: st.competition, season: st.season.name,
+    teams: [...teams.values()].sort((a, b) => a.division.localeCompare(b.division, 'en', { numeric: true }) || a.name.localeCompare(b.name))
+      .map(t => ({ ...t, logo: logoFor(t.name), alias: (CONFIG.logoAliases || {})[t.name] || '' })) };
+}
+
+function readRaw(req, max) {
+  return new Promise((resolve, reject) => {
+    const parts = []; let size = 0;
+    req.on('data', d => { size += d.length; if (size > max) { reject(new Error(`That file is over ${Math.round(max / 1048576)} MB.`)); req.destroy(); } else parts.push(d); });
+    req.on('end', () => resolve(Buffer.concat(parts)));
+    req.on('error', reject);
+  });
+}
+
+async function setupRoute(req, res, url, q) {
+  const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image))?)?$/);
+  if (url.pathname === '/api/setup-find') return send(res, 200, await findCompetitions(q.url || (await readBody(req)).organisationUrl));
+  if (url.pathname === '/api/setup-teams') return send(res, 200, await setupTeams());
+  if (url.pathname === '/api/setup-new' && req.method === 'POST') {
+    const body = await readBody(req);
+    const id = competitions.create(String(body.name || 'New competition').trim() || 'New competition', body.from || null);
+    log('info', 'setup', `New competition setup "${body.name}" (${id})${body.from ? ` copied from ${body.from}` : ''}`);
+    return send(res, 200, setupInfo(id));
+  }
+  if (!m) return send(res, 404, { error: 'Unknown setup link' });
+  const [, id, what] = m;
+  if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), fonts: competitions.FONTS, defaults: competitions.DEFAULTS });
+  if (what === 'activate' && req.method === 'POST') {
+    competitions.setActive(id);
+    applyCompetition('Switched competition');
+    return send(res, 200, setupInfo(id));
+  }
+  if (what === 'image') {
+    const kind = q.kind === 'brand' ? 'brand' : 'logos';
+    if (req.method === 'POST') {
+      const name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024));
+      log('info', 'setup', `${id}: added ${kind === 'brand' ? 'competition logo' : 'team logo'} ${name}`);
+      return send(res, 200, { name, ...setupInfo(id) });
+    }
+    if (req.method === 'DELETE') {
+      competitions.deleteImage(id, kind, q.name);
+      log('info', 'setup', `${id}: removed ${kind} ${q.name}`);
+      return send(res, 200, setupInfo(id));
+    }
+    const file = competitions.imageFile(id, kind, q.name || '');
+    return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
+  }
+  if (req.method === 'POST') {
+    competitions.save(id, await readBody(req));
+    log('info', 'setup', `Saved the ${id} competition setup`);
+    if (id === competitions.activeId()) applyCompetition('Competition setup saved');
+    return send(res, 200, setupInfo(id));
+  }
+  if (req.method === 'DELETE') {
+    competitions.remove(id);
+    log('info', 'setup', `Deleted the ${id} competition setup`);
+    return send(res, 200, { ok: true });
+  }
+  return send(res, 200, setupInfo(id));
 }
 
 // ─── Game Summary v2 (team lists and shooting stats) ────────────────────────
@@ -931,12 +1078,11 @@ function pageVersion() {
 // The last answer is saved to last-game-summary.json, so its layout can be checked.
 const SUMMARY_BASE = (CONFIG.apiBaseUrl || 'https://api.playhq.com').replace(/\/$/, '');
 const SUMMARY_PATH = CONFIG.gameSummaryPath || '/v2/games/{id}/summary';
-const API_TENANT = CONFIG.apiTenant || TENANT;
 
 async function fetchGameSummary(gameId) {
   // Public "Summary for the Game": x-api-key (PlayHQ's Client ID) + x-phq-tenant, no login token.
   // If the configured version isn't there, try the other one (v2 <-> v1).
-  const headers = { accept: 'application/json', 'x-phq-tenant': API_TENANT };
+  const headers = { accept: 'application/json', 'x-phq-tenant': CONFIG.apiTenant || TENANT };
   if (CONFIG.apiKey) headers['x-api-key'] = CONFIG.apiKey;
   const other = /\/v2\//.test(SUMMARY_PATH) ? SUMMARY_PATH.replace('/v2/', '/v1/') : SUMMARY_PATH.replace('/v1/', '/v2/');
   let url, res;
@@ -949,8 +1095,8 @@ async function fetchGameSummary(gameId) {
   const text = await res.text();
   if (res.status === 401 || res.status === 403) {
     throw new Error(`PlayHQ refused the Game Summary (HTTP ${res.status}).` +
-      (CONFIG.apiKey ? ' Check apiKey and apiTenant in config.json.'
-        : ' PlayHQ needs a Client ID for this: ask the association for it and put it in config.json as "apiKey".'));
+      (CONFIG.apiKey ? ' Check the PlayHQ Client ID on the competition setup page.'
+        : ' PlayHQ needs a Client ID for this: ask the association for it and add it on the competition setup page.'));
   }
   if (!res.ok) throw new Error(`PlayHQ Game Summary answered HTTP ${res.status} for ${url}`);
   let json;
@@ -1067,13 +1213,12 @@ function parseSummary(json, board) {
   return { home: build(home, 'home'), away: build(away, 'away'), teamsFound: teams.length };
 }
 
-// ─── Team logos (public/logos) ──────────────────────────────────────────────
+// ─── Team logos (competitions/<id>/logos) ───────────────────────────────────
 // Matched to PlayHQ team names loosely ("Perth Coastal" finds "Perth Coastals.png").
-// For a name that doesn't match, add it to config.json "logoAliases": { "Team name": "file.png" }.
+// A name that doesn't match can be given a logo on the competition setup page.
 function logoFor(teamName) {
-  const dir = path.join(PUBLIC_DIR, 'logos');
-  let files = [];
-  try { files = fs.readdirSync(dir).filter(f => /\.(png|jpe?g|webp|svg)$/i.test(f)); } catch { return null; }
+  const files = competitions.images(competitions.activeId(), 'logos');
+  if (!files.length) return null;
   const alias = (CONFIG.logoAliases || {})[teamName];
   if (alias && files.includes(alias)) return '/logos/' + encodeURIComponent(alias);
   const norm = s => String(s || '').toLowerCase().replace(/\.[a-z]+$/, '').replace(/[^a-z0-9]/g, '').replace(/s$/, '');
@@ -1087,7 +1232,7 @@ const summaryCache = new Map();
 async function getTeamSheets(boardId) {
   const b = board(boardId);
   const base = { home: { name: b.home.name, logo: logoFor(b.home.name), players: [] }, away: { name: b.away.name, logo: logoFor(b.away.name), players: [] } };
-  const meta = { division: b.division, court: b.court, period: b.period, score: { home: b.home.score, away: b.away.score }, competition: (structure && structure.competition) || CONFIG.competitionName };
+  const meta = { division: b.division, court: b.court, period: b.period, score: { home: b.home.score, away: b.away.score }, competition: competitionName(), rules: rules() };
   if (!b.gameId) return { ...meta, ...base, error: 'No PlayHQ game picked on the control page yet.' };
   const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
   let gqlError = '';
@@ -1165,7 +1310,14 @@ async function gradeFor(b, q) {
 function teamsOf(b) {
   return { home: { name: b.home.name, logo: logoFor(b.home.name) }, away: { name: b.away.name, logo: logoFor(b.away.name) } };
 }
-function competitionName() { return (structure && structure.competition) || CONFIG.competitionName; }
+function competitionName() { return (structure && structure.competition) || CONFIG.displayName || CONFIG.competitionName; }
+// The competition's rules and look, for pages that change with them.
+function rules() {
+  return { periodType: CONFIG.periodType, periods: CONFIG.periodType === 'halves' ? 2 : 4, periodLabel: CONFIG.periodType === 'halves' ? 'H' : 'Q',
+    periodMinutes: CONFIG.quarterMinutes, superShots: CONFIG.superShots !== false, finalsPlaces: Number(CONFIG.finalsPlaces) || 0,
+    competitionLogo: CONFIG.competitionLogo ? '/brand/' + encodeURIComponent(CONFIG.competitionLogo) : null,
+    titleFlames: CONFIG.titleFlames !== false, clashWord: CONFIG.clashWord || 'CLASH' };
+}
 
 async function getLadderBar(boardId) {
   const b = board(boardId);
@@ -1255,13 +1407,17 @@ async function getTopShooters(q) {
   const all = [...players.values()];
   const by = f => [...all].sort((a, b) => f(b) - f(a) || a.name.localeCompare(b.name)).slice(0, limit);
   if (failed) log('warn', 'shooters', `${failed} of ${games.length} games could not be read: ${lastError}`);
-  return { competition: competitionName(), division: grade.name, gamesRead: read, gamesFinished: games.length,
+  return { competition: competitionName(), rules: rules(), division: grade.name, gamesRead: read, gamesFinished: games.length,
     error: !read && failed ? lastError : undefined,
     points: by(p => p.points), goals: by(p => p.goals), superGoals: by(p => p.superGoals) };
 }
 
+competitions.init(MACHINE, log);
+applyCompetition('Using competition');
+
 // ─── HTTP ───────────────────────────────────────────────────────────────────
-const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
 function send(res, status, body, type) {
   res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
@@ -1292,14 +1448,21 @@ http.createServer(async (req, res) => {
       // Open http://localhost:8080/api/log to read the log in a browser.
       return fs.readFile(LOG_FILE, (err, buf) => send(res, 200, err ? 'The log is empty.' : buf, 'text/plain; charset=utf-8'));
     }
-    if (url.pathname === '/api/structure') return send(res, 200, await getStructure());
+    if (url.pathname === '/api/structure') return send(res, 200, { ...await getStructure(), setup: CONFIG.name, rules: rules() });
+    if (url.pathname.startsWith('/api/setup')) return await setupRoute(req, res, url, q);
+    // The competition in use: its colours, team logos and competition logo.
+    if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG), 'text/css; charset=utf-8');
+    if (url.pathname.startsWith('/logos/') || url.pathname.startsWith('/brand/')) {
+      const file = competitions.imageFile(competitions.activeId(), url.pathname.startsWith('/brand/') ? 'brand' : 'logos', url.pathname.split('/')[2] || '');
+      return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
+    }
     if (url.pathname === '/api/ladder') {
       const st = await getStructure();
       // No ?division: the division of the game picked on the control page.
       const grade = findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' });
       if (!grade) return send(res, 404, { error: `No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}` });
       const ladder = await getLadder(grade.id);
-      return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, ...ladder });
+      return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, rules: rules(), ...ladder });
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion() });
     if (url.pathname === '/api/teams') return send(res, 200, await getTeamSheets(q.board || '1'));
@@ -1336,11 +1499,11 @@ http.createServer(async (req, res) => {
         saveBoards();
       }
       else await refreshFromPlayhq(b);
-      let competition = CONFIG.competitionName;
-      if (structure) competition = structure.competition;
       const logos = { home: logoFor(b.home.name), away: logoFor(b.away.name) };
       const venueName = CONFIG.venueName || b.venue || '';
-      return send(res, 200, { ...b, competition, venueName, logos, clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() });
+      const r = rules();
+      return send(res, 200, { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: CONFIG.name, venueName, logos,
+        clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() });
     }
     const ALIASES = { '/': 'index.html', '/results.html': 'fixtures.html' }; // results.html is the fixture page showing finished games
     let file = path.normalize(path.join(PUBLIC_DIR, ALIASES[url.pathname] || decodeURIComponent(url.pathname)));
@@ -1351,8 +1514,8 @@ http.createServer(async (req, res) => {
     send(res, 502, { error: err.message });
   }
 }).listen(PORT, () => {
-  log('info', 'helper', `Started on port ${PORT}, Node ${process.version}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
+  log('info', 'helper', `Started on port ${PORT}, Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
   console.log(`Debug log: ${LOG_FILE}`);
   console.log(`PlayHQ Graphics is running. Open http://localhost:${PORT}/ for the page links.`);
-  console.log(`Organisation ${ORG_ID || '(not set)'} on ${TENANT}. Leave this window open while streaming.`);
+  console.log(`Competition: ${CONFIG.name} (change it at http://localhost:${PORT}/setup.html). Leave this window open while streaming.`);
 });

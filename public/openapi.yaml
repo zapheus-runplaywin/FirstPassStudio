@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Thunder League Scoreboard control
+  title: Scoreboard control
   version: "1.0"
   description: |
     Control links for the live scoreboard, made for Stream Deck "Website" buttons
@@ -88,7 +88,7 @@ paths:
       description: |
         `toggle` starts a stopped clock and stops a running one.
         `reset` stops the clock and puts it back to a full quarter (10:00 unless
-        `quarterMinutes` in config.json or `/deck/clock/length` says otherwise).
+        the length on the competition setup page or `/deck/clock/length` says otherwise).
       operationId: clockControl
       parameters:
         - name: action
