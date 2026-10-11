@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Thunder League Ladder</title>
+<title>Ladder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
@@ -14,9 +14,11 @@
   <!-- Add to OBS as a Browser source, 1920 x 1080:
        http://localhost:8080/ladder.html?division=1   (or 2, 3)
        Without ?division it shows the division of the game picked on the control page.
-       Options: &refresh=60 (reload the ladder every 60 seconds; off by default)  &rows=10 (show only the top 10) -->
+       Options: &refresh=60 (reload the ladder every 60 seconds; off by default)  &rows=10 (show only the top 10)
+                &logo=0 (leave off the competition logo). The finals marker follows the competition setup page. -->
   <main id="ladder" class="ladder" hidden>
     <header class="ladder__header">
+      <img class="ladder__logo" id="logo" alt="" hidden>
       <div class="ladder__org" id="org"></div>
       <h1 class="ladder__title"><span id="comp"></span> <span class="ladder__division" id="division"></span></h1>
     </header>

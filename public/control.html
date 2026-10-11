@@ -39,6 +39,7 @@
 <body>
 <main>
   <h1>Scoreboard control</h1>
+  <p class="sub" id="compLine"></p>
   <p class="sub" id="sub">Board 1. Add <b>http://localhost:8080/scoreboard.html</b> to OBS as a Browser source (1920 × 1080).</p>
 
   <section>
@@ -91,7 +92,7 @@
   </section>
 
   <section>
-    <h2>Quarter and clock</h2>
+    <h2 id="periodHeading">Quarter and clock</h2>
     <div class="row" id="periods"></div>
     <div class="row" style="margin-top:10px">
       <span class="clockface" id="clockface">10:00</span>
@@ -184,7 +185,34 @@
       : s.source !== 'playhq' ? 'Turn on Follow PlayHQ above for this to work.'
       : s.playhqClock ? `PlayHQ: ${s.playhqClock.time} ${String(s.playhqClock.status || '').toLowerCase()}. Pressing a clock button switches it back to manual.`
       : 'Waiting for the PlayHQ scorer to start the clock.';
+    buildPeriods(s.rules);
     [...$('periods').children].forEach(b => b.classList.toggle('on', Number(b.dataset.p) === s.period));
+    const comp = s.competitionSetup || s.competition || '';
+    if ($('compLine').dataset.comp !== comp) {
+      $('compLine').dataset.comp = comp;
+      $('compLine').replaceChildren(`Competition: `, Object.assign(document.createElement('b'), { textContent: comp }), ' · ',
+        Object.assign(document.createElement('a'), { href: '/setup.html', target: '_blank', textContent: 'Change competition, colours and logos' }));
+    }
+  }
+
+  // Q1-Q4 or H1-H2 (from the competition setup page), then extra time.
+  function buildPeriods(rules) {
+    const r = rules || { periods: 4, periodLabel: 'Q', periodType: 'quarters' };
+    const key = `${r.periods}${r.periodLabel}`;
+    if ($('periods').dataset.key === key) return;
+    $('periods').dataset.key = key;
+    $('periodHeading').textContent = r.periodType === 'halves' ? 'Half and clock' : 'Quarter and clock';
+    $('periods').replaceChildren();
+    for (let p = 1; p <= r.periods; p++) {
+      const b = document.createElement('button');
+      b.className = 'alt'; b.dataset.p = p; b.textContent = `${r.periodLabel}${p}`;
+      b.onclick = () => act({ type: 'period', value: p });
+      $('periods').appendChild(b);
+    }
+    const et = document.createElement('button');
+    et.className = 'alt'; et.dataset.p = 5; et.textContent = 'Extra time';
+    et.onclick = () => act({ type: 'period', value: 5 });
+    $('periods').appendChild(et);
   }
 
   function tick() {
@@ -248,16 +276,7 @@
     }
   }
 
-  for (let p = 1; p <= 4; p++) {
-    const b = document.createElement('button');
-    b.className = 'alt'; b.dataset.p = p; b.textContent = `Q${p}`;
-    b.onclick = () => act({ type: 'period', value: p });
-    $('periods').appendChild(b);
-  }
-  const et = document.createElement('button');
-  et.className = 'alt'; et.dataset.p = 5; et.textContent = 'Extra time';
-  et.onclick = () => act({ type: 'period', value: 5 });
-  $('periods').appendChild(et);
+  buildPeriods();
 
   document.querySelectorAll('[data-delta]').forEach(b => b.onclick = () => act({ type: 'score', side: b.dataset.side, delta: Number(b.dataset.delta) }));
   $('autoSelect').onchange = () => act({ type: 'autoSelect', value: $('autoSelect').checked });

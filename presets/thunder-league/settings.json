@@ -1,0 +1,25 @@
+{
+  "legacyConfig": true,
+  "name": "Thunder League",
+  "organisationUrl": "https://www.playhq.com/netball-australia/org/west-coast-mens-and-mixed-netball-association/a9434809",
+  "competitionName": "Thunder League",
+  "organisationName": "West Coast Mens and Mixed Netball Association",
+  "venueName": "Gold Netball Centre",
+  "periodType": "quarters",
+  "quarterMinutes": 10,
+  "superShots": true,
+  "finalsPlaces": 4,
+  "defaultCourt": "1",
+  "autoSelectGame": true,
+  "autoSelectMinutesBefore": 10,
+  "roundLookaheadDays": 5,
+  "colours": {
+    "main": "#7f4092", "dark": "#4a1f57", "panel": "#260e2e", "panelAlt": "#3a1846",
+    "highlight": "#ffcd00", "accent": "#e6007e", "text": "#ffffff", "textOnHighlight": "#2b0f36", "muted": "#d9c3e3"
+  },
+  "panelOpacity": 0.92,
+  "font": "Montserrat",
+  "titleFlames": true,
+  "clashWord": "CLASH",
+  "logoAliases": {}
+}

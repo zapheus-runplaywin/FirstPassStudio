@@ -51,7 +51,7 @@
         const res = await fetch(`/api/fixtures?${query}`, { cache: 'no-store' });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        document.getElementById('comp').textContent = data.competition || 'Thunder League';
+        document.getElementById('comp').textContent = data.competition || '';
         document.getElementById('round').textContent = [data.division, data.round].filter(Boolean).join('  ·  ') + (RESULTS ? ' results' : '') || 'Fixture';
         const day = data.games[0] && data.games[0].date ? new Date(`${data.games[0].date}T00:00:00`) : null;
         document.getElementById('venue').textContent = [day && !isNaN(day) ? day.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) : '', data.venueName].filter(Boolean).join('  ·  ');

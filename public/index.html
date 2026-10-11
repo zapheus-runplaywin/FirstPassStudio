@@ -29,6 +29,30 @@
   <h1>PlayHQ Graphics</h1>
   <p class="sub" id="sub">Loading from PlayHQ…</p>
   <div class="card">
+    <h2>Competition setup</h2>
+    <p class="page__help" id="compNow">Every graphic is set up for one competition at a time.</p>
+    <div class="row"><a class="btn" href="/setup.html" target="_blank">Open competition setup</a></div>
+    <p class="page__help">The <a href="/setup.html" target="_blank">competition setup page</a> keeps a saved setup for each competition
+      (Thunder League, AMMNA Nationals, WA Netball League, or any you add) and switches between them. Each one has:</p>
+    <ul class="page__help">
+      <li><b>PlayHQ:</b> the organisation's playhq.com page and which of its competitions and seasons to use. <b>Find its competitions</b>
+        lists what PlayHQ has for that organisation, so you can pick the right name.</li>
+      <li><b>Names on the graphics:</b> the competition, organisation and venue names, each blank to use PlayHQ's.</li>
+      <li><b>Game rules:</b> quarters or halves and their length, super shots, and how many teams get the finals marker on the ladder.</li>
+      <li><b>Game day:</b> the court the scoreboard follows, whether it picks the game automatically, how many minutes before
+        a game it switches, and how many days ahead counts as "this round".</li>
+      <li><b>Colours and font:</b> nine colours, how see-through the dark panels are, and the font, with a preview.</li>
+      <li><b>Logos:</b> the competition logo (above the title banner and in the ladder's corner) and the team logos. Drop logo files on the page;
+        they match teams by file name, and the PlayHQ team list shows which logo each team gets, with a box to pick a different one.</li>
+      <li><b>Graphics:</b> the title banner flames and The Clash's big word. Also the PlayHQ Client ID, which most competitions don't need.</li>
+    </ul>
+    <p class="page__help"><b>Use this one</b> switches every graphic, the control page and the Stream Deck to that competition: the round goes back
+      to automatic and the scoreboard starts on that competition's first game. Saving the competition in use reloads the graphics in OBS
+      with the changes. Setups are kept in the <b>competitions</b> folder, which a new version of PlayHQ Graphics never overwrites.</p>
+    <p class="page__help"><b>Carnivals</b> (like the AMMNA nationals) play several rounds a day: on those days "this round" moves on to each round
+      as its first game comes up, and Up next looks across the whole day.</p>
+  </div>
+  <div class="card">
     <h2>Live scoreboard</h2>
     <code id="sbUrl"></code>
     <div class="row"><button id="sbCopy">Copy link</button><a class="btn" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn" href="/api.html" target="_blank">Stream Deck API docs</a></div>
@@ -41,15 +65,16 @@
       A setting added to a page's own link (like <code>?division=2</code> or <code>?round=6</code>) overrides it for that page only.</p>
     <ul class="page__help">
       <li><b>Round:</b> <b>Automatic</b> picks the round played in the next 5 days, counting today, so a Tuesday round is picked from the
-        Friday before. Otherwise it's the last round played (<code>roundLookaheadDays</code> in <code>config.json</code>).
+        Friday before (the number of days is on the competition setup page). Otherwise it's the last round played. On a day with several
+        rounds, it moves on to each round as its first game comes up.
         Pick a round from the list to test with it, then set it back to <b>Automatic</b>.</li>
       <li><b>Always a game on:</b> when the helper starts, or the scoreboard is cleared, it puts a game on straight away with
         <b>Follow PlayHQ</b> on: the game for now on the court, otherwise this round's first game on that court, otherwise this
-        round's first game. The board is only left empty if PlayHQ can't be reached or the competition isn't found (check
-        <code>organisationUrl</code> and <code>competitionName</code> in <code>config.json</code>).</li>
-      <li><b>Game:</b> tick <b>Pick the game automatically for court</b> and set the court (default <code>defaultCourt</code> in
-        <code>config.json</code>, e.g. <code>Indoor 01</code> or just <code>1</code>). It shows the first game of the day on that court,
-        then switches to each next game 10 minutes before it starts, with the quarter back to Q1 and a full clock. A final
+        round's first game. The board is only left empty if PlayHQ can't be reached or the competition isn't found (check the PlayHQ
+        link and competition on the <a href="/setup.html" target="_blank">competition setup page</a>).</li>
+      <li><b>Game:</b> tick <b>Pick the game automatically for court</b> and set the court (it starts on the court set on the competition
+        setup page, e.g. <code>Indoor 01</code> or just <code>1</code>). It shows the first game of the day on that court,
+        then switches to each next game 10 minutes before it starts (also set on the setup page), with the quarter back to Q1 and a full clock. A final
         (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a round picked
         by hand, its games are treated as if they were today, so the switching can be tested any time.</li>
       <li><b>Overrides:</b> picking a game from the list turns automatic selection off until you tick it again or change the court. Pressing a score
@@ -146,6 +171,7 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
     const st = await res.json();
     if (!res.ok) throw new Error(st.error);
     sub.textContent = `${st.organisation} · ${st.competition} · ${st.season.name}`;
+    document.getElementById('compNow').textContent = `In use now: ${st.setup}.`;
     st.grades.forEach(g => document.getElementById('shooterPages').appendChild(pageRow(`Top shooters: ${g.name}`, `/topshooters.html?division=${g.division}`)));
     document.getElementById('shootersCard').hidden = !st.grades.length;
     st.grades.forEach(g => {
@@ -161,6 +187,7 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
     });
   } catch (err) {
     console.warn("Home page could not load from PlayHQ:", err.message);
+    fetch('/api/setup').then(r => r.json()).then(d => { const c = d.competitions.find(x => x.active); if (c) document.getElementById('compNow').textContent = `In use now: ${c.name}.`; }).catch(() => {});
     sub.textContent = '';
     list.innerHTML = '<div class="card error"></div>';
     list.firstChild.textContent = `Couldn't load from PlayHQ: ${err.message}`;

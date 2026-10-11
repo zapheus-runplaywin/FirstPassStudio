@@ -1,0 +1,17 @@
+{
+  "name": "WA Netball League",
+  "organisationUrl": "",
+  "competitionName": "",
+  "organisationName": "Netball WA",
+  "venueName": "",
+  "periodType": "quarters",
+  "quarterMinutes": 15,
+  "superShots": false,
+  "finalsPlaces": 4,
+  "defaultCourt": "",
+  "autoSelectGame": true,
+  "autoSelectMinutesBefore": 10,
+  "roundLookaheadDays": 5,
+  "titleFlames": false,
+  "clashWord": "CLASH"
+}

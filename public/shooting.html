@@ -34,6 +34,8 @@
   <script>
     const params = new URLSearchParams(location.search);
     const BREAKS = { 1: 'Quarter time', 2: 'Half time', 3: 'Three quarter time', 4: 'Full time', 5: 'Extra time' };
+    const HALF_BREAKS = { 1: 'Half time', 2: 'Full time', 5: 'Extra time' };
+    let supers = true; // the Super column, when the competition plays super shots
     const pct = (g, a) => (a ? `${Math.round((g / a) * 100)}%` : '–');
 
     function teamBlock(section, team) {
@@ -51,7 +53,7 @@
 
       const t = el('table');
       const hr = t.createTHead().insertRow();
-      ['Shooter', 'Goals', 'Super', 'Shots', '%'].forEach((h, i) => hr.appendChild(el('th', i ? 'n' : '', h)));
+      ['Shooter', 'Goals', supers && 'Super', 'Shots', '%'].filter(Boolean).forEach((h, i) => hr.appendChild(el('th', i ? 'n' : '', h)));
       const body = t.createTBody();
       const sum = { goals: 0, superGoals: 0, shots: 0 };
       shooters.forEach((p, i) => {
@@ -64,7 +66,7 @@
         nameCell.appendChild(document.createTextNode(p.name));
         r.appendChild(nameCell);
         r.appendChild(el('td', 'n', s.goals || 0));
-        r.appendChild(el('td', 'n', s.superGoals || 0));
+        if (supers) r.appendChild(el('td', 'n', s.superGoals || 0));
         r.appendChild(el('td', 'n', s.shots ?? '–'));
         r.appendChild(el('td', 'n', pct((s.goals || 0) + (s.superGoals || 0), s.shots)));
       });
@@ -73,7 +75,7 @@
       const f = t.createTFoot().insertRow();
       f.appendChild(el('td', 'who', 'Team'));
       f.appendChild(el('td', 'n', tot.goals ?? 0));
-      f.appendChild(el('td', 'n', tot.superGoals ?? 0));
+      if (supers) f.appendChild(el('td', 'n', tot.superGoals ?? 0));
       f.appendChild(el('td', 'n', tot.shots ?? 0));
       f.appendChild(el('td', 'n', pct((tot.goals || 0) + (tot.superGoals || 0), tot.shots)));
       section.appendChild(t);
@@ -81,7 +83,10 @@
     }
 
     loadTeams(data => {
-      document.getElementById('title').textContent = params.get('title') || `Shooting stats  ·  ${BREAKS[data.period] || ''}`.replace(/\s·\s$/, '');
+      const rules = data.rules || {};
+      supers = rules.superShots !== false || !!(data.home.totals && data.home.totals.superGoals) || !!(data.away.totals && data.away.totals.superGoals);
+      const breaks = rules.periodType === 'halves' ? HALF_BREAKS : BREAKS;
+      document.getElementById('title').textContent = params.get('title') || `Shooting stats  ·  ${breaks[data.period] || ''}`.replace(/\s·\s$/, '');
       document.getElementById('homeName').textContent = data.home.name;
       document.getElementById('awayName').textContent = data.away.name;
       // The big score is the scoreboard's score; the tables are PlayHQ's shooting stats.

@@ -36,6 +36,9 @@
     $('comp').textContent = data.competition || '';
     $('division').textContent = data.division || '';
     document.title = `${data.competition} ${data.division} Ladder`;
+    const rules = data.rules || {};
+    $('logo').hidden = !rules.competitionLogo || params.get('logo') === '0';
+    if (!$('logo').hidden) $('logo').src = rules.competitionLogo;
 
     const tables = $('tables');
     tables.replaceChildren();
@@ -50,6 +53,7 @@
       (maxRows ? rows.slice(0, maxRows) : rows).forEach((r, n) => {
         const tr = body.insertRow();
         tr.style.animationDelay = `${n * 60}ms`;
+        if (r.position <= (rules.finalsPlaces || 0)) tr.className = 'finals';
         cols.forEach(c => {
           const v = r[c.key];
           tr.appendChild(cell('td', v === null || v === undefined ? '' : c.format ? c.format(v) : v, c.cls));
@@ -74,7 +78,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       if (data.stale) console.warn('Showing the last good ladder:', data.error);
-      const json = JSON.stringify([data.division, data.pools]);
+      const json = JSON.stringify([data.division, data.pools, data.rules]);
       if (json !== lastJson) { lastJson = json; render(data); }
       loadedOnce = true;
       $('message').hidden = true;

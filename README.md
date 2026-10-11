@@ -1,11 +1,35 @@
 # PlayHQ Graphics
 
-Transparent Thunder League ladder and scoreboard overlays for OBS, fed live from PlayHQ's public data (no API key).
+Transparent ladder, scoreboard and game overlays for OBS, fed live from PlayHQ's public data (no API key). Set up for
+Thunder League, with saved setups ready for the AMMNA Nationals and the WA Netball League.
 
 ## One-time setup
 
 1. Install Node.js (the LTS version) from https://nodejs.org if you don't have it.
-2. The association's PlayHQ page link is already set in `config.json`.
+2. Thunder League's PlayHQ link is already set. Other competitions are set up on the competition setup page (below).
+
+## Competition setup
+
+http://localhost:8080/setup.html keeps a saved setup for each competition and switches between them. Each setup has the
+organisation's PlayHQ link and which competition and season to use (**Find its competitions** lists them), the names
+shown on the graphics (competition, organisation, venue), the game rules (quarters or halves and their length, super
+shots, the ladder's finals marker), game day settings (court to follow, automatic game selection, minutes before a game
+it switches, days ahead that count as this round), nine colours, panel transparency and the font, the competition logo
+(above the title banner and in the ladder's corner), the team logos (drop files on the page; they match teams by file
+name, and the PlayHQ team list lets you pick a different logo for any team), the title flames, The Clash's big word and
+the PlayHQ Client ID most competitions don't need.
+
+**Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
+automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics in OBS.
+
+Setups live in `competitions/<name>/` (`settings.json`, `logos/`, `brand/`), which a new version never overwrites.
+Ready-made ones in `presets/` are copied in the first time the helper starts. AMMNA Nationals and WA Netball League
+only need their PlayHQ link, colours and logos; their rules (AMMNA 10-minute quarters, WANL 15-minute quarters, no super
+shots, finals marker on the top 4) are guesses to check. `config.json` now only holds this computer's settings (port,
+log size, how often to check PlayHQ).
+
+On a carnival day with several rounds (like the AMMNA nationals), "this round" moves on to each round as its first game
+comes up (`autoSelectMinutesBefore` ahead), and Up next looks across the whole day.
 
 ## Each stream
 
@@ -51,7 +75,7 @@ http://localhost:8080/results.html is the same page showing only finished games 
 
 **Which round.** Every page (game list, fixture, results, ticker, up next) uses the round played in the next 5 days,
 counting today, so a Tuesday round is picked from the Friday before. Otherwise it's the last round played. Change the 5 with
-`roundLookaheadDays` in `config.json`. For testing, pick any round from **Round** on the control page; set it back to
+the days setting on the competition setup page. For testing, pick any round from **Round** on the control page; set it back to
 **Automatic** afterwards (the choice is kept in `round-choice.json`). Automatic game selection uses the picked round too, treating its games
 as if they were today, so you can test the timed switching on any night.
 `ladder.html` without `?division=` shows the division of the game picked on the control page.
@@ -60,13 +84,13 @@ as if they were today, so you can test the timed switching on any night.
 game for now on the court, otherwise this round's first game on that court, otherwise this round's first game. It is only
 left empty if PlayHQ can't be reached or the competition isn't found (check `organisationUrl` and `competitionName`).
 
-**Automatic game selection.** Set `defaultCourt` in `config.json` the day before (e.g. `"Indoor 01"`, or just `"1"`).
+**Automatic game selection.** Set the court to follow on the competition setup page the day before (e.g. `"Indoor 01"`, or just `"1"`).
 With **Pick the game automatically for court** ticked on the control page, the scoreboard shows today's first game on
-that court, then switches to each next game 10 minutes before its start time (`autoSelectMinutesBefore`), with
+that court, then switches to each next game 10 minutes before its start time (set on the setup page), with
 Follow PlayHQ on, the quarter back to Q1 and a full clock. In finals (a round with "Final" in its name) it keeps the
 final on until PlayHQ marks it finished, in case of extra time. You can change the court on the control page or with
 `/deck/court/2`. Picking a game from the list turns automatic selection off; tick it again (or `/deck/auto/on`) to go back.
-`"autoSelectGame": false` in `config.json` starts with it off.
+Untick **Pick the game automatically** on the setup page to start with it off.
 
 On the control page, pick the game from this round's PlayHQ fixtures and press **Use this game**.
 With **Follow PlayHQ** on, the score updates every 5 seconds (change it on the control page) from the same live feed the
@@ -82,7 +106,7 @@ Scoreboard position: by default it is centred at the bottom, just above the scor
 
 These follow the game picked on the scoreboard control page (board 1 unless you add `&board=2`):
 
-- http://localhost:8080/title.html: round, competition and venue banner. The venue is `venueName` in `config.json`
+- http://localhost:8080/title.html: round, competition and venue banner. The venue is set on the competition setup page
   (blank uses the venue from PlayHQ). `?position=bottom` moves it down, `?fire=0` drops the flames.
 - http://localhost:8080/upnext.html: the next game on the same court, for half time. With no game picked, it
   assumes the stream is on the first timeslot and shows the game after it.
@@ -105,20 +129,19 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 
 Line-ups and stats come from the same data the playhq.com game page shows, with no API key. Players who keep their
 profile private show as PlayHQ shows them. Only if that has no players and an `apiKey` is set do they come from
-PlayHQ's "Summary for the Game v2" instead (settings in `config.json`):
+PlayHQ's "Summary for the Game v2" instead (Client ID on the setup page, other settings in `config.json`):
 - `apiKey`: the association's PlayHQ API key (optional; leave blank if you don't have one).
 - `apiTenant`: the sport name PlayHQ expects with the key (blank uses `netball-australia` from the organisation link).
 - `gameSummaryPath`: `/v2/games/{id}/summary`.
 The control page shows how many players were found for each team, or the error. If the lists look wrong, send the debug log to Claude.
 
-Team logos live in `public/logos`, named after the team. A logo whose file name doesn't match the PlayHQ team
-name can be linked in `config.json`, e.g. `"logoAliases": { "Perth Coastal Netball": "Perth Coastals.png" }`.
+Team logos are added on the competition setup page, named after the team. A logo whose file name doesn't match the
+PlayHQ team name can be picked for that team in the setup page's team list.
 
 ## Options
 
 - `&refresh=30` makes a ladder reload itself every 30 seconds (off by default).
 - `&rows=8` shows only the top 8 teams.
-- `config.json` → `quarterMinutes`: length of a quarter on the scoreboard clock (10).
-- `config.json` → `seasonName`: set it (e.g. `"Summer 2026"`) to pin a season; blank means the current one.
-- Thunder League colours are in `public/theme.css`. Sizes and position are at the top of `public/ladder.css` and `public/scoreboard.css`.
+- Quarter (or half) length and the season are on the competition setup page.
+- Colours and font are on the competition setup page (the helper writes `theme.css` from them). Sizes and position are at the top of `public/ladder.css` and `public/scoreboard.css`.
 - The pink marker beside positions 1 to 4 on the ladder marks the finals places; change `-n+4` in `ladder.css` if that differs.
