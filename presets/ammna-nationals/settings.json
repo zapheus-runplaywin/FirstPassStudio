@@ -1,8 +1,8 @@
 {
-  "presetVersion": 2,
+  "presetVersion": 3,
   "name": "AMMNA Nationals",
   "organisationUrl": "https://www.playhq.com/netball-australia/org/australian-mens-and-mixed-netball-association/9dac7b7b",
-  "competitionName": "",
+  "competitionName": "Australian Championships",
   "organisationName": "Australian Mens and Mixed Netball Association",
   "venueName": "",
   "periodType": "quarters",
@@ -27,21 +27,52 @@
     "muted": "#cfe8c4"
   },
   "competitionLogo": "AMMNA.png",
-  "was": {
-    "name": "AMMNA Nationals",
-    "organisationUrl": "",
-    "competitionName": "",
-    "organisationName": "Australian Mens and Mixed Netball Association",
-    "venueName": "",
-    "periodType": "quarters",
-    "quarterMinutes": 10,
-    "superShots": false,
-    "finalsPlaces": 4,
-    "defaultCourt": "",
-    "autoSelectGame": true,
-    "autoSelectMinutesBefore": 5,
-    "roundLookaheadDays": 5,
-    "titleEmoji": "",
-    "clashWord": "CLASH"
-  }
+  "was": [
+    {
+      "name": "AMMNA Nationals",
+      "organisationUrl": "",
+      "competitionName": "",
+      "organisationName": "Australian Mens and Mixed Netball Association",
+      "venueName": "",
+      "periodType": "quarters",
+      "quarterMinutes": 10,
+      "superShots": false,
+      "finalsPlaces": 4,
+      "defaultCourt": "",
+      "autoSelectGame": true,
+      "autoSelectMinutesBefore": 5,
+      "roundLookaheadDays": 5,
+      "titleEmoji": "",
+      "clashWord": "CLASH"
+    },
+    {
+      "name": "AMMNA Nationals",
+      "organisationUrl": "https://www.playhq.com/netball-australia/org/australian-mens-and-mixed-netball-association/9dac7b7b",
+      "competitionName": "",
+      "organisationName": "Australian Mens and Mixed Netball Association",
+      "venueName": "",
+      "periodType": "quarters",
+      "quarterMinutes": 10,
+      "superShots": false,
+      "finalsPlaces": 4,
+      "defaultCourt": "",
+      "autoSelectGame": true,
+      "autoSelectMinutesBefore": 5,
+      "roundLookaheadDays": 5,
+      "titleEmoji": "",
+      "clashWord": "CLASH",
+      "colours": {
+        "main": "#2c8e3e",
+        "dark": "#116a2c",
+        "panel": "#0b2614",
+        "panelAlt": "#143a1e",
+        "highlight": "#fed005",
+        "accent": "#116a2c",
+        "text": "#ffffff",
+        "textOnHighlight": "#0b2614",
+        "muted": "#cfe8c4"
+      },
+      "competitionLogo": "AMMNA.png"
+    }
+  ]
 }
