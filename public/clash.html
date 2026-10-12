@@ -44,6 +44,9 @@
     clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); }
   .split--away { right: 60px; background: linear-gradient(270deg, rgba(var(--pink-rgb), 0), rgba(var(--pink-rgb), .55) 75%, rgba(var(--pink-rgb), .7));
     clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%); }
+  /* A team colour from the setup page replaces the competition colour on that side. */
+  .split.has-colour { background: linear-gradient(90deg, rgba(var(--team-rgb), 0), rgba(var(--team-rgb), .7) 75%, rgba(var(--team-rgb), .85)); }
+  .split--away.has-colour { background: linear-gradient(270deg, rgba(var(--team-rgb), 0), rgba(var(--team-rgb), .7) 75%, rgba(var(--team-rgb), .85)); }
   .go .split--home { animation: splitL .6s cubic-bezier(.2,.9,.2,1) 2.08s forwards; }
   .go .split--away { animation: splitR .6s cubic-bezier(.2,.9,.2,1) 2.08s forwards; }
   @keyframes splitL { 0% { opacity: 0; transform: translateX(300px); } 100% { opacity: 1; transform: none; } }
@@ -87,6 +90,9 @@
     background: linear-gradient(180deg, rgb(var(--deep-alt-rgb)), rgb(var(--deep-rgb))); border-bottom: 6px solid var(--yellow);
     clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); opacity: 0; }
   .team--away .plate { border-bottom-color: var(--pink); }
+  .team.has-colour .plate { background: linear-gradient(180deg, rgb(var(--team-rgb)), var(--team-dark)); }
+  .team.has-colour .plate h2 { color: var(--team-text); }
+  .team.has-colour .logo-fallback { background: rgb(var(--team-rgb)); color: var(--team-text); }
   .plate h2 { margin: 0; color: #fff; font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 50px;
     line-height: 1.1; white-space: nowrap; letter-spacing: 1px; }
   .go .plate { animation: plateIn .55s cubic-bezier(.2,.9,.2,1) 2.75s forwards; }
@@ -253,12 +259,30 @@
       })(0);
     }
 
+    // A team colour from the competition setup page goes behind that team's logo and name.
+    // No colour: the competition's (main colour for home, accent for away).
+    function teamColour(side, hex) {
+      if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return;
+      const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+      const lum = rgb.map(c => c / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      const light = 0.2126 * lum[0] + 0.7152 * lum[1] + 0.0722 * lum[2] > 0.4;
+      const team = document.querySelector(`.team--${side}`);
+      team.style.setProperty('--team-rgb', rgb.join(', '));
+      team.style.setProperty('--team-dark', `rgb(${rgb.map(c => Math.round(c * .6)).join(', ')})`);
+      team.style.setProperty('--team-text', light ? '#111111' : '#ffffff');
+      team.classList.add('has-colour');
+      document.querySelector(`.split--${side}`).style.setProperty('--team-rgb', rgb.join(', '));
+      document.querySelector(`.split--${side}`).classList.add('has-colour');
+    }
+
     async function start() {
       let s;
       try { s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json(); }
       catch (err) { console.warn('Clash: scoreboard unavailable:', err.message); return setTimeout(start, 3000); }
       $('homeName').textContent = s.home.name;
       $('awayName').textContent = s.away.name;
+      teamColour('home', s.teamColours && s.teamColours.home);
+      teamColour('away', s.teamColours && s.teamColours.away);
       $('bigword').textContent = (opts.get('word') || (s.rules && s.rules.clashWord) || 'CLASH').toUpperCase();
       $('tag').textContent = [s.competition || 'The Clash', s.round].filter(Boolean).join('  ·  ');
       const title = opts.get('title') || (s.division ? `Battle for <b>${s.division.replace(/[<>&]/g, '')}</b>` : 'The <b>battle</b> begins');

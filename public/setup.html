@@ -87,6 +87,8 @@
   td, th { text-align: left; padding: 5px 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
   th { font-size: 12px; text-transform: uppercase; color: var(--fp-muted); letter-spacing: .05em; }
   td img, td .none { width: 40px; height: 40px; object-fit: contain; display: block; }
+  .teamcolour { display: flex; gap: 6px; align-items: center; }
+  .teamcolour input[type=color] { width: 56px; height: 32px; padding: 0 2px; }
   td .none { border-radius: 50%; background: #eee; color: #888; font-size: 11px; display: flex; align-items: center; justify-content: center; }
   td select { width: auto; max-width: 260px; }
   /* Save bar */
@@ -227,8 +229,10 @@
       <p class="note" id="uploadNote"></p>
       <div class="logos" id="logos"></div>
       <h2 style="margin-top:18px">Teams on PlayHQ</h2>
+      <p class="help">Pick another logo for a team whose file name doesn't match. <b>Team colour</b> is optional: a team with one gets it behind
+        its name on the scoreboard and behind its logo and name on The Clash; a team without one uses the competition's colours.</p>
       <p class="note" id="teamsNote"></p>
-      <table id="teams" hidden><thead><tr><th>Logo</th><th>Team</th><th>Division</th><th>Use</th></tr></thead><tbody></tbody></table>
+      <table id="teams" hidden><thead><tr><th>Logo</th><th>Team</th><th>Division</th><th>Use</th><th>Team colour</th></tr></thead><tbody></tbody></table>
     </section>
 
     <section>
@@ -491,6 +495,26 @@
     }
   }
 
+  // A team's own colour (behind its name on the scoreboard and The Clash), or none to use the competition's.
+  function colourPicker(team) {
+    const box = el('div', 'teamcolour');
+    const draw = () => {
+      const colour = form.teamColours[team];
+      if (!colour) {
+        const add = el('button', 'alt', 'Add colour');
+        add.onclick = () => { form.teamColours[team] = form.colours.main; markDirty(); draw(); };
+        return box.replaceChildren(add);
+      }
+      const pick = Object.assign(el('input'), { type: 'color', value: colour, title: `${team}'s colour` });
+      pick.oninput = () => { form.teamColours[team] = pick.value; markDirty(); };
+      const clear = el('button', 'alt', '×'); clear.title = 'No team colour (use the competition colours)';
+      clear.onclick = () => { delete form.teamColours[team]; markDirty(); draw(); };
+      box.replaceChildren(pick, clear);
+    };
+    draw();
+    return box;
+  }
+
   // Teams from PlayHQ, for the competition in use: which logo each gets, and a way to pick another.
   async function loadTeams(active) {
     const table = $('teams'), body = table.tBodies[0];
@@ -517,6 +541,7 @@
           show(sel.value || (t.alias ? '' : matched)); markDirty();
         };
         tr.insertCell().append(sel);
+        tr.insertCell().append(colourPicker(t.name));
       }
       table.hidden = !d.teams.length;
       const missing = d.teams.filter(t => !t.logo).length;
