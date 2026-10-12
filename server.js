@@ -1022,7 +1022,7 @@ function applyCompetition(why) {
   const switched = prev.id && prev.id !== id;
   const sourceChanged = switched || ['organisationUrl', 'competitionName', 'seasonName'].some(k => prev[k] !== CONFIG[k]);
   if (prev.id && sourceChanged) {
-    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, roundDatesCache, summaryCache, finishedSummaries]) cache.clear();
+    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, roundDatesCache, summaryCache, finishedSummaries, appearanceCache]) cache.clear();
     tenantLabel = ''; cookie = null;
   }
   for (const b of Object.values(boards)) { // a new quarter length applies to clocks that haven't started
@@ -1414,16 +1414,109 @@ async function getAthletes(teamName) {
   }
   if (failed) log('warn', 'athletes', `${teamName}: ${failed} of ${games.length} games could not be read: ${lastError}`);
   const files = photoFiles();
+  let all = {};
+  try { all = await allAppearances(); } catch (err) { log('warn', 'athletes', `Appearances unavailable: ${err.message}`); }
   const rank = a => { const i = POSITION_RANK.indexOf(a.position); return i === -1 ? 99 : i; };
   const list = [...athletes.values()].map(a => {
     const position = Object.entries(a.positions).sort((x, y) => y[1] - x[1])[0];
     const gender = genderFor(a.name, a.gender);
     const e = register.data[photoKey(a.name)] || {};
     return { name: a.name, number: a.number, position: position ? position[0] : '', positions: Object.keys(a.positions), games: a.games, captain: a.captain,
-      photo: photoFor(a.name, files), gender, genderSetByHand: !!e.gender, silhouette: silhouette(gender), teams: athleteTeams(a.name) };
+      photo: photoFor(a.name, files), gender, genderSetByHand: !!e.gender, silhouette: silhouette(gender), teams: athleteTeams(a.name),
+      ...athleteStats(a.name, all[photoKey(a.name)]) };
   }).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
-  return { team: teamName, logo: logoFor(teamName), division, athletes: list, gamesRead: read, gamesFound: games.length,
+  return { team: teamName, logo: logoFor(teamName), division, divisions: st.grades.map(g => g.name), athletes: list, gamesRead: read, gamesFound: games.length,
     error: !read && failed ? lastError : !games.length ? `PlayHQ has no games for ${teamName} this season.` : undefined };
+}
+
+// ─── Games and positions played ─────────────────────────────────────────────
+// The athletes page can give an athlete a games played figure per division, and optionally
+// per club, "as of" a date: the games PlayHQ shows in that division (and club) after that
+// date are added on, so the number keeps up through the season. With no date the number is
+// used as it is. Positions played typed in are added to the ones seen in PlayHQ line ups.
+// Both are kept in the athlete register (athletes.json) as `records` and `positions`.
+// A game counts when the athlete is named in that team's line up for a finished game.
+const appearanceCache = new Map();
+async function seasonAppearances(grade) {
+  const hit = appearanceCache.get(grade.id);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.map;
+  const map = new Map();
+  for (const g of (await getSeasonGames(grade)).filter(isFinished)) {
+    let parsed = finishedSummaries.get(g.id);
+    if (!parsed) {
+      try { parsed = await getGame(g.id, 60 * 60 * 1000); finishedSummaries.set(g.id, parsed); }
+      catch (err) { log('warn', 'athletes', `${grade.name}: game ${g.id} could not be read: ${err.message}`); continue; }
+    }
+    for (const side of [parsed.home, parsed.away]) {
+      recordPlayers(side.name, grade.name, side.players);
+      for (const p of side.players) {
+        if (p.private || !photoKey(p.name)) continue;
+        const list = map.get(photoKey(p.name)) || [];
+        if (!list.some(a => a.gameId === g.id)) list.push({ gameId: g.id, date: g.date || '', team: side.name, position: p.position });
+        map.set(photoKey(p.name), list);
+      }
+    }
+  }
+  appearanceCache.set(grade.id, { at: Date.now(), map });
+  return map;
+}
+// Every division's appearances, keyed by athlete: { key: { division: [appearance] } }.
+async function allAppearances() {
+  const st = await getStructure();
+  const out = {};
+  for (const grade of st.grades) {
+    try {
+      for (const [k, list] of await seasonAppearances(grade)) (out[k] = out[k] || {})[grade.name] = list;
+    } catch (err) { log('warn', 'athletes', `${grade.name}: appearances unavailable: ${err.message}`); }
+  }
+  return out;
+}
+// Games played per division for one athlete, from their records and this season's line ups.
+function career(name, apps) {
+  const e = athletes()[photoKey(name)] || {};
+  const records = e.records || [];
+  const divisions = [...new Set([...records.map(r => r.division), ...Object.keys(apps || {})])]
+    .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+  return divisions.map(division => {
+    const season = (apps && apps[division]) || [];
+    const since = r => r.asOf ? season.filter(a => (!r.club || sameTeam(a.team, r.club)) && a.date > r.asOf).length : 0;
+    const lines = records.filter(r => r.division === division).map(r => ({ ...r, since: since(r), total: r.games + since(r) }));
+    const whole = lines.filter(l => !l.club).sort((a, b) => (b.asOf || '').localeCompare(a.asOf || ''))[0];
+    // No record for the whole division: add up the club records, plus this season's games for other clubs.
+    const total = whole ? whole.total : lines.reduce((n, l) => n + l.total, 0) + season.filter(a => !lines.some(l => sameTeam(l.club, a.team))).length;
+    return { division, total, season: season.length, lines };
+  });
+}
+// The games played to show for an athlete in a division, for a club when they have a record for it.
+function gamesIn(name, apps, division, club) {
+  const d = career(name, apps).find(c => c.division === division);
+  if (!d) return 0;
+  const line = club && d.lines.find(l => l.club && sameTeam(l.club, club));
+  return line ? line.total : d.total;
+}
+function positionsPlayed(name, apps) {
+  const e = athletes()[photoKey(name)] || {};
+  const seen = Object.values(apps || {}).flat().map(a => a.position);
+  return POSITION_RANK.filter(p => (e.positions || []).includes(p) || seen.includes(p));
+}
+// What the athletes page shows and edits for one athlete.
+function athleteStats(name, apps) {
+  const e = athletes()[photoKey(name)] || {};
+  return { career: career(name, apps), positionsPlayed: positionsPlayed(name, apps), positionsTyped: e.positions || [], records: e.records || [] };
+}
+function cleanRecords(list) {
+  return (Array.isArray(list) ? list : []).map(r => {
+    const division = String(r.division || '').trim();
+    const games = Math.round(Number(r.games));
+    const asOf = String(r.asOf || '').trim();
+    if (!division) throw new Error('Each games played line needs a division.');
+    if (!Number.isFinite(games) || games < 0) throw new Error(`Games played for ${division} must be 0 or more.`);
+    if (asOf && !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) throw new Error(`"${asOf}" isn't a date (YYYY-MM-DD).`);
+    const out = { division, games };
+    if (String(r.club || '').trim()) out.club = String(r.club).trim();
+    if (asOf) out.asOf = asOf;
+    return out;
+  });
 }
 
 async function athletesRoute(req, res, url, q) {
@@ -1467,13 +1560,47 @@ async function athletesRoute(req, res, url, q) {
     const gender = genderFor(e.name);
     return send(res, 200, { name: e.name, gender, genderSetByHand: !!e.gender, silhouette: silhouette(gender) });
   }
+  // Games played and positions played, typed in on the athletes page.
+  if (url.pathname === '/api/athletes/stats' && req.method === 'POST') {
+    const body = await readBody(req);
+    const k = photoKey(body.athlete);
+    if (!k) throw new Error('Which athlete?');
+    const records = cleanRecords(body.records);
+    const positions = POSITION_RANK.filter(p => (body.positions || []).includes(p));
+    const data = athletes();
+    const e = data[k] || (data[k] = { name: String(body.athlete).trim() });
+    if (records.length) e.records = records; else delete e.records;
+    if (positions.length) e.positions = positions; else delete e.positions;
+    register.dirty = true;
+    saveRegister();
+    log('info', 'athletes', `${id}: ${e.name} games/positions saved`, { records, positions });
+    let apps = {};
+    try { apps = (await allAppearances())[k] || {}; } catch (err) { log('warn', 'athletes', `Appearances unavailable: ${err.message}`); }
+    return send(res, 200, { name: e.name, ...athleteStats(e.name, apps) });
+  }
+  // Games played by both line ups of the game on a board, for the graphics.
+  if (url.pathname === '/api/athletes/games') {
+    const b = board(q.board || '1');
+    const all = await allAppearances();
+    const out = { division: b.division };
+    let sheets = { home: { players: [] }, away: { players: [] } };
+    try { sheets = await getTeamSheets(q.board || '1'); } catch { /* none */ }
+    for (const side of ['home', 'away']) {
+      out[side] = Object.fromEntries((sheets[side].players || []).map(p =>
+        [p.name, { games: gamesIn(p.name, all[photoKey(p.name)], b.division, b[side].name), positions: positionsPlayed(p.name, all[photoKey(p.name)]) }]));
+    }
+    return send(res, 200, out);
+  }
   if (url.pathname !== '/api/athletes') return send(res, 404, { error: 'Unknown athletes link' });
   // Every athlete seen so far in the competition, across all its divisions.
   if (q.all) {
+    let all = {};
+    try { all = await allAppearances(); } catch (err) { log('warn', 'athletes', `Appearances unavailable: ${err.message}`); }
     const files = photoFiles();
     const list = Object.values(athletes()).map(e => {
       const gender = genderFor(e.name);
-      return { name: e.name, gender, genderSetByHand: !!e.gender, photo: photoFor(e.name, files), silhouette: silhouette(gender), teams: athleteTeams(e.name) };
+      return { name: e.name, gender, genderSetByHand: !!e.gender, photo: photoFor(e.name, files), silhouette: silhouette(gender), teams: athleteTeams(e.name),
+        ...athleteStats(e.name, all[photoKey(e.name)]) };
     }).sort((a, b) => a.name.localeCompare(b.name));
     return send(res, 200, { athletes: list });
   }

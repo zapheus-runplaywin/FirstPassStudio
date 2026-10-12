@@ -44,7 +44,9 @@
       Photos are saved in the competition's <code style="display:inline">photos</code> folder, named after the athlete, so they match in every game.
       To add many at once, drop photos named after their athletes (<code style="display:inline">Jane Smith.jpg</code> or <code style="display:inline">smith_jane.png</code>);
       any that match nobody can be given to an athlete in the photo library. An athlete who plays in more than one division needs only one photo
-      (<b>All athletes</b> lists everyone once). Without a photo, graphics show a generic silhouette for the athlete's gender, from PlayHQ or picked on the page.</p>
+      (<b>All athletes</b> lists everyone once). Without a photo, graphics show a generic silhouette for the athlete's gender, from PlayHQ or picked on the page.
+      <b>Games</b> on an athlete records their games played per division (optionally per club) as of a date, and the positions they've played;
+      PlayHQ games after that date are added on automatically.</p>
     <p class="page__help">The <a href="/setup.html" target="_blank">competition setup page</a> keeps a saved setup for each competition
       (Thunder League, AMMNA Nationals, GIG WANL, or any you add) and switches between them. AMMNA Nationals and GIG WANL
       come with their PlayHQ link, colours and logo. AMMNA's competition is set to Australian Championships; for GIG WANL press
@@ -214,7 +216,7 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   'with photos from the <a href="/athletes.html" target="_blank">Athletes page</a>, then shows all seven together. Positions come from the PlayHQ line up for the game; a position missing from it shows as Unknown. ' +
   'Tick <b>Refresh browser when scene becomes active</b> in OBS so it starts again each time. ' +
   'Options: <code>?hold=6</code> seconds per pairing (default 5), <code>?loop=1</code> keeps going round, <code>?end=out</code> animates away after the last pairing, ' +
-  '<code>?show=all</code> shows all seven straight away, <code>?pair=C</code> shows one pairing only.'], ['Home team list', '/teamlist.html?side=home'],
+  '<code>?show=all</code> shows all seven straight away, <code>?pair=C</code> shows one pairing only, <code>?games=0</code> leaves out games played.'], ['Home team list', '/teamlist.html?side=home'],
  ['Away team list', '/teamlist.html?side=away'], ['Shooting stats', '/shooting.html'],
  ['Full time card', '/fulltime.html'], ['Ladder lower third', '/ladderbar.html'], ['Score ticker (other courts, updates itself)', '/ticker.html']]
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
