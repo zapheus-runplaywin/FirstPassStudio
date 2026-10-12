@@ -51,6 +51,7 @@ const DEFAULTS = {
     textOnHighlight: '#2b0f36',
     muted: '#d9c3e3',       // column headings and small print
   },
+  brandColours: [],                    // [{ hex, name }] pasted from a brand kit, shown as swatches in the colour pickers
   panelOpacity: 0.92,
   font: 'Montserrat',
   competitionLogo: '',                 // a file in brand/
@@ -87,6 +88,9 @@ function clean(input, base = DEFAULTS) {
     let v = input && input[k] !== undefined ? input[k] : base[k] !== undefined ? base[k] : def;
     if (k === 'colours') {
       v = Object.fromEntries(Object.entries(def).map(([c, d]) => [c, HEX.test((v || {})[c]) ? v[c].toLowerCase() : ((base.colours || {})[c] || d)]));
+    } else if (k === 'brandColours') {
+      v = (Array.isArray(v) ? v : []).filter(c => c && HEX.test(c.hex)).slice(0, 40)
+        .map(c => ({ hex: c.hex.toLowerCase(), name: String(c.name || '').trim().slice(0, 40) }));
     } else if (k === 'logoAliases') {
       v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter(([t, f]) => t && typeof f === 'string' && f).map(([t, f]) => [String(t), path.basename(f)]));
     } else if (typeof def === 'boolean') v = v === true || v === 'true' || v === 'on';
