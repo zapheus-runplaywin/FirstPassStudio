@@ -29,37 +29,37 @@
   "panelOpacity": 0.75,
   "font": "Montserrat",
   "competitionLogo": "MAIN-LOGO-150x150.png",
+  "competitionLogoDark": "",
   "titleEmoji": "",
   "clashWord": "CLASH",
-  "logoAliases": {
-    "Warriors 21U": "warriors.png.png",
-    "Warriors Men": "warriors.png.png",
-    "Warriors Open": "warriors.png.png"
+  "clubs": {
+    "Warriors": {
+      "logo": "warriors.png.png",
+      "colour": "#6d248b"
+    },
+    "Comets": {
+      "colour": "#ff9900"
+    },
+    "Demons": {
+      "colour": "#b51a00"
+    },
+    "Jets": {
+      "colour": "#57bfe2"
+    },
+    "Lightning": {
+      "colour": "#db6f96"
+    },
+    "Rangers": {
+      "colour": "#06898b"
+    },
+    "Roar": {
+      "colour": "#f5d400"
+    },
+    "Sharks": {
+      "colour": "#4377c9"
+    }
   },
-  "teamColours": {
-    "Comets 21U": "#ff9900",
-    "Demons 21U": "#b51a00",
-    "Jets 21U": "#57bfe2",
-    "Lightning 21U": "#db6f96",
-    "Rangers 21U": "#06898b",
-    "Roar 21U": "#f5d400",
-    "Sharks 21U": "#4377c9",
-    "Warriors 21U": "#6d248b",
-    "Roar Men": "#f5d400",
-    "Roar Open": "#f5d400",
-    "Comets Men": "#ff9900",
-    "Comets Open": "#ff9900",
-    "Demons Men": "#b51a00",
-    "Demons Open": "#b51a00",
-    "Jets Open": "#57bfe2",
-    "Lightning Men": "#db6f96",
-    "Lightning Open": "#db6f96",
-    "Rangers Men": "#06898b",
-    "Rangers Open": "#06898b",
-    "Warriors Men": "#6d248b",
-    "Warriors Open": "#6d248b",
-    "Sharks Open": "#4377c9"
-  },
+  "teamClubs": {},
   "apiKey": "",
   "apiTenant": ""
 }

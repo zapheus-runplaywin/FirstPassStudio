@@ -97,9 +97,6 @@
   th { font-size: 12px; text-transform: uppercase; color: var(--fp-muted); letter-spacing: .05em; }
   td img, td .none { width: 40px; height: 40px; object-fit: contain; display: block; }
   .teamcolour { display: flex; gap: 6px; align-items: center; }
-  .teamcolour { flex-wrap: wrap; }
-  .samename { flex-basis: 100%; font-size: 12px; color: var(--fp-muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-top: 2px; }
-  .samename button { font-size: 12px; padding: 2px 8px; }
   td .none { border-radius: 50%; background: #eee; color: #888; font-size: 11px; display: flex; align-items: center; justify-content: center; }
   td select { width: auto; max-width: 260px; }
   /* Save bar */
@@ -255,11 +252,14 @@
       <p class="note" id="uploadNote"></p>
       <div class="logos" id="logos"></div>
       <h2 style="margin-top:18px">Teams on PlayHQ</h2>
-      <p class="help">Pick another logo for a team whose file name doesn't match. <b>Team colour</b> is optional: a team with one gets it behind
-        its name on the scoreboard and behind its logo and name on The Clash; a team without one uses the competition's colours.
-        Use the colour picker, or paste the team's colour as HEX or RGB. When teams have similar names ("Stormz" and "Stormz 2"), you're offered the same colour for all of them.</p>
+      <p class="help">Logos and colours belong to clubs: every team of a club, in every division, gets the club's logo and colour, and changing it
+        on one row changes it for all of them. A team's club is its name without the division on the end ("Comets 21U", "Comets Men" and
+        "Comets Open" are all Comets; "Stormz Div 2" is Stormz). If that's wrong for a team, pick its club in the <b>Club</b> box (or <b>New club…</b>).
+        Pick another logo for a club whose file name doesn't match. <b>Club colour</b> is optional: a club with one gets it behind its teams' names on
+        the scoreboard and behind their logo and name on The Clash; a club without one uses the competition's colours.
+        Use the colour picker, or paste the colour as HEX or RGB.</p>
       <p class="note" id="teamsNote"></p>
-      <table id="teams" hidden><thead><tr><th>Logo</th><th>Team</th><th>Division</th><th>Use</th><th>Team colour</th></tr></thead><tbody></tbody></table>
+      <table id="teams" hidden><thead><tr><th>Logo</th><th>Team</th><th>Division</th><th>Club</th><th>Club logo</th><th>Club colour</th></tr></thead><tbody></tbody></table>
     </section>
 
     <section>
@@ -566,106 +566,113 @@
     }
   }
 
-  // A team's own colour (behind its name on the scoreboard and The Clash), or none to use the competition's.
-  // The same name in several divisions shares one colour; teams with similar names ("Stormz",
-  // "Stormz 2", "Stormz Div 3") get an offer to use the colour too.
-  let teamRows = {};   // team name -> redraw function for each of its rows
-  const baseName = n => String(n).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/\b(div(ision)?|grade|res(erves?)?|team|club|nc|netball|mens?|mixed|womens?|open|[ivx]+|[a-z])\b/g, ' ')
-    .replace(/[^a-z]+/g, ' ').split(' ').filter(Boolean).map(w => w.length > 3 ? w.replace(/(e?s|z)$/, '') : w).join(' ');
-  function similarTeams(team) {
-    const b = baseName(team);
-    if (b.length < 3) return [];
-    return Object.keys(teamRows).filter(o => {
-      if (o === team) return false;
-      const ob = baseName(o);
-      return ob === b || (ob.length >= 4 && b.length >= 4 && (ob.startsWith(b + ' ') || b.startsWith(ob + ' ')));
-    });
-  }
-  const swatchesForTeams = () => [...swatches(), { title: 'Other teams', colours: Object.entries(form.teamColours).map(([name, hex]) => ({ name, hex })) }];
-  function setTeamColour(team, hex) {
-    if (hex) form.teamColours[team] = hex; else delete form.teamColours[team];
+  // Clubs: a club's logo and colour (behind its name on the scoreboard and The Clash) are shared
+  // by all its teams in every division. The helper finds each team's club from its name
+  // ("Comets 21U" and "Comets Open" are Comets); the Club box links a team to another club.
+  let teams = [];      // teams from PlayHQ: { name, division, autoClub }
+  let clubRows = {};   // club name (lower case) -> the colour box in each of its rows
+  const clubOfTeam = t => form.teamClubs[t.name] || t.autoClub;
+  const clubKey = club => Object.keys(form.clubs).find(k => k.toLowerCase() === String(club).toLowerCase());
+  const clubEntry = club => form.clubs[clubKey(club)] || {};
+  function setClub(club, field, value) {
+    const key = clubKey(club) || club, entry = { ...(form.clubs[key] || {}) };
+    if (value) entry[field] = value; else delete entry[field];
+    if (Object.keys(entry).length) form.clubs[key] = entry; else delete form.clubs[key];
     markDirty();
   }
-  function colourPicker(team) {
+  // The same loose match the helper uses: "Perth Coastal" finds "Perth Coastals.png".
+  const logoNorm = s => String(s || '').toLowerCase().replace(/\.[a-z]+$/, '').replace(/[^a-z0-9]/g, '').replace(/s$/, '');
+  function matchLogo(...names) {
+    for (const want of names.map(logoNorm)) {
+      if (!want) continue;
+      const hit = files.logos.find(f => logoNorm(f) === want) || files.logos.find(f => want.includes(logoNorm(f)) || logoNorm(f).includes(want));
+      if (hit) return hit;
+    }
+    return '';
+  }
+  const swatchesForClubs = () => [...swatches(), { title: 'Other clubs', colours: Object.entries(form.clubs).filter(([, c]) => c.colour).map(([name, c]) => ({ name, hex: c.colour })) }];
+  function colourPicker(club) {
     const box = el('div', 'teamcolour');
-    const offer = el('div', 'samename');
-    const showOffer = () => {
-      const colour = form.teamColours[team];
-      const others = colour ? similarTeams(team).filter(o => form.teamColours[o] !== colour) : [];
-      offer.replaceChildren();
-      if (!others.length || !box.dataset.edited) return offer.remove();
-      const yes = Object.assign(el('button', 'alt', `Use it for ${others.length === 1 ? 'that team' : `all ${others.length}`}`), { type: 'button' });
-      yes.onclick = () => { for (const o of others) setTeamColour(o, colour); delete box.dataset.edited; offer.remove(); redrawTeams(); };
-      const no = Object.assign(el('button', 'alt', 'No'), { type: 'button' });
-      no.onclick = () => { delete box.dataset.edited; offer.remove(); };
-      offer.append(`Same club? ${others.join(', ')}`, yes, no);
-      box.append(offer);
-    };
     const draw = () => {
-      const colour = form.teamColours[team];
+      const colour = clubEntry(club).colour;
       if (!colour) {
         const add = Object.assign(el('button', 'alt', 'Add colour'), { type: 'button' });
-        add.onclick = () => { box.dataset.edited = '1'; setTeamColour(team, form.colours.main); redrawTeams(team); };
+        add.onclick = () => { setClub(club, 'colour', form.colours.main); redrawClub(club); };
         return box.replaceChildren(add);
       }
-      const pick = ColourPicker.field(colour, hex => { box.dataset.edited = '1'; setTeamColour(team, hex); redrawTeams(team, box); showOffer(); },
-        { label: `${team}'s colour`, swatches: swatchesForTeams });
-      pick.dataset.team = team;
-      const clear = Object.assign(el('button', 'alt', '×'), { type: 'button', title: 'No team colour (use the competition colours)' });
-      clear.onclick = () => { setTeamColour(team, null); delete box.dataset.edited; redrawTeams(team); };
+      const pick = ColourPicker.field(colour, hex => { setClub(club, 'colour', hex); redrawClub(club, box); },
+        { label: `${club}'s colour`, swatches: swatchesForClubs });
+      const clear = Object.assign(el('button', 'alt', '×'), { type: 'button', title: 'No club colour (use the competition colours)' });
+      clear.onclick = () => { setClub(club, 'colour', null); redrawClub(club); };
       box.replaceChildren(pick, clear);
-      showOffer();
     };
     box.redraw = draw;
-    (teamRows[team] = teamRows[team] || []).push(box);
+    (clubRows[club.toLowerCase()] = clubRows[club.toLowerCase()] || []).push(box);
     draw();
     return box;
   }
-  // Redraw every row for a team (or every row), except the one being changed so its picker stays open.
-  function redrawTeams(team, except) {
-    for (const [name, boxes] of Object.entries(teamRows)) {
-      if (team && name !== team) continue;
-      for (const b of boxes) {
-        if (b === except) continue;
-        const field = b.querySelector('.cp-field');
-        if (field && form.teamColours[name]) field.setValue(form.teamColours[name]); else b.redraw();
-      }
+  // Redraw every row of a club, except the one being changed so its picker stays open.
+  function redrawClub(club, except) {
+    for (const b of clubRows[club.toLowerCase()] || []) {
+      if (b === except) continue;
+      const field = b.querySelector('.cp-field'), colour = clubEntry(club).colour;
+      if (field && colour) field.setValue(colour); else b.redraw();
+    }
+  }
+  function clubSelect(t) {
+    const sel = el('select'), club = clubOfTeam(t);
+    const names = new Map();
+    for (const n of [...teams.map(clubOfTeam), ...Object.keys(form.clubs), t.name]) if (!names.has(n.toLowerCase())) names.set(n.toLowerCase(), n);
+    sel.append(new Option(`${t.autoClub} (from its name)`, ''));
+    [...names.values()].filter(n => n.toLowerCase() !== t.autoClub.toLowerCase()).sort((x, y) => x.localeCompare(y))
+      .forEach(n => sel.append(new Option(n === t.name ? `${n} (its own)` : n, n)));
+    sel.append(new Option('New club…', '\u0000new'));
+    sel.value = form.teamClubs[t.name] && club.toLowerCase() !== t.autoClub.toLowerCase() ? [...names.values()].find(n => n.toLowerCase() === club.toLowerCase()) : '';
+    sel.onchange = () => {
+      let v = sel.value;
+      if (v === '\u0000new') { v = (prompt(`Club for ${t.name}`) || '').trim(); if (!v) return renderTeams(); }
+      if (v && v.toLowerCase() !== t.autoClub.toLowerCase()) form.teamClubs[t.name] = v; else delete form.teamClubs[t.name];
+      markDirty(); renderTeams();
+    };
+    return sel;
+  }
+  function renderTeams() {
+    const body = $('teams').tBodies[0];
+    body.replaceChildren();
+    clubRows = {};
+    const sorted = [...teams].sort((a, b) => clubOfTeam(a).localeCompare(clubOfTeam(b)) || a.division.localeCompare(b.division, 'en', { numeric: true }) || a.name.localeCompare(b.name));
+    for (const t of sorted) {
+      const club = clubOfTeam(t), picked = clubEntry(club).logo, matched = matchLogo(club, t.name);
+      const tr = body.insertRow();
+      const logo = picked || matched;
+      tr.insertCell().replaceChildren(logo ? Object.assign(el('img'), { src: imgUrl('logos', logo) }) : el('div', 'none', 'none'));
+      tr.insertCell().textContent = t.name;
+      tr.insertCell().textContent = t.division;
+      tr.insertCell().append(clubSelect(t));
+      const sel = el('select');
+      sel.append(new Option(matched ? `Matched by name: ${matched}` : 'Match by name', ''));
+      files.logos.forEach(f => sel.append(new Option(f, f)));
+      sel.value = picked && files.logos.includes(picked) ? picked : '';
+      sel.onchange = () => { setClub(club, 'logo', sel.value); renderTeams(); };
+      tr.insertCell().append(sel);
+      tr.insertCell().append(colourPicker(club));
     }
   }
 
-  // Teams from PlayHQ, for the competition in use: which logo each gets, and a way to pick another.
+  // Teams from PlayHQ, for the competition in use: their club, and the logo and colour each gets.
   async function loadTeams(active) {
-    const table = $('teams'), body = table.tBodies[0];
+    const table = $('teams');
     table.hidden = true;
     if (!active) return note('teamsNote', 'Use this competition (or save its PlayHQ link and switch to it) to see its teams and which logo each one gets.');
     note('teamsNote', 'Loading the teams from PlayHQ…');
     try {
       const d = await api('/api/setup-teams');
-      body.replaceChildren();
-      teamRows = {};
-      for (const t of d.teams) {
-        const tr = body.insertRow();
-        const pic = tr.insertCell();
-        const show = file => pic.replaceChildren(file ? Object.assign(el('img'), { src: imgUrl('logos', file) }) : el('div', 'none', 'none'));
-        const matched = t.logo ? decodeURIComponent(t.logo.replace(/^\/logos\//, '')) : '';
-        show(form.logoAliases[t.name] || (t.alias ? '' : matched));
-        tr.insertCell().textContent = t.name;
-        tr.insertCell().textContent = t.division;
-        const sel = el('select');
-        sel.append(Object.assign(el('option', '', matched && !t.alias ? `Matched by name: ${matched}` : 'Match by name'), { value: '' }));
-        files.logos.forEach(f => sel.append(Object.assign(el('option', '', f), { value: f })));
-        sel.value = form.logoAliases[t.name] || '';
-        sel.onchange = () => {
-          if (sel.value) form.logoAliases[t.name] = sel.value; else delete form.logoAliases[t.name];
-          show(sel.value || (t.alias ? '' : matched)); markDirty();
-        };
-        tr.insertCell().append(sel);
-        tr.insertCell().append(colourPicker(t.name));
-      }
+      teams = d.teams.map(t => ({ name: t.name, division: t.division, autoClub: t.autoClub || t.name }));
+      renderTeams();
       table.hidden = !d.teams.length;
       const missing = d.teams.filter(t => !t.logo).length;
-      note('teamsNote', d.teams.length ? `${d.teams.length} teams in ${d.competition} ${d.season}${missing ? `, ${missing} without a logo` : ', all with a logo'}.` : 'PlayHQ has no teams for this competition yet.', missing ? '' : 'ok');
+      const clubs = new Set(teams.map(t => clubOfTeam(t).toLowerCase())).size;
+      note('teamsNote', d.teams.length ? `${d.teams.length} teams from ${clubs} clubs in ${d.competition} ${d.season}${missing ? `, ${missing} without a logo` : ', all with a logo'}.` : 'PlayHQ has no teams for this competition yet.', missing ? '' : 'ok');
     } catch (err) { note('teamsNote', `Couldn't load the teams from PlayHQ: ${err.message}`, 'error'); }
   }
 
