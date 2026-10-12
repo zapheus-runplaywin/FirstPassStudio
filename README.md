@@ -173,7 +173,7 @@ The control page shows how many players were found for each team, or the error. 
 
 Team logos are added on the competition setup page, named after the team. A logo whose file name doesn't match the
 PlayHQ team name can be picked for that team in the setup page's team list. The same list gives any team its own colour
-(**Add colour**, or × to go back to the competition's colours); the scoreboard and The Clash use it behind that team. The
+(**Add colour**, then the colour picker or a pasted HEX or RGB value, or × to go back to the competition's colours; teams with similar names are offered the same colour); the scoreboard and The Clash use it behind that team. The
 match up page keeps the competition's colours.
 
 ## Options

@@ -96,7 +96,9 @@
   th { font-size: 12px; text-transform: uppercase; color: var(--fp-muted); letter-spacing: .05em; }
   td img, td .none { width: 40px; height: 40px; object-fit: contain; display: block; }
   .teamcolour { display: flex; gap: 6px; align-items: center; }
-  .teamcolour input[type=color] { width: 56px; height: 32px; padding: 0 2px; }
+  .teamcolour { flex-wrap: wrap; }
+  .samename { flex-basis: 100%; font-size: 12px; color: var(--fp-muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-top: 2px; }
+  .samename button { font-size: 12px; padding: 2px 8px; }
   td .none { border-radius: 50%; background: #eee; color: #888; font-size: 11px; display: flex; align-items: center; justify-content: center; }
   td select { width: auto; max-width: 260px; }
   /* Save bar */
@@ -247,7 +249,8 @@
       <div class="logos" id="logos"></div>
       <h2 style="margin-top:18px">Teams on PlayHQ</h2>
       <p class="help">Pick another logo for a team whose file name doesn't match. <b>Team colour</b> is optional: a team with one gets it behind
-        its name on the scoreboard and behind its logo and name on The Clash; a team without one uses the competition's colours.</p>
+        its name on the scoreboard and behind its logo and name on The Clash; a team without one uses the competition's colours.
+        Use the colour picker, or paste the team's colour as HEX or RGB. When teams have similar names ("Stormz" and "Stormz 2"), you're offered the same colour for all of them.</p>
       <p class="note" id="teamsNote"></p>
       <table id="teams" hidden><thead><tr><th>Logo</th><th>Team</th><th>Division</th><th>Use</th><th>Team colour</th></tr></thead><tbody></tbody></table>
     </section>
@@ -544,23 +547,71 @@
   }
 
   // A team's own colour (behind its name on the scoreboard and The Clash), or none to use the competition's.
+  // The same name in several divisions shares one colour; teams with similar names ("Stormz",
+  // "Stormz 2", "Stormz Div 3") get an offer to use the colour too.
+  let teamRows = {};   // team name -> redraw function for each of its rows
+  const baseName = n => String(n).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(div(ision)?|grade|res(erves?)?|team|club|nc|netball|mens?|mixed|womens?|open|[ivx]+|[a-z])\b/g, ' ')
+    .replace(/[^a-z]+/g, ' ').split(' ').filter(Boolean).map(w => w.length > 3 ? w.replace(/(e?s|z)$/, '') : w).join(' ');
+  function similarTeams(team) {
+    const b = baseName(team);
+    if (b.length < 3) return [];
+    return Object.keys(teamRows).filter(o => {
+      if (o === team) return false;
+      const ob = baseName(o);
+      return ob === b || (ob.length >= 4 && b.length >= 4 && (ob.startsWith(b + ' ') || b.startsWith(ob + ' ')));
+    });
+  }
+  const swatchesForTeams = () => [...swatches(), { title: 'Other teams', colours: Object.entries(form.teamColours).map(([name, hex]) => ({ name, hex })) }];
+  function setTeamColour(team, hex) {
+    if (hex) form.teamColours[team] = hex; else delete form.teamColours[team];
+    markDirty();
+  }
   function colourPicker(team) {
     const box = el('div', 'teamcolour');
+    const offer = el('div', 'samename');
+    const showOffer = () => {
+      const colour = form.teamColours[team];
+      const others = colour ? similarTeams(team).filter(o => form.teamColours[o] !== colour) : [];
+      offer.replaceChildren();
+      if (!others.length || !box.dataset.edited) return offer.remove();
+      const yes = Object.assign(el('button', 'alt', `Use it for ${others.length === 1 ? 'that team' : `all ${others.length}`}`), { type: 'button' });
+      yes.onclick = () => { for (const o of others) setTeamColour(o, colour); delete box.dataset.edited; offer.remove(); redrawTeams(); };
+      const no = Object.assign(el('button', 'alt', 'No'), { type: 'button' });
+      no.onclick = () => { delete box.dataset.edited; offer.remove(); };
+      offer.append(`Same club? ${others.join(', ')}`, yes, no);
+      box.append(offer);
+    };
     const draw = () => {
       const colour = form.teamColours[team];
       if (!colour) {
-        const add = el('button', 'alt', 'Add colour');
-        add.onclick = () => { form.teamColours[team] = form.colours.main; markDirty(); draw(); };
+        const add = Object.assign(el('button', 'alt', 'Add colour'), { type: 'button' });
+        add.onclick = () => { box.dataset.edited = '1'; setTeamColour(team, form.colours.main); redrawTeams(team); };
         return box.replaceChildren(add);
       }
-      const pick = Object.assign(el('input'), { type: 'color', value: colour, title: `${team}'s colour` });
-      pick.oninput = () => { form.teamColours[team] = pick.value; markDirty(); };
-      const clear = el('button', 'alt', '×'); clear.title = 'No team colour (use the competition colours)';
-      clear.onclick = () => { delete form.teamColours[team]; markDirty(); draw(); };
+      const pick = ColourPicker.field(colour, hex => { box.dataset.edited = '1'; setTeamColour(team, hex); redrawTeams(team, box); showOffer(); },
+        { label: `${team}'s colour`, swatches: swatchesForTeams });
+      pick.dataset.team = team;
+      const clear = Object.assign(el('button', 'alt', '×'), { type: 'button', title: 'No team colour (use the competition colours)' });
+      clear.onclick = () => { setTeamColour(team, null); delete box.dataset.edited; redrawTeams(team); };
       box.replaceChildren(pick, clear);
+      showOffer();
     };
+    box.redraw = draw;
+    (teamRows[team] = teamRows[team] || []).push(box);
     draw();
     return box;
+  }
+  // Redraw every row for a team (or every row), except the one being changed so its picker stays open.
+  function redrawTeams(team, except) {
+    for (const [name, boxes] of Object.entries(teamRows)) {
+      if (team && name !== team) continue;
+      for (const b of boxes) {
+        if (b === except) continue;
+        const field = b.querySelector('.cp-field');
+        if (field && form.teamColours[name]) field.setValue(form.teamColours[name]); else b.redraw();
+      }
+    }
   }
 
   // Teams from PlayHQ, for the competition in use: which logo each gets, and a way to pick another.
@@ -572,6 +623,7 @@
     try {
       const d = await api('/api/setup-teams');
       body.replaceChildren();
+      teamRows = {};
       for (const t of d.teams) {
         const tr = body.insertRow();
         const pic = tr.insertCell();
