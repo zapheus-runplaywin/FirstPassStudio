@@ -4,10 +4,10 @@
   --height: 52px;          /* height of the main bar */
   --team-width: 420px;     /* fits names like TRAVIS' DISCIPLES; longer names shrink to fit */
   --score-width: 96px;
-  --score-bg: #ffffff;     /* the score boxes: black numbers on white for every competition (Matt, 2026-10-12) */
+  --score-bg: #ffffff;     /* the score boxes: black on white for every competition, with the court and clock (Matt, 2026-10-12) */
   --score-text: #000000;
   --radius: 8px;
-  --clock-width: 150px;    /* the pink quarter/clock box on the right, and the court box on the left (same width, so
+  --clock-width: 150px;    /* the quarter/clock box on the right, and the court box on the left (same width, so
                               the line between the scores sits in the middle of the frame) */
   --ticker-height: 52px;   /* ticker.html's bar (48px + 4px top border) at the very bottom */
   --ticker-gap: 14px;      /* space between the scoreboard and the ticker */
@@ -45,9 +45,9 @@ body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var
 }
 .score + .score { border-left: 3px solid var(--purple-dark); }
 .score.bump { animation: bump 0.6s ease-out; }
-/* The court (left) and the quarter and clock (right) share the pink box style. */
+/* The court (left) and the quarter and clock (right) share the scores' black on white (Matt, 2026-10-12). */
 .court, .period {
-  width: var(--clock-width); flex: none; box-sizing: border-box; background: var(--pink); color: var(--text);
+  width: var(--clock-width); flex: none; box-sizing: border-box; background: var(--score-bg); color: var(--score-text);
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
