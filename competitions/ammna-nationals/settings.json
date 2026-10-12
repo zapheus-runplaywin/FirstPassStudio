@@ -29,10 +29,11 @@
   "panelOpacity": 0.92,
   "font": "Montserrat",
   "competitionLogo": "AMMNA.png",
+  "competitionLogoDark": "",
   "titleEmoji": "",
   "clashWord": "CLASH",
-  "logoAliases": {},
-  "teamColours": {},
+  "clubs": {},
+  "teamClubs": {},
   "apiKey": "",
   "apiTenant": ""
 }

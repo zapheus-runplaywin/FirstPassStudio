@@ -19,10 +19,15 @@ organisation's PlayHQ link and which competition and season to use (**Find its c
 shown on the graphics (competition, organisation, venue), the game rules (quarters or halves and their length, super
 shots, the ladder's finals marker), game day settings (court to follow, automatic game selection, minutes before a game
 it switches, days ahead that count as this round), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
-in light and dark mode versions (one alone is used for both; beside the title, above it and in the ladder's corner), the team logos (drop files on the page; they match teams by file
-name, and the PlayHQ team list lets you pick a different logo for any team), an optional team colour for each team (behind its
-name on the scoreboard and behind its logo and name on The Clash), the emoji either side of the title (any emoji, or none), The Clash's big word and
+in light and dark mode versions (one alone is used for both; beside the title, above it and in the ladder's corner), the team logos (drop files on the page; they match clubs by file
+name, and the PlayHQ team list lets you pick a different logo for any club), an optional colour for each club (behind its teams'
+names on the scoreboard and behind their logo and name on The Clash), the emoji either side of the title (any emoji, or none), The Clash's big word and
 the PlayHQ Client ID most competitions don't need.
+
+Logos and colours belong to clubs, so a club's teams share them in every division. A team's club is its name without the
+division on the end ("Comets 21U", "Comets Men" and "Comets Open" are all Comets; "Stormz Div 2" is Stormz), and the team
+list's **Club** box links a team to another club, or a new one. Setups saved with a logo or colour per team are moved to
+clubs when loaded.
 
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics in OBS.

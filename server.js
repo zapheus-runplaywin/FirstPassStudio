@@ -1072,7 +1072,7 @@ async function setupTeams() {
   try { for (const g of await getCurrentGames()) { add(g.home.name, g.division); add(g.away.name, g.division); } } catch { /* the ladders are enough */ }
   return { competition: st.competition, season: st.season.name,
     teams: [...teams.values()].sort((a, b) => a.division.localeCompare(b.division, 'en', { numeric: true }) || a.name.localeCompare(b.name))
-      .map(t => ({ ...t, logo: logoFor(t.name), alias: (CONFIG.logoAliases || {})[t.name] || '', colour: colourFor(t.name) })) };
+      .map(t => ({ ...t, logo: logoFor(t.name), club: competitions.clubFor(CONFIG, t.name), autoClub: competitions.clubOf(t.name), colour: colourFor(t.name) })) };
 }
 
 function readRaw(req, max) {
@@ -1276,18 +1276,22 @@ function parseSummary(json, board) {
 }
 
 // ─── Team logos (competitions/<id>/logos) ───────────────────────────────────
-// Matched to PlayHQ team names loosely ("Perth Coastal" finds "Perth Coastals.png").
-// A name that doesn't match can be given a logo on the competition setup page.
+// A logo belongs to the team's club, so every division's team of that club shows it.
+// Matched to the club's (then the team's) name loosely ("Perth Coastal" finds "Perth Coastals.png").
+// A club whose name doesn't match can be given a logo on the competition setup page.
 function logoFor(teamName) {
   const files = competitions.images(competitions.activeId(), 'logos');
   if (!files.length) return null;
-  const alias = (CONFIG.logoAliases || {})[teamName];
-  if (alias && files.includes(alias)) return '/logos/' + encodeURIComponent(alias);
+  const club = competitions.clubFor(CONFIG, teamName);
+  const picked = competitions.clubEntry(CONFIG, club).logo;
+  if (picked && files.includes(picked)) return '/logos/' + encodeURIComponent(picked);
   const norm = s => String(s || '').toLowerCase().replace(/\.[a-z]+$/, '').replace(/[^a-z0-9]/g, '').replace(/s$/, '');
-  const want = norm(teamName);
-  if (!want) return null;
-  const hit = files.find(f => norm(f) === want) || files.find(f => want.includes(norm(f)) || norm(f).includes(want));
-  return hit ? '/logos/' + encodeURIComponent(hit) : null;
+  for (const want of [norm(club), norm(teamName)]) {
+    if (!want) continue;
+    const hit = files.find(f => norm(f) === want) || files.find(f => want.includes(norm(f)) || norm(f).includes(want));
+    if (hit) return '/logos/' + encodeURIComponent(hit);
+  }
+  return null;
 }
 
 // ─── Athlete photos (competitions/<id>/photos) ──────────────────────────────
@@ -1624,9 +1628,9 @@ async function athletesRoute(req, res, url, q) {
     ...list, error });
 }
 
-// A team's own colour from the competition setup page, or null to use the competition's colours.
+// A team's club colour from the competition setup page, or null to use the competition's colours.
 function colourFor(teamName) {
-  return (CONFIG.teamColours || {})[teamName] || null;
+  return competitions.clubEntry(CONFIG, competitions.clubFor(CONFIG, teamName)).colour || null;
 }
 
 const summaryCache = new Map();

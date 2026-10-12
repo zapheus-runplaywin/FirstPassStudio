@@ -56,8 +56,8 @@ const DEFAULTS = {
   competitionLogoDark: '',             // a file in brand/: the dark mode logo (for a dark background); either one alone is used for both
   titleEmoji: '🔥',                    // the emoji either side of the title banner, blank for none
   clashWord: 'CLASH',                  // the big word on The Clash
-  logoAliases: {},                     // { "PlayHQ team name": "file.png" }
-  teamColours: {},                     // { "PlayHQ team name": "#rrggbb" }, behind the team on the scoreboard and The Clash
+  clubs: {},                           // { "Club": { logo: "file.png", colour: "#rrggbb" } }, shared by every team of the club in every division
+  teamClubs: {},                       // { "PlayHQ team name": "Club" }, only for a team whose club isn't found from its name
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
   apiTenant: '',
 };
@@ -80,9 +80,53 @@ function fromFlames(s) {
   return { ...s, titleEmoji: s.titleFlames ? '🔥' : '' };
 }
 
+// ─── Clubs ──────────────────────────────────────────────────────────────────
+// A club's teams share its logo and colour in every division. A team's club is its name
+// without the division words on the end ("Comets 21U", "Comets Men" and "Comets Open" are
+// all Comets; "Stormz Div 2" is Stormz), unless the setup page links it to another club.
+const DIVISION_WORD = /^(\d+u|u\d+|\d+|men'?s?|women'?s?|ladies|mixed|open|reserves?|res|colts|juniors?|seniors?|masters|ii|iii|iv|[a-f]|(div|division|grade)\d+)$/i;
+function clubOf(team) {
+  const words = String(team || '').replace(/\([^)]*\)/g, ' ').replace(/\s[-–—]\s/g, ' ').trim().split(/\s+/).filter(Boolean);
+  while (words.length > 1) {
+    const last = words[words.length - 1];
+    if (/^(div|division|grade)\.?$/i.test(last)) { words.pop(); continue; }
+    if (!DIVISION_WORD.test(last)) break;
+    words.pop();
+    if (words.length > 1 && /^(div|division|grade|under)\.?$/i.test(words[words.length - 1])) words.pop();
+  }
+  return words.join(' ') || String(team || '').trim();
+}
+const clubKey = (s, club) => Object.keys((s && s.clubs) || {}).find(k => k.toLowerCase() === String(club || '').toLowerCase());
+function clubFor(s, team) { return ((s && s.teamClubs) || {})[team] || clubOf(team); }
+function clubEntry(s, club) { const k = clubKey(s, club); return k ? s.clubs[k] : {}; }
+
+// Setups saved before clubs had a logo (logoAliases) and colour (teamColours) per team.
+// Each team's goes to its club; a team whose club already has a different one keeps it
+// in a club of its own name, so nothing changes on screen.
+function fromTeamSettings(s) {
+  if (!s || s.clubs !== undefined || (!s.logoAliases && !s.teamColours)) return s;
+  const logos = s.logoAliases || {}, colours = s.teamColours || {};
+  const clubs = {}, teamClubs = {};
+  const teams = [...new Set([...Object.keys(logos), ...Object.keys(colours)])]
+    .sort((a, b) => (clubOf(b) === b) - (clubOf(a) === a));
+  for (const team of teams) {
+    const want = { ...(logos[team] ? { logo: logos[team] } : {}), ...(colours[team] ? { colour: colours[team] } : {}) };
+    let club = clubOf(team);
+    const have = clubs[club] || {};
+    if (Object.keys(want).some(k => have[k] && have[k] !== want[k])) {
+      club = team; let n = 2;
+      while (clubs[club]) club = `${team} (${n++})`;
+      teamClubs[team] = club;
+    }
+    clubs[club] = { ...(clubs[club] || {}), ...want };
+  }
+  const { logoAliases, teamColours, ...rest } = s;
+  return { ...rest, clubs, teamClubs };
+}
+
 // Keep only known settings, with the right types, so a bad save can't break the helper.
 function clean(input, base = DEFAULTS) {
-  input = fromFlames(input); base = fromFlames(base);
+  input = fromTeamSettings(fromFlames(input)); base = fromTeamSettings(fromFlames(base));
   const out = {};
   for (const [k, def] of Object.entries(DEFAULTS)) {
     let v = input && input[k] !== undefined ? input[k] : base[k] !== undefined ? base[k] : def;
@@ -91,10 +135,13 @@ function clean(input, base = DEFAULTS) {
     } else if (k === 'brandColours') {
       v = (Array.isArray(v) ? v : []).filter(c => c && HEX.test(c.hex)).slice(0, 40)
         .map(c => ({ hex: c.hex.toLowerCase(), name: String(c.name || '').trim().slice(0, 40) }));
-    } else if (k === 'logoAliases') {
-      v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter(([t, f]) => t && typeof f === 'string' && f).map(([t, f]) => [String(t), path.basename(f)]));
-    } else if (k === 'teamColours') {
-      v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter(([t, c]) => t && HEX.test(c)).map(([t, c]) => [String(t), c.toLowerCase()]));
+    } else if (k === 'clubs') {
+      v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).map(([club, c]) => [String(club).trim(), {
+        ...(c && typeof c.logo === 'string' && c.logo ? { logo: path.basename(c.logo) } : {}),
+        ...(c && HEX.test(c.colour) ? { colour: c.colour.toLowerCase() } : {}),
+      }]).filter(([club, c]) => club && Object.keys(c).length));
+    } else if (k === 'teamClubs') {
+      v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter(([t, c]) => t && typeof c === 'string' && c.trim()).map(([t, c]) => [String(t), c.trim()]));
     } else if (typeof def === 'boolean') v = v === true || v === 'true' || v === 'on';
     else if (typeof def === 'number') { v = Number(v); if (!Number.isFinite(v)) v = def; }
     else v = String(v ?? '').trim();
@@ -179,7 +226,7 @@ function create(name, fromId, overrides = {}, wantedId) {
   let id = wantedId || slug(name), n = 2;
   while (fs.existsSync(path.join(DIR, id))) id = `${slug(name).slice(0, 36)}-${n++}`;
   const base = fromId ? get(fromId) : DEFAULTS;
-  const settings = clean({ ...base, ...overrides, name, competitionLogo: '', competitionLogoDark: '', logoAliases: fromId ? {} : overrides.logoAliases, teamColours: fromId ? {} : overrides.teamColours }, DEFAULTS);
+  const settings = clean({ ...base, ...overrides, name, competitionLogo: '', competitionLogoDark: '', clubs: fromId ? {} : overrides.clubs, teamClubs: fromId ? {} : overrides.teamClubs }, DEFAULTS);
   for (const sub of ['logos', 'brand']) fs.mkdirSync(path.join(DIR, id, sub), { recursive: true });
   writeJson(path.join(DIR, id, 'settings.json'), settings);
   return id;
@@ -248,4 +295,4 @@ function themeCss(s) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean };
+module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry };
