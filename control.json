@@ -1,4 +1,12 @@
 {
-  "round": "",
-  "boards": {}
+  "round": "6",
+  "boards": {
+    "1": {
+      "autoSelect": true,
+      "autoCourt": "1",
+      "followPlayhqClock": false,
+      "playhqRefreshSec": 5,
+      "showClock": true
+    }
+  }
 }
