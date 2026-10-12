@@ -1,0 +1,49 @@
+/* FirstPass Studio look for the pages that aren't OBS overlays: home, scoreboard control,
+   competition setup and the Stream Deck API docs. Colours and type come from the FirstPass
+   brand kit. Overlays keep the competition's own colours from theme.css. */
+
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 400; font-display: swap; src: url("vendor/montserrat/montserrat-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 600; font-display: swap; src: url("vendor/montserrat/montserrat-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 800; font-display: swap; src: url("vendor/montserrat/montserrat-latin-800-normal.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: italic; font-weight: 800; font-display: swap; src: url("vendor/montserrat/montserrat-latin-800-italic.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: italic; font-weight: 900; font-display: swap; src: url("vendor/montserrat/montserrat-latin-900-italic.woff2") format("woff2"); }
+
+:root {
+  --fp-blue: #2274A5;        /* primary: buttons, links, headings accents (5.1:1 on white) */
+  --fp-blue-dark: #1B5E86;   /* hover on blue */
+  --fp-blue-soft: #E8F1F7;   /* light blue panels and secondary buttons */
+  --fp-orange: #F75C03;      /* "on" states and alerts: shapes and large type only on light */
+  --fp-gold: #F1C40F;        /* accent on navy; never text on white */
+  --fp-navy: #0F172A;        /* header bar and ink */
+  --fp-gray: #F8FAFC;        /* page background */
+  --fp-white: #FFFFFF;
+  --fp-muted: #475569;       /* secondary text (7.6:1 on white) */
+  --fp-line: #E2E8F0;        /* borders and dividers */
+  --fp-line-strong: #CBD5E1; /* input borders */
+  --fp-danger: #B42318;
+  --fp-ok: #127A3E;
+  --fp-font: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --fp-radius: 12px;
+}
+
+/* Header bar with the FirstPass Studio wordmark (dark version: white FirstPass, gold STUDIO). */
+.fp-bar {
+  background: var(--fp-navy); color: var(--fp-white); font-family: var(--fp-font);
+  display: flex; align-items: center; gap: 12px 28px; flex-wrap: wrap; padding: 14px 24px;
+  border-bottom: 4px solid var(--fp-orange);
+}
+.fp-logo { font-weight: 800; font-style: italic; font-size: 26px; line-height: 1; text-decoration: none; white-space: nowrap; padding: 4px 0; }
+.fp-logo__name { color: var(--fp-white); letter-spacing: -0.02em; }
+.fp-logo__product { color: var(--fp-gold); }
+.fp-bar nav { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-left: auto; }
+.fp-bar nav a { color: #CBD5E1; text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 10px; border-radius: 8px; }
+.fp-bar nav a:hover { color: var(--fp-white); background: rgba(255,255,255,.08); }
+.fp-bar nav a[aria-current="page"] { color: var(--fp-navy); background: var(--fp-gold); }
+@media (max-width: 600px) { .fp-bar { padding: 12px 16px; } .fp-bar nav { margin-left: 0; } .fp-logo { font-size: 22px; } }
+
+/* Shared page basics. */
+body.fp { font-family: var(--fp-font); background: var(--fp-gray); color: var(--fp-navy); margin: 0; line-height: 1.45; }
+body.fp h1 { font-weight: 900; font-style: italic; letter-spacing: -0.02em; color: var(--fp-navy); }
+:where(body.fp main a) { color: var(--fp-blue); }
+:where(body.fp main a:hover) { color: var(--fp-blue-dark); }
+body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2px; }

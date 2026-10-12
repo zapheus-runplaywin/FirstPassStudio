@@ -2,31 +2,38 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>PlayHQ Graphics</title>
+<title>Graphics · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="studio.css">
 <style>
-  body { font-family: "Segoe UI", Arial, sans-serif; background: #f4f4f7; color: #1b1b24; margin: 0; padding: 32px 16px; }
-  main { max-width: 760px; margin: 0 auto; }
-  h1 { margin: 0 0 4px; }
-  .sub { color: #555; margin: 0 0 24px; }
-  .card { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .card h2 { margin: 0 0 8px; font-size: 18px; }
-  code { display: block; background: #eef; padding: 8px 10px; border-radius: 6px; word-break: break-all; }
-  .row { display: flex; gap: 8px; margin-top: 8px; }
-  button, a.btn { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid #4b1d8f; background: #4b1d8f; color: #fff; cursor: pointer; text-decoration: none; }
-  a.btn { background: #fff; color: #4b1d8f; }
-  .page { padding: 10px 0; border-top: 1px solid #eee; }
+  main { max-width: 800px; margin: 0 auto; padding: 32px 16px 40px; }
+  h1 { margin: 0 0 4px; font-size: 34px; }
+  .sub { color: var(--fp-muted); margin: 0 0 24px; }
+  .card { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 18px 22px; margin-bottom: 14px; }
+  .card h2 { margin: 0 0 10px; font-size: 18px; font-weight: 800; }
+  code { display: block; background: var(--fp-blue-soft); color: var(--fp-navy); padding: 8px 10px; border-radius: 8px; word-break: break-all; font-size: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  button, a.btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; text-decoration: none; }
+  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  a.btn { background: var(--fp-white); color: var(--fp-blue); }
+  a.btn:hover { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
+  .page { padding: 14px 0; border-top: 1px solid var(--fp-line); }
   .page:first-child { border-top: 0; padding-top: 0; }
-  .page__name { font-weight: 700; margin-bottom: 4px; }
-  .page__help { margin: 8px 0 0; font-size: 14px; color: #555; line-height: 1.5; }
+  .page__name { font-weight: 800; margin-bottom: 6px; }
+  .page__help { margin: 10px 0 0; font-size: 14px; color: var(--fp-muted); line-height: 1.55; }
+  .page__help b { color: var(--fp-navy); }
   .page__help code { display: inline; padding: 1px 5px; white-space: nowrap; }
-  .error { background: #fde8e8; color: #8a1111; }
+  .error { background: #FEF3F2; border-color: #FECDCA; color: var(--fp-danger); }
 </style>
 <script src="log.js"></script>
 </head>
-<body>
+<body class="fp">
+<header class="fp-bar">
+  <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
+  <nav><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competition setup</a><a href="/api.html">Stream Deck API</a></nav>
+</header>
 <main>
-  <h1>PlayHQ Graphics</h1>
+  <h1>Graphics for OBS</h1>
   <p class="sub" id="sub">Loading from PlayHQ…</p>
   <div class="card">
     <h2>Competition setup</h2>
