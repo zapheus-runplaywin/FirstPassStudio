@@ -1,13 +1,14 @@
 // PlayHQ Graphics - saved competition setups.
 //
 // Everything that belongs to one competition and doesn't come from PlayHQ lives in
-// competitions/<id>/: settings.json (PlayHQ link, names, rules, colours, font and
-// options), logos/ (team logos) and brand/ (the competition's own logo).
-// competitions/active.json says which one the helper and every page use.
+// settings/competitions/<id>/: settings.json (PlayHQ link, names, rules, colours, font
+// and options), logos/ (team logos) and brand/ (the competition's own logo).
+// settings/active.json says which one the helper and every page use.
 //
-// The competitions folder is never shipped in the zip, so unzipping a new version
-// over the old one keeps your setups. Ready-made setups in presets/ are copied in
-// the first time the helper starts (and a preset you delete stays deleted).
+// settings/ is kept in git (see gitsave.js) but never shipped in the zip, so neither
+// unzipping nor pulling a new version overwrites your setups. Ready-made setups in
+// presets/ are copied in the first time the helper starts (and a preset you delete
+// stays deleted). Setups saved before settings/ existed are moved in from competitions/.
 
 'use strict';
 
@@ -15,9 +16,11 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = __dirname;
-const DIR = path.join(ROOT, 'competitions');
+const SETTINGS = path.join(ROOT, 'settings');
+const DIR = path.join(SETTINGS, 'competitions');
+const OLD_DIR = path.join(ROOT, 'competitions'); // where setups were saved before settings/
 const PRESETS = path.join(ROOT, 'presets');
-const ACTIVE_FILE = path.join(DIR, 'active.json');
+const ACTIVE_FILE = path.join(SETTINGS, 'active.json');
 const IMAGE = /\.(png|jpe?g|webp|svg|gif)$/i;
 
 // Every competition setting, with its default. The setup page shows these.
@@ -118,6 +121,7 @@ function copyDir(from, to) {
 const LEGACY_KEYS = ['organisationUrl', 'organisationName', 'competitionName', 'venueName', 'defaultCourt', 'autoSelectGame',
   'autoSelectMinutesBefore', 'roundLookaheadDays', 'seasonName', 'quarterMinutes', 'logoAliases', 'apiKey', 'apiTenant'];
 function init(machineConfig, log) {
+  moveOldSetups(log);
   fs.mkdirSync(DIR, { recursive: true });
   const state = readJson(ACTIVE_FILE, { active: '', seeded: [] });
   state.seeded = state.seeded || [];
@@ -153,6 +157,17 @@ function init(machineConfig, log) {
   if (!state.active || !fs.existsSync(path.join(DIR, state.active, 'settings.json'))) state.active = first || list()[0].id;
   writeJson(ACTIVE_FILE, state);
   return state.active;
+}
+
+// Setups saved by an older version in competitions/ move into settings/competitions/.
+function moveOldSetups(log) {
+  if (!fs.existsSync(OLD_DIR)) return;
+  if (fs.existsSync(DIR)) { log('warn', 'setup', 'Found an old competitions folder next to settings/competitions; using settings/ and leaving the old one alone'); return; }
+  fs.mkdirSync(SETTINGS, { recursive: true });
+  fs.renameSync(OLD_DIR, DIR);
+  const oldActive = path.join(DIR, 'active.json');
+  if (fs.existsSync(oldActive) && !fs.existsSync(ACTIVE_FILE)) fs.renameSync(oldActive, ACTIVE_FILE);
+  log('info', 'setup', 'Moved the saved competition setups from competitions/ into settings/competitions/');
 }
 
 // A newer preset (presetVersion went up) passes its changes on to the setup already saved
@@ -270,4 +285,4 @@ function themeCss(s) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, imageFile, themeCss, clean };
+module.exports = { DEFAULTS, FONTS, DIR, SETTINGS, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, imageFile, themeCss, clean };
