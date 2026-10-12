@@ -16,11 +16,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const competitions = require('./competitions');
+const gitsave = require('./gitsave');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 // config.json holds this computer's settings (port, cache, log size). Everything about
-// the competition lives in competitions/<id>/settings.json, edited on setup.html.
+// the competition lives in settings/competitions/<id>/settings.json, edited on setup.html.
 // CONFIG is the two together, for the competition in use.
 const MACHINE = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
 let CONFIG = { ...MACHINE };
@@ -476,13 +477,34 @@ async function getRounds(gradeId) {
 // By date: the round being played in the next roundLookaheadDays days (default 5,
 // counting today, so a Tuesday round is picked from the Friday before), otherwise
 // the last round played. The control page can pick a round by hand instead
-// (kept in round-choice.json; blank means automatic).
-const ROUND_FILE = path.join(ROOT, 'round-choice.json');
-let roundChoice = '';
-try { roundChoice = String(JSON.parse(fs.readFileSync(ROUND_FILE, 'utf8')).round || ''); } catch { /* automatic */ }
+// (kept in settings/control.json; blank means automatic).
+//
+// settings/control.json holds the control page's lasting settings, kept in git with the
+// competition setups: the round picked by hand, and per board automatic game selection,
+// its court, following the PlayHQ clock, how often to check PlayHQ and showing the clock.
+// The game itself, scores and the clock stay in scoreboard-state.json, outside git.
+const CONTROL_FILE = path.join(competitions.SETTINGS, 'control.json');
+const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock'];
+let control = {};
+try { control = JSON.parse(fs.readFileSync(CONTROL_FILE, 'utf8')); } catch { /* none saved yet */ }
+if (control.round === undefined) { // the round used to be kept in round-choice.json
+  try { control.round = String(JSON.parse(fs.readFileSync(path.join(ROOT, 'round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }
+}
+control.boards = control.boards || {};
+let controlSaved = JSON.stringify(control);
+// Write control.json only when a lasting setting changed, so git only sees real changes.
+function saveControl(reason) {
+  const next = JSON.stringify(control);
+  if (next === controlSaved) return;
+  controlSaved = next;
+  fs.mkdirSync(competitions.SETTINGS, { recursive: true });
+  fs.writeFileSync(CONTROL_FILE, JSON.stringify(control, null, 2) + '\n');
+  gitsave.changed(reason || 'control page');
+}
+let roundChoice = String(control.round || '');
 function setRoundChoice(value) {
-  roundChoice = String(value || '').trim();
-  fs.writeFile(ROUND_FILE, JSON.stringify({ round: roundChoice }, null, 2), () => {});
+  roundChoice = control.round = String(value || '').trim();
+  saveControl(roundChoice ? `round ${roundChoice} picked by hand` : 'round back to automatic');
   log('info', 'round', roundChoice ? `Round picked by hand: ${roundChoice}` : 'Round picked automatically by date');
 }
 let LOOKAHEAD_DAYS = 5;
@@ -611,11 +633,17 @@ async function getUpNext(boardId) {
 }
 
 // ─── Scoreboard state (set from control.html, shown by scoreboard.html) ─────
-// Kept in scoreboard-state.json so a restart mid-game keeps the score.
+// Kept in scoreboard-state.json so a restart mid-game keeps the score. The lasting
+// settings (LASTING) also go to settings/control.json, which wins when both have them,
+// so a pulled or restored control.json is what the boards start with.
 const STATE_FILE = path.join(ROOT, 'scoreboard-state.json');
 let boards = {};
 try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
-function saveBoards() { fs.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), () => {}); }
+function saveBoards() {
+  fs.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), () => {});
+  for (const [id, b] of Object.entries(boards)) control.boards[id] = Object.fromEntries(LASTING.map(k => [k, b[k]]));
+  saveControl('control page settings');
+}
 
 const DEFAULT_REFRESH_SEC = Math.max(3, Number(MACHINE.playhqRefreshSeconds) || 5);
 let QUARTER_SEC = 600;
@@ -638,10 +666,15 @@ function newBoard() {
   };
 }
 function board(id) {
-  const b = boards[id] || (boards[id] = newBoard());
+  if (!boards[id]) boards[id] = { ...newBoard(), ...pickKeys(control.boards[id], LASTING) };
+  const b = boards[id];
   if (b.autoSelect === undefined) { const n = newBoard(); b.autoSelect = n.autoSelect; b.autoCourt = n.autoCourt; } // saved before these existed
   return b;
 }
+
+const pickKeys = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined).map(k => [k, o[k]]));
+for (const [id, saved] of Object.entries(control.boards)) if (boards[id]) Object.assign(boards[id], pickKeys(saved, LASTING));
+if (!fs.existsSync(CONTROL_FILE)) { controlSaved = ''; saveBoards(); } // first start with settings/: write it from what was in use
 
 function clockElapsed(c) { return c.elapsedMs + (c.running && c.startedAt ? Date.now() - c.startedAt : 0); }
 
@@ -946,7 +979,7 @@ function pageVersion() {
   };
   try { walk(PUBLIC_DIR); latest = Math.max(latest, fs.statSync(path.join(ROOT, 'config.json')).mtimeMs); } catch {}
   // The competition setup too: switching competition, or saving its colours or logos, reloads every page.
-  try { latest = Math.max(latest, fs.statSync(path.join(competitions.DIR, 'active.json')).mtimeMs); walk(path.join(competitions.DIR, competitions.activeId())); } catch {}
+  try { latest = Math.max(latest, fs.statSync(competitions.ACTIVE_FILE).mtimeMs); walk(path.join(competitions.DIR, competitions.activeId())); } catch {}
   return String(Math.round(latest));
 }
 
@@ -1030,6 +1063,7 @@ async function setupRoute(req, res, url, q) {
     const body = await readBody(req);
     const id = competitions.create(String(body.name || 'New competition').trim() || 'New competition', body.from || null);
     log('info', 'setup', `New competition setup "${body.name}" (${id})${body.from ? ` copied from ${body.from}` : ''}`);
+    gitsave.changed(`new setup ${id}`);
     return send(res, 200, setupInfo(id));
   }
   if (!m) return send(res, 404, { error: 'Unknown setup link' });
@@ -1037,6 +1071,7 @@ async function setupRoute(req, res, url, q) {
   if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), fonts: competitions.FONTS, defaults: competitions.DEFAULTS });
   if (what === 'activate' && req.method === 'POST') {
     competitions.setActive(id);
+    gitsave.changed(`using ${id}`);
     applyCompetition('Switched competition');
     return send(res, 200, setupInfo(id));
   }
@@ -1045,11 +1080,13 @@ async function setupRoute(req, res, url, q) {
     if (req.method === 'POST') {
       const name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024));
       log('info', 'setup', `${id}: added ${kind === 'brand' ? 'competition logo' : 'team logo'} ${name}`);
+      gitsave.changed(`${id} logo ${name} added`);
       return send(res, 200, { name, ...setupInfo(id) });
     }
     if (req.method === 'DELETE') {
       competitions.deleteImage(id, kind, q.name);
       log('info', 'setup', `${id}: removed ${kind} ${q.name}`);
+      gitsave.changed(`${id} logo ${q.name} removed`);
       return send(res, 200, setupInfo(id));
     }
     const file = competitions.imageFile(id, kind, q.name || '');
@@ -1058,12 +1095,14 @@ async function setupRoute(req, res, url, q) {
   if (req.method === 'POST') {
     competitions.save(id, await readBody(req));
     log('info', 'setup', `Saved the ${id} competition setup`);
+    gitsave.changed(`${id} setup saved`);
     if (id === competitions.activeId()) applyCompetition('Competition setup saved');
     return send(res, 200, setupInfo(id));
   }
   if (req.method === 'DELETE') {
     competitions.remove(id);
     log('info', 'setup', `Deleted the ${id} competition setup`);
+    gitsave.changed(`${id} setup deleted`);
     return send(res, 200, { ok: true });
   }
   return send(res, 200, setupInfo(id));
@@ -1413,6 +1452,7 @@ async function getTopShooters(q) {
 }
 
 competitions.init(MACHINE, log);
+gitsave.init(MACHINE, log);
 applyCompetition('Using competition');
 
 // ─── HTTP ───────────────────────────────────────────────────────────────────

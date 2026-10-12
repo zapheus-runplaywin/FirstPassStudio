@@ -1,8 +1,9 @@
-logs/
-scoreboard-state.json
-last-game-summary.json
-round-choice.json
+/logs/
+/scoreboard-state.json
+/last-game-summary.json
+/round-choice.json
 .DS_Store
 node_modules/
-Examples/
-competitions/
+/Examples/
+# Setups saved by older versions; the helper moves them into settings/competitions/.
+/competitions/

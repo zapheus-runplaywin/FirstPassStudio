@@ -26,7 +26,8 @@ the PlayHQ Client ID most competitions don't need.
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics in OBS.
 
-Setups live in `competitions/<name>/` (`settings.json`, `logos/`, `brand/`), which a new version never overwrites.
+Setups live in `settings/competitions/<name>/` (`settings.json`, `logos/`, `brand/`), which a new version never overwrites
+(see **Saved settings and updates** below).
 Ready-made ones in `presets/` are copied in the first time the helper starts. AMMNA Nationals and GIG WANL come with
 their PlayHQ organisation link, colours (AMMNA green and gold from its logo; GIG WANL in Netball WA greens with Gold
 Industry Group gold) and competition logo; pick the competition with **Find its competitions**. Their rules (AMMNA
@@ -37,6 +38,31 @@ log size, how often to check PlayHQ).
 
 On a carnival day with several rounds (like the AMMNA nationals), "this round" moves on to each round as its first game
 comes up (`autoSelectMinutesBefore` ahead), and Up next looks across the whole day.
+
+## Saved settings and updates
+
+Everything changed on the setup page and the control page's lasting settings are saved as plain files in `settings/`,
+which git tracks:
+
+- `settings/competitions/<name>/`: each competition's `settings.json`, `logos/` and `brand/`.
+- `settings/active.json`: the competition in use (and which ready-made setups have been copied in).
+- `settings/control.json`: the round picked by hand, and for each board automatic game selection, its court, following
+  the PlayHQ clock, how often to check PlayHQ, and showing the clock.
+
+Live game state (the game on the board, scores, the clock) stays in `scoreboard-state.json`, which git ignores. Older
+versions kept setups in `competitions/` and the round in `round-choice.json`; the helper moves them into `settings/` on
+its first start.
+
+**Updating.** Double-click `Update (Mac).command` or `Update (Windows).bat` (or run `node update.js`). The first time, it
+turns this folder into a git checkout of https://github.com/zapheus-runplaywin/playhq-graphics (it may ask you to sign
+in to GitHub; logs, settings and the scoreboard are kept). Each time it commits anything changed in `settings/`, pulls
+the newest version from GitHub (merging, so your settings commits stay), and pushes your settings to GitHub as a backup.
+Restart the helper afterwards. New versions never change `settings/`, so updates can't overwrite your settings.
+Unzipping a new version over the folder also still works: the zip leaves `settings/` out (`.gitattributes`).
+
+**History.** In a git checkout the helper commits each change to `settings/` a minute after the last edit, e.g.
+"Settings: thunder-league setup saved, control page settings". It only commits; the Update script pushes. Without git
+the files are still saved, just not committed. `"gitAutoCommit": false` in `config.json` turns committing off.
 
 ## Each stream
 
@@ -90,7 +116,7 @@ centre, `?top=95` moves them up or down, and `?size=1.2` makes them bigger. The 
 **Which round.** Every page (game list, fixture, results, ticker, up next) uses the round played in the next 5 days,
 counting today, so a Tuesday round is picked from the Friday before. Otherwise it's the last round played. Change the 5 with
 the days setting on the competition setup page. For testing, pick any round from **Round** on the control page; set it back to
-**Automatic** afterwards (the choice is kept in `round-choice.json`). Automatic game selection uses the picked round too, treating its games
+**Automatic** afterwards (the choice is kept in `settings/control.json`). Automatic game selection uses the picked round too, treating its games
 as if they were today, so you can test the timed switching on any night.
 `ladder.html` without `?division=` shows the division of the game picked on the control page.
 
