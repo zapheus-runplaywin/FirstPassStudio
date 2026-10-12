@@ -64,7 +64,7 @@
     </ul>
     <p class="page__help"><b>Use this one</b> switches every graphic, the control page and the Stream Deck to that competition: the round goes back
       to automatic and the scoreboard starts on that competition's first game. Saving the competition in use reloads the graphics in OBS
-      with the changes. Setups are kept in the <b>settings</b> folder (see <b>Saved settings</b> below), which a new version never overwrites.</p>
+      with the changes. Setups are kept in the <b>competitions</b> folder (see <b>Saved settings and git</b> below).</p>
     <p class="page__help"><b>Carnivals</b> (like the AMMNA nationals) play several rounds a day: on those days "this round" moves on to each round
       as its first game comes up, and Up next looks across the whole day.</p>
   </div>
@@ -126,24 +126,20 @@
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
   <div class="card">
-    <h2>Saved settings and updates</h2>
-    <p class="page__help">Everything you change on the <a href="/setup.html" target="_blank">competition setup page</a> and the lasting
-      settings on the <a href="/control.html" target="_blank">control page</a> are saved straight away as plain files in the
-      <b>settings</b> folder, and survive restarts and updates:</p>
+    <h2>Saved settings and git</h2>
+    <p class="page__help">The repository holds the starting point for every setting. Everything you change on the
+      <a href="/setup.html" target="_blank">competition setup page</a> and the lasting settings on the
+      <a href="/control.html" target="_blank">control page</a> are saved straight away into the same files:</p>
     <ul class="page__help">
-      <li><b>settings/competitions/</b>: each competition's setup (<code style="display:inline">settings.json</code>) with its team logos and competition logo.</li>
-      <li><b>settings/active.json</b>: which competition is in use.</li>
-      <li><b>settings/control.json</b>: the round picked by hand, automatic game selection and its court, following the PlayHQ clock,
+      <li><b>competitions/</b>: a folder per competition with its setup (<code style="display:inline">settings.json</code>), team logos and competition logo.
+        A new competition made on the setup page is a new folder here.</li>
+      <li><b>competitions/active.json</b>: which competition is in use.</li>
+      <li><b>control.json</b>: the round picked by hand, automatic game selection and its court, following the PlayHQ clock,
         how often to check PlayHQ, and showing the clock.</li>
     </ul>
-    <p class="page__help">The game on the board, the scores and the clock are not settings: they stay in <code style="display:inline">scoreboard-state.json</code>, outside git.</p>
-    <p class="page__help"><b>Updating:</b> double-click <b>Update (Mac).command</b> (or <b>Update (Windows).bat</b>). The first time it makes this folder a
-      copy of the GitHub repository; it may ask you to sign in to GitHub. Each time, it saves your settings in git, gets the newest
-      version and sends your settings to GitHub as a backup. Then restart the helper. Updates never change the settings folder, so
-      nothing you set is overwritten. Unzipping a new version over this folder still works too: the zip has no settings folder.</p>
-    <p class="page__help"><b>History:</b> once the folder is a git copy, the helper also commits each change to the settings folder a minute after
-      you make it (for example "Settings: thunder-league setup saved"), so GitHub shows what changed and when, and any setting can be put back.
-      <code style="display:inline">"gitAutoCommit": false</code> in config.json turns that off.</p>
+    <p class="page__help">They show up in git as changed files: commit the ones you want to keep and send them as a pull request, or
+      throw them away with <code style="display:inline">git restore competitions control.json</code>. The game on the board, the scores and
+      the clock are not settings: they stay in <code style="display:inline">scoreboard-state.json</code>, which git ignores.</p>
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>

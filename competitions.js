@@ -1,14 +1,13 @@
 // PlayHQ Graphics - saved competition setups.
 //
 // Everything that belongs to one competition and doesn't come from PlayHQ lives in
-// settings/competitions/<id>/: settings.json (PlayHQ link, names, rules, colours, font
-// and options), logos/ (team logos) and brand/ (the competition's own logo).
-// settings/active.json says which one the helper and every page use.
+// competitions/<id>/: settings.json (PlayHQ link, names, rules, colours, font and
+// options), logos/ (team logos) and brand/ (the competition's own logo).
+// competitions/active.json says which one the helper and every page use.
 //
-// settings/ is kept in git (see gitsave.js) but never shipped in the zip, so neither
-// unzipping nor pulling a new version overwrites your setups. Ready-made setups in
-// presets/ are copied in the first time the helper starts (and a preset you delete
-// stays deleted). Setups saved before settings/ existed are moved in from competitions/.
+// The competitions folder is tracked in git: the repository holds the starting point,
+// the setup page saves changes straight into these files, and you commit and send
+// the ones you want to keep (as a pull request) like any other change.
 
 'use strict';
 
@@ -16,11 +15,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = __dirname;
-const SETTINGS = path.join(ROOT, 'settings');
-const DIR = path.join(SETTINGS, 'competitions');
-const OLD_DIR = path.join(ROOT, 'competitions'); // where setups were saved before settings/
-const PRESETS = path.join(ROOT, 'presets');
-const ACTIVE_FILE = path.join(SETTINGS, 'active.json');
+const DIR = path.join(ROOT, 'competitions');
+const ACTIVE_FILE = path.join(DIR, 'active.json');
+const OLD_SETTINGS = path.join(ROOT, 'settings'); // where setups were saved for a while (October 2026)
 const IMAGE = /\.(png|jpe?g|webp|svg|gif)$/i;
 
 // Every competition setting, with its default. The setup page shows these.
@@ -123,86 +120,33 @@ function copyDir(from, to) {
   }
 }
 
-// First start (and after an update with a new preset): copy presets in. Settings that
-// used to live in config.json are carried over into the Thunder League setup.
-const LEGACY_KEYS = ['organisationUrl', 'organisationName', 'competitionName', 'venueName', 'defaultCourt', 'autoSelectGame',
-  'autoSelectMinutesBefore', 'roundLookaheadDays', 'seasonName', 'quarterMinutes', 'logoAliases', 'apiKey', 'apiTenant'];
-function init(machineConfig, log) {
-  moveOldSetups(log);
+// On start: bring in setups saved in settings/ by the previous version, make sure there is
+// at least one setup, and that active.json names one that exists.
+function init(log) {
+  moveOldSettings(log);
   fs.mkdirSync(DIR, { recursive: true });
-  const state = readJson(ACTIVE_FILE, { active: '', seeded: [] });
-  state.seeded = state.seeded || [];
-  let presets = [], first = '';
-  const fresh = new Set();
-  try { presets = fs.readdirSync(PRESETS).filter(p => fs.existsSync(path.join(PRESETS, p, 'settings.json'))).sort(); } catch { /* none */ }
-  for (const id of presets) {
-    if (state.seeded.includes(id)) continue;
-    state.seeded.push(id);
-    if (fs.existsSync(path.join(DIR, id))) continue;
-    copyDir(path.join(PRESETS, id), path.join(DIR, id));
-    fresh.add(id);
-    const settings = readJson(path.join(DIR, id, 'settings.json'), {});
-    if (settings.legacyConfig) { // the competition config.json used to describe, in use from the start
-      delete settings.legacyConfig;
-      first = id;
-      for (const k of LEGACY_KEYS) if (machineConfig[k] !== undefined && machineConfig[k] !== '') settings[k] = machineConfig[k];
-    }
-    writeJson(path.join(DIR, id, 'settings.json'), clean(settings));
-    log('info', 'setup', `Added the ${settings.name || id} competition setup from presets/${id}`);
-  }
-  state.presetVersions = state.presetVersions || {};
-  for (const id of presets) {
-    const preset = readJson(path.join(PRESETS, id, 'settings.json'), {});
-    const version = preset.presetVersion || 1;
-    if (!fresh.has(id) && version > (state.presetVersions[id] || 1) && fs.existsSync(path.join(DIR, id, 'settings.json'))) updateFromPreset(id, preset, log);
-    state.presetVersions[id] = version;
-  }
-  if (!list().length) { // nothing at all: start one from config.json
-    const id = slug(machineConfig.competitionName || 'competition');
-    create(machineConfig.competitionName || DEFAULTS.name, null, Object.fromEntries(LEGACY_KEYS.map(k => [k, machineConfig[k]]).filter(([, v]) => v !== undefined)), id);
-  }
-  if (!state.active || !fs.existsSync(path.join(DIR, state.active, 'settings.json'))) state.active = first || list()[0].id;
-  writeJson(ACTIVE_FILE, state);
-  return state.active;
+  if (!list().length) create(DEFAULTS.name);
+  const active = activeId();
+  if (!active || !fs.existsSync(path.join(DIR, active, 'settings.json'))) setActive(list()[0].id);
+  return activeId();
 }
 
-// Setups saved by an older version in competitions/ move into settings/competitions/.
-function moveOldSetups(log) {
-  if (!fs.existsSync(OLD_DIR)) return;
-  if (fs.existsSync(DIR)) { log('warn', 'setup', 'Found an old competitions folder next to settings/competitions; using settings/ and leaving the old one alone'); return; }
-  fs.mkdirSync(SETTINGS, { recursive: true });
-  fs.renameSync(OLD_DIR, DIR);
-  const oldActive = path.join(DIR, 'active.json');
-  if (fs.existsSync(oldActive) && !fs.existsSync(ACTIVE_FILE)) fs.renameSync(oldActive, ACTIVE_FILE);
-  log('info', 'setup', 'Moved the saved competition setups from competitions/ into settings/competitions/');
-}
-
-// A newer preset (presetVersion went up) passes its changes on to the setup already saved
-// from it, but only where that setup still has what an older version of the preset gave it
-// (its "was" list, oldest first): anything changed on the setup page is kept. Missing
-// logos are copied in too.
-function updateFromPreset(id, preset, log) {
-  const saved = get(id), after = clean(preset), next = { ...saved }, changed = [];
-  const before = [].concat(preset.was || []).map(w => clean(w));
-  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const old = (v, pick) => before.some(b => same(v, pick(b)));
-  for (const k of Object.keys(DEFAULTS)) {
-    if (k === 'colours') {
-      next.colours = { ...saved.colours };
-      for (const c of Object.keys(after.colours)) {
-        if (saved.colours[c] !== after.colours[c] && old(saved.colours[c], b => b.colours[c])) { next.colours[c] = after.colours[c]; changed.push(`colour ${c}`); }
-      }
-    } else if (!same(saved[k], after[k]) && old(saved[k], b => b[k])) { next[k] = after[k]; changed.push(k); }
+// For a while setups were saved in settings/competitions/.
+// Copy them over competitions/ so your edits show up as changes to commit, then rename
+// settings/ to settings.old/ (git ignores it; delete it once you're happy).
+function moveOldSettings(log) {
+  const old = path.join(OLD_SETTINGS, 'competitions');
+  if (!fs.existsSync(OLD_SETTINGS)) return;
+  if (fs.existsSync(old)) {
+    for (const e of fs.readdirSync(old, { withFileTypes: true })) if (e.isDirectory() && validId(e.name)) copyDir(path.join(old, e.name), path.join(DIR, e.name));
+    for (const id of list().map(c => c.id)) writeJson(path.join(DIR, id, 'settings.json'), get(id));
   }
-  for (const sub of ['logos', 'brand']) {
-    const from = path.join(PRESETS, id, sub), to = path.join(DIR, id, sub);
-    if (!fs.existsSync(from)) continue;
-    fs.mkdirSync(to, { recursive: true });
-    for (const f of fs.readdirSync(from).filter(f => IMAGE.test(f))) if (!fs.existsSync(path.join(to, f))) fs.copyFileSync(path.join(from, f), path.join(to, f));
-  }
-  if (next.competitionLogo && !fs.existsSync(path.join(DIR, id, 'brand', next.competitionLogo))) next.competitionLogo = saved.competitionLogo;
-  writeJson(path.join(DIR, id, 'settings.json'), clean(next));
-  log('info', 'setup', `Updated the ${next.name} setup from presets/${id}: ${changed.join(', ') || 'nothing left at the old preset values'}`);
+  const active = readJson(path.join(OLD_SETTINGS, 'active.json'), {}).active;
+  if (active && fs.existsSync(path.join(DIR, active, 'settings.json'))) setActive(active);
+  const control = path.join(OLD_SETTINGS, 'control.json');
+  if (fs.existsSync(control)) fs.copyFileSync(control, path.join(ROOT, 'control.json'));
+  fs.renameSync(OLD_SETTINGS, path.join(ROOT, 'settings.old'));
+  log('info', 'setup', 'Moved the setups saved in settings/ into competitions/ (the old folder is now settings.old)');
 }
 
 function list() {
@@ -224,7 +168,7 @@ function activeId() { return readJson(ACTIVE_FILE, {}).active; }
 function setActive(id) {
   dirOf(id);
   if (!fs.existsSync(path.join(DIR, id, 'settings.json'))) throw new Error(`No competition "${id}"`);
-  writeJson(ACTIVE_FILE, { ...readJson(ACTIVE_FILE, { seeded: [] }), active: id });
+  writeJson(ACTIVE_FILE, { active: id });
 }
 
 // A new setup: a copy of another one's settings (not its logos), or the defaults.
@@ -292,4 +236,4 @@ function themeCss(s) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, SETTINGS, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, imageFile, themeCss, clean };
+module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, imageFile, themeCss, clean };
