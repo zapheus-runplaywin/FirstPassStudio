@@ -44,7 +44,8 @@
        the competition setup page (or PlayHQ's venue if that is blank), and so do the emoji either side
        of the title and the competition logo, shown above the banner only with ?logo=show.
        Options: ?board=2 for a second court, ?position=bottom, ?fire=0 to drop the emoji, ?emoji=⚡ for a different one,
-       ?logo=show to put the competition logo above the banner (off by default; ?logo=hide also leaves it off). -->
+       ?logo=show to put the competition logo above the banner (off by default; ?logo=hide also leaves it off),
+       ?mode=dark to use the setup's dark mode competition logo instead of the light mode one. -->
   <div class="title" id="title" hidden>
     <img class="title__logo" id="logo" alt="" hidden>
     <div class="title__round" id="round"></div>
@@ -73,7 +74,8 @@
       try {
         const s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
         const rules = s.rules || {};
-        const view = JSON.stringify([s.round, s.competition, s.venueName, rules.competitionLogo, rules.titleEmoji]);
+        const compLogo = (params.get('mode') === 'dark' ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;
+        const view = JSON.stringify([s.round, s.competition, s.venueName, compLogo, rules.titleEmoji]);
         if (view === last) return;
         last = view;
         emoji = params.get('fire') === '0' ? '' : params.has('emoji') ? params.get('emoji')
@@ -81,8 +83,8 @@
         const logo = document.getElementById('logo');
         // Off unless asked for: branding.html usually shows the competition logo beside the title.
         const showLogo = ['show', '1', 'on', 'true'].includes((params.get('logo') || '').toLowerCase());
-        logo.hidden = !rules.competitionLogo || !showLogo;
-        if (!logo.hidden) logo.src = rules.competitionLogo;
+        logo.hidden = !compLogo || !showLogo;
+        if (!logo.hidden) logo.src = compLogo;
         document.getElementById('round').textContent = s.round || '';
         setComp(s.competition || '');
         document.getElementById('venue').textContent = s.venueName || '';

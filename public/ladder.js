@@ -37,8 +37,10 @@
     $('division').textContent = data.division || '';
     document.title = `${data.competition} ${data.division} Ladder`;
     const rules = data.rules || {};
-    $('logo').hidden = !rules.competitionLogo || params.get('logo') === '0';
-    if (!$('logo').hidden) $('logo').src = rules.competitionLogo;
+    // The logo sits on the coloured header, so it uses the dark mode logo unless ?mode=light.
+    const logo = (params.get('mode') === 'light' ? rules.competitionLogoLight : rules.competitionLogoDark) || rules.competitionLogo;
+    $('logo').hidden = !logo || params.get('logo') === '0';
+    if (!$('logo').hidden) $('logo').src = logo;
 
     const tables = $('tables');
     tables.replaceChildren();

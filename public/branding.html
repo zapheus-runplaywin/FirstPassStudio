@@ -38,11 +38,12 @@
                 ?gap=320 moves both sides in or out (pixels from the centre of the frame);
                 ?top=95 moves the logos up or down (pixels from the top to their middle);
                 ?size=1.2 makes every logo bigger or smaller;
-                ?mode=dark (the default) uses the FirstPass Studio logo made for a dark picture behind it (white FirstPass),
-                ?mode=light the one made for a light picture (blue First, orange Pass). -->
+                ?mode=light (the default) uses the logos made for a light picture behind them (blue First, orange Pass,
+                and the setup's light mode competition logo), ?mode=dark the ones made for a dark picture (white FirstPass,
+                and the dark mode competition logo). A competition with only one logo uses it for both. -->
   <div class="side side--left" id="left">
     <img class="pivt" id="pivt" src="studio/pivt.png" alt="PIVT Live Streaming">
-    <img class="studio" id="studio" src="studio/firstpass-studio.svg" alt="FirstPass Studio">
+    <img class="studio" id="studio" src="studio/firstpass-studio-light.svg" alt="FirstPass Studio">
   </div>
   <div class="side side--right" id="right" hidden>
     <img class="comp" id="comp" alt="">
@@ -60,8 +61,8 @@
         ['--pivt', '--studio', '--comp'].forEach(v => root.setProperty(v, parseFloat(css.getPropertyValue(v)) * num('size') + 'px'));
       }
       // The brand kit's two FirstPass Studio logos: dark for a dark picture behind it, light for a light one.
-      const mode = (params.get('mode') || params.get('theme') || 'dark').toLowerCase();
-      if (mode === 'light') $('studio').src = 'studio/firstpass-studio-light.svg';
+      const dark = (params.get('mode') || params.get('theme') || 'light').toLowerCase() === 'dark';
+      if (dark) $('studio').src = 'studio/firstpass-studio.svg';
       $('pivt').hidden = params.get('pivt') === '0';
       $('studio').hidden = params.get('studio') === '0';
       $('left').hidden = $('pivt').hidden && $('studio').hidden;
@@ -72,8 +73,9 @@
           const res = await fetch('/api/scoreboard?board=' + encodeURIComponent(params.get('board') || '1'), { cache: 'no-store' });
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const rules = (await res.json()).rules || {};
-          if (!rules.competitionLogo) { console.warn('Branding: the competition setup has no competition logo'); return; }
-          $('comp').src = rules.competitionLogo;
+          const logo = (dark ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;
+          if (!logo) { console.warn('Branding: the competition setup has no competition logo'); return; }
+          $('comp').src = logo;
           $('right').hidden = false;
         } catch (err) { console.warn('Branding: competition logo unavailable:', err.message); }
       }

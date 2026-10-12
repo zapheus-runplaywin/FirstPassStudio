@@ -91,6 +91,7 @@
   .logo button { position: absolute; top: 4px; right: 4px; padding: 0 7px; font-size: 14px; line-height: 20px; }
   .brandlogo { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
   .brandlogo img { height: 80px; max-width: 240px; object-fit: contain; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; border-radius: 6px; padding: 4px; }
+  .brandlogo--dark img { background: #0f172a; }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
   td, th { text-align: left; padding: 5px 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
   th { font-size: 12px; text-transform: uppercase; color: var(--fp-muted); letter-spacing: .05em; }
@@ -235,9 +236,15 @@
 
     <section>
       <h2>Competition logo</h2>
-      <p class="help">Shown above the title banner and in the corner of the ladder. A PNG with a transparent background looks best.</p>
+      <p class="help">Shown beside the title on the logos page, above the title banner (with <code>?logo=show</code>) and in the corner of the ladder.
+        Add a light mode version for a light picture behind it and a dark mode version for a dark one. If you only add one, it is used for both.
+        A PNG with a transparent background looks best.</p>
+      <h3 style="margin:12px 0 0;font-size:15px">Light mode</h3>
       <div class="brandlogo" id="brandLogo"></div>
       <div class="row" style="margin-top:8px"><input type="file" id="brandFile" accept="image/*"></div>
+      <h3 style="margin:16px 0 0;font-size:15px">Dark mode</h3>
+      <div class="brandlogo brandlogo--dark" id="brandLogoDark"></div>
+      <div class="row" style="margin-top:8px"><input type="file" id="brandFileDark" accept="image/*"></div>
     </section>
 
     <section>
@@ -450,8 +457,9 @@
     $('pvComp').textContent = (e ? e + ' ' : '') + (form.displayName || form.competitionName || form.name) + (e ? ' ' + e : '');
     $('pvVenue').textContent = form.venueName || 'Venue';
     $('pvClock').textContent = `${form.periodType === 'halves' ? 'H' : 'Q'}2 7:42`;
-    $('pvLogo').hidden = !form.competitionLogo;
-    if (form.competitionLogo) $('pvLogo').src = imgUrl('brand', form.competitionLogo);
+    const pvLogo = form.competitionLogo || form.competitionLogoDark;
+    $('pvLogo').hidden = !pvLogo;
+    if (pvLogo) $('pvLogo').src = imgUrl('brand', pvLogo);
     const lad = $('pvLadder');
     lad.replaceChildren();
     const head = el('div', 'h', (form.displayName || form.competitionName || form.name) + ' '); head.append(el('span', '', 'Division 1'));
@@ -485,29 +493,41 @@
   $('competitionName').addEventListener('change', seasons);
 
   // ─── Logos ──────────────────────────────────────────────────────────────
+  // Light and dark mode competition logos: [setting, box, file input, name in messages].
+  const BRAND_SLOTS = [['competitionLogo', 'brandLogo', 'brandFile', 'light mode'], ['competitionLogoDark', 'brandLogoDark', 'brandFileDark', 'dark mode']];
   function renderBrand() {
-    const box = $('brandLogo');
-    box.replaceChildren();
-    if (form.competitionLogo && files.brand.includes(form.competitionLogo)) {
-      const img = el('img'); img.src = imgUrl('brand', form.competitionLogo);
-      const remove = el('button', 'alt', 'Remove');
-      remove.onclick = async () => {
-        const d = await api(`/api/setup/${editing}/image?kind=brand&name=${encodeURIComponent(form.competitionLogo)}`, { method: 'DELETE' });
-        files.brand = d.brand; form.competitionLogo = ''; markDirty(); renderBrand(); preview();
-      };
-      box.append(img, el('span', '', form.competitionLogo), remove);
-    } else box.append(el('span', 'help', 'No competition logo.'));
+    for (const [key, boxId, , label] of BRAND_SLOTS) {
+      const box = $(boxId);
+      box.replaceChildren();
+      const other = BRAND_SLOTS.find(x => x[0] !== key)[0];
+      if (form[key] && files.brand.includes(form[key])) {
+        const img = el('img'); img.src = imgUrl('brand', form[key]);
+        const remove = el('button', 'alt', 'Remove');
+        remove.onclick = async () => {
+          // Keep the file if the other mode uses it too.
+          if (form[other] !== form[key]) {
+            const d = await api(`/api/setup/${editing}/image?kind=brand&name=${encodeURIComponent(form[key])}`, { method: 'DELETE' });
+            files.brand = d.brand;
+          }
+          form[key] = ''; markDirty(); renderBrand(); preview();
+        };
+        box.append(img, el('span', '', form[key]), remove);
+      } else box.append(el('span', 'help', form[other] && files.brand.includes(form[other])
+        ? `No ${label} logo: the ${label === 'light mode' ? 'dark' : 'light'} mode one is used.` : 'No competition logo.'));
+    }
   }
-  $('brandFile').onchange = async () => {
-    const f = $('brandFile').files[0];
-    if (!f) return;
-    try {
-      const d = await upload('brand', f);
-      files.brand = d.brand; form.competitionLogo = d.name; markDirty(); renderBrand(); preview();
-      note('saveNote', 'Competition logo added. Press Save to use it.');
-    } catch (err) { note('saveNote', `Couldn't add the logo: ${err.message}`, 'error'); }
-    $('brandFile').value = '';
-  };
+  for (const [key, , fileId, label] of BRAND_SLOTS) {
+    $(fileId).onchange = async () => {
+      const f = $(fileId).files[0];
+      if (!f) return;
+      try {
+        const d = await upload('brand', f);
+        files.brand = d.brand; form[key] = d.name; markDirty(); renderBrand(); preview();
+        note('saveNote', `Competition logo (${label}) added. Press Save to use it.`);
+      } catch (err) { note('saveNote', `Couldn't add the logo: ${err.message}`, 'error'); }
+      $(fileId).value = '';
+    };
+  }
   async function upload(kind, file) {
     return api(`/api/setup/${editing}/image?kind=${kind}&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
   }
