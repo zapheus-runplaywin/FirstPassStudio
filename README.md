@@ -111,7 +111,9 @@ http://localhost:8080/results.html is the same page showing only finished games 
 http://localhost:8080/branding.html shows only the PIVT and FirstPass Studio logos (left) and the competition logo
 from the setup page (right), placed either side of the title banner, so other pages can be turned on and off around
 them in OBS. `?pivt=0`, `?studio=0` or `?comp=0` leave a logo off; `?gap=320` moves both sides in or out from the
-centre, `?top=95` moves them up or down, and `?size=1.2` makes them bigger. The logo files are in `public/studio/`.
+centre, `?top=95` moves them up or down, and `?size=1.2` makes them bigger. `?mode=dark` (the default) uses the
+FirstPass Studio logo made for a dark picture behind it (white FirstPass, gold STUDIO); `?mode=light` uses the one
+made for a light picture (blue First, orange Pass, gold STUDIO). The logo files are in `public/studio/`.
 
 ## Live scoreboard
 
@@ -150,7 +152,8 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 
 - http://localhost:8080/title.html: round, competition and venue banner. The venue is set on the competition setup page
   (blank uses the venue from PlayHQ). `?position=bottom` moves it down, `?fire=0` drops the emoji
-  and `?emoji=⚡` uses a different one on that page only.
+  and `?emoji=⚡` uses a different one on that page only. The competition logo is off by default, since the logos
+  page shows it beside the title: `?logo=show` puts it above the banner, `?logo=hide` leaves it off.
 - http://localhost:8080/upnext.html: the next game on the same court, for half time. With no game picked, it
   assumes the stream is on the first timeslot and shows the game after it.
 - http://localhost:8080/clash.html: animated match up. The two logos charge in, smash together in the middle with a flash,

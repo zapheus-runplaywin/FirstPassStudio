@@ -42,9 +42,9 @@
        http://localhost:8080/title.html
        Round comes from the game picked on the scoreboard control page; the venue from
        the competition setup page (or PlayHQ's venue if that is blank), and so do the emoji either side
-       of the title and the competition logo shown above the banner.
+       of the title and the competition logo, shown above the banner only with ?logo=show.
        Options: ?board=2 for a second court, ?position=bottom, ?fire=0 to drop the emoji, ?emoji=⚡ for a different one,
-       ?logo=0 to leave the competition logo off. -->
+       ?logo=show to put the competition logo above the banner (off by default; ?logo=hide also leaves it off). -->
   <div class="title" id="title" hidden>
     <img class="title__logo" id="logo" alt="" hidden>
     <div class="title__round" id="round"></div>
@@ -79,7 +79,9 @@
         emoji = params.get('fire') === '0' ? '' : params.has('emoji') ? params.get('emoji')
           : rules.titleEmoji || (params.get('fire') === '1' ? '🔥' : '');
         const logo = document.getElementById('logo');
-        logo.hidden = !rules.competitionLogo || params.get('logo') === '0';
+        // Off unless asked for: branding.html usually shows the competition logo beside the title.
+        const showLogo = ['show', '1', 'on', 'true'].includes((params.get('logo') || '').toLowerCase());
+        logo.hidden = !rules.competitionLogo || !showLogo;
         if (!logo.hidden) logo.src = rules.competitionLogo;
         document.getElementById('round').textContent = s.round || '';
         setComp(s.competition || '');
