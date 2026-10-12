@@ -2,6 +2,7 @@
 /scoreboard-state.json
 /last-game-summary.json
 /round-choice.json
+/control.json
 /settings.old/
 .DS_Store
 node_modules/

@@ -44,16 +44,18 @@ into the same files:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/` and `brand/`.
 - `competitions/active.json`: the competition in use.
-- `control.json`: the round picked by hand, and for each board automatic game selection, its court, following the
-  PlayHQ clock, how often to check PlayHQ, and showing the clock.
 
 Changes show up in `git status` like any other edit. Commit the ones you want to keep and send them as a pull request;
-throw away the rest with `git restore competitions control.json`. A new competition made on the setup page is a new
-folder in `competitions/` to commit the same way. Live game state (the game on the board, scores, the clock) stays in
-`scoreboard-state.json`, which git ignores.
+throw away the rest with `git restore competitions`. A new competition made on the setup page is a new folder in
+`competitions/` to commit the same way.
+
+The control page's choices (the round picked by hand, and for each board automatic game selection, its court,
+following the PlayHQ clock, how often to check PlayHQ, and showing the clock) stay on this computer in `control.json`,
+and live game state (the game on the board, scores, the clock) in `scoreboard-state.json`. Git ignores both. Without
+`control.json` the helper starts from the competition setup's defaults and writes a new one.
 
 Older versions saved setups in `settings/` and the round in `round-choice.json`. On its first start the helper copies
-them into `competitions/` and `control.json` (so your edits show up as changes) and renames `settings/` to
+them into `competitions/` (so your edits show up as changes) and `control.json` and renames `settings/` to
 `settings.old/`, which git ignores; delete it once you're happy.
 
 ## Each stream

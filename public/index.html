@@ -138,12 +138,14 @@
       <li><b>competitions/</b>: a folder per competition with its setup (<code style="display:inline">settings.json</code>), team logos and competition logo.
         A new competition made on the setup page is a new folder here.</li>
       <li><b>competitions/active.json</b>: which competition is in use.</li>
-      <li><b>control.json</b>: the round picked by hand, automatic game selection and its court, following the PlayHQ clock,
-        how often to check PlayHQ, and showing the clock.</li>
     </ul>
     <p class="page__help">They show up in git as changed files: commit the ones you want to keep and send them as a pull request, or
-      throw them away with <code style="display:inline">git restore competitions control.json</code>. The game on the board, the scores and
-      the clock are not settings: they stay in <code style="display:inline">scoreboard-state.json</code>, which git ignores.</p>
+      throw them away with <code style="display:inline">git restore competitions</code>.</p>
+    <p class="page__help">The control page's choices (the round picked by hand, automatic game selection and its court, following the
+      PlayHQ clock, how often to check PlayHQ, showing the clock) are kept on this computer only, in
+      <code style="display:inline">control.json</code>, and the game on the board, the scores and the clock in
+      <code style="display:inline">scoreboard-state.json</code>. Git ignores both. If <code style="display:inline">control.json</code> is
+      missing the helper starts from the competition setup's defaults and makes a new one.</p>
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>

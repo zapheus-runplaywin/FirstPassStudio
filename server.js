@@ -478,10 +478,11 @@ async function getRounds(gradeId) {
 // the last round played. The control page can pick a round by hand instead
 // (kept in control.json; blank means automatic).
 //
-// control.json holds the control page's lasting settings, tracked in git like the
-// competition setups: the round picked by hand, and per board automatic game selection,
-// its court, following the PlayHQ clock, how often to check PlayHQ and showing the clock.
-// The game itself, scores and the clock stay in scoreboard-state.json, outside git.
+// control.json holds the control page's lasting settings on this computer (git ignores it):
+// the round picked by hand, and per board automatic game selection, its court, following
+// the PlayHQ clock, how often to check PlayHQ and showing the clock. Without it the boards
+// start from the competition setup's defaults. The game itself, scores and the clock stay
+// in scoreboard-state.json.
 const CONTROL_FILE = path.join(ROOT, 'control.json');
 const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock'];
 let control = {};
@@ -491,7 +492,7 @@ if (control.round === undefined) { // the round used to be kept in round-choice.
 }
 control.boards = control.boards || {};
 let controlSaved = JSON.stringify(control);
-// Write control.json only when a lasting setting changed, so git only sees real changes.
+// Write control.json only when a lasting setting changed.
 function saveControl() {
   const next = JSON.stringify(control);
   if (next === controlSaved) return;
@@ -631,8 +632,7 @@ async function getUpNext(boardId) {
 
 // ─── Scoreboard state (set from control.html, shown by scoreboard.html) ─────
 // Kept in scoreboard-state.json so a restart mid-game keeps the score. The lasting
-// settings (LASTING) also go to control.json, which wins when both have them,
-// so a pulled or restored control.json is what the boards start with.
+// settings (LASTING) also go to control.json, which wins when both have them.
 const STATE_FILE = path.join(ROOT, 'scoreboard-state.json');
 let boards = {};
 try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
