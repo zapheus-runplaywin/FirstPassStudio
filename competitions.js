@@ -156,18 +156,21 @@ function init(machineConfig, log) {
 }
 
 // A newer preset (presetVersion went up) passes its changes on to the setup already saved
-// from it, but only where that setup still has what the older preset gave it (its "was"
-// block): anything changed on the setup page is kept. Missing logos are copied in too.
+// from it, but only where that setup still has what an older version of the preset gave it
+// (its "was" list, oldest first): anything changed on the setup page is kept. Missing
+// logos are copied in too.
 function updateFromPreset(id, preset, log) {
-  const saved = get(id), before = clean(preset.was || {}), after = clean(preset), next = { ...saved }, changed = [];
+  const saved = get(id), after = clean(preset), next = { ...saved }, changed = [];
+  const before = [].concat(preset.was || []).map(w => clean(w));
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const old = (v, pick) => before.some(b => same(v, pick(b)));
   for (const k of Object.keys(DEFAULTS)) {
     if (k === 'colours') {
       next.colours = { ...saved.colours };
       for (const c of Object.keys(after.colours)) {
-        if (saved.colours[c] === before.colours[c] && after.colours[c] !== before.colours[c]) { next.colours[c] = after.colours[c]; changed.push(`colour ${c}`); }
+        if (saved.colours[c] !== after.colours[c] && old(saved.colours[c], b => b.colours[c])) { next.colours[c] = after.colours[c]; changed.push(`colour ${c}`); }
       }
-    } else if (!same(after[k], before[k]) && same(saved[k], before[k])) { next[k] = after[k]; changed.push(k); }
+    } else if (!same(saved[k], after[k]) && old(saved[k], b => b[k])) { next[k] = after[k]; changed.push(k); }
   }
   for (const sub of ['logos', 'brand']) {
     const from = path.join(PRESETS, id, sub), to = path.join(DIR, id, sub);

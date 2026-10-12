@@ -29,7 +29,8 @@ automatic and the scoreboard starts on its first game). Saving the competition i
 Setups live in `competitions/<name>/` (`settings.json`, `logos/`, `brand/`), which a new version never overwrites.
 Ready-made ones in `presets/` are copied in the first time the helper starts. AMMNA Nationals and GIG WANL come with
 their PlayHQ organisation link, colours (AMMNA green and gold from its logo; GIG WANL in Netball WA greens with Gold
-Industry Group gold) and competition logo; pick the competition with **Find its competitions**. Their rules (AMMNA
+Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to Australian Championships; for GIG WANL
+pick it with **Find its competitions**. Their rules (AMMNA
 10-minute quarters, WANL 15-minute quarters, no super shots, finals marker on the top 4) are guesses to check. When a
 new version improves a preset, the setup you already have picks up the change only where it still has the old preset's
 value, so nothing you changed on the setup page is overwritten. `config.json` now only holds this computer's settings (port,
