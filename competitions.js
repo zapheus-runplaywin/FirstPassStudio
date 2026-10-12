@@ -2,7 +2,8 @@
 //
 // Everything that belongs to one competition and doesn't come from PlayHQ lives in
 // competitions/<id>/: settings.json (PlayHQ link, names, rules, colours, font and
-// options), logos/ (team logos) and brand/ (the competition's own logo).
+// options), logos/ (team logos), brand/ (the competition's own logo) and photos/
+// (athlete photos, each named after the athlete, e.g. "Jane Smith.jpg").
 // competitions/active.json says which one the helper and every page use.
 //
 // The competitions folder is tracked in git: the repository holds the starting point,
@@ -189,13 +190,14 @@ function remove(id) {
 }
 
 // ─── Images ─────────────────────────────────────────────────────────────────
-function imageDir(id, kind) { return path.join(dirOf(id), kind === 'brand' ? 'brand' : 'logos'); }
+const KINDS = ['logos', 'brand', 'photos'];
+function imageDir(id, kind) { return path.join(dirOf(id), KINDS.includes(kind) ? kind : 'logos'); }
 function images(id, kind) {
   try { return fs.readdirSync(imageDir(id, kind)).filter(f => IMAGE.test(f)).sort((a, b) => a.localeCompare(b)); } catch { return []; }
 }
 function saveImage(id, kind, fileName, buf) {
   const name = path.basename(String(fileName || '')).replace(/[^\w .'()&+-]/g, '').trim();
-  if (!IMAGE.test(name)) throw new Error('Logos must be PNG, JPG, WebP, SVG or GIF files.');
+  if (!IMAGE.test(name)) throw new Error(`${kind === 'photos' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
   if (!buf.length) throw new Error('That file is empty.');
   fs.mkdirSync(imageDir(id, kind), { recursive: true });
   fs.writeFileSync(path.join(imageDir(id, kind), name), buf);
@@ -205,7 +207,15 @@ function deleteImage(id, kind, fileName) {
   const file = path.join(imageDir(id, kind), path.basename(String(fileName || '')));
   if (fs.existsSync(file)) fs.unlinkSync(file);
 }
-// The file behind a /logos/ or /brand/ link, for the competition in use.
+function renameImage(id, kind, from, to) {
+  const src = path.join(imageDir(id, kind), path.basename(String(from || '')));
+  const name = path.basename(String(to || '')).replace(/[^\w .'()&+-]/g, '').trim();
+  if (!IMAGE.test(name)) throw new Error('The new name needs to end in .png, .jpg, .webp, .svg or .gif.');
+  if (!fs.existsSync(src)) throw new Error(`There is no ${from} to rename.`);
+  fs.renameSync(src, path.join(imageDir(id, kind), name));
+  return name;
+}
+// The file behind a /logos/, /brand/ or /photos/ link, for the competition in use.
 function imageFile(id, kind, fileName) {
   const name = path.basename(decodeURIComponent(fileName));
   return IMAGE.test(name) ? path.join(imageDir(id, kind), name) : null;
@@ -238,4 +248,4 @@ function themeCss(s) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, imageFile, themeCss, clean };
+module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean };

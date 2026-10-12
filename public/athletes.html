@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Athletes · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="studio.css">
+<style>
+  * { box-sizing: border-box; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+  .sub b { color: var(--fp-navy); }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 18px 22px; margin-bottom: 14px; }
+  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+  h3 { font-size: 13px; color: var(--fp-muted); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+  input[type=text], select { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
+  button, label.btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; display: inline-block; }
+  button:hover, label.btn:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  button.alt, label.btn.alt { background: var(--fp-white); color: var(--fp-blue); }
+  button.alt:hover, label.btn.alt:hover { background: var(--fp-blue-soft); }
+  button.danger { background: var(--fp-white); color: var(--fp-danger); border-color: var(--fp-danger); }
+  button.small, label.btn.small { font-size: 12px; padding: 3px 9px; }
+  input[type=file] { display: none; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
+  .error { color: var(--fp-danger); }
+  .ok { color: var(--fp-ok); }
+  /* Team picker */
+  .teams { display: flex; flex-wrap: wrap; gap: 6px; }
+  .teams button { display: inline-flex; align-items: center; gap: 6px; background: var(--fp-white); color: var(--fp-navy); border-color: var(--fp-line-strong); }
+  .teams button:hover { background: var(--fp-blue-soft); }
+  .teams button[aria-pressed=true] { background: var(--fp-blue); color: #fff; border-color: var(--fp-blue); }
+  .teams img { width: 24px; height: 24px; object-fit: contain; }
+  .teams .live { font-size: 11px; background: var(--fp-gold); color: var(--fp-navy); border-radius: 6px; padding: 1px 6px; }
+  /* Athletes */
+  .teamhead { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .teamhead img { width: 56px; height: 56px; object-fit: contain; }
+  .teamhead h2 { margin: 0; font-size: 22px; color: var(--fp-navy); text-transform: none; letter-spacing: 0; }
+  .athletes { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .ath { border: 2px solid var(--fp-line); border-radius: 10px; overflow: hidden; background: var(--fp-white); display: flex; flex-direction: column; }
+  .ath.over { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
+  .ath.missing .ath__photo { outline: 0; }
+  .ath__photo { height: 190px; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
+  .ath__photo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .ath__photo .none { align-self: center; width: 90px; height: 90px; border-radius: 50%; background: var(--fp-line); color: var(--fp-muted); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; }
+  .ath__pos { position: absolute; top: 6px; left: 6px; background: var(--fp-navy); color: var(--fp-gold); font-weight: 800; font-size: 13px; padding: 2px 8px; border-radius: 6px; }
+  .ath__body { padding: 8px 10px 10px; display: grid; gap: 6px; flex: 1; }
+  .ath__name { font-weight: 800; line-height: 1.2; }
+  .ath__meta { font-size: 12px; color: var(--fp-muted); }
+  .ath__buttons { display: flex; gap: 6px; margin-top: auto; }
+  .drop { border: 2px dashed var(--fp-line-strong); border-radius: 10px; padding: 16px; text-align: center; color: var(--fp-muted); }
+  .drop.over { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
+  /* Photo library */
+  .library { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .pic { border: 1px solid var(--fp-line); border-radius: 8px; padding: 8px; font-size: 12px; display: grid; gap: 6px; }
+  .pic.unmatched { border-color: var(--fp-orange); }
+  .pic img { width: 100%; height: 110px; object-fit: contain; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; border-radius: 6px; }
+  .pic div { word-break: break-word; }
+  .pic select { width: 100%; font-size: 12px; padding: 4px; }
+  .tag { font-size: 11px; font-weight: 700; color: var(--fp-ok); }
+  .pic.unmatched .tag { color: var(--fp-orange); }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<header class="fp-bar">
+  <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
+  <nav><a href="/">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competition setup</a><a href="/athletes.html" aria-current="page">Athletes</a><a href="/api.html">Stream Deck API</a></nav>
+</header>
+<main>
+  <h1>Athletes</h1>
+  <p class="sub">Photos of each team's athletes, for the <b>position match ups</b> graphic. Pick a team to see every athlete PlayHQ has in its line ups this season,
+    then add a photo to each one. A photo is saved under the athlete's name in the competition's <b>photos</b> folder
+    (<code id="folder">competitions/…/photos</code>), so it matches that athlete in every game. Photos are made smaller before they're saved;
+    cut-out PNGs with a transparent background look best. <a href="/">Back to the page links</a></p>
+
+  <section>
+    <h2>Team</h2>
+    <div class="teams" id="teams"><span class="help">Loading teams from PlayHQ…</span></div>
+    <p class="help" id="teamsNote"></p>
+  </section>
+
+  <section id="teamBox" hidden>
+    <div class="teamhead"><div id="teamLogo"></div><div><h2 id="teamName"></h2><div class="help" id="teamInfo"></div></div></div>
+    <div class="athletes" id="athletes"></div>
+    <h3>Several photos at once</h3>
+    <div class="drop" id="bulk">Drop photos here, each named after its athlete (e.g. <b>Jane Smith.jpg</b> or <b>smith_jane.png</b>),
+      or <label class="btn alt small">choose files<input type="file" id="bulkFile" accept="image/*" multiple></label>.
+      Photos whose name doesn't match an athlete stay in the photo library below, where you can give each one to an athlete.</div>
+    <p class="help" id="bulkNote"></p>
+    <h3>An athlete PlayHQ doesn't list yet</h3>
+    <div class="row">
+      <input type="text" id="otherName" placeholder="Athlete's name exactly as PlayHQ will show it" style="flex:1 1 280px">
+      <label class="btn alt">Add photo<input type="file" id="otherFile" accept="image/*"></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Photo library</h2>
+    <div class="library" id="library"></div>
+    <p class="help" id="libraryNote"></p>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const key = s => String(s || '').toLowerCase().replace(/['’`]/g, '').split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
+const fileKey = f => key(f.replace(/\.[a-z0-9]+$/i, ''));
+const initials = n => String(n || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
+let photos = [], team = null, current = [], fresh = new Set(); // fresh: just dropped in, matching nobody on the team shown
+
+async function api(path, opts) {
+  const res = await fetch(path, { cache: 'no-store', ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || (data.error && !data.teams && !data.athletes)) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+// Makes a photo at most 1000 px on its longest side before saving it. PNG, WebP and GIF stay PNG
+// (keeps a transparent background); JPEG stays JPEG. SVG is saved as it is.
+async function shrink(file) {
+  if (/svg/.test(file.type)) return { blob: file, ext: 'svg' };
+  const png = !/jpe?g/.test(file.type);
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, png ? 'image/png' : 'image/jpeg', 0.9));
+    if (blob && (scale < 1 || blob.size < file.size)) return { blob, ext: png ? 'png' : 'jpg' };
+  } catch (err) { console.warn(`Could not resize ${file.name}:`, err.message); }
+  return { blob: file, ext: (file.name.match(/\.([a-z0-9]+)$/i) || [, 'jpg'])[1].toLowerCase() };
+}
+
+async function upload(file, athlete) {
+  const { blob, ext } = await shrink(file);
+  const q = athlete ? `athlete=${encodeURIComponent(athlete)}&ext=${ext}` : `file=${encodeURIComponent(file.name.replace(/\.[a-z0-9]+$/i, '') + '.' + ext)}`;
+  return api(`/api/athletes/photo?${q}`, { method: 'POST', body: blob });
+}
+
+function teamButton(t) {
+  const b = el('button');
+  b.type = 'button';
+  if (t.logo) { const i = el('img'); i.src = t.logo; i.alt = ''; b.appendChild(i); }
+  b.appendChild(document.createTextNode(t.name));
+  if (current.includes(t.name)) b.appendChild(el('span', 'live', 'On now'));
+  b.onclick = () => openTeam(t.name);
+  b.dataset.team = t.name;
+  return b;
+}
+
+async function loadTeams() {
+  try {
+    const d = await api('/api/athletes');
+    photos = d.photos; current = d.current;
+    $('folder').textContent = d.folder;
+    const box = $('teams');
+    box.replaceChildren();
+    if (!d.teams.length) box.appendChild(el('span', 'help error', d.error || 'No teams found on PlayHQ for this competition.'));
+    let division = null;
+    for (const t of d.teams) {
+      if (t.division !== division) { division = t.division; const h = el('div', 'help', division); h.style.flexBasis = '100%'; h.style.fontWeight = '700'; box.appendChild(h); }
+      box.appendChild(teamButton(t));
+    }
+    $('teamsNote').textContent = `${d.competition}${current.length ? ` · On the control page now: ${current.join(' v ')}` : ''}`;
+    renderLibrary();
+    const want = new URLSearchParams(location.search).get('team') || current[0];
+    if (want) openTeam(want);
+  } catch (err) {
+    console.warn('Athletes page: teams unavailable:', err.message);
+    $('teams').replaceChildren(el('span', 'help error', `Couldn't load the teams: ${err.message}`));
+  }
+}
+
+async function openTeam(name) {
+  for (const b of document.querySelectorAll('.teams button')) b.setAttribute('aria-pressed', b.dataset.team === name);
+  $('teamBox').hidden = false;
+  $('teamName').textContent = name;
+  $('teamInfo').textContent = 'Reading line ups from PlayHQ…';
+  $('athletes').replaceChildren();
+  history.replaceState(null, '', `?team=${encodeURIComponent(name)}`);
+  try {
+    team = await api(`/api/athletes?team=${encodeURIComponent(name)}`);
+    if (team.team !== name) return;
+    const logo = $('teamLogo');
+    logo.replaceChildren();
+    if (team.logo) { const i = el('img'); i.src = team.logo; i.alt = ''; logo.appendChild(i); }
+    const have = team.athletes.filter(a => a.photo).length;
+    $('teamInfo').textContent = team.error ? team.error :
+      `${team.division} · ${team.athletes.length} athletes from ${team.gamesRead} line up${team.gamesRead === 1 ? '' : 's'} · ${have} with a photo`;
+    $('teamInfo').className = team.error ? 'help error' : 'help';
+    renderAthletes();
+    renderLibrary();
+  } catch (err) {
+    console.warn(`Athletes page: ${name} unavailable:`, err.message);
+    $('teamInfo').textContent = `Couldn't read ${name}'s line ups: ${err.message}`;
+    $('teamInfo').className = 'help error';
+  }
+}
+
+function photoOf(name) {
+  const hit = photos.find(p => fileKey(p.file) === key(name));
+  return hit ? hit.url + '?v=' + (hit.v || '') : null;
+}
+
+function renderAthletes() {
+  const box = $('athletes');
+  box.replaceChildren();
+  for (const a of team.athletes) {
+    const card = el('div', 'ath');
+    const ph = el('div', 'ath__photo');
+    const src = photoOf(a.name);
+    if (src) { const i = el('img'); i.src = src; i.alt = a.name; ph.appendChild(i); }
+    else { card.classList.add('missing'); ph.appendChild(el('div', 'none', initials(a.name))); }
+    if (a.position) ph.appendChild(el('span', 'ath__pos', a.position));
+    card.appendChild(ph);
+    const body = el('div', 'ath__body');
+    body.appendChild(el('div', 'ath__name', a.name + (a.captain ? ' (C)' : '')));
+    body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Bench', `${a.games} game${a.games === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    const buttons = el('div', 'ath__buttons');
+    const add = el('label', 'btn small' + (src ? ' alt' : ''), src ? 'Change' : 'Add photo');
+    const input = el('input'); input.type = 'file'; input.accept = 'image/*';
+    input.onchange = () => input.files[0] && setPhoto(a.name, input.files[0]);
+    add.appendChild(input);
+    buttons.appendChild(add);
+    if (src) {
+      const rm = el('button', 'small danger', 'Remove');
+      rm.onclick = () => removePhoto(photos.find(p => fileKey(p.file) === key(a.name)).file);
+      buttons.appendChild(rm);
+    }
+    body.appendChild(buttons);
+    card.appendChild(body);
+    // Drop a photo straight onto an athlete.
+    card.ondragover = e => { e.preventDefault(); card.classList.add('over'); };
+    card.ondragleave = () => card.classList.remove('over');
+    card.ondrop = e => { e.preventDefault(); e.stopPropagation(); card.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) setPhoto(a.name, f); };
+    box.appendChild(card);
+  }
+  if (!team.athletes.length) box.appendChild(el('p', 'help', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
+}
+
+function renderLibrary() {
+  const box = $('library');
+  box.replaceChildren();
+  const names = team ? team.athletes.map(a => a.name) : [];
+  const known = new Set(names.map(key));
+  // Photos just dropped in that matched nobody come first, so they can be given to an athlete.
+  for (const p of [...photos].sort((a, b) => fresh.has(b.file) - fresh.has(a.file))) {
+    const mine = known.has(fileKey(p.file));
+    const card = el('div', 'pic' + (fresh.has(p.file) && !mine ? ' unmatched' : ''));
+    const i = el('img'); i.src = p.url + '?v=' + (p.v || ''); i.alt = ''; card.appendChild(i);
+    card.appendChild(el('div', '', p.file));
+    if (team && mine) card.appendChild(el('span', 'tag', `${team.team} athlete`));
+    else if (fresh.has(p.file)) card.appendChild(el('span', 'tag', `Just added: not a ${team ? team.team : ''} athlete's name`));
+    if (team && !mine && names.length) {
+      const sel = el('select');
+      sel.appendChild(new Option(`Give to a ${team.team} athlete…`, ''));
+      names.forEach(n => sel.appendChild(new Option(n, n)));
+      sel.onchange = () => sel.value && assign(p.file, sel.value);
+      card.appendChild(sel);
+    }
+    const rm = el('button', 'small danger', 'Remove');
+    rm.onclick = () => removePhoto(p.file);
+    card.appendChild(rm);
+    box.appendChild(card);
+  }
+  $('libraryNote').textContent = photos.length
+    ? `${photos.length} photo${photos.length === 1 ? '' : 's'} saved for this competition. Each one is matched to the athlete with the same name in any team.`
+    : 'No photos yet.';
+}
+
+async function refreshPhotos() {
+  const d = await api('/api/athletes?photos=only').catch(() => null);
+  if (d) photos = d.photos.map(p => ({ ...p, v: Date.now() }));
+  if (team) renderAthletes();
+  renderLibrary();
+}
+
+async function setPhoto(name, file) {
+  try { await upload(file, name); }
+  catch (err) { alert(`Couldn't save the photo for ${name}: ${err.message}`); console.warn('Athlete photo upload failed:', err.message); }
+  refreshPhotos();
+}
+
+async function removePhoto(file) {
+  if (!confirm(`Remove ${file}? This deletes it from the competition's photos folder.`)) return;
+  try { await api(`/api/athletes/photo?file=${encodeURIComponent(file)}`, { method: 'DELETE' }); }
+  catch (err) { alert(err.message); }
+  refreshPhotos();
+}
+
+async function assign(file, athlete) {
+  try { await api('/api/athletes/rename', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, athlete }) }); }
+  catch (err) { alert(err.message); }
+  refreshPhotos();
+}
+
+async function bulk(files) {
+  const names = team ? team.athletes.map(a => a.name) : [];
+  let matched = 0, other = 0, failed = [];
+  for (const f of files) {
+    try {
+      const saved = await upload(f);
+      if (names.some(n => key(n) === fileKey(saved.name))) matched++; else { other++; fresh.add(saved.name); }
+    } catch (err) { failed.push(`${f.name} (${err.message})`); }
+  }
+  $('bulkNote').textContent = [`${matched} matched ${team ? team.team + ' athletes' : 'athletes'}.`,
+    other ? `${other} didn't match a ${team ? team.team : ''} athlete: give them to an athlete in the photo library below.` : '',
+    failed.length ? `Not saved: ${failed.join(', ')}.` : ''].filter(Boolean).join(' ');
+  $('bulkNote').className = failed.length ? 'help error' : 'help';
+  if (failed.length) console.warn('Athlete photos not saved:', failed.join(', '));
+  refreshPhotos();
+}
+
+const drop = $('bulk');
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); bulk([...e.dataTransfer.files].filter(f => /^image\//.test(f.type))); };
+$('bulkFile').onchange = e => bulk([...e.target.files]);
+$('otherFile').onchange = e => {
+  const name = $('otherName').value.trim();
+  if (!name) { alert('Type the athlete\'s name first.'); e.target.value = ''; return; }
+  setPhoto(name, e.target.files[0]).then(() => { $('otherName').value = ''; e.target.value = ''; });
+};
+// Dropping a photo anywhere else shouldn't open it in the browser.
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+loadTeams();
+</script>
+</body>
+</html>

@@ -1258,6 +1258,125 @@ function logoFor(teamName) {
   return hit ? '/logos/' + encodeURIComponent(hit) : null;
 }
 
+// ─── Athlete photos (competitions/<id>/photos) ──────────────────────────────
+// Each photo is named after the athlete ("Jane Smith.jpg"), so the name is the match.
+// Matching ignores case, punctuation and word order ("smith_jane.png" finds Jane Smith,
+// "Noah OBrien.jpg" finds Noah O'Brien).
+// The athletes page (athletes.html) saves photos under the athlete's PlayHQ name.
+const photoKey = s => String(s || '').toLowerCase().replace(/['’`]/g, '').split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
+const fileKey = f => photoKey(path.basename(f, path.extname(f)));
+function photoFiles() { return competitions.images(competitions.activeId(), 'photos'); }
+function photoFor(name, files = photoFiles()) {
+  const want = photoKey(name);
+  const hit = want && files.find(f => fileKey(f) === want);
+  return hit ? '/photos/' + encodeURIComponent(hit) : null;
+}
+// Adds each player's photo to a team sheet answer.
+function withPhotos(data) {
+  const files = photoFiles();
+  for (const side of ['home', 'away']) {
+    if (data[side] && data[side].players) data[side].players = data[side].players.map(p => ({ ...p, photo: photoFor(p.name, files) }));
+  }
+  return data;
+}
+// Saves a photo as "<name>.<ext>", replacing any other photo of the same athlete.
+function savePhoto(name, ext, buf) {
+  const id = competitions.activeId();
+  const clean = String(name || '').replace(/[^\w .'()&+-]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!photoKey(clean)) throw new Error('A photo needs an athlete name.');
+  const type = String(ext || '').toLowerCase().replace(/^\./, '').replace('jpeg', 'jpg');
+  for (const f of photoFiles()) if (fileKey(f) === photoKey(clean)) competitions.deleteImage(id, 'photos', f);
+  return competitions.saveImage(id, 'photos', `${clean}.${type}`, buf);
+}
+
+// Every athlete PlayHQ has listed for one team this season, from the line ups of its
+// finished games and its next game (line ups are often entered before the game).
+async function getAthletes(teamName) {
+  const st = await getStructure();
+  const want = norm(teamName);
+  const games = [];
+  let division = '';
+  for (const grade of st.grades) {
+    const mine = (await getSeasonGames(grade)).filter(g => norm(g.home.name) === want || norm(g.away.name) === want);
+    if (mine.length) division = grade.name;
+    const done = mine.filter(isFinished);
+    const next = mine.find(g => !isFinished(g));
+    games.push(...done, ...(next ? [next] : []));
+  }
+  const athletes = new Map();
+  let read = 0, failed = 0, lastError = '';
+  for (const g of games) {
+    let parsed = finishedSummaries.get(g.id);
+    if (!parsed) {
+      try {
+        parsed = await getGame(g.id, 60 * 1000);
+        if (isFinished(g)) finishedSummaries.set(g.id, parsed);
+      } catch (err) { failed++; lastError = err.message; continue; }
+    }
+    read++;
+    const side = norm(parsed.home.name) === want ? parsed.home : norm(parsed.away.name) === want ? parsed.away : null;
+    if (!side) continue;
+    for (const p of side.players) {
+      if (p.private) continue; // "Private player" can't be told apart
+      const k = photoKey(p.name);
+      const a = athletes.get(k) || { name: p.name, number: '', positions: {}, games: 0, captain: false, lastDate: '' };
+      a.games++;
+      if (p.position) a.positions[p.position] = (a.positions[p.position] || 0) + 1;
+      if ((g.date || '') >= a.lastDate) { a.lastDate = g.date || ''; if (p.number !== '' && p.number != null) a.number = p.number; }
+      a.captain = a.captain || p.captain;
+      athletes.set(k, a);
+    }
+  }
+  if (failed) log('warn', 'athletes', `${teamName}: ${failed} of ${games.length} games could not be read: ${lastError}`);
+  const files = photoFiles();
+  const rank = a => { const i = POSITION_RANK.indexOf(a.position); return i === -1 ? 99 : i; };
+  const list = [...athletes.values()].map(a => {
+    const position = Object.entries(a.positions).sort((x, y) => y[1] - x[1])[0];
+    return { name: a.name, number: a.number, position: position ? position[0] : '', positions: Object.keys(a.positions), games: a.games, captain: a.captain, photo: photoFor(a.name, files) };
+  }).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
+  return { team: teamName, logo: logoFor(teamName), division, athletes: list, gamesRead: read, gamesFound: games.length,
+    error: !read && failed ? lastError : !games.length ? `PlayHQ has no games for ${teamName} this season.` : undefined };
+}
+
+async function athletesRoute(req, res, url, q) {
+  const id = competitions.activeId();
+  if (url.pathname === '/api/athletes/photo') {
+    if (req.method === 'POST') {
+      const buf = await readRaw(req, 15 * 1024 * 1024);
+      if (!buf.length) throw new Error('That file is empty.');
+      // ?athlete= saves it under that athlete's name; ?file= keeps the file's own name (several dropped at once).
+      const ext = path.extname(q.file || '') || ('.' + (q.ext || 'jpg'));
+      const name = savePhoto(q.athlete || path.basename(q.file || '', path.extname(q.file || '')), ext, buf);
+      log('info', 'athletes', `${id}: photo ${name} saved`);
+      return send(res, 200, { name, url: '/photos/' + encodeURIComponent(name) });
+    }
+    if (req.method === 'DELETE') {
+      competitions.deleteImage(id, 'photos', q.file);
+      log('info', 'athletes', `${id}: photo ${q.file} removed`);
+      return send(res, 200, { ok: true });
+    }
+  }
+  if (url.pathname === '/api/athletes/rename' && req.method === 'POST') {
+    const body = await readBody(req);
+    const clean = String(body.athlete || '').replace(/[^\w .'()&+-]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!photoKey(clean)) throw new Error('Pick an athlete for this photo.');
+    for (const f of photoFiles()) if (f !== body.file && fileKey(f) === photoKey(clean)) competitions.deleteImage(id, 'photos', f);
+    const name = competitions.renameImage(id, 'photos', body.file, clean + path.extname(String(body.file || '')).toLowerCase());
+    log('info', 'athletes', `${id}: photo ${body.file} is now ${name}`);
+    return send(res, 200, { name, url: '/photos/' + encodeURIComponent(name) });
+  }
+  if (url.pathname !== '/api/athletes') return send(res, 404, { error: 'Unknown athletes link' });
+  if (q.team) return send(res, 200, await getAthletes(q.team));
+  const list = { folder: `competitions/${id}/photos`, photos: photoFiles().map(f => ({ file: f, url: '/photos/' + encodeURIComponent(f) })) };
+  if (q.photos === 'only') return send(res, 200, list);
+  // The teams to pick from, the two in the game on the control page, and every photo saved.
+  const b = board(q.board || '1');
+  let teams = [], error;
+  try { teams = (await setupTeams()).teams.map(t => ({ name: t.name, division: t.division, logo: t.logo })); } catch (err) { error = err.message; }
+  return send(res, 200, { competition: CONFIG.name, teams, current: [b.home.name, b.away.name].filter(n => n && n !== 'TBC' && !/^home$|^away$/i.test(n)),
+    ...list, error });
+}
+
 // A team's own colour from the competition setup page, or null to use the competition's colours.
 function colourFor(teamName) {
   return (CONFIG.teamColours || {})[teamName] || null;
@@ -1488,10 +1607,10 @@ http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/structure') return send(res, 200, { ...await getStructure(), setup: CONFIG.name, rules: rules() });
     if (url.pathname.startsWith('/api/setup')) return await setupRoute(req, res, url, q);
-    // The competition in use: its colours, team logos and competition logo.
+    // The competition in use: its colours, team logos, competition logo and athlete photos.
     if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG), 'text/css; charset=utf-8');
-    if (url.pathname.startsWith('/logos/') || url.pathname.startsWith('/brand/')) {
-      const file = competitions.imageFile(competitions.activeId(), url.pathname.startsWith('/brand/') ? 'brand' : 'logos', url.pathname.split('/')[2] || '');
+    if (/^\/(logos|brand|photos)\//.test(url.pathname)) {
+      const file = competitions.imageFile(competitions.activeId(), url.pathname.split('/')[1], url.pathname.split('/')[2] || '');
       return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
     }
     if (url.pathname === '/api/ladder') {
@@ -1503,7 +1622,8 @@ http.createServer(async (req, res) => {
       return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, rules: rules(), ...ladder });
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion() });
-    if (url.pathname === '/api/teams') return send(res, 200, await getTeamSheets(q.board || '1'));
+    if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets(q.board || '1')));
+    if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
     if (url.pathname === '/api/rounds') {
       if (req.method === 'POST') setRoundChoice((await readBody(req)).round);

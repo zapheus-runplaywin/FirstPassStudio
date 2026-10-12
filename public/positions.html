@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Position Match Ups</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+<style>
+  .pm { --card-width: 1500px; position: relative; }
+  .pm__head { display: flex; align-items: center; justify-content: space-between; padding: 24px 36px 0; }
+  .pm__teams { font-size: 22px; font-weight: 800; text-transform: uppercase; color: var(--muted); letter-spacing: .06em; }
+  .pm__stage { display: grid; grid-template-columns: 1fr 300px 1fr; align-items: end; padding: 10px 36px 0; height: 640px; }
+  .pm__side { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; min-width: 0; }
+  .pm__photo { height: 500px; width: 100%; display: flex; align-items: flex-end; justify-content: center; position: relative; }
+  .pm__photo::before { content: ''; position: absolute; bottom: 0; width: 440px; height: 440px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, var(--purple) 0%, var(--purple-dark) 75%); }
+  .pm__photo img { position: relative; max-height: 500px; max-width: 100%; object-fit: contain; filter: drop-shadow(0 10px 20px rgba(0,0,0,.45)); }
+  .pm__photo .logo-fallback { position: relative; width: 300px; height: 300px; font-size: 96px; margin-bottom: 70px; }
+  .pm__photo .pm__teamlogo { position: absolute; bottom: 8px; width: 110px; height: 110px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+  .pm__side--home .pm__teamlogo { left: 24px; }
+  .pm__side--away .pm__teamlogo { right: 24px; }
+  .pm__plate { width: 100%; background: var(--purple); border-bottom: 5px solid var(--yellow); padding: 14px 20px 12px; text-align: center; border-radius: 10px 10px 0 0; }
+  .pm__name { font-size: 40px; font-weight: 800; text-transform: uppercase; line-height: 1.05; color: var(--text); overflow-wrap: anywhere; }
+  .pm__meta { margin-top: 6px; font-size: 20px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .pm__meta .badge { margin-left: 8px; }
+  .pm__empty { color: var(--muted); font-size: 30px; font-weight: 700; margin-bottom: 220px; text-transform: uppercase; }
+  .pm__middle { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 14px; padding-bottom: 60px; }
+  .pm__pos { background: var(--yellow); color: var(--text-on-yellow); font-size: 76px; font-weight: 800; border-radius: 14px; width: 170px; text-align: center; padding: 6px 0; line-height: 1.1;
+    box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .pm__v { color: var(--pink); font-size: 40px; font-weight: 800; text-transform: uppercase; font-style: italic; }
+  .pm__dots { display: flex; justify-content: center; gap: 10px; padding: 18px 0 20px; }
+  .pm__dot { font-size: 18px; font-weight: 800; color: var(--muted); padding: 4px 12px; border-radius: 6px; background: rgba(255,255,255,.06); }
+  .pm__dot.on { background: var(--pink); color: var(--text); }
+  .pm__dot.done { color: var(--text); }
+  /* Each pairing slides in from both sides */
+  .pm__stage.enter .pm__side--home { animation: fromLeft .55s cubic-bezier(.2,.8,.2,1) both; }
+  .pm__stage.enter .pm__side--away { animation: fromRight .55s cubic-bezier(.2,.8,.2,1) both; }
+  .pm__stage.enter .pm__middle { animation: pop .5s .15s ease-out both; }
+  .pm__stage.leave { animation: fadeOut .35s ease-in both; }
+  @keyframes fromLeft { from { transform: translateX(-120px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes fromRight { from { transform: translateX(120px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes fadeOut { to { opacity: 0; } }
+  .pm.out { animation: cardOut .5s ease-in both; }
+  @keyframes cardOut { to { transform: translateY(40px); opacity: 0; } }
+  /* All seven pairings at once */
+  .pm__all { padding: 16px 36px 24px; display: grid; gap: 8px; }
+  .pm__row { display: grid; grid-template-columns: 76px 1fr 90px 40px 90px 1fr 76px; align-items: center; gap: 14px; background: var(--purple-deep-alt);
+    border-radius: 8px; padding: 6px 12px; animation: slide .4s ease-out both; }
+  .pm__row .ph { width: 76px; height: 76px; border-radius: 50%; overflow: hidden; background: var(--purple-dark); display: flex; align-items: flex-end; justify-content: center; }
+  .pm__row .ph img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .pm__row .ph.logo-fallback { font-size: 24px; border-width: 3px; align-items: center; }
+  .pm__row .nm { font-size: 28px; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pm__row .nm small { color: var(--muted); font-size: 18px; margin-left: 8px; }
+  .pm__row .nm--home { text-align: right; }
+  .pm__row .ps { background: var(--yellow); color: var(--text-on-yellow); font-size: 30px; font-weight: 800; text-align: center; border-radius: 8px; padding: 4px 0; }
+  .pm__row .v { color: var(--pink); font-weight: 800; font-style: italic; text-align: center; font-size: 22px; }
+  .pm__allhead { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 0 12px; }
+  .pm__allhead div { display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 800; text-transform: uppercase; color: var(--yellow); }
+  .pm__allhead div:last-child { justify-content: flex-end; }
+  .pm__allhead img, .pm__allhead .logo-fallback { width: 64px; height: 64px; object-fit: contain; font-size: 20px; }
+</style>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/positions.html
+       Goes through the home team's line up from GS to GK, each beside the away athlete
+       they play against (home GS v away GK, GA v GD, WA v WD, C v C, WD v WA, GD v GA,
+       GK v GS), with the photos from the Athletes page (athletes.html). Then shows all
+       seven pairings together. Follows the game picked on the control page.
+       Options: ?hold=6 seconds per pairing (default 5), ?loop=1 keeps going round,
+       ?end=out animates away after the last pairing instead of showing all seven,
+       ?show=all shows all seven straight away, ?pair=C shows one pairing only
+       (by the home position), ?board=2 for a second court. -->
+  <main class="card pm" id="card" hidden>
+    <header class="pm__head">
+      <div class="tab" id="title">Position match ups</div>
+      <div class="pm__teams" id="teams"></div>
+    </header>
+    <section class="pm__stage" id="stage">
+      <div class="pm__side pm__side--home" id="home"></div>
+      <div class="pm__middle"><div class="pm__pos" id="homePos"></div><div class="pm__v">v</div><div class="pm__pos" id="awayPos"></div></div>
+      <div class="pm__side pm__side--away" id="away"></div>
+    </section>
+    <nav class="pm__dots" id="dots"></nav>
+    <section class="pm__all" id="all" hidden></section>
+    <footer class="card__footer" id="footer"></footer>
+  </main>
+  <script src="teams.js"></script>
+  <script>
+    const opts = new URLSearchParams(location.search);
+    const ORDER = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
+    const OPPOSITE = { GS: 'GK', GA: 'GD', WA: 'WD', C: 'C', WD: 'WA', GD: 'GA', GK: 'GS' };
+    const HOLD = Math.max(1, Number(opts.get('hold')) || 5) * 1000;
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const initials = n => String(n || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
+
+    function photoEl(p, cls) {
+      if (p && p.photo) { const i = el('img', cls); i.src = p.photo; i.alt = ''; return i; }
+      return el('div', (cls ? cls + ' ' : '') + 'logo-fallback', p ? initials(p.name) : '?');
+    }
+
+    function side(id, team, p, pos) {
+      const box = document.getElementById(id);
+      box.replaceChildren();
+      const photo = el('div', 'pm__photo');
+      if (p) photo.appendChild(photoEl(p));
+      else photo.appendChild(el('div', 'pm__empty', `No ${pos} listed`));
+      if (team.logo) { const l = el('img', 'pm__teamlogo'); l.src = team.logo; l.alt = ''; photo.appendChild(l); }
+      box.appendChild(photo);
+      const plate = el('div', 'pm__plate');
+      plate.appendChild(el('div', 'pm__name', p ? p.name : '—'));
+      const meta = el('div', 'pm__meta', [team.name, p && p.number !== '' && p.number != null ? `#${p.number}` : ''].filter(Boolean).join('  ·  '));
+      if (p && p.captain) meta.appendChild(el('span', 'badge', 'Captain'));
+      if (p && p.viceCaptain) meta.appendChild(el('span', 'badge', 'Vice captain'));
+      plate.appendChild(meta);
+      box.appendChild(plate);
+    }
+
+    function show(data, pairs, i) {
+      const [pos, h, a] = pairs[i];
+      side('home', data.home, h, pos);
+      side('away', data.away, a, OPPOSITE[pos]);
+      document.getElementById('homePos').textContent = pos;
+      document.getElementById('awayPos').textContent = OPPOSITE[pos];
+      document.querySelectorAll('.pm__dot').forEach((d, j) => { d.className = 'pm__dot' + (j === i ? ' on' : j < i ? ' done' : ''); });
+      const stage = document.getElementById('stage');
+      stage.className = 'pm__stage';
+      void stage.offsetWidth; // restart the animation
+      stage.className = 'pm__stage enter';
+    }
+
+    function showAll(data, pairs) {
+      document.getElementById('stage').hidden = true;
+      document.getElementById('dots').hidden = true;
+      const box = document.getElementById('all');
+      box.replaceChildren();
+      const head = el('div', 'pm__allhead');
+      for (const t of [data.home, data.away]) {
+        const d = el('div');
+        const logo = logoEl(t, '');
+        const name = el('span', '', t.name);
+        if (t === data.home) d.append(logo, name); else d.append(name, logo);
+        head.appendChild(d);
+      }
+      box.appendChild(head);
+      pairs.forEach(([pos, h, a], i) => {
+        const row = el('div', 'pm__row');
+        row.style.animationDelay = `${i * 80}ms`;
+        const nm = (p, cls) => { const n = el('div', 'nm ' + cls, p ? p.name : '—'); if (p && p.number !== '' && p.number != null) n.appendChild(el('small', '', `#${p.number}`)); return n; };
+        const ph = p => { const w = el('div', 'ph'); if (p && p.photo) w.appendChild(photoEl(p)); else { w.className = 'ph logo-fallback'; w.textContent = p ? initials(p.name) : '?'; } return w; };
+        row.append(ph(h), nm(h, 'nm--home'), el('div', 'ps', pos), el('div', 'v', 'v'), el('div', 'ps', OPPOSITE[pos]), nm(a, ''), ph(a));
+        box.appendChild(row);
+      });
+      box.hidden = false;
+    }
+
+    let started = false;
+    loadTeams(async data => {
+      if (started) return;
+      const at = (team, pos) => (team.players || []).find(p => p.position === pos) || null;
+      const pairs = ORDER.map(pos => [pos, at(data.home, pos), at(data.away, OPPOSITE[pos])]);
+      const listed = pairs.filter(([, h, a]) => h || a).length;
+      if (!listed) {
+        console.warn('Position match ups: PlayHQ has no positions for this game yet.', data.error || '');
+        return;
+      }
+      started = true;
+      const missing = pairs.flatMap(([pos, h, a]) => [h && !h.photo ? h.name : null, a && !a.photo ? a.name : null]).filter(Boolean);
+      if (missing.length) pageLog('info', `No photo for ${missing.join(', ')} (add them on the Athletes page)`);
+      document.getElementById('teams').textContent = `${data.home.name}  v  ${data.away.name}`;
+      document.getElementById('footer').textContent = [data.competition, data.division, data.court].filter(Boolean).join('  ·  ');
+      document.getElementById('dots').replaceChildren(...ORDER.map(p => el('span', 'pm__dot', `${p} v ${OPPOSITE[p]}`)));
+      document.getElementById('card').hidden = false;
+
+      const one = (opts.get('pair') || '').toUpperCase();
+      if (ORDER.includes(one)) { show(data, pairs, ORDER.indexOf(one)); return; }
+      if (opts.get('show') === 'all') { showAll(data, pairs); return; }
+      const stage = document.getElementById('stage');
+      do {
+        for (let i = 0; i < pairs.length; i++) {
+          show(data, pairs, i);
+          await wait(HOLD);
+          if (i < pairs.length - 1 || opts.get('loop') === '1') { stage.className = 'pm__stage leave'; await wait(350); }
+        }
+      } while (opts.get('loop') === '1');
+      if (opts.get('end') === 'out') document.getElementById('card').classList.add('out');
+      else { stage.className = 'pm__stage leave'; await wait(350); showAll(data, pairs); }
+    });
+  </script>
+</body>
+</html>

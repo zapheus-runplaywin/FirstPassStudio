@@ -42,7 +42,7 @@ comes up (`autoSelectMinutesBefore` ahead), and Up next looks across the whole d
 The repository holds the starting point for every setting, and the setup and control pages save your changes straight
 into the same files:
 
-- `competitions/<name>/`: each competition's `settings.json`, `logos/` and `brand/`.
+- `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/` and `photos/` (athlete photos).
 - `competitions/active.json`: the competition in use.
 - `control.json`: the round picked by hand, and for each board automatic game selection, its court, following the
   PlayHQ clock, how often to check PlayHQ, and showing the clock.
@@ -177,6 +177,43 @@ Team logos are added on the competition setup page, named after the team. A logo
 PlayHQ team name can be picked for that team in the setup page's team list. The same list gives any team its own colour
 (**Add colour**, then the colour picker or a pasted HEX or RGB value, or × to go back to the competition's colours; teams with similar names are offered the same colour); the scoreboard and The Clash use it behind that team. The
 match up page keeps the competition's colours.
+
+## Athlete photos and position match ups
+
+http://localhost:8080/athletes.html (**Athletes** in the menu) keeps a photo of each athlete for the competition in use.
+Pick a team to see every athlete PlayHQ has in its line ups this season (from its finished games and its next game), with
+their number, usual position and how many games they've played. Then:
+
+- **Add photo** on an athlete, or drop a photo onto them. It is saved as `competitions/<name>/photos/<athlete name>.png`
+  (or `.jpg`), so it matches that athlete in every game and every team. Photos are made at most 1000 pixels before they're
+  saved; cut-out PNGs with a transparent background look best.
+- **Several photos at once:** drop photos named after their athletes (`Jane Smith.jpg`, `smith_jane.png` and
+  `Noah OBrien.png` all work: case, punctuation and word order don't matter). Ones that match nobody on the team are
+  listed first in the photo library, where **Give to an athlete** renames them to that athlete.
+- **An athlete PlayHQ doesn't list yet:** type their name exactly as PlayHQ will show it and add the photo.
+
+Photos are files in the competition's folder, so commit the ones you want to keep like any other setting.
+
+http://localhost:8080/positions.html shows the game picked on the control page position by position: the home team's
+line up from GS to GK, each beside the away athlete they play against (home GS v away GK, GA v GD, WA v WD, C v C,
+WD v WA, GD v GA, GK v GS), with their photos, names, numbers and captains. It then shows all seven pairings together.
+Positions come from the line up entered on PlayHQ for that game; until there is one the page stays empty (and says so in
+the debug log). An athlete without a photo shows their initials.
+
+- `?hold=6`: seconds per pairing (default 5).
+- `?loop=1`: keeps going round instead of finishing on all seven.
+- `?end=out`: animates away after the last pairing instead of showing all seven.
+- `?show=all`: shows all seven pairings straight away.
+- `?pair=C`: shows one pairing only, by the home team's position.
+
+Like the other graphics it loads once: tick **Refresh browser when scene becomes active** in OBS so it starts again each
+time the scene comes on.
+
+## Roadmap
+
+- **FirstPassVantage live athlete stats (future):** connect to FirstPassVantage for more detailed athlete stats while a
+  game is on (per athlete, beyond the goals and attempts PlayHQ has), to show beside the position match ups, team lists
+  and shooting stats. Not built yet.
 
 ## Options
 
