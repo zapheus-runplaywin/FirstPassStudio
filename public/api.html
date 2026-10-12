@@ -2,36 +2,39 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Scoreboard API</title>
+<title>Scoreboard API · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="vendor/swagger-ui/swagger-ui.css">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="studio.css">
 <style>
-  body { margin: 0; background: #fff; }
-  .topbar-thunder {
-    background: var(--purple); color: #fff; padding: 14px 20px; border-bottom: 5px solid var(--pink);
-    font-family: "Segoe UI", Arial, sans-serif; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  }
-  .topbar-thunder h1 { margin: 0; font-size: 22px; }
-  .topbar-thunder a { color: var(--yellow); text-decoration: none; font-weight: 600; }
-  .topbar-thunder .spacer { flex: 1; }
-  .swagger-ui .info .title { color: var(--purple); }
-  .swagger-ui .btn.execute { background: var(--purple); border-color: var(--purple); }
-  .swagger-ui .opblock.opblock-get { border-color: var(--purple); background: rgba(var(--purple-rgb), 0.06); }
-  .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--purple); }
-  .swagger-ui .opblock.opblock-get .opblock-summary { border-color: var(--purple); }
-  #fallback { font-family: "Segoe UI", Arial, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; }
+  body { margin: 0; background: var(--fp-white); }
+  /* Swagger sets its own fonts at several specificities, so the brand font has to win outright. */
+  .swagger-ui :not(code, pre, pre *, code *, textarea, .opblock-summary-path, .opblock-summary-path *) { font-family: var(--fp-font) !important; }
+  .swagger-ui .markdown code, .swagger-ui .renderedMarkdown code { color: var(--fp-blue-dark); background: var(--fp-blue-soft); }
+  .swagger-ui .info { margin: 32px 0 24px; }
+  .swagger-ui .info .title { color: var(--fp-navy); font-weight: 900; font-style: italic; letter-spacing: -0.5px; }
+  .swagger-ui .info .title small { background: var(--fp-blue); }
+  .swagger-ui .info .title small.version-stamp { background: var(--fp-orange); }
+  .swagger-ui .info a, .swagger-ui .info .link { color: var(--fp-blue); }
+  .swagger-ui .opblock-tag { color: var(--fp-navy); font-weight: 800; border-bottom-color: var(--fp-line); }
+  .swagger-ui .btn.execute { background: var(--fp-blue); border-color: var(--fp-blue); }
+  .swagger-ui .btn.try-out__btn, .swagger-ui .btn.cancel { border-radius: 8px; }
+  .swagger-ui .opblock.opblock-get { border-color: var(--fp-blue); background: rgba(34, 116, 165, 0.06); }
+  .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--fp-blue); font-weight: 800; }
+  .swagger-ui .opblock.opblock-get .opblock-summary { border-color: var(--fp-blue); }
+  .swagger-ui .opblock.opblock-get .tab-header .tab-item.active h4 span:after { background: var(--fp-blue); }
+  .swagger-ui .opblock { border-radius: 8px; }
+  .swagger-ui .opblock-summary-path { color: var(--fp-navy); }
+  #fallback { max-width: 760px; margin: 24px auto; padding: 0 16px; }
 </style>
 <script src="log.js"></script>
 </head>
 <body>
-  <div class="topbar-thunder">
-    <h1>Scoreboard API</h1>
-    <span class="spacer"></span>
-    <a href="/">Home</a>
-    <a href="/control.html">Scoreboard control</a>
-    <a href="/openapi.yaml" download>Download openapi.yaml</a>
-  </div>
+  <header class="fp-bar"><div class="fp-bar__in">
+    <a class="fp-mark" href="/">FirstPass<b>STUDIO</b></a>
+    <span class="fp-app">PlayHQ Graphics</span>
+    <nav class="fp-nav"><a href="/">Home</a><a href="/control.html">Control</a><a href="/setup.html">Competition setup</a><a href="/api.html" aria-current="page">API docs</a><a href="/openapi.yaml" download>Download YAML</a></nav>
+  </div></header>
   <div id="swagger"></div>
   <div id="fallback" hidden>
     <p>The documentation viewer did not load.

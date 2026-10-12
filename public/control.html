@@ -2,33 +2,38 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Scoreboard Control</title>
+<title>Scoreboard Control · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="studio.css">
 <style>
   * { box-sizing: border-box; }
-  body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 20px 16px 40px; background: #f5f1f7; color: #241228; }
-  main { max-width: 900px; margin: 0 auto; }
-  h1 { margin: 0 0 4px; color: var(--purple); }
-  .sub { color: #6b5a70; margin: 0 0 16px; }
-  section { background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: #6b5a70; margin: 0 0 10px; }
+  body { margin: 0; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; }
+  section { background: var(--fp-white); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.08); }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .1em; color: var(--fp-blue); margin: 0 0 12px; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  select, input { font: inherit; padding: 7px 9px; border: 1px solid #cdbfd3; border-radius: 6px; }
+  select, input { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-field); border-radius: 8px; color: var(--fp-ink); background: var(--fp-white); }
+  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
   select { flex: 1 1 360px; min-width: 0; }
-  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 6px; border: 0; background: var(--purple); color: #fff; cursor: pointer; }
-  button.alt { background: #ece3f0; color: var(--purple); }
-  button.on { background: var(--pink); color: #fff; }
+  button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--fp-blue); color: var(--fp-white); cursor: pointer; }
+  button:hover { background: var(--fp-blue-dark); }
+  button.alt { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
+  button.alt:hover { background: #D3E4EF; }
+  button.on, button.on:hover { background: var(--fp-navy); color: var(--fp-gold); }
   .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .team { border: 2px solid #ece3f0; border-radius: 10px; padding: 12px; text-align: center; }
+  .team { border: 2px solid var(--fp-line); border-radius: var(--fp-radius); padding: 12px; text-align: center; }
   .team input { width: 100%; text-align: center; font-weight: 700; margin-bottom: 8px; }
-  .big { font-size: 64px; font-weight: 800; color: var(--purple); line-height: 1; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+  .big { font-size: 64px; font-weight: 900; font-style: italic; color: var(--fp-navy); line-height: 1; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
   .team .row { justify-content: center; }
-  .plus { background: var(--yellow); color: var(--text-on-yellow); font-size: 22px; padding: 12px 26px; }
-  .clockface { font-size: 32px; font-weight: 800; color: var(--purple); min-width: 100px; font-variant-numeric: tabular-nums; }
-  a.btnlink { font-weight: 600; padding: 8px 14px; border-radius: 6px; background: #ece3f0; color: var(--purple); text-decoration: none; }
-  .note { font-size: 14px; color: #6b5a70; margin: 8px 0 0; }
-  .error { color: #a1123c; }
+  .plus { background: var(--fp-orange); color: var(--fp-white); font-size: 22px; font-weight: 800; padding: 12px 26px; }
+  .plus:hover { background: #D94F00; }
+  .clockface { font-size: 32px; font-weight: 900; font-style: italic; color: var(--fp-navy); min-width: 100px; font-variant-numeric: tabular-nums; }
+  a.btnlink { font-weight: 700; padding: 8px 14px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-blue-dark); text-decoration: none; }
+  a.btnlink:hover { background: #D3E4EF; }
+  .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
+  .error { color: var(--fp-error); }
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(#ddd 0 25%, #f4f4f4 0 50%) 0 0 / 24px 24px; }
   .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
@@ -37,6 +42,11 @@
 <script src="log.js"></script>
 </head>
 <body>
+<header class="fp-bar"><div class="fp-bar__in">
+  <a class="fp-mark" href="/">FirstPass<b>STUDIO</b></a>
+  <span class="fp-app">PlayHQ Graphics</span>
+  <nav class="fp-nav"><a href="/">Home</a><a href="/control.html" aria-current="page">Control</a><a href="/setup.html">Competition setup</a><a href="/api.html">API docs</a></nav>
+</div></header>
 <main>
   <h1>Scoreboard control</h1>
   <p class="sub" id="compLine"></p>

@@ -2,29 +2,41 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>PlayHQ Graphics</title>
+<title>PlayHQ Graphics · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="studio.css">
 <style>
-  body { font-family: "Segoe UI", Arial, sans-serif; background: #f4f4f7; color: #1b1b24; margin: 0; padding: 32px 16px; }
-  main { max-width: 760px; margin: 0 auto; }
-  h1 { margin: 0 0 4px; }
-  .sub { color: #555; margin: 0 0 24px; }
-  .card { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .card h2 { margin: 0 0 8px; font-size: 18px; }
-  code { display: block; background: #eef; padding: 8px 10px; border-radius: 6px; word-break: break-all; }
-  .row { display: flex; gap: 8px; margin-top: 8px; }
-  button, a.btn { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid #4b1d8f; background: #4b1d8f; color: #fff; cursor: pointer; text-decoration: none; }
-  a.btn { background: #fff; color: #4b1d8f; }
-  .page { padding: 10px 0; border-top: 1px solid #eee; }
+  body { margin: 0; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 16px 40px; }
+  h1 { margin: 0 0 4px; font-size: 34px; }
+  .sub { color: var(--fp-muted); margin: 0 0 24px; }
+  .card { background: var(--fp-white); border-radius: var(--fp-radius); padding: 18px 20px; margin-bottom: 14px;
+    box-shadow: 0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.08); }
+  .card h2 { margin: 0 0 10px; font-size: 18px; color: var(--fp-navy); }
+  code { display: block; background: var(--fp-blue-soft); color: var(--fp-navy); padding: 8px 10px; border-radius: 6px; word-break: break-all;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  button, a.btn { font: inherit; font-weight: 700; font-size: 15px; padding: 7px 14px; border-radius: 8px; border: 2px solid var(--fp-blue);
+    background: var(--fp-blue); color: var(--fp-white); cursor: pointer; text-decoration: none; line-height: 1.2; }
+  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  a.btn { background: var(--fp-white); color: var(--fp-blue); }
+  a.btn:hover { background: var(--fp-blue-soft); }
+  .page { padding: 12px 0; border-top: 1px solid var(--fp-line); }
   .page:first-child { border-top: 0; padding-top: 0; }
-  .page__name { font-weight: 700; margin-bottom: 4px; }
-  .page__help { margin: 8px 0 0; font-size: 14px; color: #555; line-height: 1.5; }
-  .page__help code { display: inline; padding: 1px 5px; white-space: nowrap; }
-  .error { background: #fde8e8; color: #8a1111; }
+  .page__name { font-weight: 700; margin-bottom: 6px; }
+  .page__help { margin: 8px 0 0; font-size: 14px; color: var(--fp-muted); line-height: 1.6; }
+  .page__help b { color: var(--fp-ink); }
+  .page__help code { display: inline; padding: 1px 5px; white-space: nowrap; font-size: 13px; }
+  .error { background: #FEF2F2; color: var(--fp-error); }
 </style>
 <script src="log.js"></script>
 </head>
 <body>
+<header class="fp-bar"><div class="fp-bar__in">
+  <a class="fp-mark" href="/">FirstPass<b>STUDIO</b></a>
+  <span class="fp-app">PlayHQ Graphics</span>
+  <nav class="fp-nav"><a href="/" aria-current="page">Home</a><a href="/control.html">Control</a><a href="/setup.html">Competition setup</a><a href="/api.html">API docs</a></nav>
+</div></header>
 <main>
   <h1>PlayHQ Graphics</h1>
   <p class="sub" id="sub">Loading from PlayHQ…</p>

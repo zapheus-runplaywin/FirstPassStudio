@@ -1,7 +1,7 @@
 # PlayHQ Graphics
 
 Transparent ladder, scoreboard and game overlays for OBS, fed live from PlayHQ's public data (no API key). Set up for
-Thunder League, with saved setups ready for the AMMNA Nationals and the WA Netball League.
+Thunder League, with saved setups ready for the AMMNA Nationals and the WA Netball League. Made by FirstPass Studio.
 
 ## One-time setup
 
@@ -144,4 +144,5 @@ PlayHQ team name can be picked for that team in the setup page's team list.
 - `&rows=8` shows only the top 8 teams.
 - Quarter (or half) length and the season are on the competition setup page.
 - Colours and font are on the competition setup page (the helper writes `theme.css` from them). Sizes and position are at the top of `public/ladder.css` and `public/scoreboard.css`.
+- The pages you work in (home, control, competition setup and the API docs) wear the FirstPass Studio look from `public/studio.css`, with Montserrat kept in `public/vendor/montserrat` so they need no internet. The OBS graphics never use it.
 - The pink marker beside positions 1 to 4 on the ladder marks the finals places; change `-n+4` in `ladder.css` if that differs.

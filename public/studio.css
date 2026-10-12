@@ -1,0 +1,47 @@
+/* FirstPass Studio look for the pages you work in (home, control, setup, API docs).
+   The OBS graphics don't use this: their look comes from each competition's setup (theme.css). */
+
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 400; font-display: swap; src: url(vendor/montserrat/montserrat-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 600; font-display: swap; src: url(vendor/montserrat/montserrat-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 700; font-display: swap; src: url(vendor/montserrat/montserrat-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 800; font-display: swap; src: url(vendor/montserrat/montserrat-latin-800-normal.woff2) format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: italic; font-weight: 900; font-display: swap; src: url(vendor/montserrat/montserrat-latin-900-italic.woff2) format("woff2"); }
+
+:root {
+  /* Brand colours */
+  --fp-blue: #2274A5;      /* primary: buttons, links, headings */
+  --fp-orange: #F75C03;    /* "STUDIO" on light, accents; large type and shapes only on white */
+  --fp-gold: #F1C40F;      /* "STUDIO" on navy; never text on white */
+  --fp-navy: #0F172A;      /* header and ink */
+  --fp-gray: #F8FAFC;      /* page background */
+  --fp-white: #FFFFFF;
+  /* UI neutrals */
+  --fp-ink: var(--fp-navy);
+  --fp-muted: #475569;
+  --fp-line: #E2E8F0;
+  --fp-field: #CBD5E1;
+  --fp-blue-dark: #1A5A80;
+  --fp-blue-soft: #E8F1F7;
+  --fp-error: #B91C1C;
+  --fp-ok: #15803D;
+  --fp-radius: 12px;
+  --fp-font: "Montserrat", system-ui, "Segoe UI", Arial, sans-serif;
+}
+
+body { font-family: var(--fp-font); background: var(--fp-gray); color: var(--fp-ink); }
+a { color: var(--fp-blue); }
+h1 { font-weight: 900; font-style: italic; letter-spacing: -0.5px; color: var(--fp-navy); }
+h2 { font-weight: 800; }
+:focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2px; }
+
+/* Top bar with the FirstPass STUDIO wordmark, on every page */
+.fp-bar { background: var(--fp-navy); color: var(--fp-white); border-bottom: 4px solid var(--fp-orange); }
+.fp-bar__in { max-width: 1000px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; }
+.fp-mark { font-family: var(--fp-font); font-weight: 900; font-style: italic; font-size: 26px; letter-spacing: -1px;
+  line-height: 1; color: var(--fp-white); text-decoration: none; white-space: nowrap; }
+.fp-mark b { font-weight: 900; color: var(--fp-gold); letter-spacing: 0.5px; margin-left: 0.18em; }
+.fp-app { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: #CBD5E1; }
+.fp-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.fp-nav a { color: var(--fp-white); text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 10px; border-radius: 6px; }
+.fp-nav a:hover { background: rgba(255,255,255,.1); }
+.fp-nav a[aria-current] { color: var(--fp-gold); box-shadow: inset 0 -2px 0 var(--fp-gold); border-radius: 0; }
