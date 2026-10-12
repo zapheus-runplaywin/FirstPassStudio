@@ -120,7 +120,15 @@ async function gql(operationName, query, variables, retried, tenant = TENANT) {
   log(res.ok ? 'info' : 'warn', 'playhq', `${operationName} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`, variables);
   if (!res.ok) log('warn', 'playhq', `${operationName} answer`, text.slice(0, 500));
   if ((res.status === 401 || res.status === 403) && !retried) return gql(operationName, query, variables, true, tenant);
-  if (!res.ok) throw new Error(`PlayHQ answered HTTP ${res.status}${/Request blocked/i.test(text) ? ' (temporarily blocked, will retry)' : ''}`);
+  if (!res.ok) {
+    // A query PlayHQ doesn't accept (e.g. a field it doesn't have) comes back as HTTP 400 with GraphQL errors.
+    let bad = null;
+    try { bad = JSON.parse(text).errors; } catch { /* not JSON */ }
+    const err = new Error(bad && bad.length ? `PlayHQ answered HTTP ${res.status}: ${bad.map(e => e.message).join('; ')}`
+      : `PlayHQ answered HTTP ${res.status}${/Request blocked/i.test(text) ? ' (temporarily blocked, will retry)' : ''}`);
+    if (bad && bad.length) err.graphql = bad;
+    throw err;
+  }
   let json;
   try { json = JSON.parse(text); } catch { throw new Error('PlayHQ sent something that was not JSON'); }
   if (json.errors && json.errors.length) {
@@ -396,7 +404,8 @@ async function getGame(gameId, maxAgeMs) {
         try { g = (await gql('discoverGame', qGame(), { gameID: gameId })).discoverGame; break; }
         catch (err) {
           // PlayHQ doesn't know that spelling of gender: try the next one (the last asks for none).
-          if (!err.graphql || !/gender/i.test(err.message) || genderField >= GENDER_FIELDS.length - 1) throw err;
+          // (PlayHQ may answer HTTP 400 with an error that doesn't name the field, so any rejected query moves on.)
+          if (!err.graphql || genderField >= GENDER_FIELDS.length - 1) throw err;
           genderField++;
           log('info', 'playhq', `Player gender: trying "${GENDER_FIELDS[genderField] || 'none'}" after: ${err.message}`);
         }
