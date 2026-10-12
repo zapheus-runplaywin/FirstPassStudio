@@ -20,7 +20,7 @@ shown on the graphics (competition, organisation, venue), the game rules (quarte
 shots, the ladder's finals marker), game day settings (court to follow, automatic game selection, minutes before a game
 it switches, days ahead that count as this round), nine colours, panel transparency and the font, the competition logo
 (above the title banner and in the ladder's corner), the team logos (drop files on the page; they match teams by file
-name, and the PlayHQ team list lets you pick a different logo for any team), the title flames, The Clash's big word and
+name, and the PlayHQ team list lets you pick a different logo for any team), the emoji either side of the title (any emoji, or none), The Clash's big word and
 the PlayHQ Client ID most competitions don't need.
 
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
@@ -118,7 +118,8 @@ Scoreboard position: by default it is centred at the bottom, just above the scor
 These follow the game picked on the scoreboard control page (board 1 unless you add `&board=2`):
 
 - http://localhost:8080/title.html: round, competition and venue banner. The venue is set on the competition setup page
-  (blank uses the venue from PlayHQ). `?position=bottom` moves it down, `?fire=0` drops the flames.
+  (blank uses the venue from PlayHQ). `?position=bottom` moves it down, `?fire=0` drops the emoji
+  and `?emoji=⚡` uses a different one on that page only.
 - http://localhost:8080/upnext.html: the next game on the same court, for half time. With no game picked, it
   assumes the stream is on the first timeslot and shows the game after it.
 - http://localhost:8080/clash.html: animated match up. The two logos charge in, smash together in the middle with a flash,

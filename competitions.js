@@ -51,7 +51,7 @@ const DEFAULTS = {
   panelOpacity: 0.92,
   font: 'Montserrat',
   competitionLogo: '',                 // a file in brand/
-  titleFlames: true,                   // the flame emoji either side of the title banner
+  titleEmoji: '🔥',                    // the emoji either side of the title banner, blank for none
   clashWord: 'CLASH',                  // the big word on The Clash
   logoAliases: {},                     // { "PlayHQ team name": "file.png" }
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
@@ -70,8 +70,15 @@ const dirOf = id => { if (!validId(id)) throw new Error(`No competition "${id}"`
 const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } };
 const writeJson = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
 
+// Setups saved before the emoji could be picked had a flames on/off tick box.
+function fromFlames(s) {
+  if (!s || s.titleEmoji !== undefined || typeof s.titleFlames !== 'boolean') return s;
+  return { ...s, titleEmoji: s.titleFlames ? '🔥' : '' };
+}
+
 // Keep only known settings, with the right types, so a bad save can't break the helper.
 function clean(input, base = DEFAULTS) {
+  input = fromFlames(input); base = fromFlames(base);
   const out = {};
   for (const [k, def] of Object.entries(DEFAULTS)) {
     let v = input && input[k] !== undefined ? input[k] : base[k] !== undefined ? base[k] : def;
@@ -93,6 +100,7 @@ function clean(input, base = DEFAULTS) {
   if (!FONTS.includes(out.font)) out.font = DEFAULTS.font;
   out.competitionLogo = out.competitionLogo ? path.basename(out.competitionLogo) : '';
   out.clashWord = out.clashWord.slice(0, 20) || 'CLASH';
+  out.titleEmoji = [...new Intl.Segmenter().segment(out.titleEmoji)].slice(0, 4).map(x => x.segment).join('').trim();
   out.name = out.name.slice(0, 80) || out.competitionName || DEFAULTS.name;
   return out;
 }

@@ -51,7 +51,7 @@
       <li><b>Colours and font:</b> nine colours, how see-through the dark panels are, and the font, with a preview.</li>
       <li><b>Logos:</b> the competition logo (above the title banner and in the ladder's corner) and the team logos. Drop logo files on the page;
         they match teams by file name, and the PlayHQ team list shows which logo each team gets, with a box to pick a different one.</li>
-      <li><b>Graphics:</b> the title banner flames and The Clash's big word. Also the PlayHQ Client ID, which most competitions don't need.</li>
+      <li><b>Graphics:</b> the emoji either side of the title banner (pick any emoji, or leave it empty for none) and The Clash's big word. Also the PlayHQ Client ID, which most competitions don't need.</li>
     </ul>
     <p class="page__help"><b>Use this one</b> switches every graphic, the control page and the Stream Deck to that competition: the round goes back
       to automatic and the scoreboard starts on that competition's first game. Saving the competition in use reloads the graphics in OBS
@@ -161,7 +161,9 @@ function pageRow(name, path, help) {
 }
 document.getElementById('sbUrl').textContent = `${location.origin}/scoreboard.html`;
 document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreboard.html`, e.target);
-[['Title banner', '/title.html'], ['Logos beside the title (PIVT, FirstPass Studio, competition)', '/branding.html',
+[['Title banner', '/title.html',
+  'The emoji either side of the title is picked in the competition setup (any emoji, or none). ' +
+  'Options: <code>?fire=0</code> leaves it off on this page and <code>?emoji=%E2%9A%A1</code> uses a different one.'], ['Logos beside the title (PIVT, FirstPass Studio, competition)', '/branding.html',
   'Just the logos, placed either side of the title banner, so the other pages can be turned on and off around them. The competition logo comes from the competition setup. ' +
   'Options: <code>?pivt=0</code>, <code>?studio=0</code> or <code>?comp=0</code> leave a logo off, <code>?gap=320</code> moves both sides in or out from the centre, ' +
   '<code>?top=95</code> moves them up or down, and <code>?size=1.2</code> makes them bigger.'], ['Match up (with form and head to head)', '/matchup.html'], ['The Clash (animated match up)', '/clash.html',

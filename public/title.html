@@ -41,9 +41,9 @@
   <!-- Add to OBS as a Browser source, 1920 x 1080:
        http://localhost:8080/title.html
        Round comes from the game picked on the scoreboard control page; the venue from
-       the competition setup page (or PlayHQ's venue if that is blank), and so do the flames and the
-       competition logo shown above the banner.
-       Options: ?board=2 for a second court, ?position=bottom, ?fire=0 or ?fire=1 to drop or add the flames,
+       the competition setup page (or PlayHQ's venue if that is blank), and so do the emoji either side
+       of the title and the competition logo shown above the banner.
+       Options: ?board=2 for a second court, ?position=bottom, ?fire=0 to drop the emoji, ?emoji=⚡ for a different one,
        ?logo=0 to leave the competition logo off. -->
   <div class="title" id="title" hidden>
     <img class="title__logo" id="logo" alt="" hidden>
@@ -56,27 +56,28 @@
   <script>
     const params = new URLSearchParams(location.search);
     const boardId = params.get('board') || '1';
-    let fire = true;
+    let emoji = '';
     if (params.get('position') === 'bottom') document.body.classList.add('bottom');
     let last = '';
 
     function setComp(name) {
       const comp = document.getElementById('comp');
       comp.replaceChildren();
-      const flame = () => { const s = document.createElement('span'); s.className = 'fire'; s.textContent = '🔥'; return s; };
-      if (fire) comp.append(flame(), ' ');
+      const side = () => { const s = document.createElement('span'); s.className = 'fire'; s.textContent = emoji; return s; };
+      if (emoji) comp.append(side(), ' ');
       comp.append(name);
-      if (fire) comp.append(' ', flame());
+      if (emoji) comp.append(' ', side());
     }
 
     async function load() {
       try {
         const s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
         const rules = s.rules || {};
-        const view = JSON.stringify([s.round, s.competition, s.venueName, rules.competitionLogo, rules.titleFlames]);
+        const view = JSON.stringify([s.round, s.competition, s.venueName, rules.competitionLogo, rules.titleEmoji]);
         if (view === last) return;
         last = view;
-        fire = params.has('fire') ? params.get('fire') !== '0' : rules.titleFlames !== false;
+        emoji = params.get('fire') === '0' ? '' : params.has('emoji') ? params.get('emoji')
+          : rules.titleEmoji || (params.get('fire') === '1' ? '🔥' : '');
         const logo = document.getElementById('logo');
         logo.hidden = !rules.competitionLogo || params.get('logo') === '0';
         if (!logo.hidden) logo.src = rules.competitionLogo;
