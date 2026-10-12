@@ -30,7 +30,7 @@
 <body class="fp">
 <header class="fp-bar">
   <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
-  <nav><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competition setup</a><a href="/api.html">Stream Deck API</a></nav>
+  <nav><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competition setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck API</a></nav>
 </header>
 <main>
   <h1>Graphics for OBS</h1>
@@ -38,7 +38,12 @@
   <div class="card">
     <h2>Competition setup</h2>
     <p class="page__help" id="compNow">Every graphic is set up for one competition at a time.</p>
-    <div class="row"><a class="btn" href="/setup.html" target="_blank">Open competition setup</a></div>
+    <div class="row"><a class="btn" href="/setup.html" target="_blank">Open competition setup</a><a class="btn" href="/athletes.html" target="_blank">Open athlete photos</a></div>
+    <p class="page__help">The <a href="/athletes.html" target="_blank">Athletes page</a> keeps a photo of each athlete for the position match ups.
+      Pick a team to see every athlete in its PlayHQ line ups this season and add a photo to each (or drop one onto them).
+      Photos are saved in the competition's <code style="display:inline">photos</code> folder, named after the athlete, so they match in every game.
+      To add many at once, drop photos named after their athletes (<code style="display:inline">Jane Smith.jpg</code> or <code style="display:inline">smith_jane.png</code>);
+      any that match nobody can be given to an athlete in the photo library.</p>
     <p class="page__help">The <a href="/setup.html" target="_blank">competition setup page</a> keeps a saved setup for each competition
       (Thunder League, AMMNA Nationals, GIG WANL, or any you add) and switches between them. AMMNA Nationals and GIG WANL
       come with their PlayHQ link, colours and logo. AMMNA's competition is set to Australian Championships; for GIG WANL press
@@ -156,6 +161,7 @@
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page).</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
+      <li>Athletes page: when you open a team, the line up of each of its games this season, once (finished games are kept for an hour).</li>
     </ul>
     <p class="page__help">Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
       <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard and control page.</p>
@@ -200,7 +206,12 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   '<code>?mode=light</code> (the default) uses the FirstPass Studio and competition logos for a light picture behind them; <code>?mode=dark</code> uses the ones for a dark picture.'], ['Match up (with form and head to head)', '/matchup.html'], ['The Clash (animated match up)', '/clash.html',
   'Plays when the page loads: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
   'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=RIVALS</code> changes the big word, and ' +
-  '<code>?title=Grand%20Final</code> changes the bottom line. Combine them with &amp;, e.g. <code>/clash.html?out=10&amp;word=RIVALS</code>.'], ['Up next (half time)', '/upnext.html'], ['Home team list', '/teamlist.html?side=home'],
+  '<code>?title=Grand%20Final</code> changes the bottom line. Combine them with &amp;, e.g. <code>/clash.html?out=10&amp;word=RIVALS</code>.'], ['Up next (half time)', '/upnext.html'], ['Position match ups (athlete photos)', '/positions.html',
+  'Goes through the home team from GS to GK, each beside the away athlete they play against (GS v GK, GA v GD, WA v WD, C v C, WD v WA, GD v GA, GK v GS), ' +
+  'with photos from the <a href="/athletes.html" target="_blank">Athletes page</a>, then shows all seven together. Positions come from the PlayHQ line up for the game; a position missing from it shows as Unknown. ' +
+  'Tick <b>Refresh browser when scene becomes active</b> in OBS so it starts again each time. ' +
+  'Options: <code>?hold=6</code> seconds per pairing (default 5), <code>?loop=1</code> keeps going round, <code>?end=out</code> animates away after the last pairing, ' +
+  '<code>?show=all</code> shows all seven straight away, <code>?pair=C</code> shows one pairing only.'], ['Home team list', '/teamlist.html?side=home'],
  ['Away team list', '/teamlist.html?side=away'], ['Shooting stats', '/shooting.html'],
  ['Full time card', '/fulltime.html'], ['Ladder lower third', '/ladderbar.html'], ['Score ticker (other courts, updates itself)', '/ticker.html']]
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
