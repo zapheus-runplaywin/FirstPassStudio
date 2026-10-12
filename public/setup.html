@@ -68,7 +68,7 @@
   .pv-venue { background: radial-gradient(ellipse at center, var(--purple-dark-light) 0%, var(--purple-dark) 100%); font-weight: 700; font-size: 14px; padding: 4px 30px 5px; }
   .pv-score { display: flex; align-items: stretch; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,.35); border-radius: 6px; overflow: hidden; }
   .pv-score .t { background: var(--purple); padding: 8px 14px; font-size: 14px; text-transform: uppercase; min-width: 120px; text-align: center; }
-  .pv-score .s { background: var(--yellow); color: var(--text-on-yellow); padding: 8px 12px; font-size: 18px; }
+  .pv-score .s { background: #fff; color: #000; padding: 8px 12px; font-size: 18px; }
   .pv-score .c { background: var(--pink); padding: 8px 12px; font-size: 14px; }
   .pv-ladder { width: 100%; max-width: 380px; border-radius: 8px; overflow: hidden; font-size: 13px; }
   .pv-ladder .h { background: var(--purple); border-bottom: 3px solid var(--pink); padding: 8px 12px; font-weight: 800; text-transform: uppercase; }
@@ -289,9 +289,9 @@
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const COLOURS = [
     ['main', 'Main', 'banners, headers, team name panels'], ['dark', 'Main, dark', 'venue bar, shadows'],
-    ['highlight', 'Highlight', 'round tab, scores, points, VS'], ['accent', 'Accent', 'stripes, tabs, the clock box'],
+    ['highlight', 'Highlight', 'round tab, points, VS'], ['accent', 'Accent', 'stripes, tabs, the clock box'],
     ['panel', 'Panels', 'behind tables and team lists'], ['panelAlt', 'Panels, alternate', 'every second row'],
-    ['text', 'Text', 'on the main colour and panels'], ['textOnHighlight', 'Text on highlight', 'scores, points'],
+    ['text', 'Text', 'on the main colour and panels'], ['textOnHighlight', 'Text on highlight', 'round tab, points'],
     ['muted', 'Small print', 'column headings, footers'],
   ];
   let info = null;     // { active, competitions, fonts, defaults }
