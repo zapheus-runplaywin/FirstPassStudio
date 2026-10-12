@@ -2,34 +2,39 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Scoreboard API</title>
+<title>Stream Deck API · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="vendor/swagger-ui/swagger-ui.css">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="studio.css">
 <style>
-  body { margin: 0; background: #fff; }
-  .topbar-thunder {
-    background: var(--purple); color: #fff; padding: 14px 20px; border-bottom: 5px solid var(--pink);
-    font-family: "Segoe UI", Arial, sans-serif; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  }
-  .topbar-thunder h1 { margin: 0; font-size: 22px; }
-  .topbar-thunder a { color: var(--yellow); text-decoration: none; font-weight: 600; }
-  .topbar-thunder .spacer { flex: 1; }
-  .swagger-ui .info .title { color: var(--purple); }
-  .swagger-ui .btn.execute { background: var(--purple); border-color: var(--purple); }
-  .swagger-ui .opblock.opblock-get { border-color: var(--purple); background: rgba(var(--purple-rgb), 0.06); }
-  .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--purple); }
-  .swagger-ui .opblock.opblock-get .opblock-summary { border-color: var(--purple); }
-  #fallback { font-family: "Segoe UI", Arial, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; }
+  body.fp { background: var(--fp-white); }
+  .apibar { max-width: 1460px; margin: 0 auto; padding: 20px 20px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; font-family: var(--fp-font); }
+  .apibar a { color: var(--fp-blue); font-weight: 600; font-size: 14px; }
+  /* Swagger in Montserrat and FirstPass colours; code and paths keep their monospace face. */
+  .swagger-ui, .swagger-ui :not(code):not(pre):not(.microlight):not(.opblock-summary-path):not(.opblock-summary-path *):not(textarea) { font-family: var(--fp-font); }
+  .swagger-ui .info .title { color: var(--fp-navy); font-weight: 900; font-style: italic; }
+  .swagger-ui .info a, .swagger-ui a.nostyle { color: var(--fp-blue); }
+  .swagger-ui .opblock-tag { color: var(--fp-navy); font-weight: 800; border-bottom-color: var(--fp-line); }
+  .swagger-ui .btn.execute { background: var(--fp-blue); border-color: var(--fp-blue); }
+  .swagger-ui .btn.try-out__btn, .swagger-ui .btn.cancel { border-color: var(--fp-blue); color: var(--fp-blue); }
+  .swagger-ui .opblock.opblock-get { border-color: var(--fp-blue); background: rgba(34, 116, 165, .06); }
+  .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--fp-blue); }
+  .swagger-ui .opblock.opblock-get .opblock-summary { border-color: var(--fp-blue); }
+  .swagger-ui .opblock .opblock-section-header { background: var(--fp-gray); box-shadow: none; }
+  .swagger-ui .scheme-container { background: var(--fp-gray); box-shadow: none; border-bottom: 1px solid var(--fp-line); }
+  .swagger-ui .markdown code, .swagger-ui .renderedMarkdown code { color: var(--fp-navy); background: var(--fp-blue-soft); }
+  .swagger-ui .info .title small.version-stamp { background: var(--fp-blue); }
+  .swagger-ui .info .title small:not(.version-stamp) { background: var(--fp-muted); }
+  #fallback { font-family: var(--fp-font); max-width: 760px; margin: 24px auto; padding: 0 16px; }
 </style>
 <script src="log.js"></script>
 </head>
-<body>
-  <div class="topbar-thunder">
-    <h1>Scoreboard API</h1>
-    <span class="spacer"></span>
-    <a href="/">Home</a>
-    <a href="/control.html">Scoreboard control</a>
+<body class="fp">
+  <header class="fp-bar">
+    <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
+    <nav><a href="/">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competition setup</a><a href="/api.html" aria-current="page">Stream Deck API</a></nav>
+  </header>
+  <div class="apibar">
     <a href="/openapi.yaml" download>Download openapi.yaml</a>
   </div>
   <div id="swagger"></div>

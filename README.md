@@ -3,6 +3,10 @@
 Transparent ladder, scoreboard and game overlays for OBS, fed live from PlayHQ's public data (no API key). Set up for
 Thunder League, with saved setups ready for the AMMNA Nationals and the WA Netball League.
 
+The pages you work in (home, scoreboard control, competition setup and the Stream Deck API docs) carry the FirstPass
+Studio look from `public/studio.css`, with the Montserrat font served from `public/vendor/montserrat` so it works
+offline. The OBS overlays don't use it: they keep the colours, font and logos of the competition in use.
+
 ## One-time setup
 
 1. Install Node.js (the LTS version) from https://nodejs.org if you don't have it.
