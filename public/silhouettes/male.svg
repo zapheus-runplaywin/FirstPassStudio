@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <!-- Generic male athlete with no photo: short hair, broad shoulders. -->
+  <g fill="#e6e1ee">
+    <path d="M200 252c-100 0-172 50-186 132-6 34-8 76-8 116h388c0-40-2-82-8-116-14-82-86-132-186-132z"/>
+    <path d="M168 218h64v44c0 18-14 30-32 30s-32-12-32-30z"/>
+    <ellipse cx="200" cy="152" rx="72" ry="84"/>
+  </g>
+  <path fill="#c9c1d6" d="M126 140c-4-58 30-90 76-90 44 0 78 26 74 84-10-20-24-32-44-36-30 10-66 12-96 2-4 12-8 24-10 40z"/>
+</svg>

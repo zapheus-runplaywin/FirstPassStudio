@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <!-- Generic female athlete with no photo: hair tied back in a ponytail. -->
+  <path fill="#c9c1d6" d="M262 110c46 6 66 44 58 92-6 36-26 62-46 74 12-30 14-64 2-94-6-16-16-30-30-40z"/>
+  <g fill="#e6e1ee">
+    <path d="M200 256c-90 0-156 48-170 128-6 34-8 76-8 116h356c0-40-2-82-8-116-14-80-80-128-170-128z"/>
+    <path d="M172 220h56v40c0 16-12 28-28 28s-28-12-28-28z"/>
+    <ellipse cx="200" cy="154" rx="66" ry="80"/>
+  </g>
+  <path fill="#c9c1d6" d="M132 156c-8-64 26-100 70-100 46 0 76 34 68 98-12-28-32-46-62-52-26 4-52 20-76 54z"/>
+</svg>

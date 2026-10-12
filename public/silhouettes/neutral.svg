@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <!-- Generic athlete with no photo (gender unknown). Light so it reads on the competition colours. -->
+  <g fill="#e6e1ee">
+    <circle cx="200" cy="150" r="78"/>
+    <path d="M200 252c-92 0-162 52-176 132-6 34-8 76-8 116h368c0-40-2-82-8-116-14-80-84-132-176-132z"/>
+  </g>
+</svg>
