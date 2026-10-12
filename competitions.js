@@ -57,6 +57,7 @@ const DEFAULTS = {
   titleEmoji: '🔥',                    // the emoji either side of the title banner, blank for none
   clashWord: 'CLASH',                  // the big word on The Clash
   logoAliases: {},                     // { "PlayHQ team name": "file.png" }
+  teamColours: {},                     // { "PlayHQ team name": "#rrggbb" }, behind the team on the scoreboard and The Clash
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
   apiTenant: '',
 };
@@ -89,6 +90,8 @@ function clean(input, base = DEFAULTS) {
       v = Object.fromEntries(Object.entries(def).map(([c, d]) => [c, HEX.test((v || {})[c]) ? v[c].toLowerCase() : ((base.colours || {})[c] || d)]));
     } else if (k === 'logoAliases') {
       v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter(([t, f]) => t && typeof f === 'string' && f).map(([t, f]) => [String(t), path.basename(f)]));
+    } else if (k === 'teamColours') {
+      v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter(([t, c]) => t && HEX.test(c)).map(([t, c]) => [String(t), c.toLowerCase()]));
     } else if (typeof def === 'boolean') v = v === true || v === 'true' || v === 'on';
     else if (typeof def === 'number') { v = Number(v); if (!Number.isFinite(v)) v = def; }
     else v = String(v ?? '').trim();
@@ -225,7 +228,7 @@ function create(name, fromId, overrides = {}, wantedId) {
   let id = wantedId || slug(name), n = 2;
   while (fs.existsSync(path.join(DIR, id))) id = `${slug(name).slice(0, 36)}-${n++}`;
   const base = fromId ? get(fromId) : DEFAULTS;
-  const settings = clean({ ...base, ...overrides, name, competitionLogo: '', logoAliases: fromId ? {} : overrides.logoAliases }, DEFAULTS);
+  const settings = clean({ ...base, ...overrides, name, competitionLogo: '', logoAliases: fromId ? {} : overrides.logoAliases, teamColours: fromId ? {} : overrides.teamColours }, DEFAULTS);
   for (const sub of ['logos', 'brand']) fs.mkdirSync(path.join(DIR, id, sub), { recursive: true });
   writeJson(path.join(DIR, id, 'settings.json'), settings);
   return id;

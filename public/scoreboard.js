@@ -6,6 +6,10 @@
   const $ = id => document.getElementById(id);
   let state = null;
   let clockOffset = 0; // server time minus local time
+  const textOn = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#111111' : '#ffffff';
+  };
 
   function setText(id, text) { if ($(id).textContent !== String(text)) $(id).textContent = text; }
 
@@ -32,6 +36,16 @@
     }
   }
 
+  // A team colour from the competition setup page goes behind that team's name, with
+  // dark or white text, whichever reads better on it. No colour: the competition's.
+  function setTeamColour(id, colour) {
+    const box = $(id).parentElement;
+    if ((box.dataset.colour || '') === (colour || '')) return;
+    box.dataset.colour = colour || '';
+    box.style.background = colour || '';
+    box.style.color = colour ? textOn(colour) : '';
+  }
+
   function clockText() {
     if (!state || !state.showClock) return '';
     const c = state.clock;
@@ -48,6 +62,9 @@
     if (firstShow) { $('homeName').textContent = ''; $('awayName').textContent = ''; $('court').textContent = ''; }
     setName('homeName', state.home.name);
     setName('awayName', state.away.name);
+    const colours = state.teamColours || {};
+    setTeamColour('homeName', colours.home);
+    setTeamColour('awayName', colours.away);
     setScore('homeScore', state.home.score ?? 0);
     setScore('awayScore', state.away.score ?? 0);
     setText('period', state.period >= 5 ? 'ET' : `${state.periodLabel}${state.period}`);

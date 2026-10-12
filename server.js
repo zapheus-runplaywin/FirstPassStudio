@@ -1043,7 +1043,7 @@ async function setupTeams() {
   try { for (const g of await getCurrentGames()) { add(g.home.name, g.division); add(g.away.name, g.division); } } catch { /* the ladders are enough */ }
   return { competition: st.competition, season: st.season.name,
     teams: [...teams.values()].sort((a, b) => a.division.localeCompare(b.division, 'en', { numeric: true }) || a.name.localeCompare(b.name))
-      .map(t => ({ ...t, logo: logoFor(t.name), alias: (CONFIG.logoAliases || {})[t.name] || '' })) };
+      .map(t => ({ ...t, logo: logoFor(t.name), alias: (CONFIG.logoAliases || {})[t.name] || '', colour: colourFor(t.name) })) };
 }
 
 function readRaw(req, max) {
@@ -1265,6 +1265,11 @@ function logoFor(teamName) {
   if (!want) return null;
   const hit = files.find(f => norm(f) === want) || files.find(f => want.includes(norm(f)) || norm(f).includes(want));
   return hit ? '/logos/' + encodeURIComponent(hit) : null;
+}
+
+// A team's own colour from the competition setup page, or null to use the competition's colours.
+function colourFor(teamName) {
+  return (CONFIG.teamColours || {})[teamName] || null;
 }
 
 const summaryCache = new Map();
@@ -1540,9 +1545,10 @@ http.createServer(async (req, res) => {
       }
       else await refreshFromPlayhq(b);
       const logos = { home: logoFor(b.home.name), away: logoFor(b.away.name) };
+      const teamColours = { home: colourFor(b.home.name), away: colourFor(b.away.name) };
       const venueName = CONFIG.venueName || b.venue || '';
       const r = rules();
-      return send(res, 200, { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: CONFIG.name, venueName, logos,
+      return send(res, 200, { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: CONFIG.name, venueName, logos, teamColours,
         clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() });
     }
     const ALIASES = { '/': 'index.html', '/results.html': 'fixtures.html' }; // results.html is the fixture page showing finished games

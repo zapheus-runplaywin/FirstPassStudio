@@ -20,7 +20,8 @@ shown on the graphics (competition, organisation, venue), the game rules (quarte
 shots, the ladder's finals marker), game day settings (court to follow, automatic game selection, minutes before a game
 it switches, days ahead that count as this round), nine colours, panel transparency and the font, the competition logo
 (above the title banner and in the ladder's corner), the team logos (drop files on the page; they match teams by file
-name, and the PlayHQ team list lets you pick a different logo for any team), the emoji either side of the title (any emoji, or none), The Clash's big word and
+name, and the PlayHQ team list lets you pick a different logo for any team), an optional team colour for each team (behind its
+name on the scoreboard and behind its logo and name on The Clash), the emoji either side of the title (any emoji, or none), The Clash's big word and
 the PlayHQ Client ID most competitions don't need.
 
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
@@ -178,7 +179,9 @@ PlayHQ's "Summary for the Game v2" instead (Client ID on the setup page, other s
 The control page shows how many players were found for each team, or the error. If the lists look wrong, send the debug log to Claude.
 
 Team logos are added on the competition setup page, named after the team. A logo whose file name doesn't match the
-PlayHQ team name can be picked for that team in the setup page's team list.
+PlayHQ team name can be picked for that team in the setup page's team list. The same list gives any team its own colour
+(**Add colour**, or × to go back to the competition's colours); the scoreboard and The Clash use it behind that team. The
+match up page keeps the competition's colours.
 
 ## Options
 
