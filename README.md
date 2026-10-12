@@ -202,8 +202,19 @@ divisions they play for, and **All athletes** lists everyone seen so far, once e
 With no photo, the graphics show a generic silhouette: female, male, or plain when the gender isn't known. The gender
 comes from PlayHQ's profile when it sends one; under each athlete you can pick Female or Male instead.
 
+**Games** on an athlete opens their games and positions played:
+
+- **Positions played:** the positions in this season's PlayHQ line ups are ticked already; tick any others they've played.
+- **Games played:** one line per division, and optionally per club, with the number of games and an **As of** date.
+  Games PlayHQ shows after that date in that division (and that club, if one is picked) are added on, so the figure
+  keeps up through the season without retyping. With no date the number is used as it is. With no line for a division,
+  its games played are this season's games from PlayHQ. A game counts when the athlete is named in the team's line up.
+
+The card shows the games per division and positions played. The position match ups show the games played in the
+game's division (for the club, when the athlete has a line for it) beside the athlete's number; `?games=0` leaves it off.
+
 The page keeps a register of the competition's athletes in `competitions/<name>/athletes.json`: the teams and divisions
-each one has played for, their PlayHQ ids and gender, and any gender you picked. It fills in as line ups are read
+each one has played for, their PlayHQ ids and gender, any gender you picked, and the games and positions played you typed in. It fills in as line ups are read
 (opening a team, or the game on the control page). Photos and the register are files in the competition's folder, so
 commit the ones you want to keep like any other setting.
 
@@ -220,6 +231,7 @@ athlete without a photo shows the generic silhouette for their gender.
 - `?end=out`: animates away after the last pairing instead of showing all seven.
 - `?show=all`: shows all seven pairings straight away.
 - `?pair=C`: shows one pairing only, by the home team's position.
+- `?games=0`: leaves out each athlete's games played.
 
 Like the other graphics it loads once: tick **Refresh browser when scene becomes active** in OBS so it starts again each
 time the scene comes on.

@@ -44,6 +44,22 @@
   .ath__teams { font-size: 12px; color: var(--fp-blue-dark); }
   .ath__gender { font-size: 12px; padding: 3px 4px; width: auto; }
   .search { width: 100%; margin-bottom: 10px; }
+  .ath__stats { font-size: 12px; color: var(--fp-navy); line-height: 1.4; }
+  .ath__stats b { font-weight: 700; }
+  /* Games and positions played */
+  dialog { border: 1px solid var(--fp-line-strong); border-radius: var(--fp-radius); padding: 20px 22px; max-width: 760px; width: calc(100% - 32px); color: var(--fp-navy); font-family: var(--fp-font); }
+  dialog::backdrop { background: rgba(15,23,42,.45); }
+  dialog h2 { color: var(--fp-navy); font-size: 20px; text-transform: none; letter-spacing: 0; }
+  .posbox { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 8px; }
+  .posbox label { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+  .posbox label.seen { color: var(--fp-muted); }
+  .recs { width: 100%; border-collapse: collapse; font-size: 14px; margin: 6px 0; }
+  .recs th { text-align: left; font-size: 12px; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .05em; padding: 4px; }
+  .recs td { padding: 4px; vertical-align: middle; }
+  .recs select, .recs input { width: 100%; font: inherit; padding: 5px 6px; border: 1px solid var(--fp-line-strong); border-radius: 6px; }
+  .recs input[type=number] { width: 80px; }
+  .totals { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.6; }
+  .dlgbuttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
   .ath__photo { height: 190px; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
   .ath__photo img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .ath__photo .none { align-self: center; width: 90px; height: 90px; border-radius: 50%; background: var(--fp-line); color: var(--fp-muted); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; }
@@ -108,11 +124,27 @@
     <p class="help" id="libraryNote"></p>
   </section>
 </main>
+<dialog id="statsDialog">
+  <h2 id="statsName"></h2>
+  <h3>Positions played</h3>
+  <div class="posbox" id="statsPositions"></div>
+  <p class="help">Positions in a PlayHQ line up this season are already ticked. Tick any others the athlete has played (other seasons or competitions).</p>
+  <h3>Games played</h3>
+  <table class="recs"><thead><tr><th>Division</th><th>Club</th><th>Games</th><th>As of</th><th></th></tr></thead><tbody id="statsRows"></tbody></table>
+  <button type="button" class="small alt" id="statsAdd">Add a line</button>
+  <p class="help">Games played up to the <b>As of</b> date. Games PlayHQ shows after that date in the same division (and club, if one is picked)
+    are added on, so the number keeps up through the season. Leave <b>As of</b> blank to use the number as it is. Pick a club to count only that club's
+    games; <b>All clubs</b> counts every club in the division. With no line for a division, its games are this season's from PlayHQ.</p>
+  <div class="totals" id="statsTotals"></div>
+  <p class="help error" id="statsError"></p>
+  <div class="dlgbuttons"><button type="button" class="alt" onclick="this.closest('dialog').close()">Cancel</button><button type="button" id="statsSave">Save</button></div>
+</dialog>
 <script>
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const key = s => String(s || '').toLowerCase().replace(/['’`]/g, '').split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
 const fileKey = f => key(f.replace(/\.[a-z0-9]+$/i, ''));
+let allTeams = [];
 let photos = [], team = null, current = [], fresh = new Set(); // fresh: just dropped in, matching nobody on the team shown
 
 async function api(path, opts) {
@@ -159,7 +191,7 @@ function teamButton(t) {
 async function loadTeams() {
   try {
     const d = await api('/api/athletes');
-    photos = d.photos; current = d.current;
+    photos = d.photos; current = d.current; allTeams = d.teams;
     $('folder').textContent = d.folder;
     const box = $('teams');
     box.replaceChildren();
@@ -255,17 +287,22 @@ function renderAthletes() {
     card.appendChild(ph);
     const body = el('div', 'ath__body');
     body.appendChild(el('div', 'ath__name', a.name + (a.captain ? ' (C)' : '')));
-    if (!team.all) body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Position unknown', `${a.games} game${a.games === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    if (!team.all) body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Position unknown', `${a.games} line up${a.games === 1 ? '' : 's'} this season`].filter(Boolean).join(' · ')));
     // Other teams and divisions: the same athlete and the same photo.
     const others = (a.teams || []).filter(t => team.all || t.team !== team.team);
     if (others.length) body.appendChild(el('div', 'ath__teams', (team.all ? '' : 'Also plays for ') + others.map(t => `${t.team} (${t.division})`).join(', ')));
+    body.appendChild(statsLine(a));
     body.appendChild(genderPicker(a));
     const buttons = el('div', 'ath__buttons');
+    const edit = el('button', 'small alt', 'Games');
+    edit.title = 'Games and positions played';
+    edit.onclick = () => editStats(a);
     const add = el('label', 'btn small' + (src ? ' alt' : ''), src ? 'Change' : 'Add photo');
     const input = el('input'); input.type = 'file'; input.accept = 'image/*';
     input.onchange = () => input.files[0] && setPhoto(a.name, input.files[0]);
     add.appendChild(input);
     buttons.appendChild(add);
+    buttons.appendChild(edit);
     if (src) {
       const rm = el('button', 'small danger', 'Remove');
       rm.onclick = () => removePhoto(photos.find(p => fileKey(p.file) === key(a.name)).file);
@@ -280,6 +317,84 @@ function renderAthletes() {
     box.appendChild(card);
   }
   if (!team.athletes.length) box.appendChild(el('p', 'help', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
+}
+
+// Games played per division and positions played, as on the graphics.
+function statsLine(a) {
+  const box = el('div', 'ath__stats');
+  const games = (a.career || []).map(c => `${c.division} ${c.total}`).join(' · ');
+  if (games) { box.appendChild(el('b', '', 'Games: ')); box.appendChild(document.createTextNode(games)); box.appendChild(el('br')); }
+  if ((a.positionsPlayed || []).length) { box.appendChild(el('b', '', 'Played: ')); box.appendChild(document.createTextNode(a.positionsPlayed.join(', '))); }
+  return box;
+}
+
+const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
+
+// Edits an athlete's games played (per division, optionally per club, as of a date) and positions played.
+function editStats(a) {
+  const dlg = $('statsDialog');
+  $('statsName').textContent = a.name;
+  const typed = new Set(a.positionsTyped || []);
+  const seen = new Set((a.positionsPlayed || []).filter(p => !typed.has(p)));
+  const pos = $('statsPositions');
+  pos.replaceChildren();
+  for (const p of POSITIONS) {
+    const l = el('label', seen.has(p) ? 'seen' : '');
+    const c = el('input'); c.type = 'checkbox'; c.value = p; c.checked = typed.has(p) || seen.has(p); c.disabled = seen.has(p);
+    if (seen.has(p)) l.title = 'In a PlayHQ line up this season';
+    l.append(c, p);
+    pos.appendChild(l);
+  }
+  const divisions = [...new Set([...allTeams.map(t => t.division), ...(a.career || []).map(c => c.division), ...(team.divisions || [])])].filter(Boolean);
+  const rows = $('statsRows');
+  rows.replaceChildren();
+  const addRow = r => {
+    const tr = el('tr');
+    const div = el('select');
+    divisions.forEach(d => div.appendChild(new Option(d, d)));
+    if (r.division && !divisions.includes(r.division)) div.appendChild(new Option(r.division, r.division));
+    div.value = r.division || (a.teams && a.teams[0] ? a.teams[0].division : divisions[0] || '');
+    const club = el('select');
+    const fillClubs = () => {
+      const keep = club.value || r.club || '';
+      club.replaceChildren(new Option('All clubs', ''));
+      allTeams.filter(t => t.division === div.value).forEach(t => club.appendChild(new Option(t.name, t.name)));
+      if (keep && ![...club.options].some(o => o.value === keep)) club.appendChild(new Option(keep, keep));
+      club.value = keep;
+    };
+    div.onchange = () => { club.value = ''; fillClubs(); };
+    fillClubs();
+    const games = el('input'); games.type = 'number'; games.min = '0'; games.value = r.games != null ? r.games : '';
+    const asOf = el('input'); asOf.type = 'date'; asOf.value = r.asOf || '';
+    const rm = el('button', 'small danger', '×'); rm.type = 'button'; rm.onclick = () => tr.remove();
+    for (const x of [div, club, games, asOf, rm]) { const td = el('td'); td.appendChild(x); tr.appendChild(td); }
+    rows.appendChild(tr);
+  };
+  (a.records || []).forEach(addRow);
+  $('statsAdd').onclick = () => addRow({ asOf: new Date().toISOString().slice(0, 10) });
+  const totals = $('statsTotals');
+  totals.replaceChildren();
+  for (const c of a.career || []) {
+    const parts = c.lines.map(l => `${l.club ? l.club + ': ' : ''}${l.games}${l.asOf ? ` to ${fmtDate(l.asOf)} + ${l.since} since` : ''}`);
+    totals.appendChild(el('div', '', `${c.division}: ${c.total} games` + (parts.length ? ` (${parts.join('; ')})` : ` (${c.season} this season on PlayHQ)`)));
+  }
+  if (!totals.childNodes.length) totals.textContent = 'No games yet.';
+  $('statsError').textContent = '';
+  $('statsSave').onclick = async () => {
+    const records = [...rows.children].map(tr => {
+      const [div, club, games, asOf] = tr.querySelectorAll('select, input');
+      return { division: div.value, club: club.value, games: games.value, asOf: asOf.value };
+    }).filter(r => r.games !== '');
+    const positions = [...pos.querySelectorAll('input:checked:not(:disabled)')].map(c => c.value);
+    try {
+      const d = await api('/api/athletes/stats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ athlete: a.name, records, positions }) });
+      Object.assign(a, { career: d.career, positionsPlayed: d.positionsPlayed, positionsTyped: d.positionsTyped, records: d.records });
+      dlg.close();
+      renderAthletes();
+    } catch (err) { $('statsError').textContent = err.message; }
+  };
+  dlg.showModal();
 }
 
 // Which silhouette an athlete without a photo gets: PlayHQ's gender, or one picked here.
