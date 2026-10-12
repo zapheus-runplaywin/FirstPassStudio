@@ -1,11 +1,12 @@
 /* Scoreboard layout. Colours come from theme.css. The page background stays transparent for OBS. */
 :root {
   --margin: 48px;          /* distance from the frame edge */
-  --height: 64px;          /* height of the main bar */
+  --height: 52px;          /* height of the main bar */
   --team-width: 420px;     /* fits names like TRAVIS' DISCIPLES; longer names shrink to fit */
   --score-width: 96px;
   --radius: 8px;
-  --clock-width: 150px;    /* the pink quarter/clock box, and the court tab above it */
+  --clock-width: 150px;    /* the pink quarter/clock box on the right, and the court box on the left (same width, so
+                              the line between the scores sits in the middle of the frame) */
   --ticker-height: 52px;   /* ticker.html's bar (48px + 4px top border) at the very bottom */
   --ticker-gap: 14px;      /* space between the scoreboard and the ticker */
 }
@@ -24,11 +25,13 @@ body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var
 .scorebug__main {
   display: flex; height: var(--height); border-radius: var(--radius); overflow: hidden;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-  border-left: 8px solid var(--pink);
 }
+/* No court: keep its space empty so the scores stay centred */
+.scorebug:not(.has-court) .scorebug__main { margin-left: var(--clock-width); }
+.scorebug:not(.has-court) .court { display: none; }
 .team {
   width: var(--team-width); background: var(--purple); display: flex; align-items: center;
-  padding: 0 20px; box-sizing: border-box; font-weight: 800; font-size: 26px; text-transform: uppercase; letter-spacing: 0.02em;
+  padding: 0 20px; box-sizing: border-box; font-weight: 800; font-size: 24px; text-transform: uppercase; letter-spacing: 0.02em;
 }
 .team--home { justify-content: flex-end; text-align: right; }
 .team--away { justify-content: flex-start; }
@@ -36,19 +39,22 @@ body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var
 .score {
   width: var(--score-width); background: var(--yellow); color: var(--text-on-yellow);
   display: flex; align-items: center; justify-content: center;
-  font-size: 42px; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: 36px; font-weight: 800; font-variant-numeric: tabular-nums;
 }
 .score + .score { border-left: 3px solid var(--purple-dark); }
 .score.bump { animation: bump 0.6s ease-out; }
-.period {
-  width: var(--clock-width); box-sizing: border-box; background: var(--pink); display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 0 16px; font-weight: 800; font-size: 20px; line-height: 1.1; font-variant-numeric: tabular-nums;
+/* The court (left) and the quarter and clock (right) share the pink box style. */
+.court, .period {
+  width: var(--clock-width); flex: none; box-sizing: border-box; background: var(--pink); color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+.court { padding: 0 10px; font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; }
+.period { gap: 10px; padding: 0 12px; font-size: 20px; }
 .clock { font-size: 24px; }
 .clock:empty { display: none; }
 
-/* Tabs on top of the bar: the court above the clock, and "PlayHQ Live" above the
-   scores while scores follow PlayHQ. Both share one style. */
+/* "PlayHQ Live" tab on top of the bar, above the scores, while scores follow PlayHQ. */
 .scorebug__tab {
   position: absolute; bottom: 100%; box-sizing: border-box;
   background: var(--purple-dark); color: var(--yellow); text-align: center;
@@ -56,10 +62,8 @@ body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var
   font-size: 19px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
 }
 .scorebug__tab:empty, .scorebug__tab[hidden] { display: none; }
-.scorebug__court { right: 0; width: var(--clock-width); }
-/* 8px is the pink edge on the left of the bar; 3px is the line between the scores. */
-.scorebug__live { left: calc(8px + var(--team-width)); width: calc(var(--score-width) * 2 + 3px); }
-.scorebug.has-court .scorebug__main { border-top-right-radius: 0; }
+/* Centred over the two scores (3px is the line between them). */
+.scorebug__live { left: 50%; transform: translateX(-50%); width: calc(var(--score-width) * 2 + 3px); }
 
 @keyframes bump { 0% { background: var(--pink); color: var(--text); transform: scale(1.12); } 100% { background: var(--yellow); transform: none; } }
 @keyframes drop-in { from { opacity: 0; translate: 0 -20px; } to { opacity: 1; translate: 0 0; } }

@@ -75,6 +75,13 @@ with court, division, logos, and the score once a game is finished. `?division=1
 `?round=6` shows another round.
 http://localhost:8080/results.html is the same page showing only finished games with their scores.
 
+## Logos beside the title
+
+http://localhost:8080/branding.html shows only the PIVT and FirstPass Studio logos (left) and the competition logo
+from the setup page (right), placed either side of the title banner, so other pages can be turned on and off around
+them in OBS. `?pivt=0`, `?studio=0` or `?comp=0` leave a logo off; `?gap=320` moves both sides in or out from the
+centre, `?top=95` moves them up or down, and `?size=1.2` makes them bigger. The logo files are in `public/studio/`.
+
 ## Live scoreboard
 
 **Which round.** Every page (game list, fixture, results, ticker, up next) uses the round played in the next 5 days,

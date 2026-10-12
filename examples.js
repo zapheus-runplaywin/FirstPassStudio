@@ -144,6 +144,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
     const pages = [
       ['Live scoreboard', '/scoreboard.html', 4000],
       ['Title banner', '/title.html', 3000],
+      ['Logos beside the title', '/branding.html', 3000],
       ['Match up', '/matchup.html', 3000],
       ['The Clash (end of animation)', '/clash.html', 6000],
       ['Up next', '/upnext.html', 3000],

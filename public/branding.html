@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Branding</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<style>
+  /* Logos either side of the title banner, as in Matt's OBS scene: PIVT and FirstPass Studio
+     on the left, the competition logo on the right. The page is transparent; only the logos show. */
+  :root {
+    --gap: 320px;         /* from the centre of the frame to the inner edge of each side */
+    --mid: 95px;          /* height of the middle of the logos from the top of the frame */
+    --pivt: 58px;         /* PIVT badge height */
+    --studio: 200px;      /* FirstPass Studio width (the brand kit's minimum is 180px) */
+    --comp: 110px;        /* competition logo height */
+  }
+  html, body { margin: 0; background: transparent; }
+  body { width: 1920px; height: 1080px; position: relative; overflow: hidden; }
+  .side { position: absolute; top: var(--mid); transform: translateY(-50%); display: flex; flex-direction: column; gap: 16px;
+          animation: fade-in .5s ease-out both; }
+  .side--left { right: calc(960px + var(--gap)); align-items: center; }
+  .side--right { left: calc(960px + var(--gap)); align-items: center; }
+  .side[hidden], img[hidden] { display: none; }
+  .pivt, .comp { filter: drop-shadow(0 4px 12px rgba(0,0,0,.45)); }  /* none on FirstPass Studio: the brand kit says no shadows */
+  .pivt { height: var(--pivt); }
+  .studio { width: var(--studio); }
+  .comp { height: var(--comp); max-width: 360px; object-fit: contain; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/branding.html
+       The competition logo comes from the competition setup page. Loads once.
+       Options: ?pivt=0, ?studio=0 or ?comp=0 leave that logo off;
+                ?gap=320 moves both sides in or out (pixels from the centre of the frame);
+                ?top=95 moves the logos up or down (pixels from the top to their middle);
+                ?size=1.2 makes every logo bigger or smaller. -->
+  <div class="side side--left" id="left">
+    <img class="pivt" id="pivt" src="studio/pivt.png" alt="PIVT Live Streaming">
+    <img class="studio" id="studio" src="studio/firstpass-studio.svg" alt="FirstPass Studio">
+  </div>
+  <div class="side side--right" id="right" hidden>
+    <img class="comp" id="comp" alt="">
+  </div>
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const $ = id => document.getElementById(id);
+      const root = document.documentElement.style;
+      const num = k => { const v = parseFloat(params.get(k)); return Number.isFinite(v) ? v : null; };
+      if (num('gap') !== null) root.setProperty('--gap', num('gap') + 'px');
+      if (num('top') !== null) root.setProperty('--mid', num('top') + 'px');
+      if (num('size') !== null && num('size') > 0) {
+        const css = getComputedStyle(document.documentElement);
+        ['--pivt', '--studio', '--comp'].forEach(v => root.setProperty(v, parseFloat(css.getPropertyValue(v)) * num('size') + 'px'));
+      }
+      $('pivt').hidden = params.get('pivt') === '0';
+      $('studio').hidden = params.get('studio') === '0';
+      $('left').hidden = $('pivt').hidden && $('studio').hidden;
+
+      async function load() {
+        if (params.get('comp') === '0') return;
+        try {
+          const res = await fetch('/api/scoreboard?board=' + encodeURIComponent(params.get('board') || '1'), { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const rules = (await res.json()).rules || {};
+          if (!rules.competitionLogo) { console.warn('Branding: the competition setup has no competition logo'); return; }
+          $('comp').src = rules.competitionLogo;
+          $('right').hidden = false;
+        } catch (err) { console.warn('Branding: competition logo unavailable:', err.message); }
+      }
+      load();
+    })();
+  </script>
+</body>
+</html>
