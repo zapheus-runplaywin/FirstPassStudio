@@ -19,7 +19,7 @@ organisation's PlayHQ link and which competition and season to use (**Find its c
 shown on the graphics (competition, organisation, venue), the game rules (quarters or halves and their length, super
 shots, the ladder's finals marker), game day settings (court to follow, automatic game selection, minutes before a game
 it switches, days ahead that count as this round), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
-(above the title banner and in the ladder's corner), the team logos (drop files on the page; they match teams by file
+in light and dark mode versions (one alone is used for both; beside the title, above it and in the ladder's corner), the team logos (drop files on the page; they match teams by file
 name, and the PlayHQ team list lets you pick a different logo for any team), an optional team colour for each team (behind its
 name on the scoreboard and behind its logo and name on The Clash), the emoji either side of the title (any emoji, or none), The Clash's big word and
 the PlayHQ Client ID most competitions don't need.
@@ -101,9 +101,10 @@ http://localhost:8080/results.html is the same page showing only finished games 
 http://localhost:8080/branding.html shows only the PIVT and FirstPass Studio logos (left) and the competition logo
 from the setup page (right), placed either side of the title banner, so other pages can be turned on and off around
 them in OBS. `?pivt=0`, `?studio=0` or `?comp=0` leave a logo off; `?gap=320` moves both sides in or out from the
-centre, `?top=95` moves them up or down, and `?size=1.2` makes them bigger. `?mode=dark` (the default) uses the
-FirstPass Studio logo made for a dark picture behind it (white FirstPass, gold STUDIO); `?mode=light` uses the one
-made for a light picture (blue First, orange Pass, gold STUDIO). The logo files are in `public/studio/`.
+centre, `?top=95` moves them up or down, and `?size=1.2` makes them bigger. `?mode=light` (the default) uses the
+logos made for a light picture behind them: blue First, orange Pass and gold STUDIO, and the setup's light mode
+competition logo. `?mode=dark` uses the ones for a dark picture: white FirstPass, gold STUDIO and the dark mode
+competition logo. A competition with only one logo uses it in both modes. The logo files are in `public/studio/`.
 
 ## Live scoreboard
 
@@ -112,7 +113,8 @@ counting today, so a Tuesday round is picked from the Friday before. Otherwise i
 the days setting on the competition setup page. For testing, pick any round from **Round** on the control page; set it back to
 **Automatic** afterwards (the choice is kept in `control.json`). Automatic game selection uses the picked round too, treating its games
 as if they were today, so you can test the timed switching on any night.
-`ladder.html` without `?division=` shows the division of the game picked on the control page.
+`ladder.html` without `?division=` shows the division of the game picked on the control page. Its corner logo is the
+dark mode competition logo, since it sits on the coloured header; `?mode=light` uses the light mode one.
 
 **Always a game on.** When the helper starts, or the scoreboard is cleared, it puts a game on with Follow PlayHQ on: the
 game for now on the court, otherwise this round's first game on that court, otherwise this round's first game. It is only
@@ -143,7 +145,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 - http://localhost:8080/title.html: round, competition and venue banner. The venue is set on the competition setup page
   (blank uses the venue from PlayHQ). `?position=bottom` moves it down, `?fire=0` drops the emoji
   and `?emoji=⚡` uses a different one on that page only. The competition logo is off by default, since the logos
-  page shows it beside the title: `?logo=show` puts it above the banner, `?logo=hide` leaves it off.
+  page shows it beside the title: `?logo=show` puts it above the banner, `?logo=hide` leaves it off. It is the light mode logo unless you add `?mode=dark`.
 - http://localhost:8080/upnext.html: the next game on the same court, for half time. With no game picked, it
   assumes the stream is on the first timeslot and shows the game after it.
 - http://localhost:8080/clash.html: animated match up. The two logos charge in, smash together in the middle with a flash,

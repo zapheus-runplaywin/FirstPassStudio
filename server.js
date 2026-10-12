@@ -1348,9 +1348,12 @@ function teamsOf(b) {
 function competitionName() { return (structure && structure.competition) || CONFIG.displayName || CONFIG.competitionName; }
 // The competition's rules and look, for pages that change with them.
 function rules() {
+  // Light and dark mode competition logos; when only one is set it is used for both.
+  const brandUrl = f => f ? '/brand/' + encodeURIComponent(f) : null;
+  const light = brandUrl(CONFIG.competitionLogo || CONFIG.competitionLogoDark), dark = brandUrl(CONFIG.competitionLogoDark || CONFIG.competitionLogo);
   return { periodType: CONFIG.periodType, periods: CONFIG.periodType === 'halves' ? 2 : 4, periodLabel: CONFIG.periodType === 'halves' ? 'H' : 'Q',
     periodMinutes: CONFIG.quarterMinutes, superShots: CONFIG.superShots !== false, finalsPlaces: Number(CONFIG.finalsPlaces) || 0,
-    competitionLogo: CONFIG.competitionLogo ? '/brand/' + encodeURIComponent(CONFIG.competitionLogo) : null,
+    competitionLogo: light, competitionLogoLight: light, competitionLogoDark: dark,
     titleEmoji: CONFIG.titleEmoji ?? '🔥', clashWord: CONFIG.clashWord || 'CLASH' };
 }
 

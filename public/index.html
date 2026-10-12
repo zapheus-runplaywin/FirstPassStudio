@@ -55,7 +55,9 @@
         swatch for a colour picker (shade square, hue slider, HEX and RGB boxes, and on Chrome or Edge <b>Pick from screen</b>), or type or
         paste a colour into its box as HEX (#7f4092) or RGB (127, 64, 146). Under <b>Brand kit colours</b>, paste any text from a brand kit
         with HEX or RGB values in it; those colours are saved with the competition and show in every picker, one click to use.</li>
-      <li><b>Logos:</b> the competition logo (above the title banner and in the ladder's corner) and the team logos. Drop logo files on the page;
+      <li><b>Logos:</b> the competition logo, in a light mode version (for a light picture behind it) and a dark mode version
+        (for a dark one; if you add only one, it is used for both), and the team logos.
+        The logos page and title use the light mode logo unless <code>?mode=dark</code> is added; the ladder's corner, on its coloured header, uses the dark mode one unless <code>?mode=light</code> is added. Drop team logo files on the page;
         they match teams by file name, and the PlayHQ team list shows which logo each team gets, with a box to pick a different one.</li>
       <li><b>Team colours:</b> in the same PlayHQ team list, <b>Add colour</b> gives a team its own colour. The scoreboard puts it behind
         that team's name and The Clash behind its logo and name, with dark or white text, whichever reads better. Teams without one (or after
@@ -195,7 +197,7 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   'Just the logos, placed either side of the title banner, so the other pages can be turned on and off around them. The competition logo comes from the competition setup. ' +
   'Options: <code>?pivt=0</code>, <code>?studio=0</code> or <code>?comp=0</code> leave a logo off, <code>?gap=320</code> moves both sides in or out from the centre, ' +
   '<code>?top=95</code> moves them up or down, and <code>?size=1.2</code> makes them bigger. ' +
-  '<code>?mode=dark</code> (the default) uses the FirstPass Studio logo for a dark picture behind it; <code>?mode=light</code> uses the one for a light picture.'], ['Match up (with form and head to head)', '/matchup.html'], ['The Clash (animated match up)', '/clash.html',
+  '<code>?mode=light</code> (the default) uses the FirstPass Studio and competition logos for a light picture behind them; <code>?mode=dark</code> uses the ones for a dark picture.'], ['Match up (with form and head to head)', '/matchup.html'], ['The Clash (animated match up)', '/clash.html',
   'Plays when the page loads: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
   'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=RIVALS</code> changes the big word, and ' +
   '<code>?title=Grand%20Final</code> changes the bottom line. Combine them with &amp;, e.g. <code>/clash.html?out=10&amp;word=RIVALS</code>.'], ['Up next (half time)', '/upnext.html'], ['Home team list', '/teamlist.html?side=home'],

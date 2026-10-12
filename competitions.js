@@ -51,7 +51,8 @@ const DEFAULTS = {
   brandColours: [],                    // [{ hex, name }] pasted from a brand kit, shown as swatches in the colour pickers
   panelOpacity: 0.92,
   font: 'Montserrat',
-  competitionLogo: '',                 // a file in brand/
+  competitionLogo: '',                 // a file in brand/: the light mode logo (for a light background)
+  competitionLogoDark: '',             // a file in brand/: the dark mode logo (for a dark background); either one alone is used for both
   titleEmoji: '🔥',                    // the emoji either side of the title banner, blank for none
   clashWord: 'CLASH',                  // the big word on The Clash
   logoAliases: {},                     // { "PlayHQ team name": "file.png" }
@@ -106,6 +107,7 @@ function clean(input, base = DEFAULTS) {
   out.panelOpacity = Math.min(1, Math.max(0.3, out.panelOpacity));
   if (!FONTS.includes(out.font)) out.font = DEFAULTS.font;
   out.competitionLogo = out.competitionLogo ? path.basename(out.competitionLogo) : '';
+  out.competitionLogoDark = out.competitionLogoDark ? path.basename(out.competitionLogoDark) : '';
   out.clashWord = out.clashWord.slice(0, 20) || 'CLASH';
   out.titleEmoji = [...new Intl.Segmenter().segment(out.titleEmoji)].slice(0, 4).map(x => x.segment).join('').trim();
   out.name = out.name.slice(0, 80) || out.competitionName || DEFAULTS.name;
@@ -176,7 +178,7 @@ function create(name, fromId, overrides = {}, wantedId) {
   let id = wantedId || slug(name), n = 2;
   while (fs.existsSync(path.join(DIR, id))) id = `${slug(name).slice(0, 36)}-${n++}`;
   const base = fromId ? get(fromId) : DEFAULTS;
-  const settings = clean({ ...base, ...overrides, name, competitionLogo: '', logoAliases: fromId ? {} : overrides.logoAliases, teamColours: fromId ? {} : overrides.teamColours }, DEFAULTS);
+  const settings = clean({ ...base, ...overrides, name, competitionLogo: '', competitionLogoDark: '', logoAliases: fromId ? {} : overrides.logoAliases, teamColours: fromId ? {} : overrides.teamColours }, DEFAULTS);
   for (const sub of ['logos', 'brand']) fs.mkdirSync(path.join(DIR, id, sub), { recursive: true });
   writeJson(path.join(DIR, id, 'settings.json'), settings);
   return id;
