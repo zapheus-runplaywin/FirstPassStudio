@@ -1,2 +1,0 @@
-# Saved settings stay out of the zip, so unzipping a new version never overwrites them.
-settings export-ignore

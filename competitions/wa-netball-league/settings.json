@@ -1,8 +1,9 @@
 {
-  "presetVersion": 2,
   "name": "GIG WANL",
   "organisationUrl": "https://www.playhq.com/netball-australia/org/wa-netball-league/d037d4a9",
   "competitionName": "",
+  "seasonName": "",
+  "displayName": "",
   "organisationName": "Netball WA",
   "venueName": "",
   "periodType": "quarters",
@@ -13,8 +14,6 @@
   "autoSelectGame": true,
   "autoSelectMinutesBefore": 10,
   "roundLookaheadDays": 5,
-  "titleEmoji": "",
-  "clashWord": "CLASH",
   "colours": {
     "main": "#68ab2f",
     "dark": "#3d6b1b",
@@ -26,24 +25,14 @@
     "textOnHighlight": "#16300f",
     "muted": "#cfe6bd"
   },
+  "brandColours": [],
+  "panelOpacity": 0.92,
+  "font": "Montserrat",
   "competitionLogo": "Gold Industry Group.png",
-  "was": [
-    {
-      "name": "WA Netball League",
-      "organisationUrl": "",
-      "competitionName": "",
-      "organisationName": "Netball WA",
-      "venueName": "",
-      "periodType": "quarters",
-      "quarterMinutes": 15,
-      "superShots": false,
-      "finalsPlaces": 4,
-      "defaultCourt": "",
-      "autoSelectGame": true,
-      "autoSelectMinutesBefore": 10,
-      "roundLookaheadDays": 5,
-      "titleEmoji": "",
-      "clashWord": "CLASH"
-    }
-  ]
+  "titleEmoji": "",
+  "clashWord": "CLASH",
+  "logoAliases": {},
+  "teamColours": {},
+  "apiKey": "",
+  "apiTenant": ""
 }
