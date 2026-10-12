@@ -40,7 +40,10 @@
   .athletes { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
   .ath { border: 2px solid var(--fp-line); border-radius: 10px; overflow: hidden; background: var(--fp-white); display: flex; flex-direction: column; }
   .ath.over { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
-  .ath.missing .ath__photo { outline: 0; }
+  .ath.missing .ath__photo { background: #3a3550; }
+  .ath__teams { font-size: 12px; color: var(--fp-blue-dark); }
+  .ath__gender { font-size: 12px; padding: 3px 4px; width: auto; }
+  .search { width: 100%; margin-bottom: 10px; }
   .ath__photo { height: 190px; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
   .ath__photo img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .ath__photo .none { align-self: center; width: 90px; height: 90px; border-radius: 50%; background: var(--fp-line); color: var(--fp-muted); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; }
@@ -72,7 +75,9 @@
   <h1>Athletes</h1>
   <p class="sub">Photos of each team's athletes, for the <b>position match ups</b> graphic. Pick a team to see every athlete PlayHQ has in its line ups this season,
     then add a photo to each one. A photo is saved under the athlete's name in the competition's <b>photos</b> folder
-    (<code id="folder">competitions/…/photos</code>), so it matches that athlete in every game. Photos are made smaller before they're saved;
+    (<code id="folder">competitions/…/photos</code>), so it matches that athlete in every game, team and division: an athlete who
+    plays in more than one division needs only one photo. Without a photo, graphics show a generic silhouette for the athlete's gender
+    (from PlayHQ, or picked under the athlete). Photos are made smaller before they're saved;
     cut-out PNGs with a transparent background look best. <a href="/">Back to the page links</a></p>
 
   <section>
@@ -83,6 +88,7 @@
 
   <section id="teamBox" hidden>
     <div class="teamhead"><div id="teamLogo"></div><div><h2 id="teamName"></h2><div class="help" id="teamInfo"></div></div></div>
+    <input type="text" class="search" id="search" placeholder="Find an athlete" hidden>
     <div class="athletes" id="athletes"></div>
     <h3>Several photos at once</h3>
     <div class="drop" id="bulk">Drop photos here, each named after its athlete (e.g. <b>Jane Smith.jpg</b> or <b>smith_jane.png</b>),
@@ -107,7 +113,6 @@ const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const key = s => String(s || '').toLowerCase().replace(/['’`]/g, '').split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
 const fileKey = f => key(f.replace(/\.[a-z0-9]+$/i, ''));
-const initials = n => String(n || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
 let photos = [], team = null, current = [], fresh = new Set(); // fresh: just dropped in, matching nobody on the team shown
 
 async function api(path, opts) {
@@ -159,6 +164,10 @@ async function loadTeams() {
     const box = $('teams');
     box.replaceChildren();
     if (!d.teams.length) box.appendChild(el('span', 'help error', d.error || 'No teams found on PlayHQ for this competition.'));
+    const all = teamButton({ name: 'All athletes' });
+    all.onclick = () => openAll();
+    all.dataset.team = '*';
+    box.appendChild(all);
     let division = null;
     for (const t of d.teams) {
       if (t.division !== division) { division = t.division; const h = el('div', 'help', division); h.style.flexBasis = '100%'; h.style.fontWeight = '700'; box.appendChild(h); }
@@ -167,16 +176,41 @@ async function loadTeams() {
     $('teamsNote').textContent = `${d.competition}${current.length ? ` · On the control page now: ${current.join(' v ')}` : ''}`;
     renderLibrary();
     const want = new URLSearchParams(location.search).get('team') || current[0];
-    if (want) openTeam(want);
+    if (want === '*') openAll(); else if (want) openTeam(want);
   } catch (err) {
     console.warn('Athletes page: teams unavailable:', err.message);
     $('teams').replaceChildren(el('span', 'help error', `Couldn't load the teams: ${err.message}`));
   }
 }
 
+// Every athlete seen in the competition, once each, whatever divisions and teams they play in.
+async function openAll() {
+  for (const b of document.querySelectorAll('.teams button')) b.setAttribute('aria-pressed', b.dataset.team === '*');
+  $('teamBox').hidden = false;
+  $('teamName').textContent = 'All athletes';
+  $('teamLogo').replaceChildren();
+  $('search').hidden = false;
+  $('athletes').replaceChildren();
+  history.replaceState(null, '', '?team=*');
+  try {
+    const d = await api('/api/athletes?all=1');
+    team = { team: 'All athletes', all: true, athletes: d.athletes };
+    const multi = d.athletes.filter(a => new Set(a.teams.map(t => t.division)).size > 1).length;
+    $('teamInfo').textContent = `${d.athletes.length} athletes seen in line ups so far, ${multi} of them in more than one division. ` +
+      'Each athlete has one photo, used in every division and team they play for. Open a team to read its line ups from PlayHQ.';
+    $('teamInfo').className = 'help';
+    renderAthletes();
+    renderLibrary();
+  } catch (err) {
+    $('teamInfo').textContent = `Couldn't list the athletes: ${err.message}`;
+    $('teamInfo').className = 'help error';
+  }
+}
+
 async function openTeam(name) {
   for (const b of document.querySelectorAll('.teams button')) b.setAttribute('aria-pressed', b.dataset.team === name);
   $('teamBox').hidden = false;
+  $('search').hidden = true;
   $('teamName').textContent = name;
   $('teamInfo').textContent = 'Reading line ups from PlayHQ…';
   $('athletes').replaceChildren();
@@ -208,17 +242,24 @@ function photoOf(name) {
 function renderAthletes() {
   const box = $('athletes');
   box.replaceChildren();
+  const find = team.all ? key($('search').value) : '';
   for (const a of team.athletes) {
+    if (find && !find.split(' ').every(w => key(a.name).split(' ').some(n => n.startsWith(w)))) continue;
     const card = el('div', 'ath');
     const ph = el('div', 'ath__photo');
     const src = photoOf(a.name);
-    if (src) { const i = el('img'); i.src = src; i.alt = a.name; ph.appendChild(i); }
-    else { card.classList.add('missing'); ph.appendChild(el('div', 'none', initials(a.name))); }
+    // No photo: the generic silhouette for the athlete's gender.
+    const i = el('img'); i.src = src || a.silhouette; i.alt = src ? a.name : ''; ph.appendChild(i);
+    if (!src) card.classList.add('missing');
     if (a.position) ph.appendChild(el('span', 'ath__pos', a.position));
     card.appendChild(ph);
     const body = el('div', 'ath__body');
     body.appendChild(el('div', 'ath__name', a.name + (a.captain ? ' (C)' : '')));
-    body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Position unknown', `${a.games} game${a.games === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    if (!team.all) body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Position unknown', `${a.games} game${a.games === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    // Other teams and divisions: the same athlete and the same photo.
+    const others = (a.teams || []).filter(t => team.all || t.team !== team.team);
+    if (others.length) body.appendChild(el('div', 'ath__teams', (team.all ? '' : 'Also plays for ') + others.map(t => `${t.team} (${t.division})`).join(', ')));
+    body.appendChild(genderPicker(a));
     const buttons = el('div', 'ath__buttons');
     const add = el('label', 'btn small' + (src ? ' alt' : ''), src ? 'Change' : 'Add photo');
     const input = el('input'); input.type = 'file'; input.accept = 'image/*';
@@ -239,6 +280,27 @@ function renderAthletes() {
     box.appendChild(card);
   }
   if (!team.athletes.length) box.appendChild(el('p', 'help', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
+}
+
+// Which silhouette an athlete without a photo gets: PlayHQ's gender, or one picked here.
+function genderPicker(a) {
+  const sel = el('select', 'ath__gender');
+  const fromPlayhq = a.genderSetByHand ? '' : a.gender;
+  sel.appendChild(new Option(`${fromPlayhq ? (fromPlayhq === 'female' ? 'Female' : 'Male') : 'Not known'} (PlayHQ)`, ''));
+  sel.appendChild(new Option('Female', 'female'));
+  sel.appendChild(new Option('Male', 'male'));
+  sel.value = a.genderSetByHand ? a.gender : '';
+  sel.title = 'Used when there is no photo';
+  sel.onchange = async () => {
+    try {
+      const d = await api('/api/athletes/gender', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ athlete: a.name, gender: sel.value }) });
+      Object.assign(a, { gender: d.gender, genderSetByHand: d.genderSetByHand, silhouette: d.silhouette });
+      renderAthletes();
+    } catch (err) { alert(err.message); }
+  };
+  const wrap = el('label', 'ath__meta', 'Silhouette ');
+  wrap.appendChild(sel);
+  return wrap;
 }
 
 function renderLibrary() {
@@ -327,6 +389,7 @@ $('otherFile').onchange = e => {
 // Dropping a photo anywhere else shouldn't open it in the browser.
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => e.preventDefault());
+$('search').oninput = () => team && renderAthletes();
 loadTeams();
 </script>
 </body>

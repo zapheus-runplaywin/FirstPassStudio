@@ -42,7 +42,8 @@ comes up (`autoSelectMinutesBefore` ahead), and Up next looks across the whole d
 The repository holds the starting point for every setting, and the setup and control pages save your changes straight
 into the same files:
 
-- `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/` and `photos/` (athlete photos).
+- `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
+  `athletes.json` (the athlete register from the Athletes page).
 - `competitions/active.json`: the competition in use.
 
 Changes show up in `git status` like any other edit. Commit the ones you want to keep and send them as a pull request;
@@ -194,7 +195,17 @@ their number, usual position and how many games they've played. Then:
   listed first in the photo library, where **Give to an athlete** renames them to that athlete.
 - **An athlete PlayHQ doesn't list yet:** type their name exactly as PlayHQ will show it and add the photo.
 
-Photos are files in the competition's folder, so commit the ones you want to keep like any other setting.
+One athlete, one photo: photos go by the athlete's name across the whole competition, so an athlete who plays in more
+than one division (or for more than one team) needs only one photo. Each athlete card says which other teams and
+divisions they play for, and **All athletes** lists everyone seen so far, once each, with a search box.
+
+With no photo, the graphics show a generic silhouette: female, male, or plain when the gender isn't known. The gender
+comes from PlayHQ's profile when it sends one; under each athlete you can pick Female or Male instead.
+
+The page keeps a register of the competition's athletes in `competitions/<name>/athletes.json`: the teams and divisions
+each one has played for, their PlayHQ ids and gender, and any gender you picked. It fills in as line ups are read
+(opening a team, or the game on the control page). Photos and the register are files in the competition's folder, so
+commit the ones you want to keep like any other setting.
 
 http://localhost:8080/positions.html shows the game picked on the control page position by position: the home team's
 line up from GS to GK, each beside the away athlete they play against (home GS v away GK, GA v GD, WA v WD, C v C,
@@ -202,7 +213,7 @@ WD v WA, GD v GA, GK v GS), with their photos, names, numbers and captains. It t
 Positions come from the line up entered on PlayHQ for that game. Some competitions' line ups miss positions: any
 position with nobody listed shows **Unknown** (with a question mark for the photo), and the debug log says which. Only a
 game with no line up at all leaves the page empty. Full position names ("Goal Shooter") are read as GS and so on. An
-athlete without a photo shows their initials.
+athlete without a photo shows the generic silhouette for their gender.
 
 - `?hold=6`: seconds per pairing (default 5).
 - `?loop=1`: keeps going round instead of finishing on all seven.

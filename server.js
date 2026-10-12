@@ -312,13 +312,19 @@ async function fetchRoundGames(roundId) {
 // The same request the playhq.com game page makes. Unlike the round fixture, it
 // has the score while the game is being scored, and needs no API key.
 const STATS = 'statistics { count type { value } }';
-const LINEUP = `players {
+// A player's gender (for the generic silhouette when there's no photo). PlayHQ's field
+// isn't documented, so each spelling is tried in turn and the first one PlayHQ accepts is kept.
+const GENDER_FIELDS = ['gender', 'gender { value }', ''];
+let genderField = 0;
+const lineup = () => {
+  const profile = `profile { firstName lastName ${GENDER_FIELDS[genderField]} }`;
+  return `players {
   playerNumber
   player {
     __typename
-    ... on DiscoverParticipant { id profile { firstName lastName } }
-    ... on DiscoverParticipantFillInPlayer { id profile { firstName lastName } }
-    ... on DiscoverGamePermitFillInPlayer { id profile { firstName lastName } }
+    ... on DiscoverParticipant { id ${profile} }
+    ... on DiscoverParticipantFillInPlayer { id ${profile} }
+    ... on DiscoverGamePermitFillInPlayer { id ${profile} }
     ... on DiscoverRegularFillInPlayer { id name }
     ... on DiscoverAnonymousParticipant { id name }
   }
@@ -326,15 +332,23 @@ const LINEUP = `players {
   playerPosition { shortName }
   captain { name shortName }
 }`;
-const Q_GAME = `query discoverGame($gameID: ID!) {
+};
+const qGame = () => `query discoverGame($gameID: ID!) {
   discoverGame(gameID: $gameID) {
     id date status { value }
     home { ${TEAM} }
     away { ${TEAM} }
     result { home { score ${STATS} } away { score ${STATS} } }
-    statistics { home { ${LINEUP} ${STATS} } away { ${LINEUP} ${STATS} } }
+    statistics { home { ${lineup()} ${STATS} } away { ${lineup()} ${STATS} } }
   }
 }`;
+// 'female', 'male' or '' from whatever PlayHQ sends ("FEMALE", { value: "F" }, "Woman"...).
+function genderOf(v) {
+  const s = String((v && typeof v === 'object' ? v.value || v.name : v) || '').toUpperCase();
+  if (/^(F|W|G)|FEMALE|WOMAN|GIRL/.test(s)) return 'female';
+  if (/^(M|B)|MAN|BOY/.test(s)) return 'male';
+  return '';
+}
 
 const statCount = (list, type) => { const x = (list || []).find(s => s.type && s.type.value === type); return x ? x.count : null; };
 const POSITION_RANK = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
@@ -355,7 +369,7 @@ function parseGame(g) {
       const goals = statCount(p.statistics, '1_POINT_SCORE') || 0;
       const superGoals = statCount(p.statistics, '2_POINT_SCORE') || 0;
       return {
-        name, number: p.playerNumber || '', position: positionOf(p), // GS..GK; full names and odd spellings tidied, '' when PlayHQ has none,
+        name, number: p.playerNumber || '', playhqId: who.id || '', gender: genderOf(who.profile && who.profile.gender), position: positionOf(p), // GS..GK; full names and odd spellings tidied, '' when PlayHQ has none,
         private: who.__typename === 'DiscoverAnonymousParticipant',
         captain: !!p.captain && !/vice/i.test(p.captain.name || ''), viceCaptain: !!p.captain && /vice/i.test(p.captain.name || ''),
         // shots = every attempt, normal and super (PlayHQ records one attempt count).
@@ -377,7 +391,16 @@ async function getGame(gameId, maxAgeMs) {
   if (hit && Date.now() - hit.at < maxAgeMs) return hit.game;
   if (!gameInFlight.has(gameId)) {
     gameInFlight.set(gameId, (async () => {
-      const g = (await gql('discoverGame', Q_GAME, { gameID: gameId })).discoverGame;
+      let g;
+      for (;;) {
+        try { g = (await gql('discoverGame', qGame(), { gameID: gameId })).discoverGame; break; }
+        catch (err) {
+          // PlayHQ doesn't know that spelling of gender: try the next one (the last asks for none).
+          if (!err.graphql || !/gender/i.test(err.message) || genderField >= GENDER_FIELDS.length - 1) throw err;
+          genderField++;
+          log('info', 'playhq', `Player gender: trying "${GENDER_FIELDS[genderField] || 'none'}" after: ${err.message}`);
+        }
+      }
       if (!g) throw new Error(`PlayHQ has no game ${gameId}`);
       const game = parseGame(g);
       gameCache.set(gameId, { at: Date.now(), game });
@@ -1271,11 +1294,71 @@ function photoFor(name, files = photoFiles()) {
   const hit = want && files.find(f => fileKey(f) === want);
   return hit ? '/photos/' + encodeURIComponent(hit) : null;
 }
-// Adds each player's photo to a team sheet answer.
+// ─── Athlete register (competitions/<id>/athletes.json) ─────────────────────
+// One entry per athlete in the competition, keyed by their name like the photos, so an
+// athlete who plays in more than one division (or team) is one athlete with one photo.
+// It remembers the teams and divisions they've played for, their PlayHQ ids and gender,
+// and a gender set by hand on the athletes page. Filled in as line ups are read.
+let register = { id: null, data: {}, dirty: false };
+function registerFile(id) { return path.join(competitions.DIR, id, 'athletes.json'); }
+function athletes() {
+  const id = competitions.activeId();
+  if (register.id !== id) {
+    let data = {};
+    try { data = JSON.parse(fs.readFileSync(registerFile(id), 'utf8')).athletes || {}; } catch { /* none yet */ }
+    register = { id, data, dirty: false };
+  }
+  return register.data;
+}
+function saveRegister() {
+  if (!register.dirty || !register.id) return;
+  const sorted = Object.fromEntries(Object.keys(register.data).sort().map(k => [k, register.data[k]]));
+  try {
+    fs.writeFileSync(registerFile(register.id), JSON.stringify({ athletes: sorted }, null, 2) + '\n');
+    register.dirty = false;
+  } catch (err) { log('warn', 'athletes', `Could not save athletes.json: ${err.message}`); }
+}
+// Adds a team's line up to the register: a new athlete, a new team or division, a PlayHQ id or gender.
+function recordPlayers(team, division, players) {
+  const data = athletes();
+  for (const p of players || []) {
+    const k = photoKey(p.name);
+    if (!k || p.private) continue;
+    const before = JSON.stringify(data[k] || null);
+    const e = data[k] || (data[k] = { name: p.name });
+    if (p.playhqId) e.playhqIds = [...new Set([...(e.playhqIds || []), String(p.playhqId)])].sort();
+    if (p.gender) e.playhqGender = p.gender;
+    if (team && division) {
+      e.teams = e.teams || {};
+      e.teams[division] = [...new Set([...(e.teams[division] || []), team])].sort();
+    }
+    if (JSON.stringify(e) !== before) register.dirty = true;
+  }
+  saveRegister();
+}
+function genderFor(name, fromPlayhq) {
+  const e = athletes()[photoKey(name)] || {};
+  return e.gender || e.playhqGender || fromPlayhq || '';
+}
+// The generic picture for an athlete with no photo.
+function silhouette(gender) { return `/silhouettes/${gender === 'female' || gender === 'male' ? gender : 'neutral'}.svg`; }
+// Every team and division the register has seen the athlete in.
+function athleteTeams(name) {
+  const e = athletes()[photoKey(name)] || {};
+  return Object.entries(e.teams || {}).flatMap(([division, teams]) => teams.map(team => ({ division, team })))
+    .sort((a, b) => a.division.localeCompare(b.division, 'en', { numeric: true }) || a.team.localeCompare(b.team));
+}
+
+// Adds each player's photo (or silhouette) to a team sheet answer.
 function withPhotos(data) {
   const files = photoFiles();
   for (const side of ['home', 'away']) {
-    if (data[side] && data[side].players) data[side].players = data[side].players.map(p => ({ ...p, photo: photoFor(p.name, files) }));
+    if (!data[side] || !data[side].players) continue;
+    if (!data.stale) recordPlayers(data[side].name, data.division, data[side].players);
+    data[side].players = data[side].players.map(p => {
+      const gender = genderFor(p.name, p.gender);
+      return { ...p, gender, photo: photoFor(p.name, files), silhouette: silhouette(gender) };
+    });
   }
   return data;
 }
@@ -1314,12 +1397,14 @@ async function getAthletes(teamName) {
       } catch (err) { failed++; lastError = err.message; continue; }
     }
     read++;
+    for (const s of [parsed.home, parsed.away]) recordPlayers(s.name, g.division, s.players);
     const side = norm(parsed.home.name) === want ? parsed.home : norm(parsed.away.name) === want ? parsed.away : null;
     if (!side) continue;
     for (const p of side.players) {
       if (p.private) continue; // "Private player" can't be told apart
       const k = photoKey(p.name);
-      const a = athletes.get(k) || { name: p.name, number: '', positions: {}, games: 0, captain: false, lastDate: '' };
+      const a = athletes.get(k) || { name: p.name, number: '', positions: {}, games: 0, captain: false, lastDate: '', gender: '' };
+      a.gender = a.gender || p.gender;
       a.games++;
       if (p.position) a.positions[p.position] = (a.positions[p.position] || 0) + 1;
       if ((g.date || '') >= a.lastDate) { a.lastDate = g.date || ''; if (p.number !== '' && p.number != null) a.number = p.number; }
@@ -1332,7 +1417,10 @@ async function getAthletes(teamName) {
   const rank = a => { const i = POSITION_RANK.indexOf(a.position); return i === -1 ? 99 : i; };
   const list = [...athletes.values()].map(a => {
     const position = Object.entries(a.positions).sort((x, y) => y[1] - x[1])[0];
-    return { name: a.name, number: a.number, position: position ? position[0] : '', positions: Object.keys(a.positions), games: a.games, captain: a.captain, photo: photoFor(a.name, files) };
+    const gender = genderFor(a.name, a.gender);
+    const e = register.data[photoKey(a.name)] || {};
+    return { name: a.name, number: a.number, position: position ? position[0] : '', positions: Object.keys(a.positions), games: a.games, captain: a.captain,
+      photo: photoFor(a.name, files), gender, genderSetByHand: !!e.gender, silhouette: silhouette(gender), teams: athleteTeams(a.name) };
   }).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
   return { team: teamName, logo: logoFor(teamName), division, athletes: list, gamesRead: read, gamesFound: games.length,
     error: !read && failed ? lastError : !games.length ? `PlayHQ has no games for ${teamName} this season.` : undefined };
@@ -1365,7 +1453,30 @@ async function athletesRoute(req, res, url, q) {
     log('info', 'athletes', `${id}: photo ${body.file} is now ${name}`);
     return send(res, 200, { name, url: '/photos/' + encodeURIComponent(name) });
   }
+  // A gender set by hand, for the silhouette ('' goes back to PlayHQ's).
+  if (url.pathname === '/api/athletes/gender' && req.method === 'POST') {
+    const body = await readBody(req);
+    const k = photoKey(body.athlete);
+    if (!k) throw new Error('Which athlete?');
+    const data = athletes();
+    const e = data[k] || (data[k] = { name: String(body.athlete).trim() });
+    if (body.gender === 'female' || body.gender === 'male') e.gender = body.gender; else delete e.gender;
+    register.dirty = true;
+    saveRegister();
+    log('info', 'athletes', `${id}: ${e.name} gender ${e.gender || 'from PlayHQ'}`);
+    const gender = genderFor(e.name);
+    return send(res, 200, { name: e.name, gender, genderSetByHand: !!e.gender, silhouette: silhouette(gender) });
+  }
   if (url.pathname !== '/api/athletes') return send(res, 404, { error: 'Unknown athletes link' });
+  // Every athlete seen so far in the competition, across all its divisions.
+  if (q.all) {
+    const files = photoFiles();
+    const list = Object.values(athletes()).map(e => {
+      const gender = genderFor(e.name);
+      return { name: e.name, gender, genderSetByHand: !!e.gender, photo: photoFor(e.name, files), silhouette: silhouette(gender), teams: athleteTeams(e.name) };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+    return send(res, 200, { athletes: list });
+  }
   if (q.team) return send(res, 200, await getAthletes(q.team));
   const list = { folder: `competitions/${id}/photos`, photos: photoFiles().map(f => ({ file: f, url: '/photos/' + encodeURIComponent(f) })) };
   if (q.photos === 'only') return send(res, 200, list);
