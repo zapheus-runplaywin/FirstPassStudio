@@ -197,8 +197,10 @@ Photos are files in the competition's folder, so commit the ones you want to kee
 http://localhost:8080/positions.html shows the game picked on the control page position by position: the home team's
 line up from GS to GK, each beside the away athlete they play against (home GS v away GK, GA v GD, WA v WD, C v C,
 WD v WA, GD v GA, GK v GS), with their photos, names, numbers and captains. It then shows all seven pairings together.
-Positions come from the line up entered on PlayHQ for that game; until there is one the page stays empty (and says so in
-the debug log). An athlete without a photo shows their initials.
+Positions come from the line up entered on PlayHQ for that game. Some competitions' line ups miss positions: any
+position with nobody listed shows **Unknown** (with a question mark for the photo), and the debug log says which. Only a
+game with no line up at all leaves the page empty. Full position names ("Goal Shooter") are read as GS and so on. An
+athlete without a photo shows their initials.
 
 - `?hold=6`: seconds per pairing (default 5).
 - `?loop=1`: keeps going round instead of finishing on all seven.

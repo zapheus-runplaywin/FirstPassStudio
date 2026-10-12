@@ -27,7 +27,6 @@
   .pm__name { font-size: 40px; font-weight: 800; text-transform: uppercase; line-height: 1.05; color: var(--text); overflow-wrap: anywhere; }
   .pm__meta { margin-top: 6px; font-size: 20px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
   .pm__meta .badge { margin-left: 8px; }
-  .pm__empty { color: var(--muted); font-size: 30px; font-weight: 700; margin-bottom: 220px; text-transform: uppercase; }
   .pm__middle { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 14px; padding-bottom: 60px; }
   .pm__pos { background: var(--yellow); color: var(--text-on-yellow); font-size: 76px; font-weight: 800; border-radius: 14px; width: 170px; text-align: center; padding: 6px 0; line-height: 1.1;
     box-shadow: 0 6px 18px rgba(0,0,0,.35); }
@@ -71,7 +70,8 @@
        Goes through the home team's line up from GS to GK, each beside the away athlete
        they play against (home GS v away GK, GA v GD, WA v WD, C v C, WD v WA, GD v GA,
        GK v GS), with the photos from the Athletes page (athletes.html). Then shows all
-       seven pairings together. Follows the game picked on the control page.
+       seven pairings together. Follows the game picked on the control page. A position
+       missing from PlayHQ's line up shows as Unknown.
        Options: ?hold=6 seconds per pairing (default 5), ?loop=1 keeps going round,
        ?end=out animates away after the last pairing instead of showing all seven,
        ?show=all shows all seven straight away, ?pair=C shows one pairing only
@@ -108,12 +108,12 @@
       const box = document.getElementById(id);
       box.replaceChildren();
       const photo = el('div', 'pm__photo');
-      if (p) photo.appendChild(photoEl(p));
-      else photo.appendChild(el('div', 'pm__empty', `No ${pos} listed`));
+      // Line ups in some competitions miss positions: that athlete shows as Unknown.
+      photo.appendChild(photoEl(p));
       if (team.logo) { const l = el('img', 'pm__teamlogo'); l.src = team.logo; l.alt = ''; photo.appendChild(l); }
       box.appendChild(photo);
       const plate = el('div', 'pm__plate');
-      plate.appendChild(el('div', 'pm__name', p ? p.name : '—'));
+      plate.appendChild(el('div', 'pm__name', p ? p.name : 'Unknown'));
       const meta = el('div', 'pm__meta', [team.name, p && p.number !== '' && p.number != null ? `#${p.number}` : ''].filter(Boolean).join('  ·  '));
       if (p && p.captain) meta.appendChild(el('span', 'badge', 'Captain'));
       if (p && p.viceCaptain) meta.appendChild(el('span', 'badge', 'Vice captain'));
@@ -151,7 +151,7 @@
       pairs.forEach(([pos, h, a], i) => {
         const row = el('div', 'pm__row');
         row.style.animationDelay = `${i * 80}ms`;
-        const nm = (p, cls) => { const n = el('div', 'nm ' + cls, p ? p.name : '—'); if (p && p.number !== '' && p.number != null) n.appendChild(el('small', '', `#${p.number}`)); return n; };
+        const nm = (p, cls) => { const n = el('div', 'nm ' + cls, p ? p.name : 'Unknown'); if (p && p.number !== '' && p.number != null) n.appendChild(el('small', '', `#${p.number}`)); return n; };
         const ph = p => { const w = el('div', 'ph'); if (p && p.photo) w.appendChild(photoEl(p)); else { w.className = 'ph logo-fallback'; w.textContent = p ? initials(p.name) : '?'; } return w; };
         row.append(ph(h), nm(h, 'nm--home'), el('div', 'ps', pos), el('div', 'v', 'v'), el('div', 'ps', OPPOSITE[pos]), nm(a, ''), ph(a));
         box.appendChild(row);
@@ -164,11 +164,13 @@
       if (started) return;
       const at = (team, pos) => (team.players || []).find(p => p.position === pos) || null;
       const pairs = ORDER.map(pos => [pos, at(data.home, pos), at(data.away, OPPOSITE[pos])]);
-      const listed = pairs.filter(([, h, a]) => h || a).length;
-      if (!listed) {
-        console.warn('Position match ups: PlayHQ has no positions for this game yet.', data.error || '');
+      // Positions PlayHQ doesn't have show as Unknown; only an empty line up keeps the page hidden.
+      if (!(data.home.players || []).length && !(data.away.players || []).length) {
+        console.warn('Position match ups: PlayHQ has no line ups for this game yet.', data.error || '');
         return;
       }
+      const unknown = pairs.flatMap(([pos, h, a]) => [h ? null : `${data.home.name} ${pos}`, a ? null : `${data.away.name} ${OPPOSITE[pos]}`]).filter(Boolean);
+      if (unknown.length) pageLog('warn', `Position match ups: no athlete listed for ${unknown.join(', ')}; showing Unknown`);
       started = true;
       const missing = pairs.flatMap(([pos, h, a]) => [h && !h.photo ? h.name : null, a && !a.photo ? a.name : null]).filter(Boolean);
       if (missing.length) pageLog('info', `No photo for ${missing.join(', ')} (add them on the Athletes page)`);

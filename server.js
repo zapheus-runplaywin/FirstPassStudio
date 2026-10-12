@@ -355,7 +355,7 @@ function parseGame(g) {
       const goals = statCount(p.statistics, '1_POINT_SCORE') || 0;
       const superGoals = statCount(p.statistics, '2_POINT_SCORE') || 0;
       return {
-        name, number: p.playerNumber || '', position: (p.playerPosition && p.playerPosition.shortName) || '',
+        name, number: p.playerNumber || '', position: positionOf(p), // GS..GK; full names and odd spellings tidied, '' when PlayHQ has none,
         private: who.__typename === 'DiscoverAnonymousParticipant',
         captain: !!p.captain && !/vice/i.test(p.captain.name || ''), viceCaptain: !!p.captain && /vice/i.test(p.captain.name || ''),
         // shots = every attempt, normal and super (PlayHQ records one attempt count).

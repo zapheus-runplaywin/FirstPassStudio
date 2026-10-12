@@ -218,7 +218,7 @@ function renderAthletes() {
     card.appendChild(ph);
     const body = el('div', 'ath__body');
     body.appendChild(el('div', 'ath__name', a.name + (a.captain ? ' (C)' : '')));
-    body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Bench', `${a.games} game${a.games === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Position unknown', `${a.games} game${a.games === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
     const buttons = el('div', 'ath__buttons');
     const add = el('label', 'btn small' + (src ? ' alt' : ''), src ? 'Change' : 'Add photo');
     const input = el('input'); input.type = 'file'; input.accept = 'image/*';
