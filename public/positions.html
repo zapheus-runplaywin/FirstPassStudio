@@ -101,9 +101,10 @@
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const initials = n => String(n || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
 
-    // The athlete's photo, else a generic silhouette for their gender, else (nobody listed) a question mark.
+    // The athlete's photo, else a generic silhouette for their gender; nobody listed gets the plain one.
     function photoEl(p, cls) {
-      const src = p && (p.photo || p.silhouette);
+      // Nobody listed for the position: the same plain silhouette as an athlete without a photo.
+      const src = p ? (p.photo || p.silhouette) : '/silhouettes/neutral.svg';
       if (src) { const i = el('img', cls); i.src = src; i.alt = ''; return i; }
       return el('div', (cls ? cls + ' ' : '') + 'logo-fallback', p ? initials(p.name) : '?');
     }
@@ -156,7 +157,7 @@
         const row = el('div', 'pm__row');
         row.style.animationDelay = `${i * 80}ms`;
         const nm = (p, cls) => { const n = el('div', 'nm ' + cls, p ? p.name : 'Unknown'); if (p && p.number !== '' && p.number != null) n.appendChild(el('small', '', `#${p.number}`)); return n; };
-        const ph = p => { const w = el('div', 'ph'); if (p && (p.photo || p.silhouette)) w.appendChild(photoEl(p)); else { w.className = 'ph logo-fallback'; w.textContent = p ? initials(p.name) : '?'; } return w; };
+        const ph = p => { const w = el('div', 'ph'); if (!p || p.photo || p.silhouette) w.appendChild(photoEl(p)); else { w.className = 'ph logo-fallback'; w.textContent = initials(p.name); } return w; };
         row.append(ph(h), nm(h, 'nm--home'), el('div', 'ps', pos), el('div', 'v', 'v'), el('div', 'ps', OPPOSITE[pos]), nm(a, ''), ph(a));
         box.appendChild(row);
       });
