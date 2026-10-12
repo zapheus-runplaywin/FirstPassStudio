@@ -37,7 +37,9 @@
        Options: ?pivt=0, ?studio=0 or ?comp=0 leave that logo off;
                 ?gap=320 moves both sides in or out (pixels from the centre of the frame);
                 ?top=95 moves the logos up or down (pixels from the top to their middle);
-                ?size=1.2 makes every logo bigger or smaller. -->
+                ?size=1.2 makes every logo bigger or smaller;
+                ?mode=dark (the default) uses the FirstPass Studio logo made for a dark picture behind it (white FirstPass),
+                ?mode=light the one made for a light picture (blue First, orange Pass). -->
   <div class="side side--left" id="left">
     <img class="pivt" id="pivt" src="studio/pivt.png" alt="PIVT Live Streaming">
     <img class="studio" id="studio" src="studio/firstpass-studio.svg" alt="FirstPass Studio">
@@ -57,6 +59,9 @@
         const css = getComputedStyle(document.documentElement);
         ['--pivt', '--studio', '--comp'].forEach(v => root.setProperty(v, parseFloat(css.getPropertyValue(v)) * num('size') + 'px'));
       }
+      // The brand kit's two FirstPass Studio logos: dark for a dark picture behind it, light for a light one.
+      const mode = (params.get('mode') || params.get('theme') || 'dark').toLowerCase();
+      if (mode === 'light') $('studio').src = 'studio/firstpass-studio-light.svg';
       $('pivt').hidden = params.get('pivt') === '0';
       $('studio').hidden = params.get('studio') === '0';
       $('left').hidden = $('pivt').hidden && $('studio').hidden;
