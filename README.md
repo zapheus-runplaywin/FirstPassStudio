@@ -18,7 +18,7 @@ http://localhost:8080/setup.html keeps a saved setup for each competition and sw
 organisation's PlayHQ link and which competition and season to use (**Find its competitions** lists them), the names
 shown on the graphics (competition, organisation, venue), the game rules (quarters or halves and their length, super
 shots, the ladder's finals marker), game day settings (court to follow, automatic game selection, minutes before a game
-it switches, days ahead that count as this round), nine colours, panel transparency and the font, the competition logo
+it switches, days ahead that count as this round), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
 (above the title banner and in the ladder's corner), the team logos (drop files on the page; they match teams by file
 name, and the PlayHQ team list lets you pick a different logo for any team), an optional team colour for each team (behind its
 name on the scoreboard and behind its logo and name on The Clash), the emoji either side of the title (any emoji, or none), The Clash's big word and

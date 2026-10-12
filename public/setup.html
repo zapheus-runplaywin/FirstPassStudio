@@ -44,10 +44,18 @@
   .badge.draft { background: var(--fp-line); color: var(--fp-muted); }
   /* Colours */
   .colours { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
-  .colour { display: grid; grid-template-columns: 44px 90px 1fr; align-items: center; gap: 8px; }
-  .colour input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid var(--fp-line-strong); border-radius: 8px; background: none; }
-  .colour input[type=text] { font-family: monospace; padding: 5px 6px; }
-  .colour span { font-size: 13px; color: var(--fp-muted); line-height: 1.2; }
+  .colour { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+  .colour > span:last-child { font-size: 13px; color: var(--fp-muted); line-height: 1.2; }
+  .colours + .help { margin-bottom: 10px; }
+  .kit { margin: 4px 0 12px; }
+  .kit summary { cursor: pointer; font-weight: 600; color: var(--fp-blue); }
+  .kit textarea { font: 13px ui-monospace, Menlo, Consolas, monospace; width: 100%; min-height: 76px; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); margin-top: 6px; }
+  .kitlist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .kitc { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--fp-line); border-radius: 8px; padding: 3px 4px 3px 3px; font-size: 12px; background: var(--fp-white); }
+  .kitc i { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(15,23,42,.2); }
+  .kitc code { font-size: 12px; }
+  .kitc button { padding: 0 6px; font-size: 14px; line-height: 20px; border: 0; background: none; color: var(--fp-muted); }
+  .kitc button:hover { background: var(--fp-line); color: var(--fp-danger); }
   .lookgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
   /* Preview, drawn with the colours above */
   .preview { border-radius: 8px; padding: 16px; background: repeating-conic-gradient(#d6d6d6 0 25%, #eeeeee 0 50%) 0 0 / 22px 22px;
@@ -197,6 +205,15 @@
       <div class="lookgrid">
         <div>
           <div class="colours" id="colours"></div>
+          <p class="help">Click a swatch for the colour picker, or type or paste a colour into its box as HEX (<code>#7f4092</code>) or RGB (<code>127, 64, 146</code> or <code>rgb(127, 64, 146)</code>).</p>
+          <details class="kit" id="kit">
+            <summary>Brand kit colours <span class="comp__sub" id="kitCount"></span></summary>
+            <p class="help">Paste the colours from a brand kit, PDF or website: any text with HEX or RGB values in it, such as
+              "Purple #7F4092, RGB 127 64 146". They're saved with this competition and show in every colour picker, ready to click.</p>
+            <textarea id="kitText" placeholder="Purple  #7F4092&#10;Yellow  RGB 255, 205, 0"></textarea>
+            <div class="row" style="margin-top:6px"><button class="alt" type="button" id="kitAdd">Add these colours</button><span class="note" id="kitNote"></span></div>
+            <div class="kitlist" id="kitList"></div>
+          </details>
           <label class="inline">Dark panels see-through <input type="range" id="panelOpacity" min="0.3" max="1" step="0.01" style="width:140px"> <span id="opacityPct"></span></label>
           <label for="font">Font</label>
           <select id="font" data-key="font"></select>
@@ -262,6 +279,7 @@
   <button id="save">Save</button>
 </div></div>
 
+<script src="colourpicker.js"></script>
 <script>
 (function () {
   const $ = id => document.getElementById(id);
@@ -365,21 +383,51 @@
   document.querySelectorAll('[name=periodType]').forEach(r => r.onchange = () => { form.periodType = r.value; markDirty(); preview(); });
   $('panelOpacity').oninput = () => { form.panelOpacity = Number($('panelOpacity').value); markDirty(); preview(); };
 
+  // Swatches in every colour picker: the brand kit, then the colours this setup already uses.
+  const swatches = () => [
+    { title: 'Brand kit', colours: form.brandColours || [] },
+    { title: 'This competition', colours: COLOURS.map(([key, label]) => ({ hex: form.colours[key], name: label })) },
+  ];
   function buildColours() {
+    ColourPicker.close();
     const box = $('colours');
     box.replaceChildren();
     for (const [key, label, help] of COLOURS) {
       const row = el('div', 'colour');
-      const pick = Object.assign(el('input'), { type: 'color', value: form.colours[key] });
-      const hex = Object.assign(el('input'), { type: 'text', value: form.colours[key], maxLength: 7 });
+      const pick = ColourPicker.field(form.colours[key], hex => { form.colours[key] = hex; markDirty(); preview(); }, { label, swatches });
       const text = el('span'); text.append(el('b', '', label), el('br'), help);
-      pick.oninput = () => { hex.value = pick.value; form.colours[key] = pick.value; markDirty(); preview(); };
-      hex.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(hex.value)) { pick.value = hex.value; form.colours[key] = hex.value.toLowerCase(); markDirty(); preview(); } };
-      row.append(pick, hex, text);
+      row.append(pick, text);
       box.append(row);
     }
+    buildKit();
   }
   $('resetColours').onclick = () => { form.colours = { ...info.defaults.colours }; form.panelOpacity = info.defaults.panelOpacity; $('panelOpacity').value = form.panelOpacity; buildColours(); markDirty(); preview(); };
+
+  // Brand kit colours: pasted text, kept with the setup as swatches for the pickers.
+  function buildKit() {
+    const list = $('kitList'), kit = form.brandColours || [];
+    list.replaceChildren();
+    for (const c of kit) {
+      const chip = el('span', 'kitc'), sw = el('i');
+      sw.style.backgroundColor = c.hex;
+      chip.title = `RGB ${ColourPicker.toRgb(c.hex).join(', ')}`;
+      const del = Object.assign(el('button', '', '×'), { type: 'button', title: `Remove ${c.name || c.hex}` });
+      del.onclick = () => { form.brandColours = kit.filter(k => k !== c); buildKit(); markDirty(); };
+      chip.append(sw, ...(c.name ? [el('span', '', c.name)] : []), el('code', '', c.hex), del);
+      list.append(chip);
+    }
+    $('kitCount').textContent = kit.length ? `(${kit.length})` : '';
+  }
+  $('kitAdd').onclick = () => {
+    const found = ColourPicker.findAll($('kitText').value);
+    const kit = form.brandColours || [];
+    const fresh = found.filter(f => !kit.some(k => k.hex === f.hex));
+    if (!found.length) { note('kitNote', 'No colours found. Each needs a # before its HEX, or RGB before its numbers.', 'error'); return; }
+    form.brandColours = [...kit, ...fresh].slice(0, 40);
+    $('kitText').value = '';
+    note('kitNote', fresh.length ? `Added ${fresh.length} colour${fresh.length === 1 ? '' : 's'}.` : 'Those colours are already here.', 'ok');
+    buildKit(); if (fresh.length) markDirty();
+  };
 
   // The same colour variables the helper writes into theme.css.
   const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
