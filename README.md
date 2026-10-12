@@ -1,7 +1,7 @@
 # PlayHQ Graphics
 
 Transparent ladder, scoreboard and game overlays for OBS, fed live from PlayHQ's public data (no API key). Set up for
-Thunder League, with saved setups ready for the AMMNA Nationals and the WA Netball League.
+Thunder League, with saved setups ready for the AMMNA Nationals and GIG WANL (the WA Netball League).
 
 The pages you work in (home, scoreboard control, competition setup and the Stream Deck API docs) carry the FirstPass
 Studio look from `public/studio.css`, with the Montserrat font served from `public/vendor/montserrat` so it works
@@ -27,9 +27,12 @@ the PlayHQ Client ID most competitions don't need.
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics in OBS.
 
 Setups live in `competitions/<name>/` (`settings.json`, `logos/`, `brand/`), which a new version never overwrites.
-Ready-made ones in `presets/` are copied in the first time the helper starts. AMMNA Nationals and WA Netball League
-only need their PlayHQ link, colours and logos; their rules (AMMNA 10-minute quarters, WANL 15-minute quarters, no super
-shots, finals marker on the top 4) are guesses to check. `config.json` now only holds this computer's settings (port,
+Ready-made ones in `presets/` are copied in the first time the helper starts. AMMNA Nationals and GIG WANL come with
+their PlayHQ organisation link, colours (AMMNA green and gold from its logo; GIG WANL in Netball WA greens with Gold
+Industry Group gold) and competition logo; pick the competition with **Find its competitions**. Their rules (AMMNA
+10-minute quarters, WANL 15-minute quarters, no super shots, finals marker on the top 4) are guesses to check. When a
+new version improves a preset, the setup you already have picks up the change only where it still has the old preset's
+value, so nothing you changed on the setup page is overwritten. `config.json` now only holds this computer's settings (port,
 log size, how often to check PlayHQ).
 
 On a carnival day with several rounds (like the AMMNA nationals), "this round" moves on to each round as its first game

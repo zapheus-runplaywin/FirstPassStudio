@@ -122,12 +122,14 @@ function init(machineConfig, log) {
   const state = readJson(ACTIVE_FILE, { active: '', seeded: [] });
   state.seeded = state.seeded || [];
   let presets = [], first = '';
+  const fresh = new Set();
   try { presets = fs.readdirSync(PRESETS).filter(p => fs.existsSync(path.join(PRESETS, p, 'settings.json'))).sort(); } catch { /* none */ }
   for (const id of presets) {
     if (state.seeded.includes(id)) continue;
     state.seeded.push(id);
     if (fs.existsSync(path.join(DIR, id))) continue;
     copyDir(path.join(PRESETS, id), path.join(DIR, id));
+    fresh.add(id);
     const settings = readJson(path.join(DIR, id, 'settings.json'), {});
     if (settings.legacyConfig) { // the competition config.json used to describe, in use from the start
       delete settings.legacyConfig;
@@ -137,6 +139,13 @@ function init(machineConfig, log) {
     writeJson(path.join(DIR, id, 'settings.json'), clean(settings));
     log('info', 'setup', `Added the ${settings.name || id} competition setup from presets/${id}`);
   }
+  state.presetVersions = state.presetVersions || {};
+  for (const id of presets) {
+    const preset = readJson(path.join(PRESETS, id, 'settings.json'), {});
+    const version = preset.presetVersion || 1;
+    if (!fresh.has(id) && version > (state.presetVersions[id] || 1) && fs.existsSync(path.join(DIR, id, 'settings.json'))) updateFromPreset(id, preset, log);
+    state.presetVersions[id] = version;
+  }
   if (!list().length) { // nothing at all: start one from config.json
     const id = slug(machineConfig.competitionName || 'competition');
     create(machineConfig.competitionName || DEFAULTS.name, null, Object.fromEntries(LEGACY_KEYS.map(k => [k, machineConfig[k]]).filter(([, v]) => v !== undefined)), id);
@@ -144,6 +153,31 @@ function init(machineConfig, log) {
   if (!state.active || !fs.existsSync(path.join(DIR, state.active, 'settings.json'))) state.active = first || list()[0].id;
   writeJson(ACTIVE_FILE, state);
   return state.active;
+}
+
+// A newer preset (presetVersion went up) passes its changes on to the setup already saved
+// from it, but only where that setup still has what the older preset gave it (its "was"
+// block): anything changed on the setup page is kept. Missing logos are copied in too.
+function updateFromPreset(id, preset, log) {
+  const saved = get(id), before = clean(preset.was || {}), after = clean(preset), next = { ...saved }, changed = [];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  for (const k of Object.keys(DEFAULTS)) {
+    if (k === 'colours') {
+      next.colours = { ...saved.colours };
+      for (const c of Object.keys(after.colours)) {
+        if (saved.colours[c] === before.colours[c] && after.colours[c] !== before.colours[c]) { next.colours[c] = after.colours[c]; changed.push(`colour ${c}`); }
+      }
+    } else if (!same(after[k], before[k]) && same(saved[k], before[k])) { next[k] = after[k]; changed.push(k); }
+  }
+  for (const sub of ['logos', 'brand']) {
+    const from = path.join(PRESETS, id, sub), to = path.join(DIR, id, sub);
+    if (!fs.existsSync(from)) continue;
+    fs.mkdirSync(to, { recursive: true });
+    for (const f of fs.readdirSync(from).filter(f => IMAGE.test(f))) if (!fs.existsSync(path.join(to, f))) fs.copyFileSync(path.join(from, f), path.join(to, f));
+  }
+  if (next.competitionLogo && !fs.existsSync(path.join(DIR, id, 'brand', next.competitionLogo))) next.competitionLogo = saved.competitionLogo;
+  writeJson(path.join(DIR, id, 'settings.json'), clean(next));
+  log('info', 'setup', `Updated the ${next.name} setup from presets/${id}: ${changed.join(', ') || 'nothing left at the old preset values'}`);
 }
 
 function list() {
