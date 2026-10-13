@@ -195,6 +195,10 @@ PlayHQ's "Summary for the Game v2" instead (Client ID on the setup page, other s
 - `apiKey`: the association's PlayHQ API key (optional; leave blank if you don't have one).
 - `apiTenant`: the sport name PlayHQ expects with the key (blank uses `netball-australia` from the organisation link).
 - `gameSummaryPath`: `/v2/games/{id}/summary`.
+When a team's line up for the game has fewer than seven players (benches often clear it when they log in and only
+add players as they score), the rest of the team's season squad (everyone in its line ups this season) is added after
+them under **Squad**, without positions. With no line up at all, the team list is the whole squad. Players in the
+partial line up keep their position and stats, and the position match ups page only uses positions from the line up.
 The control page shows how many players were found for each team, or the error. If the lists look wrong, send the debug log to Claude.
 
 Team logos are added on the competition setup page, named after the team. A logo whose file name doesn't match the

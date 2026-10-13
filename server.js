@@ -1442,7 +1442,7 @@ function savePhoto(name, ext, buf) {
 
 // Every athlete PlayHQ has listed for one team this season, from the line ups of its
 // finished games and its next game (line ups are often entered before the game).
-async function getAthletes(teamName) {
+async function seasonLineups(teamName) {
   const st = await getStructure();
   const want = norm(teamName);
   const games = [];
@@ -1481,6 +1481,10 @@ async function getAthletes(teamName) {
     }
   }
   if (failed) log('warn', 'athletes', `${teamName}: ${failed} of ${games.length} games could not be read: ${lastError}`);
+  return { st, athletes, division, games, read, failed, lastError };
+}
+async function getAthletes(teamName) {
+  const { st, athletes, division, games, read, failed, lastError } = await seasonLineups(teamName);
   const files = photoFiles();
   let all = {};
   try { all = await allAppearances(); } catch (err) { log('warn', 'athletes', `Appearances unavailable: ${err.message}`); }
@@ -1688,6 +1692,35 @@ function colourFor(teamName) {
   return competitions.clubEntry(CONFIG, competitions.clubFor(CONFIG, teamName)).colour || null;
 }
 
+// A line up with fewer than seven players isn't complete (benches often clear it and only
+// add players as they score): the rest of the team's season squad (everyone in its line ups
+// this season) is added after them, without positions, and marked fromSquad.
+const FULL_LINEUP = 7;
+const squadCache = new Map();
+async function squadFor(teamName) {
+  const k = norm(teamName);
+  const hit = squadCache.get(k);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.list;
+  const { athletes } = await seasonLineups(teamName);
+  const list = [...athletes.values()].map(a => ({ name: a.name, number: a.number, gender: a.gender }));
+  squadCache.set(k, { at: Date.now(), list });
+  return list;
+}
+async function withSquad(side) {
+  if (!side.name || side.players.length >= FULL_LINEUP) return side;
+  let squad = [];
+  try { squad = await squadFor(side.name); } catch (err) { log('warn', 'teams', `${side.name}: squad unavailable: ${err.message}`); }
+  const listed = new Set(side.players.map(p => photoKey(p.name)));
+  const rest = squad.filter(a => !listed.has(photoKey(a.name))).map(a => ({ name: a.name, number: a.number || '', playhqId: '', gender: a.gender || '',
+    position: '', private: false, captain: false, viceCaptain: false, shooting: { goals: 0, superGoals: 0, shots: null, points: 0 }, fromSquad: true }))
+    .sort((x, y) => x.name.localeCompare(y.name));
+  if (!rest.length) return side;
+  const key = `${side.name}|${side.players.length}|${rest.length}`;
+  if (!squadLogged.has(key)) { squadLogged.add(key); log('info', 'teams', `${side.name}: line up has ${side.players.length} players, adding ${rest.length} more from the season squad`); }
+  return { ...side, players: [...side.players, ...rest], squad: true };
+}
+const squadLogged = new Set();
+
 const summaryCache = new Map();
 async function getTeamSheets(boardId) {
   const b = board(boardId);
@@ -1697,7 +1730,9 @@ async function getTeamSheets(boardId) {
   const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
   let gqlError = '';
   try {
-    const g = await getGame(b.gameId, maxAge);
+    const game = await getGame(b.gameId, maxAge);
+    // A team without a full line up has the rest of its season squad added.
+    const g = { home: await withSquad(game.home), away: await withSquad(game.away) };
     if (g.home.players.length || g.away.players.length || !CONFIG.apiKey) {
       const error = g.home.players.length || g.away.players.length ? undefined : 'PlayHQ has no line-ups for this game yet.';
       // Team totals from the live feed: PlayHQ doesn't credit every goal to a player.

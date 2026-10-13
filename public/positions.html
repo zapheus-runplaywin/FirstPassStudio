@@ -185,10 +185,12 @@
     loadTeams(async data => {
       if (started) return;
       lastData = data;
-      const at = (team, pos) => (team.players || []).find(p => p.position === pos) || null;
+      // Players added from the season squad (the line up was incomplete) have no position.
+      const lineup = team => (team.players || []).filter(p => !p.fromSquad);
+      const at = (team, pos) => lineup(team).find(p => p.position === pos) || null;
       const pairs = ORDER.map(pos => [pos, at(data.home, pos), at(data.away, OPPOSITE[pos])]);
       // Positions PlayHQ doesn't have show as Unknown; only an empty line up keeps the page hidden.
-      if (!(data.home.players || []).length && !(data.away.players || []).length) {
+      if (!lineup(data.home).length && !lineup(data.away).length) {
         console.warn('Position match ups: PlayHQ has no line ups for this game yet.', data.error || '');
         return;
       }
