@@ -178,6 +178,7 @@
     $('sourceNote').textContent = s.source === 'playhq'
       ? `Scores update from PlayHQ every ${s.playhqRefreshSec || 5} seconds, if the game is being live-scored there. Pressing a score button switches to manual.`
       : 'Scores only change when you press the buttons here.';
+    if (s.playhqWaiting && s.source === 'playhq') $('sourceNote').textContent += ` ${s.playhqWaiting}`;
     if (s.playhqError && s.source === 'playhq') $('sourceNote').textContent += ` Last PlayHQ error: ${s.playhqError}`;
     $('clockToggle').textContent = s.clock.running ? 'Stop' : 'Start';
     $('clockToggle').classList.toggle('on', s.clock.running);

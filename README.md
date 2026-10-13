@@ -130,11 +130,14 @@ left empty if PlayHQ can't be reached or the competition isn't found (check `org
 
 **Automatic game selection.** Set the court to follow on the competition setup page the day before (e.g. `"Indoor 01"`, or just `"1"`).
 With **Pick the game automatically for court** ticked on the control page, the scoreboard shows today's first game on
-that court, then switches to each next game 10 minutes before its start time (set on the setup page), with
+that court, then switches to each next game when its electronic scoring starts (**Electronic scoring starts [x] minutes before the game**
+on the setup page, default 10; 20 or 30 suit games further apart), with
 Follow PlayHQ on, the quarter back to Q1 and a full clock. In finals (a round with "Final" in its name) it keeps the
 final on until PlayHQ marks it finished, in case of extra time. You can change the court on the control page or with
 `/deck/court/2`. Picking a game from the list turns automatic selection off; tick it again (or `/deck/auto/on`) to go back.
 Untick **Pick the game automatically** on the setup page to start with it off.
+Before a game's electronic scoring starts the helper doesn't ask PlayHQ's live feed for it at all (automatic or picked by hand),
+since PlayHQ only answers "not electronically scored"; the control page says when it will start checking.
 
 On the control page, pick the game from this round's PlayHQ fixtures and press **Use this game**.
 With **Follow PlayHQ** on, the score updates every 5 seconds (change it on the control page) from the same live feed the
