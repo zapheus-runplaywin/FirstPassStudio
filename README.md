@@ -160,6 +160,12 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
   sparks and lightning, then settle either side of a stamped VS over a big CLASH, with "Battle for <division>", the time
   and court. Tick "Refresh browser when scene becomes active" in OBS so it plays each time the scene comes on.
   `?out=10` animates it away after 10 seconds, `?word=RIVALS` changes the big word, `?title=Grand%20Final` the bottom line.
+- http://localhost:8080/winner.html?winner=home (or `?winner=away`, `?winner=draw`): full time celebration. For a win the
+  team's logo slams in over turning light rays and a big outlined VICTORY, with confetti cannons in their colour, then their
+  name, the final score and "def. <other team>". For a draw both logos slide in, see-saw on a beam until level, DRAW is
+  stamped between them and the score shows "Honours shared". Without `?winner=` it goes by the score. Tick "Refresh browser
+  when scene becomes active" in OBS. `?out=10` animates it away, `?word=CHAMPIONS` changes the big word (the stamp on a draw),
+  `?title=` the line under the score and `?score=0` leaves the score off. Club colours from the setup are used, like The Clash.
 - http://localhost:8080/matchup.html: both team logos with the division, round, date, time, court and venue. It also shows each team's
   last five results as W/L/D dots and this season's head to head: the win tally under VS and the last three meetings
   (`?form=0` or `?h2h=0` hides them).

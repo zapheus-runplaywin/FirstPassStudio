@@ -89,6 +89,26 @@ For a competition played in halves (set on the competition setup page), 1 and 2 
 Changing the quarter doesn't touch the clock. Press Reset clock as well when the new quarter starts.
 (Tip: a Stream Deck **Multi Action** can do both from one key.)
 
+## Winner celebration (full time)
+
+The winner animation is an OBS source, not a helper link, so the buttons switch OBS rather than press a link.
+Set it up once:
+
+1. In OBS add three **Browser** sources, 1920 x 1080, each with **Shutdown source when not visible** and
+   **Refresh browser when scene becomes active** ticked, so it plays from the start each time it comes on:
+
+   | Source | Link |
+   |---|---|
+   | Home wins | http://localhost:8080/winner.html?winner=home |
+   | Away wins | http://localhost:8080/winner.html?winner=away |
+   | Draw | http://localhost:8080/winner.html?winner=draw |
+
+   Put each in its own scene (or one scene, all three hidden). Add `&out=12` to have it animate away by itself after 12 seconds.
+2. On the Stream Deck use the **OBS Studio** plugin: a **Scene** action for each scene, or a **Source** (visibility) action for each source.
+
+It celebrates the game picked on the control page, with the names, logos and final score from the scoreboard, so check the
+score is right before pressing. `winner.html` without `?winner=` picks home, away or draw from the score itself.
+
 ## Second court
 
 Add `?board=2` to the end of any link, e.g. `http://localhost:8080/deck/home/add2?board=2`.
