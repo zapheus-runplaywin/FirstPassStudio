@@ -275,6 +275,7 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   '<code>?bg=0f172a</code> (or a colour name) a radial gradient from that colour to a darker shade (<code>?bg2=</code> sets the edge colour), <code>?bg=solid-0f172a</code> a flat colour, ' +
   'and <code>?bgimage=court.jpg</code> a picture from the competition\'s brand folder (or a full link); with a background the white wordmark is used unless you add <code>?mode=light</code>. ' +
   '<code>?tagline=Live%20netball%20every%20Thursday</code> adds a line of text under the logos, and <code>?out=0</code> keeps the logos on screen at the end. ' +
+  'A soft glow sits behind the logos only when there is a background; <code>?glow=1</code> adds it on the transparent page (it shows as an oval over key and fill), <code>?glow=0</code> removes it. ' +
   'Combine them with &amp;, e.g. <code>/ad.html?bg=gradient&amp;tagline=Live%20netball</code>.']]
   .forEach(([n, p, h]) => document.getElementById('adPages').appendChild(pageRow(n, p, h)));
 (async () => {
