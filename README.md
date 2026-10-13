@@ -177,9 +177,12 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
   when scene becomes active" in OBS. `?out=10` animates it away, `?word=CHAMPIONS` changes the big word (the stamp on a draw),
   `?title=` the line under the score and `?score=0` leaves the score off. Club colours from the setup are used, like The Clash.
 - http://localhost:8080/supershot.html: 3 second celebration after a successful super shot. A netball flies in and bursts
-  with sparks, SUPER and SHOT slam in from either side with a +2 badge, then it fades out and leaves the frame clear.
-  `?team=home` or `?team=away` adds that team's logo and name in their club colour (`?board=2` for the second court).
-  Tick "Shutdown source when not visible" and "Refresh browser when scene becomes active" in OBS so it plays each time it comes on.
+  with sparks, SUPER and SHOT slam in from either side with a +2 badge and the team's logo and name in their club colour,
+  then it fades out and leaves the frame clear. Leave it on in OBS: it watches the scoreboard and plays by itself for each
+  super shot (a +2 press, or the PlayHQ scorer's super shot count going up while following PlayHQ; `?board=2` for the second court).
+  It asks the helper every second, which asks PlayHQ nothing extra. `/deck/home/supershot` plays it without changing the score.
+  Manual: `?team=home`, `?team=away` or `?team=none` plays it once when the source comes on instead (tick "Shutdown source when
+  not visible" and "Refresh browser when scene becomes active"). Details in STREAMDECK.md.
 - http://localhost:8080/matchup.html: both team logos with the division, round, date, time, court and venue. It also shows each team's
   last five results as W/L/D dots and this season's head to head: the win tally under VS and the last three meetings
   (`?form=0` or `?h2h=0` hides them).
