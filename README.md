@@ -168,7 +168,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 - http://localhost:8080/countdown.html: counts down to the scheduled start time of the game picked on the control page,
   with both teams, logos, division, round, court, time and venue. The clock ticks in the page and it asks the helper (never PlayHQ)
   every 5 seconds which game is picked, so it follows a new game without a refresh. The last 10 seconds pulse; at zero it shows
-  STARTING SOON. `?end=Game%20on` changes those words, `?end=hide` fades it away instead, `?label=` changes the heading,
+  STARTING SOON. `?end=Game%20on` changes those words, `?end=hide` fades it away instead, `?fade=1` fades it out over the last 5 seconds (`?fade=8` over 8), `?label=` changes the heading,
   `?teams=0` shows the clock only and `?position=top` or `bottom` moves it.
 - http://localhost:8080/clash.html: animated match up. The two logos charge in, smash together in the middle with a flash,
   sparks and lightning, then settle either side of a stamped VS over a big CLASH, with "Battle for <division>", the time
