@@ -11,6 +11,8 @@
  *   http POST <url> [body]   HTTP request (GET/POST/PUT/PATCH/DELETE/HEAD); get/post/... <url> shorthand
  *   keys ctrl+shift+s        press key combos (several separated by spaces)
  *   type <text>              type literal text into the focused window
+ *   obs scene <scene>        switch OBS to a scene
+ *   obs show <source> [in <scene>]   show a source (in the current scene unless one is named); also hide, toggle
  *   ok | alert               flash the key's check mark / warning triangle
  *   log <message>            write to the plugin log
  */
@@ -33,7 +35,9 @@ export type Step = StepBase &
 		| { type: "ok" }
 		| { type: "alert" }
 		| { type: "log"; message: string }
+		| { type: "obs"; op: ObsOp; name: string; scene?: string }
 	);
+export type ObsOp = "scene" | "show" | "hide" | "toggle";
 export type StepType = Step["type"];
 export type ScriptError = { line: number; message: string };
 
@@ -194,12 +198,43 @@ export function parseScript(text: string | undefined): { steps: Step[]; errors: 
 				case "log":
 					steps.push({ type: "log", message: arg, line: lineNo, label: "log" });
 					return;
+				case "obs": {
+					const usage = 'try "obs scene Full Time" or "obs show Winner in Full Time"';
+					const m = arg.match(/^(\S+)\s*([\s\S]*)$/);
+					const op = m?.[1].toLowerCase();
+					const rest = (m?.[2] ?? "").trim();
+					if (!m || !rest) return err(`"obs" needs what to do and a name (${usage})`);
+					if (op === "scene") {
+						steps.push({ type: "obs", op, name: stripQuotes(rest), line: lineNo, label: "obs scene" });
+						return;
+					}
+					if (op === "show" || op === "hide" || op === "toggle") {
+						const target = parseSourceTarget(rest);
+						if (!target) return err(`Can't read "${rest}" (${usage}; put names that contain " in " in quotes)`);
+						steps.push({ type: "obs", op, name: target.source, scene: target.scene, line: lineNo, label: `obs ${op}` });
+						return;
+					}
+					return err(`Unknown OBS action "${m[1]}" (use scene, show, hide or toggle)`);
+				}
 				default:
 					err(`Unknown step "${cmd}"`);
 			}
 		});
 
 	return { steps, errors };
+}
+
+/** `Winner`, `Winner in Full Time`, `"Sign in board" in "Full Time"` -> source and optional scene. */
+function parseSourceTarget(text: string): { source: string; scene?: string } | null {
+	const q = text.match(/^"([^"]+)"(?:\s+in\s+(.+))?$/i);
+	if (q) return { source: q[1], scene: q[2] ? stripQuotes(q[2]) || undefined : undefined };
+	if (text.startsWith('"')) return null;
+	const parts = text.split(/\s+in(?:\s+|$)/i);
+	if (parts.length > 2) return null;
+	const source = parts[0].trim();
+	const scene = parts[1] !== undefined ? stripQuotes(parts[1]) : undefined;
+	if (!source || scene === "") return null;
+	return { source, scene };
 }
 
 function stripQuotes(s: string): string {

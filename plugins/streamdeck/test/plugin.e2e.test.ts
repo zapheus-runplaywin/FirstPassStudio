@@ -13,6 +13,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { startMockObs } from "./support/mock-obs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SD_PLUGIN = path.join(ROOT, "com.runplaywin.timed-sequence.sdPlugin");
 const ACTION = "com.runplaywin.timed-sequence.run";
@@ -37,7 +39,7 @@ function frame(text: string): Buffer {
 	return Buffer.concat([h, p]);
 }
 
-async function startHost() {
+async function startHost(globalSettings: Record<string, unknown> = {}) {
 	const received: Msg[] = [];
 	const hooks: { method: string; body: string; at: number }[] = [];
 	let sock: Socket | null = null;
@@ -73,7 +75,13 @@ async function startHost() {
 				const payload = Buffer.from(buf.subarray(off + 4, off + 4 + len)).map((b, i) => b ^ mask[i & 3]);
 				const opcode = buf[0] & 0x0f;
 				buf = buf.subarray(off + 4 + len);
-				if (opcode === 1) received.push({ ...JSON.parse(Buffer.from(payload).toString()), _at: Date.now() });
+				if (opcode !== 1) continue;
+				const msg = { ...JSON.parse(Buffer.from(payload).toString()), _at: Date.now() };
+				received.push(msg);
+				// Answer the plugin's global settings requests like Stream Deck does.
+				if (msg.event === "getGlobalSettings") {
+					socket.write(frame(JSON.stringify({ event: "didReceiveGlobalSettings", id: msg.id, payload: { settings: globalSettings } })));
+				}
 			}
 		});
 	});
@@ -133,8 +141,9 @@ const keyDown = (context: string, settings: object) => ({
 	payload: { coordinates: { column: 0, row: 0 }, isInMultiAction: false, settings, state: 0 },
 });
 
-test("real SDK: arm, wait for the local time, run steps with delays, PI status and commands", { timeout: 40000 }, async () => {
-	const host = await startHost();
+test("real SDK: arm, wait for the local time, run steps with delays and OBS, PI status and commands", { timeout: 40000 }, async () => {
+	const obs = await startMockObs({ password: "obs-pass" });
+	const host = await startHost({ obsAddress: obs.address, obsPassword: "obs-pass" });
 	const child = launchPlugin(host.port);
 	const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ts-e2e-"));
 	const outFile = path.join(tmp, "out.txt");
@@ -146,7 +155,16 @@ test("real SDK: arm, wait for the local time, run steps with delays, PI status a
 		const target = new Date(Math.ceil(Date.now() / 1000) * 1000 + 3000);
 		const settings = {
 			time: hhmmss(target),
-			script: ["log starting", "wait 1500ms", `run echo hello> "${outFile}"`, "wait 1s", `post http://127.0.0.1:${host.port}/hook {"go": true}`, "ok"].join("\n"),
+			script: [
+				"log starting",
+				"wait 1500ms",
+				`run echo hello> "${outFile}"`,
+				"wait 1s",
+				`post http://127.0.0.1:${host.port}/hook {"go": true}`,
+				"obs scene Full Time",
+				"obs show Winner",
+				"ok",
+			].join("\n"),
 		};
 		host.send(appear("CTX1", settings));
 		const idle = await host.waitFor((m) => m.event === "setTitle" && m.context === "CTX1", 5000, "idle title");
@@ -167,12 +185,25 @@ test("real SDK: arm, wait for the local time, run steps with delays, PI status a
 		assert.ok(running._at >= target.getTime() - 5, "must not start early");
 		assert.ok(running._at - target.getTime() < 500, `started ${running._at - target.getTime()}ms late`);
 
-		await host.waitFor((m) => m.event === "showOk" && m._at > running._at, 8000, "ok step");
+		await host.waitFor((m) => m.event === "showOk" && m._at > running._at, 10000, "ok step");
 		assert.equal(host.hooks.length, 1);
 		assert.equal(host.hooks[0].body, '{"go": true}');
 		const elapsed = host.hooks[0].at - target.getTime();
 		assert.ok(elapsed >= 2500 && elapsed < 4000, `webhook fired ${elapsed}ms after start; expected ~2.5s of waits`);
 		assert.equal(fs.readFileSync(outFile, "utf8").trim(), "hello");
+		assert.equal(obs.programScene, "Full Time", "OBS switched scene");
+		assert.equal(obs.scenes["Full Time"].Winner, true, "OBS showed the source in the new scene");
+		const sceneSwitch = obs.requests.find((r) => r.requestType === "SetCurrentProgramScene")!;
+		assert.ok(sceneSwitch.at >= host.hooks[0].at, "OBS steps ran in order after the webhook");
+
+		// Settings panel: Test connection with the typed address and password.
+		host.send({ event: "sendToPlugin", action: ACTION, context: "CTX1", payload: { cmd: "testObs", address: obs.address, password: "obs-pass" } });
+		const tested = await host.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "obsTest", 5000, "OBS test reply");
+		assert.equal(tested.payload.ok, true);
+		assert.match(tested.payload.message, /^Connected to OBS 31\.0\.0\. Scenes: Live, Full Time$/);
+		host.send({ event: "sendToPlugin", action: ACTION, context: "CTX1", payload: { cmd: "testObs", address: obs.address, password: "nope" } });
+		const failed = await host.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "obsTest" && m.payload.ok === false, 5000, "OBS test failure");
+		assert.match(failed.payload.message, /rejected the password/);
 
 		await host.waitFor((m) => m.event === "setState" && m.payload?.state === 0 && m._at > running._at, 3000, "back to idle");
 		const last = host.received.filter((m) => m.event === "setSettings").at(-1)!;
@@ -196,5 +227,6 @@ test("real SDK: arm, wait for the local time, run steps with delays, PI status a
 	} finally {
 		child.kill();
 		host.close();
+		await obs.close();
 	}
 });

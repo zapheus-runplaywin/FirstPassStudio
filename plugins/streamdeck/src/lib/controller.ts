@@ -2,6 +2,7 @@
  * One controller per key: idle -> armed (counting down to a local time) -> running (steps) -> idle/re-armed.
  * Talks to Stream Deck only through the KeyHost interface, so it can be tested without the SDK.
  */
+import type { ObsRequester } from "./obs";
 import { formatRemaining, formatTod, nextOccurrence, parseScript, parseTimeOfDay, type ScriptError, type Step, type TimeOfDay } from "./sequence";
 import { Aborted, runSteps, waitUntil } from "./steps";
 
@@ -39,6 +40,8 @@ export type KeyHost = {
 	saveSettings(settings: TimedSequenceSettings): void;
 	sendStatus(status: StatusPayload): void;
 	openUrl(url: string): Promise<void>;
+	/** Shared OBS connection, opened on first use. */
+	obs(): Promise<ObsRequester>;
 	log(message: string): void;
 };
 
@@ -214,6 +217,7 @@ export class SequenceController {
 				showOk: () => this.host.showOk(),
 				showAlert: () => this.host.showAlert(),
 				openUrl: (url) => this.host.openUrl(url),
+				obs: () => this.host.obs(),
 			});
 			if (controller !== this.controller) return;
 			if (result.ok) {

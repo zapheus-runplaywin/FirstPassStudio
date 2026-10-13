@@ -109,18 +109,25 @@ Add `?board=2` to the end of any link, e.g. `http://localhost:8080/deck/home/add
 
 ## Timed buttons (Timed Sequence plugin)
 
-`plugins/streamdeck` is a Stream Deck plugin that waits until a set time of day, then presses a list of links
-(and other steps) with delays in between. Build and install it with the steps in `plugins/streamdeck/README.md`.
+`plugins/streamdeck` is a Stream Deck plugin that works like a Multi Action with a start time: it waits until a set
+time of day, then presses a list of links, switches OBS scenes and shows or hides OBS sources, with delays in between.
+Build and install it with the steps in `plugins/streamdeck/README.md` (which also covers connecting it to OBS).
 
-For example, a key armed for 18:55 that gets the board ready for a 19:00 start:
+For example, a key armed for 18:55 that gets the board ready and goes live at 19:00
+(use your own OBS scene names):
 
 ```
+obs scene Pre Game
 get http://localhost:8080/deck/scores/reset
 get http://localhost:8080/deck/quarter/1
 get http://localhost:8080/deck/clock/reset
 at 19:00
+obs scene Live
 get http://localhost:8080/deck/clock/start
 ok
 ```
+
+`obs scene <scene>` switches scenes; `obs show <source>`, `obs hide <source>` and `obs toggle <source>` work on the
+scene on air, or on another one with `obs show Winner in Full Time`.
 
 Press the key to arm it (it shows a countdown), press again to disarm, or press while it's running to stop it.

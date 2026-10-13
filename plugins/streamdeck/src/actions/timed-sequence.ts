@@ -11,11 +11,13 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 
 import { type KeyHost, SequenceController, type StatusPayload, type TimedSequenceSettings } from "../lib/controller";
+import { type ObsRequester, testObsConnection } from "../lib/obs";
+import { getObs } from "../obs-service";
 
 const logger = streamDeck.logger.createScope("TimedSequence");
 
 /** Messages the property inspector sends with sendToPlugin. */
-type PiCommand = { cmd?: string };
+type PiCommand = { cmd?: string; address?: string; password?: string };
 type PiPayload = Parameters<typeof streamDeck.ui.sendToPropertyInspector>[0];
 
 /**
@@ -65,6 +67,10 @@ class KeyBridge implements KeyHost {
 
 	openUrl(url: string): Promise<void> {
 		return streamDeck.system.openUrl(url);
+	}
+
+	obs(): Promise<ObsRequester> {
+		return getObs();
 	}
 
 	log(message: string): void {
@@ -121,7 +127,19 @@ export class TimedSequenceAction extends SingletonAction<TimedSequenceSettings> 
 		this.keys.get(ev.action.id)?.controller.sendStatus();
 	}
 
-	override onSendToPlugin(ev: SendToPluginEvent<PiCommand, TimedSequenceSettings>): void {
+	override async onSendToPlugin(ev: SendToPluginEvent<PiCommand, TimedSequenceSettings>): Promise<void> {
+		if (ev.payload?.cmd === "testObs") {
+			// Test the address/password typed in the panel (they may not be saved yet).
+			let reply: { type: "obsTest"; ok: boolean; message: string };
+			try {
+				reply = { type: "obsTest", ok: true, message: await testObsConnection(ev.payload.address, ev.payload.password) };
+			} catch (e) {
+				reply = { type: "obsTest", ok: false, message: (e as Error).message };
+			}
+			logger.info(`OBS test: ${reply.message}`);
+			await streamDeck.ui.sendToPropertyInspector(reply);
+			return;
+		}
 		this.keys.get(ev.action.id)?.controller.command(ev.payload?.cmd);
 	}
 }

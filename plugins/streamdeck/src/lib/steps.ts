@@ -3,6 +3,7 @@
  * anything that needs the SDK (opening URLs, flashing the key, logging) comes in through RunContext.
  */
 import { exec, execFile, spawn, type ChildProcess } from "node:child_process";
+import { type ObsRequester, setSourceVisible, switchScene } from "./obs";
 import { formatRemaining, nextOccurrence, type KeyCombo, type Step } from "./sequence";
 
 const IS_WIN = process.platform === "win32";
@@ -24,6 +25,8 @@ export type RunContext = {
 	showOk(): void;
 	showAlert(): void;
 	openUrl(url: string): Promise<void>;
+	/** Connection to OBS, opened on first use. */
+	obs(): Promise<ObsRequester>;
 };
 
 export type RunResult = { ok: true } | { ok: false; error: string };
@@ -206,6 +209,18 @@ const executors: Executors = {
 		}
 		if (IS_MAC) return osascript(`tell application "System Events" to keystroke ${asQuote(step.text)}`, ctx.signal);
 		throw new Error("type is only supported on Windows and macOS");
+	},
+
+	async obs(step, ctx) {
+		const obs = await ctx.obs();
+		if (step.op === "scene") {
+			await switchScene(obs, step.name);
+			ctx.log(`OBS scene -> ${step.name}`);
+			return;
+		}
+		const visible = step.op === "toggle" ? "toggle" : step.op === "show";
+		const result = await setSourceVisible(obs, step.name, visible, step.scene);
+		ctx.log(`OBS ${result.visible ? "showed" : "hid"} "${step.name}" in "${result.sceneName}"`);
 	},
 
 	async ok(_step, ctx) {

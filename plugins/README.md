@@ -6,12 +6,13 @@ to run.
 
 | Plugin | Folder | What it does |
 |---|---|---|
-| Timed Sequence (Stream Deck) | [`streamdeck/`](streamdeck/) | A Stream Deck key that waits until a set time of day, then runs a list of steps with delays in between |
+| Timed Sequence (Stream Deck) | [`streamdeck/`](streamdeck/) | A Stream Deck key that works like a Multi Action with a start time: at a set time of day it runs a list of steps (helper links, OBS scenes and sources, and more) with delays in between |
 
 ## Timed Sequence (Stream Deck)
 
 Press the key to arm it. It counts down to a time you set, then runs its steps in order: press helper links
-(`get http://localhost:8080/deck/...`), call other webhooks, open apps or web pages, run commands, press hotkeys or
+(`get http://localhost:8080/deck/...`), switch OBS scenes (`obs scene Live`), show or hide OBS sources
+(`obs show Winner in Full Time`), call other webhooks, open apps or web pages, run commands, press hotkeys or
 type text, with `wait 5s` delays or `at 19:00` pauses in between. Press again to disarm, or to stop a sequence that's
 running. It can repeat every day and re-arms itself if Stream Deck restarts.
 
@@ -19,6 +20,8 @@ Example: a key armed for 18:55 that gets the board ready and starts the clock at
 [`STREAMDECK.md`](../STREAMDECK.md#timed-buttons-timed-sequence-plugin).
 
 - **Needs:** Stream Deck app 7.1 or later on Windows 10+ or macOS 12+, and Node.js with npm to build it.
+  For the OBS steps, OBS 28 or later with its WebSocket server turned on (Tools → WebSocket Server Settings);
+  the key's settings have the OBS address, password and a **Test connection** button.
 - **Build and install:**
 
   ```bash

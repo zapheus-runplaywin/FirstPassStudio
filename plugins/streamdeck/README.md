@@ -1,7 +1,8 @@
 # Timed Sequence — Stream Deck plugin
 
 Press the key to arm it. It counts down to a local time you set, then runs a list of steps
-(open things, run commands, call webhooks, press hotkeys, type text), with delays between them.
+(switch OBS scenes, show/hide OBS sources, call webhooks, open things, run commands, press hotkeys, type text),
+with delays between them. Think of it as a Multi Action with a start time.
 
 Built on Elgato's official SDK (`@elgato/streamdeck` v3) with the standard TypeScript + Rollup setup
 from `streamdeck create`.
@@ -66,30 +67,54 @@ One step per line. Lines starting with `#` or `//` are comments.
 | `http POST <url> [body]` | HTTP request: GET/POST/PUT/PATCH/DELETE/HEAD. Shorthands: `get <url>`, `post <url> {...}`. JSON bodies get `Content-Type: application/json` |
 | `keys ctrl+shift+s` | Press a key combo in the focused window. Several combos: `keys ctrl+a ctrl+c` |
 | `type Hello there` | Type text into the focused window |
+| `obs scene <scene>` | Switch OBS to a scene |
+| `obs show <source>` | Show a source in the current OBS scene. Also `obs hide` and `obs toggle` |
+| `obs show <source> in <scene>` | Show/hide/toggle a source in a named scene (it doesn't have to be the one on air) |
 | `ok` / `alert` | Flash a check mark / warning on the key |
 | `log <text>` | Write to the plugin log |
 
 Modifiers: `ctrl`, `shift`, `alt` (`option`), `cmd` (Mac only). Named keys: `enter`, `tab`, `esc`, `space`,
 `backspace`, `delete`, `up` `down` `left` `right`, `home`, `end`, `pageup`, `pagedown`, `f1`–`f12`, or any single character.
 
+Scene and source names are matched exactly as they appear in OBS (capitals and spaces count). Names can contain spaces
+without quotes; if a name contains the word "in", put the names in quotes: `obs show "Sign in board" in "Full Time"`.
+
 ### Example
 
 ```
-# Go-live at 19:00
-open "C:\Program Files\obs-studio\bin\64bit\obs64.exe"
-wait 10s
-http POST http://homeassistant.local:8123/api/webhook/studio-lights-on
+# Pre-game at 18:55, start at 19:00
+obs scene Pre Game
+get http://localhost:8080/deck/scores/reset
 wait 2s
-keys ctrl+alt+s
-at 19:30
-keys ctrl+alt+x
+obs hide Winner in Full Time
+at 19:00
+obs scene Live
+obs show Scoreboard
+get http://localhost:8080/deck/clock/start
 ok
 ```
 
+## OBS setup
+
+The `obs` steps talk to OBS directly through the WebSocket server built into OBS 28 and later, so you don't need the
+OBS Studio Stream Deck plugin for them (it can stay installed).
+
+1. In OBS: **Tools → WebSocket Server Settings**, tick **Enable WebSocket server**. Click **Show Connect Info** for the
+   port and password.
+2. In the key's settings, under **OBS**, enter the address (`localhost:4455` if OBS is on this computer, or e.g.
+   `192.168.1.20:4455` for another one) and the password, then click **Test connection**. It lists OBS's scenes so you
+   can copy the exact names.
+
+The OBS address and password are shared by every Timed Sequence key; set them once. The plugin connects when an `obs`
+step first runs and reconnects by itself if OBS is restarted. If OBS isn't reachable the step fails with the reason
+(and the sequence stops, unless **Stop the sequence** on error is unticked).
+
 ## Good to know
 
-- **It can't press your other Stream Deck keys.** The SDK doesn't let plugins trigger other actions.
-  To drive OBS, Home Assistant, Bitfocus Companion, etc., use their webhook/HTTP APIs (`http`/`post`) or hotkeys (`keys`).
+- **It can't press your other Stream Deck keys** or run other plugins' actions: the SDK doesn't let plugins trigger
+  other actions. OBS scenes and sources are built in (`obs` steps); for other apps use their webhook/HTTP APIs
+  (`get`/`post`) or hotkeys (`keys`).
+- **The OBS password** is kept in Stream Deck's settings for this plugin, in plain text like other Stream Deck plugin settings.
 - **Hotkeys and typing go to whatever window is focused** at that moment. Add an `open` + `wait` first to bring the right app forward.
 - **macOS:** `keys` and `type` need Accessibility permission for Stream Deck
   (System Settings → Privacy & Security → Accessibility). macOS asks the first time.
@@ -106,7 +131,9 @@ src/
   plugin.ts                 registers the action and connects to Stream Deck
   actions/timed-sequence.ts SDK action: routes key/settings/property-inspector events to a controller per key
   lib/controller.ts         per-key state machine: idle -> armed -> running -> idle / re-armed (SDK-free)
-  lib/steps.ts              step executors (open/run/http/keys/type…) and the wall-clock wait
+  lib/steps.ts              step executors (open/run/http/obs/keys/type…) and the wall-clock wait
+  lib/obs.ts                OBS WebSocket (v5) client and the scene / source-visibility actions
+  obs-service.ts            the shared OBS connection, using the address/password in Stream Deck's global settings
   lib/sequence.ts           step-script, time and duration parsing
 com.runplaywin.timed-sequence.sdPlugin/
   manifest.json
@@ -115,10 +142,12 @@ com.runplaywin.timed-sequence.sdPlugin/
 test/
   sequence.test.ts          parser and key-combo mapping
   controller.test.ts        state machine with a fake key (timing, stop, repeat, restore, errors)
-  plugin.e2e.test.ts        launches src/plugin.ts with the real SDK against a mock Stream Deck app
+  obs.test.ts               OBS steps against a mock OBS (password, scenes, sources, errors, reconnect)
+  plugin.e2e.test.ts        launches src/plugin.ts with the real SDK against a mock Stream Deck app and mock OBS
+  support/mock-obs.ts       the mock OBS WebSocket server
 ```
 
-`npm test` runs all three; `npm run typecheck` runs `tsc --noEmit`.
+`npm test` runs them all; `npm run typecheck` runs `tsc --noEmit`.
 
 To rebrand, change the UUID in `manifest.json`, the `@action({ UUID })` in `src/actions/timed-sequence.ts`,
 the folder name, and the `sdPlugin`/UUID strings in `rollup.config.mjs` and `package.json` together.
