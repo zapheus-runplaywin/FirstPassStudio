@@ -1,0 +1,53 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+	"Name": "Timed Sequence",
+	"Version": "1.0.0.0",
+	"Author": "runplaywin.com",
+	"Description": "Waits until a set local time, then runs a sequence of steps (open, run, HTTP, hotkeys, typing) with delays between them.",
+	"Icon": "imgs/plugin/icon",
+	"Category": "Timed Sequence",
+	"CategoryIcon": "imgs/plugin/category",
+	"CodePath": "bin/plugin.js",
+	"SDKVersion": 3,
+	"Software": {
+		"MinimumVersion": "7.1"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "12"
+		},
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "24"
+	},
+	"UUID": "com.runplaywin.timed-sequence",
+	"Actions": [
+		{
+			"Name": "Timed Sequence",
+			"UUID": "com.runplaywin.timed-sequence.run",
+			"Icon": "imgs/actions/timed/icon",
+			"Tooltip": "Press to arm. At the set time it runs your step list. Press again to disarm or stop.",
+			"PropertyInspectorPath": "ui/timed-sequence.html",
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"States": [
+				{
+					"Image": "imgs/actions/timed/idle",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/timed/armed",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				}
+			]
+		}
+	]
+}

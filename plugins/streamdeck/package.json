@@ -1,0 +1,33 @@
+{
+	"name": "timed-sequence-streamdeck",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Stream Deck plugin: wait for a local time, then run a sequence of steps with delays.",
+	"type": "module",
+	"scripts": {
+		"build": "rollup -c",
+		"watch": "rollup -c -w --watch.onEnd=\"streamdeck restart com.runplaywin.timed-sequence\"",
+		"link": "streamdeck link com.runplaywin.timed-sequence.sdPlugin",
+		"restart": "streamdeck restart com.runplaywin.timed-sequence",
+		"validate": "streamdeck validate com.runplaywin.timed-sequence.sdPlugin",
+		"pack": "npm run build && streamdeck pack com.runplaywin.timed-sequence.sdPlugin --output dist --force",
+		"typecheck": "tsc --noEmit",
+		"test": "tsx --test test/*.test.ts"
+	},
+	"devDependencies": {
+		"@elgato/cli": "^1.10.0",
+		"@rollup/plugin-commonjs": "^29.0.2",
+		"@rollup/plugin-node-resolve": "^15.2.2",
+		"@rollup/plugin-terser": "^1.0.0",
+		"@rollup/plugin-typescript": "^12.1.0",
+		"@tsconfig/node20": "^20.1.2",
+		"@types/node": "~24.1.0",
+		"rollup": "^4.0.2",
+		"tslib": "^2.6.2",
+		"tsx": "^4.19.0",
+		"typescript": "^5.2.2"
+	},
+	"dependencies": {
+		"@elgato/streamdeck": "^3.0.0"
+	}
+}
