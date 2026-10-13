@@ -228,12 +228,12 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
 document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
-[['Logo animation: fun (burst, spin, bounce and confetti)', '/logo.html',
-  'The competition logo from the competition setup, animated in the middle of the frame in the competition\'s colours. Plays once when the page loads, about 5 seconds, ' +
+[['Logo animation: fun (swoops in, slams down, rockets out)', '/logo.html',
+  'One big competition logo from the competition setup: it swoops in around the screen, slams down in the middle with a burst in the competition\'s colours, holds, then rockets out. Plays once when the page loads, about 5 seconds, ' +
   'then leaves the frame clear: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on.'],
  ['Logo animation: professional (wipe, lines and a light sweep)', '/logo.html?style=pro',
   'The same logo with a clean, calm reveal. Options for both: <code>?mode=light</code> (the default) or <code>?mode=dark</code> uses the setup\'s light or dark mode competition logo, ' +
-  '<code>?out=0</code> keeps the logo on screen at the end, <code>?size=520</code> sets its height in pixels, and <code>?speed=1.5</code> plays it faster (<code>0.5</code> slower). ' +
+  '<code>?out=0</code> keeps the logo on screen at the end, <code>?size=640</code> sets its height in pixels, and <code>?speed=1.5</code> plays it faster (<code>0.5</code> slower). ' +
   'Combine them with &amp;, e.g. <code>/logo.html?style=pro&amp;mode=dark</code>. With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
 (async () => {

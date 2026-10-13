@@ -8,9 +8,9 @@
 <script src="log.js"></script>
 <style>
   /* The competition logo from the active setup, animated in the middle of the frame for about 5 seconds.
-     Two styles: fun (the default: burst, spin, bounce and confetti) and pro (a clean wipe, line and shine).
+     Two styles: fun (the default: swoops in, slams down, rockets out) and pro (a clean wipe, line and shine).
      Colours and font come from the competition setup (theme.css). Transparent apart from the animation. */
-  :root { --size: 520px; --speed: 1; }
+  :root { --size: 640px; --speed: 1; }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: var(--font); }
   .stage { position: absolute; inset: 0; visibility: hidden; }
   .stage.go { visibility: visible; }
@@ -22,55 +22,68 @@
   .stage[data-style="fun"] .pro-only, .stage[data-style="pro"] .fun-only { display: none; }
 
   /* ---------- Fun ---------- */
-  /* Rings that shoot out from the middle */
-  .ring { width: calc(var(--size) * .5); height: calc(var(--size) * .5); border-radius: 50%; opacity: 0; box-sizing: border-box; }
-  .ring--1 { border: 26px solid var(--purple); }
-  .ring--2 { border: 16px solid var(--yellow); }
-  .ring--3 { border: 10px solid var(--pink); }
-  .go .ring--1 { animation: ring calc(.8s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(0s / var(--speed)) forwards,
-                             ring calc(.9s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(2.2s / var(--speed)); }
-  .go .ring--2 { animation: ring calc(.85s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(.12s / var(--speed)) forwards; }
-  .go .ring--3 { animation: ring calc(.9s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(.24s / var(--speed)) forwards,
-                             ring calc(.9s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(2.35s / var(--speed)); }
-  @keyframes ring { 0% { opacity: 1; transform: scale(.1); }
-                    70% { opacity: .9; } 100% { opacity: 0; transform: scale(4.2); } }
+  /* One big logo that swoops in around the screen with a motion trail, slams down in the middle (shockwave, flash,
+     shake, starburst and confetti), holds there making a statement, then winds up and rockets out through the camera.
+     Times are in seconds at ?speed=1: swoop 0 to 1.3, landing 1.3, hold to 4.2, exit 4.2 to 4.9. */
+  .flyer { opacity: 0; }
+  .flyer .logo { filter: drop-shadow(0 14px 36px rgba(0,0,0,.55)); }
+  .go .flyer { animation: swoop calc(1.3s / var(--speed)) linear calc(var(--lag, 0s) / var(--speed)) forwards; }
+  .go.out .flyer { animation: zoomOut calc(.7s / var(--speed)) cubic-bezier(.5,0,.9,.5) calc(var(--lag, 0s) / var(--speed)) forwards; }
+  @keyframes swoop {
+    0%   { opacity: 1; transform: translate(-1350px, 760px) rotate(-70deg) scale(.18); animation-timing-function: cubic-bezier(.3,.6,.6,1); }
+    30%  { transform: translate(-560px, -330px) rotate(-25deg) scale(.38); animation-timing-function: cubic-bezier(.4,0,.6,1); }
+    55%  { transform: translate(620px, -260px) rotate(28deg) scale(.55); animation-timing-function: cubic-bezier(.4,0,.6,1); }
+    78%  { transform: translate(180px, 120px) rotate(8deg) scale(1.45); animation-timing-function: cubic-bezier(.5,0,.5,1); }
+    90%  { transform: translate(0, 0) rotate(-3deg) scale(.9); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes zoomOut {
+    0%   { opacity: 1; transform: none; }
+    28%  { opacity: 1; transform: scale(.86) rotate(-5deg); }
+    100% { opacity: 0; transform: scale(3.6) rotate(14deg); }
+  }
+  /* Ghost copies a moment behind the logo make the motion trail; they hide while it holds still. */
+  .trail .logo { filter: none; }
+  .trail--1 { --lag: .05s; } .trail--2 { --lag: .1s; } .trail--3 { --lag: .15s; }
+  .trail--1 .logo-box { opacity: .5; } .trail--2 .logo-box { opacity: .3; } .trail--3 .logo-box { opacity: .15; }
+  .go .trail .logo-box { animation: trailHide calc(.15s / var(--speed)) linear calc(1.3s / var(--speed)) forwards; }
+  .go.out .trail .logo-box { animation: none; }
+  @keyframes trailHide { to { opacity: 0; } }
+  /* The landing: a squash, then a slow push in while it holds */
+  .go .hero .logo-box { animation: squash calc(.4s / var(--speed)) cubic-bezier(.3,1.6,.5,1) calc(1.3s / var(--speed)),
+                                   push calc(2.5s / var(--speed)) ease-out calc(1.7s / var(--speed)) forwards; }
+  @keyframes squash { 0% { transform: scale(1.12, .84); } 100% { transform: none; } }
+  @keyframes push { from { transform: scale(1); } to { transform: scale(1.07); } }
+  .go .centre { animation: shake calc(.45s / var(--speed)) linear calc(1.3s / var(--speed)); }
+  @keyframes shake { 0%, 100% { transform: none; } 15% { transform: translate(-14px, 9px); } 30% { transform: translate(12px, -11px); }
+                     45% { transform: translate(-9px, -6px); } 60% { transform: translate(7px, 8px); } 80% { transform: translate(-3px, 2px); } }
 
-  /* Spinning starburst behind the logo, fading out at its edge */
+  /* Shockwave rings from the landing */
+  .ring { width: calc(var(--size) * .5); height: calc(var(--size) * .5); border-radius: 50%; opacity: 0; box-sizing: border-box; }
+  .ring--1 { border: 30px solid var(--purple); }
+  .ring--2 { border: 18px solid var(--yellow); }
+  .ring--3 { border: 10px solid var(--pink); }
+  .go .ring--1 { animation: ring calc(.8s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(1.3s / var(--speed)); }
+  .go .ring--2 { animation: ring calc(.85s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(1.4s / var(--speed)); }
+  .go .ring--3 { animation: ring calc(.9s / var(--speed)) cubic-bezier(.1,.7,.3,1) calc(1.5s / var(--speed)); }
+  @keyframes ring { 0% { opacity: 1; transform: scale(.3); } 70% { opacity: .9; } 100% { opacity: 0; transform: scale(5); } }
+
+  /* Spinning starburst behind the logo while it holds, fading out at its edge */
   .burst { width: calc(var(--size) * 2.1); height: calc(var(--size) * 2.1); border-radius: 50%; opacity: 0;
     background: repeating-conic-gradient(from 0deg, rgba(var(--purple-rgb), .85) 0 9deg, rgba(var(--yellow-rgb), .75) 9deg 18deg);
     -webkit-mask-image: radial-gradient(circle, #000 18%, rgba(0,0,0,.6) 42%, transparent 70%);
             mask-image: radial-gradient(circle, #000 18%, rgba(0,0,0,.6) 42%, transparent 70%); }
-  .go .burst { animation: burstIn calc(.6s / var(--speed)) cubic-bezier(.2,1.4,.4,1) calc(.25s / var(--speed)) forwards,
-                          spin calc(9s / var(--speed)) linear calc(.25s / var(--speed)) infinite; }
+  .go .burst { animation: burstIn calc(.5s / var(--speed)) cubic-bezier(.2,1.4,.4,1) calc(1.3s / var(--speed)) forwards,
+                          spin calc(9s / var(--speed)) linear calc(1.3s / var(--speed)) infinite; }
   .go.out .burst { animation: burstOut calc(.5s / var(--speed)) cubic-bezier(.6,0,.9,.4) forwards; }
   @keyframes burstIn { 0% { opacity: 0; scale: .2; } 100% { opacity: 1; scale: 1; } }
   @keyframes spin { from { rotate: 0deg; } to { rotate: 360deg; } }
   @keyframes burstOut { from { opacity: 1; scale: 1; } to { opacity: 0; scale: .1; rotate: 200deg; } }
 
-  /* The logo pops in with a wobble, bounces to the beat, then zips away */
-  .fun-logo { opacity: 0; }
-  .fun-logo .logo { filter: drop-shadow(0 10px 30px rgba(0,0,0,.5)); }
-  .go .fun-logo { animation: popIn calc(.9s / var(--speed)) linear calc(.35s / var(--speed)) forwards; }
-  .go .fun-logo .logo-box { animation: bounce calc(.6s / var(--speed)) ease-in-out calc(1.3s / var(--speed)) 5 alternate; }
-  .go.out .fun-logo { animation: popOut calc(.55s / var(--speed)) cubic-bezier(.6,-.5,.9,.5) forwards; }
-  @keyframes popIn {
-    0%   { opacity: 0; transform: scale(0) rotate(-200deg); }
-    45%  { opacity: 1; transform: scale(1.22) rotate(12deg); }
-    65%  { transform: scale(.92) rotate(-6deg); }
-    82%  { transform: scale(1.05) rotate(2deg); }
-    100% { opacity: 1; transform: scale(1) rotate(0); }
-  }
-  @keyframes bounce { from { transform: scale(1) rotate(-1.5deg); } to { transform: scale(1.06) rotate(1.5deg); } }
-  @keyframes popOut {
-    0%   { opacity: 1; transform: scale(1); }
-    30%  { opacity: 1; transform: scale(1.15) rotate(-8deg); }
-    100% { opacity: 0; transform: scale(0) rotate(160deg); }
-  }
-
   /* Flash as the logo lands */
-  .flash { width: calc(var(--size) * 1.6); height: calc(var(--size) * 1.6); border-radius: 50%; opacity: 0;
+  .flash { width: calc(var(--size) * 1.8); height: calc(var(--size) * 1.8); border-radius: 50%; opacity: 0;
     background: radial-gradient(circle, rgba(255,255,255,.95), rgba(var(--yellow-rgb), .5) 35%, transparent 65%); }
-  .go .flash { animation: flash calc(.5s / var(--speed)) ease-out calc(.6s / var(--speed)); }
+  .go .flash { animation: flash calc(.5s / var(--speed)) ease-out calc(1.25s / var(--speed)); }
   @keyframes flash { 0% { opacity: 0; scale: .4; } 25% { opacity: 1; } 100% { opacity: 0; scale: 1.3; } }
 
   /* Confetti (pieces are made by the script) */
@@ -128,14 +141,14 @@
 </head>
 <body>
   <!-- Add to OBS as a Browser source, 1920 x 1080:
-       http://localhost:8080/logo.html            (fun: burst, spin, bounce and confetti)
+       http://localhost:8080/logo.html            (fun: swoops in, slams down, rockets out)
        http://localhost:8080/logo.html?style=pro  (professional: clean wipe, lines and a light sweep)
        The competition logo comes from the competition setup page. Plays once when the page loads (about 5 seconds)
        and leaves the frame transparent; tick "Refresh browser when scene becomes active" in OBS to play it each time.
        Options: ?mode=light (the default) or ?mode=dark picks the setup's light or dark mode competition logo
                 (a competition with only one logo uses it for both);
                 ?out=0 keeps the logo on screen at the end instead of animating it away;
-                ?size=520 is the logo's height in pixels; ?speed=1.5 plays it faster (0.5 slower). -->
+                ?size=640 is the logo's height in pixels; ?speed=1.5 plays it faster (0.5 slower). -->
   <div class="stage" id="stage" data-style="fun">
     <div class="confetti fun-only" id="confetti"></div>
     <div class="centre">
@@ -147,7 +160,10 @@
       <div class="flash fun-only"></div>
       <div class="line line--top pro-only"></div>
       <div class="line line--bottom pro-only"></div>
-      <div class="fun-logo fun-only"><div class="logo-box"><img class="logo" id="funLogo" alt=""></div></div>
+      <div class="flyer trail trail--3 fun-only"><div class="logo-box"><img class="logo" alt=""></div></div>
+      <div class="flyer trail trail--2 fun-only"><div class="logo-box"><img class="logo" alt=""></div></div>
+      <div class="flyer trail trail--1 fun-only"><div class="logo-box"><img class="logo" alt=""></div></div>
+      <div class="flyer hero fun-only"><div class="logo-box"><img class="logo" id="funLogo" alt=""></div></div>
       <div class="pro-logo pro-only"><div class="logo-box"><img class="logo" id="proLogo" alt=""><div class="shine" id="shine"></div></div></div>
     </div>
   </div>
@@ -177,7 +193,7 @@
           b.style.setProperty('--y', Math.sin(angle) * dist * .8 + 'px');
           b.style.setProperty('--r', (Math.random() * 1080 - 540) + 'deg');
           b.style.setProperty('--t', (1.4 + Math.random() * 1.4) / speed + 's');
-          b.style.setProperty('--d', ((i < 70 ? .6 : 2.25) + Math.random() * .15) / speed + 's');
+          b.style.setProperty('--d', ((i < 70 ? 1.3 : 2.5) + Math.random() * .15) / speed + 's');
           box.appendChild(b);
         }
       }
@@ -185,7 +201,7 @@
       function play() {
         if (style === 'fun') confetti();
         stage.classList.add('go');
-        if (params.get('out') !== '0') setTimeout(() => stage.classList.add('out'), 4400 / speed);
+        if (params.get('out') !== '0') setTimeout(() => stage.classList.add('out'), (style === 'pro' ? 4400 : 4200) / speed);
       }
 
       async function load() {
@@ -204,6 +220,7 @@
           img.onload = start;
           img.onerror = () => console.warn('Logo animation: could not load the competition logo', logo);
           img.src = logo;
+          document.querySelectorAll('.trail .logo').forEach(t => { t.src = logo; });
           setTimeout(() => { if (!started && img.complete && img.naturalWidth) start(); }, 3000);
         } catch (err) { console.warn('Logo animation: competition logo unavailable:', err.message); }
       }
