@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Timed Sequence</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 10px 12px 16px;
+    background: #2d2d2d; color: #d8d8d8;
+    font: 12px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .row > label:first-child { flex: 0 0 92px; color: #9a9a9a; text-align: right; }
+  .row > .field { flex: 1; min-width: 0; }
+  input[type=time], input[type=number], textarea {
+    width: 100%; background: #3d3d3d; color: #e6e6e6; border: 1px solid #4a4a4a;
+    border-radius: 3px; padding: 4px 6px; font: inherit; outline: none;
+  }
+  input:focus, textarea:focus { border-color: #6b8cff; }
+  input[type=number] { width: 70px; }
+  textarea {
+    min-height: 170px; resize: vertical; font: 11.5px/1.45 ui-monospace, Menlo, Consolas, monospace;
+    -webkit-user-select: text; user-select: text; white-space: pre; tab-size: 2;
+  }
+  .check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .check input { margin: 0; }
+  .buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+  button {
+    background: #4a4a4a; color: #eee; border: 1px solid #5a5a5a; border-radius: 3px;
+    padding: 4px 10px; font: inherit; cursor: pointer;
+  }
+  button:hover { background: #575757; }
+  button.primary { background: #3a5bd9; border-color: #4b6ae6; }
+  button.primary:hover { background: #4569ea; }
+  button[hidden] { display: none; }
+  .status {
+    margin: 4px 0 10px 100px; padding: 6px 8px; border-radius: 3px; background: #262626;
+    border-left: 3px solid #666; color: #cfcfcf;
+  }
+  .status.armed { border-left-color: #2fbf71; }
+  .status.running { border-left-color: #f0a830; }
+  .status .sub { color: #9a9a9a; margin-top: 2px; word-break: break-word; }
+  .errors { margin: 4px 0 8px 100px; color: #ff8a80; }
+  .errors div { margin-bottom: 2px; }
+  details { margin: 6px 0 0 100px; color: #b5b5b5; }
+  summary { cursor: pointer; color: #8fa8ff; margin-bottom: 4px; }
+  details table { border-collapse: collapse; width: 100%; }
+  details td { padding: 2px 6px 2px 0; vertical-align: top; }
+  details code { font: 11px ui-monospace, Menlo, Consolas, monospace; color: #e6e6e6; white-space: nowrap; }
+  .hint { color: #8a8a8a; font-size: 11px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <label for="time">Start at</label>
+    <div class="field"><input id="time" type="time" step="1" /></div>
+  </div>
+
+  <div class="row">
+    <label>Schedule</label>
+    <div class="field">
+      <label class="check"><input id="repeatDaily" type="checkbox" /> Repeat every day</label>
+      <label class="check"><input id="armOnLaunch" type="checkbox" /> Arm automatically when Stream Deck starts</label>
+    </div>
+  </div>
+
+  <div class="row">
+    <label>If an error</label>
+    <div class="field">
+      <label class="check"><input id="stopOnError" type="checkbox" checked /> Stop the sequence</label>
+    </div>
+  </div>
+
+  <div class="row">
+    <label for="skipIfLateMin">Skip if late</label>
+    <div class="field" style="display:flex;align-items:center;gap:6px">
+      <input id="skipIfLateMin" type="number" min="0" step="1" placeholder="0" />
+      <span class="hint">minutes (0 = always run, e.g. after waking from sleep)</span>
+    </div>
+  </div>
+
+  <div class="row" style="align-items:flex-start">
+    <label for="script" style="padding-top:4px">Steps</label>
+    <div class="field">
+      <textarea id="script" spellcheck="false" placeholder="# One step per line, e.g.
+open https://example.com
+wait 5s
+keys ctrl+r
+wait 1m30s
+http POST https://example.com/hook {&quot;go&quot;: true}
+ok"></textarea>
+    </div>
+  </div>
+
+  <div class="errors" id="errors"></div>
+
+  <div class="row">
+    <label></label>
+    <div class="field buttons">
+      <button id="armBtn" class="primary">Arm</button>
+      <button id="disarmBtn" hidden>Disarm</button>
+      <button id="runBtn">Test run now</button>
+      <button id="stopBtn" hidden>Stop</button>
+    </div>
+  </div>
+
+  <div class="status" id="status"><div id="statusMain">Idle</div><div class="sub" id="statusSub"></div></div>
+
+  <details>
+    <summary>Step reference</summary>
+    <table>
+      <tr><td><code>wait 5s</code></td><td>Delay. <code>500ms</code>, <code>90</code>, <code>1m30s</code>, <code>2h</code>, <code>00:02:00</code></td></tr>
+      <tr><td><code>at 14:45</code></td><td>Wait until another local time (also <code>2:45pm</code>)</td></tr>
+      <tr><td><code>open &lt;target&gt;</code></td><td>Open a URL, file, folder or app</td></tr>
+      <tr><td><code>run &lt;command&gt;</code></td><td>Run a shell command and wait for it to finish</td></tr>
+      <tr><td><code>start &lt;command&gt;</code></td><td>Launch a command without waiting</td></tr>
+      <tr><td><code>http POST &lt;url&gt; [body]</code></td><td>Webhook / API call. Also <code>get &lt;url&gt;</code>, <code>post &lt;url&gt; {...}</code></td></tr>
+      <tr><td><code>keys ctrl+shift+s</code></td><td>Press a combo (several separated by spaces). Mods: ctrl, shift, alt/option, cmd (Mac)</td></tr>
+      <tr><td><code>type hello</code></td><td>Type text into the focused window</td></tr>
+      <tr><td><code>ok</code> / <code>alert</code></td><td>Flash the key</td></tr>
+      <tr><td><code>log &lt;text&gt;</code></td><td>Write to the plugin log</td></tr>
+      <tr><td><code># comment</code></td><td>Ignored</td></tr>
+    </table>
+    <p class="hint">Keys: enter, tab, esc, space, backspace, delete, up/down/left/right, home, end, pageup, pagedown, f1–f12, or any single character. On a Mac, keys/type need Accessibility permission for Stream Deck.</p>
+  </details>
+
+<script>
+  let websocket = null;
+  let uuid = null;
+  let actionUUID = null;
+  let settings = {};
+  let status = null;
+  let saveTimer = null;
+  let clockTimer = null;
+
+  const $ = (id) => document.getElementById(id);
+  const fields = ["time", "repeatDaily", "armOnLaunch", "stopOnError", "skipIfLateMin", "script"];
+
+  // Called by the Stream Deck app.
+  // eslint-disable-next-line no-unused-vars
+  function connectElgatoStreamDeckSocket(port, propertyInspectorUUID, registerEvent, info, actionInfo) {
+    uuid = propertyInspectorUUID;
+    const ai = JSON.parse(actionInfo);
+    actionUUID = ai.action;
+    settings = (ai.payload && ai.payload.settings) || {};
+    fillForm();
+
+    websocket = new WebSocket("ws://127.0.0.1:" + port);
+    websocket.onopen = () => {
+      websocket.send(JSON.stringify({ event: registerEvent, uuid }));
+      sendToPlugin({ cmd: "status" });
+    };
+    websocket.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+      if (msg.event === "didReceiveSettings") {
+        // Keep anything the user is mid-typing; just pick up plugin-managed values.
+        settings = Object.assign({}, msg.payload.settings || {}, readForm());
+      } else if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.type === "status") {
+        status = msg.payload;
+        if (status.armedFor) settings.armedFor = status.armedFor; else delete settings.armedFor;
+        renderStatus();
+      }
+    };
+  }
+
+  function fillForm() {
+    $("time").value = settings.time || "";
+    $("repeatDaily").checked = !!settings.repeatDaily;
+    $("armOnLaunch").checked = !!settings.armOnLaunch;
+    $("stopOnError").checked = settings.stopOnError !== false;
+    $("skipIfLateMin").value = settings.skipIfLateMin || "";
+    $("script").value = settings.script || "";
+  }
+
+  function readForm() {
+    return {
+      time: $("time").value,
+      repeatDaily: $("repeatDaily").checked,
+      armOnLaunch: $("armOnLaunch").checked,
+      stopOnError: $("stopOnError").checked,
+      skipIfLateMin: Number($("skipIfLateMin").value) || 0,
+      script: $("script").value,
+    };
+  }
+
+  function save() {
+    settings = Object.assign({}, settings, readForm());
+    if (websocket && websocket.readyState === 1) {
+      websocket.send(JSON.stringify({ event: "setSettings", context: uuid, payload: settings }));
+    }
+  }
+
+  function saveSoon(delay) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, delay);
+  }
+
+  function sendToPlugin(payload) {
+    if (websocket && websocket.readyState === 1) {
+      websocket.send(JSON.stringify({ event: "sendToPlugin", action: actionUUID, context: uuid, payload }));
+    }
+  }
+
+  // Flush pending edits before a command so the plugin acts on what's on screen.
+  function command(cmd) {
+    clearTimeout(saveTimer);
+    save();
+    setTimeout(() => sendToPlugin({ cmd }), 150);
+  }
+
+  fields.forEach((id) => {
+    const el = $(id);
+    el.addEventListener(el.type === "checkbox" ? "change" : "input", () => saveSoon(id === "script" ? 500 : 150));
+    el.addEventListener("change", () => saveSoon(0));
+  });
+  $("script").addEventListener("keydown", (e) => {
+    if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "  "); }
+  });
+  $("armBtn").onclick = () => command("arm");
+  $("disarmBtn").onclick = () => command("disarm");
+  $("runBtn").onclick = () => command("runNow");
+  $("stopBtn").onclick = () => command("stop");
+
+  function fmtRemaining(ms) {
+    const t = Math.max(0, Math.ceil(ms / 1000));
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    const p = (n) => String(n).padStart(2, "0");
+    return h ? `${h}:${p(m)}:${p(s)}` : `${m}:${p(s)}`;
+  }
+
+  function renderStatus() {
+    if (!status) return;
+    const box = $("status");
+    box.className = "status " + status.state;
+    $("armBtn").hidden = status.state !== "idle";
+    $("disarmBtn").hidden = status.state !== "armed";
+    $("stopBtn").hidden = status.state !== "running";
+    $("runBtn").hidden = status.state === "running";
+
+    clearInterval(clockTimer);
+    const draw = () => {
+      let main = "Idle — press the key or Arm to start waiting";
+      if (status.state === "armed" && status.targetMs) {
+        const d = new Date(status.targetMs);
+        const when = d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        main = `Armed for ${when} (in ${fmtRemaining(status.targetMs - Date.now())})`;
+      } else if (status.state === "running" && status.step) {
+        main = `Running step ${status.step.index + 1} of ${status.step.total}: ${status.step.label}`;
+      }
+      $("statusMain").textContent = main;
+    };
+    draw();
+    if (status.state === "armed") clockTimer = setInterval(draw, 1000);
+    $("statusSub").textContent = status.message || "";
+
+    const errs = (status.errors || []).filter((e) => e.line || $("script").value.trim() || e.message.includes("time"));
+    $("errors").innerHTML = "";
+    errs.forEach((e) => {
+      const div = document.createElement("div");
+      div.textContent = (e.line ? `Line ${e.line}: ` : "") + e.message;
+      $("errors").appendChild(div);
+    });
+  }
+</script>
+</body>
+</html>
