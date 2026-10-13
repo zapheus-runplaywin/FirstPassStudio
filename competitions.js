@@ -150,7 +150,7 @@ function clean(input, base = DEFAULTS) {
   out.periodType = out.periodType === 'halves' ? 'halves' : 'quarters';
   out.quarterMinutes = Math.min(60, Math.max(1, out.quarterMinutes));
   out.finalsPlaces = Math.min(32, Math.max(0, Math.round(out.finalsPlaces)));
-  out.autoSelectMinutesBefore = Math.min(60, Math.max(0, out.autoSelectMinutesBefore));
+  out.autoSelectMinutesBefore = Math.min(120, Math.max(0, out.autoSelectMinutesBefore));
   out.roundLookaheadDays = Math.min(14, Math.max(1, Math.round(out.roundLookaheadDays)));
   out.panelOpacity = Math.min(1, Math.max(0.3, out.panelOpacity));
   if (!FONTS.includes(out.font)) out.font = DEFAULTS.font;

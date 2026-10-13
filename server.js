@@ -313,6 +313,7 @@ async function fetchRoundGames(roundId) {
     away: { name: g.away ? g.away.name : 'TBC', score: totalScore(g.result && g.result.away), outcome: outcomeOf(g.result && g.result.away) },
   }));
   roundGamesCache.set(roundId, { at: Date.now(), games });
+  for (const g of games) noteStart(g);
   return games;
 }
 
@@ -451,7 +452,16 @@ async function fetchLive(gameId) {
   log(res.ok ? 'info' : 'warn', 'live', `game ${gameId} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`);
   if (!res.ok) { log('warn', 'live', 'answer', text.slice(0, 500)); throw new Error(`PlayHQ live feed answered HTTP ${res.status}`); }
   const json = JSON.parse(text);
-  if (json.errors && json.errors.length) { log('error', 'live', 'GraphQL errors', json.errors); throw new Error(json.errors.map(e => e.message).join('; ')); }
+  if (json.errors && json.errors.length) {
+    const message = json.errors.map(e => e.message).join('; ');
+    // Inside the window but the scorer hasn't started: expected, so said once per game.
+    if (/not electronically scored/i.test(message)) {
+      if (!notScoredLogged.has(gameId)) { notScoredLogged.add(gameId); log('info', 'live', `game ${gameId} isn't being scored in PlayHQ yet (${message}); still checking`); }
+      throw Object.assign(new Error('PlayHQ isn\'t scoring this game yet.'), { notScored: true });
+    }
+    log('error', 'live', 'GraphQL errors', json.errors);
+    throw new Error(message);
+  }
   const g = json.data && json.data.game;
   if (!g) throw new Error(`PlayHQ live feed has no game ${gameId}`);
   const side = k => {
@@ -466,11 +476,33 @@ async function fetchLive(gameId) {
   return { id: g.id, status: g.status, home: side('home'), away: side('away'), clock: g.clock || null, break: g.break || null,
     period: (g.clock && g.clock.periodValue) || (g.result && g.result.currentPeriod && g.result.currentPeriod.value) || null };
 }
+// Electronic scoring starts scoringMinutesBefore (autoSelectMinutesBefore on the setup page,
+// default 10) minutes before a game. Before then PlayHQ's live feed only answers "game could
+// not be found or was not electronically scored", so it isn't asked at all.
+const gameStarts = new Map(); // game id -> { date, time, status } from the fixtures
+function noteStart(g) { if (g && g.id && g.date && g.time) gameStarts.set(g.id, { date: g.date, time: g.time, status: g.status }); }
+function scoringOpensAt(game) {
+  const g = game && game.date && game.time ? game : gameStarts.get(game && game.id ? game.id : game);
+  if (!g || /PROGRESS|LIVE|STARTED|COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(g.status || '')) return null;
+  const start = startOf(g);
+  return start === null ? null : start - AUTO_LEAD_MS;
+}
+// Why the live feed isn't asked yet ('' once the window is open, or when the start time isn't known).
+function scoringNotYet(game) {
+  const at = scoringOpensAt(game);
+  if (at === null || at <= Date.now()) return '';
+  const when = new Date(at);
+  const day = localDate(when) === localDate() ? '' : ` on ${when.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+  return `Electronic scoring starts ${AUTO_LEAD_MS / 60000} minutes before the game, so PlayHQ is checked from ${when.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}${day}.`;
+}
+const notScoredLogged = new Set(); // games already logged as not being scored yet
 const liveCache = new Map();
 const liveInFlight = new Map();
 async function getLive(gameId, maxAgeMs) {
   const hit = liveCache.get(gameId);
   if (hit && Date.now() - hit.at < maxAgeMs) return hit.live;
+  const wait = scoringNotYet(gameId);
+  if (wait) throw Object.assign(new Error(wait), { notYet: true });
   if (!liveInFlight.has(gameId)) {
     liveInFlight.set(gameId, fetchLive(gameId)
       .then(live => { liveCache.set(gameId, { at: Date.now(), live }); return live; })
@@ -485,7 +517,10 @@ async function liveScore(game, maxAgeMs) {
   try {
     const l = await getLive(game.id, maxAgeMs);
     if (l.home.score != null || l.away.score != null) return { home: l.home.score ?? 0, away: l.away.score ?? 0, status: l.status, live: l };
-  } catch (err) { log('warn', 'live', `Live feed failed for ${game.id}: ${err.message}`); }
+  } catch (err) {
+    if (err.notYet) return null; // not scored yet, so nothing to find on the game page either
+    if (!err.notScored) log('warn', 'live', `Live feed failed for ${game.id}: ${err.message}`);
+  }
   try {
     const d = await getGame(game.id, maxAgeMs);
     if (d.home.score != null || d.away.score != null) return { home: d.home.score ?? 0, away: d.away.score ?? 0, status: d.status };
@@ -782,6 +817,10 @@ function applyAction(b, a) {
 // While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5).
 async function refreshFromPlayhq(b) {
   if (b.source !== 'playhq' || !b.roundId) return;
+  // Before electronic scoring starts there is nothing to read, so PlayHQ isn't asked.
+  const wait = scoringNotYet(b);
+  if (wait !== (b.playhqWaiting || '')) { if (wait) log('info', 'scoreboard', wait); b.playhqWaiting = wait; }
+  if (wait) { b.playhqError = ''; return; }
   try {
     const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
     let game = null;
@@ -819,7 +858,8 @@ async function refreshFromPlayhq(b) {
 // ─── Automatic game selection ───────────────────────────────────────────────
 // With autoSelect on, the board shows today's game on its court (autoCourt, default
 // defaultCourt in config.json): the first game of the day until the next one is due,
-// then each game from autoSelectMinutesBefore (default 10) minutes before its start.
+// then each game from autoSelectMinutesBefore (default 10) minutes before its start, when
+// electronic scoring starts (the live feed isn't asked before then, see scoringNotYet).
 // A finals game is kept until PlayHQ says it is finished, because of extra time.
 // Picking a game by hand turns autoSelect off.
 let AUTO_LEAD_MS = 10 * 60 * 1000;
@@ -1025,7 +1065,7 @@ function applyCompetition(why) {
   TENANT = u.tenant || 'netball-australia';
   ORG_ID = u.orgId || null;
   LOOKAHEAD_DAYS = CONFIG.roundLookaheadDays || 5;
-  AUTO_LEAD_MS = (Number(CONFIG.autoSelectMinutesBefore) ?? 10) * 60 * 1000;
+  AUTO_LEAD_MS = (Number.isFinite(Number(CONFIG.autoSelectMinutesBefore)) ? Number(CONFIG.autoSelectMinutesBefore) : 10) * 60 * 1000;
   QUARTER_SEC = Math.round((Number(CONFIG.quarterMinutes) || 10) * 60);
   structure = null; // names may have changed
   const switched = prev.id && prev.id !== id;
@@ -1649,7 +1689,7 @@ async function getTeamSheets(boardId) {
       try {
         const l = await getLive(b.gameId, maxAge);
         g.home.totals = l.home; g.away.totals = l.away;
-      } catch (err) { log('warn', 'teams', `Live totals failed: ${err.message}`); }
+      } catch (err) { if (!err.notYet && !err.notScored) log('warn', 'teams', `Live totals failed: ${err.message}`); }
       return { ...meta, home: g.home, away: g.away, error, updatedAt: new Date().toISOString() };
     }
   } catch (err) {

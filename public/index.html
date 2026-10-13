@@ -57,8 +57,11 @@
         lists what PlayHQ has for that organisation, so you can pick the right name.</li>
       <li><b>Names on the graphics:</b> the competition, organisation and venue names, each blank to use PlayHQ's.</li>
       <li><b>Game rules:</b> quarters or halves and their length, super shots, and how many teams get the finals marker on the ladder.</li>
-      <li><b>Game day:</b> the court the scoreboard follows, whether it picks the game automatically, how many minutes before
-        a game it switches, and how many days ahead counts as "this round".</li>
+      <li><b>Game day:</b> the court the scoreboard follows, whether it picks the game automatically, <b>Electronic scoring starts [x] minutes before the game</b>
+        (default 10; set 20 or 30 when games are further apart), and how many days ahead counts as "this round". Automatic selection switches
+        to the next game when its electronic scoring starts, and the scoreboard doesn't ask PlayHQ for a game's score before then, even for a game
+        picked by hand: the control page says when it will start checking. That keeps PlayHQ's "game could not be found or was not electronically
+        scored" error out of the debug log.</li>
       <li><b>Colours and font:</b> nine colours, how see-through the dark panels are, and the font, with a preview. Click a colour's
         swatch for a colour picker (shade square, hue slider, HEX and RGB boxes, and on Chrome or Edge <b>Pick from screen</b>), or type or
         paste a colour into its box as HEX (#7f4092) or RGB (127, 64, 146). Under <b>Brand kit colours</b>, paste any text from a brand kit
@@ -104,7 +107,7 @@
         link and competition on the <a href="/setup.html" target="_blank">competition setup page</a>).</li>
       <li><b>Game:</b> tick <b>Pick the game automatically for court</b> and set the court (it starts on the court set on the competition
         setup page, e.g. <code>Indoor 01</code> or just <code>1</code>). It shows the first game of the day on that court,
-        then switches to each next game 10 minutes before it starts (also set on the setup page), with the quarter back to Q1 and a full clock. A final
+        then switches to each next game when its electronic scoring starts (10 minutes before by default, set on the setup page), with the quarter back to Q1 and a full clock. A final
         (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a round picked
         by hand, its games are treated as if they were today, so the switching can be tested any time.</li>
       <li><b>Overrides:</b> picking a game from the list turns automatic selection off until you tick it again or change the court. Pressing a score
@@ -173,7 +176,8 @@
     <p class="page__help">Pages only ever talk to the helper on this computer, which uses no internet. The helper is the only thing that
       contacts PlayHQ, and it caches what it gets:</p>
     <ul class="page__help">
-      <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page).</li>
+      <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
+        the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
       <li>Athletes page: when you open a team, the line up of each of its games this season, once (finished games are kept for an hour).</li>
