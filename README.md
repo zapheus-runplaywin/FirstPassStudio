@@ -77,7 +77,7 @@ them into `competitions/` (so your edits show up as changes) and `control.json` 
 4. For the live scoreboard, add http://localhost:8080/scoreboard.html as another Browser source (1920 x 1080),
    then open http://localhost:8080/control.html in your browser to run it.
 
-Only the scoreboard updates itself (every second, and it reloads when the helper restarts). Every other page
+Only the scoreboard updates itself (every second, and it reloads when the helper restarts), along with the last 10 goals (every 2 seconds) and the ticker. Every other page
 loads once when OBS shows it: in each Browser source tick **Refresh browser when scene becomes active**, or
 right-click the source and choose **Refresh** to get the latest. Divisions are numbered in name order, as listed on the
 http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
@@ -180,6 +180,17 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
   with sparks, SUPER and SHOT slam in from either side with a +2 badge, then it fades out and leaves the frame clear.
   `?team=home` or `?team=away` adds that team's logo and name in their club colour (`?board=2` for the second court).
   Tick "Shutdown source when not visible" and "Refresh browser when scene becomes active" in OBS so it plays each time it comes on.
+- http://localhost:8080/goals.html: the last 10 goals of the game, oldest to newest, for showing trends and changes in momentum.
+  Each goal is a disc in the scoring team's club colour with its logo (+2 badge for a super goal) and the quarter and time,
+  with a momentum line underneath (up for home goals, down for away), each team's count of the 10 and the current run
+  (3 or more in a row lights up). `?layout=vertical` stacks it down the right-hand side (`horizontal`, above the scoreboard,
+  is the default). Like the scoreboard it updates itself (every 2 seconds), so it can stay on. `?count=8` (3 to 30),
+  `?times=0`, `?position=top|middle` (horizontal) or `left` (vertical), `?title=Momentum`, `?board=2`.
+  PlayHQ's live feed only has running totals, not a list of goals, so the helper works out the order from the score going
+  up between its readings (every 5 seconds while following PlayHQ, split into goals and super goals by PlayHQ's goal
+  counts) and from each +1 / +2 press. -1 / -2 takes that team's latest goal off. The list restarts when a game is picked or
+  the scores are reset, builds only while the scoreboard (or this page) is open, and marks a gap with a dashed … when a
+  team's score jumps by more than 3 at once or the game was picked part way through. Lines starting `[goals]` in the log show each step.
 - http://localhost:8080/matchup.html: both team logos with the division, round, date, time, court and venue. It also shows each team's
   last five results as W/L/D dots and this season's head to head: the win tally under VS and the last three meetings
   (`?form=0` or `?h2h=0` hides them).

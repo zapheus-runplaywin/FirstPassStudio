@@ -766,7 +766,13 @@ function applyOne(b, a) {
   }
   const side = a.side === 'away' ? b.away : b.home;
   switch (a.type) {
-    case 'score': side.score = Math.max(0, (Number(side.score) || 0) + Number(a.delta || 0)); b.source = 'manual'; break;
+    case 'score': {
+      const before = Number(side.score) || 0;
+      side.score = Math.max(0, before + Number(a.delta || 0));
+      noteGoals(b, a.side === 'away' ? 'away' : 'home', side.score - before, 'manual');
+      b.source = 'manual';
+      break;
+    }
     case 'setScore': side.score = Math.max(0, Number(a.value) || 0); b.source = 'manual'; break;
     case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division; b.court = a.court ?? b.court; break;
     case 'selectGame':
@@ -775,13 +781,14 @@ function applyOne(b, a) {
         round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null });
       b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
       b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
+      if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);
       break;
     case 'source': {
       const want = a.value === 'toggle' ? (b.source === 'playhq' ? 'manual' : 'playhq') : a.value;
       b.source = want === 'playhq' && b.gameId ? 'playhq' : 'manual';
       break;
     }
-    case 'resetScores': b.home.score = 0; b.away.score = 0; b.source = 'manual'; break;
+    case 'resetScores': b.home.score = 0; b.away.score = 0; b.source = 'manual'; clearGoals(b, b.gameId); break;
     case 'clockToggle': applyOne(b, { type: b.clock.running ? 'clockStop' : 'clockStart', fromToggle: true }); break;
     case 'autoSelect':
       b.autoSelect = a.value === 'toggle' ? !b.autoSelect : !!a.value && a.value !== 'off';
@@ -824,7 +831,7 @@ function applyOne(b, a) {
     }
     case 'playhqRefresh': b.playhqRefreshSec = Math.max(3, Math.min(120, Math.round(Number(a.value) || DEFAULT_REFRESH_SEC))); break;
     case 'showClock': b.showClock = !!a.value; break;
-    case 'reset': Object.assign(b, newBoard()); break;
+    case 'reset': Object.assign(b, newBoard()); clearGoals(b, null); break;
   }
   b.updatedAt = Date.now();
 }
@@ -860,6 +867,7 @@ async function refreshFromPlayhq(b) {
       log('info', 'scoreboard', `PlayHQ says ${game.home.name} ${game.home.score ?? 'no score'} - ${game.away.score ?? 'no score'} ${game.away.name} (${game.status})`);
       b.playhqSeen = seen;
     }
+    if (goalsFromPlayhq(b, game, s && s.live)) saveBoards();
     if (game.home.score !== null) b.home.score = game.home.score;
     if (game.away.score !== null) b.away.score = game.away.score;
     b.playhqStatus = game.status;
@@ -868,6 +876,114 @@ async function refreshFromPlayhq(b) {
     if (b.playhqError !== err.message) log('error', 'scoreboard', `Following PlayHQ failed: ${err.message}`);
     b.playhqError = err.message;
   }
+}
+
+// ─── Goal order (last 10 goals graphic) ─────────────────────────────────────
+// PlayHQ's live feed only gives running totals (score, goals, super goals per team), not a
+// list of goals, so the order is worked out here from the score changing: each Follow PlayHQ
+// reading (every playhqRefreshSec, default 5 s) is compared with the score on the board, and
+// each +1 / +2 press on the control page or Stream Deck is a goal as it happens. A rise of 2 is
+// split into goals and super goals by the feed's goal counts; without them it is taken as one
+// super shot (two goals inside 5 seconds can't happen). The first reading of a game picked
+// part way through, or a jump of more than 3 points for one team at once (the helper was
+// closed, or nothing was polling), isn't split into goals: a gap is noted instead.
+const GOALS_KEPT = 120;
+const MAX_STEP = 3;
+function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; }
+function clockLeft(b) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
+function pushGoal(b, side, points, how) {
+  b.goalsSeq = (b.goalsSeq || 0) + 1;
+  b.goals.push({ id: b.goalsSeq, side, points, period: b.period, clockLeft: clockLeft(b), at: Date.now(), how });
+  if (b.goals.length > GOALS_KEPT) b.goals.splice(0, b.goals.length - GOALS_KEPT);
+}
+// A score taken off (a correction) removes that team's latest goals.
+function takeGoals(b, side, points) {
+  for (let i = b.goals.length - 1; i >= 0 && points > 0; i--) {
+    const g = b.goals[i];
+    if (g.side !== side || g.gap) continue;
+    if (g.points <= points) { points -= g.points; b.goals.splice(i, 1); }
+    else { g.points -= points; points = 0; } // a super goal taken down by 1
+  }
+}
+function noteGoals(b, side, delta, how, split) {
+  if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
+  if (how === 'manual') b.goalsBaseline = true; // the board's score is now the one goals are counted from
+  if (!delta) return;
+  if (delta < 0) { takeGoals(b, side, -delta); return; }
+  const supers = split ? split.superGoals : (rules().superShots ? Math.floor(delta / 2) : 0);
+  const goals = split ? split.goals : delta - 2 * supers;
+  for (let i = 0; i < supers; i++) pushGoal(b, side, 2, how);
+  for (let i = 0; i < goals; i++) pushGoal(b, side, 1, how);
+}
+// Called with each PlayHQ reading before it is put on the board. Returns true if goals changed.
+function goalsFromPlayhq(b, game, live) {
+  if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
+  const counts = live ? { home: { goals: live.home.goals, superGoals: live.home.superGoals }, away: { goals: live.away.goals, superGoals: live.away.superGoals } } : null;
+  const before = b.goals.length, seq = b.goalsSeq;
+  const deltas = { home: (game.home.score ?? b.home.score) - (Number(b.home.score) || 0), away: (game.away.score ?? b.away.score) - (Number(b.away.score) || 0) };
+  if (!b.goalsBaseline) {
+    // First reading for this game: only a game that hasn't started yet (0-0 on the board) is followed goal by goal from here.
+    b.goalsBaseline = true;
+    const onBoard = (Number(b.home.score) || 0) + (Number(b.away.score) || 0);
+    if ((deltas.home || deltas.away) && (onBoard || deltas.home > MAX_STEP || deltas.away > MAX_STEP || deltas.home < 0 || deltas.away < 0)) {
+      log('info', 'goals', `Picked up ${b.home.name} v ${b.away.name} at ${game.home.score}-${game.away.score}, so goals are listed from here`);
+      b.goals.push({ id: ++b.goalsSeq, gap: true, at: Date.now() });
+      b.playhqCounts = counts;
+      return true;
+    }
+  }
+  for (const side of ['home', 'away']) {
+    const d = deltas[side];
+    if (!d) continue;
+    if (d > MAX_STEP) {
+      log('info', 'goals', `${b[side].name} went up ${d} points between readings, too many to list one by one; noted as a gap`);
+      b.goals.push({ id: ++b.goalsSeq, gap: true, at: Date.now() });
+      continue;
+    }
+    const was = b.playhqCounts && b.playhqCounts[side], now = counts && counts[side];
+    let split = null;
+    if (d > 0 && was && now && now.goals != null && now.superGoals != null && was.goals != null && was.superGoals != null) {
+      const g = now.goals - was.goals, sg = now.superGoals - was.superGoals;
+      if (g >= 0 && sg >= 0 && g + 2 * sg === d) split = { goals: g, superGoals: sg };
+    }
+    noteGoals(b, side, d, 'playhq', split);
+    log('info', 'goals', `${b[side].name} ${d > 0 ? '+' : ''}${d} (${split ? `${split.goals} goal${split.goals === 1 ? '' : 's'}, ${split.superGoals} super from PlayHQ's counts` : 'split worked out from the score'})`);
+  }
+  if (counts) b.playhqCounts = counts;
+  return b.goals.length !== before || b.goalsSeq !== seq;
+}
+// What goals.html shows: the last `count` goals (oldest first), the current run and the tally.
+function getGoals(boardId, count) {
+  const b = board(boardId);
+  if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
+  const n = Math.max(3, Math.min(30, Math.round(Number(count) || 10)));
+  // Take the last n goals; a gap inside them is kept so the page can mark it.
+  const out = [];
+  let found = 0;
+  for (let i = b.goals.length - 1; i >= 0 && found < n; i--) {
+    out.unshift(b.goals[i]);
+    if (!b.goals[i].gap) found++;
+  }
+  while (out.length && out[0].gap) out.shift();
+  const real = out.filter(g => !g.gap);
+  const tally = side => ({ goals: real.filter(g => g.side === side).length, points: real.filter(g => g.side === side).reduce((t, g) => t + g.points, 0) });
+  let run = null;
+  for (let i = b.goals.length - 1; i >= 0; i--) {
+    const g = b.goals[i];
+    if (g.gap) break;
+    if (!run) run = { side: g.side, goals: 0, points: 0 };
+    if (g.side !== run.side) break;
+    run.goals++; run.points += g.points;
+  }
+  const r = rules();
+  return {
+    gameId: b.gameId, division: b.division, court: b.court, round: b.round, source: b.source, period: b.period,
+    periodLabel: r.periodLabel, superShots: r.superShots, competition: competitionName(),
+    home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
+    away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
+    count: n, goals: out, tally: { home: tally('home'), away: tally('away') }, run,
+    totalGoals: b.goals.filter(g => !g.gap).length, gapInHistory: b.goals.some(g => g.gap),
+  };
 }
 
 // ─── Automatic game selection ───────────────────────────────────────────────
@@ -1929,7 +2045,7 @@ http.createServer(async (req, res) => {
   const q = Object.fromEntries(url.searchParams);
   const started = Date.now();
   res.on('finish', () => {
-    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams'));
+    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams' || url.pathname === '/api/goals'));
     const asset = req.method === 'GET' && !/\.html$|^\/$|^\/api\/|^\/deck\//.test(url.pathname);
     if (res.statusCode >= 400 || !(polled || asset)) {
       log(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http',
@@ -1987,6 +2103,10 @@ http.createServer(async (req, res) => {
       saveBoards();
       log('info', 'deck', `Board ${q.board || '1'} ${action.type}: now ${b.home.score}-${b.away.score}, clock ${b.clock.running ? 'running' : 'stopped'}`, action);
       return send(res, 200, { ok: true, home: b.home.score, away: b.away.score, source: b.source, clockRunning: b.clock.running });
+    }
+    if (url.pathname === '/api/goals') {
+      await refreshFromPlayhq(board(q.board || '1')); // shares the scoreboard's cached PlayHQ reading
+      return send(res, 200, getGoals(q.board || '1', q.count));
     }
     if (url.pathname === '/api/scoreboard') {
       const b = board(q.board || '1');

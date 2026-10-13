@@ -173,7 +173,7 @@
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help">Only <b>scoreboard.html</b> and <b>ticker.html</b> keep asking for new data (the control page does too, but it isn't in OBS).
+    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b> and <b>ticker.html</b> keep asking for new data (the control page does too, but it isn't in OBS).
       Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.
       The Clash and the winner celebration only retry if the helper isn't running.</p>
     <p class="page__help">Pages only ever talk to the helper on this computer, which uses no internet. The helper is the only thing that
@@ -181,6 +181,7 @@
     <ul class="page__help">
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
+      <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and the helper works out the goal order from it.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
       <li>Athletes page: when you open a team, the line up of each of its games this season, once (finished games are kept for an hour).</li>
@@ -237,7 +238,14 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   '<code>?score=0</code> leaves the score off. Combine them with &amp;, e.g. <code>/winner.html?out=12&amp;score=0</code>. Uses club colours from the competition setup.'], ['Super shot (after a successful super shot)', '/supershot.html',
   'A 3 second burst after a super shot goes in: a netball flies in and bursts, SUPER and SHOT slam in from either side with a +2 badge, then it fades out and leaves the frame clear. ' +
   'Plays once when the page loads: in OBS tick <b>Shutdown source when not visible</b> and <b>Refresh browser when scene becomes active</b>, and show it from the Stream Deck (see STREAMDECK.md). ' +
-  'On its own it uses the competition\'s colours. Add <code>?team=home</code> or <code>?team=away</code> to show that team\'s logo and name in their club colour (one OBS source and button for each), and <code>?board=2</code> for the second court.'], ['Up next (half time)', '/upnext.html'], ['Position match ups (athlete photos)', '/positions.html',
+  'On its own it uses the competition\'s colours. Add <code>?team=home</code> or <code>?team=away</code> to show that team\'s logo and name in their club colour (one OBS source and button for each), and <code>?board=2</code> for the second court.'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
+  'Who scored each of the last 10 goals of the game on the scoreboard, oldest to newest, with the quarter and time of each, a momentum line (up for a home goal, down for an away goal, shaded in the club colours), ' +
+  'how many of the 10 each team scored, and the current run (3 or more in a row lights up). Super goals show a +2 badge. Like the scoreboard it updates itself every 2 seconds, so it can stay on screen: new goals pop in and the older ones slide along. ' +
+  'PlayHQ only gives running totals, not a list of goals, so the order is worked out by the helper from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on the control page or Stream Deck. ' +
+  'A -1 or -2 takes that team\'s latest goal off. The list starts again when a new game is picked or the scores are reset. It only builds while the scoreboard (or this page) is open, and if the score jumps by more than 3 for one team at once, or the game was picked part way through, a dashed … marks the gap. ' +
+  'Options: <code>?layout=vertical</code> (the default is <code>horizontal</code>, above the scoreboard), <code>?count=8</code> shows a different number of goals (3 to 30), <code>?times=0</code> leaves the quarter and time off, ' +
+  '<code>?position=top</code> or <code>middle</code> moves the horizontal one, <code>?position=left</code> puts the vertical one on the left, <code>?title=Momentum</code> changes the heading and <code>?board=2</code> is for the second court.'],
+ ['Last 10 goals: vertical', '/goals.html?layout=vertical'], ['Up next (half time)', '/upnext.html'], ['Position match ups (athlete photos)', '/positions.html',
   'Goes through the home team from GS to GK, each beside the away athlete they play against (GS v GK, GA v GD, WA v WD, C v C, WD v WA, GD v GA, GK v GS), ' +
   'with photos from the <a href="/athletes.html" target="_blank">Athletes page</a>, then shows all seven together. Positions come from the PlayHQ line up for the game; a position missing from it shows as Unknown. ' +
   'Tick <b>Refresh browser when scene becomes active</b> in OBS so it starts again each time. ' +
