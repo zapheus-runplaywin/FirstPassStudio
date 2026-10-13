@@ -263,6 +263,53 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Scoreboard' }
 
+  /api/goals:
+    get:
+      tags: [Status]
+      summary: Read the last goals of the game
+      description: >-
+        What goals.html shows. The order is worked out by the helper from the score going up between PlayHQ readings
+        and from score presses, since PlayHQ only gives running totals. Goals are oldest first; an item with gap true
+        marks where the score jumped too far to list goal by goal.
+      operationId: getGoals
+      parameters:
+        - $ref: '#/components/parameters/board'
+        - name: count
+          in: query
+          required: false
+          description: How many goals (3 to 30).
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: The last goals, each team's share of them and the current run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goals:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        side: { type: string, enum: [home, away] }
+                        points: { type: integer, description: 1 for a goal, 2 for a super goal }
+                        period: { type: integer }
+                        clockLeft: { type: integer, description: Seconds left on the scoreboard clock when it was seen }
+                        how: { type: string, enum: [playhq, manual] }
+                        gap: { type: boolean }
+                  tally:
+                    type: object
+                    description: Goals and points each team scored among the goals shown
+                  run:
+                    type: object
+                    nullable: true
+                    properties:
+                      side: { type: string, enum: [home, away] }
+                      goals: { type: integer }
+                      points: { type: integer }
+
 components:
   parameters:
     board:
