@@ -21,6 +21,13 @@
   .logo-box { position: relative; line-height: 0; }
   .stage[data-style="fun"] .pro-only, .stage[data-style="pro"] .fun-only { display: none; }
 
+  /* Optional full-frame background (?bg= gradient or colour, ?bgimage= picture). Off by default: the page is transparent.
+     It fades in as the animation starts and out with the exit, so the frame is clear again at the end. */
+  .backdrop { position: absolute; inset: 0; opacity: 0; background-size: cover; background-position: center; }
+  .backdrop[hidden] { display: none; }
+  .go .backdrop { animation: fadeIn calc(.3s / var(--speed)) ease-out forwards; }
+  .go.out .backdrop { animation: fadeOut calc(.5s / var(--speed)) ease-in calc(.2s / var(--speed)) both; }
+
   /* ---------- Fun ---------- */
   /* One big logo that swoops in around the screen with a motion trail, slams down in the middle (shockwave, flash,
      shake, starburst and confetti), holds there making a statement, then winds up and rockets out through the camera.
@@ -148,8 +155,13 @@
        Options: ?mode=light (the default) or ?mode=dark picks the setup's light or dark mode competition logo
                 (a competition with only one logo uses it for both);
                 ?out=0 keeps the logo on screen at the end instead of animating it away;
-                ?size=640 is the logo's height in pixels; ?speed=1.5 plays it faster (0.5 slower). -->
+                ?size=640 is the logo's height in pixels; ?speed=1.5 plays it faster (0.5 slower);
+                ?bg=gradient puts a dark radial gradient behind it, ?bg=7f4092 (or a colour name) a radial gradient from that
+                colour to a darker shade (?bg2= sets the edge colour), ?bg=solid-7f4092 a flat colour, and
+                ?bgimage=court.jpg a picture from the competition's brand folder (or a full link). The background fades in
+                and out with the animation; without these the page is transparent. -->
   <div class="stage" id="stage" data-style="fun">
+    <div class="backdrop" id="backdrop" hidden></div>
     <div class="confetti fun-only" id="confetti"></div>
     <div class="centre">
       <div class="burst fun-only"></div>
@@ -197,6 +209,44 @@
           box.appendChild(b);
         }
       }
+
+      // Background: ?bg=gradient (the dark grey preview gradient), ?bg=7f4092 or ?bg=purple (a radial gradient from that
+      // colour in the middle to a darker shade of it at the edges; ?bg2= sets the edge colour), ?bg=solid-7f4092 for a
+      // flat colour, and ?bgimage= a picture: a file name in the competition's brand folder or a full link.
+      function colour(v) {
+        if (!v) return null;
+        v = v.trim();
+        if (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)) v = '#' + v;
+        return CSS.supports('color', v) ? v : null;
+      }
+      function darker(c) {
+        const ctx = document.createElement('canvas').getContext('2d');
+        ctx.fillStyle = c; ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        return `rgb(${Math.round(r * .3)}, ${Math.round(g * .3)}, ${Math.round(b * .3)})`;
+      }
+      function backdrop() {
+        const bg = (params.get('bg') || '').trim(), image = (params.get('bgimage') || '').trim();
+        const layers = [];
+        if (image) {
+          const url = /[/:]/.test(image) ? image : '/brand/' + encodeURIComponent(image);
+          layers.push(`url("${url.replace(/"/g, '%22')}")`);
+        }
+        if (bg) {
+          const solid = bg.toLowerCase().startsWith('solid-') ? colour(bg.slice(6)) : null;
+          const centre = bg.toLowerCase() === 'gradient' ? '#3a4250' : colour(bg);
+          const edge = colour(params.get('bg2')) || (bg.toLowerCase() === 'gradient' ? '#15181d' : centre && darker(centre));
+          if (solid) layers.push(`linear-gradient(${solid}, ${solid})`);
+          else if (centre) layers.push(`radial-gradient(circle at 50% 40%, ${centre}, ${edge})`);
+          else console.warn('Logo animation: ?bg= is not a colour or "gradient":', bg);
+        }
+        if (!layers.length) return;
+        const box = $('backdrop');
+        box.style.backgroundImage = layers.join(', ');
+        box.hidden = false;
+        if (image) { const test = new Image(); test.onerror = () => console.warn('Logo animation: could not load the background image', image); test.src = layers[0].slice(5, -2); }
+      }
+      backdrop();
 
       function play() {
         if (style === 'fun') confetti();

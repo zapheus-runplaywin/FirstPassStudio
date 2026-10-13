@@ -234,7 +234,10 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
  ['Logo animation: professional (wipe, lines and a light sweep)', '/logo.html?style=pro',
   'The same logo with a clean, calm reveal. Options for both: <code>?mode=light</code> (the default) or <code>?mode=dark</code> uses the setup\'s light or dark mode competition logo, ' +
   '<code>?out=0</code> keeps the logo on screen at the end, <code>?size=640</code> sets its height in pixels, and <code>?speed=1.5</code> plays it faster (<code>0.5</code> slower). ' +
-  'Combine them with &amp;, e.g. <code>/logo.html?style=pro&amp;mode=dark</code>. With no competition logo in the setup the page stays empty.']]
+  'The page is transparent unless you add a background, which fades in and out with the animation: <code>?bg=gradient</code> is a dark radial gradient, ' +
+  '<code>?bg=7f4092</code> (a hex colour without the #, or a colour name) a radial gradient from that colour to a darker shade, <code>?bg2=</code> sets the edge colour, ' +
+  '<code>?bg=solid-7f4092</code> a flat colour, and <code>?bgimage=court.jpg</code> a picture from the competition\'s brand folder (competitions/&lt;competition&gt;/brand/) or a full link. ' +
+  'Combine them with &amp;, e.g. <code>/logo.html?style=pro&amp;mode=dark&amp;bg=7f4092</code>. With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
 (async () => {
   const list = document.getElementById('list');
