@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Winner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,800;0,900;1,900&display=swap">
+<link rel="stylesheet" href="theme.css">
+<script src="log.js"></script>
+<style>
+  /* Full time celebration for the game picked on the scoreboard control page.
+     ?winner=home|away plays the winner's animation, ?winner=draw the draw. Transparent outside the graphics. */
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: var(--font); }
+  .stage { position: absolute; inset: 0; visibility: hidden; --team-rgb: var(--purple-rgb); --home-rgb: var(--purple-rgb); --away-rgb: var(--pink-rgb); }
+  .stage.go { visibility: visible; }
+  canvas { position: absolute; inset: 0; pointer-events: none; }
+  .win, .draw { position: absolute; inset: 0; display: none; }
+  .stage.is-win .win, .stage.is-draw .draw { display: block; }
+
+  /* Shared pieces */
+  .tag { position: absolute; left: 0; right: 0; top: 56px; display: flex; justify-content: center; opacity: 0; }
+  .tag span { background: var(--pink); color: #fff; font-weight: 800; letter-spacing: 6px; text-transform: uppercase;
+    font-size: 28px; padding: 10px 34px; clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); white-space: nowrap; }
+  .go .tag { animation: drop .5s cubic-bezier(.2,.9,.2,1) 1.6s forwards; }
+  @keyframes drop { 0% { opacity: 0; transform: translateY(-60px); } 100% { opacity: 1; transform: none; } }
+  .logo { position: relative; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .55)); }
+  .logo-fallback { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgb(var(--side-rgb, var(--team-rgb)));
+    border: 10px solid var(--yellow); color: var(--side-text, #fff); font-weight: 900; font-size: 160px; box-sizing: border-box; }
+  .plate { padding: 14px 60px; box-sizing: border-box; text-align: center; white-space: nowrap;
+    background: linear-gradient(180deg, rgb(var(--side-rgb, var(--team-rgb))), rgb(var(--side-dark, var(--deep-rgb)))); border-bottom: 7px solid var(--yellow);
+    clip-path: polygon(5% 0, 100% 0, 95% 100%, 0 100%); }
+  .plate h2 { margin: 0; color: var(--side-text, #fff); font-weight: 900; font-style: italic; text-transform: uppercase; line-height: 1.1; letter-spacing: 1px; }
+  .score { display: inline-flex; align-items: center; gap: 22px; background: rgba(var(--deep-rgb), .9); color: #fff;
+    font-weight: 900; font-size: 64px; line-height: 1; padding: 12px 34px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+  .score small { font-size: 22px; font-weight: 800; letter-spacing: 4px; color: var(--muted); text-transform: uppercase; }
+  .score .dash { color: var(--muted); font-weight: 600; }
+  .score b { color: var(--yellow); font-weight: 900; }
+  .subline { margin-top: 12px; color: #fff; font-weight: 800; font-style: italic; text-transform: uppercase; font-size: 34px; letter-spacing: 2px;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, .7); white-space: nowrap; }
+  .subline b { color: var(--yellow); font-weight: 900; }
+  .subline:empty { display: none; }
+  .no-score .score { display: none; }
+  .ring { position: absolute; left: -80px; top: -80px; width: 160px; height: 160px; border-radius: 50%; border: 12px solid var(--yellow); opacity: 0; }
+  .ring--2 { border-color: #fff; border-width: 6px; }
+  @keyframes ring { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(8); border-width: 1px; } }
+  @keyframes flash { 0% { opacity: 0; transform: scale(.2); } 15% { opacity: 1; } 100% { opacity: 0; transform: scale(1.3); } }
+  @keyframes rise { 0% { opacity: 0; transform: translateY(60px) scale(.9); } 100% { opacity: 1; transform: none; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  /* ---------- Winner ---------- */
+  .win .centre { position: absolute; left: 960px; top: 400px; width: 0; height: 0; }
+  /* Light rays turning slowly behind the logo, in the winner's colour */
+  .rays { position: absolute; left: -1300px; top: -1300px; width: 2600px; height: 2600px; opacity: 0; border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(var(--team-rgb), .55) 0deg 5deg, rgba(var(--team-rgb), 0) 5deg 10deg,
+      rgba(var(--yellow-rgb), .28) 10deg 13deg, rgba(var(--yellow-rgb), 0) 13deg 20deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, .8) 14%, transparent 34%);
+            mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, .8) 14%, transparent 34%); }
+  .go .win .rays { animation: raysIn .9s ease-out .35s forwards, spin 40s linear .35s infinite; }
+  @keyframes raysIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+  .halo { position: absolute; left: -420px; top: -420px; width: 840px; height: 840px; border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle, rgba(var(--yellow-rgb), .55), rgba(var(--team-rgb), .35) 40%, rgba(var(--team-rgb), 0) 68%); }
+  .go .win .halo { animation: fadeIn .5s ease-out .5s forwards, haloPulse 2.2s ease-in-out 1.2s infinite alternate; }
+  @keyframes haloPulse { 0% { opacity: .7; transform: scale(.94); } 100% { opacity: 1; transform: scale(1.06); } }
+  .win .flash { position: absolute; left: -800px; top: -800px; width: 1600px; height: 1600px; border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle, rgba(255, 255, 255, .95), rgba(var(--yellow-rgb), .6) 16%, rgba(var(--team-rgb), .3) 36%, rgba(var(--team-rgb), 0) 60%); }
+  .go .win .flash { animation: flash .8s ease-out .55s forwards; }
+  .go .win .ring--1 { animation: ring .9s ease-out .6s forwards; }
+  .go .win .ring--2 { animation: ring 1.1s ease-out .72s forwards; }
+
+  /* Giant outlined word behind the logo */
+  .bigword { position: absolute; left: 0; right: 0; top: 215px; text-align: center; font-weight: 900; font-style: italic; white-space: nowrap;
+    font-size: 330px; line-height: 1; letter-spacing: 8px; color: transparent; opacity: 0;
+    -webkit-text-stroke: 5px rgba(var(--yellow-rgb), .75); text-shadow: 0 0 40px rgba(var(--team-rgb), .45); }
+  .go .win .bigword { animation: bigIn .8s cubic-bezier(.2,.9,.2,1) .25s forwards, bigDrift 8s ease-in-out 1.1s infinite alternate; }
+  @keyframes bigIn { 0% { opacity: 0; transform: scale(1.9); filter: blur(16px); } 100% { opacity: 1; transform: scale(1); filter: blur(0); } }
+  @keyframes bigDrift { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
+
+  /* The winner's logo slams down, bounces, then floats with a shine passing over it */
+  .win .crest { position: absolute; left: -270px; top: -300px; width: 540px; height: 540px; opacity: 0; }
+  .go .win .crest { animation: slam .8s cubic-bezier(.3,1.5,.5,1) .45s forwards, float 3s ease-in-out 1.6s infinite alternate; }
+  @keyframes slam { 0% { opacity: 0; transform: scale(3.2) rotate(-12deg); filter: blur(20px); }
+    55% { opacity: 1; transform: scale(.92) rotate(2deg); filter: blur(0) brightness(1.8); } 100% { opacity: 1; transform: none; filter: none; } }
+  @keyframes float { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 1; transform: translateY(-14px) rotate(1deg); } }
+  .shine { position: absolute; inset: 0; pointer-events: none; opacity: .9;
+    background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .85) 50%, transparent 62%) no-repeat;
+    background-size: 300% 100%; background-position: 150% 0;
+    -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center; mask-position: center; }
+  .go .win .shine { animation: shine 3.6s ease-in-out 1.3s infinite; }
+  @keyframes shine { 0% { background-position: 150% 0; } 45%, 100% { background-position: -50% 0; } }
+  /* Twinkling stars around the crest */
+  .star { position: absolute; width: 44px; height: 44px; margin: -22px; opacity: 0; background: var(--yellow);
+    clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
+  .star:nth-child(even) { background: #fff; width: 28px; height: 28px; margin: -14px; }
+  .go .win .star { animation: twinkle 1.6s ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0); } 50% { opacity: 1; transform: scale(1) rotate(90deg); } }
+
+  .win .banner { position: absolute; left: 0; right: 0; top: 650px; display: flex; flex-direction: column; align-items: center; }
+  .win .ribbon { color: var(--text-on-yellow); background: var(--yellow); font-weight: 900; font-size: 30px; letter-spacing: 10px; text-transform: uppercase;
+    padding: 6px 40px 6px 50px; margin-bottom: -4px; position: relative; z-index: 1; opacity: 0;
+    clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%); }
+  .go .win .ribbon { animation: rise .5s cubic-bezier(.2,.9,.2,1) 1.25s forwards; }
+  .win .plate { opacity: 0; max-width: 1500px; }
+  .win .plate h2 { font-size: 92px; }
+  .go .win .plate { animation: plateIn .6s cubic-bezier(.2,.9,.2,1) 1.05s forwards; }
+  @keyframes plateIn { 0% { opacity: 0; clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%); } 100% { opacity: 1; clip-path: polygon(5% 0, 100% 0, 95% 100%, 0 100%); } }
+  .win .result { margin-top: 26px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+  .go .win .result { animation: rise .6s cubic-bezier(.2,.9,.2,1) 1.55s forwards; }
+
+  /* ---------- Draw ---------- */
+  /* Each half glows in its team's colour, meeting in the middle */
+  .draw .glow { position: absolute; top: 90px; height: 760px; width: 960px; opacity: 0;
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+            mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent); }
+  .draw .glow--home { left: 0; background: radial-gradient(ellipse 70% 55% at 62% 50%, rgba(var(--home-rgb), .75), rgba(var(--home-rgb), 0) 70%); }
+  .draw .glow--away { right: 0; background: radial-gradient(ellipse 70% 55% at 38% 50%, rgba(var(--away-rgb), .75), rgba(var(--away-rgb), 0) 70%); }
+  .go .draw .glow { animation: fadeIn .8s ease-out .3s forwards; }
+
+  /* Logos glide in from each side, see-saw like a balance, then come level */
+  .draw .team { position: absolute; top: 175px; width: 600px; display: flex; flex-direction: column; align-items: center; }
+  .draw .team--home { left: 100px; }
+  .draw .team--away { right: 100px; }
+  .draw .crest { position: relative; width: 410px; height: 410px; }
+  .draw .slide { opacity: 0; }
+  .go .draw .team--home .slide { animation: inL .9s cubic-bezier(.2,.9,.25,1) .2s forwards, balanceA 1.8s ease-in-out 1.1s forwards, bob 3.2s ease-in-out 2.9s infinite alternate; }
+  .go .draw .team--away .slide { animation: inR .9s cubic-bezier(.2,.9,.25,1) .2s forwards, balanceB 1.8s ease-in-out 1.1s forwards, bob 3.2s ease-in-out 2.9s infinite alternate; }
+  @keyframes inL { 0% { opacity: 0; transform: translateX(-900px) rotate(-25deg); filter: blur(14px); } 100% { opacity: 1; transform: none; filter: none; } }
+  @keyframes inR { 0% { opacity: 0; transform: translateX(900px) rotate(25deg); filter: blur(14px); } 100% { opacity: 1; transform: none; filter: none; } }
+  @keyframes balanceA { 0% { opacity: 1; transform: none; } 20% { transform: translateY(-50px); } 45% { transform: translateY(32px); }
+    65% { transform: translateY(-16px); } 82% { transform: translateY(7px); } 100% { opacity: 1; transform: none; } }
+  @keyframes balanceB { 0% { opacity: 1; transform: none; } 20% { transform: translateY(50px); } 45% { transform: translateY(-32px); }
+    65% { transform: translateY(16px); } 82% { transform: translateY(-7px); } 100% { opacity: 1; transform: none; } }
+  @keyframes bob { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 1; transform: translateY(-10px); } }
+  .draw .plate { margin-top: 26px; min-width: 360px; max-width: 620px; opacity: 0; }
+  .draw .plate h2 { font-size: 52px; }
+  .go .draw .plate { animation: plateIn .55s cubic-bezier(.2,.9,.2,1) 2.4s forwards; }
+
+  /* The beam between them levels out, then the DRAW stamp lands on it */
+  .beam { position: absolute; left: 510px; top: 452px; width: 900px; height: 12px; border-radius: 6px; opacity: 0; transform-origin: 50% 50%;
+    background: linear-gradient(90deg, rgba(var(--home-rgb), 0), rgb(var(--home-rgb)) 22%, #fff 50%, rgb(var(--away-rgb)) 78%, rgba(var(--away-rgb), 0));
+    box-shadow: 0 0 24px rgba(255, 255, 255, .5); }
+  .go .beam { animation: beam 1.8s ease-in-out 1.1s forwards; }
+  @keyframes beam { 0% { opacity: 0; transform: rotate(0) scaleX(.2); } 12% { opacity: 1; transform: rotate(0) scaleX(1); }
+    20% { transform: rotate(-3.6deg); } 45% { transform: rotate(2.3deg); } 65% { transform: rotate(-1.1deg); } 82% { transform: rotate(.5deg); }
+    100% { opacity: 1; transform: none; } }
+  .stamp { position: absolute; left: 610px; top: 262px; width: 700px; text-align: center; white-space: nowrap; font-weight: 900; font-style: italic;
+    font-size: 170px; line-height: 1; color: var(--yellow); opacity: 0; letter-spacing: 4px;
+    text-shadow: 8px 8px 0 var(--purple-dark), 0 0 50px rgba(var(--yellow-rgb), .6); -webkit-text-stroke: 3px #fff; }
+  .go .stamp { animation: stamp .5s cubic-bezier(.3,1.6,.5,1) 2.75s forwards, stampPulse 1.8s ease-in-out 3.3s infinite alternate; }
+  @keyframes stamp { 0% { opacity: 0; transform: scale(4) rotate(-12deg); } 100% { opacity: 1; transform: scale(1) rotate(-4deg); } }
+  @keyframes stampPulse { 0% { opacity: 1; transform: scale(1) rotate(-4deg); } 100% { opacity: 1; transform: scale(1.05) rotate(-4deg); } }
+  .draw .centre { position: absolute; left: 960px; top: 350px; width: 0; height: 0; }
+  .go .draw .ring--1 { animation: ring .9s ease-out 2.85s forwards; }
+  .go .draw .ring--2 { animation: ring 1.1s ease-out 2.95s forwards; }
+  .draw .result { position: absolute; left: 0; right: 0; top: 760px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+  .go .draw .result { animation: rise .6s cubic-bezier(.2,.9,.2,1) 3.05s forwards; }
+
+  /* ?out=N: leave after N seconds */
+  .stage.leave { animation: leave .6s ease-in forwards; }
+  @keyframes leave { to { opacity: 0; transform: scale(1.08); filter: blur(10px); } }
+</style>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080, and tick "Refresh browser when scene becomes active"
+       so the animation plays each time the scene comes on:
+       http://localhost:8080/winner.html?winner=home   (or ?winner=away, ?winner=draw)
+       Without ?winner it goes by the score on the scoreboard. Shows the game picked on the scoreboard control page.
+       Options: ?board=2 for a second court, ?out=10 to animate away after 10 seconds, ?word=CHAMPIONS to change
+       the big word (VICTORY, or DRAW for a draw), ?title=... to change the line under the score, ?score=0 to leave the score off. -->
+  <div class="stage" id="stage">
+    <canvas id="confetti" width="1920" height="1080"></canvas>
+    <div class="win">
+      <div class="centre"><div class="rays"></div><div class="halo"></div></div>
+      <div class="bigword" id="winWord">VICTORY</div>
+      <div class="centre" id="stars"><div class="flash"></div><div class="ring ring--1"></div><div class="ring ring--2"></div>
+        <div class="crest"><div id="winLogo"></div><div class="shine" id="shine"></div></div></div>
+      <div class="banner">
+        <div class="ribbon" id="ribbon">Winners</div>
+        <div class="plate"><h2 id="winName"></h2></div>
+        <div class="result"><div class="score" id="winScore"></div><div class="subline" id="winLine"></div></div>
+      </div>
+    </div>
+    <div class="draw">
+      <div class="glow glow--home"></div><div class="glow glow--away"></div>
+      <div class="beam"></div>
+      <div class="team team--home" id="drawHome">
+        <div class="slide"><div class="crest"><div id="homeLogo"></div></div></div>
+        <div class="plate"><h2 id="homeName"></h2></div>
+      </div>
+      <div class="team team--away" id="drawAway">
+        <div class="slide"><div class="crest"><div id="awayLogo"></div></div></div>
+        <div class="plate"><h2 id="awayName"></h2></div>
+      </div>
+      <div class="centre"><div class="ring ring--1"></div><div class="ring ring--2"></div></div>
+      <div class="stamp" id="stamp">DRAW</div>
+      <div class="result"><div class="score" id="drawScore"></div><div class="subline" id="drawLine"></div></div>
+    </div>
+    <div class="tag"><span id="tag">Full time</span></div>
+  </div>
+  <script src="teams.js"></script>
+  <script>
+    const opts = new URLSearchParams(location.search);
+    const boardId = opts.get('board') || '1';
+    const $ = id => document.getElementById(id);
+    const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+    // Shrink a name until it fits.
+    function fit(node, max, size, min) {
+      node.style.fontSize = size + 'px';
+      while (node.scrollWidth > max && size > min) node.style.fontSize = (size -= 2) + 'px';
+    }
+    function setLogo(id, team) {
+      const node = logoEl(team, 'logo');
+      $(id).replaceWith(node);
+      return node.tagName === 'IMG' ? Promise.race([node.decode().catch(() => {}), new Promise(r => setTimeout(r, 1500))]) : Promise.resolve();
+    }
+    // A club colour from the competition setup page; without one, the competition's main colour (home) or accent (away).
+    function colourOf(hex, fallbackVar) {
+      const ok = /^#[0-9a-f]{6}$/i.test(hex || '');
+      const rgb = ok ? [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) : (css(fallbackVar) || '127, 64, 146').split(',').map(Number);
+      const lum = rgb.map(c => c / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      const light = 0.2126 * lum[0] + 0.7152 * lum[1] + 0.0722 * lum[2] > 0.4;
+      return { rgb: rgb.join(', '), dark: rgb.map(c => Math.round(c * .55)).join(', '), text: light ? '#111111' : '#ffffff', list: rgb };
+    }
+    function paint(node, c) {
+      node.style.setProperty('--side-rgb', c.rgb);
+      node.style.setProperty('--side-dark', c.dark);
+      node.style.setProperty('--side-text', c.text);
+    }
+    const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+    // Confetti: two cannons from the bottom corners, then a steady fall from the top while the graphic is up.
+    function confetti(colours, { cannons, rate }) {
+      const c = $('confetti'), ctx = c.getContext('2d');
+      const ps = [];
+      const piece = (x, y, vx, vy) => ({ x, y, vx, vy, rot: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+        w: 10 + Math.random() * 12, h: 6 + Math.random() * 8, flip: Math.random() * Math.PI * 2, vf: .08 + Math.random() * .12,
+        col: colours[Math.floor(Math.random() * colours.length)], ribbon: Math.random() < .15 });
+      if (cannons) for (const side of [-1, 1]) for (let i = 0; i < 140; i++) {
+        const a = .12 + Math.random() * .5, v = 22 + Math.random() * 22; // angle off straight up, speed
+        ps.push(piece(side < 0 ? 40 : 1880, 1090, -side * Math.sin(a) * v, -Math.cos(a) * v));
+      }
+      let last = 0;
+      (function frame(t) {
+        ctx.clearRect(0, 0, 1920, 1080);
+        if (t - last > 1000 / rate && ps.length < 420) { last = t; ps.push(piece(Math.random() * 1920, -30, (Math.random() - .5) * 2, 2 + Math.random() * 2)); }
+        for (let i = ps.length - 1; i >= 0; i--) {
+          const p = ps[i];
+          p.vx *= .985; p.vy = Math.min(p.vy * .985 + .32, 5.5); p.x += p.vx + Math.sin(p.flip) * .8; p.y += p.vy;
+          p.rot += p.vr; p.flip += p.vf;
+          if (p.y > 1110) { ps.splice(i, 1); continue; }
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(1, Math.cos(p.flip));
+          ctx.fillStyle = p.col;
+          if (p.ribbon) ctx.fillRect(-2, -p.w, 4, p.w * 2); else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        }
+        requestAnimationFrame(frame);
+      })(0);
+    }
+
+    // Stars twinkling around the winner's logo, at staggered times.
+    function stars() {
+      const box = $('stars');
+      [[-330, -250], [310, -280], [-390, 40], [380, 10], [-250, 230], [270, 210], [0, -360], [-120, -330], [150, 300], [420, -140]]
+        .forEach(([x, y], i) => {
+          const s = document.createElement('div');
+          s.className = 'star'; s.style.left = x + 'px'; s.style.top = y + 'px';
+          s.style.animationDelay = (1.3 + i * .37) + 's';
+          box.appendChild(s);
+        });
+    }
+
+    async function start() {
+      let s;
+      try { s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json(); }
+      catch (err) { console.warn('Winner: scoreboard unavailable:', err.message); return setTimeout(start, 3000); }
+      const hs = Number(s.home.score) || 0, as = Number(s.away.score) || 0;
+      let winner = String(opts.get('winner') || '').toLowerCase();
+      if (!['home', 'away', 'draw'].includes(winner)) winner = hs > as ? 'home' : as > hs ? 'away' : 'draw';
+      if (opts.get('winner') && opts.get('winner').toLowerCase() !== winner) console.warn(`Winner: ?winner=${opts.get('winner')} is not home, away or draw; going by the score`);
+      const fromLink = opts.has('winner') && ['home', 'away', 'draw'].includes(opts.get('winner').toLowerCase());
+      window.pageLog && window.pageLog('info', `Playing ${winner}${fromLink ? '' : ' (from the score)'}: ${s.home.name} ${hs} - ${as} ${s.away.name}`);
+
+      const home = colourOf(s.teamColours && s.teamColours.home, '--purple-rgb');
+      const away = colourOf(s.teamColours && s.teamColours.away, '--pink-rgb');
+      const stage = $('stage');
+      if (opts.get('score') === '0') stage.classList.add('no-score');
+      $('tag').textContent = [s.division, s.round, 'Full time'].filter(Boolean).join('  ·  ');
+      const highlight = css('--yellow') || '#ffcd00';
+      const waits = [document.fonts ? document.fonts.ready : null];
+
+      if (winner === 'draw') {
+        stage.classList.add('is-draw');
+        stage.style.setProperty('--home-rgb', home.rgb);
+        stage.style.setProperty('--away-rgb', away.rgb);
+        paint($('drawHome'), home); paint($('drawAway'), away);
+        $('homeName').textContent = s.home.name;
+        $('awayName').textContent = s.away.name;
+        $('stamp').textContent = (opts.get('word') || 'DRAW').toUpperCase();
+        $('drawScore').innerHTML = `<b>${hs}</b><span class="dash">–</span><b>${as}</b>`;
+        if (opts.get('title')) $('drawLine').textContent = opts.get('title');
+        else $('drawLine').innerHTML = 'Honours <b>shared</b>';
+        waits.push(setLogo('homeLogo', { name: s.home.name, logo: s.logos && s.logos.home }),
+          setLogo('awayLogo', { name: s.away.name, logo: s.logos && s.logos.away }));
+        await Promise.all(waits);
+        fit($('homeName'), 500, 52, 26); fit($('awayName'), 500, 52, 26); fit($('stamp'), 700, 170, 70);
+        stage.classList.add('go');
+        setTimeout(() => confetti([`rgb(${home.rgb})`, `rgb(${away.rgb})`, '#ffffff', highlight], { cannons: false, rate: 14 }), 2850);
+      } else {
+        const team = s[winner], other = s[winner === 'home' ? 'away' : 'home'];
+        const c = winner === 'home' ? home : away;
+        stage.classList.add('is-win');
+        stage.style.setProperty('--team-rgb', c.rgb);
+        paint(stage, c);
+        $('winName').textContent = team.name;
+        $('winWord').textContent = (opts.get('word') || 'VICTORY').toUpperCase();
+        const ws = Number(team.score) || 0, ls = Number(other.score) || 0;
+        $('winScore').innerHTML = `<small>Full time</small><b>${ws}</b><span class="dash">–</span>${ls}`;
+        if (opts.get('title')) $('winLine').textContent = opts.get('title');
+        else $('winLine').innerHTML = `def. <b>${esc(other.name)}</b>`;
+        const logo = s.logos && s.logos[winner];
+        if (logo) { $('shine').style.webkitMaskImage = `url("${logo}")`; $('shine').style.maskImage = `url("${logo}")`; }
+        else $('shine').remove();
+        waits.push(setLogo('winLogo', { name: team.name, logo }));
+        await Promise.all(waits);
+        fit($('winName'), 1380, 92, 40);
+        stars();
+        stage.classList.add('go');
+        const colours = [`rgb(${c.rgb})`, highlight, '#ffffff', css('--yellow-light') || '#fff', `rgb(${c.rgb})`];
+        setTimeout(() => confetti(colours, { cannons: true, rate: 22 }), 600);
+      }
+      const out = Number(opts.get('out'));
+      if (out > 0) setTimeout(() => stage.classList.add('leave'), out * 1000);
+    }
+    start();
+  </script>
+</body>
+</html>

@@ -112,7 +112,7 @@
       <li><b>Follow PlayHQ:</b> the score and quarter come from PlayHQ's live scoring every 5 seconds. Tick
         <b>Follow the PlayHQ scorer's clock</b> to run the clock from the scorer's clock too.</li>
       <li><b>Pages that use the picked game's division:</b> ladder (without <code>?division=</code>), ladder bar, top shooters,
-        title, match up, The Clash, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
+        title, match up, The Clash, winner celebration, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
       <li><b>Stream Deck:</b> <code>/deck/auto/on</code>, <code>/deck/auto/off</code>, <code>/deck/auto/toggle</code>,
         <code>/deck/court/2</code> and <code>/deck/clock/playhq/on</code>. See the Stream Deck API docs above for the rest.</li>
     </ul>
@@ -135,7 +135,7 @@
     <p class="page__help">Double-click <b>Make Examples (Mac).command</b> (or <b>Make Examples (Windows).bat</b>) in the PlayHQ Graphics folder
       to take a 1920 x 1080 picture of every graphic on this page with PlayHQ's data right now. They are saved in
       <b>Examples/&lt;date and time&gt;</b> with an <b>index.html</b> that shows them all, and keep the transparent background OBS sees.
-      The pictures use the game, round and court picked on the control page, so pick those first. The Clash is shown at the end of its animation.</p>
+      The pictures use the game, round and court picked on the control page, so pick those first. The Clash and the winner celebration are shown at the end of their animations.</p>
     <p class="page__help">It uses the helper if it is running, otherwise starts it for the run, and needs Google Chrome (or Edge, Brave or
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
@@ -161,7 +161,7 @@
     <h2>Data and bandwidth</h2>
     <p class="page__help">Only <b>scoreboard.html</b> and <b>ticker.html</b> keep asking for new data (the control page does too, but it isn't in OBS).
       Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.
-      The Clash only retries if the helper isn't running.</p>
+      The Clash and the winner celebration only retry if the helper isn't running.</p>
     <p class="page__help">Pages only ever talk to the helper on this computer, which uses no internet. The helper is the only thing that
       contacts PlayHQ, and it caches what it gets:</p>
     <ul class="page__help">
@@ -213,7 +213,12 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   '<code>?mode=light</code> (the default) uses the FirstPass Studio and competition logos for a light picture behind them; <code>?mode=dark</code> uses the ones for a dark picture.'], ['Match up (with form and head to head)', '/matchup.html'], ['The Clash (animated match up)', '/clash.html',
   'Plays when the page loads: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
   'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=RIVALS</code> changes the big word, and ' +
-  '<code>?title=Grand%20Final</code> changes the bottom line. Combine them with &amp;, e.g. <code>/clash.html?out=10&amp;word=RIVALS</code>.'], ['Up next (half time)', '/upnext.html'], ['Position match ups (athlete photos)', '/positions.html',
+  '<code>?title=Grand%20Final</code> changes the bottom line. Combine them with &amp;, e.g. <code>/clash.html?out=10&amp;word=RIVALS</code>.'], ['Winner celebration: home team wins (full time)', '/winner.html?winner=home',
+  'Plays when the page loads, so in OBS tick <b>Shutdown source when not visible</b> and <b>Refresh browser when scene becomes active</b>. <code>?winner=home</code> or <code>?winner=away</code> celebrates that team: their logo slams in over light rays and a big VICTORY, ' +
+  'with confetti in their colour, their name, the final score and who they beat. <code>?winner=draw</code> slides both logos in, see-saws them level and stamps DRAW. ' +
+  'Without <code>?winner=</code> it goes by the score on the scoreboard. Make one OBS source for each of the three and show the right one from the Stream Deck (see STREAMDECK.md). ' +
+  'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=CHAMPIONS</code> changes the big word (or the stamp on a draw), <code>?title=Grand%20Final%20winners</code> changes the line under the score, ' +
+  '<code>?score=0</code> leaves the score off. Combine them with &amp;, e.g. <code>/winner.html?winner=away&amp;out=12</code>. Uses club colours from the competition setup.'], ['Winner celebration: away team wins', '/winner.html?winner=away'], ['Winner celebration: draw', '/winner.html?winner=draw'], ['Up next (half time)', '/upnext.html'], ['Position match ups (athlete photos)', '/positions.html',
   'Goes through the home team from GS to GK, each beside the away athlete they play against (GS v GK, GA v GD, WA v WD, C v C, WD v WA, GD v GA, GK v GS), ' +
   'with photos from the <a href="/athletes.html" target="_blank">Athletes page</a>, then shows all seven together. Positions come from the PlayHQ line up for the game; a position missing from it shows as Unknown. ' +
   'Tick <b>Refresh browser when scene becomes active</b> in OBS so it starts again each time. ' +
