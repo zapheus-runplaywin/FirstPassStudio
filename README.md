@@ -82,6 +82,10 @@ loads once when OBS shows it: in each Browser source tick **Refresh browser when
 right-click the source and choose **Refresh** to get the latest. Divisions are numbered in name order, as listed on the
 http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
 
+Frame rate: every graphic and animation is timed by the clock, not by frames, so it plays at the same speed at 25, 30,
+50 or 60 fps. For 1080 50p or 60p, set OBS's Video FPS to 50 or 60 and leave **Use custom frame rate** unticked in each
+Browser source, so the pages render at the stream's rate (a custom rate of 30 would make movement look steppy at 60p).
+
 ## Example graphics
 
 Double-click `Make Examples (Mac).command` (or `Make Examples (Windows).bat`, or run `node examples.js`) to save a
