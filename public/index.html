@@ -129,6 +129,10 @@
     <h2>Competition logo animation (about 5 seconds)</h2>
     <div id="logoPages"></div>
   </div>
+  <div class="card">
+    <h2>PIVT and FirstPass Studio ad (10 seconds, for the breaks)</h2>
+    <div id="adPages"></div>
+  </div>
   <div class="card" id="shootersCard" hidden>
     <h2>Top shooters (season)</h2>
     <div id="shooterPages"></div>
@@ -139,7 +143,7 @@
     <p class="page__help">Double-click <b>Make Examples (Mac).command</b> (or <b>Make Examples (Windows).bat</b>) in the PlayHQ Graphics folder
       to take a 1920 x 1080 picture of every graphic on this page with PlayHQ's data right now. They are saved in
       <b>Examples/&lt;date and time&gt;</b> with an <b>index.html</b> that shows them all, and keep the transparent background OBS sees.
-      The pictures use the game, round and court picked on the control page, so pick those first. The Clash and the winner celebration are shown at the end of their animations, and the logo animations part way through.</p>
+      The pictures use the game, round and court picked on the control page, so pick those first. The Clash and the winner celebration are shown at the end of their animations, and the logo animations and the ad part way through.</p>
     <p class="page__help">It uses the helper if it is running, otherwise starts it for the run, and needs Google Chrome (or Edge, Brave or
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
@@ -244,6 +248,16 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   '<code>?bg=solid-7f4092</code> a flat colour, and <code>?bgimage=court.jpg</code> a picture from the competition\'s brand folder (competitions/&lt;competition&gt;/brand/) or a full link. ' +
   'Combine them with &amp;, e.g. <code>/logo.html?style=pro&amp;mode=dark&amp;bg=7f4092</code>. With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
+[['PIVT and FirstPass Studio ad', '/ad.html',
+  'The PIVT and FirstPass Studio logos animated together for 10 seconds: PIVT slams in, FirstPass Studio wipes in below it, they hold, then sweep away. ' +
+  'Plays once when the page loads, then leaves the frame clear: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
+  'It is a light web page, not a video, so there is no ProRes file to load. The page is transparent and uses the coloured FirstPass Studio wordmark (<code>?mode=light</code>); ' +
+  '<code>?mode=dark</code> uses the white one for a dark picture behind it. Add a background that fades in and out with the ad: <code>?bg=gradient</code> is a dark radial gradient, ' +
+  '<code>?bg=0f172a</code> (or a colour name) a radial gradient from that colour to a darker shade (<code>?bg2=</code> sets the edge colour), <code>?bg=solid-0f172a</code> a flat colour, ' +
+  'and <code>?bgimage=court.jpg</code> a picture from the competition\'s brand folder (or a full link); with a background the white wordmark is used unless you add <code>?mode=light</code>. ' +
+  '<code>?tagline=Live%20netball%20every%20Thursday</code> adds a line of text under the logos, and <code>?out=0</code> keeps the logos on screen at the end. ' +
+  'Combine them with &amp;, e.g. <code>/ad.html?bg=gradient&amp;tagline=Live%20netball</code>.']]
+  .forEach(([n, p, h]) => document.getElementById('adPages').appendChild(pageRow(n, p, h)));
 (async () => {
   const list = document.getElementById('list');
   const sub = document.getElementById('sub');
