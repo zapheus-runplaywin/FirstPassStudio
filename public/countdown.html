@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Countdown</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<style>
+  body.top { align-items: flex-start; padding-top: 60px; box-sizing: border-box; }
+  body.bottom { align-items: flex-end; padding-bottom: 60px; box-sizing: border-box; }
+  .countdown { --card-width: 1000px; text-align: center; transition: opacity .6s ease, transform .6s ease; }
+  .countdown.is-gone { opacity: 0; transform: translateY(20px); }
+  .countdown__tabs { display: flex; justify-content: center; gap: 12px; padding: 30px 40px 0; }
+  .countdown__tab { background: var(--yellow); color: var(--text-on-yellow); }
+  .countdown__tabs .tab:empty { display: none; }
+
+  .countdown__clock { display: flex; justify-content: center; align-items: flex-start; gap: 14px; padding: 26px 40px 8px; }
+  .countdown__unit { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .countdown__unit[hidden] + .countdown__sep { display: none; }
+  .countdown__num {
+    min-width: 200px; padding: 6px 18px 2px; box-sizing: border-box; border-radius: 16px;
+    background: var(--purple-deep-alt); color: var(--yellow); box-shadow: inset 0 -6px 0 rgba(0,0,0,.25);
+    font-size: 150px; font-weight: 900; line-height: 1.05; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .countdown__label { color: var(--muted); font-size: 20px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  .countdown__sep { color: var(--yellow); font-size: 120px; font-weight: 900; line-height: 1.12; opacity: .8; }
+  .countdown__num.tick { animation: tick .45s cubic-bezier(.2, .9, .3, 1.2); }
+  @keyframes tick { 0% { transform: translateY(-14px) scale(1.06); opacity: .4; } 100% { transform: none; opacity: 1; } }
+  /* The last ten seconds: the numbers turn the accent colour and pulse. */
+  .countdown.is-final .countdown__num { color: var(--text); background: var(--pink); }
+  .countdown.is-final .countdown__num.tick { animation: final .9s ease-out; }
+  @keyframes final { 0% { transform: scale(1.14); box-shadow: 0 0 0 0 rgba(var(--pink-rgb), .8); } 100% { transform: none; box-shadow: 0 0 0 26px rgba(var(--pink-rgb), 0); } }
+
+  .countdown__end {
+    padding: 34px 40px 22px; color: var(--yellow); font-size: 96px; white-space: nowrap; font-weight: 900; font-style: italic;
+    text-transform: uppercase; line-height: 1; letter-spacing: -.01em; animation: end-in .7s cubic-bezier(.2, .9, .3, 1.3) both;
+  }
+  @keyframes end-in { 0% { transform: scale(1.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+  .countdown__teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 22px; padding: 22px 40px 26px; }
+  .countdown__team { display: flex; align-items: center; gap: 18px; min-width: 0; }
+  .countdown__team--home { justify-content: flex-end; text-align: right; }
+  .countdown__team h2 { margin: 0; font-size: 38px; font-weight: 800; text-transform: uppercase; color: var(--text); line-height: 1.05; overflow-wrap: anywhere; }
+  .countdown__logo { width: 110px; height: 110px; object-fit: contain; flex: none; filter: drop-shadow(0 6px 12px rgba(0,0,0,.45)); }
+  .countdown__logo.logo-fallback { font-size: 32px; box-sizing: border-box; }
+  .countdown__vs { background: var(--pink); color: var(--text); font-size: 26px; font-weight: 800; border-radius: 999px; padding: 8px 18px; }
+  .countdown__info { background: var(--purple); color: var(--muted); padding: 14px 32px; font-size: 22px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    display: flex; justify-content: center; gap: 28px; flex-wrap: wrap; }
+  .countdown__info:empty { display: none; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/countdown.html
+       Counts down to the scheduled start of the game picked on the scoreboard control page.
+       The clock ticks in the page; every 5 seconds it asks the local helper (never PlayHQ) which game
+       is picked, so a new game is picked up without refreshing. At zero it shows STARTING SOON.
+       Options: ?board=2 for a second court, ?label=Next%20game%20in for the heading, ?end=Game%20on for the
+       text at zero (?end=hide fades the card away instead), ?teams=0 for the clock only,
+       ?position=top or bottom (the default is the middle of the screen). -->
+  <main class="card countdown" id="card" hidden>
+    <div class="countdown__tabs"><div class="tab countdown__tab" id="label"></div><div class="tab" id="comp"></div></div>
+    <div class="countdown__clock" id="clock">
+      <div class="countdown__unit" id="daysUnit" hidden><div class="countdown__num" id="days"></div><div class="countdown__label" id="daysLabel">Days</div></div>
+      <div class="countdown__sep">:</div>
+      <div class="countdown__unit" id="hoursUnit" hidden><div class="countdown__num" id="hours"></div><div class="countdown__label">Hours</div></div>
+      <div class="countdown__sep">:</div>
+      <div class="countdown__unit"><div class="countdown__num" id="mins"></div><div class="countdown__label">Minutes</div></div>
+      <div class="countdown__sep">:</div>
+      <div class="countdown__unit"><div class="countdown__num" id="secs"></div><div class="countdown__label">Seconds</div></div>
+    </div>
+    <div class="countdown__end" id="end" hidden></div>
+    <div class="countdown__teams" id="teams">
+      <div class="countdown__team countdown__team--home"><h2 id="homeName"></h2><div id="homeLogo"></div></div>
+      <div class="countdown__vs">VS</div>
+      <div class="countdown__team"><div id="awayLogo"></div><h2 id="awayName"></h2></div>
+    </div>
+    <footer class="countdown__info" id="info"></footer>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const boardId = params.get('board') || '1';
+    const endText = params.get('end') || 'Starting soon';
+    const showTeams = params.get('teams') !== '0';
+    if (['top', 'bottom'].includes(params.get('position'))) document.body.classList.add(params.get('position'));
+    document.getElementById('label').textContent = params.get('label') || 'Starting in';
+    if (!showTeams) document.getElementById('teams').hidden = true;
+
+    const card = document.getElementById('card');
+    const msg = document.getElementById('message');
+    const $ = id => document.getElementById(id);
+    let start = null, offset = 0, gameKey = '', shown = '';
+
+    function clock(time) {
+      const [h, m] = String(time || '').split(':').map(Number);
+      return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : (time || '');
+    }
+    function setLogo(id, team) {
+      const node = logoEl(team, 'countdown__logo');
+      node.id = id;
+      $(id).replaceWith(node);
+    }
+    function setNum(id, value) {
+      const node = $(id);
+      if (node.textContent === value) return;
+      node.textContent = value;
+      node.classList.remove('tick');
+      void node.offsetWidth; // restart the animation
+      node.classList.add('tick');
+    }
+
+    // Redrawn from the clock each time, so it keeps time at any frame rate and after a stall.
+    function render() {
+      if (start === null) return;
+      const left = Math.max(0, Math.ceil((start - (Date.now() + offset)) / 1000));
+      const state = left > 0 ? 'counting' : 'ended';
+      if (state === 'ended') {
+        if (shown !== 'ended') {
+          shown = 'ended';
+          pageLog('info', `Countdown reached zero for game ${gameKey}`);
+          $('clock').hidden = true;
+          $('label').hidden = true;
+          card.classList.remove('is-final');
+          if (endText.toLowerCase() === 'hide') card.classList.add('is-gone');
+          else { $('end').textContent = endText; $('end').hidden = false; }
+        }
+        return;
+      }
+      if (shown !== 'counting') { shown = 'counting'; $('clock').hidden = false; $('label').hidden = false; $('end').hidden = true; card.classList.remove('is-gone'); }
+      const d = Math.floor(left / 86400), h = Math.floor(left % 86400 / 3600), m = Math.floor(left % 3600 / 60), s = left % 60;
+      $('daysUnit').hidden = d === 0;
+      $('daysLabel').textContent = d === 1 ? 'Day' : 'Days';
+      $('hoursUnit').hidden = d === 0 && h === 0;
+      setNum('days', String(d));
+      setNum('hours', String(h).padStart(2, '0'));
+      setNum('mins', String(m).padStart(2, '0'));
+      setNum('secs', String(s).padStart(2, '0'));
+      card.classList.toggle('is-final', left <= 10);
+    }
+
+    async function load() {
+      try {
+        const g = await (await fetch(`/api/countdown?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        if (g.serverNow) offset = g.serverNow - Date.now();
+        const key = `${g.gameId}|${g.start}|${g.home && g.home.name}|${g.away && g.away.name}`;
+        if (g.error) {
+          if (key !== gameKey) { gameKey = key; console.warn('Countdown unavailable:', g.error); }
+          start = null;
+          card.hidden = true;
+          msg.textContent = `Countdown unavailable: ${g.error}`;
+          msg.hidden = false;
+          return;
+        }
+        msg.hidden = true;
+        if (key === gameKey) return;
+        gameKey = key;
+        pageLog('info', `Counting down to ${g.home.name} v ${g.away.name} (game ${g.gameId}) at ${g.date} ${g.time}`);
+        start = g.start;
+        shown = '';
+        $('comp').textContent = g.competition || '';
+        $('homeName').textContent = g.home.name;
+        $('awayName').textContent = g.away.name;
+        setLogo('homeLogo', g.home);
+        setLogo('awayLogo', g.away);
+        const info = $('info');
+        info.replaceChildren();
+        [g.division, g.round, g.court, clock(g.time), g.venueName].filter(Boolean).forEach(t => info.appendChild(el('span', '', t)));
+        card.hidden = false;
+        render();
+      } catch (err) {
+        console.warn('Countdown could not reach the helper:', err.message);
+      }
+    }
+
+    load();
+    setInterval(load, 5000);
+    setInterval(render, 100);
+  </script>
+</body>
+</html>
