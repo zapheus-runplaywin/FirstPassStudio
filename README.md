@@ -142,8 +142,10 @@ since PlayHQ only answers "not electronically scored"; the control page says whe
 On the control page, pick the game from this round's PlayHQ fixtures and press **Use this game**.
 With **Follow PlayHQ** on, the score updates every 5 seconds (change it on the control page) from the same live feed the
 playhq.com game page uses, so it needs no API key, but only if someone is live-scoring that game in PlayHQ. The quarter
-follows the PlayHQ scorer too (you can still change it in between). Tick **Follow the PlayHQ scorer's clock** (or use
-`/deck/clock/playhq/on`) and the clock follows the clock the PlayHQ scorer runs; any clock button switches it back to manual. Otherwise press +1 / +2 / -1 / -2 (or keys A/Z for home, K/M for away,
+follows the PlayHQ scorer too (you can still change it in between). The clock matches the scores: switching between
+**Follow PlayHQ** and **Manual** (or a score press switching to manual) also turns **Follow the PlayHQ scorer's clock** on or off,
+and the control page says so. You can still change the clock afterwards (the tick box, `/deck/clock/playhq/on|off`, or
+any clock button, which switches it back to manual). Otherwise press +1 / +2 / -1 / -2 (or keys A/Z for home, K/M for away,
 with Shift for 2) and it switches to manual. The quarter and the countdown clock (Space starts and stops it) are run from the control page.
 Everything can also be run from a Stream Deck: see `STREAMDECK.md`, or the API docs at http://localhost:8080/api.html. To line it up with the venue clock, type the venue's time (e.g. 12:34) in
 **Match venue clock** and press Enter. For a second court use `scoreboard.html?board=2` with `control.html?board=2`.

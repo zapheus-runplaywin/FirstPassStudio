@@ -69,7 +69,8 @@ paths:
         `playhq` takes scores from PlayHQ every 5 seconds, or as set on the control page (only works once a
         game has been picked on the control page, and only if the game is
         live-scored in PlayHQ). `manual` uses the score buttons. `toggle` swaps
-        between the two.
+        between the two. Following the PlayHQ scorer's clock is switched on or off to match
+        (`/deck/clock/playhq/...` changes it again afterwards).
       operationId: setSource
       parameters:
         - name: mode
@@ -179,7 +180,9 @@ paths:
       summary: Follow the PlayHQ scorer's clock
       description: |
         `on` makes the clock follow the game clock the PlayHQ scorer runs (while the score follows PlayHQ),
-        `off` stops it, `toggle` switches. Any other clock button also turns it off.
+        `off` stops it, `toggle` switches. Any other clock button also turns it off. Switching scores
+        between Follow PlayHQ and Manual (including by a score button) sets this to match, so it is on
+        whenever scores follow PlayHQ unless changed after that.
       operationId: clockFollowPlayhq
       parameters:
         - name: mode

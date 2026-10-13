@@ -46,6 +46,7 @@ control page turns automatic selection off.
 | Toggle between the two | http://localhost:8080/deck/source/toggle |
 
 Follow PlayHQ only works once a game has been picked on the control page.
+Switching between the two also turns following the PlayHQ scorer's clock on or off to match (see Clock below).
 
 ## Clock
 
@@ -69,6 +70,8 @@ Follow PlayHQ only works once a game has been picked on the control page.
 - Any amount works in an adjust link: `adjust/2m`, `adjust/-30s`, `adjust/90s`. A number on its own counts as seconds.
 - Change the time in a set link to anything, e.g. `/deck/clock/set/7:30`.
 - Following the PlayHQ clock only works while the score is following PlayHQ. Pressing any other clock button switches the clock back to manual.
+- The clock matches the scores: `/deck/source/playhq` (or picking a game) turns following the PlayHQ clock on, and
+  `/deck/source/manual` (or any score button) turns it off. Use the clock buttons above afterwards to change that.
 - Quarters are 10 minutes. To change that, set the length on the competition setup page (setup.html), or use
   `/deck/clock/length/12` (minutes) from a button.
 
