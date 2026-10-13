@@ -242,14 +242,17 @@
         const a = .12 + Math.random() * .5, v = 22 + Math.random() * 22; // angle off straight up, speed
         ps.push(piece(side < 0 ? 40 : 1880, 1090, -side * Math.sin(a) * v, -Math.cos(a) * v));
       }
-      let last = 0;
-      (function frame(t) {
+      // Pieces move by elapsed time, not per frame, so they fall at the same speed at 25, 30, 50 or 60 fps.
+      // Speeds are tuned in 60 fps frames; k is how many of those this frame stands for (capped after a stall).
+      let last = performance.now(), spawned = last;
+      (function frame(t = last) {
+        const k = Math.min(Math.max(t - last, 0), 100) / (1000 / 60); last = t;
         ctx.clearRect(0, 0, 1920, 1080);
-        if (t - last > 1000 / rate && ps.length < 420) { last = t; ps.push(piece(Math.random() * 1920, -30, (Math.random() - .5) * 2, 2 + Math.random() * 2)); }
+        if (t - spawned > 1000 / rate && ps.length < 420) { spawned = t; ps.push(piece(Math.random() * 1920, -30, (Math.random() - .5) * 2, 2 + Math.random() * 2)); }
         for (let i = ps.length - 1; i >= 0; i--) {
           const p = ps[i];
-          p.vx *= .985; p.vy = Math.min(p.vy * .985 + .32, 5.5); p.x += p.vx + Math.sin(p.flip) * .8; p.y += p.vy;
-          p.rot += p.vr; p.flip += p.vf;
+          p.vx *= .985 ** k; p.vy = Math.min(p.vy * .985 ** k + .32 * k, 5.5); p.x += (p.vx + Math.sin(p.flip) * .8) * k; p.y += p.vy * k;
+          p.rot += p.vr * k; p.flip += p.vf * k;
           if (p.y > 1110) { ps.splice(i, 1); continue; }
           ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(1, Math.cos(p.flip));
           ctx.fillStyle = p.col;
@@ -257,7 +260,7 @@
           ctx.restore();
         }
         requestAnimationFrame(frame);
-      })(0);
+      })();
     }
 
     // Stars twinkling around the winner's logo, at staggered times.
