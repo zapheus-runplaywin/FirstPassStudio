@@ -103,6 +103,17 @@ Set it up once:
 It celebrates the game picked on the control page, with the names, logos and final score from the scoreboard, so check the
 score is right before pressing. To force a result whatever the score, use a source with `?winner=home`, `?winner=away` or `?winner=draw`.
 
+## Super shot
+
+The super shot animation is also an OBS source: 3 seconds, then it fades out by itself, so the frame is clear again.
+
+1. In OBS add a **Browser** source, 1920 x 1080, with http://localhost:8080/supershot.html?team=home and another with
+   `?team=away`, each with **Shutdown source when not visible** and **Refresh browser when scene becomes active** ticked.
+   (Plain http://localhost:8080/supershot.html plays it without a team, in the competition's colours.)
+2. On the Stream Deck use the **OBS Studio** plugin's **Source** (visibility) action for each, next to the +2 buttons.
+   A **Multi Action** can add the 2 points (http://localhost:8080/deck/home/add2) and show the source from one key.
+   Turn the source off again before the next super shot so it replays.
+
 ## Second court
 
 Add `?board=2` to the end of any link, e.g. `http://localhost:8080/deck/home/add2?board=2`.
