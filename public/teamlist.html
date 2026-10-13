@@ -39,7 +39,11 @@
       let benchShown = false;
       team.players.forEach((p, i) => {
         const onCourt = COURT.includes(p.position);
-        if (!onCourt && !benchShown && i > 0) { list.appendChild(el('li', 'teamlist__bench', 'Bench')); benchShown = true; }
+        // Players added from the season squad (the line up was incomplete) aren't the bench,
+        // and with no line up at all the whole list is the squad, so it needs no heading.
+        if (!onCourt && !benchShown && i > 0 && !(p.fromSquad && team.players.every(x => x.fromSquad))) {
+          list.appendChild(el('li', 'teamlist__bench', p.fromSquad ? 'Squad' : 'Bench')); benchShown = true;
+        }
         const li = el('li', 'teamlist__player');
         li.style.animationDelay = `${i * 70}ms`;
         li.appendChild(el('span', 'pos', onCourt ? p.position : ''));
