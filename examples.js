@@ -158,6 +158,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
       ['Score ticker', '/ticker.html', 4000],
       ['Round fixture', '/fixtures.html', 3000],
       ['Round results', '/results.html', 3000],
+      ['Logo animation: fun (mid animation)', '/logo.html', 2200],
+      ['Logo animation: professional (mid animation)', '/logo.html?style=pro', 2600],
       ...st.grades.map(g => [`Ladder: ${g.name}`, `/ladder.html?division=${g.division}`, 3000]),
       ...st.grades.map(g => [`Top shooters: ${g.name}`, `/topshooters.html?division=${g.division}`, 6000]),
     ];

@@ -125,6 +125,10 @@
     <h2>Round fixture and results (current round, all divisions)</h2>
     <div id="fixturePages"></div>
   </div>
+  <div class="card">
+    <h2>Competition logo animation (about 5 seconds)</h2>
+    <div id="logoPages"></div>
+  </div>
   <div class="card" id="shootersCard" hidden>
     <h2>Top shooters (season)</h2>
     <div id="shooterPages"></div>
@@ -135,7 +139,7 @@
     <p class="page__help">Double-click <b>Make Examples (Mac).command</b> (or <b>Make Examples (Windows).bat</b>) in the PlayHQ Graphics folder
       to take a 1920 x 1080 picture of every graphic on this page with PlayHQ's data right now. They are saved in
       <b>Examples/&lt;date and time&gt;</b> with an <b>index.html</b> that shows them all, and keep the transparent background OBS sees.
-      The pictures use the game, round and court picked on the control page, so pick those first. The Clash is shown at the end of its animation.</p>
+      The pictures use the game, round and court picked on the control page, so pick those first. The Clash is shown at the end of its animation and the logo animations part way through.</p>
     <p class="page__help">It uses the helper if it is running, otherwise starts it for the run, and needs Google Chrome (or Edge, Brave or
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
@@ -224,6 +228,14 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
 document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
+[['Logo animation: fun (burst, spin, bounce and confetti)', '/logo.html',
+  'The competition logo from the competition setup, animated in the middle of the frame in the competition\'s colours. Plays once when the page loads, about 5 seconds, ' +
+  'then leaves the frame clear: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on.'],
+ ['Logo animation: professional (wipe, lines and a light sweep)', '/logo.html?style=pro',
+  'The same logo with a clean, calm reveal. Options for both: <code>?mode=light</code> (the default) or <code>?mode=dark</code> uses the setup\'s light or dark mode competition logo, ' +
+  '<code>?out=0</code> keeps the logo on screen at the end, <code>?size=520</code> sets its height in pixels, and <code>?speed=1.5</code> plays it faster (<code>0.5</code> slower). ' +
+  'Combine them with &amp;, e.g. <code>/logo.html?style=pro&amp;mode=dark</code>. With no competition logo in the setup the page stays empty.']]
+  .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
 (async () => {
   const list = document.getElementById('list');
   const sub = document.getElementById('sub');
