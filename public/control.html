@@ -34,6 +34,7 @@
   a.btnlink:hover { background: #D3E4EF; }
   .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
   .note b { color: var(--fp-navy); }
+  .alert { font-size: 14px; margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--fp-orange); color: var(--fp-navy); font-weight: 600; }
   .error { color: var(--fp-danger); }
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
@@ -78,6 +79,8 @@
       <label>Check PlayHQ every <input id="refreshSec" type="number" min="3" max="120" style="width:70px"> seconds</label>
     </div>
     <p class="note" id="sourceNote"></p>
+    <p class="note">Switching between <b>Follow PlayHQ</b> and <b>Manual</b> (here, on the Stream Deck, or by pressing a score button) also turns <b>Follow the PlayHQ scorer's clock</b> on or off to match. Change the clock afterwards if you want it different.</p>
+    <p class="alert" id="clockMatched" hidden></p>
     <div class="row" style="margin-top:10px">
       <label>Court shown left of the home team <input id="court" placeholder="Court 1" style="width:140px"></label>
     </div>
@@ -192,6 +195,11 @@
       ? `${s.autoNote || 'Finding the game…'}${s.autoHold ? '' : ' Picking a game from the list turns this off.'}`
       : `Off, so the game stays as picked from the list${s.court ? ` (now on ${s.court})` : ''}. Tick the box, or change the court, to follow ${s.autoCourt || 'a court'} automatically.`;
     $('followClock').checked = !!s.followPlayhqClock;
+    const matchedAgo = s.clockMatchedAt ? s.serverNow - s.clockMatchedAt : Infinity;
+    $('clockMatched').hidden = !(matchedAgo < 15000);
+    $('clockMatched').textContent = s.followPlayhqClock
+      ? 'Scores follow PlayHQ, so "Follow the PlayHQ scorer\'s clock" was turned on too.'
+      : 'Scores are manual, so "Follow the PlayHQ scorer\'s clock" was turned off too. The clock buttons work it by hand.';
     $('clockNote').textContent = !s.followPlayhqClock ? 'Clock buttons work it by hand.'
       : s.source !== 'playhq' ? 'Turn on Follow PlayHQ above for this to work.'
       : s.playhqClock ? `PlayHQ: ${s.playhqClock.time} ${String(s.playhqClock.status || '').toLowerCase()}. Pressing a clock button switches it back to manual.`

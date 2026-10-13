@@ -722,9 +722,9 @@ function newBoard() {
     period: 1, periodLabel: 'Q',
     clock: { lengthSec: QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null },
     showClock: true,
-    followPlayhqClock: false,
+    followPlayhqClock: false,  // true = the clock follows the PlayHQ scorer's game clock (while following PlayHQ); matches source when that changes
     autoSelect: CONFIG.autoSelectGame !== undefined ? !!CONFIG.autoSelectGame : !!CONFIG.defaultCourt, // pick the game from the court and the time
-    autoCourt: CONFIG.defaultCourt || '',  // true = the clock follows the PlayHQ scorer's game clock (while following PlayHQ)
+    autoCourt: CONFIG.defaultCourt || '',
     playhqRefreshSec: DEFAULT_REFRESH_SEC,
     updatedAt: Date.now(),
   };
@@ -744,7 +744,22 @@ function clockElapsed(c) { return c.elapsedMs + (c.running && c.startedAt ? Date
 
 // Clock buttons pressed by a person stop the clock following PlayHQ (like score buttons do for the score).
 const MANUAL_CLOCK = new Set(['clockStart', 'clockStop', 'clockToggle', 'clockReset', 'clockSet', 'clockAdjust']);
+// The clock matches the scores: whenever scoring switches between Follow PlayHQ and Manual
+// (the buttons, the Stream Deck, a score press, or a game being picked), following the
+// PlayHQ scorer's clock is switched to match. Changing the clock afterwards still wins.
+const SETS_SOURCE = new Set(['source', 'selectGame']);
 function applyAction(b, a) {
+  const sourceBefore = b.source;
+  applyOne(b, a);
+  if (b.source === sourceBefore && !SETS_SOURCE.has(a.type)) return;
+  const follow = b.source === 'playhq';
+  if (b.followPlayhqClock === follow) return;
+  b.followPlayhqClock = follow;
+  b.playhqClockKey = null; // apply the next PlayHQ reading straight away
+  b.clockMatchedAt = Date.now();
+  log('info', 'scoreboard', `Scores now ${follow ? 'follow PlayHQ' : 'manual'} (${a.type}), so the clock ${follow ? 'follows the PlayHQ scorer' : 'is manual'} too`);
+}
+function applyOne(b, a) {
   if (MANUAL_CLOCK.has(a.type) && b.followPlayhqClock && !a.fromToggle) {
     b.followPlayhqClock = false;
     log('info', 'scoreboard', `Clock switched to manual by ${a.type}`);
@@ -767,7 +782,7 @@ function applyAction(b, a) {
       break;
     }
     case 'resetScores': b.home.score = 0; b.away.score = 0; b.source = 'manual'; break;
-    case 'clockToggle': applyAction(b, { type: b.clock.running ? 'clockStop' : 'clockStart', fromToggle: true }); break;
+    case 'clockToggle': applyOne(b, { type: b.clock.running ? 'clockStop' : 'clockStart', fromToggle: true }); break;
     case 'autoSelect':
       b.autoSelect = a.value === 'toggle' ? !b.autoSelect : !!a.value && a.value !== 'off';
       b.autoHold = '';
