@@ -132,7 +132,7 @@
     <div id="fixturePages"></div>
   </div>
   <div class="card">
-    <h2>Competition logo animations (12 templates, about 5 seconds each)</h2>
+    <h2>Competition logo animations (17 templates, about 5 seconds each)</h2>
     <div id="logoPages"></div>
   </div>
   <div class="card">
@@ -280,13 +280,18 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
  ['Logo animation: rings (broken rings spin round it)', '/logo.html?template=rings', 'Broken rings and dots in the competition\'s colours spin into place round the logo and keep turning, then fly apart.'],
  ['Logo animation: title (logo and competition name)', '/logo.html?template=title', 'The logo pops in, slides left and the competition name wipes in beside it on an underline. ' +
   '<code>?text=Grand%20Final</code> changes the words and <code>?sub=Round%206</code> adds a smaller line under them.'],
+ ['Logo animation: goal (netball, the ball goes through the ring)', '/logo.html?template=goal', 'A goal post rises, the ball arcs up and drops through the ring with a swish of the net, then the logo punches in where the post was.'],
+ ['Logo animation: court (netball, the court draws on)', '/logo.html?template=court', 'A netball court to scale, in the competition\'s colours and in perspective: its lines draw on, the logo stands up on the centre third, then it all folds away.'],
+ ['Logo animation: bibs (netball, the seven positions)', '/logo.html?template=bibs', 'The logo pops in and the seven position bibs, GS round to GK, pop in around it, bob while it holds, then fly away.'],
+ ['Logo animation: pass (netball, down the court GK to GS)', '/logo.html?template=pass', 'The ball is passed down the court from GK to GS, leaving a line in the accent colour, and the last pass to the middle becomes the logo.'],
+ ['Logo animation: ball (netball, rolls in and flips over)', '/logo.html?template=ball', 'A netball in the competition\'s colours rolls in, hops and flips over to show the logo; at the end it flips back and rolls away.'],
  ['Logo animation options (for every template)', '/logo.html?template=coin&out=0',
   '<code>?mode=light</code> (the default) or <code>?mode=dark</code> uses the setup\'s light or dark mode competition logo, ' +
   '<code>?out=0</code> keeps the logo on screen at the end, <code>?size=640</code> sets its height in pixels, and <code>?speed=1.5</code> plays it faster (<code>0.5</code> slower). ' +
   'The page is transparent unless you add a background, which fades in and out with the animation: <code>?bg=gradient</code> is a dark radial gradient, ' +
   '<code>?bg=7f4092</code> (a hex colour without the #, or a colour name) a radial gradient from that colour to a darker shade, <code>?bg2=</code> sets the edge colour, ' +
   '<code>?bg=solid-7f4092</code> a flat colour, and <code>?bgimage=court.jpg</code> a picture from the competition\'s brand folder (competitions/&lt;competition&gt;/brand/) or a full link. ' +
-  'Combine them with &amp;, e.g. <code>/logo.html?template=badge&amp;mode=dark&amp;bg=7f4092</code>. The ten newer templates use flat, hard edged shapes only, so nothing leaves a halo over key and fill. ' +
+  'Combine them with &amp;, e.g. <code>/logo.html?template=badge&amp;mode=dark&amp;bg=7f4092</code>. The templates after fun and pro use flat, hard edged shapes only, so nothing leaves a halo over key and fill. ' +
   'With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
 [['PIVT and FirstPass Studio ad', '/ad.html',

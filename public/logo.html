@@ -9,8 +9,8 @@
 <script src="log.js"></script>
 <style>
   /* The competition logo from the active setup, animated in the middle of the frame for about 5 seconds.
-     Twelve templates, picked with ?template=: fun (the default: swoops in, slams down, rockets out) and pro (a clean wipe,
-     line and shine) are here; the other ten are in logo-templates.css and built by the script below.
+     Seventeen templates, picked with ?template=: fun (the default: swoops in, slams down, rockets out) and pro (a clean wipe,
+     line and shine) are here; the other fifteen are in logo-templates.css and built by the script below.
      Colours and font come from the competition setup (theme.css). Transparent apart from the animation. */
   :root { --size: 640px; --speed: 1; }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: var(--font); }
@@ -152,7 +152,8 @@
   <!-- Add to OBS as a Browser source, 1920 x 1080:
        http://localhost:8080/logo.html?template=fun  (fun, also the default with no template: swoops in, slams down, rockets out)
        http://localhost:8080/logo.html?template=pro  (professional: clean wipe, lines and a light sweep)
-       ?template=coin, tiles, slices, glitch, badge, doors, bounce, lightning, rings or title picks one of the other ten
+       ?template=coin, tiles, slices, glitch, badge, doors, bounce, lightning, rings or title, or the netball ones goal, court,
+       bibs, pass or ball, picks one of the others
        (listed in the script below), and ?template=random a different one each time.
        The competition logo comes from the competition setup page. Plays once when the page loads (about 5 seconds)
        and leaves the frame transparent; tick "Refresh browser when scene becomes active" in OBS to play it each time.
@@ -191,7 +192,7 @@
       const stage = $('stage');
       // ?template= picks the animation. fun and pro are the two
       // originals in this page; the rest are built by TEMPLATES below and styled in logo-templates.css.
-      const NAMES = ['fun', 'pro', 'coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title'];
+      const NAMES = ['fun', 'pro', 'coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'ball'];
       let template = (params.get('template') || 'fun').trim().toLowerCase();
       if (template === 'random') template = NAMES[Math.floor(Math.random() * NAMES.length)];
       if (!NAMES.includes(template)) { console.warn('Logo animation: no template called', template, '- using fun. Templates:', NAMES.join(', ')); template = 'fun'; }
@@ -382,7 +383,72 @@
           return `<div class="t-centre"><div class="row"><div class="slide"><div class="logo-box">${logoTag(url)}</div></div>` +
             `<div class="words"><div class="name">${esc(name)}</div><div class="bar"></div><div class="sub">${esc(sub)}</div></div></div></div>`;
         },
+
+        // ----- Netball templates -----
+        goal(url, { size }) {
+          // The ring is seen from the side as an ellipse: its back half is drawn behind the ball and its front half and net in front.
+          const back = `<svg class="layer" viewBox="0 0 1920 1080"><g class="goalpost"><rect class="post" x="1052" y="410" width="18" height="700"/>` +
+            `<path class="post" d="M 1030 416 L 1056 416 L 1056 426 L 1030 426 Z"/><path class="hoop" d="M 890 420 A 70 15 0 0 1 1030 420"/></g></svg>`;
+          let net = '';
+          for (let i = 0; i <= 6; i++) {
+            const x0 = 890 + i * 140 / 6, x1 = 922 + i * 76 / 6;
+            net += `<path d="M ${x0.toFixed(0)} 420 L ${x1.toFixed(0)} 540"/>`;
+          }
+          [460, 500, 540].forEach((y, i) => { const w = 70 - (i + 1) * 10; net += `<path d="M ${960 - w} ${y} Q 960 ${y + 10} ${960 + w} ${y}"/>`; });
+          const front = `<svg class="layer" viewBox="0 0 1920 1080"><g class="goalpost"><g class="net">${net}</g>` +
+            `<path class="hoop" d="M 890 420 A 70 15 0 0 0 1030 420"/></g></svg>`;
+          return `${back}<div class="bx"><div class="by">${netball(84)}</div></div>${front}` +
+            `<div class="t-centre"><div class="burst-ring"></div><div class="logo-box">${logoTag(url)}</div></div>`;
+        },
+        court(url) {
+          // A netball court to scale (30.5 m by 15.25 m at 50 px a metre): outline, thirds, centre circle and goal circles.
+          const lines = ['M 0 0 H 1525 V 762 H 0 Z', 'M 508 0 V 762', 'M 1017 0 V 762',
+            'M 740 381 a 22.5 22.5 0 1 0 45 0 a 22.5 22.5 0 1 0 -45 0', 'M 0 136 A 245 245 0 0 1 0 626', 'M 1525 136 A 245 245 0 0 0 1525 626'];
+          return `<div class="court"><svg viewBox="0 0 1525 762"><rect class="floor" width="1525" height="762"/><rect class="third" x="508" width="509" height="762"/>` +
+            lines.map((d, i) => `<path class="cline" pathLength="1" style="--d:${(.25 + i * .12).toFixed(2)}s" d="${d}"/>`).join('') + '</svg></div>' +
+            `<div class="t-centre"><div class="logo-box">${logoTag(url)}</div></div>`;
+        },
+        bibs(url, { size }) {
+          const POS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
+          const bibs = POS.map((p, i) => {
+            const a = -Math.PI / 2 + i * 2 * Math.PI / 7;
+            return `<div class="bib" style="--x:${Math.round(Math.cos(a) * size * .95)}px;--y:${Math.round(Math.sin(a) * size * .62)}px;` +
+              `--d:${(.5 + i * .12).toFixed(2)}s;--e:${(i * .05).toFixed(2)}s"><span>${p}</span></div>`;
+          }).join('');
+          return `<div class="t-centre">${bibs}<div class="logo-box">${logoTag(url)}</div></div>`;
+        },
+        pass(url) {
+          // Down the court from GK to GS, one chest pass each, then the last pass goes to the middle and becomes the logo.
+          const pts = [[-100, 840], [250, 300], [520, 800], [800, 270], [1100, 820], [1380, 290], [1640, 780], [1780, 330], [960, 540]];
+          const POS = ['GK', 'GD', 'WD', 'C', 'WA', 'GA', 'GS'];
+          const d = 'M ' + pts.map(p => p.join(' ')).join(' L ');
+          const lens = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]));
+          const total = lens.reduce((a, b) => a + b, 0);
+          let run = 0;
+          const players = POS.map((p, i) => {
+            run += lens[i];
+            const t = .15 + 1.8 * run / total; // when the ball reaches this player
+            return `<div class="player" style="--x:${pts[i + 1][0]}px;--y:${pts[i + 1][1]}px;--d:${(t - .3).toFixed(2)}s;--e:${(i * .03).toFixed(2)}s">${p}</div>`;
+          }).join('');
+          return `<svg class="trail" viewBox="0 0 1920 1080"><path pathLength="1" d="${d}"/></svg>${players}` +
+            `<div class="pball" style="--path:path('${d}')">${netball(76)}</div>` +
+            `<div class="t-centre"><div class="burst-ring"></div><div class="logo-box">${logoTag(url)}</div></div>`;
+        },
+        ball(url, { size }) {
+          return `<div class="t-centre"><div class="roll"><div class="hop"><div class="coin"><div class="spinner">` +
+            `<div class="logo-box back">${logoTag(url)}</div><div class="front">${netball(Math.round(size * .55))}</div>` +
+            '</div></div></div></div></div>';
+        },
       };
+
+      // A netball, d pixels across: white with curved seams and a panel in the competition colours.
+      function netball(d) {
+        return `<svg class="netball" width="${d}" height="${d}" viewBox="-50 -50 100 100">` +
+          '<circle class="skin" r="48"/><path class="panel" d="M -46 -14 C -20 -2, 20 -2, 46 -14 L 47.5 -6 C 20 6, -20 6, -47.5 -6 Z"/>' +
+          '<path class="seam" d="M -46 -14 C -20 -2, 20 -2, 46 -14"/><path class="seam" d="M -47.5 -6 C -20 6, 20 6, 47.5 -6"/>' +
+          '<path class="seam" d="M -10 -47 C 8 -20, 8 20, -10 47"/><path class="seam" d="M -30 -38 C -16 -16, -16 16, -30 38"/>' +
+          '<path class="seam" d="M 14 -46 C 30 -20, 30 20, 14 46"/></svg>';
+      }
 
       function play() {
         if (template === 'fun') confetti();
