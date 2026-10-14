@@ -575,7 +575,13 @@ function setRoundChoice(value) {
   log('info', 'round', roundChoice ? `Round picked by hand: ${roundChoice}` : 'Round picked automatically by date');
 }
 let LOOKAHEAD_DAYS = 5;
-const roundKey = r => String(r.number ?? r.name);
+// A round's key in the round list: its number, or its name when the number isn't unique
+// (PlayHQ numbers finals rounds from 1 again, so "Grand Final" can share number 3 with Round 3).
+function roundKeys(rounds) {
+  const count = {};
+  for (const r of rounds) if (r.number != null) count[r.number] = (count[r.number] || 0) + 1;
+  return r => (r.number != null && count[r.number] === 1 ? String(r.number) : r.name);
+}
 const dayDiff = (date, today) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
 const roundDatesCache = new Map();
 // The first game date of each round in a division, and its first game's start time (kept for 30 minutes).
@@ -598,7 +604,8 @@ async function pickRound(grade, choice = roundChoice) {
   const rounds = await getRounds(grade.id);
   if (!rounds.length) return null;
   if (choice) {
-    const hit = rounds.find(r => roundKey(r) === choice || r.name.toLowerCase() === choice.toLowerCase());
+    const key = roundKeys(rounds);
+    const hit = rounds.find(r => key(r) === choice) || rounds.find(r => r.name.toLowerCase() === choice.toLowerCase());
     if (hit) return hit;
   }
   try {
@@ -629,7 +636,7 @@ async function getRoundInfo() {
   const auto = await pickRound(grade, '');
   const dates = await roundDates(grade).catch(() => new Map());
   return { choice: roundChoice, auto: auto ? auto.name : '', lookaheadDays: LOOKAHEAD_DAYS,
-    rounds: (await getRounds(grade.id)).map(r => ({ key: roundKey(r), name: r.name, date: dates.get(r.id) || '' })) };
+    rounds: (await getRounds(grade.id)).map((r, i, all) => ({ key: roundKeys(all)(r), name: r.name, date: dates.get(r.id) || '' })) };
 }
 
 // This round in every division, for the control page's game picker.
