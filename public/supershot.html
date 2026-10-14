@@ -11,7 +11,7 @@
      By default it stays in OBS and plays whenever the scoreboard gets a super shot, with that team's logo, name and club colour.
      ?team=home|away|none plays it once when the page loads instead (manual), for that team or without one.
      Every animation runs from one start on the page's CSS clock, so it plays the same each time.
-     Times in seconds: ball flies in 0 to 0.5, bursts 0.5, SUPER SHOT slams 0.45 to 0.65, +2 pops 0.75, team 0.95, fades 2.4 to 3. */
+     Times in seconds: ball flies in 0 to 0.5, bursts 0.5, SUPER SHOT slams 0.45 to 0.65, team 0.95, fades 2.4 to 3. */
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 900; src: url("vendor/montserrat/montserrat-latin-900-italic.woff2") format("woff2"); }
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 800; src: url("vendor/montserrat/montserrat-latin-800-italic.woff2") format("woff2"); }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -101,22 +101,6 @@
   .go .word--shot::after { animation: shine .7s ease-in-out 1.3s forwards; }
   @keyframes shine { to { background-position: -50% 0; } }
 
-  /* +2 badge popping out beside the words over a turning starburst */
-  .badge { position: absolute; left: 1490px; top: 205px; width: 0; height: 0; }
-  .burst { position: absolute; left: -175px; top: -175px; width: 350px; height: 350px; opacity: 0; background: var(--yellow);
-    clip-path: polygon(50% 0, 57% 30%, 80% 8%, 70% 37%, 100% 30%, 76% 50%, 100% 70%, 70% 63%, 80% 92%, 57% 70%, 50% 100%, 43% 70%, 20% 92%, 30% 63%, 0 70%, 24% 50%, 0 30%, 30% 37%, 20% 8%, 43% 30%); }
-  .go .burst { animation: burstIn .4s cubic-bezier(.3,1.6,.5,1) .75s forwards, spin 4s linear .75s infinite; }
-  @keyframes burstIn { 0% { opacity: 0; transform: scale(0) rotate(-60deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
-  .points { position: absolute; left: -110px; top: -110px; width: 220px; height: 220px; border-radius: 50%; box-sizing: border-box; opacity: 0;
-    display: flex; align-items: center; justify-content: center; border: 10px solid #fff;
-    background: radial-gradient(circle at 35% 30%, rgba(var(--team-rgb), 1), rgb(var(--side-dark)) 95%);
-    color: #fff; font-weight: 900; font-style: italic; font-size: 118px; letter-spacing: -4px; line-height: 1;
-    text-shadow: 5px 5px 0 rgba(0, 0, 0, .35); box-shadow: 0 14px 30px rgba(0, 0, 0, .45); }
-  .points span { margin-left: -10px; }
-  .go .points { animation: popIn .5s cubic-bezier(.3,1.8,.5,1) .78s forwards, wobble .6s ease-in-out 1.3s infinite alternate; }
-  @keyframes popIn { 0% { opacity: 0; transform: scale(0) rotate(-40deg); } 100% { opacity: 1; transform: scale(1) rotate(-8deg); } }
-  @keyframes wobble { 0% { opacity: 1; transform: scale(1) rotate(-8deg); } 100% { opacity: 1; transform: scale(1.08) rotate(4deg); } }
-
   /* ?team=home|away: the team's logo and name on a plate in their colour */
   .team { position: absolute; left: 0; right: 0; top: 625px; display: none; justify-content: center; align-items: center; opacity: 0; }
   .has-team .team { display: flex; }
@@ -145,7 +129,6 @@
       <div class="lines" id="lines"></div>
       <div class="centre" id="sparks"><div class="flash"></div><div class="ring ring--1"></div><div class="ring ring--2"></div><div class="ring ring--3"></div></div>
       <div class="words"><span class="word word--super" id="w1" data-text="SUPER">SUPER</span><span class="word word--shot" id="w2" data-text="SHOT">SHOT</span></div>
-      <div class="badge"><div class="burst"></div><div class="points"><span>+2</span></div></div>
       <div class="team" id="team"><div class="crest" id="crest"></div><div class="plate" id="plate"><h2 id="name"></h2></div></div>
       <div class="centre" id="balls"></div>
     </div>

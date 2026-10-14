@@ -173,7 +173,7 @@
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help">Only <b>scoreboard.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> keep asking for new data (the control page does too, but it isn't in OBS).
+    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> keep asking for new data (the control page does too, but it isn't in OBS). <b>countdown.html</b> also asks the helper which game is picked every 5 seconds, but that never reaches PlayHQ.
       The super shot page asks the helper every second for the scoreboard and nothing else, so it adds no PlayHQ requests.
       Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.
       The Clash and the winner celebration only retry if the helper isn't running.</p>
@@ -182,6 +182,8 @@
     <ul class="page__help">
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
+      <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
+      <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and the helper works out the goal order from it.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
       <li>Athletes page: when you open a team, the line up of each of its games this season, once (finished games are kept for an hour).</li>
@@ -236,13 +238,25 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   'To force a result, add <code>?winner=home</code>, <code>?winner=away</code> or <code>?winner=draw</code>. ' +
   'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=CHAMPIONS</code> changes the big word (or the stamp on a draw), <code>?title=Grand%20Final%20winners</code> changes the line under the score, ' +
   '<code>?score=0</code> leaves the score off. Combine them with &amp;, e.g. <code>/winner.html?out=12&amp;score=0</code>. Uses club colours from the competition setup.'], ['Super shot (after a successful super shot)', '/supershot.html',
-  'A 3 second burst after a super shot goes in: a netball flies in and bursts, SUPER and SHOT slam in from either side with a +2 badge, then it fades out and leaves the frame clear. ' +
+  'A 3 second burst after a super shot goes in: a netball flies in and bursts, SUPER and SHOT slam in from either side, then it fades out and leaves the frame clear. ' +
   '<b>Automatic (this link):</b> leave the source on in OBS and it plays by itself for every super shot, with that team\'s logo and name in their club colour: ' +
   'a +2 press on the control page or Stream Deck, or, while following PlayHQ, the PlayHQ scorer recording a super shot. ' +
   'Two normal goals between checks, a scorer correcting a goal to a super shot, scores catching up when a game is picked, anything after full time and a −2 don\'t play it; a +2 pressed by mistake does. ' +
   'Two close together play one after the other. <code>/deck/home/supershot</code> or <code>/deck/away/supershot</code> plays it without changing the score (to test it). ' +
   '<b>Manual:</b> <code>?team=home</code>, <code>?team=away</code> or <code>?team=none</code> (competition colours, no team) doesn\'t watch; it plays once when the source comes on, so tick <b>Shutdown source when not visible</b> and <b>Refresh browser when scene becomes active</b> and show it from the Stream Deck (see STREAMDECK.md). ' +
-  '<code>?board=2</code> for the second court.'], ['Up next (half time)', '/upnext.html'], ['Position match ups (athlete photos)', '/positions.html',
+  '<code>?board=2</code> for the second court.'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
+  'Who scored each of the last 10 goals of the game on the scoreboard, oldest to newest, with the quarter and time of each, a momentum line (up for a home goal, down for an away goal, shaded in the club colours), ' +
+  'how many of the 10 each team scored, and the current run (3 or more in a row lights up). Super goals show a +2 badge. Like the scoreboard it updates itself every 2 seconds, so it can stay on screen: new goals pop in and the older ones slide along. ' +
+  'PlayHQ only gives running totals, not a list of goals, so the order is worked out by the helper from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on the control page or Stream Deck. ' +
+  'A -1 or -2 takes that team\'s latest goal off. The list starts again when a new game is picked or the scores are reset. It only builds while the scoreboard (or this page) is open, and if the score jumps by more than 3 for one team at once, or the game was picked part way through, a dashed … marks the gap. ' +
+  'Options: <code>?layout=vertical</code> (the default is <code>horizontal</code>, above the scoreboard), <code>?count=8</code> shows a different number of goals (3 to 30), <code>?times=0</code> leaves the quarter and time off, ' +
+  '<code>?position=top</code> or <code>middle</code> moves the horizontal one, <code>?position=left</code> puts the vertical one on the left, <code>?title=Momentum</code> changes the heading and <code>?board=2</code> is for the second court.'],
+ ['Last 10 goals: vertical', '/goals.html?layout=vertical'], ['Up next (half time)', '/upnext.html'], ['Countdown to the start of the game', '/countdown.html',
+  'Counts down (days, hours, minutes and seconds as needed) to the scheduled start time from PlayHQ of the game picked on the control page, with both teams, their logos, the division, round, court, time and venue. ' +
+  'The clock ticks in the page, so it can stay on screen: every 5 seconds it checks with the helper which game is picked (PlayHQ is not asked), so when a new game is picked, by hand or by automatic game selection, it counts down to that one. ' +
+  'The last 10 seconds pulse in the accent colour, and at zero it shows <b>STARTING SOON</b> until the next game is picked. ' +
+  'Options: <code>?end=Game%20on</code> changes the words at zero (keep them short), <code>?end=hide</code> fades the card away instead, <code>?fade=1</code> fades the whole card out smoothly over the last 5 seconds so it is gone at zero (<code>?fade=8</code> over 8 seconds), <code>?label=Next%20game%20in</code> changes the heading, ' +
+  '<code>?teams=0</code> shows the clock only, <code>?position=top</code> or <code>bottom</code> moves it (the default is the middle of the screen) and <code>?board=2</code> is for the second court.'], ['Position match ups (athlete photos)', '/positions.html',
   'Goes through the home team from GS to GK, each beside the away athlete they play against (GS v GK, GA v GD, WA v WD, C v C, WD v WA, GD v GA, GK v GS), ' +
   'with photos from the <a href="/athletes.html" target="_blank">Athletes page</a>, then shows all seven together. Positions come from the PlayHQ line up for the game; a position missing from it shows as Unknown. ' +
   'Tick <b>Refresh browser when scene becomes active</b> in OBS so it starts again each time. ' +
@@ -272,6 +286,7 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   '<code>?bg=0f172a</code> (or a colour name) a radial gradient from that colour to a darker shade (<code>?bg2=</code> sets the edge colour), <code>?bg=solid-0f172a</code> a flat colour, ' +
   'and <code>?bgimage=court.jpg</code> a picture from the competition\'s brand folder (or a full link); with a background the white wordmark is used unless you add <code>?mode=light</code>. ' +
   '<code>?tagline=Live%20netball%20every%20Thursday</code> adds a line of text under the logos, and <code>?out=0</code> keeps the logos on screen at the end. ' +
+  'A soft glow sits behind the logos only when there is a background; <code>?glow=1</code> adds it on the transparent page (it shows as an oval over key and fill), <code>?glow=0</code> removes it. ' +
   'Combine them with &amp;, e.g. <code>/ad.html?bg=gradient&amp;tagline=Live%20netball</code>.']]
   .forEach(([n, p, h]) => document.getElementById('adPages').appendChild(pageRow(n, p, h)));
 (async () => {

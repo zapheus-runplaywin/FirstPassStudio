@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Last 10 Goals</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<script src="log.js"></script>
+<style>
+  /* Last 10 goals: who scored each of the game's last ten goals, oldest to newest, with a
+     momentum line (up for a home goal, down for an away goal) and the current run.
+     Transparent outside the card. Updates itself every 2 seconds, like the scoreboard. */
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+  body { font-family: var(--font, "Montserrat"), "Montserrat", sans-serif; color: var(--text, #fff); position: relative; }
+  [hidden] { display: none !important; }
+  .card { position: absolute; background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-sizing: border-box;
+    border-top: 6px solid var(--pink); box-shadow: 0 14px 40px rgba(0, 0, 0, .45); animation: rise .5s ease-out both;
+    --home: var(--yellow); --away: var(--pink); --home-text: var(--text-on-yellow); --away-text: #fff; }
+  @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
+  .head { display: flex; align-items: center; gap: 18px; padding: 16px 26px 6px; }
+  .tab { background: var(--pink); color: var(--text); padding: 7px 18px; border-radius: 6px; font-size: 22px; font-weight: 800;
+    letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 17px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+
+  .logo { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .initials { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-weight: 800; font-size: 20px; }
+  .name { min-width: 0; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; line-height: 1.1; }
+  .count { font-weight: 800; font-variant-numeric: tabular-nums; border-radius: 8px; text-align: center; }
+
+  /* A goal: a disc in the club colour with the team's logo, +2 badge on a super goal */
+  .ball { position: relative; width: var(--ball); height: var(--ball); border-radius: 50%; box-sizing: border-box; flex: none;
+    background: var(--c); color: var(--t); border: 3px solid rgba(255, 255, 255, .85); box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
+  .ball .logo, .ball .initials { position: absolute; inset: 9%; width: 82%; height: 82%; }
+  .ball--home { --c: var(--home); --t: var(--home-text); }
+  .ball--away { --c: var(--away); --t: var(--away-text); }
+  .ball.is-super { border-color: var(--yellow); box-shadow: 0 0 0 4px rgba(var(--yellow-rgb), .35), 0 4px 14px rgba(0, 0, 0, .45); }
+  .ball .two { position: absolute; right: -10px; top: -10px; min-width: 30px; height: 30px; padding: 0 4px; box-sizing: border-box; border-radius: 15px;
+    background: var(--yellow); color: var(--text-on-yellow); font-size: 17px; font-weight: 900; line-height: 30px; text-align: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
+  .ball.is-latest::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid var(--c);
+    animation: ping 1.6s ease-out infinite; }
+  @keyframes ping { 0% { opacity: .9; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.35); } }
+  .ball.is-new { animation: pop .55s cubic-bezier(.2, 1.6, .4, 1) both; }
+  @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+  .empty { width: var(--ball); height: var(--ball); border-radius: 50%; border: 3px dashed rgba(255, 255, 255, .16); box-sizing: border-box; flex: none; }
+  .when { font-size: 15px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .worm path.line { fill: none; stroke: #fff; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+  .worm .zero { stroke: rgba(255, 255, 255, .25); stroke-width: 2; stroke-dasharray: 6 6; }
+  .worm .fill-home { fill: var(--home); opacity: .45; }
+  .worm .fill-away { fill: var(--away); opacity: .45; }
+  .worm .dot { fill: #fff; }
+  .worm .dot.is-latest { fill: var(--yellow); stroke: #fff; stroke-width: 3; }
+  .worm .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw .6s ease-out .1s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  .run { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 24px; font-size: 20px; font-weight: 800;
+    letter-spacing: .08em; text-transform: uppercase; background: var(--purple); color: var(--text); min-height: 26px; }
+  .run .chip { width: 18px; height: 18px; border-radius: 50%; background: var(--c); border: 2px solid #fff; flex: none; }
+  .run.is-hot { background: var(--c); color: var(--t); animation: glow 1.2s ease-in-out infinite alternate; }
+  .run.is-hot .chip { display: none; }
+  @keyframes glow { from { filter: brightness(1); } to { filter: brightness(1.15); } }
+  .run .flame { font-size: 22px; }
+
+  /* ── Horizontal: lanes for each team, oldest goal on the left ─────────────────────── */
+  .card--h { --ball: 78px; --slot: 104px; left: 50%; transform: translateX(-50%); bottom: 150px; }
+  body.top .card--h { top: 60px; bottom: auto; }
+  body.middle .card--h { top: 50%; bottom: auto; transform: translate(-50%, -50%); }
+  .card--h .grid { display: grid; grid-template-columns: 330px auto; padding: 6px 26px 14px; column-gap: 14px; }
+  .card--h .team { display: grid; grid-template-columns: 64px minmax(0, 1fr) 58px; align-items: center; gap: 12px; height: 96px; }
+  .card--h .team .badge { width: 64px; height: 64px; }
+  .card--h .team .name { font-size: 26px; }
+  .card--h .team .count { font-size: 34px; padding: 4px 0; background: var(--c); color: var(--t); }
+  .card--h .team--home { --c: var(--home); --t: var(--home-text); }
+  .card--h .team--away { --c: var(--away); --t: var(--away-text); }
+  .card--h .worm-label { display: flex; align-items: center; height: 70px; color: var(--muted); font-size: 15px; font-weight: 800;
+    letter-spacing: .12em; text-transform: uppercase; }
+  .card--h .track { position: relative; display: grid; grid-template-rows: 96px 70px 96px; }
+  .card--h .lane { display: flex; }
+  .card--h .slot { width: var(--slot); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: relative; }
+  .card--h .lane--home .slot { justify-content: flex-end; padding-bottom: 2px; }
+  .card--h .lane--away .slot { justify-content: flex-start; padding-top: 2px; }
+  .card--h .lane--home .slot .when { order: -1; }
+  .card--h .slot.is-break::before { content: ""; position: absolute; left: -1px; top: -6px; bottom: -6px; border-left: 2px dashed rgba(255, 255, 255, .35); }
+  .qlabel { position: absolute; z-index: 2; background: var(--yellow); color: var(--text-on-yellow); border-radius: 4px; padding: 2px 6px;
+    font-size: 13px; font-weight: 900; letter-spacing: .06em; line-height: 1.2; }
+  .card--h .qlabel { left: 6px; top: -58px; }
+  .card--h .lane--away .slot.is-break::before { top: -76px; }
+  .card--h .worm { width: 100%; height: 70px; display: block; }
+
+  /* ── Vertical: home goals on the left, away on the right, newest at the bottom ───── */
+  .card--v { --ball: 58px; width: 500px; right: 60px; top: 50%; transform: translateY(-50%); }
+  body.left .card--v { right: auto; left: 60px; }
+  .card--v .run { font-size: 18px; padding: 10px 16px; }
+  .card--v .head { justify-content: center; padding: 18px 20px 8px; }
+  .card--v .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 18px 12px; }
+  .card--v .team { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 12px; border-radius: 10px; background: var(--c); color: var(--t); min-width: 0; }
+  .card--v .team--home { --c: var(--home); --t: var(--home-text); }
+  .card--v .team--away { --c: var(--away); --t: var(--away-text); }
+  .card--v .team .badge { width: 70px; height: 70px; }
+  .card--v .team .name { font-size: 19px; max-width: 100%; text-align: center; }
+  .card--v .team .count { font-size: 30px; line-height: 1; }
+  .card--v .team .count small { display: block; font-size: 12px; letter-spacing: .1em; opacity: .8; margin-top: 2px; }
+  .card--v .rows { position: relative; padding: 2px 18px 12px; }
+  .card--v .row { display: grid; grid-template-columns: 1fr 92px 1fr; align-items: center; height: 66px; }
+  .card--v .cell { display: flex; align-items: center; gap: 10px; }
+  .card--v .cell--home { justify-content: flex-end; }
+  .card--v .cell--away { justify-content: flex-start; }
+  .card--v .cell--home .when { order: -1; }
+  .card--v .row.is-break { border-top: 2px dashed rgba(255, 255, 255, .35); position: relative; }
+  .card--v .qlabel { left: 0; top: -12px; }
+  .card--v .worm { position: absolute; left: calc(50% - 46px); width: 92px; top: 2px; display: block; }
+  .card--v .row .empty { margin: 0 auto; grid-column: 1 / -1; width: 36px; height: 36px; }
+  .gap { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/goals.html               (horizontal, above the scoreboard)
+       http://localhost:8080/goals.html?layout=vertical  (down the right-hand side)
+       The last 10 goals of the game on the scoreboard, oldest to newest, with a momentum line and the current run.
+       Like the scoreboard it updates itself (every 2 seconds), so it can stay on screen.
+       Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)  ?board=2
+                ?position=top|middle|bottom (horizontal)  ?position=left|right (vertical)  ?title=Momentum -->
+  <main class="card" id="card" hidden></main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const boardId = params.get('board') || '1';
+    const vertical = /^v/i.test(params.get('layout') || '');
+    const showTimes = params.get('times') !== '0';
+    const count = Math.max(3, Math.min(30, Number(params.get('count')) || 10));
+    if (params.get('position')) document.body.classList.add(params.get('position'));
+    const card = document.getElementById('card');
+    card.classList.add(vertical ? 'card--v' : 'card--h');
+    if (!vertical && count > 10) card.style.setProperty('--slot', `${Math.max(64, Math.floor(1040 / count))}px`);
+    if (!vertical && count > 13) card.style.setProperty('--ball', `${Math.max(48, Math.floor(1040 / count) - 18)}px`);
+    if (vertical && count > 10) card.style.setProperty('--ball', '46px');
+
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const svgEl = (tag, attrs) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+    const textOn = hex => {
+      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#111111' : '#ffffff';
+    };
+    const initials = name => String(name || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
+    function badge(team) {
+      if (team.logo) { const img = el('img', 'logo'); img.src = team.logo; img.alt = ''; return img; }
+      return el('div', 'initials', initials(team.name));
+    }
+    // Shrink a name until it fits its box.
+    function fit(e, min = 12) {
+      let size = parseFloat(getComputedStyle(e).fontSize);
+      while (e.scrollWidth > e.clientWidth && size > min) { size -= 1; e.style.fontSize = size + 'px'; }
+    }
+    const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    let data = null, last = '', seen = null;
+
+    function ball(g, isLatest) {
+      const team = data[g.side];
+      const b = el('div', `ball ball--${g.side}${g.points > 1 ? ' is-super' : ''}${isLatest ? ' is-latest' : ''}`);
+      b.dataset.id = g.id;
+      b.append(badge(team));
+      if (g.points > 1) b.append(el('span', 'two', `+${g.points}`));
+      if (seen && !seen.has(g.id)) b.classList.add('is-new');
+      return b;
+    }
+    const period = g => g.period >= 5 ? 'ET' : `${data.periodLabel}${g.period}`;
+    const when = g => el('div', 'when', showTimes ? `${period(g)} ${clock(g.clockLeft)}` : '');
+
+    // Running difference over the shown goals: + for home points, - for away points.
+    function wormPoints(goals) {
+      let d = 0;
+      const pts = [0];
+      for (const g of goals) { d += g.side === 'home' ? g.points : -g.points; pts.push(d); }
+      return pts;
+    }
+    // The momentum line. Horizontal: left to right, up for home. Vertical: top to bottom, left for home.
+    function worm(goals, w, h, slot, offset) {
+      const pts = wormPoints(goals);
+      const max = Math.max(3, ...pts.map(Math.abs));
+      const svg = svgEl('svg', { class: 'worm', viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: 'none' });
+      const across = i => offset + (i - 0.5) * slot; // point i sits after goal i
+      const xy = vertical
+        ? pts.map((p, i) => [w / 2 - (p / max) * (w / 2 - 8), i === 0 ? 4 : across(i)])
+        : pts.map((p, i) => [i === 0 ? 4 : across(i), h / 2 - (p / max) * (h / 2 - 8)]);
+      const d = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+      // Shade above the zero line in the home colour and below it in the away colour (left/right when vertical).
+      const clip = (id, rect) => { const c = svgEl('clipPath', { id }); c.append(svgEl('rect', rect)); return c; };
+      const defs = svgEl('defs', {});
+      const area = vertical ? `${d} L${w / 2},${xy[xy.length - 1][1]} L${w / 2},${xy[0][1]} Z` : `${d} L${xy[xy.length - 1][0]},${h / 2} L${xy[0][0]},${h / 2} Z`;
+      defs.append(clip('wh', vertical ? { x: 0, y: 0, width: w / 2, height: h } : { x: 0, y: 0, width: w, height: h / 2 }),
+        clip('wa', vertical ? { x: w / 2, y: 0, width: w / 2, height: h } : { x: 0, y: h / 2, width: w, height: h / 2 }));
+      svg.append(defs);
+      svg.append(svgEl('line', vertical ? { class: 'zero', x1: w / 2, x2: w / 2, y1: 0, y2: h } : { class: 'zero', x1: 0, x2: w, y1: h / 2, y2: h / 2 }));
+      if (goals.length) {
+        svg.append(svgEl('path', { class: 'fill-home', d: area, 'clip-path': 'url(#wh)' }), svgEl('path', { class: 'fill-away', d: area, 'clip-path': 'url(#wa)' }));
+        const line = svgEl('path', { class: 'line', d });
+        svg.append(line);
+        xy.slice(1).forEach(([x, y], i) => svg.append(svgEl('circle', { class: 'dot' + (i === goals.length - 1 ? ' is-latest' : ''), cx: x, cy: y, r: i === goals.length - 1 ? 7 : 4 })));
+        const isNew = seen && goals.some(g => !seen.has(g.id));
+        if (isNew) requestAnimationFrame(() => { const len = line.getTotalLength(); line.style.setProperty('--len', len); line.classList.add('draw'); });
+      }
+      return svg;
+    }
+
+    function runBar() {
+      const bar = el('div', 'run');
+      const r = data.run;
+      if (!r || !data.goals.length) { bar.textContent = data.totalGoals ? '' : 'Waiting for the first goal'; return bar; }
+      const team = data[r.side];
+      bar.style.setProperty('--c', `var(--${r.side})`);
+      bar.style.setProperty('--t', `var(--${r.side}-text)`);
+      const hot = r.goals >= 3;
+      bar.classList.toggle('is-hot', hot);
+      bar.append(el('span', 'chip'));
+      const txt = r.goals === 1 ? `Last goal: ${team.name}` : vertical ? `${team.name}: ${r.goals} in a row`
+        : `${team.name}: ${r.goals} goals in a row${r.points !== r.goals ? ` (${r.points} points)` : ''}`;
+      bar.append(el('span', '', txt));
+      if (hot) bar.prepend(el('span', 'flame', '🔥'));
+      return bar;
+    }
+
+    function head() {
+      const h = el('div', 'head');
+      h.append(el('div', 'tab', params.get('title') || `Last ${count} goals`));
+      if (!vertical) h.append(el('div', 'meta', [data.division, data.court].filter(Boolean).join('  ·  ')));
+      return h;
+    }
+    const isBreak = (goals, i) => i > 0 && goals[i].period !== goals[i - 1].period;
+    const gapBefore = (all, g) => { const i = all.indexOf(g); return i > 0 && all[i - 1].gap; };
+
+    function renderHorizontal(goals, all) {
+      const grid = el('div', 'grid');
+      const teams = el('div', 'teams');
+      const team = side => {
+        const t = data[side], row = el('div', `team team--${side}`);
+        const b = el('div', 'badge'); b.append(badge(t));
+        const name = el('div', 'name', t.name);
+        row.append(b, name, el('div', 'count', data.tally[side].goals));
+        return [row, name];
+      };
+      const [homeRow, homeName] = team('home'), [awayRow, awayName] = team('away');
+      const label = el('div', 'worm-label', 'Momentum');
+      teams.append(homeRow, label, awayRow);
+      const track = el('div', 'track');
+      const lanes = { home: el('div', 'lane lane--home'), away: el('div', 'lane lane--away') };
+      const slotW = parseFloat(getComputedStyle(card).getPropertyValue('--slot')) || 104;
+      for (let i = 0; i < count; i++) {
+        const g = goals[i];
+        for (const side of ['home', 'away']) {
+          const slot = el('div', 'slot');
+          if (g && (isBreak(goals, i) || gapBefore(all, g))) {
+            slot.classList.add('is-break');
+            if (side === 'away') slot.append(el('span', 'qlabel', gapBefore(all, g) && !isBreak(goals, i) ? '…' : period(g)));
+          }
+          if (!g) slot.append(el('div', 'empty'));
+          else if (g.side === side) slot.append(ball(g, i === goals.length - 1), when(g));
+          lanes[side].append(slot);
+        }
+      }
+      track.append(lanes.home, worm(goals, slotW * count, 70, slotW, 0), lanes.away);
+      grid.append(teams, track);
+      card.replaceChildren(head(), grid, runBar());
+      fit(homeName); fit(awayName);
+    }
+
+    function renderVertical(goals, all) {
+      const teams = el('div', 'teams');
+      const names = [];
+      for (const side of ['home', 'away']) {
+        const t = data[side], box = el('div', `team team--${side}`);
+        const b = el('div', 'badge'); b.append(badge(t));
+        const name = el('div', 'name', t.name); names.push(name);
+        const c = el('div', 'count', data.tally[side].goals); c.append(el('small', '', `of last ${goals.length || count}`));
+        box.append(b, name, c);
+        teams.append(box);
+      }
+      const rows = el('div', 'rows');
+      const rowH = 66;
+      for (let i = 0; i < count; i++) {
+        const g = goals[i], row = el('div', 'row');
+        if (!g) { row.append(el('div', 'empty')); rows.append(row); continue; }
+        if (isBreak(goals, i) || gapBefore(all, g)) {
+          row.classList.add('is-break');
+          row.append(el('span', 'qlabel', gapBefore(all, g) && !isBreak(goals, i) ? '…' : period(g)));
+        }
+        const home = el('div', 'cell cell--home'), away = el('div', 'cell cell--away');
+        (g.side === 'home' ? home : away).append(ball(g, i === goals.length - 1), when(g));
+        row.append(home, el('div', ''), away);
+        rows.append(row);
+      }
+      const svg = worm(goals, 92, rowH * count, rowH, 0);
+      svg.style.height = `${rowH * count}px`;
+      rows.append(svg);
+      card.replaceChildren(head(), teams, rows, runBar());
+      names.forEach(n => fit(n, 11));
+    }
+
+    // Slide the goals that were already showing from where they were to where they are now.
+    function render() {
+      const before = new Map([...card.querySelectorAll('.ball[data-id]')].map(b => [b.dataset.id, b.getBoundingClientRect()]));
+      const colours = { home: data.home.colour, away: data.away.colour };
+      for (const side of ['home', 'away']) {
+        if (colours[side]) { card.style.setProperty(`--${side}`, colours[side]); card.style.setProperty(`--${side}-text`, textOn(colours[side])); }
+        else { card.style.removeProperty(`--${side}`); card.style.removeProperty(`--${side}-text`); }
+      }
+      const all = data.goals;
+      const goals = all.filter(g => !g.gap);
+      (vertical ? renderVertical : renderHorizontal)(goals, all);
+      card.hidden = false;
+      for (const b of card.querySelectorAll('.ball[data-id]')) {
+        const was = before.get(b.dataset.id);
+        if (!was) continue;
+        const now = b.getBoundingClientRect();
+        const dx = was.left - now.left, dy = was.top - now.top;
+        if (!dx && !dy) continue;
+        b.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 500, easing: 'cubic-bezier(.3, .8, .3, 1)' });
+      }
+      seen = new Set(goals.map(g => g.id));
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(`/api/goals?board=${encodeURIComponent(boardId)}&count=${count}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const next = await res.json();
+        const json = JSON.stringify(next);
+        if (json === last) return;
+        if (data && next.gameId !== data.gameId) seen = null; // a new game: no pop-ins for what's already there
+        last = json; data = next;
+        if (!seen) seen = new Set(data.goals.map(g => g.id)); // first load: no pop-ins
+        render();
+      } catch (err) { console.warn('Last goals unavailable:', err.message); }
+    }
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(load);
+    setInterval(load, 2000);
+  </script>
+</body>
+</html>
