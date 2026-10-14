@@ -235,11 +235,9 @@
 @keyframes barOut { from { transform: scaleX(1); transform-origin: 100% 50%; } to { transform: scaleX(0); transform-origin: 100% 50%; } }
 
 /* ======================= Netball templates ======================= */
-/* The netball: white with seams in the competition colours (drawn by the script as SVG) */
+/* The netball: plain white (drawn by the script as SVG) */
 .netball { display: block; overflow: visible; }
-.netball .skin { fill: #ffffff; stroke: var(--purple-dark); stroke-width: 2.5; }
-.netball .seam { fill: none; stroke: var(--purple); stroke-width: 3.2; stroke-linecap: round; }
-.netball .panel { fill: var(--yellow); }
+.netball .skin { fill: #ffffff; stroke: #9aa0aa; stroke-width: 2; }
 
 /* ---------- goal: the ball arcs through the ring, the net swishes, the logo punches in ---------- */
 .t-goal .layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }

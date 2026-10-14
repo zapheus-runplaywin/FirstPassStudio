@@ -441,13 +441,9 @@
         },
       };
 
-      // A netball, d pixels across: white with curved seams and a panel in the competition colours.
+      // A netball, d pixels across: plain white with a thin grey rim.
       function netball(d) {
-        return `<svg class="netball" width="${d}" height="${d}" viewBox="-50 -50 100 100">` +
-          '<circle class="skin" r="48"/><path class="panel" d="M -46 -14 C -20 -2, 20 -2, 46 -14 L 47.5 -6 C 20 6, -20 6, -47.5 -6 Z"/>' +
-          '<path class="seam" d="M -46 -14 C -20 -2, 20 -2, 46 -14"/><path class="seam" d="M -47.5 -6 C -20 6, 20 6, 47.5 -6"/>' +
-          '<path class="seam" d="M -10 -47 C 8 -20, 8 20, -10 47"/><path class="seam" d="M -30 -38 C -16 -16, -16 16, -30 38"/>' +
-          '<path class="seam" d="M 14 -46 C 30 -20, 30 20, 14 46"/></svg>';
+        return `<svg class="netball" width="${d}" height="${d}" viewBox="-50 -50 100 100"><circle class="skin" r="48"/></svg>`;
       }
 
       function play() {
