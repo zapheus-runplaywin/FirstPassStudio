@@ -2006,14 +2006,25 @@ async function getFinals(q) {
   const ladder = await getLadder(grade.id);
   const rows = ladder.pools[0] || [];
   const seeds = rows.map(r => r.team);
-  const season = await getSeasonGames(grade);
+  // Only the finals rounds, and the last home and away round, are asked for (not the whole season),
+  // and a round PlayHQ doesn't answer for (a 504) is left out rather than failing the page.
   const real = n => n && !/^(tbc|tba|bye)$/i.test(n);
-  const finalsRounds = [...new Set(season.filter(g => FINALS_ROUND.test(g.round || '')).map(g => g.round))];
-  const played = season.filter(g => FINALS_ROUND.test(g.round || '') && real(g.home.name) && real(g.away.name))
-    .map(g => ({ ...g, week: finalsRounds.indexOf(g.round) + 1, finished: isFinished(g) }));
-  const regular = season.filter(g => !FINALS_ROUND.test(g.round || '') && real(g.home.name) && real(g.away.name));
+  const rounds = await getRounds(grade.id);
+  const finalsRounds = rounds.filter(r => FINALS_ROUND.test(r.name || ''));
+  const lastRegular = rounds.filter(r => !FINALS_ROUND.test(r.name || '')).pop();
+  const gamesOf = async r => {
+    try { return await getRoundGames(r.id, r.current ? 60 * 1000 : 10 * 60 * 1000); }
+    catch (err) { log('warn', 'finals', `${grade.name} ${r.name}: left out, PlayHQ didn't answer (${err.message})`); return null; }
+  };
+  const played = [];
+  for (const [i, r] of finalsRounds.entries()) {
+    for (const g of (await gamesOf(r)) || []) {
+      if (real(g.home.name) && real(g.away.name)) played.push({ ...g, round: r.name, week: i + 1, finished: isFinished(g) });
+    }
+  }
   // Until the last home and away game is finished, the finals are "if the season ended today".
-  const projected = regular.some(g => !isFinished(g)) && !played.length;
+  const lastGames = lastRegular && !played.length ? (await gamesOf(lastRegular)) || [] : [];
+  const projected = lastGames.some(g => real(g.home.name) && real(g.away.name) && !isFinished(g));
   const manual = (control.finals || {})[finalsKey(grade.name, format)] || {};
   const r = finals.resolve(format, seeds, played, manual);
   const withLogo = t => t.name ? { ...t, logo: logoFor(t.name), colour: colourFor(t.name) } : t;
@@ -2021,7 +2032,7 @@ async function getFinals(q) {
   log('info', 'finals', `${grade.name}: ${format.name}, ${played.length} finals game${played.length === 1 ? '' : 's'} on PlayHQ, ${Object.keys(manual).length} entered by hand${projected ? ', season not finished' : ''}`);
   return { ...base,
     format: { id: format.id, name: format.name, summary: format.summary, teams: format.teams, weeks: format.weeks, series: !!format.series },
-    projected, pools: ladder.pools.length, playhqFinals: played.length, finalsRounds,
+    projected, pools: ladder.pools.length, playhqFinals: played.length, finalsRounds: finalsRounds.map(r => r.name),
     ladder: rows.slice(0, format.teams).map((row, i) => ({ position: row.position, team: row.team, logo: logoFor(row.team), points: row.points, mark: marks.marks[i] })),
     legend: marks.legend,
     games: r.games.map(g => ({ ...g, home: withLogo(g.home), away: withLogo(g.away) })),
