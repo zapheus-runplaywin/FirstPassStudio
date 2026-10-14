@@ -61,7 +61,8 @@
        entered on the control page move teams on. Loads once: tick "Refresh browser when scene becomes active" in OBS.
        Options: ?week=2 (one week only)  ?title=Grand%20Final%20day (a different heading)  ?logo=0 (no competition logo)
                 ?mode=light (the light mode competition logo)  ?projected=0 (leave off "If the season ended today")
-                ?seeds=0 (leave off the ladder positions)  ?board=2 (the second court's division) -->
+                ?seeds=0 (leave off the ladder positions)
+                ?sub=Double%20chance%20for%20the%20top%202 (other words under the heading instead of "Top 4 finals", ?sub=0 for none)  ?board=2 (the second court's division) -->
   <main class="card finals" id="card" hidden>
     <header class="finals__header">
       <img class="finals__logo" id="logo" alt="" hidden>
@@ -106,7 +107,9 @@
       $('comp').textContent = data.competition || '';
       $('title').textContent = params.get('title') || `${data.division} finals`;
       document.title = `${data.competition} ${data.division} Finals`;
-      $('format').textContent = data.format ? data.format.name : '';
+      // "Top 4 finals" rather than the format's name (Page means nothing to viewers); ?sub= other words, ?sub=0 none.
+      const sub = params.get('sub');
+      $('format').textContent = sub === '0' ? '' : sub || (data.format ? `Top ${data.format.teams} finals` : '');
       $('projected').hidden = !data.projected || params.get('projected') === '0';
       const logo = (params.get('mode') === 'light' ? rules.competitionLogoLight : rules.competitionLogoDark) || rules.competitionLogo;
       $('logo').hidden = !logo || params.get('logo') === '0';

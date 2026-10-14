@@ -315,7 +315,7 @@ until the home and away games are finished), logos, scores, the winner of each g
 grand final is decided. PlayHQ's finals games (rounds with "final" or "play-off" in their name) are used when it has them,
 with their time, court and score. PlayHQ often has no finals fixtures, so the control page's **Finals** section lets you
 pick each winner (the score is optional); those are kept in `control.json`, and a PlayHQ result always wins. Options:
-`?week=2` one week only, `?title=` a different heading, `?seeds=0`, `?projected=0`, `?logo=0`, `?mode=light`, `?board=2`.
+`?week=2` one week only, `?title=` a different heading, `?sub=` other words for the "Top 4 finals" line under it (`?sub=0` none), `?seeds=0`, `?projected=0`, `?logo=0`, `?mode=light`, `?board=2`.
 
 ## Options
 
