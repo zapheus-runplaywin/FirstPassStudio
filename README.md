@@ -205,7 +205,9 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 - http://localhost:8080/fulltime.html: final score with each team's top shooter and shooting accuracy.
 - http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage.
 - http://localhost:8080/ticker.html: scrolling scores from the other games this round. Unlike the other graphics it updates
-  its scores itself every 30 seconds (`?refresh=0` to load once, `?speed=80` to scroll slower).
+  its scores itself every 30 seconds (`?refresh=0` to load once). Its speed is set on the control page (**Ticker speed**, with
+  Slower, Faster and Normal) or from the Stream Deck (`/deck/ticker/faster`, `slower`, `normal`, `speed/80`), and changes within a
+  few seconds without starting again. `?speed=80` fixes the speed for that link only (pixels a second; 120 is normal).
 - http://localhost:8080/topshooters.html?division=1: season shooting leaders from every finished game
   (`?sort=goals` or `?sort=super`, `?limit=10`). Players who keep their PlayHQ profile private are left out.
 - http://localhost:8080/teamlist.html?side=home and `?side=away`: one team list per team, with its logo.

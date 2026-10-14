@@ -23,6 +23,7 @@ tags:
   - name: Scoring mode
   - name: Clock
   - name: Quarter
+  - name: Ticker
   - name: Status
 
 paths:
@@ -265,6 +266,41 @@ paths:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
 
+  /deck/ticker/{change}:
+    get:
+      tags: [Ticker]
+      summary: Make the score ticker scroll faster or slower
+      description: |
+        `faster` and `slower` change it by 20 pixels a second (from 20 to 600),
+        `normal` puts it back to 120. The ticker changes speed within a few seconds,
+        carrying on from where it is. A ticker link with `?speed=` keeps its own speed.
+      operationId: tickerChange
+      parameters:
+        - name: change
+          in: path
+          required: true
+          schema: { type: string, enum: [faster, slower, normal] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/ticker/speed/{pixels}:
+    get:
+      tags: [Ticker]
+      summary: Set the score ticker's speed
+      description: 'Pixels a second, 20 to 600 (120 is normal). Example: `/deck/ticker/speed/80` for slower.'
+      operationId: tickerSpeed
+      parameters:
+        - name: pixels
+          in: path
+          required: true
+          schema: { type: integer, minimum: 20, maximum: 600, example: 80 }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
   /api/scoreboard:
     get:
       tags: [Status]
@@ -378,6 +414,7 @@ components:
         away: { $ref: '#/components/schemas/Team' }
         period: { type: integer, description: 'Quarter, 1 to 4, or 5 for extra time', example: 2 }
         showClock: { type: boolean }
+        tickerSpeed: { type: integer, description: 'How fast ticker.html scrolls, in pixels a second', example: 120 }
         clock:
           type: object
           properties:
