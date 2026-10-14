@@ -105,7 +105,8 @@ changes, and helper errors. Read it at http://localhost:8080/api/log. It never g
 
 http://localhost:8080/fixtures.html shows every game in the current round of all divisions, sorted by time,
 with court, division, logos, and the score once a game is finished. `?division=1` shows one division,
-`?round=6` shows another round.
+`?round=6` shows another round, and `?round=next` (or `?next=1`) shows the round after this one, for next week's
+fixture.
 http://localhost:8080/results.html is the same page showing only finished games with their scores.
 
 ## Logos beside the title

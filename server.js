@@ -645,16 +645,25 @@ async function getCurrentGames() {
 }
 
 // A whole round for the fixture page: every division (or one), sorted by time then court.
-// roundNumber picks a round by number; otherwise each division's current round.
+// ?round= picks a round by number or name, or "next" for the round after this one
+// (?next=1 does the same); otherwise each division's current round.
+async function fixtureRound(grade, q) {
+  const rounds = await getRounds(grade.id);
+  const want = String(q.round || '').trim().toLowerCase();
+  if (want === 'next' || (!want && q.next && q.next !== '0')) {
+    const current = await pickRound(grade);
+    const i = current ? rounds.findIndex(r => r.id === current.id) : -1;
+    return i >= 0 ? rounds[i + 1] : null;
+  }
+  if (want) return rounds.find(r => String(r.number) === want || r.name.toLowerCase() === want);
+  return pickRound(grade);
+}
 async function getFixtures(q) {
   const st = await getStructure();
   const grades = q.division ? [findGrade(st, q)].filter(Boolean) : st.grades;
   const games = [], roundNames = [];
   for (const grade of grades) {
-    const rounds = await getRounds(grade.id);
-    const round = q.round
-      ? rounds.find(r => String(r.number) === String(q.round) || r.name.toLowerCase() === String(q.round).toLowerCase())
-      : await pickRound(grade);
+    const round = await fixtureRound(grade, q);
     if (!round) continue;
     roundNames.push(round.name);
     for (const game of await getRoundGames(round.id, 60 * 1000)) {

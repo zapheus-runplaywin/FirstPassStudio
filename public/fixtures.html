@@ -16,6 +16,7 @@
        Shows the current round of every division, sorted by time. Loads once: tick
        "Refresh browser when scene becomes active" in OBS to get the latest.
        Options: ?division=1 (one division only)  ?round=6 (a different round)
+       ?round=next or ?next=1 (the round after this one, for next week's fixture)
        http://localhost:8080/results.html is the same page showing only finished games with scores. -->
   <main class="card fixtures" id="card" hidden>
     <header class="fixtures__header">
@@ -73,7 +74,7 @@
           row.append(team(g.away, 'away'));
           list.append(row);
         }
-        if (!data.games.length) list.append(el('div', 'fixture fixture--empty', RESULTS ? 'No results yet this round' : 'No games found for this round'));
+        if (!data.games.length) list.append(el('div', 'fixture fixture--empty', RESULTS ? 'No results yet this round' : data.round ? 'No games found for this round' : 'No round found'));
         msg.hidden = true;
         document.getElementById('card').hidden = false;
         // Shrink to fit 1080 high when there are a lot of games.

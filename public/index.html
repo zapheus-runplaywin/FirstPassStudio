@@ -265,7 +265,9 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
  ['Away team list', '/teamlist.html?side=away', 'The game\'s PlayHQ line up. When it has fewer than seven players (benches often clear it), the rest of the season squad is added under <b>Squad</b>, without positions.'], ['Shooting stats', '/shooting.html'],
  ['Full time card', '/fulltime.html'], ['Ladder lower third', '/ladderbar.html'], ['Score ticker (other courts, updates itself)', '/ticker.html']]
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
-document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
+document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html',
+  'This round. Options: <code>?round=6</code> shows round 6, <code>?round=next</code> (or <code>?next=1</code>) shows the round after this one, and <code>?division=1</code> shows one division.'));
+document.getElementById('fixturePages').appendChild(pageRow('Next round fixture', '/fixtures.html?round=next'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
 [['Logo animation: fun (swoops in, slams down, rockets out; the default)', '/logo.html?template=fun',
   'One big competition logo from the competition setup: it swoops in around the screen, slams down in the middle with a burst in the competition\'s colours, holds, then rockets out. ' +
