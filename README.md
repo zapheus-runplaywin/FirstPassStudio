@@ -104,8 +104,10 @@ changes, and helper errors. Read it at http://localhost:8080/api/log. It never g
 ## Round fixture
 
 http://localhost:8080/fixtures.html shows every game in the current round of all divisions, sorted by time,
-with court, division, logos, and the score once a game is finished. `?division=1` shows one division,
-`?round=6` shows another round.
+with court, division, logos, and the score once a game is finished. `?division=1` shows one division.
+`?round=` picks another round: `?round=next` is the round after this one (next week), `?round=prev` the one before,
+`?round=+2` or `?round=-1` counts from this round, and `?round=6` (or a name like `?round=Final`) is that round.
+"This round" is the one the control page has. A division without the round asked for is left out.
 http://localhost:8080/results.html is the same page showing only finished games with their scores.
 
 ## Logos beside the title
@@ -206,7 +208,9 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 - http://localhost:8080/fulltime.html: final score with each team's top shooter and shooting accuracy.
 - http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage.
 - http://localhost:8080/ticker.html: scrolling scores from the other games this round. Unlike the other graphics it updates
-  its scores itself every 30 seconds (`?refresh=0` to load once, `?speed=80` to scroll slower).
+  its scores itself every 30 seconds (`?refresh=0` to load once). Its speed is set on the control page (**Ticker speed**, with
+  Slower, Faster and Normal) or from the Stream Deck (`/deck/ticker/faster`, `slower`, `normal`, `speed/80`), and changes within a
+  few seconds without starting again. `?speed=80` fixes the speed for that link only (pixels a second; 120 is normal).
 - http://localhost:8080/topshooters.html?division=1: season shooting leaders from every finished game
   (`?sort=goals` or `?sort=super`, `?limit=10`). Players who keep their PlayHQ profile private are left out.
 - http://localhost:8080/teamlist.html?side=home and `?side=away`: one team list per team, with its logo.
