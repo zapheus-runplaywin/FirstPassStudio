@@ -644,18 +644,37 @@ async function getCurrentGames() {
   return out;
 }
 
+// The round a page asked for with ?round=: a number or name ("6", "Round 6", "Final"),
+// or one counted from this round (as the control page has it): "this", "next", "prev"
+// (or "previous", "last"), "+2", "-1". Blank means this round. Rounds are counted in
+// PlayHQ's order, so "next" from the last round finds nothing.
+const ROUND_STEPS = { '': 0, this: 0, current: 0, now: 0, next: 1, prev: -1, previous: -1, last: -1 };
+async function roundFor(grade, value) {
+  const want = String(value || '').trim().toLowerCase().replace(/\s+/g, '');
+  const rounds = await getRounds(grade.id);
+  const step = want in ROUND_STEPS ? ROUND_STEPS[want] : /^[+-]\d+$/.test(want) ? Number(want) : null;
+  if (step === null) {
+    const name = String(value).trim().toLowerCase();
+    return rounds.find(r => String(r.number) === name || r.name.toLowerCase() === name) || null;
+  }
+  const now = await pickRound(grade);
+  if (!now || !step) return now;
+  const at = rounds.findIndex(r => r.id === now.id);
+  return at < 0 ? null : rounds[at + step] || null;
+}
+
 // A whole round for the fixture page: every division (or one), sorted by time then court.
-// roundNumber picks a round by number; otherwise each division's current round.
+// ?round= picks the round (see roundFor); otherwise each division's current round.
 async function getFixtures(q) {
   const st = await getStructure();
   const grades = q.division ? [findGrade(st, q)].filter(Boolean) : st.grades;
   const games = [], roundNames = [];
   for (const grade of grades) {
-    const rounds = await getRounds(grade.id);
-    const round = q.round
-      ? rounds.find(r => String(r.number) === String(q.round) || r.name.toLowerCase() === String(q.round).toLowerCase())
-      : await pickRound(grade);
-    if (!round) continue;
+    const round = await roundFor(grade, q.round);
+    if (!round) {
+      log('info', 'fixtures', `${grade.name}: no round "${q.round || 'this'}"`);
+      continue;
+    }
     roundNames.push(round.name);
     for (const game of await getRoundGames(round.id, 60 * 1000)) {
       if (q.results && !isFinished(game)) continue;
@@ -666,6 +685,8 @@ async function getFixtures(q) {
   const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
   games.sort((a, b) => key(a).localeCompare(key(b), 'en', { numeric: true }));
   const round = roundNames.sort((a, b) => roundNames.filter(n => n === b).length - roundNames.filter(n => n === a).length)[0] || '';
+  if (q.round && !roundNames.length) return { error: `No round "${q.round}" in ${q.division ? 'that division' : 'any division'}` };
+  log('info', 'fixtures', `Fixture${q.results ? ' results' : ''} for ${round || 'no round'}${q.round ? ` (asked for round=${q.round})` : ''}: ${games.length} games`);
   return { competition: st.competition, rules: rules(), venueName: CONFIG.venueName || (games[0] && games[0].venue) || '',
     division: q.division ? (grades[0] && grades[0].name) || '' : '', round, games };
 }

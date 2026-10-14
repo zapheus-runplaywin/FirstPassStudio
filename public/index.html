@@ -265,8 +265,14 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
  ['Away team list', '/teamlist.html?side=away', 'The game\'s PlayHQ line up. When it has fewer than seven players (benches often clear it), the rest of the season squad is added under <b>Squad</b>, without positions.'], ['Shooting stats', '/shooting.html'],
  ['Full time card', '/fulltime.html'], ['Ladder lower third', '/ladderbar.html'], ['Score ticker (other courts, updates itself)', '/ticker.html']]
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
-document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
-document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
+document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html',
+  'Every game of a round in every division, sorted by time, with court, division, logos and the score once a game is finished. ' +
+  'It shows this round (the one the control page has, picked by date unless set by hand) and loads once: in OBS tick <b>Refresh browser when scene becomes active</b> to get the latest. ' +
+  'Options: <code>?round=next</code> shows the round after this one (next week), <code>?round=prev</code> the one before, <code>?round=+2</code> or <code>?round=-1</code> counts from this round, ' +
+  '<code>?round=6</code> shows round 6 (or a round by name, like <code>?round=Final</code>), and <code>?division=1</code> shows one division. Combine them with &amp;, e.g. <code>/fixtures.html?round=next&amp;division=1</code>. ' +
+  'A division without that round is left out.'));
+document.getElementById('fixturePages').appendChild(pageRow('Next round fixture (next week)', '/fixtures.html?round=next'));
+document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html', 'Only the finished games of this round, with their scores. Takes the same <code>?round=</code> and <code>?division=</code> options, e.g. <code>/results.html?round=prev</code> for last week.'));
 [['Logo animation: fun (swoops in, slams down, rockets out; the default)', '/logo.html?template=fun',
   'One big competition logo from the competition setup: it swoops in around the screen, slams down in the middle with a burst in the competition\'s colours, holds, then rockets out. ' +
   'Every template plays once when the page loads, about 5 seconds, then leaves the frame clear: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
