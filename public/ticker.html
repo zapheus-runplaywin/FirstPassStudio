@@ -15,7 +15,9 @@
        http://localhost:8080/ticker.html
        Scrolling scores from the other games in this round (leaves out the game on the scoreboard).
        Like the scoreboard, it updates its scores itself every 30 seconds.
-       Options: ?board=2  ?refresh=60 (seconds; 0 = load once)  ?speed=120 (pixels per second) -->
+       Speed: set on the control page (Ticker speed) or the Stream Deck (/deck/ticker/faster, slower);
+       a change shows within a few seconds, carrying on from where the scroll is.
+       Options: ?board=2  ?refresh=60 (seconds; 0 = load once)  ?speed=120 (pixels per second; fixes the speed for this link only) -->
   <div class="ticker" id="ticker" hidden>
     <div class="ticker__label">Around the courts</div>
     <div class="ticker__window"><div class="ticker__track" id="track"></div></div>
@@ -26,9 +28,24 @@
   <script>
     const params = new URLSearchParams(location.search);
     const refresh = params.has('refresh') ? Number(params.get('refresh')) : 30;
-    const speed = Number(params.get('speed')) || 120;
+    const board = encodeURIComponent(params.get('board') || '1');
+    const fixedSpeed = Number(params.get('speed')) > 0 ? Number(params.get('speed')) : null; // ?speed= wins over the control page
+    let speed = fixedSpeed || 120;
     const track = document.getElementById('track');
-    let pending = null;
+    let pending = null, half = 0;
+
+    const duration = () => Math.max(1, half / speed);
+    // Change the speed mid-scroll, carrying on from the same place instead of jumping.
+    function setSpeed(next, why) {
+      if (!(next > 0) || next === speed) return;
+      const anim = track.getAnimations()[0], before = duration() * 1000;
+      const at = anim && anim.currentTime !== null ? (anim.currentTime % before) / before : 0;
+      speed = next;
+      track.style.animationDuration = `${duration()}s`;
+      getComputedStyle(track).animationDuration; // apply the new length before moving to the same place in it
+      if (anim) anim.currentTime = at * duration() * 1000;
+      if (window.pageLog) pageLog('info', `Ticker speed ${speed} pixels per second (${why})`);
+    }
 
     function items(games) {
       const frag = document.createDocumentFragment();
@@ -45,16 +62,17 @@
     function show(games) {
       // Two copies side by side so the scroll loops without a gap.
       track.replaceChildren(items(games), items(games));
-      const half = track.scrollWidth / 2;
+      half = track.scrollWidth / 2;
       track.style.setProperty('--shift', `-${half}px`);
-      track.style.animationDuration = `${Math.max(10, half / speed)}s`;
+      track.style.animationDuration = `${duration()}s`;
     }
     track.addEventListener('animationiteration', () => { if (pending) { show(pending); pending = null; } });
     async function load(first) {
       try {
-        const d = await (await fetch(`/api/ticker?board=${encodeURIComponent(params.get('board') || '1')}`, { cache: 'no-store' })).json();
+        const d = await (await fetch(`/api/ticker?board=${board}`, { cache: 'no-store' })).json();
         if (d.error) throw new Error(d.error);
         if (first) {
+          if (!fixedSpeed && d.speed > 0) speed = d.speed;
           // Unhide first: a hidden ticker has no width, which left the scroll distance at 0.
           document.getElementById('ticker').hidden = false;
           show(d.games);
@@ -64,6 +82,10 @@
     }
     load(true);
     if (refresh > 0) setInterval(load, Math.max(10, refresh) * 1000);
+    // Follow the control page's speed (asks the helper only; PlayHQ is not asked). ?speed= turns this off.
+    if (!fixedSpeed) setInterval(async () => {
+      try { setSpeed((await (await fetch(`/api/ticker/speed?board=${board}`, { cache: 'no-store' })).json()).speed, 'control page'); } catch { /* helper restarting */ }
+    }, 3000);
   </script>
 </body>
 </html>

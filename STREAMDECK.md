@@ -39,6 +39,18 @@ Pressing any score button switches the scoreboard to manual scoring. A +2 press 
 The court can be its PlayHQ name (`/deck/court/Indoor%2001`) or just its number. Picking a game from the list on the
 control page turns automatic selection off.
 
+## Score ticker
+
+| Button | Link |
+|---|---|
+| Ticker faster | http://localhost:8080/deck/ticker/faster |
+| Ticker slower | http://localhost:8080/deck/ticker/slower |
+| Ticker normal speed (120) | http://localhost:8080/deck/ticker/normal |
+| Ticker at a set speed (80 pixels a second) | http://localhost:8080/deck/ticker/speed/80 |
+
+Faster and slower change it by 20 pixels a second, between 20 and 600. The ticker changes speed within a few
+seconds without starting again. The control page has the same buttons. A ticker link with `?speed=` keeps its own speed.
+
 ## Scoring mode
 
 | Button | Link |

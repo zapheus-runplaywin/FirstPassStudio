@@ -547,11 +547,11 @@ async function getRounds(gradeId) {
 //
 // control.json holds the control page's lasting settings on this computer (git ignores it):
 // the round picked by hand, and per board automatic game selection, its court, following
-// the PlayHQ clock, how often to check PlayHQ and showing the clock. Without it the boards
+// the PlayHQ clock, how often to check PlayHQ, showing the clock and the ticker's speed. Without it the boards
 // start from the competition setup's defaults. The game itself, scores and the clock stay
 // in scoreboard-state.json.
 const CONTROL_FILE = path.join(ROOT, 'control.json');
-const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock'];
+const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock', 'tickerSpeed'];
 let control = {};
 try { control = JSON.parse(fs.readFileSync(CONTROL_FILE, 'utf8')); } catch { /* none saved yet */ }
 if (control.round === undefined) { // the round used to be kept in round-choice.json
@@ -724,6 +724,9 @@ function saveBoards() {
 
 const DEFAULT_REFRESH_SEC = Math.max(3, Number(MACHINE.playhqRefreshSeconds) || 5);
 let QUARTER_SEC = 600;
+// The ticker's scroll speed in pixels per second: the default, the limits and one Faster / Slower step.
+const TICKER_SPEED = 120, TICKER_MIN = 20, TICKER_MAX = 600, TICKER_STEP = 20;
+const tickerSpeed = v => Math.max(TICKER_MIN, Math.min(TICKER_MAX, Math.round(Number(v) || TICKER_SPEED)));
 
 function newBoard() {
   return {
@@ -739,6 +742,7 @@ function newBoard() {
     autoSelect: CONFIG.autoSelectGame !== undefined ? !!CONFIG.autoSelectGame : !!CONFIG.defaultCourt, // pick the game from the court and the time
     autoCourt: CONFIG.defaultCourt || '',
     playhqRefreshSec: DEFAULT_REFRESH_SEC,
+    tickerSpeed: TICKER_SPEED,  // how fast ticker.html scrolls, in pixels per second
     updatedAt: Date.now(),
   };
 }
@@ -879,7 +883,14 @@ function applyOne(b, a) {
     }
     case 'playhqRefresh': b.playhqRefreshSec = Math.max(3, Math.min(120, Math.round(Number(a.value) || DEFAULT_REFRESH_SEC))); break;
     case 'showClock': b.showClock = !!a.value; break;
-    case 'reset': Object.assign(b, newBoard()); clearGoals(b, null); break;
+    case 'tickerSpeed': { // a speed in pixels per second, or 'faster', 'slower', 'normal'
+      const now = b.tickerSpeed || TICKER_SPEED;
+      b.tickerSpeed = a.value === 'faster' ? tickerSpeed(now + TICKER_STEP) : a.value === 'slower' ? tickerSpeed(now - TICKER_STEP)
+        : a.value === 'normal' ? TICKER_SPEED : tickerSpeed(a.value);
+      log('info', 'ticker', `Ticker speed now ${b.tickerSpeed} pixels per second`);
+      break;
+    }
+    case 'reset': Object.assign(b, newBoard(), { tickerSpeed: b.tickerSpeed }); clearGoals(b, null); break; // the ticker keeps its speed
   }
   b.updatedAt = Date.now();
 }
@@ -1173,6 +1184,7 @@ function followClock(b, live) {
 //   /deck/scores/reset
 //   /deck/auto/on  off  toggle   (pick the game from the court and the time)
 //   /deck/court/Indoor%2001  or  /deck/court/1   (the court for automatic selection)
+//   /deck/ticker/faster  slower  normal   /deck/ticker/speed/150   (pixels per second)
 // Add ?board=2 for a second court.
 function parseClock(t) {
   const m = String(t || '').match(/^(\d{1,2})(?:[:.](\d{1,2}))?$/);
@@ -1200,6 +1212,10 @@ function deckAction(parts, q) {
     if (verb === 'length') { const mins = Number(arg ?? q.minutes); if (mins > 0) return { type: 'clockLength', value: mins * 60 }; }
   }
   if (what === 'auto' && ['on', 'off', 'toggle'].includes(verb)) return { type: 'autoSelect', value: verb === 'toggle' ? 'toggle' : verb === 'on' };
+  if (what === 'ticker') {
+    if (['faster', 'slower', 'normal'].includes(verb)) return { type: 'tickerSpeed', value: verb };
+    if (verb === 'speed' && Number(arg ?? q.speed) > 0) return { type: 'tickerSpeed', value: Number(arg ?? q.speed) };
+  }
   if (what === 'court' && verb) return { type: 'autoCourt', value: verb };
   if (what === 'source' && ['playhq', 'manual', 'toggle'].includes(verb)) return { type: 'source', value: verb };
   if (what === 'scores' && verb === 'reset') return { type: 'resetScores' };
@@ -2034,7 +2050,7 @@ async function getTicker(boardId) {
       if (d) { g.home = { ...g.home, score: d.home }; g.away = { ...g.away, score: d.away }; }
     } catch (err) { log('warn', 'ticker', `Live score for ${g.home.name} v ${g.away.name} failed: ${err.message}`); }
   }));
-  return { competition: competitionName(), games: games.map(g => ({ ...g, live: isLive(g), finished: isFinished(g) })) };
+  return { competition: competitionName(), speed: b.tickerSpeed || TICKER_SPEED, games: games.map(g => ({ ...g, live: isLive(g), finished: isFinished(g) })) };
 }
 
 // Season shooting totals from the Game Summary of every finished game in a division.
@@ -2096,7 +2112,7 @@ http.createServer(async (req, res) => {
   const q = Object.fromEntries(url.searchParams);
   const started = Date.now();
   res.on('finish', () => {
-    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams' || url.pathname === '/api/goals' || url.pathname === '/api/countdown'));
+    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams' || url.pathname === '/api/goals' || url.pathname === '/api/countdown' || url.pathname === '/api/ticker/speed'));
     const asset = req.method === 'GET' && !/\.html$|^\/$|^\/api\/|^\/deck\//.test(url.pathname);
     if (res.statusCode >= 400 || !(polled || asset)) {
       log(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http',
@@ -2142,6 +2158,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar(q.board || '1'));
     if (url.pathname === '/api/headtohead') return send(res, 200, await getHeadToHead(q.board || '1'));
     if (url.pathname === '/api/form') return send(res, 200, await getForm(q.board || '1', q.count));
+    // Asked by ticker.html every few seconds so a speed change shows straight away (no PlayHQ call).
+    if (url.pathname === '/api/ticker/speed') return send(res, 200, { speed: board(q.board || '1').tickerSpeed || TICKER_SPEED });
     if (url.pathname === '/api/ticker') return send(res, 200, await getTicker(q.board || '1'));
     if (url.pathname === '/api/topshooters') return send(res, 200, await getTopShooters(q));
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));

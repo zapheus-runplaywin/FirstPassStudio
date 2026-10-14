@@ -142,6 +142,13 @@
       <a class="btnlink" href="/teamlist.html?side=away" target="_blank" id="tlAway">Away team list</a>
       <a class="btnlink" href="/shooting.html" target="_blank" id="shoot">Shooting stats</a>
     </div>
+    <div class="row" style="margin-top:10px">
+      <label>Ticker speed <input id="tickerSpeed" type="number" min="20" max="600" step="10" style="width:80px"> pixels a second</label>
+      <button class="alt" id="tickerSlower">Slower</button>
+      <button class="alt" id="tickerFaster">Faster</button>
+      <button class="alt" id="tickerNormal">Normal (120)</button>
+      <span class="note">The ticker changes speed within a few seconds, without starting again.</span>
+    </div>
   </section>
 
   <section>
@@ -175,6 +182,7 @@
     if (document.activeElement !== $('awayName')) $('awayName').value = s.away.name;
     if (document.activeElement !== $('refreshSec')) $('refreshSec').value = s.playhqRefreshSec || 5;
     if (document.activeElement !== $('court')) $('court').value = s.court || '';
+    if (document.activeElement !== $('tickerSpeed')) $('tickerSpeed').value = s.tickerSpeed || 120;
     $('srcPlayhq').classList.toggle('on', s.source === 'playhq');
     $('srcManual').classList.toggle('on', s.source === 'manual');
     $('srcPlayhq').disabled = !s.gameId;
@@ -321,6 +329,10 @@
   $('clockMinus').onclick = () => act({ type: 'clockAdjust', deltaSec: -10 });
   $('clockPlus').onclick = () => act({ type: 'clockAdjust', deltaSec: 10 });
   $('clockLength').onchange = () => act({ type: 'clockLength', value: Number($('clockLength').value) * 60 });
+  $('tickerSpeed').onchange = () => act({ type: 'tickerSpeed', value: Number($('tickerSpeed').value) });
+  $('tickerSlower').onclick = () => act({ type: 'tickerSpeed', value: 'slower' });
+  $('tickerFaster').onclick = () => act({ type: 'tickerSpeed', value: 'faster' });
+  $('tickerNormal').onclick = () => act({ type: 'tickerSpeed', value: 'normal' });
   $('showClock').onchange = () => act({ type: 'showClock', value: $('showClock').checked });
   $('followClock').onchange = () => act({ type: 'followPlayhqClock', value: $('followClock').checked });
   $('resetScores').onclick = () => { if (confirm('Set both scores back to 0?')) act({ type: 'resetScores' }); };

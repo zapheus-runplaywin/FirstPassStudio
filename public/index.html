@@ -120,7 +120,7 @@
       <li><b>Pages that use the picked game's division:</b> ladder (without <code>?division=</code>), ladder bar, top shooters,
         title, match up, The Clash, winner celebration, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
       <li><b>Stream Deck:</b> <code>/deck/auto/on</code>, <code>/deck/auto/off</code>, <code>/deck/auto/toggle</code>,
-        <code>/deck/court/2</code> and <code>/deck/clock/playhq/on</code>. See the Stream Deck API docs above for the rest.</li>
+        <code>/deck/court/2</code>, <code>/deck/clock/playhq/on</code> and <code>/deck/ticker/faster</code> / <code>slower</code>. See the Stream Deck API docs above for the rest.</li>
     </ul>
   </div>
   <div class="card">
@@ -166,14 +166,14 @@
     <p class="page__help">They show up in git as changed files: commit the ones you want to keep and send them as a pull request, or
       throw them away with <code style="display:inline">git restore competitions</code>.</p>
     <p class="page__help">The control page's choices (the round picked by hand, automatic game selection and its court, following the
-      PlayHQ clock, how often to check PlayHQ, showing the clock) are kept on this computer only, in
+      PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed) are kept on this computer only, in
       <code style="display:inline">control.json</code>, and the game on the board, the scores and the clock in
       <code style="display:inline">scoreboard-state.json</code>. Git ignores both. If <code style="display:inline">control.json</code> is
       missing the helper starts from the competition setup's defaults and makes a new one.</p>
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> keep asking for new data (the control page does too, but it isn't in OBS). <b>countdown.html</b> also asks the helper which game is picked every 5 seconds, but that never reaches PlayHQ.
+    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> keep asking for new data (the control page does too, but it isn't in OBS). <b>countdown.html</b> also asks the helper which game is picked every 5 seconds, and <b>ticker.html</b> asks for its speed every 3 seconds, but neither reaches PlayHQ.
       The super shot page asks the helper every second for the scoreboard and nothing else, so it adds no PlayHQ requests.
       Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.
       The Clash and the winner celebration only retry if the helper isn't running.</p>
@@ -263,7 +263,12 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   'Options: <code>?hold=6</code> seconds per pairing (default 5), <code>?loop=1</code> keeps going round, <code>?end=out</code> animates away after the last pairing, ' +
   '<code>?show=all</code> shows all seven straight away, <code>?pair=C</code> shows one pairing only, <code>?games=0</code> leaves out games played.'], ['Home team list', '/teamlist.html?side=home', 'The game\'s PlayHQ line up. When it has fewer than seven players (benches often clear it), the rest of the season squad is added under <b>Squad</b>, without positions.'],
  ['Away team list', '/teamlist.html?side=away', 'The game\'s PlayHQ line up. When it has fewer than seven players (benches often clear it), the rest of the season squad is added under <b>Squad</b>, without positions.'], ['Shooting stats', '/shooting.html'],
- ['Full time card', '/fulltime.html'], ['Ladder lower third', '/ladderbar.html'], ['Score ticker (other courts, updates itself)', '/ticker.html']]
+ ['Full time card', '/fulltime.html'], ['Ladder lower third', '/ladderbar.html'], ['Score ticker (other courts, updates itself)', '/ticker.html',
+  'Scrolling scores from the other games this round, leaving out the game on the scoreboard. It updates its scores itself every 30 seconds (<code>?refresh=0</code> loads once). ' +
+  '<b>Speed:</b> set it on the control page (<b>Ticker speed</b> in pixels a second, with <b>Slower</b>, <b>Faster</b> and <b>Normal (120)</b>) or from the Stream Deck with ' +
+  '<code>/deck/ticker/faster</code>, <code>/deck/ticker/slower</code>, <code>/deck/ticker/normal</code> or <code>/deck/ticker/speed/80</code>. Faster and slower change it by 20, between 20 and 600. ' +
+  'The ticker asks the helper for the speed every 3 seconds (PlayHQ is not asked) and changes without starting the scroll again; the speed is remembered in control.json. ' +
+  '<code>?speed=80</code> fixes the speed for that link only, ignoring the control page, and <code>?board=2</code> is for the second court.']]
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
 document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
