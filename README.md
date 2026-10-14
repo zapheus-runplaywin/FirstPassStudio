@@ -17,7 +17,7 @@ offline. The OBS overlays don't use it: they keep the colours, font and logos of
 http://localhost:8080/setup.html keeps a saved setup for each competition and switches between them. Each setup has the
 organisation's PlayHQ link and which competition and season to use (**Find its competitions** lists them), the names
 shown on the graphics (competition, organisation, venue), the game rules (quarters or halves and their length, super
-shots, the ladder's finals marker), game day settings (court to follow, automatic game selection, minutes before a game
+shots), the finals format for the competition and for any division with its own (see **Finals** below), game day settings (court to follow, automatic game selection, minutes before a game
 it switches, days ahead that count as this round), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
 in light and dark mode versions (one alone is used for both; beside the title, above it and in the ladder's corner), the team logos (drop files on the page; they match clubs by file
 name, and the PlayHQ team list lets you pick a different logo for any club), an optional colour for each club (behind its teams'
@@ -36,7 +36,7 @@ Setups live in `competitions/<name>/` (`settings.json`, `logos/`, `brand/`); see
 AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
 GIG WANL in Netball WA greens with Gold Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to
 Australian Championships; for GIG WANL pick it with **Find its competitions**. Their rules (AMMNA 10-minute quarters,
-WANL 15-minute quarters, no super shots, finals marker on the top 4) are guesses to check. `config.json` now only holds this computer's settings (port,
+WANL 15-minute quarters, no super shots, top 4 Page finals) are guesses to check. `config.json` now only holds this computer's settings (port,
 log size, how often to check PlayHQ).
 
 On a carnival day with several rounds (like the AMMNA nationals), "this round" moves on to each round as its first game
@@ -202,6 +202,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 - http://localhost:8080/matchup.html: both team logos with the division, round, date, time, court and venue. It also shows each team's
   last five results as W/L/D dots and this season's head to head: the win tally under VS and the last three meetings
   (`?form=0` or `?h2h=0` hides them).
+- http://localhost:8080/finals.html?division=1: the division's finals, week by week (see **Finals** below).
 - http://localhost:8080/fulltime.html: final score with each team's top shooter and shooting accuracy.
 - http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage.
 - http://localhost:8080/ticker.html: scrolling scores from the other games this round. Unlike the other graphics it updates
@@ -290,10 +291,32 @@ time the scene comes on.
   game is on (per athlete, beyond the goals and attempts PlayHQ has), to show beside the position match ups, team lists
   and shooting stats. Not built yet.
 
+## Finals
+
+Each competition setup has a finals format, and each division can have its own (setup page, **Finals**). The formats, in
+`finals.js`:
+
+- Top 2: **Grand final** (1 v 2) and **Best of three** (game 3 only if needed).
+- Top 4: **Semis then grand final** (1 v 4, 2 v 3), **Page** (1 v 2 winner straight to the grand final, the loser gets a second
+  chance, 3 v 4 loser out, then a preliminary final) and **Placings day** (1 v 2 for the title, 3 v 4 for third).
+- Top 6: **Byes for 1 and 2** (3 v 6 and 4 v 5, then 1 plays the lower winner and 2 the higher) and **Double chance for 1 and 2**.
+- Top 8: **AFL style** (top 4 double chance), **Straight knockout** and **Carnival placings** (every team gets a place 1 to 8).
+
+The ladder marks the finals places by what each earns (double chance or week off in yellow, elimination in pink, playing
+for third in the small print colour), draws a line under the last one, and adds a key when places earn different things
+(`?key=0` leaves it off). Setups saved with only a number of finals places get the nearest format.
+
+`finals.html?division=1` shows who plays who week by week, with the teams from the ladder ("If the season ended today"
+until the home and away games are finished), logos, scores, the winner of each game moving on, and the champions once the
+grand final is decided. PlayHQ's finals games (rounds with "final" or "play-off" in their name) are used when it has them,
+with their time, court and score. PlayHQ often has no finals fixtures, so the control page's **Finals** section lets you
+pick each winner (the score is optional); those are kept in `control.json`, and a PlayHQ result always wins. Options:
+`?week=2` one week only, `?title=` a different heading, `?seeds=0`, `?projected=0`, `?logo=0`, `?mode=light`, `?board=2`.
+
 ## Options
 
 - `&refresh=30` makes a ladder reload itself every 30 seconds (off by default).
 - `&rows=8` shows only the top 8 teams.
 - Quarter (or half) length and the season are on the competition setup page.
 - Colours and font are on the competition setup page (the helper writes `theme.css` from them). Sizes and position are at the top of `public/ladder.css` and `public/scoreboard.css`.
-- The pink marker beside positions 1 to 4 on the ladder marks the finals places; change `-n+4` in `ladder.css` if that differs.
+- The ladder marks the finals places from the division's finals format (see **Finals**); their colours are at the top of the finals part of `public/ladder.css`.

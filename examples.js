@@ -172,6 +172,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
       ['PIVT and FirstPass Studio ad (mid animation)', '/ad.html', 6000],
       ...st.grades.map(g => [`Ladder: ${g.name}`, `/ladder.html?division=${g.division}`, 3000]),
       ...st.grades.map(g => [`Top shooters: ${g.name}`, `/topshooters.html?division=${g.division}`, 6000]),
+      ...st.grades.map(g => [`Finals: ${g.name}`, `/finals.html?division=${g.division}`, 3000]),
     ];
     const stamp = new Date();
     const pad = n => String(n).padStart(2, '0');

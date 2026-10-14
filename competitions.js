@@ -14,6 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const finals = require('./finals');
 
 const ROOT = __dirname;
 const DIR = path.join(ROOT, 'competitions');
@@ -33,7 +34,8 @@ const DEFAULTS = {
   periodType: 'quarters',              // 'quarters' or 'halves'
   quarterMinutes: 10,                  // minutes per quarter (or half)
   superShots: true,                    // 2-point super shots
-  finalsPlaces: 4,                     // ladder marker on the top N teams; 0 = none
+  finalsFormat: 'top4-page',           // the finals format (finals.js), blank = no finals
+  divisionFinals: {},                  // { "PlayHQ division name": format id or "none" }, for a division with its own format
   defaultCourt: '',
   autoSelectGame: true,
   autoSelectMinutesBefore: 10,
@@ -78,6 +80,13 @@ const writeJson = (file, data) => fs.writeFileSync(file, JSON.stringify(data, nu
 function fromFlames(s) {
   if (!s || s.titleEmoji !== undefined || typeof s.titleFlames !== 'boolean') return s;
   return { ...s, titleEmoji: s.titleFlames ? '🔥' : '' };
+}
+
+// Setups saved before finals formats had only a number of finals places for the ladder marker.
+function fromPlaces(s) {
+  if (!s || s.finalsFormat !== undefined || s.finalsPlaces === undefined) return s;
+  const { finalsPlaces, ...rest } = s;
+  return { ...rest, finalsFormat: finals.fromPlaces(finalsPlaces) };
 }
 
 // ─── Clubs ──────────────────────────────────────────────────────────────────
@@ -126,7 +135,7 @@ function fromTeamSettings(s) {
 
 // Keep only known settings, with the right types, so a bad save can't break the helper.
 function clean(input, base = DEFAULTS) {
-  input = fromTeamSettings(fromFlames(input)); base = fromTeamSettings(fromFlames(base));
+  input = fromPlaces(fromTeamSettings(fromFlames(input))); base = fromPlaces(fromTeamSettings(fromFlames(base)));
   const out = {};
   for (const [k, def] of Object.entries(DEFAULTS)) {
     let v = input && input[k] !== undefined ? input[k] : base[k] !== undefined ? base[k] : def;
@@ -142,6 +151,9 @@ function clean(input, base = DEFAULTS) {
       }]).filter(([club, c]) => club && Object.keys(c).length));
     } else if (k === 'teamClubs') {
       v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter(([t, c]) => t && typeof c === 'string' && c.trim()).map(([t, c]) => [String(t), c.trim()]));
+    } else if (k === 'divisionFinals') {
+      v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).map(([d, f]) => [String(d).trim(), String(f || '')])
+        .filter(([d, f]) => d && (f === 'none' || finals.byId(f))));
     } else if (typeof def === 'boolean') v = v === true || v === 'true' || v === 'on';
     else if (typeof def === 'number') { v = Number(v); if (!Number.isFinite(v)) v = def; }
     else v = String(v ?? '').trim();
@@ -149,7 +161,7 @@ function clean(input, base = DEFAULTS) {
   }
   out.periodType = out.periodType === 'halves' ? 'halves' : 'quarters';
   out.quarterMinutes = Math.min(60, Math.max(1, out.quarterMinutes));
-  out.finalsPlaces = Math.min(32, Math.max(0, Math.round(out.finalsPlaces)));
+  if (out.finalsFormat && !finals.byId(out.finalsFormat)) out.finalsFormat = DEFAULTS.finalsFormat;
   out.autoSelectMinutesBefore = Math.min(120, Math.max(0, out.autoSelectMinutesBefore));
   out.roundLookaheadDays = Math.min(14, Math.max(1, Math.round(out.roundLookaheadDays)));
   out.panelOpacity = Math.min(1, Math.max(0.3, out.panelOpacity));

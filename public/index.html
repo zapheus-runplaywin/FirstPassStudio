@@ -56,7 +56,11 @@
       <li><b>PlayHQ:</b> the organisation's playhq.com page and which of its competitions and seasons to use. <b>Find its competitions</b>
         lists what PlayHQ has for that organisation, so you can pick the right name.</li>
       <li><b>Names on the graphics:</b> the competition, organisation and venue names, each blank to use PlayHQ's.</li>
-      <li><b>Game rules:</b> quarters or halves and their length, super shots, and how many teams get the finals marker on the ladder.</li>
+      <li><b>Game rules:</b> quarters or halves and their length, and super shots.</li>
+      <li><b>Finals:</b> the competition's finals format, and a different one for any division that needs it. Top 2: grand final, or best of three.
+        Top 4: semis then grand final, Page (double chance for 1 and 2), or a placings day (1 v 2 and 3 v 4). Top 6: byes for 1 and 2, or a double
+        chance for 1 and 2. Top 8: AFL style, straight knockout, or carnival placings (every team gets a place 1 to 8). The ladder marks the finals
+        places by what each earns and the finals graphic follows it (see <b>Finals</b> below).</li>
       <li><b>Game day:</b> the court the scoreboard follows, whether it picks the game automatically, <b>Electronic scoring starts [x] minutes before the game</b>
         (default 10; set 20 or 30 when games are further apart), and how many days ahead counts as "this round". Automatic selection switches
         to the next game when its electronic scoring starts, and the scoreboard doesn't ask PlayHQ for a game's score before then, even for a game
@@ -117,7 +121,7 @@
         <b>Follow PlayHQ</b> and <b>Manual</b> (on the control page, the Stream Deck, by pressing a score button or by picking a game)
         turns the clock option on or off to match, and the control page says so. Changing the clock after that still wins:
         untick the box or press a clock button to run the clock by hand while scores follow PlayHQ.</li>
-      <li><b>Pages that use the picked game's division:</b> ladder (without <code>?division=</code>), ladder bar, top shooters,
+      <li><b>Pages that use the picked game's division:</b> ladder and finals (without <code>?division=</code>), ladder bar, top shooters,
         title, match up, The Clash, winner celebration, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
       <li><b>Stream Deck:</b> <code>/deck/auto/on</code>, <code>/deck/auto/off</code>, <code>/deck/auto/toggle</code>,
         <code>/deck/court/2</code> and <code>/deck/clock/playhq/on</code>. See the Stream Deck API docs above for the rest.</li>
@@ -138,6 +142,23 @@
   <div class="card">
     <h2>PIVT and FirstPass Studio ad (10 seconds, for the breaks)</h2>
     <div id="adPages"></div>
+  </div>
+  <div class="card" id="finalsCard" hidden>
+    <h2>Finals (one per division)</h2>
+    <p class="page__help">Who plays who in the division's finals, week by week, in the format set for that division on the
+      <a href="/setup.html" target="_blank">competition setup page</a>, with the teams from the ladder. Until the home and away games are
+      finished it says <b>If the season ended today</b>. Each game shows the teams' ladder positions, logos and scores; the winner lights up and
+      moves on to the next game, and the champions show under it once the grand final is decided.
+      PlayHQ's finals games (rounds with "final" or "play-off" in their name) are used when it has them, with their day, time, court and score.
+      PlayHQ often has no finals fixtures, so pick each winner (and the score, if you like) in <b>Finals</b> on the
+      <a href="/control.html" target="_blank">control page</a>; a PlayHQ result always wins over one picked there.
+      The ladder marks the same finals places: double chance or a week off in the highlight colour, elimination finals in the accent colour,
+      playing for third in the small print colour, with a line under the last finals place and a key under the ladder (<code>?key=0</code> leaves it off).
+      Loads once. Options: <code>?week=2</code> shows one week only, <code>?title=Grand%20Final%20day</code> changes the heading,
+      <code>?seeds=0</code> leaves off the ladder positions, <code>?projected=0</code> leaves off "If the season ended today",
+      <code>?logo=0</code> leaves off the competition logo (<code>?mode=light</code> uses the light mode one), and without <code>?division=</code>
+      it shows the division of the game picked on the control page.</p>
+    <div id="finalsPages"></div>
   </div>
   <div class="card" id="shootersCard" hidden>
     <h2>Top shooters (season)</h2>
@@ -166,7 +187,7 @@
     <p class="page__help">They show up in git as changed files: commit the ones you want to keep and send them as a pull request, or
       throw them away with <code style="display:inline">git restore competitions</code>.</p>
     <p class="page__help">The control page's choices (the round picked by hand, automatic game selection and its court, following the
-      PlayHQ clock, how often to check PlayHQ, showing the clock) are kept on this computer only, in
+      PlayHQ clock, how often to check PlayHQ, showing the clock, finals winners picked by hand) are kept on this computer only, in
       <code style="display:inline">control.json</code>, and the game on the board, the scores and the clock in
       <code style="display:inline">scoreboard-state.json</code>. Git ignores both. If <code style="display:inline">control.json</code> is
       missing the helper starts from the competition setup's defaults and makes a new one.</p>
@@ -187,6 +208,7 @@
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
       <li>Athletes page: when you open a team, the line up of each of its games this season, once (finished games are kept for an hour).</li>
+      <li>Finals: the division's ladder and its season's rounds when the page loads (the rounds are kept for 10 minutes, the current one for a minute).</li>
       <li>Team lists: when the game's line up is incomplete, the same season line ups once to make up the squad (kept for 10 minutes).</li>
     </ul>
     <p class="page__help">Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
@@ -320,6 +342,8 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
     sub.textContent = `${st.organisation} · ${st.competition} · ${st.season.name}`;
     document.getElementById('compNow').textContent = `In use now: ${st.setup}.`;
     st.grades.forEach(g => document.getElementById('shooterPages').appendChild(pageRow(`Top shooters: ${g.name}`, `/topshooters.html?division=${g.division}`)));
+    st.grades.forEach(g => document.getElementById('finalsPages').appendChild(pageRow(`Finals: ${g.name}`, `/finals.html?division=${g.division}`)));
+    document.getElementById('finalsCard').hidden = !st.grades.length;
     document.getElementById('shootersCard').hidden = !st.grades.length;
     st.grades.forEach(g => {
       const url = `${location.origin}/ladder.html?division=${g.division}`;
