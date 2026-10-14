@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Finals</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<style>
+  .finals { --card-width: 1800px; }
+  .finals__header { position: relative; text-align: center; padding: 26px 40px 14px; }
+  .finals__title { margin: 14px 0 2px; font-size: 52px; font-weight: 800; text-transform: uppercase; color: var(--yellow); letter-spacing: .03em; }
+  .finals__format { font-size: 22px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .finals__projected { display: inline-block; margin-top: 10px; background: var(--pink); color: var(--text); padding: 5px 14px; border-radius: 6px;
+    font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
+  .finals__logo { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); height: 110px; max-width: 240px; object-fit: contain; }
+  .finals__weeks { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 22px; padding: 8px 32px 30px; }
+  .week { display: flex; flex-direction: column; min-width: 0; }
+  .week__name { display: flex; align-items: flex-end; justify-content: center; min-height: 2.5em; text-align: center; font-size: 18px; font-weight: 800;
+    line-height: 1.25; color: var(--pink); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+  .week__games { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 16px; }
+  .game { background: var(--purple-deep-alt); border-radius: 10px; overflow: hidden; animation: rise .45s ease-out both; }
+  .game--gf { box-shadow: 0 0 0 3px var(--yellow); }
+  .game--off { opacity: .4; }
+  .game__head { display: flex; justify-content: space-between; gap: 10px; background: var(--purple); padding: 6px 14px; font-size: 15px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .08em; }
+  .game__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .game__when { color: var(--muted); white-space: nowrap; }
+  .side { display: grid; grid-template-columns: 36px 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 14px; min-height: 62px; box-sizing: border-box; }
+  .side + .side { border-top: 1px solid rgba(255, 255, 255, .1); }
+  .side__seed { color: var(--yellow); font-weight: 800; font-size: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+  .side__logo { width: 46px; height: 46px; object-fit: contain; }
+  .side__logo.logo-fallback { font-size: 15px; border-width: 3px; box-sizing: border-box; }
+  .side__name { font-size: 24px; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .side__score { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+  .side--tbc .side__name { grid-column: 1 / -1; padding-left: 10px; font-size: 19px; font-weight: 700; font-style: italic; color: var(--muted);
+    text-transform: none; white-space: normal; line-height: 1.15; }
+  .side--won { background: var(--yellow); color: var(--text-on-yellow); }
+  .side--won .side__seed { color: var(--text-on-yellow); }
+  .side--lost { opacity: .5; }
+  .champion { display: flex; align-items: center; justify-content: center; gap: 26px; background: var(--yellow); color: var(--text-on-yellow);
+    padding: 16px 32px; animation: rise .5s .6s ease-out both; }
+  .champion__word { font-size: 26px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+  .champion__logo { width: 84px; height: 84px; object-fit: contain; }
+  .champion__logo.logo-fallback { font-size: 26px; }
+  .champion__name { font-size: 46px; font-weight: 800; text-transform: uppercase; }
+  .finals__empty { text-align: center; color: var(--muted); font-size: 26px; padding: 30px; }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  .message { position: fixed; left: 24px; bottom: 24px; margin: 0; padding: 10px 14px; max-width: 900px; background: rgba(150, 20, 20, .9); color: #fff; font-size: 18px; border-radius: 6px; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- Add to OBS as a Browser source, 1920 x 1080:
+       http://localhost:8080/finals.html?division=1   (or 2, 3)
+       Without ?division it shows the division of the game picked on the control page.
+       The format (who plays who, week by week) is the division's finals format on the competition setup page,
+       with the teams from the ladder. PlayHQ's finals games are used when it has them; otherwise winners
+       entered on the control page move teams on. Loads once: tick "Refresh browser when scene becomes active" in OBS.
+       Options: ?week=2 (one week only)  ?title=Grand%20Final%20day (a different heading)  ?logo=0 (no competition logo)
+                ?mode=light (the light mode competition logo)  ?projected=0 (leave off "If the season ended today")
+                ?seeds=0 (leave off the ladder positions)  ?board=2 (the second court's division) -->
+  <main class="card finals" id="card" hidden>
+    <header class="finals__header">
+      <img class="finals__logo" id="logo" alt="" hidden>
+      <div class="tab" id="comp"></div>
+      <h1 class="finals__title" id="title"></h1>
+      <div class="finals__format" id="format"></div>
+      <div class="finals__projected" id="projected" hidden>If the season ended today</div>
+    </header>
+    <div class="finals__weeks" id="weeks"></div>
+    <div class="champion" id="champion" hidden></div>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+
+    function when(g) {
+      if (!g.date && !g.time && !g.court) return '';
+      const d = g.date ? new Date(`${g.date}T00:00:00`) : null;
+      const [h, m] = String(g.time || '').split(':').map(Number);
+      const t = Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}` : '';
+      return [d && !isNaN(d) ? d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : '', t, g.court].filter(Boolean).join(' · ');
+    }
+
+    function side(g, s) {
+      const t = g[s];
+      const row = el('div', 'side');
+      if (!t.name) {
+        row.classList.add('side--tbc');
+        row.append(el('div', 'side__name', t.placeholder || 'TBC'));
+        return row;
+      }
+      if (g.winner) row.classList.add(g.winner === t.name ? 'side--won' : 'side--lost');
+      const seed = params.get('seeds') === '0' || !t.seed || t.seed > 32 ? '' : t.seed;
+      row.append(el('div', 'side__seed', seed), logoEl(t, 'side__logo'), el('div', 'side__name', t.name), el('div', 'side__score', t.score ?? ''));
+      return row;
+    }
+
+    function render(data) {
+      const rules = data.rules || {};
+      $('comp').textContent = data.competition || '';
+      $('title').textContent = params.get('title') || `${data.division} finals`;
+      document.title = `${data.competition} ${data.division} Finals`;
+      $('format').textContent = data.format ? data.format.name : '';
+      $('projected').hidden = !data.projected || params.get('projected') === '0';
+      const logo = (params.get('mode') === 'light' ? rules.competitionLogoLight : rules.competitionLogoDark) || rules.competitionLogo;
+      $('logo').hidden = !logo || params.get('logo') === '0';
+      if (!$('logo').hidden) $('logo').src = logo;
+
+      const weeks = $('weeks');
+      weeks.replaceChildren();
+      if (!data.format) {
+        weeks.append(el('div', 'finals__empty', data.error || 'No finals format set for this division.'));
+      } else {
+        const only = Number(params.get('week')) || 0;
+        let n = 0;
+        data.format.weeks.forEach((name, i) => {
+          if (only && only !== i + 1) return;
+          const games = data.games.filter(g => g.week === i + 1);
+          if (!games.length) return;
+          const col = el('section', 'week');
+          col.append(el('div', 'week__name', name));
+          const list = el('div', 'week__games');
+          for (const g of games) {
+            const card = el('div', 'game' + (g.id === 'GF' ? ' game--gf' : '') + (g.notNeeded ? ' game--off' : ''));
+            card.style.animationDelay = `${n++ * 90}ms`;
+            const head = el('div', 'game__head');
+            head.append(el('span', 'game__name', g.name + (g.ifNeeded ? (g.notNeeded ? ' (not needed)' : ' (if needed)') : '')), el('span', 'game__when', when(g)));
+            card.append(head, side(g, 'home'), side(g, 'away'));
+            list.append(card);
+          }
+          col.append(list);
+          weeks.append(col);
+        });
+      }
+      const champ = $('champion');
+      champ.replaceChildren();
+      champ.hidden = !data.champion || !!Number(params.get('week'));
+      if (data.champion) champ.append(el('span', 'champion__word', 'Champions'), logoEl(data.champion, 'champion__logo'), el('span', 'champion__name', data.champion.name));
+      $('card').hidden = false;
+      // Shrink to fit 1080 high.
+      const card = $('card');
+      card.style.transform = '';
+      const scale = Math.min(1, 1040 / card.offsetHeight);
+      card.style.transform = scale < 1 ? `scale(${scale})` : '';
+    }
+
+    async function load() {
+      const msg = $('message');
+      try {
+        const q = new URLSearchParams();
+        for (const k of ['division', 'board']) if (params.get(k)) q.set(k, params.get(k));
+        const res = await fetch(`/api/finals?${q}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        render(data);
+        msg.hidden = true;
+      } catch (err) {
+        console.warn('Finals unavailable:', err.message);
+        msg.textContent = location.protocol === 'file:'
+          ? 'Open this page through the helper (http://localhost:8080/finals.html), not as a file.'
+          : `Finals unavailable: ${err.message}`;
+        msg.hidden = false;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

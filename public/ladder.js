@@ -42,6 +42,7 @@
     $('logo').hidden = !logo || params.get('logo') === '0';
     if (!$('logo').hidden) $('logo').src = logo;
 
+    const finals = data.finals || { places: rules.finalsPlaces || 0, marks: Array(rules.finalsPlaces || 0).fill('elim'), legend: [] };
     const tables = $('tables');
     tables.replaceChildren();
     const pools = (data.pools || []).filter(p => p.length);
@@ -55,7 +56,9 @@
       (maxRows ? rows.slice(0, maxRows) : rows).forEach((r, n) => {
         const tr = body.insertRow();
         tr.style.animationDelay = `${n * 60}ms`;
-        if (r.position <= (rules.finalsPlaces || 0)) tr.className = 'finals';
+        // Finals places, marked by what each earns in the division's finals format (competition setup).
+        const mark = r.position <= finals.places ? finals.marks[r.position - 1] : '';
+        if (mark) tr.className = `finals finals--${mark}${r.position === finals.places ? ' finals--last' : ''}`;
         cols.forEach(c => {
           const v = r[c.key];
           tr.appendChild(cell('td', v === null || v === undefined ? '' : c.format ? c.format(v) : v, c.cls));
@@ -64,6 +67,15 @@
       tables.appendChild(table);
     });
     if (!pools.length) tables.appendChild(cell('p', 'No ladder published yet.', 'pool__name'));
+    // A key to the finals marks, when places earn different things (?key=0 leaves it off).
+    $('key').replaceChildren();
+    $('key').hidden = !pools.length || finals.legend.length < 2 || params.get('key') === '0';
+    for (const l of finals.legend) {
+      const item = cell('span', '', 'ladder__key-item');
+      item.className = `ladder__key-item finals--${l.mark}`;
+      item.append(cell('i', ''), cell('span', l.label));
+      $('key').appendChild(item);
+    }
     $('ladder').hidden = false;
   }
 
@@ -80,7 +92,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       if (data.stale) console.warn('Showing the last good ladder:', data.error);
-      const json = JSON.stringify([data.division, data.pools, data.rules]);
+      const json = JSON.stringify([data.division, data.pools, data.rules, data.finals]);
       if (json !== lastJson) { lastJson = json; render(data); }
       loadedOnce = true;
       $('message').hidden = true;

@@ -15,7 +15,8 @@
        http://localhost:8080/ladder.html?division=1   (or 2, 3)
        Without ?division it shows the division of the game picked on the control page.
        Options: &refresh=60 (reload the ladder every 60 seconds; off by default)  &rows=10 (show only the top 10)
-                &logo=0 (leave off the competition logo), &mode=light (the light mode competition logo instead of the dark mode one). The finals marker follows the competition setup page. -->
+                &logo=0 (leave off the competition logo), &mode=light (the light mode competition logo instead of the dark mode one). &key=0 (leave off the key to the finals marks).
+       The finals places are marked by what they earn in the division's finals format, set on the competition setup page. -->
   <main id="ladder" class="ladder" hidden>
     <header class="ladder__header">
       <img class="ladder__logo" id="logo" alt="" hidden>
@@ -23,6 +24,7 @@
       <h1 class="ladder__title"><span id="comp"></span> <span class="ladder__division" id="division"></span></h1>
     </header>
     <div id="tables"></div>
+    <div class="ladder__key" id="key" hidden></div>
   </main>
   <p id="message" class="message" hidden></p>
   <script src="ladder.js"></script>

@@ -39,7 +39,12 @@
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
   .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
-  @media (max-width: 600px) { .teams { grid-template-columns: 1fr; } }
+  .fin { display: grid; grid-template-columns: 170px 1fr; gap: 6px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--fp-line); }
+  .fin__name { font-weight: 700; }
+  .fin__name small { display: block; font-weight: 400; color: var(--fp-muted); }
+  .fin .row button { padding: 6px 12px; }
+  .fin input[type=number] { width: 84px; }
+  @media (max-width: 600px) { .teams { grid-template-columns: 1fr; } .fin { grid-template-columns: 1fr; } }
 </style>
 <script src="log.js"></script>
 </head>
@@ -149,6 +154,20 @@
       <button class="alt" id="tickerNormal">Normal (120)</button>
       <span class="note">The ticker changes speed within a few seconds, without starting again.</span>
     </div>
+  </section>
+
+  <section>
+    <h2>Finals</h2>
+    <div class="row">
+      <label>Division <select id="finDivision" style="flex:0 1 260px"></select></label>
+      <a class="btnlink" id="finLink" href="/finals.html" target="_blank">Finals graphic</a>
+      <button class="alt" id="finReload">Refresh</button>
+    </div>
+    <p class="note" id="finNote">Loading the finals…</p>
+    <div id="finGames"></div>
+    <p class="note">Each division's finals format is set on the <a href="/setup.html" target="_blank">competition setup page</a>, and the teams come from the ladder.
+      When PlayHQ has the finals games, their scores move the winners on by themselves. PlayHQ often has no finals fixtures, so pick each winner here
+      (the score is optional). A result from PlayHQ always wins over one picked here.</p>
   </section>
 
   <section>
@@ -363,5 +382,78 @@
 })();
 </script>
 <script src="autoreload.js"></script>
+<script>
+// Finals: who plays who in each division, and winners picked by hand for finals PlayHQ has no games for.
+(function () {
+  const $ = id => document.getElementById(id);
+  const boardId = new URLSearchParams(location.search).get('board') || '1';
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  let division = '';
+
+  async function call(url, body) {
+    const res = await fetch(url, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  function render(d) {
+    const list = $('finGames');
+    list.replaceChildren();
+    $('finLink').href = `/finals.html?division=${encodeURIComponent(d.divisionNumber || division)}`;
+    if (!d.format) { $('finNote').textContent = d.error || 'No finals format for this division.'; return; }
+    $('finNote').innerHTML = '';
+    $('finNote').append(mk('b', '', d.format.name), ` for ${d.division}: ${d.format.summary} `,
+      d.projected ? 'The home and away season isn\'t finished, so the teams are from the ladder as it is now. ' : '',
+      d.playhqFinals ? `PlayHQ has ${d.playhqFinals} finals game${d.playhqFinals === 1 ? '' : 's'}.` : 'PlayHQ has no finals games for it yet.',
+      d.champion ? ` Champions: ${d.champion.name}.` : '');
+    for (const g of d.games) {
+      const row = mk('div', 'fin');
+      const name = mk('div', 'fin__name', g.name);
+      name.append(mk('small', '', g.notNeeded ? 'Not needed' : g.source === 'playhq' ? (g.winner ? 'Result from PlayHQ' : 'On PlayHQ, not finished') : g.manual ? 'Winner picked here' : g.weekName));
+      const box = mk('div', 'row');
+      const h = g.home.name, a = g.away.name;
+      if (g.notNeeded) box.append(mk('span', 'note', 'The series is already decided.'));
+      else if (!h || !a) box.append(mk('span', 'note', `${h || g.home.placeholder} v ${a || g.away.placeholder}`));
+      else if (g.source === 'playhq' && g.winner) box.append(mk('span', '', `${h} ${g.home.score ?? ''} – ${g.away.score ?? ''} ${a}`));
+      else {
+        const hs = Object.assign(mk('input'), { type: 'number', min: 0, placeholder: 'score', value: g.home.score ?? '' });
+        const as = Object.assign(mk('input'), { type: 'number', min: 0, placeholder: 'score', value: g.away.score ?? '' });
+        const pick = winner => save({ game: g.id, winner, homeScore: hs.value, awayScore: as.value });
+        const hb = mk('button', g.winner === h ? 'on' : 'alt', `${h} won`); hb.onclick = () => pick(h);
+        const ab = mk('button', g.winner === a ? 'on' : 'alt', `${a} won`); ab.onclick = () => pick(a);
+        box.append(hb, hs, mk('span', '', 'v'), as, ab);
+        if (g.manual) { const c = mk('button', 'alt', 'Clear'); c.onclick = () => save({ game: g.id, winner: '' }); box.append(c); }
+      }
+      row.append(name, box);
+      list.append(row);
+    }
+  }
+
+  async function save(body) {
+    try { render(await call('/api/finals/result', { division, ...body })); }
+    catch (err) { $('finNote').textContent = `Couldn't save: ${err.message}`; console.warn('Finals result:', err.message); }
+  }
+
+  async function load() {
+    try { render(await call(`/api/finals?division=${encodeURIComponent(division)}&board=${encodeURIComponent(boardId)}`)); }
+    catch (err) { $('finNote').textContent = `Couldn't load the finals: ${err.message}`; console.warn('Finals:', err.message); }
+  }
+
+  (async () => {
+    try {
+      const st = await call('/api/structure');
+      $('finDivision').replaceChildren(...st.grades.map(g => new Option(g.name, String(g.division))));
+      const sb = await call(`/api/scoreboard?board=${encodeURIComponent(boardId)}`).catch(() => ({}));
+      const mine = st.grades.find(g => g.name === sb.division);
+      division = String((mine || st.grades[0] || {}).division || '1');
+      $('finDivision').value = division;
+    } catch (err) { $('finNote').textContent = `Couldn't load the divisions: ${err.message}`; return; }
+    $('finDivision').onchange = () => { division = $('finDivision').value; load(); };
+    $('finReload').onclick = load;
+    load();
+  })();
+})();
+</script>
 </body>
 </html>

@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const competitions = require('./competitions');
+const finals = require('./finals');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -547,7 +548,8 @@ async function getRounds(gradeId) {
 //
 // control.json holds the control page's lasting settings on this computer (git ignores it):
 // the round picked by hand, and per board automatic game selection, its court, following
-// the PlayHQ clock, how often to check PlayHQ, showing the clock and the ticker's speed. Without it the boards
+// the PlayHQ clock, how often to check PlayHQ, showing the clock and the ticker's speed, and finals
+// winners entered by hand (for finals PlayHQ has no fixtures for). Without it the boards
 // start from the competition setup's defaults. The game itself, scores and the clock stay
 // in scoreboard-state.json.
 const CONTROL_FILE = path.join(ROOT, 'control.json');
@@ -1355,7 +1357,7 @@ async function setupRoute(req, res, url, q) {
   }
   if (!m) return send(res, 404, { error: 'Unknown setup link' });
   const [, id, what] = m;
-  if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), fonts: competitions.FONTS, defaults: competitions.DEFAULTS });
+  if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), fonts: competitions.FONTS, defaults: competitions.DEFAULTS, finalsFormats: finals.list(), finalsMarks: finals.MARKS });
   if (what === 'activate' && req.method === 'POST') {
     competitions.setActive(id);
     applyCompetition('Switched competition');
@@ -2016,9 +2018,81 @@ function rules() {
   const brandUrl = f => f ? '/brand/' + encodeURIComponent(f) : null;
   const light = brandUrl(CONFIG.competitionLogo || CONFIG.competitionLogoDark), dark = brandUrl(CONFIG.competitionLogoDark || CONFIG.competitionLogo);
   return { periodType: CONFIG.periodType, periods: CONFIG.periodType === 'halves' ? 2 : 4, periodLabel: CONFIG.periodType === 'halves' ? 'H' : 'Q',
-    periodMinutes: CONFIG.quarterMinutes, superShots: CONFIG.superShots !== false, finalsPlaces: Number(CONFIG.finalsPlaces) || 0,
+    periodMinutes: CONFIG.quarterMinutes, superShots: CONFIG.superShots !== false, finalsPlaces: (finals.byId(CONFIG.finalsFormat) || { teams: 0 }).teams,
     competitionLogo: light, competitionLogoLight: light, competitionLogoDark: dark,
     titleEmoji: CONFIG.titleEmoji ?? '🔥', clashWord: CONFIG.clashWord || 'CLASH', competitionName: competitionName() || '' };
+}
+
+// ─── Finals ─────────────────────────────────────────────────────────────────
+// Each division's finals format comes from the competition setup (finals.js has the formats).
+// The teams come from the ladder. PlayHQ often has no finals fixtures: when it does (rounds
+// with "final" or "play-off" in their name), their games, times, courts and scores are used;
+// otherwise winners are entered on the control page and kept in control.json.
+const FINALS_ROUND = /final|play.?off/i;
+const finalsKey = (division, format) => `${division}|${format.id}`;
+function finalsFor(division) { return finals.formatFor(CONFIG, division); }
+function finalsGrade(st, q) { return findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' }); }
+
+async function getFinals(q) {
+  const st = await getStructure();
+  const grade = finalsGrade(st, q);
+  if (!grade) throw new Error(`No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}`);
+  const format = finalsFor(grade.name);
+  const base = { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, divisionNumber: grade.division, rules: rules() };
+  if (!format) return { ...base, format: null, games: [], error: `${grade.name} has no finals format. Pick one on the competition setup page.` };
+  const ladder = await getLadder(grade.id);
+  const rows = ladder.pools[0] || [];
+  const seeds = rows.map(r => r.team);
+  // Only the finals rounds, and the last home and away round, are asked for (not the whole season),
+  // and a round PlayHQ doesn't answer for (a 504) is left out rather than failing the page.
+  const real = n => n && !/^(tbc|tba|bye)$/i.test(n);
+  const rounds = await getRounds(grade.id);
+  const finalsRounds = rounds.filter(r => FINALS_ROUND.test(r.name || ''));
+  const lastRegular = rounds.filter(r => !FINALS_ROUND.test(r.name || '')).pop();
+  const gamesOf = async r => {
+    try { return await getRoundGames(r.id, r.current ? 60 * 1000 : 10 * 60 * 1000); }
+    catch (err) { log('warn', 'finals', `${grade.name} ${r.name}: left out, PlayHQ didn't answer (${err.message})`); return null; }
+  };
+  const played = [];
+  for (const [i, r] of finalsRounds.entries()) {
+    for (const g of (await gamesOf(r)) || []) {
+      if (real(g.home.name) && real(g.away.name)) played.push({ ...g, round: r.name, week: i + 1, finished: isFinished(g) });
+    }
+  }
+  // Until the last home and away game is finished, the finals are "if the season ended today".
+  const lastGames = lastRegular && !played.length ? (await gamesOf(lastRegular)) || [] : [];
+  const projected = lastGames.some(g => real(g.home.name) && real(g.away.name) && !isFinished(g));
+  const manual = (control.finals || {})[finalsKey(grade.name, format)] || {};
+  const r = finals.resolve(format, seeds, played, manual);
+  const withLogo = t => t.name ? { ...t, logo: logoFor(t.name), colour: colourFor(t.name) } : t;
+  const marks = finals.ladderMarks(format);
+  log('info', 'finals', `${grade.name}: ${format.name}, ${played.length} finals game${played.length === 1 ? '' : 's'} on PlayHQ, ${Object.keys(manual).length} entered by hand${projected ? ', season not finished' : ''}`);
+  return { ...base,
+    format: { id: format.id, name: format.name, summary: format.summary, teams: format.teams, weeks: format.weeks, series: !!format.series },
+    projected, pools: ladder.pools.length, playhqFinals: played.length, finalsRounds: finalsRounds.map(r => r.name),
+    ladder: rows.slice(0, format.teams).map((row, i) => ({ position: row.position, team: row.team, logo: logoFor(row.team), points: row.points, mark: marks.marks[i] })),
+    legend: marks.legend,
+    games: r.games.map(g => ({ ...g, home: withLogo(g.home), away: withLogo(g.away) })),
+    champion: r.champion ? { name: r.champion, logo: logoFor(r.champion), colour: colourFor(r.champion) } : null };
+}
+
+// A finals winner entered by hand (winner blank clears it).
+async function setFinalsResult(body) {
+  const st = await getStructure();
+  const grade = finalsGrade(st, body);
+  if (!grade) throw new Error(`No division "${body.division}"`);
+  const format = finalsFor(grade.name);
+  if (!format || !format.games.some(g => g.id === body.game)) throw new Error(`${grade.name} has no finals game ${body.game}`);
+  const key = finalsKey(grade.name, format);
+  control.finals = control.finals || {};
+  const all = control.finals[key] = control.finals[key] || {};
+  const score = v => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? undefined : Math.max(0, Math.round(Number(v))));
+  if (!body.winner) delete all[body.game];
+  else all[body.game] = { winner: String(body.winner), homeScore: score(body.homeScore), awayScore: score(body.awayScore) };
+  if (!Object.keys(all).length) delete control.finals[key];
+  saveControl();
+  log('info', 'finals', `${grade.name} ${body.game}: ${body.winner ? `${body.winner} won${all[body.game].homeScore !== undefined ? ` ${all[body.game].homeScore}-${all[body.game].awayScore}` : ''}` : 'result cleared'} (entered by hand)`);
+  return getFinals({ division: String(grade.division) });
 }
 
 async function getLadderBar(boardId) {
@@ -2164,7 +2238,9 @@ http.createServer(async (req, res) => {
       const grade = findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' });
       if (!grade) return send(res, 404, { error: `No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}` });
       const ladder = await getLadder(grade.id);
-      return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, rules: rules(), ...ladder });
+      const marks = finals.ladderMarks(finalsFor(grade.name));
+      return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name,
+        rules: { ...rules(), finalsPlaces: marks.places }, finals: marks, ...ladder });
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion() });
     if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets(q.board || '1')));
@@ -2184,6 +2260,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/ticker') return send(res, 200, await getTicker(q.board || '1'));
     if (url.pathname === '/api/topshooters') return send(res, 200, await getTopShooters(q));
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
+    if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
+    if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
     if (url.pathname.startsWith('/deck/')) {
       const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);
       const action = deckAction(parts, q);

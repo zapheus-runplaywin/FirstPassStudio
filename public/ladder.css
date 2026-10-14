@@ -50,7 +50,23 @@ td.team { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow
 td.position { color: var(--accent); font-weight: 800; width: 64px; }
 td.points { background: var(--points-bg); color: var(--points-text); font-weight: 800; width: 84px; }
 th.points { width: 84px; }
-tbody tr.finals td.position { box-shadow: inset 5px 0 0 var(--stripe); } /* the top N, set on the competition setup page */
+/* Finals places, by what each earns in the division's finals format (competition setup page). */
+:root {
+  --finals-top: var(--yellow);      /* plays for the title, double chance, week off */
+  --finals-elim: var(--pink);       /* elimination final */
+  --finals-third: var(--muted);     /* plays for third */
+}
+tbody tr.finals td.position { box-shadow: inset 6px 0 0 var(--mark); }
+.finals--final, .finals--double, .finals--bye { --mark: var(--finals-top); }
+.finals--elim { --mark: var(--finals-elim); }
+.finals--third { --mark: var(--finals-third); }
+tbody tr.finals--last td { border-bottom: 3px solid var(--finals-elim); }   /* the finals cut-off line */
+tbody tr.finals--last:last-child td { border-bottom: 0; }
+.ladder__key { display: flex; justify-content: flex-end; gap: 26px; margin-top: 10px; padding: 8px 18px; font-size: 18px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--row-text); background: var(--row-bg); border-radius: var(--radius); }
+.ladder__key[hidden] { display: none; }
+.ladder__key-item { display: inline-flex; align-items: center; gap: 10px; }
+.ladder__key-item i { width: 18px; height: 18px; border-radius: 4px; background: var(--mark); }
 tbody tr:last-child td:first-child { border-bottom-left-radius: var(--radius); }
 tbody tr:last-child td:last-child { border-bottom-right-radius: var(--radius); }
 
