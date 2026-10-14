@@ -697,6 +697,19 @@ async function getUpNext(boardId) {
   return { ...out, ...next, logos: { home: logoFor(next.home.name), away: logoFor(next.away.name) } };
 }
 
+// The countdown page: when the game picked on the scoreboard starts. Read from the board
+// alone (no PlayHQ call), so countdown.html can ask every few seconds to notice a new game.
+function getCountdown(boardId) {
+  const b = board(boardId);
+  if (!b.gameId) return { error: 'No game picked on the scoreboard control page' };
+  const start = startOf(b);
+  return { gameId: b.gameId, start, serverNow: Date.now(), date: b.date, time: b.time,
+    competition: competitionName(), division: b.division, round: b.round, court: b.court, venueName: CONFIG.venueName || b.venue || '',
+    home: { name: b.home.name, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
+    away: { name: b.away.name, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
+    ...(start === null ? { error: 'PlayHQ has no start time for the picked game' } : {}) };
+}
+
 // ─── Scoreboard state (set from control.html, shown by scoreboard.html) ─────
 // Kept in scoreboard-state.json so a restart mid-game keeps the score. The lasting
 // settings (LASTING) also go to control.json, which wins when both have them.
@@ -2045,7 +2058,7 @@ http.createServer(async (req, res) => {
   const q = Object.fromEntries(url.searchParams);
   const started = Date.now();
   res.on('finish', () => {
-    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams' || url.pathname === '/api/goals'));
+    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams' || url.pathname === '/api/goals' || url.pathname === '/api/countdown'));
     const asset = req.method === 'GET' && !/\.html$|^\/$|^\/api\/|^\/deck\//.test(url.pathname);
     if (res.statusCode >= 400 || !(polled || asset)) {
       log(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http',
@@ -2086,6 +2099,7 @@ http.createServer(async (req, res) => {
       if (req.method === 'POST') setRoundChoice((await readBody(req)).round);
       return send(res, 200, await getRoundInfo());
     }
+    if (url.pathname === '/api/countdown') return send(res, 200, getCountdown(q.board || '1'));
     if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext(q.board || '1'));
     if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar(q.board || '1'));
     if (url.pathname === '/api/headtohead') return send(res, 200, await getHeadToHead(q.board || '1'));
