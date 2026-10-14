@@ -22,8 +22,10 @@ replace `localhost` with that computer's IP address (for example `http://192.168
 | Away −1 | http://localhost:8080/deck/away/minus1 |
 | Away −2 | http://localhost:8080/deck/away/minus2 |
 | Reset scores to 0 | http://localhost:8080/deck/scores/reset |
+| Play the super shot animation for home (score unchanged) | http://localhost:8080/deck/home/supershot |
+| Play the super shot animation for away (score unchanged) | http://localhost:8080/deck/away/supershot |
 
-Pressing any score button switches the scoreboard to manual scoring.
+Pressing any score button switches the scoreboard to manual scoring. A +2 press also plays the super shot animation (see below).
 
 ## Game
 
@@ -108,14 +110,25 @@ score is right before pressing. To force a result whatever the score, use a sour
 
 ## Super shot
 
-The super shot animation is also an OBS source: 3 seconds, then it fades out by itself, so the frame is clear again.
+The super shot animation plays by itself: 3 seconds, then it fades out, so the frame is clear again.
 
-1. In OBS add a **Browser** source, 1920 x 1080, with http://localhost:8080/supershot.html?team=home and another with
-   `?team=away`, each with **Shutdown source when not visible** and **Refresh browser when scene becomes active** ticked.
-   (Plain http://localhost:8080/supershot.html plays it without a team, in the competition's colours.)
-2. On the Stream Deck use the **OBS Studio** plugin's **Source** (visibility) action for each, next to the +2 buttons.
-   A **Multi Action** can add the 2 points (http://localhost:8080/deck/home/add2) and show the source from one key.
-   Turn the source off again before the next super shot so it replays.
+1. In OBS add a **Browser** source, 1920 x 1080, with http://localhost:8080/supershot.html and leave it on, above the scoreboard.
+   (Leave **Shutdown source when not visible** unticked.)
+2. That's it. It plays with the scoring team's logo, name and club colour whenever the scoreboard gets a super shot:
+   - a +2 press on the control page or the Stream Deck (http://localhost:8080/deck/home/add2), or
+   - while following PlayHQ, the PlayHQ scorer recording a super shot (seen within the 5 second check).
+
+Not played: two normal goals between checks, a scorer changing a goal into a super shot, scores catching up when a game is
+picked or scoring switches to Follow PlayHQ, anything after full time, and a −2. A +2 pressed by mistake still plays, so
+use −2 to fix the score. Two super shots close together play one after the other.
+
+To play it without changing the score (a test, or a super shot the scoring missed), press
+http://localhost:8080/deck/home/supershot or http://localhost:8080/deck/away/supershot.
+
+**Manual instead:** a source with `?team=home`, `?team=away` or `?team=none` (no team, the competition's colours) doesn't
+watch the scoreboard; it plays once each time it comes on. Tick **Shutdown source when not visible** and **Refresh browser
+when scene becomes active**, show it with the **OBS Studio** plugin's **Source** (visibility) action, and turn it off again
+before the next one so it replays. Don't keep a manual source and the automatic one on together, or it plays twice.
 
 ## Second court
 

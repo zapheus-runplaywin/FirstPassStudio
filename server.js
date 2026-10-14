@@ -772,7 +772,40 @@ function applyAction(b, a) {
   b.clockMatchedAt = Date.now();
   log('info', 'scoreboard', `Scores now ${follow ? 'follow PlayHQ' : 'manual'} (${a.type}), so the clock ${follow ? 'follows the PlayHQ scorer' : 'is manual'} too`);
 }
+// ─── Super shots (for supershot.html) ───────────────────────────────────────
+// Each super shot bumps b.superShot.n, and supershot.html plays when it sees n go up.
+// From the control page or Stream Deck: a +2 press. From PlayHQ: the team's super shot
+// count (2_POINT_SCORE) going up by exactly one with their score up by at least 2, so two
+// normal goals between checks and a scorer swapping a goal for a super shot don't count.
+// When the feed has no super shot count, a score jump of exactly 2 with the normal goal
+// count unchanged (or unknown) counts. The first reading after a game is picked or scores
+// switch to PlayHQ only sets the starting point, so catching up never plays it, and nothing
+// plays once the game is finished.
+const superSeen = new WeakMap(); // board -> last PlayHQ reading compared against
+function superShot(b, side, how) {
+  if (CONFIG.superShots === false) return;
+  const n = ((b.superShot && b.superShot.n) || 0) + 1;
+  b.superShot = { n, side, at: Date.now(), how };
+  log('info', 'supershot', `Super shot for ${b[side].name} (${side}, ${how}), number ${n}`);
+}
+function watchSuperShots(b, game, live, kind) {
+  const read = k => ({ score: game[k].score, goals: live ? live[k].goals : null, superGoals: live ? live[k].superGoals : null });
+  const now = { key: `${b.gameId} ${kind}`, home: read('home'), away: read('away') };
+  const before = superSeen.get(b);
+  superSeen.set(b, now);
+  if (!before || before.key !== now.key || isFinished(game)) return;
+  for (const k of ['home', 'away']) {
+    const was = before[k], is = now[k];
+    if (was.score == null || is.score == null) continue;
+    const up = is.score - was.score;
+    const counted = was.superGoals != null && is.superGoals != null;
+    if (counted ? is.superGoals - was.superGoals === 1 && up >= 2
+      : up === 2 && (was.goals == null || is.goals == null || is.goals === was.goals)) superShot(b, k, 'playhq');
+  }
+}
+
 function applyOne(b, a) {
+  if (['score', 'setScore', 'resetScores', 'selectGame', 'source', 'reset'].includes(a.type)) superSeen.delete(b); // start again from the next reading
   if (MANUAL_CLOCK.has(a.type) && b.followPlayhqClock && !a.fromToggle) {
     b.followPlayhqClock = false;
     log('info', 'scoreboard', `Clock switched to manual by ${a.type}`);
@@ -784,8 +817,10 @@ function applyOne(b, a) {
       side.score = Math.max(0, before + Number(a.delta || 0));
       noteGoals(b, a.side === 'away' ? 'away' : 'home', side.score - before, 'manual');
       b.source = 'manual';
+      if (Number(a.delta) === 2) superShot(b, a.side === 'away' ? 'away' : 'home', 'manual');
       break;
     }
+    case 'superShot': superShot(b, a.side === 'away' ? 'away' : 'home', 'test'); break; // plays it without changing the score
     case 'setScore': side.score = Math.max(0, Number(a.value) || 0); b.source = 'manual'; break;
     case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division; b.court = a.court ?? b.court; break;
     case 'selectGame':
@@ -874,6 +909,7 @@ async function refreshFromPlayhq(b) {
       game = (await getRoundGames(b.roundId, maxAge)).find(g => g.id === b.gameId);
     }
     if (!game) return;
+    watchSuperShots(b, game, s && s.live, s ? (s.live ? 'live' : 'game') : 'fixture');
     // Log what PlayHQ reports each time it changes, including "no score yet", for debugging.
     const seen = `${game.id} ${game.status} ${game.home.score} ${game.away.score}`;
     if (b.playhqSeen !== seen) {
@@ -1127,6 +1163,7 @@ function followClock(b, live) {
 // Plain GET links, so a Stream Deck "Website" button (with "GET request in
 // background" ticked) can press them. Full list in STREAMDECK.md.
 //   /deck/home/add1  add2  minus1  minus2     (same for /deck/away/...)
+//   /deck/home/supershot                      (plays supershot.html for that team, score unchanged)
 //   /deck/clock/start  stop  toggle  reset
 //   /deck/clock/set/12:34   /deck/clock/length/10 (minutes per quarter)
 //   /deck/clock/playhq/on  off  toggle   (clock follows the PlayHQ scorer)
@@ -1146,6 +1183,7 @@ function deckAction(parts, q) {
   if (what === 'home' || what === 'away') {
     const m = String(verb || '').match(/^(add|plus|minus|sub)(\d)$/);
     if (m) return { type: 'score', side: what, delta: (m[1] === 'add' || m[1] === 'plus' ? 1 : -1) * Number(m[2]) };
+    if (verb === 'supershot') return { type: 'superShot', side: what };
   }
   if (what === 'clock') {
     if (['start', 'stop', 'toggle', 'reset'].includes(verb)) return { type: 'clock' + verb[0].toUpperCase() + verb.slice(1) };

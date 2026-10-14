@@ -7,10 +7,11 @@
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
 <style>
-  /* Super shot celebration: plays once when the page loads, 3 seconds, then fades out and leaves the frame clear.
-     ?team=home|away adds that team's logo, name and club colour. Transparent outside the graphics.
+  /* Super shot celebration, 3 seconds, then it fades out and leaves the frame clear. Transparent outside the graphics.
+     By default it stays in OBS and plays whenever the scoreboard gets a super shot, with that team's logo, name and club colour.
+     ?team=home|away|none plays it once when the page loads instead (manual), for that team or without one.
      Every animation runs from one start on the page's CSS clock, so it plays the same each time.
-     Times in seconds: ball flies in 0 to 0.5, bursts 0.5, SUPER SHOT slams 0.45 to 0.65, +2 pops 0.75, team 0.95, fades 2.4 to 3. */
+     Times in seconds: ball flies in 0 to 0.5, bursts 0.5, SUPER SHOT slams 0.45 to 0.65, team 0.95, fades 2.4 to 3. */
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 900; src: url("vendor/montserrat/montserrat-latin-900-italic.woff2") format("woff2"); }
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 800; src: url("vendor/montserrat/montserrat-latin-800-italic.woff2") format("woff2"); }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -100,22 +101,6 @@
   .go .word--shot::after { animation: shine .7s ease-in-out 1.3s forwards; }
   @keyframes shine { to { background-position: -50% 0; } }
 
-  /* +2 badge popping out beside the words over a turning starburst */
-  .badge { position: absolute; left: 1490px; top: 205px; width: 0; height: 0; }
-  .burst { position: absolute; left: -175px; top: -175px; width: 350px; height: 350px; opacity: 0; background: var(--yellow);
-    clip-path: polygon(50% 0, 57% 30%, 80% 8%, 70% 37%, 100% 30%, 76% 50%, 100% 70%, 70% 63%, 80% 92%, 57% 70%, 50% 100%, 43% 70%, 20% 92%, 30% 63%, 0 70%, 24% 50%, 0 30%, 30% 37%, 20% 8%, 43% 30%); }
-  .go .burst { animation: burstIn .4s cubic-bezier(.3,1.6,.5,1) .75s forwards, spin 4s linear .75s infinite; }
-  @keyframes burstIn { 0% { opacity: 0; transform: scale(0) rotate(-60deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
-  .points { position: absolute; left: -110px; top: -110px; width: 220px; height: 220px; border-radius: 50%; box-sizing: border-box; opacity: 0;
-    display: flex; align-items: center; justify-content: center; border: 10px solid #fff;
-    background: radial-gradient(circle at 35% 30%, rgba(var(--team-rgb), 1), rgb(var(--side-dark)) 95%);
-    color: #fff; font-weight: 900; font-style: italic; font-size: 118px; letter-spacing: -4px; line-height: 1;
-    text-shadow: 5px 5px 0 rgba(0, 0, 0, .35); box-shadow: 0 14px 30px rgba(0, 0, 0, .45); }
-  .points span { margin-left: -10px; }
-  .go .points { animation: popIn .5s cubic-bezier(.3,1.8,.5,1) .78s forwards, wobble .6s ease-in-out 1.3s infinite alternate; }
-  @keyframes popIn { 0% { opacity: 0; transform: scale(0) rotate(-40deg); } 100% { opacity: 1; transform: scale(1) rotate(-8deg); } }
-  @keyframes wobble { 0% { opacity: 1; transform: scale(1) rotate(-8deg); } 100% { opacity: 1; transform: scale(1.08) rotate(4deg); } }
-
   /* ?team=home|away: the team's logo and name on a plate in their colour */
   .team { position: absolute; left: 0; right: 0; top: 625px; display: none; justify-content: center; align-items: center; opacity: 0; }
   .has-team .team { display: flex; }
@@ -132,19 +117,19 @@
 </style>
 </head>
 <body>
-  <!-- Add to OBS as a Browser source, 1920 x 1080, and tick "Shutdown source when not visible" and
-       "Refresh browser when scene becomes active" so it plays each time it comes on:
-       http://localhost:8080/supershot.html             (no team, the competition's colours)
+  <!-- Add to OBS as a Browser source, 1920 x 1080, and leave it on:
+       http://localhost:8080/supershot.html             (plays by itself for each super shot: a +2 press, or PlayHQ's scorer)
+       It runs for 3 seconds, fades out and leaves the frame clear. ?board=2 watches the second court.
+       Manual, plays once each time the source comes on (tick "Shutdown source when not visible" and "Refresh browser when scene becomes active"):
        http://localhost:8080/supershot.html?team=home   (or ?team=away: that team's logo, name and club colour)
-       It runs for 3 seconds, fades out and leaves the frame clear. ?board=2 takes the team from the second court. -->
+       http://localhost:8080/supershot.html?team=none   (no team, the competition's colours) -->
   <div class="stage" id="stage">
     <div class="shaker">
       <div class="centre"><div class="rays"></div><div class="halo"></div></div>
       <div class="lines" id="lines"></div>
       <div class="centre" id="sparks"><div class="flash"></div><div class="ring ring--1"></div><div class="ring ring--2"></div><div class="ring ring--3"></div></div>
       <div class="words"><span class="word word--super" id="w1" data-text="SUPER">SUPER</span><span class="word word--shot" id="w2" data-text="SHOT">SHOT</span></div>
-      <div class="badge"><div class="burst"></div><div class="points"><span>+2</span></div></div>
-      <div class="team" id="team"><div class="crest"><div id="logo"></div></div><div class="plate" id="plate"><h2 id="name"></h2></div></div>
+      <div class="team" id="team"><div class="crest" id="crest"></div><div class="plate" id="plate"><h2 id="name"></h2></div></div>
       <div class="centre" id="balls"></div>
     </div>
   </div>
@@ -210,37 +195,77 @@
         });
     }
 
-    async function team(side) {
-      let s;
-      try { s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json(); }
-      catch (err) { console.warn('Super shot: scoreboard unavailable, playing without the team:', err.message); return; }
-      const t = s && s[side];
-      if (!t || !t.name) return;
+    // Puts a team's logo, name and club colour on the stage, or takes them off (side '' or no name).
+    function dress(s, side) {
+      const t = side && s && s[side];
+      stage.classList.toggle('has-team', !!(t && t.name));
+      ['--team-rgb', '--side-rgb', '--side-dark', '--side-text'].forEach(v => stage.style.removeProperty(v));
+      if (!t || !t.name) return null;
       const c = colourOf(s.teamColours && s.teamColours[side], side === 'home' ? '--purple-rgb' : '--pink-rgb');
       stage.style.setProperty('--team-rgb', c.rgb);
       stage.style.setProperty('--side-rgb', c.rgb);
       stage.style.setProperty('--side-dark', c.dark);
       stage.style.setProperty('--side-text', c.text);
       $('name').textContent = t.name;
-      stage.classList.add('has-team');
+      fit($('name'), 960, 64, 30);
       const node = logoEl({ name: t.name, logo: s.logos && s.logos[side] }, 'logo');
-      $('logo').replaceWith(node);
-      if (node.tagName === 'IMG') await Promise.race([node.decode().catch(() => {}), new Promise(r => setTimeout(r, 1500))]);
-      return t.name;
+      $('crest').replaceChildren(node);
+      return node.tagName === 'IMG' ? Promise.race([node.decode().catch(() => {}), new Promise(r => setTimeout(r, 1500))]).then(() => t.name) : t.name;
+    }
+    const scoreboard = async () => (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+
+    // Starts the animation from the beginning (taking 'go' off and back on restarts every CSS animation).
+    const LENGTH_MS = 3000;
+    let playingUntil = 0, queued = null;
+    async function play(s, side) {
+      const who = await dress(s, side);
+      stage.classList.remove('go');
+      void stage.offsetWidth;
+      stage.classList.add('go');
+      playingUntil = performance.now() + LENGTH_MS;
+      window.pageLog && window.pageLog('info', `Playing the super shot${who ? ` for ${who} (${side})` : ''}`);
+      setTimeout(() => { if (queued) { const q = queued; queued = null; play(q.s, q.side); } }, LENGTH_MS);
+    }
+
+    // Watching (the default): stays clear until the helper reports a new super shot on this board (a +2 press on
+    // the control page or Stream Deck, or PlayHQ's super shot count going up), then plays it for that team.
+    // One that lands while another is playing plays straight after it. Only asks the helper on this computer.
+    let seen = null, warned = false;
+    async function watch() {
+      try {
+        const s = await scoreboard();
+        const shot = s.superShot || { n: 0 };
+        if (warned) { console.info('Super shot: the helper is back'); warned = false; }
+        if (seen === null || shot.n < seen) seen = shot.n; // first look, or the helper's count started again
+        else if (shot.n > seen) {
+          seen = shot.n;
+          const age = (s.serverNow || Date.now()) - (shot.at || 0);
+          if (age > 15000) console.info(`Super shot ${shot.n} is ${Math.round(age / 1000)} s old, so it isn't played`);
+          else if (performance.now() < playingUntil) queued = { s, side: shot.side };
+          else play(s, shot.side);
+        }
+      } catch (err) {
+        if (!warned) console.warn('Super shot: scoreboard unavailable, still watching:', err.message);
+        warned = true;
+      }
+      setTimeout(watch, 1000);
     }
 
     (async function start() {
       const side = String(opts.get('team') || '').toLowerCase();
-      if (opts.has('team') && !['home', 'away'].includes(side)) console.warn(`Super shot: ?team=${opts.get('team')} is not home or away; playing without a team`);
-      const waits = [document.fonts ? document.fonts.ready : null];
-      const named = ['home', 'away'].includes(side) ? team(side) : Promise.resolve();
-      waits.push(named);
-      await Promise.all(waits);
-      fit($('name'), 960, 64, 30);
+      if (document.fonts) await document.fonts.ready;
       balls(); sparks();
-      stage.classList.add('go');
-      const who = await named;
-      window.pageLog && window.pageLog('info', `Playing the super shot${who ? ` for ${who} (${side})` : ''}`);
+      if (!opts.has('team')) {
+        window.pageLog && window.pageLog('info', `Watching board ${boardId} for super shots`);
+        return watch();
+      }
+      // ?team=home|away|none: play once now, for that team or without one.
+      if (!['home', 'away', 'none'].includes(side)) console.warn(`Super shot: ?team=${opts.get('team')} is not home, away or none; playing without a team`);
+      let s = null;
+      if (side === 'home' || side === 'away') {
+        try { s = await scoreboard(); } catch (err) { console.warn('Super shot: scoreboard unavailable, playing without the team:', err.message); }
+      }
+      play(s, side === 'home' || side === 'away' ? side : '');
     })();
   </script>
 </body>

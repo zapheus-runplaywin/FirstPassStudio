@@ -31,8 +31,8 @@ paths:
       tags: [Scores]
       summary: Change a team's score
       description: |
-        `add2` / `minus2` are for super shots. Any score change switches the
-        scoreboard to manual scoring.
+        `add2` / `minus2` are for super shots; `add2` also plays the super shot animation
+        (supershot.html). Any score change switches the scoreboard to manual scoring.
 
         Examples: `/deck/home/add1`, `/deck/away/add2`, `/deck/home/minus1`.
       operationId: changeScore
@@ -49,6 +49,23 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/{side}/supershot:
+    get:
+      tags: [Scores]
+      summary: Play the super shot animation for a team
+      description: |
+        Plays supershot.html (the source that watches the scoreboard) for that team without
+        changing the score, e.g. to test it or after a super shot the scoring missed.
+      operationId: playSuperShot
+      parameters:
+        - name: side
+          in: path
+          required: true
+          schema: { type: string, enum: [home, away] }
+        - $ref: '#/components/parameters/board'
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
 
   /deck/scores/reset:
     get:

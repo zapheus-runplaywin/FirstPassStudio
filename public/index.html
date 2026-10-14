@@ -173,7 +173,8 @@
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b> and <b>ticker.html</b> keep asking for new data (the control page does too, but it isn't in OBS). <b>countdown.html</b> also asks the helper which game is picked every 5 seconds, but that never reaches PlayHQ.
+    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> keep asking for new data (the control page does too, but it isn't in OBS). <b>countdown.html</b> also asks the helper which game is picked every 5 seconds, but that never reaches PlayHQ.
+      The super shot page asks the helper every second for the scoreboard and nothing else, so it adds no PlayHQ requests.
       Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.
       The Clash and the winner celebration only retry if the helper isn't running.</p>
     <p class="page__help">Pages only ever talk to the helper on this computer, which uses no internet. The helper is the only thing that
@@ -237,9 +238,13 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   'To force a result, add <code>?winner=home</code>, <code>?winner=away</code> or <code>?winner=draw</code>. ' +
   'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=CHAMPIONS</code> changes the big word (or the stamp on a draw), <code>?title=Grand%20Final%20winners</code> changes the line under the score, ' +
   '<code>?score=0</code> leaves the score off. Combine them with &amp;, e.g. <code>/winner.html?out=12&amp;score=0</code>. Uses club colours from the competition setup.'], ['Super shot (after a successful super shot)', '/supershot.html',
-  'A 3 second burst after a super shot goes in: a netball flies in and bursts, SUPER and SHOT slam in from either side with a +2 badge, then it fades out and leaves the frame clear. ' +
-  'Plays once when the page loads: in OBS tick <b>Shutdown source when not visible</b> and <b>Refresh browser when scene becomes active</b>, and show it from the Stream Deck (see STREAMDECK.md). ' +
-  'On its own it uses the competition\'s colours. Add <code>?team=home</code> or <code>?team=away</code> to show that team\'s logo and name in their club colour (one OBS source and button for each), and <code>?board=2</code> for the second court.'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
+  'A 3 second burst after a super shot goes in: a netball flies in and bursts, SUPER and SHOT slam in from either side, then it fades out and leaves the frame clear. ' +
+  '<b>Automatic (this link):</b> leave the source on in OBS and it plays by itself for every super shot, with that team\'s logo and name in their club colour: ' +
+  'a +2 press on the control page or Stream Deck, or, while following PlayHQ, the PlayHQ scorer recording a super shot. ' +
+  'Two normal goals between checks, a scorer correcting a goal to a super shot, scores catching up when a game is picked, anything after full time and a −2 don\'t play it; a +2 pressed by mistake does. ' +
+  'Two close together play one after the other. <code>/deck/home/supershot</code> or <code>/deck/away/supershot</code> plays it without changing the score (to test it). ' +
+  '<b>Manual:</b> <code>?team=home</code>, <code>?team=away</code> or <code>?team=none</code> (competition colours, no team) doesn\'t watch; it plays once when the source comes on, so tick <b>Shutdown source when not visible</b> and <b>Refresh browser when scene becomes active</b> and show it from the Stream Deck (see STREAMDECK.md). ' +
+  '<code>?board=2</code> for the second court.'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
   'Who scored each of the last 10 goals of the game on the scoreboard, oldest to newest, with the quarter and time of each, a momentum line (up for a home goal, down for an away goal, shaded in the club colours), ' +
   'how many of the 10 each team scored, and the current run (3 or more in a row lights up). Super goals show a +2 badge. Like the scoreboard it updates itself every 2 seconds, so it can stay on screen: new goals pop in and the older ones slide along. ' +
   'PlayHQ only gives running totals, not a list of goals, so the order is worked out by the helper from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on the control page or Stream Deck. ' +
