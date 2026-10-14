@@ -1943,7 +1943,7 @@ function rules() {
   return { periodType: CONFIG.periodType, periods: CONFIG.periodType === 'halves' ? 2 : 4, periodLabel: CONFIG.periodType === 'halves' ? 'H' : 'Q',
     periodMinutes: CONFIG.quarterMinutes, superShots: CONFIG.superShots !== false, finalsPlaces: Number(CONFIG.finalsPlaces) || 0,
     competitionLogo: light, competitionLogoLight: light, competitionLogoDark: dark,
-    titleEmoji: CONFIG.titleEmoji ?? '🔥', clashWord: CONFIG.clashWord || 'CLASH' };
+    titleEmoji: CONFIG.titleEmoji ?? '🔥', clashWord: CONFIG.clashWord || 'CLASH', competitionName: competitionName() || '' };
 }
 
 async function getLadderBar(boardId) {

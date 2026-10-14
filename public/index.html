@@ -132,7 +132,7 @@
     <div id="fixturePages"></div>
   </div>
   <div class="card">
-    <h2>Competition logo animation (about 5 seconds)</h2>
+    <h2>Competition logo animations (17 templates, about 5 seconds each)</h2>
     <div id="logoPages"></div>
   </div>
   <div class="card">
@@ -262,16 +262,37 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
 document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
-[['Logo animation: fun (swoops in, slams down, rockets out)', '/logo.html',
-  'One big competition logo from the competition setup: it swoops in around the screen, slams down in the middle with a burst in the competition\'s colours, holds, then rockets out. Plays once when the page loads, about 5 seconds, ' +
-  'then leaves the frame clear: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on.'],
- ['Logo animation: professional (wipe, lines and a light sweep)', '/logo.html?style=pro',
-  'The same logo with a clean, calm reveal. Options for both: <code>?mode=light</code> (the default) or <code>?mode=dark</code> uses the setup\'s light or dark mode competition logo, ' +
+[['Logo animation: fun (swoops in, slams down, rockets out; the default)', '/logo.html?template=fun',
+  'One big competition logo from the competition setup: it swoops in around the screen, slams down in the middle with a burst in the competition\'s colours, holds, then rockets out. ' +
+  'Every template plays once when the page loads, about 5 seconds, then leaves the frame clear: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
+  'Pick a template with <code>?template=</code> and its name, as in the links below (<code>?template=random</code> picks a different one each time).'],
+ ['Logo animation: pro (wipe, lines and a light sweep)', '/logo.html?template=pro', 'The same logo with a clean, calm reveal.'],
+ ['Logo animation: coin (spins in like a tossed coin)', '/logo.html?template=coin', 'Spins in from the distance, its back in the accent colour, lands with sparkles and a light sweep, then spins away.'],
+ ['Logo animation: tiles (coloured tiles flip over)', '/logo.html?template=tiles', 'Tiles in the competition\'s colours pop up in a wave and flip over one by one to make the logo, then fall away.'],
+ ['Logo animation: slices (strips slide in)', '/logo.html?template=slices', 'Colour bars streak across and the logo slides in strip by strip from alternate sides, then slides out the other way.'],
+ ['Logo animation: glitch (colour split, switches off like an old TV)', '/logo.html?template=glitch', 'Flickers on with a colour split and torn slices, glitches twice while it holds, then shrinks to a line and a dot.'],
+ ['Logo animation: badge (rings with the competition name)', '/logo.html?template=badge', 'Rings draw round the logo with the competition name turning in a band, then the badge spins away. ' +
+  'The name comes from PlayHQ (or the setup\'s display name); <code>?text=Grand%20Final</code> uses other words.'],
+ ['Logo animation: doors (full screen panels slam shut)', '/logo.html?template=doors', 'Two striped panels in the competition\'s colours slam shut across the whole screen, the logo punches in on them, then they open again. ' +
+  'It covers the picture in the middle, so it works as a transition between scenes.'],
+ ['Logo animation: bounce (drops in and bounces)', '/logo.html?template=bounce', 'Drops in from the top and bounces to a stop with a shadow under it, hops once, then jumps off the top of the screen.'],
+ ['Logo animation: lightning (bolts strike)', '/logo.html?template=lightning', 'Lightning strikes, the logo flashes on white hot with a jolt, sparks crackle round it, and one last strike takes it away.'],
+ ['Logo animation: rings (broken rings spin round it)', '/logo.html?template=rings', 'Broken rings and dots in the competition\'s colours spin into place round the logo and keep turning, then fly apart.'],
+ ['Logo animation: title (logo and competition name)', '/logo.html?template=title', 'The logo pops in, slides left and the competition name wipes in beside it on an underline. ' +
+  '<code>?text=Grand%20Final</code> changes the words and <code>?sub=Round%206</code> adds a smaller line under them.'],
+ ['Logo animation: goal (netball, the ball goes through the ring)', '/logo.html?template=goal', 'A goal post rises, the ball arcs up and drops through the ring with a swish of the net, then the logo punches in where the post was.'],
+ ['Logo animation: court (netball, the court draws on)', '/logo.html?template=court', 'A netball court to scale, in the competition\'s colours and in perspective: its lines draw on, the logo stands up on the centre third, then it all folds away.'],
+ ['Logo animation: bibs (netball, the seven positions)', '/logo.html?template=bibs', 'The logo pops in and the seven position bibs, GS round to GK, pop in around it, bob while it holds, then fly away.'],
+ ['Logo animation: pass (netball, down the court GK to GS)', '/logo.html?template=pass', 'The ball is passed down the court from GK to GS, leaving a line in the accent colour, and the last pass to the middle becomes the logo.'],
+ ['Logo animation: net (netball, the logo drops through the ring)', '/logo.html?template=net', 'A big ring and net rise up, the logo drops through it like a goal and the net swishes, then the ring drops away and the logo rises to the middle.'],
+ ['Logo animation options (for every template)', '/logo.html?template=coin&out=0',
+  '<code>?mode=light</code> (the default) or <code>?mode=dark</code> uses the setup\'s light or dark mode competition logo, ' +
   '<code>?out=0</code> keeps the logo on screen at the end, <code>?size=640</code> sets its height in pixels, and <code>?speed=1.5</code> plays it faster (<code>0.5</code> slower). ' +
   'The page is transparent unless you add a background, which fades in and out with the animation: <code>?bg=gradient</code> is a dark radial gradient, ' +
   '<code>?bg=7f4092</code> (a hex colour without the #, or a colour name) a radial gradient from that colour to a darker shade, <code>?bg2=</code> sets the edge colour, ' +
   '<code>?bg=solid-7f4092</code> a flat colour, and <code>?bgimage=court.jpg</code> a picture from the competition\'s brand folder (competitions/&lt;competition&gt;/brand/) or a full link. ' +
-  'Combine them with &amp;, e.g. <code>/logo.html?style=pro&amp;mode=dark&amp;bg=7f4092</code>. With no competition logo in the setup the page stays empty.']]
+  'Combine them with &amp;, e.g. <code>/logo.html?template=badge&amp;mode=dark&amp;bg=7f4092</code>. The templates after fun and pro use flat, hard edged shapes only, so nothing leaves a halo over key and fill. ' +
+  'With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
 [['PIVT and FirstPass Studio ad', '/ad.html',
   'The PIVT and FirstPass Studio logos animated together for 10 seconds: PIVT slams in, FirstPass Studio wipes in below it, they hold, then sweep away. ' +

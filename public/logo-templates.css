@@ -1,0 +1,332 @@
+/* Logo animation templates for logo.html (?template=coin, tiles, slices, glitch, badge, doors, bounce, lightning, rings, title,
+   and the netball ones goal, court, bibs, pass, net).
+   Every template runs from one start on the page's CSS clock: the in, the hold and the exit are all set by delays, so the
+   page plays the same at 50 or 60 frames a second and any moment of it can be seeked. Times are in seconds at ?speed=1
+   (the page sets playbackRate for other speeds): in by about 1.5, exit from --out (4.2), clear by 5.
+   ?out=0 adds .stay, which moves --out far into the future so the exit never starts.
+   Shapes are hard edged (no soft glows or radial fades) so nothing leaves a halo over key and fill. */
+.tpl { --out: 4.2s; }
+.tpl.stay { --out: 100000s; }
+.tpl .centre, .tpl .confetti { display: none; }
+.tpl.go .backdrop { animation: fadeIn .3s ease-out both, fadeOut .5s ease-in calc(var(--out) + .3s) forwards; }
+.t-centre { position: absolute; left: 960px; top: 540px; width: 0; height: 0; }
+.tpl .logo-box { position: relative; line-height: 0; }
+.tpl .t-centre > * { position: absolute; left: 0; top: 0; translate: -50% -50%; width: max-content; }
+/* A flat colour in the logo's shape */
+.sil { position: absolute; inset: 0; background: var(--c, var(--yellow));
+  -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
+/* A light sweep across the logo, kept inside its shape */
+.t-shine { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.7) 50%, transparent 62%) no-repeat;
+  background-size: 250% 100%; background-position: 160% 0;
+  -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
+@keyframes tShine { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+@keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+@keyframes popOut { 0% { transform: scale(1); } 100% { transform: scale(0); } }
+@keyframes hide { to { opacity: 0; } }
+
+/* ---------- coin: spins in like a tossed coin, the back in the accent colour, sparkles, spins away ---------- */
+/* (opacity sits on .coin, not .spinner: opacity on a 3D element flattens it and shows the logo mirrored from behind) */
+.t-coin .coin { perspective: 2400px; opacity: 0; animation: fadeIn .1s linear both; }
+.t-coin .spinner { transform-style: preserve-3d; animation: coinIn 1.7s linear both, coinOut .75s cubic-bezier(.6,0,.9,.6) var(--out) forwards; }
+.t-coin .front, .t-coin .back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.t-coin .back { position: absolute; inset: 0; transform: rotateY(180deg); }
+.t-coin .t-shine { animation: tShine 1.1s ease-in-out 2.1s both; }
+@keyframes coinIn {
+  0%   { transform: scale(.04) rotateY(0deg); animation-timing-function: cubic-bezier(.2,.6,.35,1); }
+  78%  { transform: scale(1.1) rotateY(1440deg); animation-timing-function: ease-in-out; }
+  100% { transform: scale(1) rotateY(1440deg); }
+}
+@keyframes coinOut { from { transform: scale(1) rotateY(1440deg); } to { transform: scale(0) rotateY(2340deg); } }
+.t-coin .spark { width: var(--s); height: var(--s); margin: var(--y) 0 0 var(--x); background: var(--c); transform: scale(0);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: sparkle .6s ease-out var(--d) both; }
+@keyframes sparkle { 0% { transform: scale(0) rotate(0); } 40% { transform: scale(1) rotate(45deg); } 100% { transform: scale(0) rotate(120deg); } }
+
+/* ---------- tiles: coloured tiles pop in and flip one by one to show the logo, then fall away ---------- */
+.t-tiles .tile { animation: tileFlip .8s ease-in-out var(--d) both, tileFall .7s cubic-bezier(.5,0,.9,.5) calc(var(--out) + var(--e)) forwards; }
+.t-tiles .tile .face { position: absolute; inset: 0; background: var(--c); animation: faceOff .8s linear var(--d) both; }
+.t-tiles .tile .logo { animation: faceOn .8s linear var(--d) both; }
+@keyframes tileFlip {
+  0%   { transform: perspective(1400px) rotateY(0deg) scale(0); }
+  35%  { transform: perspective(1400px) rotateY(0deg) scale(1); }
+  65%  { transform: perspective(1400px) rotateY(90deg) scale(1); }
+  100% { transform: perspective(1400px) rotateY(0deg) scale(1); }
+}
+@keyframes faceOff { 0%, 64.9% { opacity: 1; } 65%, 100% { opacity: 0; } }
+@keyframes faceOn { 0%, 64.9% { opacity: 0; } 65%, 100% { opacity: 1; } }
+@keyframes tileFall {
+  0%   { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--fx), 900px) rotate(var(--fr)) scale(.7); }
+}
+
+/* ---------- slices: colour bars streak across and the logo slides in strip by strip, then out the other side ---------- */
+.t-slices .strip { animation: var(--in) .7s cubic-bezier(.2,.9,.25,1) calc(.15s + var(--i) * .06s) both,
+                               var(--away) .55s cubic-bezier(.7,0,.9,.5) calc(var(--out) + var(--i) * .04s) forwards; }
+.t-slices .sbar { width: 2200px; height: calc(var(--size) / var(--n) * .55); margin-top: calc(var(--size) * ((var(--i) + .5) / var(--n) - .5));
+  background: var(--c); clip-path: inset(0 100% 0 0);
+  animation: var(--sweep) .5s cubic-bezier(.6,0,.4,1) calc(var(--i) * .06s) both,
+             var(--sweep) .5s cubic-bezier(.6,0,.4,1) calc(var(--out) + var(--i) * .04s - .05s) both; }
+@keyframes fromLeft { from { transform: translateX(-1700px); } to { transform: none; } }
+@keyframes fromRight { from { transform: translateX(1700px); } to { transform: none; } }
+@keyframes toLeft { from { transform: none; } to { transform: translateX(-1700px); } }
+@keyframes toRight { from { transform: none; } to { transform: translateX(1700px); } }
+@keyframes sweepRight { 0% { clip-path: inset(0 100% 0 0); } 50% { clip-path: inset(0 0 0 0); } 100% { clip-path: inset(0 0 0 100%); } }
+@keyframes sweepLeft { 0% { clip-path: inset(0 0 0 100%); } 50% { clip-path: inset(0 0 0 0); } 100% { clip-path: inset(0 100% 0 0); } }
+
+/* ---------- glitch: flickers in with a colour split and torn slices, glitches now and then, switches off like an old TV ---------- */
+.t-glitch .g-wrap { opacity: 0; animation: gFlick .9s steps(1, end) both, tvOff .55s cubic-bezier(.7,0,.3,1) calc(var(--out) + .3s) forwards; }
+.t-glitch .g-a { --c: var(--yellow); opacity: 0; }
+.t-glitch .g-b { --c: var(--pink); opacity: 0; }
+.t-glitch .g-a, .t-glitch .g-b, .t-glitch .g-slice {
+  animation: gSplit 1.2s steps(1, end) both, gBurst .25s steps(1, end) 2.3s, gBurst .2s steps(1, end) 3.35s, gBurst .3s steps(1, end) var(--out); }
+.t-glitch .g-b { animation-name: gSplitB, gBurstB, gBurstB, gBurstB; }
+.t-glitch .g-slice { position: absolute; inset: 0; opacity: 0; clip-path: var(--band); }
+.t-glitch .g-slice .logo, .t-glitch .g-main .logo { display: block; }
+.t-glitch .g-slice { animation-name: gTear, gTear, gTear, gTear; animation-duration: 1s, .25s, .2s, .3s; }
+.t-glitch .g-lines { --c: rgba(0,0,0,.28); background: repeating-linear-gradient(transparent 0 3px, var(--c) 3px 6px); opacity: 0;
+  animation: gFlick 1s steps(1, end) both, hide .01s 1s forwards; }
+@keyframes gFlick { 0% { opacity: 0; } 8% { opacity: 1; } 14% { opacity: 0; } 22% { opacity: 1; } 30% { opacity: .2; } 36% { opacity: 1; } 100% { opacity: 1; } }
+@keyframes gSplit {
+  0% { opacity: .95; transform: translate(-46px, 8px); } 10% { transform: translate(24px, -5px); } 20% { transform: translate(-16px, 10px); }
+  30% { transform: translate(34px, 0); } 45% { transform: translate(-12px, -6px); } 60% { transform: translate(9px, 3px); }
+  75% { transform: translate(-4px, 0); } 88% { opacity: .95; transform: none; } 90%, 100% { opacity: 0; transform: none; } }
+@keyframes gSplitB {
+  0% { opacity: .95; transform: translate(42px, -6px); } 10% { transform: translate(-28px, 4px); } 20% { transform: translate(18px, -9px); }
+  30% { transform: translate(-30px, 2px); } 45% { transform: translate(14px, 5px); } 60% { transform: translate(-8px, -2px); }
+  75% { transform: translate(5px, 0); } 88% { opacity: .95; transform: none; } 90%, 100% { opacity: 0; transform: none; } }
+@keyframes gBurst { 0% { opacity: .95; transform: translate(-20px, 0); } 25% { transform: translate(15px, 2px); } 50% { transform: translate(-9px, 0); }
+  75% { transform: translate(6px, -2px); } 100% { opacity: 0; transform: none; } }
+@keyframes gBurstB { 0% { opacity: .95; transform: translate(18px, 0); } 25% { transform: translate(-14px, -2px); } 50% { transform: translate(10px, 0); }
+  75% { transform: translate(-5px, 2px); } 100% { opacity: 0; transform: none; } }
+@keyframes gTear { 0% { opacity: 1; transform: translateX(calc(var(--k) * 70px)); } 15% { transform: translateX(calc(var(--k) * -95px)); }
+  30% { transform: translateX(calc(var(--k) * 40px)); } 45% { transform: translateX(calc(var(--k) * -25px)); }
+  60% { opacity: 1; transform: translateX(calc(var(--k) * 60px)); } 62%, 100% { opacity: 0; transform: none; } }
+@keyframes tvOff {
+  0%   { transform: scale(1, 1); filter: brightness(1); }
+  45%  { transform: scale(1.12, .02); filter: brightness(4); }
+  100% { transform: scale(0, .02); filter: brightness(4); }
+}
+
+/* ---------- badge: rings draw round the logo with the competition name turning in a band ---------- */
+.t-badge .badge { width: calc(var(--size) * 1.55); height: calc(var(--size) * 1.55);
+  animation: badgeOut .7s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
+.t-badge .badge > * { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
+.t-badge .b-rings, .t-badge .b-text { width: 100%; height: 100%; }
+.t-badge svg { width: 100%; height: 100%; overflow: visible; }
+/* dashes a touch longer than the circle, so no hairline is left where it closes */
+.t-badge circle { fill: none; stroke-dasharray: 1.02 1; }
+.t-badge .b-band { stroke: var(--purple); stroke-width: 110; animation: draw .7s cubic-bezier(.6,0,.3,1) .05s both; }
+.t-badge .b-outer { stroke: var(--yellow); stroke-width: 12; animation: drawBack .7s cubic-bezier(.6,0,.3,1) .2s both; }
+.t-badge .b-inner { stroke: var(--yellow); stroke-width: 8; animation: drawBack .7s cubic-bezier(.6,0,.3,1) .3s both; }
+.t-badge .b-text { animation: textIn .6s cubic-bezier(.2,.8,.3,1) .65s both; }
+.t-badge .b-text svg { animation: spin 16s linear .65s infinite; }
+.t-badge text { fill: #ffffff; font-family: var(--font); font-weight: 800; font-size: 60px; letter-spacing: 4px; text-transform: uppercase; }
+.t-badge .logo-box { animation: popIn .6s cubic-bezier(.2,1.5,.4,1) .7s both; }
+.t-badge .logo { height: calc(var(--size) * .72); max-width: calc(var(--size) * .8); }
+@keyframes draw { from { stroke-dashoffset: 1.02; } to { stroke-dashoffset: 0; } }
+@keyframes drawBack { from { stroke-dashoffset: -1; } to { stroke-dashoffset: 0; } }
+@keyframes textIn { from { opacity: 0; transform: rotate(-120deg) scale(.8); } to { opacity: 1; transform: none; } }
+@keyframes badgeOut { 0% { transform: none; } 25% { transform: scale(1.06) rotate(10deg); } 100% { transform: scale(0) rotate(-220deg); } }
+
+/* ---------- doors: two panels in the competition colours slam shut across the screen, the logo punches in, they open again ---------- */
+.t-doors .panel { position: absolute; top: 0; width: 1080px; height: 1080px;
+  background: repeating-linear-gradient(103deg, var(--purple-dark) 0 70px, var(--purple-dark-light) 70px 140px); }
+.t-doors .panel--left { left: 0; clip-path: polygon(0 0, 100% 0, 840px 100%, 0 100%);
+  animation: doorL .5s cubic-bezier(.7,0,.9,.6) both, doorLOut .55s cubic-bezier(.5,0,.8,.5) calc(var(--out) + .25s) forwards; }
+.t-doors .panel--right { left: 840px; clip-path: polygon(240px 0, 100% 0, 100% 100%, 0 100%);
+  animation: doorR .5s cubic-bezier(.7,0,.9,.6) both, doorROut .55s cubic-bezier(.5,0,.8,.5) calc(var(--out) + .25s) forwards; }
+.t-doors .seam { position: absolute; left: 946px; top: -60px; width: 28px; height: 1200px; background: var(--yellow);
+  transform-origin: 50% 0; transform: rotate(12.53deg) scaleY(0);
+  animation: seamIn .3s ease-out .5s both, seamOut .25s ease-in var(--out) forwards; }
+.t-doors .slam { animation: shake .4s linear .5s; }
+.t-doors .logo-box { opacity: 0; animation: punch .45s cubic-bezier(.2,1.2,.4,1) .6s both, popOut .3s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
+@keyframes doorL { from { transform: translateX(-1150px); } to { transform: none; } }
+@keyframes doorR { from { transform: translateX(1150px); } to { transform: none; } }
+@keyframes doorLOut { from { transform: none; } to { transform: translateX(-1150px); } }
+@keyframes doorROut { from { transform: none; } to { transform: translateX(1150px); } }
+@keyframes seamIn { from { transform: rotate(12.53deg) scaleY(0); } to { transform: rotate(12.53deg) scaleY(1); } }
+@keyframes seamOut { from { transform: rotate(12.53deg) scaleY(1); } to { transform: rotate(12.53deg) scaleY(0); } }
+@keyframes punch { 0% { opacity: 0; transform: scale(2.4); } 40% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
+
+/* ---------- bounce: drops in from the top and bounces to a stop, hops, then jumps off the top ---------- */
+.t-bounce .drop { animation: bDrop 1.7s both, bHop .6s 2.9s, bUp .7s var(--out) forwards; }
+.t-bounce .squash { transform-origin: 50% 100%; animation: bSquash 1.7s linear both, bHopSquash .6s linear 2.9s, bLaunch .7s linear var(--out) forwards; }
+.t-bounce .shadow { width: var(--size); height: calc(var(--size) * .1); margin-top: calc(var(--size) * .53); border-radius: 50%;
+  background: rgba(0,0,0,.35); animation: bShadow 1.7s both, bHopShadow .6s 2.9s, hide .3s var(--out) forwards; }
+.t-bounce .dust { width: var(--s); height: var(--s); margin: calc(var(--size) * .48) 0 0 0; border-radius: 50%; background: var(--c); transform: scale(0);
+  animation: dust .7s cubic-bezier(.1,.7,.3,1) .54s both; }
+@keyframes bDrop {
+  0%   { transform: translateY(-1300px); animation-timing-function: cubic-bezier(.55,0,1,.45); }
+  32%  { transform: translateY(0); animation-timing-function: cubic-bezier(0,.55,.45,1); }
+  50%  { transform: translateY(-300px); animation-timing-function: cubic-bezier(.55,0,1,.45); }
+  65%  { transform: translateY(0); animation-timing-function: cubic-bezier(0,.55,.45,1); }
+  75%  { transform: translateY(-110px); animation-timing-function: cubic-bezier(.55,0,1,.45); }
+  84%  { transform: translateY(0); animation-timing-function: cubic-bezier(0,.55,.45,1); }
+  90%  { transform: translateY(-30px); animation-timing-function: cubic-bezier(.55,0,1,.45); }
+  95%, 100% { transform: translateY(0); }
+}
+@keyframes bSquash {
+  0%, 30% { transform: scale(.88, 1.16); } 32% { transform: scale(1.32, .66); } 37% { transform: scale(.9, 1.12); } 43% { transform: none; }
+  63% { transform: scale(.95, 1.06); } 65% { transform: scale(1.18, .82); } 70% { transform: scale(.96, 1.04); } 75% { transform: none; }
+  84% { transform: scale(1.09, .91); } 88% { transform: none; } 95% { transform: scale(1.04, .96); } 98%, 100% { transform: none; }
+}
+@keyframes bShadow {
+  0% { opacity: 0; transform: scale(.2); } 32% { opacity: 1; transform: scale(1.12); } 50% { opacity: .5; transform: scale(.65); }
+  65% { opacity: 1; transform: scale(1.06); } 75% { opacity: .8; transform: scale(.85); } 84% { transform: scale(1.02); }
+  90% { transform: scale(.95); } 95%, 100% { opacity: 1; transform: scale(1); }
+}
+@keyframes bHop { 0%, 8% { transform: none; animation-timing-function: cubic-bezier(0,.55,.45,1); } 50% { transform: translateY(-110px); animation-timing-function: cubic-bezier(.55,0,1,.45); } 92%, 100% { transform: none; } }
+@keyframes bHopSquash { 0% { transform: none; } 8% { transform: scale(1.15, .85); } 18% { transform: scale(.92, 1.1); } 45% { transform: none; }
+  88% { transform: scale(.95, 1.05); } 93% { transform: scale(1.12, .88); } 100% { transform: none; } }
+@keyframes bHopShadow { 0%, 8% { transform: scale(1); } 50% { opacity: .55; transform: scale(.7); } 92%, 100% { opacity: 1; transform: scale(1); } }
+@keyframes bUp { 0%, 28% { transform: none; animation-timing-function: cubic-bezier(.5,0,1,.5); } 100% { transform: translateY(-1450px); } }
+@keyframes bLaunch { 0% { transform: none; } 25% { transform: scale(1.25, .75); } 40% { transform: scale(.8, 1.3); } 100% { transform: scale(.85, 1.25); } }
+@keyframes dust { 0% { transform: scale(0); } 15% { transform: scale(1); } 100% { transform: translate(var(--x), var(--y)) scale(0); } }
+
+/* ---------- lightning: bolts strike, the logo flashes on with a jolt, sparks crackle round it, one last strike takes it away ---------- */
+.t-lightning .bolts { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+.t-lightning .bolt { opacity: 0; animation: boltFlick var(--t, .55s) steps(1, end) var(--d) forwards; }
+.t-lightning .bolt path { fill: none; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1 1; stroke-dashoffset: 1;
+  animation: draw .1s linear var(--d) forwards; }
+.t-lightning .bolt .edge { stroke: var(--yellow); stroke-width: 18; }
+.t-lightning .bolt .core { stroke: #ffffff; stroke-width: 7; }
+.t-lightning .spark .edge { stroke-width: 10; }
+.t-lightning .spark .core { stroke-width: 4; }
+.t-lightning .jolt { animation: shake .45s linear .5s, shake .35s linear var(--out); }
+.t-lightning .logo-box { opacity: 0; animation: strikeIn .7s steps(1, end) .48s forwards, strikeOut .45s steps(1, end) calc(var(--out) + .1s) forwards; }
+.t-lightning .logo { animation: charge .9s ease-out .48s backwards, charge .4s ease-in var(--out) reverse forwards; }
+@keyframes boltFlick { 0% { opacity: 1; } 30% { opacity: 0; } 40% { opacity: 1; } 60% { opacity: .35; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes strikeIn { 0% { opacity: 1; } 12% { opacity: 0; } 22% { opacity: 1; } 34% { opacity: .3; } 44%, 100% { opacity: 1; } }
+@keyframes strikeOut { 0% { opacity: 1; } 20% { opacity: 0; } 35% { opacity: 1; } 55% { opacity: .3; } 70% { opacity: 1; } 85%, 100% { opacity: 0; } }
+@keyframes charge { from { filter: grayscale(1) brightness(4); } to { filter: grayscale(0) brightness(1); } }
+
+/* ---------- rings: broken rings in the competition colours spin into place round the logo and keep turning ---------- */
+.t-rings .rw { opacity: 0; animation: ringIn .8s cubic-bezier(.2,1.3,.4,1) var(--d) both, ringOut .6s ease-in calc(var(--out) + var(--e)) forwards; }
+.t-rings .rw svg { display: block; width: calc(var(--size) * 1.55); height: calc(var(--size) * 1.55); overflow: visible;
+  animation: spin var(--spin) linear infinite var(--dir); }
+.t-rings circle { fill: none; }
+.t-rings .logo-box { animation: popIn .7s cubic-bezier(.2,1.5,.4,1) .5s both, popOut .4s cubic-bezier(.6,0,.9,.5) calc(var(--out) + .15s) forwards; }
+.t-rings .logo { height: calc(var(--size) * .62); max-width: calc(var(--size) * .9); }
+@keyframes ringIn { from { opacity: 0; transform: scale(.2) rotate(-120deg); } to { opacity: 1; transform: none; } }
+@keyframes ringOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(1.7) rotate(90deg); } }
+
+/* ---------- title: the logo pops in, slides left and the competition name wipes in beside it on an underline ---------- */
+.t-title .row { display: flex; align-items: center; gap: calc(var(--size) * .09); }
+.t-title .slide { animation: tSlide .7s cubic-bezier(.7,0,.2,1) .75s both, tSlideBack .4s cubic-bezier(.7,0,.2,1) calc(var(--out) + .25s) forwards; }
+.t-title .logo-box { animation: popIn .6s cubic-bezier(.2,1.4,.4,1) both, popOut .3s cubic-bezier(.6,0,.9,.5) calc(var(--out) + .6s) forwards; }
+.t-title .logo { height: calc(var(--size) * .62); max-width: calc(var(--size) * 1.1); }
+.t-title .words { clip-path: inset(-30% 100% -30% 0); color: var(--text, #fff);
+  animation: wipeIn .6s cubic-bezier(.7,0,.2,1) 1.05s both, wipeOut .4s cubic-bezier(.7,0,.2,1) var(--out) forwards; }
+.t-title .name { font-family: var(--font); font-weight: 900; font-style: italic; text-transform: uppercase; white-space: nowrap;
+  font-size: calc(var(--size) * .17); line-height: 1; padding-right: .1em; animation: nudge .8s cubic-bezier(.2,.8,.2,1) 1.05s both; }
+.t-title .sub { font-family: var(--font); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; white-space: nowrap;
+  font-size: calc(var(--size) * .055); color: var(--yellow); margin-top: calc(var(--size) * .03); }
+.t-title .sub:empty { display: none; }
+.t-title .bar { height: calc(var(--size) * .028); margin-top: calc(var(--size) * .03); background: var(--yellow); transform-origin: 0 50%; transform: scaleX(0);
+  animation: barIn .5s cubic-bezier(.6,0,.3,1) 1.2s both, barOut .3s ease-in var(--out) forwards; }
+@keyframes tSlide { from { transform: translateX(var(--shift)); } to { transform: none; } }
+@keyframes tSlideBack { from { transform: none; } to { transform: translateX(var(--shift)); } }
+@keyframes wipeIn { from { clip-path: inset(-30% 100% -30% 0); } to { clip-path: inset(-30% -10% -30% 0); } }
+@keyframes wipeOut { from { clip-path: inset(-30% -10% -30% 0); } to { clip-path: inset(-30% 100% -30% 0); } }
+@keyframes nudge { from { transform: translateX(-80px); } to { transform: none; } }
+@keyframes barIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes barOut { from { transform: scaleX(1); transform-origin: 100% 50%; } to { transform: scaleX(0); transform-origin: 100% 50%; } }
+
+/* ======================= Netball templates ======================= */
+/* The netball: plain white (drawn by the script as SVG) */
+.netball { display: block; overflow: visible; }
+.netball .skin { fill: #ffffff; stroke: #9aa0aa; stroke-width: 2; }
+
+/* ---------- goal: the ball arcs through the ring, the net swishes, the logo punches in ---------- */
+.t-goal .layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.t-goal .post { fill: #e8e8e8; stroke: #1d1d1f; stroke-width: 3; }
+.t-goal .hoop { fill: none; stroke: #e0502a; stroke-width: 9; stroke-linecap: round; }
+.t-goal .net path { fill: none; stroke: #ffffff; stroke-width: 3; stroke-linejoin: round; }
+.t-goal .goalpost { animation: rise .45s cubic-bezier(.2,.9,.3,1) both, sink .45s cubic-bezier(.6,0,.9,.5) 1.6s forwards; }
+.t-goal .net { transform-box: view-box; transform-origin: 960px 420px; animation: swish .5s ease-out 1.25s; }
+.t-goal .bx { position: absolute; left: 0; top: 0; opacity: 0;
+  animation: ballX 1.2s linear .3s both, hide .1s 1.5s forwards; }
+.t-goal .by { animation: ballY 1.2s linear .3s both; }
+.t-goal .bx svg { translate: -50% -50%; animation: spin .5s linear infinite reverse; }
+.t-goal .t-centre .logo-box { opacity: 0; animation: punch .45s cubic-bezier(.2,1.2,.4,1) 1.65s both, popOut .3s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
+.t-goal .burst-ring { width: calc(var(--size) * .6); height: calc(var(--size) * .6); border-radius: 50%; box-sizing: border-box;
+  border: 22px solid var(--yellow); opacity: 0; animation: ringBurst .7s cubic-bezier(.1,.7,.3,1) 1.65s; }
+@keyframes rise { from { transform: translateY(800px); } to { transform: none; } }
+@keyframes sink { from { transform: none; } to { transform: translateY(800px); } }
+@keyframes swish { 0% { transform: none; } 30% { transform: scale(.82, 1.32); } 60% { transform: scale(1.06, .9); } 100% { transform: none; } }
+/* x and y move separately so the ball flies in an arc: it is over the middle of the ring (960, 420) when it comes down
+   through it at about 1.25 s, then drops out of the bottom of the net */
+@keyframes ballX {
+  0%   { opacity: 1; transform: translateX(280px); animation-timing-function: cubic-bezier(.3,.5,.5,1); }
+  58%  { opacity: 1; transform: translateX(950px); animation-timing-function: ease-out; }
+  72%, 100% { opacity: 1; transform: translateX(960px); }
+}
+@keyframes ballY {
+  0%   { transform: translateY(1010px); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+  45%  { transform: translateY(200px); animation-timing-function: cubic-bezier(.55,0,1,.55); }
+  100% { transform: translateY(760px); }
+}
+@keyframes ringBurst { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(3.2); } }
+
+/* ---------- court: the court draws on in perspective and the logo stands up in the centre third ---------- */
+.t-court .court { position: absolute; left: 210px; top: 330px; width: 1500px; height: 750px;
+  transform: perspective(1500px) rotateX(58deg); transform-origin: 50% 50%;
+  animation: courtIn .6s cubic-bezier(.2,.8,.3,1) both, courtOut .6s cubic-bezier(.6,0,.9,.5) calc(var(--out) + .2s) forwards; }
+.t-court svg { width: 100%; height: 100%; overflow: visible; }
+.t-court .floor { fill: var(--purple-dark); }
+.t-court .third { fill: var(--purple-shade); }
+.t-court .cline { fill: none; stroke: #ffffff; stroke-width: 9; stroke-dasharray: 1.02 1; stroke-dashoffset: 1.02;
+  animation: draw .6s cubic-bezier(.6,0,.3,1) var(--d) forwards, undraw .4s ease-in var(--out) forwards; }
+.t-court .t-centre { top: 470px; }
+.t-court .logo-box { animation: standUp .7s cubic-bezier(.2,1.3,.4,1) 1.1s both, popOut .35s cubic-bezier(.6,0,.9,.5) calc(var(--out) + .1s) forwards; transform-origin: 50% 100%; }
+.t-court .logo { height: calc(var(--size) * .75); max-width: calc(var(--size) * 1.2); }
+@keyframes courtIn { from { opacity: 0; transform: perspective(1500px) rotateX(58deg) translateY(500px) scale(.6); } to { opacity: 1; transform: perspective(1500px) rotateX(58deg); } }
+@keyframes courtOut { from { opacity: 1; transform: perspective(1500px) rotateX(58deg); } to { opacity: 0; transform: perspective(1500px) rotateX(80deg) translateY(300px); } }
+@keyframes undraw { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -1.02; } }
+@keyframes standUp { 0% { transform: perspective(1200px) rotateX(-90deg); } 100% { transform: perspective(1200px) rotateX(0deg); } }
+
+/* ---------- bibs: the logo pops in, then the seven position bibs GS to GK pop in around it ---------- */
+.t-bibs .logo-box { animation: popIn .6s cubic-bezier(.2,1.5,.4,1) both, popOut .35s cubic-bezier(.6,0,.9,.5) calc(var(--out) + .35s) forwards; }
+.t-bibs .logo { height: calc(var(--size) * .7); max-width: calc(var(--size) * 1.1); }
+.t-bibs .bib { margin: var(--y) 0 0 var(--x);
+  animation: bibIn .55s cubic-bezier(.2,1.5,.4,1) var(--d) both, bibOut .5s cubic-bezier(.6,0,.9,.5) calc(var(--out) + var(--e)) forwards; }
+.t-bibs .bib span { display: grid; place-items: center; width: calc(var(--size) * .22); height: calc(var(--size) * .26); box-sizing: border-box;
+  background: var(--purple); border: calc(var(--size) * .014) solid var(--yellow); color: #ffffff;
+  border-radius: 22% 22% 30% 30% / 16% 16% 24% 24%; clip-path: polygon(0 0, 30% 0, 50% 14%, 70% 0, 100% 0, 100% 100%, 0 100%);
+  font-family: var(--font); font-weight: 900; font-size: calc(var(--size) * .09); padding-top: calc(var(--size) * .03);
+  animation: bob 1.6s ease-in-out calc(var(--d) + .6s) infinite alternate; }
+@keyframes bibIn { from { transform: scale(0) rotate(-120deg); } to { transform: none; } }
+@keyframes bibOut { from { transform: none; } to { transform: translate(calc(var(--x) * 1.8), calc(var(--y) * 1.8)) scale(.4) rotate(160deg); opacity: 0; } }
+@keyframes bob { from { transform: translateY(-8px); } to { transform: translateY(8px); } }
+
+/* ---------- pass: the ball is passed down the court GK to GS, then the last pass becomes the logo ---------- */
+.t-pass .trail { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.t-pass .trail path { fill: none; stroke: var(--yellow); stroke-width: 8; stroke-linejoin: round; stroke-linecap: round;
+  stroke-dasharray: 1.02 1; stroke-dashoffset: 1.02; animation: draw 1.8s linear .15s forwards, hide .4s 2.1s forwards; }
+.t-pass .player { position: absolute; left: var(--x); top: var(--y); translate: -50% -50%; width: 100px; height: 100px; border-radius: 50%; box-sizing: border-box;
+  display: grid; place-items: center; background: var(--purple); border: 7px solid var(--yellow); color: #ffffff;
+  font-family: var(--font); font-weight: 900; font-size: 36px;
+  animation: popIn .35s cubic-bezier(.2,1.5,.4,1) var(--d) both, popOut .3s ease-in calc(2.05s + var(--e)) forwards; }
+.t-pass .pball { position: absolute; left: 0; top: 0; offset-path: var(--path); offset-rotate: auto; opacity: 0;
+  animation: carry 1.8s linear .15s both, popOut .2s ease-in 1.92s forwards; }
+.t-pass .t-centre .logo-box { animation: popIn .6s cubic-bezier(.2,1.5,.4,1) 1.9s both, popOut .35s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
+.t-pass .burst-ring { width: calc(var(--size) * .5); height: calc(var(--size) * .5); border-radius: 50%; box-sizing: border-box;
+  border: 20px solid var(--yellow); opacity: 0; animation: ringBurst .7s cubic-bezier(.1,.7,.3,1) 1.9s; }
+@keyframes carry { from { opacity: 1; offset-distance: 0%; } to { opacity: 1; offset-distance: 100%; } }
+
+/* ---------- net: a big ring and net, the logo drops through it like a goal, the net swishes, the logo rises to the middle ---------- */
+.t-net .layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.t-net .hoop { fill: none; stroke: #e0502a; stroke-width: 16; stroke-linecap: round; }
+.t-net .net path { fill: none; stroke: #ffffff; stroke-width: 5; stroke-linejoin: round; }
+.t-net .goalpost { animation: rise .45s cubic-bezier(.2,.9,.3,1) both, sinkFar .5s cubic-bezier(.6,0,.9,.5) 1.25s forwards; }
+@keyframes sinkFar { from { transform: none; } to { transform: translateY(1150px); } }
+.t-net .net { transform-box: view-box; transform-origin: 960px 300px; animation: swish .6s ease-out .75s; }
+.t-net .logo-box { animation: netDrop 1.7s linear .3s both, popOut .35s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
+@keyframes netDrop {
+  0%   { transform: translateY(-1000px) scale(.55); animation-timing-function: cubic-bezier(.55,0,1,.45); }
+  30%  { transform: translateY(-20px) scale(.55); animation-timing-function: cubic-bezier(0,.5,.4,1); }
+  48%  { transform: translateY(150px) scale(.55); animation-timing-function: cubic-bezier(.3,0,.3,1.25); }
+  100% { transform: none; }
+}
