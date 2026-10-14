@@ -167,7 +167,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
       ['Round results', '/results.html', 3000],
       ['Logo animation: fun (mid animation)', '/logo.html?template=fun', 2200],
       ['Logo animation: pro (mid animation)', '/logo.html?template=pro', 2600],
-      ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'ball']
+      ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net']
         .map(t => [`Logo animation: ${t} (mid animation)`, `/logo.html?template=${t}`, 2600]),
       ['PIVT and FirstPass Studio ad (mid animation)', '/ad.html', 6000],
       ...st.grades.map(g => [`Ladder: ${g.name}`, `/ladder.html?division=${g.division}`, 3000]),

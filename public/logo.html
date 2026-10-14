@@ -153,7 +153,7 @@
        http://localhost:8080/logo.html?template=fun  (fun, also the default with no template: swoops in, slams down, rockets out)
        http://localhost:8080/logo.html?template=pro  (professional: clean wipe, lines and a light sweep)
        ?template=coin, tiles, slices, glitch, badge, doors, bounce, lightning, rings or title, or the netball ones goal, court,
-       bibs, pass or ball, picks one of the others
+       bibs, pass or net, picks one of the others
        (listed in the script below), and ?template=random a different one each time.
        The competition logo comes from the competition setup page. Plays once when the page loads (about 5 seconds)
        and leaves the frame transparent; tick "Refresh browser when scene becomes active" in OBS to play it each time.
@@ -192,7 +192,7 @@
       const stage = $('stage');
       // ?template= picks the animation. fun and pro are the two
       // originals in this page; the rest are built by TEMPLATES below and styled in logo-templates.css.
-      const NAMES = ['fun', 'pro', 'coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'ball'];
+      const NAMES = ['fun', 'pro', 'coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net'];
       let template = (params.get('template') || 'fun').trim().toLowerCase();
       if (template === 'random') template = NAMES[Math.floor(Math.random() * NAMES.length)];
       if (!NAMES.includes(template)) { console.warn('Logo animation: no template called', template, '- using fun. Templates:', NAMES.join(', ')); template = 'fun'; }
@@ -434,10 +434,17 @@
             `<div class="pball" style="--path:path('${d}')">${netball(76)}</div>` +
             `<div class="t-centre"><div class="burst-ring"></div><div class="logo-box">${logoTag(url)}</div></div>`;
         },
-        ball(url, { size }) {
-          return `<div class="t-centre"><div class="roll"><div class="hop"><div class="coin"><div class="spinner">` +
-            `<div class="logo-box back">${logoTag(url)}</div><div class="front">${netball(Math.round(size * .55))}</div>` +
-            '</div></div></div></div></div>';
+        net(url) {
+          // A ring seen a little from above: its back half behind the logo, its front half and net in front, so the logo drops through it.
+          let net = '';
+          for (let i = 0; i <= 10; i++) {
+            const x0 = 660 + i * 60, x1 = 780 + i * 36;
+            net += `<path d="M ${x0} 300 L ${x1} 640"/>`;
+          }
+          [400, 500, 600].forEach((y, i) => { const w = 285 - (i + 1) * 40; net += `<path d="M ${960 - w} ${y} Q 960 ${y + 30} ${960 + w} ${y}"/>`; });
+          return `<svg class="layer" viewBox="0 0 1920 1080"><g class="goalpost"><path class="hoop" d="M 660 300 A 300 55 0 0 1 1260 300"/></g></svg>` +
+            `<div class="t-centre"><div class="logo-box">${logoTag(url)}</div></div>` +
+            `<svg class="layer" viewBox="0 0 1920 1080"><g class="goalpost"><g class="net">${net}</g><path class="hoop" d="M 660 300 A 300 55 0 0 0 1260 300"/></g></svg>`;
         },
       };
 

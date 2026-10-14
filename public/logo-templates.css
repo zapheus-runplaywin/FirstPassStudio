@@ -1,5 +1,5 @@
 /* Logo animation templates for logo.html (?template=coin, tiles, slices, glitch, badge, doors, bounce, lightning, rings, title,
-   and the netball ones goal, court, bibs, pass, ball).
+   and the netball ones goal, court, bibs, pass, net).
    Every template runs from one start on the page's CSS clock: the in, the hold and the exit are all set by delays, so the
    page plays the same at 50 or 60 frames a second and any moment of it can be seeked. Times are in seconds at ?speed=1
    (the page sets playbackRate for other speeds): in by about 1.5, exit from --out (4.2), clear by 5.
@@ -311,18 +311,17 @@
   border: 20px solid var(--yellow); opacity: 0; animation: ringBurst .7s cubic-bezier(.1,.7,.3,1) 1.9s; }
 @keyframes carry { from { opacity: 1; offset-distance: 0%; } to { opacity: 1; offset-distance: 100%; } }
 
-/* ---------- ball: a netball rolls in, hops and flips over to show the logo; at the end it flips back and rolls away ---------- */
-.t-ball .roll { animation: rollIn .9s cubic-bezier(.25,.7,.35,1) both, rollOut .55s cubic-bezier(.6,0,.9,.5) calc(var(--out) + .4s) forwards; }
-.t-ball .hop { animation: bHop .5s .85s; }
-.t-ball .coin { perspective: 2400px; }
-.t-ball .spinner { transform-style: preserve-3d; animation: flipOver .6s cubic-bezier(.4,0,.2,1) 1.15s both, flipBack .4s cubic-bezier(.4,0,.2,1) var(--out) forwards; }
-.t-ball .front, .t-ball .back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.t-ball .back { transform: rotateY(180deg); }
-.t-ball .front { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
-.t-ball .front svg { animation: spinIn .9s cubic-bezier(.25,.7,.35,1) both, spinOut .55s cubic-bezier(.6,0,.9,.5) calc(var(--out) + .4s) forwards; }
-@keyframes rollIn { from { transform: translateX(-1300px); } to { transform: none; } }
-@keyframes rollOut { from { transform: none; } to { transform: translateX(1300px); } }
-@keyframes spinIn { from { transform: rotate(-900deg); } to { transform: none; } }
-@keyframes spinOut { from { transform: none; } to { transform: rotate(900deg); } }
-@keyframes flipOver { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
-@keyframes flipBack { from { transform: rotateY(180deg); } to { transform: rotateY(360deg); } }
+/* ---------- net: a big ring and net, the logo drops through it like a goal, the net swishes, the logo rises to the middle ---------- */
+.t-net .layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.t-net .hoop { fill: none; stroke: #e0502a; stroke-width: 16; stroke-linecap: round; }
+.t-net .net path { fill: none; stroke: #ffffff; stroke-width: 5; stroke-linejoin: round; }
+.t-net .goalpost { animation: rise .45s cubic-bezier(.2,.9,.3,1) both, sinkFar .5s cubic-bezier(.6,0,.9,.5) 1.25s forwards; }
+@keyframes sinkFar { from { transform: none; } to { transform: translateY(1150px); } }
+.t-net .net { transform-box: view-box; transform-origin: 960px 300px; animation: swish .6s ease-out .75s; }
+.t-net .logo-box { animation: netDrop 1.7s linear .3s both, popOut .35s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
+@keyframes netDrop {
+  0%   { transform: translateY(-1000px) scale(.55); animation-timing-function: cubic-bezier(.55,0,1,.45); }
+  30%  { transform: translateY(-20px) scale(.55); animation-timing-function: cubic-bezier(0,.5,.4,1); }
+  48%  { transform: translateY(150px) scale(.55); animation-timing-function: cubic-bezier(.3,0,.3,1.25); }
+  100% { transform: none; }
+}
