@@ -165,7 +165,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
       ['Score ticker', '/ticker.html', 4000],
       ['Round fixture', '/fixtures.html', 3000],
       ['Round results', '/results.html', 3000],
-      ['Logo animation: fun (mid animation)', '/logo.html', 2200],
+      ['Logo animation: fun (mid animation)', '/logo.html?template=fun', 2200],
       ['Logo animation: pro (mid animation)', '/logo.html?template=pro', 2600],
       ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title']
         .map(t => [`Logo animation: ${t} (mid animation)`, `/logo.html?template=${t}`, 2600]),

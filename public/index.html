@@ -262,7 +262,7 @@ document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreb
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
 document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html'));
-[['Logo animation: fun (swoops in, slams down, rockets out)', '/logo.html',
+[['Logo animation: fun (swoops in, slams down, rockets out; the default)', '/logo.html?template=fun',
   'One big competition logo from the competition setup: it swoops in around the screen, slams down in the middle with a burst in the competition\'s colours, holds, then rockets out. ' +
   'Every template plays once when the page loads, about 5 seconds, then leaves the frame clear: in OBS tick <b>Refresh browser when scene becomes active</b> so it plays each time the scene comes on. ' +
   'Pick a template with <code>?template=</code> and its name, as in the links below (<code>?template=random</code> picks a different one each time).'],
