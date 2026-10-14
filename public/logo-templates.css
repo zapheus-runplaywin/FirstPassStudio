@@ -244,24 +244,29 @@
 .t-goal .post { fill: #e8e8e8; stroke: #1d1d1f; stroke-width: 3; }
 .t-goal .hoop { fill: none; stroke: #e0502a; stroke-width: 9; stroke-linecap: round; }
 .t-goal .net path { fill: none; stroke: #ffffff; stroke-width: 3; stroke-linejoin: round; }
-.t-goal .goalpost { animation: rise .45s cubic-bezier(.2,.9,.3,1) both, sink .45s cubic-bezier(.6,0,.9,.5) 1.45s forwards; }
-.t-goal .net { transform-box: view-box; transform-origin: 960px 420px; animation: swish .5s ease-out 1.02s; }
+.t-goal .goalpost { animation: rise .45s cubic-bezier(.2,.9,.3,1) both, sink .45s cubic-bezier(.6,0,.9,.5) 1.6s forwards; }
+.t-goal .net { transform-box: view-box; transform-origin: 960px 420px; animation: swish .5s ease-out 1.25s; }
 .t-goal .bx { position: absolute; left: 0; top: 0; opacity: 0;
-  animation: ballX 1.05s linear .3s both, hide .12s 1.3s forwards; }
-.t-goal .by { animation: ballY 1.05s linear .3s both; }
+  animation: ballX 1.2s linear .3s both, hide .1s 1.5s forwards; }
+.t-goal .by { animation: ballY 1.2s linear .3s both; }
 .t-goal .bx svg { translate: -50% -50%; animation: spin .5s linear infinite reverse; }
-.t-goal .t-centre .logo-box { opacity: 0; animation: punch .45s cubic-bezier(.2,1.2,.4,1) 1.5s both, popOut .3s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
+.t-goal .t-centre .logo-box { opacity: 0; animation: punch .45s cubic-bezier(.2,1.2,.4,1) 1.65s both, popOut .3s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
 .t-goal .burst-ring { width: calc(var(--size) * .6); height: calc(var(--size) * .6); border-radius: 50%; box-sizing: border-box;
-  border: 22px solid var(--yellow); opacity: 0; animation: ringBurst .7s cubic-bezier(.1,.7,.3,1) 1.5s; }
+  border: 22px solid var(--yellow); opacity: 0; animation: ringBurst .7s cubic-bezier(.1,.7,.3,1) 1.65s; }
 @keyframes rise { from { transform: translateY(800px); } to { transform: none; } }
 @keyframes sink { from { transform: none; } to { transform: translateY(800px); } }
 @keyframes swish { 0% { transform: none; } 30% { transform: scale(.82, 1.32); } 60% { transform: scale(1.06, .9); } 100% { transform: none; } }
-/* x and y move separately so the ball flies in an arc; it goes through the ring at about 1.02 s */
-@keyframes ballX { 0% { opacity: 1; transform: translateX(280px); } 100% { opacity: 1; transform: translateX(968px); } }
+/* x and y move separately so the ball flies in an arc: it is over the middle of the ring (960, 420) when it comes down
+   through it at about 1.25 s, then drops out of the bottom of the net */
+@keyframes ballX {
+  0%   { opacity: 1; transform: translateX(280px); animation-timing-function: cubic-bezier(.3,.5,.5,1); }
+  58%  { opacity: 1; transform: translateX(950px); animation-timing-function: ease-out; }
+  72%, 100% { opacity: 1; transform: translateX(960px); }
+}
 @keyframes ballY {
   0%   { transform: translateY(1010px); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
-  52%  { transform: translateY(230px); animation-timing-function: cubic-bezier(.6,0,.8,.4); }
-  100% { transform: translateY(560px); }
+  45%  { transform: translateY(200px); animation-timing-function: cubic-bezier(.55,0,1,.55); }
+  100% { transform: translateY(760px); }
 }
 @keyframes ringBurst { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(3.2); } }
 
