@@ -9,8 +9,9 @@ offline. The OBS overlays don't use it: they keep the colours, font and logos of
 
 ## One-time setup
 
-1. Install Node.js (the LTS version) from https://nodejs.org if you don't have it.
-2. Thunder League's PlayHQ link is already set. Other competitions are set up on the competition setup page (below).
+1. Install the FirstPass Studio app (see **Desktop app** below), or, to run from a copy of the repository, install
+   Node.js (the LTS version) from https://nodejs.org.
+2. Open the competition setup page and **Import** your competition (Thunder League, AMMNA Nationals or GIG WANL), or make a new one.
 
 ## Competition setup
 
@@ -32,8 +33,9 @@ clubs when loaded.
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics in OBS.
 
-Setups live in `competitions/<name>/` (`settings.json`, `logos/`, `brand/`); see **Saved settings and git** below.
-AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
+Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logos/`, `brand/`); see **Saved settings** below.
+Studio starts with no competitions: **Import** one of the import configs on the setup page (Thunder League, AMMNA
+Nationals, GIG WANL) or make a new one. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
 GIG WANL in Netball WA greens with Gold Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to
 Australian Championships; for GIG WANL pick it with **Find its competitions**. Their rules (AMMNA 10-minute quarters,
 WANL 15-minute quarters, no super shots, top 4 Page finals) are guesses to check. `config.json` now only holds this computer's settings (port,
@@ -42,27 +44,49 @@ log size, how often to check PlayHQ).
 On a carnival day with several rounds (like the AMMNA nationals), "this round" moves on to each round as its first game
 comes up (`autoSelectMinutesBefore` ahead), and Up next looks across the whole day.
 
-## Saved settings and git
+## Saved settings
 
-The repository holds the starting point for every setting, and the setup and control pages save your changes straight
-into the same files:
+Everything Studio saves lives in one data folder on this computer, outside the app, so pulling a new version or
+installing an update never touches it:
+
+- Mac: `~/Library/Application Support/FirstPass Studio`
+- Windows: `%APPDATA%\FirstPass Studio`
+- Set `FIRSTPASS_DATA_DIR` to use another folder.
+
+In it:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
-  `athletes.json` (the athlete register from the Athletes page).
-- `competitions/active.json`: the competition in use.
+  `athletes.json` (the athlete register from the Athletes page), and `competitions/active.json`, the one in use.
+- `control.json`: the control page's choices (the round picked by hand, and for each board automatic game selection,
+  its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
+- `scoreboard-state.json`: the game on each board, the scores and the clock.
+- `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
+  how often to check PlayHQ); a `config.json` here changes only the settings it names.
+- `logs/`: the debug log.
+- `data-version.json` and `backups/`: see **Updates and migrations**.
 
-Changes show up in `git status` like any other edit. Commit the ones you want to keep and send them as a pull request;
-throw away the rest with `git restore competitions`. A new competition made on the setup page is a new folder in
-`competitions/` to commit the same way.
+### Import configs
 
-The control page's choices (the round picked by hand, and for each board automatic game selection, its court,
-following the PlayHQ clock, how often to check PlayHQ, and showing the clock) stay on this computer in `control.json`,
-and live game state (the game on the board, scores, the clock) in `scoreboard-state.json`. Git ignores both. Without
-`control.json` the helper starts from the competition setup's defaults and writes a new one.
+`imports/<name>/` in the repository holds ready-made competitions (`settings.json`, `logos/`, `brand/`). They aren't
+used directly: **Import** on the setup page copies one into the data folder as a new competition, to use as it is or
+change. For a new customer, set their competition up on the setup page and click **Save as import config**: it copies
+the settings, team logos and competition logo (not athlete photos) into `imports/<name>/`, ready to commit and send as a
+pull request. That button only shows when Studio runs from a copy of the repository; the installed app can't change its
+own folder.
 
-Older versions saved setups in `settings/` and the round in `round-choice.json`. On its first start the helper copies
-them into `competitions/` (so your edits show up as changes) and `control.json` and renames `settings/` to
-`settings.old/`, which git ignores; delete it once you're happy.
+### Updates and migrations
+
+The data folder has a version number in `data-version.json`. When a new version of Studio changes how settings are
+saved, it brings the folder up to date on its first start (`migrations.js`, one numbered step per change), after
+copying the whole folder (except the log) to `backups/<date>-v<old version>`. The newest 5 backups are kept; to undo an
+update, quit Studio and copy a backup's contents back. A new setting needs no migration: a competition without it gets
+the default. If the folder was saved by a newer Studio than the one running, competitions open read-only rather than
+lose settings the older version doesn't know.
+
+Versions before October 2026 saved settings inside the app folder (`competitions/`, `control.json`,
+`scoreboard-state.json`). The first start of this version copies whatever is still there into the data folder. Git
+removes the tracked `competitions/` files when you pull, so import your competition again from **Import configs**
+(photos and athlete registers left behind are kept with it).
 
 ## Each stream
 
@@ -96,7 +120,7 @@ or Chromium (set `CHROME_PATH` for another one).
 
 ## Debug log
 
-Everything goes into `logs/playhq-graphics.log`: each page opening, errors and warnings from every page
+Everything goes into `logs/playhq-graphics.log` in the data folder: each page opening, errors and warnings from every page
 (including OBS), every PlayHQ request and its answer code, Game Summary requests, scoreboard and Stream Deck
 changes, and helper errors. Read it at http://localhost:8080/api/log. It never grows past 15 MB
 (`logMaxMB` in `config.json`): when full, the oldest half is removed. If something goes wrong, send that file to Claude.
