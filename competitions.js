@@ -35,6 +35,7 @@ const DEFAULTS = {
   periodType: 'quarters',              // 'quarters' or 'halves'
   quarterMinutes: 10,                  // minutes per quarter (or half)
   superShots: true,                    // 2-point super shots
+  divisionSuperShots: {},              // { "division name or word": true/false }, for divisions that differ (superShotsFor)
   finalsFormat: 'top4-page',           // the finals format (finals.js), blank = no finals
   divisionFinals: {},                  // { "PlayHQ division name": format id or "none" }, for a division with its own format
   defaultCourt: '',
@@ -95,6 +96,23 @@ function fromPlaces(s) {
 // without the division words on the end ("Comets 21U", "Comets Men" and "Comets Open" are
 // all Comets; "Stormz Div 2" is Stormz), unless the setup page links it to another club.
 const DIVISION_WORD = /^(\d+u|u\d+|\d+|men'?s?|women'?s?|ladies|mixed|open|reserves?|res|colts|juniors?|seniors?|masters|ii|iii|iv|[a-f]|(div|division|grade)\d+)$/i;
+// Whether a division plays super shots. divisionSuperShots can name a division exactly (as PlayHQ
+// names it), or a word in its name: "Open" covers "Open" and "Division 1 Open", "21" covers
+// "21&Under", "Men" covers "Men's" (but not "Women's"). An exact name wins, then the longest word
+// that matches; a division none of them match follows the competition's superShots.
+function superShotsFor(s, division) {
+  const own = (s && s.divisionSuperShots) || {};
+  const name = String(division || '').trim().toLowerCase();
+  if (name) {
+    const exact = Object.keys(own).find(k => k.toLowerCase() === name);
+    if (exact) return own[exact];
+    const esc = k => k.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const word = Object.keys(own).filter(k => new RegExp(`(^|[^a-z0-9])${esc(k)}([^a-z0-9]|$)`).test(name)).sort((a, b) => b.length - a.length)[0];
+    if (word) return own[word];
+  }
+  return !s || s.superShots !== false;
+}
+
 function clubOf(team) {
   const words = String(team || '').replace(/\([^)]*\)/g, ' ').replace(/\s[-–—]\s/g, ' ').trim().split(/\s+/).filter(Boolean);
   while (words.length > 1) {
@@ -155,6 +173,9 @@ function clean(input, base = DEFAULTS) {
     } else if (k === 'divisionFinals') {
       v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).map(([d, f]) => [String(d).trim(), String(f || '')])
         .filter(([d, f]) => d && (f === 'none' || finals.byId(f))));
+    } else if (k === 'divisionSuperShots') {
+      v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).map(([d, on]) => [String(d).trim(), on])
+        .filter(([d, on]) => d && [true, false, 'true', 'false'].includes(on)).map(([d, on]) => [d, on === true || on === 'true']));
     } else if (typeof def === 'boolean') v = v === true || v === 'true' || v === 'on';
     else if (typeof def === 'number') { v = Number(v); if (!Number.isFinite(v)) v = def; }
     else v = String(v ?? '').trim();
@@ -350,4 +371,4 @@ function themeCss(s) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry };
+module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };

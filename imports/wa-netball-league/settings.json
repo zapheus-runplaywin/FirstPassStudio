@@ -9,6 +9,11 @@
   "periodType": "quarters",
   "quarterMinutes": 15,
   "superShots": false,
+  "divisionSuperShots": {
+    "Open": true,
+    "21": false,
+    "Men": false
+  },
   "finalsFormat": "top4-page",
   "divisionFinals": {},
   "defaultCourt": "",

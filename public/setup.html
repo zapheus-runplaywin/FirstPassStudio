@@ -200,8 +200,12 @@
       <div class="row">
         <label class="inline"><input type="checkbox" id="superShots" data-key="superShots"> Super shots (2 points)</label>
       </div>
+      <div id="divisionSuperShots"></div>
       <p class="help">Halves give the control page H1 and H2 buttons and the shooting stats say "Half time" and "Full time". Without super shots the
-        Super columns are left off the shooting stats and top shooters (the control page keeps its +2 and −2 buttons).</p>
+        Super columns are left off the shooting stats and top shooters (the control page keeps its +2 and −2 buttons).
+        Every division follows the tick box unless it has its own setting below. A setting saved for a word rather than a whole division name
+        (GIG WANL comes with "Open", "21" and "Men") covers each division with that word in its name: "Open" covers "Division 1 Open", "Men" covers
+        "Men's" but not "Women's". A division's own setting wins over a word.</p>
     </section>
 
     <section>
@@ -450,7 +454,7 @@
     document.querySelectorAll('[name=periodType]').forEach(r => { r.checked = r.value === form.periodType; });
     $('panelOpacity').value = form.panelOpacity;
     buildColours();
-    renderBrand(); renderLogos(); renderFinals(); preview();
+    renderBrand(); renderLogos(); renderFinals(); renderSuperShots(); preview();
   }
 
   // ─── Finals formats ─────────────────────────────────────────────────────
@@ -490,10 +494,43 @@
     }
     box.append(grid);
   }
+  // Super shots per division (competitions.js superShotsFor has the same matching): a division's own
+  // setting, else a word in its name ("Open", "21", "Men"), else the competition's tick box.
+  function superWord(own, d) {
+    const name = d.toLowerCase(), esc = k => k.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return Object.keys(own).filter(k => k.toLowerCase() !== name && new RegExp(`(^|[^a-z0-9])${esc(k)}([^a-z0-9]|$)`).test(name))
+      .sort((a, b) => b.length - a.length)[0];
+  }
+  function renderSuperShots() {
+    const box = $('divisionSuperShots');
+    box.replaceChildren();
+    const own = form.divisionSuperShots = form.divisionSuperShots || {};
+    const says = on => on ? 'super shots' : 'no super shots';
+    const divisions = [...new Set(teams.map(t => t.division))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    const exactKey = d => Object.keys(own).find(k => k.toLowerCase() === d.toLowerCase());
+    // Words and names saved that aren't one of PlayHQ's divisions get a row of their own.
+    const extra = Object.keys(own).filter(k => !divisions.some(d => d.toLowerCase() === k.toLowerCase())).sort();
+    if (!divisions.length && !extra.length) { box.append(el('p', 'help', 'Use this competition to give its divisions their own super shot setting (the divisions come from PlayHQ).')); return; }
+    const grid = el('div', 'divfin');
+    const row = (label, key, first) => {
+      const s = el('select');
+      s.append(new Option(first, ''), new Option('Super shots', 'true'), new Option('No super shots', 'false'));
+      s.value = key && own[key] !== undefined ? String(own[key]) : '';
+      s.onchange = () => { if (key) delete own[key]; if (s.value) own[key || label] = s.value === 'true'; markDirty(); renderSuperShots(); };
+      grid.append(el('label', '', label), s);
+    };
+    for (const d of divisions) {
+      const word = superWord(own, d);
+      row(d, exactKey(d), word ? `Set by "${word}" (${says(own[word])})` : `Same as the competition (${says(form.superShots !== false)})`);
+    }
+    for (const k of extra) row(k, k, 'Remove this setting');
+    box.append(grid);
+  }
   document.querySelectorAll('[data-key]').forEach(i => {
     i.addEventListener(i.type === 'checkbox' || i.tagName === 'SELECT' ? 'change' : 'input', () => {
       form[i.dataset.key] = i.type === 'checkbox' ? i.checked : i.type === 'number' ? Number(i.value) : i.value;
       markDirty(); preview();
+      if (i.dataset.key === 'superShots') renderSuperShots();
     });
   });
   // Quick picks for the title emoji; any other emoji can be typed or pasted into the box.
@@ -777,13 +814,13 @@
   async function loadTeams(active) {
     const table = $('teams');
     table.hidden = true;
-    if (!active) { teams = []; renderFinals(); }
+    if (!active) { teams = []; renderFinals(); renderSuperShots(); }
     if (!active) return note('teamsNote', 'Use this competition (or save its PlayHQ link and switch to it) to see its teams and which logo each one gets.');
     note('teamsNote', 'Loading the teams from PlayHQ…');
     try {
       const d = await api('/api/setup-teams');
       teams = d.teams.map(t => ({ name: t.name, division: t.division, autoClub: t.autoClub || t.name }));
-      renderTeams(); renderFinals();
+      renderTeams(); renderFinals(); renderSuperShots();
       table.hidden = !d.teams.length;
       const missing = d.teams.filter(t => !t.logo).length;
       const clubs = new Set(teams.map(t => clubOfTeam(t).toLowerCase())).size;
