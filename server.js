@@ -2232,7 +2232,7 @@ applyCompetition('Using competition');
 
 // ─── HTTP ───────────────────────────────────────────────────────────────────
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 
 function send(res, status, body, type) {
   res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
