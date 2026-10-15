@@ -3,7 +3,7 @@
 // The data folder (datadir.js) has a version number in data-version.json. Each release
 // that changes how settings are saved adds a step below that turns version N into N+1;
 // on start every step the folder hasn't had yet runs in order. Before any step runs, the
-// whole folder (except logs and earlier backups) is copied to backups/<date>-v<N>, so an
+// saved settings (SAVED below: not the log) are copied to backups/<date>-v<N>, so an
 // update can be undone by copying that folder back. The newest 5 backups are kept.
 //
 // A new setting needs no step: competitions.js fills in its default when it's missing.
@@ -86,12 +86,19 @@ function readVersion() {
 }
 function writeVersion(v) { fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: v }, null, 2) + '\n'); }
 
+// What Studio saves in the data folder (the desktop app keeps its own files there too).
+const SAVED = ['competitions', 'config.json', 'control.json', 'round-choice.json', 'scoreboard-state.json', 'last-game-summary.json'];
+
 function backup(from, log) {
-  const has = fs.readdirSync(DATA_DIR).some(n => !['logs', 'backups', 'data-version.json', '.DS_Store'].includes(n));
-  if (!has) return null;
+  const have = SAVED.filter(n => exists(path.join(DATA_DIR, n)));
+  if (!have.length) return null;
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const dir = path.join(BACKUPS, `${stamp}-v${from}`);
-  copyDir(DATA_DIR, dir, n => n === 'logs' || n === 'backups');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const n of have) {
+    const p = path.join(DATA_DIR, n);
+    if (fs.statSync(p).isDirectory()) copyDir(p, path.join(dir, n)); else fs.copyFileSync(p, path.join(dir, n));
+  }
   log('info', 'migrate', `Backed up the data folder to ${dir}`);
   const old = fs.readdirSync(BACKUPS).sort().slice(0, -KEEP_BACKUPS);
   for (const n of old) fs.rmSync(path.join(BACKUPS, n), { recursive: true, force: true });

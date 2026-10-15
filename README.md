@@ -88,9 +88,50 @@ Versions before October 2026 saved settings inside the app folder (`competitions
 removes the tracked `competitions/` files when you pull, so import your competition again from **Import configs**
 (photos and athlete registers left behind are kept with it).
 
+## Desktop app (Mac)
+
+FirstPass Studio installs as a normal Mac app, with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
+the app to Applications and open it. It lives in the menu bar (the **FP** icon), runs the same helper as the Start
+script in the background, restarts it if it stops, and opens the home page in your browser. OBS and the Stream Deck
+use http://localhost:8080 exactly as before. Don't run the Start script at the same time: they share port 8080.
+
+The menu bar icon has: Open Studio, Scoreboard control, Competition setup, Copy the Studio link, Open the settings
+folder, Open the debug log, Restart the helper, Open at login, Check for updates and Quit.
+
+Settings live in the data folder (see **Saved settings**), which the app and the Start script share, so moving from one
+to the other keeps everything. Updates download in the background and install when the app quits, so they never
+interrupt a stream; once one has downloaded, **Restart to update** in the menu installs it straight away. Settings
+are brought up to date and backed up on the first start of the new version.
+
+### Building and releasing it
+
+The **Mac app** workflow on GitHub (Actions > Mac app > Run workflow) builds a signed, notarised universal app (Apple
+silicon and Intel). Without **Publish** the `.dmg` is attached to the run to try out; with it, it becomes an update for
+every installed app. Before a release, raise `version` in `package.json` (updates only go to a higher version).
+
+Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
+public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
+
+One-time setup:
+
+1. Create the public repository `FirstPassStudio-releases` (empty is fine).
+2. In Xcode (Settings > Accounts > Manage Certificates) or at developer.apple.com, create a **Developer ID
+   Application** certificate. In Keychain Access export it with its private key as a `.p12` with a password.
+3. At appleid.apple.com create an app-specific password. Your Team ID is under Membership at developer.apple.com.
+4. Create a fine-grained GitHub token with **Contents: read and write** on `FirstPassStudio-releases`.
+5. In this repository's Settings > Secrets and variables > Actions, add:
+   - `MAC_CERTIFICATE`: the `.p12` as base64 (`base64 -i certificate.p12 | pbcopy`)
+   - `MAC_CERTIFICATE_PASSWORD`: its password
+   - `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
+   - `RELEASES_TOKEN`: the token from step 4
+
+To build on your own Mac instead: `npm install`, then `npm run dist` (signs with the Developer ID certificate in your
+keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to notarise). The app is in `dist/`.
+`npm run app` runs it from the repository without building.
+
 ## Each stream
 
-1. Double-click `Start (Mac).command` or `Start (Windows).bat`. Leave the window open.
+1. Open the FirstPass Studio app, or double-click `Start (Mac).command` or `Start (Windows).bat` and leave the window open.
    The first time on a Mac, right-click it and choose Open, then Open again, because it was downloaded.
 2. Open http://localhost:8080/ to see the three division links (and copy them).
 3. In OBS add a **Browser** source per division, width 1920, height 1080:

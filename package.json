@@ -1,0 +1,56 @@
+{
+  "name": "firstpass-studio",
+  "productName": "FirstPass Studio",
+  "version": "0.1.0",
+  "description": "Live PlayHQ graphics for OBS, by PIVT",
+  "author": "PIVT",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "app": "electron .",
+    "dist": "electron-builder --mac --publish never",
+    "release": "electron-builder --mac --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "electron": "44.7.2",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.runplaywin.firstpassstudio",
+    "productName": "FirstPass Studio",
+    "copyright": "© PIVT",
+    "asar": false,
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": [
+      "package.json",
+      "server.js",
+      "competitions.js",
+      "finals.js",
+      "datadir.js",
+      "migrations.js",
+      "config.json",
+      "public/**/*",
+      "imports/**/*",
+      "desktop/**/*"
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["universal"] },
+        { "target": "zip", "arch": ["universal"] }
+      ],
+      "category": "public.app-category.video",
+      "icon": "build/icon.png",
+      "hardenedRuntime": true,
+      "notarize": true,
+      "extendInfo": { "LSUIElement": true }
+    },
+    "dmg": { "title": "FirstPass Studio" },
+    "publish": [
+      { "provider": "github", "owner": "zapheus-runplaywin", "repo": "FirstPassStudio-releases", "releaseType": "release" }
+    ]
+  }
+}
