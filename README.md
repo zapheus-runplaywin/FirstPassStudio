@@ -91,7 +91,7 @@ removes the tracked `competitions/` files when you pull, so import your competit
 ## Desktop app (Mac)
 
 FirstPass Studio installs as a normal Mac app, with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
-the app to Applications and open it. It lives in the menu bar (the **FP** icon), runs the same helper as the Start
+the app to Applications and open it. It lives in the menu bar (the **1P** icon), runs the same helper as the Start
 script in the background, restarts it if it stops, and opens the home page in your browser. OBS and the Stream Deck
 use http://localhost:8080 exactly as before. Don't run the Start script at the same time: they share port 8080.
 
