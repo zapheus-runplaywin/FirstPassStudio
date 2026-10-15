@@ -175,22 +175,32 @@
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
   <div class="card">
-    <h2>Saved settings and git</h2>
-    <p class="page__help">The repository holds the starting point for every setting. Everything you change on the
-      <a href="/setup.html" target="_blank">competition setup page</a> and the lasting settings on the
-      <a href="/control.html" target="_blank">control page</a> are saved straight away into the same files:</p>
+    <h2>Mac app</h2>
+    <p class="page__help">FirstPass Studio also installs as a Mac app (no Node.js needed). It sits in the menu bar as the <b>1P</b> icon, runs this helper in the
+      background and restarts it if it stops. Its menu opens Studio, the control and setup pages, the settings folder and the debug log, and has
+      <b>Open at login</b> and <b>Check for updates</b>. Updates download by themselves and install when the app quits, never mid-stream.
+      Don't run the Start script at the same time; both use port 8080. Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
+  </div>
+  <div class="card">
+    <h2>Saved settings</h2>
+    <p class="page__help">Everything Studio saves lives in one data folder on this computer, outside the app, so updates never touch it:
+      <code style="display:inline">~/Library/Application Support/FirstPass Studio</code> on a Mac,
+      <code style="display:inline">%APPDATA%\FirstPass Studio</code> on Windows (the setup page shows where).</p>
     <ul class="page__help">
-      <li><b>competitions/</b>: a folder per competition with its setup (<code style="display:inline">settings.json</code>), team logos and competition logo.
-        A new competition made on the setup page is a new folder here.</li>
-      <li><b>competitions/active.json</b>: which competition is in use.</li>
+      <li><b>competitions/</b>: a folder per competition with its setup (<code style="display:inline">settings.json</code>), team logos, competition logo,
+        athlete photos and athlete register, and <b>active.json</b>, the one in use.</li>
+      <li><b>control.json</b>: the control page's choices (the round picked by hand, automatic game selection and its court, following the
+        PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
+      <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
+      <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ) from the app's defaults.</li>
+      <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
-    <p class="page__help">They show up in git as changed files: commit the ones you want to keep and send them as a pull request, or
-      throw them away with <code style="display:inline">git restore competitions</code>.</p>
-    <p class="page__help">The control page's choices (the round picked by hand, automatic game selection and its court, following the
-      PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand) are kept on this computer only, in
-      <code style="display:inline">control.json</code>, and the game on the board, the scores and the clock in
-      <code style="display:inline">scoreboard-state.json</code>. Git ignores both. If <code style="display:inline">control.json</code> is
-      missing the helper starts from the competition setup's defaults and makes a new one.</p>
+    <p class="page__help">Studio starts with no competitions. On the <a href="/setup.html" target="_blank">competition setup page</a>,
+      <b>Import</b> copies one of the import configs (ready-made competitions with their PlayHQ link, rules, colours and logos, kept in
+      <code style="display:inline">imports/</code>) to use or change. Running from a copy of the repository, <b>Save as import config</b> writes a
+      competition into <code style="display:inline">imports/</code> to commit, so the next customer can import it.</p>
+    <p class="page__help">When an update changes how settings are saved, Studio backs up the data folder and brings it up to date on its
+      first start. Settings saved by a newer Studio open read-only in an older one.</p>
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
@@ -214,7 +224,7 @@
     <p class="page__help">Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
       <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard and control page.</p>
   </div>
-  <p class="sub">Something not working? The debug log is in the <b>logs</b> folder, or <a href="/api/log" target="_blank">open the debug log</a>. Send <code style="display:inline">logs/playhq-graphics.log</code> to Claude.</p>
+  <p class="sub">Something not working? The debug log is in the <b>logs</b> folder of the data folder, or <a href="/api/log" target="_blank">open the debug log</a>. Send <code style="display:inline">logs/playhq-graphics.log</code> to Claude.</p>
   <p class="sub">In OBS add a <b>Browser</b> source, paste a link, and set width 1920 and height 1080. Toggle each source's visibility to show or hide it. Animations run at the same speed at any frame rate: for 50p or 60p, leave the source's <b>Use custom frame rate</b> unticked so it follows OBS.</p>
 </main>
 <script>

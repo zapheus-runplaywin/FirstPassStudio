@@ -1,25 +1,26 @@
-// PlayHQ Graphics - saved competition setups.
+// FirstPass Studio - saved competition setups.
 //
 // Everything that belongs to one competition and doesn't come from PlayHQ lives in
-// competitions/<id>/: settings.json (PlayHQ link, names, rules, colours, font and
-// options), logos/ (team logos), brand/ (the competition's own logo) and photos/
-// (athlete photos, each named after the athlete, e.g. "Jane Smith.jpg").
-// competitions/active.json says which one the helper and every page use.
+// competitions/<id>/ in the data folder (datadir.js): settings.json (PlayHQ link, names,
+// rules, colours, font and options), logos/ (team logos), brand/ (the competition's own
+// logo), photos/ (athlete photos, each named after the athlete, e.g. "Jane Smith.jpg") and
+// athletes.json. competitions/active.json says which one the helper and every page use.
 //
-// The competitions folder is tracked in git: the repository holds the starting point,
-// the setup page saves changes straight into these files, and you commit and send
-// the ones you want to keep (as a pull request) like any other change.
+// The data folder starts with no competitions. imports/ in the app holds import configs,
+// ready-made setups (with logos) to start from: Import copies one into the data folder,
+// where it can be changed without touching the import config. From a copy of the
+// repository, "Save as import config" writes a competition back into imports/ to commit.
 
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const finals = require('./finals');
+const datadir = require('./datadir');
 
-const ROOT = __dirname;
-const DIR = path.join(ROOT, 'competitions');
+const DIR = datadir.file('competitions');
 const ACTIVE_FILE = path.join(DIR, 'active.json');
-const OLD_SETTINGS = path.join(ROOT, 'settings'); // where setups were saved for a while (October 2026)
+const IMPORTS = datadir.IMPORTS_DIR;
 const IMAGE = /\.(png|jpe?g|webp|svg|gif)$/i;
 
 // Every competition setting, with its default. The setup page shows these.
@@ -182,52 +183,45 @@ function copyDir(from, to) {
   }
 }
 
-// On start: bring in setups saved in settings/ by the previous version, make sure there is
-// at least one setup, and that active.json names one that exists.
-function init(log) {
-  moveOldSettings(log);
+// On start: make sure active.json names a competition that exists (or none, when there
+// are none yet). readOnly is set when the data folder was saved by a newer Studio.
+let readOnly = false;
+function init(log, opts = {}) {
+  readOnly = !!opts.readOnly;
   fs.mkdirSync(DIR, { recursive: true });
-  if (!list().length) create(DEFAULTS.name);
   const active = activeId();
-  if (!active || !fs.existsSync(path.join(DIR, active, 'settings.json'))) setActive(list()[0].id);
+  if (!active || !fs.existsSync(path.join(DIR, active, 'settings.json'))) {
+    const first = list()[0];
+    if (first) setActive(first.id);
+    else if (active && !readOnly) fs.rmSync(ACTIVE_FILE, { force: true });
+  }
+  if (!list().length) log('info', 'setup', 'No competitions yet: import one or make a new one on the setup page');
   return activeId();
 }
-
-// For a while setups were saved in settings/competitions/.
-// Copy them over competitions/ so your edits show up as changes to commit, then rename
-// settings/ to settings.old/ (git ignores it; delete it once you're happy).
-function moveOldSettings(log) {
-  const old = path.join(OLD_SETTINGS, 'competitions');
-  if (!fs.existsSync(OLD_SETTINGS)) return;
-  if (fs.existsSync(old)) {
-    for (const e of fs.readdirSync(old, { withFileTypes: true })) if (e.isDirectory() && validId(e.name)) copyDir(path.join(old, e.name), path.join(DIR, e.name));
-    for (const id of list().map(c => c.id)) writeJson(path.join(DIR, id, 'settings.json'), get(id));
-  }
-  const active = readJson(path.join(OLD_SETTINGS, 'active.json'), {}).active;
-  if (active && fs.existsSync(path.join(DIR, active, 'settings.json'))) setActive(active);
-  const control = path.join(OLD_SETTINGS, 'control.json');
-  if (fs.existsSync(control)) fs.copyFileSync(control, path.join(ROOT, 'control.json'));
-  fs.renameSync(OLD_SETTINGS, path.join(ROOT, 'settings.old'));
-  log('info', 'setup', 'Moved the setups saved in settings/ into competitions/ (the old folder is now settings.old)');
+function writable() {
+  if (readOnly) throw new Error('These settings were saved by a newer version of FirstPass Studio. Update Studio to change them.');
 }
 
-function list() {
+function list(dir = DIR) {
   let ids = [];
-  try { ids = fs.readdirSync(DIR, { withFileTypes: true }).filter(e => e.isDirectory() && validId(e.name)).map(e => e.name); } catch { /* none */ }
-  const active = readJson(ACTIVE_FILE, {}).active;
-  return ids.filter(id => fs.existsSync(path.join(DIR, id, 'settings.json')))
-    .map(id => { const s = get(id); return { id, name: s.name, competitionName: s.competitionName, organisationUrl: s.organisationUrl, active: id === active }; })
+  try { ids = fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isDirectory() && validId(e.name)).map(e => e.name); } catch { /* none */ }
+  const active = dir === DIR ? activeId() : null;
+  return ids.filter(id => fs.existsSync(path.join(dir, id, 'settings.json')))
+    .map(id => { const s = clean(readJson(path.join(dir, id, 'settings.json'), {})); return { id, name: s.name, competitionName: s.competitionName, organisationUrl: s.organisationUrl, active: id === active }; })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function get(id) { return clean(readJson(path.join(dirOf(id), 'settings.json'), {})); }
+// The settings of a competition; with no id (no competitions yet) the defaults.
+function get(id) { return id ? clean(readJson(path.join(dirOf(id), 'settings.json'), {})) : clean({}); }
 function save(id, input) {
+  writable();
   const s = clean(input, get(id));
   writeJson(path.join(dirOf(id), 'settings.json'), s);
   return s;
 }
-function activeId() { return readJson(ACTIVE_FILE, {}).active; }
+function activeId() { return readJson(ACTIVE_FILE, {}).active || null; }
 function setActive(id) {
+  writable();
   dirOf(id);
   if (!fs.existsSync(path.join(DIR, id, 'settings.json'))) throw new Error(`No competition "${id}"`);
   writeJson(ACTIVE_FILE, { active: id });
@@ -235,8 +229,9 @@ function setActive(id) {
 
 // A new setup: a copy of another one's settings (not its logos), or the defaults.
 function create(name, fromId, overrides = {}, wantedId) {
+  writable();
   let id = wantedId || slug(name), n = 2;
-  while (fs.existsSync(path.join(DIR, id))) id = `${slug(name).slice(0, 36)}-${n++}`;
+  id = freeId(id, name);
   const base = fromId ? get(fromId) : DEFAULTS;
   const settings = clean({ ...base, ...overrides, name, competitionLogo: '', competitionLogoDark: '', clubs: fromId ? {} : overrides.clubs, teamClubs: fromId ? {} : overrides.teamClubs }, DEFAULTS);
   for (const sub of ['logos', 'brand']) fs.mkdirSync(path.join(DIR, id, sub), { recursive: true });
@@ -244,8 +239,53 @@ function create(name, fromId, overrides = {}, wantedId) {
   return id;
 }
 function remove(id) {
+  writable();
   if (id === activeId()) throw new Error('Switch to another competition before deleting this one.');
   fs.rmSync(dirOf(id), { recursive: true, force: true });
+}
+
+function freeId(id, name) {
+  let out = id, n = 2;
+  while (fs.existsSync(path.join(DIR, out))) out = `${slug(name).slice(0, 36)}-${n++}`;
+  return out;
+}
+
+// ─── Import configs (imports/) ──────────────────────────────────────────────
+function imports() { return list(IMPORTS).map(({ id, name, competitionName, organisationUrl }) => ({ id, name, competitionName, organisationUrl })); }
+
+// Copy an import config (settings, logos and competition logo) into the data folder as a
+// new competition. The first competition imported is put to use.
+function importConfig(importId, name) {
+  writable();
+  if (!validId(importId) || !fs.existsSync(path.join(IMPORTS, importId, 'settings.json'))) throw new Error(`No import config "${importId}"`);
+  const from = clean(readJson(path.join(IMPORTS, importId, 'settings.json'), {}));
+  name = String(name || '').trim() || from.name;
+  const id = freeId(importId, name);
+  copyDir(path.join(IMPORTS, importId), path.join(DIR, id));
+  for (const sub of ['logos', 'brand']) fs.mkdirSync(path.join(DIR, id, sub), { recursive: true });
+  for (const keep of fs.readdirSync(path.join(DIR, id), { recursive: true })) if (path.basename(keep) === '.keep') fs.rmSync(path.join(DIR, id, keep));
+  writeJson(path.join(DIR, id, 'settings.json'), clean({ ...from, name }));
+  if (!activeId()) setActive(id);
+  return id;
+}
+
+// Save a competition as an import config in imports/<importId> (settings, logos and
+// competition logo; not athlete photos or the athlete register). Only from a copy of the
+// repository: the installed app can't change its own folder.
+function saveAsImport(id, importId, replace) {
+  if (!datadir.canSaveImports()) throw new Error('Import configs can only be saved when Studio runs from a copy of the repository.');
+  importId = slug(importId || get(id).name);
+  const to = path.join(IMPORTS, importId);
+  if (fs.existsSync(to) && !replace) { const e = new Error(`There is already an import config called "${importId}".`); e.exists = importId; throw e; }
+  fs.rmSync(to, { recursive: true, force: true });
+  for (const sub of ['logos', 'brand']) {
+    const files = images(id, sub);
+    fs.mkdirSync(path.join(to, sub), { recursive: true });
+    for (const f of files) fs.copyFileSync(path.join(dirOf(id), sub, f), path.join(to, sub, f));
+    if (!files.length) fs.writeFileSync(path.join(to, sub, '.keep'), '');
+  }
+  writeJson(path.join(to, 'settings.json'), get(id));
+  return importId;
 }
 
 // ─── Images ─────────────────────────────────────────────────────────────────
@@ -255,6 +295,7 @@ function images(id, kind) {
   try { return fs.readdirSync(imageDir(id, kind)).filter(f => IMAGE.test(f)).sort((a, b) => a.localeCompare(b)); } catch { return []; }
 }
 function saveImage(id, kind, fileName, buf) {
+  writable();
   const name = path.basename(String(fileName || '')).replace(/[^\w .'()&+-]/g, '').trim();
   if (!IMAGE.test(name)) throw new Error(`${kind === 'photos' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
   if (!buf.length) throw new Error('That file is empty.');
@@ -263,10 +304,12 @@ function saveImage(id, kind, fileName, buf) {
   return name;
 }
 function deleteImage(id, kind, fileName) {
+  writable();
   const file = path.join(imageDir(id, kind), path.basename(String(fileName || '')));
   if (fs.existsSync(file)) fs.unlinkSync(file);
 }
 function renameImage(id, kind, from, to) {
+  writable();
   const src = path.join(imageDir(id, kind), path.basename(String(from || '')));
   const name = path.basename(String(to || '')).replace(/[^\w .'()&+-]/g, '').trim();
   if (!IMAGE.test(name)) throw new Error('The new name needs to end in .png, .jpg, .webp, .svg or .gif.');
@@ -307,4 +350,4 @@ function themeCss(s) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry };
+module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry };

@@ -15,25 +15,33 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const datadir = require('./datadir');
+const migrations = require('./migrations');
 const competitions = require('./competitions');
 const finals = require('./finals');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
-// config.json holds this computer's settings (port, cache, log size). Everything about
-// the competition lives in competitions/<id>/settings.json, edited on setup.html.
+// Everything the helper saves goes in the data folder (datadir.js), outside the app.
+const DATA = datadir.file;
+// config.json holds this computer's settings (port, cache, log size): the app's config.json
+// has the defaults, and a config.json in the data folder changes any of them (only the
+// settings it names, so an update can add new ones). Everything about the competition lives
+// in competitions/<id>/settings.json in the data folder, edited on setup.html.
 // CONFIG is the two together, for the competition in use.
-const MACHINE = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+const readConfig = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; } };
+const MACHINE = { ...readConfig(path.join(ROOT, 'config.json')), ...readConfig(DATA('config.json')) };
+delete MACHINE._note;
 let CONFIG = { ...MACHINE };
 const PORT = Number(process.env.PORT || MACHINE.port || 8080);
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
 const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
 
 // ─── Debug log ──────────────────────────────────────────────────────────────
-// logs/playhq-graphics.log: helper requests, PlayHQ calls, scoreboard changes and
+// logs/playhq-graphics.log in the data folder: helper requests, PlayHQ calls, scoreboard changes and
 // errors from every page. Capped at logMaxMB (default 15): when full, the oldest
 // half is dropped so the newest lines are always kept.
-const LOG_DIR = path.join(ROOT, 'logs');
+const LOG_DIR = DATA('logs');
 const LOG_FILE = path.join(LOG_DIR, 'playhq-graphics.log');
 const LOG_MAX = Math.max(1, Number(MACHINE.logMaxMB) || 15) * 1024 * 1024;
 let logSize = 0;
@@ -59,6 +67,9 @@ function log(level, source, message, extra) {
 }
 process.on('uncaughtException', err => { log('error', 'helper', `Crash: ${err.stack || err.message}`); process.exit(1); });
 process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(err && err.stack) || err}`));
+
+// Bring saved settings up to date (migrations.js) before anything reads them.
+const DATA_STATE = migrations.run(log);
 
 // ─── Where the data comes from ──────────────────────────────────────────────
 // config.json holds the organisation's PlayHQ page link. From it we read the
@@ -552,12 +563,12 @@ async function getRounds(gradeId) {
 // winners entered by hand (for finals PlayHQ has no fixtures for). Without it the boards
 // start from the competition setup's defaults. The game itself, scores and the clock stay
 // in scoreboard-state.json.
-const CONTROL_FILE = path.join(ROOT, 'control.json');
+const CONTROL_FILE = DATA('control.json');
 const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock', 'tickerSpeed'];
 let control = {};
 try { control = JSON.parse(fs.readFileSync(CONTROL_FILE, 'utf8')); } catch { /* none saved yet */ }
 if (control.round === undefined) { // the round used to be kept in round-choice.json
-  try { control.round = String(JSON.parse(fs.readFileSync(path.join(ROOT, 'round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }
+  try { control.round = String(JSON.parse(fs.readFileSync(DATA('round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }
 }
 control.boards = control.boards || {};
 let controlSaved = JSON.stringify(control);
@@ -743,7 +754,7 @@ function getCountdown(boardId) {
 // ─── Scoreboard state (set from control.html, shown by scoreboard.html) ─────
 // Kept in scoreboard-state.json so a restart mid-game keeps the score. The lasting
 // settings (LASTING) also go to control.json, which wins when both have them.
-const STATE_FILE = path.join(ROOT, 'scoreboard-state.json');
+const STATE_FILE = DATA('scoreboard-state.json');
 let boards = {};
 try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
 function saveBoards() {
@@ -1305,7 +1316,7 @@ function applyCompetition(why) {
   for (const b of Object.values(boards)) { // a new quarter length applies to clocks that haven't started
     if (!b.clock.running && !b.clock.elapsedMs) b.clock.lengthSec = b.clock.baseSec = QUARTER_SEC;
   }
-  log('info', 'setup', `${why}: ${CONFIG.name} (${CONFIG.competitionName || 'no PlayHQ competition set'}, organisation ${ORG_ID || 'not set'} on ${TENANT})`);
+  log('info', 'setup', !id ? `${why}: none yet` : `${why}: ${CONFIG.name} (${CONFIG.competitionName || 'no PlayHQ competition set'}, organisation ${ORG_ID || 'not set'} on ${TENANT})`);
   if (prev.id && sourceChanged) {
     if (roundChoice) setRoundChoice('');
     for (const bid of Object.keys(boards)) { Object.assign(boards[bid], newBoard()); autoPick(bid); }
@@ -1353,7 +1364,7 @@ function readRaw(req, max) {
 }
 
 async function setupRoute(req, res, url, q) {
-  const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image))?)?$/);
+  const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image|export))?)?$/);
   if (url.pathname === '/api/setup-find') return send(res, 200, await findCompetitions(q.url || (await readBody(req)).organisationUrl));
   if (url.pathname === '/api/setup-teams') return send(res, 200, await setupTeams());
   if (url.pathname === '/api/setup-new' && req.method === 'POST') {
@@ -1362,9 +1373,30 @@ async function setupRoute(req, res, url, q) {
     log('info', 'setup', `New competition setup "${body.name}" (${id})${body.from ? ` copied from ${body.from}` : ''}`);
     return send(res, 200, setupInfo(id));
   }
+  if (url.pathname === '/api/setup-import' && req.method === 'POST') {
+    const body = await readBody(req);
+    const hadActive = competitions.activeId();
+    const id = competitions.importConfig(String(body.from || ''), body.name);
+    log('info', 'setup', `Imported the ${body.from} import config as ${id}`);
+    if (!hadActive) applyCompetition('First competition imported');
+    return send(res, 200, setupInfo(id));
+  }
   if (!m) return send(res, 404, { error: 'Unknown setup link' });
   const [, id, what] = m;
-  if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), fonts: competitions.FONTS, defaults: competitions.DEFAULTS, finalsFormats: finals.list(), finalsMarks: finals.MARKS });
+  if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), imports: competitions.imports(),
+    canSaveImports: datadir.canSaveImports(), dataDir: datadir.DATA_DIR, readOnly: competitions.isReadOnly(),
+    fonts: competitions.FONTS, defaults: competitions.DEFAULTS, finalsFormats: finals.list(), finalsMarks: finals.MARKS });
+  if (what === 'export' && req.method === 'POST') {
+    const body = await readBody(req);
+    try {
+      const importId = competitions.saveAsImport(id, body.importId, !!body.replace);
+      log('info', 'setup', `Saved ${id} as the import config imports/${importId}`);
+      return send(res, 200, { importId, imports: competitions.imports() });
+    } catch (err) {
+      if (err.exists) return send(res, 409, { error: err.message, exists: err.exists });
+      throw err;
+    }
+  }
   if (what === 'activate' && req.method === 'POST') {
     competitions.setActive(id);
     applyCompetition('Switched competition');
@@ -1431,7 +1463,7 @@ async function fetchGameSummary(gameId) {
   if (!res.ok) throw new Error(`PlayHQ Game Summary answered HTTP ${res.status} for ${url}`);
   let json;
   try { json = JSON.parse(text); } catch { throw new Error('PlayHQ Game Summary was not JSON'); }
-  fs.writeFile(path.join(ROOT, 'last-game-summary.json'), JSON.stringify(json, null, 2), () => {});
+  fs.writeFile(DATA('last-game-summary.json'), JSON.stringify(json, null, 2), () => {});
   return json;
 }
 
@@ -2195,7 +2227,7 @@ async function getTopShooters(q) {
     points: by(p => p.points), goals: by(p => p.goals), superGoals: by(p => p.superGoals) };
 }
 
-competitions.init(log);
+competitions.init(log, { readOnly: DATA_STATE.readOnly });
 applyCompetition('Using competition');
 
 // ─── HTTP ───────────────────────────────────────────────────────────────────

@@ -1,0 +1,41 @@
+# Builds the FirstPass Studio Mac app (signed and notarised) from the Actions tab:
+# Actions > Mac app > Run workflow. The version is the one in package.json.
+# "Publish" puts it on the public FirstPassStudio-releases repository, where the installed
+# apps find their updates; otherwise the .dmg is attached to the run to try first.
+# Setup and the secrets it needs: see "Mac app" in README.md.
+name: Mac app
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish as an update for everyone
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build, sign and notarise
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: npx electron-builder --mac --publish ${{ inputs.publish && 'always' || 'never' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FirstPass-Studio-mac
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          retention-days: 14
