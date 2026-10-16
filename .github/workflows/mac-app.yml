@@ -6,10 +6,16 @@
 # "Publish" puts it on the public FirstPassStudio-releases repository, where the installed
 # apps find their updates (the .zip is what they update from); otherwise only the .dmg is
 # attached to the run to try first.
+# Every merge to main (that changes more than docs) also runs this and publishes the next
+# patch version, so installed apps get each merged change.
 # Setup and the secrets it needs: see "Mac app" in README.md.
 name: Mac app
 
 on:
+  # Every merge to main that changes the app builds and publishes the next patch version.
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', '*.command', '*.bat']
   workflow_dispatch:
     inputs:
       publish:
@@ -26,6 +32,15 @@ on:
         type: string
         default: ''
 
+# One build at a time, so two merges close together don't pick the same version.
+concurrency:
+  group: mac-app
+  cancel-in-progress: false
+
+env:
+  # A push (merge to main) publishes; a manual run publishes only with Publish ticked.
+  PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+
 jobs:
   build:
     runs-on: macos-latest
@@ -39,9 +54,8 @@ jobs:
       - name: Pick the version
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-          BUMP: ${{ inputs.bump }}
-          WANTED: ${{ inputs.version }}
-          PUBLISH: ${{ inputs.publish }}
+          BUMP: ${{ inputs.bump || 'patch' }}
+          WANTED: ${{ inputs.version || '' }}
         run: |
           LATEST="$(gh release list --repo zapheus-runplaywin/FirstPassStudio-releases --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')" \
             || { echo "::error::Couldn't read FirstPassStudio-releases. Check the RELEASES_TOKEN secret."; exit 1; }
@@ -101,7 +115,7 @@ jobs:
       # ("Published releases must have a valid tag"), leaving a release without the .dmg.
       # latest-mac.yml is what installed apps read to find the update.
       - name: Publish the update
-        if: ${{ inputs.publish }}
+        if: ${{ env.PUBLISH == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |

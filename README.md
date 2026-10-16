@@ -135,6 +135,11 @@ every installed app. The workflow picks the version: the last published one rais
 be higher than the last published one (updates only go to a higher version). The first release uses `version` in
 `package.json`; after that `package.json` needn't change.
 
+**Every merge to main publishes automatically**: the workflow runs by itself, builds the next patch version and
+publishes it as an update, so installed apps pick up each merged PR. Merges that only change documentation (`.md`
+files, `docs/`, the Start and Update scripts) don't publish. Use **Run workflow** for a minor or major version, a
+specific version, or a test build without publishing. Builds run one at a time, so two quick merges get two versions.
+
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
 
