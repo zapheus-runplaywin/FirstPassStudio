@@ -164,13 +164,23 @@ const Q_COMPETITIONS = `query discoverCompetitions($organisationID: ID!) {
     organisation { id name }
   }
 }`;
-const Q_SEASON = `query gradeListDiscoverSeason($id: String!) {
+// Each division's gender (Men's, Women's, Mixed...) is asked for too, as playhq.com does; if
+// PlayHQ ever refuses it the season is read again without it.
+const qSeason = withGender => `query gradeListDiscoverSeason($id: String!) {
   discoverSeason(seasonID: $id) {
     id name
     competition { id name organisation { id name } }
-    grades { id name }
+    grades { id name${withGender ? ' gender { value }' : ''} }
   }
 }`;
+let seasonGender = true;
+// 'female' or 'male' for a division PlayHQ says is for women or men, '' for mixed, open or not given.
+function gradeGenderOf(v) {
+  const s = String((v && typeof v === 'object' ? v.value || v.name : v) || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (/^(FEMALE|WOMEN|WOMENS|WOMAN|GIRLS?|LADIES)$/.test(s)) return 'female';
+  if (/^(MALE|MEN|MENS|MAN|BOYS?)$/.test(s)) return 'male';
+  return '';
+}
 
 // Ladder columns. If PlayHQ doesn't know one of these for a sport, it's dropped
 // automatically and the page just leaves that column out.
@@ -243,14 +253,21 @@ async function getStructure() {
     compName = comp.name;
     if (comp.organisation && comp.organisation.name) orgName = CONFIG.organisationName || comp.organisation.name;
   }
-  const s = (await gql('gradeListDiscoverSeason', Q_SEASON, { id: seasonId })).discoverSeason;
+  let s;
+  try { s = (await gql('gradeListDiscoverSeason', qSeason(seasonGender), { id: seasonId })).discoverSeason; }
+  catch (err) {
+    if (!err.graphql || !seasonGender) throw err;
+    seasonGender = false;
+    log('info', 'playhq', `Division gender unavailable, reading divisions without it: ${err.message}`);
+    s = (await gql('gradeListDiscoverSeason', qSeason(false), { id: seasonId })).discoverSeason;
+  }
   if (!s) throw new Error(`PlayHQ has no season with id ${seasonId}.`);
   const grades = (s.grades || []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   structure = {
     organisation: CONFIG.organisationName || (s.competition && s.competition.organisation && s.competition.organisation.name) || orgName,
     competition: CONFIG.displayName || CONFIG.competitionName || compName || (s.competition && s.competition.name),
     season: { id: s.id, name: s.name },
-    grades: grades.map((g, i) => ({ division: i + 1, id: g.id, name: g.name })),
+    grades: grades.map((g, i) => ({ division: i + 1, id: g.id, name: g.name, gender: gradeGenderOf(g.gender) })),
     otherCompetitions: allCompetitions.map(c => c.name),
   };
   structureAt = Date.now();
@@ -1345,10 +1362,14 @@ async function findCompetitions(organisationUrl) {
 }
 
 // Every team in the competition in use, with the logo each one gets, for the setup page.
-async function setupTeams() {
+// byDivision lists a team once in every division it plays in (the athletes page); otherwise once.
+async function setupTeams({ byDivision = false } = {}) {
   const st = await getStructure();
   const teams = new Map();
-  const add = (name, division) => { if (name && name !== 'TBC' && !teams.has(norm(name))) teams.set(norm(name), { name, division }); };
+  const add = (name, division) => {
+    const k = byDivision ? `${norm(division)}|${norm(name)}` : norm(name);
+    if (name && name !== 'TBC' && !teams.has(k)) teams.set(k, { name, division });
+  };
   for (const grade of st.grades) {
     try { for (const row of (await getLadder(grade.id)).pools.flat()) add(row.team, grade.name); } catch (err) { log('warn', 'setup', `Ladder for ${grade.name}: ${err.message}`); }
   }
@@ -1653,10 +1674,22 @@ function recordPlayers(team, division, players) {
   }
   saveRegister();
 }
-function genderFor(name, fromPlayhq) {
-  const e = athletes()[photoKey(name)] || {};
-  return e.gender || e.playhqGender || fromPlayhq || '';
+// The gender of a division, from PlayHQ ('' for mixed or open), once the divisions have been read.
+function divisionGender(division) {
+  const g = structure && structure.grades.find(x => norm(x.name) === norm(division));
+  return g ? g.gender || '' : '';
 }
+// Where an athlete's silhouette comes from: picked by hand, PlayHQ's player gender, or else the
+// PlayHQ gender of the divisions they play in (a men's or women's division; mixed says nothing).
+function genderInfo(name, fromPlayhq, division) {
+  const e = athletes()[photoKey(name)] || {};
+  if (e.gender) return { gender: e.gender, genderFrom: 'hand' };
+  if (e.playhqGender || fromPlayhq) return { gender: e.playhqGender || fromPlayhq, genderFrom: 'playhq' };
+  const found = new Set([...Object.keys(e.teams || {}), division].filter(Boolean).map(divisionGender).filter(Boolean));
+  if (found.size === 1) return { gender: [...found][0], genderFrom: 'division' };
+  return { gender: '', genderFrom: '' };
+}
+function genderFor(name, fromPlayhq, division) { return genderInfo(name, fromPlayhq, division).gender; }
 // The generic picture for an athlete with no photo.
 function silhouette(gender) { return `/silhouettes/${gender === 'female' || gender === 'male' ? gender : 'neutral'}.svg`; }
 // Every team and division the register has seen the athlete in.
@@ -1673,7 +1706,7 @@ function withPhotos(data) {
     if (!data[side] || !data[side].players) continue;
     if (!data.stale) recordPlayers(data[side].name, data.division, data[side].players);
     data[side].players = data[side].players.map(p => {
-      const gender = genderFor(p.name, p.gender);
+      const gender = genderFor(p.name, p.gender, data.division);
       return { ...p, gender, photo: photoFor(p.name, files), silhouette: silhouette(gender) };
     });
   }
@@ -1691,12 +1724,14 @@ function savePhoto(name, ext, buf) {
 
 // Every athlete PlayHQ has listed for one team this season, from the line ups of its
 // finished games and its next game (line ups are often entered before the game).
-async function seasonLineups(teamName) {
+// With a division, only that division's team of that name (a club can have one in several).
+async function seasonLineups(teamName, inDivision) {
   const st = await getStructure();
   const want = norm(teamName);
   const games = [];
   let division = '';
   for (const grade of st.grades) {
+    if (inDivision && norm(grade.name) !== norm(inDivision)) continue;
     const mine = (await getSeasonGames(grade)).filter(g => norm(g.home.name) === want || norm(g.away.name) === want);
     if (mine.length) division = grade.name;
     const done = mine.filter(isFinished);
@@ -1732,22 +1767,21 @@ async function seasonLineups(teamName) {
   if (failed) log('warn', 'athletes', `${teamName}: ${failed} of ${games.length} games could not be read: ${lastError}`);
   return { st, athletes, division, games, read, failed, lastError };
 }
-async function getAthletes(teamName) {
-  const { st, athletes, division, games, read, failed, lastError } = await seasonLineups(teamName);
+async function getAthletes(teamName, inDivision) {
+  const { st, athletes, division, games, read, failed, lastError } = await seasonLineups(teamName, inDivision);
   const files = photoFiles();
   let all = {};
   try { all = await allAppearances(); } catch (err) { log('warn', 'athletes', `Appearances unavailable: ${err.message}`); }
   const rank = a => { const i = POSITION_RANK.indexOf(a.position); return i === -1 ? 99 : i; };
   const list = [...athletes.values()].map(a => {
     const position = Object.entries(a.positions).sort((x, y) => y[1] - x[1])[0];
-    const gender = genderFor(a.name, a.gender);
-    const e = register.data[photoKey(a.name)] || {};
+    const g = genderInfo(a.name, a.gender, division);
     return { name: a.name, number: a.number, position: position ? position[0] : '', positions: Object.keys(a.positions), games: a.games, captain: a.captain,
-      photo: photoFor(a.name, files), gender, genderSetByHand: !!e.gender, silhouette: silhouette(gender), teams: athleteTeams(a.name),
+      photo: photoFor(a.name, files), ...g, genderSetByHand: g.genderFrom === 'hand', silhouette: silhouette(g.gender), teams: athleteTeams(a.name),
       ...athleteStats(a.name, all[photoKey(a.name)]) };
   }).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
   return { team: teamName, logo: logoFor(teamName), division, divisions: st.grades.map(g => g.name), athletes: list, gamesRead: read, gamesFound: games.length,
-    error: !read && failed ? lastError : !games.length ? `PlayHQ has no games for ${teamName} this season.` : undefined };
+    error: !read && failed ? lastError : !games.length ? `PlayHQ has no games for ${teamName}${inDivision ? ` in ${inDivision}` : ''} this season.` : undefined };
 }
 
 // ─── Games and positions played ─────────────────────────────────────────────
@@ -1878,8 +1912,8 @@ async function athletesRoute(req, res, url, q) {
     register.dirty = true;
     saveRegister();
     log('info', 'athletes', `${id}: ${e.name} gender ${e.gender || 'from PlayHQ'}`);
-    const gender = genderFor(e.name);
-    return send(res, 200, { name: e.name, gender, genderSetByHand: !!e.gender, silhouette: silhouette(gender) });
+    const g = genderInfo(e.name);
+    return send(res, 200, { name: e.name, ...g, genderSetByHand: g.genderFrom === 'hand', silhouette: silhouette(g.gender) });
   }
   // Games played and positions played, typed in on the athletes page.
   if (url.pathname === '/api/athletes/stats' && req.method === 'POST') {
@@ -1919,20 +1953,20 @@ async function athletesRoute(req, res, url, q) {
     try { all = await allAppearances(); } catch (err) { log('warn', 'athletes', `Appearances unavailable: ${err.message}`); }
     const files = photoFiles();
     const list = Object.values(athletes()).map(e => {
-      const gender = genderFor(e.name);
-      return { name: e.name, gender, genderSetByHand: !!e.gender, photo: photoFor(e.name, files), silhouette: silhouette(gender), teams: athleteTeams(e.name),
+      const g = genderInfo(e.name);
+      return { name: e.name, ...g, genderSetByHand: g.genderFrom === 'hand', photo: photoFor(e.name, files), silhouette: silhouette(g.gender), teams: athleteTeams(e.name),
         ...athleteStats(e.name, all[photoKey(e.name)]) };
     }).sort((a, b) => a.name.localeCompare(b.name));
     return send(res, 200, { athletes: list });
   }
-  if (q.team) return send(res, 200, await getAthletes(q.team));
+  if (q.team) return send(res, 200, await getAthletes(q.team, q.division));
   const list = { folder: `competitions/${id}/photos`, photos: photoFiles().map(f => ({ file: f, url: '/photos/' + encodeURIComponent(f) })) };
   if (q.photos === 'only') return send(res, 200, list);
   // The teams to pick from, the two in the game on the control page, and every photo saved.
   const b = board(q.board || '1');
   let teams = [], error;
-  try { teams = (await setupTeams()).teams.map(t => ({ name: t.name, division: t.division, logo: t.logo })); } catch (err) { error = err.message; }
-  return send(res, 200, { competition: CONFIG.name, teams, current: [b.home.name, b.away.name].filter(n => n && n !== 'TBC' && !/^home$|^away$/i.test(n)),
+  try { teams = (await setupTeams({ byDivision: true })).teams.map(t => ({ name: t.name, division: t.division, logo: t.logo })); } catch (err) { error = err.message; }
+  return send(res, 200, { competition: CONFIG.name, teams, currentDivision: b.division || '', current: [b.home.name, b.away.name].filter(n => n && n !== 'TBC' && !/^home$|^away$/i.test(n)),
     ...list, error });
 }
 
@@ -1946,19 +1980,19 @@ function colourFor(teamName) {
 // this season) is added after them, without positions, and marked fromSquad.
 const FULL_LINEUP = 7;
 const squadCache = new Map();
-async function squadFor(teamName) {
-  const k = norm(teamName);
+async function squadFor(teamName, division) {
+  const k = `${norm(division)}|${norm(teamName)}`;
   const hit = squadCache.get(k);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.list;
-  const { athletes } = await seasonLineups(teamName);
+  const { athletes } = await seasonLineups(teamName, division);
   const list = [...athletes.values()].map(a => ({ name: a.name, number: a.number, gender: a.gender }));
   squadCache.set(k, { at: Date.now(), list });
   return list;
 }
-async function withSquad(side) {
+async function withSquad(side, division) {
   if (!side.name || side.players.length >= FULL_LINEUP) return side;
   let squad = [];
-  try { squad = await squadFor(side.name); } catch (err) { log('warn', 'teams', `${side.name}: squad unavailable: ${err.message}`); }
+  try { squad = await squadFor(side.name, division); } catch (err) { log('warn', 'teams', `${side.name}: squad unavailable: ${err.message}`); }
   const listed = new Set(side.players.map(p => photoKey(p.name)));
   const rest = squad.filter(a => !listed.has(photoKey(a.name))).map(a => ({ name: a.name, number: a.number || '', playhqId: '', gender: a.gender || '',
     position: '', private: false, captain: false, viceCaptain: false, shooting: { goals: 0, superGoals: 0, shots: null, points: 0 }, fromSquad: true }))
@@ -1981,7 +2015,7 @@ async function getTeamSheets(boardId) {
   try {
     const game = await getGame(b.gameId, maxAge);
     // A team without a full line up has the rest of its season squad added.
-    const g = { home: await withSquad(game.home), away: await withSquad(game.away) };
+    const g = { home: await withSquad(game.home, b.division), away: await withSquad(game.away, b.division) };
     if (g.home.players.length || g.away.players.length || !CONFIG.apiKey) {
       const error = g.home.players.length || g.away.players.length ? undefined : 'PlayHQ has no line-ups for this game yet.';
       // Team totals from the live feed: PlayHQ doesn't credit every goal to a player.

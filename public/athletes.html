@@ -146,7 +146,7 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const key = s => String(s || '').toLowerCase().replace(/['’`]/g, '').split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
 const fileKey = f => key(f.replace(/\.[a-z0-9]+$/i, ''));
 let allTeams = [];
-let photos = [], team = null, current = [], fresh = new Set(); // fresh: just dropped in, matching nobody on the team shown
+let photos = [], team = null, current = [], currentDivision = '', fresh = new Set(); // fresh: just dropped in, matching nobody on the team shown
 
 async function api(path, opts) {
   const res = await fetch(path, { cache: 'no-store', ...opts });
@@ -183,16 +183,19 @@ function teamButton(t) {
   b.type = 'button';
   if (t.logo) { const i = el('img'); i.src = t.logo; i.alt = ''; b.appendChild(i); }
   b.appendChild(document.createTextNode(t.name));
-  if (current.includes(t.name)) b.appendChild(el('span', 'live', 'On now'));
-  b.onclick = () => openTeam(t.name);
-  b.dataset.team = t.name;
+  if (current.includes(t.name) && (!currentDivision || t.division === currentDivision)) b.appendChild(el('span', 'live', 'On now'));
+  b.onclick = () => openTeam(t.name, t.division);
+  // A club can have a team of the same name in more than one division, so the division is part of it.
+  b.dataset.team = teamId(t.name, t.division);
   return b;
 }
+
+const teamId = (name, division) => `${division || ''}|${name}`;
 
 async function loadTeams() {
   try {
     const d = await api('/api/athletes');
-    photos = d.photos; current = d.current; allTeams = d.teams;
+    photos = d.photos; current = d.current; currentDivision = d.currentDivision || ''; allTeams = d.teams;
     $('folder').textContent = d.folder;
     const box = $('teams');
     box.replaceChildren();
@@ -208,8 +211,12 @@ async function loadTeams() {
     }
     $('teamsNote').textContent = `${d.competition}${current.length ? ` · On the control page now: ${current.join(' v ')}` : ''}`;
     renderLibrary();
-    const want = new URLSearchParams(location.search).get('team') || current[0];
-    if (want === '*') openAll(); else if (want) openTeam(want);
+    const qs = new URLSearchParams(location.search);
+    const want = qs.get('team') || current[0];
+    const wantDivision = qs.get('team') ? qs.get('division') : currentDivision;
+    // A link without a division opens the team's first division.
+    const pick = want && d.teams.find(t => t.name === want && (!wantDivision || t.division === wantDivision)) || d.teams.find(t => t.name === want);
+    if (want === '*') openAll(); else if (want) openTeam(want, pick ? pick.division : wantDivision || '');
   } catch (err) {
     console.warn('Athletes page: teams unavailable:', err.message);
     $('teams').replaceChildren(el('span', 'help error', `Couldn't load the teams: ${err.message}`));
@@ -240,17 +247,20 @@ async function openAll() {
   }
 }
 
-async function openTeam(name) {
-  for (const b of document.querySelectorAll('.teams button')) b.setAttribute('aria-pressed', b.dataset.team === name);
+async function openTeam(name, division) {
+  for (const b of document.querySelectorAll('.teams button')) b.setAttribute('aria-pressed', b.dataset.team === teamId(name, division));
   $('teamBox').hidden = false;
   $('search').hidden = true;
   $('teamName').textContent = name;
   $('teamInfo').textContent = 'Reading line ups from PlayHQ…';
   $('athletes').replaceChildren();
-  history.replaceState(null, '', `?team=${encodeURIComponent(name)}`);
+  const query = `team=${encodeURIComponent(name)}${division ? `&division=${encodeURIComponent(division)}` : ''}`;
+  history.replaceState(null, '', '?' + query);
+  const asked = openTeam.asked = query;
   try {
-    team = await api(`/api/athletes?team=${encodeURIComponent(name)}`);
-    if (team.team !== name) return;
+    const d = await api(`/api/athletes?${query}`);
+    if (openTeam.asked !== asked) return; // another team was picked meanwhile
+    team = d;
     const logo = $('teamLogo');
     logo.replaceChildren();
     if (team.logo) { const i = el('img'); i.src = team.logo; i.alt = ''; logo.appendChild(i); }
@@ -290,7 +300,7 @@ function renderAthletes() {
     body.appendChild(el('div', 'ath__name', a.name + (a.captain ? ' (C)' : '')));
     if (!team.all) body.appendChild(el('div', 'ath__meta', [a.number !== '' ? `#${a.number}` : '', a.positions.length ? a.positions.join(', ') : 'Position unknown', `${a.games} line up${a.games === 1 ? '' : 's'} this season`].filter(Boolean).join(' · ')));
     // Other teams and divisions: the same athlete and the same photo.
-    const others = (a.teams || []).filter(t => team.all || t.team !== team.team);
+    const others = (a.teams || []).filter(t => team.all || t.team !== team.team || t.division !== team.division);
     if (others.length) body.appendChild(el('div', 'ath__teams', (team.all ? '' : 'Also plays for ') + others.map(t => `${t.team} (${t.division})`).join(', ')));
     body.appendChild(statsLine(a));
     body.appendChild(genderPicker(a));
@@ -401,8 +411,10 @@ function editStats(a) {
 // Which silhouette an athlete without a photo gets: PlayHQ's gender, or one picked here.
 function genderPicker(a) {
   const sel = el('select', 'ath__gender');
+  // Unless picked here: PlayHQ's gender for the athlete, else that of a men's or women's division they play in.
   const fromPlayhq = a.genderSetByHand ? '' : a.gender;
-  sel.appendChild(new Option(`${fromPlayhq ? (fromPlayhq === 'female' ? 'Female' : 'Male') : 'Not known'} (PlayHQ)`, ''));
+  const source = a.genderFrom === 'division' ? 'PlayHQ division' : 'PlayHQ';
+  sel.appendChild(new Option(`${fromPlayhq ? (fromPlayhq === 'female' ? 'Female' : 'Male') : 'Not known'} (${source})`, ''));
   sel.appendChild(new Option('Female', 'female'));
   sel.appendChild(new Option('Male', 'male'));
   sel.value = a.genderSetByHand ? a.gender : '';
@@ -410,7 +422,7 @@ function genderPicker(a) {
   sel.onchange = async () => {
     try {
       const d = await api('/api/athletes/gender', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ athlete: a.name, gender: sel.value }) });
-      Object.assign(a, { gender: d.gender, genderSetByHand: d.genderSetByHand, silhouette: d.silhouette });
+      Object.assign(a, { gender: d.gender, genderFrom: d.genderFrom, genderSetByHand: d.genderSetByHand, silhouette: d.silhouette });
       renderAthletes();
     } catch (err) { alert(err.message); }
   };
