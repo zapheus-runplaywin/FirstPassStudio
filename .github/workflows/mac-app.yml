@@ -30,10 +30,10 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Pick the version
@@ -97,7 +97,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: npx electron-builder --mac --publish ${{ inputs.publish && 'always' || 'never' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: FirstPass-Studio-${{ env.VERSION }}-mac
           path: dist/*.dmg
