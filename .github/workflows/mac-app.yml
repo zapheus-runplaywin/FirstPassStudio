@@ -1,7 +1,8 @@
 # Builds the FirstPass Studio Mac app (signed and notarised) from the Actions tab:
 # Actions > Mac app > Run workflow. The version is the one in package.json.
 # "Publish" puts it on the public FirstPassStudio-releases repository, where the installed
-# apps find their updates; otherwise the .dmg is attached to the run to try first.
+# apps find their updates (the .zip is what they update from); otherwise only the .dmg is
+# attached to the run to try first.
 # Setup and the secrets it needs: see "Mac app" in README.md.
 name: Mac app
 
@@ -55,7 +56,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: FirstPass-Studio-mac
-          path: |
-            dist/*.dmg
-            dist/*.zip
+          path: dist/*.dmg
+          compression-level: 0
           retention-days: 14
