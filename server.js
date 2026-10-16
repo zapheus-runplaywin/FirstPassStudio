@@ -19,6 +19,7 @@ const datadir = require('./datadir');
 const migrations = require('./migrations');
 const competitions = require('./competitions');
 const finals = require('./finals');
+const { linkHost } = require('./linkhost');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -34,6 +35,9 @@ const MACHINE = { ...readConfig(path.join(ROOT, 'config.json')), ...readConfig(D
 delete MACHINE._note;
 let CONFIG = { ...MACHINE };
 const PORT = Number(process.env.PORT || MACHINE.port || 8080);
+// The start of every page link shown to people (home page, control page, Mac app): the Mac's
+// Bonjour name unless config.json linkHost says otherwise. See linkhost.js.
+const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
 const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
 
@@ -226,12 +230,12 @@ async function getStructure() {
   let seasonId = CONFIG.seasonId || null;
   let orgName = CONFIG.organisationName, compName = CONFIG.competitionName, allCompetitions = [];
   if (!seasonId) {
-    if (!ORG_ID) throw new Error(`Add the organisation's PlayHQ link for ${CONFIG.name} on the competition setup page (http://localhost:${PORT}/setup.html).`);
+    if (!ORG_ID) throw new Error(`Add the organisation's PlayHQ link for ${CONFIG.name} on the competition setup page (${LINK_BASE}/setup.html).`);
     const data = await gql('discoverCompetitions', Q_COMPETITIONS, { organisationID: ORG_ID });
     allCompetitions = data.discoverCompetitions || [];
     const want = (CONFIG.competitionName || '').toLowerCase();
     const comp = allCompetitions.find(c => c.name.toLowerCase() === want) || allCompetitions.find(c => c.name.toLowerCase().includes(want));
-    if (!want) throw new Error(`Pick ${CONFIG.name}'s PlayHQ competition on the competition setup page (http://localhost:${PORT}/setup.html).`);
+    if (!want) throw new Error(`Pick ${CONFIG.name}'s PlayHQ competition on the competition setup page (${LINK_BASE}/setup.html).`);
     if (!comp) throw new Error(`No competition called "${CONFIG.competitionName}" found. PlayHQ lists: ${allCompetitions.map(c => c.name).join(', ') || 'none'}`);
     const season = pickSeason(comp.seasons || []);
     if (!season) throw new Error(`"${comp.name}" has no seasons on PlayHQ yet.`);
@@ -2282,7 +2286,7 @@ http.createServer(async (req, res) => {
       return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name,
         rules: { ...rules(grade.name), finalsPlaces: marks.places }, finals: marks, ...ladder });
     }
-    if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion() });
+    if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion(), base: LINK_BASE });
     if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets(q.board || '1')));
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
@@ -2343,8 +2347,8 @@ http.createServer(async (req, res) => {
     send(res, 502, { error: err.message });
   }
 }).listen(PORT, () => {
-  log('info', 'helper', `Started on port ${PORT}, Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
+  log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
   console.log(`Debug log: ${LOG_FILE}`);
-  console.log(`PlayHQ Graphics is running. Open http://localhost:${PORT}/ for the page links.`);
-  console.log(`Competition: ${CONFIG.name} (change it at http://localhost:${PORT}/setup.html). Leave this window open while streaming.`);
+  console.log(`PlayHQ Graphics is running. Open ${LINK_BASE}/ for the page links.`);
+  console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });

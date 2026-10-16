@@ -63,7 +63,7 @@ In it:
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on each board, the scores and the clock.
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
-  how often to check PlayHQ); a `config.json` here changes only the settings it names.
+  how often to check PlayHQ, `linkHost`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log.
 - `app-settings.json`: the Mac app's own choices (whether the helper starts at login).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
@@ -96,7 +96,21 @@ removes the tracked `competitions/` files when you pull, so import your competit
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It lives in the menu bar (the **1P** icon), runs the same helper as the Start
 script in the background, restarts it if it stops, and opens the home page in your browser. OBS and the Stream Deck
-use http://localhost:8080 exactly as before. Don't run the Start script at the same time: they share port 8080.
+use the same links as the home page. Don't run the Start script at the same time: they share port 8080.
+
+### Links use the Mac's .local name
+
+The links on the home page, the control page and the Mac app's menu (including **Copy the Studio link**) start with
+the Mac's Bonjour name, e.g. `http://matts-macbook-pro.local:8080/`, instead of `localhost`. That name is the
+**Local hostname** in System Settings > General > Sharing, and it works in OBS on the Mac itself and from a phone,
+another computer or a Stream Deck on the same network, without looking up an IP address. The port stays 8080.
+`http://localhost:8080` still works on the Mac, so existing OBS sources and Stream Deck buttons carry on as they are.
+To go back to `localhost` links (or use a fixed name or IP address), set `"linkHost": "localhost"` (or that name) in
+`config.json` in the data folder; `"bonjour"` is the default. On Windows and Linux the links stay `localhost`.
+
+The helper has always listened on every network connection, not just this Mac, so anything on the same network can
+open the pages and press the Stream Deck links (scores, clock, game). Stream on a network you trust (not open venue
+Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
 The menu bar icon has: Start/Stop the helper, Open Studio, Scoreboard control, Competition setup, Copy the Studio
 link, Open the settings folder, Open the debug log, Restart the helper, Open at login, Start the helper at login,

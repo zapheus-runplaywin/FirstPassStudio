@@ -192,6 +192,18 @@
       Don't run the Start script at the same time; both use port 8080. Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
   </div>
   <div class="card">
+    <h2>Links (this Mac's .local name)</h2>
+    <p class="page__help">The links on this page, the control page and the Mac app's menu (<b>Copy the Studio link</b> too) start with this Mac's
+      Bonjour name, <code id="linkBase" style="display:inline"></code>, instead of <code style="display:inline">localhost</code>. It is the
+      <b>Local hostname</b> in System Settings &gt; General &gt; Sharing, so the same link works in OBS on this Mac and from a phone, another
+      computer or a Stream Deck on the same network. The port stays 8080, and <code style="display:inline">http://localhost:8080</code> still works on this Mac,
+      so OBS sources and Stream Deck buttons you already have carry on.
+      To change it, set <code style="display:inline">"linkHost"</code> in <code style="display:inline">config.json</code> in the data folder:
+      <code style="display:inline">"bonjour"</code> (the default), <code style="display:inline">"localhost"</code>, or any name or IP address, then restart the helper. On Windows the links stay localhost.</p>
+    <p class="page__help">Anything on the same network can open these pages and press the Stream Deck links (scores, clock, game), as it always could.
+      Stream on a network you trust, not open venue Wi-Fi, or block incoming connections to FirstPass Studio in the Mac's firewall.</p>
+  </div>
+  <div class="card">
     <h2>Saved settings</h2>
     <p class="page__help">Everything Studio saves lives in one data folder on this computer, outside the app, so updates never touch it:
       <code style="display:inline">~/Library/Application Support/FirstPass Studio</code> on a Mac,
@@ -245,16 +257,29 @@ function copy(text, button) {
   const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
   document.execCommand('copy'); t.remove(); done();
 }
+// The links shown and copied start with the Mac's Bonjour name (e.g. http://matts-macbook-pro.local:8080),
+// from the helper, so they work on this Mac and from other devices on the network. Until the helper
+// answers they use this page's own address. Preview opens the page the same way this one was opened.
+let linkBase = location.origin;
+const links = [];
+function showLink(path, code, button) {
+  const link = { path, code, button };
+  const draw = () => { code.textContent = linkBase + path; button.onclick = e => copy(linkBase + path, e.target); };
+  link.draw = draw; links.push(link); draw();
+}
+fetch('/api/version').then(r => r.json()).then(v => {
+  if (v.base) linkBase = v.base;
+  links.forEach(l => l.draw());
+  document.getElementById('linkBase').textContent = linkBase;
+}).catch(() => {});
 // One line per page: name, full link, Copy link and Preview.
 function pageRow(name, path, help) {
-  const url = `${location.origin}${path}`;
   const row = document.createElement('div');
   row.className = 'page';
   row.innerHTML = '<div class="page__name"></div><code></code><div class="row"><button>Copy link</button><a class="btn" target="_blank">Preview</a></div>';
   row.querySelector('.page__name').textContent = name;
-  row.querySelector('code').textContent = url;
-  row.querySelector('a').href = url;
-  row.querySelector('button').onclick = e => copy(url, e.target);
+  row.querySelector('a').href = path;
+  showLink(path, row.querySelector('code'), row.querySelector('button'));
   if (help) {
     const p = document.createElement('p');
     p.className = 'page__help';
@@ -263,8 +288,7 @@ function pageRow(name, path, help) {
   }
   return row;
 }
-document.getElementById('sbUrl').textContent = `${location.origin}/scoreboard.html`;
-document.getElementById('sbCopy').onclick = e => copy(`${location.origin}/scoreboard.html`, e.target);
+showLink('/scoreboard.html', document.getElementById('sbUrl'), document.getElementById('sbCopy'));
 [['Title banner', '/title.html',
   'The emoji either side of the title is picked in the competition setup (any emoji, or none). ' +
   'Options: <code>?fire=0</code> leaves it off on this page and <code>?emoji=%E2%9A%A1</code> uses a different one. ' +
@@ -378,14 +402,13 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
     document.getElementById('finalsCard').hidden = !st.grades.length;
     document.getElementById('shootersCard').hidden = !st.grades.length;
     st.grades.forEach(g => {
-      const url = `${location.origin}/ladder.html?division=${g.division}`;
+      const path = `/ladder.html?division=${g.division}`;
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `<h2></h2><code></code><div class="row"><button>Copy link</button><a class="btn" target="_blank">Preview</a></div>`;
       card.querySelector('h2').textContent = `Ladder: ${g.name}`;
-      card.querySelector('code').textContent = url;
-      card.querySelector('a').href = url;
-      card.querySelector('button').onclick = e => copy(url, e.target);
+      card.querySelector('a').href = path;
+      showLink(path, card.querySelector('code'), card.querySelector('button'));
       list.appendChild(card);
     });
   } catch (err) {
