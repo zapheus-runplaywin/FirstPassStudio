@@ -92,7 +92,7 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 ## Desktop app (Mac)
 
-FirstPass Studio installs as a normal Mac app, with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
+FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It lives in the menu bar (the **1P** icon), runs the same helper as the Start
 script in the background, restarts it if it stops, and opens the home page in your browser. OBS and the Stream Deck
 use http://localhost:8080 exactly as before. Don't run the Start script at the same time: they share port 8080.
@@ -107,8 +107,8 @@ are brought up to date and backed up on the first start of the new version.
 
 ### Building and releasing it
 
-The **Mac app** workflow on GitHub (Actions > Mac app > Run workflow) builds a signed, notarised universal app (Apple
-silicon and Intel). Without **Publish** the `.dmg` is attached to the run to try out; with it, it becomes an update for
+The **Mac app** workflow on GitHub (Actions > Mac app > Run workflow) builds a signed, notarised app for Apple
+silicon Macs (M1 and later; Intel Macs aren't supported). Without **Publish** the `.dmg` is attached to the run to try out; with it, it becomes an update for
 every installed app. Before a release, raise `version` in `package.json` (updates only go to a higher version).
 
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
