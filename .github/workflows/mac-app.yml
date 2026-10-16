@@ -109,7 +109,17 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx electron-builder --mac --publish never
+        # Signing asks Apple's timestamp server for every file, and it sometimes doesn't answer
+        # ("A timestamp was expected but was not found"), so try up to three times.
+        run: |
+          for attempt in 1 2 3; do
+            npx electron-builder --mac --publish never && exit 0
+            echo "::warning::Build attempt $attempt failed (often Apple's timestamp server). Trying again."
+            rm -rf dist
+            sleep 30
+          done
+          echo "::error::The build failed three times. See the log above."
+          exit 1
       # Published here in one step rather than by electron-builder: its .zip and .dmg uploads
       # each tried to create the release at the same moment, and the second one failed
       # ("Published releases must have a valid tag"), leaving a release without the .dmg.
