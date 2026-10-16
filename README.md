@@ -140,7 +140,7 @@ public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only t
 
 One-time setup:
 
-1. Create the public repository `FirstPassStudio-releases` (empty is fine).
+1. Create the public repository `FirstPassStudio-releases` with a README (tick **Add a README file**): GitHub can't make a release in an empty repository.
 2. In Xcode (Settings > Accounts > Manage Certificates) or at developer.apple.com, create a **Developer ID
    Application** certificate. In Keychain Access export it with its private key as a `.p12` with a password.
 3. At appleid.apple.com create an app-specific password. Your Team ID is under Membership at developer.apple.com.
