@@ -5,7 +5,9 @@
 // the Stream Deck use http://localhost:8080 exactly as before.
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
-// installing or updating the app never touches. Updates download in the background and
+// installing or updating the app never touches. "Stop the helper" in the menu stops it, so
+// the app can open at login and sit in the menu bar without talking to PlayHQ until it is
+// started. Updates download in the background and
 // are installed when the app quits, so they never interrupt a stream.
 
 'use strict';
@@ -31,7 +33,8 @@ function log(message) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => openPage('/'));
+  // Opening the app again by hand: start the helper if it is stopped, then open Studio.
+  app.on('second-instance', async () => { if (!helper && await startHelperChecked()) await waitUntilRunning(); openPage('/'); });
   app.whenReady().then(start);
 }
 
@@ -53,8 +56,17 @@ function answering() {
   });
 }
 
+// The app's own settings (not the helper's): whether the helper starts at login.
+const APP_SETTINGS = path.join(DATA_DIR, 'app-settings.json');
+function appSettings() { try { return JSON.parse(fs.readFileSync(APP_SETTINGS, 'utf8')); } catch { return {}; } }
+function saveAppSetting(key, value) {
+  try { fs.writeFileSync(APP_SETTINGS, JSON.stringify({ ...appSettings(), [key]: value }, null, 2) + '\n'); } catch (err) { log(`Couldn't save ${key}: ${err.message}`); }
+}
+
 // ─── The helper ─────────────────────────────────────────────────────────────
-let helper = null, status = 'Starting…', quitting = false, restarts = 0, tray = null;
+// wanted: whether it should be running (chosen from the menu), so a pending restart doesn't
+// bring back a helper that was just stopped.
+let helper = null, wanted = false, status = 'Stopped', quitting = false, restarts = 0, tray = null;
 
 function startHelper() {
   status = 'Starting…'; refreshMenu();
@@ -73,15 +85,55 @@ function startHelper() {
   });
   child.on('exit', code => {
     if (helper === child) helper = null;
-    if (quitting || child.restarting) return;
+    if (quitting || child.restarting || child.stopping) return;
     log(`Helper stopped (code ${code})`);
     // Keep it running: restart straight away, but give up if it keeps failing at start
     // (the debug log says why).
     if (Date.now() - started > 60000) restarts = 0;
-    if (++restarts <= 5) { status = 'Restarting…'; refreshMenu(); setTimeout(startHelper, 1000); return; }
+    if (++restarts <= 5) { status = 'Restarting…'; refreshMenu(); setTimeout(() => { if (wanted && !helper) startHelper(); }, 1000); return; }
     status = 'Stopped: see the debug log'; refreshMenu();
-    dialog.showMessageBox({ type: 'error', message: 'FirstPass Studio stopped', detail: 'The helper stopped several times in a row. Open the debug log from the menu bar icon to see why, then choose Restart.' });
+    dialog.showMessageBox({ type: 'error', message: 'FirstPass Studio stopped', detail: 'The helper stopped several times in a row. Open the debug log from the menu bar icon to see why, then choose Start the helper.' });
   });
+}
+
+// Starts the helper unless something else already answers on the port (the Start script,
+// or another copy). Resolves true if it started.
+async function startHelperChecked() {
+  if (helper) return true;
+  status = 'Starting…'; refreshMenu();
+  while (await answering()) {
+    const { response } = await dialog.showMessageBox({
+      type: 'warning', buttons: ['Try again', 'Cancel'], defaultId: 0, cancelId: 1,
+      message: `Something is already using port ${PORT}`,
+      detail: 'FirstPass Studio may already be running from the Start script. Close that window, then choose Try again.',
+    });
+    if (response === 1) { status = 'Stopped'; refreshMenu(); return false; }
+  }
+  if (helper) return true;
+  restarts = 0; wanted = true;
+  startHelper();
+  return true;
+}
+
+// Waits (up to about 10 s) for the helper to answer, so a page opened straight after starts loading.
+async function waitUntilRunning() {
+  for (let i = 0; i < 40 && helper; i++) {
+    if (await answering()) return;
+    await new Promise(r => setTimeout(r, 250));
+  }
+}
+
+// Stops the helper: nothing talks to PlayHQ, and the pages and the Stream Deck get no answer
+// until it is started again.
+function stopHelper() {
+  wanted = false;
+  if (!helper) { status = 'Stopped'; refreshMenu(); return; }
+  const child = helper;
+  child.stopping = true;
+  helper = null;
+  child.kill();
+  status = 'Stopped'; refreshMenu();
+  log('Helper stopped from the menu');
 }
 
 function restartHelper() {
@@ -89,7 +141,7 @@ function restartHelper() {
   if (!helper) return startHelper();
   const child = helper;
   child.restarting = true;
-  child.once('exit', () => setTimeout(startHelper, 300));
+  child.once('exit', () => setTimeout(() => { if (wanted && !helper) startHelper(); }, 300));
   child.kill();
 }
 
@@ -99,21 +151,27 @@ let updateReady = null;
 function refreshMenu() {
   if (!tray) return;
   const login = app.getLoginItemSettings().openAtLogin;
+  const running = !!helper;
+  const pending = !helper && wanted && status === 'Restarting…';
   tray.setToolTip(`FirstPass Studio: ${status}`);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: `FirstPass Studio ${app.getVersion()}`, enabled: false },
     { label: status, enabled: false },
+    running || pending
+      ? { label: 'Stop the helper', click: stopHelper }
+      : { label: 'Start the helper', enabled: status !== 'Starting…', click: () => startHelperChecked() },
     { type: 'separator' },
-    { label: 'Open Studio', click: () => openPage('/') },
-    { label: 'Scoreboard control', click: () => openPage('/control.html') },
-    { label: 'Competition setup', click: () => openPage('/setup.html') },
+    { label: 'Open Studio', enabled: running, click: () => openPage('/') },
+    { label: 'Scoreboard control', enabled: running, click: () => openPage('/control.html') },
+    { label: 'Competition setup', enabled: running, click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
     { type: 'separator' },
     { label: 'Open the settings folder', click: () => shell.openPath(DATA_DIR) },
     { label: 'Open the debug log', click: () => shell.openPath(path.join(DATA_DIR, 'logs', 'playhq-graphics.log')) },
-    { label: 'Restart the helper', click: restartHelper },
+    { label: 'Restart the helper', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
+    { label: 'Start the helper at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
     updateReady
       ? { label: `Restart to update to ${updateReady}`, click: () => { quitting = true; require('electron-updater').autoUpdater.quitAndInstall(); } }
       : { label: 'Check for updates', enabled: app.isPackaged, click: () => checkForUpdates(true) },
@@ -153,17 +211,15 @@ async function start() {
   refreshMenu();
   log(`Starting ${app.getVersion()}, settings in ${DATA_DIR}`);
 
-  if (await answering()) {
-    const { response } = await dialog.showMessageBox({
-      type: 'warning', buttons: ['Try again', 'Quit'], defaultId: 0, cancelId: 1,
-      message: `Something is already using port ${PORT}`,
-      detail: 'FirstPass Studio may already be running from the Start script. Close that window, then choose Try again.',
-    });
-    if (response === 1) return app.quit();
-    if (await answering()) return app.quit();
+  // Opened at login, the helper stays stopped (nothing talks to PlayHQ) unless "Start the
+  // helper at login" is ticked. Opened by hand, it starts and opens Studio.
+  const atLogin = app.getLoginItemSettings().wasOpenedAtLogin;
+  if (atLogin && !appSettings().startHelperAtLogin) {
+    log('Opened at login: the helper stays stopped until started from the menu');
+  } else if (await startHelperChecked() && !atLogin) {
+    await waitUntilRunning();
+    openPage('/');
   }
-  startHelper();
-  if (!app.getLoginItemSettings().wasOpenedAtLogin) setTimeout(() => openPage('/'), 1500);
   checkForUpdates(false);
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
 }

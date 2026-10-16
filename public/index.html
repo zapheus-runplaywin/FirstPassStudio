@@ -184,7 +184,11 @@
     <h2>Mac app</h2>
     <p class="page__help">FirstPass Studio also installs as a Mac app (no Node.js needed). It sits in the menu bar as the <b>1P</b> icon, runs this helper in the
       background and restarts it if it stops. Its menu opens Studio, the control and setup pages, the settings folder and the debug log, and has
-      <b>Open at login</b> and <b>Check for updates</b>. Updates download by themselves and install when the app quits, never mid-stream.
+      <b>Open at login</b> and <b>Check for updates</b>.
+      <b>Stop the helper</b> stops it, so nothing talks to PlayHQ and the pages and Stream Deck get no answer until you choose <b>Start the helper</b>;
+      the line under the version says which (Running or Stopped), and the page links are greyed out while it is stopped.
+      Opened at login, the app sits in the menu bar with the helper stopped, unless you tick <b>Start the helper at login</b>.
+      Opened by hand (from Applications or Spotlight), it starts the helper and opens Studio. Updates download by themselves and install when the app quits, never mid-stream.
       Don't run the Start script at the same time; both use port 8080. Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
   </div>
   <div class="card">
@@ -199,6 +203,7 @@
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ) from the app's defaults.</li>
+      <li><b>app-settings.json</b>: the Mac app's own choices (whether the helper starts at login).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <p class="page__help">Studio starts with no competitions. On the <a href="/setup.html" target="_blank">competition setup page</a>,
