@@ -5,7 +5,7 @@
 // the Stream Deck use the links on the home page (the Mac's .local name, or localhost).
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
-// installing or updating the app never touches. "Stop the helper" in the menu stops it, so
+// installing or updating the app never touches. "Stop Studio" in the menu stops it, so
 // the app can open at login and sit in the menu bar without talking to PlayHQ until it is
 // started. Updates download in the background and
 // are installed when the app quits, so they never interrupt a stream.
@@ -72,7 +72,7 @@ function saveAppSetting(key, value) {
 // ─── The helper ─────────────────────────────────────────────────────────────
 // wanted: whether it should be running (chosen from the menu), so a pending restart doesn't
 // bring back a helper that was just stopped.
-let helper = null, wanted = false, status = 'Stopped', quitting = false, restarts = 0, tray = null;
+let helper = null, wanted = false, status = 'Studio is off air', quitting = false, restarts = 0, tray = null;
 
 function startHelper() {
   status = 'Starting…'; refreshMenu();
@@ -85,7 +85,7 @@ function startHelper() {
   const started = Date.now();
   child.on('spawn', async () => {
     for (let i = 0; i < 40 && helper === child; i++) {
-      if (await answering()) { status = `Running on ${HOST}:${PORT}`; refreshMenu(); log('Helper running'); return; }
+      if (await answering()) { status = `Studio is on air at ${HOST}:${PORT}`; refreshMenu(); log('Helper running'); return; }
       await new Promise(r => setTimeout(r, 250));
     }
   });
@@ -97,8 +97,8 @@ function startHelper() {
     // (the debug log says why).
     if (Date.now() - started > 60000) restarts = 0;
     if (++restarts <= 5) { status = 'Restarting…'; refreshMenu(); setTimeout(() => { if (wanted && !helper) startHelper(); }, 1000); return; }
-    status = 'Stopped: see the debug log'; refreshMenu();
-    dialog.showMessageBox({ type: 'error', message: 'FirstPass Studio stopped', detail: 'The helper stopped several times in a row. Open the debug log from the menu bar icon to see why, then choose Start the helper.' });
+    status = 'Studio stopped: see the debug log'; refreshMenu();
+    dialog.showMessageBox({ type: 'error', message: 'FirstPass Studio stopped', detail: 'Studio stopped several times in a row. Open the debug log from the menu bar icon to see why, then choose Start Studio.' });
   });
 }
 
@@ -113,7 +113,7 @@ async function startHelperChecked() {
       message: `Something is already using port ${PORT}`,
       detail: 'FirstPass Studio may already be running from the Start script. Close that window, then choose Try again.',
     });
-    if (response === 1) { status = 'Stopped'; refreshMenu(); return false; }
+    if (response === 1) { status = 'Studio is off air'; refreshMenu(); return false; }
   }
   if (helper) return true;
   restarts = 0; wanted = true;
@@ -133,12 +133,12 @@ async function waitUntilRunning() {
 // until it is started again.
 function stopHelper() {
   wanted = false;
-  if (!helper) { status = 'Stopped'; refreshMenu(); return; }
+  if (!helper) { status = 'Studio is off air'; refreshMenu(); return; }
   const child = helper;
   child.stopping = true;
   helper = null;
   child.kill();
-  status = 'Stopped'; refreshMenu();
+  status = 'Studio is off air'; refreshMenu();
   log('Helper stopped from the menu');
 }
 
@@ -164,8 +164,8 @@ function refreshMenu() {
     { label: `FirstPass Studio ${app.getVersion()}`, enabled: false },
     { label: status, enabled: false },
     running || pending
-      ? { label: 'Stop the helper', click: stopHelper }
-      : { label: 'Start the helper', enabled: status !== 'Starting…', click: () => startHelperChecked() },
+      ? { label: 'Stop Studio', click: stopHelper }
+      : { label: 'Start Studio', enabled: status !== 'Starting…', click: () => startHelperChecked() },
     { type: 'separator' },
     { label: 'Open Studio', enabled: running, click: () => openPage('/') },
     { label: 'Scoreboard control', enabled: running, click: () => openPage('/control.html') },
@@ -174,10 +174,10 @@ function refreshMenu() {
     { type: 'separator' },
     { label: 'Open the settings folder', click: () => shell.openPath(DATA_DIR) },
     { label: 'Open the debug log', click: () => shell.openPath(path.join(DATA_DIR, 'logs', 'playhq-graphics.log')) },
-    { label: 'Restart the helper', enabled: running, click: restartHelper },
+    { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
-    { label: 'Start the helper at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
+    { label: 'Start Studio at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
     updateReady
       ? { label: `Restart to update to ${updateReady}`, click: () => { quitting = true; require('electron-updater').autoUpdater.quitAndInstall(); } }
       : { label: 'Check for updates', enabled: app.isPackaged, click: () => checkForUpdates(true) },

@@ -65,7 +65,7 @@ In it:
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log.
-- `app-settings.json`: the Mac app's own choices (whether the helper starts at login).
+- `app-settings.json`: the Mac app's own choices (whether Studio starts at login).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
 
 ### Import configs
@@ -112,14 +112,15 @@ The helper has always listened on every network connection, not just this Mac, s
 open the pages and press the Stream Deck links (scores, clock, game). Stream on a network you trust (not open venue
 Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
-The menu bar icon has: Start/Stop the helper, Open Studio, Scoreboard control, Competition setup, Copy the Studio
-link, Open the settings folder, Open the debug log, Restart the helper, Open at login, Start the helper at login,
-Check for updates and Quit.
+The menu bar icon has: Start/Stop Studio, Open Studio, Scoreboard control, Competition setup, Copy the Studio link,
+Open the settings folder, Open the debug log, Restart Studio, Open at login, Start Studio at login, Check for updates
+and Quit. (In the menu, "Studio" means the helper.)
 
-**Stop the helper** stops it, so nothing talks to PlayHQ until **Start the helper** is chosen; the status line under
-the version shows Running or Stopped, and the page links are greyed out while stopped. Opened at login, the app sits
-in the menu bar with the helper stopped unless **Start the helper at login** is ticked (saved as `startHelperAtLogin`
-in `app-settings.json` in the data folder). Opened by hand, it starts the helper and opens Studio, as before.
+**Stop Studio** stops the helper and takes Studio off air, so nothing talks to PlayHQ until **Start Studio** is
+chosen; the status line under the version reads "Studio is on air at …" or "Studio is off air", and the page links
+are greyed out while off air. Opened at login, the app sits in the menu bar off air unless **Start Studio at login**
+is ticked (saved as `startHelperAtLogin` in `app-settings.json` in the data folder). Opened by hand, it starts Studio
+and opens the home page, as before.
 
 Settings live in the data folder (see **Saved settings**), which the app and the Start script share, so moving from one
 to the other keeps everything. Updates download in the background and install when the app quits, so they never
