@@ -7,7 +7,7 @@ info:
     (tick "GET request in background"). Every control is a plain GET request.
 
     The helper must be running (`Start (Mac).command`). If the Stream Deck is on a
-    different computer, use the helper computer's IP address instead of localhost.
+    different computer, use the helper Mac's .local name (shown on the home page) or IP address instead of localhost.
 
     Every request takes an optional `board` query parameter (default `1`) so a
     second court can run its own scoreboard, e.g. `?board=2`.

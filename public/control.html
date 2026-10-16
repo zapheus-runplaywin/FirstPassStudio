@@ -184,7 +184,9 @@
   const $ = id => document.getElementById(id);
   let state = null, games = [], serverOffset = 0;
 
-  $('sub').innerHTML = `Board ${boardId}. Add <b>${location.origin}/scoreboard.html${boardId === '1' ? '' : '?board=' + boardId}</b> to OBS as a Browser source (1920 × 1080).`;
+  const obsLink = base => { $('sub').innerHTML = `Board ${boardId}. Add <b>${base}/scoreboard.html${boardId === '1' ? '' : '?board=' + boardId}</b> to OBS as a Browser source (1920 × 1080).`; };
+  obsLink(location.origin);
+  fetch('/api/version').then(r => r.json()).then(v => { if (v.base) obsLink(v.base); }).catch(() => {}); // the Mac's .local name
   $('frame').src = `/scoreboard.html?board=${encodeURIComponent(boardId)}`;
   const fit = () => { $('frame').style.transform = `scale(${$('preview').clientWidth / 1920})`; };
   addEventListener('resize', fit); fit();

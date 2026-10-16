@@ -32,6 +32,7 @@
       "finals.js",
       "datadir.js",
       "migrations.js",
+      "linkhost.js",
       "config.json",
       "public/**/*",
       "imports/**/*",

@@ -6,8 +6,9 @@ where **Try it out** sends any link to the scoreboard. The raw OpenAPI file is `
 
 **Setup for each button:** drag a **System → Website** action onto a key, paste a link from below,
 and tick **GET request in background** so no browser window opens.
-If the Stream Deck is plugged into a different computer from the one running the helper,
-replace `localhost` with that computer's IP address (for example `http://192.168.1.20:8080/...`).
+The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running the helper.
+The home page shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
+which also works from a Stream Deck on another computer on the same network.
 
 ## Scores
 

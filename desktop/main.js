@@ -2,7 +2,7 @@
 //
 // A menu bar app around the same helper (server.js) the Start script runs: it starts the
 // helper in the background, keeps it running, and opens the pages in the browser. OBS and
-// the Stream Deck use http://localhost:8080 exactly as before.
+// the Stream Deck use the links on the home page (the Mac's .local name, or localhost).
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
 // installing or updating the app never touches. "Stop the helper" in the menu stops it, so
@@ -16,6 +16,7 @@ const { app, Tray, Menu, shell, dialog, nativeImage, utilityProcess, clipboard }
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const { linkHost } = require('../linkhost');
 
 const APP_DIR = path.join(__dirname, '..');
 // Electron names this folder after productName: ~/Library/Application Support/FirstPass Studio,
@@ -38,19 +39,24 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(start);
 }
 
-// The port from config.json (the app's defaults, then the data folder's).
-function port() {
+// This computer's settings from config.json (the app's defaults, then the data folder's).
+function machineConfig() {
   const read = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return {}; } };
-  return Number({ ...read(path.join(APP_DIR, 'config.json')), ...read(path.join(DATA_DIR, 'config.json')) }.port) || 8080;
+  return { ...read(path.join(APP_DIR, 'config.json')), ...read(path.join(DATA_DIR, 'config.json')) };
 }
-const PORT = port();
-const pageUrl = p => `http://localhost:${PORT}${p}`;
-const openPage = p => shell.openExternal(pageUrl(p));
+const MACHINE = machineConfig();
+const PORT = Number(MACHINE.port) || 8080;
+// Links opened and copied from the menu use the Mac's Bonjour name (linkhost.js), the same as
+// the home page shows. The app checks the helper on localhost, which always works.
+const HOST = linkHost(MACHINE.linkHost);
+const pageUrl = p => `http://${HOST}:${PORT}${p}`;
+// Opens a page in the browser; on localhost if the .local name doesn't answer (no network).
+const openPage = p => require('dns').lookup(HOST, err => shell.openExternal(err ? `http://localhost:${PORT}${p}` : pageUrl(p)));
 
 // Whether something already answers on the port (the Start script, or another copy).
 function answering() {
   return new Promise(resolve => {
-    const req = http.get(pageUrl('/api/version'), { timeout: 1500 }, res => { res.resume(); resolve(true); });
+    const req = http.get(`http://localhost:${PORT}/api/version`, { timeout: 1500 }, res => { res.resume(); resolve(true); });
     req.on('error', () => resolve(false));
     req.on('timeout', () => { req.destroy(); resolve(false); });
   });
@@ -79,7 +85,7 @@ function startHelper() {
   const started = Date.now();
   child.on('spawn', async () => {
     for (let i = 0; i < 40 && helper === child; i++) {
-      if (await answering()) { status = `Running on localhost:${PORT}`; refreshMenu(); log('Helper running'); return; }
+      if (await answering()) { status = `Running on ${HOST}:${PORT}`; refreshMenu(); log('Helper running'); return; }
       await new Promise(r => setTimeout(r, 250));
     }
   });
