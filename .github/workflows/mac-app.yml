@@ -6,10 +6,16 @@
 # "Publish" puts it on the public FirstPassStudio-releases repository, where the installed
 # apps find their updates (the .zip is what they update from); otherwise only the .dmg is
 # attached to the run to try first.
+# Every merge to main (that changes more than docs) also runs this and publishes the next
+# patch version, so installed apps get each merged change.
 # Setup and the secrets it needs: see "Mac app" in README.md.
 name: Mac app
 
 on:
+  # Every merge to main that changes the app builds and publishes the next patch version.
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', '*.command', '*.bat']
   workflow_dispatch:
     inputs:
       publish:
@@ -26,22 +32,30 @@ on:
         type: string
         default: ''
 
+# One build at a time, so two merges close together don't pick the same version.
+concurrency:
+  group: mac-app
+  cancel-in-progress: false
+
+env:
+  # A push (merge to main) publishes; a manual run publishes only with Publish ticked.
+  PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+
 jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Pick the version
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-          BUMP: ${{ inputs.bump }}
-          WANTED: ${{ inputs.version }}
-          PUBLISH: ${{ inputs.publish }}
+          BUMP: ${{ inputs.bump || 'patch' }}
+          WANTED: ${{ inputs.version || '' }}
         run: |
           LATEST="$(gh release list --repo zapheus-runplaywin/FirstPassStudio-releases --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')" \
             || { echo "::error::Couldn't read FirstPassStudio-releases. Check the RELEASES_TOKEN secret."; exit 1; }
@@ -95,9 +109,21 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx electron-builder --mac --publish never
+      # Published here in one step rather than by electron-builder: its .zip and .dmg uploads
+      # each tried to create the release at the same moment, and the second one failed
+      # ("Published releases must have a valid tag"), leaving a release without the .dmg.
+      # latest-mac.yml is what installed apps read to find the update.
+      - name: Publish the update
+        if: ${{ env.PUBLISH == 'true' }}
+        env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: npx electron-builder --mac --publish ${{ inputs.publish && 'always' || 'never' }}
-      - uses: actions/upload-artifact@v4
+        run: |
+          ls -l dist/*.dmg dist/*.zip dist/*.blockmap dist/latest-mac.yml
+          gh release create "v$VERSION" --repo zapheus-runplaywin/FirstPassStudio-releases \
+            --title "FirstPass Studio $VERSION" --notes "FirstPass Studio $VERSION for Apple silicon Macs." --latest \
+            dist/*.dmg dist/*.zip dist/*.blockmap dist/latest-mac.yml
+      - uses: actions/upload-artifact@v7
         with:
           name: FirstPass-Studio-${{ env.VERSION }}-mac
           path: dist/*.dmg

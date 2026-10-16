@@ -13,11 +13,11 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
-    "electron-updater": "6.8.9"
+    "electron-updater": "6.8.10"
   },
   "devDependencies": {
-    "electron": "44.7.2",
-    "electron-builder": "26.15.3"
+    "electron": "44.8.0",
+    "electron-builder": "26.17.0"
   },
   "build": {
     "appId": "com.runplaywin.firstpassstudio",
@@ -43,6 +43,7 @@
         { "target": "dmg", "arch": ["arm64"] },
         { "target": "zip", "arch": ["arm64"] }
       ],
+      "artifactName": "FirstPass-Studio-${version}-${arch}-mac.${ext}",
       "category": "public.app-category.video",
       "icon": "build/icon.png",
       "hardenedRuntime": true,
