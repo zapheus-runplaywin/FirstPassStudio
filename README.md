@@ -116,7 +116,10 @@ are brought up to date and backed up on the first start of the new version.
 
 The **Mac app** workflow on GitHub (Actions > Mac app > Run workflow) builds a signed, notarised app for Apple
 silicon Macs (M1 and later; Intel Macs aren't supported). Without **Publish** the `.dmg` is attached to the run to try out; with it, it becomes an update for
-every installed app. Before a release, raise `version` in `package.json` (updates only go to a higher version).
+every installed app. The workflow picks the version: the last published one raised by **Raise the version by**
+(patch 0.1.0 to 0.1.1, the default; minor to 0.2.0; major to 1.0.0), or exactly what's typed in **Version**, which must
+be higher than the last published one (updates only go to a higher version). The first release uses `version` in
+`package.json`; after that `package.json` needn't change.
 
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.

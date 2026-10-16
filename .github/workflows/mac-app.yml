@@ -1,5 +1,8 @@
 # Builds the FirstPass Studio Mac app (signed and notarised) from the Actions tab:
-# Actions > Mac app > Run workflow. The version is the one in package.json.
+# Actions > Mac app > Run workflow. The version is picked here: the last version published
+# on FirstPassStudio-releases, raised by "Raise" (patch 0.1.0 > 0.1.1, minor > 0.2.0,
+# major > 1.0.0), or exactly what's typed in "Version". With nothing published yet it's the
+# version in package.json. package.json itself isn't changed.
 # "Publish" puts it on the public FirstPassStudio-releases repository, where the installed
 # apps find their updates (the .zip is what they update from); otherwise only the .dmg is
 # attached to the run to try first.
@@ -13,6 +16,15 @@ on:
         description: Publish as an update for everyone
         type: boolean
         default: false
+      bump:
+        description: Raise the version by
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Or use exactly this version (like 1.2.0), leave empty to raise it
+        type: string
+        default: ''
 
 jobs:
   build:
@@ -24,6 +36,38 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Pick the version
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          BUMP: ${{ inputs.bump }}
+          WANTED: ${{ inputs.version }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          LATEST="$(gh release list --repo zapheus-runplaywin/FirstPassStudio-releases --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')" \
+            || { echo "::error::Couldn't read FirstPassStudio-releases. Check the RELEASES_TOKEN secret."; exit 1; }
+          VERSION="$(LATEST="${LATEST#v}" node -e '
+            const { LATEST, BUMP, WANTED } = process.env;
+            const parse = v => /^\d+\.\d+\.\d+$/.test(v) ? v.split(".").map(Number) : null;
+            const higher = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+            const fail = m => { console.error(m); process.exit(1); };
+            const last = LATEST && parse(LATEST);
+            if (WANTED.trim()) {
+              const v = parse(WANTED.trim().replace(/^v/, ""));
+              if (!v) fail(`"${WANTED}" is not a version like 1.2.0`);
+              if (last && higher(v, last) <= 0) fail(`${v.join(".")} is not higher than the last published version, ${LATEST}, and updates only go to a higher version`);
+              console.log(v.join("."));
+            } else if (!last) {
+              console.log(require("./package.json").version);
+            } else {
+              const [a, b, c] = last;
+              console.log(BUMP === "major" ? `${a + 1}.0.0` : BUMP === "minor" ? `${a}.${b + 1}.0` : `${a}.${b}.${c + 1}`);
+            }
+          ' 2>"$RUNNER_TEMP/version-error")" || { echo "::error::$(cat "$RUNNER_TEMP/version-error")"; exit 1; }
+          npm version "$VERSION" --no-git-tag-version --allow-same-version > /dev/null
+          echo "Last published: ${LATEST:-none}. This build: $VERSION"
+          echo "### FirstPass Studio $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Last published: ${LATEST:-none}. $([ "$PUBLISH" = true ] && echo 'Published as an update.' || echo 'Test build, not published.')" >> "$GITHUB_STEP_SUMMARY"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       # Put the Developer ID certificate in a keychain of its own (electron-builder's own
       # keychain step fails on the current macOS runners), so codesign finds it.
       - name: Import the signing certificate
@@ -55,7 +99,7 @@ jobs:
         run: npx electron-builder --mac --publish ${{ inputs.publish && 'always' || 'never' }}
       - uses: actions/upload-artifact@v4
         with:
-          name: FirstPass-Studio-mac
+          name: FirstPass-Studio-${{ env.VERSION }}-mac
           path: dist/*.dmg
           compression-level: 0
           retention-days: 14
