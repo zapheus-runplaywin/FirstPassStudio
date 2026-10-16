@@ -95,8 +95,20 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx electron-builder --mac --publish never
+      # Published here in one step rather than by electron-builder: its .zip and .dmg uploads
+      # each tried to create the release at the same moment, and the second one failed
+      # ("Published releases must have a valid tag"), leaving a release without the .dmg.
+      # latest-mac.yml is what installed apps read to find the update.
+      - name: Publish the update
+        if: ${{ inputs.publish }}
+        env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: npx electron-builder --mac --publish ${{ inputs.publish && 'always' || 'never' }}
+        run: |
+          ls -l dist/*.dmg dist/*.zip dist/*.blockmap dist/latest-mac.yml
+          gh release create "v$VERSION" --repo zapheus-runplaywin/FirstPassStudio-releases \
+            --title "FirstPass Studio $VERSION" --notes "FirstPass Studio $VERSION for Apple silicon Macs." --latest \
+            dist/*.dmg dist/*.zip dist/*.blockmap dist/latest-mac.yml
       - uses: actions/upload-artifact@v7
         with:
           name: FirstPass-Studio-${{ env.VERSION }}-mac
