@@ -191,8 +191,16 @@
       <b>Stop Studio</b> takes Studio off air: nothing talks to PlayHQ and the pages and Stream Deck get no answer until you choose <b>Start Studio</b>;
       the line under the version says which (Studio is on air, or off air), and the page links are greyed out while it is off air.
       Opened at login, the app sits in the menu bar with Studio off air, unless you tick <b>Start Studio at login</b>.
-      Opened by hand (from Applications or Spotlight), it starts Studio and opens the home page. Updates download by themselves and install when the app quits, never mid-stream.
-      Don't run the Start script at the same time; both use port 8080. Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
+      Opened by hand (from Applications or Spotlight), it starts Studio and opens the home page. Updates download by themselves and install when the app quits, never mid-stream.</p>
+    <p class="page__help">The app opens Studio's pages in its own window, like any Mac app: no address bar, tabs or bookmarks, the Studio header is the title bar
+      (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
+      open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
+      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘5), <b>View</b> for reload, back and zoom, and <b>New Window</b> (⌘N).
+      Closing the windows keeps Studio on air in the menu bar; ⌘Q while on air asks first, since quitting stops the graphics and Stream Deck.
+      While Studio is off air the window says so and opens the page again once you choose <b>Start Studio</b>.
+      To use your browser instead, tick <b>Open pages in the browser</b> in the 1P menu.
+      OBS still uses the page links as browser sources; the app window is for you.
+    <p class="page__help">Don't run the Start script at the same time; both use port 8080. Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
   </div>
   <div class="card">
     <h2>Links (this Mac's .local name)</h2>
@@ -218,7 +226,7 @@
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ) from the app's defaults.</li>
-      <li><b>app-settings.json</b>: the Mac app's own choices (whether Studio starts at login).</li>
+      <li><b>app-settings.json</b>: the Mac app's own choices (whether Studio starts at login, opening pages in the browser instead of the app window, and where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <p class="page__help">Studio starts with no competitions. On the <a href="/setup.html" target="_blank">competition setup page</a>,

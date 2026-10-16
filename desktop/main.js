@@ -1,8 +1,9 @@
 // FirstPass Studio - the Mac app.
 //
 // A menu bar app around the same helper (server.js) the Start script runs: it starts the
-// helper in the background, keeps it running, and opens the pages in the browser. OBS and
-// the Stream Deck use the links on the home page (the Mac's .local name, or localhost).
+// helper in the background, keeps it running, and opens the pages in its own window (windows.js),
+// or the browser if chosen. OBS and the Stream Deck use the links on the home page (the Mac's
+// .local name, or localhost).
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
 // installing or updating the app never touches. "Stop Studio" in the menu stops it, so
@@ -51,7 +52,9 @@ const PORT = Number(MACHINE.port) || 8080;
 const HOST = linkHost(MACHINE.linkHost);
 const pageUrl = p => `http://${HOST}:${PORT}${p}`;
 // Opens a page in the browser; on localhost if the .local name doesn't answer (no network).
-const openPage = p => require('dns').lookup(HOST, err => shell.openExternal(err ? `http://localhost:${PORT}${p}` : pageUrl(p)));
+const openInBrowser = p => require('dns').lookup(HOST, err => shell.openExternal(err ? `http://localhost:${PORT}${p}` : pageUrl(p)));
+// Opens a page in the app's own window (or the browser, if ticked in the menu).
+const openPage = p => windows.open(p);
 
 // Whether something already answers on the port (the Start script, or another copy).
 function answering() {
@@ -69,6 +72,11 @@ function saveAppSetting(key, value) {
   try { fs.writeFileSync(APP_SETTINGS, JSON.stringify({ ...appSettings(), [key]: value }, null, 2) + '\n'); } catch (err) { log(`Couldn't save ${key}: ${err.message}`); }
 }
 
+const windows = require('./windows')({
+  port: PORT, linkHost: HOST, appSettings, saveAppSetting, log, openBrowser: openInBrowser,
+  isOnAir: () => wanted && !!helper,
+});
+
 // ─── The helper ─────────────────────────────────────────────────────────────
 // wanted: whether it should be running (chosen from the menu), so a pending restart doesn't
 // bring back a helper that was just stopped.
@@ -85,7 +93,7 @@ function startHelper() {
   const started = Date.now();
   child.on('spawn', async () => {
     for (let i = 0; i < 40 && helper === child; i++) {
-      if (await answering()) { status = `Studio is on air at ${HOST}:${PORT}`; refreshMenu(); log('Helper running'); return; }
+      if (await answering()) { status = `Studio is on air at ${HOST}:${PORT}`; refreshMenu(); log('Helper running'); windows.reloadOffAir(); return; }
       await new Promise(r => setTimeout(r, 250));
     }
   });
@@ -139,6 +147,7 @@ function stopHelper() {
   helper = null;
   child.kill();
   status = 'Studio is off air'; refreshMenu();
+  windows.showOffAir();
   log('Helper stopped from the menu');
 }
 
@@ -171,6 +180,7 @@ function refreshMenu() {
     { label: 'Scoreboard control', enabled: running, click: () => openPage('/control.html') },
     { label: 'Competition setup', enabled: running, click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
+    { label: 'Open pages in the browser', type: 'checkbox', checked: !!appSettings().openInBrowser, click: item => { saveAppSetting('openInBrowser', item.checked); refreshMenu(); } },
     { type: 'separator' },
     { label: 'Open the settings folder', click: () => shell.openPath(DATA_DIR) },
     { label: 'Open the debug log', click: () => shell.openPath(path.join(DATA_DIR, 'logs', 'playhq-graphics.log')) },
@@ -215,6 +225,7 @@ async function start() {
   icon.setTemplateImage(true);
   tray = new Tray(icon);
   refreshMenu();
+  windows.refreshMenu();
   log(`Starting ${app.getVersion()}, settings in ${DATA_DIR}`);
 
   // Opened at login, the helper stays stopped (nothing talks to PlayHQ) unless "Start the
@@ -231,4 +242,6 @@ async function start() {
 }
 
 app.on('window-all-closed', e => e.preventDefault()); // no windows: keep running in the menu bar
+// Clicking the Dock icon with no window open opens Studio.
+app.on('activate', (e, hasWindows) => { if (!hasWindows && helper) openPage('/'); });
 app.on('before-quit', () => { quitting = true; if (helper) helper.kill(); });
