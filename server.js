@@ -707,7 +707,7 @@ async function getFixtures(q) {
   const round = roundNames.sort((a, b) => roundNames.filter(n => n === b).length - roundNames.filter(n => n === a).length)[0] || '';
   if (q.round && !roundNames.length) return { error: `No round "${q.round}" in ${q.division ? 'that division' : 'any division'}` };
   log('info', 'fixtures', `Fixture${q.results ? ' results' : ''} for ${round || 'no round'}${q.round ? ` (asked for round=${q.round})` : ''}: ${games.length} games`);
-  return { competition: st.competition, rules: rules(), venueName: CONFIG.venueName || (games[0] && games[0].venue) || '',
+  return { competition: st.competition, rules: rules(q.division && grades[0] ? grades[0].name : undefined), venueName: CONFIG.venueName || (games[0] && games[0].venue) || '',
     division: q.division ? (grades[0] && grades[0].name) || '' : '', round, games };
 }
 
@@ -828,7 +828,7 @@ function applyAction(b, a) {
 // plays once the game is finished.
 const superSeen = new WeakMap(); // board -> last PlayHQ reading compared against
 function superShot(b, side, how) {
-  if (CONFIG.superShots === false) return;
+  if (!competitions.superShotsFor(CONFIG, b.division)) return;
   const n = ((b.superShot && b.superShot.n) || 0) + 1;
   b.superShot = { n, side, at: Date.now(), how };
   log('info', 'supershot', `Super shot for ${b[side].name} (${side}, ${how}), number ${n}`);
@@ -1011,7 +1011,7 @@ function noteGoals(b, side, delta, how, split) {
   if (how === 'manual') b.goalsBaseline = true; // the board's score is now the one goals are counted from
   if (!delta) return;
   if (delta < 0) { takeGoals(b, side, -delta); return; }
-  const supers = split ? split.superGoals : (rules().superShots ? Math.floor(delta / 2) : 0);
+  const supers = split ? split.superGoals : (rules(b.division).superShots ? Math.floor(delta / 2) : 0);
   const goals = split ? split.goals : delta - 2 * supers;
   for (let i = 0; i < supers; i++) pushGoal(b, side, 2, how);
   for (let i = 0; i < goals; i++) pushGoal(b, side, 1, how);
@@ -1076,7 +1076,7 @@ function getGoals(boardId, count) {
     if (g.side !== run.side) break;
     run.goals++; run.points += g.points;
   }
-  const r = rules();
+  const r = rules(b.division);
   return {
     gameId: b.gameId, division: b.division, court: b.court, round: b.round, source: b.source, period: b.period,
     periodLabel: r.periodLabel, superShots: r.superShots, competition: competitionName(),
@@ -1970,7 +1970,7 @@ const summaryCache = new Map();
 async function getTeamSheets(boardId) {
   const b = board(boardId);
   const base = { home: { name: b.home.name, logo: logoFor(b.home.name), players: [] }, away: { name: b.away.name, logo: logoFor(b.away.name), players: [] } };
-  const meta = { division: b.division, court: b.court, period: b.period, score: { home: b.home.score, away: b.away.score }, competition: competitionName(), rules: rules() };
+  const meta = { division: b.division, court: b.court, period: b.period, score: { home: b.home.score, away: b.away.score }, competition: competitionName(), rules: rules(b.division) };
   if (!b.gameId) return { ...meta, ...base, error: 'No PlayHQ game picked on the control page yet.' };
   const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
   let gqlError = '';
@@ -2051,13 +2051,14 @@ function teamsOf(b) {
   return { home: { name: b.home.name, logo: logoFor(b.home.name) }, away: { name: b.away.name, logo: logoFor(b.away.name) } };
 }
 function competitionName() { return (structure && structure.competition) || CONFIG.displayName || CONFIG.competitionName; }
-// The competition's rules and look, for pages that change with them.
-function rules() {
+// The competition's rules and look, for pages that change with them. With a division, super
+// shots are that division's (a competition can play them in some divisions only).
+function rules(division) {
   // Light and dark mode competition logos; when only one is set it is used for both.
   const brandUrl = f => f ? '/brand/' + encodeURIComponent(f) : null;
   const light = brandUrl(CONFIG.competitionLogo || CONFIG.competitionLogoDark), dark = brandUrl(CONFIG.competitionLogoDark || CONFIG.competitionLogo);
   return { periodType: CONFIG.periodType, periods: CONFIG.periodType === 'halves' ? 2 : 4, periodLabel: CONFIG.periodType === 'halves' ? 'H' : 'Q',
-    periodMinutes: CONFIG.quarterMinutes, superShots: CONFIG.superShots !== false, finalsPlaces: (finals.byId(CONFIG.finalsFormat) || { teams: 0 }).teams,
+    periodMinutes: CONFIG.quarterMinutes, superShots: competitions.superShotsFor(CONFIG, division), finalsPlaces: (finals.byId(CONFIG.finalsFormat) || { teams: 0 }).teams,
     competitionLogo: light, competitionLogoLight: light, competitionLogoDark: dark,
     titleEmoji: CONFIG.titleEmoji ?? '🔥', clashWord: CONFIG.clashWord || 'CLASH', competitionName: competitionName() || '' };
 }
@@ -2077,7 +2078,7 @@ async function getFinals(q) {
   const grade = finalsGrade(st, q);
   if (!grade) throw new Error(`No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}`);
   const format = finalsFor(grade.name);
-  const base = { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, divisionNumber: grade.division, rules: rules() };
+  const base = { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, divisionNumber: grade.division, rules: rules(grade.name) };
   if (!format) return { ...base, format: null, games: [], error: `${grade.name} has no finals format. Pick one on the competition setup page.` };
   const ladder = await getLadder(grade.id);
   const rows = ladder.pools[0] || [];
@@ -2222,7 +2223,7 @@ async function getTopShooters(q) {
   const all = [...players.values()];
   const by = f => [...all].sort((a, b) => f(b) - f(a) || a.name.localeCompare(b.name)).slice(0, limit);
   if (failed) log('warn', 'shooters', `${failed} of ${games.length} games could not be read: ${lastError}`);
-  return { competition: competitionName(), rules: rules(), division: grade.name, gamesRead: read, gamesFinished: games.length,
+  return { competition: competitionName(), rules: rules(grade.name), division: grade.name, gamesRead: read, gamesFinished: games.length,
     error: !read && failed ? lastError : undefined,
     points: by(p => p.points), goals: by(p => p.goals), superGoals: by(p => p.superGoals) };
 }
@@ -2279,7 +2280,7 @@ http.createServer(async (req, res) => {
       const ladder = await getLadder(grade.id);
       const marks = finals.ladderMarks(finalsFor(grade.name));
       return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name,
-        rules: { ...rules(), finalsPlaces: marks.places }, finals: marks, ...ladder });
+        rules: { ...rules(grade.name), finalsPlaces: marks.places }, finals: marks, ...ladder });
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion() });
     if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets(q.board || '1')));
@@ -2329,7 +2330,7 @@ http.createServer(async (req, res) => {
       const logos = { home: logoFor(b.home.name), away: logoFor(b.away.name) };
       const teamColours = { home: colourFor(b.home.name), away: colourFor(b.away.name) };
       const venueName = CONFIG.venueName || b.venue || '';
-      const r = rules();
+      const r = rules(b.division);
       return send(res, 200, { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: CONFIG.name, venueName, logos, teamColours,
         clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() });
     }
