@@ -95,7 +95,7 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It lives in the menu bar (the **1P** icon), runs the same helper as the Start
-script in the background, restarts it if it stops, and opens the home page in your browser. OBS and the Stream Deck
+script in the background, restarts it if it stops, and opens the home page in its own window. OBS and the Stream Deck
 use the same links as the home page. Don't run the Start script at the same time: they share port 8080.
 
 ### Links use the Mac's .local name
@@ -113,7 +113,7 @@ open the pages and press the Stream Deck links (scores, clock, game). Stream on 
 Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
 The menu bar icon has: Start/Stop Studio, Open Studio, Scoreboard control, Competition setup, Copy the Studio link,
-Open the settings folder, Open the debug log, Restart Studio, Open at login, Start Studio at login, Check for updates
+Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Start Studio at login, Check for updates
 and Quit. (In the menu, "Studio" means the helper.)
 
 **Stop Studio** stops the helper and takes Studio off air, so nothing talks to PlayHQ until **Start Studio** is
@@ -121,6 +121,20 @@ chosen; the status line under the version reads "Studio is on air at …" or "St
 are greyed out while off air. Opened at login, the app sits in the menu bar off air unless **Start Studio at login**
 is ticked (saved as `startHelperAtLogin` in `app-settings.json` in the data folder). Opened by hand, it starts Studio
 and opens the home page, as before.
+
+### The app window
+
+Studio's pages open in the app's own window (`desktop/windows.js`), not the browser: no address bar, tabs or
+bookmarks, the Studio header is the title bar (the window buttons sit in it, and dragging it moves the window), and
+the app shows in the Dock and ⌘Tab while a window is open, then goes back to just the menu bar icon. A link that opens
+a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
+anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
+(⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 home,
+⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs) and Window. Closing every window keeps Studio running; ⌘Q while on
+air asks first (Close Windows, Quit or Cancel). While Studio is off air or starting, the window shows `desktop/offair.html`
+and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
+**Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
+the browser as before. OBS keeps using the links as browser sources.
 
 Settings live in the data folder (see **Saved settings**), which the app and the Start script share, so moving from one
 to the other keeps everything. Updates download in the background and install when the app quits, so they never

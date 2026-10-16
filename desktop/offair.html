@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FirstPass Studio</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { font-family: -apple-system, system-ui, sans-serif; background: #0F172A; color: #F8FAFC; display: grid; place-items: center; text-align: center; -webkit-app-region: drag; -webkit-user-select: none; }
+  .logo { font-weight: 800; font-style: italic; font-size: 34px; letter-spacing: -0.02em; }
+  .logo b { color: #F1C40F; font-weight: 800; }
+  h1 { font-size: 20px; margin: 28px 0 8px; }
+  p { color: #CBD5E1; margin: 0; max-width: 460px; line-height: 1.5; }
+  .bar { width: 120px; height: 4px; background: #F75C03; border-radius: 2px; margin: 18px auto 0; }
+</style>
+</head>
+<body>
+<div>
+  <div class="logo">FirstPass <b>STUDIO</b></div>
+  <div class="bar"></div>
+  <h1 id="head">Studio is off air</h1>
+  <p id="help">Choose <b>Start Studio</b> from the 1P icon in the menu bar. This page opens by itself once Studio is on air.</p>
+</div>
+<script>
+  // Shown when a Studio page can't load. While Studio is starting it tries again every couple of
+  // seconds; off air, the app loads the page again once Start Studio is chosen.
+  const q = new URLSearchParams(location.search);
+  const to = q.get('to');
+  if (q.get('on')) {
+    document.getElementById('head').textContent = 'Studio is starting…';
+    document.getElementById('help').textContent = 'This page opens by itself in a moment.';
+    if (/^http:\/\//.test(to || '')) setTimeout(() => location.replace(to), 2000);
+  }
+</script>
+</body>
+</html>
