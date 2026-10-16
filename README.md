@@ -141,6 +141,10 @@ publishes it as an update, so installed apps pick up each merged PR. Merges that
 files, `docs/`, the Start and Update scripts) don't publish. Use **Run workflow** for a minor or major version, a
 specific version, or a test build without publishing. Builds run one at a time, so two quick merges get two versions.
 
+Each run tags the commit of this repository it built from, so any build can be traced to its code: `v0.1.3` for a
+published update, `v0.1.3-test.12` for a test build (12 is the run number, so a test build never takes the tag a
+published version will need). The tags are under **Tags** on the repository's code page.
+
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
 
