@@ -8,6 +8,7 @@
 # attached to the run to try first.
 # Every merge to main (that changes more than docs) also runs this and publishes the next
 # patch version, so installed apps get each merged change.
+# Each run tags the commit it built: v0.1.3 when published, v0.1.3-test.12 for a test build.
 # Setup and the secrets it needs: see "Mac app" in README.md.
 name: Mac app
 
@@ -44,6 +45,9 @@ env:
 jobs:
   build:
     runs-on: macos-latest
+    # Lets the run tag the commit it built (see "Tag the commit").
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -109,7 +113,17 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx electron-builder --mac --publish never
+        # Signing asks Apple's timestamp server for every file, and it sometimes doesn't answer
+        # ("A timestamp was expected but was not found"), so try up to three times.
+        run: |
+          for attempt in 1 2 3; do
+            npx electron-builder --mac --publish never && exit 0
+            echo "::warning::Build attempt $attempt failed (often Apple's timestamp server). Trying again."
+            rm -rf dist
+            sleep 30
+          done
+          echo "::error::The build failed three times. See the log above."
+          exit 1
       # Published here in one step rather than by electron-builder: its .zip and .dmg uploads
       # each tried to create the release at the same moment, and the second one failed
       # ("Published releases must have a valid tag"), leaving a release without the .dmg.
@@ -123,6 +137,21 @@ jobs:
           gh release create "v$VERSION" --repo zapheus-runplaywin/FirstPassStudio-releases \
             --title "FirstPass Studio $VERSION" --notes "FirstPass Studio $VERSION for Apple silicon Macs." --latest \
             dist/*.dmg dist/*.zip dist/*.blockmap dist/latest-mac.yml
+      # Tags the FirstPassStudio commit this was built from, so each build can be traced back
+      # to its code: v0.1.3 for a published update, v0.1.3-test.12 for a test build
+      # (12 is the run number), so a test build never takes a published version's tag.
+      - name: Tag the commit
+        run: |
+          if [ "$PUBLISH" = true ]; then TAG="v$VERSION"; else TAG="v$VERSION-test.$GITHUB_RUN_NUMBER"; fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "::warning::The tag $TAG already exists, so it was left as it is."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$GITHUB_SHA" -m "FirstPass Studio $VERSION, Mac app run $GITHUB_RUN_NUMBER"
+          git push origin "refs/tags/$TAG"
+          echo "Tagged ${GITHUB_SHA:0:7} as $TAG" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
           name: FirstPass-Studio-${{ env.VERSION }}-mac
