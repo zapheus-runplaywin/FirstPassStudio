@@ -217,6 +217,9 @@ function deck(parts) {
 
 // ─── Media folder ─────────────────────────────────────────────────────────
 const converting = new Map(); // .mov file -> its WebM, while ffmpeg runs
+const opaque = new Map(); // .mov file -> its video codec, when it had no transparency to keep
+// Pixel formats that carry alpha, as ffmpeg names them (ProRes 4444 with alpha is yuva444p12le).
+const HAS_ALPHA = /^(yuva|gbrap|ya\d)|rgba|argb|bgra|abgr|ayuv/;
 let ffmpegSetting = '';
 
 // ffmpeg from config.json's ffmpegPath, else the one the Mac app bundles (vendor/ffmpeg,
@@ -237,6 +240,7 @@ function mediaList() {
     if (path.extname(name).toLowerCase() === '.mov') {
       if (converting.has(name)) m.converting = true;
       else if (files.includes(webmFor(name))) m.converted = webmFor(name);
+      if (opaque.has(name)) m.opaque = opaque.get(name);
     }
     return m;
   });
@@ -251,17 +255,30 @@ function convert(name) {
   converting.set(name, out);
   const started = Date.now();
   log('info', 'scene', `Converting ${name} to ${out} with ${bin}`);
-  const args = ['-hide_banner', '-loglevel', 'error', '-y', '-i', path.join(MEDIA_DIR, name),
+  const args = ['-hide_banner', '-loglevel', 'info', '-nostats', '-y', '-i', path.join(MEDIA_DIR, name),
     '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '20', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2', '-auto-alt-ref', '0',
     '-c:a', 'libopus', '-b:a', '192k', '-f', 'webm', part];
   const child = require('child_process').spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-  let errors = '';
-  child.stderr.on('data', d => { errors = (errors + d).slice(-2000); });
+  let errors = '', head = '';
+  child.stderr.on('data', d => {
+    if (head.length < 8000) head += d;
+    errors = (errors + d).slice(-2000);
+  });
+  // What the .mov holds, from ffmpeg's description of its first video stream.
+  const source = () => {
+    const m = /Stream #\d+:\d+[^\n]*?: Video: (\w+)[^\n]*?, (\w+)[(,\s]/.exec(head);
+    return m ? { codec: m[1], pixels: m[2] } : null;
+  };
   const finish = ok => {
     converting.delete(name);
     if (ok) {
       fs.renameSync(part, path.join(MEDIA_DIR, out));
-      log('info', 'scene', `Converted ${name} to ${out} in ${Math.round((Date.now() - started) / 1000)}s`);
+      const src = source();
+      log('info', 'scene', `Converted ${name} (${src ? `${src.codec}, ${src.pixels}` : 'unknown video'}) to ${out} in ${Math.round((Date.now() - started) / 1000)}s`);
+      if (src && !HAS_ALPHA.test(src.pixels)) {
+        opaque.set(name, src.codec);
+        log('warn', 'scene', `${name} has no transparency (${src.codec}, ${src.pixels}), so ${out} won't either. Export it as Apple ProRes 4444 with alpha to keep it.`);
+      } else opaque.delete(name);
       // Sources using the .mov switch to the WebM.
       let changed = false;
       for (const s of scene.sources) if (s.type === 'video' && s.file === name) { s.file = out; changed = true; }

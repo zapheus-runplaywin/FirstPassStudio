@@ -244,7 +244,8 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (OBS's, with the
   scene in OBS), and the Output page's preview is always silent. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
-  (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. This needs
+  (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
+  without alpha) gives an opaque WebM: the Output page and the log say so. This needs
   ffmpeg, which the Mac app includes (an LGPL build made by `vendor/ffmpeg/build.sh`; see `vendor/ffmpeg/LICENSE.md`). Running from a
   checkout, run `vendor/ffmpeg/build.sh` once or `brew install ffmpeg`, or set `ffmpegPath` in config.json. MP4 and WebM files play as they are.
 - **Stream Deck plugin:** the Mac app includes a FirstPass Studio plugin for the Stream Deck app (`plugins/studio-deck`). Install it from the

@@ -122,7 +122,7 @@
         Untick it to keep a page running so it shows instantly. <b>Refresh page</b> reloads it now.</li>
       <li><b>Videos</b> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
         <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output (OBS's, with the scene in OBS). <b>Restart video</b> starts it again.</li>
-      <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency),
+      <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency; the Output page warns when a .mov has none to keep, such as H.264),
         and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>
       <li><b>Stream Deck plugin:</b> the Mac app includes a FirstPass Studio plugin for the Stream Deck app. Install it from the menu bar icon
         (<b>Install the Stream Deck plugin</b>) or the Output page's button. Its <b>Source</b> key shows or hides the source you pick in its settings
