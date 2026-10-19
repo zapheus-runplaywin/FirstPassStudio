@@ -2115,12 +2115,13 @@ async function getFinals(q) {
   const st = await getStructure();
   const grade = finalsGrade(st, q);
   if (!grade) throw new Error(`No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}`);
-  const format = finalsFor(grade.name);
+  let format = finalsFor(grade.name);
   const base = { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, divisionNumber: grade.division, rules: rules(grade.name) };
   if (!format) return { ...base, format: null, games: [], error: `${grade.name} has no finals format. Pick one on the competition setup page.` };
   const ladder = await getLadder(grade.id);
   const rows = ladder.pools[0] || [];
   const seeds = rows.map(r => r.team);
+  format = finals.sized(format, rows.length);
   // Only the finals rounds, and the last home and away round, are asked for (not the whole season),
   // and a round PlayHQ doesn't answer for (a 504) is left out rather than failing the page.
   const real = n => n && !/^(tbc|tba|bye)$/i.test(n);
@@ -2146,7 +2147,7 @@ async function getFinals(q) {
   const marks = finals.ladderMarks(format);
   log('info', 'finals', `${grade.name}: ${format.name}, ${played.length} finals game${played.length === 1 ? '' : 's'} on PlayHQ, ${Object.keys(manual).length} entered by hand${projected ? ', season not finished' : ''}`);
   return { ...base,
-    format: { id: format.id, name: format.name, summary: format.summary, teams: format.teams, weeks: format.weeks, series: !!format.series },
+    format: { id: format.id, name: format.name, summary: format.summary, teams: format.teams, all: !!format.all, weeks: format.weeks, series: !!format.series },
     projected, pools: ladder.pools.length, playhqFinals: played.length, finalsRounds: finalsRounds.map(r => r.name),
     ladder: rows.slice(0, format.teams).map((row, i) => ({ position: row.position, team: row.team, logo: logoFor(row.team), points: row.points, mark: marks.marks[i] })),
     legend: marks.legend,
@@ -2159,7 +2160,8 @@ async function setFinalsResult(body) {
   const st = await getStructure();
   const grade = finalsGrade(st, body);
   if (!grade) throw new Error(`No division "${body.division}"`);
-  const format = finalsFor(grade.name);
+  // A format for every team has as many games as the ladder has pairs.
+  const format = finals.sized(finalsFor(grade.name), ((await getLadder(grade.id)).pools[0] || []).length);
   if (!format || !format.games.some(g => g.id === body.game)) throw new Error(`${grade.name} has no finals game ${body.game}`);
   const key = finalsKey(grade.name, format);
   control.finals = control.finals || {};
@@ -2316,7 +2318,7 @@ http.createServer(async (req, res) => {
       const grade = findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' });
       if (!grade) return send(res, 404, { error: `No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}` });
       const ladder = await getLadder(grade.id);
-      const marks = finals.ladderMarks(finalsFor(grade.name));
+      const marks = finals.ladderMarks(finals.sized(finalsFor(grade.name), Math.max(0, ...ladder.pools.map(p => p.length))));
       return send(res, 200, { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name,
         rules: { ...rules(grade.name), finalsPlaces: marks.places }, finals: marks, ...ladder });
     }

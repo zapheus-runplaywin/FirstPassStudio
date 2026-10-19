@@ -21,6 +21,7 @@
   .week__name { display: flex; align-items: flex-end; justify-content: center; min-height: 2.5em; text-align: center; font-size: 18px; font-weight: 800;
     line-height: 1.25; color: var(--pink); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
   .week__games { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 16px; }
+  .week__games--two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 16px 22px; }
   .game { background: var(--purple-deep-alt); border-radius: 10px; overflow: hidden; animation: rise .45s ease-out both; }
   .game--gf { box-shadow: 0 0 0 3px var(--yellow); }
   .game--off { opacity: .4; }
@@ -109,7 +110,7 @@
       document.title = `${data.competition} ${data.division} Finals`;
       // "Top 4 finals" rather than the format's name (Page means nothing to viewers); ?sub= other words, ?sub=0 none.
       const sub = params.get('sub');
-      $('format').textContent = sub === '0' ? '' : sub || (data.format ? `Top ${data.format.teams} finals` : '');
+      $('format').textContent = sub === '0' ? '' : sub || (data.format ? (data.format.all ? 'Every team plays for its place' : `Top ${data.format.teams} finals`) : '');
       $('projected').hidden = !data.projected || params.get('projected') === '0';
       const logo = (params.get('mode') === 'light' ? rules.competitionLogoLight : rules.competitionLogoDark) || rules.competitionLogo;
       $('logo').hidden = !logo || params.get('logo') === '0';
@@ -128,7 +129,8 @@
           if (!games.length) return;
           const col = el('section', 'week');
           col.append(el('div', 'week__name', name));
-          const list = el('div', 'week__games');
+          // A long day of games (every team playing) goes in two columns.
+          const list = el('div', 'week__games' + (games.length > 4 && data.format.weeks.length === 1 ? ' week__games--two' : ''));
           for (const g of games) {
             const card = el('div', 'game' + (g.id === 'GF' ? ' game--gf' : '') + (g.notNeeded ? ' game--off' : ''));
             card.style.animationDelay = `${n++ * 90}ms`;

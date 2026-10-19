@@ -44,7 +44,6 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   let quitting = false; // quitting closes every window without asking again
   app.on('before-quit', () => { quitting = true; });
 
-  const openWindows = () => BrowserWindow.getAllWindows().filter(w => !w.isDestroyed());
   // Closing the last window takes Studio off air (unless pages open in the browser), so on air
   // it asks first: mid-stream that would stop the OBS graphics and the Stream Deck.
   const closingGoesOffAir = () => isOnAir() && !appSettings().openInBrowser;
@@ -56,12 +55,53 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     }) === 0;
   }
 
+  // ─── Splash ─────────────────────────────────────────────────────────────
+  // The 1P Studio logo, shown while the app starts Studio when opened by hand. It stays up for
+  // at least SPLASH_MIN so it doesn't flash, then closes as Studio's first window shows (or the
+  // page opens in the browser). It never stays longer than SPLASH_MAX, whatever happens.
+  const SPLASH_MIN = 1500, SPLASH_MAX = 30000;
+  let splash = null, splashDone = Promise.resolve();
+  const isSplash = w => w && w.isSplash;
+  // Every window but the splash: it doesn't put the app in the Dock or take the app menu.
+  const pageWindows = () => BrowserWindow.getAllWindows().filter(w => !w.isDestroyed() && !isSplash(w));
+
+  function showSplash() {
+    if (splash) return;
+    const win = splash = new BrowserWindow({
+      width: 440, height: 360, center: true, frame: false, resizable: false, minimizable: false,
+      maximizable: false, fullscreenable: false, show: false, backgroundColor: '#101729',
+      title: 'FirstPass Studio',
+      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    });
+    win.isSplash = true;
+    const shownAt = Date.now();
+    let finish;
+    splashDone = new Promise(resolve => { finish = resolve; });
+    win.closeAfterMin = () => setTimeout(() => { if (!win.isDestroyed()) win.close(); }, Math.max(0, shownAt + SPLASH_MIN - Date.now()));
+    win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
+    win.on('closed', () => { if (splash === win) splash = null; finish(); });
+    setTimeout(() => closeSplash(true), SPLASH_MAX);
+    win.loadFile(path.join(__dirname, 'splash.html'), { query: { version: app.getVersion() } });
+  }
+
+  // Closes the splash: once it has been up for SPLASH_MIN, or straight away (before a dialog).
+  function closeSplash(now = false) {
+    const win = splash;
+    if (!win || win.isDestroyed()) return;
+    if (now) win.close(); else win.closeAfterMin();
+  }
+
+  // The line under the logo ("Studio is on air"), and whether the bar stops sweeping.
+  function splashStatus(text, done = false) {
+    if (splash && !splash.isDestroyed()) splash.webContents.executeJavaScript(`setStatus(${JSON.stringify(text)}, ${done})`).catch(() => {});
+  }
+
   // ─── Dock ───────────────────────────────────────────────────────────────
   // A menu bar app (LSUIElement) until a window opens: then it is in the Dock and the app
   // switcher like any app, and back to just the menu bar icon when the last one closes.
   function refreshDock() {
     if (process.platform !== 'darwin') return;
-    if (openWindows().length) app.dock.show().catch(() => {});
+    if (pageWindows().length) app.dock.show().catch(() => {});
     else app.dock.hide();
   }
 
@@ -82,7 +122,12 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true },
     });
     win.studioUrl = url;
-    win.once('ready-to-show', () => win.show());
+    // While the splash is up, the window shows as it closes rather than behind it.
+    win.once('ready-to-show', () => {
+      if (!splash) return win.show();
+      closeSplash();
+      splashDone.then(() => { if (!win.isDestroyed()) win.show(); });
+    });
 
     const wc = win.webContents;
     wc.on('dom-ready', () => { if (studioPage) wc.insertCSS(HEADER_CSS).catch(() => {}); });
@@ -117,11 +162,11 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       win.on('closed', () => { if (main === win) main = null; });
     }
     win.on('close', e => {
-      if (quitting || win.confirmedClose || openWindows().some(w => w !== win) || !closingGoesOffAir()) return;
+      if (quitting || win.confirmedClose || pageWindows().some(w => w !== win) || !closingGoesOffAir()) return;
       if (confirmOffAir(win)) win.confirmedClose = true;
       else e.preventDefault();
     });
-    win.on('closed', () => setImmediate(() => { refreshDock(); if (!openWindows().length && !quitting) onAllClosed(); }));
+    win.on('closed', () => setImmediate(() => { refreshDock(); if (!pageWindows().length && !quitting) onAllClosed(); }));
     win.loadURL(url);
     refreshDock();
     onWindowOpened();
@@ -136,7 +181,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // Opens a Studio page (a path such as /control.html) in the app's window, reusing the main
   // one, or in the browser when that is chosen in the menu bar icon.
   function open(p) {
-    if (appSettings().openInBrowser) return openBrowser(p);
+    if (appSettings().openInBrowser) { closeSplash(); return openBrowser(p); }
     const url = local(p);
     if (main && !main.isDestroyed()) {
       if (main.studioUrl !== url) main.loadURL(url);
@@ -151,15 +196,15 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
 
   // After Start Studio: pages showing "off air" load their page again.
   function reloadOffAir() {
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed() && w.webContents.getURL().startsWith('file:')) w.loadURL(w.studioUrl);
+    for (const w of pageWindows()) {
+      if (w.studioUrl && w.webContents.getURL().startsWith('file:')) w.loadURL(w.studioUrl);
     }
   }
 
   // Closes every Studio window, which takes Studio off air; asks once first if it is on air,
   // unless already confirmed (Stop Studio in the menu bar).
   function closeAll({ confirmed = false } = {}) {
-    const all = openWindows();
+    const all = pageWindows();
     if (!all.length) return;
     if (!confirmed && closingGoesOffAir() && !confirmOffAir(current())) return;
     for (const w of all) { w.confirmedClose = true; w.close(); }
@@ -178,13 +223,13 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
 
   // After Stop Studio: open pages say Studio is off air rather than failing quietly.
   function showOffAir() {
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed() && isStudio(w.webContents.getURL())) w.loadFile(path.join(__dirname, 'offair.html'), { query: { to: w.studioUrl, on: '' } });
+    for (const w of pageWindows()) {
+      if (isStudio(w.webContents.getURL())) w.loadFile(path.join(__dirname, 'offair.html'), { query: { to: w.studioUrl, on: '' } });
     }
   }
 
   // ─── The app menu (the bar at the top of the screen while a window is in front) ──
-  const current = () => { const w = BrowserWindow.getFocusedWindow(); return w && !w.isDestroyed() ? w : null; };
+  const current = () => { const w = BrowserWindow.getFocusedWindow(); return w && !w.isDestroyed() && !isSplash(w) ? w : null; };
 
   function refreshMenu() {
     const go = p => ({ click: () => { const w = current(); if (w && !appSettings().openInBrowser) w.loadURL(local(p)); else open(p); } });
@@ -245,5 +290,5 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       { role: 'windowMenu' },
     ]));
   }
-  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll };
+  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus };
 };
