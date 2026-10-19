@@ -57,7 +57,7 @@ static bool loadRuntime() {
   void *handle = nullptr;
   for (const auto &p : paths) if ((handle = dlopen(p.c_str(), RTLD_LOCAL | RTLD_LAZY))) break;
   if (!handle) {
-    loadError = "The NDI runtime isn't installed. Install NDI Tools (free) from ndi.video/tools, then open this page again.";
+    loadError = "The NDI runtime isn't installed. Install NDI Tools (free) from ndi.video/tools; Studio finds it as soon as it's installed.";
     return false;
   }
   typedef const NDIlib_v5 *(*Load)(void);
