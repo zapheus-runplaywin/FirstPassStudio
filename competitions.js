@@ -259,16 +259,53 @@ function create(name, fromId, overrides = {}, wantedId) {
   writeJson(path.join(DIR, id, 'settings.json'), settings);
   return id;
 }
+// Delete a competition. Deleting the one in use switches to the first one left, or to none.
+// Returns the competition in use afterwards.
 function remove(id) {
   writable();
-  if (id === activeId()) throw new Error('Switch to another competition before deleting this one.');
   fs.rmSync(dirOf(id), { recursive: true, force: true });
+  if (id === activeId()) {
+    const next = list()[0];
+    if (next) setActive(next.id); else fs.rmSync(ACTIVE_FILE, { force: true });
+  }
+  return activeId();
 }
 
 function freeId(id, name) {
   let out = id, n = 2;
   while (fs.existsSync(path.join(DIR, out))) out = `${slug(name).slice(0, 36)}-${n++}`;
   return out;
+}
+
+// ─── Template files ─────────────────────────────────────────────────────────
+// A competition as one JSON file: its settings, team logos and competition logo (not athlete
+// photos). Exported from the setup page and imported from it on any Studio.
+const TEMPLATE_FORMAT = 'firstpass-studio-competition';
+
+function exportTemplate(id) {
+  const out = { format: TEMPLATE_FORMAT, version: 1, settings: get(id) };
+  for (const sub of ['logos', 'brand']) {
+    out[sub] = {};
+    for (const f of images(id, sub)) out[sub][f] = fs.readFileSync(path.join(dirOf(id), sub, f)).toString('base64');
+  }
+  return out;
+}
+
+function importTemplate(tpl, name) {
+  writable();
+  if (!tpl || tpl.format !== TEMPLATE_FORMAT || !tpl.settings) throw new Error("That isn't a FirstPass Studio competition template.");
+  const from = clean(tpl.settings);
+  name = String(name || '').trim() || from.name;
+  const id = freeId(slug(name), name);
+  for (const sub of ['logos', 'brand']) fs.mkdirSync(path.join(DIR, id, sub), { recursive: true });
+  writeJson(path.join(DIR, id, 'settings.json'), clean({ ...from, name }));
+  for (const sub of ['logos', 'brand']) {
+    for (const [f, b64] of Object.entries(tpl[sub] || {})) {
+      try { saveImage(id, sub, f, Buffer.from(String(b64), 'base64')); } catch { /* skip a file that isn't an image */ }
+    }
+  }
+  if (!activeId()) setActive(id);
+  return id;
 }
 
 // ─── Import configs (imports/) ──────────────────────────────────────────────
@@ -371,4 +408,4 @@ function themeCss(s) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };
+module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };

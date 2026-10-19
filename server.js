@@ -1394,13 +1394,22 @@ function readRaw(req, max) {
 }
 
 async function setupRoute(req, res, url, q) {
-  const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image|export))?)?$/);
+  const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image|export|template))?)?$/);
   if (url.pathname === '/api/setup-find') return send(res, 200, await findCompetitions(q.url || (await readBody(req)).organisationUrl));
   if (url.pathname === '/api/setup-teams') return send(res, 200, await setupTeams());
   if (url.pathname === '/api/setup-new' && req.method === 'POST') {
     const body = await readBody(req);
     const id = competitions.create(String(body.name || 'New competition').trim() || 'New competition', body.from || null);
     log('info', 'setup', `New competition setup "${body.name}" (${id})${body.from ? ` copied from ${body.from}` : ''}`);
+    return send(res, 200, setupInfo(id));
+  }
+  if (url.pathname === '/api/setup-template' && req.method === 'POST') {
+    let tpl;
+    try { tpl = JSON.parse((await readRaw(req, 100 * 1024 * 1024)).toString('utf8')); } catch { return send(res, 400, { error: "That isn't a FirstPass Studio competition template." }); }
+    const hadActive = competitions.activeId();
+    const id = competitions.importTemplate(tpl, q.name);
+    log('info', 'setup', `Imported a template file as ${id}`);
+    if (!hadActive) applyCompetition('First competition imported');
     return send(res, 200, setupInfo(id));
   }
   if (url.pathname === '/api/setup-import' && req.method === 'POST') {
@@ -1453,10 +1462,13 @@ async function setupRoute(req, res, url, q) {
     if (id === competitions.activeId()) applyCompetition('Competition setup saved');
     return send(res, 200, setupInfo(id));
   }
+  if (what === 'template') return send(res, 200, competitions.exportTemplate(id));
   if (req.method === 'DELETE') {
-    competitions.remove(id);
-    log('info', 'setup', `Deleted the ${id} competition setup`);
-    return send(res, 200, { ok: true });
+    const wasActive = id === competitions.activeId();
+    const active = competitions.remove(id);
+    log('info', 'setup', `Deleted the ${id} competition setup${wasActive ? `; now using ${active || 'no competition'}` : ''}`);
+    if (wasActive) applyCompetition('Competition in use deleted');
+    return send(res, 200, { ok: true, active });
   }
   return send(res, 200, setupInfo(id));
 }
