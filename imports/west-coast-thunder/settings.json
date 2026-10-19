@@ -1,0 +1,61 @@
+{
+  "name": "West Coast Thunder",
+  "organisationUrl": "https://www.playhq.com/netball-australia/org/australian-mens-and-mixed-netball-association/9dac7b7b",
+  "competitionName": "Australian Championships",
+  "seasonName": "",
+  "displayName": "",
+  "organisationName": "Australian Mens and Mixed Netball Association",
+  "venueName": "",
+  "periodType": "quarters",
+  "quarterMinutes": 10,
+  "superShots": false,
+  "finalsFormat": "top4-page",
+  "divisionFinals": {},
+  "defaultCourt": "",
+  "autoSelectGame": true,
+  "autoSelectMinutesBefore": 5,
+  "roundLookaheadDays": 5,
+  "colours": {
+    "main": "#383c39",
+    "dark": "#231f20",
+    "panel": "#111111",
+    "panelAlt": "#1e1f1e",
+    "highlight": "#ffcd00",
+    "accent": "#6b6f6c",
+    "text": "#ffffff",
+    "textOnHighlight": "#000000",
+    "muted": "#c8c9c8"
+  },
+  "brandColours": [
+    {
+      "hex": "#ffcd00",
+      "name": "Thunder yellow"
+    },
+    {
+      "hex": "#000000",
+      "name": "Black"
+    },
+    {
+      "hex": "#383c39",
+      "name": "Charcoal"
+    },
+    {
+      "hex": "#231f20",
+      "name": "Outline black"
+    },
+    {
+      "hex": "#ffffff",
+      "name": "White"
+    }
+  ],
+  "panelOpacity": 0.92,
+  "font": "Montserrat",
+  "competitionLogo": "West Coast Thunder.png",
+  "competitionLogoDark": "",
+  "titleEmoji": "",
+  "clashWord": "CLASH",
+  "clubs": {},
+  "teamClubs": {},
+  "apiKey": "",
+  "apiTenant": ""
+}
