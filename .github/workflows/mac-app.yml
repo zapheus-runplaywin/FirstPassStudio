@@ -6,14 +6,18 @@
 # "Publish" puts it on the public FirstPassStudio-releases repository, where the installed
 # apps find their updates (the .zip is what they update from); otherwise only the .dmg is
 # attached to the run to try first.
-# It only runs when started by hand: merges to main don't build or publish (to save
-# Actions minutes).
+# Every merge to main (that changes more than docs) also runs this and publishes the next
+# patch version, so installed apps get each merged change.
 # Each run tags the commit it built: v0.1.3 when published, v0.1.3-test.12 for a test build.
 # The release notes list the pull requests merged since the last published version's tag.
 # Setup and the secrets it needs: see "Mac app" in README.md.
 name: Mac app
 
 on:
+  # Every merge to main that changes the app builds and publishes the next patch version.
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', '*.command', '*.bat']
   workflow_dispatch:
     inputs:
       publish:
@@ -30,14 +34,14 @@ on:
         type: string
         default: ''
 
-# One build at a time, so two runs close together don't pick the same version.
+# One build at a time, so two merges close together don't pick the same version.
 concurrency:
   group: mac-app
   cancel-in-progress: false
 
 env:
-  # Publishes only with Publish ticked.
-  PUBLISH: ${{ inputs.publish }}
+  # A push (merge to main) publishes; a manual run publishes only with Publish ticked.
+  PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
 
 jobs:
   build:

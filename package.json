@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Live PlayHQ graphics for OBS, by PIVT",
   "author": "PIVT",
+  "license": "MIT",
   "private": true,
   "main": "desktop/main.js",
   "scripts": {

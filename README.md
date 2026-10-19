@@ -156,9 +156,10 @@ every installed app. The workflow picks the version: the last published one rais
 be higher than the last published one (updates only go to a higher version). The first release uses `version` in
 `package.json`; after that `package.json` needn't change.
 
-**Publishing is manual**: merging to main doesn't build or publish anything (this saves GitHub Actions minutes).
-To get merged changes to installed apps, use **Run workflow** with **Publish** ticked; leave it unticked for a test
-build. Builds run one at a time, so two quick runs get two versions.
+**Every merge to main publishes automatically**: the workflow runs by itself, builds the next patch version and
+publishes it as an update, so installed apps pick up each merged PR. Merges that only change documentation (`.md`
+files, `docs/`, the Make Examples scripts) don't publish. Use **Run workflow** for a minor or major version, a
+specific version, or a test build without publishing. Builds run one at a time, so two quick merges get two versions.
 
 Each run tags the commit of this repository it built from, so any build can be traced to its code: `v0.1.3` for a
 published update, `v0.1.3-test.12` for a test build (12 is the run number, so a test build never takes the tag a
@@ -454,3 +455,9 @@ pick each winner (the score is optional); those are kept in `control.json`, and 
 - Quarter (or half) length and the season are on the competition setup page.
 - Colours and font are on the competition setup page (Studio writes `theme.css` from them). Sizes and position are at the top of `public/ladder.css` and `public/scoreboard.css`.
 - The ladder marks the finals places from the division's finals format (see **Finals**); their colours are at the top of the finals part of `public/ladder.css`.
+
+## Licence
+
+FirstPass Studio is open source under the MIT licence; see [LICENSE](LICENSE). Bundled third-party code keeps its own
+licence (Montserrat in `public/vendor/montserrat/OFL.txt`, Swagger UI in `public/vendor/swagger-ui/LICENSE`). Team and
+competition logos belong to their owners and are not covered by the MIT licence.
