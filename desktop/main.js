@@ -265,4 +265,13 @@ async function start() {
 app.on('window-all-closed', e => e.preventDefault()); // no windows: the app stays in the menu bar, off air
 // Clicking the Dock icon with no window open opens Studio.
 app.on('activate', (e, hasWindows) => { if (!hasWindows) openPage('/'); });
-app.on('before-quit', () => { quitting = true; if (helper) helper.kill(); });
+// Quitting always quits: the helper is stopped, and if anything still holds the app up after a
+// few seconds (a window that won't close, an update install that hangs) it exits anyway.
+let quitStarted = false;
+app.on('before-quit', () => {
+  if (quitStarted) return;
+  quitStarted = quitting = true;
+  log('Quitting');
+  if (helper) { helper.stopping = true; helper.kill(); }
+  setTimeout(() => { log('Still running 5 s after Quit: exiting'); app.exit(0); }, 5000).unref();
+});
