@@ -261,7 +261,7 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
   it off when the Mac is busy. **Preview sound** (Mac app, while a display or Blackmagic output is on) plays the sound from the preview
   instead, and mutes the outputs so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
-  page plays it at a time.
+  page plays it at a time (click another page's preview to bring the sound there). A line under the preview says why it's silent, if it is.
 - **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
   **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that
   colour. **Fill and key** needs two extra displays: fill is the scene over black, key is white wherever the scene shows and black where it's

@@ -135,12 +135,13 @@ function listenChanged() {
   send();
 }
 
-// POST /api/outputs/listen { id, on }: an Output page asking to play the sound in its preview (on), or
-// letting go of it. Answers { sound }: whether that page's preview should play sound.
-function listen({ id, on } = {}) {
+// POST /api/outputs/listen { id, on, take }: an Output page asking to play the sound in its preview (on),
+// or letting go of it. take: someone ticked Preview sound or clicked the preview on that page, so it takes
+// the sound from another page. Answers { sound }: whether that page's preview should play sound.
+function listen({ id, on, take } = {}) {
   id = String(id || '');
   const mine = listener && listener.id === id;
-  if (on && id && settings.previewSound && (mine || !listening())) listener = { id, until: Date.now() + LISTEN_MS };
+  if (on && id && settings.previewSound && (mine || take || !listening())) listener = { id, until: Date.now() + LISTEN_MS };
   else if (mine) listener = null;
   listenChanged();
   return { sound: listening() && listener.id === id };
