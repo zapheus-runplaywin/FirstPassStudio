@@ -49,10 +49,11 @@ module.exports = function decklink({ port, log, onStatus }) {
     if (addon) addon.stop();
   }
 
-  // w: { device, mode, keying, straight } from outputs.js, or null to stop.
+  // w: { device, mode, keying, straight, muted } from outputs.js, or null to stop. muted: the Output
+  // page's preview is playing the sound instead, so it isn't heard twice.
   function show(w) {
     const key = w && JSON.stringify([w.device, w.mode, w.keying, w.straight]);
-    if (key && running?.key === key) return;
+    if (key && running?.key === key) { win?.webContents.setAudioMuted(!!w.muted); return; }
     stop();
     error = '';
     if (!w) return report();
@@ -82,6 +83,7 @@ module.exports = function decklink({ port, log, onStatus }) {
         autoplayPolicy: 'no-user-gesture-required',
       },
     });
+    win.webContents.setAudioMuted(!!w.muted);
     win.webContents.setFrameRate(Math.min(240, Math.ceil(r.frameRate) || 30));
     // Only send pictures once the scene page is there: before it, or if the helper isn't answering
     // yet, Chromium paints a white page, which would go out on air.

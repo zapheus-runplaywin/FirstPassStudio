@@ -131,7 +131,9 @@
       <li><b>Stream Deck links:</b> <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
         <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
-      <li><b>Preview:</b> the Output page shows the scene live; it runs the scene's pages a second time, so turn it off when the Mac is busy.</li>
+      <li><b>Preview:</b> the Output page shows the scene live; it runs the scene's pages a second time, so turn it off when the Mac is busy.
+        <b>Preview sound</b> plays the sound from the preview while a display or Blackmagic output is on, and mutes the outputs so it never plays twice;
+        it goes back to the outputs when the Output page closes.</li>
       <li><b>Display output (Mac app):</b> sends the scene full screen to the Mac's extra displays (HDMI into a switcher).
         <b>Chroma</b> puts it over a solid colour on one display (green, blue or any colour) for a switcher that keys on that colour.
         <b>Fill and key</b> uses two extra displays: fill is the scene over black, key is white where the scene shows and black where it's see-through,

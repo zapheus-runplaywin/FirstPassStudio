@@ -242,7 +242,7 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   **Refresh page** reloads it now.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (OBS's, with the
-  scene in OBS), and the Output page's preview is always silent. **Restart video** starts it again from the top.
+  scene in OBS), and the Output page's preview is silent unless **Preview sound** is ticked. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
   without alpha) gives an opaque WebM: the Output page and the log say so. This needs
@@ -256,7 +256,9 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
 - **Stream Deck links:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
-  it off when the Mac is busy.
+  it off when the Mac is busy. **Preview sound** (Mac app, while a display or Blackmagic output is on) plays the sound from the preview
+  instead, and mutes the outputs so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
+  page plays it at a time.
 - **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
   **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that
   colour. **Fill and key** needs two extra displays: fill is the scene over black, key is white wherever the scene shows and black where it's

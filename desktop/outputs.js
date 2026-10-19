@@ -54,6 +54,8 @@ module.exports = function outputs({ port, log }) {
       if (!d) continue;
       const url = pageFor(w);
       const o = open.get(id);
+      // Muted while the Output page's preview plays the sound, so it isn't heard twice.
+      if (o) o.win.webContents.setAudioMuted(!!w.muted);
       if (o && o.url === url) continue;
       if (o) { o.url = url; o.win.loadURL(url); continue; }
       const win = new BrowserWindow({
@@ -70,6 +72,7 @@ module.exports = function outputs({ port, log }) {
       win.webContents.on('before-input-event', (e, input) => {
         if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); if (helper) helper.postMessage({ type: 'escape' }); }
       });
+      win.webContents.setAudioMuted(!!w.muted);
       win.once('ready-to-show', () => { win.setBounds(d.bounds); win.showInactive(); });
       win.on('closed', () => { if (open.get(id)?.win === win) open.delete(id); });
       win.loadURL(url);

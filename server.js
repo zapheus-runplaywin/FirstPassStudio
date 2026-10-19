@@ -2346,7 +2346,9 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
-    if (url.pathname === '/api/outputs') return outputs.route(req, res, url, { send, readBody });
+    if (url.pathname === '/api/outputs' || url.pathname.startsWith('/api/outputs/')) {
+      if (await outputs.route(req, res, url, { send, readBody })) return;
+    }
     if (url.pathname.startsWith('/api/scene') || url.pathname.startsWith('/media/')) {
       if (await scene.route(req, res, url, { send, readBody })) return;
     }

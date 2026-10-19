@@ -76,14 +76,17 @@
   <section>
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h2 style="margin:0">Preview</h2>
-      <label><input id="previewOn" type="checkbox" checked> Live preview</label>
+      <div class="row"><label><input id="previewSound" type="checkbox"> Preview sound</label> <label><input id="previewOn" type="checkbox" checked> Live preview</label></div>
     </div>
     <div class="preview" id="preview">
       <iframe id="previewFrame" title="Scene preview"></iframe>
       <div class="box" id="selBox"></div>
       <div class="off hidden" id="previewOff">Live preview is off</div>
     </div>
-    <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.</p>
+    <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.
+      <b>Preview sound</b> plays the scene's sound here instead of from the display or Blackmagic output, while one is on:
+      the outputs go silent, so the sound never plays twice. It needs the live preview showing, and moves back to the outputs
+      when this page closes. Only one Output page plays it at a time.</p>
   </section>
 
   <section id="outSection">
@@ -196,7 +199,7 @@
           <label class="forVideo">Sound</label>
           <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
         </div>
-        <p class="note forVideo">Sound plays through this Mac's audio output (or OBS's, when the scene is in OBS). The preview above is always silent.</p>
+        <p class="note forVideo">Sound plays through this Mac's audio output (or OBS's, when the scene is in OBS). The preview above is silent unless <b>Preview sound</b> is ticked.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
           <button class="alt forBrowser" id="fRestart">Refresh page</button>
@@ -257,6 +260,7 @@
     $('previewOn').checked = on;
     $('previewFrame').src = on ? '/scene.html?mute=1' : 'about:blank';
     $('previewOff').classList.toggle('hidden', on);
+    listen();
   }
   function drawBox() {
     const s = current(), box = $('selBox');
@@ -379,8 +383,28 @@
   $('hideAll').onclick = () => act({ type: 'hideAll' });
   // Display output (the Mac app opens the windows; outputs.js decides what goes where).
   let out = null;
+  // Preview sound: while an output is on, this page asks the helper for the sound, which mutes the
+  // outputs; only the page it says yes to unmutes its preview. It checks in every few seconds and lets
+  // go when it closes, so the sound goes back to the outputs.
+  const listenId = Math.random().toString(36).slice(2);
+  let previewSound = false;
+  const applySound = () => { try { $('previewFrame').contentWindow.setSilent?.(!previewSound); } catch {} };
+  $('previewFrame').addEventListener('load', applySound);
+  async function listen() {
+    const on = !!(out && out.previewSound && out.showing.length && $('previewOn').checked);
+    try {
+      const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on }) });
+      previewSound = !!(await r.json()).sound;
+    } catch { previewSound = false; }
+    applySound();
+  }
+  setInterval(listen, 5000);
+  addEventListener('pagehide', () => navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false })));
   const showOut = o => {
+    const relisten = !out || out.previewSound !== o.previewSound || !out.showing.length !== !o.showing.length;
     out = o;
+    $('previewSound').checked = o.previewSound;
+    if (relisten) listen();
     $('outNoApp').classList.toggle('hidden', o.app);
     $('outForm').classList.toggle('hidden', !o.app);
     $('outOn').classList.toggle('hidden', !o.app);
@@ -461,6 +485,7 @@
   $('outDlStraight').onchange = () => setOut({ decklinkStraight: $('outDlStraight').checked });
   for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
   $('outOn').onclick = () => setOut({ on: !(out && out.on) });
+  $('previewSound').onchange = () => setOut({ previewSound: $('previewSound').checked });
 
   // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
   fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});
