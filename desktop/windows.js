@@ -1,6 +1,6 @@
 // FirstPass Studio - the Mac app's own windows.
 //
-// Studio's pages (home, control, setup, athletes, API docs) open in the app's own window
+// Studio's pages (home, control, output, setup, athletes, API docs) open in the app's own window
 // rather than the browser: no address bar, tabs or bookmarks, the Studio header doubles as
 // the title bar, and the app shows in the Dock and the app switcher while a window is open.
 // Links that open a new tab on Studio (a preview, the setup page) open another app window;
@@ -18,7 +18,7 @@ const path = require('path');
 
 // The pages with the Studio header (body class "fp"); everything else (the overlays, the
 // debug log) gets a normal title bar.
-const STUDIO_PAGES = new Set(['/', '/index.html', '/control.html', '/setup.html', '/athletes.html', '/api.html']);
+const STUDIO_PAGES = new Set(['/', '/index.html', '/control.html', '/setup.html', '/athletes.html', '/api.html', '/output.html']);
 
 // Room for the window buttons (red, yellow, green) at the left of the Studio header, which
 // becomes the title bar: drag it to move the window, double-click it to zoom.
@@ -285,6 +285,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
           { label: 'Competition Setup', accelerator: 'CmdOrCtrl+3', ...go('/setup.html') },
           { label: 'Athlete Photos', accelerator: 'CmdOrCtrl+4', ...go('/athletes.html') },
           { label: 'Stream Deck API', accelerator: 'CmdOrCtrl+5', ...go('/api.html') },
+          { label: 'Output', accelerator: 'CmdOrCtrl+6', ...go('/output.html') },
         ],
       },
       { role: 'windowMenu' },

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scene · FirstPass Studio</title>
+<!--
+  The scene built on the Output page (output.html): every source drawn as a layer on one
+  1920 x 1080 transparent frame, top layer first, shown and hidden with each source's fade.
+  It follows the helper's scene straight away (server-sent events), so a Stream Deck press
+  shows at once. Optional: the other pages still work on their own in OBS, and this page can
+  also go into OBS as a single 1920 x 1080 browser source.
+-->
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+  .layer { position: absolute; transform-origin: 0 0; opacity: 0; transition-property: opacity; transition-timing-function: linear; pointer-events: none; }
+  .layer.on { opacity: 1; }
+  .layer iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+  .layer img { display: block; }
+</style>
+<script src="log.js"></script>
+<script src="autoreload.js"></script>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  const stage = document.getElementById('stage');
+  const layers = new Map(); // source id -> { el, src, token, shown, loaded }
+  const LOAD_WAIT_MS = 2500; // longest a page waits to finish loading before it fades in anyway
+  let first = true;
+
+  const addressOf = s => /^https?:\/\//i.test(s.url) ? s.url : '/' + s.url;
+
+  function create(s) {
+    const el = document.createElement('div');
+    el.className = 'layer';
+    el.dataset.id = s.id;
+    if (s.type === 'browser') {
+      const f = document.createElement('iframe');
+      f.setAttribute('allowtransparency', 'true');
+      f.setAttribute('scrolling', 'no');
+      f.allow = 'autoplay';
+      f.title = s.name;
+      el.appendChild(f);
+    } else {
+      el.appendChild(document.createElement('img'));
+    }
+    stage.appendChild(el);
+    return { el, src: {}, token: 0, shown: false, loaded: '' };
+  }
+
+  // Loads (or reloads) a browser source's page; resolves when it has loaded, or after LOAD_WAIT_MS.
+  function loadPage(L, s) {
+    const f = L.el.querySelector('iframe');
+    const want = `${addressOf(s)}#${s.loadSeq}`;
+    L.loaded = want;
+    return new Promise(resolve => {
+      const done = () => { clearTimeout(t); f.removeEventListener('load', done); resolve(); };
+      const t = setTimeout(done, LOAD_WAIT_MS);
+      f.addEventListener('load', done);
+      f.src = addressOf(s);
+    });
+  }
+  function unloadPage(L) {
+    const f = L.el.querySelector('iframe');
+    if (f && L.loaded) { f.src = 'about:blank'; L.loaded = ''; }
+  }
+
+  async function update(L, s, z) {
+    const old = L.src;
+    L.src = s;
+    const el = L.el;
+    el.style.zIndex = z;
+    el.style.left = s.x + 'px';
+    el.style.top = s.y + 'px';
+    el.style.transform = `scale(${s.scale / 100})`;
+    el.style.transitionDuration = (first ? 0 : s.fadeMs) + 'ms';
+    if (s.type === 'browser') {
+      el.style.width = s.width + 'px';
+      el.style.height = s.height + 'px';
+    } else {
+      const img = el.querySelector('img');
+      const want = '/media/' + encodeURIComponent(s.file);
+      if (img.getAttribute('src') !== want) img.src = want;
+    }
+
+    const token = ++L.token;
+    const pageKey = s.type === 'browser' ? `${addressOf(s)}#${s.loadSeq}` : '';
+    if (s.visible) {
+      // A page loads when it's shown (fresh each time, like OBS's "Shutdown source when not visible"),
+      // or once and kept running with reloadOnShow off. Restart reloads it either way.
+      const needsLoad = s.type === 'browser' && (L.loaded !== pageKey || (s.reloadOnShow && !L.shown));
+      if (needsLoad) await loadPage(L, s);
+      if (token !== L.token) return; // changed again while loading
+      L.shown = true;
+      requestAnimationFrame(() => { if (token === L.token) el.classList.add('on'); });
+    } else {
+      el.classList.remove('on');
+      L.shown = false;
+      if (s.type === 'browser') {
+        if (!s.reloadOnShow && L.loaded !== pageKey) loadPage(L, s); // keep it ready to show at once
+        else if (s.reloadOnShow) setTimeout(() => { if (token === L.token) unloadPage(L); }, first ? 0 : s.fadeMs + 50);
+      }
+    }
+  }
+
+  function render(scene) {
+    const seen = new Set();
+    scene.sources.forEach((s, i) => {
+      seen.add(s.id);
+      let L = layers.get(s.id);
+      if (L && L.src.type !== s.type) { L.el.remove(); L = null; }
+      if (!L) { L = create(s); layers.set(s.id, L); }
+      update(L, s, scene.sources.length - i);
+    });
+    for (const [id, L] of layers) if (!seen.has(id)) { L.el.remove(); layers.delete(id); }
+    first = false;
+  }
+
+  const events = new EventSource('/api/scene/events');
+  events.onmessage = e => { try { render(JSON.parse(e.data)); } catch (err) { console.error('Scene update failed', err); } };
+</script>
+</body>
+</html>

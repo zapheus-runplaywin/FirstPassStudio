@@ -144,6 +144,23 @@ watch the scoreboard; it plays once each time it comes on. Tick **Shutdown sourc
 when scene becomes active**, show it with the **OBS Studio** plugin's **Source** (visibility) action, and turn it off again
 before the next one so it replays. Don't keep a manual source and the automatic one on together, or it plays twice.
 
+## Scene (Output page)
+
+Optional: for Studio's own scene, built on the Output page (http://localhost:8080/output.html), in place of an OBS scene.
+Each source in the scene gets these links, using its name in lower case with dashes for spaces
+(a source named **Up Next** is `up-next`). The Output page shows and copies every source's links.
+
+| Button | Link |
+|---|---|
+| Show or hide a source | http://localhost:8080/deck/layer/scoreboard/toggle |
+| Fade a source in | http://localhost:8080/deck/layer/scoreboard/on |
+| Fade a source out | http://localhost:8080/deck/layer/scoreboard/off |
+| Refresh a page source (replays its animation) | http://localhost:8080/deck/layer/winner/restart |
+| Fade every source out | http://localhost:8080/deck/layers/off |
+
+Renaming a source on the Output page changes its links. These links replace the **OBS Studio** plugin's **Source** keys on nights you
+use the Studio scene; keep a separate Stream Deck profile for OBS nights, since OBS works exactly as before.
+
 ## Second court
 
 Add `?board=2` to the end of any link, e.g. `http://localhost:8080/deck/home/add2?board=2`.

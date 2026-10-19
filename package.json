@@ -30,6 +30,7 @@
       "server.js",
       "competitions.js",
       "finals.js",
+      "scene.js",
       "datadir.js",
       "migrations.js",
       "linkhost.js",

@@ -137,7 +137,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 home,
-⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs) and Window. Closing the last window takes Studio off air (see
+⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs, ⌘6 output) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
 **Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
@@ -208,6 +208,27 @@ http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Pr
 Frame rate: every graphic and animation is timed by the clock, not by frames, so it plays at the same speed at 25, 30,
 50 or 60 fps. For 1080 50p or 60p, set OBS's Video FPS to 50 or 60 and leave **Use custom frame rate** unticked in each
 Browser source, so the pages render at the stream's rate (a custom rate of 30 would make movement look steppy at 60p).
+
+## Studio scene (optional, instead of an OBS scene)
+
+http://localhost:8080/output.html (**Output** in the menu, ⌘6 in the app) builds Studio's own scene: one 1920 x 1080 frame of
+sources drawn as layers, top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.
+
+- **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, saved in the
+  data folder's `media` folder. New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.
+- **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
+- **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
+  (1920 x 1080 for full-frame graphics), like an OBS Browser source's width and height.
+- **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
+  when hidden, like OBS's **Shutdown source when not visible**. Untick it to keep a page running while hidden so it shows instantly.
+  **Refresh page** reloads it now.
+- **Stream Deck:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, and `/deck/layers/off` hides everything
+  (see `STREAMDECK.md`). The Output page copies them.
+- **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
+  it off when the Mac is busy.
+
+The scene is saved as `scene.json` in the data folder. Until Studio can send it to the UltraStudio itself (a later update), add
+http://localhost:8080/scene.html to OBS as one 1920 x 1080 Browser source to use it.
 
 ## Example graphics
 

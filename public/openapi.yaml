@@ -26,6 +26,8 @@ tags:
   - name: Quarter
   - name: Ticker
   - name: Status
+  - name: Scene
+    description: Studio's own scene (optional, built on the Output page). Sources are named by the name given on the Output page, lower case with dashes for spaces ("Up Next" is `up-next`).
 
 paths:
   /deck/{side}/{change}:
@@ -363,6 +365,47 @@ paths:
                       side: { type: string, enum: [home, away] }
                       goals: { type: integer }
                       points: { type: integer }
+
+  /deck/layer/{name}/{action}:
+    get:
+      tags: [Scene]
+      summary: Show, hide, toggle or refresh a scene source
+      description: |
+        For the scene built on the Output page (`/output.html`). `on` fades the source in and `off` fades it out,
+        each with the source's own fade time; `toggle` swaps between the two. `restart` reloads a page source.
+        The source is found by its name as set on the Output page, which copies each source's links.
+        The `board` parameter doesn't apply.
+      operationId: layerAction
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The source's name, lower case with dashes for spaces, e.g. `scoreboard` or `up-next`
+          schema: { type: string }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle, restart] }
+      responses:
+        '200':
+          description: Done. Returns the source's name and whether it's now showing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  name: { type: string }
+                  visible: { type: boolean }
+        '404': { description: No source by that name in the scene }
+
+  /deck/layers/off:
+    get:
+      tags: [Scene]
+      summary: Fade every scene source out
+      operationId: layersOff
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
 
 components:
   parameters:
