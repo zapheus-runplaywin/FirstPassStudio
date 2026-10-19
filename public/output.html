@@ -53,6 +53,8 @@
   .form { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
   .form > label { font-weight: 600; font-size: 14px; }
   .form .wide { grid-column: 1 / -1; }
+  #fOptionsBox { border-left: 3px solid var(--fp-line); padding-left: 12px; }
+  #fOptions .unit { color: var(--fp-muted); font-size: 13px; }
   @media (max-width: 600px) { .form { grid-template-columns: 1fr; } }
   .links { display: grid; gap: 6px; }
   .links div { display: flex; gap: 8px; align-items: center; }
@@ -61,6 +63,7 @@
   .hidden { display: none !important; }
 </style>
 <script src="log.js"></script>
+<script src="pageoptions.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar">
@@ -76,14 +79,17 @@
   <section>
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h2 style="margin:0">Preview</h2>
-      <label><input id="previewOn" type="checkbox" checked> Live preview</label>
+      <div class="row"><label><input id="previewSound" type="checkbox"> Preview sound</label> <label><input id="previewOn" type="checkbox" checked> Live preview</label></div>
     </div>
     <div class="preview" id="preview">
       <iframe id="previewFrame" title="Scene preview"></iframe>
       <div class="box" id="selBox"></div>
       <div class="off hidden" id="previewOff">Live preview is off</div>
     </div>
-    <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.</p>
+    <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.
+      <b>Preview sound</b> plays the scene's sound here instead of from the display or Blackmagic output, while one is on:
+      the outputs go silent, so the sound never plays twice. It needs the live preview showing, and moves back to the outputs
+      when this page closes. Only one Output page plays it at a time.</p>
   </section>
 
   <section id="outSection">
@@ -175,6 +181,10 @@
           <input id="fName" maxlength="60">
           <label for="fUrl" class="forBrowser">Address</label>
           <input id="fUrl" class="forBrowser">
+          <div class="wide hidden" id="fOptionsBox">
+            <div class="form" id="fOptions"></div>
+            <p class="note">The page's own options, the ones the Graphics page describes. They're saved in its address above.</p>
+          </div>
           <label for="fFile" class="forMedia" id="fFileLabel">Image</label>
           <select id="fFile" class="forMedia"></select>
           <label class="forBrowser">Page size</label>
@@ -196,7 +206,7 @@
           <label class="forVideo">Sound</label>
           <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
         </div>
-        <p class="note forVideo">Sound plays through this Mac's audio output (or OBS's, when the scene is in OBS). The preview above is always silent.</p>
+        <p class="note forVideo">Sound plays through this Mac's audio output (or OBS's, when the scene is in OBS). The preview above is silent unless <b>Preview sound</b> is ticked.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
           <button class="alt forBrowser" id="fRestart">Refresh page</button>
@@ -257,6 +267,7 @@
     $('previewOn').checked = on;
     $('previewFrame').src = on ? '/scene.html?mute=1' : 'about:blank';
     $('previewOff').classList.toggle('hidden', on);
+    listen();
   }
   function drawBox() {
     const s = current(), box = $('selBox');
@@ -338,6 +349,7 @@
       if (force || document.activeElement !== $(id)) $(id).value = s[key];
     }
     $('fReload').checked = !!s.reloadOnShow;
+    renderOptions(s, force);
     const i = scene.sources.indexOf(s);
     $('fUp').disabled = i === 0;
     $('fDown').disabled = i === scene.sources.length - 1;
@@ -350,6 +362,52 @@
       row.querySelector('code').textContent = link;
       row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
       $('links').appendChild(row);
+    }
+  }
+  // A Studio page's options (pageoptions.js) as fields, kept in the source's address. Options it
+  // doesn't know, and anything typed into the address by hand, stay as they are.
+  function renderOptions(s, force) {
+    const [path, query = ''] = s.type === 'browser' ? String(s.url).split('?') : [''];
+    const options = !/^https?:/i.test(path) && PAGE_OPTIONS[path.replace(/^\/+/, '')];
+    $('fOptionsBox').classList.toggle('hidden', !options);
+    if (!options) return;
+    const box = $('fOptions');
+    if (!force && box.contains(document.activeElement) && box.dataset.url === s.url) return;
+    box.dataset.url = s.url;
+    box.innerHTML = '';
+    const params = new URLSearchParams(query);
+    for (const o of options) {
+      const label = document.createElement('label');
+      label.textContent = o.label;
+      label.htmlFor = 'opt-' + o.key;
+      const value = params.get(o.key) ?? '';
+      let input;
+      if (o.type === 'select') {
+        input = document.createElement('select');
+        for (const [v, text] of o.choices) input.add(new Option(text, v));
+        if (!o.choices.some(([v]) => v === value)) input.add(new Option(value, value));
+      } else {
+        input = document.createElement('input');
+        input.type = o.type === 'number' ? 'number' : 'text';
+        for (const k of ['min', 'max', 'step', 'placeholder']) if (o[k] !== undefined) input[k] = o[k];
+      }
+      input.id = 'opt-' + o.key;
+      input.value = value;
+      input.onchange = () => {
+        const q = new URLSearchParams(String(current().url).split('?')[1] || '');
+        if (input.value.trim() === '') q.delete(o.key); else q.set(o.key, input.value.trim());
+        const qs = q.toString();
+        change({ url: path + (qs ? '?' + qs : '') });
+      };
+      const cell = document.createElement('div');
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.appendChild(input);
+      if (o.type !== 'select') input.style.flex = '1';
+      if (o.unit) { const u = document.createElement('span'); u.className = 'unit'; u.textContent = o.unit; row.appendChild(u); }
+      cell.appendChild(row);
+      if (o.help) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '2px 0 0'; n.textContent = o.help; cell.appendChild(n); }
+      box.append(label, cell);
     }
   }
   function change(changes) { const s = current(); if (s) act({ type: 'update', id: s.id, changes }); }
@@ -379,8 +437,28 @@
   $('hideAll').onclick = () => act({ type: 'hideAll' });
   // Display output (the Mac app opens the windows; outputs.js decides what goes where).
   let out = null;
+  // Preview sound: while an output is on, this page asks the helper for the sound, which mutes the
+  // outputs; only the page it says yes to unmutes its preview. It checks in every few seconds and lets
+  // go when it closes, so the sound goes back to the outputs.
+  const listenId = Math.random().toString(36).slice(2);
+  let previewSound = false;
+  const applySound = () => { try { $('previewFrame').contentWindow.setSilent?.(!previewSound); } catch {} };
+  $('previewFrame').addEventListener('load', applySound);
+  async function listen() {
+    const on = !!(out && out.previewSound && out.showing.length && $('previewOn').checked);
+    try {
+      const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on }) });
+      previewSound = !!(await r.json()).sound;
+    } catch { previewSound = false; }
+    applySound();
+  }
+  setInterval(listen, 5000);
+  addEventListener('pagehide', () => navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false })));
   const showOut = o => {
+    const relisten = !out || out.previewSound !== o.previewSound || !out.showing.length !== !o.showing.length;
     out = o;
+    $('previewSound').checked = o.previewSound;
+    if (relisten) listen();
     $('outNoApp').classList.toggle('hidden', o.app);
     $('outForm').classList.toggle('hidden', !o.app);
     $('outOn').classList.toggle('hidden', !o.app);
@@ -461,6 +539,7 @@
   $('outDlStraight').onchange = () => setOut({ decklinkStraight: $('outDlStraight').checked });
   for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
   $('outOn').onclick = () => setOut({ on: !(out && out.on) });
+  $('previewSound').onchange = () => setOut({ previewSound: $('previewSound').checked });
 
   // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
   fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});

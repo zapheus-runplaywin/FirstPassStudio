@@ -26,7 +26,7 @@ const DEFAULT_CHROMA = '#00b140';
 let log = () => {};
 let settings = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, fillDisplay: '', keyDisplay: '',
-  decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
+  decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false, previewSound: false,
 };
 // The Mac app's displays: [{ id, label, width, height, primary }]; null when not run by the app.
 let displays = null;
@@ -35,6 +35,11 @@ let displays = null;
 let decklink = null;
 let decklinkStatus = { running: false };
 const port = process.parentPort || null;
+// The Output page whose preview plays the sound (previewSound): { id, until }. Only one at a time, and
+// while it does the outputs are muted, so the same sound never plays twice. It checks in every few
+// seconds; if it stops (the page closed without saying so) the outputs get their sound back.
+let listener = null;
+const LISTEN_MS = 70000; // a hidden page's timers can slow to once a minute
 
 const hex = c => /^#?[0-9a-f]{6}$/i.test(String(c || '')) ? `#${String(c).replace('#', '').toLowerCase()}` : DEFAULT_CHROMA;
 
@@ -51,6 +56,7 @@ function clean(s, old = settings) {
     decklinkMode: Number(pick('decklinkMode', 0)) || 0,
     decklinkKeying: KEYING.includes(pick('decklinkKeying')) ? pick('decklinkKeying') : 'external',
     decklinkStraight: pick('decklinkStraight', false) === true,
+    previewSound: pick('previewSound', false) === true,
   };
 }
 
@@ -65,9 +71,17 @@ function save() {
   send();
 }
 
-// What each display should show now: [{ display, kind: 'fill' | 'key' | 'chroma', color }], or the
-// Blackmagic output: [{ kind: 'decklink', device, mode, keying, straight }].
+const listening = () => !!(settings.previewSound && listener && listener.until > Date.now());
+
+// What each display should show now: [{ display, kind: 'fill' | 'key' | 'chroma', color, muted }], or the
+// Blackmagic output: [{ kind: 'decklink', device, mode, keying, straight, muted }]. muted: the
+// Output page's preview is playing the sound instead.
 function windows() {
+  const muted = listening();
+  return outputWindows().map(w => ({ ...w, muted }));
+}
+
+function outputWindows() {
   if (!settings.on) return [];
   if (settings.mode === 'decklink') {
     const device = decklink?.devices?.find(d => d.id === settings.decklinkDevice);
@@ -92,13 +106,15 @@ function send() {
 }
 
 function state() {
-  return { ...settings, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' }, decklinkStatus, showing: windows() };
+  return { ...settings, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' }, decklinkStatus, showing: windows(), listening: listening() };
 }
 
 function apply(changes) {
   const before = JSON.stringify(settings);
   settings = clean(changes || {});
   if (JSON.stringify(settings) !== before) {
+    if (!settings.previewSound) listener = null;
+    listenChanged();
     const w = windows();
     log('info', 'outputs', `Output ${settings.on ? settings.mode : 'off'}${w.length ? `: ${w.map(x => x.kind === 'decklink' ? `${deviceName(x.device)} (${modeName(x.device, x.mode)}, ${x.keying === 'external' ? 'fill and key' : 'fill only'})` : `${x.kind} on ${label(x.display)}`).join(', ')}` : ''}`);
     save();
@@ -109,7 +125,32 @@ const label = id => (displays || []).find(d => d.id === id)?.label || `display $
 const deviceName = id => decklink?.devices?.find(d => d.id === id)?.name || 'Blackmagic device';
 const modeName = (id, mode) => decklink?.devices?.find(d => d.id === id)?.modes.find(m => m.mode === mode)?.name || 'video format';
 
+// The preview's sound moving to or from the Output page: mute or unmute the outputs.
+let wasListening = false;
+function listenChanged() {
+  const now = listening();
+  if (now === wasListening) return;
+  wasListening = now;
+  log('info', 'outputs', now ? 'Sound from the Output page preview; the outputs are muted' : 'Sound from the outputs again');
+  send();
+}
+
+// POST /api/outputs/listen { id, on }: an Output page asking to play the sound in its preview (on), or
+// letting go of it. Answers { sound }: whether that page's preview should play sound.
+function listen({ id, on } = {}) {
+  id = String(id || '');
+  const mine = listener && listener.id === id;
+  if (on && id && settings.previewSound && (mine || !listening())) listener = { id, until: Date.now() + LISTEN_MS };
+  else if (mine) listener = null;
+  listenChanged();
+  return { sound: listening() && listener.id === id };
+}
+
 async function route(req, res, url, { send: reply, readBody }) {
+  if (url.pathname === '/api/outputs/listen' && req.method === 'POST') {
+    reply(res, 200, listen(await readBody(req).catch(() => ({}))));
+    return true;
+  }
   if (url.pathname !== '/api/outputs') return false;
   if (req.method === 'POST') apply(await readBody(req));
   // ?scan=1 (the Output page opening) asks the app to look for Blackmagic devices again.
@@ -130,6 +171,8 @@ function deck(parts) {
 function init(logger) {
   log = logger;
   load();
+  setInterval(listenChanged, 5000).unref(); // a preview that stopped checking in
+
   if (port) {
     port.on('message', e => {
       const msg = e.data || {};

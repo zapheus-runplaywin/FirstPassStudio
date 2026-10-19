@@ -37,7 +37,15 @@
   const LOAD_WAIT_MS = 2500; // longest a page waits to finish loading before it fades in anyway
   let first = true;
   const params = new URLSearchParams(location.search);
-  const SILENT = params.get('mute') === '1'; // the Output page's preview and the key output play no sound
+  let silent = params.get('mute') === '1'; // the Output page's preview and the key output play no sound
+  // The Output page turns its preview's sound on and off with this (Preview sound), without a reload.
+  window.setSilent = on => {
+    silent = !!on;
+    for (const L of layers.values()) {
+      const v = L.el.querySelector('video');
+      if (v && L.src) v.muted = !L.src.sound || silent;
+    }
+  };
   if (/^[0-9a-f]{6}$/i.test(params.get('bg') || '')) document.documentElement.style.background = document.body.style.background = '#' + params.get('bg');
   if (params.get('key') === '1') { document.body.classList.add('key'); document.documentElement.style.background = document.body.style.background = '#000'; }
   // Full screen on a display: scale the 1920 x 1080 frame to fit the window, centred.
@@ -148,7 +156,7 @@
     const v = L.el.querySelector('video'), el = L.el;
     const token = ++L.token;
     v.loop = s.loop;
-    v.muted = !s.sound || SILENT;
+    v.muted = !s.sound || silent;
     v.volume = s.volume / 100;
     const restarted = old.loadSeq !== undefined && old.loadSeq !== s.loadSeq;
     if (s.visible) {

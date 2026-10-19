@@ -125,7 +125,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       // The Studio header is the title bar; the window buttons sit inside it.
       titleBarStyle: studioPage ? 'hiddenInset' : 'default',
       trafficLightPosition: { x: 18, y: 26 },
-      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true },
+      // Autoplay with sound: the Output page's preview plays the scene's sound (Preview sound).
+      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true, autoplayPolicy: 'no-user-gesture-required' },
     });
     win.studioUrl = url;
     // While the splash is up, the window shows as it closes rather than behind it.
