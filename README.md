@@ -419,10 +419,14 @@ Each competition setup has a finals format, and each division can have its own (
 - Top 4: **Semis then grand final** (1 v 4, 2 v 3), **Page** (1 v 2 winner straight to the grand final, the loser gets a second
   chance, 3 v 4 loser out, then a preliminary final) and **Placings day** (1 v 2 for the title, 3 v 4 for third).
 - Top 6: **Byes for 1 and 2** (3 v 6 and 4 v 5, then 1 plays the lower winner and 2 the higher) and **Double chance for 1 and 2**.
-- Top 8: **AFL style** (top 4 double chance), **Straight knockout** and **Carnival placings** (every team gets a place 1 to 8).
+- Top 8: **AFL style** (top 4 double chance), **Straight knockout** and **Carnival placings** (a knockout over three weeks with
+  play-offs, so every team gets a place 1 to 8).
+- Every team: **Every team plays on grand final day** (1 v 2 for the title, 3 v 4 for third, 5 v 6 for fifth and so on down the
+  whole ladder, one game each, nobody knocked out; with an odd number of teams the last one has no game). Its games are made
+  for the number of teams on the division's ladder (`finals.sized`), and the finals graphic shows them in two columns.
 
 The ladder marks the finals places by what each earns (double chance or week off in yellow, elimination in pink, playing
-for third in the small print colour), draws a line under the last one, and adds a key when places earn different things
+for third or a place lower down in the small print colour), draws a line under the last one, and adds a key when places earn different things
 (`?key=0` leaves it off). Setups saved with only a number of finals places get the nearest format.
 
 `finals.html?division=1` shows who plays who week by week, with the teams from the ladder ("If the season ended today"

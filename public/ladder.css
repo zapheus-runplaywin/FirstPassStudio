@@ -54,12 +54,12 @@ th.points { width: 84px; }
 :root {
   --finals-top: var(--yellow);      /* plays for the title, double chance, week off */
   --finals-elim: var(--pink);       /* elimination final */
-  --finals-third: var(--muted);     /* plays for third */
+  --finals-third: var(--muted);     /* plays for third, or a place lower down */
 }
 tbody tr.finals td.position { box-shadow: inset 6px 0 0 var(--mark); }
 .finals--final, .finals--double, .finals--bye { --mark: var(--finals-top); }
 .finals--elim { --mark: var(--finals-elim); }
-.finals--third { --mark: var(--finals-third); }
+.finals--third, .finals--placing { --mark: var(--finals-third); }
 tbody tr.finals--last td { border-bottom: 3px solid var(--finals-elim); }   /* the finals cut-off line */
 tbody tr.finals--last:last-child td { border-bottom: 0; }
 .ladder__key { display: flex; justify-content: flex-end; gap: 26px; margin-top: 10px; padding: 8px 18px; font-size: 18px; font-weight: 700;

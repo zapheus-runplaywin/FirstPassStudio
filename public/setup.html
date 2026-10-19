@@ -466,6 +466,9 @@
       for (const f of info.finalsFormats.filter(x => x.teams === n)) group.append(new Option(f.name, f.id));
       if (group.children.length) sel.append(group);
     }
+    const every = Object.assign(document.createElement('optgroup'), { label: 'Every team' });
+    for (const f of info.finalsFormats.filter(x => x.all)) every.append(new Option(f.name, f.id));
+    if (every.children.length) sel.append(every);
   }
   const about = f => f ? `${f.summary} Weeks: ${f.weeks.join(', ')}.` : 'No finals: the ladder has no finals marks.';
   function renderFinals() {
@@ -615,8 +618,8 @@
     lad.append(head);
     const th = el('div', 'r th'); th.append(el('div', 'p', '#'), el('div', '', 'TEAM'), el('div', '', 'P'), el('div', 'pts', 'PTS')); lad.append(th);
     const fmt = formatById(form.finalsFormat), marks = fmt ? fmt.marks : [];
-    const kind = m => m === 'elim' ? '' : m === 'third' ? ' fin--third' : ' fin--top';
-    ['Team A', 'Team B', 'Team C', 'Team D', 'Team E', 'Team F', 'Team G', 'Team H', 'Team I'].slice(0, Math.max(6, marks.length + 1)).forEach((t, i) => {
+    const kind = m => m === 'elim' ? '' : m === 'third' || m === 'placing' ? ' fin--third' : ' fin--top';
+    ['Team A', 'Team B', 'Team C', 'Team D', 'Team E', 'Team F', 'Team G', 'Team H', 'Team I'].slice(0, Math.max(6, marks.length + (fmt && fmt.all ? 0 : 1))).forEach((t, i) => {
       const r = el('div', 'r' + (i < marks.length ? ' fin' + kind(marks[i]) + (i === marks.length - 1 ? ' fin--last' : '') : ''));
       r.append(el('div', 'p', i + 1), el('div', '', t), el('div', '', 8), el('div', 'pts', 28 - i * 4));
       lad.append(r);
