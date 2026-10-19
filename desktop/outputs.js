@@ -5,6 +5,7 @@
 // as white on black where the scene isn't see-through (key), or over a chroma colour. They aren't
 // Studio windows: closing them doesn't take Studio off air, and they close when Studio does.
 // Clicking one and pressing Esc turns the output off, in case it ends up over the screen you're working on.
+// A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js.
 
 'use strict';
 
@@ -13,6 +14,12 @@ const { BrowserWindow, screen } = require('electron');
 module.exports = function outputs({ port, log }) {
   const open = new Map(); // display id -> { win, key }
   let helper = null;
+  const decklink = require('./decklink')({ port, log, onStatus: status => helper?.postMessage({ type: 'decklinkStatus', status }) });
+
+  // The Blackmagic devices (and their video formats) for the Output page.
+  function sendDecklink() {
+    if (helper) helper.postMessage({ type: 'decklink', ...decklink.devices() });
+  }
 
   function displays() {
     const primary = screen.getPrimaryDisplay().id;
@@ -37,7 +44,8 @@ module.exports = function outputs({ port, log }) {
   };
 
   function show(list) {
-    const wanted = new Map(list.map(w => [w.display, w]));
+    decklink.show(list.find(w => w.kind === 'decklink') || null);
+    const wanted = new Map(list.filter(w => w.kind !== 'decklink').map(w => [w.display, w]));
     for (const [id, o] of open) {
       if (!wanted.has(id)) { o.win.destroy(); open.delete(id); }
     }
@@ -73,6 +81,7 @@ module.exports = function outputs({ port, log }) {
   function closeAll() {
     for (const o of open.values()) o.win.destroy();
     open.clear();
+    decklink.stop();
   }
 
   // Displays plugged in, unplugged or changed: tell the helper, and move or drop windows.
@@ -91,7 +100,8 @@ module.exports = function outputs({ port, log }) {
     attach(child) {
       helper = child;
       child.on('message', msg => {
-        if (msg?.type === 'ready') sendDisplays(); // the helper is listening now
+        if (msg?.type === 'ready') { sendDisplays(); sendDecklink(); } // the helper is listening now
+        if (msg?.type === 'scan') sendDecklink();
         if (msg?.type === 'outputs') show(msg.windows || []);
       });
     },

@@ -439,8 +439,8 @@ paths:
   /deck/output/{action}:
     get:
       tags: [Scene]
-      summary: Show or blank the scene on the Mac's displays (Output page, Display output)
-      description: Mac app only. Turns the display output on or off without changing which displays or mode (chroma, or fill and key) the Output page has.
+      summary: Show or blank the scene on the Mac's displays or Blackmagic device (Output page, Video output)
+      description: Mac app only. Turns the video output on or off without changing its setup on the Output page (chroma, fill and key on two displays, or a Blackmagic device).
       operationId: output
       parameters:
         - name: action
@@ -457,7 +457,7 @@ paths:
                 properties:
                   ok: { type: boolean }
                   on: { type: boolean }
-                  mode: { type: string, enum: [off, chroma, fillkey] }
+                  mode: { type: string, enum: [off, chroma, fillkey, decklink] }
         '404': { $ref: '#/components/responses/UnknownLink' }
 
 components:

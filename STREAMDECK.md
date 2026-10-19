@@ -174,8 +174,8 @@ Each source in the scene gets these links, using its name in lower case with das
 | Turn a video's sound on or off | http://localhost:8080/deck/layer/intro/sound/toggle |
 | Video sound on / off | http://localhost:8080/deck/layer/intro/sound/on, http://localhost:8080/deck/layer/intro/sound/off |
 | Fade every source out | http://localhost:8080/deck/layers/off |
-| Show or blank the scene on the Mac's displays (Mac app) | http://localhost:8080/deck/output/toggle |
-| Display output on / off | http://localhost:8080/deck/output/on, http://localhost:8080/deck/output/off |
+| Show or blank the scene on the Mac's displays or Blackmagic device (Mac app) | http://localhost:8080/deck/output/toggle |
+| Video output on / off | http://localhost:8080/deck/output/on, http://localhost:8080/deck/output/off |
 
 Renaming a source on the Output page changes its links (the plugin's keys carry on). The plugin's Source keys, or these links, replace the
 **OBS Studio** plugin's **Source** keys on nights you use the Studio scene; keep a separate Stream Deck profile for OBS nights, since OBS works exactly as before.
