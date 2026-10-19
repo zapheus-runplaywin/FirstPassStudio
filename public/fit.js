@@ -13,6 +13,10 @@
 //   <main class="card" data-fit="var">        only sets --fit (1 when it fits), for a page whose own CSS
 //                                             already positions the graphic with transform, as in
 //                                             transform: translateX(-50%) scale(var(--fit, 1));
+//
+// Full-screen animations (The Clash, winner, super shot, logo) mark their 1920x1080 stage with the
+// part of the frame their content uses, top and bottom in px, and are moved and scaled to fit the space:
+//   <div class="stage" data-fit-box="60 1000">
 (function () {
   const ZONE = { top: 244, bottom: 894, width: 1800 };
   const root = document.documentElement.style;
@@ -34,7 +38,22 @@
     }
   }
 
+  // Maps the box's middle onto the middle of the space, scaled down if the box is taller than it.
+  function fitBox(el) {
+    const [top, bottom] = el.dataset.fitBox.split(/[\s,]+/).map(Number);
+    if (!(bottom > top)) return;
+    const s = Math.min(1, (ZONE.bottom - ZONE.top) / (bottom - top));
+    const mid = (top + bottom) / 2, zoneMid = (ZONE.top + ZONE.bottom) / 2;
+    el.style.transformOrigin = `960px ${mid}px`;
+    el.style.scale = s < 1 ? String(Math.floor(s * 1000) / 1000) : '';
+    el.style.translate = `0 ${zoneMid - mid}px`;
+  }
+
+  // A page can change its box later (logo.html does once it knows the logo size) and call this again.
+  window.fitBox = fitBox;
+
   function start() {
+    document.querySelectorAll('[data-fit-box]').forEach(fitBox);
     const items = document.querySelectorAll('[data-fit]');
     items.forEach(el => {
       fit(el);

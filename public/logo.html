@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="logo-templates.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 <style>
   /* The competition logo from the active setup, animated in the middle of the frame for about 5 seconds.
      Seventeen templates, picked with ?template=: fun (the default: swoops in, slams down, rockets out) and pro (a clean wipe,
@@ -27,8 +28,9 @@
      It fades in as the animation starts and out with the exit, so the frame is clear again at the end. */
   .backdrop { position: absolute; inset: 0; opacity: 0; background-size: cover; background-position: center; }
   .backdrop[hidden] { display: none; }
-  .go .backdrop { animation: fadeIn calc(.3s / var(--speed)) ease-out forwards; }
-  .go.out .backdrop { animation: fadeOut calc(.5s / var(--speed)) ease-in calc(.2s / var(--speed)) both; }
+  /* The backdrop sits outside the stage so it stays full screen when fit.js fits the stage between the title and the scoreboard. */
+  body:has(.stage.go) .backdrop { animation: fadeIn calc(.3s / var(--speed)) ease-out forwards; }
+  body:has(.stage.go.out) .backdrop { animation: fadeOut calc(.5s / var(--speed)) ease-in calc(.2s / var(--speed)) both; }
 
   /* ---------- Fun ---------- */
   /* One big logo that swoops in around the screen with a motion trail, slams down in the middle (shockwave, flash,
@@ -165,8 +167,8 @@
                 colour to a darker shade (?bg2= sets the edge colour), ?bg=solid-7f4092 a flat colour, and
                 ?bgimage=court.jpg a picture from the competition's brand folder (or a full link). The background fades in
                 and out with the animation; without these the page is transparent. -->
-  <div class="stage" id="stage" data-style="fun">
-    <div class="backdrop" id="backdrop" hidden></div>
+  <div class="backdrop" id="backdrop" hidden></div>
+  <div class="stage" id="stage" data-style="fun" data-fit-box="220 860">
     <div class="confetti fun-only" id="confetti"></div>
     <div class="centre">
       <div class="burst fun-only"></div>
@@ -207,6 +209,11 @@
       const num = k => { const v = parseFloat(params.get(k)); return Number.isFinite(v) && v > 0 ? v : null; };
       const speed = num('speed') || 1;
       if (num('size')) document.documentElement.style.setProperty('--size', num('size') + 'px');
+      // The part of the frame the logo uses (pro's lines reach .62 of the size above and below the middle),
+      // so fit.js can put it between the title and the scoreboard.
+      const reach = (num('size') || 640) * (style === 'pro' ? .66 : .5);
+      stage.dataset.fitBox = `${540 - reach} ${540 + reach}`;
+      if (window.fitBox) window.fitBox(stage);
       document.documentElement.style.setProperty('--speed', speed);
 
       // Confetti in the competition's colours, flying out from the middle as the logo lands.
