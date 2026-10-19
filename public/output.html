@@ -38,7 +38,7 @@
   @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
 
   .sources { list-style: none; margin: 0 0 12px; padding: 0; border: 1px solid var(--fp-line); border-radius: 8px; overflow: hidden; }
-  .sources li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 8px; border-top: 1px solid var(--fp-line); cursor: pointer; }
+  .sources li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 8px; border-top: 1px solid var(--fp-line); cursor: pointer; }
   .sources li:first-child { border-top: 0; }
   .sources li:hover { background: var(--fp-gray); }
   .sources li.sel { background: var(--fp-blue-soft); }
@@ -48,6 +48,12 @@
   .eye { background: var(--fp-line); color: var(--fp-muted); min-width: 46px; }
   .eye:hover { background: var(--fp-line-strong); }
   .eye.on, .eye.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
+  .sources li.dragging { opacity: .4; }
+  .sources li.dropBefore { box-shadow: inset 0 3px 0 var(--fp-blue); }
+  .sources li.dropAfter { box-shadow: inset 0 -3px 0 var(--fp-blue); }
+  .sources li .grip { cursor: grab; color: var(--fp-muted); padding: 0 2px; user-select: none; }
+  #addDialog { border: 0; border-radius: var(--fp-radius); padding: 18px 20px; width: min(560px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
+  #addDialog::backdrop { background: rgba(15, 23, 42, .45); }
   .empty { padding: 16px; color: var(--fp-muted); cursor: default !important; display: block !important; }
 
   .form { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
@@ -157,12 +163,16 @@
         <span class="note" style="margin:0">Its <b>Source</b> key shows or hides a source and lights up while it's on.</span>
       </div>
 
-      <div id="addPanel" class="hidden" style="margin-top:12px;border-top:1px solid var(--fp-line);padding-top:12px">
+      <dialog id="addDialog">
+        <h2 id="addTitle">Add a page</h2>
+        <p class="note" id="addWhere" style="margin:0 0 12px"></p>
         <div class="form" id="addBrowserForm">
           <label for="newPage">Page</label>
           <select id="newPage"></select>
           <label for="newUrl">Address</label>
           <input id="newUrl" placeholder="scoreboard.html, or https://…">
+          <div class="wide row"><button class="alt" id="addAllUnused">Add all unused pages</button>
+            <span class="note" style="margin:0">Every Studio graphic not in the scene yet, hidden, in this list's order.</span></div>
         </div>
         <div class="form hidden" id="addMediaForm">
           <label for="newFile" id="newFileLabel">Image</label>
@@ -171,8 +181,9 @@
           <input id="upload" type="file">
           <p class="note wide" id="mediaNote"></p>
         </div>
-        <div class="row" style="margin-top:10px"><button id="addGo">Add to scene</button><button class="alt" id="addCancel">Cancel</button></div>
-      </div>
+        <p class="error" id="addErr"></p>
+        <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="alt" id="addCancel">Cancel</button><button id="addGo">Add to scene</button></div>
+      </dialog>
     </section>
 
     <section id="settings">
@@ -294,6 +305,7 @@
   }
 
   // ─── Sources list ──────────────────────────────────────────────────────
+  let dragId = null; // the source being dragged in the list
   function renderList() {
     const ul = $('sources');
     ul.innerHTML = '';
@@ -301,7 +313,7 @@
     for (const s of scene.sources) {
       const li = document.createElement('li');
       li.className = s.id === selected ? 'sel' : '';
-      li.innerHTML = '<button class="eye"></button><span class="name"></span><span class="row" style="gap:4px"><button class="alt snd hidden"></button><button class="alt up" title="Move up">↑</button><button class="alt down" title="Move down">↓</button></span>';
+      li.innerHTML = '<span class="grip" title="Drag to move it up or down the layers">⋮⋮</span><button class="eye"></button><span class="name"></span><span class="row" style="gap:4px"><button class="alt snd hidden"></button><button class="alt up" title="Move up">↑</button><button class="alt down" title="Move down">↓</button></span>';
       const eye = li.querySelector('.eye');
       eye.textContent = s.visible ? 'On' : 'Off';
       eye.classList.toggle('on', s.visible);
@@ -324,6 +336,27 @@
       li.querySelector('.up').onclick = e => { e.stopPropagation(); act({ type: 'move', id: s.id, direction: 'up' }); };
       li.querySelector('.down').onclick = e => { e.stopPropagation(); act({ type: 'move', id: s.id, direction: 'down' }); };
       li.onclick = () => { selected = s.id; renderList(); renderForm(true); drawBox(); };
+      // Drag a source up or down the list to move it between layers.
+      li.draggable = true;
+      li.ondragstart = e => { dragId = s.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', s.id); };
+      li.ondragend = () => { dragId = null; renderList(); };
+      li.ondragover = e => {
+        if (!dragId || dragId === s.id) return;
+        e.preventDefault();
+        const after = e.offsetY > li.offsetHeight / 2;
+        li.classList.toggle('dropBefore', !after); li.classList.toggle('dropAfter', after);
+      };
+      li.ondragleave = () => li.classList.remove('dropBefore', 'dropAfter');
+      li.ondrop = e => {
+        e.preventDefault();
+        if (!dragId || dragId === s.id) return;
+        const from = scene.sources.findIndex(x => x.id === dragId);
+        let to = scene.sources.indexOf(s) + (e.offsetY > li.offsetHeight / 2 ? 1 : 0);
+        if (from < to) to--; // the list closes up once the dragged source is taken out
+        const id = dragId; dragId = null;
+        if (to !== from) act({ type: 'move', id, to });
+        else renderList();
+      };
       ul.appendChild(li);
     }
   }
@@ -622,53 +655,91 @@
     const s = current();
     if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
   }
+  // Adding a source: a dialog, so it's clear the choices are for the new source. It goes above the selected
+  // source (or on top), and is selected once added, ready to set up.
+  const usedPages = () => new Set(scene.sources.filter(x => x.type === 'browser').map(x => String(x.url).split('?')[0].replace(/^\/+/, '')));
+  function fillPages() {
+    const used = usedPages(), sel = $('newPage'), keep = sel.value;
+    sel.innerHTML = '';
+    const unused = PAGES.filter(p => !used.has(p[1])), inScene = PAGES.filter(p => used.has(p[1]));
+    for (const [label, list] of [['Not in the scene yet', unused], ['Already in the scene', inScene]]) {
+      if (!list.length) continue;
+      const g = document.createElement('optgroup');
+      g.label = label;
+      for (const [name, page] of list) g.appendChild(new Option(name, page));
+      sel.appendChild(g);
+    }
+    sel.add(new Option('Another address…', ''));
+    sel.value = [...sel.options].some(o => o.value === keep && keep) ? keep : (unused[0] || inScene[0] || ['', ''])[1];
+    $('newUrl').value = sel.value;
+    $('addAllUnused').textContent = `Add all unused pages (${unused.length})`;
+    $('addAllUnused').disabled = !unused.length;
+  }
   function openAdd(type) {
     adding = type;
-    $('addPanel').classList.remove('hidden');
+    $('addErr').textContent = '';
+    $('addTitle').textContent = { browser: 'Add a page', image: 'Add an image', video: 'Add a video' }[type];
+    const s = current();
+    $('addWhere').textContent = s ? `It goes above "${s.name}", hidden.` : 'It goes on top, hidden.';
     $('addBrowserForm').classList.toggle('hidden', type !== 'browser');
     $('addMediaForm').classList.toggle('hidden', type === 'browser');
-    if (type !== 'browser') {
+    if (type === 'browser') fillPages();
+    else {
       $('newFileLabel').textContent = type === 'video' ? 'Video' : 'Image';
       $('upload').accept = ACCEPT[type];
       loadMedia();
     }
+    $('addDialog').showModal();
   }
+  function closeAdd() { adding = null; if ($('addDialog').open) $('addDialog').close(); }
+  $('addDialog').addEventListener('close', () => { adding = null; });
   $('addBrowser').onclick = () => openAdd('browser');
   $('addImage').onclick = () => openAdd('image');
   $('addVideo').onclick = () => openAdd('video');
-  $('addCancel').onclick = () => { adding = null; $('addPanel').classList.add('hidden'); };
-  for (const [label, page] of PAGES) $('newPage').add(new Option(label, page));
-  $('newPage').add(new Option('Another address…', ''));
+  $('addCancel').onclick = closeAdd;
   $('newPage').onchange = () => { $('newUrl').value = $('newPage').value; };
-  $('newUrl').value = $('newPage').value;
+  // Adds the sources above the selected one and selects the first of them.
+  async function addSources(sources) {
+    $('addErr').textContent = '';
+    const before = new Set(scene.sources.map(x => x.id));
+    const body = await act({ type: 'add', sources, before: selected || undefined });
+    if (!body) { $('addErr').textContent = $('err').textContent; return; }
+    const added = body.sources.find(x => !before.has(x.id));
+    if (added) selected = added.id;
+    closeAdd(); renderList(); renderForm(true); drawBox();
+  }
+  $('addAllUnused').onclick = () => {
+    const used = usedPages();
+    const list = PAGES.filter(p => !used.has(p[1])).map(([name, url]) => ({ type: 'browser', url, name }));
+    if (list.length) addSources(list);
+  };
   $('upload').onchange = async () => {
     const file = $('upload').files[0];
     if (!file) return;
-    $('err').textContent = '';
+    $('addErr').textContent = '';
     $('mediaNote').textContent = `Adding ${file.name} to the media folder…`;
     try {
       const res = await fetch('/api/scene/media?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || res.statusText);
-      if (body.cantConvert) $('err').textContent = `${body.file} is in the media folder, but it can only play once it's converted, and this copy of Studio has no ffmpeg (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg).`;
+      if (body.cantConvert) $('addErr').textContent = `${body.file} is in the media folder, but it can only play once it's converted, and this copy of Studio has no ffmpeg (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg).`;
       await loadMedia(body.file);
-    } catch (err) { $('err').textContent = `Could not add ${file.name}: ${err.message}`; mediaNote(); }
+    } catch (err) { $('addErr').textContent = `Could not add ${file.name}: ${err.message}`; mediaNote(); }
     $('upload').value = '';
   };
   $('addGo').onclick = async () => {
     let source;
     if (adding === 'browser') {
       const url = $('newUrl').value.trim();
-      if (!url) { $('err').textContent = 'Pick a page or type an address.'; return; }
+      if (!url) { $('addErr').textContent = 'Pick a page or type an address.'; return; }
       const known = PAGES.find(p => p[1] === url);
       source = { type: 'browser', url, name: known ? known[0] : undefined };
     } else {
-      if (!$('newFile').value) { $('err').textContent = `Add ${adding === 'video' ? 'a video' : 'an image'} to the media folder first.`; return; }
+      if (!$('newFile').value) { $('addErr').textContent = `Add ${adding === 'video' ? 'a video' : 'an image'} to the media folder first.`; return; }
       const m = media.find(x => x.name === $('newFile').value);
       source = { type: adding, file: m && m.converted ? m.converted : $('newFile').value };
     }
-    const body = await act({ type: 'add', source });
-    if (body) { selected = body.sources[0].id; adding = null; $('addPanel').classList.add('hidden'); renderList(); renderForm(true); drawBox(); }
+    addSources([source]);
   };
 
   async function copy(text, btn) {
