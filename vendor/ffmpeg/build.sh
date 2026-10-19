@@ -77,7 +77,8 @@ codecs="$("$HERE/ffmpeg" -hide_banner -encoders 2>/dev/null; "$HERE/ffmpeg" -hid
 for want in libvpx-vp9 libopus prores; do
   grep -q " $want " <<<"$codecs" || {
     echo "$want is missing from the build. What configure found:" >&2
-    grep -n -i -B2 -A12 "vpx\|opus" "$WORK/ffmpeg/ffbuild/config.log" | tail -150 >&2
+    sed -n '/^check_pkg_config libvpx_vp9_encoder/,$p' "$WORK/ffmpeg/ffbuild/config.log" | head -120 >&2
+    cat "$PKG_CONFIG_PATH/vpx.pc" >&2; file "$PREFIX/lib/libvpx.a" >&2 || true; lipo -info "$PREFIX/lib/libvpx.a" >&2 || true
     exit 1
   }
 done
