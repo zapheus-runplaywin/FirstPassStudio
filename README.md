@@ -156,14 +156,17 @@ every installed app. The workflow picks the version: the last published one rais
 be higher than the last published one (updates only go to a higher version). The first release uses `version` in
 `package.json`; after that `package.json` needn't change.
 
-**Every merge to main publishes automatically**: the workflow runs by itself, builds the next patch version and
-publishes it as an update, so installed apps pick up each merged PR. Merges that only change documentation (`.md`
-files, `docs/`, the Make Examples scripts) don't publish. Use **Run workflow** for a minor or major version, a
-specific version, or a test build without publishing. Builds run one at a time, so two quick merges get two versions.
+**Publishing is manual**: merging to main doesn't build or publish anything (this saves GitHub Actions minutes).
+To get merged changes to installed apps, use **Run workflow** with **Publish** ticked; leave it unticked for a test
+build. Builds run one at a time, so two quick runs get two versions.
 
 Each run tags the commit of this repository it built from, so any build can be traced to its code: `v0.1.3` for a
 published update, `v0.1.3-test.12` for a test build (12 is the run number, so a test build never takes the tag a
 published version will need). The tags are under **Tags** on the repository's code page.
+
+Each release's notes list the titles of the pull requests merged since the last published version (found from its
+tag), so a clear PR title is what people read on the release. Only the titles go out, with no links, since this
+repository is private. A test build shows the same notes in its run summary.
 
 The app includes ffmpeg (for converting ProRes clips in the Studio scene). The workflow builds it from source with
 `vendor/ffmpeg/build.sh` (an LGPL build with VP9 and Opus, versions in that file) and caches it, so it's only rebuilt
