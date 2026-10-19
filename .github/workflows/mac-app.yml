@@ -55,6 +55,21 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # ffmpeg converts ProRes clips added to the Studio scene (vendor/ffmpeg/build.sh). Built from
+      # source once and cached until build.sh changes (its versions are in it).
+      - name: Cache ffmpeg
+        id: ffmpeg
+        uses: actions/cache@v6
+        with:
+          path: vendor/ffmpeg/ffmpeg
+          key: ffmpeg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vendor/ffmpeg/build.sh') }}
+      - name: Build ffmpeg
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          command -v pkg-config >/dev/null || brew install pkgconf
+          command -v cmake >/dev/null || brew install cmake
+          vendor/ffmpeg/build.sh
+      - run: test -x vendor/ffmpeg/ffmpeg && vendor/ffmpeg/ffmpeg -hide_banner -version | head -1
       - name: Pick the version
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}

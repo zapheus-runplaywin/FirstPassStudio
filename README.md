@@ -165,6 +165,11 @@ Each run tags the commit of this repository it built from, so any build can be t
 published update, `v0.1.3-test.12` for a test build (12 is the run number, so a test build never takes the tag a
 published version will need). The tags are under **Tags** on the repository's code page.
 
+The app includes ffmpeg (for converting ProRes clips in the Studio scene). The workflow builds it from source with
+`vendor/ffmpeg/build.sh` (an LGPL build with VP9 and Opus, versions in that file) and caches it, so it's only rebuilt
+when `build.sh` changes; that first build adds several minutes. `npm run app` from a checkout uses it too once
+`vendor/ffmpeg/build.sh` has been run.
+
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
 
@@ -227,7 +232,8 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   scene in OBS), and the Output page's preview is always silent. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. This needs
-  ffmpeg on the Mac (`brew install ffmpeg`, or set `ffmpegPath` in config.json); MP4 and WebM files play as they are.
+  ffmpeg, which the Mac app includes (an LGPL build made by `vendor/ffmpeg/build.sh`; see `vendor/ffmpeg/LICENSE.md`). Running from a
+  checkout, run `vendor/ffmpeg/build.sh` once or `brew install ffmpeg`, or set `ffmpegPath` in config.json. MP4 and WebM files play as they are.
 - **Stream Deck:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn

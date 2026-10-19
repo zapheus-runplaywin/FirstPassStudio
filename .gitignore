@@ -9,3 +9,5 @@ node_modules/
 /Examples/
 /competitions/
 /dist/
+/vendor/ffmpeg/ffmpeg
+/vendor/ffmpeg/.build/

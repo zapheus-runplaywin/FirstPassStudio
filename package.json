@@ -37,7 +37,9 @@
       "config.json",
       "public/**/*",
       "imports/**/*",
-      "desktop/**/*"
+      "desktop/**/*",
+      "vendor/ffmpeg/ffmpeg",
+      "vendor/ffmpeg/LICENSE.md"
     ],
     "mac": {
       "target": [

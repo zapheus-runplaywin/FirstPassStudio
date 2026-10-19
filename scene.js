@@ -9,7 +9,7 @@
 //
 // Saved as scene.json in the data folder; images and videos are kept in its media/ folder.
 // Chromium can't play ProRes, so a .mov added to the media folder is converted to a WebM
-// beside it (VP9, keeping transparency) with ffmpeg; the original is kept. OBS still
+// beside it (VP9, keeping transparency) with the ffmpeg the app bundles; the original is kept. OBS still
 // works exactly as before: nothing here changes the other pages, and scene.html can itself
 // go into OBS as one browser source.
 
@@ -217,9 +217,11 @@ function deck(parts) {
 const converting = new Map(); // .mov file -> its WebM, while ffmpeg runs
 let ffmpegSetting = '';
 
-// ffmpeg from config.json's ffmpegPath, else Homebrew's, else the PATH. Not bundled yet.
+// ffmpeg from config.json's ffmpegPath, else the one the Mac app bundles (vendor/ffmpeg,
+// built by vendor/ffmpeg/build.sh), else Homebrew's, else the PATH.
+const BUNDLED_FFMPEG = path.join(__dirname, 'vendor', 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
 function ffmpegPath() {
-  const candidates = [ffmpegSetting, '/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg',
+  const candidates = [ffmpegSetting, BUNDLED_FFMPEG, '/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg',
     ...String(process.env.PATH || '').split(path.delimiter).map(d => path.join(d, 'ffmpeg'))];
   return candidates.find(c => { try { return c && fs.statSync(c).isFile(); } catch { return false; } }) || null;
 }
@@ -241,12 +243,12 @@ function mediaList() {
 // Converts a .mov (ProRes 4444 keeps its transparency) to a VP9 WebM Chromium can play.
 function convert(name) {
   const bin = ffmpegPath();
-  if (!bin) { log('warn', 'scene', `Can't convert ${name}: ffmpeg isn't installed (install it with Homebrew: brew install ffmpeg, or set ffmpegPath in config.json)`); return false; }
+  if (!bin) { log('warn', 'scene', `Can't convert ${name}: no ffmpeg. The Mac app has its own; from a checkout run vendor/ffmpeg/build.sh or brew install ffmpeg, or set ffmpegPath in config.json`); return false; }
   if (converting.has(name)) return true;
   const out = webmFor(name), part = path.join(MEDIA_DIR, `.${out}.part`);
   converting.set(name, out);
   const started = Date.now();
-  log('info', 'scene', `Converting ${name} to ${out}`);
+  log('info', 'scene', `Converting ${name} to ${out} with ${bin}`);
   const args = ['-hide_banner', '-loglevel', 'error', '-y', '-i', path.join(MEDIA_DIR, name),
     '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '20', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2', '-auto-alt-ref', '0',
     '-c:a', 'libopus', '-b:a', '192k', '-f', 'webm', part];
@@ -341,7 +343,7 @@ async function route(req, res, url, { send, readBody }) {
   if (p === '/api/scene/convert' && req.method === 'POST') {
     const name = cleanFile(url.searchParams.get('name'));
     if (path.extname(name).toLowerCase() !== '.mov' || !fs.existsSync(path.join(MEDIA_DIR, name))) return send(res, 404, { error: `No ${name} in the media folder.` }), true;
-    if (!convert(name)) return send(res, 409, { error: 'ffmpeg is not installed on this Mac. Install it with Homebrew (brew install ffmpeg), then try again.' }), true;
+    if (!convert(name)) return send(res, 409, { error: 'There is no ffmpeg to convert it with. The Mac app has its own; from a copy of the code, run vendor/ffmpeg/build.sh or brew install ffmpeg, then try again.' }), true;
     return send(res, 200, { converting: true, media: mediaList() }), true;
   }
   if (p.startsWith('/media/')) {

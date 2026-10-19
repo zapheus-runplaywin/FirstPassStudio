@@ -344,7 +344,7 @@
     $('mediaNote').textContent = adding !== 'video' ? '' :
       (busy.length ? `Converting ${busy.join(', ')} to WebM so it can play. This can take a few minutes; you can add it now and it switches over when done. ` : '') +
       (canConvert ? 'A .mov (ProRes 4444 keeps its transparency) is converted to a WebM beside it when added; the original is kept.'
-        : 'A .mov (ProRes) has to be converted to play, which needs ffmpeg on this Mac (brew install ffmpeg). MP4 and WebM play as they are.');
+        : 'A .mov (ProRes) has to be converted to play, and this copy of Studio has no ffmpeg to do it (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg). MP4 and WebM play as they are.');
   }
   async function loadMedia(value) {
     try { const body = await (await fetch('/api/scene/media')).json(); media = body.media || []; canConvert = !!body.canConvert; } catch { media = []; }
@@ -381,7 +381,7 @@
       const res = await fetch('/api/scene/media?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || res.statusText);
-      if (body.cantConvert) $('err').textContent = `${body.file} is in the media folder, but it can only play once it's converted, which needs ffmpeg on this Mac (brew install ffmpeg).`;
+      if (body.cantConvert) $('err').textContent = `${body.file} is in the media folder, but it can only play once it's converted, and this copy of Studio has no ffmpeg (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg).`;
       await loadMedia(body.file);
     } catch (err) { $('err').textContent = `Could not add ${file.name}: ${err.message}`; mediaNote(); }
     $('upload').value = '';
