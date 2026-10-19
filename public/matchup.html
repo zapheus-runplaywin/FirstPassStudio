@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page:
@@ -16,7 +17,7 @@
        Shows the game picked on the scoreboard control page.
        Also shows each team's last five results (W/L/D) and this season's head to head.
        Options: ?form=0 hides the form, ?h2h=0 hides the head to head. -->
-  <main class="card matchup" id="card" hidden>
+  <main class="card matchup" id="card" data-fit hidden>
     <header class="matchup__header">
       <div class="tab" id="comp"></div>
       <div class="matchup__division" id="division"></div>

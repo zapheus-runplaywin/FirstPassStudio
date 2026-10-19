@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 <style>
   /* Last 10 goals: who scored each of the game's last ten goals, oldest to newest, with a
      momentum line (up for a home goal, down for an away goal) and the current run.
@@ -64,9 +65,10 @@
   .run .flame { font-size: 22px; }
 
   /* ── Horizontal: lanes for each team, oldest goal on the left ─────────────────────── */
-  .card--h { --ball: 78px; --slot: 104px; left: 50%; transform: translateX(-50%); bottom: 150px; }
-  body.top .card--h { top: 60px; bottom: auto; }
-  body.middle .card--h { top: 50%; bottom: auto; transform: translate(-50%, -50%); }
+  /* Placed in the space between the title and the scoreboard (fit.js sets --zone-* and scales the card down if it's too big). */
+  .card--h { --ball: 78px; --slot: 104px; left: 50%; transform: translateX(-50%) scale(var(--fit, 1)); bottom: calc(1080px - var(--zone-bottom, 894px)); transform-origin: bottom center; }
+  body.top .card--h { top: var(--zone-top, 244px); bottom: auto; transform-origin: top center; }
+  body.middle .card--h { top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); bottom: auto; transform: translate(-50%, -50%) scale(var(--fit, 1)); transform-origin: center; }
   .card--h .grid { display: grid; grid-template-columns: 330px auto; padding: 6px 26px 14px; column-gap: 14px; }
   .card--h .team { display: grid; grid-template-columns: 64px minmax(0, 1fr) 58px; align-items: center; gap: 12px; height: 96px; }
   .card--h .team .badge { width: 64px; height: 64px; }
@@ -90,8 +92,8 @@
   .card--h .worm { width: 100%; height: 70px; display: block; }
 
   /* ── Vertical: home goals on the left, away on the right, newest at the bottom ───── */
-  .card--v { --ball: 58px; width: 500px; right: 60px; top: 50%; transform: translateY(-50%); }
-  body.left .card--v { right: auto; left: 60px; }
+  .card--v { --ball: 58px; width: 500px; right: 60px; top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); transform: translateY(-50%) scale(var(--fit, 1)); transform-origin: right center; }
+  body.left .card--v { right: auto; left: 60px; transform-origin: left center; }
   .card--v .run { font-size: 18px; padding: 10px 16px; }
   .card--v .head { justify-content: center; padding: 18px 20px 8px; }
   .card--v .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 18px 12px; }
@@ -123,7 +125,7 @@
        Like the scoreboard it updates itself (every 2 seconds), so it can stay on screen.
        Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)
                 ?position=top|middle|bottom (horizontal)  ?position=left|right (vertical)  ?title=Momentum -->
-  <main class="card" id="card" hidden></main>
+  <main class="card" id="card" data-fit="var" hidden></main>
   <script>
     const params = new URLSearchParams(location.search);
     const vertical = /^v/i.test(params.get('layout') || '');

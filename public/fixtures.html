@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page:
@@ -17,7 +18,7 @@
        Options: ?division=1 (one division only)  ?round=6 (round 6, or a name like ?round=Final)
        ?round=next (the round after this one)  ?round=prev (the one before)  ?round=+2 / ?round=-1 (count from this round)
        http://localhost:8080/results.html is the same page showing only finished games with scores. -->
-  <main class="card fixtures" id="card" hidden>
+  <main class="card fixtures" id="card" data-fit hidden>
     <header class="fixtures__header">
       <div class="tab" id="comp"></div>
       <h1 class="fixtures__round" id="round"></h1>

@@ -4,7 +4,10 @@
 
 html, body { margin: 0; background: transparent; }
 body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden;
-       display: flex; align-items: center; justify-content: center; }
+       display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+       /* Centred in the space between the title and the scoreboard (fit.js sets --zone-*; it also scales a card
+          down to fit). The fallbacks are the same numbers, for a page that doesn't load fit.js. */
+       padding: var(--zone-top, 244px) 0 calc(1080px - var(--zone-bottom, 894px)); }
 [hidden] { display: none !important; }
 
 .card {
@@ -152,7 +155,7 @@ body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080
 .upnext__time:empty { display: none; }
 
 /* Shared: lower-third pages sit at the bottom of the screen */
-body.lower { align-items: flex-end; padding-bottom: 56px; box-sizing: border-box; }
+body.lower { align-items: flex-end; padding: 0 0 56px; }
 .form-dot {
   width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
   font-size: 22px; font-weight: 800; flex: none;
@@ -161,11 +164,15 @@ body.lower { align-items: flex-end; padding-bottom: 56px; box-sizing: border-box
 .form-dot--L { background: var(--purple-dark); color: var(--muted); box-shadow: inset 0 0 0 3px var(--purple); }
 .form-dot--D { background: var(--pink); color: var(--text); }
 
-/* Ladder lower third */
+/* Ladder lower third: sits right above the scoreboard (and its PlayHQ Live tab), scaled to the scoreboard's
+   width. The scoreboard bar is 1335px wide (scoreboard.css: court and clock 150 each, teams 420 each, scores
+   96 + 99), its top 962px down and the tab's top 930px, so the bar's bottom goes 8px above the tab. */
+body.lower:has(.ladderbar) { padding-bottom: 158px; }
 .ladderbar {
   display: grid; grid-template-columns: minmax(0, 1fr) 190px minmax(0, 1fr); width: 1500px; height: 110px;
   background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
   border-bottom: 5px solid var(--pink); animation: rise 0.5s ease-out both;
+  scale: calc(1335 / 1500); transform-origin: bottom center;
 }
 .ladderbar__side { display: flex; align-items: center; gap: 18px; padding: 0 20px; min-width: 0; }
 .ladderbar__side--away { flex-direction: row-reverse; text-align: right; }
@@ -240,17 +247,17 @@ body.lower:has(.ticker) { padding-bottom: 0; }
 
 /* Top shooters */
 .shooters { --card-width: 1400px; text-align: center; }
-.shooters__table { width: calc(100% - 64px); margin: 20px 32px 24px; border-collapse: separate; border-spacing: 0 6px; font-size: 26px; font-weight: 700; }
+.shooters__table { width: calc(100% - 64px); margin: 14px 32px 20px; border-collapse: separate; border-spacing: 0 4px; font-size: 26px; font-weight: 700; }
 .shooters__table th { font-size: 18px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; padding: 0 12px 4px; }
-.shooters__table td { padding: 8px 12px; background: var(--purple-deep-alt); }
+.shooters__table td { padding: 4px 12px; background: var(--purple-deep-alt); }
 .shooters__table td:first-child { border-radius: 8px 0 0 8px; }
 .shooters__table td:last-child { border-radius: 0 8px 8px 0; }
 .shooters__table .left { text-align: left; }
 .shooters__rank { color: var(--yellow); font-weight: 800; width: 50px; }
-.shooters__logo { width: 52px; height: 52px; object-fit: contain; display: block; }
+.shooters__logo { width: 44px; height: 44px; object-fit: contain; display: block; }
 .shooters__logo.logo-fallback { font-size: 16px; box-sizing: border-box; border-width: 3px; }
-.shooters__name { text-transform: uppercase; }
-.shooters__team { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.shooters__name { text-transform: uppercase; line-height: 1.15; }
+.shooters__team { font-size: 16px; line-height: 1.15; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .shooters__points { color: var(--yellow); font-weight: 800; }
 
 /* Full time */
@@ -273,7 +280,7 @@ body.lower:has(.ticker) { padding-bottom: 0; }
 .fulltime__pct { font-size: 40px; font-weight: 800; color: var(--yellow); }
 
 /* Match up: form and head to head */
-.matchup .matchup__logo { width: 340px; height: 340px; }
+.matchup .matchup__logo { width: 260px; height: 260px; }
 .matchup__middle { display: flex; flex-direction: column; align-items: center; gap: 22px; }
 .matchup__caption { font-size: 16px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
 .matchup__formwrap { margin-top: 14px; }

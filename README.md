@@ -410,7 +410,12 @@ These follow the game picked on the scoreboard control page:
   (`?form=0` or `?h2h=0` hides them).
 - http://localhost:8080/finals.html?division=1: the division's finals, week by week (see **Finals** below).
 - http://localhost:8080/fulltime.html: final score with each team's top shooter and shooting accuracy.
-- http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage.
+- http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage. It sits
+  right above the scoreboard, scaled to the scoreboard's width.
+
+The cards (match up, up next, countdown, position match ups, team lists, shooting stats, full time, fixtures, ladders,
+top shooters, finals and last 10 goals) sit in the space between the title at the top and the scoreboard at the bottom,
+with room around them. public/fit.js sets that space and shrinks a card that has more in it than fits.
 - http://localhost:8080/ticker.html: scrolling scores from the other games this round. Unlike the other graphics it updates
   its scores itself every 30 seconds (`?refresh=0` to load once). Its speed is set on the control page (**Ticker speed**, with
   Slower, Faster and Normal) or from the Stream Deck (`/deck/ticker/faster`, `slower`, `normal`, `speed/80`), and changes within a
