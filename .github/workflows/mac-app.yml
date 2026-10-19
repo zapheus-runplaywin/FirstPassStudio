@@ -7,14 +7,16 @@
 # apps find their updates (the .zip is what they update from); otherwise only the .dmg is
 # attached to the run to try first.
 # Every merge to main (that changes more than docs) also runs this and publishes the next
-# patch version, so installed apps get each merged change.
+# patch version, so installed apps get each merged change. A "minor" or "major" label on a pull
+# request merged since the last published version raises that part instead (0.1.4 > 0.2.0 or 1.0.0).
 # Each run tags the commit it built: v0.1.3 when published, v0.1.3-test.12 for a test build.
 # The release notes list the pull requests merged since the last published version's tag.
 # Setup and the secrets it needs: see "Mac app" in README.md.
 name: Mac app
 
 on:
-  # Every merge to main that changes the app builds and publishes the next patch version.
+  # Every merge to main that changes the app builds and publishes the next patch version
+  # (minor or major with that label on a merged pull request, see "Pick the version").
   push:
     branches: [main]
     paths-ignore: ['**.md', 'docs/**', '*.command', '*.bat']
@@ -86,14 +88,27 @@ jobs:
       - name: Build the DeckLink module
         working-directory: native/decklink
         run: npm ci && npm run build && npm test
+      # On a merge, a "major" or "minor" label on any pull request merged since the last published
+      # version (found from its tag, as for the release notes) raises that part instead of the patch,
+      # so a labelled PR that only changed docs still counts at the next publish. Major wins over minor.
       - name: Pick the version
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          PR_TOKEN: ${{ github.token }}
           BUMP: ${{ inputs.bump || 'patch' }}
           WANTED: ${{ inputs.version || '' }}
         run: |
           LATEST="$(gh release list --repo zapheus-runplaywin/FirstPassStudio-releases --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')" \
             || { echo "::error::Couldn't read FirstPassStudio-releases. Check the RELEASES_TOKEN secret."; exit 1; }
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$LATEST" ] && git rev-parse -q --verify "refs/tags/$LATEST^{commit}" > /dev/null; then
+            for PR in $(git log --first-parent --merges --format='%s' "$LATEST..HEAD" | sed -n 's/^Merge pull request #\([0-9][0-9]*\) from .*/\1/p'); do
+              LABELS="$(GH_TOKEN="$PR_TOKEN" gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' 2>/dev/null)" \
+                || { echo "::warning::Couldn't read the labels of #$PR"; continue; }
+              if printf '%s\n' "$LABELS" | grep -qix major; then BUMP=major; echo "#$PR is labelled major"
+              elif printf '%s\n' "$LABELS" | grep -qix minor && [ "$BUMP" != major ]; then BUMP=minor; echo "#$PR is labelled minor"; fi
+            done
+          fi
+          echo "Raising the version by: $BUMP"
           VERSION="$(LATEST="${LATEST#v}" node -e '
             const { LATEST, BUMP, WANTED } = process.env;
             const parse = v => /^\d+\.\d+\.\d+$/.test(v) ? v.split(".").map(Number) : null;
