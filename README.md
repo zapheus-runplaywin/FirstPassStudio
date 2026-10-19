@@ -234,6 +234,9 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
 
 - **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
   **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.
+- **Page options:** a Studio graphic's link options (court, position, heading, animate away and so on) show as fields under its
+  **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
+  new option there as well as on the home page.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
 - **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
   (1920 x 1080 for full-frame graphics), like an OBS Browser source's width and height.

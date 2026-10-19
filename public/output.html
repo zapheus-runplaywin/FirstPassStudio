@@ -53,6 +53,8 @@
   .form { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
   .form > label { font-weight: 600; font-size: 14px; }
   .form .wide { grid-column: 1 / -1; }
+  #fOptionsBox { border-left: 3px solid var(--fp-line); padding-left: 12px; }
+  #fOptions .unit { color: var(--fp-muted); font-size: 13px; }
   @media (max-width: 600px) { .form { grid-template-columns: 1fr; } }
   .links { display: grid; gap: 6px; }
   .links div { display: flex; gap: 8px; align-items: center; }
@@ -61,6 +63,7 @@
   .hidden { display: none !important; }
 </style>
 <script src="log.js"></script>
+<script src="pageoptions.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar">
@@ -178,6 +181,10 @@
           <input id="fName" maxlength="60">
           <label for="fUrl" class="forBrowser">Address</label>
           <input id="fUrl" class="forBrowser">
+          <div class="wide hidden" id="fOptionsBox">
+            <div class="form" id="fOptions"></div>
+            <p class="note">The page's own options, the ones the Graphics page describes. They're saved in its address above.</p>
+          </div>
           <label for="fFile" class="forMedia" id="fFileLabel">Image</label>
           <select id="fFile" class="forMedia"></select>
           <label class="forBrowser">Page size</label>
@@ -342,6 +349,7 @@
       if (force || document.activeElement !== $(id)) $(id).value = s[key];
     }
     $('fReload').checked = !!s.reloadOnShow;
+    renderOptions(s, force);
     const i = scene.sources.indexOf(s);
     $('fUp').disabled = i === 0;
     $('fDown').disabled = i === scene.sources.length - 1;
@@ -354,6 +362,52 @@
       row.querySelector('code').textContent = link;
       row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
       $('links').appendChild(row);
+    }
+  }
+  // A Studio page's options (pageoptions.js) as fields, kept in the source's address. Options it
+  // doesn't know, and anything typed into the address by hand, stay as they are.
+  function renderOptions(s, force) {
+    const [path, query = ''] = s.type === 'browser' ? String(s.url).split('?') : [''];
+    const options = !/^https?:/i.test(path) && PAGE_OPTIONS[path.replace(/^\/+/, '')];
+    $('fOptionsBox').classList.toggle('hidden', !options);
+    if (!options) return;
+    const box = $('fOptions');
+    if (!force && box.contains(document.activeElement) && box.dataset.url === s.url) return;
+    box.dataset.url = s.url;
+    box.innerHTML = '';
+    const params = new URLSearchParams(query);
+    for (const o of options) {
+      const label = document.createElement('label');
+      label.textContent = o.label;
+      label.htmlFor = 'opt-' + o.key;
+      const value = params.get(o.key) ?? '';
+      let input;
+      if (o.type === 'select') {
+        input = document.createElement('select');
+        for (const [v, text] of o.choices) input.add(new Option(text, v));
+        if (!o.choices.some(([v]) => v === value)) input.add(new Option(value, value));
+      } else {
+        input = document.createElement('input');
+        input.type = o.type === 'number' ? 'number' : 'text';
+        for (const k of ['min', 'max', 'step', 'placeholder']) if (o[k] !== undefined) input[k] = o[k];
+      }
+      input.id = 'opt-' + o.key;
+      input.value = value;
+      input.onchange = () => {
+        const q = new URLSearchParams(String(current().url).split('?')[1] || '');
+        if (input.value.trim() === '') q.delete(o.key); else q.set(o.key, input.value.trim());
+        const qs = q.toString();
+        change({ url: path + (qs ? '?' + qs : '') });
+      };
+      const cell = document.createElement('div');
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.appendChild(input);
+      if (o.type !== 'select') input.style.flex = '1';
+      if (o.unit) { const u = document.createElement('span'); u.className = 'unit'; u.textContent = o.unit; row.appendChild(u); }
+      cell.appendChild(row);
+      if (o.help) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '2px 0 0'; n.textContent = o.help; cell.appendChild(n); }
+      box.append(label, cell);
     }
   }
   function change(changes) { const s = current(); if (s) act({ type: 'update', id: s.id, changes }); }
