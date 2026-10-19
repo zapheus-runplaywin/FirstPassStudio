@@ -39,12 +39,28 @@
   const params = new URLSearchParams(location.search);
   let silent = params.get('mute') === '1'; // the Output page's preview and the key output play no sound
   // The Output page turns its preview's sound on and off with this (Preview sound), without a reload.
+  // A browser that won't play sound until the page is clicked pauses a video as it's unmuted (or
+  // refuses to play it): it then plays muted, and soundState() says so.
+  let blocked = false;
   window.setSilent = on => {
     silent = !!on;
     for (const L of layers.values()) {
       const v = L.el.querySelector('video');
-      if (v && L.src) v.muted = !L.src.sound || silent;
+      if (!v || !L.src) continue;
+      const wasMuted = v.muted;
+      v.muted = !L.src.sound || silent;
+      if (!wasMuted || v.muted || !L.src.visible) continue;
+      blocked = false;
+      const fallBack = () => { blocked = true; v.muted = true; v.play().catch(() => {}); };
+      if (v.paused) v.play().catch(err => { if (err.name === 'NotAllowedError') fallBack(); });
+      setTimeout(() => { if (L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
     }
+  };
+  // For the Output page: how many shown videos play sound here, and whether the browser blocks it.
+  window.soundState = () => {
+    let videos = 0;
+    for (const L of layers.values()) if (L.src && L.src.type === 'video' && L.src.visible && L.src.sound) videos++;
+    return { videos, blocked };
   };
   if (/^[0-9a-f]{6}$/i.test(params.get('bg') || '')) document.documentElement.style.background = document.body.style.background = '#' + params.get('bg');
   if (params.get('key') === '1') { document.body.classList.add('key'); document.documentElement.style.background = document.body.style.background = '#000'; }
@@ -163,7 +179,7 @@
       if (restarted || (!L.shown && s.restartOnShow)) { try { v.currentTime = 0; } catch {} }
       if (v.paused || v.ended) v.play().catch(err => {
         // A browser that won't autoplay with sound still plays it muted.
-        if (err.name === 'NotAllowedError' && !v.muted) { v.muted = true; v.play().catch(() => {}); console.warn(`Video "${s.name}" is playing muted: this browser blocks sound until the page is clicked`); }
+        if (err.name === 'NotAllowedError' && !v.muted) { v.muted = true; blocked = true; v.play().catch(() => {}); console.warn(`Video "${s.name}" is playing muted: this browser blocks sound until the page is clicked`); }
         else console.warn(`Video "${s.name}" would not play: ${err.message}`);
       });
       L.shown = true;
