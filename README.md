@@ -180,6 +180,8 @@ converting a .mov needs, so most FFmpeg security fixes don't touch it.
 
 The workflow also packs the Studio Stream Deck plugin (`plugins/studio-deck`, `npm run pack`) into the app, where the menu bar menu and the
 Output page install it. From a checkout, run `npm install` and `npm run pack` in `plugins/studio-deck` once for those to find it.
+It builds the Blackmagic output module the same way (`native/decklink`, `npm run build`, needing Xcode's command line tools but no
+Blackmagic software); from a checkout run `npm install` and `npm run build` there once, or the Output page says it's missing.
 
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
@@ -262,9 +264,18 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   Mac's audio output. **Output on/off**, Esc on an output display, or `/deck/output/on|off|toggle` shows or blanks the displays without
   changing the setup, and they go dark when Studio goes off air. Saved as `outputs.json` in the data folder. Run without the app
   (`npm start`) there are no displays to send to.
+- **Blackmagic output (Mac app):** sends the scene out of a Blackmagic UltraStudio or DeckLink, as OBS's DeckLink output does.
+  **Fill and key** uses the device's external keyer (fill on one SDI out, key on the other); **fill only** sends just the picture. Pick the
+  device and the video format the switcher runs at (1080i50 is picked first when the device can key it). The fill is premultiplied, as
+  Chromium draws it; tick **Straight** if the switcher's key expects unpremultiplied fill. It needs Blackmagic Desktop Video (the driver OBS
+  uses) installed, not the SDK, and the device free (quit OBS or Media Express first). The scene renders off screen at the format's frame
+  rate (`desktop/decklink.js`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
+  `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. Sound
+  plays through the Mac's audio output. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
+  in the app log.
 
 The scene is saved as `scene.json` in the data folder. To use it in OBS instead, add http://localhost:8080/scene.html as one 1920 x 1080
-Browser source. Sending it straight to the UltraStudio comes in a later update.
+Browser source.
 
 ## Example graphics
 

@@ -81,6 +81,11 @@ jobs:
       - name: Pack the Stream Deck plugin
         working-directory: plugins/studio-deck
         run: npm ci && npm run pack
+      # Blackmagic UltraStudio / DeckLink output (native/decklink): a Node-API module, so one build
+      # loads in any Electron. It needs no Blackmagic software to build; the test checks it loads.
+      - name: Build the DeckLink module
+        working-directory: native/decklink
+        run: npm ci && npm run build && npm test
       - name: Pick the version
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}

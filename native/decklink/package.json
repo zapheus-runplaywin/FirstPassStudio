@@ -1,0 +1,15 @@
+{
+  "name": "firstpass-studio-decklink",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FirstPass Studio's DeckLink / UltraStudio output for the Mac app (a Node-API module)",
+  "license": "MIT",
+  "scripts": {
+    "build": "node-gyp rebuild",
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "node-gyp": "13.1.0"
+  },
+  "gypfile": false
+}
