@@ -241,14 +241,25 @@ function checkForUpdates(byHand) {
   if (!checkForUpdates.wired) {
     checkForUpdates.wired = true;
     autoUpdater.on('update-downloaded', info => { updateReady = info.version; refreshMenu(); });
+    // Logs a failed check or download in full; the dialog below keeps it short.
+    autoUpdater.on('error', (err, detail) => log(`[update] ${detail || err.message}`));
   }
   autoUpdater.checkForUpdates().then(r => {
     if (byHand && (!r || !r.isUpdateAvailable)) dialog.showMessageBox({ message: 'FirstPass Studio is up to date', detail: `Version ${app.getVersion()}` });
     else if (byHand) dialog.showMessageBox({ message: `Downloading version ${r.updateInfo.version}`, detail: 'It installs when you quit FirstPass Studio, or choose "Restart to update" from the menu bar icon once it has downloaded.' });
   }).catch(err => {
-    log(`[update] ${err.message}`);
-    if (byHand) dialog.showMessageBox({ type: 'warning', message: 'Couldn\'t check for updates', detail: err.message });
+    if (byHand) dialog.showMessageBox({ type: 'warning', message: 'Couldn\'t check for updates', detail: updateErrorText(err) });
   });
+}
+
+// The updater's errors carry the whole HTTP response (headers and all); this is the part a
+// person can act on. The full error is in the debug log.
+function updateErrorText(err) {
+  const status = err.statusCode || Number((/HttpError: (\d{3})/.exec(err.message) || [])[1]);
+  if (status === 404) return 'The updates page on GitHub couldn\'t be found. The FirstPassStudio-releases repository needs to be public, with at least one published release.';
+  if (status) return `GitHub answered with error ${status}. Try again in a few minutes. The details are in the debug log.`;
+  if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|ERR_INTERNET_DISCONNECTED/.test(err.message)) return 'GitHub couldn\'t be reached. Check the Mac is online and try again.';
+  return `${err.message.split('\n')[0]}\n\nThe details are in the debug log.`;
 }
 
 // ─── Start ──────────────────────────────────────────────────────────────────
