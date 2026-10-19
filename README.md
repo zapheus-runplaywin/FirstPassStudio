@@ -3,7 +3,7 @@
 Transparent ladder, scoreboard and game overlays for OBS, fed live from PlayHQ's public data (no API key). Set up for
 Thunder League, with saved setups ready for the AMMNA Nationals and GIG WANL (the WA Netball League).
 
-The pages you work in (home, scoreboard control, competition setup and the Stream Deck API docs) carry the FirstPass
+The pages you work in (output, graphics, scoreboard control, competitions setup, athletes and Stream Deck) carry the FirstPass
 Studio look from `public/studio.css`, with the Montserrat font served from `public/vendor/montserrat` so it works
 offline. The OBS overlays don't use it: they keep the colours, font and logos of the competition in use.
 
@@ -136,8 +136,8 @@ bookmarks, the Studio header is the title bar (the window buttons sit in it, and
 the app shows in the Dock and ⌘Tab while a window is open, then goes back to just the menu bar icon. A link that opens
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
-(⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 home,
-⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs, ⌘6 output) and Window. Closing the last window takes Studio off air (see
+(⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
+⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 athletes, ⌘6 Stream Deck) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
 **Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
@@ -216,7 +216,7 @@ so don't run it while the app is on air.
    - http://localhost:8080/ladder.html?division=3
 
 4. For the live scoreboard, add http://localhost:8080/scoreboard.html as another Browser source (1920 x 1080),
-   then open **Scoreboard control** (⌘2 in the app, or from the 1P icon) to run it.
+   then open **Scoreboard control** (⌘3 in the app, or from the 1P icon) to run it.
 
 Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds) and the ticker. Every other page
 loads once when OBS shows it: in each Browser source tick **Refresh browser when scene becomes active**, or
@@ -229,7 +229,7 @@ Browser source, so the pages render at the stream's rate (a custom rate of 30 wo
 
 ## Studio scene (optional, instead of an OBS scene)
 
-http://localhost:8080/output.html (**Output** in the menu, ⌘6 in the app) builds Studio's own scene: one 1920 x 1080 frame of
+http://localhost:8080/output.html (**Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
 sources drawn as layers, top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.
 
 - **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
