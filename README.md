@@ -158,8 +158,11 @@ be higher than the last published one (updates only go to a higher version). The
 
 **Every merge to main publishes automatically**: the workflow runs by itself, builds the next patch version and
 publishes it as an update, so installed apps pick up each merged PR. Merges that only change documentation (`.md`
-files, `docs/`, the Make Examples scripts) don't publish. Use **Run workflow** for a minor or major version, a
-specific version, or a test build without publishing. Builds run one at a time, so two quick merges get two versions.
+files, `docs/`, the Make Examples scripts) don't publish. To publish a minor or major version
+instead, add the label **minor** or **major** to the pull request before merging it: the next publish raises that part and
+resets the parts after it (0.1.4 to 0.2.0 or 1.0.0). Any labelled pull request merged since the last published version counts, so
+a labelled docs-only one still raises the next version, and major wins over minor. Use **Run workflow** for a specific version
+or a test build without publishing. Builds run one at a time, so two quick merges get two versions.
 
 Each run tags the commit of this repository it built from, so any build can be traced to its code: `v0.1.3` for a
 published update, `v0.1.3-test.12` for a test build (12 is the run number, so a test build never takes the tag a
