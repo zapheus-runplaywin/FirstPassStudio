@@ -195,7 +195,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // Opens a Studio page (a path such as /control.html) in the app's window, reusing the main
   // one, or in the browser when that is chosen in the menu bar icon.
   function open(p) {
-    if (appSettings().openInBrowser) { closeSplash(); return openBrowser(p); }
+    if (appSettings().openInBrowser) { log(`Opening ${p} in the browser (Open pages in the browser is ticked)`); closeSplash(); return openBrowser(p); }
     const url = local(p);
     if (main && !main.isDestroyed()) {
       if (main.studioUrl !== url) main.loadURL(url);

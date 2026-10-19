@@ -122,8 +122,9 @@ open the pages and press the Stream Deck links (scores, clock, game). Stream on 
 Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
 The menu bar icon has: Start/Stop Studio, Open Studio, Scoreboard control, Competition setup, Copy the Studio link,
-Install the Stream Deck plugin, Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
-login, Check for updates and Quit.
+Install the Stream Deck plugin, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
+login, Open pages in the browser instead of the app window (with the settings, so it isn't ticked by accident; the app's
+`logs/app.log` notes each page it sends to the browser), Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". **Start Studio** opens the
 home page, which puts Studio on air; **Stop Studio** closes the Studio windows without asking and takes it off air.
@@ -131,7 +132,7 @@ Opened at login, the app sits in the menu bar off air unless **Open Studio at lo
 `startHelperAtLogin` in `app-settings.json` in the data folder), which opens the home page and goes on air. Opened by
 hand, it opens the home page.
 
-With **Open pages in the browser** ticked the app can't tell when the browser tabs close, so Studio stays on air from
+With **Open pages in the browser instead of the app window** ticked the app can't tell when the browser tabs close, so Studio stays on air from
 **Start Studio** (or any page opened from the menu) until **Stop Studio** or Quit.
 
 ### The app window
@@ -145,7 +146,7 @@ anywhere else open in the browser. The app menu has FirstPass Studio > Close Stu
 ⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 athletes, ⌘6 Stream Deck) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
-**Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
+**Open pages in the browser instead of the app window** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
 the browser as before.
 
 Settings live in the data folder (see **Saved settings**). Updates download in the background and install when the app quits, so they never
