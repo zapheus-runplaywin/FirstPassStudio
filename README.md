@@ -214,16 +214,22 @@ Browser source, so the pages render at the stream's rate (a custom rate of 30 wo
 http://localhost:8080/output.html (**Output** in the menu, ⌘6 in the app) builds Studio's own scene: one 1920 x 1080 frame of
 sources drawn as layers, top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.
 
-- **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, saved in the
-  data folder's `media` folder. New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.
+- **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
+  **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
 - **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
   (1920 x 1080 for full-frame graphics), like an OBS Browser source's width and height.
 - **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
   when hidden, like OBS's **Shutdown source when not visible**. Untick it to keep a page running while hidden so it shows instantly.
   **Refresh page** reloads it now.
-- **Stream Deck:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, and `/deck/layers/off` hides everything
-  (see `STREAMDECK.md`). The Output page copies them.
+- **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
+  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (OBS's, with the
+  scene in OBS), and the Output page's preview is always silent. **Restart video** starts it again from the top.
+- **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
+  (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. This needs
+  ffmpeg on the Mac (`brew install ffmpeg`, or set `ffmpegPath` in config.json); MP4 and WebM files play as they are.
+- **Stream Deck:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
+  `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
   it off when the Mac is busy.
 

@@ -93,6 +93,7 @@
       <div class="row">
         <button id="addBrowser">Add page</button>
         <button id="addImage">Add image</button>
+        <button id="addVideo">Add video</button>
         <button class="alt" id="hideAll">Hide all</button>
       </div>
       <p class="error" id="err"></p>
@@ -104,11 +105,12 @@
           <label for="newUrl">Address</label>
           <input id="newUrl" placeholder="scoreboard.html, or https://…">
         </div>
-        <div class="form hidden" id="addImageForm">
-          <label for="newFile">Image</label>
+        <div class="form hidden" id="addMediaForm">
+          <label for="newFile" id="newFileLabel">Image</label>
           <select id="newFile"></select>
           <label for="upload">Add to media</label>
-          <input id="upload" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.svg">
+          <input id="upload" type="file">
+          <p class="note wide" id="mediaNote"></p>
         </div>
         <div class="row" style="margin-top:10px"><button id="addGo">Add to scene</button><button class="alt" id="addCancel">Cancel</button></div>
       </div>
@@ -123,8 +125,8 @@
           <input id="fName" maxlength="60">
           <label for="fUrl" class="forBrowser">Address</label>
           <input id="fUrl" class="forBrowser">
-          <label for="fFile" class="forImage">Image</label>
-          <select id="fFile" class="forImage"></select>
+          <label for="fFile" class="forMedia" id="fFileLabel">Image</label>
+          <select id="fFile" class="forMedia"></select>
           <label class="forBrowser">Page size</label>
           <div class="row forBrowser"><input id="fWidth" type="number" min="16" max="7680"> × <input id="fHeight" type="number" min="16" max="4320"> px</div>
           <label for="fFade">Fade</label>
@@ -135,10 +137,20 @@
           <div class="row"><input id="fScale" type="number" min="1" max="1000" step="1"> % <button class="alt" id="fFull">Full frame</button></div>
           <label class="forBrowser">When shown</label>
           <label class="forBrowser" style="font-weight:400"><input id="fReload" type="checkbox"> Load the page fresh each time it's shown (replays its animation)</label>
+          <label class="forVideo">Playing</label>
+          <div class="forVideo" style="display:grid;gap:6px">
+            <label><input id="fRestartOnShow" type="checkbox"> Start from the beginning each time it's shown</label>
+            <label><input id="fLoop" type="checkbox"> Loop</label>
+            <label><input id="fHideWhenDone" type="checkbox"> Fade out when it finishes (when not looping)</label>
+          </div>
+          <label class="forVideo">Sound</label>
+          <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
         </div>
+        <p class="note forVideo">Sound plays through this Mac's audio output (or OBS's, when the scene is in OBS). The preview above is always silent.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
           <button class="alt forBrowser" id="fRestart">Refresh page</button>
+          <button class="alt forVideo" id="fRestartVideo">Restart video</button>
           <button class="danger" id="fRemove">Remove</button>
         </div>
         <h2 style="margin-top:18px">Stream Deck links</h2>
@@ -165,7 +177,9 @@
   let base = location.origin;
   let media = [];
   let adding = null;
-  const naturalSize = new Map(); // image file -> [w, h], for the preview box
+  const naturalSize = new Map(); // image or video file -> [w, h], for the preview box and Full frame
+  const ACCEPT = { image: '.png,.jpg,.jpeg,.gif,.webp,.svg', video: '.mp4,.m4v,.webm,.mov' };
+  let canConvert = false;
 
   const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const current = () => scene.sources.find(s => s.id === selected) || null;
@@ -190,7 +204,7 @@
   function setPreview(on) {
     try { localStorage.setItem('outputPreview', on ? '1' : '0'); } catch {}
     $('previewOn').checked = on;
-    $('previewFrame').src = on ? '/scene.html' : 'about:blank';
+    $('previewFrame').src = on ? '/scene.html?mute=1' : 'about:blank';
     $('previewOff').classList.toggle('hidden', on);
   }
   function drawBox() {
@@ -203,6 +217,13 @@
       img.onload = () => { naturalSize.set(s.file, [img.naturalWidth, img.naturalHeight]); drawBox(); };
       img.src = '/media/' + encodeURIComponent(s.file);
     }
+    if (s.type === 'video' && !naturalSize.has(s.file)) {
+      naturalSize.set(s.file, [1920, 1080]); // until its size is known
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => { naturalSize.set(s.file, [v.videoWidth, v.videoHeight]); v.removeAttribute('src'); v.load(); drawBox(); };
+      v.src = '/media/' + encodeURIComponent(s.file);
+    }
     const p = $('preview').clientWidth / 1920;
     Object.assign(box.style, { display: 'block', left: s.x * p + 'px', top: s.y * p + 'px', width: w * k + 'px', height: h * k + 'px' });
   }
@@ -211,11 +232,11 @@
   function renderList() {
     const ul = $('sources');
     ul.innerHTML = '';
-    if (!scene.sources.length) { ul.innerHTML = '<li class="empty">No sources yet. Add a page or an image.</li>'; return; }
+    if (!scene.sources.length) { ul.innerHTML = '<li class="empty">No sources yet. Add a page, an image or a video.</li>'; return; }
     for (const s of scene.sources) {
       const li = document.createElement('li');
       li.className = s.id === selected ? 'sel' : '';
-      li.innerHTML = '<button class="eye"></button><span class="name"></span><span class="row" style="gap:4px"><button class="alt up" title="Move up">↑</button><button class="alt down" title="Move down">↓</button></span>';
+      li.innerHTML = '<button class="eye"></button><span class="name"></span><span class="row" style="gap:4px"><button class="alt snd hidden"></button><button class="alt up" title="Move up">↑</button><button class="alt down" title="Move down">↓</button></span>';
       const eye = li.querySelector('.eye');
       eye.textContent = s.visible ? 'On' : 'Off';
       eye.classList.toggle('on', s.visible);
@@ -223,8 +244,15 @@
       eye.onclick = e => { e.stopPropagation(); act({ type: 'toggle', id: s.id }); };
       li.querySelector('.name').textContent = s.name;
       const tag = document.createElement('small');
-      tag.textContent = s.type === 'browser' ? 'page' : 'image';
+      tag.textContent = s.type === 'browser' ? 'page' : s.type;
       li.querySelector('.name').appendChild(tag);
+      if (s.type === 'video') {
+        const snd = li.querySelector('.snd');
+        snd.classList.remove('hidden');
+        snd.textContent = s.sound ? '🔊' : '🔇';
+        snd.title = s.sound ? 'Sound on: click to mute' : 'Muted: click to turn sound on';
+        snd.onclick = e => { e.stopPropagation(); act({ type: 'soundToggle', id: s.id }); };
+      }
       const i = scene.sources.indexOf(s);
       li.querySelector('.up').disabled = i === 0;
       li.querySelector('.down').disabled = i === scene.sources.length - 1;
@@ -243,8 +271,16 @@
     $('selForm').classList.toggle('hidden', !s);
     if (!s) return;
     for (const el of document.querySelectorAll('.forBrowser')) el.classList.toggle('hidden', s.type !== 'browser');
-    for (const el of document.querySelectorAll('.forImage')) el.classList.toggle('hidden', s.type !== 'image');
-    fillMedia($('fFile'), s.file);
+    for (const el of document.querySelectorAll('.forMedia')) el.classList.toggle('hidden', s.type === 'browser');
+    for (const el of document.querySelectorAll('.forVideo')) el.classList.toggle('hidden', s.type !== 'video');
+    $('fFileLabel').textContent = s.type === 'video' ? 'Video' : 'Image';
+    if (s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
+    if (s.type === 'video') {
+      $('fRestartOnShow').checked = s.restartOnShow; $('fLoop').checked = s.loop; $('fHideWhenDone').checked = s.hideWhenDone;
+      $('fHideWhenDone').disabled = s.loop; $('fSound').checked = s.sound;
+      if (force || document.activeElement !== $('fVolume')) $('fVolume').value = s.volume;
+      $('fVolumeText').textContent = s.volume + '%';
+    }
     // Don't overwrite a box someone is typing in (a Stream Deck press re-sends the scene).
     for (const [id, key] of Object.entries(FIELDS)) {
       if (s[key] === undefined) continue;
@@ -256,7 +292,7 @@
     $('fDown').disabled = i === scene.sources.length - 1;
     const name = encodeURIComponent(slug(s.name));
     $('links').innerHTML = '';
-    for (const verb of ['toggle', 'on', 'off', ...(s.type === 'browser' ? ['restart'] : [])]) {
+    for (const verb of ['toggle', 'on', 'off', ...(s.type === 'image' ? [] : ['restart']), ...(s.type === 'video' ? ['sound/toggle', 'sound/on', 'sound/off'] : [])]) {
       const row = document.createElement('div');
       row.innerHTML = '<code></code><button class="alt">Copy</button>';
       const link = `${base}/deck/layer/${name}/${verb}`;
@@ -270,6 +306,13 @@
     $(id).addEventListener('change', () => change({ [key]: ['name', 'url', 'file'].includes(key) ? $(id).value : Number($(id).value) }));
   }
   $('fReload').onchange = () => change({ reloadOnShow: $('fReload').checked });
+  $('fRestartOnShow').onchange = () => change({ restartOnShow: $('fRestartOnShow').checked });
+  $('fLoop').onchange = () => change({ loop: $('fLoop').checked });
+  $('fHideWhenDone').onchange = () => change({ hideWhenDone: $('fHideWhenDone').checked });
+  $('fSound').onchange = () => change({ sound: $('fSound').checked });
+  $('fVolume').oninput = () => { $('fVolumeText').textContent = $('fVolume').value + '%'; };
+  $('fVolume').onchange = () => change({ volume: Number($('fVolume').value) });
+  $('fRestartVideo').onclick = () => act({ type: 'restart', id: selected });
   $('fFull').onclick = () => {
     const s = current(); if (!s) return;
     const [w, h] = s.type === 'browser' ? [s.width, s.height] : (naturalSize.get(s.file) || [1920, 1080]);
@@ -285,25 +328,45 @@
   $('hideAll').onclick = () => act({ type: 'hideAll' });
 
   // ─── Adding sources ───────────────────────────────────────────────────
-  function fillMedia(sel, value) {
+  // media: [{ name, kind, converting, converted }] from the helper's media folder.
+  function fillMedia(sel, value, kind) {
     sel.innerHTML = '';
-    if (!media.length) sel.innerHTML = '<option value="">No images yet: add one below</option>';
-    for (const f of media) sel.add(new Option(f, f, false, f === value));
-    if (value && !media.includes(value)) sel.add(new Option(`${value} (missing)`, value, true, true));
+    const list = media.filter(m => m.kind === kind);
+    if (!list.length) sel.innerHTML = `<option value="">No ${kind}s yet: add one below</option>`;
+    for (const m of list) {
+      const note = m.converting ? ' (converting…)' : m.converted ? ` (ProRes: use ${m.converted})` : /\.mov$/i.test(m.name) ? ' (may not play: needs converting)' : '';
+      sel.add(new Option(m.name + note, m.name, false, m.name === value));
+    }
+    if (value && !list.some(m => m.name === value)) sel.add(new Option(`${value} (missing)`, value, true, true));
   }
-  async function loadMedia() {
-    try { media = (await (await fetch('/api/scene/media')).json()).files || []; } catch { media = []; }
-    fillMedia($('newFile'));
+  function mediaNote() {
+    const busy = media.filter(m => m.converting).map(m => m.name);
+    $('mediaNote').textContent = adding !== 'video' ? '' :
+      (busy.length ? `Converting ${busy.join(', ')} to WebM so it can play. This can take a few minutes; you can add it now and it switches over when done. ` : '') +
+      (canConvert ? 'A .mov (ProRes 4444 keeps its transparency) is converted to a WebM beside it when added; the original is kept.'
+        : 'A .mov (ProRes) has to be converted to play, which needs ffmpeg on this Mac (brew install ffmpeg). MP4 and WebM play as they are.');
+  }
+  async function loadMedia(value) {
+    try { const body = await (await fetch('/api/scene/media')).json(); media = body.media || []; canConvert = !!body.canConvert; } catch { media = []; }
+    if (adding && adding !== 'browser') fillMedia($('newFile'), value || $('newFile').value, adding);
+    mediaNote();
+    const s = current();
+    if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
   }
   function openAdd(type) {
     adding = type;
     $('addPanel').classList.remove('hidden');
     $('addBrowserForm').classList.toggle('hidden', type !== 'browser');
-    $('addImageForm').classList.toggle('hidden', type !== 'image');
-    if (type === 'image') loadMedia();
+    $('addMediaForm').classList.toggle('hidden', type === 'browser');
+    if (type !== 'browser') {
+      $('newFileLabel').textContent = type === 'video' ? 'Video' : 'Image';
+      $('upload').accept = ACCEPT[type];
+      loadMedia();
+    }
   }
   $('addBrowser').onclick = () => openAdd('browser');
   $('addImage').onclick = () => openAdd('image');
+  $('addVideo').onclick = () => openAdd('video');
   $('addCancel').onclick = () => { adding = null; $('addPanel').classList.add('hidden'); };
   for (const [label, page] of PAGES) $('newPage').add(new Option(label, page));
   $('newPage').add(new Option('Another address…', ''));
@@ -313,12 +376,14 @@
     const file = $('upload').files[0];
     if (!file) return;
     $('err').textContent = '';
+    $('mediaNote').textContent = `Adding ${file.name} to the media folder…`;
     try {
       const res = await fetch('/api/scene/media?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || res.statusText);
-      media = body.files; fillMedia($('newFile'), body.file);
-    } catch (err) { $('err').textContent = `Could not add ${file.name}: ${err.message}`; }
+      if (body.cantConvert) $('err').textContent = `${body.file} is in the media folder, but it can only play once it's converted, which needs ffmpeg on this Mac (brew install ffmpeg).`;
+      await loadMedia(body.file);
+    } catch (err) { $('err').textContent = `Could not add ${file.name}: ${err.message}`; mediaNote(); }
     $('upload').value = '';
   };
   $('addGo').onclick = async () => {
@@ -329,8 +394,9 @@
       const known = PAGES.find(p => p[1] === url);
       source = { type: 'browser', url, name: known ? known[0] : undefined };
     } else {
-      if (!$('newFile').value) { $('err').textContent = 'Add an image to the media folder first.'; return; }
-      source = { type: 'image', file: $('newFile').value };
+      if (!$('newFile').value) { $('err').textContent = `Add ${adding === 'video' ? 'a video' : 'an image'} to the media folder first.`; return; }
+      const m = media.find(x => x.name === $('newFile').value);
+      source = { type: adding, file: m && m.converted ? m.converted : $('newFile').value };
     }
     const body = await act({ type: 'add', source });
     if (body) { selected = body.sources[0].id; adding = null; $('addPanel').classList.add('hidden'); renderList(); renderForm(true); drawBox(); }
@@ -341,8 +407,12 @@
     const was = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = was; }, 1200);
   }
 
+  let wasConverting = '';
   function show(s) {
     scene = s;
+    // A conversion started or finished: refresh the media lists.
+    const now = (s.converting || []).join('|');
+    if (now !== wasConverting) { wasConverting = now; loadMedia(); }
     if (selected && !current()) selected = null;
     renderList(); renderForm(); drawBox();
   }

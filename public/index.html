@@ -114,13 +114,18 @@
     <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
       top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.</p>
     <ul class="page__help">
-      <li><b>Sources:</b> <b>Add page</b> adds any Studio graphic or web address; <b>Add image</b> adds a PNG, JPG, GIF, WebP or SVG (saved in the data folder's
-        <b>media</b> folder). New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.</li>
+      <li><b>Sources:</b> <b>Add page</b> adds any Studio graphic or web address; <b>Add image</b> adds a PNG, JPG, GIF, WebP or SVG, and <b>Add video</b>
+        an MP4, WebM or MOV (saved in the data folder's <b>media</b> folder). New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.</li>
       <li><b>On / Off</b> fades a source in or out with its own <b>Fade</b> time in milliseconds (0 is a cut).</li>
       <li><b>Position and scale</b> place it on the frame; <b>Full frame</b> fits it to 1920 × 1080. <b>Page size</b> is the size a page is drawn at, like an OBS Browser source's width and height.</li>
       <li><b>Load the page fresh each time it's shown</b> (on by default) reloads a page as it fades in so its animation replays, and unloads it when hidden.
         Untick it to keep a page running so it shows instantly. <b>Refresh page</b> reloads it now.</li>
-      <li><b>Stream Deck:</b> <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source, named in lower case with dashes
+      <li><b>Videos</b> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
+        <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output (OBS's, with the scene in OBS). <b>Restart video</b> starts it again.</li>
+      <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency),
+        and sources using it switch over when it's done. The original is kept. It needs ffmpeg on the Mac (<code>brew install ffmpeg</code>); MP4 and WebM play as they are.</li>
+      <li><b>Stream Deck:</b> <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
+        <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
       <li><b>Preview:</b> the Output page shows the scene live; it runs the scene's pages a second time, so turn it off when the Mac is busy.</li>
     </ul>

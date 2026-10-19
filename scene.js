@@ -1,12 +1,15 @@
 // FirstPass Studio - the scene: Studio's own replacement for an OBS scene (optional).
 //
 // One scene, a list of sources drawn as layers, top layer first: Studio pages (or any web
-// address) and images from the media folder. Each source can be shown and hidden with its
+// address), and images and videos from the media folder. Each source can be shown and hidden with its
 // own fade, and placed and scaled on the 1920 x 1080 frame. The Output page (output.html)
 // builds it, scene.html draws it, and the Stream Deck shows and hides sources with
-// /deck/layer/<name>/on|off|toggle|restart and /deck/layers/off.
+// /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle and
+// /deck/layers/off.
 //
-// Saved as scene.json in the data folder; images are kept in its media/ folder. OBS still
+// Saved as scene.json in the data folder; images and videos are kept in its media/ folder.
+// Chromium can't play ProRes, so a .mov added to the media folder is converted to a WebM
+// beside it (VP9, keeping transparency) with ffmpeg; the original is kept. OBS still
 // works exactly as before: nothing here changes the other pages, and scene.html can itself
 // go into OBS as one browser source.
 
@@ -19,9 +22,12 @@ const datadir = require('./datadir');
 const FILE = datadir.file('scene.json');
 const MEDIA_DIR = datadir.file('media');
 const WIDTH = 1920, HEIGHT = 1080;
-const TYPES = ['browser', 'image'];
+const TYPES = ['browser', 'image', 'video'];
 const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
-const MAX_IMAGE = 50 * 1024 * 1024;
+const VIDEO_TYPES = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
+const MEDIA_TYPES = { ...IMAGE_TYPES, ...VIDEO_TYPES };
+const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024;
+const kindOf = f => IMAGE_TYPES[path.extname(f).toLowerCase()] ? 'image' : VIDEO_TYPES[path.extname(f).toLowerCase()] ? 'video' : null;
 
 let log = () => {};
 let scene = { sources: [] };
@@ -49,7 +55,7 @@ function uniqueName(name, id) {
 }
 
 function defaultName(src) {
-  if (src.type === 'image') return path.basename(src.file || 'Image', path.extname(src.file || ''));
+  if (src.type !== 'browser') return path.basename(src.file || (src.type === 'video' ? 'Video' : 'Image'), path.extname(src.file || ''));
   const page = String(src.url || '').split(/[?#]/)[0].split('/').pop().replace(/\.html?$/i, '');
   const words = page.replace(/[-_]+/g, ' ').trim();
   return words ? words[0].toUpperCase() + words.slice(1) : 'Browser';
@@ -78,6 +84,13 @@ function clean(src, existing = {}) {
   } else {
     out.file = cleanFile(s.file);
   }
+  if (type === 'video') {
+    out.loop = !!s.loop;
+    out.restartOnShow = s.restartOnShow === undefined ? true : !!s.restartOnShow;
+    out.hideWhenDone = s.hideWhenDone === undefined ? true : !!s.hideWhenDone;
+    out.sound = !!s.sound;
+    out.volume = Math.round(clamp(s.volume, 0, 100, 100));
+  }
   out.name = uniqueName(s.name || defaultName(out), out.id);
   return out;
 }
@@ -94,14 +107,18 @@ function load() {
 }
 
 function save() {
-  rev++;
   try { fs.writeFileSync(FILE, JSON.stringify({ sources: scene.sources.map(({ loadSeq, ...s }) => s) }, null, 2) + '\n'); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
+  notify();
+}
+// Sends the scene to every open scene.html and Output page.
+function notify() {
+  rev++;
   const body = `data: ${JSON.stringify(state())}\n\n`;
   for (const res of listeners) res.write(body);
 }
 
-function state() { return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources }; }
+function state() { return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, converting: [...converting.keys()] }; }
 
 function find(ref) {
   const r = String(ref || '');
@@ -149,7 +166,22 @@ function apply(a) {
     case 'restart':
       if (need()) return need();
       src.loadSeq++;
-      log('info', 'scene', `Reloaded "${src.name}"`);
+      log('info', 'scene', `${src.type === 'video' ? 'Restarted' : 'Reloaded'} "${src.name}"`);
+      return null;
+    case 'soundOn': case 'soundOff': case 'soundToggle':
+      if (need()) return need();
+      if (src.type !== 'video') return `"${src.name}" has no sound to turn on or off.`;
+      src.sound = a.type === 'soundToggle' ? !src.sound : a.type === 'soundOn';
+      log('info', 'scene', `"${src.name}" sound ${src.sound ? 'on' : 'off'}`);
+      return null;
+    case 'ended':
+      // scene.html says a video finished: fade it out if it's set to hide when done. loadSeq
+      // makes sure it's this play that ended, not one from before a restart.
+      if (need()) return need();
+      if (src.type === 'video' && src.visible && src.hideWhenDone && !src.loop && Number(a.loadSeq) === src.loadSeq) {
+        src.visible = false;
+        log('info', 'scene', `"${src.name}" finished, off`);
+      }
       return null;
     case 'hideAll':
       for (const s of scene.sources) s.visible = false;
@@ -160,7 +192,8 @@ function apply(a) {
   }
 }
 
-// /deck/layer/<name>/on|off|toggle|restart and /deck/layers/off. Returns null when the link
+// /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle and
+// /deck/layers/off. Returns null when the link
 // isn't a scene link, so the scoreboard's own links carry on as before.
 function deck(parts) {
   const [what, name, verb] = parts;
@@ -169,24 +202,114 @@ function deck(parts) {
   if (what === 'layer' && name) {
     const type = { on: 'show', show: 'show', off: 'hide', hide: 'hide', toggle: 'toggle', restart: 'restart', reload: 'restart' }[verb];
     if (type) action = { type, name };
+    const sound = { on: 'soundOn', off: 'soundOff', toggle: 'soundToggle' }[parts[3]];
+    if (verb === 'sound' && sound) action = { type: sound, name };
   }
   if (!action) return null;
   const error = apply(action);
   if (error) return { status: 404, body: { error } };
   save();
   const src = action.name ? find(action.name) : null;
-  return { status: 200, body: { ok: true, ...(src ? { name: src.name, visible: src.visible } : {}) } };
+  return { status: 200, body: { ok: true, ...(src ? { name: src.name, visible: src.visible, ...(src.type === 'video' ? { sound: src.sound } : {}) } : {}) } };
 }
 
+// ─── Media folder ─────────────────────────────────────────────────────────
+const converting = new Map(); // .mov file -> its WebM, while ffmpeg runs
+let ffmpegSetting = '';
+
+// ffmpeg from config.json's ffmpegPath, else Homebrew's, else the PATH. Not bundled yet.
+function ffmpegPath() {
+  const candidates = [ffmpegSetting, '/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg',
+    ...String(process.env.PATH || '').split(path.delimiter).map(d => path.join(d, 'ffmpeg'))];
+  return candidates.find(c => { try { return c && fs.statSync(c).isFile(); } catch { return false; } }) || null;
+}
+const webmFor = f => path.basename(f, path.extname(f)) + '.webm';
+
 function mediaList() {
-  try {
-    return fs.readdirSync(MEDIA_DIR).filter(f => IMAGE_TYPES[path.extname(f).toLowerCase()]).sort((a, b) => a.localeCompare(b));
-  } catch { return []; }
+  let files = [];
+  try { files = fs.readdirSync(MEDIA_DIR).filter(f => kindOf(f) && !f.startsWith('.')).sort((a, b) => a.localeCompare(b)); } catch { /* none yet */ }
+  return files.map(name => {
+    const m = { name, kind: kindOf(name) };
+    if (path.extname(name).toLowerCase() === '.mov') {
+      if (converting.has(name)) m.converting = true;
+      else if (files.includes(webmFor(name))) m.converted = webmFor(name);
+    }
+    return m;
+  });
+}
+
+// Converts a .mov (ProRes 4444 keeps its transparency) to a VP9 WebM Chromium can play.
+function convert(name) {
+  const bin = ffmpegPath();
+  if (!bin) { log('warn', 'scene', `Can't convert ${name}: ffmpeg isn't installed (install it with Homebrew: brew install ffmpeg, or set ffmpegPath in config.json)`); return false; }
+  if (converting.has(name)) return true;
+  const out = webmFor(name), part = path.join(MEDIA_DIR, `.${out}.part`);
+  converting.set(name, out);
+  const started = Date.now();
+  log('info', 'scene', `Converting ${name} to ${out}`);
+  const args = ['-hide_banner', '-loglevel', 'error', '-y', '-i', path.join(MEDIA_DIR, name),
+    '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '20', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2', '-auto-alt-ref', '0',
+    '-c:a', 'libopus', '-b:a', '192k', '-f', 'webm', part];
+  const child = require('child_process').spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  let errors = '';
+  child.stderr.on('data', d => { errors = (errors + d).slice(-2000); });
+  const finish = ok => {
+    converting.delete(name);
+    if (ok) {
+      fs.renameSync(part, path.join(MEDIA_DIR, out));
+      log('info', 'scene', `Converted ${name} to ${out} in ${Math.round((Date.now() - started) / 1000)}s`);
+      // Sources using the .mov switch to the WebM.
+      let changed = false;
+      for (const s of scene.sources) if (s.type === 'video' && s.file === name) { s.file = out; changed = true; }
+      if (changed) save();
+    } else {
+      try { fs.unlinkSync(part); } catch { /* nothing written */ }
+      log('error', 'scene', `Could not convert ${name}`, errors.trim());
+    }
+    notify();
+  };
+  child.on('error', err => { errors = err.message; finish(false); });
+  child.on('close', code => { if (converting.has(name)) finish(code === 0); });
+  return true;
+}
+
+// Saves an upload straight to disk (videos can be gigabytes), then converts a .mov.
+function saveUpload(req, name, max) {
+  return new Promise((resolve, reject) => {
+    fs.mkdirSync(MEDIA_DIR, { recursive: true });
+    const part = path.join(MEDIA_DIR, `.${name}.part`);
+    const out = fs.createWriteStream(part);
+    let size = 0;
+    req.on('data', d => { size += d.length; if (size > max) { req.destroy(); out.destroy(); fs.rm(part, { force: true }, () => {}); reject(new Error(`That file is over ${Math.round(max / 1048576)} MB.`)); } });
+    req.pipe(out);
+    out.on('finish', () => { if (size <= max) { fs.renameSync(part, path.join(MEDIA_DIR, name)); resolve(size); } });
+    out.on('error', reject);
+    req.on('error', reject);
+  });
+}
+
+// Sends a media file, with byte ranges so videos can seek and loop.
+function sendMedia(req, res, file, type, send) {
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) return send(res, 404, 'Not found', 'text/plain');
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    let start = 0, end = st.size - 1, status = 200;
+    if (m && (m[1] || m[2])) {
+      start = m[1] ? Number(m[1]) : Math.max(0, st.size - Number(m[2]));
+      end = m[1] && m[2] ? Math.min(Number(m[2]), st.size - 1) : st.size - 1;
+      if (start > end || start >= st.size) { res.writeHead(416, { 'content-range': `bytes */${st.size}` }); return res.end(); }
+      status = 206;
+    }
+    res.writeHead(status, { 'content-type': type, 'content-length': end - start + 1, 'accept-ranges': 'bytes', 'cache-control': 'no-store',
+      ...(status === 206 ? { 'content-range': `bytes ${start}-${end}/${st.size}` } : {}) });
+    if (req.method === 'HEAD') return res.end();
+    fs.createReadStream(file, { start, end }).pipe(res);
+  });
 }
 
 // The scene's HTTP routes: /api/scene, /api/scene/events, /api/scene/media and /media/<file>.
 // Returns false for anything else.
-async function route(req, res, url, { send, readBody, readRaw }) {
+async function route(req, res, url, { send, readBody }) {
   const p = url.pathname;
   if (p === '/api/scene' && req.method === 'GET') return send(res, 200, state()), true;
   if (p === '/api/scene' && req.method === 'POST') {
@@ -205,28 +328,35 @@ async function route(req, res, url, { send, readBody, readRaw }) {
     req.on('close', () => { clearInterval(ping); listeners.delete(res); });
     return true;
   }
-  if (p === '/api/scene/media' && req.method === 'GET') return send(res, 200, { files: mediaList() }), true;
+  if (p === '/api/scene/media' && req.method === 'GET') return send(res, 200, { media: mediaList(), canConvert: !!ffmpegPath() }), true;
   if (p === '/api/scene/media' && req.method === 'POST') {
-    const name = cleanFile(url.searchParams.get('name')).replace(/[^\w .()'&+-]/g, '_');
-    if (!name || !IMAGE_TYPES[path.extname(name).toLowerCase()]) return send(res, 400, { error: 'Pick a PNG, JPG, GIF, WebP or SVG image.' }), true;
-    const buf = await readRaw(req, MAX_IMAGE);
-    fs.mkdirSync(MEDIA_DIR, { recursive: true });
-    fs.writeFileSync(path.join(MEDIA_DIR, name), buf);
-    log('info', 'scene', `Saved ${name} to the media folder (${Math.round(buf.length / 1024)} KB)`);
-    return send(res, 200, { file: name, files: mediaList() }), true;
+    const name = cleanFile(url.searchParams.get('name')).replace(/[^\w .()'&+-]/g, '_').replace(/^\.+/, '');
+    const kind = name && kindOf(name);
+    if (!kind) return send(res, 400, { error: 'Pick a PNG, JPG, GIF, WebP or SVG image, or an MP4, WebM or MOV video.' }), true;
+    const size = await saveUpload(req, name, kind === 'video' ? MAX_VIDEO : MAX_IMAGE);
+    log('info', 'scene', `Saved ${name} to the media folder (${Math.round(size / 1024)} KB)`);
+    const converted = path.extname(name).toLowerCase() === '.mov' ? convert(name) : null;
+    return send(res, 200, { file: name, converting: !!converted, cantConvert: converted === false, media: mediaList() }), true;
+  }
+  if (p === '/api/scene/convert' && req.method === 'POST') {
+    const name = cleanFile(url.searchParams.get('name'));
+    if (path.extname(name).toLowerCase() !== '.mov' || !fs.existsSync(path.join(MEDIA_DIR, name))) return send(res, 404, { error: `No ${name} in the media folder.` }), true;
+    if (!convert(name)) return send(res, 409, { error: 'ffmpeg is not installed on this Mac. Install it with Homebrew (brew install ffmpeg), then try again.' }), true;
+    return send(res, 200, { converting: true, media: mediaList() }), true;
   }
   if (p.startsWith('/media/')) {
     const file = cleanFile(decodeURIComponent(p.slice(7)));
-    const type = IMAGE_TYPES[path.extname(file).toLowerCase()];
-    if (!type) return send(res, 404, 'Not found', 'text/plain'), true;
-    fs.readFile(path.join(MEDIA_DIR, file), (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, type));
+    const type = MEDIA_TYPES[path.extname(file).toLowerCase()];
+    if (!type || file.startsWith('.')) return send(res, 404, 'Not found', 'text/plain'), true;
+    sendMedia(req, res, path.join(MEDIA_DIR, file), type, send);
     return true;
   }
   return false;
 }
 
-function init(logger) {
+function init(logger, { ffmpeg } = {}) {
   log = logger || log;
+  ffmpegSetting = ffmpeg || '';
   load();
   if (scene.sources.length) log('info', 'scene', `Scene has ${scene.sources.length} sources`);
 }

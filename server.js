@@ -75,7 +75,7 @@ process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(er
 
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
-scene.init(log);
+scene.init(log, { ffmpeg: MACHINE.ffmpegPath });
 
 // ─── Where the data comes from ──────────────────────────────────────────────
 // config.json holds the organisation's PlayHQ page link. From it we read the
@@ -2345,7 +2345,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
     if (url.pathname.startsWith('/api/scene') || url.pathname.startsWith('/media/')) {
-      if (await scene.route(req, res, url, { send, readBody, readRaw })) return;
+      if (await scene.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname.startsWith('/deck/')) {
       const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);

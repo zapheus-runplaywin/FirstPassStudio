@@ -372,7 +372,7 @@ paths:
       summary: Show, hide, toggle or refresh a scene source
       description: |
         For the scene built on the Output page (`/output.html`). `on` fades the source in and `off` fades it out,
-        each with the source's own fade time; `toggle` swaps between the two. `restart` reloads a page source.
+        each with the source's own fade time; `toggle` swaps between the two. `restart` reloads a page source or starts a video from the beginning.
         The source is found by its name as set on the Output page, which copies each source's links.
         The `board` parameter doesn't apply.
       operationId: layerAction
@@ -398,6 +398,35 @@ paths:
                   name: { type: string }
                   visible: { type: boolean }
         '404': { description: No source by that name in the scene }
+
+  /deck/layer/{name}/sound/{action}:
+    get:
+      tags: [Scene]
+      summary: Turn a video source's sound on or off
+      operationId: layerSound
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The video source's name, lower case with dashes for spaces
+          schema: { type: string }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+      responses:
+        '200':
+          description: Done. Returns the source's name, whether it's showing and whether its sound is on.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  name: { type: string }
+                  visible: { type: boolean }
+                  sound: { type: boolean }
+        '404': { description: No source by that name, or it isn't a video }
 
   /deck/layers/off:
     get:

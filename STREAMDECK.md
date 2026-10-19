@@ -155,7 +155,9 @@ Each source in the scene gets these links, using its name in lower case with das
 | Show or hide a source | http://localhost:8080/deck/layer/scoreboard/toggle |
 | Fade a source in | http://localhost:8080/deck/layer/scoreboard/on |
 | Fade a source out | http://localhost:8080/deck/layer/scoreboard/off |
-| Refresh a page source (replays its animation) | http://localhost:8080/deck/layer/winner/restart |
+| Refresh a page source (replays its animation), or start a video again | http://localhost:8080/deck/layer/winner/restart |
+| Turn a video's sound on or off | http://localhost:8080/deck/layer/intro/sound/toggle |
+| Video sound on / off | http://localhost:8080/deck/layer/intro/sound/on, http://localhost:8080/deck/layer/intro/sound/off |
 | Fade every source out | http://localhost:8080/deck/layers/off |
 
 Renaming a source on the Output page changes its links. These links replace the **OBS Studio** plugin's **Source** keys on nights you
