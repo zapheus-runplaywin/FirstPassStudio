@@ -33,6 +33,11 @@ function log(message) {
   } catch { /* nowhere to write */ }
 }
 
+// Plays VP9 videos with Chromium's own decoder, not the Mac's hardware one: the hardware decoder
+// drops a WebM's transparency (the alpha the scene's converted ProRes clips carry). H.264 and HEVC
+// still use the hardware.
+app.commandLine.appendSwitch('disable_accelerated_vp9_decode');
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
