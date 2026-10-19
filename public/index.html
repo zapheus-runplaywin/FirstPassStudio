@@ -116,7 +116,7 @@
         Friday before (the number of days is on the competition setup page). Otherwise it's the last round played. On a day with several
         rounds, it moves on to each round as its first game comes up.
         Pick a round from the list to test with it, then set it back to <b>Automatic</b>.</li>
-      <li><b>Always a game on:</b> when the helper starts, or the scoreboard is cleared, it puts a game on straight away with
+      <li><b>Always a game on:</b> when Studio starts, or the scoreboard is cleared, it puts a game on straight away with
         <b>Follow PlayHQ</b> on: the game for now on the court, otherwise this round's first game on that court, otherwise this
         round's first game. The board is only left empty if PlayHQ can't be reached or the competition isn't found (check the PlayHQ
         link and competition on the <a href="/setup.html" target="_blank">competition setup page</a>).</li>
@@ -178,31 +178,35 @@
   <div id="list"></div>
   <div class="card">
     <h2>Example graphics</h2>
-    <p class="page__help">Double-click <b>Make Examples (Mac).command</b> (or <b>Make Examples (Windows).bat</b>) in the PlayHQ Graphics folder
+    <p class="page__help">From a copy of the FirstPassStudio repository, double-click <b>Make Examples (Mac).command</b>
       to take a 1920 x 1080 picture of every graphic on this page with PlayHQ's data right now. They are saved in
       <b>Examples/&lt;date and time&gt;</b> with an <b>index.html</b> that shows them all, and keep the transparent background OBS sees.
       The pictures use the game, round and court picked on the control page, so pick those first. The Clash and the winner celebration are shown at the end of their animations, and the logo animations and the ad part way through.</p>
-    <p class="page__help">It uses the helper if it is running, otherwise starts it for the run, and needs Google Chrome (or Edge, Brave or
+    <p class="page__help">It uses Studio if it is on air (keep a Studio window open), otherwise starts it on its own for the run, and needs Google Chrome (or Edge, Brave or
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
   <div class="card">
     <h2>Mac app</h2>
-    <p class="page__help">FirstPass Studio also installs as a Mac app for Apple silicon Macs (M1 and later; no Node.js needed). It sits in the menu bar as the <b>1P</b> icon, runs this helper in the
-      background and restarts it if it stops. Its menu opens Studio, the control and setup pages, the settings folder and the debug log, and has
-      <b>Open at login</b> and <b>Check for updates</b>.
-      <b>Stop Studio</b> takes Studio off air: nothing talks to PlayHQ and the pages and Stream Deck get no answer until you choose <b>Start Studio</b>;
-      the line under the version says which (Studio is on air, or off air), and the page links are greyed out while it is off air.
-      Opened at login, the app sits in the menu bar with Studio off air, unless you tick <b>Start Studio at login</b>.
-      Opened by hand (from Applications or Spotlight), it starts Studio and opens the home page. Updates download by themselves and install when the app quits, never mid-stream.</p>
-    <p class="page__help">The app opens Studio's pages in its own window, like any Mac app: no address bar, tabs or bookmarks, the Studio header is the title bar
+    <p class="page__help">FirstPass Studio is a Mac app for Apple silicon Macs (M1 and later). Open it from Applications or Spotlight:
+      the home page opens in the app's own window, and the <b>1P</b> icon sits in the menu bar.</p>
+    <p class="page__help"><b>Studio only runs while a Studio window is open.</b> Opening a window (opening the app, <b>Open Studio</b> or any page
+      in the 1P menu, ⌘N) puts Studio on air: it serves the OBS pages and the Stream Deck links, talks to PlayHQ, and restarts by itself if it stops.
+      Closing the last Studio window takes it off air, so nothing talks to PlayHQ and the OBS pages and Stream Deck get no answer until a window opens again.
+      Closing the last window while on air asks first (<b>Take Off Air</b> or <b>Cancel</b>), and so does ⌘Q, so a stray keypress can't stop a stream.
+      Keep a window open, minimised or behind OBS, for the whole stream.</p>
+    <p class="page__help">The 1P menu opens Studio, the control and setup pages, the settings folder and the debug log, and has <b>Start Studio</b> (opens
+      the home page), <b>Stop Studio</b> (closes the Studio windows and goes off air), <b>Restart Studio</b>, <b>Open at login</b> and <b>Check for updates</b>.
+      The line under the version says whether Studio is on air or off air.
+      Opened at login, the app sits in the menu bar off air, unless you tick <b>Open Studio at login</b>, which opens the home page and goes on air.
+      Updates download by themselves and install when the app quits, never mid-stream.</p>
+    <p class="page__help">The app window is like any Mac app's: no address bar, tabs or bookmarks, the Studio header is the title bar
       (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
       open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
       <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘5), <b>View</b> for reload, back and zoom, and <b>New Window</b> (⌘N).
-      Closing the windows keeps Studio on air in the menu bar; ⌘Q while on air asks first, since quitting stops the graphics and Stream Deck.
-      While Studio is off air the window says so and opens the page again once you choose <b>Start Studio</b>.
-      To use your browser instead, tick <b>Open pages in the browser</b> in the 1P menu.
-      OBS still uses the page links as browser sources; the app window is for you.
-    <p class="page__help">Don't run the Start script at the same time; both use port 8080. Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
+      OBS still uses the page links as browser sources; the app window is for you.</p>
+    <p class="page__help">To use your browser instead, tick <b>Open pages in the browser</b> in the 1P menu. The app can't tell when browser tabs close,
+      so then Studio stays on air from <b>Start Studio</b> until <b>Stop Studio</b> or Quit.</p>
+    <p class="page__help">Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
   </div>
   <div class="card">
     <h2>Links (this Mac's .local name)</h2>
@@ -212,15 +216,15 @@
       computer or a Stream Deck on the same network. The port stays 8080, and <code style="display:inline">http://localhost:8080</code> still works on this Mac,
       so OBS sources and Stream Deck buttons you already have carry on.
       To change it, set <code style="display:inline">"linkHost"</code> in <code style="display:inline">config.json</code> in the data folder:
-      <code style="display:inline">"bonjour"</code> (the default), <code style="display:inline">"localhost"</code>, or any name or IP address, then restart the helper. On Windows the links stay localhost.</p>
+      <code style="display:inline">"bonjour"</code> (the default), <code style="display:inline">"localhost"</code>, or any name or IP address, then choose <b>Restart Studio</b> in the 1P menu.</p>
     <p class="page__help">Anything on the same network can open these pages and press the Stream Deck links (scores, clock, game), as it always could.
       Stream on a network you trust, not open venue Wi-Fi, or block incoming connections to FirstPass Studio in the Mac's firewall.</p>
   </div>
   <div class="card">
     <h2>Saved settings</h2>
     <p class="page__help">Everything Studio saves lives in one data folder on this computer, outside the app, so updates never touch it:
-      <code style="display:inline">~/Library/Application Support/FirstPass Studio</code> on a Mac,
-      <code style="display:inline">%APPDATA%\FirstPass Studio</code> on Windows (the setup page shows where).</p>
+      <code style="display:inline">~/Library/Application Support/FirstPass Studio</code> (the setup page shows where, and
+      <b>Open the settings folder</b> in the 1P menu opens it).</p>
     <ul class="page__help">
       <li><b>competitions/</b>: a folder per competition with its setup (<code style="display:inline">settings.json</code>), team logos, competition logo,
         athlete photos and athlete register, and <b>active.json</b>, the one in use.</li>
@@ -228,7 +232,7 @@
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ) from the app's defaults.</li>
-      <li><b>app-settings.json</b>: the Mac app's own choices (whether Studio starts at login, opening pages in the browser instead of the app window, and where the window was).</li>
+      <li><b>app-settings.json</b>: the Mac app's own choices (whether Studio opens at login, opening pages in the browser instead of the app window, and where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <p class="page__help">Studio starts with no competitions. On the <a href="/setup.html" target="_blank">competition setup page</a>,
@@ -240,17 +244,17 @@
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> keep asking for new data (the control page does too, but it isn't in OBS). <b>countdown.html</b> also asks the helper which game is picked every 5 seconds, and <b>ticker.html</b> asks for its speed every 3 seconds, but neither reaches PlayHQ.
-      The super shot page asks the helper every second for the scoreboard and nothing else, so it adds no PlayHQ requests.
+    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> keep asking for new data (the control page does too, but it isn't in OBS). <b>countdown.html</b> also asks Studio which game is picked every 5 seconds, and <b>ticker.html</b> asks for its speed every 3 seconds, but neither reaches PlayHQ.
+      The super shot page asks Studio every second for the scoreboard and nothing else, so it adds no PlayHQ requests.
       Every other graphic gets its data once when it loads, so tick <b>Refresh browser when scene becomes active</b> in OBS to update it.
-      The Clash and the winner celebration only retry if the helper isn't running.</p>
-    <p class="page__help">Pages only ever talk to the helper on this computer, which uses no internet. The helper is the only thing that
+      The Clash and the winner celebration only retry if Studio isn't running.</p>
+    <p class="page__help">Pages only ever talk to Studio on this computer, which uses no internet. Studio is the only thing that
       contacts PlayHQ, and it caches what it gets:</p>
     <ul class="page__help">
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
-      <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and the helper works out the goal order from it.</li>
+      <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
       <li>Athletes page: when you open a team, the line up of each of its games this season, once (finished games are kept for an hour).</li>
@@ -271,7 +275,7 @@ function copy(text, button) {
   document.execCommand('copy'); t.remove(); done();
 }
 // The links shown and copied start with the Mac's Bonjour name (e.g. http://matts-macbook-pro.local:8080),
-// from the helper, so they work on this Mac and from other devices on the network. Until the helper
+// from Studio, so they work on this Mac and from other devices on the network. Until Studio
 // answers they use this page's own address. Preview opens the page the same way this one was opened.
 let linkBase = location.origin;
 const links = [];
@@ -327,13 +331,13 @@ showLink('/scoreboard.html', document.getElementById('sbUrl'), document.getEleme
   '<code>?board=2</code> for the second court.'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
   'Who scored each of the last 10 goals of the game on the scoreboard, oldest to newest, with the quarter and time of each, a momentum line (up for a home goal, down for an away goal, shaded in the club colours), ' +
   'how many of the 10 each team scored, and the current run (3 or more in a row lights up). Super goals show a +2 badge. Like the scoreboard it updates itself every 2 seconds, so it can stay on screen: new goals pop in and the older ones slide along. ' +
-  'PlayHQ only gives running totals, not a list of goals, so the order is worked out by the helper from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on the control page or Stream Deck. ' +
+  'PlayHQ only gives running totals, not a list of goals, so the order is worked out by Studio from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on the control page or Stream Deck. ' +
   'A -1 or -2 takes that team\'s latest goal off. The list starts again when a new game is picked or the scores are reset. It only builds while the scoreboard (or this page) is open, and if the score jumps by more than 3 for one team at once, or the game was picked part way through, a dashed … marks the gap. ' +
   'Options: <code>?layout=vertical</code> (the default is <code>horizontal</code>, above the scoreboard), <code>?count=8</code> shows a different number of goals (3 to 30), <code>?times=0</code> leaves the quarter and time off, ' +
   '<code>?position=top</code> or <code>middle</code> moves the horizontal one, <code>?position=left</code> puts the vertical one on the left, <code>?title=Momentum</code> changes the heading and <code>?board=2</code> is for the second court.'],
  ['Last 10 goals: vertical', '/goals.html?layout=vertical'], ['Up next (half time)', '/upnext.html'], ['Countdown to the start of the game', '/countdown.html',
   'Counts down (days, hours, minutes and seconds as needed) to the scheduled start time from PlayHQ of the game picked on the control page, with both teams, their logos, the division, round, court, time and venue. ' +
-  'The clock ticks in the page, so it can stay on screen: every 5 seconds it checks with the helper which game is picked (PlayHQ is not asked), so when a new game is picked, by hand or by automatic game selection, it counts down to that one. ' +
+  'The clock ticks in the page, so it can stay on screen: every 5 seconds it checks with Studio which game is picked (PlayHQ is not asked), so when a new game is picked, by hand or by automatic game selection, it counts down to that one. ' +
   'The last 10 seconds pulse in the accent colour, and at zero it shows <b>STARTING SOON</b> until the next game is picked. ' +
   'Options: <code>?end=Game%20on</code> changes the words at zero (keep them short), <code>?end=hide</code> fades the card away instead, <code>?fade=1</code> fades the whole card out smoothly over the last 5 seconds so it is gone at zero (<code>?fade=8</code> over 8 seconds), <code>?label=Next%20game%20in</code> changes the heading, ' +
   '<code>?teams=0</code> shows the clock only, <code>?position=top</code> or <code>bottom</code> moves it (the default is the middle of the screen) and <code>?board=2</code> is for the second court.'], ['Position match ups (athlete photos)', '/positions.html',
@@ -347,7 +351,7 @@ showLink('/scoreboard.html', document.getElementById('sbUrl'), document.getEleme
   'Scrolling scores from the other games this round, leaving out the game on the scoreboard. It updates its scores itself every 30 seconds (<code>?refresh=0</code> loads once). ' +
   '<b>Speed:</b> set it on the control page (<b>Ticker speed</b> in pixels a second, with <b>Slower</b>, <b>Faster</b> and <b>Normal (120)</b>) or from the Stream Deck with ' +
   '<code>/deck/ticker/faster</code>, <code>/deck/ticker/slower</code>, <code>/deck/ticker/normal</code> or <code>/deck/ticker/speed/80</code>. Faster and slower change it by 20, between 20 and 600. ' +
-  'The ticker asks the helper for the speed every 3 seconds (PlayHQ is not asked) and changes without starting the scroll again; the speed is remembered in control.json. ' +
+  'The ticker asks Studio for the speed every 3 seconds (PlayHQ is not asked) and changes without starting the scroll again; the speed is remembered in control.json. ' +
   '<code>?speed=80</code> fixes the speed for that link only, ignoring the control page, and <code>?board=2</code> is for the second court.']]
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
 document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html',

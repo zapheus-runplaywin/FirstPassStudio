@@ -99,7 +99,7 @@
     } catch (err) {
       console.warn("Ladder unavailable:", err.message);
       showMessage(location.protocol === 'file:'
-        ? 'Open this page through the helper (http://localhost:8080/ladder.html), not as a file.'
+        ? 'Open this page through Studio (http://localhost:8080/ladder.html), not as a file.'
         : `Ladder unavailable: ${err.message}`);
     }
   }

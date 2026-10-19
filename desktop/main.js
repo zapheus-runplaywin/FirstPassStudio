@@ -1,14 +1,13 @@
 // FirstPass Studio - the Mac app.
 //
-// A menu bar app around the same helper (server.js) the Start script runs: it starts the
-// helper in the background, keeps it running, and opens the pages in its own window (windows.js),
-// or the browser if chosen. OBS and the Stream Deck use the links on the home page (the Mac's
-// .local name, or localhost).
+// A menu bar app around the helper (server.js): it opens Studio's pages in its own window
+// (windows.js), or the browser if chosen, and runs the helper in the background only while a
+// Studio window is open. Opening a window puts Studio on air; closing the last one takes it off
+// air, so nothing talks to PlayHQ while Studio isn't on screen. OBS and the Stream Deck use the
+// links on the home page (the Mac's .local name, or localhost).
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
-// installing or updating the app never touches. "Stop Studio" in the menu stops it, so
-// the app can open at login and sit in the menu bar without talking to PlayHQ until it is
-// started. Updates download in the background and
+// installing or updating the app never touches. Updates download in the background and
 // are installed when the app quits, so they never interrupt a stream.
 
 'use strict';
@@ -35,8 +34,8 @@ function log(message) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  // Opening the app again by hand: start the helper if it is stopped, then open Studio.
-  app.on('second-instance', async () => { if (!helper && await startHelperChecked()) await waitUntilRunning(); openPage('/'); });
+  // Opening the app again by hand opens Studio (and puts it on air).
+  app.on('second-instance', () => openPage('/'));
   app.whenReady().then(start);
 }
 
@@ -53,10 +52,17 @@ const HOST = linkHost(MACHINE.linkHost);
 const pageUrl = p => `http://${HOST}:${PORT}${p}`;
 // Opens a page in the browser; on localhost if the .local name doesn't answer (no network).
 const openInBrowser = p => require('dns').lookup(HOST, err => shell.openExternal(err ? `http://localhost:${PORT}${p}` : pageUrl(p)));
-// Opens a page in the app's own window (or the browser, if ticked in the menu).
-const openPage = p => windows.open(p);
+// Opens a page in the app's own window (or the browser, if ticked in the menu), putting Studio
+// on air first. Nothing opens if Studio can't start (something else has the port).
+async function openPage(p) {
+  if (!helper) {
+    if (!await startHelperChecked()) return;
+    await waitUntilRunning();
+  }
+  windows.open(p);
+}
 
-// Whether something already answers on the port (the Start script, or another copy).
+// Whether something already answers on the port (another copy, or server.js run by hand).
 function answering() {
   return new Promise(resolve => {
     const req = http.get(`http://localhost:${PORT}/api/version`, { timeout: 1500 }, res => { res.resume(); resolve(true); });
@@ -75,11 +81,16 @@ function saveAppSetting(key, value) {
 const windows = require('./windows')({
   port: PORT, linkHost: HOST, appSettings, saveAppSetting, log, openBrowser: openInBrowser,
   isOnAir: () => wanted && !!helper,
+  // A window opened another way (File > New Window, a link opening a new tab) puts Studio on air too.
+  onWindowOpened: () => { if (!helper && !wanted) startHelperChecked(); },
+  // The last window closed: Studio goes off air, unless pages open in the browser instead
+  // (the app can't see browser tabs, so then Stop Studio takes it off air).
+  onAllClosed: () => { if (!appSettings().openInBrowser) { log('Last Studio window closed'); stopHelper(); } },
 });
 
 // ─── The helper ─────────────────────────────────────────────────────────────
-// wanted: whether it should be running (chosen from the menu), so a pending restart doesn't
-// bring back a helper that was just stopped.
+// wanted: whether it should be running (a Studio window is open, or Start Studio was chosen with
+// pages in the browser), so a pending restart doesn't bring back a helper that was just stopped.
 let helper = null, wanted = false, status = 'Studio is off air', quitting = false, restarts = 0, tray = null;
 
 function startHelper() {
@@ -110,8 +121,8 @@ function startHelper() {
   });
 }
 
-// Starts the helper unless something else already answers on the port (the Start script,
-// or another copy). Resolves true if it started.
+// Starts the helper unless something else already answers on the port (another copy, or
+// server.js run by hand from the repository). Resolves true if it started.
 async function startHelperChecked() {
   if (helper) return true;
   status = 'Starting…'; refreshMenu();
@@ -120,7 +131,7 @@ async function startHelperChecked() {
     const { response } = await dialog.showMessageBox({
       type: 'warning', buttons: ['Try again', 'Cancel'], defaultId: 0, cancelId: 1,
       message: `Something is already using port ${PORT}`,
-      detail: 'FirstPass Studio may already be running from the Start script. Close that window, then choose Try again.',
+      detail: 'FirstPass Studio may already be running from a copy of the repository (npm start). Stop that, then choose Try again.',
     });
     if (response === 1) { status = 'Studio is off air'; refreshMenu(); return false; }
   }
@@ -139,7 +150,7 @@ async function waitUntilRunning() {
 }
 
 // Stops the helper: nothing talks to PlayHQ, and the pages and the Stream Deck get no answer
-// until it is started again.
+// until a Studio window opens again.
 function stopHelper() {
   wanted = false;
   if (!helper) { status = 'Studio is off air'; refreshMenu(); return; }
@@ -149,7 +160,13 @@ function stopHelper() {
   child.kill();
   status = 'Studio is off air'; refreshMenu();
   windows.showOffAir();
-  log('Helper stopped from the menu');
+  log('Helper stopped');
+}
+
+// Stop Studio in the menu bar: closes the Studio windows (without asking) and goes off air.
+function stopStudio() {
+  windows.closeAll({ confirmed: true });
+  stopHelper();
 }
 
 function restartHelper() {
@@ -174,12 +191,12 @@ function refreshMenu() {
     { label: `FirstPass Studio ${app.getVersion()}`, enabled: false },
     { label: status, enabled: false },
     running || pending
-      ? { label: 'Stop Studio', click: stopHelper }
-      : { label: 'Start Studio', enabled: status !== 'Starting…', click: () => startHelperChecked() },
+      ? { label: 'Stop Studio', click: stopStudio }
+      : { label: 'Start Studio', enabled: status !== 'Starting…', click: () => openPage('/') },
     { type: 'separator' },
-    { label: 'Open Studio', enabled: running, click: () => openPage('/') },
-    { label: 'Scoreboard control', enabled: running, click: () => openPage('/control.html') },
-    { label: 'Competition setup', enabled: running, click: () => openPage('/setup.html') },
+    { label: 'Open Studio', click: () => openPage('/') },
+    { label: 'Scoreboard control', click: () => openPage('/control.html') },
+    { label: 'Competition setup', click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
     { label: 'Open pages in the browser', type: 'checkbox', checked: !!appSettings().openInBrowser, click: item => { saveAppSetting('openInBrowser', item.checked); refreshMenu(); } },
     { type: 'separator' },
@@ -188,7 +205,7 @@ function refreshMenu() {
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
-    { label: 'Start Studio at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
+    { label: 'Open Studio at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
     updateReady
       ? { label: `Restart to update to ${updateReady}`, click: () => { quitting = true; require('electron-updater').autoUpdater.quitAndInstall(); } }
       : { label: 'Check for updates', enabled: app.isPackaged, click: () => checkForUpdates(true) },
@@ -229,23 +246,23 @@ async function start() {
   windows.refreshMenu();
   log(`Starting ${app.getVersion()}, settings in ${DATA_DIR}`);
 
-  // Opened at login, the helper stays stopped (nothing talks to PlayHQ) unless "Start the
-  // helper at login" is ticked. Opened by hand, it starts and opens Studio, with the splash
-  // (the 1P Studio logo) showing until Studio's window opens.
+  // Opened at login, the app sits in the menu bar off air (nothing talks to PlayHQ) unless
+  // "Open Studio at login" (startHelperAtLogin) is ticked. Opened by hand, it opens Studio,
+  // which puts it on air, with the splash (the 1P Studio logo) showing until Studio's window opens.
   const atLogin = app.getLoginItemSettings().wasOpenedAtLogin;
   if (!atLogin) windows.showSplash();
   if (atLogin && !appSettings().startHelperAtLogin) {
-    log('Opened at login: the helper stays stopped until started from the menu');
-  } else if (await startHelperChecked() && !atLogin) {
+    log('Opened at login: off air until Studio is opened');
+  } else if (await startHelperChecked()) {
     await waitUntilRunning();
     windows.splashStatus(helper ? 'Studio is on air' : 'Still starting…', !!helper);
-    openPage('/');
+    await openPage('/');
   }
   checkForUpdates(false);
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
 }
 
-app.on('window-all-closed', e => e.preventDefault()); // no windows: keep running in the menu bar
+app.on('window-all-closed', e => e.preventDefault()); // no windows: the app stays in the menu bar, off air
 // Clicking the Dock icon with no window open opens Studio.
-app.on('activate', (e, hasWindows) => { if (!hasWindows && helper) openPage('/'); });
+app.on('activate', (e, hasWindows) => { if (!hasWindows) openPage('/'); });
 app.on('before-quit', () => { quitting = true; if (helper) helper.kill(); });

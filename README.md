@@ -1,4 +1,4 @@
-# PlayHQ Graphics
+# FirstPass Studio
 
 Transparent ladder, scoreboard and game overlays for OBS, fed live from PlayHQ's public data (no API key). Set up for
 Thunder League, with saved setups ready for the AMMNA Nationals and GIG WANL (the WA Netball League).
@@ -9,8 +9,7 @@ offline. The OBS overlays don't use it: they keep the colours, font and logos of
 
 ## One-time setup
 
-1. Install the FirstPass Studio app (see **Desktop app** below), or, to run from a copy of the repository, install
-   Node.js (the LTS version) from https://nodejs.org.
+1. Install the FirstPass Studio app (see **Desktop app** below) and open it.
 2. Open the competition setup page and **Import** your competition (Thunder League, AMMNA Nationals or GIG WANL), or make a new one.
 
 ## Competition setup
@@ -52,7 +51,6 @@ Everything Studio saves lives in one data folder on this computer, outside the a
 installing an update never touches it:
 
 - Mac: `~/Library/Application Support/FirstPass Studio`
-- Windows: `%APPDATA%\FirstPass Studio`
 - Set `FIRSTPASS_DATA_DIR` to use another folder.
 
 In it:
@@ -65,7 +63,7 @@ In it:
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log.
-- `app-settings.json`: the Mac app's own choices (whether Studio starts at login).
+- `app-settings.json`: the Mac app's own choices (whether Studio opens at login, pages in the browser, the window's size and position).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
 
 ### Import configs
@@ -94,9 +92,15 @@ removes the tracked `competitions/` files when you pull, so import your competit
 ## Desktop app (Mac)
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
-the app to Applications and open it. It lives in the menu bar (the **1P** icon), runs the same helper as the Start
-script in the background, restarts it if it stops, and opens the home page in its own window. OBS and the Stream Deck
-use the same links as the home page. Don't run the Start script at the same time: they share port 8080.
+the app to Applications and open it. It opens the home page in its own window and lives in the menu bar (the **1P**
+icon). OBS and the Stream Deck use the same links as the home page.
+
+**Studio only runs while a Studio window is open.** Opening a Studio window (opening the app, **Open Studio** or any
+page in the menu bar icon, ⌘N) puts Studio on air: it serves the OBS pages and the Stream Deck links, talks to PlayHQ,
+and restarts by itself if it stops. Closing the last Studio window takes it off air, so nothing talks to PlayHQ and
+the OBS pages and Stream Deck get no answer until a window opens again. Closing the last window while on air asks
+first (**Take Off Air** or **Cancel**), so a stray ⌘W can't stop a stream. Keep a window open, minimised or behind
+OBS, for the whole stream.
 
 ### Links use the Mac's .local name
 
@@ -106,21 +110,24 @@ the Mac's Bonjour name, e.g. `http://matts-macbook-pro.local:8080/`, instead of 
 another computer or a Stream Deck on the same network, without looking up an IP address. The port stays 8080.
 `http://localhost:8080` still works on the Mac, so existing OBS sources and Stream Deck buttons carry on as they are.
 To go back to `localhost` links (or use a fixed name or IP address), set `"linkHost": "localhost"` (or that name) in
-`config.json` in the data folder; `"bonjour"` is the default. On Windows and Linux the links stay `localhost`.
+`config.json` in the data folder; `"bonjour"` is the default.
 
-The helper has always listened on every network connection, not just this Mac, so anything on the same network can
+Studio has always listened on every network connection, not just this Mac, so anything on the same network can
 open the pages and press the Stream Deck links (scores, clock, game). Stream on a network you trust (not open venue
 Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
 The menu bar icon has: Start/Stop Studio, Open Studio, Scoreboard control, Competition setup, Copy the Studio link,
-Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Start Studio at login, Check for updates
-and Quit. (In the menu, "Studio" means the helper.)
+Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
+login, Check for updates and Quit.
 
-**Stop Studio** stops the helper and takes Studio off air, so nothing talks to PlayHQ until **Start Studio** is
-chosen; the status line under the version reads "Studio is on air at …" or "Studio is off air", and the page links
-are greyed out while off air. Opened at login, the app sits in the menu bar off air unless **Start Studio at login**
-is ticked (saved as `startHelperAtLogin` in `app-settings.json` in the data folder). Opened by hand, it starts Studio
-and opens the home page, as before.
+The status line under the version reads "Studio is on air at …" or "Studio is off air". **Start Studio** opens the
+home page, which puts Studio on air; **Stop Studio** closes the Studio windows without asking and takes it off air.
+Opened at login, the app sits in the menu bar off air unless **Open Studio at login** is ticked (saved as
+`startHelperAtLogin` in `app-settings.json` in the data folder), which opens the home page and goes on air. Opened by
+hand, it opens the home page.
+
+With **Open pages in the browser** ticked the app can't tell when the browser tabs close, so Studio stays on air from
+**Start Studio** (or any page opened from the menu) until **Stop Studio** or Quit.
 
 ### The app window
 
@@ -130,14 +137,13 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 home,
-⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs) and Window. Closing every window keeps Studio running; ⌘Q while on
-air asks first (Close Windows, Quit or Cancel). While Studio is off air or starting, the window shows `desktop/offair.html`
-and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
+⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs) and Window. Closing the last window takes Studio off air (see
+above), and ⌘Q while on air asks first (Quit or Cancel). While Studio is starting, or if it couldn't start, the window
+shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
 **Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
 the browser as before. OBS keeps using the links as browser sources.
 
-Settings live in the data folder (see **Saved settings**), which the app and the Start script share, so moving from one
-to the other keeps everything. Updates download in the background and install when the app quits, so they never
+Settings live in the data folder (see **Saved settings**). Updates download in the background and install when the app quits, so they never
 interrupt a stream; once one has downloaded, **Restart to update** in the menu installs it straight away. Settings
 are brought up to date and backed up on the first start of the new version.
 
@@ -152,7 +158,7 @@ be higher than the last published one (updates only go to a higher version). The
 
 **Every merge to main publishes automatically**: the workflow runs by itself, builds the next patch version and
 publishes it as an update, so installed apps pick up each merged PR. Merges that only change documentation (`.md`
-files, `docs/`, the Start and Update scripts) don't publish. Use **Run workflow** for a minor or major version, a
+files, `docs/`, the Make Examples scripts) don't publish. Use **Run workflow** for a minor or major version, a
 specific version, or a test build without publishing. Builds run one at a time, so two quick merges get two versions.
 
 Each run tags the commit of this repository it built from, so any build can be traced to its code: `v0.1.3` for a
@@ -177,22 +183,24 @@ One-time setup:
 
 To build on your own Mac instead: `npm install`, then `npm run dist` (signs with the Developer ID certificate in your
 keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to notarise). The app is in `dist/`.
-`npm run app` runs it from the repository without building.
+`npm run app` runs it from the repository without building (needs Node.js, the LTS version, from https://nodejs.org).
+`npm start` runs Studio on its own, without the app, for working on the pages; it uses the same data folder and port,
+so don't run it while the app is on air.
 
 ## Each stream
 
-1. Open the FirstPass Studio app, or double-click `Start (Mac).command` or `Start (Windows).bat` and leave the window open.
-   The first time on a Mac, right-click it and choose Open, then Open again, because it was downloaded.
-2. Open http://localhost:8080/ to see the three division links (and copy them).
+1. Open the FirstPass Studio app. Its home page opens and Studio goes on air; leave a Studio window open for the
+   whole stream (closing the last one takes Studio off air).
+2. The home page lists the three division links (with Copy buttons).
 3. In OBS add a **Browser** source per division, width 1920, height 1080:
    - http://localhost:8080/ladder.html?division=1
    - http://localhost:8080/ladder.html?division=2
    - http://localhost:8080/ladder.html?division=3
 
 4. For the live scoreboard, add http://localhost:8080/scoreboard.html as another Browser source (1920 x 1080),
-   then open http://localhost:8080/control.html in your browser to run it.
+   then open **Scoreboard control** (⌘2 in the app, or from the 1P icon) to run it.
 
-Only the scoreboard updates itself (every second, and it reloads when the helper restarts), along with the last 10 goals (every 2 seconds) and the ticker. Every other page
+Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds) and the ticker. Every other page
 loads once when OBS shows it: in each Browser source tick **Refresh browser when scene becomes active**, or
 right-click the source and choose **Refresh** to get the latest. Divisions are numbered in name order, as listed on the
 http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
@@ -203,17 +211,17 @@ Browser source, so the pages render at the stream's rate (a custom rate of 30 wo
 
 ## Example graphics
 
-Double-click `Make Examples (Mac).command` (or `Make Examples (Windows).bat`, or run `node examples.js`) to save a
+From a copy of the repository, double-click `Make Examples (Mac).command` (or run `node examples.js`) to save a
 1920 x 1080 picture of every graphic with PlayHQ's current data in `Examples/<date and time>/`, with an `index.html`
 to look through them. Pictures keep the transparent background. They follow the game, round and court picked on the
-control page. It uses the running helper or starts one for the run, and needs Node 22+ and Google Chrome, Edge, Brave
+control page. It uses Studio if it is on air (keep a Studio window open), or starts it on its own for the run, and needs Node 22+ and Google Chrome, Edge, Brave
 or Chromium (set `CHROME_PATH` for another one).
 
 ## Debug log
 
 Everything goes into `logs/playhq-graphics.log` in the data folder: each page opening, errors and warnings from every page
 (including OBS), every PlayHQ request and its answer code, Game Summary requests, scoreboard and Stream Deck
-changes, and helper errors. Read it at http://localhost:8080/api/log. It never grows past 15 MB
+changes, and Studio errors. Read it at http://localhost:8080/api/log. It never grows past 15 MB
 (`logMaxMB` in `config.json`): when full, the oldest half is removed. If something goes wrong, send that file to Claude.
 
 ## Round fixture
@@ -245,7 +253,7 @@ as if they were today, so you can test the timed switching on any night.
 `ladder.html` without `?division=` shows the division of the game picked on the control page. Its corner logo is the
 dark mode competition logo, since it sits on the coloured header; `?mode=light` uses the light mode one.
 
-**Always a game on.** When the helper starts, or the scoreboard is cleared, it puts a game on with Follow PlayHQ on: the
+**Always a game on.** When Studio starts, or the scoreboard is cleared, it puts a game on with Follow PlayHQ on: the
 game for now on the court, otherwise this round's first game on that court, otherwise this round's first game. It is only
 left empty if PlayHQ can't be reached or the competition isn't found (check `organisationUrl` and `competitionName`).
 
@@ -257,7 +265,7 @@ Follow PlayHQ on, the quarter back to Q1 and a full clock. In finals (a round wi
 final on until PlayHQ marks it finished, in case of extra time. You can change the court on the control page or with
 `/deck/court/2`. Picking a game from the list turns automatic selection off; tick it again (or `/deck/auto/on`) to go back.
 Untick **Pick the game automatically** on the setup page to start with it off.
-Before a game's electronic scoring starts the helper doesn't ask PlayHQ's live feed for it at all (automatic or picked by hand),
+Before a game's electronic scoring starts Studio doesn't ask PlayHQ's live feed for it at all (automatic or picked by hand),
 since PlayHQ only answers "not electronically scored"; the control page says when it will start checking.
 
 On the control page, pick the game from this round's PlayHQ fixtures and press **Use this game**.
@@ -283,7 +291,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 - http://localhost:8080/upnext.html: the next game on the same court, for half time. With no game picked, it
   assumes the stream is on the first timeslot and shows the game after it.
 - http://localhost:8080/countdown.html: counts down to the scheduled start time of the game picked on the control page,
-  with both teams, logos, division, round, court, time and venue. The clock ticks in the page and it asks the helper (never PlayHQ)
+  with both teams, logos, division, round, court, time and venue. The clock ticks in the page and it asks Studio (never PlayHQ)
   every 5 seconds which game is picked, so it follows a new game without a refresh. The last 10 seconds pulse; at zero it shows
   STARTING SOON. `?end=Game%20on` changes those words, `?end=hide` fades it away instead, `?fade=1` fades it out over the last 5 seconds (`?fade=8` over 8), `?label=` changes the heading,
   `?teams=0` shows the clock only and `?position=top` or `bottom` moves it.
@@ -302,7 +310,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
   with sparks, SUPER and SHOT slam in from either side with the team's logo and name in their club colour,
   then it fades out and leaves the frame clear. Leave it on in OBS: it watches the scoreboard and plays by itself for each
   super shot (a +2 press, or the PlayHQ scorer's super shot count going up while following PlayHQ; `?board=2` for the second court).
-  It asks the helper every second, which asks PlayHQ nothing extra. `/deck/home/supershot` plays it without changing the score.
+  It asks Studio every second, which asks PlayHQ nothing extra. `/deck/home/supershot` plays it without changing the score.
   Manual: `?team=home`, `?team=away` or `?team=none` plays it once when the source comes on instead (tick "Shutdown source when
   not visible" and "Refresh browser when scene becomes active"). Details in STREAMDECK.md.
 - http://localhost:8080/goals.html: the last 10 goals of the game, oldest to newest, for showing trends and changes in momentum.
@@ -311,7 +319,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
   (3 or more in a row lights up). `?layout=vertical` stacks it down the right-hand side (`horizontal`, above the scoreboard,
   is the default). Like the scoreboard it updates itself (every 2 seconds), so it can stay on. `?count=8` (3 to 30),
   `?times=0`, `?position=top|middle` (horizontal) or `left` (vertical), `?title=Momentum`, `?board=2`.
-  PlayHQ's live feed only has running totals, not a list of goals, so the helper works out the order from the score going
+  PlayHQ's live feed only has running totals, not a list of goals, so Studio works out the order from the score going
   up between its readings (every 5 seconds while following PlayHQ, split into goals and super goals by PlayHQ's goal
   counts) and from each +1 / +2 press. -1 / -2 takes that team's latest goal off. The list restarts when a game is picked or
   the scores are reset, builds only while the scoreboard (or this page) is open, and marks a gap with a dashed … when a
@@ -441,5 +449,5 @@ pick each winner (the score is optional); those are kept in `control.json`, and 
 - `&refresh=30` makes a ladder reload itself every 30 seconds (off by default).
 - `&rows=8` shows only the top 8 teams.
 - Quarter (or half) length and the season are on the competition setup page.
-- Colours and font are on the competition setup page (the helper writes `theme.css` from them). Sizes and position are at the top of `public/ladder.css` and `public/scoreboard.css`.
+- Colours and font are on the competition setup page (Studio writes `theme.css` from them). Sizes and position are at the top of `public/ladder.css` and `public/scoreboard.css`.
 - The ladder marks the finals places from the division's finals format (see **Finals**); their colours are at the top of the finals part of `public/ladder.css`.

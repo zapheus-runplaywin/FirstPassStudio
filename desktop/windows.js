@@ -7,6 +7,9 @@
 // links to anywhere else (PlayHQ, GitHub) open in the browser. "Open in Browser" in the File
 // menu opens the page on show in the browser, and the menu bar icon can send every page to
 // the browser instead (saved as openInBrowser in app-settings.json).
+//
+// Studio is on air only while one of these windows is open: opening one starts it (main.js) and
+// closing the last one takes it off air, after asking if it is on air.
 
 'use strict';
 
@@ -24,7 +27,7 @@ const HEADER_CSS = `
   .fp-bar a, .fp-bar button, .fp-bar input, .fp-bar select { -webkit-app-region: no-drag; }
 `;
 
-module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, openBrowser }) {
+module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, openBrowser, onWindowOpened, onAllClosed }) {
   const local = p => `http://localhost:${port}${p}`;
   // A page on this Studio: localhost, or the .local name the home page's links use.
   const isStudio = u => {
@@ -38,6 +41,19 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   const linkFor = u => { const url = new URL(u); url.hostname = linkHost; return url.toString(); };
 
   let main = null; // the window "Open Studio" reuses
+  let quitting = false; // quitting closes every window without asking again
+  app.on('before-quit', () => { quitting = true; });
+
+  // Closing the last window takes Studio off air (unless pages open in the browser), so on air
+  // it asks first: mid-stream that would stop the OBS graphics and the Stream Deck.
+  const closingGoesOffAir = () => isOnAir() && !appSettings().openInBrowser;
+  function confirmOffAir(parent) {
+    return dialog.showMessageBoxSync(parent || undefined, {
+      type: 'warning', buttons: ['Take Off Air', 'Cancel'], defaultId: 1, cancelId: 1,
+      message: 'Take Studio off air?',
+      detail: 'Studio only runs while a Studio window is open. Closing the last one stops the OBS graphics and Stream Deck buttons until Studio is opened again.',
+    }) === 0;
+  }
 
   // ─── Splash ─────────────────────────────────────────────────────────────
   // The 1P Studio logo, shown while the app starts Studio when opened by hand. It stays up for
@@ -145,9 +161,15 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       win.on('moved', keep);
       win.on('closed', () => { if (main === win) main = null; });
     }
-    win.on('closed', () => setImmediate(refreshDock));
+    win.on('close', e => {
+      if (quitting || win.confirmedClose || pageWindows().some(w => w !== win) || !closingGoesOffAir()) return;
+      if (confirmOffAir(win)) win.confirmedClose = true;
+      else e.preventDefault();
+    });
+    win.on('closed', () => setImmediate(() => { refreshDock(); if (!pageWindows().length && !quitting) onAllClosed(); }));
     win.loadURL(url);
     refreshDock();
+    onWindowOpened();
     return win;
   }
 
@@ -179,19 +201,24 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     }
   }
 
-  function closeAll() { for (const w of pageWindows()) w.close(); }
+  // Closes every Studio window, which takes Studio off air; asks once first if it is on air,
+  // unless already confirmed (Stop Studio in the menu bar).
+  function closeAll({ confirmed = false } = {}) {
+    const all = pageWindows();
+    if (!all.length) return;
+    if (!confirmed && closingGoesOffAir() && !confirmOffAir(current())) return;
+    for (const w of all) { w.confirmedClose = true; w.close(); }
+  }
 
-  // Quitting takes Studio off air, so ⌘Q mid-stream asks first: closing the windows keeps it
-  // running in the menu bar.
+  // Quitting takes Studio off air, so ⌘Q mid-stream asks first.
   async function quit() {
     if (!isOnAir()) return app.quit();
     const { response } = await dialog.showMessageBox(current() || undefined, {
-      type: 'warning', buttons: ['Close Windows', 'Quit', 'Cancel'], defaultId: 0, cancelId: 2,
+      type: 'warning', buttons: ['Quit', 'Cancel'], defaultId: 1, cancelId: 1,
       message: 'Quit FirstPass Studio?',
-      detail: 'Quitting takes Studio off air: the OBS graphics and Stream Deck buttons stop working. Close the windows instead to keep Studio running in the menu bar.',
+      detail: 'Quitting takes Studio off air: the OBS graphics and Stream Deck buttons stop working.',
     });
-    if (response === 0) closeAll();
-    else if (response === 1) app.quit();
+    if (response === 0) app.quit();
   }
 
   // After Stop Studio: open pages say Studio is off air rather than failing quietly.
@@ -217,7 +244,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
           { role: 'hideOthers' },
           { role: 'unhide' },
           { type: 'separator' },
-          { label: 'Close Studio Windows', accelerator: 'CmdOrCtrl+Alt+W', click: closeAll },
+          { label: 'Close Studio Windows', accelerator: 'CmdOrCtrl+Alt+W', click: () => closeAll() },
           { label: 'Quit FirstPass Studio', accelerator: 'CmdOrCtrl+Q', click: quit },
         ],
       },
@@ -263,5 +290,5 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       { role: 'windowMenu' },
     ]));
   }
-  return { open, reloadOffAir, showOffAir, refreshMenu, showSplash, closeSplash, splashStatus };
+  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus };
 };
