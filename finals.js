@@ -17,6 +17,10 @@
 //   bye     a week off in the first week of finals
 //   elim    an elimination final: lose and they're out
 //   third   plays for third place
+//   placing plays for a place lower down (every team plays on grand final day)
+//
+// A format with teams: 0 has every team on the ladder: sized() gives it its games for
+// the number of teams the division has.
 
 'use strict';
 
@@ -26,6 +30,7 @@ const MARKS = {
   bye: 'Week off',
   elim: 'Elimination final',
   third: 'Plays for third',
+  placing: 'Plays for a place',
 };
 
 const FORMATS = [
@@ -134,7 +139,25 @@ const FORMATS = [
       { id: 'P5', name: 'Fifth place play-off', week: 3, home: 'W:PS1', away: 'W:PS2', placing: 5 },
       { id: 'P7', name: 'Seventh place play-off', week: 3, home: 'L:PS1', away: 'L:PS2', placing: 7 },
     ] },
+
+  { id: 'all-placings', teams: 0, all: true, name: 'Every team plays on grand final day',
+    summary: '1 v 2 for the title, 3 v 4 for third, 5 v 6 for fifth and so on down the ladder, all on one day. Nobody is knocked out: every team plays for its final place. With an odd number of teams, the last one has no game.',
+    marks: [], weeks: ['Grand final day'], games: [] },
 ];
+
+// Every team plays: 1 v 2 in the grand final, then 3 v 4, 5 v 6... for the places below.
+const PLACE_WORDS = { 3: 'Third', 5: 'Fifth', 7: 'Seventh', 9: 'Ninth', 11: 'Eleventh', 13: 'Thirteenth', 15: 'Fifteenth', 17: 'Seventeenth', 19: 'Nineteenth' };
+function sized(format, count) {
+  if (!format || !format.all) return format;
+  const n = Math.max(2, (Number(count) || 0) - ((Number(count) || 0) % 2));
+  const games = [], marks = [];
+  for (let p = 1; p < n; p += 2) {
+    games.push(p === 1 ? { id: 'GF', name: 'Grand final', week: 1, home: 's1', away: 's2' }
+      : { id: `P${p}`, name: `${PLACE_WORDS[p] || ordinal(p)} place play-off`, week: 1, home: `s${p}`, away: `s${p + 1}`, placing: p });
+    marks.push(...(p === 1 ? ['final', 'final'] : ['placing', 'placing']));
+  }
+  return { ...format, teams: n, marks, games };
+}
 
 const byId = id => FORMATS.find(f => f.id === id) || null;
 
@@ -148,16 +171,18 @@ function fromPlaces(n) {
   return 'top8-afl';
 }
 
-// The format a division uses: its own, else the competition's.
-function formatFor(settings, division) {
+// The format a division uses: its own, else the competition's. With the number of teams
+// on its ladder, a format for every team gets its games.
+function formatFor(settings, division, count) {
   const own = (settings.divisionFinals || {})[division];
   if (own === 'none') return null;
-  return byId(own) || byId(settings.finalsFormat) || null;
+  const f = byId(own) || byId(settings.finalsFormat) || null;
+  return count === undefined ? f : sized(f, count);
 }
 
-// For the setup page.
+// For the setup page (a format for every team is shown with 8).
 function list() {
-  return FORMATS.map(f => ({ id: f.id, teams: f.teams, name: f.name, summary: f.summary, marks: f.marks, weeks: f.weeks }));
+  return FORMATS.map(f => ({ id: f.id, teams: f.teams, all: !!f.all, name: f.name, summary: f.summary, marks: sized(f, 8).marks, weeks: f.weeks }));
 }
 
 // For the ladder: what each place earns, and the words for each.
@@ -266,4 +291,4 @@ function winnerOf(g) {
   return null;
 }
 
-module.exports = { FORMATS, MARKS, byId, fromPlaces, formatFor, list, ladderMarks, resolve, ordinal };
+module.exports = { FORMATS, MARKS, byId, sized, fromPlaces, formatFor, list, ladderMarks, resolve, ordinal };
