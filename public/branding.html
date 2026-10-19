@@ -70,7 +70,7 @@
       async function load() {
         if (params.get('comp') === '0') return;
         try {
-          const res = await fetch('/api/scoreboard?board=' + encodeURIComponent(params.get('board') || '1'), { cache: 'no-store' });
+          const res = await fetch('/api/scoreboard', { cache: 'no-store' });
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const rules = (await res.json()).rules || {};
           const logo = (dark ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;

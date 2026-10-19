@@ -181,10 +181,6 @@ Each source in the scene gets these links, using its name in lower case with das
 Renaming a source on the Output page changes its links (the plugin's keys carry on). The plugin's Source keys, or these links, replace the
 **OBS Studio** plugin's **Source** keys on nights you use the Studio scene; keep a separate Stream Deck profile for OBS nights, since OBS works exactly as before.
 
-## Second court
-
-Add `?board=2` to the end of any link, e.g. `http://localhost:8080/deck/home/add2?board=2`.
-
 ## Timed buttons (Timed Sequence plugin)
 
 `plugins/streamdeck` is a Stream Deck plugin that waits until a set time of day, then presses a list of links

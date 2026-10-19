@@ -43,7 +43,7 @@
        Round comes from the game picked on the scoreboard control page; the venue from
        the competition setup page (or PlayHQ's venue if that is blank), and so do the emoji either side
        of the title and the competition logo, shown above the banner only with ?logo=show.
-       Options: ?board=2 for a second court, ?position=bottom, ?fire=0 to drop the emoji, ?emoji=⚡ for a different one,
+       Options: ?position=bottom, ?fire=0 to drop the emoji, ?emoji=⚡ for a different one,
        ?logo=show to put the competition logo above the banner (off by default; ?logo=hide also leaves it off),
        ?mode=dark to use the setup's dark mode competition logo instead of the light mode one. -->
   <div class="title" id="title" hidden>
@@ -56,7 +56,6 @@
   </div>
   <script>
     const params = new URLSearchParams(location.search);
-    const boardId = params.get('board') || '1';
     let emoji = '';
     if (params.get('position') === 'bottom') document.body.classList.add('bottom');
     let last = '';
@@ -72,7 +71,7 @@
 
     async function load() {
       try {
-        const s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        const s = await (await fetch('/api/scoreboard', { cache: 'no-store' })).json();
         const rules = s.rules || {};
         const compLogo = (params.get('mode') === 'dark' ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;
         const view = JSON.stringify([s.round, s.competition, s.venueName, compLogo, rules.titleEmoji]);

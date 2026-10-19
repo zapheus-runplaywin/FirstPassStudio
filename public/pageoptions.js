@@ -1,4 +1,4 @@
-// FirstPass Studio - the options each graphics page takes in its link (?board=2 and so on), so the Output
+// FirstPass Studio - the options each graphics page takes in its link (?position=top and so on), so the Output
 // page can offer them as fields instead of sending people to the home page to read them. The home page
 // describes the same options in words: keep the two in step when a page gets a new one.
 //
@@ -8,7 +8,6 @@
 /* exported PAGE_OPTIONS */
 const PAGE_OPTIONS = (() => {
   const show = (key, label, hideLabel = 'Hide') => ({ key, label, type: 'select', choices: [['', 'Show'], ['0', hideLabel]] });
-  const board = { key: 'board', label: 'Court', type: 'select', choices: [['', 'Scoreboard 1 (default)'], ['2', 'Scoreboard 2 (second court)']] };
   const division = { key: 'division', label: 'Division', type: 'text', placeholder: 'the picked game\'s division', help: 'A division number, like 1.' };
   const round = { key: 'round', label: 'Round', type: 'text', placeholder: 'this round', help: 'next, prev, +2, -1, a round number like 6, or a name like Final.' };
   const mode = (dflt = 'light') => ({ key: 'mode', label: 'Logo', type: 'select', choices: dflt === 'light'
@@ -26,12 +25,10 @@ const PAGE_OPTIONS = (() => {
   return {
     'scoreboard.html': [
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Bottom centre'], ['top-center', 'Top centre'], ['top-left', 'Top left'], ['bottom-left', 'Bottom left']] },
-      board,
     ],
     'ticker.html': [
       { key: 'speed', label: 'Speed', type: 'number', min: 20, max: 600, unit: 'px a second', placeholder: 'from the control page' },
       { key: 'refresh', label: 'Update scores every', type: 'number', min: 0, max: 3600, unit: 's', placeholder: '30', help: '0 loads them once.' },
-      board,
     ],
     'title.html': [
       show('fire', 'Emoji'),
@@ -39,7 +36,6 @@ const PAGE_OPTIONS = (() => {
       { key: 'logo', label: 'Competition logo', type: 'select', choices: [['', 'Off'], ['show', 'Above the banner']] },
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Top'], ['bottom', 'Bottom']] },
       mode(),
-      board,
     ],
     'branding.html': [
       show('pivt', 'PIVT logo'), show('studio', 'FirstPass Studio logo'), show('comp', 'Competition logo'),
@@ -48,21 +44,18 @@ const PAGE_OPTIONS = (() => {
       { key: 'size', label: 'Size', type: 'number', min: 0.2, max: 5, step: 0.1, unit: '×', placeholder: '1' },
       mode(),
     ],
-    'upnext.html': [board],
     'countdown.html': [
       { key: 'label', label: 'Heading', type: 'text', placeholder: 'default' },
       { key: 'end', label: 'Words at zero', type: 'text', placeholder: 'STARTING SOON', help: 'Keep them short. hide fades the card away instead.' },
       { key: 'fade', label: 'Fade out over the last', type: 'number', min: 2, max: 60, unit: 's', placeholder: 'no fade' },
       show('teams', 'Teams', 'Clock only'),
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Middle'], ['top', 'Top'], ['bottom', 'Bottom']] },
-      board,
     ],
-    'matchup.html': [show('form', 'Form'), show('h2h', 'Head to head'), board],
+    'matchup.html': [show('form', 'Form'), show('h2h', 'Head to head')],
     'clash.html': [
       out(),
       { key: 'word', label: 'Big word', type: 'text', placeholder: 'the one in the setup' },
       { key: 'title', label: 'Bottom line', type: 'text', placeholder: 'default' },
-      board,
     ],
     'positions.html': [
       { key: 'hold', label: 'Each pairing for', type: 'number', min: 1, max: 60, unit: 's', placeholder: '5' },
@@ -71,30 +64,26 @@ const PAGE_OPTIONS = (() => {
       { key: 'show', label: 'Start with', type: 'select', choices: [['', 'One pairing at a time'], ['all', 'All seven at once']] },
       { key: 'pair', label: 'Pairing', type: 'select', choices: [['', 'All of them'], ...['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'].map(p => [p, `${p} only`])] },
       show('games', 'Games played'),
-      board,
     ],
-    'teamlist.html': [{ key: 'side', label: 'Team', type: 'select', choices: [['', 'Home'], ['away', 'Away']] }, board],
-    'shooting.html': [title('default'), board],
+    'teamlist.html': [{ key: 'side', label: 'Team', type: 'select', choices: [['', 'Home'], ['away', 'Away']] }],
+    'shooting.html': [title('default')],
     'goals.html': [
       { key: 'layout', label: 'Layout', type: 'select', choices: [['', 'Horizontal (above the scoreboard)'], ['vertical', 'Vertical']] },
       { key: 'count', label: 'Goals', type: 'number', min: 3, max: 30, placeholder: '10' },
       show('times', 'Quarter and time'),
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Default'], ['top', 'Top (horizontal)'], ['middle', 'Middle (horizontal)'], ['bottom', 'Bottom (horizontal)'], ['left', 'Left (vertical)'], ['right', 'Right (vertical)']] },
       title('Last 10 goals'),
-      board,
     ],
-    'fulltime.html': [title('default'), board],
+    'fulltime.html': [title('default')],
     'winner.html': [
       { key: 'winner', label: 'Result', type: 'select', choices: [['', 'From the score'], ['home', 'Home wins'], ['away', 'Away wins'], ['draw', 'Draw']] },
       out(),
       { key: 'word', label: 'Big word', type: 'text', placeholder: 'VICTORY' },
       { key: 'title', label: 'Line under the score', type: 'text', placeholder: 'default' },
       show('score', 'Score'),
-      board,
     ],
     'supershot.html': [
       { key: 'team', label: 'Plays', type: 'select', choices: [['', 'By itself for every super shot'], ['home', 'Once, for the home team'], ['away', 'Once, for the away team'], ['none', 'Once, no team']] },
-      board,
     ],
     'ladder.html': [
       division,
@@ -104,7 +93,6 @@ const PAGE_OPTIONS = (() => {
       mode('dark'),
       { key: 'refresh', label: 'Reload every', type: 'number', min: 0, max: 3600, unit: 's', placeholder: 'load once' },
     ],
-    'ladderbar.html': [board],
     'finals.html': [
       division,
       { key: 'week', label: 'Week', type: 'number', min: 1, max: 10, placeholder: 'all weeks' },
@@ -114,7 +102,6 @@ const PAGE_OPTIONS = (() => {
       show('projected', '"If the season ended today"'),
       show('logo', 'Competition logo'),
       mode('dark'),
-      board,
     ],
     'fixtures.html': [round, division],
     'results.html': [round, division],

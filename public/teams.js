@@ -1,11 +1,10 @@
 // Shared by teamlist.html and shooting.html: loads the selected game's team sheets.
 window.loadTeams = function (onData) {
   const params = new URLSearchParams(location.search);
-  const boardId = params.get('board') || '1';
   let last = '';
   async function load() {
     try {
-      const res = await fetch(`/api/teams?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' });
+      const res = await fetch('/api/teams', { cache: 'no-store' });
       const data = await res.json();
       if (data.error) console.warn('Team sheets:', data.error);
       const json = JSON.stringify(data, (k, v) => (k === 'updatedAt' ? undefined : v));

@@ -137,7 +137,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
     // A freshly started helper picks its game a few seconds after starting.
     let sb = {};
     for (let i = 0; i < 20; i++) {
-      sb = await getJson('/api/scoreboard?board=1').catch(() => ({}));
+      sb = await getJson('/api/scoreboard').catch(() => ({}));
       if (sb.gameId) break;
       await new Promise(r => setTimeout(r, 500));
     }

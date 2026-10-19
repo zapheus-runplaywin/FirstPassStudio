@@ -15,8 +15,7 @@
        http://localhost:8080/upnext.html
        Shows the game after the one picked on the scoreboard control page, on the same
        court (for half time). With no game picked, it shows the second timeslot.
-       Loads once: tick "Refresh browser when scene becomes active" in OBS.
-       Options: ?board=2 for a second court. -->
+       Loads once: tick "Refresh browser when scene becomes active" in OBS. -->
   <main class="card matchup upnext" id="card" hidden>
     <header class="matchup__header">
       <div class="upnext__tabs"><div class="tab upnext__tab">Up next</div><div class="tab" id="comp"></div></div>
@@ -32,7 +31,6 @@
   <p class="message" id="message" hidden></p>
   <script src="teams.js"></script>
   <script>
-    const boardId = new URLSearchParams(location.search).get('board') || '1';
 
     function clock(time) {
       const [h, m] = String(time || '').split(':').map(Number);
@@ -47,7 +45,7 @@
     (async () => {
       const msg = document.getElementById('message');
       try {
-        const g = await (await fetch(`/api/upnext?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        const g = await (await fetch('/api/upnext', { cache: 'no-store' })).json();
         if (g.error) throw new Error(g.error);
         document.getElementById('comp').textContent = g.competition || '';
         document.getElementById('division').textContent = [g.division, g.round].filter(Boolean).join('  ·  ');

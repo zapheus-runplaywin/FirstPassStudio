@@ -41,7 +41,7 @@ const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n)
 const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const newId = () => Math.random().toString(36).slice(2, 10);
 
-// A browser source's address: a Studio page ("scoreboard.html?board=2") or a full http(s) link.
+// A browser source's address: a Studio page ("scoreboard.html?position=top-center") or a full http(s) link.
 function cleanUrl(u) {
   const s = String(u || '').trim().replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i, '');
   if (/^https?:\/\//i.test(s)) return s;

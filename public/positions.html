@@ -76,7 +76,7 @@
        Options: ?hold=6 seconds per pairing (default 5), ?loop=1 keeps going round,
        ?end=out animates away after the last pairing instead of showing all seven,
        ?show=all shows all seven straight away, ?pair=C shows one pairing only
-       (by the home position), ?board=2 for a second court, ?games=0 leaves out games
+       (by the home position), ?games=0 leaves out games
        played (from PlayHQ and the Athletes page). -->
   <main class="card pm" id="card" hidden>
     <header class="pm__head">
@@ -167,9 +167,8 @@
     // Games played in this division (from the Athletes page records and PlayHQ). Asked for once without
     // waiting: reading a whole division's line ups the first time can take a while, so it shows when it arrives.
     let gamesPlayed = null;
-    const boardId = opts.get('board') || '1';
     if (opts.get('games') !== '0') {
-      fetch(`/api/athletes/games?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' }).then(r => r.json())
+      fetch('/api/athletes/games', { cache: 'no-store' }).then(r => r.json())
         .then(d => { if (d.error) throw new Error(d.error); gamesPlayed = d; })
         .catch(err => console.warn('Position match ups: games played unavailable:', err.message));
     }

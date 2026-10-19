@@ -167,7 +167,7 @@
        so the animation plays each time the scene comes on:
        http://localhost:8080/winner.html?winner=home   (or ?winner=away, ?winner=draw)
        Without ?winner it goes by the score on the scoreboard. Shows the game picked on the scoreboard control page.
-       Options: ?board=2 for a second court, ?out=10 to animate away after 10 seconds, ?word=CHAMPIONS to change
+       Options: ?out=10 to animate away after 10 seconds, ?word=CHAMPIONS to change
        the big word (VICTORY, or DRAW for a draw), ?title=... to change the line under the score, ?score=0 to leave the score off. -->
   <div class="stage" id="stage">
     <canvas id="confetti" width="1920" height="1080"></canvas>
@@ -202,7 +202,6 @@
   <script src="teams.js"></script>
   <script>
     const opts = new URLSearchParams(location.search);
-    const boardId = opts.get('board') || '1';
     const $ = id => document.getElementById(id);
     const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -277,7 +276,7 @@
 
     async function start() {
       let s;
-      try { s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json(); }
+      try { s = await (await fetch('/api/scoreboard', { cache: 'no-store' })).json(); }
       catch (err) { console.warn('Winner: scoreboard unavailable:', err.message); return setTimeout(start, 3000); }
       const hs = Number(s.home.score) || 0, as = Number(s.away.score) || 0;
       let winner = String(opts.get('winner') || '').toLowerCase();

@@ -13,7 +13,7 @@
 <body>
   <!-- Add to OBS as a Browser source, 1920 x 1080:
        http://localhost:8080/matchup.html
-       Shows the game picked on the scoreboard control page. Add ?board=2 for a second court.
+       Shows the game picked on the scoreboard control page.
        Also shows each team's last five results (W/L/D) and this season's head to head.
        Options: ?form=0 hides the form, ?h2h=0 hides the head to head. -->
   <main class="card matchup" id="card" hidden>
@@ -32,7 +32,6 @@
   <script src="teams.js"></script>
   <script src="season.js"></script>
   <script>
-    const boardId = new URLSearchParams(location.search).get('board') || '1';
     let last = '';
 
     function when(date, time) {
@@ -56,7 +55,7 @@
 
     const opts = new URLSearchParams(location.search);
     async function getJson(path) {
-      const d = await (await fetch(`${path}?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+      const d = await (await fetch(path, { cache: 'no-store' })).json();
       if (d.error) throw new Error(d.error);
       return d;
     }
@@ -99,7 +98,7 @@
 
     async function load() {
       try {
-        const s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        const s = await (await fetch('/api/scoreboard', { cache: 'no-store' })).json();
         const view = [s.competition, s.division, s.round, s.home.name, s.away.name, s.logos, s.date, s.time, s.court, s.venue];
         const json = JSON.stringify(view);
         if (json === last) return;

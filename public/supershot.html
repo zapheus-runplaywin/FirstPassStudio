@@ -119,7 +119,7 @@
 <body>
   <!-- Add to OBS as a Browser source, 1920 x 1080, and leave it on:
        http://localhost:8080/supershot.html             (plays by itself for each super shot: a +2 press, or PlayHQ's scorer)
-       It runs for 3 seconds, fades out and leaves the frame clear. ?board=2 watches the second court.
+       It runs for 3 seconds, fades out and leaves the frame clear.
        Manual, plays once each time the source comes on (tick "Shutdown source when not visible" and "Refresh browser when scene becomes active"):
        http://localhost:8080/supershot.html?team=home   (or ?team=away: that team's logo, name and club colour)
        http://localhost:8080/supershot.html?team=none   (no team, the competition's colours) -->
@@ -145,7 +145,6 @@
   <script src="teams.js"></script>
   <script>
     const opts = new URLSearchParams(location.search);
-    const boardId = opts.get('board') || '1';
     const $ = id => document.getElementById(id);
     const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     const stage = $('stage');
@@ -212,7 +211,7 @@
       $('crest').replaceChildren(node);
       return node.tagName === 'IMG' ? Promise.race([node.decode().catch(() => {}), new Promise(r => setTimeout(r, 1500))]).then(() => t.name) : t.name;
     }
-    const scoreboard = async () => (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+    const scoreboard = async () => (await fetch('/api/scoreboard', { cache: 'no-store' })).json();
 
     // Starts the animation from the beginning (taking 'go' off and back on restarts every CSS animation).
     const LENGTH_MS = 3000;
@@ -227,7 +226,7 @@
       setTimeout(() => { if (queued) { const q = queued; queued = null; play(q.s, q.side); } }, LENGTH_MS);
     }
 
-    // Watching (the default): stays clear until the helper reports a new super shot on this board (a +2 press on
+    // Watching (the default): stays clear until the helper reports a new super shot on the scoreboard (a +2 press on
     // the control page or Stream Deck, or PlayHQ's super shot count going up), then plays it for that team.
     // One that lands while another is playing plays straight after it. Only asks the helper on this computer.
     let seen = null, warned = false;
@@ -256,7 +255,7 @@
       if (document.fonts) await document.fonts.ready;
       balls(); sparks();
       if (!opts.has('team')) {
-        window.pageLog && window.pageLog('info', `Watching board ${boardId} for super shots`);
+        window.pageLog && window.pageLog('info', 'Watching the scoreboard for super shots');
         return watch();
       }
       // ?team=home|away|none: play once now, for that team or without one.

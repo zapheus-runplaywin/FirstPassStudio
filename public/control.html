@@ -57,7 +57,7 @@
 <main>
   <h1>Scoreboard control</h1>
   <p class="sub" id="compLine"></p>
-  <p class="sub" id="sub">Board 1. Add <b>http://localhost:8080/scoreboard.html</b> to OBS as a Browser source (1920 × 1080).</p>
+  <p class="sub" id="sub">Add <b>http://localhost:8080/scoreboard.html</b> to OBS as a Browser source (1920 × 1080).</p>
 
   <section>
     <h2>Game</h2>
@@ -179,15 +179,14 @@
 </main>
 <script>
 (function () {
-  const boardId = new URLSearchParams(location.search).get('board') || '1';
-  const api = `/api/scoreboard?board=${encodeURIComponent(boardId)}`;
+  const api = '/api/scoreboard';
   const $ = id => document.getElementById(id);
   let state = null, games = [], serverOffset = 0;
 
-  const obsLink = base => { $('sub').innerHTML = `Board ${boardId}. Add <b>${base}/scoreboard.html${boardId === '1' ? '' : '?board=' + boardId}</b> to OBS as a Browser source (1920 × 1080).`; };
+  const obsLink = base => { $('sub').innerHTML = `Add <b>${base}/scoreboard.html</b> to OBS as a Browser source (1920 × 1080).`; };
   obsLink(location.origin);
   fetch('/api/version').then(r => r.json()).then(v => { if (v.base) obsLink(v.base); }).catch(() => {}); // the Mac's .local name
-  $('frame').src = `/scoreboard.html?board=${encodeURIComponent(boardId)}`;
+  $('frame').src = '/scoreboard.html';
   const fit = () => { $('frame').style.transform = `scale(${$('preview').clientWidth / 1920})`; };
   addEventListener('resize', fit); fit();
 
@@ -370,14 +369,12 @@
 
   async function pollTeams() {
     try {
-      const t = await (await fetch(`/api/teams?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+      const t = await (await fetch('/api/teams', { cache: 'no-store' })).json();
       const count = side => `${t[side].name}: ${t[side].players.length} players${t[side].logo ? '' : ' (no logo found)'}`;
       $('teamsNote').textContent = t.error && !t.home.players.length ? `Not available: ${t.error}` : `${count('home')}. ${count('away')}.${t.error ? ' Last update failed: ' + t.error : ''}`;
       $('teamsNote').classList.toggle('error', !!t.error);
     } catch {}
   }
-  const q = boardId === '1' ? '' : `board=${encodeURIComponent(boardId)}`;
-  if (q) { $('titlelink').href += '?' + q; $('matchup').href += '?' + q; $('clash').href += '?' + q; $('upnext').href += '?' + q; $('fulltime').href += '?' + q; $('ladderbar').href += '?' + q; $('ticker').href += '?' + q; $('shooters').href += '?' + q; $('tlHome').href += '&' + q; $('tlAway').href += '&' + q; $('shoot').href += '?' + q; }
   pollTeams(); setInterval(pollTeams, 10000);
   poll().then(loadGames);
   setInterval(poll, 2000);
@@ -389,7 +386,6 @@
 // Finals: who plays who in each division, and winners picked by hand for finals PlayHQ has no games for.
 (function () {
   const $ = id => document.getElementById(id);
-  const boardId = new URLSearchParams(location.search).get('board') || '1';
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   let division = '';
 
@@ -439,7 +435,7 @@
   }
 
   async function load() {
-    try { render(await call(`/api/finals?division=${encodeURIComponent(division)}&board=${encodeURIComponent(boardId)}`)); }
+    try { render(await call(`/api/finals?division=${encodeURIComponent(division)}`)); }
     catch (err) { $('finNote').textContent = `Couldn't load the finals: ${err.message}`; console.warn('Finals:', err.message); }
   }
 
@@ -447,7 +443,7 @@
     try {
       const st = await call('/api/structure');
       $('finDivision').replaceChildren(...st.grades.map(g => new Option(g.name, String(g.division))));
-      const sb = await call(`/api/scoreboard?board=${encodeURIComponent(boardId)}`).catch(() => ({}));
+      const sb = await call('/api/scoreboard').catch(() => ({}));
       const mine = st.grades.find(g => g.name === sb.division);
       division = String((mine || st.grades[0] || {}).division || '1');
       $('finDivision').value = division;
