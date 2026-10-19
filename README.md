@@ -169,6 +169,10 @@ The app includes ffmpeg (for converting ProRes clips in the Studio scene). The w
 `vendor/ffmpeg/build.sh` (an LGPL build with VP9 and Opus, versions in that file) and caches it, so it's only rebuilt
 when `build.sh` changes; that first build adds several minutes. `npm run app` from a checkout uses it too once
 `vendor/ffmpeg/build.sh` has been run.
+The "ffmpeg updates" workflow checks every Monday for newer FFmpeg, libvpx and opus releases and opens a pull
+request raising the versions in `build.sh`; merging it ships the new ffmpeg in the next release. It needs Settings >
+Actions > General > "Allow GitHub Actions to create and approve pull requests" ticked. The build only includes what
+converting a .mov needs, so most FFmpeg security fixes don't touch it.
 
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.

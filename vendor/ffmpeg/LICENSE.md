@@ -8,7 +8,7 @@ This copy is built by `build.sh` in this folder from these sources, unchanged:
 
 | Part | Version | Licence | Source |
 |---|---|---|---|
-| FFmpeg | n8.1.3 | GNU Lesser General Public License 2.1 or later | https://github.com/FFmpeg/FFmpeg |
+| FFmpeg | n9.0.2 | GNU Lesser General Public License 2.1 or later | https://github.com/FFmpeg/FFmpeg |
 | libvpx (VP9) | v1.17.0 | BSD 3-clause | https://github.com/webmproject/libvpx |
 | libopus | v1.6.1 | BSD 3-clause | https://github.com/xiph/opus |
 
