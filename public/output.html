@@ -88,8 +88,8 @@
     </div>
     <p class="note" id="previewSoundNote" style="font-weight:600"></p>
     <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.
-      <b>Preview sound</b> plays the scene's sound here instead of from the display or Blackmagic output, while one is on:
-      the outputs go silent, so the sound never plays twice. It needs the live preview showing, and moves back to the outputs
+      <b>Preview sound</b> plays the scene's sound here, with or without an output on. A display or Blackmagic output goes
+      silent while it does, so the sound never plays twice (if the scene is in OBS too, mute it there). It needs the live preview showing, and moves back to the outputs
       when this page closes. Only one Output page plays it at a time: click a preview to bring the sound to it. The line above says why it's silent, if it is.</p>
   </section>
 
@@ -440,8 +440,8 @@
   $('hideAll').onclick = () => act({ type: 'hideAll' });
   // Display output (the Mac app opens the windows; outputs.js decides what goes where).
   let out = null;
-  // Preview sound: while an output is on, this page asks the helper for the sound, which mutes the
-  // outputs; only the page it says yes to unmutes its preview. It checks in every few seconds and lets
+  // Preview sound: this page asks the helper for the sound, which mutes the display and Blackmagic
+  // outputs while it has it; only the page it says yes to unmutes its preview. It checks in every few seconds and lets
   // go when it closes, so the sound goes back to the outputs.
   const listenId = Math.random().toString(36).slice(2);
   let previewSound = false;
@@ -452,12 +452,11 @@
     let st = null;
     try { st = $('previewFrame').contentWindow.soundState?.(); } catch {}
     const note = !out || !out.previewSound ? ''
-      : !out.showing.length ? 'Silent: it plays only while a display or Blackmagic output is on.'
       : !$('previewOn').checked ? 'Silent: turn Live preview on.'
       : !previewSound ? 'Silent: another Output page is playing the sound. Click the preview to bring it here.'
       : st && st.blocked ? 'Blocked by this browser until you click: click the preview to hear it. (The Studio app\'s own window doesn\'t need this.)'
-      : st && !st.videos ? 'Sound plays here once a video with Sound ticked is on. The outputs are muted.'
-      : 'Sound plays here, through this Mac\'s sound output. The outputs are muted.';
+      : st && !st.videos ? `Sound plays here once a video with Sound ticked is on.${out.showing.length ? ' The outputs are muted.' : ''}`
+      : `Sound plays here, through this Mac's sound output.${out.showing.length ? ' The outputs are muted.' : ' (Mute the scene in OBS if it\'s there too.)'}`;
     $('previewSoundNote').textContent = note;
     if (note !== lastNote) { if (note) console.log(`Preview sound: ${note}`); lastNote = note; }
   }
@@ -466,13 +465,13 @@
   // Safari only lets a video play sound if it's unmuted during the click itself, so unmute straight away
   // (that unlocks it for later), then take the sound properly.
   $('preview').addEventListener('click', () => {
-    if (!out || !out.previewSound || !out.showing.length) return;
+    if (!out || !out.previewSound) return;
     try { $('previewFrame').contentWindow.unlockSound?.(); } catch {}
     listen(true);
   });
   $('previewFrame').addEventListener('load', applySound);
   async function listen(take = false) {
-    const on = !!(out && out.previewSound && out.showing.length && $('previewOn').checked);
+    const on = !!(out && out.previewSound && $('previewOn').checked);
     try {
       const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take }) });
       previewSound = !!(await r.json()).sound;
@@ -482,7 +481,7 @@
   setInterval(() => listen(), 5000);
   addEventListener('pagehide', () => navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false })));
   const showOut = o => {
-    const relisten = !out || out.previewSound !== o.previewSound || !out.showing.length !== !o.showing.length;
+    const relisten = !out || out.previewSound !== o.previewSound;
     out = o;
     $('previewSound').checked = o.previewSound;
     if (relisten) listen();
@@ -578,7 +577,7 @@
   $('outOn').onclick = () => setOut({ on: !(out && out.on) });
   $('previewSound').onchange = () => {
     // Unmute during the click too, for Safari (see the preview's click above).
-    if ($('previewSound').checked && out && out.showing.length) { try { $('previewFrame').contentWindow.unlockSound?.(); } catch {} }
+    if ($('previewSound').checked) { try { $('previewFrame').contentWindow.unlockSound?.(); } catch {} }
     setOut({ previewSound: $('previewSound').checked }).then(() => listen(true));
   };
 
