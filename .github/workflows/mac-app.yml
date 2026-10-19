@@ -88,6 +88,10 @@ jobs:
       - name: Build the DeckLink module
         working-directory: native/decklink
         run: npm ci && npm run build && npm test
+      # NDI output (native/ndi): built the same way. It needs no NDI software to build; the test checks it loads.
+      - name: Build the NDI module
+        working-directory: native/ndi
+        run: npm ci && npm run build && npm test
       # On a merge, a "major" or "minor" label on any pull request merged since the last published
       # version (found from its tag, as for the release notes) raises that part instead of the patch,
       # so a labelled PR that only changed docs still counts at the next publish. Major wins over minor.

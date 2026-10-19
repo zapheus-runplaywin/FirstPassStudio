@@ -191,6 +191,7 @@ The workflow also packs the Studio Stream Deck plugin (`plugins/studio-deck`, `n
 Output page install it. From a checkout, run `npm install` and `npm run pack` in `plugins/studio-deck` once for those to find it.
 It builds the Blackmagic output module the same way (`native/decklink`, `npm run build`, needing Xcode's command line tools but no
 Blackmagic software); from a checkout run `npm install` and `npm run build` there once, or the Output page says it's missing.
+The NDI output module (`native/ndi`) builds and is run from a checkout the same way, needing no NDI software to build.
 
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
@@ -230,12 +231,12 @@ default), or press **Refresh page** to get the latest. Divisions are numbered in
 http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
 
 Frame rate: every graphic and animation is timed by the clock, not by frames, so it plays at the same speed at 25, 30,
-50 or 60 fps. The Blackmagic output renders at the video format's frame rate.
+50 or 60 fps. The Blackmagic and NDI outputs render at the video format's frame rate.
 
 ## Output (the Studio scene)
 
 http://localhost:8080/output.html (**Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
-sources drawn as layers, top layer first, sent to a display or a Blackmagic device for your switcher.
+sources drawn as layers, top layer first, sent to a display, a Blackmagic device or NDI® for your switcher.
 
 - **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
   **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. Each opens a
@@ -291,6 +292,16 @@ sources drawn as layers, top layer first, sent to a display or a Blackmagic devi
   `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. Sound
   plays through the Mac's audio output. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
   in the app log.
+- **NDI® output (Mac app):** sends the scene over the network as NDI sources at the video format picked (1080p or 720p at 25, 29.97, 30,
+  50, 59.94 or 60). **Fill and key** makes two sources, *Source name Fill* (the scene over black) and *Source name Key* (white where it shows);
+  **chroma** makes one, *Source name Chroma*, over the chroma colour; **with transparency** makes one, *Source name*, carrying alpha for
+  receivers that key on NDI's transparency. They appear as "MAC NAME (Source name …)"; the source name is FirstPass Studio unless changed.
+  It needs NDI Tools (free, ndi.video/tools) on the Mac, which installs the NDI runtime in `/usr/local/lib`; Studio doesn't ship the runtime.
+  The scene renders off screen as for Blackmagic (`desktop/scenewindow.js`, `desktop/ndi.js`) and `native/ndi`, a Node-API module built
+  against the NDI SDK's header files in `native/ndi/sdk` (MIT licence), loads the runtime and sends each source at the frame rate, repeating
+  the latest picture, only while something is receiving it. Each 1080p source is roughly 100 to 150 Mbit/s, so use a wired network. Sound
+  plays through the Mac's audio output, not over NDI. Output on/off and `/deck/output/on|off|toggle` work the same.
+  NDI® is a registered trademark of Vizrt NDI AB.
 
 The scene is saved as `scene.json` in the data folder. http://localhost:8080/scene.html is the scene on its own, 1920 x 1080.
 

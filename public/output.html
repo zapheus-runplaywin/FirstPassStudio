@@ -81,7 +81,7 @@
 <main>
   <h1>Output</h1>
   <p class="sub">Studio's scene: add sources, order the layers, and show or hide them here or from the Stream Deck.
-    The Mac app sends the scene to extra displays or a Blackmagic UltraStudio or DeckLink (below) for your switcher.</p>
+    The Mac app sends the scene to extra displays, a Blackmagic UltraStudio or DeckLink, or NDI® (below) for your switcher.</p>
 
   <section>
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
@@ -96,7 +96,7 @@
     <p class="note" id="previewSoundNote" style="font-weight:600"></p>
     <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.
       <b>Pop out</b> shows the preview in its own window that you can resize, move to another screen or make full screen, with On/Off buttons for the sources floating in it; the preview here
-      turns off while it's open, and closing it brings the preview back. <b>Preview sound</b> plays the scene's sound here, with or without an output on. A display or Blackmagic output goes
+      turns off while it's open, and closing it brings the preview back. <b>Preview sound</b> plays the scene's sound here, with or without an output on. A display, Blackmagic or NDI output goes
       silent while it does, so the sound never plays twice. It needs the live preview showing, and moves back to the outputs
       when this page closes. Only one Output page plays it at a time: click a preview to bring the sound to it. The line above says why it's silent, if it is.</p>
   </section>
@@ -106,7 +106,7 @@
       <h2 style="margin:0">Video output</h2>
       <button id="outOn" class="alt">Output on</button>
     </div>
-    <p class="note hidden" id="outNoApp" style="margin-top:0">Sending the scene to a display or a Blackmagic device needs the FirstPass Studio Mac app (this copy of Studio was started another way).</p>
+    <p class="note hidden" id="outNoApp" style="margin-top:0">Sending the scene to a display, a Blackmagic device or NDI needs the FirstPass Studio Mac app (this copy of Studio was started another way).</p>
     <div id="outForm">
       <div class="form">
         <label>Send the scene</label>
@@ -115,11 +115,18 @@
           <label><input type="radio" name="outMode" value="chroma"> Chroma: over a solid colour on one display (one HDMI into the switcher)</label>
           <label><input type="radio" name="outMode" value="fillkey" id="outFillKey"> Fill and key: on two displays (two HDMI into the switcher's fill and key inputs)</label>
           <label><input type="radio" name="outMode" value="decklink" id="outDecklink"> Blackmagic UltraStudio or DeckLink: fill and key over SDI <span style="color:var(--fp-muted)" id="outDlNote"></span></label>
+          <label><input type="radio" name="outMode" value="ndi" id="outNdi"> NDI®: fill and key, or chroma, over the network <span style="color:var(--fp-muted)" id="outNdiNote"></span></label>
         </div>
+        <label for="outNdiSignal" class="forNdi">Signal</label>
+        <select id="outNdiSignal" class="forNdi">
+          <option value="fillkey">Fill and key (two NDI sources, Fill and Key)</option>
+          <option value="chroma">Chroma (one NDI source, over a solid colour)</option>
+          <option value="alpha">With transparency (one NDI source with alpha, for receivers that key on it)</option>
+        </select>
         <label for="outChromaDisplay" class="forChroma">Display</label>
         <select id="outChromaDisplay" class="forChroma"></select>
-        <label for="outColor" class="forChroma">Colour</label>
-        <div class="row forChroma"><input id="outColor" type="color" style="width:56px;height:36px;padding:2px">
+        <label for="outColor" class="forChroma forNdiChroma">Colour</label>
+        <div class="row forChroma forNdiChroma"><input id="outColor" type="color" style="width:56px;height:36px;padding:2px">
           <button class="alt" data-color="#00b140">Green</button><button class="alt" data-color="#0047bb">Blue</button></div>
         <label for="outFillDisplay" class="forFillKey">Fill display</label>
         <select id="outFillDisplay" class="forFillKey"></select>
@@ -134,6 +141,10 @@
           <option value="external">Fill and key (the device's external keyer: fill on one SDI out, key on the other)</option>
           <option value="off">Fill only</option>
         </select>
+        <label for="outNdiFormat" class="forNdi">Video format</label>
+        <select id="outNdiFormat" class="forNdi"></select>
+        <label for="outNdiName" class="forNdi">Source name</label>
+        <input id="outNdiName" class="forNdi" maxlength="60" placeholder="FirstPass Studio">
         <label for="outDlStraight" class="forDecklink">Fill</label>
         <label class="forDecklink" style="font-weight:400"><input type="checkbox" id="outDlStraight"> Straight (unpremultiplied). Leave this off if the switcher's key is set to premultiplied (shaped).</label>
       </div>
@@ -145,7 +156,12 @@
         other apps. To turn it off from the display itself, click it and press Esc, or close its window.
         <b>Blackmagic:</b> needs Blackmagic Desktop Video installed, and nothing else (such as Media Express) using the device; the scene plays
         at the video format's frame rate, its sound through the Mac's audio output. Pick the format the switcher runs at.
+        <b>NDI:</b> needs NDI Tools (free, <a href="https://ndi.video/tools/" target="_blank" rel="noopener">ndi.video/tools</a>) installed on this Mac.
+        The sources show up on the network as <i>this Mac's name (Source name Fill)</i> and <i>(Source name Key)</i>, or <i>(Source name Chroma)</i>,
+        or just <i>(Source name)</i> with transparency; pick them on the switcher or in its NDI converter. Each sends at the video format's frame rate only while
+        something is receiving it. The sound plays through the Mac's audio output, not over NDI.
         Stream Deck: <code id="outDeck">/deck/output/toggle</code> (also <code>on</code> and <code>off</code>) shows or blanks the output without changing this setup.</p>
+      <p class="note" style="font-size:12px">NDI® is a registered trademark of Vizrt NDI AB.</p>
     </div>
   </section>
 
@@ -595,8 +611,18 @@
     $('outDlMode').value = String((modes.find(m => m.mode === o.decklinkMode) || defaultMode(modes) || {}).mode || '');
     $('outDlKeying').value = o.decklinkKeying;
     $('outDlStraight').checked = o.decklinkStraight;
+    // NDI: whether the runtime (NDI Tools) is installed, and the formats it can send.
+    const nd = o.ndi || {};
+    $('outNdi').disabled = !nd.ok && o.mode !== 'ndi';
+    $('outNdiNote').textContent = nd.ok ? '' : nd.error ? `(${nd.error})` : '';
+    $('outNdiSignal').value = o.ndiSignal;
+    if ($('outNdiFormat').options.length !== o.ndiFormats.length) $('outNdiFormat').innerHTML = o.ndiFormats.map(f => `<option value="${f.id}">${f.id}</option>`).join('');
+    $('outNdiFormat').value = o.ndiFormat;
+    if (document.activeElement !== $('outNdiName')) $('outNdiName').value = o.ndiName;
     $('outColor').value = o.chromaColor;
-    for (const el of document.querySelectorAll('.forChroma')) el.classList.toggle('hidden', o.mode !== 'chroma');
+    for (const el of document.querySelectorAll('.forNdi')) el.classList.toggle('hidden', o.mode !== 'ndi');
+    for (const el of document.querySelectorAll('.forNdiChroma')) el.classList.toggle('hidden', o.mode !== 'chroma' && !(o.mode === 'ndi' && o.ndiSignal === 'chroma'));
+    for (const el of document.querySelectorAll('.forChroma:not(.forNdiChroma)')) el.classList.toggle('hidden', o.mode !== 'chroma');
     for (const el of document.querySelectorAll('.forFillKey')) el.classList.toggle('hidden', o.mode !== 'fillkey');
     for (const el of document.querySelectorAll('.forDecklink')) el.classList.toggle('hidden', o.mode !== 'decklink');
     const sending = o.on && o.mode !== 'off';
@@ -604,11 +630,16 @@
     $('outOn').className = sending ? '' : 'alt';
     const name = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
     const st = o.decklinkStatus || {};
+    const ns = o.ndiStatus || {};
+    const watching = s => s.connections ? `${s.name} (${s.connections} receiving)` : `${s.name} (nothing receiving yet)`;
     $('outStatus').textContent = o.mode === 'off' ? 'Not sending the scene anywhere.'
       : !o.on ? 'Output is off: nothing is sent until it\'s turned on.'
       : o.mode === 'decklink' ? (st.error ? `Couldn't start the Blackmagic output: ${st.error}`
         : st.running ? `Sending to ${st.name} (${st.mode}${o.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
         : o.showing.length ? 'Starting the Blackmagic output…' : dl.ok ? 'Pick the device and video format.' : dl.error || 'Looking for Blackmagic devices…')
+      : o.mode === 'ndi' ? (ns.error ? `Couldn't start NDI: ${ns.error}`
+        : ns.running && ns.sources?.length ? `Sending NDI at ${ns.format}: ${ns.sources.map(watching).join(', ')}.`
+        : o.showing.length ? 'Starting NDI…' : nd.ok ? 'Pick the signal and video format.' : nd.error || 'Checking for NDI…')
       : o.showing.length ? 'Showing ' + o.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
       : 'Pick the display to use.';
     $('outDeck').textContent = `${base}/deck/output/toggle`;
@@ -625,7 +656,7 @@
     try {
       const r = await fetch('/api/outputs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes) });
       showOut(await r.json());
-      setTimeout(loadOut, 1500); // the Blackmagic output reports how it started a moment later
+      setTimeout(loadOut, 1500); // the Blackmagic and NDI outputs report how they started a moment later
     } catch (err) { $('err').textContent = `Could not change the display output: ${err.message}`; }
   };
   // ?scan=1 has the app look for Blackmagic devices again (plugged in or out).
@@ -644,6 +675,7 @@
     if (r.value === 'chroma') changes.chromaDisplay = $('outChromaDisplay').value;
     if (r.value === 'fillkey') { changes.fillDisplay = $('outFillDisplay').value; changes.keyDisplay = $('outKeyDisplay').value; }
     if (r.value === 'decklink') { changes.decklinkDevice = $('outDlDevice').value; changes.decklinkMode = Number($('outDlMode').value) || 0; }
+    if (r.value === 'ndi') { changes.ndiSignal = $('outNdiSignal').value; changes.ndiFormat = $('outNdiFormat').value; }
     setOut(changes);
   });
   $('outChromaDisplay').onchange = () => setOut({ chromaDisplay: $('outChromaDisplay').value });
@@ -654,6 +686,9 @@
   $('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').value) || 0 });
   $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
   $('outDlStraight').onchange = () => setOut({ decklinkStraight: $('outDlStraight').checked });
+  $('outNdiSignal').onchange = () => setOut({ ndiSignal: $('outNdiSignal').value });
+  $('outNdiFormat').onchange = () => setOut({ ndiFormat: $('outNdiFormat').value });
+  $('outNdiName').onchange = () => setOut({ ndiName: $('outNdiName').value });
   for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
   $('outOn').onclick = () => setOut({ on: !(out && out.on) });
   $('previewSound').onchange = () => {

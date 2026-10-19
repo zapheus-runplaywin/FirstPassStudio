@@ -7,7 +7,7 @@
 // at other apps, and the scene scales to fit whatever size it is. They aren't Studio windows: closing
 // them doesn't take Studio off air, and they close when Studio does. Closing one, or clicking it and
 // pressing Esc, turns the output off, in case it ends up over the screen you're working on.
-// A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js.
+// A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js, NDI to desktop/ndi.js.
 
 'use strict';
 
@@ -19,10 +19,16 @@ module.exports = function outputs({ port, log }) {
   app.on('before-quit', () => { quitting = true; });
   let helper = null;
   const decklink = require('./decklink')({ port, log, onStatus: status => helper?.postMessage({ type: 'decklinkStatus', status }) });
+  const ndi = require('./ndi')({ port, log, onStatus: status => helper?.postMessage({ type: 'ndiStatus', status }) });
 
   // The Blackmagic devices (and their video formats) for the Output page.
   function sendDecklink() {
     if (helper) helper.postMessage({ type: 'decklink', ...decklink.devices() });
+  }
+
+  // Whether the NDI runtime is installed, for the Output page.
+  function sendNdi() {
+    if (helper) helper.postMessage({ type: 'ndi', ...ndi.available() });
   }
 
   function displays() {
@@ -49,7 +55,8 @@ module.exports = function outputs({ port, log }) {
 
   function show(list) {
     decklink.show(list.find(w => w.kind === 'decklink') || null);
-    const wanted = new Map(list.filter(w => w.kind !== 'decklink').map(w => [w.display, w]));
+    ndi.show(list.find(w => w.kind === 'ndi') || null);
+    const wanted = new Map(list.filter(w => w.display).map(w => [w.display, w]));
     for (const [id, o] of open) {
       if (!wanted.has(id)) { o.win.destroy(); open.delete(id); }
     }
@@ -89,6 +96,7 @@ module.exports = function outputs({ port, log }) {
     for (const o of open.values()) o.win.destroy();
     open.clear();
     decklink.stop();
+    ndi.stop();
   }
 
   // Displays plugged in, unplugged or changed: tell the helper, and drop the windows of a display that's gone.
@@ -107,8 +115,8 @@ module.exports = function outputs({ port, log }) {
     attach(child) {
       helper = child;
       child.on('message', msg => {
-        if (msg?.type === 'ready') { sendDisplays(); sendDecklink(); } // the helper is listening now
-        if (msg?.type === 'scan') sendDecklink();
+        if (msg?.type === 'ready') { sendDisplays(); sendDecklink(); sendNdi(); } // the helper is listening now
+        if (msg?.type === 'scan') { sendDecklink(); sendNdi(); }
         if (msg?.type === 'outputs') show(msg.windows || []);
       });
     },
