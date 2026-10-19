@@ -1,11 +1,11 @@
 # FirstPass Studio
 
-Transparent ladder, scoreboard and game overlays for OBS, fed live from PlayHQ's public data (no API key). Set up for
+Transparent ladder, scoreboard and game graphics for a livestream, fed live from PlayHQ's public data (no API key). Set up for
 Thunder League, with saved setups ready for the AMMNA Nationals and GIG WANL (the WA Netball League).
 
 The pages you work in (output, graphics, scoreboard control, competitions setup, athletes and Stream Deck) carry the FirstPass
 Studio look from `public/studio.css`, with the Montserrat font served from `public/vendor/montserrat` so it works
-offline. The OBS overlays don't use it: they keep the colours, font and logos of the competition in use.
+offline. The graphics don't use it: they keep the colours, font and logos of the competition in use.
 
 ## One-time setup
 
@@ -30,13 +30,13 @@ list's **Club** box links a team to another club, or a new one. Setups saved wit
 clubs when loaded.
 
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
-automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics in OBS.
+automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics.
 
 Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logos/`, `brand/`); see **Saved settings** below.
 Studio starts with no competitions: **Import** one of the import configs on the setup page (Thunder League, AMMNA
 Nationals, GIG WANL) or make a new one. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
 GIG WANL in Netball WA greens with Gold Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to
-Australian Championships; for GIG WANL pick it with **Find its competitions**. GIG WANL plays super shots in its Open
+Australian Championships and GIG WANL's to GIG WANL, so both are ready to use. GIG WANL plays super shots in its Open
 division only, not 21&Under or Men's (confirmed by Matt). Super shots can be set per division on the setup page: by a division's
 full PlayHQ name, or by a word in it ("Open", "21", "Men", which is what GIG WANL comes with). The other rules (AMMNA 10-minute
 quarters and no super shots, WANL 15-minute quarters, top 4 Page finals) are guesses to check. `config.json` now only holds this computer's settings (port,
@@ -93,22 +93,22 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It opens the home page in its own window and lives in the menu bar (the **1P**
-icon). OBS and the Stream Deck use the same links as the home page.
+icon). The Output page and the Stream Deck use the same links as the home page.
 
 **Studio only runs while a Studio window is open.** Opening a Studio window (opening the app, **Open Studio** or any
-page in the menu bar icon, ⌘N) puts Studio on air: it serves the OBS pages and the Stream Deck links, talks to PlayHQ,
+page in the menu bar icon, ⌘N) puts Studio on air: it serves the graphics and the Stream Deck links, talks to PlayHQ,
 and restarts by itself if it stops. Closing the last Studio window takes it off air, so nothing talks to PlayHQ and
-the OBS pages and Stream Deck get no answer until a window opens again. Closing the last window while on air asks
-first (**Take Off Air** or **Cancel**), so a stray ⌘W can't stop a stream. Keep a window open, minimised or behind
-OBS, for the whole stream.
+the graphics and Stream Deck get no answer until a window opens again. Closing the last window while on air asks
+first (**Take Off Air** or **Cancel**), so a stray ⌘W can't stop a stream. Keep a window open, such as the Output
+page, for the whole stream.
 
 ### Links use the Mac's .local name
 
 The links on the home page, the control page and the Mac app's menu (including **Copy the Studio link**) start with
 the Mac's Bonjour name, e.g. `http://matts-macbook-pro.local:8080/`, instead of `localhost`. That name is the
-**Local hostname** in System Settings > General > Sharing, and it works in OBS on the Mac itself and from a phone,
+**Local hostname** in System Settings > General > Sharing, and it works on the Mac itself and from a phone,
 another computer or a Stream Deck on the same network, without looking up an IP address. The port stays 8080.
-`http://localhost:8080` still works on the Mac, so existing OBS sources and Stream Deck buttons carry on as they are.
+`http://localhost:8080` still works on the Mac, so existing links and Stream Deck buttons carry on as they are.
 To go back to `localhost` links (or use a fixed name or IP address), set `"linkHost": "localhost"` (or that name) in
 `config.json` in the data folder; `"bonjour"` is the default.
 
@@ -117,7 +117,7 @@ open the pages and press the Stream Deck links (scores, clock, game). Stream on 
 Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
 The menu bar icon has: Start/Stop Studio, Open Studio, Scoreboard control, Competition setup, Copy the Studio link,
-Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
+Install the Stream Deck plugin, Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
 login, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". **Start Studio** opens the
@@ -135,13 +135,13 @@ Studio's pages open in the app's own window (`desktop/windows.js`), not the brow
 bookmarks, the Studio header is the title bar (the window buttons sit in it, and dragging it moves the window), and
 the app shows in the Dock and ⌘Tab while a window is open, then goes back to just the menu bar icon. A link that opens
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
-anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
+anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
 ⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 athletes, ⌘6 Stream Deck) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
 **Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
-the browser as before. OBS keeps using the links as browser sources.
+the browser as before.
 
 Settings live in the data folder (see **Saved settings**). Updates download in the background and install when the app quits, so they never
 interrupt a stream; once one has downloaded, **Restart to update** in the menu installs it straight away. Settings
@@ -212,28 +212,24 @@ so don't run it while the app is on air.
 
 1. Open the FirstPass Studio app. Its home page opens and Studio goes on air; leave a Studio window open for the
    whole stream (closing the last one takes Studio off air).
-2. The home page lists the three division links (with Copy buttons).
-3. In OBS add a **Browser** source per division, width 1920, height 1080:
-   - http://localhost:8080/ladder.html?division=1
-   - http://localhost:8080/ladder.html?division=2
-   - http://localhost:8080/ladder.html?division=3
+2. Open **Output** (⌘1) and add the graphics you need with **Add page** (the scoreboard, a ladder per division, and so
+   on), then turn on the display or Blackmagic output that feeds your switcher (see **Output** below).
+3. Open **Scoreboard control** (⌘3 in the app, or from the 1P icon) to run the scoreboard.
+4. Turn graphics on and off from the Output page or the Stream Deck.
 
-4. For the live scoreboard, add http://localhost:8080/scoreboard.html as another Browser source (1920 x 1080),
-   then open **Scoreboard control** (⌘3 in the app, or from the 1P icon) to run it.
-
-Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds) and the ticker. Every other page
-loads once when OBS shows it: in each Browser source tick **Refresh browser when scene becomes active**, or
-right-click the source and choose **Refresh** to get the latest. Divisions are numbered in name order, as listed on the
+Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds), the ticker, the
+automatic super shot (every second) and the countdown (every 5 seconds, asking Studio only). Every other page
+loads once, and again each time it's turned on on the Output page (with **Load the page fresh each time it's shown**, the
+default), or press **Refresh page** to get the latest. Divisions are numbered in name order, as listed on the
 http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
 
 Frame rate: every graphic and animation is timed by the clock, not by frames, so it plays at the same speed at 25, 30,
-50 or 60 fps. For 1080 50p or 60p, set OBS's Video FPS to 50 or 60 and leave **Use custom frame rate** unticked in each
-Browser source, so the pages render at the stream's rate (a custom rate of 30 would make movement look steppy at 60p).
+50 or 60 fps. The Blackmagic output renders at the video format's frame rate.
 
-## Studio scene (optional, instead of an OBS scene)
+## Output (the Studio scene)
 
 http://localhost:8080/output.html (**Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
-sources drawn as layers, top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.
+sources drawn as layers, top layer first, sent to a display or a Blackmagic device for your switcher.
 
 - **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
   **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. Each opens a
@@ -241,18 +237,17 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   settings are ready to change. The page list splits into pages not in the scene yet and pages already in it, and **Add all
   unused pages** adds every Studio graphic not in the scene, hidden, in that order. Drag a source (by its ⋮⋮ or anywhere on
   its row) to move it up or down the layers, or use ↑ and ↓.
-- **Page options:** a Studio graphic's link options (court, position, heading, animate away and so on) show as fields under its
+- **Page options:** a Studio graphic's link options (position, heading, division, round, animate away and so on) show as fields under its
   **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
   new option there as well as on the home page.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
 - **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
-  (1920 x 1080 for full-frame graphics), like an OBS Browser source's width and height.
+  (1920 x 1080 for full-frame graphics).
 - **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
-  when hidden, like OBS's **Shutdown source when not visible**. Untick it to keep a page running while hidden so it shows instantly.
+  when hidden. Untick it to keep a page running while hidden so it shows instantly.
   **Refresh page** reloads it now.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
-  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (OBS's, with the
-  scene in OBS), and the Output page's preview is silent unless **Preview sound** is ticked. **Restart video** starts it again from the top.
+  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's preview is silent unless **Preview sound** is ticked. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
   without alpha) gives an opaque WebM: the Output page and the log say so. This needs
@@ -267,7 +262,7 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
   it off when the Mac is busy. **Preview sound** plays the scene's sound from the preview, with or without an output on;
-  a display or Blackmagic output is muted while it does, so it never plays twice (mute the scene in OBS if it's there too). It goes back to the outputs when the Output page closes, and only one Output
+  a display or Blackmagic output is muted while it does, so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
   page plays it at a time (click another page's preview to bring the sound there). A line under the preview says why it's silent, if it is.
 - **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
   **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that
@@ -278,18 +273,17 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   display or get at other apps, and the scene scales to fit. **Output on/off**, Esc on an output window, closing it, or
   `/deck/output/on|off|toggle` shows or blanks the displays without changing the setup, and they go dark when Studio goes off air. Saved as `outputs.json` in the data folder. Run without the app
   (`npm start`) there are no displays to send to.
-- **Blackmagic output (Mac app):** sends the scene out of a Blackmagic UltraStudio or DeckLink, as OBS's DeckLink output does.
+- **Blackmagic output (Mac app):** sends the scene out of a Blackmagic UltraStudio or DeckLink.
   **Fill and key** uses the device's external keyer (fill on one SDI out, key on the other); **fill only** sends just the picture. Pick the
   device and the video format the switcher runs at (1080i50 is picked first when the device can key it). The fill is premultiplied, as
-  Chromium draws it; tick **Straight** if the switcher's key expects unpremultiplied fill. It needs Blackmagic Desktop Video (the driver OBS
-  uses) installed, not the SDK, and the device free (quit OBS or Media Express first). The scene renders off screen at the format's frame
+  Chromium draws it; tick **Straight** if the switcher's key expects unpremultiplied fill. It needs Blackmagic Desktop Video installed, not the SDK,
+  and the device free (quit any other app using it, such as Media Express, first). The scene renders off screen at the format's frame
   rate (`desktop/decklink.js`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
   `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. Sound
   plays through the Mac's audio output. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
   in the app log.
 
-The scene is saved as `scene.json` in the data folder. To use it in OBS instead, add http://localhost:8080/scene.html as one 1920 x 1080
-Browser source.
+The scene is saved as `scene.json` in the data folder. http://localhost:8080/scene.html is the scene on its own, 1920 x 1080.
 
 ## Example graphics
 
@@ -302,7 +296,7 @@ or Chromium (set `CHROME_PATH` for another one).
 ## Debug log
 
 Everything goes into `logs/playhq-graphics.log` in the data folder: each page opening, errors and warnings from every page
-(including OBS), every PlayHQ request and its answer code, Game Summary requests, scoreboard and Stream Deck
+(including the Output page and its outputs), every PlayHQ request and its answer code, Game Summary requests, scoreboard and Stream Deck
 changes, and Studio errors. Read it at http://localhost:8080/api/log. It never grows past 15 MB
 (`logMaxMB` in `config.json`): when full, the oldest half is removed. If something goes wrong, send that file to Claude.
 
@@ -319,7 +313,7 @@ http://localhost:8080/results.html is the same page showing only finished games 
 
 http://localhost:8080/branding.html shows only the PIVT and FirstPass Studio logos (left) and the competition logo
 from the setup page (right), placed either side of the title banner, so other pages can be turned on and off around
-them in OBS. `?pivt=0`, `?studio=0` or `?comp=0` leave a logo off; `?gap=320` moves both sides in or out from the
+them. `?pivt=0`, `?studio=0` or `?comp=0` leave a logo off; `?gap=320` moves both sides in or out from the
 centre, `?top=95` moves them up or down, and `?size=1.2` makes them bigger. `?mode=light` (the default) uses the
 logos made for a light picture behind them: blue First, orange Pass and gold STUDIO, and the setup's light mode
 competition logo. `?mode=dark` uses the ones for a dark picture: white FirstPass, gold STUDIO and the dark mode
@@ -379,22 +373,22 @@ These follow the game picked on the scoreboard control page:
   `?teams=0` shows the clock only and `?position=top` or `bottom` moves it.
 - http://localhost:8080/clash.html: animated match up. The two logos charge in, smash together in the middle with a flash,
   sparks and lightning, then settle either side of a stamped VS over a big CLASH, with "Battle for <division>", the time
-  and court. Tick "Refresh browser when scene becomes active" in OBS so it plays each time the scene comes on.
+  and court. It plays each time it's turned on on the Output page.
   `?out=10` animates it away after 10 seconds, `?word=RIVALS` changes the big word, `?title=Grand%20Final` the bottom line.
 - http://localhost:8080/winner.html: full time celebration, picking the result from the scoreboard score when it opens
   (`?winner=home`, `?winner=away` or `?winner=draw` forces one). For a win the
   team's logo slams in over turning light rays and a big outlined VICTORY, with confetti cannons in their colour, then their
   name, the final score and "def. <other team>". For a draw both logos slide in, see-saw on a beam until level, DRAW is
-  stamped between them and the score shows "Honours shared". Tick "Refresh browser
-  when scene becomes active" in OBS. `?out=10` animates it away, `?word=CHAMPIONS` changes the big word (the stamp on a draw),
+  stamped between them and the score shows "Honours shared". It plays
+  each time it's turned on on the Output page. `?out=10` animates it away, `?word=CHAMPIONS` changes the big word (the stamp on a draw),
   `?title=` the line under the score and `?score=0` leaves the score off. Club colours from the setup are used, like The Clash.
 - http://localhost:8080/supershot.html: 3 second celebration after a successful super shot. A netball flies in and bursts
   with sparks, SUPER and SHOT slam in from either side with the team's logo and name in their club colour,
-  then it fades out and leaves the frame clear. Leave it on in OBS: it watches the scoreboard and plays by itself for each
+  then it fades out and leaves the frame clear. Leave it on: it watches the scoreboard and plays by itself for each
   super shot (a +2 press, or the PlayHQ scorer's super shot count going up while following PlayHQ).
   It asks Studio every second, which asks PlayHQ nothing extra. `/deck/home/supershot` plays it without changing the score.
-  Manual: `?team=home`, `?team=away` or `?team=none` plays it once when the source comes on instead (tick "Shutdown source when
-  not visible" and "Refresh browser when scene becomes active"). Details in STREAMDECK.md.
+  Manual: `?team=home`, `?team=away` or `?team=none` plays it once when the source comes on instead (keep **Load the page
+  fresh each time it's shown** ticked). Details in STREAMDECK.md.
 - http://localhost:8080/goals.html: the last 10 goals of the game, oldest to newest, for showing trends and changes in momentum.
   Each goal is a disc in the scoring team's club colour with its logo (+2 badge for a super goal) and the quarter and time,
   with a momentum line underneath (up for home goals, down for away), each team's count of the 10 and the current run
@@ -424,10 +418,10 @@ These follow the game picked on the scoreboard control page:
 
 Line-ups and stats come from the same data the playhq.com game page shows, with no API key. Players who keep their
 profile private show as PlayHQ shows them. Only if that has no players and an `apiKey` is set do they come from
-PlayHQ's "Summary for the Game v2" instead (Client ID on the setup page, other settings in `config.json`):
-- `apiKey`: the association's PlayHQ API key (optional; leave blank if you don't have one).
-- `apiTenant`: the sport name PlayHQ expects with the key (blank uses `netball-australia` from the organisation link).
-- `gameSummaryPath`: `/v2/games/{id}/summary`.
+PlayHQ's "Summary for the Game v2" instead (on the competition setup page; the path is a machine setting in `config.json`):
+- **Client ID**: the association's PlayHQ API key (optional; leave blank if you don't have one).
+- **Tenant**: the sport name PlayHQ expects with the key (blank uses `netball-australia` from the organisation link).
+- `gameSummaryPath` in `config.json`: `/v2/games/{id}/summary`.
 When a team's line up for the game has fewer than seven players (benches often clear it when they log in and only
 add players as they score), the rest of the team's season squad (everyone in its line ups this season) is added after
 them under **Squad**, without positions. With no line up at all, the team list is the whole squad. Players in the
@@ -435,8 +429,8 @@ partial line up keep their position and stats, and the position match ups page o
 The control page shows how many players were found for each team, or the error. If the lists look wrong, send the debug log to Claude.
 
 Team logos are added on the competition setup page, named after the team. A logo whose file name doesn't match the
-PlayHQ team name can be picked for that team in the setup page's team list. The same list gives any team its own colour
-(**Add colour**, then the colour picker or a pasted HEX or RGB value, or × to go back to the competition's colours; teams with similar names are offered the same colour); the scoreboard and The Clash use it behind that team. The
+PlayHQ team name can be picked for that team in the setup page's team list. The same list gives a club its own colour
+(**Add colour**, then the colour picker or a pasted HEX or RGB value, or × to go back to the competition's colours), shared by every team of that club; the scoreboard and The Clash use it behind those teams. The
 match up page keeps the competition's colours.
 
 ## Athlete photos and position match ups
@@ -491,8 +485,7 @@ athlete without a photo shows the generic silhouette for their gender.
 - `?pair=C`: shows one pairing only, by the home team's position.
 - `?games=0`: leaves out each athlete's games played.
 
-Like the other graphics it loads once: tick **Refresh browser when scene becomes active** in OBS so it starts again each
-time the scene comes on.
+Like the other graphics it loads once, and starts again each time it's turned on on the Output page.
 
 ## Roadmap
 

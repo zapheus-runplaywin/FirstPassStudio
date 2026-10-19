@@ -8,7 +8,7 @@
 <script src="log.js"></script>
 <style>
   /* Super shot celebration, 3 seconds, then it fades out and leaves the frame clear. Transparent outside the graphics.
-     By default it stays in OBS and plays whenever the scoreboard gets a super shot, with that team's logo, name and club colour.
+     By default it stays on and plays whenever the scoreboard gets a super shot, with that team's logo, name and club colour.
      ?team=home|away|none plays it once when the page loads instead (manual), for that team or without one.
      Every animation runs from one start on the page's CSS clock, so it plays the same each time.
      Times in seconds: ball flies in 0 to 0.5, bursts 0.5, SUPER SHOT slams 0.45 to 0.65, team 0.95, fades 2.4 to 3. */
@@ -117,10 +117,10 @@
 </style>
 </head>
 <body>
-  <!-- Add to OBS as a Browser source, 1920 x 1080, and leave it on:
+  <!-- A 1920 x 1080 page for the Output page; leave it on:
        http://localhost:8080/supershot.html             (plays by itself for each super shot: a +2 press, or PlayHQ's scorer)
        It runs for 3 seconds, fades out and leaves the frame clear.
-       Manual, plays once each time the source comes on (tick "Shutdown source when not visible" and "Refresh browser when scene becomes active"):
+       Manual, plays once each time the source comes on (keep "Load the page fresh each time it's shown" ticked):
        http://localhost:8080/supershot.html?team=home   (or ?team=away: that team's logo, name and club colour)
        http://localhost:8080/supershot.html?team=none   (no team, the competition's colours) -->
   <div class="stage" id="stage">

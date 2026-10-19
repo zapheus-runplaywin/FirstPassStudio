@@ -24,7 +24,7 @@ const PAGE_OPTIONS = (() => {
 
   return {
     'scoreboard.html': [
-      { key: 'position', label: 'Position', type: 'select', choices: [['', 'Bottom centre'], ['top-center', 'Top centre'], ['top-left', 'Top left'], ['bottom-left', 'Bottom left']] },
+      { key: 'position', label: 'Position', type: 'select', choices: [['', 'Bottom centre, above the ticker'], ['bottom-center', 'Bottom centre (no gap for the ticker)'], ['top-center', 'Top centre'], ['top-left', 'Top left'], ['bottom-left', 'Bottom left']] },
     ],
     'ticker.html': [
       { key: 'speed', label: 'Speed', type: 'number', min: 20, max: 600, unit: 'px a second', placeholder: 'from the control page' },

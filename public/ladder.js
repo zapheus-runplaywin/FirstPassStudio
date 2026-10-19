@@ -1,7 +1,7 @@
 (function () {
   const params = new URLSearchParams(location.search);
   const division = params.get('division') || ''; // blank = the division of the game picked on the control page
-  const refreshSeconds = Number(params.get('refresh')) || 0; // 0 = load once (OBS refreshes the source)
+  const refreshSeconds = Number(params.get('refresh')) || 0; // 0 = load once (reloaded when shown again)
   const maxRows = Number(params.get('rows')) || 0;
 
   // Columns shown when PlayHQ provides them. Edit the labels here.

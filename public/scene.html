@@ -7,9 +7,8 @@
   The scene built on the Output page (output.html): every source drawn as a layer on one
   1920 x 1080 transparent frame, top layer first, shown and hidden with each source's fade.
   It follows the helper's scene straight away (server-sent events), so a Stream Deck press
-  shows at once. ?mute=1 silences every video (the Output page's preview). Optional: the
-  other pages still work on their own in OBS, and this page can also go into OBS as a
-  single 1920 x 1080 browser source.
+  shows at once. ?mute=1 silences every video (the Output page's preview). The
+  other pages still work on their own at their own links.
   The Mac app's display outputs (desktop/outputs.js) open it full screen with ?fit=1 (scales the
   frame to the window), ?bg=<hex> (a background colour: black for fill, the chroma colour for chroma)
   and ?key=1 (the key signal: white wherever the scene isn't see-through, grey where it's partly
@@ -158,7 +157,7 @@
     const token = ++L.token;
     const pageKey = s.type === 'browser' ? `${addressOf(s)}#${s.loadSeq}` : '';
     if (s.visible) {
-      // A page loads when it's shown (fresh each time, like OBS's "Shutdown source when not visible"),
+      // A page loads when it's shown (fresh each time),
       // or once and kept running with reloadOnShow off. Restart reloads it either way.
       const needsLoad = s.type === 'browser' && (L.loaded !== pageKey || (s.reloadOnShow && !L.shown));
       if (needsLoad) await loadPage(L, s);

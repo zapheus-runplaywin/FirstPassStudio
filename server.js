@@ -1,13 +1,13 @@
-// PlayHQ Graphics - local helper for OBS overlay pages.
+// FirstPass Studio - local helper for the overlay pages.
 //
 // Why this exists: PlayHQ's public data (the same data www.playhq.com shows) is
 // served from https://api.playhq.com/graphql. It needs no API key, but it only
 // answers requests that look like they come from playhq.com and carry a guest
-// session cookie. A web page loaded in OBS can't set those, so this tiny server
+// session cookie. A web page loaded as an overlay can't set those, so this tiny server
 // fetches the data and hands it to the pages in public/.
 //
 // Run:  node server.js        (Node 18 or newer, nothing to install)
-// Then: http://localhost:8080/ lists the pages to add to OBS.
+// Then: http://localhost:8080/ lists the pages.
 
 'use strict';
 
@@ -1301,7 +1301,7 @@ function readBody(req) {
 }
 
 // Pages reload themselves when this changes: after a restart, or when a file in
-// public/ or config.json is edited (so updated pages show in OBS on their own).
+// public/ or config.json is edited (so updated pages show on their own).
 const STARTED_AT = Date.now();
 function pageVersion() {
   let latest = STARTED_AT;
@@ -2362,7 +2362,7 @@ http.createServer(async (req, res) => {
       const output = outputs.deck(parts);
       if (output) return send(res, output.status, output.body);
       const action = deckAction(parts, q);
-      if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See STREAMDECK.md.` });
+      if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See the Stream Deck page, /api.html.` });
       const b = board();
       applyAction(b, action);
       if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick();

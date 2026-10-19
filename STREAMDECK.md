@@ -39,8 +39,8 @@ Press Follow PlayHQ (`/deck/source/playhq`, below) to go back. A +2 press also p
 | Automatic game selection on / off | http://localhost:8080/deck/auto/toggle |
 | Court for automatic selection (court 2) | http://localhost:8080/deck/court/2 |
 
-The court can be its PlayHQ name (`/deck/court/Indoor%2001`) or just its number. Picking a game from the list on the
-control page turns automatic selection off.
+The court can be its PlayHQ name (`/deck/court/Indoor%2001`) or just its number. Choosing a court also turns automatic
+selection on. Picking a game from the list on the control page turns it off.
 
 ## Score ticker
 
@@ -111,14 +111,13 @@ Changing the quarter doesn't touch the clock. Press Reset clock as well when the
 
 ## Winner celebration (full time)
 
-The winner animation is an OBS source, not a Studio link, so the button switches OBS rather than press a link.
+The winner animation is a source in the scene, so its key shows the source (see **Scene (Output page)** below).
 It works out the result from the scoreboard score each time it comes on, so one button covers home wins, away wins and draws.
 Set it up once:
 
-1. In OBS add a **Browser** source, 1920 x 1080, with the link http://localhost:8080/winner.html, and tick
-   **Shutdown source when not visible** and **Refresh browser when scene becomes active** so it plays from the start
-   each time it comes on. Add `?out=12` to have it animate away by itself after 12 seconds.
-2. On the Stream Deck use the **OBS Studio** plugin: a **Scene** action for its scene, or a **Source** (visibility) action for the source.
+1. On the Output page, **Add page** and pick **Winner**, keeping **Load the page fresh each time it's shown** ticked (the
+   default) so it plays from the start each time it comes on. Add `?out=12` to have it animate away by itself after 12 seconds.
+2. On the Stream Deck use a **FirstPass Studio > Source** key for it, or the link http://localhost:8080/deck/layer/winner/toggle.
 
 It celebrates the game picked on the control page, with the names, logos and final score from the scoreboard, so check the
 score is right before pressing. To force a result whatever the score, use a source with `?winner=home`, `?winner=away` or `?winner=draw`.
@@ -127,27 +126,26 @@ score is right before pressing. To force a result whatever the score, use a sour
 
 The super shot animation plays by itself: 3 seconds, then it fades out, so the frame is clear again.
 
-1. In OBS add a **Browser** source, 1920 x 1080, with http://localhost:8080/supershot.html and leave it on, above the scoreboard.
-   (Leave **Shutdown source when not visible** unticked.)
+1. On the Output page, **Add page** and pick **Super shot**, above the scoreboard, and leave it on.
 2. That's it. It plays with the scoring team's logo, name and club colour whenever the scoreboard gets a super shot:
    - a +2 press on the control page or the Stream Deck (http://localhost:8080/deck/home/add2), or
    - while following PlayHQ, the PlayHQ scorer recording a super shot (seen within the 5 second check).
 
 Not played: two normal goals between checks, a scorer changing a goal into a super shot, scores catching up when a game is
 picked or scoring switches to Follow PlayHQ, anything after full time, and a −2. A +2 pressed by mistake still plays, so
-use −2 to fix the score. Two super shots close together play one after the other.
+use −2 to fix the score. Two super shots close together play one after the other. It only plays in a division that
+plays super shots (set on the competition setup page), and so do the links below.
 
 To play it without changing the score (a test, or a super shot the scoring missed), press
 http://localhost:8080/deck/home/supershot or http://localhost:8080/deck/away/supershot.
 
 **Manual instead:** a source with `?team=home`, `?team=away` or `?team=none` (no team, the competition's colours) doesn't
-watch the scoreboard; it plays once each time it comes on. Tick **Shutdown source when not visible** and **Refresh browser
-when scene becomes active**, show it with the **OBS Studio** plugin's **Source** (visibility) action, and turn it off again
-before the next one so it replays. Don't keep a manual source and the automatic one on together, or it plays twice.
+watch the scoreboard; it plays once each time it comes on. Keep **Load the page fresh each time it's shown** ticked, show it with a
+**FirstPass Studio > Source** key, and turn it off again before the next one so it replays. Don't keep a manual source and the automatic one on together, or it plays twice.
 
 ## Scene (Output page)
 
-Optional: for Studio's own scene, built on the Output page (http://localhost:8080/output.html), in place of an OBS scene.
+For Studio's scene, built on the Output page (http://localhost:8080/output.html).
 
 **FirstPass Studio plugin (easiest).** The Mac app includes a Stream Deck plugin. Install it from the menu bar icon
 (**Install the Stream Deck plugin**) or the button on the Output page; the Stream Deck app opens it and installs it (do the same after an
@@ -178,8 +176,7 @@ Each source in the scene gets these links, using its name in lower case with das
 | Show or blank the scene on the Mac's displays or Blackmagic device (Mac app) | http://localhost:8080/deck/output/toggle |
 | Video output on / off | http://localhost:8080/deck/output/on, http://localhost:8080/deck/output/off |
 
-Renaming a source on the Output page changes its links (the plugin's keys carry on). The plugin's Source keys, or these links, replace the
-**OBS Studio** plugin's **Source** keys on nights you use the Studio scene; keep a separate Stream Deck profile for OBS nights, since OBS works exactly as before.
+Renaming a source on the Output page changes its links (the plugin's keys carry on).
 
 ## Timed buttons (Timed Sequence plugin)
 

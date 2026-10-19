@@ -1,4 +1,4 @@
-// FirstPass Studio - the scene: Studio's own replacement for an OBS scene (optional).
+// FirstPass Studio - the scene: sources drawn as layers on one frame, built on the Output page.
 //
 // One scene, a list of sources drawn as layers, top layer first: Studio pages (or any web
 // address), and images and videos from the media folder. Each source can be shown and hidden with its
@@ -9,9 +9,8 @@
 //
 // Saved as scene.json in the data folder; images and videos are kept in its media/ folder.
 // Chromium can't play ProRes, so a .mov added to the media folder is converted to a WebM
-// beside it (VP9, keeping transparency) with the ffmpeg the app bundles; the original is kept. OBS still
-// works exactly as before: nothing here changes the other pages, and scene.html can itself
-// go into OBS as one browser source.
+// beside it (VP9, keeping transparency) with the ffmpeg the app bundles; the original is kept. Nothing here
+// changes the other pages: each still works on its own at its own link.
 
 'use strict';
 
@@ -133,7 +132,7 @@ function apply(a) {
   const need = () => src ? null : `No source "${a.id || a.name || ''}" in the scene.`;
   switch (a.type) {
     case 'add': {
-      // One source (source) or several (sources, top first). New sources go on top, like OBS, or just
+      // One source (source) or several (sources, top first). New sources go on top, or just
       // above the source named by before (the one selected on the Output page).
       const list = (Array.isArray(a.sources) ? a.sources : [a.source]).filter(Boolean).slice(0, 100).map(x => clean({ ...x, visible: false }));
       if (!list.length) return 'Nothing to add.';

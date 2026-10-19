@@ -76,7 +76,7 @@ Modifiers: `ctrl`, `shift`, `alt` (`option`), `cmd` (Mac only). Named keys: `ent
 
 ```
 # Go-live at 19:00
-open "C:\Program Files\obs-studio\bin\64bit\obs64.exe"
+open "/Applications/FirstPass Studio.app"
 wait 10s
 http POST http://homeassistant.local:8123/api/webhook/studio-lights-on
 wait 2s
@@ -89,7 +89,7 @@ ok
 ## Good to know
 
 - **It can't press your other Stream Deck keys.** The SDK doesn't let plugins trigger other actions.
-  To drive OBS, Home Assistant, Bitfocus Companion, etc., use their webhook/HTTP APIs (`http`/`post`) or hotkeys (`keys`).
+  To drive Home Assistant, Bitfocus Companion, etc., use their webhook/HTTP APIs (`http`/`post`) or hotkeys (`keys`).
 - **Hotkeys and typing go to whatever window is focused** at that moment. Add an `open` + `wait` first to bring the right app forward.
 - **macOS:** `keys` and `type` need Accessibility permission for Stream Deck
   (System Settings → Privacy & Security → Accessibility). macOS asks the first time.

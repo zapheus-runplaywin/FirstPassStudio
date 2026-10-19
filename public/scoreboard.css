@@ -1,4 +1,4 @@
-/* Scoreboard layout. Colours come from theme.css. The page background stays transparent for OBS. */
+/* Scoreboard layout. Colours come from theme.css. The page background stays transparent so it can go over video. */
 :root {
   --margin: 48px;          /* distance from the frame edge */
   --height: 52px;          /* height of the main bar */

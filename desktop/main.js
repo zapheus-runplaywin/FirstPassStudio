@@ -3,7 +3,7 @@
 // A menu bar app around the helper (server.js): it opens Studio's pages in its own window
 // (windows.js), or the browser if chosen, and runs the helper in the background only while a
 // Studio window is open. Opening a window puts Studio on air; closing the last one takes it off
-// air, so nothing talks to PlayHQ while Studio isn't on screen. OBS and the Stream Deck use the
+// air, so nothing talks to PlayHQ while Studio isn't on screen. The Output page and the Stream Deck use the
 // links on the home page (the Mac's .local name, or localhost).
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which

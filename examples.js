@@ -2,7 +2,7 @@
 //
 // Takes a 1920x1080 picture of every overlay page with the data PlayHQ has right
 // now, and saves them in Examples/<date and time>/ with an index.html to look
-// through them. Pictures keep the transparent background, like OBS shows them.
+// through them. Pictures keep the transparent background.
 //
 // Run:  node examples.js     (or double click "Make Examples (Mac).command")
 // Needs Node 22 or newer and Google Chrome, Microsoft Edge, Brave or Chromium. Set

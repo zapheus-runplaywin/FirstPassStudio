@@ -1,5 +1,5 @@
 /* Full-screen graphics (team lists, shooting stats). Colours come from theme.css.
-   The page background stays transparent for OBS. */
+   The page background stays transparent so it can go over video. */
 :root { --card-width: 1400px; --radius: 12px; }
 
 html, body { margin: 0; background: transparent; }
