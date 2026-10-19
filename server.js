@@ -583,10 +583,10 @@ async function getRounds(gradeId) {
 // (kept in control.json; blank means automatic).
 //
 // control.json holds the control page's lasting settings on this computer (git ignores it):
-// the round picked by hand, and per board automatic game selection, its court, following
+// the round picked by hand, and the scoreboard's automatic game selection, its court, following
 // the PlayHQ clock, how often to check PlayHQ, showing the clock and the ticker's speed, and finals
-// winners entered by hand (for finals PlayHQ has no fixtures for). Without it the boards
-// start from the competition setup's defaults. The game itself, scores and the clock stay
+// winners entered by hand (for finals PlayHQ has no fixtures for). Without it the scoreboard
+// starts from the competition setup's defaults. The game itself, scores and the clock stay
 // in scoreboard-state.json.
 const CONTROL_FILE = DATA('control.json');
 const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock', 'tickerSpeed'];
@@ -595,8 +595,8 @@ try { control = JSON.parse(fs.readFileSync(CONTROL_FILE, 'utf8')); } catch { /* 
 if (control.round === undefined) { // the round used to be kept in round-choice.json
   try { control.round = String(JSON.parse(fs.readFileSync(DATA('round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }
 }
-control.boards = control.boards || {};
 let controlSaved = JSON.stringify(control);
+control.boards = control.boards && control.boards['1'] ? { 1: control.boards['1'] } : {}; // one scoreboard: an old second board goes at the next save
 // Write control.json only when a lasting setting changed.
 function saveControl() {
   const next = JSON.stringify(control);
@@ -739,8 +739,8 @@ async function getFixtures(q) {
 // The game after the one on the scoreboard: the next timeslot on the same court
 // (any court if that court has nothing later). With no game picked, it assumes the
 // stream is on the first timeslot and shows the game after it.
-async function getUpNext(boardId) {
-  const b = board(boardId);
+async function getUpNext() {
+  const b = board();
   const games = await getCurrentGames();
   const key = g => `${g.date || ''} ${String(g.time || '').padStart(5, '0')}`;
   games.sort((x, y) => key(x).localeCompare(key(y)));
@@ -765,8 +765,8 @@ async function getUpNext(boardId) {
 
 // The countdown page: when the game picked on the scoreboard starts. Read from the board
 // alone (no PlayHQ call), so countdown.html can ask every few seconds to notice a new game.
-function getCountdown(boardId) {
-  const b = board(boardId);
+function getCountdown() {
+  const b = board();
   if (!b.gameId) return { error: 'No game picked on the scoreboard control page' };
   const start = startOf(b);
   return { gameId: b.gameId, start, serverNow: Date.now(), date: b.date, time: b.time,
@@ -778,13 +778,15 @@ function getCountdown(boardId) {
 
 // ─── Scoreboard state (set from control.html, shown by scoreboard.html) ─────
 // Kept in scoreboard-state.json so a restart mid-game keeps the score. The lasting
-// settings (LASTING) also go to control.json, which wins when both have them.
+// settings (LASTING) also go to control.json, which wins when both have them. Studio runs one
+// scoreboard (one Studio per court); both files keep it under "1", as when there could be more.
 const STATE_FILE = DATA('scoreboard-state.json');
 let boards = {};
 try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
+boards = boards['1'] ? { 1: boards['1'] } : {}; // one scoreboard: drop any old second board
 function saveBoards() {
   fs.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), () => {});
-  for (const [id, b] of Object.entries(boards)) control.boards[id] = Object.fromEntries(LASTING.map(k => [k, b[k]]));
+  if (boards['1']) control.boards['1'] = Object.fromEntries(LASTING.map(k => [k, boards['1'][k]]));
   saveControl();
 }
 
@@ -812,15 +814,15 @@ function newBoard() {
     updatedAt: Date.now(),
   };
 }
-function board(id) {
-  if (!boards[id]) boards[id] = { ...newBoard(), ...pickKeys(control.boards[id], LASTING) };
-  const b = boards[id];
+function board() {
+  if (!boards['1']) boards['1'] = { ...newBoard(), ...pickKeys(control.boards['1'], LASTING) };
+  const b = boards['1'];
   if (b.autoSelect === undefined) { const n = newBoard(); b.autoSelect = n.autoSelect; b.autoCourt = n.autoCourt; } // saved before these existed
   return b;
 }
 
 const pickKeys = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined).map(k => [k, o[k]]));
-for (const [id, saved] of Object.entries(control.boards)) if (boards[id]) Object.assign(boards[id], pickKeys(saved, LASTING));
+if (boards['1']) Object.assign(boards['1'], pickKeys(control.boards['1'], LASTING));
 if (!fs.existsSync(CONTROL_FILE)) { controlSaved = ''; saveBoards(); } // none yet: write it from what was in use
 
 function clockElapsed(c) { return c.elapsedMs + (c.running && c.startedAt ? Date.now() - c.startedAt : 0); }
@@ -1079,8 +1081,8 @@ function goalsFromPlayhq(b, game, live) {
   return b.goals.length !== before || b.goalsSeq !== seq;
 }
 // What goals.html shows: the last `count` goals (oldest first), the current run and the tally.
-function getGoals(boardId, count) {
-  const b = board(boardId);
+function getGoals(count) {
+  const b = board();
   if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
   const n = Math.max(3, Math.min(30, Math.round(Number(count) || 10)));
   // Take the last n goals; a gap inside them is kept so the page can mark it.
@@ -1152,21 +1154,21 @@ async function todaysGames(court) {
   return out.filter(g => startOf(g) !== null).sort((a, b) => startOf(a) - startOf(b));
 }
 const isFinalsRound = g => /final/i.test(g.round || '');
-const autoBusy = new Set();
+let autoBusy = false;
 // Put a game on the board, following PlayHQ, at Q1 with a full clock.
-function switchTo(b, boardId, pick, why) {
-  log('info', 'auto', `Board ${boardId}: ${why} ${pick.home.name} v ${pick.away.name} (${pick.date} ${pick.time}, ${pick.court}, ${pick.division})`);
+function switchTo(b, pick, why) {
+  log('info', 'auto', `${why} ${pick.home.name} v ${pick.away.name} (${pick.date} ${pick.time}, ${pick.court}, ${pick.division})`);
   applyAction(b, { type: 'selectGame', game: pick, auto: true });
   applyAction(b, { type: 'period', value: 1 });
   b.clock = { ...b.clock, lengthSec: b.clock.baseSec || QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null };
   saveBoards();
 }
 const byStart = (x, y) => `${x.date || ''} ${String(x.time || '').padStart(8, '0')}`.localeCompare(`${y.date || ''} ${String(y.time || '').padStart(8, '0')}`);
-async function autoPick(boardId) {
-  const b = board(boardId);
+async function autoPick() {
+  const b = board();
   // Runs while automatic selection is on, and whenever the board has no game at all.
-  if (autoBusy.has(boardId) || (!b.autoSelect && b.gameId)) return;
-  autoBusy.add(boardId);
+  if (autoBusy || (!b.autoSelect && b.gameId)) return;
+  autoBusy = true;
   try {
     const court = b.autoCourt || CONFIG.defaultCourt || '';
     const games = court && b.autoSelect ? await todaysGames(court) : [];
@@ -1180,7 +1182,7 @@ async function autoPick(boardId) {
       if (b.autoSelect) b.autoNote = !court ? `Set a court to follow its games through the night. Showing this round's first game.`
         : `No games on ${court} today. Showing this round's first game${onCourt.length ? ` on ${court}` : ''}.`;
       if (!b.gameId || (b.autoSelect && !pool.some(g => g.id === b.gameId))) {
-        switchTo(b, boardId, pool[0], !court ? 'no court set, so starting with this round\'s first game:'
+        switchTo(b, pool[0], !court ? 'no court set, so starting with this round\'s first game:'
           : onCourt.length ? `no games on ${court} today, so starting with its first game this round:` : `no games on ${court} this round, so starting with this round's first game:`);
       }
       return;
@@ -1199,20 +1201,20 @@ async function autoPick(boardId) {
       try { status = (await getLive(current.id, 20000)).status || status; } catch { /* use the fixture's status */ }
       if (!isFinished({ ...current, status })) {
         const hold = `Keeping the final on until PlayHQ marks it finished. To move on sooner, pick the next game from the list, then tick this again.`;
-        if (b.autoHold !== hold) log('info', 'auto', `Board ${boardId}: ${hold}`);
+        if (b.autoHold !== hold) log('info', 'auto', hold);
         b.autoHold = hold; b.autoNote = hold;
         return;
       }
     }
     b.autoHold = '';
-    switchTo(b, boardId, pick, 'switching to');
+    switchTo(b, pick, 'switching to');
   } catch (err) {
     b.autoNote = `Couldn't pick a game from PlayHQ: ${err.message}${/setup page/.test(err.message) ? '' : ' Check the PlayHQ link and competition on the competition setup page.'}`;
     log('error', 'auto', b.autoNote);
-  } finally { autoBusy.delete(boardId); }
+  } finally { autoBusy = false; }
 }
-setInterval(() => { for (const id of Object.keys(boards)) autoPick(id); }, 15000);
-setTimeout(() => { board('1'); autoPick('1'); }, 3000); // board 1 starts with a game on, following PlayHQ
+setInterval(autoPick, 15000);
+setTimeout(autoPick, 3000); // Studio starts with a game on, following PlayHQ
 
 // The scorer's game clock from PlayHQ's live feed. Seen so far (one finished game):
 // { period: "4th Quarter", periodValue: "FOURTH_QTR", status: "RESUME", time: "00:00", lastUpdatedAt: "<ms>" }.
@@ -1251,7 +1253,6 @@ function followClock(b, live) {
 //   /deck/auto/on  off  toggle   (pick the game from the court and the time)
 //   /deck/court/Indoor%2001  or  /deck/court/1   (the court for automatic selection)
 //   /deck/ticker/faster  slower  normal   /deck/ticker/speed/150   (pixels per second)
-// Add ?board=2 for a second court.
 function parseClock(t) {
   const m = String(t || '').match(/^(\d{1,2})(?:[:.](\d{1,2}))?$/);
   return m ? Number(m[1]) * 60 + Number(m[2] || 0) : null;
@@ -1338,13 +1339,13 @@ function applyCompetition(why) {
     for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, roundDatesCache, summaryCache, finishedSummaries, appearanceCache]) cache.clear();
     tenantLabel = ''; cookie = null;
   }
-  for (const b of Object.values(boards)) { // a new quarter length applies to clocks that haven't started
+  { const b = board(); // a new quarter length applies to a clock that hasn't started
     if (!b.clock.running && !b.clock.elapsedMs) b.clock.lengthSec = b.clock.baseSec = QUARTER_SEC;
   }
   log('info', 'setup', !id ? `${why}: none yet` : `${why}: ${CONFIG.name} (${CONFIG.competitionName || 'no PlayHQ competition set'}, organisation ${ORG_ID || 'not set'} on ${TENANT})`);
   if (prev.id && sourceChanged) {
     if (roundChoice) setRoundChoice('');
-    for (const bid of Object.keys(boards)) { Object.assign(boards[bid], newBoard()); autoPick(bid); }
+    Object.assign(board(), newBoard()); autoPick();
     saveBoards();
   }
 }
@@ -1939,11 +1940,11 @@ async function athletesRoute(req, res, url, q) {
   }
   // Games played by both line ups of the game on a board, for the graphics.
   if (url.pathname === '/api/athletes/games') {
-    const b = board(q.board || '1');
+    const b = board();
     const all = await allAppearances();
     const out = { division: b.division };
     let sheets = { home: { players: [] }, away: { players: [] } };
-    try { sheets = await getTeamSheets(q.board || '1'); } catch { /* none */ }
+    try { sheets = await getTeamSheets(); } catch { /* none */ }
     for (const side of ['home', 'away']) {
       out[side] = Object.fromEntries((sheets[side].players || []).map(p =>
         [p.name, { games: gamesIn(p.name, all[photoKey(p.name)], b.division, b[side].name), positions: positionsPlayed(p.name, all[photoKey(p.name)]) }]));
@@ -1967,7 +1968,7 @@ async function athletesRoute(req, res, url, q) {
   const list = { folder: `competitions/${id}/photos`, photos: photoFiles().map(f => ({ file: f, url: '/photos/' + encodeURIComponent(f) })) };
   if (q.photos === 'only') return send(res, 200, list);
   // The teams to pick from, the two in the game on the control page, and every photo saved.
-  const b = board(q.board || '1');
+  const b = board();
   let teams = [], error;
   try { teams = (await setupTeams({ byDivision: true })).teams.map(t => ({ name: t.name, division: t.division, logo: t.logo })); } catch (err) { error = err.message; }
   return send(res, 200, { competition: CONFIG.name, teams, currentDivision: b.division || '', current: [b.home.name, b.away.name].filter(n => n && n !== 'TBC' && !/^home$|^away$/i.test(n)),
@@ -2009,8 +2010,8 @@ async function withSquad(side, division) {
 const squadLogged = new Set();
 
 const summaryCache = new Map();
-async function getTeamSheets(boardId) {
-  const b = board(boardId);
+async function getTeamSheets() {
+  const b = board();
   const base = { home: { name: b.home.name, logo: logoFor(b.home.name), players: [] }, away: { name: b.away.name, logo: logoFor(b.away.name), players: [] } };
   const meta = { division: b.division, court: b.court, period: b.period, score: { home: b.home.score, away: b.away.score }, competition: competitionName(), rules: rules(b.division) };
   if (!b.gameId) return { ...meta, ...base, error: 'No PlayHQ game picked on the control page yet.' };
@@ -2113,7 +2114,7 @@ function rules(division) {
 const FINALS_ROUND = /final|play.?off/i;
 const finalsKey = (division, format) => `${division}|${format.id}`;
 function finalsFor(division) { return finals.formatFor(CONFIG, division); }
-function finalsGrade(st, q) { return findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' }); }
+function finalsGrade(st, q) { return findGrade(st, q.division ? q : { division: board().division || '1' }); }
 
 async function getFinals(q) {
   const st = await getStructure();
@@ -2179,8 +2180,8 @@ async function setFinalsResult(body) {
   return getFinals({ division: String(grade.division) });
 }
 
-async function getLadderBar(boardId) {
-  const b = board(boardId);
+async function getLadderBar() {
+  const b = board();
   const grade = await gradeFor(b);
   if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
   const rows = (await getLadder(grade.id)).pools.flat();
@@ -2190,8 +2191,8 @@ async function getLadderBar(boardId) {
     home: { ...t.home, ladder: row(b.home.name) }, away: { ...t.away, ladder: row(b.away.name) } };
 }
 
-async function getHeadToHead(boardId) {
-  const b = board(boardId);
+async function getHeadToHead() {
+  const b = board();
   const grade = await gradeFor(b);
   if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
   const games = (await getSeasonGames(grade)).filter(g => g.id !== b.gameId && isFinished(g) &&
@@ -2205,8 +2206,8 @@ async function getHeadToHead(boardId) {
     games: games.map(g => ({ round: g.round, date: g.date, home: g.home, away: g.away })) };
 }
 
-async function getForm(boardId, count) {
-  const b = board(boardId);
+async function getForm(count) {
+  const b = board();
   const grade = await gradeFor(b);
   if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
   const finished = (await getSeasonGames(grade)).filter(g => g.id !== b.gameId && isFinished(g));
@@ -2219,8 +2220,8 @@ async function getForm(boardId, count) {
 }
 
 // Live and finished scores from the current round, leaving out the game on the scoreboard.
-async function getTicker(boardId) {
-  const b = board(boardId);
+async function getTicker() {
+  const b = board();
   const games = (await getCurrentGames()).filter(g => g.id !== b.gameId && (isLive(g) || isFinished(g) || (g.home.score !== null && g.away.score !== null)));
   // The round fixture has no scores until a game is final, so read live games one by one.
   await Promise.all(games.filter(isLive).map(async g => {
@@ -2237,7 +2238,7 @@ async function getTicker(boardId) {
 const finishedSummaries = new Map();
 async function getTopShooters(q) {
   const st = await getStructure();
-  const grade = findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' });
+  const grade = findGrade(st, q.division ? q : { division: board().division || '1' });
   if (!grade) throw new Error(`No division "${q.division}"`);
   const games = (await getSeasonGames(grade)).filter(isFinished);
   const players = new Map();
@@ -2319,7 +2320,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/ladder') {
       const st = await getStructure();
       // No ?division: the division of the game picked on the control page.
-      const grade = findGrade(st, q.division ? q : { division: board(q.board || '1').division || '1' });
+      const grade = findGrade(st, q.division ? q : { division: board().division || '1' });
       if (!grade) return send(res, 404, { error: `No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}` });
       const ladder = await getLadder(grade.id);
       const marks = finals.ladderMarks(finals.sized(finalsFor(grade.name), Math.max(0, ...ladder.pools.map(p => p.length))));
@@ -2327,21 +2328,21 @@ http.createServer(async (req, res) => {
         rules: { ...rules(grade.name), finalsPlaces: marks.places }, finals: marks, ...ladder });
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion(), base: LINK_BASE });
-    if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets(q.board || '1')));
+    if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets()));
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
     if (url.pathname === '/api/rounds') {
       if (req.method === 'POST') setRoundChoice((await readBody(req)).round);
       return send(res, 200, await getRoundInfo());
     }
-    if (url.pathname === '/api/countdown') return send(res, 200, getCountdown(q.board || '1'));
-    if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext(q.board || '1'));
-    if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar(q.board || '1'));
-    if (url.pathname === '/api/headtohead') return send(res, 200, await getHeadToHead(q.board || '1'));
-    if (url.pathname === '/api/form') return send(res, 200, await getForm(q.board || '1', q.count));
+    if (url.pathname === '/api/countdown') return send(res, 200, getCountdown());
+    if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext());
+    if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar());
+    if (url.pathname === '/api/headtohead') return send(res, 200, await getHeadToHead());
+    if (url.pathname === '/api/form') return send(res, 200, await getForm(q.count));
     // Asked by ticker.html every few seconds so a speed change shows straight away (no PlayHQ call).
-    if (url.pathname === '/api/ticker/speed') return send(res, 200, { speed: board(q.board || '1').tickerSpeed || TICKER_SPEED });
-    if (url.pathname === '/api/ticker') return send(res, 200, await getTicker(q.board || '1'));
+    if (url.pathname === '/api/ticker/speed') return send(res, 200, { speed: board().tickerSpeed || TICKER_SPEED });
+    if (url.pathname === '/api/ticker') return send(res, 200, await getTicker());
     if (url.pathname === '/api/topshooters') return send(res, 200, await getTopShooters(q));
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
@@ -2362,24 +2363,24 @@ http.createServer(async (req, res) => {
       if (output) return send(res, output.status, output.body);
       const action = deckAction(parts, q);
       if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See STREAMDECK.md.` });
-      const b = board(q.board || '1');
+      const b = board();
       applyAction(b, action);
-      if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick(q.board || '1');
+      if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick();
       saveBoards();
-      log('info', 'deck', `Board ${q.board || '1'} ${action.type}: now ${b.home.score}-${b.away.score}, clock ${b.clock.running ? 'running' : 'stopped'}`, action);
+      log('info', 'deck', `${action.type}: now ${b.home.score}-${b.away.score}, clock ${b.clock.running ? 'running' : 'stopped'}`, action);
       return send(res, 200, { ok: true, home: b.home.score, away: b.away.score, source: b.source, clockRunning: b.clock.running });
     }
     if (url.pathname === '/api/goals') {
-      await refreshFromPlayhq(board(q.board || '1')); // shares the scoreboard's cached PlayHQ reading
-      return send(res, 200, getGoals(q.board || '1', q.count));
+      await refreshFromPlayhq(board()); // shares the scoreboard's cached PlayHQ reading
+      return send(res, 200, getGoals(q.count));
     }
     if (url.pathname === '/api/scoreboard') {
-      const b = board(q.board || '1');
+      const b = board();
       if (req.method === 'POST') {
         const action = await readBody(req);
-        log('info', 'scoreboard', `Board ${q.board || '1'} ${action.type || '?'}`, action);
+        log('info', 'scoreboard', `${action.type || '?'}`, action);
         applyAction(b, action);
-        if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick(q.board || '1');
+        if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick();
         saveBoards();
       }
       else await refreshFromPlayhq(b);

@@ -57,9 +57,9 @@ In it:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
   `athletes.json` (the athlete register from the Athletes page), and `competitions/active.json`, the one in use.
-- `control.json`: the control page's choices (the round picked by hand, and for each board automatic game selection,
+- `control.json`: the control page's choices (the round picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
-- `scoreboard-state.json`: the game on each board, the scores and the clock.
+- `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log.
@@ -351,12 +351,12 @@ and the control page says so. You can still change the clock afterwards (the tic
 any clock button, which switches it back to manual). Otherwise press +1 / +2 / -1 / -2 (or keys A/Z for home, K/M for away,
 with Shift for 2) and it switches to manual. The quarter and the countdown clock (Space starts and stops it) are run from the control page.
 Everything can also be run from a Stream Deck: see `STREAMDECK.md`, or the API docs at http://localhost:8080/api.html. To line it up with the venue clock, type the venue's time (e.g. 12:34) in
-**Match venue clock** and press Enter. For a second court use `scoreboard.html?board=2` with `control.html?board=2`.
+**Match venue clock** and press Enter. Studio runs one scoreboard: for a second court, run a second Studio on another Mac.
 Scoreboard position: by default it is centred at the bottom, just above the score ticker with a small gap, so both can be on screen together. `?position=top-center`, `bottom-center`, `top-left` or `bottom-left` moves it.
 
 ## Team lists and shooting stats
 
-These follow the game picked on the scoreboard control page (board 1 unless you add `&board=2`):
+These follow the game picked on the scoreboard control page:
 
 - http://localhost:8080/title.html: round, competition and venue banner. The venue is set on the competition setup page
   (blank uses the venue from PlayHQ). `?position=bottom` moves it down, `?fire=0` drops the emoji
@@ -383,7 +383,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
 - http://localhost:8080/supershot.html: 3 second celebration after a successful super shot. A netball flies in and bursts
   with sparks, SUPER and SHOT slam in from either side with the team's logo and name in their club colour,
   then it fades out and leaves the frame clear. Leave it on in OBS: it watches the scoreboard and plays by itself for each
-  super shot (a +2 press, or the PlayHQ scorer's super shot count going up while following PlayHQ; `?board=2` for the second court).
+  super shot (a +2 press, or the PlayHQ scorer's super shot count going up while following PlayHQ).
   It asks Studio every second, which asks PlayHQ nothing extra. `/deck/home/supershot` plays it without changing the score.
   Manual: `?team=home`, `?team=away` or `?team=none` plays it once when the source comes on instead (tick "Shutdown source when
   not visible" and "Refresh browser when scene becomes active"). Details in STREAMDECK.md.
@@ -392,7 +392,7 @@ These follow the game picked on the scoreboard control page (board 1 unless you 
   with a momentum line underneath (up for home goals, down for away), each team's count of the 10 and the current run
   (3 or more in a row lights up). `?layout=vertical` stacks it down the right-hand side (`horizontal`, above the scoreboard,
   is the default). Like the scoreboard it updates itself (every 2 seconds), so it can stay on. `?count=8` (3 to 30),
-  `?times=0`, `?position=top|middle` (horizontal) or `left` (vertical), `?title=Momentum`, `?board=2`.
+  `?times=0`, `?position=top|middle` (horizontal) or `left` (vertical), `?title=Momentum`.
   PlayHQ's live feed only has running totals, not a list of goals, so Studio works out the order from the score going
   up between its readings (every 5 seconds while following PlayHQ, split into goals and super goals by PlayHQ's goal
   counts) and from each +1 / +2 press. -1 / -2 takes that team's latest goal off. The list restarts when a game is picked or
@@ -516,7 +516,7 @@ until the home and away games are finished), logos, scores, the winner of each g
 grand final is decided. PlayHQ's finals games (rounds with "final" or "play-off" in their name) are used when it has them,
 with their time, court and score. PlayHQ often has no finals fixtures, so the control page's **Finals** section lets you
 pick each winner (the score is optional); those are kept in `control.json`, and a PlayHQ result always wins. Options:
-`?week=2` one week only, `?title=` a different heading, `?sub=` other words for the "Top 4 finals" line under it (`?sub=0` none), `?seeds=0`, `?projected=0`, `?logo=0`, `?mode=light`, `?board=2`.
+`?week=2` one week only, `?title=` a different heading, `?sub=` other words for the "Top 4 finals" line under it (`?sub=0` none), `?seeds=0`, `?projected=0`, `?logo=0`, `?mode=light`.
 
 ## Options
 

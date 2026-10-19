@@ -63,7 +63,7 @@
        Options: ?week=2 (one week only)  ?title=Grand%20Final%20day (a different heading)  ?logo=0 (no competition logo)
                 ?mode=light (the light mode competition logo)  ?projected=0 (leave off "If the season ended today")
                 ?seeds=0 (leave off the ladder positions)
-                ?sub=Double%20chance%20for%20the%20top%202 (other words under the heading instead of "Top 4 finals", ?sub=0 for none)  ?board=2 (the second court's division) -->
+                ?sub=Double%20chance%20for%20the%20top%202 (other words under the heading instead of "Top 4 finals", ?sub=0 for none) -->
   <main class="card finals" id="card" hidden>
     <header class="finals__header">
       <img class="finals__logo" id="logo" alt="" hidden>
@@ -159,7 +159,7 @@
       const msg = $('message');
       try {
         const q = new URLSearchParams();
-        for (const k of ['division', 'board']) if (params.get(k)) q.set(k, params.get(k));
+        if (params.get('division')) q.set('division', params.get('division'));
         const res = await fetch(`/api/finals?${q}`, { cache: 'no-store' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);

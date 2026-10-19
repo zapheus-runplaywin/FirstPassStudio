@@ -9,9 +9,6 @@ info:
     Studio must be on air: open the FirstPass Studio app and keep a Studio window open (closing the last one takes
     Studio off air, and these links get no answer). If the Stream Deck is on a different computer, use the Studio
     Mac's .local name (shown on the home page) or IP address instead of localhost.
-
-    Every request takes an optional `board` query parameter (default `1`) so a
-    second court can run its own scoreboard, e.g. `?board=2`.
 servers:
   - url: /
     description: The Studio this page was opened from
@@ -49,7 +46,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [add1, add2, minus1, minus2] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -67,7 +63,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [home, away] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
 
@@ -77,8 +72,6 @@ paths:
       summary: Set both scores back to 0
       description: Also switches the scoreboard to manual scoring. Team names, quarter and clock are kept.
       operationId: resetScores
-      parameters:
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
 
@@ -98,7 +91,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [playhq, manual, toggle] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -117,7 +109,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [start, stop, toggle, reset] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -136,7 +127,6 @@ paths:
           in: path
           required: true
           schema: { type: string, pattern: '^\d{1,2}([:.]\d{1,2})?$', example: '10:00' }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -156,7 +146,6 @@ paths:
           in: path
           required: true
           schema: { type: string, pattern: '^[+-]?\d+(\.\d+)?[msMS]?$', example: '-10s' }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -174,7 +163,6 @@ paths:
         - name: seconds
           in: query
           schema: { type: number, example: -15 }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -190,7 +178,6 @@ paths:
           in: path
           required: true
           schema: { type: number, minimum: 1, example: 10 }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -210,7 +197,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [on, off, toggle] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -229,7 +215,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [on, off, toggle] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -245,7 +230,6 @@ paths:
           in: path
           required: true
           schema: { type: string, example: '2' }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -264,7 +248,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: ['1', '2', '3', '4', '5', next, prev] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -283,7 +266,6 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [faster, slower, normal] }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -299,7 +281,6 @@ paths:
           in: path
           required: true
           schema: { type: integer, minimum: 20, maximum: 600, example: 80 }
-        - $ref: '#/components/parameters/board'
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
@@ -310,8 +291,6 @@ paths:
       summary: Read the full scoreboard
       description: Everything the overlay shows. Useful for a Stream Deck plugin that displays the score or clock on a key.
       operationId: getScoreboard
-      parameters:
-        - $ref: '#/components/parameters/board'
       responses:
         '200':
           description: Current scoreboard
@@ -329,7 +308,6 @@ paths:
         marks where the score jumped too far to list goal by goal.
       operationId: getGoals
       parameters:
-        - $ref: '#/components/parameters/board'
         - name: count
           in: query
           required: false
@@ -374,7 +352,6 @@ paths:
         For the scene built on the Output page (`/output.html`). `on` fades the source in and `off` fades it out,
         each with the source's own fade time; `toggle` swaps between the two. `restart` reloads a page source or starts a video from the beginning.
         The source is found by its name as set on the Output page, which copies each source's links.
-        The `board` parameter doesn't apply.
       operationId: layerAction
       parameters:
         - name: name
@@ -461,14 +438,6 @@ paths:
         '404': { $ref: '#/components/responses/UnknownLink' }
 
 components:
-  parameters:
-    board:
-      name: board
-      in: query
-      required: false
-      description: Which scoreboard (court) to control.
-      schema: { type: string, default: '1' }
-
   responses:
     Ok:
       description: Done. Returns a short summary of the scoreboard after the change.

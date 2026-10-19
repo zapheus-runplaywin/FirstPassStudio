@@ -121,12 +121,11 @@
        http://localhost:8080/goals.html?layout=vertical  (down the right-hand side)
        The last 10 goals of the game on the scoreboard, oldest to newest, with a momentum line and the current run.
        Like the scoreboard it updates itself (every 2 seconds), so it can stay on screen.
-       Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)  ?board=2
+       Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)
                 ?position=top|middle|bottom (horizontal)  ?position=left|right (vertical)  ?title=Momentum -->
   <main class="card" id="card" hidden></main>
   <script>
     const params = new URLSearchParams(location.search);
-    const boardId = params.get('board') || '1';
     const vertical = /^v/i.test(params.get('layout') || '');
     const showTimes = params.get('times') !== '0';
     const count = Math.max(3, Math.min(30, Number(params.get('count')) || 10));
@@ -322,7 +321,7 @@
 
     async function load() {
       try {
-        const res = await fetch(`/api/goals?board=${encodeURIComponent(boardId)}&count=${count}`, { cache: 'no-store' });
+        const res = await fetch(`/api/goals?count=${count}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const next = await res.json();
         const json = JSON.stringify(next);

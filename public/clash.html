@@ -162,7 +162,7 @@
   <!-- Add to OBS as a Browser source, 1920 x 1080, and tick "Refresh browser when scene becomes active"
        so the animation plays each time the scene comes on:
        http://localhost:8080/clash.html
-       Shows the game picked on the scoreboard control page. Options: ?board=2 for a second court,
+       Shows the game picked on the scoreboard control page. Options:
        ?out=10 to animate away after 10 seconds, ?word=RIVALS to change the big word behind the logos (default: the word on the competition setup page),
        ?title=... to change the bottom line (default "Battle for <division>"). -->
   <div class="stage" id="stage">
@@ -193,7 +193,6 @@
   <script src="teams.js"></script>
   <script>
     const opts = new URLSearchParams(location.search);
-    const boardId = opts.get('board') || '1';
     const $ = id => document.getElementById(id);
 
     function time12(t) {
@@ -285,7 +284,7 @@
 
     async function start() {
       let s;
-      try { s = await (await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json(); }
+      try { s = await (await fetch('/api/scoreboard', { cache: 'no-store' })).json(); }
       catch (err) { console.warn('Clash: scoreboard unavailable:', err.message); return setTimeout(start, 3000); }
       $('homeName').textContent = s.home.name;
       $('awayName').textContent = s.away.name;

@@ -17,7 +17,7 @@
        Like the scoreboard, it updates its scores itself every 30 seconds.
        Speed: set on the control page (Ticker speed) or the Stream Deck (/deck/ticker/faster, slower);
        a change shows within a few seconds, carrying on from where the scroll is.
-       Options: ?board=2  ?refresh=60 (seconds; 0 = load once)  ?speed=120 (pixels per second; fixes the speed for this link only) -->
+       Options: ?refresh=60 (seconds; 0 = load once)  ?speed=120 (pixels per second; fixes the speed for this link only) -->
   <div class="ticker" id="ticker" hidden>
     <div class="ticker__label">Around the courts</div>
     <div class="ticker__window"><div class="ticker__track" id="track"></div></div>
@@ -28,7 +28,6 @@
   <script>
     const params = new URLSearchParams(location.search);
     const refresh = params.has('refresh') ? Number(params.get('refresh')) : 30;
-    const board = encodeURIComponent(params.get('board') || '1');
     const fixedSpeed = Number(params.get('speed')) > 0 ? Number(params.get('speed')) : null; // ?speed= wins over the control page
     let speed = fixedSpeed || 120;
     const track = document.getElementById('track');
@@ -69,7 +68,7 @@
     track.addEventListener('animationiteration', () => { if (pending) { show(pending); pending = null; } });
     async function load(first) {
       try {
-        const d = await (await fetch(`/api/ticker?board=${board}`, { cache: 'no-store' })).json();
+        const d = await (await fetch('/api/ticker', { cache: 'no-store' })).json();
         if (d.error) throw new Error(d.error);
         if (first) {
           if (!fixedSpeed && d.speed > 0) speed = d.speed;
@@ -84,7 +83,7 @@
     if (refresh > 0) setInterval(load, Math.max(10, refresh) * 1000);
     // Follow the control page's speed (asks the helper only; PlayHQ is not asked). ?speed= turns this off.
     if (!fixedSpeed) setInterval(async () => {
-      try { setSpeed((await (await fetch(`/api/ticker/speed?board=${board}`, { cache: 'no-store' })).json()).speed, 'control page'); } catch { /* helper restarting */ }
+      try { setSpeed((await (await fetch('/api/ticker/speed', { cache: 'no-store' })).json()).speed, 'control page'); } catch { /* helper restarting */ }
     }, 3000);
   </script>
 </body>

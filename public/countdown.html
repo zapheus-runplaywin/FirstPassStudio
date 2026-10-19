@@ -61,7 +61,7 @@
        Counts down to the scheduled start of the game picked on the scoreboard control page.
        The clock ticks in the page; every 5 seconds it asks the local helper (never PlayHQ) which game
        is picked, so a new game is picked up without refreshing. At zero it shows STARTING SOON.
-       Options: ?board=2 for a second court, ?label=Next%20game%20in for the heading, ?end=Game%20on for the
+       Options: ?label=Next%20game%20in for the heading, ?end=Game%20on for the
        text at zero (?end=hide fades the card away instead, ?fade=1 fades it out over the last 5 seconds, ?fade=8 over 8), ?teams=0 for the clock only,
        ?position=top or bottom (the default is the middle of the screen). -->
   <main class="card countdown" id="card" hidden>
@@ -87,7 +87,6 @@
   <script src="teams.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
-    const boardId = params.get('board') || '1';
     const endText = params.get('end') || 'Starting soon';
     // ?fade=1 (or ?fade=8 for 8 seconds) fades the whole card out over the last 5 seconds and leaves it gone at zero.
     const fadeParam = params.get('fade');
@@ -156,7 +155,7 @@
 
     async function load() {
       try {
-        const g = await (await fetch(`/api/countdown?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' })).json();
+        const g = await (await fetch('/api/countdown', { cache: 'no-store' })).json();
         if (g.serverNow) offset = g.serverNow - Date.now();
         const key = `${g.gameId}|${g.start}|${g.home && g.home.name}|${g.away && g.away.name}`;
         if (g.error) {

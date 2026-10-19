@@ -1,7 +1,6 @@
 (function () {
   const params = new URLSearchParams(location.search);
   const division = params.get('division') || ''; // blank = the division of the game picked on the control page
-  const boardId = params.get('board') || '1';
   const refreshSeconds = Number(params.get('refresh')) || 0; // 0 = load once (OBS refreshes the source)
   const maxRows = Number(params.get('rows')) || 0;
 
@@ -88,7 +87,7 @@
 
   async function load() {
     try {
-      const res = await fetch(`/api/ladder?division=${encodeURIComponent(division)}&board=${encodeURIComponent(boardId)}`, { cache: 'no-store' });
+      const res = await fetch(`/api/ladder?division=${encodeURIComponent(division)}`, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       if (data.stale) console.warn('Showing the last good ladder:', data.error);

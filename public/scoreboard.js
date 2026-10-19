@@ -1,6 +1,5 @@
 (function () {
   const params = new URLSearchParams(location.search);
-  const boardId = params.get('board') || '1';
   document.body.classList.add(params.get('position') || 'above-ticker');
 
   const $ = id => document.getElementById(id);
@@ -77,7 +76,7 @@
 
   async function load() {
     try {
-      const res = await fetch(`/api/scoreboard?board=${encodeURIComponent(boardId)}`, { cache: 'no-store' });
+      const res = await fetch('/api/scoreboard', { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       state = await res.json();
       clockOffset = state.serverNow - Date.now();
