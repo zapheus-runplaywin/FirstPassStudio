@@ -9,8 +9,9 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
 <style>
-  body.top { align-items: flex-start; padding-top: 60px; box-sizing: border-box; }
-  body.bottom { align-items: flex-end; padding-bottom: 60px; box-sizing: border-box; }
+  /* Top and bottom of the space between the title and the scoreboard (graphics.css centres it in the middle). */
+  body.top { align-items: flex-start; }
+  body.bottom { align-items: flex-end; }
   /* backwards, not both: a held animation would override the fade and ?end=hide */
   .countdown { --card-width: 1000px; text-align: center; animation-fill-mode: backwards; transition: opacity .6s ease, transform .6s ease; }
   .countdown.is-gone { opacity: 0; transform: translateY(20px); }
@@ -54,6 +55,7 @@
   .countdown__info:empty { display: none; }
 </style>
 <script src="log.js"></script>
+<script src="fit.js"></script>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page:
@@ -64,7 +66,7 @@
        Options: ?label=Next%20game%20in for the heading, ?end=Game%20on for the
        text at zero (?end=hide fades the card away instead, ?fade=1 fades it out over the last 5 seconds, ?fade=8 over 8), ?teams=0 for the clock only,
        ?position=top or bottom (the default is the middle of the screen). -->
-  <main class="card countdown" id="card" hidden>
+  <main class="card countdown" id="card" data-fit hidden>
     <div class="countdown__tabs"><div class="tab countdown__tab" id="label"></div><div class="tab" id="comp"></div></div>
     <div class="countdown__clock" id="clock">
       <div class="countdown__unit" id="daysUnit" hidden><div class="countdown__num" id="days"></div><div class="countdown__label" id="daysLabel">Days</div></div>

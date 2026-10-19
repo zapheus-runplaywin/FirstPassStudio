@@ -52,6 +52,7 @@
   .message { position: fixed; left: 24px; bottom: 24px; margin: 0; padding: 10px 14px; max-width: 900px; background: rgba(150, 20, 20, .9); color: #fff; font-size: 18px; border-radius: 6px; }
 </style>
 <script src="log.js"></script>
+<script src="fit.js"></script>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page:
@@ -64,7 +65,7 @@
                 ?mode=light (the light mode competition logo)  ?projected=0 (leave off "If the season ended today")
                 ?seeds=0 (leave off the ladder positions)
                 ?sub=Double%20chance%20for%20the%20top%202 (other words under the heading instead of "Top 4 finals", ?sub=0 for none) -->
-  <main class="card finals" id="card" hidden>
+  <main class="card finals" id="card" data-fit hidden>
     <header class="finals__header">
       <img class="finals__logo" id="logo" alt="" hidden>
       <div class="tab" id="comp"></div>

@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="ladder.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page:
@@ -17,7 +18,7 @@
        Options: &refresh=60 (reload the ladder every 60 seconds; off by default)  &rows=10 (show only the top 10)
                 &logo=0 (leave off the competition logo), &mode=light (the light mode competition logo instead of the dark mode one). &key=0 (leave off the key to the finals marks).
        The finals places are marked by what they earn in the division's finals format, set on the competition setup page. -->
-  <main id="ladder" class="ladder" hidden>
+  <main id="ladder" class="ladder" data-fit hidden>
     <header class="ladder__header">
       <img class="ladder__logo" id="logo" alt="" hidden>
       <div class="ladder__org" id="org"></div>
