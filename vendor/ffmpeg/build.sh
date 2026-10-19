@@ -37,9 +37,10 @@ fetch() { # repo tag dir
   [ -d "$WORK/$3" ] || git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$2" "https://github.com/$1.git" "$WORK/$3"
 }
 
-# libvpx's own guess at the target needs to know the macOS version; name it on Apple silicon.
+# Name libvpx's target on Apple silicon: plain arm64-darwin-gcc is its iOS target, which ffmpeg
+# then can't link. darwin21 is macOS 12, the oldest macOS this build supports (above).
 VPX_TARGET=""
-[ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] && VPX_TARGET="--target=arm64-darwin-gcc"
+[ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] && VPX_TARGET="--target=arm64-darwin21-gcc"
 
 echo "== libvpx $LIBVPX_VERSION"
 fetch webmproject/libvpx "$LIBVPX_VERSION" libvpx
@@ -77,8 +78,7 @@ codecs="$("$HERE/ffmpeg" -hide_banner -encoders 2>/dev/null; "$HERE/ffmpeg" -hid
 for want in libvpx-vp9 libopus prores; do
   grep -q " $want " <<<"$codecs" || {
     echo "$want is missing from the build. What configure found:" >&2
-    sed -n '/^check_pkg_config libvpx_vp9_encoder/,$p' "$WORK/ffmpeg/ffbuild/config.log" | head -120 >&2
-    cat "$PKG_CONFIG_PATH/vpx.pc" >&2; file "$PREFIX/lib/libvpx.a" >&2 || true; lipo -info "$PREFIX/lib/libvpx.a" >&2 || true
+    grep -A30 '^check_pkg_config libvpx_vp9_encoder' "$WORK/ffmpeg/ffbuild/config.log" >&2 || true
     exit 1
   }
 done
