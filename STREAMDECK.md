@@ -1,12 +1,13 @@
 # Stream Deck buttons
 
-Each button presses one link on the helper (it must be running).
+Each button presses one link on Studio. Studio must be on air: open the FirstPass Studio app and keep a Studio
+window open for the stream (closing the last one takes Studio off air, and the buttons get no answer).
 The same links are documented at http://localhost:8080/api.html (also linked from the home page),
 where **Try it out** sends any link to the scoreboard. The raw OpenAPI file is `public/openapi.yaml`.
 
 **Setup for each button:** drag a **System → Website** action onto a key, paste a link from below,
 and tick **GET request in background** so no browser window opens.
-The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running the helper.
+The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running Studio.
 The home page shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
 which also works from a Stream Deck on another computer on the same network.
 
@@ -109,7 +110,7 @@ Changing the quarter doesn't touch the clock. Press Reset clock as well when the
 
 ## Winner celebration (full time)
 
-The winner animation is an OBS source, not a helper link, so the button switches OBS rather than press a link.
+The winner animation is an OBS source, not a Studio link, so the button switches OBS rather than press a link.
 It works out the result from the scoreboard score each time it comes on, so one button covers home wins, away wins and draws.
 Set it up once:
 

@@ -65,7 +65,7 @@ async function ensureHelper() {
     try { await getJson('/api/structure'); return child; } catch { /* not up yet */ }
   }
   child.kill();
-  throw new Error(`The helper did not start on ${BASE}. Try running it with "Start (Mac).command" first.`);
+  throw new Error(`The helper did not start on ${BASE}. Open the FirstPass Studio app first and keep a Studio window open.`);
 }
 
 // Drives one headless browser over its DevTools connection. waitMs is how long
