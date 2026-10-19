@@ -233,7 +233,11 @@ http://localhost:8080/output.html (**Output** in the menu, ⌘1 in the app) buil
 sources drawn as layers, top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.
 
 - **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
-  **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.
+  **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. Each opens a
+  dialog to pick it. A new source goes above the selected one (on top if none is selected), hidden, and is selected so its
+  settings are ready to change. The page list splits into pages not in the scene yet and pages already in it, and **Add all
+  unused pages** adds every Studio graphic not in the scene, hidden, in that order. Drag a source (by its ⋮⋮ or anywhere on
+  its row) to move it up or down the layers, or use ↑ and ↓.
 - **Page options:** a Studio graphic's link options (court, position, heading, animate away and so on) show as fields under its
   **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
   new option there as well as on the home page.

@@ -133,9 +133,13 @@ function apply(a) {
   const need = () => src ? null : `No source "${a.id || a.name || ''}" in the scene.`;
   switch (a.type) {
     case 'add': {
-      const s = clean({ ...a.source, visible: false });
-      scene.sources.unshift(s); // new sources go on top, like OBS
-      log('info', 'scene', `Added ${s.type} source "${s.name}"`);
+      // One source (source) or several (sources, top first). New sources go on top, like OBS, or just
+      // above the source named by before (the one selected on the Output page).
+      const list = (Array.isArray(a.sources) ? a.sources : [a.source]).filter(Boolean).slice(0, 100).map(x => clean({ ...x, visible: false }));
+      if (!list.length) return 'Nothing to add.';
+      const above = a.before ? find(a.before) : null;
+      scene.sources.splice(above ? scene.sources.indexOf(above) : 0, 0, ...list);
+      for (const s of list) log('info', 'scene', `Added ${s.type} source "${s.name}"${above ? ` above "${above.name}"` : ''}`);
       return null;
     }
     case 'update': {
