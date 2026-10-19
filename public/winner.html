@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,800;0,900;1,900&display=swap">
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 <style>
   /* Full time celebration for the game picked on the scoreboard control page.
      ?winner=home|away plays the winner's animation, ?winner=draw the draw. Transparent outside the graphics. */
@@ -168,7 +169,7 @@
        Without ?winner it goes by the score on the scoreboard. Shows the game picked on the scoreboard control page.
        Options: ?out=10 to animate away after 10 seconds, ?word=CHAMPIONS to change
        the big word (VICTORY, or DRAW for a draw), ?title=... to change the line under the score, ?score=0 to leave the score off. -->
-  <div class="stage" id="stage">
+  <div class="stage" id="stage" data-fit-box="50 1000">
     <canvas id="confetti" width="1920" height="1080"></canvas>
     <div class="win">
       <div class="centre"><div class="rays"></div><div class="halo"></div></div>

@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 <style>
   /* Super shot celebration, 3 seconds, then it fades out and leaves the frame clear. Transparent outside the graphics.
      By default it stays on and plays whenever the scoreboard gets a super shot, with that team's logo, name and club colour.
@@ -123,7 +124,7 @@
        Manual, plays once each time the source comes on (keep "Load the page fresh each time it's shown" ticked):
        http://localhost:8080/supershot.html?team=home   (or ?team=away: that team's logo, name and club colour)
        http://localhost:8080/supershot.html?team=none   (no team, the competition's colours) -->
-  <div class="stage" id="stage">
+  <div class="stage" id="stage" data-fit-box="188 780">
     <div class="shaker">
       <div class="centre"><div class="rays"></div><div class="halo"></div></div>
       <div class="lines" id="lines"></div>

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,800;0,900;1,900&display=swap">
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
+<script src="fit.js"></script>
 <style>
   /* Animated match up for the game picked on the scoreboard control page.
      Transparent everywhere except the graphics themselves. */
@@ -164,7 +165,7 @@
        Shows the game picked on the scoreboard control page. Options:
        ?out=10 to animate away after 10 seconds, ?word=RIVALS to change the big word behind the logos (default: the word on the competition setup page),
        ?title=... to change the bottom line (default "Battle for <division>"). -->
-  <div class="stage" id="stage">
+  <div class="stage" id="stage" data-fit-box="60 1000">
     <canvas id="embers" width="1920" height="1080"></canvas>
     <div class="shake">
       <div class="streak streak--1"></div><div class="streak streak--2"></div><div class="streak streak--3"></div>
