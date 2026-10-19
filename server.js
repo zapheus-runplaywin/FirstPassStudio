@@ -2362,7 +2362,7 @@ http.createServer(async (req, res) => {
       const output = outputs.deck(parts);
       if (output) return send(res, output.status, output.body);
       const action = deckAction(parts, q);
-      if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See STREAMDECK.md.` });
+      if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See the Stream Deck page, /api.html.` });
       const b = board();
       applyAction(b, action);
       if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick();

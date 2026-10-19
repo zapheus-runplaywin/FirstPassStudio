@@ -470,7 +470,7 @@ components:
     Error:
       type: object
       properties:
-        error: { type: string, example: 'Unknown Stream Deck link /deck/clock/adjust/abc. See STREAMDECK.md.' }
+        error: { type: string, example: 'Unknown Stream Deck link /deck/clock/adjust/abc. See the Stream Deck page, /api.html.' }
     Team:
       type: object
       properties:
