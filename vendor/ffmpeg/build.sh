@@ -75,7 +75,11 @@ version="$("$HERE/ffmpeg" -hide_banner -version)"
 echo "${version%%$'\n'*}"
 codecs="$("$HERE/ffmpeg" -hide_banner -encoders 2>/dev/null; "$HERE/ffmpeg" -hide_banner -decoders 2>/dev/null)"
 for want in libvpx-vp9 libopus prores; do
-  grep -q " $want " <<<"$codecs" || { echo "$want is missing from the build" >&2; exit 1; }
+  grep -q " $want " <<<"$codecs" || {
+    echo "$want is missing from the build. What configure found:" >&2
+    grep -n -i -B2 -A12 "vpx\|opus" "$WORK/ffmpeg/ffbuild/config.log" | tail -150 >&2
+    exit 1
+  }
 done
 if grep -q -- '--enable-gpl\|--enable-nonfree' <<<"$version"; then echo "the build isn't LGPL" >&2; exit 1; fi
 echo "Built $HERE/ffmpeg"
