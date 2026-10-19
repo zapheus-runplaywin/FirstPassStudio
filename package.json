@@ -43,6 +43,7 @@
       "vendor/ffmpeg/ffmpeg",
       "vendor/ffmpeg/LICENSE.md",
       "native/decklink/build/Release/decklink.node",
+      "native/ndi/build/Release/ndi.node",
       "plugins/studio-deck/dist/com.runplaywin.firstpass-studio.streamDeckPlugin"
     ],
     "mac": {

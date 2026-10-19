@@ -183,7 +183,7 @@ static void stopOutput() {
 
 static napi_value Devices(napi_env env, napi_callback_info) {
   Ref<IDeckLinkIterator> it(CreateDeckLinkIteratorInstance());
-  if (!it) return failure(env, "Blackmagic Desktop Video isn't installed (or is too old). Install it from blackmagicdesign.com/support.");
+  if (!it) return failure(env, "Blackmagic Desktop Video isn't installed (or is too old). Install it from blackmagicdesign.com/support, then quit and reopen Studio.");
 
   napi_value result = object(env), list;
   set(env, result, "ok", boolean(env, true));

@@ -112,7 +112,7 @@
     <code id="sceneUrl"></code>
     <div class="row"><button id="sceneCopy">Copy link</button><a class="btn" href="/output.html" target="_blank">Open the Output page</a><a class="btn" href="/scene.html" target="_blank">Preview</a></div>
     <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
-      top layer first, and sends it to a display or a Blackmagic device for your switcher.</p>
+      top layer first, and sends it to a display, a Blackmagic device or NDI® for your switcher.</p>
     <ul class="page__help">
       <li><b>Sources:</b> <b>Add page</b> adds any Studio graphic or web address; <b>Add image</b> adds a PNG, JPG, GIF, WebP or SVG, and <b>Add video</b>
         an MP4, WebM or MOV (saved in the data folder's <b>media</b> folder). Each opens a box to pick it. A new source goes above the selected one (on top if none is selected), hidden, and is selected
@@ -136,7 +136,7 @@
         <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
       <li><b>Preview:</b> the Output page shows the scene live; it runs the scene's pages a second time, so turn it off when the Mac is busy.
-        <b>Preview sound</b> plays the sound from the preview, with or without an output on; a display or Blackmagic output is muted while it does, so it never plays twice;
+        <b>Preview sound</b> plays the sound from the preview, with or without an output on; a display, Blackmagic or NDI output is muted while it does, so it never plays twice;
         it goes back to the outputs when the Output page closes. <b>Pop out</b> shows the preview in its own window to resize, move to another screen
         or make full screen while testing (with the same sound), with a floating Sources list to show or hide each source from there; the Output page's own preview turns off while it's open and comes back when it closes.</li>
       <li><b>Display output (Mac app):</b> sends the scene full screen to the Mac's extra displays (HDMI into a switcher).
@@ -149,8 +149,16 @@
       <li><b>Blackmagic output (Mac app):</b> sends the scene out of a Blackmagic UltraStudio or DeckLink:
         <b>fill and key</b> with the device's external keyer (fill on one SDI out, key on the other) or <b>fill only</b>, in the video format you pick
         (pick the one the switcher runs at). The fill is premultiplied; tick <b>Straight</b> if the switcher's key wants it unpremultiplied.
-        It needs Blackmagic Desktop Video installed and the device free, so quit any other app using it first. Output on/off and the
+        It needs Blackmagic Desktop Video installed (the Output page says if it isn't, with where to get it; quit and reopen Studio after installing) and the device free, so quit any other app using it first. Output on/off and the
         <code>/deck/output</code> links work the same.</li>
+      <li><b>NDI® output (Mac app):</b> sends the scene over the network as NDI sources, in the video format you pick (1080p or 720p, 25 to 60 fps):
+        <b>fill and key</b> as two sources (<i>Source name Fill</i> and <i>Source name Key</i>) for a switcher's fill and key inputs,
+        <b>chroma</b> as one source over a solid colour (the same colour setting as the chroma display), or <b>with transparency</b> as one source with alpha
+        for receivers that key on NDI's own transparency. They show up on the network as this Mac's name with the <b>Source name</b> in brackets
+        (FirstPass Studio unless you change it). Each source only sends while something is receiving it, and the Output page says how many are.
+        It needs NDI Tools installed on this Mac (free from <a href="https://ndi.video/tools/" target="_blank" rel="noopener">ndi.video/tools</a>);
+        the Output page says if it isn't, with where to get it, and finds it as soon as it's installed. Use a wired network: each 1080p source is roughly 100 to 150 Mbit/s. Sound plays through the Mac's audio output, not over NDI.
+        Output on/off and the <code>/deck/output</code> links work the same. NDI® is a registered trademark of Vizrt NDI AB.</li>
     </ul>
     <p class="page__help">The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>
@@ -306,7 +314,7 @@
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
       <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to the helper, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
-      <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic output runs them once more, off screen.</li>
+      <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen. NDI's video goes over your local network only, never the internet.</li>
       <li>Stream Deck plugin's Source keys: nothing. The plugin keeps one connection open to the helper while any of its keys is on screen, and the helper only sends when the scene changes.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
