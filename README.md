@@ -165,6 +165,10 @@ Each run tags the commit of this repository it built from, so any build can be t
 published update, `v0.1.3-test.12` for a test build (12 is the run number, so a test build never takes the tag a
 published version will need). The tags are under **Tags** on the repository's code page.
 
+Each release's notes list the titles of the pull requests merged since the last published version (found from its
+tag), so a clear PR title is what people read on the release. Only the titles go out, with no links, since this
+repository is private. A test build shows the same notes in its run summary.
+
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
 
