@@ -61,6 +61,8 @@
   .form .wide { grid-column: 1 / -1; }
   #fOptionsBox { border-left: 3px solid var(--fp-line); padding-left: 12px; }
   #fOptions .unit { color: var(--fp-muted); font-size: 13px; }
+  #fOptions .picks { flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  #fOptions .picks button { padding: 2px 8px; font-size: 16px; line-height: 24px; }
   @media (max-width: 600px) { .form { grid-template-columns: 1fr; } }
   .links { display: grid; gap: 6px; }
   .links div { display: flex; gap: 8px; align-items: center; }
@@ -441,6 +443,17 @@
       if (o.type !== 'select') input.style.flex = '1';
       if (o.unit) { const u = document.createElement('span'); u.className = 'unit'; u.textContent = o.unit; row.appendChild(u); }
       cell.appendChild(row);
+      if (o.picks) {
+        const picks = document.createElement('div');
+        picks.className = 'row picks';
+        for (const [v, text] of o.picks) {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'alt'; b.textContent = text; b.title = v ? `Use ${v}` : 'None';
+          b.onclick = () => { input.value = v; input.onchange(); };
+          picks.appendChild(b);
+        }
+        cell.appendChild(picks);
+      }
       if (o.help) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '2px 0 0'; n.textContent = o.help; cell.appendChild(n); }
       box.append(label, cell);
     }

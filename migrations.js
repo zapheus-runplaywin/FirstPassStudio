@@ -78,6 +78,46 @@ const STEPS = [
       }
     },
   },
+  {
+    to: 2,
+    what: 'Move the title emoji and The Clash big word from the competition setup to the scene',
+    // They were competition settings (titleEmoji, clashWord, and titleFlames before that) and are
+    // now options on the title and The Clash sources (?emoji=, ?word=). The active competition's
+    // values go onto those sources in the scene, unless a source already sets its own.
+    run({ log }) {
+      const dir = path.join(DATA_DIR, 'competitions');
+      let settings = {};
+      try {
+        const { active } = JSON.parse(fs.readFileSync(path.join(dir, 'active.json'), 'utf8'));
+        if (validId(active)) settings = JSON.parse(fs.readFileSync(path.join(dir, active, 'settings.json'), 'utf8'));
+      } catch { /* no active competition */ }
+      const emoji = String(settings.titleEmoji ?? (settings.titleFlames === false ? '' : '🔥')).trim();
+      const word = String(settings.clashWord || '').trim();
+      const file = path.join(DATA_DIR, 'scene.json');
+      let scene;
+      try { scene = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return; }
+      let changed = 0;
+      for (const src of Array.isArray(scene.sources) ? scene.sources : []) {
+        if (src.type && src.type !== 'browser') continue;
+        const [page, query = ''] = String(src.url || '').split('?');
+        const q = new URLSearchParams(query);
+        const name = page.replace(/^\/+/, '');
+        if (name === 'title.html') {
+          const fire = q.get('fire');
+          q.delete('fire');
+          if (!q.has('emoji') && fire !== '0' && emoji) q.set('emoji', emoji);
+        } else if (name === 'clash.html') {
+          if (!q.has('word') && word && word.toUpperCase() !== 'CLASH') q.set('word', word);
+        } else continue;
+        const url = page + (q.toString() ? '?' + q : '');
+        if (url !== src.url) { src.url = url; changed++; }
+      }
+      if (changed) {
+        fs.writeFileSync(file, JSON.stringify(scene, null, 2) + '\n');
+        log('info', 'migrate', `Set the title emoji and The Clash word on ${changed} scene source(s)`);
+      }
+    },
+  },
 ];
 const VERSION = STEPS.length ? STEPS[STEPS.length - 1].to : 0;
 

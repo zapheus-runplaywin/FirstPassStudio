@@ -30,8 +30,6 @@
   button.danger, button.danger:hover { background: var(--fp-white); color: var(--fp-danger); border-color: var(--fp-danger); }
   button:disabled { opacity: .5; cursor: default; }
   .help { font-size: 13px; color: var(--fp-muted); margin: 4px 0 0; line-height: 1.5; }
-  .emojis { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
-  .emojis button { padding: 2px 8px; font-size: 18px; line-height: 28px; }
   .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
   .error { color: var(--fp-danger); }
   .ok { color: var(--fp-ok); }
@@ -303,13 +301,8 @@
     </section>
 
     <section>
-      <h2>Graphics</h2>
-      <div class="row">
-        <label class="inline">Emoji either side of the title banner <input type="text" id="titleEmoji" data-key="titleEmoji" placeholder="None" style="width:90px;font-size:18px;text-align:center"></label>
-        <span class="emojis" id="emojiPicks"></span>
-        <label class="inline">The Clash big word <input type="text" id="clashWord" data-key="clashWord" style="width:160px"></label>
-      </div>
-      <p class="help">Type or paste any emoji, pick one here, or open your computer's emoji picker in the box (Mac: Control + Command + Space, Windows: Windows key + full stop). Leave it empty for none.</p>
+      <h2>More</h2>
+      <p class="help">The emoji either side of the title banner and The Clash's big word are set on each graphic on the <a href="/output.html">Output page</a>.</p>
       <details style="margin-top:14px">
         <summary>PlayHQ Client ID (most competitions don't need one)</summary>
         <p class="help">Only used if PlayHQ's game page data has no line-ups and the association has given you a Client ID for PlayHQ's Game Summary.</p>
@@ -546,12 +539,6 @@
       if (i.dataset.key === 'superShots') renderSuperShots();
     });
   });
-  // Quick picks for the title emoji; any other emoji can be typed or pasted into the box.
-  for (const e of ['🔥', '⚡', '🌩️', '🏆', '⭐', '👑', '💥', '🏐', '💜', '']) {
-    const b = Object.assign(el('button', 'alt', e || 'None'), { type: 'button', title: e ? `Use ${e}` : 'No emoji' });
-    b.onclick = () => { form.titleEmoji = $('titleEmoji').value = e; markDirty(); preview(); };
-    $('emojiPicks').append(b);
-  }
   document.querySelectorAll('[name=periodType]').forEach(r => r.onchange = () => { form.periodType = r.value; markDirty(); preview(); });
   $('panelOpacity').oninput = () => { form.panelOpacity = Number($('panelOpacity').value); markDirty(); preview(); };
 
@@ -615,8 +602,7 @@
     $('opacityPct').textContent = `${Math.round((1 - o) * 100)}%`;
     if (!fontLink) { fontLink = el('link'); fontLink.rel = 'stylesheet'; document.head.append(fontLink); }
     fontLink.href = `https://fonts.googleapis.com/css2?family=${form.font.replace(/ /g, '+')}&display=swap`;
-    const e = (form.titleEmoji || '').trim();
-    $('pvComp').textContent = (e ? e + ' ' : '') + (form.displayName || form.competitionName || form.name) + (e ? ' ' + e : '');
+    $('pvComp').textContent = form.displayName || form.competitionName || form.name;
     $('pvVenue').textContent = form.venueName || 'Venue';
     $('pvClock').textContent = `${form.periodType === 'halves' ? 'H' : 'Q'}2 7:42`;
     const pvLogo = form.competitionLogo || form.competitionLogoDark;

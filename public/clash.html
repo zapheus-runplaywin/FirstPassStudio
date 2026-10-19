@@ -290,7 +290,7 @@
       $('awayName').textContent = s.away.name;
       teamColour('home', s.teamColours && s.teamColours.home);
       teamColour('away', s.teamColours && s.teamColours.away);
-      $('bigword').textContent = (opts.get('word') || (s.rules && s.rules.clashWord) || 'CLASH').toUpperCase();
+      $('bigword').textContent = (opts.get('word') || 'CLASH').toUpperCase();
       $('tag').textContent = [s.competition || 'The Clash', s.round].filter(Boolean).join('  ·  ');
       const title = opts.get('title') || (s.division ? `Battle for <b>${s.division.replace(/[<>&]/g, '')}</b>` : 'The <b>battle</b> begins');
       $('battle').innerHTML = opts.get('title') ? '' : title;

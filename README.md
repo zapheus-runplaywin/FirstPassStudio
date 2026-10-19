@@ -21,8 +21,8 @@ shots), the finals format for the competition and for any division with its own 
 it switches, days ahead that count as this round), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
 in light and dark mode versions (one alone is used for both; beside the title, above it and in the ladder's corner), the team logos (drop files on the page; they match clubs by file
 name, and the PlayHQ team list lets you pick a different logo for any club), an optional colour for each club (behind its teams'
-names on the scoreboard and behind their logo and name on The Clash), the emoji either side of the title (any emoji, or none), The Clash's big word and
-the PlayHQ Client ID most competitions don't need.
+names on the scoreboard and behind their logo and name on The Clash) and the PlayHQ Client ID most competitions don't need. The emoji either
+side of the title and The Clash's big word are options on those graphics (`?emoji=`, `?word=`), set on each source on the Output page.
 
 Logos and colours belong to clubs, so a club's teams share them in every division. A team's club is its name without the
 division on the end ("Comets 21U", "Comets Men" and "Comets Open" are all Comets; "Stormz Div 2" is Stormz), and the team
@@ -366,8 +366,8 @@ Scoreboard position: by default it is centred at the bottom, just above the scor
 These follow the game picked on the scoreboard control page:
 
 - http://localhost:8080/title.html: round, competition and venue banner. The venue is set on the competition setup page
-  (blank uses the venue from PlayHQ). `?position=bottom` moves it down, `?fire=0` drops the emoji
-  and `?emoji=⚡` uses a different one on that page only. The competition logo is off by default, since the logos
+  (blank uses the venue from PlayHQ). `?position=bottom` moves it down and `?emoji=🔥` puts an emoji
+  either side of the title (none without it). The competition logo is off by default, since the logos
   page shows it beside the title: `?logo=show` puts it above the banner, `?logo=hide` leaves it off. It is the light mode logo unless you add `?mode=dark`.
 - http://localhost:8080/upnext.html: the next game on the same court, for half time. With no game picked, it
   assumes the stream is on the first timeslot and shows the game after it.

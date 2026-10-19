@@ -2115,7 +2115,7 @@ function rules(division) {
   return { periodType: CONFIG.periodType, periods: CONFIG.periodType === 'halves' ? 2 : 4, periodLabel: CONFIG.periodType === 'halves' ? 'H' : 'Q',
     periodMinutes: CONFIG.quarterMinutes, superShots: competitions.superShotsFor(CONFIG, division), finalsPlaces: (finals.byId(CONFIG.finalsFormat) || { teams: 0 }).teams,
     competitionLogo: light, competitionLogoLight: light, competitionLogoDark: dark,
-    titleEmoji: CONFIG.titleEmoji ?? '🔥', clashWord: CONFIG.clashWord || 'CLASH', competitionName: competitionName() || '' };
+    competitionName: competitionName() || '' };
 }
 
 // ─── Finals ─────────────────────────────────────────────────────────────────
