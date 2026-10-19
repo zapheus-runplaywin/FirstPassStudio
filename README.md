@@ -36,7 +36,7 @@ Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logo
 Studio starts with no competitions: **Import** one of the import configs on the setup page (Thunder League, AMMNA
 Nationals, GIG WANL) or make a new one. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
 GIG WANL in Netball WA greens with Gold Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to
-Australian Championships; for GIG WANL pick it with **Find its competitions**. GIG WANL plays super shots in its Open
+Australian Championships and GIG WANL's to GIG WANL, so both are ready to use. GIG WANL plays super shots in its Open
 division only, not 21&Under or Men's (confirmed by Matt). Super shots can be set per division on the setup page: by a division's
 full PlayHQ name, or by a word in it ("Open", "21", "Men", which is what GIG WANL comes with). The other rules (AMMNA 10-minute
 quarters and no super shots, WANL 15-minute quarters, top 4 Page finals) are guesses to check. `config.json` now only holds this computer's settings (port,
