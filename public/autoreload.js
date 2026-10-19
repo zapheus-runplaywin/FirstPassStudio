@@ -1,5 +1,5 @@
-// Reloads the page when the helper restarts or a page file changes, so OBS
-// always shows the latest version without "Refresh cache of current page".
+// Reloads the page when the helper restarts or a page file changes, so a page
+// always shows the latest version without a manual refresh.
 // Add &reload=30 to a page link to also force a full reload every 30 minutes.
 (function () {
   let known = null;

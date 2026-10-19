@@ -261,7 +261,7 @@
             <div class="pv-score"><div class="t">Home team</div><div class="s">12</div><div class="s">10</div><div class="t">Away team</div><div class="c" id="pvClock">Q2 7:42</div></div>
             <div class="pv-ladder" id="pvLadder"></div>
           </div>
-          <p class="help">A rough preview with your colours. After saving, every graphic in OBS reloads with them.</p>
+          <p class="help">A rough preview with your colours. After saving, every graphic reloads with them.</p>
         </div>
       </div>
     </section>
@@ -441,7 +441,7 @@
       await post(`/api/setup/${id}/activate`, {});
       editing = null; dirty = false;
       await loadList(id);
-      note('saveNote', 'Now in use. Graphics in OBS reload on their own.', 'ok');
+      note('saveNote', 'Now in use. Graphics reload on their own.', 'ok');
     } catch (err) { note('saveNote', `Couldn't switch: ${err.message}`, 'error'); }
   }
 
@@ -835,7 +835,7 @@
   async function save(quiet) {
     const d = await post(`/api/setup/${editing}`, form);
     form = d.settings; dirty = false;
-    if (!quiet) note('saveNote', d.active ? 'Saved. Graphics in OBS reload with the changes on their own.' : 'Saved.', 'ok');
+    if (!quiet) note('saveNote', d.active ? 'Saved. Graphics reload with the changes on their own.' : 'Saved.', 'ok');
     const before = JSON.stringify(info.competitions);
     info = await api('/api/setup');
     if (JSON.stringify(info.competitions) !== before) { const id = editing; editing = null; await loadList(id); }

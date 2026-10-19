@@ -48,14 +48,14 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   });
 
   // Closing the last window takes Studio off air (unless pages open in the browser), so on air
-  // it asks first: mid-stream that would stop the OBS graphics and the Stream Deck.
+  // it asks first: mid-stream that would stop the graphics and the Stream Deck.
   const closingGoesOffAir = () => isOnAir() && !appSettings().openInBrowser;
   // Asks without blocking (a blocking dialog inside a window's close can lock the app up).
   async function confirmOffAir(parent) {
     const { response } = await dialog.showMessageBox(parent || undefined, {
       type: 'warning', buttons: ['Take Off Air', 'Cancel'], defaultId: 1, cancelId: 1,
       message: 'Take Studio off air?',
-      detail: 'Studio only runs while a Studio window is open. Closing the last one stops the OBS graphics and Stream Deck buttons until Studio is opened again.',
+      detail: 'Studio only runs while a Studio window is open. Closing the last one stops the graphics and Stream Deck buttons until Studio is opened again.',
     });
     return response === 0 && !quitting;
   }
@@ -229,7 +229,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     const { response } = await dialog.showMessageBox(current() || undefined, {
       type: 'warning', buttons: ['Quit', 'Cancel'], defaultId: 1, cancelId: 1,
       message: 'Quit FirstPass Studio?',
-      detail: 'Quitting takes Studio off air: the OBS graphics and Stream Deck buttons stop working.',
+      detail: 'Quitting takes Studio off air: the graphics, outputs and Stream Deck buttons stop working.',
     });
     if (response === 0) app.quit();
   }

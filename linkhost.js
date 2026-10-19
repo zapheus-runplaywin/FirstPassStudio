@@ -1,5 +1,5 @@
 // The host name the page links use: the Mac's Bonjour name (e.g. matts-macbook-pro.local),
-// so the same link works in OBS on this Mac and from other computers, phones or a Stream
+// so the same link works on this Mac and from other computers, phones or a Stream
 // Deck on the same network. config.json "linkHost" changes it: "bonjour" (the default),
 // "localhost", or any name or IP address. Shared by the helper and the Mac app.
 

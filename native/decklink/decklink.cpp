@@ -291,7 +291,7 @@ static napi_value Start(napi_env env, napi_callback_info cb) {
   auto fail = [&](const std::string &why) { o->out->DisableVideoOutput(); o->stopping = true; o->Release(); return failure(env, why); };
 
   if (o->out->EnableVideoOutput(wantedMode, bmdVideoOutputFlagDefault) != S_OK)
-    return fail("Couldn't start the output. Is another app (OBS, Media Express) using it?");
+    return fail("Couldn't start the output. Is another app (such as Media Express) using it?");
 
   if (keying == "external" || keying == "internal") {
     Ref<IDeckLinkKeyer> keyer;

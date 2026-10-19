@@ -57,7 +57,7 @@
 <main>
   <h1>Scoreboard control</h1>
   <p class="sub" id="compLine"></p>
-  <p class="sub" id="sub">Add <b>http://localhost:8080/scoreboard.html</b> to OBS as a Browser source (1920 × 1080).</p>
+  <p class="sub" id="sub">The scoreboard is <b>http://localhost:8080/scoreboard.html</b>: add it on the <a href="/output.html">Output page</a>.</p>
 
   <section>
     <h2>Game</h2>
@@ -183,9 +183,9 @@
   const $ = id => document.getElementById(id);
   let state = null, games = [], serverOffset = 0;
 
-  const obsLink = base => { $('sub').innerHTML = `Add <b>${base}/scoreboard.html</b> to OBS as a Browser source (1920 × 1080).`; };
-  obsLink(location.origin);
-  fetch('/api/version').then(r => r.json()).then(v => { if (v.base) obsLink(v.base); }).catch(() => {}); // the Mac's .local name
+  const sbLink = base => { $('sub').innerHTML = `The scoreboard is <b>${base}/scoreboard.html</b>: add it on the <a href="/output.html">Output page</a>.`; };
+  sbLink(location.origin);
+  fetch('/api/version').then(r => r.json()).then(v => { if (v.base) sbLink(v.base); }).catch(() => {}); // the Mac's .local name
   $('frame').src = '/scoreboard.html';
   const fit = () => { $('frame').style.transform = `scale(${$('preview').clientWidth / 1920})`; };
   addEventListener('resize', fit); fit();

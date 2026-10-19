@@ -2,7 +2,7 @@
   "name": "firstpass-studio",
   "productName": "FirstPass Studio",
   "version": "0.1.0",
-  "description": "Live PlayHQ graphics for OBS, by PIVT",
+  "description": "Live PlayHQ graphics for livestreams, by PIVT",
   "author": "PIVT",
   "license": "MIT",
   "private": true,
