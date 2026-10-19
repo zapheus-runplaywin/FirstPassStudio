@@ -211,7 +211,6 @@ function refreshMenu() {
     { label: 'Scoreboard control', click: () => openPage('/control.html') },
     { label: 'Competition setup', click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
-    { label: 'Open pages in the browser', type: 'checkbox', checked: !!appSettings().openInBrowser, click: item => { saveAppSetting('openInBrowser', item.checked); refreshMenu(); } },
     // Opening the file hands it to the Stream Deck app, which installs or updates the plugin.
     { label: 'Install the Stream Deck plugin', enabled: fs.existsSync(STREAMDECK_PLUGIN), click: () => shell.openPath(STREAMDECK_PLUGIN) },
     { type: 'separator' },
@@ -221,6 +220,8 @@ function refreshMenu() {
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
     { label: 'Open Studio at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
+    // With the other settings, away from the page links, so it isn't ticked by accident.
+    { label: 'Open pages in the browser instead of the app window', type: 'checkbox', checked: !!appSettings().openInBrowser, click: item => { saveAppSetting('openInBrowser', item.checked); log(`Open pages in the browser: ${item.checked ? 'on' : 'off'}`); refreshMenu(); } },
     updateReady
       ? { label: `Restart to update to ${updateReady}`, click: () => { quitting = true; require('electron-updater').autoUpdater.quitAndInstall(); } }
       : { label: 'Check for updates', enabled: app.isPackaged, click: () => checkForUpdates(true) },
