@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Stream Deck API · FirstPass Studio</title>
+<title>Stream Deck · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="vendor/swagger-ui/swagger-ui.css">
 <link rel="icon" href="studio/favicon.png">
@@ -26,6 +26,28 @@
   .swagger-ui .markdown code, .swagger-ui .renderedMarkdown code { color: var(--fp-navy); background: var(--fp-blue-soft); }
   .swagger-ui .info .title small.version-stamp { background: var(--fp-blue); }
   .swagger-ui .info .title small:not(.version-stamp) { background: var(--fp-muted); }
+  /* The guide above the API reference. */
+  .guide { max-width: 1100px; margin: 0 auto; padding: 24px 20px 0; font-family: var(--fp-font); color: var(--fp-navy); }
+  .guide * { box-sizing: border-box; }
+  .guide h1 { margin: 0 0 4px; font-size: 32px; }
+  .guide .sub { color: var(--fp-muted); margin: 0 0 16px; }
+  .guide section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
+  .guide h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 10px; }
+  .guide h3 { font-size: 16px; margin: 16px 0 6px; }
+  .guide p, .guide li { font-size: 15px; }
+  .guide .note { font-size: 14px; color: var(--fp-muted); }
+  .guide code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--fp-gray); border: 1px solid var(--fp-line); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
+  .guide button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--fp-blue); color: #fff; cursor: pointer; }
+  .guide button.alt { background: var(--fp-blue-soft); color: var(--fp-blue-dark); padding: 4px 10px; font-size: 13px; }
+  .guide .warn { border: 2px solid var(--fp-orange); background: #FFF4EC; border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; }
+  .guide .warn strong { color: #B23F00; }
+  .guide table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .guide td { padding: 5px 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
+  .guide td:first-child { width: 34%; font-weight: 600; }
+  .guide td:last-child { width: 1%; white-space: nowrap; }
+  .guide .ref { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin: 22px 0 0; }
+  .guide .ref h2 { margin: 0; }
+  @media (max-width: 640px) { .guide td:first-child { width: auto; } .guide tr { display: grid; grid-template-columns: 1fr auto; } .guide td:nth-child(2) { grid-column: 1 / -1; order: 3; border-top: 0; } }
   #fallback { font-family: var(--fp-font); max-width: 760px; margin: 24px auto; padding: 0 16px; }
 </style>
 <script src="log.js"></script>
@@ -33,10 +55,69 @@
 <body class="fp">
   <header class="fp-bar">
     <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
-    <nav><a href="/">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/output.html">Output</a><a href="/setup.html">Competition setup</a><a href="/athletes.html">Athletes</a><a href="/api.html" aria-current="page">Stream Deck API</a></nav>
+    <nav><a href="/output.html">Output</a><a href="/">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/athletes.html">Athletes</a><a href="/api.html" aria-current="page">Stream Deck</a></nav>
   </header>
-  <div class="apibar">
-    <a href="/openapi.yaml" download>Download openapi.yaml</a>
+  <div class="guide">
+    <h1>Stream Deck</h1>
+    <p class="sub">Run the scene and the scoreboard from a Stream Deck. Studio has to be on air: keep a Studio window open.</p>
+
+    <section>
+      <h2>Scene and sources: the FirstPass Studio plugin</h2>
+      <p>For Studio's own scene, built on the <a href="/output.html">Output</a> page. The Mac app includes a Stream Deck plugin.
+        Install it with the button below (or <b>Install the Stream Deck plugin</b> in the menu bar icon); the Stream Deck app opens it and
+        installs it. Do it again after an app update to update the plugin.</p>
+      <p id="deckRow" hidden><button id="deckInstall">Install the Stream Deck plugin</button> <span class="note" id="deckNote"></span></p>
+      <p>Then drag <b>FirstPass Studio › Source</b> onto a key and pick the source in its settings.</p>
+      <ul>
+        <li><b>Press:</b> show or hide (the default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.</li>
+        <li>The key shows the source's name and lights up orange while the source is on, however it was turned on. A sound key lights while the video's sound is on.</li>
+        <li>It follows the source itself, so renaming the source doesn't break the key. A removed source says <b>gone</b>; while Studio isn't running it says <b>off air</b>.</li>
+        <li><b>Studio</b> in its settings stays empty when the Stream Deck is on the same Mac; for another Mac type its address, like <code>http://studio-mac.local:8080</code>.</li>
+      </ul>
+      <p class="note">No plugin? Every source also has links for a <b>Website</b> action (the Output page copies them), but those keys don't light up.
+        The links below for the whole scene and the video output work the same way.</p>
+      <table id="sceneLinks"></table>
+    </section>
+
+    <section>
+      <h2>Manual scoring and timing</h2>
+      <div class="warn">
+        <p style="margin:0 0 6px"><strong>These links stop Follow PlayHQ.</strong></p>
+        <ul style="margin:0;padding-left:20px">
+          <li><b>Any score link</b> (+1, +2, −1, −2, reset) switches the scoreboard to <b>Manual</b>: it stops taking the score from PlayHQ,
+            and the clock stops following the PlayHQ scorer too.</li>
+          <li><b>Any clock link</b> (start, stop, reset, set, adjust) stops the clock following the PlayHQ scorer. The score keeps following PlayHQ.</li>
+          <li>Quarter links don't switch anything off, but while following PlayHQ the scorer's next quarter change still wins.</li>
+          <li>To go back, press <b>Follow PlayHQ</b> (it turns the score and the clock back on), or <b>Follow the PlayHQ scorer's clock</b> for the clock only.
+            Picking a game on the control page also turns Follow PlayHQ back on.</li>
+        </ul>
+      </div>
+      <p>Each link goes in a <b>System › Website</b> action with <b>GET request in background</b> ticked, so no browser opens.
+        These links use this Mac's network name, so they also work from a Stream Deck on another computer on the same network.
+        Add <code>?board=2</code> to a link for the second court.</p>
+      <h3>Scoring mode</h3>
+      <table id="modeLinks"></table>
+      <h3>Scores <span class="note">(switch to Manual)</span></h3>
+      <table id="scoreLinks"></table>
+      <h3>Clock <span class="note">(stops following the PlayHQ scorer's clock)</span></h3>
+      <table id="clockLinks"></table>
+      <p class="note">Any amount works in an adjust link (<code>adjust/2m</code>, <code>adjust/-30s</code>), and any time in a set link (<code>set/7:30</code>).
+        <code>/deck/clock/length/12</code> sets the quarter length in minutes.</p>
+      <h3>Quarter</h3>
+      <table id="quarterLinks"></table>
+      <p class="note">Changing the quarter doesn't touch the clock: press Reset clock as well when the new quarter starts (a Stream Deck <b>Multi Action</b> can do both).</p>
+    </section>
+
+    <section>
+      <h2>Game and ticker</h2>
+      <table id="otherLinks"></table>
+    </section>
+
+    <div class="ref">
+      <h2>Every link (API reference)</h2>
+      <span class="note">Try it out sends a link to Studio for real.</span>
+      <a href="/openapi.yaml" download>Download openapi.yaml</a>
+    </div>
   </div>
   <div id="swagger"></div>
   <div id="fallback" hidden>
@@ -45,6 +126,59 @@
   </div>
   <script src="vendor/swagger-ui/swagger-ui-bundle.js"></script>
   <script>
+    // The guide's links, with this Mac's address (its .local name) so a Stream Deck on another computer can use them too.
+    const LINKS = {
+      sceneLinks: [['Fade every source out', '/deck/layers/off'], ['Video output on / off (Mac app)', '/deck/output/toggle'],
+        ['Video output on', '/deck/output/on'], ['Video output off', '/deck/output/off']],
+      modeLinks: [['Follow PlayHQ (score and clock)', '/deck/source/playhq'], ['Manual', '/deck/source/manual'], ['Toggle between the two', '/deck/source/toggle'],
+        ['Follow the PlayHQ scorer\'s clock', '/deck/clock/playhq/on'], ['Stop following the clock', '/deck/clock/playhq/off']],
+      scoreLinks: [['Home +1', '/deck/home/add1'], ['Home +2 (super shot)', '/deck/home/add2'], ['Home −1', '/deck/home/minus1'], ['Home −2', '/deck/home/minus2'],
+        ['Away +1', '/deck/away/add1'], ['Away +2 (super shot)', '/deck/away/add2'], ['Away −1', '/deck/away/minus1'], ['Away −2', '/deck/away/minus2'],
+        ['Reset scores to 0', '/deck/scores/reset']],
+      clockLinks: [['Start / stop (one key)', '/deck/clock/toggle'], ['Start', '/deck/clock/start'], ['Stop', '/deck/clock/stop'],
+        ['Reset to a full quarter', '/deck/clock/reset'], ['Set to 10:00', '/deck/clock/set/10:00'], ['Add 1 minute', '/deck/clock/adjust/1m'],
+        ['Take off 1 minute', '/deck/clock/adjust/-1m'], ['Add 10 seconds', '/deck/clock/adjust/10s'], ['Take off 10 seconds', '/deck/clock/adjust/-10s']],
+      quarterLinks: [['Next quarter', '/deck/quarter/next'], ['Previous quarter', '/deck/quarter/prev'], ['Q1', '/deck/quarter/1'], ['Q2', '/deck/quarter/2'],
+        ['Q3', '/deck/quarter/3'], ['Q4', '/deck/quarter/4'], ['Extra time', '/deck/quarter/5']],
+      otherLinks: [['Automatic game selection on / off', '/deck/auto/toggle'], ['Court for automatic selection (court 2)', '/deck/court/2'],
+        ['Super shot animation for home (score unchanged)', '/deck/home/supershot'], ['Super shot animation for away (score unchanged)', '/deck/away/supershot'],
+        ['Ticker faster', '/deck/ticker/faster'], ['Ticker slower', '/deck/ticker/slower'], ['Ticker normal speed', '/deck/ticker/normal']],
+    };
+    function drawLinks(base) {
+      for (const [id, rows] of Object.entries(LINKS)) {
+        const table = document.getElementById(id);
+        table.innerHTML = '';
+        for (const [label, path] of rows) {
+          const tr = table.insertRow();
+          tr.insertCell().textContent = label;
+          const code = document.createElement('code');
+          code.textContent = base + path;
+          tr.insertCell().appendChild(code);
+          const btn = document.createElement('button');
+          btn.className = 'alt';
+          btn.textContent = 'Copy';
+          btn.onclick = async () => {
+            try { await navigator.clipboard.writeText(base + path); btn.textContent = 'Copied'; } catch { btn.textContent = 'Select it'; }
+            setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+          };
+          tr.insertCell().appendChild(btn);
+        }
+      }
+    }
+    drawLinks(location.origin);
+    fetch('/api/version').then(r => r.json()).then(v => { if (v.base) drawLinks(v.base); }).catch(() => {});
+    // The plugin comes with the Mac app; opening it hands it to the Stream Deck app to install.
+    fetch('/api/scene/streamdeck').then(r => r.json()).then(b => { document.getElementById('deckRow').hidden = !b.available; }).catch(() => {});
+    document.getElementById('deckInstall').onclick = async () => {
+      const note = document.getElementById('deckNote');
+      try {
+        const r = await fetch('/api/scene/streamdeck', { method: 'POST' });
+        const b = await r.json();
+        if (r.ok) console.log('Opened the Stream Deck plugin to install it');
+        note.textContent = r.ok ? 'The Stream Deck app should open to install it.' : (b.error || 'Could not open the plugin.');
+      } catch (err) { note.textContent = `Could not open the plugin: ${err.message}`; }
+    };
+
     // "Try it out" on any link sends it to the scoreboard for real.
     if (window.SwaggerUIBundle) {
       SwaggerUIBundle({

@@ -2,8 +2,8 @@
 
 Each button presses one link on Studio. Studio must be on air: open the FirstPass Studio app and keep a Studio
 window open for the stream (closing the last one takes Studio off air, and the buttons get no answer).
-The same links are documented at http://localhost:8080/api.html (also linked from the home page),
-where **Try it out** sends any link to the scoreboard. The raw OpenAPI file is `public/openapi.yaml`.
+The **Stream Deck** page in Studio (http://localhost:8080/api.html) has the main links with Copy buttons, the plugin, and
+every link in its API reference, where **Try it out** sends any link to the scoreboard. The raw OpenAPI file is `public/openapi.yaml`.
 
 **Setup for each button:** drag a **System → Website** action onto a key, paste a link from below,
 and tick **GET request in background** so no browser window opens.
@@ -27,7 +27,8 @@ which also works from a Stream Deck on another computer on the same network.
 | Play the super shot animation for home (score unchanged) | http://localhost:8080/deck/home/supershot |
 | Play the super shot animation for away (score unchanged) | http://localhost:8080/deck/away/supershot |
 
-Pressing any score button switches the scoreboard to manual scoring. A +2 press also plays the super shot animation (see below).
+**Pressing any score button switches the scoreboard to manual scoring: Follow PlayHQ stops, for the score and the clock.**
+Press Follow PlayHQ (`/deck/source/playhq`, below) to go back. A +2 press also plays the super shot animation (see below).
 
 ## Game
 
@@ -85,7 +86,7 @@ Switching between the two also turns following the PlayHQ scorer's clock on or o
 
 - Any amount works in an adjust link: `adjust/2m`, `adjust/-30s`, `adjust/90s`. A number on its own counts as seconds.
 - Change the time in a set link to anything, e.g. `/deck/clock/set/7:30`.
-- Following the PlayHQ clock only works while the score is following PlayHQ. Pressing any other clock button switches the clock back to manual.
+- **Pressing any other clock button stops the clock following the PlayHQ scorer** (the score keeps following). Following the PlayHQ clock only works while the score is following PlayHQ.
 - The clock matches the scores: `/deck/source/playhq` (or picking a game) turns following the PlayHQ clock on, and
   `/deck/source/manual` (or any score button) turns it off. Use the clock buttons above afterwards to change that.
 - Quarters are 10 minutes. To change that, set the length on the competition setup page (setup.html), or use

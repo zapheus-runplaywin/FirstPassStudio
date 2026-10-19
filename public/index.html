@@ -31,7 +31,7 @@
 <body class="fp">
 <header class="fp-bar">
   <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
-  <nav><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/output.html">Output</a><a href="/setup.html">Competition setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck API</a></nav>
+  <nav><a href="/output.html">Output</a><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck</a></nav>
 </header>
 <main>
   <h1>Graphics for OBS</h1>
@@ -103,7 +103,7 @@
   <div class="card">
     <h2>Live scoreboard</h2>
     <code id="sbUrl"></code>
-    <div class="row"><button id="sbCopy">Copy link</button><a class="btn" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn" href="/api.html" target="_blank">Stream Deck API docs</a></div>
+    <div class="row"><button id="sbCopy">Copy link</button><a class="btn" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn" href="/api.html" target="_blank">Stream Deck links</a></div>
     <p class="page__help">Sits centred at the bottom, just above the score ticker with a small gap, so both can be on together.
       <code>?position=top-center</code>, <code>bottom-center</code>, <code>top-left</code> or <code>bottom-left</code> moves it.</p>
   </div>
@@ -178,7 +178,8 @@
       <li><b>Pages that use the picked game's division:</b> ladder and finals (without <code>?division=</code>), ladder bar, top shooters,
         title, match up, The Clash, winner celebration, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
       <li><b>Stream Deck:</b> <code>/deck/auto/on</code>, <code>/deck/auto/off</code>, <code>/deck/auto/toggle</code>,
-        <code>/deck/court/2</code>, <code>/deck/clock/playhq/on</code> and <code>/deck/ticker/faster</code> / <code>slower</code>. See the Stream Deck API docs above for the rest.</li>
+        <code>/deck/court/2</code>, <code>/deck/clock/playhq/on</code> and <code>/deck/ticker/faster</code> / <code>slower</code>. The <a href="/api.html" target="_blank">Stream Deck page</a> has the rest, with Copy buttons and the plugin.
+        A score key switches scoring to Manual (Follow PlayHQ stops for the score and the clock), and a clock key stops the clock following the PlayHQ scorer.</li>
     </ul>
   </div>
   <div class="card">

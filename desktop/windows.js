@@ -293,12 +293,12 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       {
         label: 'Go',
         submenu: [
-          { label: 'Studio Home', accelerator: 'CmdOrCtrl+1', ...go('/') },
-          { label: 'Scoreboard Control', accelerator: 'CmdOrCtrl+2', ...go('/control.html') },
-          { label: 'Competition Setup', accelerator: 'CmdOrCtrl+3', ...go('/setup.html') },
-          { label: 'Athlete Photos', accelerator: 'CmdOrCtrl+4', ...go('/athletes.html') },
-          { label: 'Stream Deck API', accelerator: 'CmdOrCtrl+5', ...go('/api.html') },
-          { label: 'Output', accelerator: 'CmdOrCtrl+6', ...go('/output.html') },
+          { label: 'Output', accelerator: 'CmdOrCtrl+1', ...go('/output.html') },
+          { label: 'Graphics', accelerator: 'CmdOrCtrl+2', ...go('/') },
+          { label: 'Scoreboard Control', accelerator: 'CmdOrCtrl+3', ...go('/control.html') },
+          { label: 'Competitions Setup', accelerator: 'CmdOrCtrl+4', ...go('/setup.html') },
+          { label: 'Athletes', accelerator: 'CmdOrCtrl+5', ...go('/athletes.html') },
+          { label: 'Stream Deck', accelerator: 'CmdOrCtrl+6', ...go('/api.html') },
         ],
       },
       { role: 'windowMenu' },
