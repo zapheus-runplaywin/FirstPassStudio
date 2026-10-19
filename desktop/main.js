@@ -90,6 +90,10 @@ const windows = require('./windows')({
   onAllClosed: () => { if (!appSettings().openInBrowser) { log('Last Studio window closed'); stopHelper(); } },
 });
 
+// The scene full screen on the Mac's displays (chroma, or fill and key), set up on the Output page.
+// Made once the app is ready, since it needs the screen module.
+let outputs = null;
+
 // ─── The helper ─────────────────────────────────────────────────────────────
 // wanted: whether it should be running (a Studio window is open, or Start Studio was chosen with
 // pages in the browser), so a pending restart doesn't bring back a helper that was just stopped.
@@ -103,6 +107,7 @@ function startHelper() {
     stdio: 'ignore',
     env: { ...process.env, FIRSTPASS_DATA_DIR: DATA_DIR, FIRSTPASS_PACKAGED: app.isPackaged ? '1' : '' },
   });
+  outputs?.attach(child);
   const started = Date.now();
   child.on('spawn', async () => {
     for (let i = 0; i < 40 && helper === child; i++) {
@@ -111,6 +116,7 @@ function startHelper() {
     }
   });
   child.on('exit', code => {
+    outputs?.detach(child);
     if (helper === child) helper = null;
     if (quitting || child.restarting || child.stopping) return;
     log(`Helper stopped (code ${code})`);
@@ -246,6 +252,7 @@ async function start() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'trayTemplate.png'));
   icon.setTemplateImage(true);
   tray = new Tray(icon);
+  outputs = require('./outputs')({ port: PORT, log });
   refreshMenu();
   windows.refreshMenu();
   log(`Starting ${app.getVersion()}, settings in ${DATA_DIR}`);
