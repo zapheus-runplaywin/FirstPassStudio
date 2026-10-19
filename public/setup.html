@@ -330,6 +330,7 @@
 </div></div>
 
 <script src="colourpicker.js"></script>
+<script src="asktext.js"></script>
 <script>
 (function () {
   const $ = id => document.getElementById(id);
@@ -408,7 +409,7 @@
 
   async function importConfig(c) {
     const taken = info.competitions.some(x => x.name === c.name);
-    const name = taken ? prompt(`You already have a competition called ${c.name}. Name for the imported copy:`, `${c.name} (2)`) : c.name;
+    const name = taken ? await askText(`You already have a competition called ${c.name}. Name for the imported copy:`, `${c.name} (2)`) : c.name;
     if (!name) return;
     try {
       if (dirty && confirm('Save your changes first?')) await save(true);
@@ -782,9 +783,9 @@
       .forEach(n => sel.append(new Option(n === t.name ? `${n} (its own)` : n, n)));
     sel.append(new Option('New club…', '\u0000new'));
     sel.value = form.teamClubs[t.name] && club.toLowerCase() !== t.autoClub.toLowerCase() ? [...names.values()].find(n => n.toLowerCase() === club.toLowerCase()) : '';
-    sel.onchange = () => {
+    sel.onchange = async () => {
       let v = sel.value;
-      if (v === '\u0000new') { v = (prompt(`Club for ${t.name}`) || '').trim(); if (!v) return renderTeams(); }
+      if (v === '\u0000new') { v = await askText(`Club for ${t.name}`); if (!v) return renderTeams(); }
       if (v && v.toLowerCase() !== t.autoClub.toLowerCase()) form.teamClubs[t.name] = v; else delete form.teamClubs[t.name];
       markDirty(); renderTeams();
     };
@@ -845,7 +846,7 @@
   $('save').onclick = () => save().catch(err => note('saveNote', `Couldn't save: ${err.message}`, 'error'));
   $('useComp').onclick = () => activate(editing);
   $('newComp').onclick = async () => {
-    const name = prompt('Name for the new competition (e.g. AMMNA Nationals 2027)');
+    const name = await askText('Name for the new competition (e.g. AMMNA Nationals 2027)');
     if (!name) return;
     try {
       if (dirty && confirm('Save your changes first?')) await save(true);
@@ -865,7 +866,7 @@
     } catch (err) { note('saveNote', `Couldn't delete: ${err.message}`, 'error'); }
   };
   $('exportComp').onclick = async () => {
-    const id = prompt('Name for the import config (its folder in imports/)', form.name);
+    const id = await askText('Name for the import config (its folder in imports/)', form.name);
     if (!id) return;
     try {
       if (dirty) await save(true);
