@@ -476,13 +476,15 @@
   };
 
   // ─── Adding sources ───────────────────────────────────────────────────
-  // media: [{ name, kind, converting, converted }] from the helper's media folder.
+  // media: [{ name, kind, converting, converted, opaque }] from the helper's media folder.
   function fillMedia(sel, value, kind) {
     sel.innerHTML = '';
     const list = media.filter(m => m.kind === kind);
     if (!list.length) sel.innerHTML = `<option value="">No ${kind}s yet: add one below</option>`;
     for (const m of list) {
-      const note = m.converting ? ' (converting…)' : m.converted ? ` (ProRes: use ${m.converted})` : /\.mov$/i.test(m.name) ? ' (may not play: needs converting)' : '';
+      const note = m.converting ? ' (converting…)'
+        : m.opaque ? ` (no transparency: it's ${m.opaque.toUpperCase()}, not ProRes 4444; use ${m.converted || 'the WebM'})`
+        : m.converted ? ` (ProRes: use ${m.converted})` : /\.mov$/i.test(m.name) ? ' (may not play: needs converting)' : '';
       sel.add(new Option(m.name + note, m.name, false, m.name === value));
     }
     if (value && !list.some(m => m.name === value)) sel.add(new Option(`${value} (missing)`, value, true, true));
