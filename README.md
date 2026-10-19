@@ -75,6 +75,11 @@ the settings, team logos and competition logo (not athlete photos) into `imports
 pull request. That button only shows when Studio runs from a copy of the repository; the installed app can't change its
 own folder.
 
+**Export as template** on the setup page downloads a competition as one `.json` file (settings, team logos and
+competition logo as base64, format `firstpass-studio-competition`), which **Import a template file** adds on any
+Studio, including the installed app. **Delete this competition** works on any competition, the one in use included:
+the graphics switch to the first one left, or to none.
+
 ### Updates and migrations
 
 The data folder has a version number in `data-version.json`. When a new version of Studio changes how settings are

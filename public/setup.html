@@ -143,6 +143,11 @@
     <p class="help">Ready-made competitions with their PlayHQ link, rules, colours and logos. <b>Import</b> adds a copy to your
       competitions above to use as it is or change; the import config itself stays as it was.</p>
     <div class="comps" id="imports" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="alt" id="importTemplate">Import a template file</button>
+      <input type="file" id="templateFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="help">A template file is a competition saved with <b>Export as template</b>, with its settings and logos in one <code>.json</code> file.</p>
   </section>
 
   <div id="editor" hidden>
@@ -314,9 +319,12 @@
         </div>
       </details>
       <div class="row" style="margin-top:16px">
+        <button class="alt" id="templateComp">Export as template</button>
         <button class="alt" id="exportComp" hidden>Save as import config</button>
         <button class="danger" id="deleteComp">Delete this competition</button>
       </div>
+      <p class="help">Export as template saves this competition's settings, team logos and competition logo (not athlete photos)
+        as one <code>.json</code> file, to import on any Studio or keep as a backup.</p>
       <p class="help" id="exportHelp" hidden>Save as import config copies this competition's settings, team logos and competition logo
         (not athlete photos) into the app's <code>imports/</code> folder, ready to commit, so anyone can import it.</p>
     </section>
@@ -367,6 +375,7 @@
     $('newHelp').hidden = !info.competitions.length;
     $('dataDir').textContent = `Saved on this computer in ${info.dataDir}`;
     $('exportComp').hidden = $('exportHelp').hidden = !info.canSaveImports;
+    $('importTemplate').disabled = info.readOnly;
     renderImports();
     const comps = $('comps');
     comps.replaceChildren();
@@ -427,7 +436,7 @@
     [...$('comps').children].forEach((row, i) => row.classList.toggle('editing', info.competitions[i].id === id));
     fill(); note('saveNote', d.active ? 'This competition is in use.' : 'Not in use. Save and use it to put it on the graphics.');
     $('useComp').hidden = d.active;
-    $('deleteComp').disabled = d.active;
+    $('deleteComp').disabled = info.readOnly;
     $('editor').hidden = false;
     $('save').disabled = info.readOnly;
     $('findNote').textContent = '';
@@ -857,12 +866,41 @@
     } catch (err) { note('saveNote', `Couldn't make it: ${err.message}`, 'error'); }
   };
   $('deleteComp').onclick = async () => {
-    if (!confirm(`Delete ${form.name}, with its settings and logos? This can't be undone.`)) return;
+    const inUse = editing === info.active;
+    const next = info.competitions.find(c => c.id !== editing);
+    const then = !inUse ? '' : next ? ` It's in use, so every graphic switches to ${next.name}.` : " It's in use and it's your only competition, so the graphics will have none until you import or make one.";
+    if (!confirm(`Delete ${form.name}, with its settings and logos? This can't be undone.${then}`)) return;
     try {
-      await api(`/api/setup/${editing}`, { method: 'DELETE' });
+      const d = await api(`/api/setup/${editing}`, { method: 'DELETE' });
       dirty = false; editing = null;
-      await loadList(info.active);
+      await loadList(d.active);
     } catch (err) { note('saveNote', `Couldn't delete: ${err.message}`, 'error'); }
+  };
+  $('templateComp').onclick = async () => {
+    try {
+      if (dirty && confirm('Save your changes first?')) await save(true);
+      const tpl = await api(`/api/setup/${editing}/template`);
+      const a = el('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' }));
+      a.download = `${form.name.replace(/[\\/:*?"<>|]/g, '').trim() || 'competition'}.json`;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      note('saveNote', `Exported ${a.download}.`, 'ok');
+    } catch (err) { note('saveNote', `Couldn't export it: ${err.message}`, 'error'); }
+  };
+  $('importTemplate').onclick = () => $('templateFile').click();
+  $('templateFile').onchange = async () => {
+    const file = $('templateFile').files[0];
+    $('templateFile').value = '';
+    if (!file) return;
+    try {
+      if (dirty && confirm('Save your changes first?')) await save(true);
+      dirty = false;
+      const d = await api('/api/setup-template', { method: 'POST', headers: { 'content-type': 'application/json' }, body: file });
+      editing = null;
+      await loadList(d.id);
+      note('saveNote', d.active ? `Imported ${d.settings.name}. It's in use now.` : `Imported ${d.settings.name}. Check its settings, then Save and use it.`, 'ok');
+    } catch (err) { note('saveNote', `Couldn't import it: ${err.message}`, 'error'); }
   };
   $('exportComp').onclick = async () => {
     const id = prompt('Name for the import config (its folder in imports/)', form.name);
