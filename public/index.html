@@ -31,7 +31,7 @@
 <body class="fp">
 <header class="fp-bar">
   <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
-  <nav><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competition setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck API</a></nav>
+  <nav><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/output.html">Output</a><a href="/setup.html">Competition setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck API</a></nav>
 </header>
 <main>
   <h1>Graphics for OBS</h1>
@@ -106,6 +106,31 @@
     <div class="row"><button id="sbCopy">Copy link</button><a class="btn" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn" href="/api.html" target="_blank">Stream Deck API docs</a></div>
     <p class="page__help">Sits centred at the bottom, just above the score ticker with a small gap, so both can be on together.
       <code>?position=top-center</code>, <code>bottom-center</code>, <code>top-left</code> or <code>bottom-left</code> moves it.</p>
+  </div>
+  <div class="card">
+    <h2>Studio scene (optional, instead of an OBS scene)</h2>
+    <code id="sceneUrl"></code>
+    <div class="row"><button id="sceneCopy">Copy link</button><a class="btn" href="/output.html" target="_blank">Open the Output page</a><a class="btn" href="/scene.html" target="_blank">Preview</a></div>
+    <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
+      top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.</p>
+    <ul class="page__help">
+      <li><b>Sources:</b> <b>Add page</b> adds any Studio graphic or web address; <b>Add image</b> adds a PNG, JPG, GIF, WebP or SVG, and <b>Add video</b>
+        an MP4, WebM or MOV (saved in the data folder's <b>media</b> folder). New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.</li>
+      <li><b>On / Off</b> fades a source in or out with its own <b>Fade</b> time in milliseconds (0 is a cut).</li>
+      <li><b>Position and scale</b> place it on the frame; <b>Full frame</b> fits it to 1920 × 1080. <b>Page size</b> is the size a page is drawn at, like an OBS Browser source's width and height.</li>
+      <li><b>Load the page fresh each time it's shown</b> (on by default) reloads a page as it fades in so its animation replays, and unloads it when hidden.
+        Untick it to keep a page running so it shows instantly. <b>Refresh page</b> reloads it now.</li>
+      <li><b>Videos</b> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
+        <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output (OBS's, with the scene in OBS). <b>Restart video</b> starts it again.</li>
+      <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency),
+        and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>
+      <li><b>Stream Deck:</b> <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
+        <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
+        for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
+      <li><b>Preview:</b> the Output page shows the scene live; it runs the scene's pages a second time, so turn it off when the Mac is busy.</li>
+    </ul>
+    <p class="page__help">Sending the scene straight to the UltraStudio comes in a later update. Until then, use the link above as one 1920 × 1080 Browser source in OBS.
+      The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>
   <div class="card">
     <h2>Control page settings (every page follows these)</h2>
@@ -202,7 +227,7 @@
     <p class="page__help">The app window is like any Mac app's: no address bar, tabs or bookmarks, the Studio header is the title bar
       (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
       open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
-      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘5), <b>View</b> for reload, back and zoom, and <b>New Window</b> (⌘N).
+      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘6), <b>View</b> for reload, back and zoom, and <b>New Window</b> (⌘N).
       OBS still uses the page links as browser sources; the app window is for you.</p>
     <p class="page__help">To use your browser instead, tick <b>Open pages in the browser</b> in the 1P menu. The app can't tell when browser tabs close,
       so then Studio stays on air from <b>Start Studio</b> until <b>Stop Studio</b> or Quit.</p>
@@ -253,6 +278,7 @@
     <ul class="page__help">
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
+      <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to the helper, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
@@ -306,6 +332,7 @@ function pageRow(name, path, help) {
   return row;
 }
 showLink('/scoreboard.html', document.getElementById('sbUrl'), document.getElementById('sbCopy'));
+showLink('/scene.html', document.getElementById('sceneUrl'), document.getElementById('sceneCopy'));
 [['Title banner', '/title.html',
   'The emoji either side of the title is picked in the competition setup (any emoji, or none). ' +
   'Options: <code>?fire=0</code> leaves it off on this page and <code>?emoji=%E2%9A%A1</code> uses a different one. ' +

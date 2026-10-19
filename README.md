@@ -137,7 +137,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 home,
-⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs) and Window. Closing the last window takes Studio off air (see
+⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs, ⌘6 output) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
 **Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
@@ -168,6 +168,15 @@ published version will need). The tags are under **Tags** on the repository's co
 Each release's notes list the titles of the pull requests merged since the last published version (found from its
 tag), so a clear PR title is what people read on the release. Only the titles go out, with no links, since this
 repository is private. A test build shows the same notes in its run summary.
+
+The app includes ffmpeg (for converting ProRes clips in the Studio scene). The workflow builds it from source with
+`vendor/ffmpeg/build.sh` (an LGPL build with VP9 and Opus, versions in that file) and caches it, so it's only rebuilt
+when `build.sh` changes; that first build adds several minutes. `npm run app` from a checkout uses it too once
+`vendor/ffmpeg/build.sh` has been run.
+The "ffmpeg updates" workflow checks every Monday for newer FFmpeg, libvpx and opus releases and opens a pull
+request raising the versions in `build.sh`; merging it ships the new ffmpeg in the next release. It needs Settings >
+Actions > General > "Allow GitHub Actions to create and approve pull requests" ticked. The build only includes what
+converting a .mov needs, so most FFmpeg security fixes don't touch it.
 
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
@@ -212,6 +221,34 @@ http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Pr
 Frame rate: every graphic and animation is timed by the clock, not by frames, so it plays at the same speed at 25, 30,
 50 or 60 fps. For 1080 50p or 60p, set OBS's Video FPS to 50 or 60 and leave **Use custom frame rate** unticked in each
 Browser source, so the pages render at the stream's rate (a custom rate of 30 would make movement look steppy at 60p).
+
+## Studio scene (optional, instead of an OBS scene)
+
+http://localhost:8080/output.html (**Output** in the menu, ⌘6 in the app) builds Studio's own scene: one 1920 x 1080 frame of
+sources drawn as layers, top layer first, like an OBS scene. OBS still works exactly as before; the scene is only used if you add it.
+
+- **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
+  **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. New sources go on top, hidden. ↑ and ↓ move a source up or down the layers.
+- **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
+- **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
+  (1920 x 1080 for full-frame graphics), like an OBS Browser source's width and height.
+- **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
+  when hidden, like OBS's **Shutdown source when not visible**. Untick it to keep a page running while hidden so it shows instantly.
+  **Refresh page** reloads it now.
+- **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
+  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (OBS's, with the
+  scene in OBS), and the Output page's preview is always silent. **Restart video** starts it again from the top.
+- **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
+  (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. This needs
+  ffmpeg, which the Mac app includes (an LGPL build made by `vendor/ffmpeg/build.sh`; see `vendor/ffmpeg/LICENSE.md`). Running from a
+  checkout, run `vendor/ffmpeg/build.sh` once or `brew install ffmpeg`, or set `ffmpegPath` in config.json. MP4 and WebM files play as they are.
+- **Stream Deck:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
+  `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
+- **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
+  it off when the Mac is busy.
+
+The scene is saved as `scene.json` in the data folder. Until Studio can send it to the UltraStudio itself (a later update), add
+http://localhost:8080/scene.html to OBS as one 1920 x 1080 Browser source to use it.
 
 ## Example graphics
 

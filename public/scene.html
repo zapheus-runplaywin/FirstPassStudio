@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scene · FirstPass Studio</title>
+<!--
+  The scene built on the Output page (output.html): every source drawn as a layer on one
+  1920 x 1080 transparent frame, top layer first, shown and hidden with each source's fade.
+  It follows the helper's scene straight away (server-sent events), so a Stream Deck press
+  shows at once. ?mute=1 silences every video (the Output page's preview). Optional: the
+  other pages still work on their own in OBS, and this page can also go into OBS as a
+  single 1920 x 1080 browser source.
+-->
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+  .layer { position: absolute; transform-origin: 0 0; opacity: 0; transition-property: opacity; transition-timing-function: linear; pointer-events: none; }
+  .layer.on { opacity: 1; }
+  .layer iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+  .layer img, .layer video { display: block; }
+</style>
+<script src="log.js"></script>
+<script src="autoreload.js"></script>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  const stage = document.getElementById('stage');
+  const layers = new Map(); // source id -> { el, src, token, shown, loaded }
+  const LOAD_WAIT_MS = 2500; // longest a page waits to finish loading before it fades in anyway
+  let first = true;
+  const SILENT = new URLSearchParams(location.search).get('mute') === '1'; // the Output page's preview plays no sound
+
+  const addressOf = s => /^https?:\/\//i.test(s.url) ? s.url : '/' + s.url;
+
+  function create(s) {
+    const el = document.createElement('div');
+    el.className = 'layer';
+    el.dataset.id = s.id;
+    if (s.type === 'browser') {
+      const f = document.createElement('iframe');
+      f.setAttribute('allowtransparency', 'true');
+      f.setAttribute('scrolling', 'no');
+      f.allow = 'autoplay';
+      f.title = s.name;
+      el.appendChild(f);
+    } else if (s.type === 'video') {
+      const v = document.createElement('video');
+      v.playsInline = true;
+      v.preload = 'auto';
+      v.muted = true;
+      // Tell the helper when a video ends, so one set to hide when done fades out everywhere.
+      v.addEventListener('ended', () => {
+        const src = layers.get(s.id) && layers.get(s.id).src;
+        if (src && src.visible && src.hideWhenDone && !src.loop) {
+          fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'ended', id: s.id, loadSeq: src.loadSeq }) }).catch(() => {});
+        }
+      });
+      el.appendChild(v);
+    } else {
+      el.appendChild(document.createElement('img'));
+    }
+    stage.appendChild(el);
+    return { el, src: {}, token: 0, shown: false, loaded: '' };
+  }
+
+  // Loads (or reloads) a browser source's page; resolves when it has loaded, or after LOAD_WAIT_MS.
+  function loadPage(L, s) {
+    const f = L.el.querySelector('iframe');
+    const want = `${addressOf(s)}#${s.loadSeq}`;
+    L.loaded = want;
+    return new Promise(resolve => {
+      const done = () => { clearTimeout(t); f.removeEventListener('load', done); resolve(); };
+      const t = setTimeout(done, LOAD_WAIT_MS);
+      f.addEventListener('load', done);
+      f.src = addressOf(s);
+    });
+  }
+  function unloadPage(L) {
+    const f = L.el.querySelector('iframe');
+    if (f && L.loaded) { f.src = 'about:blank'; L.loaded = ''; }
+  }
+
+  async function update(L, s, z) {
+    const old = L.src;
+    L.src = s;
+    const el = L.el;
+    el.style.zIndex = z;
+    el.style.left = s.x + 'px';
+    el.style.top = s.y + 'px';
+    el.style.transform = `scale(${s.scale / 100})`;
+    el.style.transitionDuration = (first ? 0 : s.fadeMs) + 'ms';
+    if (s.type === 'browser') {
+      el.style.width = s.width + 'px';
+      el.style.height = s.height + 'px';
+    } else {
+      const media = el.querySelector('img, video');
+      const want = '/media/' + encodeURIComponent(s.file);
+      if (media.getAttribute('src') !== want) media.src = want;
+    }
+    if (s.type === 'video') return updateVideo(L, s, old);
+
+    const token = ++L.token;
+    const pageKey = s.type === 'browser' ? `${addressOf(s)}#${s.loadSeq}` : '';
+    if (s.visible) {
+      // A page loads when it's shown (fresh each time, like OBS's "Shutdown source when not visible"),
+      // or once and kept running with reloadOnShow off. Restart reloads it either way.
+      const needsLoad = s.type === 'browser' && (L.loaded !== pageKey || (s.reloadOnShow && !L.shown));
+      if (needsLoad) await loadPage(L, s);
+      if (token !== L.token) return; // changed again while loading
+      L.shown = true;
+      requestAnimationFrame(() => { if (token === L.token) el.classList.add('on'); });
+    } else {
+      el.classList.remove('on');
+      L.shown = false;
+      if (s.type === 'browser') {
+        if (!s.reloadOnShow && L.loaded !== pageKey) loadPage(L, s); // keep it ready to show at once
+        else if (s.reloadOnShow) setTimeout(() => { if (token === L.token) unloadPage(L); }, first ? 0 : s.fadeMs + 50);
+      }
+    }
+  }
+
+  // Videos play while shown and pause once faded out. They start from the top each time
+  // they're shown (unless restartOnShow is off) and on Restart; sound follows the source.
+  function updateVideo(L, s, old) {
+    const v = L.el.querySelector('video'), el = L.el;
+    const token = ++L.token;
+    v.loop = s.loop;
+    v.muted = !s.sound || SILENT;
+    v.volume = s.volume / 100;
+    const restarted = old.loadSeq !== undefined && old.loadSeq !== s.loadSeq;
+    if (s.visible) {
+      if (restarted || (!L.shown && s.restartOnShow)) { try { v.currentTime = 0; } catch {} }
+      if (v.paused || v.ended) v.play().catch(err => {
+        // A browser that won't autoplay with sound still plays it muted.
+        if (err.name === 'NotAllowedError' && !v.muted) { v.muted = true; v.play().catch(() => {}); console.warn(`Video "${s.name}" is playing muted: this browser blocks sound until the page is clicked`); }
+        else console.warn(`Video "${s.name}" would not play: ${err.message}`);
+      });
+      L.shown = true;
+      requestAnimationFrame(() => { if (token === L.token) el.classList.add('on'); });
+    } else {
+      el.classList.remove('on');
+      L.shown = false;
+      setTimeout(() => { if (token === L.token) v.pause(); }, first ? 0 : s.fadeMs + 50);
+    }
+  }
+
+  function render(scene) {
+    const seen = new Set();
+    scene.sources.forEach((s, i) => {
+      seen.add(s.id);
+      let L = layers.get(s.id);
+      if (L && L.src.type !== s.type) { L.el.remove(); L = null; }
+      if (!L) { L = create(s); layers.set(s.id, L); }
+      update(L, s, scene.sources.length - i);
+    });
+    for (const [id, L] of layers) if (!seen.has(id)) { L.el.remove(); layers.delete(id); }
+    first = false;
+  }
+
+  const events = new EventSource('/api/scene/events');
+  events.onmessage = e => { try { render(JSON.parse(e.data)); } catch (err) { console.error('Scene update failed', err); } };
+</script>
+</body>
+</html>

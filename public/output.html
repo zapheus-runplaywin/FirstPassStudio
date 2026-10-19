@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Output · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<link rel="stylesheet" href="studio.css">
+<style>
+  * { box-sizing: border-box; }
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; min-width: 0; }
+  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  select, input { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); min-width: 0; }
+  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
+  input[type=number] { width: 96px; }
+  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--fp-blue); color: #fff; cursor: pointer; }
+  button:hover { background: var(--fp-blue-dark); }
+  button.alt { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
+  button.alt:hover { background: #D3E4EF; }
+  button.danger { background: #FEF3F2; color: var(--fp-danger); }
+  button:disabled { opacity: .4; cursor: default; }
+  .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
+  .note b { color: var(--fp-navy); }
+  .error { color: var(--fp-danger); }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--fp-gray); border: 1px solid var(--fp-line); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
+
+  .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
+             background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
+  .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  .preview .box { position: absolute; border: 2px dashed var(--fp-orange); pointer-events: none; display: none; }
+  .preview .off { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fp-muted); font-weight: 600; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px; align-items: start; }
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+
+  .sources { list-style: none; margin: 0 0 12px; padding: 0; border: 1px solid var(--fp-line); border-radius: 8px; overflow: hidden; }
+  .sources li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 8px; border-top: 1px solid var(--fp-line); cursor: pointer; }
+  .sources li:first-child { border-top: 0; }
+  .sources li:hover { background: var(--fp-gray); }
+  .sources li.sel { background: var(--fp-blue-soft); }
+  .sources li .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sources li .name small { font-weight: 400; color: var(--fp-muted); margin-left: 6px; }
+  .sources li button { padding: 4px 9px; }
+  .eye { background: var(--fp-line); color: var(--fp-muted); min-width: 46px; }
+  .eye:hover { background: var(--fp-line-strong); }
+  .eye.on, .eye.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
+  .empty { padding: 16px; color: var(--fp-muted); cursor: default !important; display: block !important; }
+
+  .form { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+  .form > label { font-weight: 600; font-size: 14px; }
+  .form .wide { grid-column: 1 / -1; }
+  @media (max-width: 600px) { .form { grid-template-columns: 1fr; } }
+  .links { display: grid; gap: 6px; }
+  .links div { display: flex; gap: 8px; align-items: center; }
+  .links code { flex: 1; }
+  .links button { padding: 4px 10px; }
+  .hidden { display: none !important; }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<header class="fp-bar">
+  <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
+  <nav><a href="/">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/output.html" aria-current="page">Output</a><a href="/setup.html">Competition setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck API</a></nav>
+</header>
+<main>
+  <h1>Output</h1>
+  <p class="sub">Studio's own scene, in place of an OBS scene: add sources, order the layers, and show or hide them here or from the Stream Deck.
+    This is optional; every page still works in OBS as before. Sending the scene to the UltraStudio comes in a later update. Until then, add
+    <code id="sceneUrl">scene.html</code> to OBS as one 1920 × 1080 Browser source to use it.</p>
+
+  <section>
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">Preview</h2>
+      <label><input id="previewOn" type="checkbox" checked> Live preview</label>
+    </div>
+    <div class="preview" id="preview">
+      <iframe id="previewFrame" title="Scene preview"></iframe>
+      <div class="box" id="selBox"></div>
+      <div class="off hidden" id="previewOff">Live preview is off</div>
+    </div>
+    <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.</p>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>Sources (top layer first)</h2>
+      <ul class="sources" id="sources"></ul>
+      <div class="row">
+        <button id="addBrowser">Add page</button>
+        <button id="addImage">Add image</button>
+        <button id="addVideo">Add video</button>
+        <button class="alt" id="hideAll">Hide all</button>
+      </div>
+      <p class="error" id="err"></p>
+
+      <div id="addPanel" class="hidden" style="margin-top:12px;border-top:1px solid var(--fp-line);padding-top:12px">
+        <div class="form" id="addBrowserForm">
+          <label for="newPage">Page</label>
+          <select id="newPage"></select>
+          <label for="newUrl">Address</label>
+          <input id="newUrl" placeholder="scoreboard.html, or https://…">
+        </div>
+        <div class="form hidden" id="addMediaForm">
+          <label for="newFile" id="newFileLabel">Image</label>
+          <select id="newFile"></select>
+          <label for="upload">Add to media</label>
+          <input id="upload" type="file">
+          <p class="note wide" id="mediaNote"></p>
+        </div>
+        <div class="row" style="margin-top:10px"><button id="addGo">Add to scene</button><button class="alt" id="addCancel">Cancel</button></div>
+      </div>
+    </section>
+
+    <section id="settings">
+      <h2>Source settings</h2>
+      <p class="note" id="noSel">Select a source to change it.</p>
+      <div id="selForm" class="hidden">
+        <div class="form">
+          <label for="fName">Name</label>
+          <input id="fName" maxlength="60">
+          <label for="fUrl" class="forBrowser">Address</label>
+          <input id="fUrl" class="forBrowser">
+          <label for="fFile" class="forMedia" id="fFileLabel">Image</label>
+          <select id="fFile" class="forMedia"></select>
+          <label class="forBrowser">Page size</label>
+          <div class="row forBrowser"><input id="fWidth" type="number" min="16" max="7680"> × <input id="fHeight" type="number" min="16" max="4320"> px</div>
+          <label for="fFade">Fade</label>
+          <div class="row"><input id="fFade" type="number" min="0" max="10000" step="50"> ms <span class="note" style="margin:0">0 is a cut</span></div>
+          <label>Position</label>
+          <div class="row">x <input id="fX" type="number"> y <input id="fY" type="number"> px</div>
+          <label for="fScale">Scale</label>
+          <div class="row"><input id="fScale" type="number" min="1" max="1000" step="1"> % <button class="alt" id="fFull">Full frame</button></div>
+          <label class="forBrowser">When shown</label>
+          <label class="forBrowser" style="font-weight:400"><input id="fReload" type="checkbox"> Load the page fresh each time it's shown (replays its animation)</label>
+          <label class="forVideo">Playing</label>
+          <div class="forVideo" style="display:grid;gap:6px">
+            <label><input id="fRestartOnShow" type="checkbox"> Start from the beginning each time it's shown</label>
+            <label><input id="fLoop" type="checkbox"> Loop</label>
+            <label><input id="fHideWhenDone" type="checkbox"> Fade out when it finishes (when not looping)</label>
+          </div>
+          <label class="forVideo">Sound</label>
+          <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
+        </div>
+        <p class="note forVideo">Sound plays through this Mac's audio output (or OBS's, when the scene is in OBS). The preview above is always silent.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
+          <button class="alt forBrowser" id="fRestart">Refresh page</button>
+          <button class="alt forVideo" id="fRestartVideo">Restart video</button>
+          <button class="danger" id="fRemove">Remove</button>
+        </div>
+        <h2 style="margin-top:18px">Stream Deck links</h2>
+        <div class="links" id="links"></div>
+        <p class="note">Use these in a Stream Deck <b>Website</b> action (tick <b>GET request in background</b>) or the Timed Sequence plugin.
+          Renaming the source changes its links.</p>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  // Studio's graphics, offered when adding a page. Page size is what the page is drawn at.
+  const PAGES = [
+    ['Scoreboard', 'scoreboard.html'], ['Score ticker', 'ticker.html'], ['Title', 'title.html'], ['Branding logos', 'branding.html'],
+    ['Up next', 'upnext.html'], ['Countdown', 'countdown.html'], ['Match up', 'matchup.html'], ['The Clash', 'clash.html'],
+    ['Position match ups', 'positions.html'], ['Team list', 'teamlist.html'], ['Shooting stats', 'shooting.html'], ['Last 10 goals', 'goals.html'],
+    ['Full time', 'fulltime.html'], ['Winner', 'winner.html'], ['Super shot', 'supershot.html'], ['Ladder', 'ladder.html'],
+    ['Ladder lower third', 'ladderbar.html'], ['Finals', 'finals.html'], ['Round fixture', 'fixtures.html'], ['Results', 'results.html'],
+    ['Top shooters', 'topshooters.html'], ['Competition logo animation', 'logo.html'], ['PIVT and FirstPass Studio ad', 'ad.html'],
+  ];
+  let scene = { sources: [] };
+  let selected = null;
+  let base = location.origin;
+  let media = [];
+  let adding = null;
+  const naturalSize = new Map(); // image or video file -> [w, h], for the preview box and Full frame
+  const ACCEPT = { image: '.png,.jpg,.jpeg,.gif,.webp,.svg', video: '.mp4,.m4v,.webm,.mov' };
+  let canConvert = false;
+
+  const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const current = () => scene.sources.find(s => s.id === selected) || null;
+
+  async function act(action) {
+    $('err').textContent = '';
+    try {
+      const res = await fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      show(body);
+      return body;
+    } catch (err) { $('err').textContent = err.message; console.warn('Scene change failed', action.type, err.message); }
+  }
+
+  // ─── Preview ───────────────────────────────────────────────────────────
+  function fitPreview() {
+    const w = $('preview').clientWidth;
+    $('previewFrame').style.transform = `scale(${w / 1920})`;
+    drawBox();
+  }
+  function setPreview(on) {
+    try { localStorage.setItem('outputPreview', on ? '1' : '0'); } catch {}
+    $('previewOn').checked = on;
+    $('previewFrame').src = on ? '/scene.html?mute=1' : 'about:blank';
+    $('previewOff').classList.toggle('hidden', on);
+  }
+  function drawBox() {
+    const s = current(), box = $('selBox');
+    if (!s) { box.style.display = 'none'; return; }
+    const k = $('preview').clientWidth / 1920 * s.scale / 100;
+    let [w, h] = s.type === 'browser' ? [s.width, s.height] : (naturalSize.get(s.file) || [0, 0]);
+    if (s.type === 'image' && !naturalSize.has(s.file)) {
+      const img = new Image();
+      img.onload = () => { naturalSize.set(s.file, [img.naturalWidth, img.naturalHeight]); drawBox(); };
+      img.src = '/media/' + encodeURIComponent(s.file);
+    }
+    if (s.type === 'video' && !naturalSize.has(s.file)) {
+      naturalSize.set(s.file, [1920, 1080]); // until its size is known
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => { naturalSize.set(s.file, [v.videoWidth, v.videoHeight]); v.removeAttribute('src'); v.load(); drawBox(); };
+      v.src = '/media/' + encodeURIComponent(s.file);
+    }
+    const p = $('preview').clientWidth / 1920;
+    Object.assign(box.style, { display: 'block', left: s.x * p + 'px', top: s.y * p + 'px', width: w * k + 'px', height: h * k + 'px' });
+  }
+
+  // ─── Sources list ──────────────────────────────────────────────────────
+  function renderList() {
+    const ul = $('sources');
+    ul.innerHTML = '';
+    if (!scene.sources.length) { ul.innerHTML = '<li class="empty">No sources yet. Add a page, an image or a video.</li>'; return; }
+    for (const s of scene.sources) {
+      const li = document.createElement('li');
+      li.className = s.id === selected ? 'sel' : '';
+      li.innerHTML = '<button class="eye"></button><span class="name"></span><span class="row" style="gap:4px"><button class="alt snd hidden"></button><button class="alt up" title="Move up">↑</button><button class="alt down" title="Move down">↓</button></span>';
+      const eye = li.querySelector('.eye');
+      eye.textContent = s.visible ? 'On' : 'Off';
+      eye.classList.toggle('on', s.visible);
+      eye.title = s.visible ? 'Showing: click to fade it out' : 'Hidden: click to fade it in';
+      eye.onclick = e => { e.stopPropagation(); act({ type: 'toggle', id: s.id }); };
+      li.querySelector('.name').textContent = s.name;
+      const tag = document.createElement('small');
+      tag.textContent = s.type === 'browser' ? 'page' : s.type;
+      li.querySelector('.name').appendChild(tag);
+      if (s.type === 'video') {
+        const snd = li.querySelector('.snd');
+        snd.classList.remove('hidden');
+        snd.textContent = s.sound ? '🔊' : '🔇';
+        snd.title = s.sound ? 'Sound on: click to mute' : 'Muted: click to turn sound on';
+        snd.onclick = e => { e.stopPropagation(); act({ type: 'soundToggle', id: s.id }); };
+      }
+      const i = scene.sources.indexOf(s);
+      li.querySelector('.up').disabled = i === 0;
+      li.querySelector('.down').disabled = i === scene.sources.length - 1;
+      li.querySelector('.up').onclick = e => { e.stopPropagation(); act({ type: 'move', id: s.id, direction: 'up' }); };
+      li.querySelector('.down').onclick = e => { e.stopPropagation(); act({ type: 'move', id: s.id, direction: 'down' }); };
+      li.onclick = () => { selected = s.id; renderList(); renderForm(true); drawBox(); };
+      ul.appendChild(li);
+    }
+  }
+
+  // ─── Settings for the selected source ─────────────────────────────────
+  const FIELDS = { fName: 'name', fUrl: 'url', fFile: 'file', fWidth: 'width', fHeight: 'height', fFade: 'fadeMs', fX: 'x', fY: 'y', fScale: 'scale' };
+  function renderForm(force) {
+    const s = current();
+    $('noSel').classList.toggle('hidden', !!s);
+    $('selForm').classList.toggle('hidden', !s);
+    if (!s) return;
+    for (const el of document.querySelectorAll('.forBrowser')) el.classList.toggle('hidden', s.type !== 'browser');
+    for (const el of document.querySelectorAll('.forMedia')) el.classList.toggle('hidden', s.type === 'browser');
+    for (const el of document.querySelectorAll('.forVideo')) el.classList.toggle('hidden', s.type !== 'video');
+    $('fFileLabel').textContent = s.type === 'video' ? 'Video' : 'Image';
+    if (s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
+    if (s.type === 'video') {
+      $('fRestartOnShow').checked = s.restartOnShow; $('fLoop').checked = s.loop; $('fHideWhenDone').checked = s.hideWhenDone;
+      $('fHideWhenDone').disabled = s.loop; $('fSound').checked = s.sound;
+      if (force || document.activeElement !== $('fVolume')) $('fVolume').value = s.volume;
+      $('fVolumeText').textContent = s.volume + '%';
+    }
+    // Don't overwrite a box someone is typing in (a Stream Deck press re-sends the scene).
+    for (const [id, key] of Object.entries(FIELDS)) {
+      if (s[key] === undefined) continue;
+      if (force || document.activeElement !== $(id)) $(id).value = s[key];
+    }
+    $('fReload').checked = !!s.reloadOnShow;
+    const i = scene.sources.indexOf(s);
+    $('fUp').disabled = i === 0;
+    $('fDown').disabled = i === scene.sources.length - 1;
+    const name = encodeURIComponent(slug(s.name));
+    $('links').innerHTML = '';
+    for (const verb of ['toggle', 'on', 'off', ...(s.type === 'image' ? [] : ['restart']), ...(s.type === 'video' ? ['sound/toggle', 'sound/on', 'sound/off'] : [])]) {
+      const row = document.createElement('div');
+      row.innerHTML = '<code></code><button class="alt">Copy</button>';
+      const link = `${base}/deck/layer/${name}/${verb}`;
+      row.querySelector('code').textContent = link;
+      row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
+      $('links').appendChild(row);
+    }
+  }
+  function change(changes) { const s = current(); if (s) act({ type: 'update', id: s.id, changes }); }
+  for (const [id, key] of Object.entries(FIELDS)) {
+    $(id).addEventListener('change', () => change({ [key]: ['name', 'url', 'file'].includes(key) ? $(id).value : Number($(id).value) }));
+  }
+  $('fReload').onchange = () => change({ reloadOnShow: $('fReload').checked });
+  $('fRestartOnShow').onchange = () => change({ restartOnShow: $('fRestartOnShow').checked });
+  $('fLoop').onchange = () => change({ loop: $('fLoop').checked });
+  $('fHideWhenDone').onchange = () => change({ hideWhenDone: $('fHideWhenDone').checked });
+  $('fSound').onchange = () => change({ sound: $('fSound').checked });
+  $('fVolume').oninput = () => { $('fVolumeText').textContent = $('fVolume').value + '%'; };
+  $('fVolume').onchange = () => change({ volume: Number($('fVolume').value) });
+  $('fRestartVideo').onclick = () => act({ type: 'restart', id: selected });
+  $('fFull').onclick = () => {
+    const s = current(); if (!s) return;
+    const [w, h] = s.type === 'browser' ? [s.width, s.height] : (naturalSize.get(s.file) || [1920, 1080]);
+    change({ x: 0, y: 0, scale: Math.round(Math.min(1920 / w, 1080 / h) * 10000) / 100 });
+  };
+  $('fUp').onclick = () => act({ type: 'move', id: selected, direction: 'up' });
+  $('fDown').onclick = () => act({ type: 'move', id: selected, direction: 'down' });
+  $('fRestart').onclick = () => act({ type: 'restart', id: selected });
+  $('fRemove').onclick = () => {
+    const s = current();
+    if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
+  };
+  $('hideAll').onclick = () => act({ type: 'hideAll' });
+
+  // ─── Adding sources ───────────────────────────────────────────────────
+  // media: [{ name, kind, converting, converted }] from the helper's media folder.
+  function fillMedia(sel, value, kind) {
+    sel.innerHTML = '';
+    const list = media.filter(m => m.kind === kind);
+    if (!list.length) sel.innerHTML = `<option value="">No ${kind}s yet: add one below</option>`;
+    for (const m of list) {
+      const note = m.converting ? ' (converting…)' : m.converted ? ` (ProRes: use ${m.converted})` : /\.mov$/i.test(m.name) ? ' (may not play: needs converting)' : '';
+      sel.add(new Option(m.name + note, m.name, false, m.name === value));
+    }
+    if (value && !list.some(m => m.name === value)) sel.add(new Option(`${value} (missing)`, value, true, true));
+  }
+  function mediaNote() {
+    const busy = media.filter(m => m.converting).map(m => m.name);
+    $('mediaNote').textContent = adding !== 'video' ? '' :
+      (busy.length ? `Converting ${busy.join(', ')} to WebM so it can play. This can take a few minutes; you can add it now and it switches over when done. ` : '') +
+      (canConvert ? 'A .mov (ProRes 4444 keeps its transparency) is converted to a WebM beside it when added; the original is kept.'
+        : 'A .mov (ProRes) has to be converted to play, and this copy of Studio has no ffmpeg to do it (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg). MP4 and WebM play as they are.');
+  }
+  async function loadMedia(value) {
+    try { const body = await (await fetch('/api/scene/media')).json(); media = body.media || []; canConvert = !!body.canConvert; } catch { media = []; }
+    if (adding && adding !== 'browser') fillMedia($('newFile'), value || $('newFile').value, adding);
+    mediaNote();
+    const s = current();
+    if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
+  }
+  function openAdd(type) {
+    adding = type;
+    $('addPanel').classList.remove('hidden');
+    $('addBrowserForm').classList.toggle('hidden', type !== 'browser');
+    $('addMediaForm').classList.toggle('hidden', type === 'browser');
+    if (type !== 'browser') {
+      $('newFileLabel').textContent = type === 'video' ? 'Video' : 'Image';
+      $('upload').accept = ACCEPT[type];
+      loadMedia();
+    }
+  }
+  $('addBrowser').onclick = () => openAdd('browser');
+  $('addImage').onclick = () => openAdd('image');
+  $('addVideo').onclick = () => openAdd('video');
+  $('addCancel').onclick = () => { adding = null; $('addPanel').classList.add('hidden'); };
+  for (const [label, page] of PAGES) $('newPage').add(new Option(label, page));
+  $('newPage').add(new Option('Another address…', ''));
+  $('newPage').onchange = () => { $('newUrl').value = $('newPage').value; };
+  $('newUrl').value = $('newPage').value;
+  $('upload').onchange = async () => {
+    const file = $('upload').files[0];
+    if (!file) return;
+    $('err').textContent = '';
+    $('mediaNote').textContent = `Adding ${file.name} to the media folder…`;
+    try {
+      const res = await fetch('/api/scene/media?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      if (body.cantConvert) $('err').textContent = `${body.file} is in the media folder, but it can only play once it's converted, and this copy of Studio has no ffmpeg (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg).`;
+      await loadMedia(body.file);
+    } catch (err) { $('err').textContent = `Could not add ${file.name}: ${err.message}`; mediaNote(); }
+    $('upload').value = '';
+  };
+  $('addGo').onclick = async () => {
+    let source;
+    if (adding === 'browser') {
+      const url = $('newUrl').value.trim();
+      if (!url) { $('err').textContent = 'Pick a page or type an address.'; return; }
+      const known = PAGES.find(p => p[1] === url);
+      source = { type: 'browser', url, name: known ? known[0] : undefined };
+    } else {
+      if (!$('newFile').value) { $('err').textContent = `Add ${adding === 'video' ? 'a video' : 'an image'} to the media folder first.`; return; }
+      const m = media.find(x => x.name === $('newFile').value);
+      source = { type: adding, file: m && m.converted ? m.converted : $('newFile').value };
+    }
+    const body = await act({ type: 'add', source });
+    if (body) { selected = body.sources[0].id; adding = null; $('addPanel').classList.add('hidden'); renderList(); renderForm(true); drawBox(); }
+  };
+
+  async function copy(text, btn) {
+    try { await navigator.clipboard.writeText(text); } catch { prompt('Copy this link', text); return; }
+    const was = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = was; }, 1200);
+  }
+
+  let wasConverting = '';
+  function show(s) {
+    scene = s;
+    // A conversion started or finished: refresh the media lists.
+    const now = (s.converting || []).join('|');
+    if (now !== wasConverting) { wasConverting = now; loadMedia(); }
+    if (selected && !current()) selected = null;
+    renderList(); renderForm(); drawBox();
+  }
+
+  // Follow the scene live, so Stream Deck presses show here too.
+  const events = new EventSource('/api/scene/events');
+  events.onmessage = e => { try { show(JSON.parse(e.data)); } catch (err) { console.error('Scene update failed', err); } };
+
+  fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base; $('sceneUrl').textContent = `${base}/scene.html`; renderForm(); }).catch(() => {});
+  let pref = '1'; try { pref = localStorage.getItem('outputPreview') ?? '1'; } catch {}
+  $('previewOn').onchange = () => setPreview($('previewOn').checked);
+  setPreview(pref !== '0');
+  addEventListener('resize', fitPreview);
+  fitPreview();
+  loadMedia();
+</script>
+</body>
+</html>

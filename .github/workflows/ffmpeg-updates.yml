@@ -1,0 +1,53 @@
+# Keeps the Mac app's bundled ffmpeg up to date. Every Monday (or from the Actions tab:
+# ffmpeg updates > Run workflow) it looks for newer releases of FFmpeg, libvpx and opus than
+# the versions pinned in vendor/ffmpeg/build.sh, and opens a pull request raising them. Merging
+# it rebuilds ffmpeg and ships it in the next app release.
+# Needs Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+name: ffmpeg updates
+
+on:
+  schedule:
+    - cron: '0 20 * * 1' # Monday 20:00 UTC, early Tuesday in Perth
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Raise the pinned versions
+        id: bump
+        run: |
+          latest() { git ls-remote --tags --refs "https://github.com/$1.git" | sed 's#.*refs/tags/##' | grep -E "$2" | sort -V | tail -1; }
+          ffmpeg="$(latest FFmpeg/FFmpeg '^n[0-9]+\.[0-9]+(\.[0-9]+)?$')"
+          libvpx="$(latest webmproject/libvpx '^v[0-9]+\.[0-9]+\.[0-9]+$')"
+          opus="$(latest xiph/opus '^v[0-9]+\.[0-9]+(\.[0-9]+)?$')"
+          [ -n "$ffmpeg" ] && [ -n "$libvpx" ] && [ -n "$opus" ] || { echo "Couldn't read the latest versions" >&2; exit 1; }
+          f=vendor/ffmpeg/build.sh
+          sed -i -E "s/^FFMPEG_VERSION=.*/FFMPEG_VERSION=$ffmpeg/; s/^LIBVPX_VERSION=.*/LIBVPX_VERSION=$libvpx/; s/^OPUS_VERSION=.*/OPUS_VERSION=$opus/" "$f"
+          sed -i -E "s/^\| FFmpeg \| [^|]+ \|/| FFmpeg | $ffmpeg |/; s/^\| libvpx \(VP9\) \| [^|]+ \|/| libvpx (VP9) | $libvpx |/; s/^\| libopus \| [^|]+ \|/| libopus | $opus |/" vendor/ffmpeg/LICENSE.md
+          if git diff --quiet; then echo "Up to date: FFmpeg $ffmpeg, libvpx $libvpx, opus $opus"; exit 0; fi
+          git diff
+          echo "branch=ffmpeg-updates/$ffmpeg-$libvpx-$opus" >> "$GITHUB_OUTPUT"
+          echo "title=Update ffmpeg to $ffmpeg (libvpx $libvpx, opus $opus)" >> "$GITHUB_OUTPUT"
+
+      - name: Open a pull request
+        if: steps.bump.outputs.branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.bump.outputs.branch }}
+          TITLE: ${{ steps.bump.outputs.title }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then echo "$BRANCH is already open"; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$BRANCH"
+          git commit -am "$TITLE"
+          git push origin "$BRANCH"
+          body="New releases of the parts of the Mac app's bundled ffmpeg (the converter for ProRes clips on the Output page). Merging this rebuilds ffmpeg with them and ships it in the next app release. If FFmpeg's major version changed, try converting a clip in a test build first."
+          gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "$body"

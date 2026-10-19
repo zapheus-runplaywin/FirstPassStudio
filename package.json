@@ -31,13 +31,16 @@
       "server.js",
       "competitions.js",
       "finals.js",
+      "scene.js",
       "datadir.js",
       "migrations.js",
       "linkhost.js",
       "config.json",
       "public/**/*",
       "imports/**/*",
-      "desktop/**/*"
+      "desktop/**/*",
+      "vendor/ffmpeg/ffmpeg",
+      "vendor/ffmpeg/LICENSE.md"
     ],
     "mac": {
       "target": [

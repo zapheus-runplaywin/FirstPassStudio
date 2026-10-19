@@ -19,6 +19,7 @@ const datadir = require('./datadir');
 const migrations = require('./migrations');
 const competitions = require('./competitions');
 const finals = require('./finals');
+const scene = require('./scene');
 const { linkHost } = require('./linkhost');
 
 const ROOT = __dirname;
@@ -74,6 +75,7 @@ process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(er
 
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
+scene.init(log, { ffmpeg: MACHINE.ffmpegPath });
 
 // ─── Where the data comes from ──────────────────────────────────────────────
 // config.json holds the organisation's PlayHQ page link. From it we read the
@@ -2281,7 +2283,7 @@ function send(res, status, body, type) {
 }
 
 // Requests that pages repeat every second or two are only logged when they fail.
-const QUIET = new Set(['/api/version', '/api/log']);
+const QUIET = new Set(['/api/version', '/api/log', '/api/scene/events']);
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const q = Object.fromEntries(url.searchParams);
@@ -2342,8 +2344,14 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
+    if (url.pathname.startsWith('/api/scene') || url.pathname.startsWith('/media/')) {
+      if (await scene.route(req, res, url, { send, readBody })) return;
+    }
     if (url.pathname.startsWith('/deck/')) {
       const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);
+      // The scene's links: /deck/layer/<name>/on|off|toggle|restart and /deck/layers/off.
+      const layer = scene.deck(parts);
+      if (layer) return send(res, layer.status, layer.body);
       const action = deckAction(parts, q);
       if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See STREAMDECK.md.` });
       const b = board(q.board || '1');
