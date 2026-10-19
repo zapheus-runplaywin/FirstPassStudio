@@ -116,6 +116,7 @@ async function startHelperChecked() {
   if (helper) return true;
   status = 'Starting…'; refreshMenu();
   while (await answering()) {
+    windows.closeSplash(true); // or it would sit over the dialog
     const { response } = await dialog.showMessageBox({
       type: 'warning', buttons: ['Try again', 'Cancel'], defaultId: 0, cancelId: 1,
       message: `Something is already using port ${PORT}`,
@@ -229,12 +230,15 @@ async function start() {
   log(`Starting ${app.getVersion()}, settings in ${DATA_DIR}`);
 
   // Opened at login, the helper stays stopped (nothing talks to PlayHQ) unless "Start the
-  // helper at login" is ticked. Opened by hand, it starts and opens Studio.
+  // helper at login" is ticked. Opened by hand, it starts and opens Studio, with the splash
+  // (the 1P Studio logo) showing until Studio's window opens.
   const atLogin = app.getLoginItemSettings().wasOpenedAtLogin;
+  if (!atLogin) windows.showSplash();
   if (atLogin && !appSettings().startHelperAtLogin) {
     log('Opened at login: the helper stays stopped until started from the menu');
   } else if (await startHelperChecked() && !atLogin) {
     await waitUntilRunning();
+    windows.splashStatus(helper ? 'Studio is on air' : 'Still starting…', !!helper);
     openPage('/');
   }
   checkForUpdates(false);

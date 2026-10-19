@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FirstPass Studio</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' file:; font-src 'self' file:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+  @font-face { font-family: Montserrat; font-weight: 600; src: url(../public/vendor/montserrat/montserrat-latin-600-normal.woff2) format('woff2'); }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  /* The same navy as the 1P logo's own background, so the logo has no visible edge. */
+  body { background: #101729; color: #F8FAFC; font-family: Montserrat, -apple-system, system-ui, sans-serif; display: grid; place-items: center; text-align: center; -webkit-app-region: drag; -webkit-user-select: none; user-select: none; cursor: default; }
+  .logo { width: 210px; display: block; margin: 0 auto; animation: pop 0.7s cubic-bezier(.2, 1.4, .4, 1) both; }
+  .bar { position: relative; width: 180px; height: 4px; margin: 26px auto 14px; border-radius: 2px; background: rgba(248, 250, 252, 0.12); overflow: hidden; }
+  .bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 2px; background: linear-gradient(90deg, #F75C03, #F1C40F); animation: sweep 1.2s ease-in-out infinite; }
+  .bar.done::after { left: 0; width: 100%; animation: none; }
+  #status { font-size: 13px; font-weight: 600; color: #CBD5E1; min-height: 1.4em; animation: fade 0.6s 0.3s both; }
+  #version { position: fixed; right: 14px; bottom: 10px; font-size: 11px; color: #64748B; }
+  #pivt { position: fixed; left: 14px; bottom: 10px; font-size: 11px; color: #64748B; letter-spacing: 0.06em; }
+  @keyframes pop { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sweep { from { left: -40%; } to { left: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .logo, #status { animation: none; } .bar::after { animation-duration: 3s; } }
+</style>
+</head>
+<body>
+<div>
+  <img class="logo" src="../public/studio/1p-studio-dark.svg" alt="FirstPass Studio">
+  <div class="bar" id="bar"></div>
+  <div id="status">Starting Studio…</div>
+</div>
+<div id="pivt">PIVT</div>
+<div id="version"></div>
+<script>
+  // Shown while the app starts Studio (desktop/main.js). The app fills in the version and
+  // changes the line under the logo as Studio comes on air.
+  const q = new URLSearchParams(location.search);
+  if (q.get('version')) document.getElementById('version').textContent = `Version ${q.get('version')}`;
+  window.setStatus = (text, done) => {
+    document.getElementById('status').textContent = text;
+    document.getElementById('bar').classList.toggle('done', !!done);
+  };
+</script>
+</body>
+</html>
