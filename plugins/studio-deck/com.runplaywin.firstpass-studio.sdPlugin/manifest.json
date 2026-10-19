@@ -1,0 +1,57 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+	"Name": "FirstPass Studio",
+	"Version": "1.0.0.0",
+	"Author": "PIVT",
+	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, and see which are on.",
+	"Icon": "imgs/plugin/icon",
+	"Category": "FirstPass Studio",
+	"CategoryIcon": "imgs/plugin/category",
+	"CodePath": "bin/plugin.js",
+	"SDKVersion": 3,
+	"Software": {
+		"MinimumVersion": "7.1"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "12"
+		},
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "24"
+	},
+	"UUID": "com.runplaywin.firstpass-studio",
+	"Actions": [
+		{
+			"Name": "Source",
+			"UUID": "com.runplaywin.firstpass-studio.source",
+			"Icon": "imgs/actions/source/icon",
+			"Tooltip": "Shows or hides a source in Studio's scene. Lights up while it's on.",
+			"PropertyInspectorPath": "ui/source.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": true,
+			"DisableAutomaticStates": true,
+			"States": [
+				{
+					"Image": "imgs/actions/source/off",
+					"Name": "Off",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/source/on",
+					"Name": "On",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				}
+			]
+		}
+	]
+}

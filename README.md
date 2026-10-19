@@ -178,6 +178,9 @@ request raising the versions in `build.sh`; merging it ships the new ffmpeg in t
 Actions > General > "Allow GitHub Actions to create and approve pull requests" ticked. The build only includes what
 converting a .mov needs, so most FFmpeg security fixes don't touch it.
 
+The workflow also packs the Studio Stream Deck plugin (`plugins/studio-deck`, `npm run pack`) into the app, where the menu bar menu and the
+Output page install it. From a checkout, run `npm install` and `npm run pack` in `plugins/studio-deck` once for those to find it.
+
 Updates come from GitHub Releases, which an app can't read from a private repository, so releases go to a separate
 public repository, `zapheus-runplaywin/FirstPassStudio-releases`, holding only the built app.
 
@@ -242,7 +245,12 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. This needs
   ffmpeg, which the Mac app includes (an LGPL build made by `vendor/ffmpeg/build.sh`; see `vendor/ffmpeg/LICENSE.md`). Running from a
   checkout, run `vendor/ffmpeg/build.sh` once or `brew install ffmpeg`, or set `ffmpegPath` in config.json. MP4 and WebM files play as they are.
-- **Stream Deck:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
+- **Stream Deck plugin:** the Mac app includes a FirstPass Studio plugin for the Stream Deck app (`plugins/studio-deck`). Install it from the
+  menu bar icon (**Install the Stream Deck plugin**) or the Output page's button: Stream Deck opens it and installs or updates it. Its
+  **Source** key shows or hides a source picked in its settings (or fades it in or out, restarts it, or turns a video's sound on or off), shows
+  the source's name, and lights up while the source is on, however it was turned on. It follows the source's id, so renaming it doesn't break
+  the key, and it shows **off air** while Studio isn't running.
+- **Stream Deck links:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
   it off when the Mac is busy.

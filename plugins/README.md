@@ -6,7 +6,15 @@ to run.
 
 | Plugin | Folder | What it does |
 |---|---|---|
+| FirstPass Studio (Stream Deck) | [`studio-deck/`](studio-deck/) | A **Source** key that shows or hides a source in Studio's scene and lights up while it's on. Ships inside the Mac app |
 | Timed Sequence (Stream Deck) | [`streamdeck/`](streamdeck/) | A Stream Deck key that waits until a set time of day, then runs a list of steps with delays in between |
+
+## FirstPass Studio (Stream Deck)
+
+Keys for Studio's own scene (the Output page). Its **Source** key shows or hides a source, or fades it in or out, restarts it, or turns
+a video's sound on or off, and lights up while the source is on. It follows the scene live, so the key changes the moment the source does,
+wherever the change came from. The Mac app's build packs it and the app installs it (menu bar icon > **Install the Stream Deck plugin**),
+so there's nothing to build by hand. To work on it, see [`studio-deck/README.md`](studio-deck/README.md).
 
 ## Timed Sequence (Stream Deck)
 

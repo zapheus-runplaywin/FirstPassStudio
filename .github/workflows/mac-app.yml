@@ -77,6 +77,10 @@ jobs:
           command -v cmake >/dev/null || brew install cmake
           vendor/ffmpeg/build.sh
       - run: test -x vendor/ffmpeg/ffmpeg && vendor/ffmpeg/ffmpeg -hide_banner -version | head -1
+      # Studio's Stream Deck plugin ships inside the app (plugins/studio-deck); the menu bar menu installs it.
+      - name: Pack the Stream Deck plugin
+        working-directory: plugins/studio-deck
+        run: npm ci && npm run pack
       - name: Pick the version
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}

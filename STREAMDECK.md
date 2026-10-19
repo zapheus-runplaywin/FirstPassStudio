@@ -147,6 +147,21 @@ before the next one so it replays. Don't keep a manual source and the automatic 
 ## Scene (Output page)
 
 Optional: for Studio's own scene, built on the Output page (http://localhost:8080/output.html), in place of an OBS scene.
+
+**FirstPass Studio plugin (easiest).** The Mac app includes a Stream Deck plugin. Install it from the menu bar icon
+(**Install the Stream Deck plugin**) or the button on the Output page; the Stream Deck app opens it and installs it (do the same after an
+app update to update the plugin). Then drag **FirstPass Studio > Source** onto a key and pick the source in its settings:
+
+- **Press:** show or hide (default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.
+- The key shows the source's name and lights up orange while the source is on, whether it was turned on from this key, another key, the
+  Output page or a link. A sound key lights while the video's sound is on.
+- It follows the source itself, so renaming it on the Output page doesn't break the key. If the source is removed the key says **gone**;
+  while Studio isn't running it says **off air**, and a press shows a warning.
+- Tick **Use my own title** to show the title you type in Stream Deck instead of the source's name.
+- **Studio** stays empty when Studio runs on the same Mac as the Stream Deck; for another Mac type its address, like `http://studio-mac.local:8080`.
+
+**Links.** The plugin isn't needed: these links work in a **Website** action (tick **GET request in background**), but the key
+doesn't light up.
 Each source in the scene gets these links, using its name in lower case with dashes for spaces
 (a source named **Up Next** is `up-next`). The Output page shows and copies every source's links.
 
@@ -160,8 +175,8 @@ Each source in the scene gets these links, using its name in lower case with das
 | Video sound on / off | http://localhost:8080/deck/layer/intro/sound/on, http://localhost:8080/deck/layer/intro/sound/off |
 | Fade every source out | http://localhost:8080/deck/layers/off |
 
-Renaming a source on the Output page changes its links. These links replace the **OBS Studio** plugin's **Source** keys on nights you
-use the Studio scene; keep a separate Stream Deck profile for OBS nights, since OBS works exactly as before.
+Renaming a source on the Output page changes its links (the plugin's keys carry on). The plugin's Source keys, or these links, replace the
+**OBS Studio** plugin's **Source** keys on nights you use the Studio scene; keep a separate Stream Deck profile for OBS nights, since OBS works exactly as before.
 
 ## Second court
 

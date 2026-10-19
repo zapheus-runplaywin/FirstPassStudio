@@ -27,6 +27,8 @@ const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image
 const VIDEO_TYPES = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
 const MEDIA_TYPES = { ...IMAGE_TYPES, ...VIDEO_TYPES };
 const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024;
+// The Studio Stream Deck plugin (plugins/studio-deck), packed by the Mac app's build so it ships with the app.
+const STREAMDECK_PLUGIN = path.join(__dirname, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
 const kindOf = f => IMAGE_TYPES[path.extname(f).toLowerCase()] ? 'image' : VIDEO_TYPES[path.extname(f).toLowerCase()] ? 'video' : null;
 
 let log = () => {};
@@ -330,6 +332,15 @@ async function route(req, res, url, { send, readBody }) {
     req.on('close', () => { clearInterval(ping); listeners.delete(res); });
     return true;
   }
+  if (p === '/api/scene/streamdeck' && req.method === 'GET') return send(res, 200, { available: fs.existsSync(STREAMDECK_PLUGIN) }), true;
+  if (p === '/api/scene/streamdeck' && req.method === 'POST') {
+    // Opening the .streamDeckPlugin file hands it to the Stream Deck app, which installs (or updates) it.
+    if (!fs.existsSync(STREAMDECK_PLUGIN)) return send(res, 404, { error: 'The Stream Deck plugin comes with the Mac app. From a checkout, run npm run pack in plugins/studio-deck first.' }), true;
+    const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', STREAMDECK_PLUGIN]] : ['open', [STREAMDECK_PLUGIN]];
+    require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', err => log('warn', 'scene', `Couldn't open the Stream Deck plugin: ${err.message}`)).unref();
+    log('info', 'scene', 'Opened the Stream Deck plugin to install it');
+    return send(res, 200, { ok: true }), true;
+  }
   if (p === '/api/scene/media' && req.method === 'GET') return send(res, 200, { media: mediaList(), canConvert: !!ffmpegPath() }), true;
   if (p === '/api/scene/media' && req.method === 'POST') {
     const name = cleanFile(url.searchParams.get('name')).replace(/[^\w .()'&+-]/g, '_').replace(/^\.+/, '');
@@ -363,4 +374,4 @@ function init(logger, { ffmpeg } = {}) {
   if (scene.sources.length) log('info', 'scene', `Scene has ${scene.sources.length} sources`);
 }
 
-module.exports = { init, route, deck, apply, state, slug, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, init, route, deck, apply, state, slug, FILE, MEDIA_DIR };
