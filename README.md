@@ -270,7 +270,7 @@ sources drawn as layers, top layer first, sent to a display or a Blackmagic devi
   a display or Blackmagic output is muted while it does, so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
   page plays it at a time (click another page's preview to bring the sound there). A line under the preview says why it's silent, if it is.
   **Pop out** opens the preview in its own window (`/preview.html`) that you can resize, move to another screen or make full screen while
-  testing; it plays the sound just as the preview does, and the Output page's preview turns off while it's open (so the scene only runs
+  testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it plays the sound just as the preview does, and the Output page's preview turns off while it's open (so the scene only runs
   once more) and comes back when the window closes.
 - **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
   **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that

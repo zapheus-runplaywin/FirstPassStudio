@@ -11,6 +11,8 @@
   scaled to fit the window, and plays the scene's sound when Preview sound is ticked, exactly as
   the preview on the Output page does (that one turns off while this window is open, so the scene
   only runs once more). Closing this window puts the preview back on the Output page.
+  A floating Sources panel shows or hides each source while you watch (its – button tucks it away, kept per
+  browser), and follows the Output page and the Stream Deck live.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #1E293B; }
@@ -19,12 +21,29 @@
   #note { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100vw - 24px); padding: 6px 12px; border-radius: 8px;
           background: rgba(15, 23, 42, .85); color: #fff; font: 600 13px system-ui, sans-serif; text-align: center; pointer-events: none; }
   #note:empty { display: none; }
+  #panel { position: fixed; top: 10px; right: 10px; width: 240px; max-height: calc(100vh - 20px); overflow: auto; border-radius: 10px;
+           background: rgba(15, 23, 42, .88); color: #fff; font: 600 13px system-ui, sans-serif; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+  #panel header { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 8px 7px 12px; }
+  #panel h2 { margin: 0; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #94A3B8; }
+  #panel ul { list-style: none; margin: 0; padding: 0 6px 6px; }
+  #panel li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  #panel li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panel button { font: inherit; border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; background: #334155; color: #CBD5E1; }
+  #panel button:hover { background: #475569; }
+  #panel .eye { min-width: 44px; }
+  #panel .eye.on { background: #F97316; color: #0F172A; }
+  #panel.min ul, #panel.min #hideAll { display: none; }
+  #panel.min { width: auto; }
 </style>
 <script src="log.js"></script>
 </head>
 <body>
 <div id="box"><iframe id="frame" title="Scene preview" src="/scene.html?mute=1"></iframe></div>
 <div id="note"></div>
+<div id="panel">
+  <header><h2>Sources</h2><span><button id="hideAll" title="Hide every source">Hide all</button> <button id="fold" title="Hide or show this list">–</button></span></header>
+  <ul id="sources"></ul>
+</div>
 <script>
   const $ = id => document.getElementById(id);
   const frame = $('frame');
@@ -79,6 +98,34 @@
     try { scene()?.unlockSound?.(); } catch {}
     listen(true);
   });
+
+  // Sources: show or hide each one from here, following the scene live (the Output page, the Stream Deck).
+  const act = action => fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) })
+    .catch(err => console.warn('Scene change failed', action.type, err.message));
+  function showSources(scn) {
+    const ul = $('sources');
+    ul.innerHTML = scn.sources.length ? '' : '<li><span style="color:#94A3B8">No sources yet</span></li>';
+    for (const src of scn.sources) {
+      const li = document.createElement('li');
+      li.innerHTML = '<button class="eye"></button><span></span>';
+      const eye = li.querySelector('button');
+      eye.textContent = src.visible ? 'On' : 'Off';
+      eye.classList.toggle('on', src.visible);
+      eye.title = src.visible ? 'Showing: click to fade it out' : 'Hidden: click to fade it in';
+      eye.onclick = () => act({ type: 'toggle', id: src.id });
+      li.querySelector('span').textContent = src.name;
+      ul.append(li);
+    }
+  }
+  new EventSource('/api/scene/events').onmessage = e => { try { showSources(JSON.parse(e.data)); } catch (err) { console.error('Scene update failed', err); } };
+  $('hideAll').onclick = () => act({ type: 'hideAll' });
+  const fold = min => {
+    $('panel').classList.toggle('min', min);
+    $('fold').textContent = min ? 'Show' : '–';
+    try { localStorage.setItem('previewPanel', min ? 'min' : ''); } catch {}
+  };
+  $('fold').onclick = () => fold(!$('panel').classList.contains('min'));
+  try { fold(localStorage.getItem('previewPanel') === 'min'); } catch {}
 
   // The Output page knows this window is open (and turns its own preview off) through this channel.
   const channel = new BroadcastChannel('studio-preview');
