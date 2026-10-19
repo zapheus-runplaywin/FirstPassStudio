@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Preview · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<!--
+  The Output page's preview in its own window (Pop out on the Output page), to resize it, put it
+  on another screen or watch it full screen while testing. It shows the scene on a checkerboard,
+  scaled to fit the window, and plays the scene's sound when Preview sound is ticked, exactly as
+  the preview on the Output page does (that one turns off while this window is open, so the scene
+  only runs once more). Closing this window puts the preview back on the Output page.
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1E293B; }
+  #box { position: absolute; overflow: hidden; background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
+  #box iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  #note { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100vw - 24px); padding: 6px 12px; border-radius: 8px;
+          background: rgba(15, 23, 42, .85); color: #fff; font: 600 13px system-ui, sans-serif; text-align: center; pointer-events: none; }
+  #note:empty { display: none; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+<div id="box"><iframe id="frame" title="Scene preview" src="/scene.html?mute=1"></iframe></div>
+<div id="note"></div>
+<script>
+  const $ = id => document.getElementById(id);
+  const frame = $('frame');
+  const scene = () => { try { return frame.contentWindow; } catch { return null; } };
+
+  // Scale the 1920 x 1080 frame to fit the window, centred, with the window's colour around it.
+  function fit() {
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    Object.assign($('box').style, { width: 1920 * k + 'px', height: 1080 * k + 'px', left: (innerWidth - 1920 * k) / 2 + 'px', top: (innerHeight - 1080 * k) / 2 + 'px' });
+    frame.style.transform = `scale(${k})`;
+  }
+  addEventListener('resize', fit);
+  fit();
+
+  // Preview sound, the same way as the Output page's preview: ask the helper for the sound (which
+  // mutes the outputs while this window has it), check in every few seconds, let go on closing.
+  // Opening the window takes the sound, since the Output page's own preview has just turned off.
+  const listenId = 'popout-' + Math.random().toString(36).slice(2);
+  let wanted = false, sound = false, note = '';
+  async function listen(take = false) {
+    try {
+      const o = await (await fetch('/api/outputs')).json();
+      wanted = !!o.previewSound;
+      const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on: wanted, take }) });
+      sound = !!(await r.json()).sound;
+      showNote(o);
+    } catch { sound = false; showNote(null); }
+  }
+  function showNote(o) {
+    const s = scene();
+    try { s?.setSilent?.(!sound); } catch {}
+    let st = null;
+    try { st = s?.soundState?.(); } catch {}
+    const muted = o && o.showing && o.showing.length ? ' The outputs are muted.' : '';
+    // The same line here ("here") and under the Output page's preview ("in the preview window").
+    const line = (here, there) => !wanted ? ''
+      : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the preview window'} to bring it ${here ? 'to this window' : 'there'}.`
+      : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the preview window'} to hear it.`
+      : st && !st.videos ? `Sound plays ${there} once a video with Sound ticked is on.${muted}`
+      : `Sound plays ${there}, through this Mac's sound output.${muted}`;
+    note = line(false, 'in the preview window');
+    // Only the reasons it's silent show over the picture; the Output page shows every line.
+    $('note').textContent = wanted && (!sound || (st && st.blocked)) ? line(true, 'here') : '';
+    tell();
+  }
+  frame.addEventListener('load', () => listen(true));
+  setInterval(() => listen(), 5000);
+  // A click brings the sound here, and is what a browser needs before it plays sound
+  // (Safari: unmute during the click itself, then take the sound properly).
+  addEventListener('click', () => {
+    if (!wanted) return;
+    try { scene()?.unlockSound?.(); } catch {}
+    listen(true);
+  });
+
+  // The Output page knows this window is open (and turns its own preview off) through this channel.
+  const channel = new BroadcastChannel('studio-preview');
+  const tell = (open = true) => channel.postMessage({ open, note });
+  channel.onmessage = e => {
+    if (e.data === 'ask') listen(); // and says it's open once it knows the sound
+    if (e.data === 'focus') focus();
+    if (e.data === 'close') close();
+  };
+  addEventListener('pagehide', () => {
+    tell(false);
+    navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false }));
+  });
+  tell();
+</script>
+</body>
+</html>

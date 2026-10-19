@@ -86,16 +86,17 @@
   <section>
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h2 style="margin:0">Preview</h2>
-      <div class="row"><label><input id="previewSound" type="checkbox"> Preview sound</label> <label><input id="previewOn" type="checkbox" checked> Live preview</label></div>
+      <div class="row"><label><input id="previewSound" type="checkbox"> Preview sound</label> <label><input id="previewOn" type="checkbox" checked> Live preview</label> <button id="popOut" class="alt" title="Show the preview in its own window, to resize it or move it to another screen">Pop out</button></div>
     </div>
     <div class="preview" id="preview">
       <iframe id="previewFrame" title="Scene preview"></iframe>
       <div class="box" id="selBox"></div>
-      <div class="off hidden" id="previewOff">Live preview is off</div>
+      <div class="off hidden" id="previewOff"><div style="text-align:center"><span id="previewOffText">Live preview is off</span><br><button id="popIn" class="alt hidden" style="margin-top:8px">Bring it back here</button></div></div>
     </div>
     <p class="note" id="previewSoundNote" style="font-weight:600"></p>
     <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.
-      <b>Preview sound</b> plays the scene's sound here, with or without an output on. A display or Blackmagic output goes
+      <b>Pop out</b> shows the preview in its own window that you can resize, move to another screen or make full screen; the preview here
+      turns off while it's open, and closing it brings the preview back. <b>Preview sound</b> plays the scene's sound here, with or without an output on. A display or Blackmagic output goes
       silent while it does, so the sound never plays twice. It needs the live preview showing, and moves back to the outputs
       when this page closes. Only one Output page plays it at a time: click a preview to bring the sound to it. The line above says why it's silent, if it is.</p>
   </section>
@@ -280,10 +281,43 @@
   function setPreview(on) {
     try { localStorage.setItem('outputPreview', on ? '1' : '0'); } catch {}
     $('previewOn').checked = on;
-    $('previewFrame').src = on ? '/scene.html?mute=1' : 'about:blank';
-    $('previewOff').classList.toggle('hidden', on);
+    if (!on && popped) popChannel.postMessage('close');
+    showPreview();
+  }
+  // The preview here runs only while it's on and not popped out into its own window (preview.html).
+  function showPreview() {
+    const on = $('previewOn').checked, here = on && !popped;
+    const src = here ? '/scene.html?mute=1' : 'about:blank';
+    if ($('previewFrame').getAttribute('src') !== src) $('previewFrame').src = src;
+    $('previewOff').classList.toggle('hidden', here);
+    $('previewOffText').textContent = popped ? 'The preview is in its own window' : 'Live preview is off';
+    $('popIn').classList.toggle('hidden', !popped);
+    $('popOut').textContent = popped ? 'Show window' : 'Pop out';
     listen();
   }
+  // Pop out: the popped-out window says it's open (and why it's silent, if it is) on this channel,
+  // and says so again when this page asks, so a reopened Output page knows too.
+  let popped = null; // { note } while the preview window is open
+  const popChannel = new BroadcastChannel('studio-preview');
+  popChannel.onmessage = e => {
+    if (!e.data || typeof e.data !== 'object') return;
+    const was = !!popped;
+    popped = e.data.open ? { note: e.data.note || '', heard: true } : null;
+    if (was !== !!popped) { console.log(popped ? 'Preview popped out into its own window' : 'Preview back on the Output page'); showPreview(); }
+    else soundNote();
+  };
+  popChannel.postMessage('ask');
+  $('popOut').onclick = () => {
+    if (popped) return popChannel.postMessage('focus');
+    window.open('/preview.html', 'studio-preview', 'popup,width=1280,height=720');
+    popped = { note: '' };
+    // A blocked pop-up never says it's open: put the preview back here.
+    setTimeout(() => { if (popped && !popped.heard) { popped = null; showPreview(); $('err').textContent = 'The preview window didn\'t open: allow pop-ups for Studio in this browser.'; } }, 4000);
+    $('previewOn').checked = true;
+    try { localStorage.setItem('outputPreview', '1'); } catch {}
+    showPreview();
+  };
+  $('popIn').onclick = e => { e.stopPropagation(); popChannel.postMessage('close'); };
   function drawBox() {
     const s = current(), box = $('selBox');
     if (!s) { box.style.display = 'none'; return; }
@@ -497,6 +531,7 @@
     let st = null;
     try { st = $('previewFrame').contentWindow.soundState?.(); } catch {}
     const note = !out || !out.previewSound ? ''
+      : popped ? popped.note
       : !$('previewOn').checked ? 'Silent: turn Live preview on.'
       : !previewSound ? 'Silent: another Output page is playing the sound. Click the preview to bring it here.'
       : st && st.blocked ? 'Blocked by this browser until you click: click the preview to hear it. (The Studio app\'s own window doesn\'t need this.)'
@@ -510,13 +545,14 @@
   // Safari only lets a video play sound if it's unmuted during the click itself, so unmute straight away
   // (that unlocks it for later), then take the sound properly.
   $('preview').addEventListener('click', () => {
+    if (popped) return popChannel.postMessage('focus');
     if (!out || !out.previewSound) return;
     try { $('previewFrame').contentWindow.unlockSound?.(); } catch {}
     listen(true);
   });
   $('previewFrame').addEventListener('load', applySound);
   async function listen(take = false) {
-    const on = !!(out && out.previewSound && $('previewOn').checked);
+    const on = !!(out && out.previewSound && $('previewOn').checked && !popped);
     try {
       const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take }) });
       previewSound = !!(await r.json()).sound;
@@ -622,8 +658,8 @@
   $('outOn').onclick = () => setOut({ on: !(out && out.on) });
   $('previewSound').onchange = () => {
     // Unmute during the click too, for Safari (see the preview's click above).
-    if ($('previewSound').checked) { try { $('previewFrame').contentWindow.unlockSound?.(); } catch {} }
-    setOut({ previewSound: $('previewSound').checked }).then(() => listen(true));
+    if ($('previewSound').checked && !popped) { try { $('previewFrame').contentWindow.unlockSound?.(); } catch {} }
+    setOut({ previewSound: $('previewSound').checked }).then(() => { listen(true); if (popped) popChannel.postMessage('ask'); });
   };
 
   // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
