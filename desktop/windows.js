@@ -115,11 +115,13 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   function create(url, { isMain = false } = {}) {
     const studioPage = STUDIO_PAGES.has(new URL(url).pathname);
     const saved = isMain && appSettings().windowBounds;
-    const bounds = saved && onScreen(saved) ? saved : { width: 1280, height: 860 };
+    // The popped-out preview starts at 16:9 (it fits the scene to whatever size it's made).
+    const popout = new URL(url).pathname === '/preview.html';
+    const bounds = saved && onScreen(saved) ? saved : popout ? { width: 1280, height: 720, useContentSize: true } : { width: 1280, height: 860 };
     const win = new BrowserWindow({
       ...bounds,
-      minWidth: 560, minHeight: 400,
-      title: 'FirstPass Studio',
+      minWidth: popout ? 320 : 560, minHeight: popout ? 180 : 400,
+      title: popout ? 'Preview · FirstPass Studio' : 'FirstPass Studio',
       backgroundColor: studioPage ? '#F8FAFC' : '#1E293B', // overlays are see-through: show them on dark
       show: false,
       // The Studio header is the title bar; the window buttons sit inside it.
