@@ -118,7 +118,7 @@
         an MP4, WebM or MOV (saved in the data folder's <b>media</b> folder). Each opens a box to pick it. A new source goes above the selected one (on top if none is selected), hidden, and is selected
         so you can set it up straight away. Pages not in the scene yet are listed first, and <b>Add all unused pages</b> adds every one of them, hidden.
         Drag a source up or down the list to move it between layers, or use ↑ and ↓.</li>
-      <li><b>Page options:</b> a Studio graphic's link options described on this page (court, position, heading, animate away and so on) show as fields
+      <li><b>Page options:</b> a Studio graphic's link options described on this page (position, heading, division, round, animate away and so on) show as fields
         under its <b>Address</b>, and are saved in the address.</li>
       <li><b>On / Off</b> fades a source in or out with its own <b>Fade</b> time in milliseconds (0 is a cut).</li>
       <li><b>Position and scale</b> place it on the frame; <b>Full frame</b> fits it to 1920 × 1080. <b>Page size</b> is the size a page is drawn at (1920 × 1080 for full-frame graphics).</li>
@@ -249,7 +249,7 @@
     <p class="page__help">The app window is like any Mac app's: no address bar, tabs or bookmarks, the Studio header is the title bar
       (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
       open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
-      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘6), <b>View</b> for reload, back and zoom, and <b>New Window</b> (⌘N).</p>
+      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘6), <b>View</b> for reload, back and zoom, <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
     <p class="page__help">To use your browser instead, tick <b>Open pages in the browser</b> in the 1P menu. The app can't tell when browser tabs close,
       so then Studio stays on air from <b>Start Studio</b> until <b>Stop Studio</b> or Quit.</p>
     <p class="page__help">Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
@@ -311,7 +311,7 @@
       <li>Team lists: when the game's line up is incomplete, the same season line ups once to make up the squad (kept for 10 minutes).</li>
     </ul>
     <p class="page__help">Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
-      <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard and control page.</p>
+      <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard, scene and control page.</p>
   </div>
   <p class="sub">Something not working? The debug log is in the <b>logs</b> folder of the data folder, or <a href="/api/log" target="_blank">open the debug log</a>. Send <code style="display:inline">logs/playhq-graphics.log</code> to Claude.</p>
   <p class="sub">On the <a href="/output.html">Output page</a>, <b>Add page</b> puts any of these graphics in the scene; turn each on or off there or from the Stream Deck. Animations run at the same speed at any frame rate, 50p or 60p.</p>
@@ -367,7 +367,7 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   'Plays when the page loads, so it plays each time it\'s turned on on the Output page. ' +
   'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=RIVALS</code> changes the big word, and ' +
   '<code>?title=Grand%20Final</code> changes the bottom line. Combine them with &amp;, e.g. <code>/clash.html?out=10&amp;word=RIVALS</code>.'], ['Winner celebration (full time)', '/winner.html',
-  'Works out the result from the scoreboard score when it opens, so one source covers every game: it loads fresh each time it\'s turned on on the Output page; show it from the Stream Deck (see STREAMDECK.md). ' +
+  'Works out the result from the scoreboard score when it opens, so one source covers every game: it loads fresh each time it\'s turned on on the Output page; show it from the Stream Deck (see the <a href="/api.html">Stream Deck page</a>). ' +
   'A win: the winner\'s logo slams in over light rays and a big VICTORY, with confetti in their colour, their name, the final score and who they beat. A draw: both logos slide in, see-saw level and DRAW is stamped between them. ' +
   'To force a result, add <code>?winner=home</code>, <code>?winner=away</code> or <code>?winner=draw</code>. ' +
   'Options: <code>?out=10</code> animates it away after 10 seconds, <code>?word=CHAMPIONS</code> changes the big word (or the stamp on a draw), <code>?title=Grand%20Final%20winners</code> changes the line under the score, ' +
@@ -377,7 +377,7 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   'a +2 press on the control page or Stream Deck, or, while following PlayHQ, the PlayHQ scorer recording a super shot. ' +
   'Two normal goals between checks, a scorer correcting a goal to a super shot, scores catching up when a game is picked, anything after full time and a −2 don\'t play it; a +2 pressed by mistake does. ' +
   'Two close together play one after the other. <code>/deck/home/supershot</code> or <code>/deck/away/supershot</code> plays it without changing the score (to test it). ' +
-  '<b>Manual:</b> <code>?team=home</code>, <code>?team=away</code> or <code>?team=none</code> (competition colours, no team) doesn\'t watch; it plays once each time the source comes on, so keep <b>Load the page fresh each time it\'s shown</b> ticked and show it from the Stream Deck (see STREAMDECK.md).'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
+  '<b>Manual:</b> <code>?team=home</code>, <code>?team=away</code> or <code>?team=none</code> (competition colours, no team) doesn\'t watch; it plays once each time the source comes on, so keep <b>Load the page fresh each time it\'s shown</b> ticked and show it from the Stream Deck (see the <a href="/api.html">Stream Deck page</a>).'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
   'Who scored each of the last 10 goals of the game on the scoreboard, oldest to newest, with the quarter and time of each, a momentum line (up for a home goal, down for an away goal, shaded in the club colours), ' +
   'how many of the 10 each team scored, and the current run (3 or more in a row lights up). Super goals show a +2 badge. Like the scoreboard it updates itself every 2 seconds, so it can stay on screen: new goals pop in and the older ones slide along. ' +
   'PlayHQ only gives running totals, not a list of goals, so the order is worked out by Studio from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on the control page or Stream Deck. ' +

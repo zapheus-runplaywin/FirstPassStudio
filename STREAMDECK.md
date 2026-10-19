@@ -39,8 +39,8 @@ Press Follow PlayHQ (`/deck/source/playhq`, below) to go back. A +2 press also p
 | Automatic game selection on / off | http://localhost:8080/deck/auto/toggle |
 | Court for automatic selection (court 2) | http://localhost:8080/deck/court/2 |
 
-The court can be its PlayHQ name (`/deck/court/Indoor%2001`) or just its number. Picking a game from the list on the
-control page turns automatic selection off.
+The court can be its PlayHQ name (`/deck/court/Indoor%2001`) or just its number. Choosing a court also turns automatic
+selection on. Picking a game from the list on the control page turns it off.
 
 ## Score ticker
 
@@ -133,7 +133,8 @@ The super shot animation plays by itself: 3 seconds, then it fades out, so the f
 
 Not played: two normal goals between checks, a scorer changing a goal into a super shot, scores catching up when a game is
 picked or scoring switches to Follow PlayHQ, anything after full time, and a −2. A +2 pressed by mistake still plays, so
-use −2 to fix the score. Two super shots close together play one after the other.
+use −2 to fix the score. Two super shots close together play one after the other. It only plays in a division that
+plays super shots (set on the competition setup page), and so do the links below.
 
 To play it without changing the score (a test, or a super shot the scoring missed), press
 http://localhost:8080/deck/home/supershot or http://localhost:8080/deck/away/supershot.

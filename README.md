@@ -117,7 +117,7 @@ open the pages and press the Stream Deck links (scores, clock, game). Stream on 
 Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
 The menu bar icon has: Start/Stop Studio, Open Studio, Scoreboard control, Competition setup, Copy the Studio link,
-Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
+Install the Stream Deck plugin, Open pages in the browser, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
 login, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". **Start Studio** opens the
@@ -135,7 +135,7 @@ Studio's pages open in the app's own window (`desktop/windows.js`), not the brow
 bookmarks, the Studio header is the title bar (the window buttons sit in it, and dragging it moves the window), and
 the app shows in the Dock and ⌘Tab while a window is open, then goes back to just the menu bar icon. A link that opens
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
-anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
+anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
 ⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 athletes, ⌘6 Stream Deck) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
@@ -214,7 +214,8 @@ so don't run it while the app is on air.
 3. Open **Scoreboard control** (⌘3 in the app, or from the 1P icon) to run the scoreboard.
 4. Turn graphics on and off from the Output page or the Stream Deck.
 
-Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds) and the ticker. Every other page
+Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds), the ticker, the
+automatic super shot (every second) and the countdown (every 5 seconds, asking Studio only). Every other page
 loads once, and again each time it's turned on on the Output page (with **Load the page fresh each time it's shown**, the
 default), or press **Refresh page** to get the latest. Divisions are numbered in name order, as listed on the
 http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
@@ -233,7 +234,7 @@ sources drawn as layers, top layer first, sent to a display or a Blackmagic devi
   settings are ready to change. The page list splits into pages not in the scene yet and pages already in it, and **Add all
   unused pages** adds every Studio graphic not in the scene, hidden, in that order. Drag a source (by its ⋮⋮ or anywhere on
   its row) to move it up or down the layers, or use ↑ and ↓.
-- **Page options:** a Studio graphic's link options (court, position, heading, animate away and so on) show as fields under its
+- **Page options:** a Studio graphic's link options (position, heading, division, round, animate away and so on) show as fields under its
   **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
   new option there as well as on the home page.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
@@ -414,10 +415,10 @@ These follow the game picked on the scoreboard control page:
 
 Line-ups and stats come from the same data the playhq.com game page shows, with no API key. Players who keep their
 profile private show as PlayHQ shows them. Only if that has no players and an `apiKey` is set do they come from
-PlayHQ's "Summary for the Game v2" instead (Client ID on the setup page, other settings in `config.json`):
-- `apiKey`: the association's PlayHQ API key (optional; leave blank if you don't have one).
-- `apiTenant`: the sport name PlayHQ expects with the key (blank uses `netball-australia` from the organisation link).
-- `gameSummaryPath`: `/v2/games/{id}/summary`.
+PlayHQ's "Summary for the Game v2" instead (on the competition setup page; the path is a machine setting in `config.json`):
+- **Client ID**: the association's PlayHQ API key (optional; leave blank if you don't have one).
+- **Tenant**: the sport name PlayHQ expects with the key (blank uses `netball-australia` from the organisation link).
+- `gameSummaryPath` in `config.json`: `/v2/games/{id}/summary`.
 When a team's line up for the game has fewer than seven players (benches often clear it when they log in and only
 add players as they score), the rest of the team's season squad (everyone in its line ups this season) is added after
 them under **Squad**, without positions. With no line up at all, the team list is the whole squad. Players in the
@@ -425,8 +426,8 @@ partial line up keep their position and stats, and the position match ups page o
 The control page shows how many players were found for each team, or the error. If the lists look wrong, send the debug log to Claude.
 
 Team logos are added on the competition setup page, named after the team. A logo whose file name doesn't match the
-PlayHQ team name can be picked for that team in the setup page's team list. The same list gives any team its own colour
-(**Add colour**, then the colour picker or a pasted HEX or RGB value, or × to go back to the competition's colours; teams with similar names are offered the same colour); the scoreboard and The Clash use it behind that team. The
+PlayHQ team name can be picked for that team in the setup page's team list. The same list gives a club its own colour
+(**Add colour**, then the colour picker or a pasted HEX or RGB value, or × to go back to the competition's colours), shared by every team of that club; the scoreboard and The Clash use it behind those teams. The
 match up page keeps the competition's colours.
 
 ## Athlete photos and position match ups

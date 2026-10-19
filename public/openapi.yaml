@@ -24,7 +24,7 @@ tags:
   - name: Ticker
   - name: Status
   - name: Scene
-    description: Studio's own scene (optional, built on the Output page). Sources are named by the name given on the Output page, lower case with dashes for spaces ("Up Next" is `up-next`).
+    description: Studio's scene, built on the Output page. Sources are named by the name given on the Output page, lower case with dashes for spaces ("Up Next" is `up-next`).
 
 paths:
   /deck/{side}/{change}:
@@ -33,7 +33,7 @@ paths:
       summary: Change a team's score
       description: |
         `add2` / `minus2` are for super shots; `add2` also plays the super shot animation
-        (supershot.html). Any score change switches the scoreboard to manual scoring.
+        (supershot.html) in a division that plays super shots (set on the competition setup page). Any score change switches the scoreboard to manual scoring.
 
         Examples: `/deck/home/add1`, `/deck/away/add2`, `/deck/home/minus1`.
       operationId: changeScore
@@ -56,7 +56,8 @@ paths:
       summary: Play the super shot animation for a team
       description: |
         Plays supershot.html (the source that watches the scoreboard) for that team without
-        changing the score, e.g. to test it or after a super shot the scoring missed.
+        changing the score, e.g. to test it or after a super shot the scoring missed. Only in a
+        division that plays super shots (set on the competition setup page).
       operationId: playSuperShot
       parameters:
         - name: side
@@ -171,7 +172,7 @@ paths:
     get:
       tags: [Clock]
       summary: Change the quarter length
-      description: Sets how long a quarter is and puts that much on the clock. Lasts until the scoreboard is cleared or Studio is set up again.
+      description: Sets how long a quarter is; time already run is kept (reset the clock for a full quarter). At least 1 minute. Lasts until the scoreboard is cleared or Studio is set up again.
       operationId: clockLength
       parameters:
         - name: minutes
@@ -207,7 +208,7 @@ paths:
       summary: Turn automatic game selection on or off
       description: |
         With it on, the scoreboard shows today's game on the chosen court, switching to the next
-        game 10 minutes before it starts (finals stay on until PlayHQ marks them finished).
+        game when its electronic scoring starts (10 minutes before by default, set on the competition setup page) (finals stay on until PlayHQ marks them finished).
         Picking a game by hand on the control page turns it off.
       operationId: autoSelect
       parameters:
@@ -223,7 +224,7 @@ paths:
     get:
       tags: [Game]
       summary: Choose the court for automatic game selection
-      description: The court's name as PlayHQ shows it (`Indoor%2001`) or just its number (`2`).
+      description: The court's name as PlayHQ shows it (`Indoor%2001`) or just its number (`2`). Choosing a court also turns automatic game selection on.
       operationId: autoCourt
       parameters:
         - name: court
@@ -411,7 +412,14 @@ paths:
       summary: Fade every scene source out
       operationId: layersOff
       responses:
-        '200': { $ref: '#/components/responses/Ok' }
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
 
   /deck/output/{action}:
     get:
