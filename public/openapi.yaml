@@ -436,6 +436,30 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
 
+  /deck/output/{action}:
+    get:
+      tags: [Scene]
+      summary: Show or blank the scene on the Mac's displays (Output page, Display output)
+      description: Mac app only. Turns the display output on or off without changing which displays or mode (chroma, or fill and key) the Output page has.
+      operationId: output
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+      responses:
+        '200':
+          description: Done. Returns whether the output is on and its mode.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  on: { type: boolean }
+                  mode: { type: string, enum: [off, chroma, fillkey] }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
 components:
   parameters:
     board:

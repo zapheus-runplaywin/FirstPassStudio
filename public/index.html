@@ -132,8 +132,13 @@
         <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
       <li><b>Preview:</b> the Output page shows the scene live; it runs the scene's pages a second time, so turn it off when the Mac is busy.</li>
+      <li><b>Display output (Mac app):</b> sends the scene full screen to the Mac's extra displays (HDMI into a switcher).
+        <b>Chroma</b> puts it over a solid colour on one display (green, blue or any colour) for a switcher that keys on that colour.
+        <b>Fill and key</b> uses two extra displays: fill is the scene over black, key is white where the scene shows and black where it's see-through,
+        for the switcher's fill and key inputs. It's only offered with two extra displays connected (a plain M1 drives one; Pro and Max chips drive more).
+        <b>Output on/off</b>, Esc on an output display, or <code>/deck/output/on</code>, <code>off</code> and <code>toggle</code> show or blank the displays without changing the setup.</li>
     </ul>
-    <p class="page__help">Sending the scene straight to the UltraStudio comes in a later update. Until then, use the link above as one 1920 × 1080 Browser source in OBS.
+    <p class="page__help">Sending the scene straight to the UltraStudio comes in a later update. Until then, use the display output or the link above as one 1920 × 1080 Browser source in OBS.
       The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>
   <div class="card">
@@ -283,6 +288,7 @@
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
       <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to the helper, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
+      <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice).</li>
       <li>Stream Deck plugin's Source keys: nothing. The plugin keeps one connection open to the helper while any of its keys is on screen, and the helper only sends when the scene changes.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>

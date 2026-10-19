@@ -70,8 +70,8 @@
 <main>
   <h1>Output</h1>
   <p class="sub">Studio's own scene, in place of an OBS scene: add sources, order the layers, and show or hide them here or from the Stream Deck.
-    This is optional; every page still works in OBS as before. Sending the scene to the UltraStudio comes in a later update. Until then, add
-    <code id="sceneUrl">scene.html</code> to OBS as one 1920 × 1080 Browser source to use it.</p>
+    This is optional; every page still works in OBS as before. The Mac app can send the scene to extra displays (below); sending it to the
+    UltraStudio comes in a later update. Or add <code id="sceneUrl">scene.html</code> to OBS as one 1920 × 1080 Browser source.</p>
 
   <section>
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
@@ -84,6 +84,38 @@
       <div class="off hidden" id="previewOff">Live preview is off</div>
     </div>
     <p class="note">The preview runs every page in the scene a second time, so turn it off on stream nights if the Mac is busy. The dashed box is the selected source.</p>
+  </section>
+
+  <section id="outSection">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">Display output</h2>
+      <button id="outOn" class="alt">Output on</button>
+    </div>
+    <p class="note hidden" id="outNoApp" style="margin-top:0">Sending the scene to a display needs the FirstPass Studio Mac app (this copy of Studio was started another way).</p>
+    <div id="outForm">
+      <div class="form">
+        <label>Send the scene</label>
+        <div style="display:grid;gap:6px">
+          <label><input type="radio" name="outMode" value="off"> Not to a display</label>
+          <label><input type="radio" name="outMode" value="chroma"> Chroma: over a solid colour on one display (one HDMI into the switcher)</label>
+          <label><input type="radio" name="outMode" value="fillkey" id="outFillKey"> Fill and key: on two displays (two HDMI into the switcher's fill and key inputs)</label>
+        </div>
+        <label for="outChromaDisplay" class="forChroma">Display</label>
+        <select id="outChromaDisplay" class="forChroma"></select>
+        <label for="outColor" class="forChroma">Colour</label>
+        <div class="row forChroma"><input id="outColor" type="color" style="width:56px;height:36px;padding:2px">
+          <button class="alt" data-color="#00b140">Green</button><button class="alt" data-color="#0047bb">Blue</button></div>
+        <label for="outFillDisplay" class="forFillKey">Fill display</label>
+        <select id="outFillDisplay" class="forFillKey"></select>
+        <label for="outKeyDisplay" class="forFillKey">Key display</label>
+        <select id="outKeyDisplay" class="forFillKey"></select>
+      </div>
+      <p class="note" id="outStatus"></p>
+      <p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
+        shows and black where it's see-through (grey where it's partly see-through). Sound plays from the fill or chroma display's window
+        through the Mac's audio output. To turn it off from the display itself, click it and press Esc.
+        Stream Deck: <code id="outDeck">/deck/output/toggle</code> (also <code>on</code> and <code>off</code>) shows or blanks the displays without changing this setup.</p>
+    </div>
   </section>
 
   <div class="cols">
@@ -331,6 +363,62 @@
     if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
   };
   $('hideAll').onclick = () => act({ type: 'hideAll' });
+  // Display output (the Mac app opens the windows; outputs.js decides what goes where).
+  let out = null;
+  const showOut = o => {
+    out = o;
+    $('outNoApp').classList.toggle('hidden', o.app);
+    $('outForm').classList.toggle('hidden', !o.app);
+    $('outOn').classList.toggle('hidden', !o.app);
+    const extra = o.displays.filter(d => !d.primary);
+    for (const r of document.querySelectorAll('input[name=outMode]')) r.checked = r.value === o.mode;
+    // Fill and key needs two displays besides the Mac's own (an M1 MacBook Pro drives only one).
+    $('outFillKey').disabled = extra.length < 2 && o.mode !== 'fillkey';
+    const fillSel = (id, value, fallback) => {
+      const sel = $(id);
+      sel.innerHTML = '<option value="">Choose a display</option>' + o.displays.map(d => `<option value="${d.id}">${d.label} (${d.width} × ${d.height})${d.primary ? ', this Mac\'s main screen' : ''}</option>`).join('');
+      sel.value = o.displays.some(d => d.id === value) ? value : '';
+      if (!sel.value && fallback) sel.value = fallback.id;
+    };
+    fillSel('outChromaDisplay', o.chromaDisplay, extra[0]);
+    fillSel('outFillDisplay', o.fillDisplay, extra[0]);
+    fillSel('outKeyDisplay', o.keyDisplay, extra[1]);
+    $('outColor').value = o.chromaColor;
+    for (const el of document.querySelectorAll('.forChroma')) el.classList.toggle('hidden', o.mode !== 'chroma');
+    for (const el of document.querySelectorAll('.forFillKey')) el.classList.toggle('hidden', o.mode !== 'fillkey');
+    $('outOn').textContent = o.on ? 'Output on' : 'Output off';
+    $('outOn').className = o.on ? '' : 'alt';
+    const name = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
+    $('outStatus').textContent = o.mode === 'off' ? 'Not sending to a display.'
+      : !o.on ? 'Output is off: the displays are blank until it\'s turned on.'
+      : o.showing.length ? 'Showing ' + o.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
+      : 'Pick the display to use.';
+    $('outDeck').textContent = `${base}/deck/output/toggle`;
+  };
+  const setOut = async changes => {
+    try {
+      const r = await fetch('/api/outputs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes) });
+      showOut(await r.json());
+    } catch (err) { $('err').textContent = `Could not change the display output: ${err.message}`; }
+  };
+  const loadOut = () => fetch('/api/outputs').then(r => r.json()).then(showOut).catch(() => {});
+  loadOut();
+  // Displays come and go (plugged in, the app starting up): check again now and then.
+  setInterval(() => { if (!document.hidden) loadOut(); }, 5000);
+  for (const r of document.querySelectorAll('input[name=outMode]')) r.addEventListener('change', () => {
+    const changes = { mode: r.value, on: true };
+    // Fill in the displays shown as chosen, so picking a mode is enough.
+    if (r.value === 'chroma') changes.chromaDisplay = $('outChromaDisplay').value;
+    if (r.value === 'fillkey') { changes.fillDisplay = $('outFillDisplay').value; changes.keyDisplay = $('outKeyDisplay').value; }
+    setOut(changes);
+  });
+  $('outChromaDisplay').onchange = () => setOut({ chromaDisplay: $('outChromaDisplay').value });
+  $('outFillDisplay').onchange = () => setOut({ fillDisplay: $('outFillDisplay').value });
+  $('outKeyDisplay').onchange = () => setOut({ keyDisplay: $('outKeyDisplay').value });
+  $('outColor').onchange = () => setOut({ chromaColor: $('outColor').value });
+  for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
+  $('outOn').onclick = () => setOut({ on: !(out && out.on) });
+
   // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
   fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});
   $('deckInstall').onclick = async () => {

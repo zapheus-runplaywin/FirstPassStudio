@@ -254,9 +254,17 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
   it off when the Mac is busy.
+- **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
+  **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that
+  colour. **Fill and key** needs two extra displays: fill is the scene over black, key is white wherever the scene shows and black where it's
+  see-through (grey where partly see-through), for the switcher's fill and key inputs. How many extra displays a Mac can drive depends on its
+  chip (a plain M1 drives one, an M1/M2/M3 Pro two, Max more), so fill and key is only offered with two connected. Sound plays through the
+  Mac's audio output. **Output on/off**, Esc on an output display, or `/deck/output/on|off|toggle` shows or blanks the displays without
+  changing the setup, and they go dark when Studio goes off air. Saved as `outputs.json` in the data folder. Run without the app
+  (`npm start`) there are no displays to send to.
 
-The scene is saved as `scene.json` in the data folder. Until Studio can send it to the UltraStudio itself (a later update), add
-http://localhost:8080/scene.html to OBS as one 1920 x 1080 Browser source to use it.
+The scene is saved as `scene.json` in the data folder. To use it in OBS instead, add http://localhost:8080/scene.html as one 1920 x 1080
+Browser source. Sending it straight to the UltraStudio comes in a later update.
 
 ## Example graphics
 
