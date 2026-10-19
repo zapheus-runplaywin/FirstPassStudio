@@ -116,6 +116,7 @@
           <label><input type="radio" name="outMode" value="fillkey" id="outFillKey"> Fill and key: on two displays (two HDMI into the switcher's fill and key inputs)</label>
           <label><input type="radio" name="outMode" value="decklink" id="outDecklink"> Blackmagic UltraStudio or DeckLink: fill and key over SDI <span style="color:var(--fp-muted)" id="outDlNote"></span></label>
           <label><input type="radio" name="outMode" value="ndi" id="outNdi"> NDI®: fill and key, or chroma, over the network <span style="color:var(--fp-muted)" id="outNdiNote"></span></label>
+          <p class="note hidden" id="outNeeds" style="margin:2px 0 0"></p>
         </div>
         <label for="outNdiSignal" class="forNdi">Signal</label>
         <select id="outNdiSignal" class="forNdi">
@@ -577,6 +578,7 @@
   }
   setInterval(() => listen(), 5000);
   addEventListener('pagehide', () => navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false })));
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const showOut = o => {
     const relisten = !out || out.previewSound !== o.previewSound;
     out = o;
@@ -602,7 +604,7 @@
     const dl = o.decklink || {};
     const devices = dl.ok ? dl.devices : [];
     $('outDecklink').disabled = !devices.length && o.mode !== 'decklink';
-    $('outDlNote').textContent = dl.ok ? (devices.length ? '' : '(no device connected)') : dl.error ? `(${dl.error})` : '';
+    $('outDlNote').textContent = dl.ok ? (devices.length ? '' : '(no device connected)') : dl.error ? (/Desktop Video/.test(dl.error) ? '(needs Blackmagic Desktop Video)' : '(not available)') : '';
     $('outDlDevice').innerHTML = devices.length ? devices.map(d => `<option value="${d.id}">${d.name}${d.externalKeying ? '' : ' (no fill and key)'}</option>`).join('') : '<option value="">No device connected</option>';
     const device = devices.find(d => d.id === o.decklinkDevice) || devices[0];
     $('outDlDevice').value = device ? device.id : '';
@@ -614,7 +616,17 @@
     // NDI: whether the runtime (NDI Tools) is installed, and the formats it can send.
     const nd = o.ndi || {};
     $('outNdi').disabled = !nd.ok && o.mode !== 'ndi';
-    $('outNdiNote').textContent = nd.ok ? '' : nd.error ? `(${nd.error})` : '';
+    $('outNdiNote').textContent = nd.ok ? '' : nd.error ? (/NDI Tools/.test(nd.error) ? '(needs NDI Tools)' : '(not available)') : '';
+    // What to install for an option that can't be picked yet, with where to get it.
+    const needs = [];
+    if (!dl.ok && dl.error) needs.push(/Desktop Video/.test(dl.error)
+      ? '<b>Blackmagic:</b> install Blackmagic Desktop Video (free) from <a href="https://www.blackmagicdesign.com/support/family/capture-and-playback" target="_blank" rel="noopener">blackmagicdesign.com/support</a> (under Capture and Playback), then quit and reopen Studio.'
+      : `<b>Blackmagic:</b> ${esc(dl.error)}`);
+    if (!nd.ok && nd.error) needs.push(/NDI Tools/.test(nd.error)
+      ? '<b>NDI:</b> install NDI Tools (free) from <a href="https://ndi.video/tools/" target="_blank" rel="noopener">ndi.video/tools</a>. Studio finds it as soon as it\'s installed.'
+      : `<b>NDI:</b> ${esc(nd.error)}`);
+    $('outNeeds').innerHTML = needs.join('<br>');
+    $('outNeeds').classList.toggle('hidden', !needs.length);
     $('outNdiSignal').value = o.ndiSignal;
     if ($('outNdiFormat').options.length !== o.ndiFormats.length) $('outNdiFormat').innerHTML = o.ndiFormats.map(f => `<option value="${f.id}">${f.id}</option>`).join('');
     $('outNdiFormat').value = o.ndiFormat;
