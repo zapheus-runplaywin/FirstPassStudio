@@ -259,8 +259,8 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
 - **Stream Deck links:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
-  it off when the Mac is busy. **Preview sound** (Mac app, while a display or Blackmagic output is on) plays the sound from the preview
-  instead, and mutes the outputs so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
+  it off when the Mac is busy. **Preview sound** plays the scene's sound from the preview, with or without an output on;
+  a display or Blackmagic output is muted while it does, so it never plays twice (mute the scene in OBS if it's there too). It goes back to the outputs when the Output page closes, and only one Output
   page plays it at a time (click another page's preview to bring the sound there). A line under the preview says why it's silent, if it is.
 - **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
   **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that
