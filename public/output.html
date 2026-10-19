@@ -130,9 +130,11 @@
         <label class="forDecklink" style="font-weight:400"><input type="checkbox" id="outDlStraight"> Straight (unpremultiplied). Leave this off if the switcher's key is set to premultiplied (shaped).</label>
       </div>
       <p class="note" id="outStatus"></p>
+      <p class="note hidden" id="outLocked">Turn the output off to change these settings.</p>
       <p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
         shows and black where it's see-through (grey where it's partly see-through). Sound plays from the fill or chroma display's window
-        through the Mac's audio output. To turn it off from the display itself, click it and press Esc.
+        through the Mac's audio output. Each output opens full screen in its own window: leave full screen (the green button or ⌃⌘F) to move it to another display or get at
+        other apps. To turn it off from the display itself, click it and press Esc, or close its window.
         <b>Blackmagic:</b> needs Blackmagic Desktop Video installed, and nothing else (OBS, Media Express) using the device; the scene plays
         at the video format's frame rate, its sound through the Mac's audio output. Pick the format the switcher runs at.
         Stream Deck: <code id="outDeck">/deck/output/toggle</code> (also <code>on</code> and <code>off</code>) shows or blanks the output without changing this setup.</p>
@@ -488,7 +490,7 @@
     $('outForm').classList.toggle('hidden', !o.app);
     $('outOn').classList.toggle('hidden', !o.app);
     const extra = o.displays.filter(d => !d.primary);
-    for (const r of document.querySelectorAll('input[name=outMode]')) r.checked = r.value === o.mode;
+    for (const r of document.querySelectorAll('input[name=outMode]')) { r.checked = r.value === o.mode; r.disabled = false; }
     // Fill and key needs two displays besides the Mac's own (an M1 MacBook Pro drives only one).
     $('outFillKey').disabled = extra.length < 2 && o.mode !== 'fillkey';
     const fillSel = (id, value, fallback) => {
@@ -517,8 +519,9 @@
     for (const el of document.querySelectorAll('.forChroma')) el.classList.toggle('hidden', o.mode !== 'chroma');
     for (const el of document.querySelectorAll('.forFillKey')) el.classList.toggle('hidden', o.mode !== 'fillkey');
     for (const el of document.querySelectorAll('.forDecklink')) el.classList.toggle('hidden', o.mode !== 'decklink');
-    $('outOn').textContent = o.on ? 'Output on' : 'Output off';
-    $('outOn').className = o.on ? '' : 'alt';
+    const sending = o.on && o.mode !== 'off';
+    $('outOn').textContent = sending ? 'Output on' : 'Output off';
+    $('outOn').className = sending ? '' : 'alt';
     const name = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
     const st = o.decklinkStatus || {};
     $('outStatus').textContent = o.mode === 'off' ? 'Not sending the scene anywhere.'
@@ -529,6 +532,14 @@
       : o.showing.length ? 'Showing ' + o.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
       : 'Pick the display to use.';
     $('outDeck').textContent = `${base}/deck/output/toggle`;
+    // Off has nothing to turn on; and while the output is on its setup is locked, so it's turned off before changing.
+    const live = sending;
+    $('outOn').disabled = o.mode === 'off';
+    for (const el of document.querySelectorAll('#outForm .form input, #outForm .form select, #outForm .form button')) {
+      if (live) el.disabled = true;
+      else if (el.name !== 'outMode') el.disabled = false;
+    }
+    $('outLocked').classList.toggle('hidden', !live);
   };
   const setOut = async changes => {
     try {
@@ -547,7 +558,8 @@
   // Displays come and go (plugged in, the app starting up): check again now and then.
   setInterval(() => { if (!document.hidden) loadOut(); }, 5000);
   for (const r of document.querySelectorAll('input[name=outMode]')) r.addEventListener('change', () => {
-    const changes = { mode: r.value, on: true };
+    // Picked with the output off (it has to be): it stays off until Output on, so the setup can be checked first.
+    const changes = { mode: r.value, on: false };
     // Fill in the displays shown as chosen, so picking a mode is enough.
     if (r.value === 'chroma') changes.chromaDisplay = $('outChromaDisplay').value;
     if (r.value === 'fillkey') { changes.fillDisplay = $('outFillDisplay').value; changes.keyDisplay = $('outKeyDisplay').value; }

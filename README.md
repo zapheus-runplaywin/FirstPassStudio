@@ -267,8 +267,9 @@ sources drawn as layers, top layer first, like an OBS scene. OBS still works exa
   colour. **Fill and key** needs two extra displays: fill is the scene over black, key is white wherever the scene shows and black where it's
   see-through (grey where partly see-through), for the switcher's fill and key inputs. How many extra displays a Mac can drive depends on its
   chip (a plain M1 drives one, an M1/M2/M3 Pro two, Max more), so fill and key is only offered with two connected. Sound plays through the
-  Mac's audio output. **Output on/off**, Esc on an output display, or `/deck/output/on|off|toggle` shows or blanks the displays without
-  changing the setup, and they go dark when Studio goes off air. Saved as `outputs.json` in the data folder. Run without the app
+  Mac's audio output. Each output opens full screen in its own window: leave full screen (green button or ⌃⌘F) to move it to another
+  display or get at other apps, and the scene scales to fit. **Output on/off**, Esc on an output window, closing it, or
+  `/deck/output/on|off|toggle` shows or blanks the displays without changing the setup, and they go dark when Studio goes off air. Saved as `outputs.json` in the data folder. Run without the app
   (`npm start`) there are no displays to send to.
 - **Blackmagic output (Mac app):** sends the scene out of a Blackmagic UltraStudio or DeckLink, as OBS's DeckLink output does.
   **Fill and key** uses the device's external keyer (fill on one SDI out, key on the other); **fill only** sends just the picture. Pick the

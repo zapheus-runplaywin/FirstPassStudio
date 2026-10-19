@@ -1,18 +1,22 @@
 // FirstPass Studio Mac app - the scene full screen on the Mac's own displays (outputs.js decides
 // what goes where; the Output page sets it up).
 //
-// Each output is a borderless window covering one display, showing scene.html: over black (fill),
-// as white on black where the scene isn't see-through (key), or over a chroma colour. They aren't
-// Studio windows: closing them doesn't take Studio off air, and they close when Studio does.
-// Clicking one and pressing Esc turns the output off, in case it ends up over the screen you're working on.
+// Each output is a window that opens full screen on its display, showing scene.html: over black (fill),
+// as white on black where the scene isn't see-through (key), or over a chroma colour. They're ordinary
+// windows otherwise: leave full screen (the green button or ⌃⌘F) to move one to another display or get
+// at other apps, and the scene scales to fit whatever size it is. They aren't Studio windows: closing
+// them doesn't take Studio off air, and they close when Studio does. Closing one, or clicking it and
+// pressing Esc, turns the output off, in case it ends up over the screen you're working on.
 // A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js.
 
 'use strict';
 
-const { BrowserWindow, screen } = require('electron');
+const { app, BrowserWindow, screen } = require('electron');
 
 module.exports = function outputs({ port, log }) {
   const open = new Map(); // display id -> { win, key }
+  let quitting = false; // quitting closes the windows, which mustn't turn the output off for next time
+  app.on('before-quit', () => { quitting = true; });
   let helper = null;
   const decklink = require('./decklink')({ port, log, onStatus: status => helper?.postMessage({ type: 'decklinkStatus', status }) });
 
@@ -59,21 +63,21 @@ module.exports = function outputs({ port, log }) {
       if (o && o.url === url) continue;
       if (o) { o.url = url; o.win.loadURL(url); continue; }
       const win = new BrowserWindow({
-        x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height,
-        frame: false, show: false, resizable: false, movable: false, minimizable: false, maximizable: false,
-        fullscreenable: false, skipTaskbar: true, hasShadow: false, enableLargerThanScreen: true,
+        x: d.workArea.x, y: d.workArea.y, width: d.workArea.width, height: d.workArea.height,
+        show: false, fullscreenable: true,
         backgroundColor: w.kind === 'chroma' ? w.color : '#000000',
-        title: `FirstPass Studio ${w.kind}`,
+        title: `FirstPass Studio output: ${{ fill: 'Fill', key: 'Key', chroma: 'Chroma' }[w.kind]} (${d.label || 'display'})`,
         webPreferences: { backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' },
       });
-      // Above everything on that display, the menu bar included.
-      win.setAlwaysOnTop(true, 'screen-saver');
-      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      win.on('page-title-updated', e => e.preventDefault()); // keep saying which output it is
       win.webContents.on('before-input-event', (e, input) => {
         if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); if (helper) helper.postMessage({ type: 'escape' }); }
       });
       win.webContents.setAudioMuted(!!w.muted);
-      win.once('ready-to-show', () => { win.setBounds(d.bounds); win.showInactive(); });
+      // Opens full screen on its display, without taking the focus from the window you're working in.
+      win.once('ready-to-show', () => { win.showInactive(); win.setFullScreen(true); });
+      // Closed by hand (not by Studio): the output is off, rather than reopening on the next change.
+      win.on('close', () => { if (!quitting && open.get(id)?.win === win && helper) helper.postMessage({ type: 'escape' }); });
       win.on('closed', () => { if (open.get(id)?.win === win) open.delete(id); });
       win.loadURL(url);
       open.set(id, { win, url });
@@ -87,13 +91,13 @@ module.exports = function outputs({ port, log }) {
     decklink.stop();
   }
 
-  // Displays plugged in, unplugged or changed: tell the helper, and move or drop windows.
+  // Displays plugged in, unplugged or changed: tell the helper, and drop the windows of a display that's gone.
   for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) {
     screen.on(ev, () => {
       sendDisplays();
       for (const [id, o] of open) {
         const d = screen.getAllDisplays().find(x => String(x.id) === id);
-        if (!d) { o.win.destroy(); open.delete(id); } else o.win.setBounds(d.bounds);
+        if (!d) { o.win.destroy(); open.delete(id); }
       }
     });
   }
