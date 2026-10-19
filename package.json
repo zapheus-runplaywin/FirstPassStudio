@@ -40,7 +40,8 @@
       "imports/**/*",
       "desktop/**/*",
       "vendor/ffmpeg/ffmpeg",
-      "vendor/ffmpeg/LICENSE.md"
+      "vendor/ffmpeg/LICENSE.md",
+      "plugins/studio-deck/dist/com.runplaywin.firstpass-studio.streamDeckPlugin"
     ],
     "mac": {
       "target": [

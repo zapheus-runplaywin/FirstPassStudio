@@ -97,6 +97,10 @@
         <button class="alt" id="hideAll">Hide all</button>
       </div>
       <p class="error" id="err"></p>
+      <div class="row hidden" id="deckRow" style="margin-top:10px">
+        <button class="alt" id="deckInstall">Install the Stream Deck plugin</button>
+        <span class="note" style="margin:0">Its <b>Source</b> key shows or hides a source and lights up while it's on.</span>
+      </div>
 
       <div id="addPanel" class="hidden" style="margin-top:12px;border-top:1px solid var(--fp-line);padding-top:12px">
         <div class="form" id="addBrowserForm">
@@ -155,8 +159,9 @@
         </div>
         <h2 style="margin-top:18px">Stream Deck links</h2>
         <div class="links" id="links"></div>
-        <p class="note">Use these in a Stream Deck <b>Website</b> action (tick <b>GET request in background</b>) or the Timed Sequence plugin.
-          Renaming the source changes its links.</p>
+        <p class="note">The FirstPass Studio plugin's <b>Source</b> key is the easiest way: pick this source in its settings and it lights up while
+          the source is on, and keeps working if you rename it. These links work in a Stream Deck <b>Website</b> action (tick
+          <b>GET request in background</b>) or the Timed Sequence plugin. Renaming the source changes its links.</p>
       </div>
     </section>
   </div>
@@ -326,6 +331,18 @@
     if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
   };
   $('hideAll').onclick = () => act({ type: 'hideAll' });
+  // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
+  fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});
+  $('deckInstall').onclick = async () => {
+    $('err').textContent = '';
+    try {
+      const r = await fetch('/api/scene/streamdeck', { method: 'POST' });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+      $('deckInstall').textContent = 'Opened in the Stream Deck app';
+      console.log('Opened the Stream Deck plugin to install it');
+    } catch (err) { $('err').textContent = `Could not open the Stream Deck plugin: ${err.message}`; }
+  };
 
   // ─── Adding sources ───────────────────────────────────────────────────
   // media: [{ name, kind, converting, converted }] from the helper's media folder.

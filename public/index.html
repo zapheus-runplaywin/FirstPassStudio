@@ -124,7 +124,11 @@
         <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output (OBS's, with the scene in OBS). <b>Restart video</b> starts it again.</li>
       <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency),
         and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>
-      <li><b>Stream Deck:</b> <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
+      <li><b>Stream Deck plugin:</b> the Mac app includes a FirstPass Studio plugin for the Stream Deck app. Install it from the menu bar icon
+        (<b>Install the Stream Deck plugin</b>) or the Output page's button. Its <b>Source</b> key shows or hides the source you pick in its settings
+        (or fades it in, fades it out, restarts it, or turns a video's sound on or off) and lights up orange while the source is on, whether it was
+        turned on from the key, the Output page or a link. It shows the source's name, keeps working when you rename it, and says <b>off air</b> while Studio isn't running.</li>
+      <li><b>Stream Deck links:</b> <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
         <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
       <li><b>Preview:</b> the Output page shows the scene live; it runs the scene's pages a second time, so turn it off when the Mac is busy.</li>
@@ -279,6 +283,7 @@
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
       <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to the helper, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
+      <li>Stream Deck plugin's Source keys: nothing. The plugin keeps one connection open to the helper while any of its keys is on screen, and the helper only sends when the scene changes.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>

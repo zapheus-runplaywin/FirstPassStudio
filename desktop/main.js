@@ -19,6 +19,8 @@ const path = require('path');
 const { linkHost } = require('../linkhost');
 
 const APP_DIR = path.join(__dirname, '..');
+// Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
+const STREAMDECK_PLUGIN = path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
 // Electron names this folder after productName: ~/Library/Application Support/FirstPass Studio,
 // the same folder the helper uses when run from the repository.
 const DATA_DIR = app.getPath('userData');
@@ -199,6 +201,8 @@ function refreshMenu() {
     { label: 'Competition setup', click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
     { label: 'Open pages in the browser', type: 'checkbox', checked: !!appSettings().openInBrowser, click: item => { saveAppSetting('openInBrowser', item.checked); refreshMenu(); } },
+    // Opening the file hands it to the Stream Deck app, which installs or updates the plugin.
+    { label: 'Install the Stream Deck plugin', enabled: fs.existsSync(STREAMDECK_PLUGIN), click: () => shell.openPath(STREAMDECK_PLUGIN) },
     { type: 'separator' },
     { label: 'Open the settings folder', click: () => shell.openPath(DATA_DIR) },
     { label: 'Open the debug log', click: () => shell.openPath(path.join(DATA_DIR, 'logs', 'playhq-graphics.log')) },
