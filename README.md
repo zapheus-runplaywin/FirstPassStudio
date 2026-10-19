@@ -138,7 +138,7 @@ a new tab on Studio opens another app window (overlays on a dark background, sin
 anywhere else open in the browser. The app menu has File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 home,
 ⌘2 control, ⌘3 setup, ⌘4 athletes, ⌘5 API docs, ⌘6 output) and Window. Closing the last window takes Studio off air (see
-above), and ⌘Q while on air asks first (Quit or Cancel). While Studio is starting, or if it couldn't start, the window
+above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
 **Open pages in the browser** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
 the browser as before. OBS keeps using the links as browser sources.

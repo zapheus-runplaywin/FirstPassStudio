@@ -42,17 +42,22 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
 
   let main = null; // the window "Open Studio" reuses
   let quitting = false; // quitting closes every window without asking again
-  app.on('before-quit', () => { quitting = true; });
+  app.on('before-quit', () => {
+    quitting = true;
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.confirmedClose = true;
+  });
 
   // Closing the last window takes Studio off air (unless pages open in the browser), so on air
   // it asks first: mid-stream that would stop the OBS graphics and the Stream Deck.
   const closingGoesOffAir = () => isOnAir() && !appSettings().openInBrowser;
-  function confirmOffAir(parent) {
-    return dialog.showMessageBoxSync(parent || undefined, {
+  // Asks without blocking (a blocking dialog inside a window's close can lock the app up).
+  async function confirmOffAir(parent) {
+    const { response } = await dialog.showMessageBox(parent || undefined, {
       type: 'warning', buttons: ['Take Off Air', 'Cancel'], defaultId: 1, cancelId: 1,
       message: 'Take Studio off air?',
       detail: 'Studio only runs while a Studio window is open. Closing the last one stops the OBS graphics and Stream Deck buttons until Studio is opened again.',
-    }) === 0;
+    });
+    return response === 0 && !quitting;
   }
 
   // ─── Splash ─────────────────────────────────────────────────────────────
@@ -100,7 +105,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // A menu bar app (LSUIElement) until a window opens: then it is in the Dock and the app
   // switcher like any app, and back to just the menu bar icon when the last one closes.
   function refreshDock() {
-    if (process.platform !== 'darwin') return;
+    // Never while quitting: changing the Dock as the windows close can stop the app quitting.
+    if (process.platform !== 'darwin' || quitting) return;
     if (pageWindows().length) app.dock.show().catch(() => {});
     else app.dock.hide();
   }
@@ -163,8 +169,13 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     }
     win.on('close', e => {
       if (quitting || win.confirmedClose || pageWindows().some(w => w !== win) || !closingGoesOffAir()) return;
-      if (confirmOffAir(win)) win.confirmedClose = true;
-      else e.preventDefault();
+      e.preventDefault();
+      if (win.asking) return;
+      win.asking = true;
+      confirmOffAir(win).then(yes => {
+        win.asking = false;
+        if (yes && !win.isDestroyed()) { win.confirmedClose = true; win.close(); }
+      });
     });
     win.on('closed', () => setImmediate(() => { refreshDock(); if (!pageWindows().length && !quitting) onAllClosed(); }));
     win.loadURL(url);
@@ -206,8 +217,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   function closeAll({ confirmed = false } = {}) {
     const all = pageWindows();
     if (!all.length) return;
-    if (!confirmed && closingGoesOffAir() && !confirmOffAir(current())) return;
-    for (const w of all) { w.confirmedClose = true; w.close(); }
+    const closeThem = () => { for (const w of all) if (!w.isDestroyed()) { w.confirmedClose = true; w.close(); } };
+    if (confirmed || !closingGoesOffAir()) return closeThem();
+    confirmOffAir(current()).then(yes => { if (yes) closeThem(); });
   }
 
   // Quitting takes Studio off air, so ⌘Q mid-stream asks first.
