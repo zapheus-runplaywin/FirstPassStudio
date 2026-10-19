@@ -56,6 +56,15 @@
       setTimeout(() => { if (L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
     }
   };
+  // Called by the Output page during a click: Safari lets a video play sound later only if it was played
+  // during a click, so start and stop the hidden ones too (muted as they are, so nothing is heard).
+  window.unlockSound = () => {
+    for (const L of layers.values()) {
+      const v = L.el.querySelector('video');
+      if (v && L.src && !L.src.visible && v.paused) { v.play().then(() => v.pause()).catch(() => {}); }
+    }
+    window.setSilent(false);
+  };
   // For the Output page: how many shown videos play sound here, and whether the browser blocks it.
   window.soundState = () => {
     let videos = 0;

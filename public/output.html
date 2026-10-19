@@ -453,7 +453,7 @@
       : !out.showing.length ? 'Silent: it plays only while a display or Blackmagic output is on.'
       : !$('previewOn').checked ? 'Silent: turn Live preview on.'
       : !previewSound ? 'Silent: another Output page is playing the sound. Click the preview to bring it here.'
-      : st && st.blocked ? 'Blocked by this browser: click the preview to hear it.'
+      : st && st.blocked ? 'Blocked by this browser until you click: click the preview to hear it. (The Studio app\'s own window doesn\'t need this.)'
       : st && !st.videos ? 'Sound plays here once a video with Sound ticked is on. The outputs are muted.'
       : 'Sound plays here, through this Mac\'s sound output. The outputs are muted.';
     $('previewSoundNote').textContent = note;
@@ -461,7 +461,13 @@
   }
   // Clicking the preview brings the sound here from another Output page, and is what a browser needs
   // before it plays sound.
-  $('preview').addEventListener('click', () => { if (out && out.previewSound) listen(true); });
+  // Safari only lets a video play sound if it's unmuted during the click itself, so unmute straight away
+  // (that unlocks it for later), then take the sound properly.
+  $('preview').addEventListener('click', () => {
+    if (!out || !out.previewSound || !out.showing.length) return;
+    try { $('previewFrame').contentWindow.unlockSound?.(); } catch {}
+    listen(true);
+  });
   $('previewFrame').addEventListener('load', applySound);
   async function listen(take = false) {
     const on = !!(out && out.previewSound && out.showing.length && $('previewOn').checked);
@@ -558,7 +564,11 @@
   $('outDlStraight').onchange = () => setOut({ decklinkStraight: $('outDlStraight').checked });
   for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
   $('outOn').onclick = () => setOut({ on: !(out && out.on) });
-  $('previewSound').onchange = () => setOut({ previewSound: $('previewSound').checked }).then(() => listen(true));
+  $('previewSound').onchange = () => {
+    // Unmute during the click too, for Safari (see the preview's click above).
+    if ($('previewSound').checked && out && out.showing.length) { try { $('previewFrame').contentWindow.unlockSound?.(); } catch {} }
+    setOut({ previewSound: $('previewSound').checked }).then(() => listen(true));
+  };
 
   // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
   fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});
