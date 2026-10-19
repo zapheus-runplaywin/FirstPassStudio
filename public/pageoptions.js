@@ -4,6 +4,7 @@
 //
 // Each option: { key, label, type: 'select' | 'text' | 'number', ... }. A select's first choice is the
 // page's default, with value '' (left out of the link). text and number boxes left empty are left out too.
+// picks: [[value, button text], ...] adds quick pick buttons under a text box.
 
 /* exported PAGE_OPTIONS */
 const PAGE_OPTIONS = (() => {
@@ -31,8 +32,9 @@ const PAGE_OPTIONS = (() => {
       { key: 'refresh', label: 'Update scores every', type: 'number', min: 0, max: 3600, unit: 's', placeholder: '30', help: '0 loads them once.' },
     ],
     'title.html': [
-      show('fire', 'Emoji'),
-      { key: 'emoji', label: 'Different emoji', type: 'text', placeholder: 'the one in the setup' },
+      { key: 'emoji', label: 'Emoji either side', type: 'text', placeholder: 'None',
+        picks: [...['🔥', '⚡', '🌩️', '🏆', '⭐', '👑', '💥', '🏐', '💜'].map(e => [e, e]), ['', 'None']],
+        help: 'Type or paste any emoji, pick one here, or open your computer\'s emoji picker in the box (Mac: Control + Command + Space, Windows: Windows key + full stop). Leave it empty for none.' },
       { key: 'logo', label: 'Competition logo', type: 'select', choices: [['', 'Off'], ['show', 'Above the banner']] },
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Top'], ['bottom', 'Bottom']] },
       mode(),
@@ -54,7 +56,7 @@ const PAGE_OPTIONS = (() => {
     'matchup.html': [show('form', 'Form'), show('h2h', 'Head to head')],
     'clash.html': [
       out(),
-      { key: 'word', label: 'Big word', type: 'text', placeholder: 'the one in the setup' },
+      { key: 'word', label: 'Big word', type: 'text', placeholder: 'CLASH' },
       { key: 'title', label: 'Bottom line', type: 'text', placeholder: 'default' },
     ],
     'positions.html': [

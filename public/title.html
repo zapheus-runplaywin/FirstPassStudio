@@ -41,9 +41,9 @@
   <!-- A 1920 x 1080 page for the Output page:
        http://localhost:8080/title.html
        Round comes from the game picked on the scoreboard control page; the venue from
-       the competition setup page (or PlayHQ's venue if that is blank), and so do the emoji either side
-       of the title and the competition logo, shown above the banner only with ?logo=show.
-       Options: ?position=bottom, ?fire=0 to drop the emoji, ?emoji=⚡ for a different one,
+       the competition setup page (or PlayHQ's venue if that is blank), and so does the competition
+       logo, shown above the banner only with ?logo=show.
+       Options: ?position=bottom, ?emoji=🔥 for an emoji either side of the title (none without it),
        ?logo=show to put the competition logo above the banner (off by default; ?logo=hide also leaves it off),
        ?mode=dark to use the setup's dark mode competition logo instead of the light mode one. -->
   <div class="title" id="title" hidden>
@@ -74,11 +74,10 @@
         const s = await (await fetch('/api/scoreboard', { cache: 'no-store' })).json();
         const rules = s.rules || {};
         const compLogo = (params.get('mode') === 'dark' ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;
-        const view = JSON.stringify([s.round, s.competition, s.venueName, compLogo, rules.titleEmoji]);
+        const view = JSON.stringify([s.round, s.competition, s.venueName, compLogo]);
         if (view === last) return;
         last = view;
-        emoji = params.get('fire') === '0' ? '' : params.has('emoji') ? params.get('emoji')
-          : rules.titleEmoji || (params.get('fire') === '1' ? '🔥' : '');
+        emoji = (params.get('emoji') || '').trim();
         const logo = document.getElementById('logo');
         // Off unless asked for: branding.html usually shows the competition logo beside the title.
         const showLogo = ['show', '1', 'on', 'true'].includes((params.get('logo') || '').toLowerCase());

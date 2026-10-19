@@ -92,7 +92,7 @@
         its teams' names and The Clash behind their logo and name, with dark or white text, whichever reads better. Clubs without one (or after
         <b>×</b>) use the competition's colours. The match up page always uses the competition's colours. Pick the colour with the colour
         picker or paste it as HEX or RGB.</li>
-      <li><b>Graphics:</b> the emoji either side of the title banner (pick any emoji, or leave it empty for none) and The Clash's big word. Also the PlayHQ Client ID, which most competitions don't need.</li>
+      <li><b>More:</b> the PlayHQ Client ID most competitions don't need, and exporting, saving or deleting the competition. (The emoji either side of the title banner and The Clash's big word are options on those graphics on the Output page.)</li>
     </ul>
     <p class="page__help"><b>Use this one</b> switches every graphic, the control page and the Stream Deck to that competition: the round goes back
       to automatic and the scoreboard starts on that competition's first game. Saving the competition in use reloads the graphics
@@ -362,8 +362,7 @@ function pageRow(name, path, help) {
 showLink('/scoreboard.html', document.getElementById('sbUrl'), document.getElementById('sbCopy'));
 showLink('/scene.html', document.getElementById('sceneUrl'), document.getElementById('sceneCopy'));
 [['Title banner', '/title.html',
-  'The emoji either side of the title is picked in the competition setup (any emoji, or none). ' +
-  'Options: <code>?fire=0</code> leaves it off on this page and <code>?emoji=%E2%9A%A1</code> uses a different one. ' +
+  'Options: <code>?emoji=%F0%9F%94%A5</code> puts an emoji either side of the title (any emoji; none without it). On the Output page, pick or type it in the source\'s options. ' +
   'The competition logo is off by default (the logos page shows it beside the title): <code>?logo=show</code> puts it above the banner, <code>?logo=hide</code> leaves it off.'], ['Logos beside the title (PIVT, FirstPass Studio, competition)', '/branding.html',
   'Just the logos, placed either side of the title banner, so the other pages can be turned on and off around them. The competition logo comes from the competition setup. ' +
   'Options: <code>?pivt=0</code>, <code>?studio=0</code> or <code>?comp=0</code> leave a logo off, <code>?gap=320</code> moves both sides in or out from the centre, ' +

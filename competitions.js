@@ -58,8 +58,6 @@ const DEFAULTS = {
   font: 'Montserrat',
   competitionLogo: '',                 // a file in brand/: the light mode logo (for a light background)
   competitionLogoDark: '',             // a file in brand/: the dark mode logo (for a dark background); either one alone is used for both
-  titleEmoji: '🔥',                    // the emoji either side of the title banner, blank for none
-  clashWord: 'CLASH',                  // the big word on The Clash
   clubs: {},                           // { "Club": { logo: "file.png", colour: "#rrggbb" } }, shared by every team of the club in every division
   teamClubs: {},                       // { "PlayHQ team name": "Club" }, only for a team whose club isn't found from its name
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
@@ -77,12 +75,6 @@ const validId = id => /^[a-z0-9-]{1,40}$/.test(String(id || ''));
 const dirOf = id => { if (!validId(id)) throw new Error(`No competition "${id}"`); return path.join(DIR, id); };
 const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } };
 const writeJson = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
-
-// Setups saved before the emoji could be picked had a flames on/off tick box.
-function fromFlames(s) {
-  if (!s || s.titleEmoji !== undefined || typeof s.titleFlames !== 'boolean') return s;
-  return { ...s, titleEmoji: s.titleFlames ? '🔥' : '' };
-}
 
 // Setups saved before finals formats had only a number of finals places for the ladder marker.
 function fromPlaces(s) {
@@ -154,7 +146,7 @@ function fromTeamSettings(s) {
 
 // Keep only known settings, with the right types, so a bad save can't break the helper.
 function clean(input, base = DEFAULTS) {
-  input = fromPlaces(fromTeamSettings(fromFlames(input))); base = fromPlaces(fromTeamSettings(fromFlames(base)));
+  input = fromPlaces(fromTeamSettings(input)); base = fromPlaces(fromTeamSettings(base));
   const out = {};
   for (const [k, def] of Object.entries(DEFAULTS)) {
     let v = input && input[k] !== undefined ? input[k] : base[k] !== undefined ? base[k] : def;
@@ -190,8 +182,6 @@ function clean(input, base = DEFAULTS) {
   if (!FONTS.includes(out.font)) out.font = DEFAULTS.font;
   out.competitionLogo = out.competitionLogo ? path.basename(out.competitionLogo) : '';
   out.competitionLogoDark = out.competitionLogoDark ? path.basename(out.competitionLogoDark) : '';
-  out.clashWord = out.clashWord.slice(0, 20) || 'CLASH';
-  out.titleEmoji = [...new Intl.Segmenter().segment(out.titleEmoji)].slice(0, 4).map(x => x.segment).join('').trim();
   out.name = out.name.slice(0, 80) || out.competitionName || DEFAULTS.name;
   return out;
 }
