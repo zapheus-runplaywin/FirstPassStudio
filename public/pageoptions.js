@@ -112,6 +112,8 @@ const PAGE_OPTIONS = (() => {
         help: 'Narrows the names suggested below to one team, and shows that team for an athlete who plays for more than one.' },
       { key: 'name', label: 'Name', type: 'text', placeholder: 'type or pick a name', list: 'athletes', gameOnly: true,
         help: 'An athlete\'s name as PlayHQ has it (suggestions are this competition\'s athletes from the Athletes page); for a guest, any name.' },
+      { key: 'display', label: 'Name on screen', type: 'text', placeholder: 'the name above',
+        help: 'A shorter name to show, like Chris Montgomery. Long names are squeezed narrower to fit, keeping the same size; use this when one is squeezed too far.' },
       { key: 'title', label: 'Smaller line', type: 'text', placeholder: 'the athlete\'s team, or nothing for a guest',
         picks: [['Commentator', 'Commentator'], ['Special guest', 'Special guest'], ['Coach', 'Coach'], ['Captain', 'Captain'], ['Umpire', 'Umpire']],
         help: 'A guest\'s title. For an athlete it goes after their team name, like Captain.' },

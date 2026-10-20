@@ -13,20 +13,20 @@
      sits 8px above the scoreboard's PlayHQ Live tab (top 930px), like the ladder lower third. ?position=right
      mirrors it (badge on the right, words right-aligned) with its right edge on the scoreboard's, for a second
      person on screen at the same time. */
-  :root { --left: 293px; --right: 292px; --bottom: 158px; --height: 120px; --max: 1335px; }
+  :root { --left: 293px; --right: 292px; --bottom: 158px; --height: 120px; --width: 900px; }
+  /* One fixed width, so every person's bar is the same size whatever their name (a photo adds its own width). */
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
   [hidden] { display: none !important; }
   body.bottom, body.bottom-center, body.bottom-right { --bottom: 80px; }
 
-  .l3 { position: absolute; left: var(--left); bottom: var(--bottom); max-width: var(--max); display: flex; flex-direction: column; align-items: flex-start; }
+  .l3 { position: absolute; left: var(--left); bottom: var(--bottom); display: flex; flex-direction: column; align-items: flex-start; }
   body.center .l3, body.bottom-center .l3 { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); align-items: center; }
 
   body.right .l3, body.bottom-right .l3 { left: auto; right: var(--right); align-items: flex-end; }
   /* Two people on screen: the right one and a left-half one share the scoreboard's width with a 15px gap. */
-  body.right, body.bottom-right, body.left-half, body.bottom-left-half { --max: 660px; }
+  body.right, body.bottom-right, body.left-half, body.bottom-left-half { --width: 660px; }
   body.bottom-left-half { --bottom: 80px; }
-  body.right .l3__bar, body.bottom-right .l3__bar, body.left-half .l3__bar, body.bottom-left-half .l3__bar { min-width: 560px; }
   .l3__tag {
     background: var(--pink); color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
     padding: 6px 18px; border-radius: 6px 6px 0 0; margin-left: 150px; white-space: nowrap;
@@ -37,7 +37,7 @@
   body.right .l3__bar, body.bottom-right .l3__bar { flex-direction: row-reverse; }
   body.right .l3__text, body.bottom-right .l3__text { padding: 0 30px 0 40px; text-align: right; }
   .l3__bar {
-    display: flex; height: var(--height); max-width: var(--max); min-width: 640px; box-sizing: border-box;
+    display: flex; height: var(--height); width: var(--width); box-sizing: border-box;
     background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
     border-bottom: 5px solid var(--pink);
   }
@@ -49,9 +49,19 @@
   .l3__logo.logo-fallback { box-sizing: border-box; font-size: 28px; }
   .l3__photo { width: var(--height); flex: none; object-fit: cover; object-position: center 20%; background: var(--purple-dark); }
   .l3__text { padding: 0 40px 0 30px; display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1; }
-  .l3__name { font-size: 50px; line-height: 58px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .l3__line { font-size: 24px; line-height: 30px; font-weight: 700; color: var(--yellow); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Names keep one font size: a name too long for the bar is squeezed narrower (fitText below), like TV
+     sports graphics, and only made smaller once it's squeezed as far as it reads well. */
+  .l3__name { font-size: 50px; line-height: 58px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; }
+  .l3__name span, .l3__line span { display: inline-block; transform-origin: left center; }
+  .l3__name span, .l3__line span { flex: none; }
+  /* Right-aligned with flex, so a squeezed name shrinks towards the right edge instead of running off it. */
+  body.right .l3__name, body.right .l3__line, body.bottom-right .l3__name, body.bottom-right .l3__line { display: flex; justify-content: flex-end; }
+  body.right .l3__name span, body.right .l3__line span, body.bottom-right .l3__name span, body.bottom-right .l3__line span { transform-origin: right center; }
+  /* The half-width bars use a slightly smaller name for everyone, so two people side by side match. */
+  body.right .l3__name, body.bottom-right .l3__name, body.left-half .l3__name, body.bottom-left-half .l3__name { font-size: 44px; }
+  .l3__line { font-size: 24px; line-height: 30px; font-weight: 700; color: var(--yellow); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
   .l3__line:empty { display: none; }
+  .l3__bar.has-photo { width: calc(var(--width) + var(--height)); }
 
   /* In: the badge pops, the bar opens out from it, then the words come up. Out (?out=) runs it backwards. */
   .go .l3__badge, .go .l3__photo { animation: pop .45s cubic-bezier(.3,1.5,.5,1) both; }
@@ -82,6 +92,7 @@
        An athlete is found by name in the competition's athletes (the Athletes page), for their team and its club logo
        from the competition setup. Loads once, each time it comes on.
        Options: &team=Knights   the team, for an athlete who plays for more than one (else one in the picked game, else the first)
+                &display=Chris%20Montgomery  the name to show, when it's too long (an athlete is still found by name=)
                 &title=Captain  the smaller line (an athlete's goes after their team name)
                 &tag=Player%20of%20the%20match  a small tab above the bar
                 &photo=1        the athlete's photo (or silhouette) beside the logo
@@ -93,7 +104,7 @@
   <div id="stage">
     <div class="l3" id="l3" hidden>
       <div class="l3__tag" id="tag"></div>
-      <div class="l3__bar">
+      <div class="l3__bar" id="bar">
         <div class="l3__badge" id="badge"></div>
         <img class="l3__photo" id="photo" alt="" hidden>
         <div class="l3__text" id="text">
@@ -114,32 +125,40 @@
     const position = params.get('position');
     if (['center', 'bottom', 'bottom-center', 'right', 'bottom-right', 'left-half', 'bottom-left-half'].includes(position)) document.body.classList.add(position);
 
-    // Long names get smaller until they fit the bar (never below 30px); whole pixel sizes only.
-    function fitName() {
-      const n = $('name'), room = $('text');
-      let size = 50;
-      while (size > 30 && n.scrollWidth > room.clientWidth - 70) { size -= 2; n.style.fontSize = size + 'px'; }
+    // Puts the words in el, squeezed narrower to fit its width (down to `squeeze`, 0.7 is 70% of their width).
+    // Only words still too wide squeezed that far get a smaller font, never below `smallest` px.
+    function fitText(el, text, squeeze, smallest) {
+      const span = el.appendChild(document.createElement('span'));
+      span.textContent = text;
+      const room = el.clientWidth;
+      let size = parseInt(getComputedStyle(el).fontSize, 10);
+      while (span.offsetWidth * squeeze > room && size > smallest) { size -= 2; el.style.fontSize = size + 'px'; }
+      const fit = Math.min(1, room / span.offsetWidth);
+      if (fit < 1) span.style.scale = `${Math.floor(fit * 1000) / 1000} 1`;
+      if (fit < 1 || size < smallest + 1) window.pageLog && window.pageLog('info', `Lower third: "${text}" squeezed to ${Math.round(fit * 100)}% width at ${size}px to fit`);
     }
 
     function show(d) {
       const comp = params.get('mode') === 'light' ? d.competitionLogoLight || d.competitionLogoDark : d.competitionLogoDark || d.competitionLogoLight;
       const a = type === 'athlete' ? d.athlete : null;
-      $('name').textContent = a ? a.name : name;
+      let lineText = '';
+      const shown = (params.get('display') || '').trim() || (a ? a.name : name);
       if (a) {
-        $('line').textContent = [a.team, title].filter(Boolean).join('  ·  ');
+        lineText = [a.team, title].filter(Boolean).join('  ·  ');
         $('badge').append(a.team ? logoEl({ name: a.team, logo: a.logo }, 'l3__logo') : logoEl({ name: d.competition, logo: comp }, 'l3__logo'));
         if (!a.known) console.warn(`Lower third: ${a.name} isn't in the competition's athletes yet, so their team isn't known (add &team=)`);
-        if (params.get('photo') === '1') { $('photo').src = a.photo || a.silhouette; $('photo').hidden = false; }
+        if (params.get('photo') === '1') { $('photo').src = a.photo || a.silhouette; $('photo').hidden = false; $('bar').classList.add('has-photo'); }
       } else {
-        $('line').textContent = title;
+        lineText = title;
         $('badge').append(logoEl({ name: d.competition, logo: comp }, 'l3__logo'));
       }
       $('tag').textContent = params.get('tag') || '';
       $('l3').hidden = false;
       document.fonts.ready.then(() => {
-        fitName();
+        fitText($('name'), shown, 0.7, 36);
+        if (lineText) fitText($('line'), lineText, 0.8, 20);
         $('stage').classList.add('go');
-        window.pageLog && window.pageLog('info', `Lower third: ${type} ${$('name').textContent}${$('line').textContent ? ' / ' + $('line').textContent : ''}`);
+        window.pageLog && window.pageLog('info', `Lower third: ${type} ${shown}${lineText ? ' / ' + lineText : ''}`);
       });
       const out = Number(params.get('out'));
       if (out > 0) setTimeout(() => { $('stage').classList.replace('go', 'away'); }, out * 1000);
