@@ -252,6 +252,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
     <div class="card"><h3>Before the start</h3><p><b>N minutes before the scheduled start</b> of the picked game. Uses the same start time as the countdown and auto-select, so it follows whichever game is picked.</p></div>
     <div class="card"><h3>At a break or full time</h3><p><b>Quarter time, half time, three quarter time</b> (tick which), or <b>full time</b>, each with a short delay. Comes from the clock Studio already follows: the PlayHQ scorer's clock when following, or your manual clock.</p></div>
   </div>
+  <p>Between a trigger and the start there is a short wait, such as 5 s after the siren. During that wait the card shows <b>Starts in 0:05</b> with <b>Delay +10 s</b>, <b>Start now</b> and <b>Cancel</b>. A shot after the siren is the common case: press Delay on the Stream Deck once or twice, and the Full time sequence starts once the ball is dead and the score is final. Winner reads the score when it starts, so it shows the right team.</p>
   <p>Automatic starts sit behind one switch on the Output page, <b>Automatic sequences on</b>. With it off, nothing starts by itself and every sequence still plays by hand. Each sequence picks how it ends:</p>
   <ul class="tight">
     <li><b>Play once</b>, <b>Repeat until stopped</b>, or <b>Repeat until</b> a game moment (2 minutes before the start, play resumes).</li>
@@ -293,10 +294,10 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
             <div class="now-line"><span>3 of 5 · <b>Break ad</b></span><span class="mono">0:04 left</span></div>
             <div class="row"><span class="btn alt sm">Next ⏭</span><span class="btn alt sm">Pause</span><span class="btn stop sm">Stop</span></div>
           </div>
-          <div class="seq">
+          <div class="seq" style="border-color:var(--ui-blue)">
             <div class="t"><b>Full time</b><span class="auto">Full time</span></div>
-            <small>6 steps · then Between games</small>
-            <div class="row"><span class="btn sm">▶ Play</span><span class="btn alt sm">Edit</span></div>
+            <div class="now-line"><span>Siren went · <b>starts in</b></span><span class="mono">0:13 (+10 s)</span></div>
+            <div class="row"><span class="btn sm">Delay +10 s</span><span class="btn alt sm">Start now</span><span class="btn stop sm">Cancel</span></div>
           </div>
           <div class="seq">
             <div class="t"><b>Sponsor read</b><span class="auto offx">By hand</span></div>
@@ -416,6 +417,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
       <tr><td>Press <b>Next</b></td><td>Ends the step now and fades to the next one.</td></tr>
       <tr><td>Press <b>Pause</b></td><td>Freezes the step timer and keeps the step on screen. A video keeps playing to its end.</td></tr>
       <tr><td>Press <b>Stop</b></td><td>Ends the sequence and does its "Then" (for example, goes to Game).</td></tr>
+      <tr><td>Press <b>Delay</b> (Stream Deck or the card)</td><td>Adds 10 s each press. Before a triggered sequence starts, it pushes the start back, for a shot after the siren. While a sequence plays, it holds the step on now 10 s longer. The card and the Stream Deck key count down so you can see the new time.</td></tr>
       <tr><td>Go to a scene, or start another sequence</td><td>Stops this sequence first. One sequence plays at a time.</td></tr>
       <tr><td>Play resumes early, or the next trigger arrives</td><td>A "repeat until" sequence finishes the step on now, then ends. A Stop from the game is never a hard cut.</td></tr>
     </tbody>
@@ -430,6 +432,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
 /deck/sequence/quarter-break/toggle    play, or stop if it is playing
 /deck/sequence/next                    next step of whatever is playing
 /deck/sequence/pause                   pause or carry on
+/deck/sequence/delay                   10 s more before the next start or step
 /deck/sequence/stop                    stop whatever is playing
 /deck/sequence/auto/on|off|toggle      the Automatic sequences switch
 /deck/set/pre-game/play|toggle         start or stop a set
