@@ -13,7 +13,13 @@
        heating up    3 goals in a row by one team: "<team> is HEATING UP", embers rising, the words warming from the team's colour to fire
        on fire       5 goals in a row: "<team> is ON FIRE", the words slam in and burn, flames roar up behind them
        goal for goal 10 goals going one each way: "GOAL FOR GOAL INTENSITY", both crests, the words crackle, a dot per goal
-     ?play=heating|fire|goalforgoal plays one once when the page loads instead (manual), with ?team=home|away.
+     and game moments:
+       lead          "<team> HITS THE FRONT", gold chevrons rising, the score
+       level         "ALL SQUARE" late in a quarter, both crests sliding in either side, the score on a levelling beam
+       comeback      "<team> is COMING BACK", chevrons sweeping forward, "from 6 down"
+       siren         "<team> ON THE SIREN!", a spinning red beacon and a flash, the quarter and time left
+       backToBack    "<team> BACK TO BACK SUPER SHOTS", two netballs dropping in
+     ?play=heating|fire|goalforgoal|lead|level|comeback|siren|backtoback plays one once when the page loads instead (manual), with ?team=home|away.
      Laid out at full size and shrunk under the title like the super shot (fit.js). The CSS animations run from one start
      on the page's clock; the embers, flames and sparks are a canvas moved by elapsed time, so 50p and 60p look the same. */
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 900; src: url("vendor/montserrat/montserrat-latin-900-italic.woff2") format("woff2"); }
@@ -27,7 +33,7 @@
   .shaker { position: absolute; inset: 0; }
   canvas { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
   .kind { display: none; position: absolute; inset: 0; }
-  .k-heating .heating, .k-fire .fire, .k-gfg .gfg { display: block; }
+  .k-heating .heating, .k-fire .fire, .k-gfg .gfg, .k-moment .moment { display: block; }
   .hot-glow { position: absolute; left: 360px; top: 300px; width: 1200px; height: 500px; border-radius: 50%; opacity: 0; }
   @keyframes fadeIn { to { opacity: 1; } }
   @keyframes pulse { 0% { opacity: .7; transform: scale(.96); } 100% { opacity: 1; transform: scale(1.05); } }
@@ -46,6 +52,7 @@
     clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); }
   .plate h2 { margin: 0; color: var(--side-text); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 76px; line-height: 1.1; letter-spacing: 1px; }
   .plate h2 i { font-weight: 800; font-size: .62em; text-transform: none; opacity: .9; margin-left: .3em; }
+  .plate h2 i:empty { display: none; }
 
   /* The big words, one span per letter so they can come in one after another */
   .big { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; font-style: italic; white-space: nowrap; line-height: 1; }
@@ -138,6 +145,60 @@
     box-shadow: 0 0 20px rgba(var(--c), .9); }
   .go .gfg .dot { animation: popDot .28s cubic-bezier(.3,1.7,.5,1) var(--d) forwards; }
   @keyframes popDot { 0% { opacity: 0; transform: translateY(-40px) scale(.3); } 100% { opacity: 1; transform: none; } }
+
+  /* ── Game moments ── one layout: the team plate (or both crests), big words slamming in letter by letter, a line under them.
+     Each moment adds its own touch and colours: m-lead, m-level, m-comeback, m-siren, m-b2b. */
+  .moment .hot-glow { background: radial-gradient(ellipse, rgba(var(--yellow-rgb), .45), rgba(var(--team-rgb), .35) 40%, rgba(var(--team-rgb), 0) 70%); }
+  .go .moment .hot-glow { animation: fadeIn .35s ease-out .25s forwards, pulse .5s ease-in-out .7s infinite alternate; }
+  .moment .big { top: 480px; font-size: 180px; letter-spacing: 4px; }
+  .moment .l { filter: drop-shadow(8px 8px 0 rgba(0, 0, 0, .5)); }
+  .moment .f { background: linear-gradient(180deg, #ffffff 0 42%, var(--yellow) 100%); -webkit-background-clip: text; background-clip: text; }
+  .go .moment .l { animation: punch .4s cubic-bezier(.3,1.5,.5,1) var(--d) forwards; }
+  @keyframes punch { 0% { opacity: 0; transform: scale(1.9); filter: blur(12px); } 100% { opacity: 1; transform: none; } }
+  .mrow { position: absolute; left: 0; right: 0; top: 700px; display: flex; justify-content: center; align-items: center; gap: 22px; opacity: 0;
+    color: #fff; font-weight: 900; font-style: italic; font-size: 58px; text-transform: uppercase; letter-spacing: 2px; white-space: nowrap; }
+  .mrow > * { filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, .55)); }
+  .go .mrow { animation: rise .4s cubic-bezier(.2,1.4,.5,1) 1s forwards; }
+  .mrow .score { padding: 4px 34px; background: rgb(var(--team-rgb)); color: var(--side-text); clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); }
+  .mrow .score b { color: var(--yellow); }
+  .mcrest { position: absolute; top: 470px; width: 170px; height: 170px; opacity: 0; }
+  .mcrest--h { left: 140px; } .mcrest--a { right: 140px; }
+  .m-level .mcrest { display: block; } .mcrest { display: none; }
+  .go.m-level .mcrest--h { animation: inL .45s cubic-bezier(.25,1.4,.5,1) .15s forwards; }
+  .go.m-level .mcrest--a { animation: inR .45s cubic-bezier(.25,1.4,.5,1) .15s forwards; }
+  /* Chevrons: rising for the lead, sweeping forward for a comeback */
+  .chevrons { display: none; position: absolute; left: 0; right: 0; top: 260px; height: 560px; overflow: hidden; }
+  .m-lead .chevrons, .m-comeback .chevrons { display: block; }
+  .chev { position: absolute; width: 220px; height: 120px; left: var(--x); top: 560px; opacity: 0; background: rgba(var(--yellow-rgb), .55);
+    clip-path: polygon(50% 0, 100% 70%, 100% 100%, 50% 30%, 0 100%, 0 70%); }
+  .m-comeback .chev { background: rgba(var(--team-rgb), .7); top: var(--y); left: -240px; transform: rotate(90deg); }
+  .go.m-lead .chev { animation: chevUp .9s cubic-bezier(.3,.6,.4,1) var(--d) 2 forwards; }
+  .go.m-comeback .chev { animation: chevOn .8s cubic-bezier(.3,.6,.4,1) var(--d) 3 forwards; }
+  @keyframes chevUp { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-640px); } }
+  @keyframes chevOn { 0% { opacity: 0; transform: translateX(0) rotate(90deg); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(2200px) rotate(90deg); } }
+  /* The siren: a red beacon turning behind the words, and the frame flashing red */
+  .beacon { display: none; position: absolute; left: 60px; top: -360px; width: 1800px; height: 1800px; border-radius: 50%; opacity: 0;
+    background: conic-gradient(from 0deg, rgba(255, 30, 30, .75) 0 20deg, transparent 50deg 160deg, rgba(255, 255, 255, .55) 180deg 196deg, transparent 230deg 340deg, rgba(255, 30, 30, .75) 360deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, .6) 18%, transparent 38%); mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, .6) 18%, transparent 38%); }
+  .m-siren .beacon { display: block; }
+  .go.m-siren .beacon { animation: fadeIn .2s ease-out .1s forwards, spin .7s linear .1s infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .m-siren .hot-glow { background: radial-gradient(ellipse, rgba(255, 60, 60, .7), rgba(200, 0, 0, .35) 40%, rgba(200, 0, 0, 0) 70%); }
+  .go.m-siren .hot-glow { animation: fadeIn .1s linear .1s forwards, alarm .35s steps(2) .1s infinite; }
+  @keyframes alarm { 0% { opacity: 1; } 100% { opacity: .25; } }
+  .m-siren .f { background: linear-gradient(180deg, #ffffff 0 40%, #ff3b3b 100%); -webkit-background-clip: text; background-clip: text; }
+  .go.m-siren .shaker { animation: shake .45s linear .45s; }
+  /* All square: the score sits on a beam that see-saws and comes level */
+  .go.m-level .mrow { animation: rise .4s cubic-bezier(.2,1.4,.5,1) .9s forwards, seesaw 1.1s ease-out 1.1s; }
+  @keyframes seesaw { 0% { rotate: -6deg; } 30% { rotate: 4deg; } 60% { rotate: -2deg; } 100% { rotate: 0deg; } }
+  .m-level .mrow .score { background: linear-gradient(90deg, rgb(var(--home-rgb)) 50%, rgb(var(--away-rgb)) 50%); color: #fff; }
+  .m-level .hot-glow { left: 260px; width: 1400px; background: radial-gradient(ellipse at 30% 50%, rgba(var(--home-rgb), .6), rgba(var(--home-rgb), 0) 55%),
+    radial-gradient(ellipse at 70% 50%, rgba(var(--away-rgb), .6), rgba(var(--away-rgb), 0) 55%); }
+  /* Back to back: two netballs drop into the line, one after the other */
+  .mball { width: 92px; height: 92px; opacity: 0; }
+  .mball svg { width: 100%; height: 100%; display: block; }
+  .go .mball { animation: ballDrop .45s cubic-bezier(.3,1.6,.5,1) var(--d) forwards; }
+  @keyframes ballDrop { 0% { opacity: 0; transform: translateY(-260px) rotate(-200deg) scale(.6); } 100% { opacity: 1; transform: none; } }
 </style>
 </head>
 <body>
@@ -165,19 +226,42 @@
         <div class="big mid"><div class="crest crest--h" id="crestH"></div><span class="zap" data-text="INTENSITY">INTENSITY</span><div class="crest crest--a" id="crestA"></div></div>
         <div class="dots" id="dots"></div>
       </div>
-      <div class="team" id="team"><div class="crest" id="crest"></div><div class="plate"><h2><span id="name"></span><i>is</i></h2></div></div>
+      <div class="kind moment">
+        <div class="beacon"></div>
+        <div class="hot-glow"></div>
+        <div class="chevrons" id="chevrons"></div>
+        <div class="mcrest mcrest--h" id="mcrestH"></div><div class="mcrest mcrest--a" id="mcrestA"></div>
+        <div class="big" id="momWords"></div>
+        <div class="mrow" id="momRow"></div>
+      </div>
+      <div class="team" id="team"><div class="crest" id="crest"></div><div class="plate"><h2><span id="name"></span><i id="nameAfter">is</i></h2></div></div>
     </div>
   </div>
+  <template id="ballSvg">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <defs><radialGradient id="shade" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f1f1f1"/><stop offset="1" stop-color="#b9b9b9"/></radialGradient></defs>
+      <circle cx="50" cy="50" r="47" fill="url(#shade)" stroke="var(--purple-dark, #3a1f45)" stroke-width="2"/>
+      <g fill="none" stroke="rgb(var(--team-rgb))" stroke-width="5" stroke-linecap="round">
+        <path d="M50 3 C 28 26, 28 74, 50 97"/><path d="M50 3 C 72 26, 72 74, 50 97"/><path d="M4 44 C 32 34, 68 34, 96 44"/><path d="M6 66 C 34 58, 66 58, 94 66"/>
+      </g>
+    </svg>
+  </template>
   <script src="teams.js"></script>
   <script>
     const opts = new URLSearchParams(location.search);
     const $ = id => document.getElementById(id);
     const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     const stage = $('stage');
-    const KINDS = { heating: 'k-heating', fire: 'k-fire', goalForGoal: 'k-gfg' };
-    const NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal' };
+    const KINDS = { heating: 'k-heating', fire: 'k-fire', goalForGoal: 'k-gfg', lead: 'k-moment m-lead', level: 'k-moment m-level', comeback: 'k-moment m-comeback',
+      siren: 'k-moment m-siren', backToBack: 'k-moment m-b2b' };
+    const NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square', comeback: 'coming back',
+      siren: 'on the siren', backToBack: 'back to back super shots' };
     const GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
-    const kindOf = v => ({ heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal' })[String(v || '').toLowerCase().replace(/[^a-z]/g, '')];
+    // The big words for each moment, and the little word after the team's name on the plate.
+    const WORDS = { lead: ['HITS THE FRONT', ''], comeback: ['COMING BACK', 'is'], siren: ['ON THE SIREN!', ''], backToBack: ['BACK TO BACK', ''], level: ['ALL SQUARE', ''] };
+    const kindOf = v => ({ heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal', lead: 'lead', front: 'lead',
+      level: 'level', square: 'level', allsquare: 'level', comeback: 'comeback', siren: 'siren', backtoback: 'backToBack' })[String(v || '').toLowerCase().replace(/[^a-z]/g, '')];
+    const ALL_CLASSES = [...new Set(Object.values(KINDS).join(' ').split(' '))];
 
     // A club colour from the competition setup page, as on supershot.html; without one, the competition's main colour (home) or accent (away).
     function colourOf(hex, fallbackVar) {
@@ -212,13 +296,51 @@
         box.appendChild(p);
       }
     }
+    // A moment's words, the line under them, and its touches (chevrons, netballs).
+    const scoreOf = (ev, s) => ev.score || { home: s && s.home ? Number(s.home.score) || 0 : 0, away: s && s.away ? Number(s.away.score) || 0 : 0 };
+    function momentWords(ev, s) {
+      const [words, after] = WORDS[ev.kind];
+      $('nameAfter').textContent = after;
+      letters($('momWords'), words, .04, .2);
+      fitLetters($('momWords'), ev.kind === 'level' ? 1240 : 1560, 180, 90); // level: room for both crests either side
+      const sc = scoreOf(ev, s), row = $('momRow');
+      const scoreBox = () => { const b = document.createElement('span'); b.className = 'score'; b.innerHTML = `${sc.home} <b>–</b> ${sc.away}`; return b; };
+      const text = t => { const b = document.createElement('span'); b.textContent = t; return b; };
+      if (ev.kind === 'lead' || ev.kind === 'level') row.replaceChildren(scoreBox());
+      else if (ev.kind === 'comeback') row.replaceChildren(text(`from ${Math.max(5, Number(ev.down) || 5)} down`), scoreBox());
+      else if (ev.kind === 'siren') {
+        const q = ev.period ? (ev.period > 4 ? 'Extra time' : `${ev.periodLabel || (s && s.periodLabel) || 'Q'}${ev.period}`) : '';
+        const left = Number(ev.clockLeft);
+        row.replaceChildren(...[q && text(q), text(Number.isFinite(left) && left > 0 ? `${left} second${left === 1 ? '' : 's'} to go` : 'at the siren'), scoreBox()].filter(Boolean));
+      } else if (ev.kind === 'backToBack') {
+        const balls = [0, 1].map(i => { const b = document.createElement('span'); b.className = 'mball'; b.style.setProperty('--d', (1.1 + i * .3) + 's'); b.innerHTML = $('ballSvg').innerHTML; return b; });
+        row.replaceChildren(text('Super shots'), ...balls);
+      } else row.replaceChildren();
+      const box = $('chevrons');
+      box.replaceChildren(...Array.from({ length: 7 }, (_, i) => {
+        const c = document.createElement('span');
+        c.className = 'chev';
+        c.style.setProperty('--x', (300 + i * 210) + 'px');
+        c.style.setProperty('--y', (40 + (i * 83) % 460) + 'px');
+        c.style.setProperty('--d', (.15 + (i * .37) % .6).toFixed(2) + 's');
+        return c;
+      }));
+    }
+    // Shrinks letters() words to fit a width (layout sizes, so the stage's own scaling doesn't count).
+    function fitLetters(box, max, size, min) {
+      const ls = box.querySelectorAll('.l, .sp');
+      const width = () => ls.length ? ls[ls.length - 1].offsetLeft + ls[ls.length - 1].offsetWidth - ls[0].offsetLeft : 0;
+      box.style.fontSize = size + 'px';
+      while (width() > max && size > min) box.style.fontSize = (size -= 4) + 'px';
+    }
     const waitFor = node => node.tagName === 'IMG' ? Promise.race([node.decode().catch(() => {}), new Promise(r => setTimeout(r, 1500))]) : null;
 
     // Dresses the stage for one streak: the team (heating up, on fire) or both teams (goal for goal).
     async function dress(s, ev) {
       ['--team-rgb', '--side-dark', '--side-text', '--home-rgb', '--away-rgb'].forEach(v => stage.style.removeProperty(v));
-      stage.classList.remove(...Object.values(KINDS));
-      stage.classList.add(KINDS[ev.kind]);
+      stage.classList.remove(...ALL_CLASSES);
+      stage.classList.add(...KINDS[ev.kind].split(' '));
+      $('nameAfter').textContent = 'is';
       const waits = [];
       let who = '';
       if (ev.kind === 'goalForGoal') {
@@ -242,6 +364,19 @@
         }));
         $('team').style.display = 'none';
         who = s && s.home ? `${s.home.name} v ${s.away.name}` : '';
+      } else if (ev.kind === 'level') {
+        const h = sideColour(s, 'home'), a = sideColour(s, 'away');
+        stage.style.setProperty('--home-rgb', h.rgb);
+        stage.style.setProperty('--away-rgb', a.rgb);
+        for (const [side, box] of [['home', 'mcrestH'], ['away', 'mcrestA']]) {
+          const t = s && s[side];
+          const node = logoEl({ name: t ? t.name : side === 'home' ? 'Home' : 'Away', logo: s && s.logos && s.logos[side] }, 'logo');
+          $(box).replaceChildren(node);
+          waits.push(waitFor(node));
+        }
+        $('team').style.display = 'none';
+        momentWords(ev, s);
+        who = s && s.home ? `${s.home.name} v ${s.away.name}` : '';
       } else {
         const side = ev.side === 'away' ? 'away' : 'home';
         const t = s && s[side];
@@ -258,8 +393,10 @@
           waits.push(waitFor(node));
           who = `${t.name} (${side})`;
         }
-        const n = Math.max(GOALS[ev.kind], Math.min(9, Number(ev.goals) || GOALS[ev.kind]));
-        if (ev.kind === 'heating') { letters($('heatWords'), 'HEATING UP', .045, .25); pips($('heatPips'), n, .9); $('heatCount').textContent = `${n} in a row`; }
+        if (WORDS[ev.kind]) momentWords(ev, s);
+        const n = Math.max(GOALS[ev.kind] || 0, Math.min(9, Number(ev.goals) || GOALS[ev.kind] || 0));
+        if (WORDS[ev.kind]) { /* done above */ }
+        else if (ev.kind === 'heating') { letters($('heatWords'), 'HEATING UP', .045, .25); pips($('heatPips'), n, .9); $('heatCount').textContent = `${n} in a row`; }
         else { letters($('fireWords'), 'ON FIRE', 0, 0); pips($('firePips'), n, .9); $('fireCount').textContent = `${n} in a row`; }
       }
       await Promise.all(waits);
@@ -293,7 +430,22 @@
         { from: .5, to: 2.9, rate: 60, make: () => ({ x: rand(520, 1400), y: rand(500, 700), vx: rand(-50, 50), vy: rand(-380, -220), ay: -60, life: rand(.8, 1.4), size: rand(6, 12), ramp: FIRE.slice(0, 3), wobble: rand(2, 4) }) },
       ];
       const h = sideColour(s, 'home').rgb, a = sideColour(s, 'away').rgb;
+      const team = sideColour(s, ev.side === 'away' ? 'away' : 'home').rgb, gold = css('--yellow-rgb') || '255, 205, 0';
+      const burst = (at, x, y, ramp, n = 700) => ({ from: at, to: at + .08, rate: n, make: () => { const ang = rand(0, Math.PI * 2), v = rand(400, 1100); return { x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v * .6, ay: 300, drag: 2.4, life: rand(.4, .8), size: rand(8, 16), ramp }; } });
+      if (ev.kind === 'lead') return [
+        { from: .3, to: 2.8, rate: 90, make: () => ({ x: rand(420, 1500), y: rand(700, 780), vx: rand(-20, 20), vy: rand(-700, -450), ay: 0, drag: .6, life: rand(.6, 1.1), size: rand(6, 12), ramp: ['255, 255, 255', gold, gold] }) },
+        burst(.3, 960, 560, ['255, 255, 255', gold, team]),
+      ];
+      if (ev.kind === 'comeback') return [
+        { from: .3, to: 2.8, rate: 80, make: () => ({ x: rand(200, 700), y: rand(420, 760), vx: rand(900, 1500), vy: rand(-40, 40), ay: 0, drag: .8, life: rand(.5, .9), size: rand(6, 12), ramp: ['255, 255, 255', team, team] }) },
+      ];
+      if (ev.kind === 'siren') return [burst(.4, 960, 560, ['255, 255, 255', '255, 80, 80', '220, 0, 0'], 900)];
+      if (ev.kind === 'backToBack') return [burst(1.3, 900, 735, ['255, 255, 255', gold, team], 500), burst(1.6, 1000, 735, ['255, 255, 255', gold, team], 500)];
       const spark = (fromX, dir, rgb) => () => { const v = rand(700, 1300); return { x: fromX, y: rand(520, 600), vx: dir * v, vy: rand(-160, 160), ay: 0, drag: 1.2, life: rand(.35, .7), size: rand(8, 16), ramp: ['255, 255, 255', rgb, rgb] }; };
+      if (ev.kind === 'level') return [
+        { from: .45, to: 2.9, rate: 50, make: spark(300, 1, h) },
+        { from: .45, to: 2.9, rate: 50, make: spark(1620, -1, a) },
+      ];
       return [
         { from: 1, to: 2.9, rate: 70, make: spark(400, 1, h) },
         { from: 1, to: 2.9, rate: 70, make: spark(1520, -1, a) },
@@ -356,16 +508,19 @@
     // plays straight after it, and one that comes with a super shot waits for the super shot graphic to finish first.
     // Only asks the helper on this computer.
     const SUPER_SHOT_MS = 3000;
-    const off = { heating: opts.get('heating') === '0', fire: opts.get('fire') === '0', goalForGoal: opts.get('goalforgoal') === '0' };
+    const off = { heating: opts.get('heating') === '0', fire: opts.get('fire') === '0', goalForGoal: opts.get('goalforgoal') === '0', lead: opts.get('lead') === '0',
+      level: opts.get('level') === '0', comeback: opts.get('comeback') === '0', siren: opts.get('siren') === '0', backToBack: opts.get('backtoback') === '0' };
     let seen = null, warned = false;
     async function watch() {
       try {
         const s = await scoreboard();
-        const ev = s.streak || { n: 0 };
+        const latest = s.streak || { n: 0 };
         if (warned) { console.info('Streak: the helper is back'); warned = false; }
-        if (seen === null || ev.n < seen) seen = ev.n; // first look, or the helper's count started again
-        else if (ev.n > seen) {
-          seen = ev.n;
+        if (seen === null || latest.n < seen) seen = latest.n; // first look, or the helper's count started again
+        // Every one since the last look (two goals pressed quickly can make two), oldest first.
+        const fresh = (s.streakLog && s.streakLog.length ? s.streakLog : [latest]).filter(ev => ev.n > seen);
+        if (fresh.length) seen = latest.n;
+        for (const ev of fresh) {
           const now = s.serverNow || Date.now();
           const age = now - (ev.at || 0);
           if (!KINDS[ev.kind]) console.warn(`Streak: unknown kind ${ev.kind}`);
@@ -390,13 +545,15 @@
         window.pageLog && window.pageLog('info', `Watching the scoreboard for streaks${Object.keys(off).filter(k => off[k]).map(k => `, not ${NAMES[k]}`).join('')}`);
         return watch();
       }
-      // ?play=heating|fire|goalforgoal (&team=home|away): play once now.
+      // ?play=heating|fire|goalforgoal|lead|level|comeback|siren|backtoback (&team=home|away): play once now.
       let kind = kindOf(opts.get('play'));
-      if (!kind) { console.warn(`Streak: ?play=${opts.get('play')} is not heating, fire or goalforgoal; playing heating up`); kind = 'heating'; }
+      if (!kind) { console.warn(`Streak: ?play=${opts.get('play')} is not one of ${Object.keys(KINDS).join(', ')}; playing heating up`); kind = 'heating'; }
       const side = String(opts.get('team') || '').toLowerCase() === 'away' ? 'away' : 'home';
       let s = null;
       try { s = await scoreboard(); } catch (err) { console.warn('Streak: scoreboard unavailable, playing without the teams:', err.message); }
-      play(s, { kind, side: kind === 'goalForGoal' ? '' : side, from: side, goals: GOALS[kind] });
+      const ev = { kind, side: kind === 'goalForGoal' || kind === 'level' ? '' : side, from: side, goals: GOALS[kind] || 0, down: 6 };
+      if (kind === 'siren') Object.assign(ev, { period: (s && s.period) || 4, clockLeft: 2 });
+      play(s, ev);
     })();
   </script>
 </body>

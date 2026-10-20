@@ -952,16 +952,17 @@ function applyOne(b, a) {
       const before = Number(side.score) || 0;
       side.score = Math.max(0, before + Number(a.delta || 0));
       noteGoals(b, a.side === 'away' ? 'away' : 'home', side.score - before, 'manual');
-      if (side.score > before) watchStreaks(b, 'manual');
+      watchStreaks(b, 'manual');
       b.source = 'manual';
       if (Number(a.delta) === 2) superShot(b, a.side === 'away' ? 'away' : 'home', 'manual');
       break;
     }
     case 'superShot': superShot(b, a.side === 'away' ? 'away' : 'home', 'test'); break; // plays it without changing the score
     case 'streak': { // plays streak.html without changing the score
-      const kind = STREAK_GOALS[a.kind] ? a.kind : 'heating';
+      const kind = STREAK_NAMES[a.kind] ? a.kind : 'heating';
       const side = a.side === 'away' ? 'away' : 'home';
-      streak(b, kind, kind === 'goalForGoal' ? '' : side, STREAK_GOALS[kind], 'test', kind === 'goalForGoal' ? side : '');
+      const both = kind === 'goalForGoal' || kind === 'level';
+      streak(b, { kind, side: both ? '' : side, goals: STREAK_GOALS[kind] || 0, from: kind === 'goalForGoal' ? side : '', down: kind === 'comeback' ? COMEBACK_DOWN + 1 : 0 }, 'test');
       break;
     }
     case 'setScore': side.score = Math.max(0, Number(a.value) || 0); b.source = 'manual'; break;
@@ -1006,7 +1007,7 @@ function applyOne(b, a) {
     }
     case 'periodLabel': b.periodLabel = String(a.value || 'Q').slice(0, 6); break;
     case 'clockStart': if (!b.clock.running) { b.clock.running = true; b.clock.startedAt = Date.now(); } break;
-    case 'clockStop': if (b.clock.running) { b.clock.elapsedMs = clockElapsed(b.clock); b.clock.running = false; b.clock.startedAt = null; } break;
+    case 'clockStop': noteClock(b); if (b.clock.running) { b.clock.elapsedMs = clockElapsed(b.clock); b.clock.running = false; b.clock.startedAt = null; } break;
     case 'clockReset': b.clock = { ...b.clock, lengthSec: b.clock.baseSec || QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null }; break;
     case 'clockSet': { // set the time left, e.g. to match the venue clock
       const left = Math.max(0, Math.round(Number(a.secondsLeft) || 0));
@@ -1037,6 +1038,7 @@ function applyOne(b, a) {
 
 // While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5).
 async function refreshFromPlayhq(b) {
+  noteClock(b);
   if (b.source !== 'playhq' || !b.roundId) return;
   // Before electronic scoring starts there is nothing to read, so PlayHQ isn't asked.
   const wait = scoringNotYet(b);
@@ -1067,12 +1069,13 @@ async function refreshFromPlayhq(b) {
       log('info', 'scoreboard', `PlayHQ says ${game.home.name} ${game.home.score ?? 'no score'} - ${game.away.score ?? 'no score'} ${game.away.name} (${game.status})`);
       b.playhqSeen = seen;
     }
-    if (goalsFromPlayhq(b, game, s && s.live)) {
-      if (!isFinished(game)) watchStreaks(b, 'playhq');
-      saveBoards();
-    }
+    const goalsChanged = goalsFromPlayhq(b, game, s && s.live);
     if (game.home.score !== null) b.home.score = game.home.score;
     if (game.away.score !== null) b.away.score = game.away.score;
+    if (goalsChanged) {
+      if (!isFinished(game)) watchStreaks(b, 'playhq'); // after the score is on the board, which the moments read
+      saveBoards();
+    }
     b.playhqStatus = game.status;
     b.playhqError = '';
   } catch (err) {
@@ -1092,7 +1095,7 @@ async function refreshFromPlayhq(b) {
 // closed, or nothing was polling), isn't split into goals: a gap is noted instead.
 const GOALS_KEPT = 120;
 const MAX_STEP = 3;
-function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; }
+function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; momentsFrom(b); }
 function clockLeft(b) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
 function pushGoal(b, side, points, how) {
   b.goalsSeq = (b.goalsSeq || 0) + 1;
@@ -1155,25 +1158,48 @@ function goalsFromPlayhq(b, game, live) {
   if (counts) b.playhqCounts = counts;
   return b.goals.length !== before || b.goalsSeq !== seq;
 }
-// ─── Hot streaks (for streak.html) ──────────────────────────────────────────
-// Worked out from the goal order above, where a super goal is one goal: 3 goals in a row by one
-// team is "heating up", 5 is "on fire", and 10 goals going one each way (home, away, home...)
-// is "goal for goal". Each plays once: a run that reaches 5 plays "on fire" (and not "heating
-// up" again), and a goal for goal stretch plays once however long it goes on. A run is known
-// by the id of its first goal, so a -1 correction and the goal again doesn't replay it. A gap
-// in the goal list (a game picked part way through, a jump too big to split) starts the count
-// again, so scores catching up never play, and nothing plays once the game is finished.
-// Each one bumps b.streak.n, and streak.html plays when it sees n go up.
+// ─── Hot streaks and game moments (for streak.html) ─────────────────────────
+// Worked out from the goal order above, where a super goal is one goal, and the score:
+//   heating up       3 goals in a row by one team; on fire at 5
+//   goal for goal    10 goals going one each way (home, away, home...)
+//   hits the front   a team goes ahead when the other team was the last one ahead
+//   all square       the scores are level again in the last 2 minutes of a quarter
+//   coming back      a team that was 5 or more down gets within 2
+//   on the siren     a goal with 10 seconds or less left in a quarter, while the clock is (or was just) running
+//   back to back     a team's second super shot in a row
+// Each plays once: a run that reaches 5 plays "on fire" (and not "heating up" again), a goal
+// for goal stretch plays once however long it goes on, and a comeback has to go 5 down again
+// to replay. A run is known by the id of its first goal, so a -1 correction and the goal again
+// doesn't replay it. One goal plays one moment at most, the first of MOMENT_ORDER, so the
+// stream isn't flooded (the rest are logged). A gap in the goal list (a game picked part way
+// through, a jump too big to split) starts again from that score, so scores catching up never
+// play, and nothing plays once the game is finished. Each one bumps b.streak.n and is added to
+// b.streakLog, and streak.html plays the ones it hasn't seen.
 const STREAK_GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
-const STREAK_NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal' };
-function streak(b, kind, side, goals, how, from) {
+const MOMENT_ORDER = ['siren', 'backToBack', 'fire', 'lead', 'comeback', 'level', 'goalForGoal', 'heating'];
+const STREAK_NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square',
+  comeback: 'coming back', siren: 'on the siren', backToBack: 'back to back super shots' };
+const COMEBACK_DOWN = 5, COMEBACK_WITHIN = 2, LEVEL_LAST_SEC = 120, SIREN_LAST_SEC = 10, SIREN_STOPPED_MS = 15000;
+const leaderOf = (h, a) => (h > a ? 'home' : a > h ? 'away' : '');
+function streak(b, ev, how) {
   const n = ((b.streak && b.streak.n) || 0) + 1;
-  b.streak = { n, kind, side: side || '', goals, from: from || '', at: Date.now(), how }; // from: who scored the first goal of a goal for goal stretch
-  log('info', 'streak', `${side ? `${b[side].name} (${side}) ` : ''}${STREAK_NAMES[kind]}, ${goals} goals (${how}), number ${n}`);
+  b.streak = { n, side: '', goals: 0, from: '', ...ev, score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
+    period: b.period, periodLabel: rules(b.division).periodLabel, clockLeft: clockLeft(b), at: Date.now(), how };
+  b.streakLog = [...(b.streakLog || []), b.streak].slice(-6);
+  log('info', 'streak', `${ev.side ? `${b[ev.side].name} (${ev.side}) ` : ''}${STREAK_NAMES[ev.kind]}${ev.goals ? `, ${ev.goals} goals` : ''}${ev.down ? `, was ${ev.down} down` : ''} (${how}), number ${n}`);
 }
+// The score moments start from here: on a new game, after a gap, and the first time they're looked at.
+function momentsFrom(b) {
+  const h = Number(b.home.score) || 0, a = Number(b.away.score) || 0;
+  b.moments = { home: h, away: a, lastLeader: leaderOf(h, a), worst: { home: Math.max(0, a - h), away: Math.max(0, h - a) }, levelAt: null, lastId: b.goalsSeq || 0 };
+}
+// Whether the clock is running, or was running a moment ago (PlayHQ's reading comes up to 5 seconds after the goal).
+function noteClock(b) { if (b.clock && b.clock.running && clockLeft(b) > 0) b.clockRanAt = Date.now(); }
+const clockRecent = b => (b.clock && b.clock.running) || Date.now() - (b.clockRanAt || 0) < SIREN_STOPPED_MS;
 function watchStreaks(b, how) {
   if (!Array.isArray(b.goals)) return;
   const fired = b.streakFired || (b.streakFired = {});
+  const found = [];
   // Back from the latest goal: the current run by one team, and the stretch of goals going one each way.
   let run = 0, runStart = null, runSide = '', alt = 0, altStart = null, altSide = '', last = '';
   for (let i = b.goals.length - 1; i >= 0; i--) {
@@ -1186,9 +1212,42 @@ function watchStreaks(b, how) {
     if (g.gap || (last && g.side === last)) break;
     last = altSide = g.side; alt++; altStart = g.id;
   }
-  if (run >= STREAK_GOALS.fire && fired.fire !== runStart) { fired.fire = fired.heating = runStart; streak(b, 'fire', runSide, run, how); }
-  else if (run >= STREAK_GOALS.heating && fired.heating !== runStart) { fired.heating = runStart; streak(b, 'heating', runSide, run, how); }
-  if (alt >= STREAK_GOALS.goalForGoal && fired.goalForGoal !== altStart) { fired.goalForGoal = altStart; streak(b, 'goalForGoal', '', alt, how, altSide); }
+  if (run >= STREAK_GOALS.fire && fired.fire !== runStart) { fired.fire = fired.heating = runStart; found.push({ kind: 'fire', side: runSide, goals: run }); }
+  else if (run >= STREAK_GOALS.heating && fired.heating !== runStart) { fired.heating = runStart; found.push({ kind: 'heating', side: runSide, goals: run }); }
+  if (alt >= STREAK_GOALS.goalForGoal && fired.goalForGoal !== altStart) { fired.goalForGoal = altStart; found.push({ kind: 'goalForGoal', goals: alt, from: altSide }); }
+
+  // The score moments, from the score at the last look; after a gap they start again from this score.
+  const m = b.moments;
+  if (!m || b.goals.some(g => g.gap && g.id > m.lastId)) momentsFrom(b);
+  else scoreMoments(b, m, found);
+  found.sort((x, y) => MOMENT_ORDER.indexOf(x.kind) - MOMENT_ORDER.indexOf(y.kind));
+  if (found.length > 1) log('info', 'streak', `Also ${found.slice(1).map(f => STREAK_NAMES[f.kind]).join(', ')}, not played (one moment per goal)`);
+  if (found.length) streak(b, found[0], how);
+}
+function scoreMoments(b, m, found) {
+  const fired = b.streakFired;
+  const h = Number(b.home.score) || 0, a = Number(b.away.score) || 0;
+  const fresh = b.goals.filter(g => !g.gap && g.id > m.lastId);
+  const latest = b.goals[b.goals.length - 1];
+  if (h + a > m.home + m.away && fresh.length) {
+    const now = leaderOf(h, a);
+    if (now && m.lastLeader && now !== m.lastLeader) found.push({ kind: 'lead', side: now });
+    const left = clockLeft(b);
+    if (!now && h > 0 && left !== null && left <= LEVEL_LAST_SEC && m.levelAt !== h) { m.levelAt = h; found.push({ kind: 'level' }); }
+    for (const side of ['home', 'away']) {
+      const down = side === 'home' ? a - h : h - a, wasDown = side === 'home' ? m.away - m.home : m.home - m.away;
+      if (m.worst[side] >= COMEBACK_DOWN && down <= COMEBACK_WITHIN && down < wasDown) { found.push({ kind: 'comeback', side, down: m.worst[side] }); m.worst[side] = Math.max(0, down); }
+    }
+    const g = fresh[fresh.length - 1];
+    if (g.clockLeft !== null && g.clockLeft <= SIREN_LAST_SEC && clockRecent(b)) found.push({ kind: 'siren', side: g.side });
+    // Back to back super shots: the latest two goals, both super goals by the same team.
+    const prev = b.goals[b.goals.length - 2];
+    if (latest === g && g.points === 2 && prev && !prev.gap && prev.side === g.side && prev.points === 2 && fired.backToBack !== g.id) {
+      fired.backToBack = g.id; found.push({ kind: 'backToBack', side: g.side });
+    }
+  }
+  for (const side of ['home', 'away']) m.worst[side] = Math.max(m.worst[side], side === 'home' ? a - h : h - a);
+  m.home = h; m.away = a; m.lastLeader = leaderOf(h, a) || m.lastLeader; m.lastId = b.goalsSeq || 0;
 }
 
 // What goals.html shows: the last `count` goals (oldest first), the current run and the tally.
@@ -1354,7 +1413,7 @@ function followClock(b, live) {
 // background" ticked) can press them. Full list in STREAMDECK.md.
 //   /deck/home/add1  add2  minus1  minus2     (same for /deck/away/...)
 //   /deck/home/supershot                      (plays supershot.html for that team, score unchanged)
-//   /deck/streak/heating/home  fire/away  goalforgoal   (plays streak.html, score unchanged)
+//   /deck/streak/heating/home  fire  goalforgoal  lead  level  comeback  siren  backtoback   (plays streak.html, score unchanged)
 //   /deck/clock/start  stop  toggle  reset
 //   /deck/clock/set/12:34   /deck/clock/length/10 (minutes per quarter)
 //   /deck/clock/playhq/on  off  toggle   (clock follows the PlayHQ scorer)
@@ -1376,9 +1435,10 @@ function deckAction(parts, q) {
     if (m) return { type: 'score', side: what, delta: (m[1] === 'add' || m[1] === 'plus' ? 1 : -1) * Number(m[2]) };
     if (verb === 'supershot') return { type: 'superShot', side: what };
   }
-  // /deck/streak/heating/home, /deck/streak/fire/away, /deck/streak/goalforgoal (streak.html, score unchanged)
+  // /deck/streak/heating/home, /deck/streak/fire/away, /deck/streak/goalforgoal, lead, level, comeback, siren, backtoback (streak.html, score unchanged)
   if (what === 'streak') {
-    const kind = { heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal' }[String(verb || '').toLowerCase()];
+    const kind = { heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal', lead: 'lead', front: 'lead',
+      level: 'level', square: 'level', comeback: 'comeback', siren: 'siren', backtoback: 'backToBack' }[String(verb || '').toLowerCase()];
     if (kind) return { type: 'streak', kind, side: arg === 'away' ? 'away' : 'home' };
   }
   if (what === 'clock') {

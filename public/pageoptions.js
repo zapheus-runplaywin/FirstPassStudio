@@ -90,11 +90,17 @@ const PAGE_OPTIONS = (() => {
       { key: 'team', label: 'Plays', type: 'select', choices: [['', 'By itself for every super shot'], ['home', 'Once, for the home team'], ['away', 'Once, for the away team'], ['none', 'Once, no team']] },
     ],
     'streak.html': [
-      { key: 'play', label: 'Plays', type: 'select', choices: [['', 'By itself for every streak'], ['heating', 'Once: heating up'], ['fire', 'Once: on fire'], ['goalforgoal', 'Once: goal for goal']] },
+      { key: 'play', label: 'Plays', type: 'select', choices: [['', 'By itself for every streak and moment'], ['heating', 'Once: heating up'], ['fire', 'Once: on fire'], ['goalforgoal', 'Once: goal for goal'],
+        ['lead', 'Once: hits the front'], ['level', 'Once: all square'], ['comeback', 'Once: coming back'], ['siren', 'Once: on the siren'], ['backtoback', 'Once: back to back super shots']] },
       { key: 'team', label: 'Team (when played once)', type: 'select', choices: [['', 'Home'], ['away', 'Away']] },
       show('heating', 'Heating up (3 in a row, by itself)', 'Leave out'),
       show('fire', 'On fire (5 in a row, by itself)', 'Leave out'),
       show('goalforgoal', 'Goal for goal (10, by itself)', 'Leave out'),
+      show('lead', 'Hits the front (by itself)', 'Leave out'),
+      show('level', 'All square, last 2 minutes (by itself)', 'Leave out'),
+      show('comeback', 'Coming back (by itself)', 'Leave out'),
+      show('siren', 'On the siren (by itself)', 'Leave out'),
+      show('backtoback', 'Back to back super shots (by itself)', 'Leave out'),
     ],
     'lowerthird.html': [
       { key: 'type', label: 'Who', type: 'select', choices: [['', 'An athlete (team and club logo)'], ['guest', 'A guest or commentator (competition logo)']] },
