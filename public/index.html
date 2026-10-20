@@ -134,8 +134,15 @@
       <li><b>Position and scale</b> place it on the frame; <b>Full frame</b> fits it to 1920 × 1080. <b>Page size</b> is the size a page is drawn at (1920 × 1080 for full-frame graphics).</li>
       <li><b>Load the page fresh each time it's shown</b> (on by default) reloads a page as it fades in so its animation replays, and unloads it when hidden.
         Untick it to keep a page running so it shows instantly. <b>Refresh page</b> reloads it now.</li>
+      <li><b>Animations that animate away switch themselves off:</b> once a graphic has animated away and left the frame clear, its source is switched off in the scene
+        (the Sources list and its Stream Deck key show it off), rather than staying on as an empty layer. That's The Clash and the winner animation with
+        <b>Animate away after</b> set, a person lower third with <b>Animate away after</b>, positions with <b>At the end: Animate away</b>, the logo animation and the break ad
+        with <b>At the end: Animates away</b> (their default), and the super shot and hot streak animations when they play once.
+        Pages that stay on screen or wait for something to happen (super shots and hot streaks playing by themselves, the countdown, the scoreboard) stay on.
+        This needs a scene window open (the Output page's Live View, its pop-out or a display or DeckLink output) to see the animation finish.</li>
       <li><b>Preview</b> opens the selected source on its own in a new window, the way the Preview buttons on this page do; the small <b>PVW</b> button beside a source's On / Off does the same from the list.</li>
       <li><b>Videos</b> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
+        A video that fades out when it finishes is switched off in the scene, so the Sources list and its Stream Deck key show it off and the next On plays it again.
         <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output. <b>Restart video</b> starts it again.</li>
       <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency; the Output page warns when a .mov has none to keep, such as H.264),
         and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>

@@ -88,6 +88,22 @@
 
   const addressOf = s => /^https?:\/\//i.test(s.url) ? s.url : '/' + s.url;
 
+  // A video finished, or a page animated away: the helper switches the source off (once, however many
+  // scene windows say so). showSeq names the time it came on, so a late word can't turn off a new showing.
+  function tellDone(src, showSeq) {
+    fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'ended', id: src.id, loadSeq: src.loadSeq, showSeq }) }).catch(() => {});
+  }
+  // Pages that animate away say so with done.js (postMessage { studio: 'done' }).
+  addEventListener('message', e => {
+    if (!e.data || e.data.studio !== 'done') return;
+    for (const L of layers.values()) {
+      const f = L.el.querySelector('iframe');
+      if (!f || f.contentWindow !== e.source) continue;
+      // A page loaded fresh each time it's shown names that showing; one kept loaded names this one.
+      if (L.src.visible && L.shown) tellDone(L.src, L.src.reloadOnShow ? L.pageShow : L.src.showSeq);
+    }
+  });
+
   function create(s) {
     const el = document.createElement('div');
     el.className = 'layer';
@@ -106,10 +122,8 @@
       v.muted = true;
       // Tell the helper when a video ends, so one set to hide when done fades out everywhere.
       v.addEventListener('ended', () => {
-        const src = layers.get(s.id) && layers.get(s.id).src;
-        if (src && src.visible && src.hideWhenDone && !src.loop) {
-          fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'ended', id: s.id, loadSeq: src.loadSeq }) }).catch(() => {});
-        }
+        const L = layers.get(s.id), src = L && L.src;
+        if (src && src.visible && src.hideWhenDone && !src.loop) tellDone(src, L.playShow);
       });
       el.appendChild(v);
     } else {
@@ -124,6 +138,7 @@
     const f = L.el.querySelector('iframe');
     const want = `${addressOf(s)}#${s.loadSeq}`;
     L.loaded = want;
+    L.pageShow = s.showSeq;
     return new Promise(resolve => {
       const done = () => { clearTimeout(t); f.removeEventListener('load', done); resolve(); };
       const t = setTimeout(done, LOAD_WAIT_MS);
@@ -186,6 +201,7 @@
     const restarted = old.loadSeq !== undefined && old.loadSeq !== s.loadSeq;
     if (s.visible) {
       if (restarted || (!L.shown && s.restartOnShow)) { try { v.currentTime = 0; } catch {} }
+      if (!L.shown) L.playShow = s.showSeq;
       if (v.paused || v.ended) v.play().catch(err => {
         // A browser that won't autoplay with sound still plays it muted.
         if (err.name === 'NotAllowedError' && !v.muted) { v.muted = true; blocked = true; v.play().catch(() => {}); console.warn(`Video "${s.name}" is playing muted: this browser blocks sound until the page is clicked`); }

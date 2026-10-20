@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
+<script src="done.js"></script>
 <script src="fit.js"></script>
 <style>
   /* Super shot celebration, 3 seconds, then it fades out and leaves the frame clear. Transparent outside the graphics.
@@ -266,7 +267,8 @@
       if (side === 'home' || side === 'away') {
         try { s = await scoreboard(); } catch (err) { console.warn('Super shot: scoreboard unavailable, playing without the team:', err.message); }
       }
-      play(s, side === 'home' || side === 'away' ? side : '');
+      await play(s, side === 'home' || side === 'away' ? side : '');
+      studioDone(LENGTH_MS + 100); // played once and faded out: done
     })();
   </script>
 </body>

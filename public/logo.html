@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="logo-templates.css">
 <script src="log.js"></script>
+<script src="done.js"></script>
 <script src="fit.js"></script>
 <style>
   /* The competition logo from the active setup, animated in the middle of the frame for about 5 seconds.
@@ -466,9 +467,10 @@
         if (built) {
           // Built templates are timed in CSS at ?speed=1; other speeds play the whole timeline faster or slower.
           if (speed !== 1) stage.getAnimations({ subtree: true }).forEach(a => { a.playbackRate = speed; });
+          if (params.get('out') !== '0') studioDone.afterAnimations();
           return;
         }
-        if (params.get('out') !== '0') setTimeout(() => stage.classList.add('out'), (style === 'pro' ? 4400 : 4200) / speed);
+        if (params.get('out') !== '0') setTimeout(() => { stage.classList.add('out'); studioDone.afterAnimations(); }, (style === 'pro' ? 4400 : 4200) / speed);
       }
 
       // Builds a template once its logo has loaded, then starts it when the pictures and font are ready.

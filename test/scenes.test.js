@@ -158,6 +158,37 @@ test('a video that hides itself when it finishes is not a change from the scene'
   assert.deepEqual(changedNames(), ['Sponsor']);
 });
 
+test('a page that animates away is switched off, but not by word from an earlier showing', () => {
+  reset();
+  show('Up next');
+  const first = { ...src('Up next') };
+  ok({ type: 'ended', name: 'Up next', loadSeq: first.loadSeq, showSeq: first.showSeq });
+  assert.equal(src('Up next').visible, false);
+  // On again: a late word from the last showing (another scene window) leaves it on; this showing's turns it off.
+  show('Up next');
+  assert.equal(src('Up next').showSeq, first.showSeq + 1);
+  ok({ type: 'ended', name: 'Up next', loadSeq: first.loadSeq, showSeq: first.showSeq });
+  assert.equal(src('Up next').visible, true);
+  ok({ type: 'ended', name: 'Up next', loadSeq: first.loadSeq, showSeq: first.showSeq + 1 });
+  assert.equal(src('Up next').visible, false);
+  // Staying on and changing other settings doesn't count as a new showing.
+  show('Up next');
+  const seq = src('Up next').showSeq;
+  ok({ type: 'update', name: 'Up next', changes: { fadeMs: 200 } });
+  assert.equal(src('Up next').showSeq, seq);
+});
+
+test('a video that loops or is set to stay on is not switched off when it ends', () => {
+  reset();
+  show('Sponsor');
+  ok({ type: 'update', name: 'Sponsor', changes: { hideWhenDone: false } });
+  ok({ type: 'ended', name: 'Sponsor', loadSeq: src('Sponsor').loadSeq, showSeq: src('Sponsor').showSeq });
+  assert.equal(src('Sponsor').visible, true);
+  ok({ type: 'update', name: 'Sponsor', changes: { hideWhenDone: true, loop: true } });
+  ok({ type: 'ended', name: 'Sponsor', loadSeq: src('Sponsor').loadSeq, showSeq: src('Sponsor').showSeq });
+  assert.equal(src('Sponsor').visible, true);
+});
+
 test('Next and Previous step through the scenes in order and stop at the ends', () => {
   reset();
   for (const n of ['Pre-game', 'Live', 'Full time']) ok({ type: 'sceneSave', name: n, states: {} });
