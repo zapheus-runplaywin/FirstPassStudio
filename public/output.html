@@ -807,6 +807,8 @@
     $('sqCopy').classList.toggle('hidden', !sq);
     $('sqErr').textContent = '';
     renderSteps();
+    // Video lengths for the hints, measured since the media list was last fetched.
+    loadMedia().then(() => { if (draft && !$('sqSteps').contains(document.activeElement)) renderSteps(); });
     if (!$('seqDialog').open) $('seqDialog').showModal();
     if (!sq) $('sqName').focus();
   }
