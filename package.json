@@ -32,6 +32,7 @@
       "competitions.js",
       "finals.js",
       "scene.js",
+      "zip.js",
       "outputs.js",
       "datadir.js",
       "migrations.js",

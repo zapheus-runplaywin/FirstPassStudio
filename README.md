@@ -244,6 +244,14 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   settings are ready to change. The page list splits into pages not in the scene yet and pages already in it, and **Add all
   unused pages** adds every Studio graphic not in the scene, hidden, in that order. Drag a source (by its ⋮⋮ or anywhere on
   its row) to move it up or down the layers, or use ↑ and ↓.
+- **Export and import:** **Export sources** downloads `FirstPass Studio scene <date>.zip`: `scene.json` (the sources, as in the data
+  folder's scene.json) and a `media/` folder with the images and videos the sources use. Untick **Export with their images and videos** for a
+  small file of just the sources. **Import sources** replaces every source in the scene with the ones in an exported .zip (a zip of that
+  folder made in Finder works, and so does a bare `scene.json`), after a confirm. Imported sources start hidden and keep their ids, so
+  Stream Deck **Source** keys still work. Their media is copied into the media folder: a file already there with the same contents is
+  reused, and one with the same name but different contents is never overwritten (the imported file is saved as `name (2).ext` and its
+  sources use that). Media that's in neither the zip nor the media folder is listed as missing on the Output page, and an imported .mov
+  that hasn't been converted yet converts. `/api/scene/export` (`?media=0` without media) and `POST /api/scene/import` (the file as the body) do the same.
 - **Page options:** a Studio graphic's link options (position, heading, division, round, animate away and so on) show as fields under its
   **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
   new option there as well as on the home page.
