@@ -157,7 +157,7 @@
         other apps. To turn it off from the display itself, click it and press Esc, or close its window.
         <b>Blackmagic:</b> needs Blackmagic Desktop Video installed, and nothing else (such as Media Express) using the device; the scene plays
         at the video format's frame rate, its sound through the Mac's audio output. Pick the format the switcher runs at.
-        <b>NDI:</b> needs NDI Tools (free, <a href="https://ndi.video/tools/" target="_blank" rel="noopener">ndi.video/tools</a>) installed on this Mac.
+        <b>NDI:</b> needs NDI's runtime for Mac (free, <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>) installed on this Mac.
         The sources show up on the network as <i>this Mac's name (Source name Fill)</i> and <i>(Source name Key)</i>, or <i>(Source name Chroma)</i>,
         or just <i>(Source name)</i> with transparency; pick them on the switcher or in its NDI converter. Each sends at the video format's frame rate only while
         something is receiving it. The sound plays through the Mac's audio output, not over NDI.
@@ -613,17 +613,17 @@
     $('outDlMode').value = String((modes.find(m => m.mode === o.decklinkMode) || defaultMode(modes) || {}).mode || '');
     $('outDlKeying').value = o.decklinkKeying;
     $('outDlStraight').checked = o.decklinkStraight;
-    // NDI: whether the runtime (NDI Tools) is installed, and the formats it can send.
+    // NDI: whether the NDI runtime is installed, and the formats it can send.
     const nd = o.ndi || {};
     $('outNdi').disabled = !nd.ok && o.mode !== 'ndi';
-    $('outNdiNote').textContent = nd.ok ? '' : nd.error ? (/NDI Tools/.test(nd.error) ? '(needs NDI Tools)' : '(not available)') : '';
+    $('outNdiNote').textContent = nd.ok ? '' : nd.error ? (/runtime isn't installed/.test(nd.error) ? '(needs the NDI runtime)' : '(not available)') : '';
     // What to install for an option that can't be picked yet, with where to get it.
     const needs = [];
     if (!dl.ok && dl.error) needs.push(/Desktop Video/.test(dl.error)
       ? '<b>Blackmagic:</b> install Blackmagic Desktop Video (free) from <a href="https://www.blackmagicdesign.com/support/family/capture-and-playback" target="_blank" rel="noopener">blackmagicdesign.com/support</a> (under Capture and Playback), then quit and reopen Studio.'
       : `<b>Blackmagic:</b> ${esc(dl.error)}`);
-    if (!nd.ok && nd.error) needs.push(/NDI Tools/.test(nd.error)
-      ? '<b>NDI:</b> install NDI Tools (free) from <a href="https://ndi.video/tools/" target="_blank" rel="noopener">ndi.video/tools</a>. Studio finds it as soon as it\'s installed.'
+    if (!nd.ok && nd.error) needs.push(/runtime isn't installed/.test(nd.error)
+      ? '<b>NDI:</b> install NDI\'s runtime for Mac (free, the libNDI installer) from <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>. NDI Tools on its own isn\'t always enough. Studio finds it as soon as it\'s installed.'
       : `<b>NDI:</b> ${esc(nd.error)}`);
     $('outNeeds').innerHTML = needs.join('<br>');
     $('outNeeds').classList.toggle('hidden', !needs.length);

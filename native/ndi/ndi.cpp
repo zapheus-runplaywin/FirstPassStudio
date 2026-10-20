@@ -1,11 +1,12 @@
 // FirstPass Studio - the scene as NDI sources on the network, for the Mac app (desktop/ndi.js).
 //
 // A Node-API module so it loads in Electron without rebuilding for each version. It loads the NDI
-// runtime (libndi.dylib, which NDI Tools or the NDI runtime installer puts in /usr/local/lib) when
-// first asked, so it builds without it and reports "not installed" without it. Only the SDK's header
+// runtime (libndi.dylib, which NDI's runtime installer puts in /usr/local/lib; desktop/ndi.js also
+// offers the copies inside NDI Tools' apps) when first asked, so it builds without it and reports
+// "not installed" without it. Only the SDK's header
 // files (MIT licence) are in sdk/; the runtime itself is NDI's and isn't shipped with Studio.
 //
-//   available()        -> { ok, version } or { ok: false, error, url }
+//   available([paths]) -> { ok, version, path } or { ok: false, error, url }
 //   start({ sources: [{ kind: 'fill' | 'key' | 'chroma' | 'alpha', name }], color: '#rrggbb', width, height, rateN, rateD })
 //                      -> { ok } or { ok: false, error }
 //   frame(buffer, width, height) -> true when taken: the latest picture, BGRA with premultiplied alpha
@@ -39,9 +40,10 @@
 // ---- Loading the runtime ----
 
 static const NDIlib_v5 *lib = nullptr;
-static std::string loadError;
+static std::string loadError, loadedFrom;
+static std::vector<std::string> alsoTry; // more copies of the library the app found (inside NDI's apps)
 
-// Tries again each time until it works, so installing NDI Tools while Studio is open is enough.
+// Tries again each time until it works, so installing the NDI runtime while Studio is open is enough.
 static bool loadRuntime() {
   if (lib) return true;
   std::vector<std::string> paths;
@@ -51,20 +53,22 @@ static bool loadRuntime() {
   }
 #ifdef __APPLE__
   paths.push_back("/usr/local/lib/" NDILIB_LIBRARY_NAME);
+  paths.push_back("/opt/homebrew/lib/" NDILIB_LIBRARY_NAME);
   paths.push_back("/Library/NDI SDK for Apple/lib/macOS/" NDILIB_LIBRARY_NAME);
 #endif
   paths.push_back(NDILIB_LIBRARY_NAME); // wherever the system looks
+  paths.insert(paths.end(), alsoTry.begin(), alsoTry.end());
   void *handle = nullptr;
-  for (const auto &p : paths) if ((handle = dlopen(p.c_str(), RTLD_LOCAL | RTLD_LAZY))) break;
+  for (const auto &p : paths) if ((handle = dlopen(p.c_str(), RTLD_LOCAL | RTLD_LAZY))) { loadedFrom = p; break; }
   if (!handle) {
-    loadError = "The NDI runtime isn't installed. Install NDI Tools (free) from ndi.video/tools; Studio finds it as soon as it's installed.";
+    loadError = "The NDI runtime isn't installed. Install the NDI runtime for Mac (free) from ndi.link/NDIRedistV6Apple; Studio finds it as soon as it's installed.";
     return false;
   }
   typedef const NDIlib_v5 *(*Load)(void);
   Load load = (Load)dlsym(handle, "NDIlib_v6_load");
   if (!load) load = (Load)dlsym(handle, "NDIlib_v5_load");
   const NDIlib_v5 *l = load ? load() : nullptr;
-  loadError = !l ? "The NDI runtime is too old. Install the latest NDI Tools from ndi.video/tools."
+  loadError = !l ? "The NDI runtime is too old. Install the latest NDI runtime for Mac from ndi.link/NDIRedistV6Apple."
     : !l->is_supported_CPU() ? "NDI doesn't support this Mac's processor."
     : !l->initialize() ? "The NDI runtime wouldn't start." : "";
   if (!loadError.empty()) { dlclose(handle); return false; }
@@ -221,7 +225,24 @@ static void stopOutput() {
 
 // ---- Exported functions ----
 
-static napi_value Available(napi_env env, napi_callback_info) {
+// available([paths]): paths are more places the library might be, tried after the usual ones.
+static napi_value Available(napi_env env, napi_callback_info cb) {
+  size_t argc = 1; napi_value arg;
+  napi_get_cb_info(env, cb, &argc, &arg, nullptr, nullptr);
+  bool isArray = false;
+  if (argc >= 1 && napi_is_array(env, arg, &isArray) == napi_ok && isArray) {
+    alsoTry.clear();
+    uint32_t n = 0;
+    napi_get_array_length(env, arg, &n);
+    for (uint32_t i = 0; i < n; i++) {
+      napi_value v; size_t len = 0;
+      napi_get_element(env, arg, i, &v);
+      if (napi_get_value_string_utf8(env, v, nullptr, 0, &len) != napi_ok) continue;
+      std::string p(len, '\0');
+      napi_get_value_string_utf8(env, v, &p[0], len + 1, &len);
+      alsoTry.push_back(p);
+    }
+  }
   if (!loadRuntime()) {
     napi_value r = failure(env, loadError);
     set(env, r, "url", str(env, NDILIB_REDIST_URL));
@@ -231,6 +252,7 @@ static napi_value Available(napi_env env, napi_callback_info) {
   set(env, r, "ok", boolean(env, true));
   const char *v = lib->version();
   set(env, r, "version", str(env, v ? v : ""));
+  set(env, r, "path", str(env, loadedFrom));
   return r;
 }
 

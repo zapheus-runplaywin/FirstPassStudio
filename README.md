@@ -296,7 +296,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   50, 59.94 or 60). **Fill and key** makes two sources, *Source name Fill* (the scene over black) and *Source name Key* (white where it shows);
   **chroma** makes one, *Source name Chroma*, over the chroma colour; **with transparency** makes one, *Source name*, carrying alpha for
   receivers that key on NDI's transparency. They appear as "MAC NAME (Source name …)"; the source name is FirstPass Studio unless changed.
-  It needs NDI Tools (free, ndi.video/tools) on the Mac, which installs the NDI runtime in `/usr/local/lib`; Studio doesn't ship the runtime.
+  It needs NDI's runtime for Mac (free, the libNDI installer from ndi.link/NDIRedistV6Apple), which puts `libndi.dylib` in `/usr/local/lib`;
+  failing that, Studio uses the copy inside an NDI Tools app if it finds one (`desktop/ndi.js` looks in /Applications). Studio doesn't ship the runtime.
   The scene renders off screen as for Blackmagic (`desktop/scenewindow.js`, `desktop/ndi.js`) and `native/ndi`, a Node-API module built
   against the NDI SDK's header files in `native/ndi/sdk` (MIT licence), loads the runtime and sends each source at the frame rate, repeating
   the latest picture, only while something is receiving it. Each 1080p source is roughly 100 to 150 Mbit/s, so use a wired network. Sound

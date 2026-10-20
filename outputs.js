@@ -8,7 +8,7 @@
 //   decklink - out of a Blackmagic UltraStudio or DeckLink, as fill and key over SDI (its external
 //              keyer) or fill only;
 //   ndi      - as NDI® sources on the network: fill and key (two sources), chroma, or one source with
-//              transparency. Needs the NDI runtime (NDI Tools) on the Mac.
+//              transparency. Needs NDI's runtime on the Mac.
 // The Mac app does the sending (desktop/outputs.js, desktop/decklink.js, desktop/ndi.js): it tells the
 // helper which displays and Blackmagic devices it has and whether NDI is there, and the helper tells it
 // what to show, over the utility process's message port. Run without the app (npm start) there are none, and the Output page says so.
