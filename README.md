@@ -144,8 +144,11 @@ shows `desktop/offair.html` and opens the page again once Studio answers. The ma
 the browser as before.
 
 Settings live in the data folder (see **Saved settings**). Updates download in the background and install when the app quits, so they never
-interrupt a stream; once one has downloaded, **Restart to update** in the menu installs it straight away. Settings
-are brought up to date and backed up on the first start of the new version.
+interrupt a stream; once one has downloaded, **Restart to update** in the menu installs it straight away. Either way it's the
+newest version: a newer one that comes out after the first has downloaded replaces it, and **Restart to update** checks once
+more first (the menu shows "Downloading 0.3.12…" while it fetches it), so the app never has to restart twice to catch up.
+macOS's updater only takes one update per restart, so `desktop/updates.js` hands it the update only when it's installed.
+Settings are brought up to date and backed up on the first start of the new version.
 
 ### Building and releasing it
 
