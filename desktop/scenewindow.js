@@ -16,17 +16,26 @@ const SCENE_READY = `new Promise(done => !document.getElementById('stage') ? don
 
 // onFrame(bitmap, width, height): each new picture, BGRA with premultiplied alpha, at width x height.
 module.exports = function sceneWindow({ port, width, height, frameRate, muted, log, label, onFrame }) {
-  // Half size at twice the pixel density: the picture comes out at the format's full size, and the
-  // window still fits on the Mac's screen (windows can't be bigger than it, even off screen).
-  let win = new BrowserWindow({
-    width: width / 2, height: height / 2, show: false, frame: false, transparent: true, backgroundColor: '#00000000',
-    useContentSize: true, resizable: false,
+  // The window is the format's full size at one pixel per point, so the scene is drawn 1:1 with no
+  // scaling anywhere. (Drawn at half size at twice the density, it came out soft on the Mac, as if
+  // drawn at half size and scaled up.) enableLargerThanScreen lets it be bigger than the
+  // Mac's screen; if macOS still makes it smaller, fall back to half size at twice the density.
+  const make = scale => new BrowserWindow({
+    width: width / scale, height: height / scale, show: false, frame: false, transparent: true, backgroundColor: '#00000000',
+    useContentSize: true, resizable: false, enableLargerThanScreen: true,
     webPreferences: {
-      offscreen: { deviceScaleFactor: 2 },
+      offscreen: { deviceScaleFactor: scale },
       backgroundThrottling: false,
       autoplayPolicy: 'no-user-gesture-required',
     },
   });
+  let win = make(1);
+  const [cw, ch] = win.getContentSize();
+  if (cw < width || ch < height) {
+    log(`${label}: the scene window could only be ${cw} x ${ch}, so drawing it at half size at twice the density`);
+    win.destroy();
+    win = make(2);
+  }
   win.webContents.setAudioMuted(!!muted);
   win.webContents.setFrameRate(Math.min(240, Math.ceil(frameRate) || 30));
   const url = `http://localhost:${port}/scene.html?fit=1`;
@@ -36,6 +45,9 @@ module.exports = function sceneWindow({ port, width, height, frameRate, muted, l
     const ok = await win?.webContents.executeJavaScript(SCENE_READY).catch(() => false);
     if (!win) return;
     if (!ok) { loaded = false; return retry(); }
+    // Log the size the scene is drawn at, to show in the log whether anything is scaling it.
+    const drawn = await win?.webContents.executeJavaScript('[innerWidth, innerHeight, devicePixelRatio]').catch(() => null);
+    if (drawn && win) log(`${label}: scene drawn at ${drawn[0]} x ${drawn[1]} at ${drawn[2]}x for ${width} x ${height}`);
     // Off screen, Chromium keeps handing over its blank (white) first frame for a moment after
     // the page is ready, so give it a few frames' grace.
     setTimeout(() => { if (win) { loaded = true; win.webContents.invalidate(); } }, 300);
