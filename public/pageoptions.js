@@ -5,6 +5,7 @@
 // Each option: { key, label, type: 'select' | 'text' | 'number', ... }. A select's first choice is the
 // page's default, with value '' (left out of the link). text and number boxes left empty are left out too.
 // picks: [[value, button text], ...] adds quick pick buttons under a text box.
+// list: 'athletes' suggests the competition's athletes (from the Athletes page) as you type in a text box.
 
 /* exported PAGE_OPTIONS */
 const PAGE_OPTIONS = (() => {
@@ -94,6 +95,19 @@ const PAGE_OPTIONS = (() => {
       show('heating', 'Heating up (3 in a row, by itself)', 'Leave out'),
       show('fire', 'On fire (5 in a row, by itself)', 'Leave out'),
       show('goalforgoal', 'Goal for goal (10, by itself)', 'Leave out'),
+    ],
+    'lowerthird.html': [
+      { key: 'type', label: 'Who', type: 'select', choices: [['', 'An athlete (team and club logo)'], ['guest', 'A guest or commentator (competition logo)']] },
+      { key: 'name', label: 'Name', type: 'text', placeholder: 'type or pick a name', list: 'athletes', help: 'An athlete\'s name as PlayHQ has it (suggestions come from the Athletes page); for a guest, any name.' },
+      { key: 'title', label: 'Smaller line', type: 'text', placeholder: 'the athlete\'s team, or nothing for a guest',
+        picks: [['Commentator', 'Commentator'], ['Special guest', 'Special guest'], ['Coach', 'Coach'], ['Captain', 'Captain'], ['Umpire', 'Umpire']],
+        help: 'A guest\'s title. For an athlete it goes after their team name, like Captain.' },
+      { key: 'team', label: 'Team', type: 'text', placeholder: 'from the Athletes page', help: 'Only for an athlete who plays for more than one team.' },
+      { key: 'tag', label: 'Tab above', type: 'text', placeholder: 'none', picks: [['Player of the match', 'Player of the match'], ['On the mic', 'On the mic'], ['Special guest', 'Special guest'], ['', 'None']] },
+      { key: 'photo', label: 'Athlete photo', type: 'select', choices: [['', 'Off'], ['1', 'Beside the logo']] },
+      { key: 'position', label: 'Position', type: 'select', choices: [['', 'Left, just above the scoreboard'], ['center', 'Centre, just above the scoreboard'], ['bottom', 'Left, at the bottom (scoreboard off)'], ['bottom-center', 'Centre, at the bottom (scoreboard off)']] },
+      mode('dark'),
+      out(),
     ],
     'ladder.html': [
       division,

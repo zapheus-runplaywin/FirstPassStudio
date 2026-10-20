@@ -329,7 +329,7 @@
     ['Up next', 'upnext.html'], ['Countdown', 'countdown.html'], ['Match up', 'matchup.html'], ['The Clash', 'clash.html'],
     ['Position match ups', 'positions.html'], ['Team list', 'teamlist.html'], ['Shooting stats', 'shooting.html'], ['Last 10 goals', 'goals.html'],
     ['Full time', 'fulltime.html'], ['Winner', 'winner.html'], ['Super shot', 'supershot.html'], ['Hot streaks', 'streak.html'], ['Ladder', 'ladder.html'],
-    ['Ladder lower third', 'ladderbar.html'], ['Finals', 'finals.html'], ['Round fixture', 'fixtures.html'], ['Results', 'results.html'],
+    ['Ladder lower third', 'ladderbar.html'], ['Person lower third (athlete or guest)', 'lowerthird.html'], ['Finals', 'finals.html'], ['Round fixture', 'fixtures.html'], ['Results', 'results.html'],
     ['Top shooters', 'topshooters.html'], ['Competition logo animation', 'logo.html'], ['PIVT and FirstPass Studio ad', 'ad.html'],
     ['Test pattern (checking the outputs)', 'testpattern.html'],
   ];
@@ -702,6 +702,7 @@
         input = document.createElement('input');
         input.type = o.type === 'number' ? 'number' : 'text';
         for (const k of ['min', 'max', 'step', 'placeholder']) if (o[k] !== undefined) input[k] = o[k];
+        if (o.list) input.setAttribute('list', suggestions(o.list));
       }
       input.id = 'opt-' + o.key;
       input.value = value;
@@ -732,6 +733,21 @@
       if (o.help) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '2px 0 0'; n.textContent = o.help; cell.appendChild(n); }
       box.append(label, cell);
     }
+  }
+  // Suggestions for a text option (list: 'athletes'), read once when first needed. Returns the datalist's id.
+  const lists = {};
+  function suggestions(kind) {
+    const id = 'list-' + kind;
+    if (!lists[kind]) {
+      const dl = $(id) || document.body.appendChild(Object.assign(document.createElement('datalist'), { id }));
+      lists[kind] = fetch('/api/athletes?all=1', { cache: 'no-store' }).then(r => r.json()).then(d => {
+        for (const a of d.athletes || []) {
+          const where = (a.teams || []).map(t => t.team).filter((t, i, all) => all.indexOf(t) === i).join(', ');
+          dl.appendChild(new Option(where, a.name));
+        }
+      }).catch(err => { console.warn('Athlete suggestions unavailable:', err.message); delete lists[kind]; });
+    }
+    return id;
   }
   function change(changes) { const s = current(); if (s) act({ type: 'update', id: s.id, changes }); }
   for (const [id, key] of Object.entries(FIELDS)) {

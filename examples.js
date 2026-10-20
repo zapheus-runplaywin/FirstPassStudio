@@ -141,6 +141,9 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
       if (sb.gameId) break;
       await new Promise(r => setTimeout(r, 500));
     }
+    // An athlete from the picked game's home line up, for the athlete lower third.
+    const sheets = await getJson('/api/teams').catch(() => ({}));
+    const athlete = ((sheets.home && sheets.home.players) || []).map(p => p.name).find(Boolean);
     const pages = [
       ['Live scoreboard', '/scoreboard.html', 4000],
       ['Title banner', '/title.html', 3000],
@@ -165,6 +168,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
       ['Shooting stats', '/shooting.html', 3000],
       ['Full time card', '/fulltime.html', 3000],
       ['Ladder lower third', '/ladderbar.html', 3000],
+      ...(athlete ? [[`Athlete lower third: ${athlete}`, `/lowerthird.html?name=${encodeURIComponent(athlete)}`, 2500]] : []),
+      ['Guest lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator', 2500],
       ['Score ticker', '/ticker.html', 4000],
       ['Round fixture', '/fixtures.html', 3000],
       ['Next round fixture', '/fixtures.html?round=next', 3000],

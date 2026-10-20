@@ -455,6 +455,10 @@ These follow the game picked on the scoreboard control page:
 - http://localhost:8080/fulltime.html: final score with each team's top shooter and shooting accuracy.
 - http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage. It sits
   right above the scoreboard, scaled to the scoreboard's width.
+- http://localhost:8080/lowerthird.html?name=Jane%20Smith: lower third introducing an athlete (name, team name, club logo),
+  found by name among the competition's athletes (the athlete register the Athletes page shows). `?type=guest&name=Sam%20Lee&title=Commentator`
+  is the guest or commentator version, with the competition logo. Options `?team=`, `?title=`, `?tag=`, `?photo=1`,
+  `?position=center|bottom|bottom-center`, `?mode=light`, `?out=8`. It sits on the left, lined up with the scoreboard, just above it.
 
 The cards (match up, up next, countdown, position match ups, team lists, shooting stats, full time, fixtures, ladders,
 top shooters, finals and last 10 goals) sit in the space between the title at the top and the scoreboard at the bottom,
