@@ -2,7 +2,7 @@
 // (bottom centre, above the ticker), with some room around it so the frame isn't cluttered.
 //
 // The space is set here once, as CSS variables on the page:
-//   --zone-top     just under the title banner (its bottom edge is at about 208px)
+//   --zone-top     just under the title banner (its bottom edge is at about 162px, so there is room to spare)
 //   --zone-bottom  just over the scoreboard's PlayHQ Live tab (its top edge is at about 930px)
 // Pages place their graphic in that space with CSS. This script scales the graphic down,
 // keeping its shape, when it's taller or wider than the space (long team lists, big
