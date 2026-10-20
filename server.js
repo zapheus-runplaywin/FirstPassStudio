@@ -2348,6 +2348,30 @@ async function getLadderBar() {
     home: { ...t.home, ladder: row(b.home.name) }, away: { ...t.away, ladder: row(b.away.name) } };
 }
 
+// The person lower third (lowerthird.html). An athlete is found in the athlete register by name (case,
+// punctuation and word order don't matter, like the photos): their team, its club logo and their photo.
+// ?team= picks the team for an athlete in more than one; otherwise one of the game's two teams if they
+// play for it, else the first the register has. A guest or commentator needs nothing from here but the
+// competition's logos, which every answer carries.
+function getLowerThird(q) {
+  const r = rules();
+  const out = { competition: competitionName(), competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark };
+  if (q.type === 'guest' || !String(q.name || '').trim()) return out;
+  const e = athletes()[photoKey(q.name)];
+  const name = (e && e.name) || String(q.name).trim();
+  const teams = athleteTeams(name);
+  const b = board();
+  const playing = [b.home.name, b.away.name];
+  const pick = (q.team && (teams.find(t => sameTeam(t.team, q.team)) || { team: String(q.team).trim(), division: '' })) ||
+    teams.find(t => playing.some(n => sameTeam(n, t.team)) && (!b.division || t.division === b.division)) ||
+    teams.find(t => playing.some(n => sameTeam(n, t.team))) || teams[0] || null;
+  if (!e) log('info', 'lowerthird', `${name} is not in the athlete register yet (it fills as line ups are read)`);
+  const g = genderInfo(name);
+  out.athlete = { name, known: !!e, team: pick ? pick.team : '', division: pick ? pick.division : '', logo: pick ? logoFor(pick.team) : null,
+    photo: photoFor(name), silhouette: silhouette(g.gender) };
+  return out;
+}
+
 async function getHeadToHead() {
   const b = board();
   const grade = await gradeFor(b);
@@ -2490,6 +2514,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/countdown') return send(res, 200, getCountdown());
     if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext());
     if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar());
+    if (url.pathname === '/api/lowerthird') return send(res, 200, getLowerThird(q));
     if (url.pathname === '/api/headtohead') return send(res, 200, await getHeadToHead());
     if (url.pathname === '/api/form') return send(res, 200, await getForm(q.count));
     // Asked by ticker.html every few seconds so a speed change shows straight away (no PlayHQ call).
