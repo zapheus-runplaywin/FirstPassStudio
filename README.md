@@ -273,6 +273,13 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   the key, and it shows **off air** while Studio isn't running.
 - **Stream Deck links:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
+- **Scenes:** saved looks for the same sources. Each scene sets every source on or off, or leaves it as it is. **Save what's on now**
+  makes one from the sources as they are; clicking a scene goes to it, turning sources on and off to match while one that's already on stays on
+  (not reloaded). The sources are shared, so a source turned on or off by hand afterwards changes everywhere, is marked **changed**, and the bar
+  under the scenes offers **Back to saved**, **Save over** the scene, or **Save as new scene**. **Edit scenes** shows a grid (sources down, scenes
+  across) to set each one On, Off or Leave, rename, colour (the Stream Deck colour groups), reorder, copy or delete scenes, without changing what's on.
+  A source added later is off in every scene. Links: `/deck/scene/<name>`, `/deck/scene/next` and `/deck/scene/prev` (in the scenes' order,
+  stopping at the ends) and `/deck/scene/again` (back to saved). The pop-out Scene View has the scenes as buttons too. Exports include the scenes.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
   **Live View** when the Mac is busy. **Scene View sound** plays the scene's sound from the Scene View, with or without an output on;
   a display or Blackmagic output is muted while it does, so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output

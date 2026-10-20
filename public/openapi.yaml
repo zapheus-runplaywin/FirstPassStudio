@@ -421,6 +421,35 @@ paths:
                 properties:
                   ok: { type: boolean }
 
+  /deck/scene/{name}:
+    get:
+      tags: [Scene]
+      summary: Go to a scene, the next or previous one, or back to the current one as saved
+      description: |
+        Scenes are saved looks made on the Output page (`/output.html`): each one sets sources on or off, or leaves them as they are.
+        Going to a scene fades sources in and out to match, each with its own fade; a source that's already on stays on and isn't reloaded.
+        `next` and `prev` go through the scenes in the Output page's order and stop at the ends (with no current scene, `next` goes to the
+        first and `prev` to the last). `again` goes back to the current scene as saved, undoing sources turned on or off since.
+      operationId: sceneGo
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The scene's name, lower case with dashes for spaces (e.g. `pre-game`), or `next`, `prev` or `again`
+          schema: { type: string }
+      responses:
+        '200':
+          description: Done. Returns the current scene's name and how many sources differ from it (0 straight after going to it).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  scene: { type: string, nullable: true }
+                  changed: { type: integer }
+        '404': { description: No scene by that name, no scenes at all, or no current scene to go back to }
+
   /deck/output/{action}:
     get:
       tags: [Scene]

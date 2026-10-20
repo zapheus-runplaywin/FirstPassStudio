@@ -32,7 +32,13 @@
   #panel button:hover { background: #475569; }
   #panel .eye { min-width: 44px; }
   #panel .eye.on { background: #F97316; color: #0F172A; }
-  #panel.min ul, #panel.min #hideAll { display: none; }
+  #panel .scenes { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 6px 8px; }
+  #panel .scenes:empty { display: none; }
+  #panel .scenes button { position: relative; padding: 4px 9px 7px; overflow: hidden; }
+  #panel .scenes button::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--band, #3b82f6); }
+  #panel .scenes button.cur { background: #F97316; color: #0F172A; }
+  #panel .scenes button.cur.changed::before { content: ''; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: #FACC15; box-shadow: 0 0 0 1px #0F172A; }
+  #panel.min ul, #panel.min #hideAll, #panel.min .scenes { display: none; }
   #panel.min { width: auto; }
 </style>
 <script src="log.js"></script>
@@ -43,6 +49,7 @@
 <div id="note"></div>
 <div id="panel">
   <header><h2>Sources</h2><span><button id="hideAll" title="Hide every source">Hide all</button> <button id="fold" title="Hide or show this list">–</button></span></header>
+  <div class="scenes" id="scenes"></div>
   <ul id="sources"></ul>
 </div>
 <script>
@@ -118,7 +125,23 @@
       ul.append(li);
     }
   }
-  sceneEvents(showSources);
+  // Scenes: go to one from here. The current one is orange, with a dot when something's changed since.
+  const BANDS = { blue: '#3b82f6', green: '#22c55e', grey: '#a1a1aa', yellow: '#facc15', purple: '#a855f7' };
+  function showScenes(scn) {
+    const box = $('scenes');
+    box.innerHTML = '';
+    for (const sc of scn.scenes || []) {
+      const b = document.createElement('button');
+      b.textContent = sc.name;
+      b.style.setProperty('--band', BANDS[sc.colour] || BANDS.blue);
+      const cur = sc.id === scn.current, changed = cur && (scn.changed || []).length > 0;
+      b.className = (cur ? 'cur' : '') + (changed ? ' changed' : '');
+      b.title = cur ? (changed ? `Back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
+      b.onclick = () => act({ type: 'sceneGo', scene: sc.id });
+      box.append(b);
+    }
+  }
+  sceneEvents(scn => { showScenes(scn); showSources(scn); });
   $('hideAll').onclick = () => act({ type: 'hideAll' });
   const fold = min => {
     $('panel').classList.toggle('min', min);

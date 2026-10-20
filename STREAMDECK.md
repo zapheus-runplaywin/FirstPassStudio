@@ -181,6 +181,28 @@ Each source in the scene gets these links, using its name in lower case with das
 
 Renaming a source on the Output page changes its links (the plugin's keys carry on).
 
+## Scenes (Output page)
+
+A scene is a saved look for the scene's sources: which are on, which are off, and which it leaves as they are. Make them on the
+Output page: set the sources up, press **Save what's on now** and name it (Pre-game, Live, Quarter time, Full time…). **Edit scenes**
+changes them without touching what's on.
+
+| Button | Link |
+|---|---|
+| Go to a scene | http://localhost:8080/deck/scene/pre-game |
+| Next scene | http://localhost:8080/deck/scene/next |
+| Previous scene | http://localhost:8080/deck/scene/prev |
+| Back to the current scene as saved | http://localhost:8080/deck/scene/again |
+
+- Going to a scene fades sources in and out to match, each with its own fade. A source that's already on stays on, so the scoreboard
+  and ticker don't reload or jump.
+- The sources are shared by every scene, so Source keys keep working whichever scene you're in. A source turned on or off after going to a
+  scene shows as **changed** on the Output page; `/deck/scene/again` (or pressing the scene's link again) puts it back.
+- Next and previous go in the order the scenes are in on the Output page (drag them to change it) and stop at the first and last.
+- A source added later is off in every scene. A video that fades out by itself when it finishes doesn't count as a change.
+- A scene's link uses its name like a source's does, so renaming a scene changes its link.
+- The Timed Sequence plugin can press these too, for example `get http://localhost:8080/deck/scene/pre-game` at 18:55.
+
 ## Timed buttons (Timed Sequence plugin)
 
 `plugins/streamdeck` is a Stream Deck plugin that waits until a set time of day, then presses a list of links

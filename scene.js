@@ -7,6 +7,12 @@
 // /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle and
 // /deck/layers/off.
 //
+// Scenes are saved looks for those same sources: each one sets a source on or off, or leaves it
+// as it is (not in its states). Going to a scene (/deck/scene/<name>, next, prev, again) turns
+// sources on and off to match and leaves one that's already on running. Sources stay shared, so
+// a source changed by hand afterwards is changed everywhere, and changed lists the ones that
+// differ from the current scene's saved state.
+//
 // Saved as scene.json in the data folder; images and videos are kept in its media/ folder.
 // Chromium can't play ProRes, so a .mov added to the media folder is converted to a WebM
 // beside it (VP9, keeping transparency) with the ffmpeg the app bundles; the original is kept. Nothing here
@@ -32,7 +38,14 @@ const STREAMDECK_PLUGIN = path.join(__dirname, 'plugins', 'studio-deck', 'dist',
 const kindOf = f => IMAGE_TYPES[path.extname(f).toLowerCase()] ? 'image' : VIDEO_TYPES[path.extname(f).toLowerCase()] ? 'video' : null;
 
 let log = () => {};
-let scene = { sources: [] };
+let scene = { sources: [], scenes: [], current: null };
+// Sources set on in the current scene that went off by themselves (a video that hides when it's
+// done): not a change from the scene.
+let ended = new Set();
+const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
+const STATES = ['on', 'off'];
+// Scene link names that are the next/prev/again links instead.
+const RESERVED = new Set(['next', 'prev', 'previous', 'again']);
 let rev = 0;
 const listeners = new Set(); // server-sent events (/api/scene/events): the Stream Deck plugin
 const sockets = new Set();   // WebSockets (/api/scene/socket): Studio's own pages
@@ -98,19 +111,81 @@ function clean(src, existing = {}) {
   return out;
 }
 
+function uniqueSceneName(name, id) {
+  const base = String(name || '').trim().slice(0, 60) || 'Scene';
+  const taken = new Set([...RESERVED, ...scene.scenes.filter(s => s.id !== id).map(s => slug(s.name))]);
+  if (!taken.has(slug(base)) && slug(base)) return base;
+  for (let i = 2; ; i++) if (!taken.has(slug(`${base} ${i}`))) return `${base} ${i}`;
+}
+
+// A scene: its name, Stream Deck colour group, and on or off for each source it sets (by source id).
+function cleanScene(sc, existing = {}) {
+  const s = { ...existing, ...sc };
+  const ids = new Set(scene.sources.map(x => x.id));
+  const states = {};
+  for (const [id, v] of Object.entries(s.states && typeof s.states === 'object' ? s.states : {})) if (ids.has(id) && STATES.includes(v)) states[id] = v;
+  const out = {
+    id: String(existing.id || s.id || newId()).replace(/[^a-z0-9]/gi, '').slice(0, 20) || newId(),
+    name: '',
+    colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
+    states,
+  };
+  out.name = uniqueSceneName(s.name, out.id);
+  return out;
+}
+
+// What's on and off now, for every source.
+const liveStates = () => Object.fromEntries(scene.sources.map(s => [s.id, s.visible ? 'on' : 'off']));
+
+function findScene(ref) {
+  const r = String(ref || '');
+  return scene.scenes.find(s => s.id === r) || scene.scenes.find(s => slug(s.name) === slug(r)) || null;
+}
+const currentScene = () => scene.scenes.find(s => s.id === scene.current) || null;
+
+// The sources that differ from the current scene's saved state.
+function changed() {
+  const cur = currentScene();
+  if (!cur) return [];
+  return scene.sources.filter(s => {
+    const want = cur.states[s.id];
+    if (!want || (want === 'on') === s.visible) return false;
+    return !(want === 'on' && ended.has(s.id));
+  }).map(s => s.id);
+}
+
+// Turns sources on and off to match a scene. A source already on stays as it is (a page isn't
+// reloaded and a video doesn't start again), and a source the scene doesn't set is left alone.
+function goTo(sc) {
+  let on = 0, off = 0;
+  for (const s of scene.sources) {
+    const want = sc.states[s.id];
+    if (!want) continue;
+    if (want === 'on' && !s.visible) { s.visible = true; on++; }
+    if (want === 'off' && s.visible) { s.visible = false; off++; }
+  }
+  ended = new Set();
+  scene.current = sc.id;
+  log('info', 'scene', `Went to scene "${sc.name}": ${on} on, ${off} off`);
+}
+
 function load() {
   try {
     const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    scene = { sources: [] };
+    scene = { sources: [], scenes: [], current: null };
     for (const s of Array.isArray(saved.sources) ? saved.sources : []) scene.sources.push(clean(s));
+    for (const sc of Array.isArray(saved.scenes) ? saved.scenes : []) if (sc && typeof sc === 'object') scene.scenes.push(cleanScene(sc));
+    scene.current = scene.scenes.some(sc => sc.id === saved.current) ? saved.current : null;
+    ended = new Set((Array.isArray(saved.ended) ? saved.ended : []).filter(id => scene.sources.some(s => s.id === id)));
   } catch (err) {
     if (err.code !== 'ENOENT') log('warn', 'scene', `Could not read scene.json, starting with an empty scene: ${err.message}`);
-    scene = { sources: [] };
+    scene = { sources: [], scenes: [], current: null };
+    ended = new Set();
   }
 }
 
 function save() {
-  try { fs.writeFileSync(FILE, JSON.stringify({ sources: scene.sources.map(({ loadSeq, ...s }) => s) }, null, 2) + '\n'); }
+  try { fs.writeFileSync(FILE, JSON.stringify({ sources: scene.sources.map(({ loadSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }, null, 2) + '\n'); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }
@@ -172,7 +247,10 @@ function upgrade(req, socket) {
   return true;
 }
 
-function state() { return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, converting: [...converting.keys()] }; }
+function state() {
+  return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: scene.scenes, current: currentScene() ? scene.current : null,
+    changed: changed(), converting: [...converting.keys()] };
+}
 
 function find(ref) {
   const r = String(ref || '');
@@ -191,6 +269,8 @@ function apply(a) {
       if (!list.length) return 'Nothing to add.';
       const above = a.before ? find(a.before) : null;
       scene.sources.splice(above ? scene.sources.indexOf(above) : 0, 0, ...list);
+      // A new source is off in every scene, so each scene still gives a known look.
+      for (const sc of scene.scenes) for (const s of list) sc.states[s.id] = 'off';
       for (const s of list) log('info', 'scene', `Added ${s.type} source "${s.name}"${above ? ` above "${above.name}"` : ''}`);
       return null;
     }
@@ -204,6 +284,8 @@ function apply(a) {
     case 'remove':
       if (need()) return need();
       scene.sources.splice(scene.sources.indexOf(src), 1);
+      for (const sc of scene.scenes) delete sc.states[src.id];
+      ended.delete(src.id);
       log('info', 'scene', `Removed source "${src.name}"`);
       return null;
     case 'move': {
@@ -219,6 +301,7 @@ function apply(a) {
     case 'show': case 'hide': case 'toggle':
       if (need()) return need();
       src.visible = a.type === 'toggle' ? !src.visible : a.type === 'show';
+      ended.delete(src.id);
       log('info', 'scene', `"${src.name}" ${src.visible ? 'on' : 'off'}`);
       return null;
     case 'restart':
@@ -238,25 +321,106 @@ function apply(a) {
       if (need()) return need();
       if (src.type === 'video' && src.visible && src.hideWhenDone && !src.loop && Number(a.loadSeq) === src.loadSeq) {
         src.visible = false;
+        if (currentScene()?.states[src.id] === 'on') ended.add(src.id);
         log('info', 'scene', `"${src.name}" finished, off`);
       }
       return null;
     case 'hideAll':
       for (const s of scene.sources) s.visible = false;
+      ended = new Set();
       log('info', 'scene', 'Every source off');
       return null;
+    default:
+      return applyScene(a);
+  }
+}
+
+// Changes to the scenes, and going to one. a.scene names the scene by id or name.
+function applyScene(a) {
+  const sc = a.scene ? findScene(a.scene) : null;
+  const need = () => sc ? null : `No scene "${a.scene || ''}".`;
+  switch (a.type) {
+    case 'sceneSave': {
+      // A new scene from what's on now (it becomes the current scene), or from the states given, at the end of the list.
+      const made = cleanScene({ name: a.name, colour: a.colour, states: a.states || liveStates() }, { id: newId() });
+      scene.scenes.push(made);
+      if (!a.states) { scene.current = made.id; ended = new Set(); }
+      log('info', 'scene', `Saved scene "${made.name}"`);
+      return null;
+    }
+    case 'sceneUpdate': {
+      // Name, colour, and states: 'on', 'off' or 'leave' for each source changed.
+      if (need()) return need();
+      const { id, ...changes } = a.changes || {};
+      const states = { ...sc.states };
+      for (const [k, v] of Object.entries(changes.states || {})) if (v === 'leave') delete states[k]; else states[k] = v;
+      scene.scenes[scene.scenes.indexOf(sc)] = cleanScene({ ...changes, states }, sc);
+      return null;
+    }
+    case 'sceneCapture': {
+      // Saves what's on now over the scene. Sources it leaves as they are stay that way.
+      if (need()) return need();
+      for (const s of scene.sources) if (sc.states[s.id]) sc.states[s.id] = s.visible ? 'on' : 'off';
+      if (scene.current === sc.id) ended = new Set();
+      log('info', 'scene', `Saved what's on now over scene "${sc.name}"`);
+      return null;
+    }
+    case 'sceneCopy': {
+      if (need()) return need();
+      const copy = cleanScene({ name: `${sc.name} copy`, colour: sc.colour, states: { ...sc.states } }, { id: newId() });
+      scene.scenes.splice(scene.scenes.indexOf(sc) + 1, 0, copy);
+      return null;
+    }
+    case 'sceneRemove':
+      if (need()) return need();
+      scene.scenes.splice(scene.scenes.indexOf(sc), 1);
+      if (scene.current === sc.id) { scene.current = null; ended = new Set(); }
+      log('info', 'scene', `Deleted scene "${sc.name}"`);
+      return null;
+    case 'sceneMove': {
+      // up = earlier in the list (where Previous goes), down = later; or to: an index.
+      if (need()) return need();
+      const from = scene.scenes.indexOf(sc);
+      const to = a.to !== undefined ? clamp(a.to, 0, scene.scenes.length - 1, from) : from + (a.direction === 'up' ? -1 : a.direction === 'down' ? 1 : 0);
+      if (to < 0 || to >= scene.scenes.length || to === from) return null;
+      scene.scenes.splice(from, 1);
+      scene.scenes.splice(to, 0, sc);
+      return null;
+    }
+    case 'sceneGo':
+      if (need()) return need();
+      goTo(sc);
+      return null;
+    case 'sceneAgain': {
+      const cur = currentScene();
+      if (!cur) return 'There is no current scene to go back to.';
+      goTo(cur);
+      return null;
+    }
+    case 'sceneNext': case 'scenePrev': {
+      // Stops at the ends. With no current scene, Next goes to the first and Previous to the last.
+      if (!scene.scenes.length) return 'There are no scenes.';
+      const i = scene.scenes.indexOf(currentScene());
+      const to = i < 0 ? (a.type === 'sceneNext' ? 0 : scene.scenes.length - 1) : i + (a.type === 'sceneNext' ? 1 : -1);
+      if (to >= 0 && to < scene.scenes.length) goTo(scene.scenes[to]);
+      return null;
+    }
     default:
       return `Unknown scene change "${a.type}".`;
   }
 }
 
-// /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle and
-// /deck/layers/off. Returns null when the link
+// /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle,
+// /deck/layers/off and /deck/scene/<name>|next|prev|again. Returns null when the link
 // isn't a scene link, so the scoreboard's own links carry on as before.
 function deck(parts) {
   const [what, name, verb] = parts;
   let action = null;
   if (what === 'layers' && name === 'off') action = { type: 'hideAll' };
+  if (what === 'scene' && name && !verb) {
+    action = { next: { type: 'sceneNext' }, prev: { type: 'scenePrev' }, previous: { type: 'scenePrev' }, again: { type: 'sceneAgain' } }[name]
+      || { type: 'sceneGo', scene: name };
+  }
   if (what === 'layer' && name) {
     const type = { on: 'show', show: 'show', off: 'hide', hide: 'hide', toggle: 'toggle', restart: 'restart', reload: 'restart' }[verb];
     if (type) action = { type, name };
@@ -267,6 +431,10 @@ function deck(parts) {
   const error = apply(action);
   if (error) return { status: 404, body: { error } };
   save();
+  if (what === 'scene') {
+    const cur = currentScene();
+    return { status: 200, body: { ok: true, scene: cur ? cur.name : null, changed: changed().length } };
+  }
   const src = action.name ? find(action.name) : null;
   return { status: 200, body: { ok: true, ...(src ? { name: src.name, visible: src.visible, ...(src.type === 'video' ? { sound: src.sound } : {}) } : {}) } };
 }
@@ -388,11 +556,13 @@ function sendMedia(req, res, file, type, send) {
 // The export is a zip: scene.json (the sources, as the data folder keeps them) and, unless asked
 // not to, a media/ folder with the images and videos the sources use. Importing one replaces the
 // scene's sources, every one hidden, and copies its media in; a plain scene.json imports too.
+// An export with scenes replaces the scenes too. One without (from before scenes) keeps the
+// scenes there are, dropping sources that have gone; a source new to them is off in each.
 const VERSION = (() => { try { return require('./package.json').version; } catch { return ''; } })();
 
 function exportFiles(withMedia) {
   const sources = scene.sources.map(({ loadSeq, ...s }) => s);
-  const files = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources }, null, 2) + '\n') }];
+  const files = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources, scenes: scene.scenes }, null, 2) + '\n') }];
   const missing = [];
   if (withMedia) {
     for (const f of new Set(sources.filter(s => s.file).map(s => s.file))) {
@@ -407,7 +577,7 @@ function exportFiles(withMedia) {
 const sha1 = f => new Promise((ok, fail) => { const h = crypto.createHash('sha1'); fs.createReadStream(f).on('data', d => h.update(d)).on('end', () => ok(h.digest('hex'))).on('error', fail); });
 const sameFile = async (a, b) => fs.statSync(a).size === fs.statSync(b).size && await sha1(a) === await sha1(b);
 
-// Imports an uploaded export (saved at file). Returns { sources, copied, missing }.
+// Imports an uploaded export (saved at file). Returns { sources, scenes, copied, missing }.
 async function importFile(file) {
   const zip = require('./zip');
   const head = Buffer.alloc(2);
@@ -451,23 +621,44 @@ async function importFile(file) {
   }
 
   const sources = [];
+  const before = new Set(scene.sources.map(s => s.id));
+  const ids = new Map(); // the export's source id -> the id it has now
   scene.sources = [];
   for (const s of parsed.sources.slice(0, 500)) {
     if (!s || typeof s !== 'object') continue;
     const src = clean({ ...s, visible: false, file: renamed.get(cleanFile(s.file)) || s.file });
     // Two sources with the same id (an export edited by hand) would fight over Stream Deck keys.
     if (scene.sources.some(x => x.id === src.id)) src.id = newId();
+    if (s.id && !ids.has(String(s.id))) ids.set(String(s.id), src.id);
     scene.sources.push(src);
     sources.push(src);
   }
+  if (Array.isArray(parsed.scenes)) {
+    scene.scenes = [];
+    for (const sc of parsed.scenes.slice(0, 200)) {
+      if (!sc || typeof sc !== 'object') continue;
+      const states = Object.fromEntries(Object.entries(sc.states && typeof sc.states === 'object' ? sc.states : {}).map(([k, v]) => [ids.get(k) || k, v]));
+      const made = cleanScene({ ...sc, states });
+      if (scene.scenes.some(x => x.id === made.id)) made.id = newId();
+      scene.scenes.push(made);
+    }
+  } else {
+    scene.scenes = scene.scenes.map(sc => {
+      const kept = cleanScene({}, sc);
+      for (const s of sources) if (!before.has(s.id)) kept.states[s.id] = 'off';
+      return kept;
+    });
+  }
+  scene.current = null;
+  ended = new Set();
   const missing = [...new Set(sources.filter(s => s.file && !fs.existsSync(path.join(MEDIA_DIR, s.file))).map(s => s.file))];
   // A .mov the sources play that hasn't been converted yet starts converting now.
   for (const f of new Set(sources.filter(s => s.type === 'video' && /\.mov$/i.test(s.file)).map(s => s.file))) {
     if (fs.existsSync(path.join(MEDIA_DIR, f)) && !fs.existsSync(path.join(MEDIA_DIR, webmFor(f)))) convert(f);
   }
-  log('info', 'scene', `Imported a scene with ${sources.length} sources${parsed.studio ? ` (exported from Studio ${parsed.studio}${parsed.exported ? ` on ${parsed.exported}` : ''})` : ''}`
+  log('info', 'scene', `Imported a scene with ${sources.length} sources${Array.isArray(parsed.scenes) ? ` and ${scene.scenes.length} scenes` : ''}${parsed.studio ? ` (exported from Studio ${parsed.studio}${parsed.exported ? ` on ${parsed.exported}` : ''})` : ''}`
     + `${copied.length ? `, copied ${copied.join(', ')} to the media folder` : ''}${missing.length ? `; missing media ${missing.join(', ')}` : ''}`);
-  return { sources: sources.length, copied, missing };
+  return { sources: sources.length, scenes: Array.isArray(parsed.scenes) ? scene.scenes.length : null, copied, missing };
 }
 
 // The scene's HTTP routes: /api/scene, /api/scene/events, /api/scene/media, /api/scene/export and
@@ -500,7 +691,7 @@ async function route(req, res, url, { send, readBody }) {
     res.writeHead(200, { 'content-type': 'application/zip', 'cache-control': 'no-store', 'content-disposition': `attachment; filename="${name}"` });
     try {
       await require('./zip').write(res, files);
-      log('info', 'scene', `Exported the scene: ${scene.sources.length} sources and ${files.length - 1} media files`);
+      log('info', 'scene', `Exported the scene: ${scene.sources.length} sources, ${scene.scenes.length} scenes and ${files.length - 1} media files`);
     } catch (err) { log('warn', 'scene', `Scene export stopped: ${err.message}`); res.destroy(); }
     return true;
   }
