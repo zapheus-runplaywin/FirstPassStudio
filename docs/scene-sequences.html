@@ -360,7 +360,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
     <div class="in"><div class="sec ed">
       <div class="f">
         <label>Music</label><div class="row"><span class="sel">Pre-game bed.mp3 · 3:42</span><span class="btn alt sm">+ Track</span><span>Volume <span class="inp" style="padding:3px 8px">70</span> %</span></div>
-        <label>Music starts</label><div class="row"><span class="sel">With the sequence</span><span class="sel">Fade in 2 s</span></div>
+        <label>Music starts</label><div class="row"><span class="sel">With the sequence</span><span>from <span class="inp mono" style="padding:3px 8px">0:42</span></span><span class="btn alt sm">▶ Listen</span><span class="btn alt sm">Set mark here</span><span class="sel">Fade in 2 s</span></div>
         <label>Music ends</label><div class="row"><span class="sel">Keeps playing into the next sequence in the set</span></div>
         <label>If it runs out</label><div class="row"><span class="sel">Play it again</span></div>
       </div>
@@ -415,7 +415,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
   <ul class="tight">
     <li><b>Ending on time.</b> A cut at first centre sounds like a mistake. "Fades to finish as the game starts" times the fade to land on the clock starting, and waits if the start is late.</li>
     <li><b>Tracks of different loudness.</b> Studio evens out loudness when a file is added, and every track still has its own volume.</li>
-    <li><b>Skipping an intro.</b> Each track can start at a set point, such as 0:12, to skip a slow intro.</li>
+    <li><b>Start mark.</b> A sequence's music can start from a set point in the track, such as 0:42 for the chorus, and fades in from there. Type the time, or press Listen and then Set mark here at the moment you want. The mark belongs to the sequence, so Run-up and Full time can start the same song at different points. A repeat or the next loop of the track starts from 0:00.</li>
     <li><b>Quick control on the night.</b> There's a Fade music out button on the playing card and the Stream Deck, plus a music mute key. Stop on a sequence or set fades the music rather than cutting it.</li>
     <li><b>Your commentary.</b> If commentators talk over the run-up, the music level is usually set in the switcher or mixer. Studio's volume is for balancing tracks against each other.</li>
   </ul>
@@ -482,7 +482,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
   "repeat": { "type": "until", "moment": "playResumes" },
   "then": { "type": "scene", "scene": "game-id" },
   "keepOn": ["scoreboard-id"],
-  "music": { "playlist": "pre-game-id", "startStep": 1, "fadeInSec": 2,
+  "music": { "playlist": "pre-game-id", "startStep": 1, "startAtSec": 42, "fadeInSec": 2,
              "end": { "type": "set" } },
   "steps": [
     { "sources": ["shooting-id"], "length": { "type": "time", "sec": 20 } },
@@ -520,6 +520,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
     <li><b>Music follows the video sound route.</b><span class="rec">Mac sound output or embedded in the UltraStudio's SDI, whichever video sound is set to. Matt will settle which on a stream night.</span></li>
     <li><b>Music fades out and pauses for video sound.</b><span class="rec">It fades back in from where it paused once the video ends. This is the player's default for all music, manual or in a sequence.</span></li>
     <li><b>Loudness is evened out when a track is added.</b><span class="rec">A tick box on Add audio, on by default. Studio saves a level-matched copy beside the original.</span></li>
+    <li><b>A sequence's music has a start mark.</b><span class="rec">It fades in from a set point in the track, which you type or set while listening.</span></li>
     <li><b>Scenes and sequences can quiet the music.</b><span class="rec">One tick box, "Quiet the music when this starts", for an on-court interview. A sequence's music fades out and stops, and playlist music from the player ducks and keeps playing.</span></li>
   </ol>
 </section>
