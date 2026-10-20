@@ -127,25 +127,16 @@
 
   <section>
     <h2>Competitions</h2>
-    <p class="help" id="noComps" hidden>No competitions yet. Import one below, or make a new one from scratch.</p>
+    <p class="help" id="noComps" hidden>No competitions yet. Import a template file, or make a new one from scratch.</p>
     <div class="comps" id="comps"></div>
     <div class="row" style="margin-top:12px">
       <button class="alt" id="newComp">New competition</button>
-      <span class="help" id="newHelp">A new competition starts as a copy of the settings and colours of the one you're editing (not its logos).</span>
-    </div>
-    <p class="help" id="dataDir"></p>
-  </section>
-
-  <section>
-    <h2>Import configs</h2>
-    <p class="help">Ready-made competitions with their PlayHQ link, rules, colours and logos. <b>Import</b> adds a copy to your
-      competitions above to use as it is or change; the import config itself stays as it was.</p>
-    <div class="comps" id="imports" style="margin-top:10px"></div>
-    <div class="row" style="margin-top:12px">
       <button class="alt" id="importTemplate">Import a template file</button>
       <input type="file" id="templateFile" accept=".json,application/json" hidden>
     </div>
+    <p class="help" id="newHelp">A new competition starts as a copy of the settings and colours of the one you're editing (not its logos).</p>
     <p class="help">A template file is a competition saved with <b>Export as template</b>, with its settings and logos in one <code>.json</code> file.</p>
+    <p class="help" id="dataDir"></p>
   </section>
 
   <div id="editor" hidden>
@@ -313,13 +304,10 @@
       </details>
       <div class="row" style="margin-top:16px">
         <button class="alt" id="templateComp">Export as template</button>
-        <button class="alt" id="exportComp" hidden>Save as import config</button>
         <button class="danger" id="deleteComp">Delete this competition</button>
       </div>
       <p class="help">Export as template saves this competition's settings, team logos and competition logo (not athlete photos)
         as one <code>.json</code> file, to import on any Studio or keep as a backup.</p>
-      <p class="help" id="exportHelp" hidden>Save as import config copies this competition's settings, team logos and competition logo
-        (not athlete photos) into the app's <code>imports/</code> folder, ready to commit, so anyone can import it.</p>
     </section>
   </div>
 </main>
@@ -368,9 +356,7 @@
     $('noComps').hidden = info.competitions.length > 0;
     $('newHelp').hidden = !info.competitions.length;
     $('dataDir').textContent = `Saved on this computer in ${info.dataDir}`;
-    $('exportComp').hidden = $('exportHelp').hidden = !info.canSaveImports;
     $('importTemplate').disabled = info.readOnly;
-    renderImports();
     const comps = $('comps');
     comps.replaceChildren();
     for (const c of info.competitions) {
@@ -391,36 +377,6 @@
     const want = pick || editing || info.active;
     if (!want) { editing = null; $('editor').hidden = true; $('save').disabled = true; $('useComp').hidden = true; return; }
     if (want !== editing) await open(want);
-  }
-
-  function renderImports() {
-    const box = $('imports');
-    box.replaceChildren();
-    if (!info.imports.length) box.append(el('p', 'help', 'There are no import configs in this copy of Studio.'));
-    for (const c of info.imports) {
-      const row = el('div', 'comp');
-      const name = el('div', 'comp__name', c.name);
-      name.append(el('div', 'comp__sub', c.competitionName ? `PlayHQ: ${c.competitionName}` : 'No PlayHQ competition set'));
-      const btn = el('button', 'alt', 'Import');
-      btn.disabled = info.readOnly;
-      btn.onclick = () => importConfig(c);
-      row.append(name, btn);
-      box.append(row);
-    }
-  }
-
-  async function importConfig(c) {
-    const taken = info.competitions.some(x => x.name === c.name);
-    const name = taken ? await askText(`You already have a competition called ${c.name}. Name for the imported copy:`, `${c.name} (2)`) : c.name;
-    if (!name) return;
-    try {
-      if (dirty && confirm('Save your changes first?')) await save(true);
-      dirty = false;
-      const d = await post('/api/setup-import', { from: c.id, name });
-      editing = null;
-      await loadList(d.id);
-      note('saveNote', d.active ? `Imported ${name}. It's in use now.` : `Imported ${name}. Check its settings, then Save and use it.`, 'ok');
-    } catch (err) { note('saveNote', `Couldn't import it: ${err.message}`, 'error'); }
   }
 
   async function open(id) {
@@ -888,21 +844,6 @@
       await loadList(d.id);
       note('saveNote', d.active ? `Imported ${d.settings.name}. It's in use now.` : `Imported ${d.settings.name}. Check its settings, then Save and use it.`, 'ok');
     } catch (err) { note('saveNote', `Couldn't import it: ${err.message}`, 'error'); }
-  };
-  $('exportComp').onclick = async () => {
-    const id = await askText('Name for the import config (its folder in imports/)', form.name);
-    if (!id) return;
-    try {
-      if (dirty) await save(true);
-      let d;
-      try { d = await post(`/api/setup/${editing}/export`, { importId: id }); }
-      catch (err) {
-        if (!/already an import config/.test(err.message) || !confirm(`${err.message} Replace it?`)) throw err;
-        d = await post(`/api/setup/${editing}/export`, { importId: id, replace: true });
-      }
-      info.imports = d.imports; renderImports();
-      note('saveNote', `Saved as imports/${d.importId}. Commit it to share it.`, 'ok');
-    } catch (err) { note('saveNote', `Couldn't save the import config: ${err.message}`, 'error'); }
   };
   addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
