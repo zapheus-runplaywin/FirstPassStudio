@@ -121,13 +121,13 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     const win = new BrowserWindow({
       ...bounds,
       minWidth: popout ? 320 : 560, minHeight: popout ? 180 : 400,
-      title: popout ? 'Preview · FirstPass Studio' : 'FirstPass Studio',
+      title: popout ? 'Scene View · FirstPass Studio' : 'FirstPass Studio',
       backgroundColor: studioPage ? '#F8FAFC' : '#1E293B', // overlays are see-through: show them on dark
       show: false,
       // The Studio header is the title bar; the window buttons sit inside it.
       titleBarStyle: studioPage ? 'hiddenInset' : 'default',
       trafficLightPosition: { x: 18, y: 26 },
-      // Autoplay with sound: the Output page's preview plays the scene's sound (Preview sound).
+      // Autoplay with sound: the Output page's preview plays the scene's sound (Scene View sound).
       webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true, autoplayPolicy: 'no-user-gesture-required' },
     });
     win.studioUrl = url;

@@ -255,7 +255,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   **Refresh page** reloads it now.
 - **Preview** opens the selected source on its own in a new window, like the home page's Preview buttons.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
-  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's preview is silent unless **Preview sound** is ticked. **Restart video** starts it again from the top.
+  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's Scene View is silent unless **Scene View sound** is ticked. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
   without alpha) gives an opaque WebM: the Output page and the log say so. This needs
@@ -268,12 +268,12 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   the key, and it shows **off air** while Studio isn't running.
 - **Stream Deck links:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
-- **Preview:** a live preview of the scene, on a checkerboard so see-through parts show. It runs the scene's pages a second time, so turn
-  it off when the Mac is busy. **Preview sound** plays the scene's sound from the preview, with or without an output on;
+- **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
+  **Live View** when the Mac is busy. **Scene View sound** plays the scene's sound from the Scene View, with or without an output on;
   a display or Blackmagic output is muted while it does, so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
-  page plays it at a time (click another page's preview to bring the sound there). A line under the preview says why it's silent, if it is.
-  **Pop out** opens the preview in its own window (`/preview.html`) that you can resize, move to another screen or make full screen while
-  testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it plays the sound just as the preview does, and the Output page's preview turns off while it's open (so the scene only runs
+  page plays it at a time (click another page's Scene View to bring the sound there). A line under the Scene View says why it's silent, if it is.
+  **Pop out** opens the Scene View in its own window (`/preview.html`) that you can resize, move to another screen or make full screen while
+  testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it plays the sound just as the Scene View does, and the Output page's Scene View turns off while it's open (so the scene only runs
   once more) and comes back when the window closes.
 - **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
   **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that
