@@ -192,8 +192,6 @@
         <select id="outDlDevice" class="forDecklink"></select>
         <label for="outDlMode" class="forDecklink">Video format</label>
         <select id="outDlMode" class="forDecklink"></select>
-        <p class="note forDecklink hidden" id="outDlInterlaced" style="grid-column:1/-1">Interlaced formats send half the lines at a time, so graphics look softer
-          than they are. Use the progressive format the switcher runs at (such as 1080p50) unless it only takes interlaced.</p>
         <label for="outDlKeying" class="forDecklink">Signal</label>
         <select id="outDlKeying" class="forDecklink">
           <option value="external">Fill and key (the device's external keyer: fill on one SDI out, key on the other)</option>
@@ -840,7 +838,7 @@
     $('outDisplaySize').innerHTML = off.map(d => `<b>${esc(d.label)}</b> is set to ${d.width} × ${d.height}${(d.scale || 1) !== 1 ? ` (HiDPI, ${d.scale}x)` : ''}, not 1920 × 1080, so the scene is scaled and looks softer. `
       + 'In System Settings, Displays, pick it, turn on Show all resolutions and choose 1920 × 1080 (not the HiDPI one).').join('<br>');
     $('outDisplaySize').classList.toggle('hidden', !off.length);
-    // Blackmagic devices, and the 1920 x 1080 (or 720p) formats each can send.
+    // Blackmagic devices, and the 1080p formats each can send (interlaced and 720p look soft, so they aren't offered).
     const dl = o.decklink || {};
     const devices = dl.ok ? dl.devices : [];
     $('outDecklink').disabled = !devices.length && o.mode !== 'decklink';
@@ -848,8 +846,8 @@
     $('outDlDevice').innerHTML = devices.length ? devices.map(d => `<option value="${d.id}">${d.name}${d.externalKeying ? '' : ' (no fill and key)'}</option>`).join('') : '<option value="">No device connected</option>';
     const device = devices.find(d => d.id === o.decklinkDevice) || devices[0];
     $('outDlDevice').value = device ? device.id : '';
-    const modes = device ? device.modes.filter(m => m.supported && (m.height === 1080 || m.height === 720)) : [];
-    $('outDlMode').innerHTML = modes.map(m => `<option value="${m.mode}">${m.name}${m.interlaced ? ' (interlaced)' : ''}${o.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`).join('');
+    const modes = device ? device.modes.filter(m => m.supported && m.height === 1080 && !m.interlaced) : [];
+    $('outDlMode').innerHTML = modes.map(m => `<option value="${m.mode}">${m.name}${o.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`).join('');
     const pickedMode = modes.find(m => m.mode === o.decklinkMode) || defaultMode(modes);
     $('outDlMode').value = String((pickedMode || {}).mode || '');
     $('outDlKeying').value = o.decklinkKeying;
@@ -878,7 +876,6 @@
     for (const el of document.querySelectorAll('.forChroma:not(.forNdiChroma)')) el.classList.toggle('hidden', o.mode !== 'chroma');
     for (const el of document.querySelectorAll('.forFillKey')) el.classList.toggle('hidden', o.mode !== 'fillkey');
     for (const el of document.querySelectorAll('.forDecklink')) el.classList.toggle('hidden', o.mode !== 'decklink');
-    $('outDlInterlaced').classList.toggle('hidden', o.mode !== 'decklink' || !pickedMode?.interlaced);
     const sending = o.on && o.mode !== 'off';
     $('outOn').textContent = sending ? 'Output on' : 'Output off';
     $('outOn').className = sending ? '' : 'alt';
@@ -915,10 +912,10 @@
   };
   // ?scan=1 has the app look for Blackmagic devices again (plugged in or out).
   const loadOut = () => fetch('/api/outputs?scan=1').then(r => r.json()).then(showOut).catch(() => {});
-  // The format to start with: 1080p50 if the device can key it (Australian switchers mostly run at 50, and
-  // interlaced looks soft), else the first progressive 1080 format that can, else the first 1080 one, else the first.
-  const defaultMode = modes => ['1080p50', '1080p25', '1080i50'].map(n => modes.find(m => m.keying && m.name.replace(/\s/g, '').includes(n))).find(Boolean)
-    || modes.find(m => m.keying && m.height === 1080 && !m.interlaced) || modes.find(m => m.keying && m.height === 1080) || modes[0];
+  // The format to start with (the same as outputs.js uses): 1080p50 if the device can key it (Australian
+  // switchers mostly run at 50), else the first 1080p format that can, else the first.
+  const defaultMode = modes => ['1080p50', '1080p25'].map(n => modes.find(m => m.keying && m.name.replace(/\s/g, '').includes(n))).find(Boolean)
+    || modes.find(m => m.keying) || modes[0];
   loadOut();
   // Displays come and go (plugged in, the app starting up): check again now and then.
   setInterval(() => { if (!document.hidden) loadOut(); }, 5000);

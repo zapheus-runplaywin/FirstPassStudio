@@ -303,8 +303,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   setting) makes the scene softer; the Output page says so and how to change it in System Settings. The same key settings apply as for Blackmagic below.
 - **Blackmagic output (Mac app):** sends the scene out of a Blackmagic UltraStudio or DeckLink.
   **Fill and key** uses the device's external keyer (fill on one SDI out, key on the other); **fill only** sends just the picture. Pick the
-  device and the video format the switcher runs at (1080p50 is picked first when the device can key it; interlaced formats are marked, as they
-  look softer). The fill is premultiplied, as Chromium draws it; tick **Straight** only if the switcher's key can't take premultiplied fill.
+  device and the video format the switcher runs at (only 1080p formats are offered, as interlaced and 720p look soft; 1080p50 is picked first
+  when the device can key it, and a 1080i format saved earlier is replaced by it). The fill is premultiplied, as Chromium draws it; tick **Straight** only if the switcher's key can't take premultiplied fill.
   For the cleanest key, turn the switcher's **Pre Multiplied Key** on (clip and gain aren't used then); with it off, clip and gain cut into soft edges
   and the edges go dark. The log says the size of the pictures going out (`sending 1920 x 1080 pictures`). It needs Blackmagic Desktop Video installed, not the SDK,
   and the device free (quit any other app using it, such as Media Express, first). The scene renders off screen at the format's frame
