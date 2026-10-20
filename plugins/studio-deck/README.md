@@ -33,13 +33,15 @@ src/
   plugin.ts            registers the action and connects to Stream Deck
   actions/source.ts    SDK action: one SourceKey per key on screen; answers the settings panel's list request
   lib/source-key.ts    what a key shows (lit, title) and which link a press opens (no SDK)
+  lib/colours.ts       colour groups (blue, green, grey, yellow, purple) and the key images drawn for each
   lib/studio.ts        one live scene connection per Studio address, shared by its keys; presses and the source list
 com.runplaywin.firstpass-studio.sdPlugin/
   manifest.json
   ui/source.html       settings panel (plain HTML/JS)
-  imgs/                plugin, category, action and key images (off: navy; on: orange)
+  imgs/                plugin, category, action and key images (the default blue group: off navy, on orange)
 test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
+  colours.test.ts      colour groups, key images and contrast (on vs off in every colour), settings panel list
   plugin.e2e.test.ts   real SDK + real Studio + fake Stream Deck app
 ```
 

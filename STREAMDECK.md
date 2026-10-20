@@ -154,6 +154,9 @@ app update to update the plugin). Then drag **FirstPass Studio > Source** onto a
 - **Press:** show or hide (default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.
 - The key shows the source's name and lights up orange while the source is on, whether it was turned on from this key, another key, the
   Output page or a link. A sound key lights while the video's sound is on.
+- **Colour:** group keys by the part of the stream they belong to: **blue** for the live stream (default), **green** for pre-game,
+  **grey** for post-game, **yellow** (dark gold) for ads and **purple** for the quarter time break. The key is dark in its colour while the
+  source is off and turns orange while it's on, in every colour; the strip along the bottom keeps the group's colour either way.
 - It follows the source itself, so renaming it on the Output page doesn't break the key. If the source is removed the key says **gone**;
   while Studio isn't running it says **off air**, and a press shows a warning.
 - Tick **Use my own title** to show the title you type in Stream Deck instead of the source's name.
