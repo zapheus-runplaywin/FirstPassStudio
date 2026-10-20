@@ -157,7 +157,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
 <header class="top">
   <div class="eyebrow">FirstPass Studio · Output page · Design for review · 20 Oct 2026</div>
   <h1>Scene <em>sequences</em></h1>
-  <p class="lede">A sequence plays sources one after another on the Output page, so the run-up to a game, each quarter break and the post-game wrap can run themselves. You build it as a short list of steps. Each step says what comes on and how long it stays: a set time for a still graphic, or until it finishes for a video or an animation.</p>
+  <p class="lede">A sequence plays sources one after another on the Output page, so the run-up to a game, each quarter break and the post-game wrap can run themselves. You build it as a short list of steps. Each step says what comes on and how long it stays: a set time for a still graphic, or until it finishes for a video or an animation. A music track can play under a sequence, or across several sequences grouped as a set.</p>
   <p class="muted">Nothing here is built yet. Your answers to the questions at the end decide the details, then it ships in three small PRs.</p>
 </header>
 
@@ -345,6 +345,66 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
   </div>
 </section>
 
+<section id="music">
+  <h2>Music and sequence sets</h2>
+  <p>A sequence can have a music track. The music can start with the sequence, with or without a fade in. It can stop when the sequence ends, with or without a fade out, or carry on across several sequences grouped as a <b>set</b>.</p>
+
+  <h3>Where the music comes from</h3>
+  <div class="grid2">
+    <div class="card"><h3>Audio files <span class="tag">Works</span></h3><p>Add an MP3, M4A (AAC), WAV or AIFF to the media folder, the same way you add videos. These play anywhere Studio's video sound plays.</p></div>
+    <div class="card"><h3>Your Music library <span class="tag">Partly</span></h3><p>Songs you bought from the iTunes Store or imported yourself are ordinary files, so <b>Choose from Music</b> can open the picker in the Music app's media folder and copy one in. <b>Apple Music</b> songs, streamed or downloaded, are copy-protected and only play inside Apple's own apps, so Studio can't play them. Apple Music's licence is also personal use only, and YouTube and Facebook mute or flag streams that use it.</p></div>
+  </div>
+  <p class="note">Use music you're licensed to broadcast, such as royalty-free or production music, or tracks the league has rights to. That rule comes from the platforms, not from Studio.</p>
+
+  <h3>Music on a sequence</h3>
+  <p>Music is a new source type, <b>Audio</b>, in the source list. It has no picture, but it gets everything a video's sound gets: volume, fade, a Stream Deck on and off key, and the same sound path. Video sound plays through the Mac's output by default, or embedded in the Blackmagic signal if you turn that on. The Scene View sound rule still applies, so you never hear two copies. The sequence editor gets one extra row:</p>
+  <div class="screen" role="img" aria-label="Mockup of the Music row in the sequence editor">
+    <div class="in"><div class="sec ed">
+      <div class="f">
+        <label>Music</label><div class="row"><span class="sel">Pre-game bed.mp3 · 3:42</span><span class="btn alt sm">+ Track</span><span>Volume <span class="inp" style="padding:3px 8px">70</span> %</span></div>
+        <label>Music starts</label><div class="row"><span class="sel">With the sequence</span><span class="sel">Fade in 2 s</span></div>
+        <label>Music ends</label><div class="row"><span class="sel">Keeps playing into the next sequence in the set</span></div>
+        <label>If it runs out</label><div class="row"><span class="sel">Play it again</span></div>
+        <label>Under sound</label><div class="row"><span>☑ Lower the music to <span class="inp" style="padding:3px 8px">25</span> % while a video or page with sound plays</span></div>
+      </div>
+    </div></div>
+  </div>
+  <div class="grid2" style="align-items:start">
+    <div class="menu" aria-label="Music ends menu">
+      <div>When this sequence ends <small>cut</small></div>
+      <div>When this sequence ends <small>fade 3 s</small></div>
+      <div class="on">Keeps playing into the next sequence in the set</div>
+      <div>Fades to finish as the game starts</div>
+      <div>When I stop it</div>
+    </div>
+    <p class="muted" style="font-size:14px">"Music starts" can also be "at step N", so the music can kick in on The Clash rather than at the top. With several tracks, they play in order and crossfade. If they all run out before the sequence ends, they start again.</p>
+  </div>
+
+  <h3>Sequence sets</h3>
+  <p>A set is a named chain of sequences that share one music track: <b>Pre-game</b> could be Run-up, then Walk out. The set starts when its first sequence starts, whether by hand or by trigger. Each next sequence starts when the one before it ends, or earlier if its own trigger arrives first. The music runs across the whole set and ends with the last sequence, using that sequence's "Music ends" setting.</p>
+  <div class="screen" role="img" aria-label="Mockup of a sequence set card">
+    <div class="in"><div class="seqs">
+      <div class="seq run" style="grid-column:1/-1">
+        <div class="t"><b>Pre-game set</b><span class="auto">10 min before</span></div>
+        <div class="row" style="font-size:12.5px"><span class="src" style="background:#FFE4D2">Run-up</span><span>→</span><span class="src">Walk out</span><span style="color:var(--ui-muted)">♪ Pre-game bed.mp3 · 2:31 of 3:42 · loops · fades as the game starts</span></div>
+        <div class="dots"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+        <div class="now-line"><span>Run-up · 3 of 5 · <b>Match up</b></span><span class="mono">0:12 left</span></div>
+        <div class="row"><span class="btn alt sm">Next ⏭</span><span class="btn alt sm">Pause</span><span class="btn alt sm">♪ Fade music out</span><span class="btn stop sm">Stop</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <h3>Things to think about with music</h3>
+  <ul class="tight">
+    <li><b>Lowering it under other sound.</b> The break ad or The Clash may have its own sound. Without ducking you'd get two tracks fighting, so the music dips while they play and comes back after.</li>
+    <li><b>Ending on time.</b> A cut at first centre sounds like a mistake. "Fades to finish as the game starts" times the fade to land on the clock starting, and waits if the start is late.</li>
+    <li><b>Tracks of different loudness.</b> Every track has its own volume, and Studio could even out loudness when a file is added (ffmpeg can measure and adjust it), so tracks from different sources sit at the same level.</li>
+    <li><b>Skipping an intro.</b> Each track can start at a set point, such as 0:12, to skip a slow intro.</li>
+    <li><b>Quick control on the night.</b> There's a Fade music out button on the playing card and the Stream Deck, plus a music mute key. Stop on a sequence or set fades the music rather than cutting it.</li>
+    <li><b>Your commentary.</b> If commentators talk over the run-up, the music level is usually set in the switcher or mixer. Studio's volume is for balancing tracks against each other.</li>
+  </ul>
+</section>
+
 <section>
   <h2>While it plays</h2>
   <p>Your rule is that manual controls are never taken away, so the sequence works around you rather than locking anything.</p>
@@ -371,7 +431,10 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
 /deck/sequence/next                    next step of whatever is playing
 /deck/sequence/pause                   pause or carry on
 /deck/sequence/stop                    stop whatever is playing
-/deck/sequence/auto/on|off|toggle      the Automatic sequences switch</pre>
+/deck/sequence/auto/on|off|toggle      the Automatic sequences switch
+/deck/set/pre-game/play|toggle         start or stop a set
+/deck/music/fade                       fade whatever music is playing
+/deck/music/mute/on|off|toggle         mute the music, keep it running</pre>
   <p>The FirstPass Studio plugin gets a <b>Sequence</b> key: the name, lit while playing, with the step and time left on the key (for example "3/5 · 0:04"). Pressing it plays or stops.</p>
 </section>
 
@@ -391,6 +454,8 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
   "repeat": { "type": "until", "moment": "playResumes" },
   "then": { "type": "scene", "scene": "game-id" },
   "keepOn": ["scoreboard-id"],
+  "music": { "tracks": ["bed-audio-id"], "startStep": 1, "fadeInSec": 2,
+             "end": { "type": "set" }, "duck": 25 },
   "steps": [
     { "sources": ["shooting-id"], "length": { "type": "time", "sec": 20 } },
     { "sources": ["ad-id", "logo-id"], "length": { "type": "done" } }
@@ -406,6 +471,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
       <tr><td>1. Sequences by hand</td><td>The Sequences strip, the editor, Play, Next, Pause, Stop, all four step lengths except "until the game moves on", and Then.</td></tr>
       <tr><td>2. Stream Deck</td><td>The <code>/deck/sequence/…</code> links, the plugin's Sequence key, and the Stream Deck page and home page docs.</td></tr>
       <tr><td>3. Game triggers</td><td>Before the start, breaks and full time, "until the game moves on", "repeat until", and the Automatic sequences switch.</td></tr>
+      <tr><td>4. Music and sets</td><td>Audio sources and files, the Music rows, ducking, sequence sets, and the music Stream Deck links. "Fades to finish as the game starts" needs PR 3.</td></tr>
     </tbody>
   </table></div>
   <p class="muted">Game triggers come last, as planned in the OBS replacement design. The first two PRs are useful on their own: you can fire a quarter-break sequence from one Stream Deck key.</p>
@@ -422,6 +488,10 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
     <li><b>Is "repeat until 2 minutes before, then a separate Walk out sequence" the right way to build the run-up?</b><span class="rec">I'd go with this rather than one sequence with timed sections. It keeps the editor a plain list.</span></li>
     <li><b>Does one sequence at a time work for you?</b><span class="rec">I'd go with one at a time. Two at once (a sponsor loop over a break loop) would need rules for who wins a source.</span></li>
     <li><b>Should finals and carnival days use different sequences?</b><span class="rec">I'd keep sequences shared by every competition, like sources and scenes, and leave per-competition sequences for later if you need them.</span></li>
+    <li><b>Is "Choose from Music" for your own purchased or imported files OK in place of Apple Music?</b><span class="rec">I'd go with this. Apple Music songs can't be played outside Apple's apps, and they aren't licensed for streams.</span></li>
+    <li><b>Where does Studio's sound reach the stream today: the Mac's output into the ATEM, or embedded in the UltraStudio's SDI?</b><span class="rec">This decides which output the music uses by default. I'd keep the default the same as video sound.</span></li>
+    <li><b>Should music dip under a video's own sound automatically?</b><span class="rec">I'd go with yes, to 25 %, changeable per sequence.</span></li>
+    <li><b>Should Studio even out loudness when you add a track?</b><span class="rec">I'd go with yes, as a tick box that's on by default, keeping your original file.</span></li>
   </ol>
 </section>
 </main>
