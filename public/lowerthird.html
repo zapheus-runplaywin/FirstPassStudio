@@ -9,23 +9,33 @@
 <link rel="stylesheet" href="theme.css">
 <style>
   /* Laid out for 1920 x 1080 at 1x, on whole pixels. By default the bar's left edge lines up with the
-     scoreboard's (the scoreboard is 1335px wide and centred, so its left edge is at 292px) and its bottom
-     sits 8px above the scoreboard's PlayHQ Live tab (top 930px), like the ladder lower third. */
-  :root { --left: 292px; --bottom: 158px; --height: 120px; --max: 1335px; }
+     scoreboard's (the scoreboard is 1335px wide and centred on whole pixels, so its left edge is at 293px and its right edge 292px from the right) and its bottom
+     sits 8px above the scoreboard's PlayHQ Live tab (top 930px), like the ladder lower third. ?position=right
+     mirrors it (badge on the right, words right-aligned) with its right edge on the scoreboard's, for a second
+     person on screen at the same time. */
+  :root { --left: 293px; --right: 292px; --bottom: 158px; --height: 120px; --max: 1335px; }
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
   [hidden] { display: none !important; }
-  body.bottom, body.bottom-center { --bottom: 80px; }
+  body.bottom, body.bottom-center, body.bottom-right { --bottom: 80px; }
 
   .l3 { position: absolute; left: var(--left); bottom: var(--bottom); max-width: var(--max); display: flex; flex-direction: column; align-items: flex-start; }
   body.center .l3, body.bottom-center .l3 { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); align-items: center; }
 
+  body.right .l3, body.bottom-right .l3 { left: auto; right: var(--right); align-items: flex-end; }
+  /* Two people on screen: the right one and a left-half one share the scoreboard's width with a 15px gap. */
+  body.right, body.bottom-right, body.left-half, body.bottom-left-half { --max: 660px; }
+  body.bottom-left-half { --bottom: 80px; }
+  body.right .l3__bar, body.bottom-right .l3__bar, body.left-half .l3__bar, body.bottom-left-half .l3__bar { min-width: 560px; }
   .l3__tag {
     background: var(--pink); color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
     padding: 6px 18px; border-radius: 6px 6px 0 0; margin-left: 150px; white-space: nowrap;
   }
   body.center .l3__tag, body.bottom-center .l3__tag { margin-left: 0; }
   .l3__tag:empty { display: none; }
+  body.right .l3__tag, body.bottom-right .l3__tag { margin-left: 0; margin-right: 150px; }
+  body.right .l3__bar, body.bottom-right .l3__bar { flex-direction: row-reverse; }
+  body.right .l3__text, body.bottom-right .l3__text { padding: 0 30px 0 40px; text-align: right; }
   .l3__bar {
     display: flex; height: var(--height); max-width: var(--max); min-width: 640px; box-sizing: border-box;
     background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
@@ -39,7 +49,7 @@
   .l3__logo.logo-fallback { box-sizing: border-box; font-size: 28px; }
   .l3__photo { width: var(--height); flex: none; object-fit: cover; object-position: center 20%; background: var(--purple-dark); }
   .l3__text { padding: 0 40px 0 30px; display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1; }
-  .l3__name { font-size: 50px; line-height: 58px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; }
+  .l3__name { font-size: 50px; line-height: 58px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .l3__line { font-size: 24px; line-height: 30px; font-weight: 700; color: var(--yellow); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .l3__line:empty { display: none; }
 
@@ -55,6 +65,11 @@
   @keyframes up { from { opacity: 0; translate: 0 18px; } to { opacity: 1; translate: 0 0; } }
   @keyframes leave { to { opacity: 0; translate: -60px 0; } }
   body.center .away .l3, body.bottom-center .away .l3 { animation-name: leave-down; }
+  body.right .go .l3__bar, body.bottom-right .go .l3__bar { animation-name: open-left; }
+  @keyframes open-left { from { clip-path: inset(0 0 0 calc(100% - var(--height)) round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
+  body.right .away .l3, body.bottom-right .away .l3 { animation-name: leave-right; }
+  @keyframes leave-right { to { opacity: 0; translate: 60px 0; } }
+  body.right .message, body.bottom-right .message { left: auto; right: var(--right); }
   @keyframes leave-down { to { opacity: 0; translate: 0 40px; } }
   .message { position: absolute; left: var(--left); bottom: var(--bottom); color: var(--text); background: var(--purple-deep); padding: 16px 24px; border-radius: 8px; font-size: 22px; }
 </style>
@@ -70,7 +85,9 @@
                 &title=Captain  the smaller line (an athlete's goes after their team name)
                 &tag=Player%20of%20the%20match  a small tab above the bar
                 &photo=1        the athlete's photo (or silhouette) beside the logo
-                &position=center | bottom | bottom-center   (default: left, lined up with the scoreboard, just above it)
+                &position=center | bottom | bottom-center | right | bottom-right | left-half | bottom-left-half
+                (default: left, lined up with the scoreboard, just above it; right mirrors it for a second person on
+                screen, half the width, and left-half is the left one at half width to go with it)
                 &mode=light     the light mode competition logo (default dark, for the dark bar)
                 &out=8          animates away after 8 seconds -->
   <div id="stage">
@@ -95,7 +112,7 @@
     const name = (params.get('name') || '').trim();
     const title = (params.get('title') || '').trim();
     const position = params.get('position');
-    if (['center', 'bottom', 'bottom-center'].includes(position)) document.body.classList.add(position);
+    if (['center', 'bottom', 'bottom-center', 'right', 'bottom-right', 'left-half', 'bottom-left-half'].includes(position)) document.body.classList.add(position);
 
     // Long names get smaller until they fit the bar (never below 30px); whole pixel sizes only.
     function fitName() {

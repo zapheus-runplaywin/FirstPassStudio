@@ -497,10 +497,12 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
 [['Athlete lower third', '/lowerthird.html?name=Jane%20Smith',
   'For the breaks and before and after the game, when the stream cuts to someone on camera. An athlete\'s name in big letters, their team name under it and their club\'s logo beside it. ' +
   'The athlete is found by name among the competition\'s athletes (everyone in the PlayHQ line ups read so far, the same list as <b>All athletes</b> on the <a href="/athletes.html" target="_blank">Athletes page</a>); ' +
-  'case, punctuation and word order don\'t matter. That gives their team, and the team\'s logo comes from its club on the competition setup page. On the Output page the <b>Name</b> box suggests the athletes as you type. ' +
+  'case, punctuation and word order don\'t matter. That gives their team, and the team\'s logo comes from its club on the competition setup page. On the Output page the <b>Name</b> box suggests the athletes as you type: only the active competition\'s, from divisions in its current PlayHQ season. ' +
+  'Pick a <b>Team</b> to narrow them to one team, or tick <b>Only athletes in the picked game</b> for the two teams in the game on the scoreboard. ' +
   'An athlete who plays for more than one team shows the one in the game picked on the scoreboard, else the first: <code>?team=Knights</code> picks it. ' +
   'Options: <code>?title=Captain</code> adds a word after the team name, <code>?tag=Player%20of%20the%20match</code> a small pink tab above the bar, <code>?photo=1</code> their photo (or silhouette) beside the logo. ' +
   'It sits on the left, lined up with the scoreboard and just above it; <code>?position=center</code> centres it, <code>?position=bottom</code> or <code>bottom-center</code> puts it lower for when the scoreboard is off. ' +
+  'For two people on screen at once (an interview or the commentary box), add a second source: <code>?position=right</code> mirrors the bar on the right at half width, and <code>?position=left-half</code> is the left one at half width, so the two sit side by side over the scoreboard (<code>bottom-right</code> and <code>bottom-left-half</code> put them lower). ' +
   '<code>?out=8</code> animates it away after 8 seconds. Loads once; it plays in again each time it\'s turned on on the Output page.'],
  ['Guest or commentator lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator',
   'The same bar with a guest\'s or commentator\'s name, their title under it (<code>?title=Special%20guest</code>) and the competition logo from the competition setup page ' +

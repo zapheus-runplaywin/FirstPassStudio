@@ -2484,6 +2484,24 @@ function getLowerThird(q) {
   return out;
 }
 
+// The athletes the Output page suggests for the person lower third: only the active competition's, and
+// of those only athletes seen in a division of its current PlayHQ season (an athlete left in the register
+// from an earlier season isn't offered). Each has their teams, so the page can narrow them to one team or
+// to the two teams in the game picked on the control page. Nothing here asks PlayHQ.
+function getLowerThirdAthletes() {
+  const divisions = new Set(((structure && structure.grades) || []).map(g => norm(g.name)));
+  let list = Object.values(athletes()).map(e => ({ name: e.name, teams: athleteTeams(e.name) })).filter(a => a.teams.length);
+  const current = list.filter(a => a.teams.some(t => divisions.has(norm(t.division))));
+  if (current.length) list = current.map(a => ({ ...a, teams: a.teams.filter(t => divisions.has(norm(t.division))) }));
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  const teams = [];
+  for (const a of list) for (const t of a.teams) if (!teams.some(x => x.team === t.team && x.division === t.division)) teams.push(t);
+  teams.sort((a, b) => a.team.localeCompare(b.team) || a.division.localeCompare(b.division, 'en', { numeric: true }));
+  const b = board();
+  const game = [b.home.name, b.away.name].filter(n => n && n !== 'TBC' && !/^home$|^away$/i.test(n));
+  return { competition: competitionName(), game: { teams: game, division: b.division || '' }, teams, athletes: list };
+}
+
 async function getHeadToHead() {
   const b = board();
   const grade = await gradeFor(b);
@@ -2626,6 +2644,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/countdown') return send(res, 200, getCountdown());
     if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext());
     if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar());
+    if (url.pathname === '/api/lowerthird/athletes') return send(res, 200, getLowerThirdAthletes());
     if (url.pathname === '/api/lowerthird') return send(res, 200, getLowerThird(q));
     if (url.pathname === '/api/headtohead') return send(res, 200, await getHeadToHead());
     if (url.pathname === '/api/form') return send(res, 200, await getForm(q.count));
