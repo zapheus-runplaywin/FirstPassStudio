@@ -2021,6 +2021,38 @@ async function withSquad(side, division) {
 }
 const squadLogged = new Set();
 
+// The team lists must follow the scoreboard's home and away (the round fixture's).
+// PlayHQ's game page data doesn't always agree with it: its teams can be listed the other
+// way round, and its line-ups can sit under the other team. The teams are matched by name,
+// then each line-up by its goals against the live feed's team totals (a team's players
+// can't have scored more than the team).
+const orientLogged = new Set();
+function orientToBoard(game, b, live) {
+  const note = (what) => {
+    const k = `${b.gameId}|${what}`;
+    if (!orientLogged.has(k)) { orientLogged.add(k); log('info', 'teams', `game ${b.gameId}: ${what}`); }
+  };
+  const named = (side, name) => sameTeam(side.name, name);
+  if ((named(game.home, b.away.name) || named(game.away, b.home.name)) && !named(game.home, b.home.name) && !named(game.away, b.away.name)) {
+    note(`PlayHQ lists ${game.home.name} as home and ${game.away.name} as away, the other way round from the fixture; swapped to match the scoreboard`);
+    game = { ...game, home: game.away, away: game.home };
+  }
+  if (!live) return game;
+  const sums = side => side.players.reduce((t, p) => ({ goals: t.goals + (p.shooting.goals || 0), superGoals: t.superGoals + (p.shooting.superGoals || 0) }), { goals: 0, superGoals: 0 });
+  const h = sums(game.home), a = sums(game.away);
+  if (!h.goals && !h.superGoals && !a.goals && !a.superGoals) return game;
+  const over = (p, team) => (team.goals != null && p.goals > team.goals) || (team.superGoals != null && p.superGoals > team.superGoals);
+  const off = (p, team) => Math.abs(p.goals - (team.goals || 0)) + Math.abs(p.superGoals - (team.superGoals || 0));
+  const straightBad = over(h, live.home) || over(a, live.away);
+  const swappedBad = over(a, live.home) || over(h, live.away);
+  const swappedCloser = !straightBad && !swappedBad && off(a, live.home) + off(h, live.away) === 0 && off(h, live.home) + off(a, live.away) > 0;
+  if ((straightBad && !swappedBad) || swappedCloser) {
+    note(`PlayHQ's line-ups sit under the other team (player goals ${h.goals}+${h.superGoals} / ${a.goals}+${a.superGoals}, team goals ${live.home.goals}+${live.home.superGoals} / ${live.away.goals}+${live.away.superGoals}); swapped the players`);
+    game = { ...game, home: { ...game.home, players: game.away.players }, away: { ...game.away, players: game.home.players } };
+  }
+  return game;
+}
+
 const summaryCache = new Map();
 async function getTeamSheets() {
   const b = board();
@@ -2030,16 +2062,16 @@ async function getTeamSheets() {
   const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
   let gqlError = '';
   try {
-    const game = await getGame(b.gameId, maxAge);
+    // Team totals from the live feed: PlayHQ doesn't credit every goal to a player.
+    let live = null;
+    try { live = await getLive(b.gameId, maxAge); }
+    catch (err) { if (!err.notYet && !err.notScored) log('warn', 'teams', `Live totals failed: ${err.message}`); }
+    const game = orientToBoard(await getGame(b.gameId, maxAge), b, live);
     // A team without a full line up has the rest of its season squad added.
     const g = { home: await withSquad(game.home, b.division), away: await withSquad(game.away, b.division) };
     if (g.home.players.length || g.away.players.length || !CONFIG.apiKey) {
       const error = g.home.players.length || g.away.players.length ? undefined : 'PlayHQ has no line-ups for this game yet.';
-      // Team totals from the live feed: PlayHQ doesn't credit every goal to a player.
-      try {
-        const l = await getLive(b.gameId, maxAge);
-        g.home.totals = l.home; g.away.totals = l.away;
-      } catch (err) { if (!err.notYet && !err.notScored) log('warn', 'teams', `Live totals failed: ${err.message}`); }
+      if (live) { g.home.totals = live.home; g.away.totals = live.away; }
       return { ...meta, home: g.home, away: g.away, error, updatedAt: new Date().toISOString() };
     }
   } catch (err) {
