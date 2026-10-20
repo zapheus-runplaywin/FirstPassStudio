@@ -366,7 +366,6 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
         <label>Music starts</label><div class="row"><span class="sel">With the sequence</span><span class="sel">Fade in 2 s</span></div>
         <label>Music ends</label><div class="row"><span class="sel">Keeps playing into the next sequence in the set</span></div>
         <label>If it runs out</label><div class="row"><span class="sel">Play it again</span></div>
-        <label>Under sound</label><div class="row"><span>☑ Lower the music to <span class="inp" style="padding:3px 8px">25</span> % while a video or page with sound plays</span></div>
       </div>
     </div></div>
   </div>
@@ -403,13 +402,14 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
       <div class="now-line" style="font-size:13.5px"><span>♪ <b>Pre-game bed.mp3</b> · 2 of 4 in Pre-game</span><span class="mono">1:12 / 3:42</span></div>
       <div class="dots"><i class="done"></i><i class="now"></i><i></i><i></i></div>
       <div class="row"><span class="btn alt sm">⏮ Prev</span><span class="btn sm">⏸ Pause</span><span class="btn alt sm">Next ⏭</span><span class="btn stop sm">■ Stop</span><span style="margin-left:8px">Fade <span class="inp" style="padding:3px 8px">2</span> s</span><span>☐ Shuffle</span><span>☑ Loop the playlist</span><span>Volume <span class="inp" style="padding:3px 8px">70</span> %</span></div>
+      <div class="row" style="font-size:13px"><b>When a video with sound plays</b><span class="sel">Fade out and pause, then carry on</span><span style="color:var(--ui-muted)">Other choices: lower to 25 %, or leave the music as it is</span></div>
     </div></div>
   </div>
   <p>Playlists are named lists of audio files from the media folder, saved with the scene. Prev and Next crossfade between songs using the fade time.</p>
+  <p><b>Music steps aside for other sound.</b> Whenever a video with its sound on starts, such as the break ad, the music fades out and pauses. When the video finishes or is turned off, the music fades back in from where it paused. This is a player setting, so it works the same whether you started the music by hand or a sequence did. You can change it to lower the music to a set level instead, or to leave it alone. A video with its sound off doesn't count.</p>
 
   <h3>Things to think about with music</h3>
   <ul class="tight">
-    <li><b>Lowering it under other sound.</b> The break ad or The Clash may have its own sound. Without ducking you'd get two tracks fighting, so the music dips while they play and comes back after.</li>
     <li><b>Ending on time.</b> A cut at first centre sounds like a mistake. "Fades to finish as the game starts" times the fade to land on the clock starting, and waits if the start is late.</li>
     <li><b>Tracks of different loudness.</b> Every track has its own volume, and Studio could even out loudness when a file is added (ffmpeg can measure and adjust it), so tracks from different sources sit at the same level.</li>
     <li><b>Skipping an intro.</b> Each track can start at a set point, such as 0:12, to skip a slow intro.</li>
@@ -479,7 +479,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
   "then": { "type": "scene", "scene": "game-id" },
   "keepOn": ["scoreboard-id"],
   "music": { "playlist": "pre-game-id", "startStep": 1, "fadeInSec": 2,
-             "end": { "type": "set" }, "duck": 25 },
+             "end": { "type": "set" } },
   "steps": [
     { "sources": ["shooting-id"], "length": { "type": "time", "sec": 20 } },
     { "sources": ["ad-id", "logo-id"], "length": { "type": "done" } }
@@ -495,7 +495,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
       <tr><td>1. Sequences by hand</td><td>The Sequences strip, the editor, Play, Next, Pause, Stop, all four step lengths except "until the game moves on", and Then.</td></tr>
       <tr><td>2. Stream Deck</td><td>The <code>/deck/sequence/…</code> links, the plugin's Sequence key, and the Stream Deck page and home page docs.</td></tr>
       <tr><td>3. Game triggers</td><td>Before the start, breaks and full time, "until the game moves on", "repeat until", and the Automatic sequences switch.</td></tr>
-      <tr><td>4. Music and sets</td><td>Audio files, the Music player and playlists, the Music rows on a sequence, ducking, sequence sets, and the music Stream Deck links. The player and its links could come before sequences, since they stand on their own. "Fades to finish as the game starts" needs PR 3.</td></tr>
+      <tr><td>4. Music and sets</td><td>Audio files, the Music player and playlists, the Music rows on a sequence, music stepping aside for video sound, sequence sets, and the music Stream Deck links. The player and its links could come before sequences, since they stand on their own. "Fades to finish as the game starts" needs PR 3.</td></tr>
     </tbody>
   </table></div>
   <p class="muted">Game triggers come last, as planned in the OBS replacement design. The first two PRs are useful on their own: you can fire a quarter-break sequence from one Stream Deck key.</p>
@@ -514,7 +514,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
     <li><b>Should finals and carnival days use different sequences?</b><span class="rec">I'd keep sequences shared by every competition, like sources and scenes, and leave per-competition sequences for later if you need them.</span></li>
     <li><b>Is "Choose from Music" for your own purchased or imported files OK in place of Apple Music?</b><span class="rec">I'd go with this. Apple Music songs can't be played outside Apple's apps, and they aren't licensed for streams.</span></li>
     <li><b>Where does Studio's sound reach the stream today: the Mac's output into the ATEM, or embedded in the UltraStudio's SDI?</b><span class="rec">This decides which output the music uses by default. I'd keep the default the same as video sound.</span></li>
-    <li><b>Should music dip under a video's own sound automatically?</b><span class="rec">I'd go with yes, to 25 %, changeable per sequence.</span></li>
+    <li><b>Should music fade out and pause while a video with sound plays, then fade back in?</b><span class="rec">You suggested this, so it's the player's default for all music, manual or in a sequence. Lowering to a set level or leaving it alone are the other choices.</span></li>
     <li><b>Should Studio even out loudness when you add a track?</b><span class="rec">I'd go with yes, as a tick box that's on by default, keeping your original file.</span></li>
   </ol>
 </section>
