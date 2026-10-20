@@ -148,12 +148,15 @@
         <b>Chroma</b> puts it over a solid colour on one display (green, blue or any colour) for a switcher that keys on that colour.
         <b>Fill and key</b> uses two extra displays: fill is the scene over black, key is white where the scene shows and black where it's see-through,
         for the switcher's fill and key inputs. It's only offered with two extra displays connected (a plain M1 drives one; Pro and Max chips drive more).
+        Set those displays to exactly 1920 × 1080 (not HiDPI or scaled) in System Settings, Displays, or the scene looks soft; the Output page warns when they aren't.
+        Turn the switcher's <b>Pre Multiplied Key</b> on for clean edges.
         Each output opens full screen in its own window; leave full screen (green button or ⌃⌘F) to move it to another display or use other apps.
         While the output is on, its settings are locked: turn it off to change them.
         <b>Output on/off</b>, Esc on an output window, closing it, or <code>/deck/output/on</code>, <code>off</code> and <code>toggle</code> show or blank the displays without changing the setup.</li>
       <li><b>Blackmagic output (Mac app):</b> sends the scene out of a Blackmagic UltraStudio or DeckLink:
         <b>fill and key</b> with the device's external keyer (fill on one SDI out, key on the other) or <b>fill only</b>, in the video format you pick
-        (pick the one the switcher runs at). The fill is premultiplied; tick <b>Straight</b> if the switcher's key wants it unpremultiplied.
+        (pick the one the switcher runs at; progressive such as 1080p50 looks sharper than interlaced). The fill is premultiplied: turn the switcher's
+        <b>Pre Multiplied Key</b> on for clean edges (clip and gain aren't used then), and tick <b>Straight</b> only if the switcher can't do that.
         It needs Blackmagic Desktop Video installed (the Output page says if it isn't, with where to get it; quit and reopen Studio after installing) and the device free, so quit any other app using it first. Output on/off and the
         <code>/deck/output</code> links work the same.</li>
       <li><b>NDI® output (Mac app):</b> sends the scene over the network as NDI sources, in the video format you pick (1080p or 720p, 25 to 60 fps):

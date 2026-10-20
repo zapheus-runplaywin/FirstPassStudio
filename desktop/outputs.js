@@ -38,6 +38,7 @@ module.exports = function outputs({ port, log }) {
       label: d.label || (d.id === primary ? 'Built-in display' : `Display ${i + 1}`),
       width: d.size.width,
       height: d.size.height,
+      scale: d.scaleFactor,
       primary: d.id === primary,
     }));
   }
@@ -88,7 +89,7 @@ module.exports = function outputs({ port, log }) {
       win.on('closed', () => { if (open.get(id)?.win === win) open.delete(id); });
       win.loadURL(url);
       open.set(id, { win, url });
-      log(`Output ${w.kind} on ${d.label || id} (${d.size.width} x ${d.size.height})`);
+      log(`Output ${w.kind} on ${d.label || id} (${d.size.width} x ${d.size.height}${d.scaleFactor !== 1 ? ` at ${d.scaleFactor}x` : ''}, ${d.displayFrequency} Hz)`);
     }
   }
 

@@ -296,11 +296,14 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Mac's audio output. Each output opens full screen in its own window: leave full screen (green button or ⌃⌘F) to move it to another
   display or get at other apps, and the scene scales to fit. **Output on/off**, Esc on an output window, closing it, or
   `/deck/output/on|off|toggle` shows or blanks the displays without changing the setup, and they go dark when Studio goes off air. Saved as `outputs.json` in the data folder. Run without the app
-  (`npm start`) there are no displays to send to.
+  (`npm start`) there are no displays to send to. A display that isn't set to exactly 1920 x 1080 (a 720p signal, or a scaled or HiDPI
+  setting) makes the scene softer; the Output page says so and how to change it in System Settings. The same key settings apply as for Blackmagic below.
 - **Blackmagic output (Mac app):** sends the scene out of a Blackmagic UltraStudio or DeckLink.
   **Fill and key** uses the device's external keyer (fill on one SDI out, key on the other); **fill only** sends just the picture. Pick the
-  device and the video format the switcher runs at (1080i50 is picked first when the device can key it). The fill is premultiplied, as
-  Chromium draws it; tick **Straight** if the switcher's key expects unpremultiplied fill. It needs Blackmagic Desktop Video installed, not the SDK,
+  device and the video format the switcher runs at (1080p50 is picked first when the device can key it; interlaced formats are marked, as they
+  look softer). The fill is premultiplied, as Chromium draws it; tick **Straight** only if the switcher's key can't take premultiplied fill.
+  For the cleanest key, turn the switcher's **Pre Multiplied Key** on (clip and gain aren't used then); with it off, clip and gain cut into soft edges
+  and the edges go dark. The log says the size of the pictures going out (`sending 1920 x 1080 pictures`). It needs Blackmagic Desktop Video installed, not the SDK,
   and the device free (quit any other app using it, such as Media Express, first). The scene renders off screen at the format's frame
   rate (`desktop/decklink.js`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
   `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. Sound
