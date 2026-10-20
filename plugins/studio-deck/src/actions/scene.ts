@@ -9,7 +9,7 @@ import streamDeck, {
 	type WillDisappearEvent,
 } from "@elgato/streamdeck";
 
-import { keyImage } from "../lib/colours";
+import { keyImageUrl } from "../lib/colours";
 import { sceneLinkFor, type SceneSettings, sceneViewOf } from "../lib/scene-key";
 import { cleanHost, feedFor, listScenes, press, type Scene } from "../lib/studio";
 
@@ -59,8 +59,8 @@ class SceneKey {
 		const paint = `${view.colour}|${view.dot}`;
 		if (paint !== this.painted) {
 			this.painted = paint;
-			void this.key.setImage(keyImage(view.colour, 0, view.dot), { state: 0 });
-			void this.key.setImage(keyImage(view.colour, 1, view.dot), { state: 1 });
+			void this.key.setImage(keyImageUrl(view.colour, 0, view.dot), { state: 0 });
+			void this.key.setImage(keyImageUrl(view.colour, 1, view.dot), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;

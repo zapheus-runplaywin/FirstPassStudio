@@ -56,8 +56,8 @@ export function keyImage(colour: string | undefined, state: 0 | 1, dot = false):
  * The key image as Stream Deck's setImage takes an SVG: a data URL. Sent as a bare SVG string, the app ignores it
  * and the key keeps the manifest's blue image.
  */
-export function keyImageUrl(colour: string | undefined, state: 0 | 1): string {
-	return `data:image/svg+xml,${encodeURIComponent(keyImage(colour, state))}`;
+export function keyImageUrl(colour: string | undefined, state: 0 | 1, dot = false): string {
+	return `data:image/svg+xml,${encodeURIComponent(keyImage(colour, state, dot))}`;
 }
 
 /** WCAG contrast ratio between two #rrggbb colours (1 to 21). */

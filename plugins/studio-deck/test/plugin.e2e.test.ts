@@ -236,7 +236,7 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 		deck.send(keyEvent("willAppear", "S2", { host, press: "next" }, SCENE_ACTION));
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "S1" && m.payload?.title === "Pre-game", "scene title");
 		// Drawn in the scene's own colour once Studio answers.
-		await deck.waitFor((m) => m.event === "setImage" && m.context === "S1" && m.payload?.state === 0 && m.payload.image.includes(GROUPS.green.off), "scene's own colour");
+		await deck.waitFor((m) => m.event === "setImage" && m.context === "S1" && m.payload?.state === 0 && svgOf(m).includes(GROUPS.green.off), "scene's own colour");
 		// Live is current and last: Next has nowhere to go.
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "S2" && m.payload?.title === "▶\n(last)", "next at the end");
 
@@ -253,13 +253,13 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 		mark = deck.received.length;
 		await fetch(`${host}/deck/layer/scoreboard/on`);
 		const dotted = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "S1" && m.payload?.state === 1, "changed dot");
-		assert.ok(dotted.payload.image.includes(`fill="${DOT}"`) && dotted.payload.image.includes("<circle"));
+		assert.ok(svgOf(dotted).includes(`fill="${DOT}"`) && svgOf(dotted).includes("<circle"));
 
 		// Pressing it again puts it back: the dot goes.
 		mark = deck.received.length;
 		deck.send(keyEvent("keyDown", "S1", { host, scene: pre.id, sceneName: pre.name }, SCENE_ACTION));
 		const clean = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "S1" && m.payload?.state === 1, "dot gone");
-		assert.ok(!clean.payload.image.includes("<circle"));
+		assert.ok(!svgOf(clean).includes("<circle"));
 		now = await scene();
 		assert.deepEqual(now.sources.filter((s) => s.visible).map((s) => s.name), ["Up Next"]);
 
