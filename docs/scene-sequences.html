@@ -1,0 +1,428 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- Design doc, also published at https://claude.ai/artifact/XQawCieNScWKG5En4efgL1 -->
+<title>Scene Sequences</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column for the design, with mockups of the Output page set as light "screens" that stay light in both themes, like the app. */
+:root {
+  --bg: #F8FAFC; --fg: #0F172A; --muted: #475569; --line: #E2E8F0; --panel: #FFFFFF;
+  --accent: #F75C03; --blue: #2274A5; --gold: #B58E00; --soft: #E8F1F7; --warn-bg: #FFF4E5; --warn-fg: #8A3B00;
+  /* The app's own colours for mockups: always the light Studio look. */
+  --ui-bg: #F8FAFC; --ui-panel: #FFFFFF; --ui-ink: #0F172A; --ui-muted: #475569; --ui-line: #E2E8F0; --ui-line2: #CBD5E1;
+  --ui-blue: #2274A5; --ui-blue-soft: #E8F1F7; --ui-orange: #F75C03; --ui-gold: #F1C40F; --ui-navy: #0F172A; --ui-ok: #127A3E;
+  --display: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --body: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F; --soft: #13263A; --warn-bg: #3A2410; --warn-fg: #FFD2B0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F; --soft: #13263A; --warn-bg: #3A2410; --warn-fg: #FFD2B0; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.55; font-size: 15px;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 44px; }
+header.top { display: grid; gap: 10px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 900; font-style: italic; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 em { color: var(--accent); font-style: italic; }
+h2 { font-weight: 800; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-weight: 800; font-size: 1.02rem; margin: 0; }
+p, li { max-width: 68ch; }
+p { margin: 0; }
+section { display: grid; gap: 14px; }
+.lede { font-size: 1.08rem; color: var(--fg); }
+.muted { color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+code { background: var(--soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+ul.tight { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.note { background: var(--warn-bg); color: var(--warn-fg); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.card h3 { display: flex; gap: 8px; align-items: baseline; }
+.tag { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+
+/* Three-layer model */
+.layers { display: grid; gap: 8px; }
+.layer { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.layer b { font-weight: 800; }
+.layer.new { border: 2px solid var(--accent); }
+.layer.new b::after { content: "New"; margin-left: 8px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; background: var(--accent); color: #0F172A; padding: 1px 6px; border-radius: 5px; vertical-align: 2px; }
+@media (max-width: 520px) { .layer { grid-template-columns: 1fr; gap: 2px; } }
+
+/* Timelines: block widths are seconds, to scale within each row */
+.tl { display: grid; gap: 6px; }
+.tl-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.tl-head .trig { font-size: 13px; color: var(--muted); }
+.tl-wrap { overflow-x: auto; }
+.track { display: flex; gap: 2px; min-width: 640px; height: 46px; }
+.blk { flex-basis: 0; min-width: 0; border-radius: 6px; padding: 4px 6px; font-size: 11.5px; line-height: 1.2; display: grid; align-content: center; color: #0F172A; overflow: hidden; }
+.blk b { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blk span { opacity: .75; white-space: nowrap; font-family: var(--mono); font-size: 10.5px; }
+.blk.page { background: #BFDBEE; }
+.blk.anim { background: #FFC9A6; }
+.blk.video { background: #F7E08A; }
+.blk.hold { background: repeating-linear-gradient(135deg, #E2E8F0 0 6px, #F1F5F9 6px 12px); }
+.blk.scene { background: #0F172A; color: #F1C40F; }
+.pinned { min-width: 640px; height: 14px; border-radius: 4px; background: #CDE7D6; font-size: 10.5px; color: #0F172A; padding: 0 6px; display: flex; align-items: center; font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+/* Mockup screens: the Output page, always light */
+.screen { background: var(--ui-bg); color: var(--ui-ink); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+.screen .bar { background: var(--ui-navy); color: #fff; border-bottom: 4px solid var(--ui-orange); padding: 8px 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-weight: 800; }
+.screen .bar .p { color: var(--ui-gold); }
+.screen .bar nav { display: flex; gap: 4px; font-size: 12px; font-weight: 600; flex-wrap: wrap; }
+.screen .bar nav span { padding: 3px 8px; border-radius: 6px; color: #CBD5E1; }
+.screen .bar nav span.cur { background: var(--ui-gold); color: var(--ui-navy); }
+.screen .in { padding: 14px; display: grid; gap: 12px; }
+.screen .sec { background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; min-width: 0; }
+.screen .sec-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.screen h4 { margin: 0; font-weight: 800; font-size: 16px; }
+.btn { font: inherit; font-size: 13px; font-weight: 700; border: 0; border-radius: 8px; padding: 6px 12px; background: var(--ui-blue); color: #fff; cursor: default; white-space: nowrap; }
+.btn.alt { background: var(--ui-blue-soft); color: var(--ui-blue); }
+.btn.sm { padding: 3px 9px; font-size: 12px; }
+.btn.stop { background: #FDE8E7; color: #B42318; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.scn { position: relative; border: 2px solid var(--ui-line2); border-radius: 10px; background: #fff; padding: 7px 12px 11px; min-width: 110px; display: grid; gap: 1px; }
+.scn b { font-weight: 800; } .scn small { font-size: 11.5px; color: var(--ui-muted); }
+.scn .band { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0 0 7px 7px; background: #3b82f6; }
+.scn.cur { border-color: var(--ui-orange); box-shadow: 0 0 0 3px rgba(247, 92, 3, .22); }
+.seqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.seq { border: 2px solid var(--ui-line2); border-radius: 10px; background: #fff; padding: 9px 12px 10px; display: grid; gap: 6px; position: relative; min-width: 0; }
+.seq .t { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.seq b { font-weight: 800; }
+.seq small { font-size: 11.5px; color: var(--ui-muted); }
+.seq .auto { font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--ui-ok); background: #E3F4EA; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+.seq .auto.offx { color: var(--ui-muted); background: var(--ui-line); }
+.seq.run { border-color: var(--ui-orange); box-shadow: 0 0 0 3px rgba(247, 92, 3, .22); }
+.seq.run::after { content: "Playing"; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--ui-orange); color: var(--ui-navy); padding: 1px 6px; border-radius: 5px; }
+.dots { display: flex; gap: 3px; }
+.dots i { flex: 1; height: 6px; border-radius: 3px; background: var(--ui-line); }
+.dots i.done { background: #FDBA8C; }
+.dots i.now { background: linear-gradient(90deg, var(--ui-orange) 62%, var(--ui-line) 62%); }
+.now-line { font-size: 12.5px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.now-line .mono { font-weight: 600; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.newseq { border: 2px dashed var(--ui-line2); border-radius: 10px; display: grid; place-items: center; color: var(--ui-blue); font-weight: 700; min-height: 84px; }
+.armed { display: flex; gap: 10px; align-items: center; font-size: 13px; padding: 8px 10px; background: #E3F4EA; color: #0B5A2C; border-radius: 8px; flex-wrap: wrap; }
+.sw { width: 34px; height: 20px; border-radius: 10px; background: var(--ui-ok); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+
+/* Editor mockup */
+.ed { display: grid; gap: 12px; }
+.f { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.f > label { font-weight: 700; font-size: 13px; }
+@media (max-width: 560px) { .f { grid-template-columns: 1fr; } }
+.inp { border: 1px solid var(--ui-line2); border-radius: 8px; padding: 5px 9px; background: #fff; font-size: 13px; min-width: 0; }
+.sel { border: 1px solid var(--ui-line2); border-radius: 8px; padding: 5px 26px 5px 9px; background: #fff linear-gradient(45deg, transparent 50%, var(--ui-muted) 50%) no-repeat right 12px center / 5px 5px; font-size: 13px; white-space: nowrap; }
+.steps { display: grid; gap: 6px; }
+.step { display: grid; grid-template-columns: 18px 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--ui-line); border-radius: 10px; padding: 7px 10px; background: #fff; }
+.step.cur { border-color: var(--ui-orange); background: #FFF7F1; }
+.grip { color: var(--ui-line2); font-weight: 800; letter-spacing: -2px; font-size: 14px; }
+.num { width: 24px; height: 24px; border-radius: 50%; background: var(--ui-blue-soft); color: var(--ui-blue); font-weight: 800; font-size: 12px; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+.what { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-width: 0; }
+.src { font-size: 12.5px; font-weight: 700; border-radius: 6px; padding: 2px 8px; background: var(--ui-blue-soft); color: var(--ui-ink); white-space: nowrap; }
+.src.v { background: #FBF0C2; } .src.a { background: #FFE4D2; }
+.src.add { background: transparent; border: 1px dashed var(--ui-line2); color: var(--ui-blue); }
+.len { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.len .hint { font-size: 11.5px; color: var(--ui-muted); font-family: var(--mono); }
+.step.pin { background: #F0F8F3; border-style: dashed; border-color: #9BD0AF; }
+@media (max-width: 620px) { .step { grid-template-columns: 26px minmax(0, 1fr); } .step .grip { display: none; } .step .len { grid-column: 1 / -1; justify-content: flex-start; } }
+.menu { background: #fff; border: 1px solid var(--ui-line2); border-radius: 10px; box-shadow: 0 8px 24px rgba(15,23,42,.14); padding: 6px; display: grid; gap: 1px; font-size: 13px; max-width: 320px; }
+.menu div { padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; gap: 12px; }
+.menu div.on { background: var(--ui-blue-soft); font-weight: 700; }
+.menu div small { color: var(--ui-muted); font-family: var(--mono); font-size: 11px; }
+.menu hr { border: 0; border-top: 1px solid var(--ui-line); margin: 4px 0; }
+
+/* Questions */
+ol.qs { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 10px; counter-reset: q; }
+ol.qs li { counter-increment: q; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px 12px 52px; position: relative; max-width: none; }
+ol.qs li::before { content: counter(q); position: absolute; left: 14px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #0F172A; font-weight: 800; display: grid; place-items: center; font-size: 13px; }
+ol.qs li b { display: block; }
+ol.qs li .rec { color: var(--muted); font-size: 14px; }
+table.plain { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.plain th, table.plain td { text-align: left; padding: 7px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+table.plain th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 0; }
+.tw { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; overflow-x: auto; }
+</style>
+</head><body>
+
+<main>
+<header class="top">
+  <div class="eyebrow">FirstPass Studio · Output page · Design for review · 20 Oct 2026</div>
+  <h1>Scene <em>sequences</em></h1>
+  <p class="lede">A sequence plays sources one after another on the Output page, so the run-up to a game, each quarter break and the post-game wrap can run themselves. You build it as a short list of steps. Each step says what comes on and how long it stays: a set time for a still graphic, or until it finishes for a video or an animation.</p>
+  <p class="muted">Nothing here is built yet. Your answers to the questions at the end decide the details, then it ships in three small PRs.</p>
+</header>
+
+<section>
+  <h2>Where it fits</h2>
+  <p>The Output page already has two layers of control. Sequences add a third on top and reuse both, so nothing you have set up changes.</p>
+  <div class="layers">
+    <div class="layer"><b>Sources</b><span>Pages, images and videos drawn as layers, each with its own fade. You turn them on and off by hand or from the Stream Deck.</span></div>
+    <div class="layer"><b>Scenes</b><span>Saved looks: which sources are on and off. Going to a scene switches sources to match.</span></div>
+    <div class="layer new"><b>Sequences</b><span>Sources or scenes played in order over time, started by you, the Stream Deck, or the game itself.</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Three sequences for a Thunder League night</h2>
+  <p>These are worked examples with real Studio pages, drawn to scale within each row. They show what the feature has to handle, not a fixed setup.</p>
+  <div class="legend"><span><i style="background:#BFDBEE"></i>Page, shown for a set time</span><span><i style="background:#FFC9A6"></i>Animation, until it finishes</span><span><i style="background:#F7E08A"></i>Video, its own length</span><span><i style="background:repeating-linear-gradient(135deg,#E2E8F0 0 4px,#F1F5F9 4px 8px)"></i>Holds until the game moves on</span><span><i style="background:#0F172A"></i>Ends by going to a scene</span><span><i style="background:#CDE7D6"></i>Kept on for the whole sequence</span></div>
+
+  <div class="tl">
+    <div class="tl-head"><h3>Run-up</h3><span class="trig">Starts 10 minutes before the scheduled start · repeats until 2 minutes before</span></div>
+    <div class="tl-wrap">
+      <div class="pinned">Countdown + Title, on for the whole loop</div>
+      <div class="track" style="margin-top:3px">
+        <div class="blk page" style="flex-grow:20"><b>Ladder</b><span>20 s</span></div>
+        <div class="blk page" style="flex-grow:20"><b>Fixtures</b><span>20 s</span></div>
+        <div class="blk page" style="flex-grow:20"><b>Match up</b><span>20 s</span></div>
+        <div class="blk video" style="flex-grow:10"><b>Break ad</b><span>0:10</span></div>
+        <div class="blk page" style="flex-grow:20"><b>Top shooters</b><span>20 s</span></div>
+        <div class="blk hold" style="flex-grow:14"><b>↻ again</b><span>repeat</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tl">
+    <div class="tl-head"><h3>Walk out</h3><span class="trig">Starts 2 minutes before the scheduled start</span></div>
+    <div class="tl-wrap"><div class="track">
+      <div class="blk anim" style="flex-grow:9"><b>The Clash</b><span>≈9 s</span></div>
+      <div class="blk page" style="flex-grow:25"><b>Team list home</b><span>25 s</span></div>
+      <div class="blk page" style="flex-grow:25"><b>Team list away</b><span>25 s</span></div>
+      <div class="blk anim" style="flex-grow:6"><b>Logo</b><span>≈6 s</span></div>
+      <div class="blk hold" style="flex-grow:30"><b>Wait for first centre</b><span>until the clock starts</span></div>
+      <div class="blk scene" style="flex-grow:10"><b>→ Game</b><span>scene</span></div>
+    </div></div>
+  </div>
+
+  <div class="tl">
+    <div class="tl-head"><h3>Quarter break</h3><span class="trig">Starts 5 s after quarter time, half time and three quarter time</span></div>
+    <div class="tl-wrap"><div class="track">
+      <div class="blk page" style="flex-grow:20"><b>Shooting</b><span>20 s</span></div>
+      <div class="blk page" style="flex-grow:20"><b>Last 10 goals</b><span>20 s</span></div>
+      <div class="blk video" style="flex-grow:10"><b>Break ad</b><span>0:10</span></div>
+      <div class="blk page" style="flex-grow:20"><b>Ladder bar</b><span>20 s</span></div>
+      <div class="blk hold" style="flex-grow:40"><b>↻ again until play resumes</b><span>clock starts</span></div>
+      <div class="blk scene" style="flex-grow:8"><b>→ Game</b><span>scene</span></div>
+    </div></div>
+  </div>
+
+  <div class="tl">
+    <div class="tl-head"><h3>Full time</h3><span class="trig">Starts 5 s after the final siren</span></div>
+    <div class="tl-wrap"><div class="track">
+      <div class="blk anim" style="flex-grow:10"><b>Winner</b><span>≈10 s</span></div>
+      <div class="blk page" style="flex-grow:30"><b>Full time stats</b><span>30 s</span></div>
+      <div class="blk page" style="flex-grow:20"><b>Top shooters</b><span>20 s</span></div>
+      <div class="blk page" style="flex-grow:20"><b>Ladder</b><span>20 s</span></div>
+      <div class="blk page" style="flex-grow:20"><b>Up next</b><span>20 s</span></div>
+      <div class="blk scene" style="flex-grow:10"><b>→ Between games</b><span>scene</span></div>
+    </div></div>
+  </div>
+  <p class="muted">Run-up and Walk out are two sequences on purpose. The game clock decides when each starts, and each sequence only has to say what plays in order. That keeps every sequence a plain list rather than a timeline editor.</p>
+</section>
+
+<section>
+  <h2>A step</h2>
+  <p>A step is one or more sources that come on together, and a length. When the step ends, its sources go off with their own fades as the next step's sources fade on, so steps crossfade using the fade times you already set per source.</p>
+  <div class="grid2">
+    <div class="card"><h3>For a set time <span class="tag">Pages, images</span></h3><p>Shown for <b>N seconds</b>. The default for anything that doesn't end on its own. New steps start at 20 s.</p></div>
+    <div class="card"><h3>Until it finishes <span class="tag">Videos, animations</span></h3><p>A video plays its length, which the editor shows (0:10). An animation set to animate away (The Clash with an out time, Winner, Logo, Lower third) ends when it switches itself off. A safety limit moves on if the end never arrives.</p></div>
+    <div class="card"><h3>Until the game moves on <span class="tag">Holds</span></h3><p>Waits for the next thing on court: the clock starting, play resuming after a break, or full time. Usually the last step, so a delayed start or a long break just holds.</p></div>
+    <div class="card"><h3>Until I press Next <span class="tag">Manual</span></h3><p>Holds until you press Next on the Output page or the Stream Deck. Handy for a presenter piece or a sponsor read of unknown length.</p></div>
+  </div>
+  <p>Two more things a sequence can say:</p>
+  <ul class="tight">
+    <li><b>Keep on for the whole sequence.</b> Sources that stay on from the first step to the last, like the countdown and title during the run-up. They go off when the sequence ends, unless the ending scene keeps them on.</li>
+    <li><b>Go to a scene.</b> A step can be a scene instead of sources. It is almost always the last step, and saying "then go to Game" is how a sequence hands back to the normal game look.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Starting and ending</h2>
+  <div class="grid3">
+    <div class="card"><h3>By hand</h3><p>Press Play on the sequence's card, or the Stream Deck key. Every sequence can be started by hand, including the automatic ones.</p></div>
+    <div class="card"><h3>Before the start</h3><p><b>N minutes before the scheduled start</b> of the picked game. Uses the same start time as the countdown and auto-select, so it follows whichever game is picked.</p></div>
+    <div class="card"><h3>At a break or full time</h3><p><b>Quarter time, half time, three quarter time</b> (tick which), or <b>full time</b>, each with a short delay. Comes from the clock Studio already follows: the PlayHQ scorer's clock when following, or your manual clock.</p></div>
+  </div>
+  <p>Automatic starts sit behind one switch on the Output page, <b>Automatic sequences on</b>. With it off, nothing starts by itself and every sequence still plays by hand. Each sequence picks how it ends:</p>
+  <ul class="tight">
+    <li><b>Play once</b>, <b>Repeat until stopped</b>, or <b>Repeat until</b> a game moment (2 minutes before the start, play resumes).</li>
+    <li><b>Then</b> go to a scene, turn off what the sequence turned on, or leave everything as it is.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Mockup: the Output page</h2>
+  <p>Sequences get their own strip under Scenes, with the same card style. A playing card shows a dot per step, the step on now and the time left. The switch for automatic starts sits at the top of the strip, so you see at a glance whether the game will drive the screen.</p>
+  <div class="screen" role="img" aria-label="Mockup of the Output page with a Sequences section">
+    <div class="bar"><span>FirstPass <span class="p">STUDIO</span></span><nav><span class="cur">Output</span><span>Graphics</span><span>Scoreboard control</span><span>Competitions setup</span><span>Athletes</span><span>Stream Deck</span></nav></div>
+    <div class="in">
+      <div class="sec">
+        <div class="sec-h"><h4>Scenes</h4><span class="btn alt sm">Edit scenes</span></div>
+        <div class="chips">
+          <div class="scn"><b>Pre-game</b><small>Countdown, Title</small><i class="band"></i></div>
+          <div class="scn cur"><b>Game</b><small>Scoreboard, Ticker</small><i class="band" style="background:#22c55e"></i></div>
+          <div class="scn"><b>Between games</b><small>Title, Up next</small><i class="band" style="background:#a1a1aa"></i></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><h4>Sequences</h4><span class="btn alt sm">New sequence</span></div>
+        <div class="armed"><span class="sw" aria-hidden="true"></span><b>Automatic sequences on</b><span>Next: <b>Run-up</b> at 6:20 pm, 10 min before Stormz v Titans on Court 1</span></div>
+        <div class="seqs">
+          <div class="seq">
+            <div class="t"><b>Run-up</b><span class="auto">10 min before</span></div>
+            <small>5 steps · repeats until 2 min before</small>
+            <div class="row"><span class="btn sm">▶ Play</span><span class="btn alt sm">Edit</span></div>
+          </div>
+          <div class="seq">
+            <div class="t"><b>Walk out</b><span class="auto">2 min before</span></div>
+            <small>6 steps · then Game</small>
+            <div class="row"><span class="btn sm">▶ Play</span><span class="btn alt sm">Edit</span></div>
+          </div>
+          <div class="seq run">
+            <div class="t"><b>Quarter break</b><span class="auto">QT · HT · 3QT</span></div>
+            <div class="dots"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+            <div class="now-line"><span>3 of 5 · <b>Break ad</b></span><span class="mono">0:04 left</span></div>
+            <div class="row"><span class="btn alt sm">Next ⏭</span><span class="btn alt sm">Pause</span><span class="btn stop sm">Stop</span></div>
+          </div>
+          <div class="seq">
+            <div class="t"><b>Full time</b><span class="auto">Full time</span></div>
+            <small>6 steps · then Between games</small>
+            <div class="row"><span class="btn sm">▶ Play</span><span class="btn alt sm">Edit</span></div>
+          </div>
+          <div class="seq">
+            <div class="t"><b>Sponsor read</b><span class="auto offx">By hand</span></div>
+            <small>2 steps · waits for Next</small>
+            <div class="row"><span class="btn sm">▶ Play</span><span class="btn alt sm">Edit</span></div>
+          </div>
+          <div class="newseq">+ New sequence</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Mockup: building a sequence</h2>
+  <p>The editor opens in a dialog. It is one list: drag to reorder, click a source chip to change it, pick a length from one menu. Adding a step suggests the sources you already have in the scene, so you never type a page link here.</p>
+  <div class="screen" role="img" aria-label="Mockup of the sequence editor">
+    <div class="in">
+      <div class="sec ed">
+        <div class="sec-h"><h4>Edit sequence</h4><div class="row"><span class="btn alt sm">▶ Try it</span><span class="btn alt sm">Cancel</span><span class="btn sm">Save</span></div></div>
+        <div class="f">
+          <label>Name</label><span class="inp">Quarter break</span>
+          <label>Starts</label><div class="row"><span class="sel">At a quarter break</span><span>☑ Quarter time ☑ Half time ☑ Three quarter time</span><span>after <span class="inp" style="padding:3px 8px">5</span> s</span></div>
+          <label>Repeat</label><div class="row"><span class="sel">Repeat until play resumes</span></div>
+          <label>Then</label><div class="row"><span class="sel">Go to scene: Game</span></div>
+        </div>
+        <div class="steps">
+          <div class="step pin"><span class="grip"></span><span class="num">∞</span><div class="what"><span class="src">Scoreboard</span><span class="src add">+ Add</span><span style="font-size:12px;color:var(--ui-muted)">kept on for the whole sequence</span></div><div class="len"></div></div>
+          <div class="step"><span class="grip">⋮⋮</span><span class="num">1</span><div class="what"><span class="src">Shooting</span></div><div class="len"><span class="sel">For 20 s</span></div></div>
+          <div class="step"><span class="grip">⋮⋮</span><span class="num">2</span><div class="what"><span class="src">Last 10 goals</span></div><div class="len"><span class="sel">For 20 s</span></div></div>
+          <div class="step cur"><span class="grip">⋮⋮</span><span class="num">3</span><div class="what"><span class="src v">Break ad</span><span class="src a">Logo</span></div><div class="len"><span class="sel">Until it finishes</span><span class="hint">video 0:10</span></div></div>
+          <div class="step"><span class="grip">⋮⋮</span><span class="num">4</span><div class="what"><span class="src">Ladder bar</span></div><div class="len"><span class="sel">For 20 s</span></div></div>
+          <div class="row"><span class="btn alt sm">+ Add step</span><span style="font-size:12px;color:var(--ui-muted)">One loop is about 1:10. A quarter time break is about 3 minutes, so it plays about 2½ times.</span></div>
+        </div>
+      </div>
+      <div class="grid2" style="align-items:start">
+        <div class="menu" aria-label="Step length menu">
+          <div class="on">For a set time <small>20 s</small></div>
+          <div>Until it finishes <small>video 0:10</small></div>
+          <div>Until the game moves on</div>
+          <div>Until I press Next</div>
+        </div>
+        <p style="font-size:13px;color:var(--ui-muted)">The length menu only offers what fits the step. "Until it finishes" appears only when the step has a video, or a page that switches itself off when done. With two sources in one step, it waits for the longer one.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>While it plays</h2>
+  <p>Your rule is that manual controls are never taken away, so the sequence works around you rather than locking anything.</p>
+  <div class="tw"><table class="plain">
+    <thead><tr><th>You do this</th><th>The sequence does this</th></tr></thead>
+    <tbody>
+      <tr><td>Turn on any source by hand</td><td>Leaves it alone. It only turns off sources it turned on itself.</td></tr>
+      <tr><td>Turn off the source the step is showing</td><td>Moves to the next step straight away.</td></tr>
+      <tr><td>Press <b>Next</b></td><td>Ends the step now and fades to the next one.</td></tr>
+      <tr><td>Press <b>Pause</b></td><td>Freezes the step timer and keeps the step on screen. A video keeps playing to its end.</td></tr>
+      <tr><td>Press <b>Stop</b></td><td>Ends the sequence and does its "Then" (for example, goes to Game).</td></tr>
+      <tr><td>Go to a scene, or start another sequence</td><td>Stops this sequence first. One sequence plays at a time.</td></tr>
+      <tr><td>Play resumes early, or the next trigger arrives</td><td>A "repeat until" sequence finishes the step on now, then ends. A Stop from the game is never a hard cut.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">If you already pressed Stop on a break sequence, it won't restart for that same break. If the game clock jumps (a correction from the scorer), Studio waits for the clock to settle for a few seconds before it treats a break or full time as real.</p>
+</section>
+
+<section>
+  <h2>Stream Deck</h2>
+  <p>Each sequence gets links in the same style as scenes, listed on the Stream Deck page:</p>
+  <pre>/deck/sequence/quarter-break/play      start it from the first step
+/deck/sequence/quarter-break/toggle    play, or stop if it is playing
+/deck/sequence/next                    next step of whatever is playing
+/deck/sequence/pause                   pause or carry on
+/deck/sequence/stop                    stop whatever is playing
+/deck/sequence/auto/on|off|toggle      the Automatic sequences switch</pre>
+  <p>The FirstPass Studio plugin gets a <b>Sequence</b> key: the name, lit while playing, with the step and time left on the key (for example "3/5 · 0:04"). Pressing it plays or stops.</p>
+</section>
+
+<section>
+  <h2>How it works underneath</h2>
+  <ul class="tight">
+    <li>Sequences are saved in <code>scene.json</code> next to sources and scenes, so Export and Import sources carry them.</li>
+    <li>The sequence runs in Studio itself (in <code>scene.js</code>), not in the Output page. It keeps time with the Output page closed, and every output and the pop-out preview see the same thing.</li>
+    <li>"Until it finishes" listens for the same end signal that switches finished videos and animations off today. Video lengths come from the bundled ffmpeg when a file is added. The safety limit is the video length plus 3 s, or 60 s for a page.</li>
+    <li>Game moments come from the scoreboard state Studio already keeps: scheduled start, clock running, quarter and the PlayHQ break flag, and the final siren. No extra PlayHQ calls.</li>
+    <li>Every start, step, skip and stop is written to the debug log with its reason ("Started Quarter break: half time").</li>
+    <li>If Studio restarts mid-sequence, it does not pick up where it was. The screen stays as it was left and the next trigger starts fresh.</li>
+  </ul>
+  <pre>"sequences": [{
+  "id": "q7k2m9", "name": "Quarter break", "colour": "purple",
+  "start": { "type": "break", "breaks": ["qt", "ht", "3qt"], "afterSec": 5 },
+  "repeat": { "type": "until", "moment": "playResumes" },
+  "then": { "type": "scene", "scene": "game-id" },
+  "keepOn": ["scoreboard-id"],
+  "steps": [
+    { "sources": ["shooting-id"], "length": { "type": "time", "sec": 20 } },
+    { "sources": ["ad-id", "logo-id"], "length": { "type": "done" } }
+  ]
+}]</pre>
+</section>
+
+<section>
+  <h2>How it ships</h2>
+  <div class="tw"><table class="plain">
+    <thead><tr><th>PR</th><th>What you get</th></tr></thead>
+    <tbody>
+      <tr><td>1. Sequences by hand</td><td>The Sequences strip, the editor, Play, Next, Pause, Stop, all four step lengths except "until the game moves on", and Then.</td></tr>
+      <tr><td>2. Stream Deck</td><td>The <code>/deck/sequence/…</code> links, the plugin's Sequence key, and the Stream Deck page and home page docs.</td></tr>
+      <tr><td>3. Game triggers</td><td>Before the start, breaks and full time, "until the game moves on", "repeat until", and the Automatic sequences switch.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Game triggers come last, as planned in the OBS replacement design. The first two PRs are useful on their own: you can fire a quarter-break sequence from one Stream Deck key.</p>
+</section>
+
+<section>
+  <h2>Questions for you</h2>
+  <p>Each has the answer I'd go with, so "yes to all" works.</p>
+  <ol class="qs">
+    <li><b>Should steps be sources, scenes, or both?</b><span class="rec">I'd go with sources for each step, plus a scene as the "Then". Scenes as steps would also turn off things you put on by hand.</span></li>
+    <li><b>How long are Thunder League breaks?</b><span class="rec">I've guessed about 3 minutes at quarter time and three quarter time, and 5 at half time. That's only used for the "plays about 2½ times" hint, since "repeat until play resumes" handles the real length.</span></li>
+    <li><b>Should the game start sequences by itself, and should the switch remember its setting?</b><span class="rec">I'd go with yes, behind the one Automatic sequences switch, remembered between nights. You could also have it start off each time Studio opens, if you'd rather opt in each night.</span></li>
+    <li><b>When you go to a scene by hand while a sequence plays, should the sequence stop?</b><span class="rec">I'd go with yes. The other way, the sequence keeps going over your scene, felt more surprising to me.</span></li>
+    <li><b>Is "repeat until 2 minutes before, then a separate Walk out sequence" the right way to build the run-up?</b><span class="rec">I'd go with this rather than one sequence with timed sections. It keeps the editor a plain list.</span></li>
+    <li><b>Does one sequence at a time work for you?</b><span class="rec">I'd go with one at a time. Two at once (a sponsor loop over a break loop) would need rules for who wins a source.</span></li>
+    <li><b>Should finals and carnival days use different sequences?</b><span class="rec">I'd keep sequences shared by every competition, like sources and scenes, and leave per-competition sequences for later if you need them.</span></li>
+  </ol>
+</section>
+</main>
+</body></html>
