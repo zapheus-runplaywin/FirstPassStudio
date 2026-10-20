@@ -27,6 +27,8 @@ const PAGE_OPTIONS = (() => {
   return {
     'scoreboard.html': [
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Bottom centre, above the ticker'], ['bottom-center', 'Bottom centre (no gap for the ticker)'], ['top-center', 'Top centre'], ['top-left', 'Top left'], ['bottom-left', 'Bottom left']] },
+      { key: 'supershot', label: 'Super shot tab', type: 'select', choices: [['', 'On, in the super shot minutes'], ['0', 'Off']],
+        help: 'A small "Super shot" tab above the clock in the last minutes of each quarter (3 unless the competition setup says otherwise), for divisions with super shots.' },
     ],
     'ticker.html': [
       { key: 'speed', label: 'Speed', type: 'number', min: 20, max: 600, unit: 'px a second', placeholder: 'from the control page' },

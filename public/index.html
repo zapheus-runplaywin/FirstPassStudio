@@ -65,7 +65,8 @@
         saved for a word instead of a whole division name, and then covers every division with that word in its name ("Open" covers
         "Division 1 Open"; "Men" covers "Men's" but not "Women's"); a division's own setting wins over a word. GIG WANL comes set for
         super shots in Open only, not 21&amp;Under or Men's, by the words "Open", "21" and "Men". A division without super shots doesn't play
-        the super shot animation for a +2 press or count goals as super shots, and its shooting stats and top shooters leave the Super column off.</li>
+        the super shot animation for a +2 press or count goals as super shots, and its shooting stats and top shooters leave the Super column off.
+        <b>Super shots in the last [x] minutes of each quarter</b> (default 3) is when the scoreboard shows its "Super shot" tab; 0 leaves it off.</li>
       <li><b>Finals:</b> the competition's finals format, and a different one for any division that needs it. Top 2: grand final, or best of three.
         Top 4: semis then grand final, Page (double chance for 1 and 2), or a placings day (1 v 2 and 3 v 4). Top 6: byes for 1 and 2, or a double
         chance for 1 and 2. Top 8: AFL style, straight knockout, or carnival placings (a knockout over three weeks with play-offs, so every team gets a place
@@ -106,6 +107,11 @@
     <div class="row"><button id="sbCopy">Copy link</button><a class="btn" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn" href="/api.html" target="_blank">Stream Deck links</a></div>
     <p class="page__help">Sits centred at the bottom, just above the score ticker with a small gap, so both can be on together.
       <code>?position=top-center</code>, <code>bottom-center</code>, <code>top-left</code> or <code>bottom-left</code> moves it.</p>
+    <p class="page__help"><b>Super shot tab:</b> in a division with super shots, when the quarter clock gets to the last 3 minutes (or is already
+      under them when the game is picked), a small yellow "Super shot" tab rises out from behind the bar above the clock, with a pulsing dot and a light
+      sweeping across it now and then. It sinks away when the quarter's clock runs out or is reset for the next quarter. It runs off the scoreboard's
+      own clock, so it follows the PlayHQ scorer's clock when the scoreboard does. The minutes are set per competition on the
+      <a href="/setup.html" target="_blank">competition setup page</a> (Game rules, 0 leaves the tab off), and <code>?supershot=0</code> leaves it off this source.</p>
   </div>
   <div class="card">
     <h2>Output (the Studio scene)</h2>
