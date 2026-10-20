@@ -33,8 +33,8 @@ clubs when loaded.
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics.
 
 Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logos/`, `brand/`); see **Saved settings** below.
-Studio starts with no competitions: **Import** one of the import configs on the setup page (Thunder League, AMMNA
-Nationals, GIG WANL) or make a new one. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
+Studio starts with no competitions: **Import a template file** on the setup page (the starter competitions are in
+`templates/`: Thunder League, AMMNA Nationals, GIG WANL, West Coast Thunder) or make a new one. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
 GIG WANL in Netball WA greens with Gold Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to
 Australian Championships and GIG WANL's to GIG WANL, so both are ready to use. GIG WANL plays super shots in its Open
 division only, not 21&Under or Men's (confirmed by Matt). Super shots can be set per division on the setup page: by a division's
@@ -66,18 +66,12 @@ In it:
 - `app-settings.json`: the Mac app's own choices (whether Studio opens at login, pages in the browser, the window's size and position).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
 
-### Import configs
-
-`imports/<name>/` in the repository holds ready-made competitions (`settings.json`, `logos/`, `brand/`). They aren't
-used directly: **Import** on the setup page copies one into the data folder as a new competition, to use as it is or
-change. For a new customer, set their competition up on the setup page and click **Save as import config**: it copies
-the settings, team logos and competition logo (not athlete photos) into `imports/<name>/`, ready to commit and send as a
-pull request. That button only shows when Studio runs from a copy of the repository; the installed app can't change its
-own folder.
+### Template files
 
 **Export as template** on the setup page downloads a competition as one `.json` file (settings, team logos and
 competition logo as base64, format `firstpass-studio-competition`), which **Import a template file** adds on any
-Studio, including the installed app. **Delete this competition** works on any competition, the one in use included:
+Studio, including the installed app. `templates/` in the repository holds the starter competitions as template files.
+`imports/<name>/` still holds the same competitions as folders, but the setup page no longer lists them. **Delete this competition** works on any competition, the one in use included:
 the graphics switch to the first one left, or to none.
 
 ### Updates and migrations
@@ -91,7 +85,7 @@ lose settings the older version doesn't know.
 
 Versions before October 2026 saved settings inside the app folder (`competitions/`, `control.json`,
 `scoreboard-state.json`). The first start of this version copies whatever is still there into the data folder. Git
-removes the tracked `competitions/` files when you pull, so import your competition again from **Import configs**
+removes the tracked `competitions/` files when you pull, so import your competition again from its template file in `templates/`
 (photos and athlete registers left behind are kept with it).
 
 ## Desktop app (Mac)
