@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Preview · FirstPass Studio</title>
+<title>Scene View · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="studio/favicon.png">
 <!--
   The Output page's preview in its own window (Pop out on the Output page), to resize it, put it
   on another screen or watch it full screen while testing. It shows the scene on a checkerboard,
-  scaled to fit the window, and plays the scene's sound when Preview sound is ticked, exactly as
+  scaled to fit the window, and plays the scene's sound when Scene View sound is ticked, exactly as
   the preview on the Output page does (that one turns off while this window is open, so the scene
   only runs once more). Closing this window puts the preview back on the Output page.
   A floating Sources panel shows or hides each source while you watch (its – button tucks it away, kept per
@@ -39,7 +39,7 @@
 <script src="sceneevents.js"></script>
 </head>
 <body>
-<div id="box"><iframe id="frame" title="Scene preview" src="/scene.html?mute=1"></iframe></div>
+<div id="box"><iframe id="frame" title="Scene View" src="/scene.html?mute=1"></iframe></div>
 <div id="note"></div>
 <div id="panel">
   <header><h2>Sources</h2><span><button id="hideAll" title="Hide every source">Hide all</button> <button id="fold" title="Hide or show this list">–</button></span></header>
@@ -59,7 +59,7 @@
   addEventListener('resize', fit);
   fit();
 
-  // Preview sound, the same way as the Output page's preview: ask the helper for the sound (which
+  // Scene View sound, the same way as the Output page's Scene View: ask the helper for the sound (which
   // mutes the outputs while this window has it), check in every few seconds, let go on closing.
   // Opening the window takes the sound, since the Output page's own preview has just turned off.
   const listenId = 'popout-' + Math.random().toString(36).slice(2);
@@ -79,13 +79,13 @@
     let st = null;
     try { st = s?.soundState?.(); } catch {}
     const muted = o && o.showing && o.showing.length ? ' The outputs are muted.' : '';
-    // The same line here ("here") and under the Output page's preview ("in the preview window").
+    // The same line here ("here") and under the Output page's preview ("in the Scene View window").
     const line = (here, there) => !wanted ? ''
-      : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the preview window'} to bring it ${here ? 'to this window' : 'there'}.`
-      : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the preview window'} to hear it.`
+      : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the Scene View window'} to bring it ${here ? 'to this window' : 'there'}.`
+      : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the Scene View window'} to hear it.`
       : st && !st.videos ? `Sound plays ${there} once a video with Sound ticked is on.${muted}`
       : `Sound plays ${there}, through this Mac's sound output.${muted}`;
-    note = line(false, 'in the preview window');
+    note = line(false, 'in the Scene View window');
     // Only the reasons it's silent show over the picture; the Output page shows every line.
     $('note').textContent = wanted && (!sound || (st && st.blocked)) ? line(true, 'here') : '';
     tell();

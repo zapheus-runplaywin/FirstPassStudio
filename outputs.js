@@ -169,7 +169,7 @@ function listenChanged() {
 }
 
 // POST /api/outputs/listen { id, on, take }: an Output page asking to play the sound in its preview (on),
-// or letting go of it. take: someone ticked Preview sound or clicked the preview on that page, so it takes
+// or letting go of it. take: someone ticked Scene View sound or clicked the Scene View on that page, so it takes
 // the sound from another page. Answers { sound }: whether that page's preview should play sound.
 function listen({ id, on, take } = {}) {
   id = String(id || '');
