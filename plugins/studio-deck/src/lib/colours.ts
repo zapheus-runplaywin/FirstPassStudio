@@ -31,11 +31,15 @@ export function groupOf(colour?: string): ColourGroup {
 	return colour && Object.hasOwn(GROUPS, colour) ? (colour as ColourGroup) : "blue";
 }
 
+/** The dot a Scene key shows in its top corner while sources differ from the scene as saved. */
+export const DOT = "#facc15";
+
 /**
  * The key image for a group and state, as an SVG Stream Deck draws at the key's own size. A thin dark line
- * sits between the body and the band so the band keeps its edge against the orange.
+ * sits between the body and the band so the band keeps its edge against the orange. dot adds the
+ * changed dot, ringed in navy so it shows on orange and on every dark body.
  */
-export function keyImage(colour: string | undefined, state: 0 | 1): string {
+export function keyImage(colour: string | undefined, state: 0 | 1, dot = false): string {
 	const g = GROUPS[groupOf(colour)];
 	const body = state ? ON : g.off;
 	return (
@@ -43,6 +47,7 @@ export function keyImage(colour: string | undefined, state: 0 | 1): string {
 		`<rect width="144" height="144" fill="${body}"/>` +
 		`<rect y="120" width="144" height="4" fill="#000" fill-opacity="0.35"/>` +
 		`<rect y="124" width="144" height="20" fill="${g.band}"/>` +
+		(dot ? `<circle cx="124" cy="20" r="11" fill="${DOT}" stroke="#0f172a" stroke-width="4"/>` : "") +
 		`</svg>`
 	);
 }
@@ -51,8 +56,8 @@ export function keyImage(colour: string | undefined, state: 0 | 1): string {
  * The key image as Stream Deck's setImage takes an SVG: a data URL. Sent as a bare SVG string, the app ignores it
  * and the key keeps the manifest's blue image.
  */
-export function keyImageUrl(colour: string | undefined, state: 0 | 1): string {
-	return `data:image/svg+xml,${encodeURIComponent(keyImage(colour, state))}`;
+export function keyImageUrl(colour: string | undefined, state: 0 | 1, dot = false): string {
+	return `data:image/svg+xml,${encodeURIComponent(keyImage(colour, state, dot))}`;
 }
 
 /** WCAG contrast ratio between two #rrggbb colours (1 to 21). */

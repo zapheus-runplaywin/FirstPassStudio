@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Scene</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 10px 12px 16px;
+    background: #2d2d2d; color: #d8d8d8;
+    font: 12px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .row > label:first-child { flex: 0 0 92px; color: #9a9a9a; text-align: right; }
+  .row > .field { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; }
+  input[type=text], select {
+    width: 100%; background: #3d3d3d; color: #e6e6e6; border: 1px solid #4a4a4a;
+    border-radius: 3px; padding: 4px 6px; font: inherit; outline: none;
+  }
+  input:focus, select:focus { border-color: #6b8cff; }
+  button {
+    background: #4a4a4a; color: #eee; border: 1px solid #5a5a5a; border-radius: 3px;
+    padding: 4px 10px; font: inherit; cursor: pointer; white-space: nowrap;
+  }
+  button:hover { background: #575757; }
+  .check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .check input { margin: 0; }
+  .note { margin: 0 0 8px 100px; color: #9a9a9a; font-size: 11px; }
+  .note.bad { color: #ff8a80; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <label for="press">Press</label>
+    <div class="field">
+      <select id="press">
+        <option value="go">Go to a scene</option>
+        <option value="next">Next scene</option>
+        <option value="prev">Previous scene</option>
+        <option value="again">Back to the current scene as saved</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row" id="sceneRow">
+    <label for="scene">Scene</label>
+    <div class="field">
+      <select id="scene"><option value="">Loading…</option></select>
+      <button id="refresh" title="Fetch the list again">↻</button>
+    </div>
+  </div>
+  <p class="note" id="note"></p>
+
+  <div class="row">
+    <label for="colour">Colour</label>
+    <div class="field">
+      <select id="colour">
+        <option value="">The scene's own colour</option>
+        <option value="blue">Blue: live stream</option>
+        <option value="green">Green: pre-game</option>
+        <option value="grey">Grey: post-game</option>
+        <option value="yellow">Yellow: ads</option>
+        <option value="purple">Purple: quarter time</option>
+      </select>
+    </div>
+  </div>
+  <p class="note">The scene's own colour is the one set in Edit scenes on Studio's Output page. The key turns orange while its scene is on, with a yellow dot when sources have changed since.</p>
+
+  <div class="row">
+    <label>Title</label>
+    <div class="field">
+      <label class="check"><input id="keepTitle" type="checkbox" /> Use my own title instead of the scene's name</label>
+    </div>
+  </div>
+
+  <div class="row">
+    <label for="host">Studio</label>
+    <div class="field"><input id="host" type="text" placeholder="http://localhost:8080" spellcheck="false" /></div>
+  </div>
+  <p class="note">Leave Studio empty when it runs on this computer.</p>
+
+<script>
+  let websocket = null;
+  let uuid = null;
+  let settings = {};
+  let scenes = [];
+
+  const $ = (id) => document.getElementById(id);
+
+  // Called by the Stream Deck app.
+  // eslint-disable-next-line no-unused-vars
+  function connectElgatoStreamDeckSocket(port, propertyInspectorUUID, registerEvent, info, actionInfo) {
+    uuid = propertyInspectorUUID;
+    const ai = JSON.parse(actionInfo);
+    settings = (ai.payload && ai.payload.settings) || {};
+    $("press").value = settings.press || "go";
+    $("colour").value = settings.colour || "";
+    $("keepTitle").checked = !!settings.keepTitle;
+    $("host").value = settings.host || "";
+    showScenePick();
+    fillScenes();
+
+    websocket = new WebSocket("ws://127.0.0.1:" + port);
+    websocket.onopen = () => {
+      websocket.send(JSON.stringify({ event: registerEvent, uuid }));
+      askForScenes();
+    };
+    websocket.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+      if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.type === "scenes") {
+        scenes = msg.payload.scenes || [];
+        const note = $("note");
+        note.className = msg.payload.ok ? "note" : "note bad";
+        note.textContent = msg.payload.ok
+          ? (scenes.length ? "Scenes from Studio's Output page." : "No scenes yet: save one on Studio's Output page.")
+          : "Can't reach Studio at " + msg.payload.host + ". Is it on air?";
+        fillScenes();
+      }
+    };
+  }
+
+  // Only Go to a scene needs a scene picked.
+  function showScenePick() {
+    const go = $("press").value === "go";
+    $("sceneRow").style.display = go ? "" : "none";
+  }
+
+  function askForScenes() {
+    send({ event: "sendToPlugin", context: uuid, payload: { cmd: "scenes", host: $("host").value.trim() } });
+  }
+
+  function fillScenes() {
+    const select = $("scene");
+    select.innerHTML = "";
+    const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; select.appendChild(o); };
+    add("", scenes.length ? "Choose a scene" : "No scenes");
+    for (const s of scenes) add(s.id, s.name);
+    // A scene picked before that isn't in the list now (Studio off air, or it was deleted) stays chosen.
+    if (settings.scene && !scenes.some((s) => s.id === settings.scene)) add(settings.scene, (settings.sceneName || "Scene") + " (not in Studio now)");
+    select.value = settings.scene || "";
+  }
+
+  function send(obj) {
+    if (websocket && websocket.readyState === 1) websocket.send(JSON.stringify(obj));
+  }
+
+  function save() {
+    const id = $("scene").value;
+    const picked = scenes.find((s) => s.id === id);
+    settings = Object.assign({}, settings, {
+      scene: id,
+      sceneName: picked ? picked.name : (id === settings.scene ? settings.sceneName : ""),
+      press: $("press").value,
+      colour: $("colour").value,
+      keepTitle: $("keepTitle").checked,
+      host: $("host").value.trim(),
+    });
+    send({ event: "setSettings", context: uuid, payload: settings });
+  }
+
+  $("scene").addEventListener("change", save);
+  $("press").addEventListener("change", () => { showScenePick(); save(); });
+  $("colour").addEventListener("change", save);
+  $("keepTitle").addEventListener("change", save);
+  $("host").addEventListener("change", () => { save(); askForScenes(); });
+  $("refresh").addEventListener("click", askForScenes);
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 	"Name": "FirstPass Studio",
 	"Version": "1.0.0.0",
 	"Author": "PIVT",
-	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, and see which are on.",
+	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, and see which are on.",
 	"Icon": "imgs/plugin/icon",
 	"Category": "FirstPass Studio",
 	"CategoryIcon": "imgs/plugin/category",
@@ -48,6 +48,32 @@
 				{
 					"Image": "imgs/actions/source/on",
 					"Name": "On",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				}
+			]
+		},
+		{
+			"Name": "Scene",
+			"UUID": "com.runplaywin.firstpass-studio.scene",
+			"Icon": "imgs/actions/source/icon",
+			"Tooltip": "Goes to a saved scene in Studio, or the next or previous one, or back to the current one as saved. Lights up while its scene is on.",
+			"PropertyInspectorPath": "ui/scene.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": true,
+			"DisableAutomaticStates": true,
+			"States": [
+				{
+					"Image": "imgs/actions/source/off",
+					"Name": "Off",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/source/on",
+					"Name": "On now",
 					"TitleAlignment": "middle",
 					"FontSize": 12
 				}

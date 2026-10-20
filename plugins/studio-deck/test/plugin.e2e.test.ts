@@ -14,7 +14,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { GROUPS, ON } from "../src/lib/colours";
+import { DOT, GROUPS, ON } from "../src/lib/colours";
 
 /** The SVG inside a setImage data URL; fails if the image isn't one. */
 const svgOf = (m: { payload?: { image?: string } }): string => {
@@ -27,6 +27,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = path.resolve(ROOT, "..", "..");
 const SD_PLUGIN = path.join(ROOT, "com.runplaywin.firstpass-studio.sdPlugin");
 const ACTION = "com.runplaywin.firstpass-studio.source";
+const SCENE_ACTION = "com.runplaywin.firstpass-studio.scene";
 
 type Msg = { event: string; context?: string; payload?: any; _at: number }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -129,9 +130,9 @@ function launchPlugin(port: number): ChildProcess {
 	);
 }
 
-const keyEvent = (event: string, context: string, settings: object) => ({
+const keyEvent = (event: string, context: string, settings: object, action = ACTION) => ({
 	event,
-	action: ACTION,
+	action,
 	context,
 	device: "DEV",
 	payload: { controller: "Keypad", coordinates: { column: 0, row: 0 }, isInMultiAction: false, settings, state: 0 },
@@ -201,6 +202,83 @@ test("real SDK and real Studio: key follows its source and toggles it", { timeou
 		await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setTitle" && /off air/.test(m.payload?.title), "off air");
 		deck.send(keyEvent("keyDown", "K1", settings));
 		await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "showAlert", "alert when Studio is off air");
+	} finally {
+		plugin.kill();
+		studio.kill();
+		deck.close();
+		fs.rmSync(dataDir, { recursive: true, force: true });
+	}
+});
+
+test("real SDK and real Studio: Scene keys go to scenes, light for the current one and show changes", { timeout: 60000 }, async () => {
+	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-deck-"));
+	const studioPort = 20000 + Math.floor(Math.random() * 20000);
+	const studio = await startStudio(studioPort, dataDir);
+	const host = `http://127.0.0.1:${studioPort}`;
+	const deck = await startDeck();
+	const plugin = launchPlugin(deck.port);
+	const post = (body: object) => fetch(`${host}/api/scene`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+	type Studio = { sources: { id: string; name: string; visible: boolean }[]; scenes: { id: string; name: string }[]; current: string | null };
+	const scene = async () => (await (await fetch(`${host}/api/scene`)).json()) as Studio;
+	const after = (mark: number) => (m: Msg) => deck.received.indexOf(m) >= mark;
+
+	try {
+		await deck.waitFor((m) => m.event === "registerPlugin", "registration", 15000);
+		assert.ok((await post({ type: "add", sources: [{ type: "browser", name: "Scoreboard", url: "scoreboard.html" }, { type: "browser", name: "Up Next", url: "upnext.html" }] })).ok);
+		await post({ type: "show", name: "Up Next" });
+		await post({ type: "sceneSave", name: "Pre-game", colour: "green" });
+		await post({ type: "hide", name: "Up Next" });
+		await post({ type: "show", name: "Scoreboard" });
+		await post({ type: "sceneSave", name: "Live" });
+		const [pre, live] = (await scene()).scenes;
+
+		deck.send(keyEvent("willAppear", "S1", { host, scene: pre.id, sceneName: pre.name }, SCENE_ACTION));
+		deck.send(keyEvent("willAppear", "S2", { host, press: "next" }, SCENE_ACTION));
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "S1" && m.payload?.title === "Pre-game", "scene title");
+		// Drawn in the scene's own colour once Studio answers.
+		await deck.waitFor((m) => m.event === "setImage" && m.context === "S1" && m.payload?.state === 0 && svgOf(m).includes(GROUPS.green.off), "scene's own colour");
+		// Live is current and last: Next has nowhere to go.
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "S2" && m.payload?.title === "▶\n(last)", "next at the end");
+
+		// Pressing the Pre-game key goes there: it lights, and Next now shows Live.
+		let mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "S1", { host, scene: pre.id, sceneName: pre.name }, SCENE_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "S1" && m.payload?.state === 1, "lit when current");
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "S2" && m.payload?.title === "▶\nLive", "next shows Live");
+		let now = await scene();
+		assert.equal(now.current, pre.id);
+		assert.deepEqual(now.sources.filter((s) => s.visible).map((s) => s.name), ["Up Next"]);
+
+		// A source changed from the Output page: the key gets the changed dot.
+		mark = deck.received.length;
+		await fetch(`${host}/deck/layer/scoreboard/on`);
+		const dotted = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "S1" && m.payload?.state === 1, "changed dot");
+		assert.ok(svgOf(dotted).includes(`fill="${DOT}"`) && svgOf(dotted).includes("<circle"));
+
+		// Pressing it again puts it back: the dot goes.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "S1", { host, scene: pre.id, sceneName: pre.name }, SCENE_ACTION));
+		const clean = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "S1" && m.payload?.state === 1, "dot gone");
+		assert.ok(!svgOf(clean).includes("<circle"));
+		now = await scene();
+		assert.deepEqual(now.sources.filter((s) => s.visible).map((s) => s.name), ["Up Next"]);
+
+		// Next goes to Live: Pre-game goes dark.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "S2", { host, press: "next" }, SCENE_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "S1" && m.payload?.state === 0, "dark when another scene is on");
+		assert.equal((await scene()).current, live.id);
+
+		// The settings panel asks for the scenes.
+		deck.send({ event: "propertyInspectorDidAppear", action: SCENE_ACTION, context: "S1", device: "DEV" });
+		deck.send({ event: "sendToPlugin", action: SCENE_ACTION, context: "S1", payload: { cmd: "scenes", host } });
+		const list = await deck.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "scenes", "scene list");
+		assert.deepEqual(list.payload.scenes, [{ id: pre.id, name: "Pre-game", colour: "green" }, { id: live.id, name: "Live", colour: "blue" }]);
+
+		// Deleted on the Output page: the key says gone.
+		mark = deck.received.length;
+		await post({ type: "sceneRemove", scene: pre.id });
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "S1" && m.payload?.title === "Pre-game\n(gone)", "gone");
 	} finally {
 		plugin.kill();
 		studio.kill();
