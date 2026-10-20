@@ -162,6 +162,15 @@ app update to update the plugin). Then drag **FirstPass Studio > Source** onto a
 - Tick **Use my own title** to show the title you type in Stream Deck instead of the source's name.
 - **Studio** stays empty when Studio runs on the same Mac as the Stream Deck; for another Mac type its address, like `http://studio-mac.local:8080`.
 
+**Scene key.** Drag **FirstPass Studio > Scene** onto a key for the scenes (see **Scenes** below):
+
+- **Press:** go to a scene picked in its settings (default), go to the **next** or **previous** scene, or go **back to the current scene as saved**.
+- A scene's key lights up orange while its scene is on, with a yellow dot in the corner when sources have been turned on or off since; press it
+  again to put them back. Next and Previous show the name of the scene they'll go to (and *last* or *first* at the ends, where they do nothing).
+  Back to saved names the current scene and shows the dot when there's something to put back.
+- **Colour:** the scene's own colour (set in **Edit scenes** on the Output page), or one of the five groups.
+- It follows the scene by id, so renaming it doesn't break the key; a deleted scene's key says **gone**.
+
 **Links.** The plugin isn't needed: these links work in a **Website** action (tick **GET request in background**), but the key
 doesn't light up.
 Each source in the scene gets these links, using its name in lower case with dashes for spaces

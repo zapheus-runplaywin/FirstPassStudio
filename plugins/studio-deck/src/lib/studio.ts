@@ -9,7 +9,13 @@ export const DEFAULT_HOST = "http://localhost:8080";
 
 /** One source in the scene, as /api/scene sends it (only the fields the keys use). */
 export type SceneSource = { id: string; name: string; type: string; visible: boolean; sound?: boolean };
-export type Scene = { rev: number; sources: SceneSource[] };
+/** A saved look: on or off for each source it sets, by source id (only the fields the keys use). */
+export type SavedScene = { id: string; name: string; colour?: string; states: Record<string, "on" | "off"> };
+/**
+ * The whole scene as Studio sends it. scenes, current (the last scene gone to) and changed (sources that differ
+ * from it) are missing from a Studio older than scenes.
+ */
+export type Scene = { rev: number; sources: SceneSource[]; scenes?: SavedScene[]; current?: string | null; changed?: string[] };
 
 /** The scene, or null while Studio can't be reached. */
 export type Listener = (scene: Scene | null) => void;
@@ -155,6 +161,17 @@ export async function listSources(host: string): Promise<SceneSource[] | null> {
 		const res = await fetch(`${host}/api/scene`, { signal: AbortSignal.timeout(5000) });
 		if (!res.ok) return null;
 		return ((await res.json()) as Scene).sources;
+	} catch {
+		return null;
+	}
+}
+
+/** The saved scenes, for the Scene key settings' list; null if Studio can't be reached. */
+export async function listScenes(host: string): Promise<SavedScene[] | null> {
+	try {
+		const res = await fetch(`${host}/api/scene`, { signal: AbortSignal.timeout(5000) });
+		if (!res.ok) return null;
+		return ((await res.json()) as Scene).scenes ?? [];
 	} catch {
 		return null;
 	}
