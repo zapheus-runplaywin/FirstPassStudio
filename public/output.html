@@ -70,10 +70,50 @@
   .links code { flex: 1; }
   .links button { padding: 4px 10px; }
   .hidden { display: none !important; }
+
+  /* Scenes: saved looks for the sources. The strip along each card's bottom is its Stream Deck colour group. */
+  .scenes { display: flex; flex-wrap: wrap; gap: 14px 8px; padding-top: 6px; }
+  .scene { position: relative; display: grid; gap: 1px; text-align: left; min-width: 120px; padding: 8px 12px 12px; border: 2px solid var(--fp-line-strong);
+           border-radius: 10px; background: var(--fp-white); color: var(--fp-navy); font-weight: 400; overflow: visible; }
+  .scene:hover { background: var(--fp-gray); border-color: var(--fp-blue); }
+  .scene b { font-weight: 800; }
+  .scene small { font-size: 12px; color: var(--fp-muted); }
+  .scene .band { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0 0 7px 7px; }
+  .scene.cur { border-color: var(--fp-orange); box-shadow: 0 0 0 3px rgba(247, 92, 3, .22); }
+  .scene.cur::after { content: 'On now'; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+                      background: var(--fp-orange); color: var(--fp-navy); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+  .scene.cur.changed::after { content: 'On now · changed'; }
+  .scene.addScene { border-style: dashed; color: var(--fp-blue); place-items: center; text-align: center; font-weight: 700; }
+  .scene.dragging { opacity: .4; }
+  .scene.dropBefore { box-shadow: -4px 0 0 var(--fp-blue); }
+  .scene.dropAfter { box-shadow: 4px 0 0 var(--fp-blue); }
+  .band.blue { background: #3b82f6; } .band.green { background: #22c55e; } .band.grey { background: #a1a1aa; } .band.yellow { background: #facc15; } .band.purple { background: #a855f7; }
+  .drift { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #FFF4E5; color: #8A3B00; font-size: 14px; }
+  .drift b { color: inherit; }
+  .drift button { padding: 4px 10px; }
+  .drift .back { background: var(--fp-orange); color: var(--fp-navy); }
+  .drift .back:hover { background: #E05200; }
+  .chg { font-size: 11px; font-weight: 800; color: #8A3B00; background: #FFF4E5; padding: 1px 6px; border-radius: 6px; margin-left: 6px; }
+  .sceneGrid { overflow-x: auto; margin-top: 12px; border: 1px solid var(--fp-line); border-radius: 8px; }
+  .sceneGrid table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .sceneGrid th, .sceneGrid td { padding: 6px 8px; border-top: 1px solid var(--fp-line); text-align: center; white-space: nowrap; }
+  .sceneGrid th:first-child, .sceneGrid td:first-child { text-align: left; position: sticky; left: 0; background: var(--fp-white); }
+  .sceneGrid thead th { border-top: 0; background: var(--fp-gray); vertical-align: top; }
+  .sceneGrid thead th:first-child { background: var(--fp-gray); }
+  .sceneGrid thead input { width: 130px; font-weight: 700; padding: 4px 6px; }
+  .sceneGrid thead select { padding: 3px 4px; font-size: 13px; }
+  .sceneGrid thead .row { justify-content: center; gap: 4px; margin-top: 4px; flex-wrap: nowrap; }
+  .sceneGrid thead button { padding: 3px 7px; font-size: 12px; }
+  .sceneGrid td.cur { background: rgba(247, 92, 3, .07); }
+  .cell { min-width: 58px; padding: 4px 8px; font-size: 12px; }
+  .cell.on, .cell.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
+  .cell.off, .cell.off:hover { background: var(--fp-line); color: var(--fp-muted); }
+  .cell.leave, .cell.leave:hover { background: transparent; color: var(--fp-muted); border: 1px dashed var(--fp-line-strong); }
 </style>
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
 <script src="pageoptions.js"></script>
+<script src="asktext.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar">
@@ -102,6 +142,17 @@
       turns off while it's open, and closing it brings it back. <b>Scene View sound</b> plays the scene's sound here, with or without an output on. A display, Blackmagic or NDI output goes
       silent while it does, so the sound never plays twice. It needs Live View on, and moves back to the outputs
       when this page closes. Only one Output page plays it at a time: click a Scene View to bring the sound to it. The line above says why it's silent, if it is.</p>
+  </section>
+
+  <section id="scenesSection">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">Scenes</h2>
+      <button class="alt" id="editScenes">Edit scenes</button>
+    </div>
+    <div class="scenes" id="scenes"></div>
+    <div class="drift hidden" id="drift"></div>
+    <div class="sceneGrid hidden" id="sceneGrid"></div>
+    <p class="note" id="scenesNote"></p>
   </section>
 
   <section id="outSection">
@@ -387,6 +438,13 @@
       const tag = document.createElement('small');
       tag.textContent = s.type === 'browser' ? 'page' : s.type;
       li.querySelector('.name').appendChild(tag);
+      if ((scene.changed || []).includes(s.id)) {
+        const chg = document.createElement('span');
+        chg.className = 'chg';
+        chg.textContent = 'changed';
+        chg.title = `Different from the saved ${currentScene()?.name || 'scene'}`;
+        li.querySelector('.name').appendChild(chg);
+      }
       if (s.type === 'video') {
         const snd = li.querySelector('.snd');
         snd.classList.remove('hidden');
@@ -423,6 +481,155 @@
       };
       ul.appendChild(li);
     }
+  }
+
+  // ─── Scenes ───────────────────────────────────────────────────────────
+  // A scene sets each source on or off, or leaves it as it is (not in its states). Going to one
+  // changes only what differs; the server says which sources have changed since (scene.changed).
+  const COLOURS = [['blue', 'Blue: live stream'], ['green', 'Green: pre-game'], ['grey', 'Grey: post-game'], ['yellow', 'Yellow: ads'], ['purple', 'Purple: quarter time']];
+  const currentScene = () => (scene.scenes || []).find(s => s.id === scene.current) || null;
+  const nameOf = id => scene.sources.find(s => s.id === id)?.name || '';
+  let editing = false;
+  let dragScene = null;
+  function sceneCounts(sc) {
+    const v = Object.values(sc.states);
+    const on = v.filter(x => x === 'on').length, off = v.filter(x => x === 'off').length, left = scene.sources.length - on - off;
+    if (!on && !off) return 'changes nothing';
+    return [on && `${on} on`, off && `${off} off`, left && `${left} left as is`].filter(Boolean).join(' · ');
+  }
+  function renderScenes() {
+    const scenes = scene.scenes || [], cur = currentScene(), changed = scene.changed || [];
+    const box = $('scenes');
+    box.innerHTML = '';
+    for (const sc of scenes) {
+      const b = document.createElement('button');
+      b.className = 'scene' + (sc.id === scene.current ? ' cur' : '') + (sc.id === scene.current && changed.length ? ' changed' : '');
+      b.innerHTML = '<b></b><small></small><span class="band"></span>';
+      b.querySelector('b').textContent = sc.name;
+      b.querySelector('small').textContent = sceneCounts(sc);
+      b.querySelector('.band').classList.add(sc.colour);
+      b.title = sc.id === scene.current ? (changed.length ? `Go back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
+      b.onclick = () => act({ type: 'sceneGo', scene: sc.id });
+      // Drag a scene along the row to change the order Next and Previous go in.
+      b.draggable = true;
+      b.ondragstart = e => { dragScene = sc.id; b.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sc.id); };
+      b.ondragend = () => { dragScene = null; renderScenes(); };
+      b.ondragover = e => {
+        if (!dragScene || dragScene === sc.id) return;
+        e.preventDefault();
+        const after = e.offsetX > b.offsetWidth / 2;
+        b.classList.toggle('dropBefore', !after); b.classList.toggle('dropAfter', after);
+      };
+      b.ondragleave = () => b.classList.remove('dropBefore', 'dropAfter');
+      b.ondrop = e => {
+        e.preventDefault();
+        if (!dragScene || dragScene === sc.id) return;
+        const from = scenes.findIndex(x => x.id === dragScene);
+        let to = scenes.indexOf(sc) + (e.offsetX > b.offsetWidth / 2 ? 1 : 0);
+        if (from < to) to--;
+        const id = dragScene; dragScene = null;
+        if (to !== from) act({ type: 'sceneMove', scene: id, to }); else renderScenes();
+      };
+      box.appendChild(b);
+    }
+    const add = document.createElement('button');
+    add.className = 'scene addScene';
+    add.innerHTML = "+ Save what's on now<small>as a new scene</small>";
+    add.onclick = saveNewScene;
+    box.appendChild(add);
+
+    // What's different from the current scene, and the three ways out.
+    const drift = $('drift');
+    drift.classList.toggle('hidden', !(cur && changed.length));
+    if (cur && changed.length) {
+      const what = changed.map(id => `${nameOf(id)} ${scene.sources.find(s => s.id === id)?.visible ? 'on' : 'off'}`).join(', ');
+      drift.innerHTML = '<span>⚠ <b></b> <span></span></span><button class="back"></button><button class="alt over"></button><button class="alt asNew">Save as new scene</button>';
+      drift.querySelector('b').textContent = `${changed.length} change${changed.length === 1 ? '' : 's'} from saved ${cur.name}:`;
+      drift.querySelector('span span').textContent = what + '.';
+      drift.querySelector('.back').textContent = 'Back to saved';
+      drift.querySelector('.back').title = `Go back to ${cur.name} exactly as it was saved`;
+      drift.querySelector('.back').onclick = () => act({ type: 'sceneAgain' });
+      drift.querySelector('.over').textContent = `Save over ${cur.name}`;
+      drift.querySelector('.over').title = `Keep what's on now as ${cur.name}'s saved state`;
+      drift.querySelector('.over').onclick = () => act({ type: 'sceneCapture', scene: cur.id });
+      drift.querySelector('.asNew').onclick = saveNewScene;
+    }
+    $('scenesNote').innerHTML = scenes.length
+      ? 'Click a scene to go to it: it turns sources on and off to match, and a source that\'s already on stays on (it isn\'t reloaded). '
+        + 'Turning sources on and off by hand changes them everywhere and shows them as <b>changed</b>; click the scene again or <b>Back to saved</b> to put them back. '
+        + 'Drag scenes along the row to set the order the Stream Deck\'s Next and Previous go in (they stop at the ends). A source you add later is off in every scene. '
+        + `Stream Deck: <code>${base}/deck/scene/${encodeURIComponent(slug(scenes[0].name))}</code>, <code>/deck/scene/next</code>, <code>/deck/scene/prev</code> and <code>/deck/scene/again</code> (back to saved).`
+      : 'A scene is a saved look: which sources are on and which are off. Set the sources up below, then <b>Save what\'s on now</b> and name it '
+        + '(Pre-game, Live, Quarter time, Full time…). Going to a scene, here or from the Stream Deck, puts the graphics back to that look.';
+    $('editScenes').classList.toggle('hidden', !scenes.length);
+    $('editScenes').textContent = editing ? 'Done' : 'Edit scenes';
+    if (!scenes.length) editing = false;
+    $('sceneGrid').classList.toggle('hidden', !editing);
+    if (editing) renderGrid();
+  }
+  async function saveNewScene() {
+    const name = await askText('Name the new scene (what\'s on now is saved in it)', '');
+    if (name) act({ type: 'sceneSave', name });
+  }
+  $('editScenes').onclick = () => { editing = !editing; renderScenes(); };
+
+  // The Edit scenes grid: sources down the side, scenes across. Each cell goes On, Off, Leave as is.
+  // It changes the saved scenes only, never what's on now.
+  const NEXT_STATE = { on: 'off', off: 'leave', leave: 'on' };
+  function renderGrid() {
+    const scenes = scene.scenes || [];
+    const grid = $('sceneGrid');
+    // Keep a name box someone is typing in.
+    const typing = document.activeElement?.dataset?.scene;
+    if (typing && grid.contains(document.activeElement)) return;
+    const table = document.createElement('table');
+    const head = table.createTHead().insertRow();
+    head.appendChild(Object.assign(document.createElement('th'), { textContent: 'Source' }));
+    scenes.forEach((sc, i) => {
+      const th = document.createElement('th');
+      th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt left" title="Earlier: where Previous goes">←</button><button class="alt right" title="Later: where Next goes">→</button><button class="alt copy">Copy</button><button class="danger del">Delete</button></div>';
+      const input = th.querySelector('input');
+      input.value = sc.name; input.dataset.scene = sc.id; input.setAttribute('aria-label', 'Scene name');
+      input.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { name: input.value } });
+      input.onkeydown = e => { if (e.key === 'Enter') input.blur(); };
+      const sel = th.querySelector('select');
+      sel.setAttribute('aria-label', 'Stream Deck colour');
+      for (const [v, label] of COLOURS) sel.add(new Option(label, v, false, v === sc.colour));
+      sel.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { colour: sel.value } });
+      th.querySelector('.left').disabled = i === 0;
+      th.querySelector('.right').disabled = i === scenes.length - 1;
+      th.querySelector('.left').onclick = () => act({ type: 'sceneMove', scene: sc.id, direction: 'up' });
+      th.querySelector('.right').onclick = () => act({ type: 'sceneMove', scene: sc.id, direction: 'down' });
+      th.querySelector('.copy').onclick = () => act({ type: 'sceneCopy', scene: sc.id });
+      th.querySelector('.del').onclick = () => {
+        if (confirm(`Delete the scene "${sc.name}"? Its Stream Deck keys will say gone. The sources stay as they are.`)) act({ type: 'sceneRemove', scene: sc.id });
+      };
+      head.appendChild(th);
+    });
+    const body = table.createTBody();
+    for (const s of scene.sources) {
+      const tr = body.insertRow();
+      tr.insertCell().textContent = s.name;
+      for (const sc of scenes) {
+        const td = tr.insertCell();
+        if (sc.id === scene.current) td.className = 'cur';
+        const state = sc.states[s.id] || 'leave';
+        const b = document.createElement('button');
+        b.className = 'cell ' + state;
+        b.textContent = { on: 'On', off: 'Off', leave: 'Leave' }[state];
+        b.title = `${s.name} in ${sc.name}: ${{ on: 'turned on', off: 'turned off', leave: 'left as it is' }[state]}. Click to change.`;
+        b.onclick = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { states: { [s.id]: NEXT_STATE[state] } } });
+        td.appendChild(b);
+      }
+    }
+    grid.innerHTML = '';
+    grid.appendChild(table);
+    const note = document.createElement('p');
+    note.className = 'note';
+    note.style.margin = '8px';
+    note.innerHTML = 'Click a cell to change it: <b>On</b>, <b>Off</b> or <b>Leave</b> (going to the scene doesn\'t touch that source). '
+      + 'This changes the saved scenes, not what\'s on now. The tinted column is the scene that\'s on now. The colour is the Stream Deck colour group for the scene\'s keys.';
+    grid.appendChild(note);
   }
 
   // ─── Settings for the selected source ─────────────────────────────────
@@ -766,7 +973,8 @@
     if (!file) return;
     $('err').textContent = ''; sceneNote('');
     if (scene.sources.length && !confirm(`Replace the ${scene.sources.length} source${scene.sources.length === 1 ? '' : 's'} in the scene with the ones in ${file.name}?`
-      + ' The imported sources start hidden, and Stream Deck keys for sources that aren\'t in the file stop working.')) return;
+      + ' The imported sources start hidden, and Stream Deck keys for sources that aren\'t in the file stop working.'
+      + ' If the file has scenes they replace these scenes; an older file without them keeps these scenes.')) return;
     $('importScene').disabled = true;
     sceneNote(`Importing ${file.name}…`);
     try {
@@ -775,7 +983,7 @@
       if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
       selected = null; renderForm(); drawBox();
       if (body.media) media = body.media;
-      sceneNote(`Imported ${body.sources} source${body.sources === 1 ? '' : 's'}, all hidden.`
+      sceneNote(`Imported ${body.sources} source${body.sources === 1 ? '' : 's'}, all hidden${body.scenes != null ? `, and ${body.scenes} scene${body.scenes === 1 ? '' : 's'}` : ''}.`
         + (body.copied.length ? ` Added ${body.copied.join(', ')} to the media folder.` : '')
         + (body.missing.length ? ` Missing from the media folder: ${body.missing.join(', ')}. Add ${body.missing.length === 1 ? 'it' : 'them'} with Add image or Add video.` : ''));
       console.log(`Imported ${file.name}: ${body.sources} sources`);
@@ -910,7 +1118,7 @@
     const now = (s.converting || []).join('|');
     if (now !== wasConverting) { wasConverting = now; loadMedia(); }
     if (selected && !current()) selected = null;
-    renderList(); renderForm(); drawBox();
+    renderList(); renderForm(); drawBox(); renderScenes();
   }
 
   // Follow the scene live, so Stream Deck presses show here too.
