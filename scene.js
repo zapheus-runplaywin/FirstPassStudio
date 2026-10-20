@@ -42,6 +42,9 @@ let scene = { sources: [], scenes: [], current: null };
 // Sources set on in the current scene that went off by themselves (a video that hides when it's
 // done): not a change from the scene.
 let ended = new Set();
+// Sources on after the last change, so each time one comes on its showSeq goes up: a page or video that
+// says it's done names the showing it means, and a late word from an earlier showing is ignored.
+let wasOn = new Set();
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 const STATES = ['on', 'off'];
 // Scene link names that are the next/prev/again links instead.
@@ -91,6 +94,7 @@ function clean(src, existing = {}) {
     y: Math.round(clamp(s.y, -HEIGHT, HEIGHT * 2, 0)),
     scale: clamp(s.scale, 1, 1000, 100),
     loadSeq: Math.round(clamp(s.loadSeq, 0, 1e9, 0)),
+    showSeq: Math.round(clamp(s.showSeq, 0, 1e9, 0)),
   };
   if (type === 'browser') {
     out.url = cleanUrl(s.url) || 'scoreboard.html';
@@ -177,6 +181,7 @@ function load() {
     for (const sc of Array.isArray(saved.scenes) ? saved.scenes : []) if (sc && typeof sc === 'object') scene.scenes.push(cleanScene(sc));
     scene.current = scene.scenes.some(sc => sc.id === saved.current) ? saved.current : null;
     ended = new Set((Array.isArray(saved.ended) ? saved.ended : []).filter(id => scene.sources.some(s => s.id === id)));
+    wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
   } catch (err) {
     if (err.code !== 'ENOENT') log('warn', 'scene', `Could not read scene.json, starting with an empty scene: ${err.message}`);
     scene = { sources: [], scenes: [], current: null };
@@ -185,7 +190,7 @@ function load() {
 }
 
 function save() {
-  try { fs.writeFileSync(FILE, JSON.stringify({ sources: scene.sources.map(({ loadSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }, null, 2) + '\n'); }
+  try { fs.writeFileSync(FILE, JSON.stringify({ sources: scene.sources.map(({ loadSeq, showSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }, null, 2) + '\n'); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }
@@ -259,6 +264,12 @@ function find(ref) {
 
 // One change to the scene, from the Output page or the Stream Deck. Returns an error or null.
 function apply(a) {
+  const error = change(a);
+  for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;
+  wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
+  return error;
+}
+function change(a) {
   const src = a.id || a.name ? find(a.id || a.name) : null;
   const need = () => src ? null : `No source "${a.id || a.name || ''}" in the scene.`;
   switch (a.type) {
@@ -277,7 +288,7 @@ function apply(a) {
     case 'update': {
       if (need()) return need();
       const i = scene.sources.indexOf(src);
-      const { id, type, loadSeq, ...changes } = a.changes || {};
+      const { id, type, loadSeq, showSeq, ...changes } = a.changes || {};
       scene.sources[i] = clean(changes, src);
       return null;
     }
@@ -315,16 +326,19 @@ function apply(a) {
       src.sound = a.type === 'soundToggle' ? !src.sound : a.type === 'soundOn';
       log('info', 'scene', `"${src.name}" sound ${src.sound ? 'on' : 'off'}`);
       return null;
-    case 'ended':
-      // scene.html says a video finished: fade it out if it's set to hide when done. loadSeq
-      // makes sure it's this play that ended, not one from before a restart.
+    case 'ended': {
+      // scene.html says a video finished (fade it out if it's set to hide when done) or a page animated
+      // away (it only says so when it leaves the frame clear). loadSeq and showSeq make sure it's this
+      // play that ended, not one from before a restart or from the last time it was on.
       if (need()) return need();
-      if (src.type === 'video' && src.visible && src.hideWhenDone && !src.loop && Number(a.loadSeq) === src.loadSeq) {
+      const done = src.type === 'video' ? src.hideWhenDone && !src.loop : src.type === 'browser';
+      if (done && src.visible && Number(a.loadSeq) === src.loadSeq && (a.showSeq === undefined || Number(a.showSeq) === src.showSeq)) {
         src.visible = false;
         if (currentScene()?.states[src.id] === 'on') ended.add(src.id);
-        log('info', 'scene', `"${src.name}" finished, off`);
+        log('info', 'scene', `"${src.name}" ${src.type === 'video' ? 'finished' : 'animated away'}, off`);
       }
       return null;
+    }
     case 'hideAll':
       for (const s of scene.sources) s.visible = false;
       ended = new Set();
@@ -561,7 +575,7 @@ function sendMedia(req, res, file, type, send) {
 const VERSION = (() => { try { return require('./package.json').version; } catch { return ''; } })();
 
 function exportFiles(withMedia) {
-  const sources = scene.sources.map(({ loadSeq, ...s }) => s);
+  const sources = scene.sources.map(({ loadSeq, showSeq, ...s }) => s);
   const files = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources, scenes: scene.scenes }, null, 2) + '\n') }];
   const missing = [];
   if (withMedia) {

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,800;0,900;1,900&display=swap">
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
+<script src="done.js"></script>
 <script src="fit.js"></script>
 <style>
   /* Animated match up for the game picked on the scoreboard control page.
@@ -306,7 +307,7 @@
       setTimeout(sparks, 2200);
       setTimeout(embers, 2500);
       const out = Number(opts.get('out'));
-      if (out > 0) setTimeout(() => $('stage').classList.add('leave'), out * 1000);
+      if (out > 0) setTimeout(() => { $('stage').classList.add('leave'); studioDone(700); }, out * 1000);
     }
     start();
   </script>

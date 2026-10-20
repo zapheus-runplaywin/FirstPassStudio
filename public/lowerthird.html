@@ -84,6 +84,7 @@
   .message { position: absolute; left: var(--left); bottom: var(--bottom); color: var(--text); background: var(--purple-deep); padding: 16px 24px; border-radius: 8px; font-size: 22px; }
 </style>
 <script src="log.js"></script>
+<script src="done.js"></script>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page, introducing someone on camera:
@@ -161,7 +162,7 @@
         window.pageLog && window.pageLog('info', `Lower third: ${type} ${shown}${lineText ? ' / ' + lineText : ''}`);
       });
       const out = Number(params.get('out'));
-      if (out > 0) setTimeout(() => { $('stage').classList.replace('go', 'away'); }, out * 1000);
+      if (out > 0) setTimeout(() => { $('stage').classList.replace('go', 'away'); studioDone(600); }, out * 1000);
     }
 
     (async () => {

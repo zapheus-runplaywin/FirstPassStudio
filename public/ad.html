@@ -5,6 +5,7 @@
 <title>PIVT and FirstPass Studio ad</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="log.js"></script>
+<script src="done.js"></script>
 <style>
   /* A 10 second ad for the breaks: the PIVT and FirstPass Studio logos animated together.
      Colours come from the two logos (PIVT's violet to orange gradient, FirstPass blue, orange and gold).
@@ -257,7 +258,7 @@
 
       // Starts once both logos have loaded, so it never animates an empty box.
       let started = false;
-      const start = () => { if (!started) { started = true; stage.classList.add('go'); } };
+      const start = () => { if (!started) { started = true; stage.classList.add('go'); if (params.get('out') !== '0') studioDone.afterAnimations(); } };
       Promise.all([$('pivt'), $('mark')].map(img => img.decode().catch(() => console.warn('Ad: could not load', img.src))))
         .then(start);
       setTimeout(start, 3000);
