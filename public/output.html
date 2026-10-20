@@ -179,6 +179,13 @@
         <button id="addVideo">Add video</button>
         <button class="alt" id="hideAll">Hide all</button>
       </div>
+      <div class="row" style="margin-top:10px">
+        <button class="alt" id="exportScene">Export sources</button>
+        <button class="alt" id="importScene">Import sources</button>
+        <label style="font-weight:400"><input id="exportMedia" type="checkbox" checked> Export with their images and videos</label>
+        <input id="importFile" type="file" accept=".zip,.json,application/zip,application/json" hidden>
+      </div>
+      <p class="note hidden" id="sceneNote"></p>
       <p class="error" id="err"></p>
       <div class="row hidden" id="deckRow" style="margin-top:10px">
         <button class="alt" id="deckInstall">Install the Stream Deck plugin</button>
@@ -732,6 +739,48 @@
       $('deckInstall').textContent = 'Opened in the Stream Deck app';
       console.log('Opened the Stream Deck plugin to install it');
     } catch (err) { $('err').textContent = `Could not open the Stream Deck plugin: ${err.message}`; }
+  };
+
+  // ─── Export and import ────────────────────────────────────────────────
+  // Export downloads a .zip of the sources (and the images and videos they use) to keep or to
+  // import on another Mac. Import replaces every source with the ones in the file, all hidden.
+  const sceneNote = text => { $('sceneNote').textContent = text; $('sceneNote').classList.toggle('hidden', !text); };
+  $('exportScene').onclick = async () => {
+    $('err').textContent = ''; sceneNote('');
+    if (!scene.sources.length) { $('err').textContent = 'There are no sources to export yet.'; return; }
+    const withMedia = $('exportMedia').checked;
+    // A link rather than a fetch, so a big video streams straight to the file instead of through this page.
+    const a = document.createElement('a');
+    a.href = `/api/scene/export${withMedia ? '' : '?media=0'}`;
+    a.download = '';
+    document.body.append(a); a.click(); a.remove();
+    const files = new Set(scene.sources.filter(s => s.file).map(s => s.file)).size;
+    sceneNote(`Exporting ${scene.sources.length} source${scene.sources.length === 1 ? '' : 's'}${withMedia && files ? ` and ${files} image and video file${files === 1 ? '' : 's'}` : ''} as a .zip file.`
+      + (withMedia ? '' : ' Its images and videos have to be in the other Studio\'s media folder already.'));
+    console.log(`Exporting the scene (${scene.sources.length} sources${withMedia ? ', with media' : ', without media'})`);
+  };
+  $('importScene').onclick = () => $('importFile').click();
+  $('importFile').onchange = async () => {
+    const file = $('importFile').files[0];
+    $('importFile').value = '';
+    if (!file) return;
+    $('err').textContent = ''; sceneNote('');
+    if (scene.sources.length && !confirm(`Replace the ${scene.sources.length} source${scene.sources.length === 1 ? '' : 's'} in the scene with the ones in ${file.name}?`
+      + ' The imported sources start hidden, and Stream Deck keys for sources that aren\'t in the file stop working.')) return;
+    $('importScene').disabled = true;
+    sceneNote(`Importing ${file.name}…`);
+    try {
+      const r = await fetch('/api/scene/import', { method: 'POST', body: file });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+      selected = null; renderForm(); drawBox();
+      if (body.media) media = body.media;
+      sceneNote(`Imported ${body.sources} source${body.sources === 1 ? '' : 's'}, all hidden.`
+        + (body.copied.length ? ` Added ${body.copied.join(', ')} to the media folder.` : '')
+        + (body.missing.length ? ` Missing from the media folder: ${body.missing.join(', ')}. Add ${body.missing.length === 1 ? 'it' : 'them'} with Add image or Add video.` : ''));
+      console.log(`Imported ${file.name}: ${body.sources} sources`);
+    } catch (err) { sceneNote(''); $('err').textContent = `Couldn't import it: ${err.message}`; }
+    $('importScene').disabled = false;
   };
 
   // ─── Adding sources ───────────────────────────────────────────────────

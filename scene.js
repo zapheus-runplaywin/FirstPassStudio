@@ -384,7 +384,94 @@ function sendMedia(req, res, file, type, send) {
   });
 }
 
-// The scene's HTTP routes: /api/scene, /api/scene/events, /api/scene/media and /media/<file>.
+// ─── Export and import ────────────────────────────────────────────────────
+// The export is a zip: scene.json (the sources, as the data folder keeps them) and, unless asked
+// not to, a media/ folder with the images and videos the sources use. Importing one replaces the
+// scene's sources, every one hidden, and copies its media in; a plain scene.json imports too.
+const VERSION = (() => { try { return require('./package.json').version; } catch { return ''; } })();
+
+function exportFiles(withMedia) {
+  const sources = scene.sources.map(({ loadSeq, ...s }) => s);
+  const files = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources }, null, 2) + '\n') }];
+  const missing = [];
+  if (withMedia) {
+    for (const f of new Set(sources.filter(s => s.file).map(s => s.file))) {
+      const file = path.join(MEDIA_DIR, f);
+      if (fs.existsSync(file)) files.push({ name: `media/${f}`, file }); else missing.push(f);
+    }
+  }
+  return { files, missing };
+}
+
+// Compared by checksum, so a file already in the media folder isn't copied in twice.
+const sha1 = f => new Promise((ok, fail) => { const h = crypto.createHash('sha1'); fs.createReadStream(f).on('data', d => h.update(d)).on('end', () => ok(h.digest('hex'))).on('error', fail); });
+const sameFile = async (a, b) => fs.statSync(a).size === fs.statSync(b).size && await sha1(a) === await sha1(b);
+
+// Imports an uploaded export (saved at file). Returns { sources, copied, missing }.
+async function importFile(file) {
+  const zip = require('./zip');
+  const head = Buffer.alloc(2);
+  const fd = fs.openSync(file, 'r');
+  fs.readSync(fd, head, 0, 2, 0);
+  fs.closeSync(fd);
+  let saved, list = [];
+  if (head.toString('latin1') === 'PK') {
+    list = zip.entries(file);
+    // The scene.json at the top, or in the one folder Finder adds when it zips a folder.
+    const json = list.find(e => /^([^/]+\/)?scene\.json$/i.test(e.name) && !e.name.startsWith('__MACOSX'));
+    if (!json) throw new Error("There's no scene.json in that zip. Pick a file made with Export on the Output page.");
+    const chunks = [];
+    for await (const c of zip.open(file, json)) chunks.push(c);
+    saved = Buffer.concat(chunks).toString('utf8');
+  } else if (fs.statSync(file).size > 10 * 1024 * 1024) throw new Error("That isn't a scene export. Pick the .zip (or scene.json) made with Export on the Output page.");
+  else saved = fs.readFileSync(file, 'utf8');
+  let parsed;
+  try { parsed = JSON.parse(saved); } catch { throw new Error("That isn't a scene export: its scene.json can't be read."); }
+  if (!parsed || !Array.isArray(parsed.sources)) throw new Error("That isn't a scene export: it has no sources.");
+
+  // Media: each file the zip has goes in the media folder. One already there with the same name
+  // and contents is used as it is; one with the same name but different contents is kept under a
+  // new name, so nothing in the media folder is overwritten.
+  fs.mkdirSync(MEDIA_DIR, { recursive: true });
+  const renamed = new Map(), copied = [];
+  for (const e of list) {
+    const m = /^(?:[^/]+\/)?media\/([^/]+)$/.exec(e.name);
+    if (!m || e.name.startsWith('__MACOSX') || m[1].startsWith('.') || !kindOf(m[1])) continue;
+    const name = cleanFile(m[1]);
+    const part = path.join(MEDIA_DIR, `.import-${name}.part`);
+    await new Promise((resolve, reject) => zip.open(file, e).on('error', reject).pipe(fs.createWriteStream(part)).on('finish', resolve).on('error', reject));
+    let target = name;
+    for (let i = 2; fs.existsSync(path.join(MEDIA_DIR, target)); i++) {
+      if (await sameFile(part, path.join(MEDIA_DIR, target))) break;
+      target = `${path.basename(name, path.extname(name))} (${i})${path.extname(name)}`;
+    }
+    if (fs.existsSync(path.join(MEDIA_DIR, target))) fs.unlinkSync(part);
+    else { fs.renameSync(part, path.join(MEDIA_DIR, target)); copied.push(target); }
+    if (target !== name) renamed.set(name, target);
+  }
+
+  const sources = [];
+  scene.sources = [];
+  for (const s of parsed.sources.slice(0, 500)) {
+    if (!s || typeof s !== 'object') continue;
+    const src = clean({ ...s, visible: false, file: renamed.get(cleanFile(s.file)) || s.file });
+    // Two sources with the same id (an export edited by hand) would fight over Stream Deck keys.
+    if (scene.sources.some(x => x.id === src.id)) src.id = newId();
+    scene.sources.push(src);
+    sources.push(src);
+  }
+  const missing = [...new Set(sources.filter(s => s.file && !fs.existsSync(path.join(MEDIA_DIR, s.file))).map(s => s.file))];
+  // A .mov the sources play that hasn't been converted yet starts converting now.
+  for (const f of new Set(sources.filter(s => s.type === 'video' && /\.mov$/i.test(s.file)).map(s => s.file))) {
+    if (fs.existsSync(path.join(MEDIA_DIR, f)) && !fs.existsSync(path.join(MEDIA_DIR, webmFor(f)))) convert(f);
+  }
+  log('info', 'scene', `Imported a scene with ${sources.length} sources${parsed.studio ? ` (exported from Studio ${parsed.studio}${parsed.exported ? ` on ${parsed.exported}` : ''})` : ''}`
+    + `${copied.length ? `, copied ${copied.join(', ')} to the media folder` : ''}${missing.length ? `; missing media ${missing.join(', ')}` : ''}`);
+  return { sources: sources.length, copied, missing };
+}
+
+// The scene's HTTP routes: /api/scene, /api/scene/events, /api/scene/media, /api/scene/export and
+// /api/scene/import, and /media/<file>.
 // Returns false for anything else.
 async function route(req, res, url, { send, readBody }) {
   const p = url.pathname;
@@ -404,6 +491,34 @@ async function route(req, res, url, { send, readBody }) {
     const ping = setInterval(() => res.write(': ping\n\n'), 25000);
     req.on('close', () => { clearInterval(ping); listeners.delete(res); });
     return true;
+  }
+  if (p === '/api/scene/export' && req.method === 'GET') {
+    const { files, missing } = exportFiles(url.searchParams.get('media') !== '0');
+    if (missing.length) log('warn', 'scene', `Exporting the scene without ${missing.join(', ')}: not in the media folder`);
+    const day = new Date();
+    const name = `FirstPass Studio scene ${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}.zip`;
+    res.writeHead(200, { 'content-type': 'application/zip', 'cache-control': 'no-store', 'content-disposition': `attachment; filename="${name}"` });
+    try {
+      await require('./zip').write(res, files);
+      log('info', 'scene', `Exported the scene: ${scene.sources.length} sources and ${files.length - 1} media files`);
+    } catch (err) { log('warn', 'scene', `Scene export stopped: ${err.message}`); res.destroy(); }
+    return true;
+  }
+  if (p === '/api/scene/import' && req.method === 'POST') {
+    fs.mkdirSync(MEDIA_DIR, { recursive: true });
+    const upload = `.import-${newId()}.part`;
+    try {
+      await saveUpload(req, upload, MAX_VIDEO * 2);
+      const result = await importFile(path.join(MEDIA_DIR, upload));
+      save();
+      return send(res, 200, { ...result, media: mediaList() }), true;
+    } catch (err) {
+      log('warn', 'scene', `Could not import the scene: ${err.message}`);
+      return send(res, 400, { error: err.message }), true;
+    } finally {
+      fs.rm(path.join(MEDIA_DIR, upload), { force: true }, () => {});
+      for (const f of fs.readdirSync(MEDIA_DIR)) if (/^\.import-.*\.part$/.test(f) && f !== upload) fs.rm(path.join(MEDIA_DIR, f), { force: true }, () => {});
+    }
   }
   if (p === '/api/scene/streamdeck' && req.method === 'GET') return send(res, 200, { available: fs.existsSync(STREAMDECK_PLUGIN) }), true;
   if (p === '/api/scene/streamdeck' && req.method === 'POST') {
@@ -447,4 +562,4 @@ function init(logger, { ffmpeg } = {}) {
   if (scene.sources.length) log('info', 'scene', `Scene has ${scene.sources.length} sources`);
 }
 
-module.exports = { STREAMDECK_PLUGIN, init, route, upgrade, deck, apply, state, slug, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, importFile, exportFiles, init, route, upgrade, deck, apply, state, slug, FILE, MEDIA_DIR };
