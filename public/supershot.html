@@ -81,7 +81,8 @@
   .lines { position: absolute; inset: 0; pointer-events: none; }
   .line { position: absolute; left: 0; top: var(--y); width: var(--w); height: var(--h); border-radius: 4px; opacity: 0; background: var(--c); }
   .go .line { animation: sweep .55s cubic-bezier(.5,0,.4,1) var(--dl) forwards; }
-  @keyframes sweep { 0% { opacity: .95; transform: translateX(-110%); } 100% { opacity: .95; transform: translateX(2050px); } }
+  /* They fade at the end so none are left on screen when the graphic is shrunk (at full size they're off the frame by then) */
+  @keyframes sweep { 0% { opacity: .95; transform: translateX(-110%); } 85% { opacity: .95; } 100% { opacity: 0; transform: translateX(2050px); } }
 
   /* SUPER from the left, SHOT from the right, slamming into place */
   .words { position: absolute; left: 0; right: 0; top: 188px; text-align: center; font-weight: 900; font-style: italic; line-height: .88; white-space: nowrap; }
@@ -124,7 +125,7 @@
        Manual, plays once each time the source comes on (keep "Load the page fresh each time it's shown" ticked):
        http://localhost:8080/supershot.html?team=home   (or ?team=away: that team's logo, name and club colour)
        http://localhost:8080/supershot.html?team=none   (no team, the competition's colours) -->
-  <div class="stage" id="stage" data-fit-box="188 780">
+  <div class="stage" id="stage" data-fit-box="188 780" data-fit-scale=".3" data-fit-place="under-title">
     <div class="shaker">
       <div class="centre"><div class="rays"></div><div class="halo"></div></div>
       <div class="lines" id="lines"></div>
