@@ -79,10 +79,6 @@ jobs:
           command -v cmake >/dev/null || brew install cmake
           vendor/ffmpeg/build.sh
       - run: test -x vendor/ffmpeg/ffmpeg && vendor/ffmpeg/ffmpeg -hide_banner -version | head -1
-      # Studio's Stream Deck plugin ships inside the app (plugins/studio-deck); the menu bar menu installs it.
-      - name: Pack the Stream Deck plugin
-        working-directory: plugins/studio-deck
-        run: npm ci && npm run pack
       # Blackmagic UltraStudio / DeckLink output (native/decklink): a Node-API module, so one build
       # loads in any Electron. It needs no Blackmagic software to build; the test checks it loads.
       - name: Build the DeckLink module
@@ -137,6 +133,13 @@ jobs:
           echo "Last published: ${LATEST:-none}. $([ "$PUBLISH" = true ] && echo 'Published as an update.' || echo 'Test build, not published.')" >> "$GITHUB_STEP_SUMMARY"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "LATEST=$LATEST" >> "$GITHUB_ENV"
+      # Studio's Stream Deck plugin ships inside the app (plugins/studio-deck); the menu bar menu installs it.
+      # Its version is the app's with a 1 in front (app 0.3.10 packs plugin 1.0.3.10): Stream Deck only replaces an
+      # installed plugin with a higher version, and says it's already installed otherwise. The leading 1 keeps
+      # every build above 1.0.0.0, the version the first builds shipped with.
+      - name: Pack the Stream Deck plugin
+        working-directory: plugins/studio-deck
+        run: npm ci && npm run pack -- --version "1.$VERSION"
       # Lists the titles of the pull requests merged since the last published version, found
       # from that version's tag on this repository. Only the titles go out: this repository is
       # private, so the public release links to nothing in it.
