@@ -235,6 +235,9 @@ Frame rate: every graphic and animation is timed by the clock, not by frames, so
 http://localhost:8080/output.html (**Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
 sources drawn as layers, top layer first, sent to a display, a Blackmagic device or NDI® for your switcher.
 
+- **Test pattern:** http://localhost:8080/testpattern.html (in **Add page**) is a 1920 x 1080 pattern on a see-through background for checking an output
+  and the switcher's key end to end: 1-pixel border and 1, 2 and 4-pixel lines (grey or shimmering means something is resizing the picture),
+  solid ramps (banding) and transparency ramps and soft shapes (with Pre Multiplied Key on they fade evenly). Not for air.
 - **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
   **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. Each opens a
   dialog to pick it. A new source goes above the selected one (on top if none is selected), hidden, and is selected so its
