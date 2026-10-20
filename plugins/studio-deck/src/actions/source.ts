@@ -9,7 +9,7 @@ import streamDeck, {
 	type WillDisappearEvent,
 } from "@elgato/streamdeck";
 
-import { keyImage } from "../lib/colours";
+import { keyImageUrl } from "../lib/colours";
 import { linkFor, type SourceSettings, viewOf } from "../lib/source-key";
 import { cleanHost, feedFor, listSources, press, type Scene } from "../lib/studio";
 
@@ -70,8 +70,8 @@ class SourceKey {
 		const colour = this.settings.colour ?? "";
 		if (colour === this.painted) return;
 		this.painted = colour;
-		void this.key.setImage(keyImage(colour, 0), { state: 0 });
-		void this.key.setImage(keyImage(colour, 1), { state: 1 });
+		void this.key.setImage(keyImageUrl(colour, 0), { state: 0 });
+		void this.key.setImage(keyImageUrl(colour, 1), { state: 1 });
 	}
 
 	async press(): Promise<void> {

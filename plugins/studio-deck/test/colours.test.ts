@@ -4,7 +4,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { contrast, GROUPS, groupOf, keyImage, ON } from "../src/lib/colours";
+import { contrast, GROUPS, groupOf, keyImage, keyImageUrl, ON } from "../src/lib/colours";
 
 const PANEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "com.runplaywin.firstpass-studio.sdPlugin", "ui", "source.html");
 const groups = Object.keys(GROUPS) as (keyof typeof GROUPS)[];
@@ -32,6 +32,17 @@ test("key images: group body while off, orange while on, group band in both", ()
 	// Every group looks different from every other, off and on.
 	assert.equal(new Set(groups.map((g) => keyImage(g, 0))).size, groups.length);
 	assert.equal(new Set(groups.map((g) => keyImage(g, 1))).size, groups.length);
+});
+
+test("key images go to Stream Deck as SVG data URLs", () => {
+	for (const g of groups) {
+		for (const state of [0, 1] as const) {
+			const url = keyImageUrl(g, state);
+			assert.match(url, /^data:image\/svg\+xml,%3Csvg%20/);
+			assert.ok(!/[<>"#\s]/.test(url), `${g} ${state}: no characters a URL must encode`);
+			assert.equal(decodeURIComponent(url.slice("data:image/svg+xml,".length)), keyImage(g, state));
+		}
+	}
 });
 
 test("contrast: on stands out from off in every colour, titles and bands read", () => {

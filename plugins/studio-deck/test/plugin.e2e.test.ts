@@ -16,6 +16,13 @@ import { fileURLToPath } from "node:url";
 
 import { GROUPS, ON } from "../src/lib/colours";
 
+/** The SVG inside a setImage data URL; fails if the image isn't one. */
+const svgOf = (m: { payload?: { image?: string } }): string => {
+	const image = m.payload?.image ?? "";
+	assert.match(image, /^data:image\/svg\+xml,/);
+	return decodeURIComponent(image.slice("data:image/svg+xml,".length));
+};
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = path.resolve(ROOT, "..", "..");
 const SD_PLUGIN = path.join(ROOT, "com.runplaywin.firstpass-studio.sdPlugin");
@@ -151,17 +158,17 @@ test("real SDK and real Studio: key follows its source and toggles it", { timeou
 		await deck.waitFor((m) => m.event === "setState" && m.payload?.state === 0, "off");
 		// No colour picked: both states drawn in blue, lit orange.
 		const blueOff = await deck.waitFor((m) => m.event === "setImage" && m.context === "K1" && m.payload?.state === 0, "blue off image");
-		assert.ok(blueOff.payload.image.includes(GROUPS.blue.off));
+		assert.ok(svgOf(blueOff).includes(GROUPS.blue.off));
 		const blueOn = await deck.waitFor((m) => m.event === "setImage" && m.context === "K1" && m.payload?.state === 1, "blue on image");
-		assert.ok(blueOn.payload.image.includes(ON) && blueOn.payload.image.includes(GROUPS.blue.band));
+		assert.ok(svgOf(blueOn).includes(ON) && svgOf(blueOn).includes(GROUPS.blue.band));
 
 		// Picking the yellow (ads) group in the settings panel redraws both states once.
 		let mark = deck.received.length;
 		deck.send({ ...keyEvent("didReceiveSettings", "K1", { ...settings, colour: "yellow" }) });
 		const yellowOff = await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setImage" && m.payload?.state === 0, "yellow off image");
-		assert.ok(yellowOff.payload.image.includes(GROUPS.yellow.off));
+		assert.ok(svgOf(yellowOff).includes(GROUPS.yellow.off));
 		const yellowOn = await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setImage" && m.payload?.state === 1, "yellow on image");
-		assert.ok(yellowOn.payload.image.includes(ON) && yellowOn.payload.image.includes(GROUPS.yellow.band));
+		assert.ok(svgOf(yellowOn).includes(ON) && svgOf(yellowOn).includes(GROUPS.yellow.band));
 		await new Promise((r) => setTimeout(r, 200));
 		assert.equal(deck.received.filter((m) => deck.received.indexOf(m) >= mark && m.event === "setImage").length, 2, "images sent once per group change");
 
