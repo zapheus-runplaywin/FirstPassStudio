@@ -409,6 +409,7 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   '<code>?teams=0</code> shows the clock only and <code>?position=top</code> or <code>bottom</code> moves it to the top or bottom of the space between the title and the scoreboard (the default is the middle).'], ['Position match ups (athlete photos)', '/positions.html',
   'Goes through the home team from GS to GK, each beside the away athlete they play against (GS v GK, GA v GD, WA v WD, C v C, WD v WA, GD v GA, GK v GS), ' +
   'with photos from the <a href="/athletes.html" target="_blank">Athletes page</a>, then shows all seven together. Positions come from the PlayHQ line up for the game; a position missing from it shows as Unknown. ' +
+  'PlayHQ only has line ups once live scoring starts: until then it says live scoring is not active for the game, and starts the match ups by itself when the line ups arrive (<code>?waiting=0</code> leaves it empty instead). ' +
   'It starts again each time it\'s turned on on the Output page. ' +
   'Options: <code>?hold=6</code> seconds per pairing (default 5), <code>?loop=1</code> keeps going round, <code>?end=out</code> animates away after the last pairing, ' +
   '<code>?show=all</code> shows all seven straight away, <code>?pair=C</code> shows one pairing only, <code>?games=0</code> leaves out games played.'], ['Home team list', '/teamlist.html?side=home', 'The game\'s PlayHQ line up. When it has fewer than seven players (benches often clear it), the rest of the season squad is added under <b>Squad</b>, without positions.'],

@@ -1,5 +1,9 @@
 // Shared by teamlist.html and shooting.html: loads the selected game's team sheets.
-window.loadTeams = function (onData) {
+// With { every: ms } it asks again that often (calling onData only when something changed)
+// until the stop function it returns is called.
+window.loadTeams = function (onData, options) {
+  const every = options && options.every;
+  let timer = null, stopped = false;
   const params = new URLSearchParams(location.search);
   let last = '';
   async function load() {
@@ -10,8 +14,10 @@ window.loadTeams = function (onData) {
       const json = JSON.stringify(data, (k, v) => (k === 'updatedAt' ? undefined : v));
       if (json !== last) { last = json; onData(data); }
     } catch (err) { console.warn('Team sheets unavailable:', err.message); }
+    if (every && !stopped) timer = setTimeout(load, every);
   }
   load();
+  return () => { stopped = true; clearTimeout(timer); };
 };
 
 window.el = function (tag, cls, text) {

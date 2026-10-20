@@ -505,8 +505,13 @@ http://localhost:8080/positions.html shows the game picked on the control page p
 line up from GS to GK, each beside the away athlete they play against (home GS v away GK, GA v GD, WA v WD, C v C,
 WD v WA, GD v GA, GK v GS), with their photos, names, numbers and captains. It then shows all seven pairings together.
 Positions come from the line up entered on PlayHQ for that game. Some competitions' line ups miss positions: any
-position with nobody listed shows **Unknown** (with the plain silhouette for the photo), and the debug log says which. Only a
-game with no line up at all leaves the page empty. Full position names ("Goal Shooter") are read as GS and so on. An
+position with nobody listed shows **Unknown** (with the plain silhouette for the photo), and the debug log says which.
+
+PlayHQ only has a game's line ups once live scoring starts (its game page has no line ups or stats before the scorer starts
+the game). Until then the page says **Live scoring is not active for this game**, with both teams' logos. If live scoring has
+started but the bench hasn't entered line ups it says **No line ups yet**, and a finished game without them says **No line
+ups**. It checks PlayHQ again every 10 seconds and starts the match ups by itself as soon as either team's line up arrives,
+so it can be left on. Full position names ("Goal Shooter") are read as GS and so on. An
 athlete without a photo shows the generic silhouette for their gender.
 
 - `?hold=6`: seconds per pairing (default 5).
@@ -515,8 +520,9 @@ athlete without a photo shows the generic silhouette for their gender.
 - `?show=all`: shows all seven pairings straight away.
 - `?pair=C`: shows one pairing only, by the home team's position.
 - `?games=0`: leaves out each athlete's games played.
+- `?waiting=0`: leaves the page empty until the line ups arrive, instead of saying live scoring is not active.
 
-Like the other graphics it loads once, and starts again each time it's turned on on the Output page.
+Once the match ups have started it doesn't change, and it starts again each time it's turned on on the Output page.
 
 ## Roadmap
 

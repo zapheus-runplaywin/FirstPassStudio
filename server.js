@@ -2053,6 +2053,16 @@ function orientToBoard(game, b, live) {
   return game;
 }
 
+// Whether PlayHQ is scoring the game: 'live', 'not-started', 'finished', or '' when it can't
+// be told. A finished game's status wins; otherwise the live feed's answer, then the game's status.
+function scoringState(fromLiveFeed, status) {
+  if (/COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(status || '')) return 'finished';
+  if (fromLiveFeed) return fromLiveFeed;
+  if (/PROGRESS|LIVE|STARTED/i.test(status || '')) return 'live';
+  if (/UPCOMING|SCHEDULED/i.test(status || '')) return 'not-started';
+  return '';
+}
+
 const summaryCache = new Map();
 async function getTeamSheets() {
   const b = board();
@@ -2063,10 +2073,16 @@ async function getTeamSheets() {
   let gqlError = '';
   try {
     // Team totals from the live feed: PlayHQ doesn't credit every goal to a player.
-    let live = null;
-    try { live = await getLive(b.gameId, maxAge); }
-    catch (err) { if (!err.notYet && !err.notScored) log('warn', 'teams', `Live totals failed: ${err.message}`); }
+    let live = null, scoring = '';
+    try { live = await getLive(b.gameId, maxAge); scoring = 'live'; }
+    catch (err) {
+      if (err.notYet || err.notScored) scoring = 'not-started';
+      else log('warn', 'teams', `Live totals failed: ${err.message}`);
+    }
     const game = orientToBoard(await getGame(b.gameId, maxAge), b, live);
+    // PlayHQ only has line ups once the game is being scored (its game page has no statistics
+    // before then), so the position match ups say whether live scoring has started.
+    meta.scoring = scoringState(scoring, game.status);
     // A team without a full line up has the rest of its season squad added.
     const g = { home: await withSquad(game.home, b.division), away: await withSquad(game.away, b.division) };
     if (g.home.players.length || g.away.players.length || !CONFIG.apiKey) {

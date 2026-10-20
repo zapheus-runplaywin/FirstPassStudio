@@ -9,6 +9,7 @@
   "main": "desktop/main.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node --test test/*.test.js",
     "app": "electron .",
     "dist": "electron-builder --mac --publish never",
     "release": "electron-builder --mac --publish always"

@@ -66,6 +66,7 @@ const PAGE_OPTIONS = (() => {
       { key: 'show', label: 'Start with', type: 'select', choices: [['', 'One pairing at a time'], ['all', 'All seven at once']] },
       { key: 'pair', label: 'Pairing', type: 'select', choices: [['', 'All of them'], ...['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'].map(p => [p, `${p} only`])] },
       show('games', 'Games played'),
+      show('waiting', 'Message before live scoring'),
     ],
     'teamlist.html': [{ key: 'side', label: 'Team', type: 'select', choices: [['', 'Home'], ['away', 'Away']] }],
     'shooting.html': [title('default')],
