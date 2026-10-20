@@ -36,6 +36,7 @@
   #panel.min { width: auto; }
 </style>
 <script src="log.js"></script>
+<script src="sceneevents.js"></script>
 </head>
 <body>
 <div id="box"><iframe id="frame" title="Scene preview" src="/scene.html?mute=1"></iframe></div>
@@ -117,7 +118,7 @@
       ul.append(li);
     }
   }
-  new EventSource('/api/scene/events').onmessage = e => { try { showSources(JSON.parse(e.data)); } catch (err) { console.error('Scene update failed', err); } };
+  sceneEvents(showSources);
   $('hideAll').onclick = () => act({ type: 'hideAll' });
   const fold = min => {
     $('panel').classList.toggle('min', min);

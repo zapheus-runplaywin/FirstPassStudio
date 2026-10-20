@@ -2411,6 +2411,9 @@ http.createServer(async (req, res) => {
     log('error', 'http', `${req.method} ${url.pathname}${url.search} failed: ${err.message}`, err.stack ? err.stack.split('\n').slice(1, 4).join(' | ') : undefined);
     send(res, 502, { error: err.message });
   }
+}).on('upgrade', (req, socket) => {
+  // WebSockets: the scene's live updates for Studio's pages (scene.js).
+  if (!scene.upgrade(req, socket)) socket.destroy();
 }).listen(PORT, () => {
   log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
   console.log(`Debug log: ${LOG_FILE}`);

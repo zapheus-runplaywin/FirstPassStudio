@@ -71,6 +71,7 @@
   .hidden { display: none !important; }
 </style>
 <script src="log.js"></script>
+<script src="sceneevents.js"></script>
 <script src="pageoptions.js"></script>
 </head>
 <body class="fp">
@@ -853,8 +854,7 @@
   }
 
   // Follow the scene live, so Stream Deck presses show here too.
-  const events = new EventSource('/api/scene/events');
-  events.onmessage = e => { try { show(JSON.parse(e.data)); } catch (err) { console.error('Scene update failed', err); } };
+  sceneEvents(show);
 
   fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base; renderForm(); }).catch(() => {});
   let pref = '1'; try { pref = localStorage.getItem('outputPreview') ?? '1'; } catch {}
