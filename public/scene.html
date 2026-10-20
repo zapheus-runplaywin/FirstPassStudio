@@ -120,10 +120,11 @@
       v.playsInline = true;
       v.preload = 'auto';
       v.muted = true;
-      // Tell the helper when a video ends, so one set to hide when done fades out everywhere.
+      // Tell the helper when a video ends, so one set to hide when done fades out everywhere, and a
+      // sequence waiting for it moves on.
       v.addEventListener('ended', () => {
         const L = layers.get(s.id), src = L && L.src;
-        if (src && src.visible && src.hideWhenDone && !src.loop) tellDone(src, L.playShow);
+        if (src && src.visible && !src.loop) tellDone(src, L.playShow);
       });
       el.appendChild(v);
     } else {

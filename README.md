@@ -284,6 +284,13 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   across) to set each one On, Off or Leave, rename, colour (the Stream Deck colour groups), reorder, copy or delete scenes, without changing what's on.
   A source added later is off in every scene. Links: `/deck/scene/<name>`, `/deck/scene/next` and `/deck/scene/prev` (in the scenes' order,
   stopping at the ends) and `/deck/scene/again` (back to saved). The pop-out Scene View has the scenes as buttons too. Exports include the scenes.
+- **Sequences:** the scene's sources played one after another (run-up, quarter break, full time), built on the Output page with **+ New sequence**.
+  Each step turns on the sources picked for it and stays for a set time, until it finishes (its videos end, or pages that switch themselves off;
+  at most the video's length plus 3 s, or a minute for a page) or until Next. Kept-on sources stay on for the whole sequence; it plays once or repeats
+  until stopped, then goes to a scene, turns off what it turned on, or leaves it all. It only turns off sources it turned on. Next, Pause, Delay +10 s
+  (each press) and Stop on its card; going to a scene, another sequence or hiding everything stops it without its Then, and hiding the step's source
+  moves on. One at a time, run by Studio itself (sequences.js), not saved while playing. Saved per competition as `sequences.json` in its folder.
+  Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/delay`, `/pause`, `/resume` and `/stop`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
   **Live View** when the Mac is busy. **Scene View sound** plays the scene's sound from the Scene View, with or without an output on;
   a display or Blackmagic output is muted while it does, so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output

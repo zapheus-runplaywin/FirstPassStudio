@@ -220,6 +220,25 @@ changes them without touching what's on.
 - A scene's link uses its name like a source's does, so renaming a scene changes its link.
 - The Timed Sequence plugin can press these too, for example `get http://localhost:8080/deck/scene/pre-game` at 18:55.
 
+## Sequences (Output page)
+
+A sequence plays the scene's sources one after another: the run-up to a game, a quarter break, full time. Build them on the
+Output page with **+ New sequence**. Each one belongs to the competition in use.
+
+| Button | Link |
+|---|---|
+| Play a sequence | http://localhost:8080/deck/sequence/quarter-break |
+| Play it, or stop it if it's playing | http://localhost:8080/deck/sequence/quarter-break/toggle |
+| Next step of whatever is playing | http://localhost:8080/deck/sequence/next |
+| Hold the step 10 seconds longer (each press) | http://localhost:8080/deck/sequence/delay |
+| Pause, or carry on | http://localhost:8080/deck/sequence/pause |
+| Stop whatever is playing (does its "then") | http://localhost:8080/deck/sequence/stop |
+
+- **Delay** is for a shot after the siren: press it once or twice and the step on screen stays 10 seconds longer each time.
+- Stop ends the sequence and does its **Then** (go to a scene, turn off what it turned on, or leave it all). Going to a scene, playing
+  another sequence or `/deck/layers/off` stops it without its Then.
+- `next`, `stop`, `pause`, `resume` and `delay` can't be sequence names, so these links never clash with one.
+
 ## Timed buttons (Timed Sequence plugin)
 
 `plugins/streamdeck` is a Stream Deck plugin that waits until a set time of day, then presses a list of links

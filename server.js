@@ -76,7 +76,9 @@ process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(er
 
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
-scene.init(log, { ffmpeg: MACHINE.ffmpegPath });
+// Sequences belong to the competition in use, in its folder.
+scene.init(log, { ffmpeg: MACHINE.ffmpegPath,
+  sequencesFile: () => { const id = competitions.activeId(); return id ? path.join(competitions.DIR, id, 'sequences.json') : null; } });
 outputs.init(log);
 
 // ─── Where the data comes from ──────────────────────────────────────────────
@@ -1519,6 +1521,7 @@ function applyCompetition(why) {
   { const b = board(); // a new quarter length applies to a clock that hasn't started
     if (!b.clock.running && !b.clock.elapsedMs) b.clock.lengthSec = b.clock.baseSec = QUARTER_SEC;
   }
+  scene.competitionChanged();
   log('info', 'setup', !id ? `${why}: none yet` : `${why}: ${CONFIG.name} (${CONFIG.competitionName || 'no PlayHQ competition set'}, organisation ${ORG_ID || 'not set'} on ${TENANT})`);
   if (prev.id && sourceChanged) {
     if (roundChoice) setRoundChoice('');

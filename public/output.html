@@ -108,6 +108,44 @@
   .cell { min-width: 58px; padding: 4px 8px; font-size: 12px; }
   .cell.on, .cell.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
   .cell.off, .cell.off:hover { background: var(--fp-line); color: var(--fp-muted); }
+  /* Sequences: cards like the scenes', the playing one with a dot per step and the time left. */
+  .seqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px 10px; padding-top: 6px; }
+  .seq { position: relative; display: grid; gap: 6px; align-content: start; padding: 9px 12px 12px; border: 2px solid var(--fp-line-strong); border-radius: 10px; background: var(--fp-white); min-width: 0; }
+  .seq .t { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .seq b { font-weight: 800; overflow-wrap: anywhere; }
+  .seq small { font-size: 12px; color: var(--fp-muted); }
+  .seq .band { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0 0 7px 7px; }
+  .seq .row button { padding: 4px 10px; font-size: 13px; }
+  .seq.run { border-color: var(--fp-orange); box-shadow: 0 0 0 3px rgba(247, 92, 3, .22); }
+  .seq.run::after { content: 'Playing'; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+                    background: var(--fp-orange); color: var(--fp-navy); padding: 1px 6px; border-radius: 5px; }
+  .seq.run.paused::after { content: 'Paused'; }
+  .seq.addSeq { border-style: dashed; color: var(--fp-blue); place-items: center; text-align: center; font-weight: 700; min-height: 90px; cursor: pointer; background: var(--fp-white); }
+  .seq.addSeq:hover { background: var(--fp-gray); border-color: var(--fp-blue); }
+  .dots { display: flex; gap: 3px; }
+  .dots i { flex: 1; height: 6px; border-radius: 3px; background: var(--fp-line); }
+  .dots i.done { background: #FDBA8C; }
+  .dots i.now { background: var(--fp-orange); }
+  .nowLine { font-size: 13px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .nowLine .left { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #seqDialog { border: 0; border-radius: var(--fp-radius); padding: 18px 20px; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 40px); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
+  #seqDialog::backdrop { background: rgba(15, 23, 42, .45); }
+  .steps { display: grid; gap: 6px; margin-top: 4px; }
+  .stepRow { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--fp-line); border-radius: 10px; padding: 7px 10px; }
+  .stepRow.keep { background: #F0F8F3; border-style: dashed; border-color: #9BD0AF; }
+  .stepRow.cur { border-color: var(--fp-orange); background: #FFF7F1; }
+  .stepRow .num { width: 24px; height: 24px; border-radius: 50%; background: var(--fp-blue-soft); color: var(--fp-blue-dark); font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+  .stepRow .what { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-width: 0; }
+  .chip { font-size: 13px; font-weight: 600; border-radius: 6px; padding: 2px 4px 2px 8px; background: var(--fp-blue-soft); color: var(--fp-navy); display: inline-flex; gap: 4px; align-items: center; }
+  .chip.video { background: #FBF0C2; }
+  .chip button { padding: 0 5px; background: transparent; color: var(--fp-muted); font-size: 14px; line-height: 18px; }
+  .chip button:hover { background: rgba(15, 23, 42, .08); }
+  .stepRow select, .stepRow input { padding: 4px 6px; font-size: 13px; }
+  .stepRow input[type=number] { width: 70px; }
+  .stepRow .len { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+  .stepRow .len button { padding: 3px 8px; font-size: 12px; }
+  .stepRow .hint { font-size: 12px; color: var(--fp-muted); }
+  @media (max-width: 620px) { .stepRow { grid-template-columns: 26px minmax(0, 1fr); } .stepRow .len { grid-column: 1 / -1; justify-content: flex-start; } }
   .cell.leave, .cell.leave:hover { background: transparent; color: var(--fp-muted); border: 1px dashed var(--fp-line-strong); }
 </style>
 <script src="log.js"></script>
@@ -153,6 +191,35 @@
     <div class="drift hidden" id="drift"></div>
     <div class="sceneGrid hidden" id="sceneGrid"></div>
     <p class="note" id="scenesNote"></p>
+  </section>
+
+  <section id="seqSection">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">Sequences</h2>
+    </div>
+    <div class="seqs" id="seqs"></div>
+    <p class="note" id="seqNote"></p>
+    <dialog id="seqDialog">
+      <h2 id="sqTitle">Edit sequence</h2>
+      <div class="form">
+        <label for="sqName">Name</label><input id="sqName" maxlength="60" placeholder="Quarter break">
+        <label for="sqColour">Stream Deck colour</label><select id="sqColour"></select>
+        <label for="sqRepeat">Repeat</label>
+        <select id="sqRepeat"><option value="once">Play once</option><option value="loop">Repeat until stopped</option></select>
+        <label for="sqThen">Then</label><select id="sqThen"></select>
+      </div>
+      <h2 style="margin:16px 0 4px">Steps</h2>
+      <div class="steps" id="sqSteps"></div>
+      <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add step</button></div>
+      <p class="note" style="margin-top:10px">Each step turns its sources on together and keeps them on for its length; when it ends, sources the next step doesn't use go off with their own fades.
+        <b>Until it finishes</b> waits for the step's videos to end (and pages that switch themselves off when done), and moves on after the video's length plus 3 s, or a minute for a page, if the end never comes.
+        <b>Kept on</b> sources stay on from the first step to the last. A sequence only turns off sources it turned on itself.</p>
+      <p class="error" id="sqErr"></p>
+      <div class="row" style="margin-top:10px;justify-content:space-between">
+        <div class="row"><button class="danger" id="sqDelete">Delete</button><button class="alt" id="sqCopy">Copy</button></div>
+        <div class="row"><button class="alt" id="sqCancel">Cancel</button><button class="alt" id="sqTry">Save and play</button><button id="sqSave">Save</button></div>
+      </div>
+    </dialog>
   </section>
 
   <section id="outSection">
@@ -636,6 +703,196 @@
       + 'This changes the saved scenes, not what\'s on now. The tinted column is the scene that\'s on now. The colour is the Stream Deck colour group for the scene\'s keys.';
     grid.appendChild(note);
   }
+
+  // ─── Sequences ─────────────────────────────────────────────────────────
+  // Cards for the competition's sequences. The playing one counts its step's time down from when
+  // Studio last sent the scene, so the page doesn't need to ask.
+  const sequences = () => scene.sequences || [];
+  const fmt = ms => { const t = Math.ceil(Math.max(0, ms) / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+  const lengthText = st => st.length.type === 'time' ? `${st.length.sec} s` : st.length.type === 'done' ? 'until it finishes' : 'until Next';
+  let heardAt = 0;
+  function thenText(sq) {
+    if (sq.then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === sq.then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
+    return sq.then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';
+  }
+  function renderSequences() {
+    const box = $('seqs'), p = scene.playing;
+    box.innerHTML = '';
+    for (const sq of sequences()) {
+      const card = document.createElement('div');
+      const run = p && p.id === sq.id;
+      card.className = 'seq' + (run ? ' run' : '') + (run && p.paused ? ' paused' : '');
+      card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
+      card.querySelector('b').textContent = sq.name;
+      card.querySelector('.band').classList.add(sq.colour);
+      if (run) {
+        const dots = document.createElement('div');
+        dots.className = 'dots';
+        for (let i = 0; i < sq.steps.length; i++) dots.appendChild(Object.assign(document.createElement('i'), { className: i < p.step ? 'done' : i === p.step ? 'now' : '' }));
+        const st = sq.steps[p.step];
+        const line = document.createElement('div');
+        line.className = 'nowLine';
+        line.innerHTML = '<span></span><span class="left"></span>';
+        const names = st ? st.sources.map(nameOf).filter(Boolean).join(', ') : '';
+        line.firstChild.textContent = `${p.step + 1} of ${p.steps}${p.loop ? ` (again ×${p.loop})` : ''}${names ? ` · ${names}` : ''}`;
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = '<button class="alt next" title="End this step now">Next ⏭</button><button class="alt pause"></button><button class="alt delay" title="Hold this step 10 seconds longer, for each press">Delay +10 s</button><button class="danger stop">Stop</button>';
+        row.querySelector('.pause').textContent = p.paused ? 'Carry on' : 'Pause';
+        row.querySelector('.next').onclick = () => act({ type: 'seqNext' });
+        row.querySelector('.pause').onclick = () => act({ type: 'seqPauseToggle' });
+        row.querySelector('.delay').onclick = () => act({ type: 'seqDelay' });
+        row.querySelector('.stop').onclick = () => act({ type: 'seqStop' });
+        row.querySelector('.stop').title = `Stop it, ${thenText(sq)}`;
+        card.append(dots, line, row);
+      } else {
+        const small = document.createElement('small');
+        small.textContent = `${sq.steps.length} step${sq.steps.length === 1 ? '' : 's'} · ${sq.repeat === 'loop' ? 'repeats' : 'plays once'} · ${thenText(sq)}`;
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = '<button class="play">▶ Play</button><button class="alt edit">Edit</button>';
+        row.querySelector('.play').onclick = () => act({ type: 'seqPlay', sequence: sq.id });
+        row.querySelector('.play').disabled = !sq.steps.length;
+        row.querySelector('.edit').onclick = () => openSequence(sq);
+        card.append(small, row);
+      }
+      if (run) { const e = document.createElement('button'); e.className = 'alt'; e.textContent = 'Edit'; e.style.cssText = 'padding:4px 10px;font-size:13px;justify-self:start'; e.onclick = () => openSequence(sq); card.querySelector('.row').appendChild(e); }
+      box.appendChild(card);
+    }
+    const add = document.createElement('button');
+    add.className = 'seq addSeq';
+    add.innerHTML = '+ New sequence<small>steps played one after another</small>';
+    add.onclick = () => openSequence(null);
+    box.appendChild(add);
+    heardAt = performance.now();
+    tickSequence();
+    const first = sequences()[0];
+    $('seqNote').innerHTML = first
+      ? 'A sequence plays its steps one after another: <b>Play</b> starts it, <b>Next</b> ends the step now, <b>Delay +10 s</b> holds the step 10 seconds longer each press, '
+        + 'and <b>Stop</b> ends it and does its "then". Going to a scene, or playing another sequence, stops it without its "then". Turning the step\'s source off by hand moves to the next step. '
+        + 'Sequences belong to the competition in use. '
+        + `Stream Deck: <code>${base}/deck/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
+        + '<code>/deck/sequence/next</code>, <code>/deck/sequence/delay</code>, <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>.'
+      : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
+        + 'Add your sources below first, then <b>+ New sequence</b>.';
+  }
+  function tickSequence() {
+    const p = scene.playing;
+    const left = document.querySelector('.seq.run .left');
+    if (!p || !left) return;
+    if (p.leftMs === null || p.leftMs === undefined) { left.textContent = p.length === 'next' ? 'waits for Next' : ''; return; }
+    const ms = p.paused ? p.leftMs : p.leftMs - (performance.now() - heardAt);
+    left.textContent = p.length === 'done' && !p.ready ? `up to ${fmt(ms)}` : `${fmt(ms)} left`;
+  }
+  setInterval(tickSequence, 250);
+
+  // The editor works on a copy, saved with Save.
+  let draft = null;
+  const durationOf = file => media.find(m => m.name === file)?.duration;
+  function openSequence(sq) {
+    draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', then: { type: 'off' }, keepOn: [], steps: [{ sources: [], length: { type: 'time', sec: 20 } }] };
+    $('sqTitle').textContent = sq ? 'Edit sequence' : 'New sequence';
+    $('sqName').value = draft.name;
+    $('sqColour').innerHTML = '';
+    for (const [v, label] of COLOURS) $('sqColour').add(new Option(label, v, false, v === draft.colour));
+    $('sqRepeat').value = draft.repeat;
+    const then = $('sqThen');
+    then.innerHTML = '';
+    then.add(new Option('Turn off what it turned on', 'off'));
+    then.add(new Option('Leave everything as it is', 'leave'));
+    for (const sc of scene.scenes || []) then.add(new Option(`Go to scene: ${sc.name}`, `scene:${sc.id}`));
+    then.value = draft.then.type === 'scene' ? `scene:${draft.then.scene}` : draft.then.type;
+    if (!then.value) then.value = 'off';
+    $('sqDelete').classList.toggle('hidden', !sq);
+    $('sqCopy').classList.toggle('hidden', !sq);
+    $('sqErr').textContent = '';
+    renderSteps();
+    if (!$('seqDialog').open) $('seqDialog').showModal();
+    if (!sq) $('sqName').focus();
+  }
+  // A row of source chips with an add list; list is the array of source ids it changes.
+  function sourcePicker(list, holder) {
+    for (const id of list) {
+      const s = scene.sources.find(x => x.id === id);
+      if (!s) continue;
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (s.type === 'video' ? ' video' : '');
+      chip.append(s.name, Object.assign(document.createElement('button'), { textContent: '×', title: `Take ${s.name} out`, onclick: () => { list.splice(list.indexOf(id), 1); renderSteps(); } }));
+      holder.appendChild(chip);
+    }
+    const sel = document.createElement('select');
+    sel.setAttribute('aria-label', 'Add a source');
+    sel.add(new Option(list.length ? '+ Add' : '+ Add a source', ''));
+    for (const s of scene.sources) if (!list.includes(s.id)) sel.add(new Option(s.name, s.id));
+    sel.onchange = () => { if (sel.value) { list.push(sel.value); renderSteps(); } };
+    holder.appendChild(sel);
+  }
+  function stepHint(st) {
+    if (st.length.type !== 'done') return '';
+    const vids = st.sources.map(id => scene.sources.find(s => s.id === id)).filter(s => s && s.type === 'video');
+    const secs = vids.map(v => durationOf(v.file)).filter(Boolean);
+    if (secs.length) return `video ${fmt(Math.max(...secs) * 1000)}`;
+    if (vids.length) return 'video';
+    return st.sources.some(id => scene.sources.find(s => s.id === id)?.type === 'browser') ? 'page, up to 1 minute' : 'nothing here ends by itself';
+  }
+  function renderSteps() {
+    const box = $('sqSteps');
+    box.innerHTML = '';
+    const p = scene.playing;
+    const keep = document.createElement('div');
+    keep.className = 'stepRow keep';
+    keep.innerHTML = '<span class="num" title="Kept on for the whole sequence">∞</span><div class="what"></div><div class="len"><span class="hint">kept on for the whole sequence</span></div>';
+    sourcePicker(draft.keepOn, keep.querySelector('.what'));
+    box.appendChild(keep);
+    draft.steps.forEach((st, i) => {
+      const row = document.createElement('div');
+      row.className = 'stepRow' + (p && p.id === draft.id && p.step === i ? ' cur' : '');
+      row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><select class="type" aria-label="How long"><option value="time">For a set time</option><option value="done">Until it finishes</option><option value="next">Until I press Next</option></select>'
+        + '<input type="number" class="sec" min="1" max="3600" aria-label="Seconds"><span class="hint"></span><button class="alt up" title="Earlier">↑</button><button class="alt down" title="Later">↓</button><button class="danger del" title="Delete this step">✕</button></div>';
+      row.querySelector('.num').textContent = i + 1;
+      sourcePicker(st.sources, row.querySelector('.what'));
+      const type = row.querySelector('.type'), sec = row.querySelector('.sec');
+      type.value = st.length.type;
+      sec.value = st.length.sec || 20;
+      sec.classList.toggle('hidden', st.length.type !== 'time');
+      row.querySelector('.hint').textContent = st.length.type === 'time' ? 's' : stepHint(st);
+      type.onchange = () => { st.length = type.value === 'time' ? { type: 'time', sec: Number(sec.value) || 20 } : { type: type.value }; renderSteps(); };
+      sec.oninput = sec.onchange = () => { st.length = { type: 'time', sec: Math.max(1, Math.min(3600, Math.round(Number(sec.value) || 20))) }; };
+      row.querySelector('.up').disabled = i === 0;
+      row.querySelector('.down').disabled = i === draft.steps.length - 1;
+      row.querySelector('.up').onclick = () => { draft.steps.splice(i - 1, 0, draft.steps.splice(i, 1)[0]); renderSteps(); };
+      row.querySelector('.down').onclick = () => { draft.steps.splice(i + 1, 0, draft.steps.splice(i, 1)[0]); renderSteps(); };
+      row.querySelector('.del').onclick = () => { draft.steps.splice(i, 1); renderSteps(); };
+      box.appendChild(row);
+    });
+  }
+  function draftChanges() {
+    const then = $('sqThen').value;
+    return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat: $('sqRepeat').value,
+      then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : { type: then }, keepOn: draft.keepOn, steps: draft.steps };
+  }
+  async function saveSequence(andPlay) {
+    const changes = draftChanges();
+    if (!changes.name) { $('sqErr').textContent = 'Give the sequence a name.'; return; }
+    if (!changes.steps.length) { $('sqErr').textContent = 'Add at least one step.'; return; }
+    const before = new Set(sequences().map(s => s.id));
+    const body = draft.id ? await act({ type: 'seqUpdate', sequence: draft.id, changes }) : await act({ type: 'seqAdd', changes });
+    if (!body) { $('sqErr').textContent = $('err').textContent; return; }
+    const id = draft.id || (body.sequences || []).find(s => !before.has(s.id))?.id;
+    $('seqDialog').close();
+    draft = null;
+    if (andPlay && id) act({ type: 'seqPlay', sequence: id });
+  }
+  $('sqAddStep').onclick = () => { draft.steps.push({ sources: [], length: { type: 'time', sec: 20 } }); renderSteps(); };
+  $('sqSave').onclick = () => saveSequence(false);
+  $('sqTry').onclick = () => saveSequence(true);
+  $('sqCancel').onclick = () => { $('seqDialog').close(); draft = null; };
+  $('sqCopy').onclick = async () => { if (draft?.id && await act({ type: 'seqCopy', sequence: draft.id })) { $('seqDialog').close(); draft = null; } };
+  $('sqDelete').onclick = async () => {
+    if (!draft?.id || !confirm(`Delete the sequence "${draft.name}"? Its Stream Deck keys will stop working. The sources stay as they are.`)) return;
+    if (await act({ type: 'seqRemove', sequence: draft.id })) { $('seqDialog').close(); draft = null; }
+  };
+  $('seqDialog').addEventListener('close', () => { draft = null; });
 
   // ─── Settings for the selected source ─────────────────────────────────
   const FIELDS = { fName: 'name', fUrl: 'url', fFile: 'file', fWidth: 'width', fHeight: 'height', fFade: 'fadeMs', fX: 'x', fY: 'y', fScale: 'scale' };
@@ -1176,7 +1433,9 @@
     const now = (s.converting || []).join('|');
     if (now !== wasConverting) { wasConverting = now; loadMedia(); }
     if (selected && !current()) selected = null;
-    renderList(); renderForm(); drawBox(); renderScenes();
+    renderList(); renderForm(); drawBox(); renderScenes(); renderSequences();
+    // A source added, renamed or removed while the editor is open.
+    if (draft && $('seqDialog').open && !$('sqSteps').contains(document.activeElement)) renderSteps();
   }
 
   // Follow the scene live, so Stream Deck presses show here too.
