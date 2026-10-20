@@ -86,7 +86,7 @@ function clean(src, existing = {}) {
     type,
     name: '',
     visible: !!s.visible,
-    fadeMs: Math.round(clamp(s.fadeMs, 0, 10000, 300)),
+    fadeMs: Math.round(clamp(s.fadeMs, 0, 10000, 500)),
     x: Math.round(clamp(s.x, -WIDTH, WIDTH * 2, 0)),
     y: Math.round(clamp(s.y, -HEIGHT, HEIGHT * 2, 0)),
     scale: clamp(s.scale, 1, 1000, 100),
