@@ -17,6 +17,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { linkHost } = require('../linkhost');
+const { INSTALL_TIMEOUT } = require('./updates');
 
 const APP_DIR = path.join(__dirname, '..');
 // Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
@@ -192,7 +193,6 @@ function restartHelper() {
 }
 
 // ─── Menu bar ───────────────────────────────────────────────────────────────
-let updateReady = null;
 
 function refreshMenu() {
   if (!tray) return;
@@ -222,30 +222,44 @@ function refreshMenu() {
     { label: 'Open Studio at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
     // With the other settings, away from the page links, so it isn't ticked by accident.
     { label: 'Open pages in the browser instead of the app window', type: 'checkbox', checked: !!appSettings().openInBrowser, click: item => { saveAppSetting('openInBrowser', item.checked); log(`Open pages in the browser: ${item.checked ? 'on' : 'off'}`); refreshMenu(); } },
-    updateReady
-      ? { label: `Restart to update to ${updateReady}`, click: () => { quitting = true; require('electron-updater').autoUpdater.quitAndInstall(); } }
-      : { label: 'Check for updates', enabled: app.isPackaged, click: () => checkForUpdates(true) },
+    updateMenuItem(),
     { type: 'separator' },
     { label: 'Quit FirstPass Studio', click: () => app.quit() },
   ]));
 }
 
 // ─── Updates ────────────────────────────────────────────────────────────────
-// From GitHub Releases (the publish setting in package.json). A new version downloads in
-// the background and is installed the next time the app quits; "Restart to update" in the
-// menu installs it straight away.
-function checkForUpdates(byHand) {
-  if (!app.isPackaged) return;
-  const { autoUpdater } = require('electron-updater');
-  autoUpdater.logger = { info: m => log(`[update] ${m}`), warn: m => log(`[update] ${m}`), error: m => log(`[update] ${m}`), debug: () => {} };
-  autoUpdater.autoInstallOnAppQuit = true;
-  if (!checkForUpdates.wired) {
-    checkForUpdates.wired = true;
-    autoUpdater.on('update-downloaded', info => { updateReady = info.version; refreshMenu(); });
+// From GitHub Releases (updates.js). A new version downloads in the background and is installed
+// the next time the app quits; "Restart to update" in the menu installs the newest one straight away.
+let updates = null;
+function appUpdates() {
+  if (!updates && app.isPackaged) {
+    const { autoUpdater } = require('electron-updater');
+    autoUpdater.logger = { info: m => log(`[update] ${m}`), warn: m => log(`[update] ${m}`), error: m => log(`[update] ${m}`), debug: () => {} };
     // Logs a failed check or download in full; the dialog below keeps it short.
     autoUpdater.on('error', (err, detail) => log(`[update] ${detail || err.message}`));
+    updates = require('./updates').createUpdates({ updater: autoUpdater, log, onChange: refreshMenu, onInstall: () => { quitting = true; } });
   }
-  autoUpdater.checkForUpdates().then(r => {
+  return updates;
+}
+
+function updateMenuItem() {
+  const { ready, fetching, installing } = updates ? updates.state() : {};
+  if (fetching) return { label: `Downloading ${fetching}…`, enabled: false };
+  if (installing) return { label: `Installing ${ready}…`, enabled: false };
+  if (ready) return { label: `Restart to update to ${ready}`, click: restartToUpdate };
+  return { label: 'Check for updates', enabled: app.isPackaged, click: () => checkForUpdates(true) };
+}
+
+function restartToUpdate() {
+  appUpdates().restartToUpdate().then(ok => {
+    if (ok === false) dialog.showMessageBox({ type: 'warning', message: 'Couldn\'t install the update', detail: 'Try again, or quit FirstPass Studio to install it. The details are in the debug log.' });
+  });
+}
+
+function checkForUpdates(byHand) {
+  if (!appUpdates()) return;
+  updates.check().then(r => {
     if (byHand && (!r || !r.isUpdateAvailable)) dialog.showMessageBox({ message: 'FirstPass Studio is up to date', detail: `Version ${app.getVersion()}` });
     else if (byHand) dialog.showMessageBox({ message: `Downloading version ${r.updateInfo.version}`, detail: 'It installs when you quit FirstPass Studio, or choose "Restart to update" from the menu bar icon once it has downloaded.' });
   }).catch(err => {
@@ -295,11 +309,20 @@ app.on('window-all-closed', e => e.preventDefault()); // no windows: the app sta
 app.on('activate', (e, hasWindows) => { if (!hasWindows) openPage('/'); });
 // Quitting always quits: the helper is stopped, and if anything still holds the app up after a
 // few seconds (a window that won't close, an update install that hangs) it exits anyway.
+// A downloaded update is handed to macOS's updater first (updates.js), which then quits the app
+// and installs it; that can take a little longer.
 let quitStarted = false;
-app.on('before-quit', () => {
+app.on('before-quit', e => {
   if (quitStarted) return;
   quitStarted = quitting = true;
   log('Quitting');
   if (helper) { helper.stopping = true; helper.kill(); }
-  setTimeout(() => { log('Still running 5 s after Quit: exiting'); app.exit(0); }, 5000).unref();
+  const exitAfter = s => setTimeout(() => { log(`Still running ${s} s after Quit: exiting`); app.exit(0); }, s * 1000).unref();
+  if (updates && updates.pending()) {
+    e.preventDefault();
+    updates.installOnQuit().then(ok => { if (!ok) app.exit(0); });
+    exitAfter(INSTALL_TIMEOUT / 1000 + 5);
+  } else {
+    exitAfter(5);
+  }
 });
