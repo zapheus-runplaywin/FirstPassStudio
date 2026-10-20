@@ -432,6 +432,69 @@ function parseGame(g) {
 
 const gameCache = new Map();
 const gameInFlight = new Map();
+
+// Finished games' line ups don't change, so they are kept in game-cache.json in the data
+// folder, with the player gender field PlayHQ accepted: after a restart the team lists'
+// squads, top shooters and the athletes page don't ask PlayHQ for the whole season again.
+// A game id is PlayHQ's own, so the file serves every competition.
+const GAME_CACHE_FILE = DATA('game-cache.json');
+const GAME_CACHE_MAX = 3000, GAME_CACHE_DAYS = 120;
+const finishedSummaries = new Map(); // game id -> parsed game
+const finishedAt = new Map();        // game id -> when it was kept
+try {
+  const saved = JSON.parse(fs.readFileSync(GAME_CACHE_FILE, 'utf8'));
+  const i = GENDER_FIELDS.indexOf(saved.genderField);
+  if (i > 0) genderField = i;
+  const oldest = Date.now() - GAME_CACHE_DAYS * 24 * 60 * 60 * 1000;
+  for (const [id, e] of Object.entries(saved.games || {})) {
+    if (e && e.game && e.at > oldest) { finishedSummaries.set(id, e.game); finishedAt.set(id, e.at); }
+  }
+  log('info', 'playhq', `${finishedSummaries.size} finished games' line ups loaded from game-cache.json`);
+} catch (err) { if (err.code !== 'ENOENT') log('warn', 'playhq', `game-cache.json not read: ${err.message}`); }
+let gameCacheTimer = null;
+function saveGameCache() {
+  if (gameCacheTimer) return;
+  gameCacheTimer = setTimeout(() => {
+    gameCacheTimer = null;
+    const games = Object.fromEntries([...finishedSummaries].map(([id, game]) => [id, { at: finishedAt.get(id) || Date.now(), game }]));
+    fs.writeFile(GAME_CACHE_FILE, JSON.stringify({ genderField: GENDER_FIELDS[genderField], games }), err => {
+      if (err) log('warn', 'playhq', `game-cache.json not saved: ${err.message}`);
+    });
+  }, 2000);
+}
+function keepFinished(gameId, parsed) {
+  finishedSummaries.set(gameId, parsed);
+  finishedAt.set(gameId, Date.now());
+  while (finishedSummaries.size > GAME_CACHE_MAX) {
+    const first = finishedSummaries.keys().next().value;
+    finishedSummaries.delete(first); finishedAt.delete(first);
+  }
+  saveGameCache();
+}
+// Runs fn on each item, a few at a time (gentle on PlayHQ, much quicker than one by one).
+// Gives { value } or { error } for each item, in order.
+async function eachLimited(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      try { out[i] = { value: await fn(items[i], i) }; } catch (error) { out[i] = { error }; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+const PLAYHQ_AT_ONCE = 4;
+// A game's line up, from the kept finished games when there, else from PlayHQ (kept if finished).
+async function readGame(g, maxAgeMs) {
+  const kept = finishedSummaries.get(g.id);
+  if (kept) return kept;
+  const parsed = await getGame(g.id, maxAgeMs);
+  // A finished game with no line up at all may still get one entered, so it isn't kept.
+  if (isFinished(g) && (parsed.home.players.length || parsed.away.players.length)) keepFinished(g.id, parsed);
+  return parsed;
+}
 async function getGame(gameId, maxAgeMs) {
   const hit = gameCache.get(gameId);
   if (hit && Date.now() - hit.at < maxAgeMs) return hit.game;
@@ -445,6 +508,7 @@ async function getGame(gameId, maxAgeMs) {
           // (PlayHQ may answer HTTP 400 with an error that doesn't name the field, so any rejected query moves on.)
           if (!err.graphql || genderField >= GENDER_FIELDS.length - 1) throw err;
           genderField++;
+          saveGameCache(); // remembered, so a restart doesn't ask the rejected ones again
           log('info', 'playhq', `Player gender: trying "${GENDER_FIELDS[genderField] || 'none'}" after: ${err.message}`);
         }
       }
@@ -902,6 +966,7 @@ function applyOne(b, a) {
       b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
       b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
       if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);
+      setImmediate(() => warmTeamLists(a.auto ? 'game picked automatically' : 'game picked'));
       break;
     case 'source': {
       const want = a.value === 'toggle' ? (b.source === 'playhq' ? 'manual' : 'playhq') : a.value;
@@ -1336,7 +1401,7 @@ function applyCompetition(why) {
   const switched = prev.id && prev.id !== id;
   const sourceChanged = switched || ['organisationUrl', 'competitionName', 'seasonName'].some(k => prev[k] !== CONFIG[k]);
   if (prev.id && sourceChanged) {
-    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, roundDatesCache, summaryCache, finishedSummaries, appearanceCache]) cache.clear();
+    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, roundDatesCache, summaryCache, appearanceCache]) cache.clear();
     tenantLabel = ''; cookie = null;
   }
   { const b = board(); // a new quarter length applies to a clock that hasn't started
@@ -1757,14 +1822,10 @@ async function seasonLineups(teamName, inDivision) {
   }
   const athletes = new Map();
   let read = 0, failed = 0, lastError = '';
-  for (const g of games) {
-    let parsed = finishedSummaries.get(g.id);
-    if (!parsed) {
-      try {
-        parsed = await getGame(g.id, 60 * 1000);
-        if (isFinished(g)) finishedSummaries.set(g.id, parsed);
-      } catch (err) { failed++; lastError = err.message; continue; }
-    }
+  const lineups = await eachLimited(games, PLAYHQ_AT_ONCE, g => readGame(g, 60 * 1000));
+  for (const [i, g] of games.entries()) {
+    if (lineups[i].error) { failed++; lastError = lineups[i].error.message; continue; }
+    const parsed = lineups[i].value;
     read++;
     for (const s of [parsed.home, parsed.away]) recordPlayers(s.name, g.division, s.players);
     const side = norm(parsed.home.name) === want ? parsed.home : norm(parsed.away.name) === want ? parsed.away : null;
@@ -1813,12 +1874,11 @@ async function seasonAppearances(grade) {
   const hit = appearanceCache.get(grade.id);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.map;
   const map = new Map();
-  for (const g of (await getSeasonGames(grade)).filter(isFinished)) {
-    let parsed = finishedSummaries.get(g.id);
-    if (!parsed) {
-      try { parsed = await getGame(g.id, 60 * 60 * 1000); finishedSummaries.set(g.id, parsed); }
-      catch (err) { log('warn', 'athletes', `${grade.name}: game ${g.id} could not be read: ${err.message}`); continue; }
-    }
+  const games = (await getSeasonGames(grade)).filter(isFinished);
+  const lineups = await eachLimited(games, PLAYHQ_AT_ONCE, g => readGame(g, 60 * 60 * 1000));
+  for (const [i, g] of games.entries()) {
+    if (lineups[i].error) { log('warn', 'athletes', `${grade.name}: game ${g.id} could not be read: ${lineups[i].error.message}`); continue; }
+    const parsed = lineups[i].value;
     for (const side of [parsed.home, parsed.away]) {
       recordPlayers(side.name, grade.name, side.players);
       for (const p of side.players) {
@@ -1997,14 +2057,19 @@ function colourFor(teamName) {
 // this season) is added after them, without positions, and marked fromSquad.
 const FULL_LINEUP = 7;
 const squadCache = new Map();
+const squadInFlight = new Map();
 async function squadFor(teamName, division) {
   const k = `${norm(division)}|${norm(teamName)}`;
   const hit = squadCache.get(k);
-  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.list;
-  const { athletes } = await seasonLineups(teamName, division);
-  const list = [...athletes.values()].map(a => ({ name: a.name, number: a.number, gender: a.gender }));
-  squadCache.set(k, { at: Date.now(), list });
-  return list;
+  if (hit && Date.now() - hit.at < 30 * 60 * 1000) return hit.list;
+  if (!squadInFlight.has(k)) {
+    squadInFlight.set(k, seasonLineups(teamName, division).then(({ athletes }) => {
+      const list = [...athletes.values()].map(a => ({ name: a.name, number: a.number, gender: a.gender }));
+      squadCache.set(k, { at: Date.now(), list });
+      return list;
+    }).finally(() => squadInFlight.delete(k)));
+  }
+  return squadInFlight.get(k);
 }
 async function withSquad(side, division) {
   if (!side.name || side.players.length >= FULL_LINEUP) return side;
@@ -2020,6 +2085,35 @@ async function withSquad(side, division) {
   return { ...side, players: [...side.players, ...rest], squad: true };
 }
 const squadLogged = new Set();
+
+// ─── Team list warm up ──────────────────────────────────────────────────────
+// A team list needs the game's line up and, while that's incomplete, both teams' season
+// squads, which means reading each of their games this season. That is done ahead, so
+// teamlist.html shows straight away: when a game is picked (by hand or automatically), at
+// start up for the game already on the scoreboard, and for the next game on the same court.
+// Finished games are kept (game-cache.json), so after the first time this is only the
+// teams' upcoming games, a handful of small requests per game picked.
+let warmedFor = '';
+async function warmTeamLists(why) {
+  const b = board();
+  if (!b.gameId || warmedFor === b.gameId) return;
+  const gameId = warmedFor = b.gameId;
+  const started = Date.now();
+  const teams = [[b.home.name, b.division], [b.away.name, b.division]];
+  try {
+    await getGame(gameId, 60 * 1000);
+    try {
+      const next = await getUpNext();
+      if (next && !next.error && next.home && next.away) teams.push([next.home.name, next.division], [next.away.name, next.division]);
+    } catch (err) { log('warn', 'teams', `Warm up: next game not found: ${err.message}`); }
+    const real = teams.filter(([name]) => name && name !== 'TBC' && !/^home$|^away$/i.test(name));
+    await Promise.all(real.map(([name, division]) => squadFor(name, division)));
+    log('info', 'teams', `Team lists ready for ${real.map(t => t[0]).join(', ')} (${why}, ${Date.now() - started}ms)`);
+  } catch (err) {
+    if (warmedFor === gameId) warmedFor = ''; // try again next time
+    log('warn', 'teams', `Team list warm up failed (${why}): ${err.message}`);
+  }
+}
 
 // The team lists must follow the scoreboard's home and away (the round fixture's).
 // PlayHQ's game page data doesn't always agree with it: its teams can be listed the other
@@ -2072,6 +2166,9 @@ async function getTeamSheets() {
   const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
   let gqlError = '';
   try {
+    // The line ups and (below) the team totals are asked for at the same time.
+    const gameAsked = getGame(b.gameId, maxAge);
+    gameAsked.catch(() => {}); // handled where it's awaited
     // Team totals from the live feed: PlayHQ doesn't credit every goal to a player.
     let live = null, scoring = '';
     try { live = await getLive(b.gameId, maxAge); scoring = 'live'; }
@@ -2079,7 +2176,7 @@ async function getTeamSheets() {
       if (err.notYet || err.notScored) scoring = 'not-started';
       else log('warn', 'teams', `Live totals failed: ${err.message}`);
     }
-    const game = orientToBoard(await getGame(b.gameId, maxAge), b, live);
+    const game = orientToBoard(await gameAsked, b, live);
     // PlayHQ only has line ups once the game is being scored (its game page has no statistics
     // before then), so the position match ups say whether live scoring has started.
     meta.scoring = scoringState(scoring, game.status);
@@ -2294,8 +2391,7 @@ async function getTicker() {
 }
 
 // Season shooting totals from the Game Summary of every finished game in a division.
-// Finished games don't change, so their summaries are kept until the helper restarts.
-const finishedSummaries = new Map();
+// Finished games don't change, so their line ups are kept (see game-cache.json).
 async function getTopShooters(q) {
   const st = await getStructure();
   const grade = findGrade(st, q.division ? q : { division: board().division || '1' });
@@ -2303,14 +2399,10 @@ async function getTopShooters(q) {
   const games = (await getSeasonGames(grade)).filter(isFinished);
   const players = new Map();
   let read = 0, failed = 0, lastError = '';
-  for (const g of games) {
-    let parsed = finishedSummaries.get(g.id);
-    if (!parsed) {
-      try {
-        parsed = await getGame(g.id, 60 * 60 * 1000);
-        finishedSummaries.set(g.id, parsed);
-      } catch (err) { failed++; lastError = err.message; continue; }
-    }
+  const lineups = await eachLimited(games, PLAYHQ_AT_ONCE, g => readGame(g, 60 * 60 * 1000));
+  for (const [i, g] of games.entries()) {
+    if (lineups[i].error) { failed++; lastError = lineups[i].error.message; continue; }
+    const parsed = lineups[i].value;
     read++;
     for (const side of ['home', 'away']) {
       for (const p of parsed[side].players) {
@@ -2465,6 +2557,7 @@ http.createServer(async (req, res) => {
 }).listen(PORT, () => {
   log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
   console.log(`Debug log: ${LOG_FILE}`);
+  setTimeout(() => warmTeamLists('start up'), 2000);
   console.log(`PlayHQ Graphics is running. Open ${LINK_BASE}/ for the page links.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });

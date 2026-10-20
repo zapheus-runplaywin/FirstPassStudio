@@ -331,9 +331,9 @@
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
-      <li>Athletes page: when you open a team, the line up of each of its games this season, once (finished games are kept for an hour).</li>
+      <li>Athletes page: when you open a team, the line up of each of its games this season, a few at a time. Finished games are only ever read once: Studio keeps their line ups in <code style="display:inline">game-cache.json</code> in the data folder, so they're kept through restarts too.</li>
       <li>Finals: the division's ladder and its season's rounds when the page loads (the rounds are kept for 10 minutes, the current one for a minute).</li>
-      <li>Team lists: when the game's line up is incomplete, the same season line ups once to make up the squad (kept for 10 minutes).</li>
+      <li>Team lists: warmed up ahead, so they show straight away. When a game is picked (by hand or automatically) and when Studio starts, it reads the game's line up and both teams' season squads, and the next game's teams on the same court too. Finished games come from <code style="display:inline">game-cache.json</code>, so after the first time that's only a few small requests per game picked. Squads are kept for 30 minutes; the team list itself asks for the game's line up and score when it loads.</li>
     </ul>
     <p class="page__help">Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
       <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard, scene and control page.</p>
