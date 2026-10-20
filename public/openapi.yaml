@@ -67,6 +67,30 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
 
+  /deck/streak/{kind}/{side}:
+    get:
+      tags: [Scores]
+      summary: Play a hot streak animation
+      description: |
+        Plays streak.html (the source that watches the scoreboard) without changing the score, e.g. to
+        test it. `heating` is "<team> is heating up" (3 goals in a row), `fire` is "<team> is on fire"
+        (5 in a row) and `goalforgoal` is "goal for goal intensity" (10 goals one each way, both teams;
+        the side is who scored first and can be left out, `/deck/streak/goalforgoal`).
+        They also play by themselves from the goals on the scoreboard.
+      operationId: playStreak
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema: { type: string, enum: [heating, fire, goalforgoal] }
+        - name: side
+          in: path
+          required: true
+          schema: { type: string, enum: [home, away] }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
   /deck/scores/reset:
     get:
       tags: [Scores]

@@ -88,6 +88,13 @@ const PAGE_OPTIONS = (() => {
     'supershot.html': [
       { key: 'team', label: 'Plays', type: 'select', choices: [['', 'By itself for every super shot'], ['home', 'Once, for the home team'], ['away', 'Once, for the away team'], ['none', 'Once, no team']] },
     ],
+    'streak.html': [
+      { key: 'play', label: 'Plays', type: 'select', choices: [['', 'By itself for every streak'], ['heating', 'Once: heating up'], ['fire', 'Once: on fire'], ['goalforgoal', 'Once: goal for goal']] },
+      { key: 'team', label: 'Team (when played once)', type: 'select', choices: [['', 'Home'], ['away', 'Away']] },
+      show('heating', 'Heating up (3 in a row, by itself)', 'Leave out'),
+      show('fire', 'On fire (5 in a row, by itself)', 'Leave out'),
+      show('goalforgoal', 'Goal for goal (10, by itself)', 'Leave out'),
+    ],
     'ladder.html': [
       division,
       { key: 'rows', label: 'Rows', type: 'number', min: 1, max: 40, placeholder: 'all' },
