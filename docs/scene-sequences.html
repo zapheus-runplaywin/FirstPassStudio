@@ -404,6 +404,12 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
   </div>
   <p>Playlists are named lists of audio files from the media folder, saved with the scene. Prev and Next crossfade between songs using the fade time.</p>
   <p><b>Music steps aside for other sound.</b> Whenever a video with its sound on starts, such as the break ad, the music fades out and pauses. When the video finishes or is turned off, the music fades back in from where it paused. This is a player setting, so it works the same whether you started the music by hand or a sequence did. You can change it to lower the music to a set level instead, or to leave it alone. A video with its sound off doesn't count.</p>
+  <p><b>Quiet the music.</b> A scene or a sequence can have one tick box, <b>Quiet the music when this starts</b>, for things like an on-court interview. Tick it on an Interview scene, switch to the camera, and press the scene:</p>
+  <ul class="tight">
+    <li><b>Music from a sequence</b> fades out and stops, along with the sequence.</li>
+    <li><b>Music you started in the player</b> (a playlist) dips low and keeps playing. It comes back up when you go to a scene or start a sequence without the tick, or when you press the music duck key again.</li>
+  </ul>
+  <p>The ducked level uses the same setting as "lower to a set level" (25 % by default). For a quick fix without a scene, <code>/deck/music/duck/toggle</code> does the same from one Stream Deck key.</p>
 
   <h3>Things to think about with music</h3>
   <ul class="tight">
@@ -454,7 +460,8 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
 /deck/music/toggle                     play or pause
 /deck/music/next   /deck/music/prev    next or previous song in the queue
 /deck/music/fade                       fade out whatever is playing
-/deck/music/mute/on|off|toggle         mute the music, keep it running</pre>
+/deck/music/mute/on|off|toggle         mute the music, keep it running
+/deck/music/duck/on|off|toggle         dip the music low, keep it running</pre>
   <p>On any music link, <code>fade=0</code> cuts. Leave <code>fade</code> off to use the player's fade time. The plugin gets a <b>Music</b> key showing the song and play or pause.</p>
   <p>The FirstPass Studio plugin gets a <b>Sequence</b> key: the name, lit while playing, with the step and time left on the key (for example "3/5 · 0:04"). Pressing it plays or stops.</p>
 </section>
@@ -513,6 +520,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
     <li><b>Music follows the video sound route.</b><span class="rec">Mac sound output or embedded in the UltraStudio's SDI, whichever video sound is set to. Matt will settle which on a stream night.</span></li>
     <li><b>Music fades out and pauses for video sound.</b><span class="rec">It fades back in from where it paused once the video ends. This is the player's default for all music, manual or in a sequence.</span></li>
     <li><b>Loudness is evened out when a track is added.</b><span class="rec">A tick box on Add audio, on by default. Studio saves a level-matched copy beside the original.</span></li>
+    <li><b>Scenes and sequences can quiet the music.</b><span class="rec">One tick box, "Quiet the music when this starts", for an on-court interview. A sequence's music fades out and stops, and playlist music from the player ducks and keeps playing.</span></li>
   </ol>
 </section>
 </main>
