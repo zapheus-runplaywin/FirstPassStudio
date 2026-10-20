@@ -243,6 +243,7 @@
         <p class="note forVideo">Sound plays through this Mac's audio output. The preview above is silent unless <b>Preview sound</b> is ticked.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
+          <button class="alt" id="fPreview" title="Open this source on its own, the way the home page's Preview does">Preview</button>
           <button class="alt forBrowser" id="fRestart">Refresh page</button>
           <button class="alt forVideo" id="fRestartVideo">Restart video</button>
           <button class="danger" id="fRemove">Remove</button>
@@ -530,6 +531,14 @@
   $('fUp').onclick = () => act({ type: 'move', id: selected, direction: 'up' });
   $('fDown').onclick = () => act({ type: 'move', id: selected, direction: 'down' });
   $('fRestart').onclick = () => act({ type: 'restart', id: selected });
+  // Preview opens the selected source on its own: a page at its address, an image or video from the media folder.
+  $('fPreview').onclick = () => {
+    const s = current();
+    if (!s) return;
+    const to = s.type === 'browser' ? (/^https?:\/\//i.test(s.url) ? s.url : '/' + String(s.url).replace(/^\/+/, '')) : '/media/' + encodeURIComponent(s.file);
+    console.log(`Preview "${s.name}": ${to}`);
+    window.open(to, '_blank');
+  };
   $('fRemove').onclick = () => {
     const s = current();
     if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
