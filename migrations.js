@@ -118,6 +118,25 @@ const STEPS = [
       }
     },
   },
+  {
+    to: 3,
+    what: 'Raise scene sources still on the old 300 ms fade to the new 500 ms default',
+    // The default fade went from 300 to 500 ms. A source on exactly 300 is taken to be on the old
+    // default and moves to 500; any other fade (0 for a cut included) was picked by hand and stays.
+    run({ log }) {
+      const file = path.join(DATA_DIR, 'scene.json');
+      let scene;
+      try { scene = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return; }
+      let changed = 0;
+      for (const src of Array.isArray(scene.sources) ? scene.sources : []) {
+        if (src && Number(src.fadeMs) === 300) { src.fadeMs = 500; changed++; }
+      }
+      if (changed) {
+        fs.writeFileSync(file, JSON.stringify(scene, null, 2) + '\n');
+        log('info', 'migrate', `Raised the fade on ${changed} scene source(s) from 300 to 500 ms`);
+      }
+    },
+  },
 ];
 const VERSION = STEPS.length ? STEPS[STEPS.length - 1].to : 0;
 
