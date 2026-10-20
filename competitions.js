@@ -36,6 +36,7 @@ const DEFAULTS = {
   quarterMinutes: 10,                  // minutes per quarter (or half)
   superShots: true,                    // 2-point super shots
   divisionSuperShots: {},              // { "division name or word": true/false }, for divisions that differ (superShotsFor)
+  superShotMinutes: 3,                 // super shots count in the last N minutes of each quarter; the scoreboard shows a tab then (0 = no tab)
   finalsFormat: 'top4-page',           // the finals format (finals.js), blank = no finals
   divisionFinals: {},                  // { "PlayHQ division name": format id or "none" }, for a division with its own format
   defaultCourt: '',
@@ -175,6 +176,7 @@ function clean(input, base = DEFAULTS) {
   }
   out.periodType = out.periodType === 'halves' ? 'halves' : 'quarters';
   out.quarterMinutes = Math.min(60, Math.max(1, out.quarterMinutes));
+  out.superShotMinutes = Math.min(out.quarterMinutes, Math.max(0, out.superShotMinutes));
   if (out.finalsFormat && !finals.byId(out.finalsFormat)) out.finalsFormat = DEFAULTS.finalsFormat;
   out.autoSelectMinutesBefore = Math.min(120, Math.max(0, out.autoSelectMinutesBefore));
   out.roundLookaheadDays = Math.min(14, Math.max(1, Math.round(out.roundLookaheadDays)));

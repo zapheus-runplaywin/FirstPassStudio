@@ -397,6 +397,8 @@ Everything can also be run from a Stream Deck: see `STREAMDECK.md`, or the API d
 **Match venue clock** and press Enter. Studio runs one scoreboard: for a second court, run a second Studio on another Mac.
 Scoreboard position: by default it is centred at the bottom, just above the score ticker with a small gap, so both can be on screen together. `?position=top-center`, `bottom-center`, `top-left` or `bottom-left` moves it.
 
+Super shot tab: in a division with super shots, a small "Super shot" tab rises above the scoreboard's clock in the last minutes of each quarter (3 by default, "Super shots in the last [x] minutes" on the setup page, 0 for none) and sinks away when the quarter's clock runs out or is reset. `?supershot=0` leaves it off.
+
 ## Team lists and shooting stats
 
 These follow the game picked on the scoreboard control page:

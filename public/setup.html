@@ -193,13 +193,16 @@
       </div>
       <div class="row">
         <label class="inline"><input type="checkbox" id="superShots" data-key="superShots"> Super shots (2 points)</label>
+        <label class="inline">in the last <input type="number" id="superShotMinutes" data-key="superShotMinutes" min="0" max="60" step="0.5"> minutes of each quarter</label>
       </div>
       <div id="divisionSuperShots"></div>
       <p class="help">Halves give the control page H1 and H2 buttons and the shooting stats say "Half time" and "Full time". Without super shots the
         Super columns are left off the shooting stats and top shooters (the control page keeps its +2 and −2 buttons).
         Every division follows the tick box unless it has its own setting below. A setting saved for a word rather than a whole division name
         (GIG WANL comes with "Open", "21" and "Men") covers each division with that word in its name: "Open" covers "Division 1 Open", "Men" covers
-        "Men's" but not "Women's". A division's own setting wins over a word.</p>
+        "Men's" but not "Women's". A division's own setting wins over a word.
+        When the quarter clock gets to the last minutes (3 unless you change it), the scoreboard shows a small "Super shot" tab above its clock
+        for the divisions with super shots, until the quarter ends; 0 leaves the tab off.</p>
     </section>
 
     <section>

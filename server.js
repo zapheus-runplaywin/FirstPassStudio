@@ -2310,7 +2310,7 @@ function rules(division) {
   const brandUrl = f => f ? '/brand/' + encodeURIComponent(f) : null;
   const light = brandUrl(CONFIG.competitionLogo || CONFIG.competitionLogoDark), dark = brandUrl(CONFIG.competitionLogoDark || CONFIG.competitionLogo);
   return { periodType: CONFIG.periodType, periods: CONFIG.periodType === 'halves' ? 2 : 4, periodLabel: CONFIG.periodType === 'halves' ? 'H' : 'Q',
-    periodMinutes: CONFIG.quarterMinutes, superShots: competitions.superShotsFor(CONFIG, division), finalsPlaces: (finals.byId(CONFIG.finalsFormat) || { teams: 0 }).teams,
+    periodMinutes: CONFIG.quarterMinutes, superShots: competitions.superShotsFor(CONFIG, division), superShotMinutes: CONFIG.superShotMinutes ?? 3, finalsPlaces: (finals.byId(CONFIG.finalsFormat) || { teams: 0 }).teams,
     competitionLogo: light, competitionLogoLight: light, competitionLogoDark: dark,
     competitionName: competitionName() || '' };
 }

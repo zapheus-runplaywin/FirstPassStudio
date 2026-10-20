@@ -1,5 +1,6 @@
 (function () {
   const params = new URLSearchParams(location.search);
+  const superTab = params.get('supershot') !== '0';
   document.body.classList.add(params.get('position') || 'above-ticker');
 
   const $ = id => document.getElementById(id);
@@ -45,12 +46,25 @@
     box.style.color = colour ? textOn(colour) : '';
   }
 
-  function clockText() {
-    if (!state || !state.showClock) return '';
+  function msLeft() {
     const c = state.clock;
     const elapsed = state.clockElapsedMs + (c.running ? Date.now() + clockOffset - state.serverNow : 0);
-    const left = Math.max(0, c.lengthSec * 1000 - elapsed);
-    const s = Math.ceil(left / 1000);
+    return Math.max(0, c.lengthSec * 1000 - elapsed);
+  }
+
+  // Super shots count in the last superShotMinutes of each quarter (competition setup, default 3): the "Super shot"
+  // tab shows from then (or straight away for a game picked later on) until the quarter's clock runs out or is reset.
+  function superShotTime() {
+    const r = state.rules || {};
+    if (!superTab || !r.superShots || !state.clock) return false;
+    const window = Number(r.superShotMinutes ?? 3) * 60000;
+    const left = msLeft();
+    return window > 0 && left > 0 && left <= window && left < state.clock.lengthSec * 1000;
+  }
+
+  function clockText() {
+    if (!state || !state.showClock) return '';
+    const s = Math.ceil(msLeft() / 1000);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
@@ -71,6 +85,9 @@
     $('bug').classList.toggle('has-court', !!state.court);
     setName('court', state.court || '');
     $('live').hidden = state.source !== 'playhq';
+    const superOn = superShotTime();
+    $('super').classList.toggle('on', superOn);
+    $('bug').classList.toggle('super-on', superOn);
     $('bug').hidden = false;
   }
 
