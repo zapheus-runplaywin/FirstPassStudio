@@ -134,7 +134,7 @@
       <button class="alt" id="importTemplate">Import a template file</button>
       <input type="file" id="templateFile" accept=".json,application/json" hidden>
     </div>
-    <p class="help" id="newHelp">A new competition starts as a copy of the settings and colours of the one you're editing (not its logos).</p>
+    <p class="help">A new competition starts from scratch with Studio's default settings. To start from an existing one, import its template file and change it.</p>
     <p class="help">A template file is a competition saved with <b>Export as template</b>, with its settings and logos in one <code>.json</code> file.</p>
     <p class="help" id="dataDir"></p>
   </section>
@@ -354,7 +354,6 @@
     $('font').replaceChildren(...info.fonts.map(f => Object.assign(el('option', '', f), { value: f })));
     $('readOnlyNote').hidden = !info.readOnly;
     $('noComps').hidden = info.competitions.length > 0;
-    $('newHelp').hidden = !info.competitions.length;
     $('dataDir').textContent = `Saved on this computer in ${info.dataDir}`;
     $('importTemplate').disabled = info.readOnly;
     const comps = $('comps');
@@ -802,7 +801,7 @@
     try {
       if (dirty && confirm('Save your changes first?')) await save(true);
       dirty = false;
-      const d = await post('/api/setup-new', { name, from: editing });
+      const d = await post('/api/setup-new', { name });
       editing = null;
       await loadList(d.id);
       note('saveNote', 'New competition made. Add its PlayHQ link, colours and logos, then Save and use it.', 'ok');
