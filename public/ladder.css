@@ -30,7 +30,7 @@ body { font-family: var(--font); color: var(--row-text); overflow: hidden; width
   padding: 18px 28px 16px; border-radius: var(--radius) var(--radius) 0 0;
   border-bottom: 5px solid var(--stripe);
 }
-.ladder__logo { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); height: 84px; max-width: 220px; object-fit: contain; }
+.ladder__logo { position: absolute; right: 24px; top: 0; bottom: 0; margin: auto 0; height: 84px; max-width: 220px; object-fit: contain; }
 .ladder__logo[hidden] { display: none; }
 .ladder__org { font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
 .ladder__title { margin: 4px 0 0; font-size: 40px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }

@@ -54,7 +54,7 @@
   /* The lockup: PIVT above, a gold rule, the FirstPass Studio wordmark below. Each layer is centred on a point
      (translate centres it, so the transforms below scale and turn about its middle). */
   .lockup { position: absolute; left: 960px; top: 540px; width: 0; height: 0; }
-  .lockup > * { position: absolute; left: 0; top: 0; translate: -50% -50%; }
+  .lockup > * { position: absolute; left: 0; top: 0; translate: -50% -50%; translate: round(-50%, 1px) round(-50%, 1px); }
   .go .lockup { animation: push 4.2s ease-out 4.6s forwards; }
   @keyframes push { from { transform: scale(1); } to { transform: scale(1.04); } }
 

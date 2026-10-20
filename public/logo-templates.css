@@ -11,7 +11,7 @@
 .tpl.go .backdrop { animation: fadeIn .3s ease-out both, fadeOut .5s ease-in calc(var(--out) + .3s) forwards; }
 .t-centre { position: absolute; left: 960px; top: 540px; width: 0; height: 0; }
 .tpl .logo-box { position: relative; line-height: 0; }
-.tpl .t-centre > * { position: absolute; left: 0; top: 0; translate: -50% -50%; width: max-content; }
+.tpl .t-centre > * { position: absolute; left: 0; top: 0; translate: -50% -50%; translate: round(-50%, 1px) round(-50%, 1px); width: max-content; }
 /* A flat colour in the logo's shape */
 .sil { position: absolute; inset: 0; background: var(--c, var(--yellow));
   -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
@@ -112,7 +112,7 @@
 /* ---------- badge: rings draw round the logo with the competition name turning in a band ---------- */
 .t-badge .badge { width: calc(var(--size) * 1.55); height: calc(var(--size) * 1.55);
   animation: badgeOut .7s cubic-bezier(.6,0,.9,.5) var(--out) forwards; }
-.t-badge .badge > * { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
+.t-badge .badge > * { position: absolute; left: 50%; top: 50%; translate: -50% -50%; translate: round(-50%, 1px) round(-50%, 1px); }
 .t-badge .b-rings, .t-badge .b-text { width: 100%; height: 100%; }
 .t-badge svg { width: 100%; height: 100%; overflow: visible; }
 /* dashes a touch longer than the circle, so no hairline is left where it closes */

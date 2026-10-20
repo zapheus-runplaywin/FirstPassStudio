@@ -16,13 +16,15 @@
 html, body { margin: 0; background: transparent; }
 body { font-family: var(--font); color: var(--text); overflow: hidden; width: 1920px; height: 1080px; position: relative; }
 
+/* Centred with translate rounded to whole pixels: the bar is 1335px wide, so a plain -50% would put every edge and
+   letter on a half pixel and soften the whole scoreboard. The plain -50% first is for browsers without round(). */
 .scorebug { position: absolute; top: var(--margin); left: var(--margin); animation: drop-in 0.5s ease-out both; }
 .scorebug[hidden] { display: none; }
-body.top-center .scorebug { left: 50%; transform: translateX(-50%); }
-body.bottom-center .scorebug { top: auto; bottom: var(--margin); left: 50%; transform: translateX(-50%); }
+body.top-center .scorebug { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
+body.bottom-center .scorebug { top: auto; bottom: var(--margin); left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
 body.bottom-left .scorebug { top: auto; bottom: var(--margin); }
 /* Default: centred at the bottom, sitting just above the score ticker */
-body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var(--ticker-gap)); left: 50%; transform: translateX(-50%); }
+body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var(--ticker-gap)); left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
 
 .scorebug__main {
   display: flex; height: var(--height); border-radius: var(--radius); overflow: hidden;
@@ -64,8 +66,9 @@ body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var
   font-size: 19px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
 }
 .scorebug__tab:empty, .scorebug__tab[hidden] { display: none; }
-/* Centred over the two scores (3px is the line between them). */
-.scorebug__live { left: 50%; transform: translateX(-50%); width: calc(var(--score-width) * 2 + 3px); }
+/* Over the two scores (3px is the line between them): placed from the left in whole pixels, as centring it with
+   translate would put it on a half pixel (the bar is an odd 1335px wide) and soften it. */
+.scorebug__live { left: calc(var(--clock-width) + var(--team-width)); width: calc(var(--score-width) * 2 + 3px); }
 
 @keyframes bump { 0% { background: var(--pink); color: var(--text); transform: scale(1.12); } 100% { background: var(--score-bg); color: var(--score-text); transform: none; } }
 @keyframes drop-in { from { opacity: 0; translate: 0 -20px; } to { opacity: 1; translate: 0 0; } }
