@@ -34,7 +34,7 @@ automatic and the scoreboard starts on its first game). Saving the competition i
 
 Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logos/`, `brand/`); see **Saved settings** below.
 Studio starts with no competitions: **Import a template file** on the setup page (the starter competitions are in
-`templates/`: Thunder League, AMMNA Nationals, GIG WANL, West Coast Thunder) or make a new one. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
+`templates/`: Thunder League, AMMNA Nationals, GIG WANL, West Coast Thunder) or make a new one, which starts from scratch with the default settings. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
 GIG WANL in Netball WA greens with Gold Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to
 Australian Championships and GIG WANL's to GIG WANL, so both are ready to use. GIG WANL plays super shots in its Open
 division only, not 21&Under or Men's (confirmed by Matt). Super shots can be set per division on the setup page: by a division's
