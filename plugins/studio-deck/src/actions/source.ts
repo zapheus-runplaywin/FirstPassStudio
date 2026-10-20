@@ -9,6 +9,7 @@ import streamDeck, {
 	type WillDisappearEvent,
 } from "@elgato/streamdeck";
 
+import { keyImage } from "../lib/colours";
 import { linkFor, type SourceSettings, viewOf } from "../lib/source-key";
 import { cleanHost, feedFor, listSources, press, type Scene } from "../lib/studio";
 
@@ -23,6 +24,7 @@ class SourceKey {
 	private unsubscribe: (() => void) | null = null;
 	private host = "";
 	private drawn = "";
+	private painted: string | null = null;
 	scene: Scene | null = null;
 
 	constructor(
@@ -52,6 +54,7 @@ class SourceKey {
 	}
 
 	private draw(): void {
+		this.paint();
 		const view = viewOf(this.settings, this.scene);
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;
@@ -60,6 +63,15 @@ class SourceKey {
 		void this.key.setState(view.state);
 		// Without a title of ours, Stream Deck shows the one typed in its own Title box.
 		void this.key.setTitle(title as string);
+	}
+
+	/** Both states' images in the key's colour group; only sent again when the group changes. */
+	private paint(): void {
+		const colour = this.settings.colour ?? "";
+		if (colour === this.painted) return;
+		this.painted = colour;
+		void this.key.setImage(keyImage(colour, 0), { state: 0 });
+		void this.key.setImage(keyImage(colour, 1), { state: 1 });
 	}
 
 	async press(): Promise<void> {
