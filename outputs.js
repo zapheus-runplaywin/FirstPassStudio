@@ -41,7 +41,8 @@ let settings = {
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
   ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT, previewSound: false,
 };
-// The Mac app's displays: [{ id, label, width, height, primary }]; null when not run by the app.
+// The Mac app's displays: [{ id, label, width, height, scale, primary }]; null when not run by the app.
+// width x height is the size macOS draws at; scale 2 means it draws each point as 2 x 2 pixels (HiDPI).
 let displays = null;
 // The Mac app's Blackmagic devices: { ok, version, devices: [{ id, name, externalKeying, modes }] } or
 // { ok: false, error }, and how its output is doing: { running, error, name, late, dropped }.
@@ -211,7 +212,7 @@ function init(logger) {
     port.on('message', e => {
       const msg = e.data || {};
       if (msg.type === 'displays' && Array.isArray(msg.displays)) {
-        displays = msg.displays.map(d => ({ id: String(d.id), label: String(d.label || `Display ${d.id}`), width: d.width, height: d.height, primary: !!d.primary }));
+        displays = msg.displays.map(d => ({ id: String(d.id), label: String(d.label || `Display ${d.id}`), width: d.width, height: d.height, scale: Number(d.scale) || 1, primary: !!d.primary }));
         send();
       }
       if (msg.type === 'decklink') {

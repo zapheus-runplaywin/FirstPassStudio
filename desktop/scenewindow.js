@@ -14,7 +14,8 @@ const { BrowserWindow } = require('electron');
 const SCENE_READY = `new Promise(done => !document.getElementById('stage') ? done(false)
   : requestAnimationFrame(() => requestAnimationFrame(() => done(true))))`;
 
-// onFrame(bitmap, width, height): each new picture, BGRA with premultiplied alpha, at width x height.
+// onFrame(bitmap, width, height): each new picture, BGRA with premultiplied alpha, at width x height;
+// returns false when the output didn't take it.
 module.exports = function sceneWindow({ port, width, height, frameRate, muted, log, label, onFrame }) {
   // The window is the format's full size at one pixel per point, so the scene is drawn 1:1 with no
   // scaling anywhere. (Drawn at half size at twice the density, it came out soft on the Mac, as if
@@ -58,10 +59,18 @@ module.exports = function sceneWindow({ port, width, height, frameRate, muted, l
     log(`${label} couldn't load the scene (${description}); trying again`);
     retry();
   });
+  // Log the first picture's size, so the log shows whether the output gets the full format, and say
+  // once if the output won't take them (a picture of the wrong size never reaches it).
+  let told = '';
   win.webContents.on('paint', (event, dirty, image) => {
     if (!loaded) return;
     const size = image.getSize();
-    onFrame(image.toBitmap(), size.width, size.height);
+    const taken = onFrame(image.toBitmap(), size.width, size.height);
+    const now = `${size.width} x ${size.height}${taken === false ? ' (not taken)' : ''}`;
+    if (now === told) return;
+    told = now;
+    log(taken === false ? `${label}: the scene's pictures are ${size.width} x ${size.height} but the output needs ${width} x ${height}, so nothing is going out`
+      : `${label}: sending ${size.width} x ${size.height} pictures`);
   });
   win.webContents.on('render-process-gone', (e, details) => {
     loaded = false;
