@@ -14,6 +14,7 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
@@ -33,7 +34,8 @@ const kindOf = f => IMAGE_TYPES[path.extname(f).toLowerCase()] ? 'image' : VIDEO
 let log = () => {};
 let scene = { sources: [] };
 let rev = 0;
-const listeners = new Set();
+const listeners = new Set(); // server-sent events (/api/scene/events): the Stream Deck plugin
+const sockets = new Set();   // WebSockets (/api/scene/socket): Studio's own pages
 
 const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 // The name used in Stream Deck links: "Up Next" is /deck/layer/up-next/on.
@@ -115,8 +117,59 @@ function save() {
 // Sends the scene to every open scene.html and Output page.
 function notify() {
   rev++;
-  const body = `data: ${JSON.stringify(state())}\n\n`;
+  const json = JSON.stringify(state());
+  const body = `data: ${json}\n\n`;
   for (const res of listeners) res.write(body);
+  const frame = wsFrame(1, Buffer.from(json));
+  for (const s of sockets) s.write(frame);
+}
+
+// The pages follow the scene over a WebSocket rather than server-sent events: a browser only keeps
+// six ordinary connections open to Studio at once, and each scene.html (the preview, its pop out, the
+// outputs) holding one used them up, so a click's request waited until a page closed. WebSockets
+// don't count towards that. Just enough of the protocol for this: the server sends the scene as text,
+// answers pings and closes.
+function wsFrame(opcode, payload) {
+  const n = payload.length;
+  const head = n < 126 ? Buffer.from([0x80 | opcode, n])
+    : n < 65536 ? Buffer.from([0x80 | opcode, 126, n >> 8, n & 255])
+    : Buffer.concat([Buffer.from([0x80 | opcode, 127]), (() => { const b = Buffer.alloc(8); b.writeBigUInt64BE(BigInt(n)); return b; })()]);
+  return Buffer.concat([head, payload]);
+}
+
+// The http server's 'upgrade' event for /api/scene/socket: true when taken.
+function upgrade(req, socket) {
+  const key = req.headers['sec-websocket-key'];
+  if (new URL(req.url, 'http://localhost').pathname !== '/api/scene/socket' || !key) return false;
+  const accept = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+  socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
+  socket.setNoDelay(true);
+  sockets.add(socket);
+  const drop = () => { sockets.delete(socket); socket.destroy(); };
+  socket.on('close', drop);
+  socket.on('error', drop);
+  // Frames from the page (always masked): pings get a pong, a close is answered and ends it.
+  let pending = Buffer.alloc(0);
+  socket.on('data', chunk => {
+    pending = Buffer.concat([pending, chunk]);
+    while (pending.length >= 2) {
+      const opcode = pending[0] & 15;
+      let len = pending[1] & 127, at = 2;
+      if (len === 126) { if (pending.length < 4) return; len = pending.readUInt16BE(2); at = 4; }
+      else if (len === 127) { if (pending.length < 10) return; len = Number(pending.readBigUInt64BE(2)); at = 10; }
+      const masked = pending[1] & 128;
+      const end = at + (masked ? 4 : 0) + len;
+      if (pending.length < end) return;
+      const mask = masked ? pending.subarray(at, at + 4) : null;
+      const payload = Buffer.from(pending.subarray(end - len, end));
+      if (mask) for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i & 3];
+      pending = pending.subarray(end);
+      if (opcode === 8) { socket.end(wsFrame(8, Buffer.alloc(0))); sockets.delete(socket); return; }
+      if (opcode === 9) socket.write(wsFrame(10, payload));
+    }
+  });
+  socket.write(wsFrame(1, Buffer.from(JSON.stringify(state()))));
+  return true;
 }
 
 function state() { return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, converting: [...converting.keys()] }; }
@@ -343,8 +396,8 @@ async function route(req, res, url, { send, readBody }) {
     return send(res, 200, state()), true;
   }
   if (p === '/api/scene/events') {
-    // Server-sent events: the whole scene now, then again on every change, so a Stream Deck
-    // press shows in scene.html straight away without polling.
+    // Server-sent events: the whole scene now, then again on every change, for the Stream Deck
+    // plugin (Studio's own pages use the WebSocket below instead).
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
     res.write(`retry: 1000\ndata: ${JSON.stringify(state())}\n\n`);
     listeners.add(res);
@@ -394,4 +447,4 @@ function init(logger, { ffmpeg } = {}) {
   if (scene.sources.length) log('info', 'scene', `Scene has ${scene.sources.length} sources`);
 }
 
-module.exports = { STREAMDECK_PLUGIN, init, route, deck, apply, state, slug, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, init, route, upgrade, deck, apply, state, slug, FILE, MEDIA_DIR };

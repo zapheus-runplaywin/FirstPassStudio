@@ -26,6 +26,7 @@
   body.fit { cursor: none; }
 </style>
 <script src="log.js"></script>
+<script src="sceneevents.js"></script>
 <script src="autoreload.js"></script>
 </head>
 <body>
@@ -212,8 +213,7 @@
     first = false;
   }
 
-  const events = new EventSource('/api/scene/events');
-  events.onmessage = e => { try { render(JSON.parse(e.data)); } catch (err) { console.error('Scene update failed', err); } };
+  sceneEvents(render);
 </script>
 </body>
 </html>
