@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Test pattern</title>
+<script src="log.js"></script>
+<!--
+  A test pattern for checking the video outputs end to end (the Output page's display, Blackmagic and NDI
+  outputs into a switcher's key). Drawn at exactly 1920 x 1080 on a see-through background:
+  - a 1-pixel border and 1, 2 and 4-pixel line patches: on a sharp output each line is crisp; if the
+    picture is being scaled anywhere they turn grey or shimmer;
+  - grey and colour ramps (fully solid): smooth here, so steps in them come from the signal path;
+  - transparency ramps (white, black and pink from see-through to solid) and soft shapes: they show
+    whether the key follows the transparency smoothly (a premultiplied key should) or cuts it off.
+  Not a graphic for air. No PlayHQ calls; loads once.
+-->
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+  body { position: relative; font: 600 20px/1.2 -apple-system, "Helvetica Neue", Arial, sans-serif; color: #fff; }
+  .frame { position: absolute; inset: 0; box-shadow: inset 0 0 0 1px #fff; }
+  .corner { position: absolute; width: 40px; height: 40px; background: #e6007e; }
+  .label { position: absolute; padding: 4px 10px; background: #000; color: #fff; border-radius: 4px; white-space: nowrap; }
+  .lines { position: absolute; width: 200px; height: 120px; }
+  .ramp { position: absolute; left: 448px; width: 1024px; height: 56px; }
+  .ticks { position: absolute; left: 448px; width: 1024px; display: flex; justify-content: space-between; font-size: 16px; }
+  .ticks span { background: #000; padding: 1px 4px; }
+  .title { left: 50%; top: 60px; transform: translateX(-50%); font-size: 30px; }
+  .small { position: absolute; left: 1560px; top: 160px; width: 320px; background: #000; padding: 10px; }
+  .small div { margin: 6px 0; }
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+  <div class="corner" style="left:0;top:0"></div><div class="corner" style="right:0;top:0"></div>
+  <div class="corner" style="left:0;bottom:0"></div><div class="corner" style="right:0;bottom:0"></div>
+  <div class="label title">FirstPass Studio test pattern · 1920 × 1080 · 1-pixel border</div>
+
+  <!-- Line patches: vertical and horizontal, 1, 2 and 4 pixels. -->
+  <div id="lines"></div>
+
+  <!-- Small text, solid on black. -->
+  <div class="small">
+    <div style="font-size:12px">12 px: The quick brown fox jumps 0123456789</div>
+    <div style="font-size:16px">16 px: The quick brown fox jumps 0123</div>
+    <div style="font-size:24px">24 px: Travis' Disciples 42</div>
+  </div>
+
+  <!-- Solid ramps: 256 steps over 1024 pixels. -->
+  <div class="label" style="left:40px;top:400px">Solid ramps</div>
+  <div class="ramp" style="top:380px;background:linear-gradient(90deg,#000,#fff)"></div>
+  <div class="ramp" style="top:440px;background:linear-gradient(90deg,#000,#f00)"></div>
+  <div class="ramp" style="top:500px;background:linear-gradient(90deg,#000,#0f0)"></div>
+  <div class="ramp" style="top:560px;background:linear-gradient(90deg,#000,#00f)"></div>
+  <div class="ramp" style="top:620px;background:linear-gradient(90deg,#7f4092,#ffcd00)"></div>
+
+  <!-- Transparency ramps: see-through on the left to solid on the right. -->
+  <div class="label" style="left:40px;top:720px">Transparency ramps<br><span style="font-size:16px">see-through → solid</span></div>
+  <div class="ramp" style="top:700px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff)"></div>
+  <div class="ramp" style="top:760px;background:linear-gradient(90deg,rgba(0,0,0,0),#000)"></div>
+  <div class="ramp" style="top:820px;background:linear-gradient(90deg,rgba(230,0,126,0),#e6007e)"></div>
+  <div class="ticks" style="top:880px"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+
+  <!-- Soft shapes: a blurred disc and a card with a drop shadow, like the graphics' edges. -->
+  <div style="position:absolute;left:1560px;top:420px;width:140px;height:140px;border-radius:50%;background:#ffcd00;filter:blur(12px)"></div>
+  <div style="position:absolute;left:1600px;top:640px;width:240px;height:120px;border-radius:24px;background:#7f4092;box-shadow:0 12px 40px rgba(0,0,0,.8)"></div>
+  <div class="label" style="left:1560px;top:800px">Soft edge and shadow</div>
+
+<script>
+  // Line patches: white and black (opaque) lines of 1, 2 and 4 pixels, both ways.
+  const holder = document.getElementById('lines');
+  [1, 2, 4].forEach((w, i) => {
+    for (const dir of ['90deg', '0deg']) {
+      const el = document.createElement('div');
+      el.className = 'lines';
+      Object.assign(el.style, {
+        left: `${40 + i * 460 + (dir === '0deg' ? 220 : 0)}px`, top: '160px',
+        background: `repeating-linear-gradient(${dir}, #fff 0 ${w}px, #000 ${w}px ${w * 2}px)`,
+      });
+      holder.appendChild(el);
+    }
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = `${w}-pixel lines`;
+    Object.assign(label.style, { left: `${40 + i * 460}px`, top: '290px' });
+    holder.appendChild(label);
+  });
+</script>
+</body>
+</html>

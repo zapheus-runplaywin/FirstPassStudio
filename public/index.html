@@ -217,6 +217,10 @@
     <h2>PIVT and FirstPass Studio ad (10 seconds, for the breaks)</h2>
     <div id="adPages"></div>
   </div>
+  <div class="card">
+    <h2>Test pattern (checking the video outputs)</h2>
+    <div id="testPages"></div>
+  </div>
   <div class="card" id="finalsCard" hidden>
     <h2>Finals (one per division)</h2>
     <p class="page__help">Who plays who in the division's finals, week by week, in the format set for that division on the
@@ -472,6 +476,12 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   'A soft glow sits behind the logos only when there is a background; <code>?glow=1</code> adds it on the transparent page (it shows as an oval over key and fill), <code>?glow=0</code> removes it. ' +
   'Combine them with &amp;, e.g. <code>/ad.html?bg=gradient&amp;tagline=Live%20netball</code>.']]
   .forEach(([n, p, h]) => document.getElementById('adPages').appendChild(pageRow(n, p, h)));
+[['Test pattern', '/testpattern.html',
+  'Not for air: a 1920 × 1080 pattern on a see-through background for checking the Output page\'s outputs and the switcher\'s key end to end. ' +
+  'A 1-pixel border and 1, 2 and 4-pixel lines stay crisp when nothing is scaling the picture; grey or shimmering lines mean something between Studio and the switcher is resizing it ' +
+  '(for a display output, set the display to exactly 1920 × 1080 in System Settings). Solid ramps show banding from the signal path, and the transparency ramps and soft shapes show whether the key follows the transparency ' +
+  '(with Pre Multiplied Key on, the ramps fade evenly from nothing to solid). Add it as a source on the Output page and put it on the key.']]
+  .forEach(([n, p, h]) => document.getElementById('testPages').appendChild(pageRow(n, p, h)));
 (async () => {
   const list = document.getElementById('list');
   const sub = document.getElementById('sub');
