@@ -104,12 +104,23 @@ function windows() {
   return outputWindows().map(w => ({ ...w, muted }));
 }
 
+// The Blackmagic format to send: the one picked if it's 1080p, else (nothing picked yet, or an interlaced or
+// 720p format saved before they were taken off the Output page, as they look soft) the one the Output page
+// starts with: 1080p50 if the device can key it, else the first 1080p format that can, else the first.
+function decklinkMode(device) {
+  const modes = device.modes.filter(m => m.supported && m.height === 1080 && !m.interlaced);
+  return modes.find(m => m.mode === settings.decklinkMode)
+    || ['1080p50', '1080p25'].map(n => modes.find(m => m.keying && String(m.name).replace(/\s/g, '').includes(n))).find(Boolean)
+    || modes.find(m => m.keying) || modes[0];
+}
+
 function outputWindows() {
   if (!settings.on) return [];
   if (settings.mode === 'decklink') {
     const device = decklink?.devices?.find(d => d.id === settings.decklinkDevice);
-    if (!device || !device.modes.some(m => m.mode === settings.decklinkMode)) return [];
-    return [{ kind: 'decklink', device: device.id, mode: settings.decklinkMode, keying: settings.decklinkKeying, straight: settings.decklinkStraight }];
+    const mode = device && decklinkMode(device);
+    if (!mode) return [];
+    return [{ kind: 'decklink', device: device.id, mode: mode.mode, keying: settings.decklinkKeying, straight: settings.decklinkStraight }];
   }
   if (settings.mode === 'ndi') {
     if (!ndi?.ok) return [];
