@@ -469,6 +469,8 @@ These follow the game picked on the scoreboard control page:
   lined up with the scoreboard, just above it; `right` and `left-half` are half width, for two people on screen side by side.
   The Output page suggests the active competition's athletes (current season divisions only, from `/api/lowerthird/athletes`),
   narrowed by the Team option or the "Only athletes in the picked game" tick box.
+  The bar has one fixed width (900px, 660px for the half-width positions) and the name one font size: a long name is
+  squeezed narrower (down to 70%) before it gets smaller; the half-width bars use 44px names instead of 50px for everyone, and `?display=` shows a shorter name in its place.
 
 The cards (match up, up next, countdown, position match ups, team lists, shooting stats, full time, fixtures, ladders,
 top shooters, finals and last 10 goals) sit in the space between the title at the top and the scoreboard at the bottom,
