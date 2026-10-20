@@ -465,7 +465,10 @@ These follow the game picked on the scoreboard control page:
 - http://localhost:8080/lowerthird.html?name=Jane%20Smith: lower third introducing an athlete (name, team name, club logo),
   found by name among the competition's athletes (the athlete register the Athletes page shows). `?type=guest&name=Sam%20Lee&title=Commentator`
   is the guest or commentator version, with the competition logo. Options `?team=`, `?title=`, `?tag=`, `?photo=1`,
-  `?position=center|bottom|bottom-center`, `?mode=light`, `?out=8`. It sits on the left, lined up with the scoreboard, just above it.
+  `?position=center|bottom|bottom-center|right|left-half|bottom-right|bottom-left-half`, `?mode=light`, `?out=8`. It sits on the left,
+  lined up with the scoreboard, just above it; `right` and `left-half` are half width, for two people on screen side by side.
+  The Output page suggests the active competition's athletes (current season divisions only, from `/api/lowerthird/athletes`),
+  narrowed by the Team option or the "Only athletes in the picked game" tick box.
 
 The cards (match up, up next, countdown, position match ups, team lists, shooting stats, full time, fixtures, ladders,
 top shooters, finals and last 10 goals) sit in the space between the title at the top and the scoreboard at the bottom,

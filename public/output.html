@@ -702,7 +702,7 @@
         input = document.createElement('input');
         input.type = o.type === 'number' ? 'number' : 'text';
         for (const k of ['min', 'max', 'step', 'placeholder']) if (o[k] !== undefined) input[k] = o[k];
-        if (o.list) input.setAttribute('list', suggestions(o.list));
+        if (o.list === 'athletes') input.setAttribute('list', 'list-athletes');
       }
       input.id = 'opt-' + o.key;
       input.value = value;
@@ -730,24 +730,53 @@
         }
         cell.appendChild(picks);
       }
+      if (o.gameOnly) {
+        const tick = document.createElement('label');
+        tick.className = 'row';
+        tick.style.cssText = 'gap: 6px; margin-top: 4px; font-weight: normal';
+        tick.innerHTML = '<input type="checkbox" id="opt-gameOnly"> Only athletes in the picked game';
+        tick.querySelector('input').checked = gameOnly();
+        tick.querySelector('input').onchange = e => { try { localStorage.setItem('studio-lowerthird-game', e.target.checked ? '1' : ''); } catch { /* none */ } fillAthletes(); };
+        cell.appendChild(tick);
+      }
       if (o.help) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '2px 0 0'; n.textContent = o.help; cell.appendChild(n); }
       box.append(label, cell);
     }
+    if (options.some(o => o.list)) loadAthletes();
   }
-  // Suggestions for a text option (list: 'athletes'), read once when first needed. Returns the datalist's id.
-  const lists = {};
-  function suggestions(kind) {
-    const id = 'list-' + kind;
-    if (!lists[kind]) {
-      const dl = $(id) || document.body.appendChild(Object.assign(document.createElement('datalist'), { id }));
-      lists[kind] = fetch('/api/athletes?all=1', { cache: 'no-store' }).then(r => r.json()).then(d => {
-        for (const a of d.athletes || []) {
-          const where = (a.teams || []).map(t => t.team).filter((t, i, all) => all.indexOf(t) === i).join(', ');
-          dl.appendChild(new Option(where, a.name));
-        }
-      }).catch(err => { console.warn('Athlete suggestions unavailable:', err.message); delete lists[kind]; });
+  // The person lower third's suggestions (list: 'athletes' and list: 'teams' in pageoptions.js): the active
+  // competition's athletes, read again each time its options are shown so a competition switched on the
+  // setup page shows its own. The team picked and the "picked game" tick box narrow the names.
+  let lowerThird = null;
+  const gameOnly = () => { try { return localStorage.getItem('studio-lowerthird-game') === '1'; } catch { return false; } };
+  const sameName = (a, b) => String(a || '').toLowerCase().replace(/[^a-z0-9]/g, '') === String(b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  function fillAthletes() {
+    const dl = $('list-athletes') || document.body.appendChild(Object.assign(document.createElement('datalist'), { id: 'list-athletes' }));
+    dl.replaceChildren();
+    if (!lowerThird) return;
+    const team = $('opt-team') ? $('opt-team').value : '';
+    const g = lowerThird.game;
+    const inGame = t => g.teams.some(n => sameName(n, t.team)) && (!g.division || t.division === g.division);
+    let list = lowerThird.athletes;
+    if (team) list = list.filter(a => a.teams.some(t => sameName(t.team, team)));
+    if ($('opt-gameOnly') && $('opt-gameOnly').checked) {
+      list = list.filter(a => a.teams.some(inGame));
+      if (!g.teams.length) console.warn('Lower third: no game picked on the control page, so no athletes are in it');
     }
-    return id;
+    for (const a of list) dl.appendChild(new Option([...new Set(a.teams.map(t => t.team))].join(', '), a.name));
+  }
+  async function loadAthletes() {
+    try {
+      lowerThird = await (await fetch('/api/lowerthird/athletes', { cache: 'no-store' })).json();
+    } catch (err) { console.warn('Athlete suggestions unavailable:', err.message); lowerThird = null; }
+    const sel = $('opt-team');
+    if (sel && lowerThird) {
+      const keep = sel.value;
+      for (const name of [...new Set(lowerThird.teams.map(t => t.team))]) if (![...sel.options].some(o => o.value === name)) sel.add(new Option(name, name));
+      sel.value = keep;
+      sel.addEventListener('change', fillAthletes);
+    }
+    fillAthletes();
   }
   function change(changes) { const s = current(); if (s) act({ type: 'update', id: s.id, changes }); }
   for (const [id, key] of Object.entries(FIELDS)) {
