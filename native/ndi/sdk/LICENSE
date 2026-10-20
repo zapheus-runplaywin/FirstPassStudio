@@ -1,6 +1,6 @@
 These are the header files of the NDI SDK (NDI 6.3, Version.txt), taken from DistroAV
 (github.com/DistroAV/DistroAV, lib/ndi). Each file carries its own MIT licence, which covers these
 files only and not the NDI SDK or runtime as a whole. Studio loads the NDI runtime that the user
-installs (NDI Tools, ndi.video/tools); it doesn't ship it.
+installs (ndi.link/NDIRedistV6Apple); it doesn't ship it.
 
 NDI® is a registered trademark of Vizrt NDI AB.

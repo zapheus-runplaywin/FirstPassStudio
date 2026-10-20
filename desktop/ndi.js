@@ -3,13 +3,15 @@
 //
 // The scene renders off screen (desktop/scenewindow.js) at the chosen format's size and frame rate, and
 // native/ndi sends it as fill and key (two sources), chroma (over a colour) or one source with
-// transparency, repeating the latest picture between changes. It loads the NDI runtime that NDI Tools
-// installs; without it, or without the built module, available() says why. Sound plays through the
-// Mac's audio output, as it does for the other outputs.
+// transparency, repeating the latest picture between changes. It loads the NDI runtime that NDI's
+// runtime installer puts in /usr/local/lib, or the copy inside one of NDI Tools' apps; without it, or
+// without the built module, available() says why. Sound plays through the Mac's audio output, as it
+// does for the other outputs.
 // NDI® is a registered trademark of Vizrt NDI AB.
 
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const sceneWindow = require('./scenewindow');
 
@@ -25,18 +27,45 @@ const SOURCES = {
   alpha: name => [{ kind: 'alpha', name }],
 };
 
+// NDI Tools' apps on the Mac carry their own copy of the NDI library rather than installing it in
+// /usr/local/lib (only NDI's runtime installer does that), so look inside them too.
+function bundledCopies() {
+  const found = [];
+  const look = (dir, depth) => {
+    let names = [];
+    try { names = fs.readdirSync(dir); } catch { return; }
+    for (const name of names) {
+      const full = path.join(dir, name);
+      if (/^libndi.*\.dylib$/i.test(name)) found.push(full);
+      else if (depth > 0 && !name.startsWith('.') && (/ndi/i.test(name) || /^(Contents|Frameworks|MacOS|Resources|lib)$/.test(name))) look(full, depth - 1);
+    }
+  };
+  for (const dir of ['/Applications', '/Library/Application Support']) look(dir, 5);
+  return found;
+}
+
 module.exports = function ndi({ port, log, onStatus }) {
   let win = null;
   let running = null; // { key, sources, format } while sending
   let error = '';
   let watch = null;
   let late = 0;
+  let loadedFrom = '';
+  let lastWhy = '';
 
   if (!addon) log(`NDI output unavailable: ${loadError}`);
 
   function available() {
     if (!addon) return { ok: false, error: 'This copy of Studio was built without NDI output (cd native/ndi && npm install && npm run build).' };
-    try { return addon.available(); } catch (err) { return { ok: false, error: err.message }; }
+    try {
+      const copies = loadedFrom ? [] : bundledCopies();
+      const r = addon.available(copies);
+      if (r.ok && r.path !== loadedFrom) { loadedFrom = r.path; log(`NDI runtime ${r.version} from ${r.path}`); }
+      const why = r.ok ? '' : `${r.error} (also tried ${copies.length ? copies.join(', ') : 'no copies inside NDI apps'})`;
+      if (why && why !== lastWhy) log(`NDI output unavailable: ${why}`);
+      lastWhy = why;
+      return r;
+    } catch (err) { return { ok: false, error: err.message }; }
   }
 
   function status() {
