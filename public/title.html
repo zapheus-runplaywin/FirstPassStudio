@@ -9,9 +9,13 @@
 <link rel="stylesheet" href="theme.css">
 <style>
   html, body { margin: 0; background: transparent; font-family: var(--font); }
-  body { display: flex; justify-content: center; padding-top: 40px; }
+  /* Drawn at 80%, centred across the frame and scaled about its middle, which sits level with the middle of the
+     branding.html logos (95px from the top: 11px padding + half the 168px banner), so it sits between them. A long name scales down further to stay inside the logos (see fitBetweenLogos). */
+  body { display: flex; justify-content: center; padding-top: 11px; }
   body.bottom { align-items: flex-end; min-height: 100vh; box-sizing: border-box; padding: 0 0 60px; }
-  .title { display: flex; flex-direction: column; align-items: center; text-transform: uppercase; filter: drop-shadow(0 6px 16px rgba(0,0,0,.45)); }
+  .title { display: flex; flex-direction: column; align-items: center; text-transform: uppercase; filter: drop-shadow(0 6px 16px rgba(0,0,0,.45));
+           scale: .8; transform-origin: center; }
+  body.bottom .title { transform-origin: bottom center; }
   .title[hidden] { display: none; }
   .title__round {
     background: var(--yellow); color: var(--text-on-yellow);
@@ -40,6 +44,7 @@
 <body>
   <!-- A 1920 x 1080 page for the Output page:
        http://localhost:8080/title.html
+       Drawn at 80% and centred between the branding.html logos; a long name scales down further to fit between them.
        Round comes from the game picked on the scoreboard control page; the venue from
        the competition setup page (or PlayHQ's venue if that is blank), and so does the competition
        logo, shown above the banner only with ?logo=show.
@@ -59,6 +64,15 @@
     let emoji = '';
     if (params.get('position') === 'bottom') document.body.classList.add('bottom');
     let last = '';
+
+    // branding.html's logos start 320px either side of the centre; keep 20px clear of them.
+    const SCALE = 0.8, MAX_WIDTH = 600;
+    function fitBetweenLogos() {
+      const title = document.getElementById('title');
+      const s = Math.min(SCALE, MAX_WIDTH / title.offsetWidth);
+      title.style.scale = String(Math.floor(s * 1000) / 1000);
+      if (s < SCALE && window.pageLog) window.pageLog('info', `Title scaled to ${title.style.scale} to fit between the branding logos (${title.offsetWidth}px wide)`);
+    }
 
     function setComp(name) {
       const comp = document.getElementById('comp');
@@ -87,6 +101,8 @@
         setComp(s.competition || '');
         document.getElementById('venue').textContent = s.venueName || '';
         document.getElementById('title').hidden = false;
+        fitBetweenLogos();
+        if (document.fonts) document.fonts.ready.then(fitBetweenLogos);
       } catch (err) { console.warn('Title unavailable:', err.message); }
     }
     load();
