@@ -452,8 +452,10 @@ These follow the game picked on the scoreboard control page:
 The cards (match up, up next, countdown, position match ups, team lists, shooting stats, full time, fixtures, ladders,
 top shooters, finals and last 10 goals) sit in the space between the title at the top and the scoreboard at the bottom,
 with room around them. public/fit.js sets that space and shrinks a card that has more in it than fits. The Clash, the
-winner celebration, super shot and the logo animations are moved and scaled into the same space (`data-fit-box` on their
+winner celebration and the logo animations are moved and scaled into the same space (`data-fit-box` on their
 stage gives the part of the frame their content uses); a logo animation's `?bg=` background still fills the screen.
+The super shot plays at 30% of its full size, centred just under the title (`data-fit-scale=".3"` and
+`data-fit-place="under-title"` on its stage).
 - http://localhost:8080/ticker.html: scrolling scores from the other games this round. Unlike the other graphics it updates
   its scores itself every 30 seconds (`?refresh=0` to load once). Its speed is set on the control page (**Ticker speed**, with
   Slower, Faster and Normal) or from the Stream Deck (`/deck/ticker/faster`, `slower`, `normal`, `speed/80`), and changes within a

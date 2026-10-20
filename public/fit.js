@@ -17,8 +17,12 @@
 // Full-screen animations (The Clash, winner, super shot, logo) mark their 1920x1080 stage with the
 // part of the frame their content uses, top and bottom in px, and are moved and scaled to fit the space:
 //   <div class="stage" data-fit-box="60 1000">
+// A small animation can instead be shrunk and hung just under the title banner, centred across the frame:
+//   <div class="stage" data-fit-box="188 780" data-fit-scale=".3" data-fit-place="under-title">
 (function () {
   const ZONE = { top: 244, bottom: 894, width: 1800 };
+  // Where data-fit-place="under-title" puts the top of a graphic: a small gap below the title banner's bottom edge (about 162px).
+  const UNDER_TITLE = 180;
   const root = document.documentElement.style;
   root.setProperty('--zone-top', ZONE.top + 'px');
   root.setProperty('--zone-bottom', ZONE.bottom + 'px');
@@ -39,10 +43,18 @@
   }
 
   // Maps the box's middle onto the middle of the space, scaled down if the box is taller than it.
+  // data-fit-scale shrinks it further (.3 is 30% of its full size); data-fit-place="under-title" puts its top just under the title.
   function fitBox(el) {
     const [top, bottom] = el.dataset.fitBox.split(/[\s,]+/).map(Number);
     if (!(bottom > top)) return;
-    const s = Math.min(1, (ZONE.bottom - ZONE.top) / (bottom - top));
+    const extra = Number(el.dataset.fitScale) > 0 ? Math.min(1, Number(el.dataset.fitScale)) : 1;
+    const s = Math.min(1, (ZONE.bottom - ZONE.top) / (bottom - top)) * extra;
+    if (el.dataset.fitPlace === 'under-title') {
+      el.style.transformOrigin = `960px ${top}px`;
+      el.style.scale = s < 1 ? String(Math.floor(s * 1000) / 1000) : '';
+      el.style.translate = `0 ${UNDER_TITLE - top}px`;
+      return;
+    }
     const mid = (top + bottom) / 2, zoneMid = (ZONE.top + ZONE.bottom) / 2;
     el.style.transformOrigin = `960px ${mid}px`;
     el.style.scale = s < 1 ? String(Math.floor(s * 1000) / 1000) : '';
