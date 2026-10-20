@@ -436,7 +436,12 @@ These follow the game picked on the scoreboard control page:
   (a super shot is one goal), once per run (a run reaching 5 plays on fire, not heating up again), never for scores
   catching up or after full time, and after any super shot graphic. `?heating=0`, `?fire=0`, `?goalforgoal=0` leave one
   out; `/deck/streak/heating/home`, `/deck/streak/fire/away`, `/deck/streak/goalforgoal` play one to test.
-  Manual: `?play=heating|fire|goalforgoal` (`&team=away`) plays once when the source comes on.
+  Game moments on the same page: "<team> HITS THE FRONT" when the lead swaps, "ALL SQUARE" when it's level in the last
+  2 minutes of a quarter, "<team> is COMING BACK" when a team 5 or more down gets within 2, "<team> ON THE SIREN!" for a
+  goal with 10 seconds or less left while the clock runs, and "<team> BACK TO BACK SUPER SHOTS". One goal plays one at
+  most (siren, back to back, on fire, hits the front, coming back, all square, goal for goal, heating up, in that order).
+  `?lead=0`, `?level=0`, `?comeback=0`, `?siren=0`, `?backtoback=0` leave one out; `/deck/streak/lead/home` etc. test them.
+  Manual: `?play=heating|fire|goalforgoal|lead|level|comeback|siren|backtoback` (`&team=away`) plays once when the source comes on.
 - http://localhost:8080/goals.html: the last 10 goals of the game, oldest to newest, for showing trends and changes in momentum.
   Each goal is a disc in the scoring team's club colour with its logo (+2 badge for a super goal) and the quarter and time,
   with a momentum line underneath (up for home goals, down for away), each team's count of the 10 and the current run

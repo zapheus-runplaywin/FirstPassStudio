@@ -10,7 +10,7 @@ const { spawn } = require('node:child_process');
 
 function listen(server) { return new Promise(r => server.listen(0, '127.0.0.1', () => r(server.address().port))); }
 
-test('hot streaks from score presses', async t => {
+async function start(t) {
   const probe = http.createServer();
   const port = await listen(probe);
   await new Promise(r => probe.close(r));
@@ -29,6 +29,11 @@ test('hot streaks from score presses', async t => {
   const post = async body => (await fetch(`${base}/api/scoreboard`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
   const goal = (side, delta = 1) => post({ type: 'score', side, delta });
   const streak = async () => ((await (await fetch(`${base}/api/scoreboard`)).json()).streak) || { n: 0 };
+  return { base, post, goal, streak };
+}
+
+test('hot streaks from score presses', async t => {
+  const { base, post, goal, streak } = await start(t);
 
   await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
   await post({ type: 'resetScores' });
@@ -80,4 +85,59 @@ test('hot streaks from score presses', async t => {
   assert.deepEqual([s.n, s.kind, s.side], [6, 'goalForGoal', '']);
   const after = await (await fetch(`${base}/api/scoreboard`)).json();
   assert.deepEqual([after.home.score, after.away.score], [before.home.score, before.away.score]);
+});
+
+test('game moments: lead, all square, comeback, siren, back to back', async t => {
+  const { post, goal, streak } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  const kind = async () => { const s = await streak(); return [s.n, s.kind, s.side]; };
+
+  // The first team ahead isn't "hits the front"; the other team going ahead is.
+  await goal('home');
+  assert.deepEqual(await kind(), [0, undefined, undefined]);
+  await goal('away');
+  await goal('away');
+  assert.deepEqual(await kind(), [1, 'lead', 'away']);
+
+  // Level isn't all square until the last 2 minutes of the quarter.
+  await goal('home');
+  assert.equal((await streak()).n, 1);
+  await post({ type: 'clockSet', secondsLeft: 90 });
+  await goal('home'); // 3-2, home back in front
+  assert.deepEqual(await kind(), [2, 'lead', 'home']);
+  await goal('away'); // 3-3 late
+  let s = await streak();
+  assert.deepEqual([s.n, s.kind, s.score], [3, 'level', { home: 3, away: 3 }]);
+
+  // Comeback: away goes 6 down (and on fire on the way), then gets within 2.
+  await post({ type: 'clockSet', secondsLeft: 500 });
+  for (let i = 0; i < 6; i++) await goal('home'); // 9-3
+  assert.deepEqual(await kind(), [5, 'fire', 'home']); // heating up at 3 in a row, then on fire at 5
+  for (let i = 0; i < 3; i++) await goal('away'); // 9-6: heating up for away
+  assert.deepEqual(await kind(), [6, 'heating', 'away']);
+  await goal('away'); // 9-7: within 2
+  s = await streak();
+  assert.deepEqual([s.n, s.kind, s.side, s.down], [7, 'comeback', 'away', 6]);
+  await goal('away'); // 9-8: no comeback again; on fire for away
+  assert.deepEqual(await kind(), [8, 'fire', 'away']);
+
+  // On the siren: a goal with 10 seconds or less left while the clock is running.
+  await post({ type: 'clockSet', secondsLeft: 8 });
+  await post({ type: 'clockStart' });
+  await goal('home'); // 10-8
+  s = await streak();
+  assert.deepEqual([s.n, s.kind, s.side], [9, 'siren', 'home']);
+  await post({ type: 'clockStop' });
+  await post({ type: 'clockSet', secondsLeft: 300 });
+
+  // Back to back super shots (also 3 in a row here: one moment per goal, back to back wins).
+  await goal('home', 2);
+  assert.equal((await streak()).n, 9);
+  await goal('home', 2);
+  assert.deepEqual(await kind(), [10, 'backToBack', 'home']);
+
+  // The page gets the last few in a log, so two close together both play.
+  const log = (await post({ type: 'showClock', value: true })).streakLog;
+  assert.deepEqual(log.slice(-2).map(e => e.kind), ['siren', 'backToBack']);
 });
