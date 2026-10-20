@@ -17,7 +17,7 @@
   }
   html, body { margin: 0; background: transparent; }
   body { width: 1920px; height: 1080px; position: relative; overflow: hidden; }
-  .side { position: absolute; top: var(--mid); transform: translateY(-50%); display: flex; flex-direction: column; gap: 16px;
+  .side { position: absolute; top: var(--mid); transform: translateY(-50%); transform: translateY(round(-50%, 1px)); display: flex; flex-direction: column; gap: 16px;
           animation: fade-in .5s ease-out both; }
   .side--left { right: calc(960px + var(--gap)); align-items: center; }
   .side--right { left: calc(960px + var(--gap)); align-items: center; }

@@ -19,7 +19,7 @@
   .stage.go { visibility: visible; }
   .centre { position: absolute; left: 960px; top: 540px; width: 0; height: 0; }
   /* translate (not transform) centres each layer, so the spins and scales below turn about its middle */
-  .centre > * { position: absolute; left: 0; top: 0; translate: -50% -50%; }
+  .centre > * { position: absolute; left: 0; top: 0; translate: -50% -50%; translate: round(-50%, 1px) round(-50%, 1px); }
   .logo { display: block; height: var(--size); max-width: calc(var(--size) * 1.8); object-fit: contain; }
   .logo-box { position: relative; line-height: 0; }
   .stage[data-style="fun"] .pro-only, .stage[data-style="pro"] .fun-only { display: none; }
