@@ -89,6 +89,13 @@ const PAGE_OPTIONS = (() => {
     'supershot.html': [
       { key: 'team', label: 'Plays', type: 'select', choices: [['', 'By itself for every super shot'], ['home', 'Once, for the home team'], ['away', 'Once, for the away team'], ['none', 'Once, no team']] },
     ],
+    'streak.html': [
+      { key: 'play', label: 'Plays', type: 'select', choices: [['', 'By itself for every streak'], ['heating', 'Once: heating up'], ['fire', 'Once: on fire'], ['goalforgoal', 'Once: goal for goal']] },
+      { key: 'team', label: 'Team (when played once)', type: 'select', choices: [['', 'Home'], ['away', 'Away']] },
+      show('heating', 'Heating up (3 in a row, by itself)', 'Leave out'),
+      show('fire', 'On fire (5 in a row, by itself)', 'Leave out'),
+      show('goalforgoal', 'Goal for goal (10, by itself)', 'Leave out'),
+    ],
     'lowerthird.html': [
       { key: 'type', label: 'Who', type: 'select', choices: [['', 'An athlete (team and club logo)'], ['guest', 'A guest or commentator (competition logo)']] },
       { key: 'name', label: 'Name', type: 'text', placeholder: 'type or pick a name', list: 'athletes', help: 'An athlete\'s name as PlayHQ has it (suggestions come from the Athletes page); for a guest, any name.' },

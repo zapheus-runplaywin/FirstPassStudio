@@ -430,6 +430,13 @@ These follow the game picked on the scoreboard control page:
   It asks Studio every second, which asks PlayHQ nothing extra. `/deck/home/supershot` plays it without changing the score.
   Manual: `?team=home`, `?team=away` or `?team=none` plays it once when the source comes on instead (keep **Load the page
   fresh each time it's shown** ticked). Details in STREAMDECK.md.
+- http://localhost:8080/streak.html: hot streaks, about 3½ seconds each, small under the title like the super shot.
+  "<team> is HEATING UP" at 3 goals in a row, "<team> is ON FIRE" at 5 in a row, and "GOAL FOR GOAL INTENSITY" when
+  10 goals in a row go one each way. Leave it on: it plays by itself from the goal order the Last 10 goals graphic uses
+  (a super shot is one goal), once per run (a run reaching 5 plays on fire, not heating up again), never for scores
+  catching up or after full time, and after any super shot graphic. `?heating=0`, `?fire=0`, `?goalforgoal=0` leave one
+  out; `/deck/streak/heating/home`, `/deck/streak/fire/away`, `/deck/streak/goalforgoal` play one to test.
+  Manual: `?play=heating|fire|goalforgoal` (`&team=away`) plays once when the source comes on.
 - http://localhost:8080/goals.html: the last 10 goals of the game, oldest to newest, for showing trends and changes in momentum.
   Each goal is a disc in the scoring team's club colour with its logo (+2 badge for a super goal) and the quarter and time,
   with a momentum line underneath (up for home goals, down for away), each team's count of the 10 and the current run

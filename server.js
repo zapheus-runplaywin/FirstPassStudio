@@ -952,11 +952,18 @@ function applyOne(b, a) {
       const before = Number(side.score) || 0;
       side.score = Math.max(0, before + Number(a.delta || 0));
       noteGoals(b, a.side === 'away' ? 'away' : 'home', side.score - before, 'manual');
+      if (side.score > before) watchStreaks(b, 'manual');
       b.source = 'manual';
       if (Number(a.delta) === 2) superShot(b, a.side === 'away' ? 'away' : 'home', 'manual');
       break;
     }
     case 'superShot': superShot(b, a.side === 'away' ? 'away' : 'home', 'test'); break; // plays it without changing the score
+    case 'streak': { // plays streak.html without changing the score
+      const kind = STREAK_GOALS[a.kind] ? a.kind : 'heating';
+      const side = a.side === 'away' ? 'away' : 'home';
+      streak(b, kind, kind === 'goalForGoal' ? '' : side, STREAK_GOALS[kind], 'test', kind === 'goalForGoal' ? side : '');
+      break;
+    }
     case 'setScore': side.score = Math.max(0, Number(a.value) || 0); b.source = 'manual'; break;
     case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division; b.court = a.court ?? b.court; break;
     case 'selectGame':
@@ -1060,7 +1067,10 @@ async function refreshFromPlayhq(b) {
       log('info', 'scoreboard', `PlayHQ says ${game.home.name} ${game.home.score ?? 'no score'} - ${game.away.score ?? 'no score'} ${game.away.name} (${game.status})`);
       b.playhqSeen = seen;
     }
-    if (goalsFromPlayhq(b, game, s && s.live)) saveBoards();
+    if (goalsFromPlayhq(b, game, s && s.live)) {
+      if (!isFinished(game)) watchStreaks(b, 'playhq');
+      saveBoards();
+    }
     if (game.home.score !== null) b.home.score = game.home.score;
     if (game.away.score !== null) b.away.score = game.away.score;
     b.playhqStatus = game.status;
@@ -1082,7 +1092,7 @@ async function refreshFromPlayhq(b) {
 // closed, or nothing was polling), isn't split into goals: a gap is noted instead.
 const GOALS_KEPT = 120;
 const MAX_STEP = 3;
-function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; }
+function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; }
 function clockLeft(b) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
 function pushGoal(b, side, points, how) {
   b.goalsSeq = (b.goalsSeq || 0) + 1;
@@ -1145,6 +1155,42 @@ function goalsFromPlayhq(b, game, live) {
   if (counts) b.playhqCounts = counts;
   return b.goals.length !== before || b.goalsSeq !== seq;
 }
+// ─── Hot streaks (for streak.html) ──────────────────────────────────────────
+// Worked out from the goal order above, where a super goal is one goal: 3 goals in a row by one
+// team is "heating up", 5 is "on fire", and 10 goals going one each way (home, away, home...)
+// is "goal for goal". Each plays once: a run that reaches 5 plays "on fire" (and not "heating
+// up" again), and a goal for goal stretch plays once however long it goes on. A run is known
+// by the id of its first goal, so a -1 correction and the goal again doesn't replay it. A gap
+// in the goal list (a game picked part way through, a jump too big to split) starts the count
+// again, so scores catching up never play, and nothing plays once the game is finished.
+// Each one bumps b.streak.n, and streak.html plays when it sees n go up.
+const STREAK_GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
+const STREAK_NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal' };
+function streak(b, kind, side, goals, how, from) {
+  const n = ((b.streak && b.streak.n) || 0) + 1;
+  b.streak = { n, kind, side: side || '', goals, from: from || '', at: Date.now(), how }; // from: who scored the first goal of a goal for goal stretch
+  log('info', 'streak', `${side ? `${b[side].name} (${side}) ` : ''}${STREAK_NAMES[kind]}, ${goals} goals (${how}), number ${n}`);
+}
+function watchStreaks(b, how) {
+  if (!Array.isArray(b.goals)) return;
+  const fired = b.streakFired || (b.streakFired = {});
+  // Back from the latest goal: the current run by one team, and the stretch of goals going one each way.
+  let run = 0, runStart = null, runSide = '', alt = 0, altStart = null, altSide = '', last = '';
+  for (let i = b.goals.length - 1; i >= 0; i--) {
+    const g = b.goals[i];
+    if (g.gap || (runSide && g.side !== runSide)) break;
+    runSide = g.side; run++; runStart = g.id;
+  }
+  for (let i = b.goals.length - 1; i >= 0; i--) {
+    const g = b.goals[i];
+    if (g.gap || (last && g.side === last)) break;
+    last = altSide = g.side; alt++; altStart = g.id;
+  }
+  if (run >= STREAK_GOALS.fire && fired.fire !== runStart) { fired.fire = fired.heating = runStart; streak(b, 'fire', runSide, run, how); }
+  else if (run >= STREAK_GOALS.heating && fired.heating !== runStart) { fired.heating = runStart; streak(b, 'heating', runSide, run, how); }
+  if (alt >= STREAK_GOALS.goalForGoal && fired.goalForGoal !== altStart) { fired.goalForGoal = altStart; streak(b, 'goalForGoal', '', alt, how, altSide); }
+}
+
 // What goals.html shows: the last `count` goals (oldest first), the current run and the tally.
 function getGoals(count) {
   const b = board();
@@ -1308,6 +1354,7 @@ function followClock(b, live) {
 // background" ticked) can press them. Full list in STREAMDECK.md.
 //   /deck/home/add1  add2  minus1  minus2     (same for /deck/away/...)
 //   /deck/home/supershot                      (plays supershot.html for that team, score unchanged)
+//   /deck/streak/heating/home  fire/away  goalforgoal   (plays streak.html, score unchanged)
 //   /deck/clock/start  stop  toggle  reset
 //   /deck/clock/set/12:34   /deck/clock/length/10 (minutes per quarter)
 //   /deck/clock/playhq/on  off  toggle   (clock follows the PlayHQ scorer)
@@ -1328,6 +1375,11 @@ function deckAction(parts, q) {
     const m = String(verb || '').match(/^(add|plus|minus|sub)(\d)$/);
     if (m) return { type: 'score', side: what, delta: (m[1] === 'add' || m[1] === 'plus' ? 1 : -1) * Number(m[2]) };
     if (verb === 'supershot') return { type: 'superShot', side: what };
+  }
+  // /deck/streak/heating/home, /deck/streak/fire/away, /deck/streak/goalforgoal (streak.html, score unchanged)
+  if (what === 'streak') {
+    const kind = { heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal' }[String(verb || '').toLowerCase()];
+    if (kind) return { type: 'streak', kind, side: arg === 'away' ? 'away' : 'home' };
   }
   if (what === 'clock') {
     if (['start', 'stop', 'toggle', 'reset'].includes(verb)) return { type: 'clock' + verb[0].toUpperCase() + verb.slice(1) };

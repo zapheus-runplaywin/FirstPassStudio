@@ -26,6 +26,9 @@ which also works from a Stream Deck on another computer on the same network.
 | Reset scores to 0 | http://localhost:8080/deck/scores/reset |
 | Play the super shot animation for home (score unchanged) | http://localhost:8080/deck/home/supershot |
 | Play the super shot animation for away (score unchanged) | http://localhost:8080/deck/away/supershot |
+| Play "heating up" for home (score unchanged) | http://localhost:8080/deck/streak/heating/home |
+| Play "on fire" for away (score unchanged) | http://localhost:8080/deck/streak/fire/away |
+| Play "goal for goal" (score unchanged) | http://localhost:8080/deck/streak/goalforgoal |
 
 **Pressing any score button switches the scoreboard to manual scoring: Follow PlayHQ stops, for the score and the clock.**
 Press Follow PlayHQ (`/deck/source/playhq`, below) to go back. A +2 press also plays the super shot animation (see below).
