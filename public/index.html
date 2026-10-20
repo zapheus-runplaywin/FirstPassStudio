@@ -209,6 +209,10 @@
     <div id="gamePages"></div>
   </div>
   <div class="card">
+    <h2>Lower thirds (introducing an athlete, a guest or a commentator)</h2>
+    <div id="personPages"></div>
+  </div>
+  <div class="card">
     <h2>Round fixture and results (current round, all divisions)</h2>
     <div id="fixturePages"></div>
   </div>
@@ -468,6 +472,19 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   'Combine them with &amp;, e.g. <code>/logo.html?template=badge&amp;mode=dark&amp;bg=7f4092</code>. The templates after fun and pro use flat, hard edged shapes only, so nothing leaves a halo over key and fill. ' +
   'With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
+[['Athlete lower third', '/lowerthird.html?name=Jane%20Smith',
+  'For the breaks and before and after the game, when the stream cuts to someone on camera. An athlete\'s name in big letters, their team name under it and their club\'s logo beside it. ' +
+  'The athlete is found by name among the competition\'s athletes (everyone in the PlayHQ line ups read so far, the same list as <b>All athletes</b> on the <a href="/athletes.html" target="_blank">Athletes page</a>); ' +
+  'case, punctuation and word order don\'t matter. That gives their team, and the team\'s logo comes from its club on the competition setup page. On the Output page the <b>Name</b> box suggests the athletes as you type. ' +
+  'An athlete who plays for more than one team shows the one in the game picked on the scoreboard, else the first: <code>?team=Knights</code> picks it. ' +
+  'Options: <code>?title=Captain</code> adds a word after the team name, <code>?tag=Player%20of%20the%20match</code> a small pink tab above the bar, <code>?photo=1</code> their photo (or silhouette) beside the logo. ' +
+  'It sits on the left, lined up with the scoreboard and just above it; <code>?position=center</code> centres it, <code>?position=bottom</code> or <code>bottom-center</code> puts it lower for when the scoreboard is off. ' +
+  '<code>?out=8</code> animates it away after 8 seconds. Loads once; it plays in again each time it\'s turned on on the Output page.'],
+ ['Guest or commentator lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator',
+  'The same bar with a guest\'s or commentator\'s name, their title under it (<code>?title=Special%20guest</code>) and the competition logo from the competition setup page ' +
+  '(the dark mode logo for the dark bar; <code>?mode=light</code> uses the light mode one). Takes the same <code>?tag=</code>, <code>?position=</code> and <code>?out=</code> options. ' +
+  'Add one source per person to the Output page and change the name and title there.']]
+  .forEach(([n, p, h]) => document.getElementById('personPages').appendChild(pageRow(n, p, h)));
 [['PIVT and FirstPass Studio ad', '/ad.html',
   'The PIVT and FirstPass Studio logos animated together for 10 seconds: PIVT slams in, FirstPass Studio wipes in below it, they hold, then sweep away. ' +
   'Plays once when the page loads, then leaves the frame clear, and plays again each time it\'s turned on on the Output page. ' +

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lower Third</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<style>
+  /* Laid out for 1920 x 1080 at 1x, on whole pixels. By default the bar's left edge lines up with the
+     scoreboard's (the scoreboard is 1335px wide and centred, so its left edge is at 292px) and its bottom
+     sits 8px above the scoreboard's PlayHQ Live tab (top 930px), like the ladder lower third. */
+  :root { --left: 292px; --bottom: 158px; --height: 120px; --max: 1335px; }
+  html, body { margin: 0; background: transparent; }
+  body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
+  [hidden] { display: none !important; }
+  body.bottom, body.bottom-center { --bottom: 80px; }
+
+  .l3 { position: absolute; left: var(--left); bottom: var(--bottom); max-width: var(--max); display: flex; flex-direction: column; align-items: flex-start; }
+  body.center .l3, body.bottom-center .l3 { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); align-items: center; }
+
+  .l3__tag {
+    background: var(--pink); color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    padding: 6px 18px; border-radius: 6px 6px 0 0; margin-left: 150px; white-space: nowrap;
+  }
+  body.center .l3__tag, body.bottom-center .l3__tag { margin-left: 0; }
+  .l3__tag:empty { display: none; }
+  .l3__bar {
+    display: flex; height: var(--height); max-width: var(--max); min-width: 640px; box-sizing: border-box;
+    background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    border-bottom: 5px solid var(--pink);
+  }
+  .l3__badge {
+    width: var(--height); flex: none; background: radial-gradient(circle at 50% 45%, var(--purple) 0%, var(--purple-dark) 80%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .l3__logo { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
+  .l3__logo.logo-fallback { box-sizing: border-box; font-size: 28px; }
+  .l3__photo { width: var(--height); flex: none; object-fit: cover; object-position: center 20%; background: var(--purple-dark); }
+  .l3__text { padding: 0 40px 0 30px; display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1; }
+  .l3__name { font-size: 50px; line-height: 58px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; }
+  .l3__line { font-size: 24px; line-height: 30px; font-weight: 700; color: var(--yellow); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .l3__line:empty { display: none; }
+
+  /* In: the badge pops, the bar opens out from it, then the words come up. Out (?out=) runs it backwards. */
+  .go .l3__badge, .go .l3__photo { animation: pop .45s cubic-bezier(.3,1.5,.5,1) both; }
+  .go .l3__bar { animation: open .55s cubic-bezier(.2,.9,.2,1) .15s both; }
+  .go .l3__name { animation: up .45s ease-out .45s both; }
+  .go .l3__line { animation: up .45s ease-out .6s both; }
+  .go .l3__tag { animation: up .4s ease-out .7s both; }
+  .away .l3 { animation: leave .5s ease-in both; }
+  @keyframes pop { from { scale: .4; opacity: 0; } to { scale: 1; opacity: 1; } }
+  @keyframes open { from { clip-path: inset(0 calc(100% - var(--height)) 0 0 round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
+  @keyframes up { from { opacity: 0; translate: 0 18px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes leave { to { opacity: 0; translate: -60px 0; } }
+  body.center .away .l3, body.bottom-center .away .l3 { animation-name: leave-down; }
+  @keyframes leave-down { to { opacity: 0; translate: 0 40px; } }
+  .message { position: absolute; left: var(--left); bottom: var(--bottom); color: var(--text); background: var(--purple-deep); padding: 16px 24px; border-radius: 8px; font-size: 22px; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page, introducing someone on camera:
+       http://localhost:8080/lowerthird.html?name=Jane%20Smith                         an athlete: name, team and club logo
+       http://localhost:8080/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator   a guest or commentator: name, title and the competition logo
+       An athlete is found by name in the competition's athletes (the Athletes page), for their team and its club logo
+       from the competition setup. Loads once, each time it comes on.
+       Options: &team=Knights   the team, for an athlete who plays for more than one (else one in the picked game, else the first)
+                &title=Captain  the smaller line (an athlete's goes after their team name)
+                &tag=Player%20of%20the%20match  a small tab above the bar
+                &photo=1        the athlete's photo (or silhouette) beside the logo
+                &position=center | bottom | bottom-center   (default: left, lined up with the scoreboard, just above it)
+                &mode=light     the light mode competition logo (default dark, for the dark bar)
+                &out=8          animates away after 8 seconds -->
+  <div id="stage">
+    <div class="l3" id="l3" hidden>
+      <div class="l3__tag" id="tag"></div>
+      <div class="l3__bar">
+        <div class="l3__badge" id="badge"></div>
+        <img class="l3__photo" id="photo" alt="" hidden>
+        <div class="l3__text" id="text">
+          <div class="l3__name" id="name"></div>
+          <div class="l3__line" id="line"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+    const type = params.get('type') === 'guest' ? 'guest' : 'athlete';
+    const name = (params.get('name') || '').trim();
+    const title = (params.get('title') || '').trim();
+    const position = params.get('position');
+    if (['center', 'bottom', 'bottom-center'].includes(position)) document.body.classList.add(position);
+
+    // Long names get smaller until they fit the bar (never below 30px); whole pixel sizes only.
+    function fitName() {
+      const n = $('name'), room = $('text');
+      let size = 50;
+      while (size > 30 && n.scrollWidth > room.clientWidth - 70) { size -= 2; n.style.fontSize = size + 'px'; }
+    }
+
+    function show(d) {
+      const comp = params.get('mode') === 'light' ? d.competitionLogoLight || d.competitionLogoDark : d.competitionLogoDark || d.competitionLogoLight;
+      const a = type === 'athlete' ? d.athlete : null;
+      $('name').textContent = a ? a.name : name;
+      if (a) {
+        $('line').textContent = [a.team, title].filter(Boolean).join('  ·  ');
+        $('badge').append(a.team ? logoEl({ name: a.team, logo: a.logo }, 'l3__logo') : logoEl({ name: d.competition, logo: comp }, 'l3__logo'));
+        if (!a.known) console.warn(`Lower third: ${a.name} isn't in the competition's athletes yet, so their team isn't known (add &team=)`);
+        if (params.get('photo') === '1') { $('photo').src = a.photo || a.silhouette; $('photo').hidden = false; }
+      } else {
+        $('line').textContent = title;
+        $('badge').append(logoEl({ name: d.competition, logo: comp }, 'l3__logo'));
+      }
+      $('tag').textContent = params.get('tag') || '';
+      $('l3').hidden = false;
+      document.fonts.ready.then(() => {
+        fitName();
+        $('stage').classList.add('go');
+        window.pageLog && window.pageLog('info', `Lower third: ${type} ${$('name').textContent}${$('line').textContent ? ' / ' + $('line').textContent : ''}`);
+      });
+      const out = Number(params.get('out'));
+      if (out > 0) setTimeout(() => { $('stage').classList.replace('go', 'away'); }, out * 1000);
+    }
+
+    (async () => {
+      if (!name) {
+        $('message').textContent = type === 'guest' ? 'Lower third: type the guest\'s name (name=)' : 'Lower third: pick an athlete (name=)';
+        $('message').hidden = false;
+        console.warn('Lower third: no name given');
+        return;
+      }
+      try {
+        const q = new URLSearchParams({ type, name });
+        if (params.get('team')) q.set('team', params.get('team'));
+        const res = await fetch('/api/lowerthird?' + q, { cache: 'no-store' });
+        const d = await res.json();
+        if (d.error && res.status >= 400) throw new Error(d.error);
+        show(d);
+      } catch (err) {
+        console.warn('Lower third unavailable:', err.message);
+        show({ competition: '', athlete: type === 'athlete' ? { name, team: params.get('team') || '', known: true } : null });
+      }
+    })();
+  </script>
+</body>
+</html>
