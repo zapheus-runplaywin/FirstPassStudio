@@ -63,6 +63,13 @@
   .pm__allhead div { display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 800; text-transform: uppercase; color: var(--yellow); }
   .pm__allhead div:last-child { justify-content: flex-end; }
   .pm__allhead img, .pm__allhead .logo-fallback { width: 64px; height: 64px; object-fit: contain; font-size: 20px; }
+  /* Before the line ups: what the page is waiting for */
+  .pmw { --card-width: 1200px; }
+  .pmw__body { display: grid; grid-template-columns: 150px 1fr 150px; align-items: center; gap: 36px; padding: 40px 48px 48px; }
+  .pmw__body img, .pmw__body .logo-fallback { width: 150px; height: 150px; object-fit: contain; font-size: 44px; }
+  .pmw__text { text-align: center; }
+  .pmw__title { font-size: 46px; font-weight: 800; text-transform: uppercase; line-height: 1.1; color: var(--yellow); }
+  .pmw__detail { margin-top: 16px; font-size: 26px; font-weight: 700; color: var(--muted); line-height: 1.3; }
 </style>
 </head>
 <body>
@@ -78,7 +85,22 @@
        ?end=out animates away after the last pairing instead of showing all seven,
        ?show=all shows all seven straight away, ?pair=C shows one pairing only
        (by the home position), ?games=0 leaves out games
-       played (from PlayHQ and the Athletes page). -->
+       played (from PlayHQ and the Athletes page).
+       PlayHQ only has line ups once live scoring starts: until then the page says live scoring
+       is not active for the game (?waiting=0 leaves it empty instead), checks again every
+       10 seconds, and starts the match ups by itself once the line ups arrive. -->
+  <main class="card pmw" id="wait" data-fit hidden>
+    <header class="pm__head">
+      <div class="tab">Position match ups</div>
+      <div class="pm__teams" id="waitTeams"></div>
+    </header>
+    <section class="pmw__body">
+      <div id="waitHome"></div>
+      <div class="pmw__text"><div class="pmw__title" id="waitTitle"></div><div class="pmw__detail" id="waitDetail"></div></div>
+      <div id="waitAway"></div>
+    </section>
+    <footer class="card__footer" id="waitFooter"></footer>
+  </main>
   <main class="card pm" id="card" data-fit hidden>
     <header class="pm__head">
       <div class="tab" id="title">Position match ups</div>
@@ -94,6 +116,7 @@
     <footer class="card__footer" id="footer"></footer>
   </main>
   <script src="teams.js"></script>
+  <script src="lineupwait.js"></script>
   <script>
     const opts = new URLSearchParams(location.search);
     const ORDER = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
@@ -181,19 +204,35 @@
     }
     let lastData = null;
 
+    // Until there are line ups: what the page is waiting for, with both teams' logos.
+    let waitingFor = '';
+    function showWaiting(data, waiting) {
+      if (waitingFor !== waiting.title) { waitingFor = waiting.title; pageLog('info', `Position match ups: ${waiting.title}. ${waiting.detail}`); }
+      if (opts.get('waiting') === '0') return;
+      const named = data.home && data.away && data.home.name && data.away.name;
+      document.getElementById('waitTeams').textContent = named ? `${data.home.name}  v  ${data.away.name}` : '';
+      document.getElementById('waitHome').replaceChildren(...(named ? [logoEl(data.home, '')] : []));
+      document.getElementById('waitAway').replaceChildren(...(named ? [logoEl(data.away, '')] : []));
+      document.getElementById('waitTitle').textContent = waiting.title;
+      document.getElementById('waitDetail').textContent = waiting.detail;
+      document.getElementById('waitFooter').textContent = [data.competition, data.division, data.court].filter(Boolean).join('  ·  ');
+      document.getElementById('wait').hidden = false;
+    }
+
     let started = false;
-    loadTeams(async data => {
+    // Asked again every 10 seconds until the line ups arrive (they come once live scoring starts).
+    const stopLoading = loadTeams(async data => {
       if (started) return;
       lastData = data;
       // Players added from the season squad (the line up was incomplete) have no position.
       const lineup = team => (team.players || []).filter(p => !p.fromSquad);
       const at = (team, pos) => lineup(team).find(p => p.position === pos) || null;
       const pairs = ORDER.map(pos => [pos, at(data.home, pos), at(data.away, OPPOSITE[pos])]);
-      // Positions PlayHQ doesn't have show as Unknown; only an empty line up keeps the page hidden.
-      if (!lineup(data.home).length && !lineup(data.away).length) {
-        console.warn('Position match ups: PlayHQ has no line ups for this game yet.', data.error || '');
-        return;
-      }
+      // Positions PlayHQ doesn't have show as Unknown; only no line ups at all shows the waiting message.
+      const waiting = lineupWait(data);
+      if (waiting) { showWaiting(data, waiting); return; }
+      stopLoading();
+      document.getElementById('wait').hidden = true;
       const unknown = pairs.flatMap(([pos, h, a]) => [h ? null : `${data.home.name} ${pos}`, a ? null : `${data.away.name} ${OPPOSITE[pos]}`]).filter(Boolean);
       if (unknown.length) pageLog('warn', `Position match ups: no athlete listed for ${unknown.join(', ')}; showing Unknown`);
       started = true;
@@ -217,7 +256,7 @@
       } while (opts.get('loop') === '1');
       if (opts.get('end') === 'out') document.getElementById('card').classList.add('out');
       else { stage.className = 'pm__stage leave'; await wait(350); showAll(data, pairs); }
-    });
+    }, { every: 10000 });
   </script>
 </body>
 </html>
