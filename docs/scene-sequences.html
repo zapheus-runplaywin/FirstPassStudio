@@ -395,6 +395,18 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
     </div></div>
   </div>
 
+  <h3>The music player</h3>
+  <p>Music also works without a sequence. The Output page gets a small <b>Music</b> player: load a track or a playlist, play, pause, resume, stop, and skip back and forward through the queue. Each of these can fade or cut. A sequence with music just loads its track or playlist into this same player, so the player buttons and Stream Deck keys always act on whatever is playing. If you stop the music by hand during a sequence, the sequence carries on without it.</p>
+  <div class="screen" role="img" aria-label="Mockup of the Music player on the Output page">
+    <div class="in"><div class="sec">
+      <div class="sec-h"><h4>Music</h4><div class="row"><span class="sel">Playlist: Pre-game</span><span class="btn alt sm">Edit playlists</span></div></div>
+      <div class="now-line" style="font-size:13.5px"><span>♪ <b>Pre-game bed.mp3</b> · 2 of 4 in Pre-game</span><span class="mono">1:12 / 3:42</span></div>
+      <div class="dots"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+      <div class="row"><span class="btn alt sm">⏮ Prev</span><span class="btn sm">⏸ Pause</span><span class="btn alt sm">Next ⏭</span><span class="btn stop sm">■ Stop</span><span style="margin-left:8px">Fade <span class="inp" style="padding:3px 8px">2</span> s</span><span>☐ Shuffle</span><span>☑ Loop the playlist</span><span>Volume <span class="inp" style="padding:3px 8px">70</span> %</span></div>
+    </div></div>
+  </div>
+  <p>Playlists are named lists of audio files from the media folder, saved with the scene. Prev and Next crossfade between songs using the fade time.</p>
+
   <h3>Things to think about with music</h3>
   <ul class="tight">
     <li><b>Lowering it under other sound.</b> The break ad or The Clash may have its own sound. Without ducking you'd get two tracks fighting, so the music dips while they play and comes back after.</li>
@@ -418,7 +430,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
       <tr><td>Press <b>Pause</b></td><td>Freezes the step timer and keeps the step on screen. A video keeps playing to its end.</td></tr>
       <tr><td>Press <b>Stop</b></td><td>Ends the sequence and does its "Then" (for example, goes to Game).</td></tr>
       <tr><td>Press <b>Delay</b> (Stream Deck or the card)</td><td>Adds 10 s each press. Before a triggered sequence starts, it pushes the start back, for a shot after the siren. While a sequence plays, it holds the step on now 10 s longer. The card and the Stream Deck key count down so you can see the new time.</td></tr>
-      <tr><td>Go to a scene, or start another sequence</td><td>Stops this sequence first. One sequence plays at a time.</td></tr>
+      <tr><td>Go to a scene, or start another sequence</td><td>Stops this sequence first, without doing its "Then", and fades its music out (3 s by default). One sequence plays at a time.</td></tr>
       <tr><td>Play resumes early, or the next trigger arrives</td><td>A "repeat until" sequence finishes the step on now, then ends. A Stop from the game is never a hard cut.</td></tr>
     </tbody>
   </table></div>
@@ -436,8 +448,17 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
 /deck/sequence/stop                    stop whatever is playing
 /deck/sequence/auto/on|off|toggle      the Automatic sequences switch
 /deck/set/pre-game/play|toggle         start or stop a set
-/deck/music/fade                       fade whatever music is playing
+/deck/music/load/pre-game-bed          load a track (stays stopped)
+/deck/music/playlist/pre-game          load a playlist
+/deck/music/play?fade=2                play from the start, fade in 2 s
+/deck/music/stop?fade=3                stop, fade out 3 s
+/deck/music/pause?fade=1               pause, fade 1 s
+/deck/music/resume?fade=1              carry on from where it paused
+/deck/music/toggle                     play or pause
+/deck/music/next   /deck/music/prev    next or previous song in the queue
+/deck/music/fade                       fade out whatever is playing
 /deck/music/mute/on|off|toggle         mute the music, keep it running</pre>
+  <p>On any music link, <code>fade=0</code> cuts. Leave <code>fade</code> off to use the player's fade time. The plugin gets a <b>Music</b> key showing the song and play or pause.</p>
   <p>The FirstPass Studio plugin gets a <b>Sequence</b> key: the name, lit while playing, with the step and time left on the key (for example "3/5 · 0:04"). Pressing it plays or stops.</p>
 </section>
 
@@ -457,7 +478,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
   "repeat": { "type": "until", "moment": "playResumes" },
   "then": { "type": "scene", "scene": "game-id" },
   "keepOn": ["scoreboard-id"],
-  "music": { "tracks": ["bed-audio-id"], "startStep": 1, "fadeInSec": 2,
+  "music": { "playlist": "pre-game-id", "startStep": 1, "fadeInSec": 2,
              "end": { "type": "set" }, "duck": 25 },
   "steps": [
     { "sources": ["shooting-id"], "length": { "type": "time", "sec": 20 } },
@@ -474,7 +495,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; 
       <tr><td>1. Sequences by hand</td><td>The Sequences strip, the editor, Play, Next, Pause, Stop, all four step lengths except "until the game moves on", and Then.</td></tr>
       <tr><td>2. Stream Deck</td><td>The <code>/deck/sequence/…</code> links, the plugin's Sequence key, and the Stream Deck page and home page docs.</td></tr>
       <tr><td>3. Game triggers</td><td>Before the start, breaks and full time, "until the game moves on", "repeat until", and the Automatic sequences switch.</td></tr>
-      <tr><td>4. Music and sets</td><td>Audio sources and files, the Music rows, ducking, sequence sets, and the music Stream Deck links. "Fades to finish as the game starts" needs PR 3.</td></tr>
+      <tr><td>4. Music and sets</td><td>Audio files, the Music player and playlists, the Music rows on a sequence, ducking, sequence sets, and the music Stream Deck links. The player and its links could come before sequences, since they stand on their own. "Fades to finish as the game starts" needs PR 3.</td></tr>
     </tbody>
   </table></div>
   <p class="muted">Game triggers come last, as planned in the OBS replacement design. The first two PRs are useful on their own: you can fire a quarter-break sequence from one Stream Deck key.</p>
