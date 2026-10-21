@@ -303,7 +303,7 @@
         <div class="row"><label class="inline"><input type="checkbox" id="plShuffle"> Shuffle</label><label class="inline"><input type="checkbox" id="plLoop"> Start again after the last song</label></div>
       </div>
       <div class="steps" id="plTracks" style="margin-top:10px"></div>
-      <div class="row" style="margin-top:8px"><select id="plAdd" aria-label="Add a song"></select></div>
+      <div class="row" style="margin-top:8px;justify-content:space-between"><select id="plAdd" aria-label="Add a song"></select><span class="note" id="plTotal" style="margin:0;font-weight:700"></span></div>
       <p class="error" id="plErr"></p>
       <div class="row" style="margin-top:10px;justify-content:space-between">
         <div class="row"><button class="danger" id="plDelete">Delete</button></div>
@@ -1304,7 +1304,9 @@
       card.className = 'seq' + (on ? ' run' : '');
       card.innerHTML = '<div class="t"><b></b></div><small></small><div class="row"><button class="play">▶ Play</button><button class="alt load">Load</button><button class="alt edit">Edit</button></div>';
       card.querySelector('b').textContent = pl.name;
-      card.querySelector('small').textContent = `${pl.tracks.length} song${pl.tracks.length === 1 ? '' : 's'}${pl.shuffle ? ' · shuffled' : ''}${pl.loop ? ' · starts again' : ''}`;
+      const lens = pl.tracks.map(f => media.find(x => x.name === f)?.duration || 0);
+      const runs = lens.reduce((a, b) => a + b, 0);
+      card.querySelector('small').textContent = `${pl.tracks.length} song${pl.tracks.length === 1 ? '' : 's'}${runs ? ` · ${lens.includes(0) ? 'at least ' : ''}${fmt(runs * 1000)}` : ''}${pl.shuffle ? ' · shuffled' : ''}${pl.loop ? ' · starts again' : ''}`;
       card.querySelector('.play').onclick = () => act({ type: 'musicPlaylist', playlist: pl.id, play: true });
       card.querySelector('.play').disabled = card.querySelector('.load').disabled = !pl.tracks.length;
       card.querySelector('.load').onclick = () => act({ type: 'musicPlaylist', playlist: pl.id });
@@ -1334,6 +1336,8 @@
     if (!plDraft) return;
     const box = $('plTracks');
     box.innerHTML = '';
+    // Each song's length and the running total up to the end of it (in this order; shuffled, it's the total that counts).
+    let total = 0, unknown = 0;
     plDraft.tracks.forEach((f, i) => {
       const row = document.createElement('div');
       row.className = 'stepRow';
@@ -1341,7 +1345,8 @@
       row.querySelector('.num').textContent = i + 1;
       row.querySelector('.what').textContent = songName(f) + (tracks().includes(f) ? '' : ' (missing)');
       const len = media.find(x => x.name === f)?.duration;
-      row.querySelector('.hint').textContent = len ? fmt(len * 1000) : '';
+      if (len) total += len; else unknown++;
+      row.querySelector('.hint').textContent = len ? `${fmt(len * 1000)} · ${unknown ? 'at least ' : ''}${fmt(total * 1000)} in` : 'length not known yet';
       row.querySelector('.up').disabled = i === 0;
       row.querySelector('.down').disabled = i === plDraft.tracks.length - 1;
       row.querySelector('.up').onclick = () => { plDraft.tracks.splice(i - 1, 0, plDraft.tracks.splice(i, 1)[0]); renderPlTracks(); };
@@ -1349,6 +1354,7 @@
       row.querySelector('.del').onclick = () => { plDraft.tracks.splice(i, 1); renderPlTracks(); };
       box.appendChild(row);
     });
+    $('plTotal').textContent = plDraft.tracks.length ? `Runs ${unknown ? 'at least ' : ''}${fmt(total * 1000)} · ${plDraft.tracks.length} song${plDraft.tracks.length === 1 ? '' : 's'}` : '';
     const sel = $('plAdd');
     sel.innerHTML = '';
     sel.add(new Option(tracks().length ? '+ Add a song' : 'No songs yet: add them in Music first', ''));
@@ -1809,7 +1815,10 @@
     const s = current();
     if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
     if (scene.music) renderMusic();
+    // Studio measures a song's length the first time it's asked: ask again shortly for the ones it hadn't yet.
+    if (!mediaRetried && media.some(m => m.kind === 'audio' && !m.converting && !m.duration)) { mediaRetried = true; setTimeout(() => loadMedia(), 1500); }
   }
+  let mediaRetried = false;
   // Adding a source: a dialog, so it's clear the choices are for the new source. It goes above the selected
   // source (or on top), and is selected once added, ready to set up.
   const usedPages = () => new Set(scene.sources.filter(x => x.type === 'browser').map(x => String(x.url).split('?')[0].replace(/^\/+/, '')));
