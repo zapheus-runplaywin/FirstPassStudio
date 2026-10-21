@@ -204,6 +204,9 @@ keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to n
 `npm run app` runs it from the repository without building (needs Node.js, the LTS version, from https://nodejs.org).
 `npm start` runs Studio on its own, without the app, for working on the pages; it uses the same data folder and port,
 so don't run it while the app is on air.
+`npm test` runs the tests (they also run on every pull request, as the Tests check). The ones that need PlayHQ run
+Studio against a stand-in for it (`test/support/playhq.js`, a made-up Thunder League season around today's date), in a
+data folder of their own, so they never touch PlayHQ or your settings.
 
 ## Each stream
 
