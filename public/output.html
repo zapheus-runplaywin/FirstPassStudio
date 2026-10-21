@@ -362,7 +362,7 @@
       <p class="note" style="margin-top:10px">Each step turns its sources on together and keeps them on for its length; when it ends, sources the next step doesn't use go off with their own fades.
         <b>Until it finishes</b> waits for the step's videos to end (and pages that switch themselves off when done), and moves on after the video's length plus 3 s, or a minute for a page, if the end never comes.
         <b>Until the game moves on</b> holds until the clock starts, or the next break or full time.
-        A sequence that starts by itself waits its few seconds after the siren first, so <b>Delay +10 s</b> can hold it for a shot after the siren.
+        A sequence that starts by itself waits its few seconds after the siren first.
         <b>Repeat until</b> finishes the step on screen when its moment comes (or the next sequence's start comes), then ends.
         <b>Kept on</b> sources stay on from the first step to the last. A sequence only turns off sources it turned on itself.
         <b>+ Add scene</b> goes to a scene, as a starting point or a reset point: what the scene turns on stays on under the next steps, and after the sequence. It goes straight on, or holds like any step.
@@ -892,11 +892,10 @@
         line.firstChild.textContent = `${p.step + 1} of ${p.steps}${p.loop ? ` (again ×${p.loop})` : ''}${p.via && p.via.length ? ` · in ${p.via.join(' › ')}` : ''}${names ? ` · ${names}` : ''}`;
         const row = document.createElement('div');
         row.className = 'row';
-        row.innerHTML = '<button class="alt next" title="End this step now">Next ⏭</button><button class="alt pause"></button><button class="alt delay" title="Hold this step 10 seconds longer, for each press">Delay +10 s</button><button class="danger stop">Stop</button>';
+        row.innerHTML = '<button class="alt next" title="End this step now">Next ⏭</button><button class="alt pause"></button><button class="danger stop">Stop</button>';
         row.querySelector('.pause').textContent = p.paused ? 'Carry on' : 'Pause';
         row.querySelector('.next').onclick = () => act({ type: 'seqNext' });
         row.querySelector('.pause').onclick = () => act({ type: 'seqPauseToggle' });
-        row.querySelector('.delay').onclick = () => act({ type: 'seqDelay' });
         row.querySelector('.stop').onclick = () => act({ type: 'seqStop' });
         row.querySelector('.stop').title = `Stop it, ${thenText(sq)}`;
         card.append(dots, line, row);
@@ -908,9 +907,7 @@
         line.firstChild.textContent = `${pend.reason || 'Starting'} · starts in`;
         const row = document.createElement('div');
         row.className = 'row';
-        row.innerHTML = '<button class="alt delay" title="Start it 10 seconds later, for each press">Delay +10 s</button><button class="now">Start now</button><button class="alt cancel">Cancel</button>';
-        row.querySelector('.delay').onclick = () => act({ type: 'seqDelay' });
-        row.querySelector('.delay').disabled = pend.leftMs === null;
+        row.innerHTML = '<button class="now">Start now</button><button class="alt cancel">Cancel</button>';
         row.querySelector('.now').onclick = () => act({ type: 'seqStartNow' });
         row.querySelector('.cancel').onclick = () => act({ type: 'seqCancel' });
         card.append(line, row);
@@ -937,20 +934,20 @@
     tickSequence();
     const first = sequences()[0];
     $('seqNote').innerHTML = first
-      ? 'A sequence plays its steps one after another: <b>Play</b> starts it, <b>Next</b> ends the step now, <b>Delay +10 s</b> holds the step 10 seconds longer each press, '
+      ? 'A sequence plays its steps one after another: <b>Play</b> starts it, <b>Next</b> ends the step now, '
         + 'and <b>Stop</b> ends it and does its "then". Going to a scene, or playing another sequence, stops it without its "then". Turning the step\'s source off by hand moves to the next step. '
         + 'A sequence can start by itself before the game, at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '
-        + 'while it waits to start, <b>Delay +10 s</b> pushes it back, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
+        + 'while it waits to start, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
         + 'Sequences belong to the competition in use. '
         + `Stream Deck: <code>${base}/deck/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
-        + '<code>/deck/sequence/next</code>, <code>/deck/sequence/delay</code>, <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>; for one about to start '
+        + '<code>/deck/sequence/next</code>, <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>; for one about to start '
         + '<code>/deck/sequence/now</code> and <code>/deck/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.'
       : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
         + 'Add your sources below first, then <b>+ New sequence</b>.';
   }
   function tickSequence() {
     const pend = scene.pending, pl = document.querySelector('.seq.pend .pendLeft');
-    if (pend && pl) pl.textContent = pend.leftMs === null ? 'after this one' : `${fmt(pend.leftMs - (performance.now() - heardAt))}${pend.delayMs ? ` (+${pend.delayMs / 1000} s)` : ''}`;
+    if (pend && pl) pl.textContent = pend.leftMs === null ? 'after this one' : `${fmt(pend.leftMs - (performance.now() - heardAt))}`;
     const p = scene.playing;
     const left = document.querySelector('.seq.run .left');
     if (!p || !left) return;

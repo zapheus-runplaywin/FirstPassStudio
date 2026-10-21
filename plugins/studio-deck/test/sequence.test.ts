@@ -19,7 +19,7 @@ const studio = (playing: Playing | null = null): Scene => ({
 	],
 	playing,
 });
-const playingQb = (more: Partial<Playing> = {}): Playing => ({ id: "qb", step: 2, steps: 5, paused: false, leftMs: 4200, delayMs: 0, ...more });
+const playingQb = (more: Partial<Playing> = {}): Playing => ({ id: "qb", step: 2, steps: 5, paused: false, leftMs: 4200, ...more });
 
 test("play key: shows ▶ until its sequence plays, then lights with the step and the time left", () => {
 	const s = { sequence: "qb", sequenceName: "Quarter break" };
@@ -43,27 +43,22 @@ test("play key: off air, gone, not picked, own colour", () => {
 	assert.equal(sequenceViewOf({ sequence: "run", sequenceName: "Run-up" }, { rev: 1, sources: [] }).title, "Run-up\n(gone)");
 });
 
-test("next, delay, pause and stop keys: light while anything plays and show where it is", () => {
+test("next, pause and stop keys: light while anything plays and show where it is", () => {
 	assert.deepEqual(sequenceViewOf({ press: "next" }, studio()), { state: 0, title: "Next ⏭\n(none on)", colour: "blue", ticking: false });
 	assert.deepEqual(sequenceViewOf({ press: "next" }, studio(playingQb())), { state: 1, title: "Next ⏭\n3/5 0:05", colour: "purple", ticking: true });
-	assert.equal(sequenceViewOf({ press: "delay" }, studio(playingQb({ delayMs: 20000 }))).title, "Delay +10\n3/5 0:05 (+20)");
 	assert.equal(sequenceViewOf({ press: "pause" }, studio(playingQb())).title, "Pause\n3/5 0:05");
 	assert.equal(sequenceViewOf({ press: "pause" }, studio(playingQb({ paused: true }))).title, "Carry on\n3/5 paused");
 	assert.equal(sequenceViewOf({ press: "stop" }, null).title, "Stop\n(off air)");
 });
 
-test("a sequence about to start by itself: its key counts down to it, and the Delay key shows how long until it starts", () => {
-	const scene: Scene = { ...studio(), pending: { id: "qb", leftMs: 4200, delayMs: 10000 } };
+test("a sequence about to start by itself: its key counts down to it", () => {
+	const scene: Scene = { ...studio(), pending: { id: "qb", leftMs: 4200 } };
 	const play = sequenceViewOf({ sequence: "qb", sequenceName: "Quarter break" }, scene, 1000);
 	assert.equal(play.title, "Quarter\nbreak\nin 0:04");
 	assert.equal(play.state, 0);
 	assert.equal(play.ticking, true);
-	const delay = sequenceViewOf({ press: "delay" }, scene);
-	assert.equal(delay.title, "Delay +10\nin 0:05 (+10)");
-	assert.equal(delay.state, 1);
-	assert.equal(delay.colour, "purple");
 	// Waiting for the playing sequence to finish its step: no countdown yet.
-	const waiting = sequenceViewOf({ sequence: "qb" }, { ...scene, pending: { id: "qb", leftMs: null, delayMs: 0 } });
+	const waiting = sequenceViewOf({ sequence: "qb" }, { ...scene, pending: { id: "qb", leftMs: null } });
 	assert.equal(waiting.title, "Quarter\nbreak\nnext");
 });
 
@@ -71,8 +66,10 @@ test("links", () => {
 	assert.equal(sequenceLinkFor({ sequence: "qb" }), "/deck/sequence/qb/toggle");
 	assert.equal(sequenceLinkFor({ press: "start", sequence: "qb" }), "/deck/sequence/qb/play");
 	assert.equal(sequenceLinkFor({}), null);
-	for (const p of ["next", "delay", "pause", "stop"] as const) assert.equal(sequenceLinkFor({ press: p }), `/deck/sequence/${p}`);
+	for (const p of ["next", "pause", "stop"] as const) assert.equal(sequenceLinkFor({ press: p }), `/deck/sequence/${p}`);
 	assert.equal(sequenceLinkFor({ press: "bogus" as never, sequence: "qb" }), "/deck/sequence/qb/toggle");
+	// A Delay key set up before Delay was removed plays its sequence instead.
+	assert.equal(sequenceLinkFor({ press: "delay" as never, sequence: "qb" }), "/deck/sequence/qb/toggle");
 });
 
 test("clock rounds up so it reaches 0:00 as the step ends", () => {

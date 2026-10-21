@@ -1,5 +1,5 @@
 // Sequences: the scene's sources played one after another (sequences.js, through scene.js), with
-// Next, Pause, Delay and Stop, the /deck/sequence links, and saving.
+// Next, Pause and Stop, the /deck/sequence links, and saving.
 const test = require('node:test');
 const { mock } = require('node:test');
 const assert = require('node:assert/strict');
@@ -83,20 +83,16 @@ test('a repeating sequence plays again until Stop, and Stop does its Then: going
   assert.equal(st().current, st().scenes[0].id);
 });
 
-test('Until it finishes waits for the video to end, and Delay holds it 10 s more', () => {
+test('Until it finishes waits for the video to end', () => {
   reset();
   make('Ad break', { steps: [step(['Ad'], { type: 'done' }), step(['Ladder'])] });
   play('Ad break');
   assert.deepEqual(on(), ['Ad']);
   wait(60);
   assert.deepEqual(on(), ['Ad'], 'still waiting: the video has not ended');
-  ok({ type: 'seqDelay' });
   const ad = st().sources.find(s => s.name === 'Ad');
   ok({ type: 'ended', id: ad.id, loadSeq: ad.loadSeq });
-  assert.equal(st().playing.step, 0, 'held by the delay');
-  wait(9);
-  assert.equal(st().playing.step, 0);
-  wait(1);
+  wait(0);
   assert.equal(st().playing.step, 1);
   assert.deepEqual(on(), ['Ladder']);
 });
@@ -140,16 +136,12 @@ test('Pause freezes the time left and carrying on uses what was left', () => {
   assert.deepEqual(on(), ['Fixtures']);
 });
 
-test('Delay adds 10 s to a timed step each press', () => {
+test('Delay is gone: its old link is no sequence', () => {
   reset();
   make('Full time', { steps: [step(['Ladder']), step(['Fixtures'])] });
   play('Full time');
-  link('sequence/delay');
-  link('sequence/delay');
-  assert.equal(st().playing.delayMs, 20000);
-  wait(39);
-  assert.deepEqual(on(), ['Ladder']);
-  wait(1);
+  assert.equal(link('sequence/delay').status, 404);
+  wait(20);
   assert.deepEqual(on(), ['Fixtures']);
 });
 

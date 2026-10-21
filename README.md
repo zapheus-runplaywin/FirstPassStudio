@@ -300,14 +300,14 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Sequences:** the scene's sources played one after another (run-up, quarter break, full time), built on the Output page with **+ New sequence**.
   Each step turns on the sources picked for it and stays for a set time, until it finishes (its videos end, or pages that switch themselves off;
   at most the video's length plus 3 s, or a minute for a page), until the game moves on, or until Next. Kept-on sources stay on for the whole sequence; it plays once, repeats
-  until stopped, or repeats until play resumes or N minutes before the start (finishing its step), then goes to a scene, turns off what it turned on, or leaves it all. It only turns off sources it turned on. Next, Pause, Delay +10 s
-  (each press) and Stop on its card; going to a scene, another sequence or hiding everything stops it without its Then, and hiding the step's source
+  until stopped, or repeats until play resumes or N minutes before the start (finishing its step), then goes to a scene, turns off what it turned on, or leaves it all. It only turns off sources it turned on. Next, Pause
+  and Stop on its card; going to a scene, another sequence or hiding everything stops it without its Then, and hiding the step's source
   moves on. One at a time, run by Studio itself (sequences.js), not saved while playing. Saved per competition as `sequences.json` in its folder.
   Game triggers: a sequence can start by itself N minutes before the picked game's start, at the breaks it ticks, or at full time, a few
   seconds after the siren, from the scoreboard state server.js sends each second (`gameSnapshot()`, no extra PlayHQ calls). It waits as
-  pending (Delay +10 s pushes it back, Start now, Cancel); the Automatic sequences switch is kept in `sequence-settings.json` in the data folder.
+  pending (Start now, Cancel); the Automatic sequences switch is kept in `sequence-settings.json` in the data folder.
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
-  Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/delay`, `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
+  Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
 - **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; every unmuted scene.html plays it with an
   `<audio>` element, so it follows video sound. Playlists and the player's settings are in `music.json` in the data folder. Songs are audio

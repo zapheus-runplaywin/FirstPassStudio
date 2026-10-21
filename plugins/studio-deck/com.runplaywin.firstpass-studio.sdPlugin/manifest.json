@@ -83,7 +83,7 @@
 			"Name": "Sequence",
 			"UUID": "com.runplaywin.firstpass-studio.sequence",
 			"Icon": "imgs/actions/sequence/icon",
-			"Tooltip": "Plays or stops a sequence in Studio, or moves on, delays, pauses or stops whatever is playing. Lights up and counts down while it plays.",
+			"Tooltip": "Plays or stops a sequence in Studio, or moves on, pauses or stops whatever is playing. Lights up and counts down while it plays.",
 			"PropertyInspectorPath": "ui/sequence.html",
 			"Controllers": [
 				"Keypad"

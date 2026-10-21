@@ -187,11 +187,11 @@ split into four steps. For a Source key:
 **Sequence key.** Drag **FirstPass Studio > Sequence** onto a key for the sequences (see **Sequences** below):
 
 - **Press:** play the sequence picked in its settings, or stop it while it plays (default); always play it from the first step; or, for
-  whatever sequence is playing, **Next**, **Delay +10 s**, **Pause / carry on** or **Stop**.
+  whatever sequence is playing, **Next**, **Pause / carry on** or **Stop**.
 - A sequence's key lights up orange while it plays and shows its step and the time left, like **3/5 0:12** (or **paused**, or **Next**
-  while the step waits for a press). The Next, Delay, Pause and Stop keys light while any sequence plays; Delay shows how much it has added.
+  while the step waits for a press). The Next, Pause and Stop keys light while any sequence plays.
 - **Colour:** the sequence's own colour (set in its editor on the Output page), or one of the five groups.
-- When a sequence is about to start by itself after the siren, its key and the **Delay** key count down to it (**in 0:04**).
+- When a sequence is about to start by itself after the siren, its key counts down to it (**in 0:04**).
 - It follows the sequence by id, so renaming it doesn't break the key; a deleted sequence's key says **gone**.
 
 **Links.** The plugin isn't needed: these links work in a **Website** action (tick **GET request in background**), but the key
@@ -245,7 +245,6 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 | Play a sequence | http://localhost:8080/deck/sequence/quarter-break |
 | Play it, or stop it if it's playing | http://localhost:8080/deck/sequence/quarter-break/toggle |
 | Next step of whatever is playing | http://localhost:8080/deck/sequence/next |
-| Hold the step 10 seconds longer (each press) | http://localhost:8080/deck/sequence/delay |
 | Pause, or carry on | http://localhost:8080/deck/sequence/pause |
 | Stop whatever is playing (does its "then") | http://localhost:8080/deck/sequence/stop |
 | Start the one about to start now | http://localhost:8080/deck/sequence/now |
@@ -255,15 +254,13 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 - A sequence can start by itself: N minutes before the picked game's scheduled start, at quarter time, half time or three quarter
   time, or at full time. It follows the scoreboard's clock (the PlayHQ scorer's when following, or the one you run), so it needs no
   extra PlayHQ calls. After the siren it waits a few seconds (5 unless you change it) as **Starting**.
-- **Delay** is for a shot after the siren: while a sequence is about to start, each press starts it 10 seconds later; while one plays,
-  the step on screen stays 10 seconds longer each time.
 - A step can last **until the game moves on** (the clock starts, or the next break or full time), and a sequence can **repeat until play
   resumes** or until N minutes before the start: it finishes the step on screen, then ends. Untick **Automatic sequences on** on the
   Output page (or use the `auto` link) and nothing starts by itself.
 - Stop ends the sequence and does its **Then** (go to a scene, turn off what it turned on, or leave it all). Going to a scene, playing
   another sequence or `/deck/layers/off` stops it without its Then.
 - The plugin's **Sequence** key (above) presses these links and counts down the step on screen.
-- `next`, `stop`, `pause`, `resume`, `delay`, `now`, `cancel` and `auto` can't be sequence names, so these links never clash with one.
+- `next`, `stop`, `pause`, `resume`, `now`, `cancel` and `auto` can't be sequence names, so these links never clash with one.
 
 ## Music (Output page)
 
