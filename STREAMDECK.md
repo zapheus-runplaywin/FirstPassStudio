@@ -276,9 +276,9 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
 | Load a song (ready to play) | http://localhost:8080/deck/music/load/pre-game-bed |
 | Load a playlist and play it | http://localhost:8080/deck/music/playlist/pre-game?play |
 | Mute, keeping it running | http://localhost:8080/deck/music/mute/toggle (or `/on`, `/off`) |
-| Duck: dip it low over the fade time (or half of it: a setting), keeping it running | http://localhost:8080/deck/music/duck/toggle (or `/on`, `/off`) |
+| Duck: dip it low (down over the fade out time, up over the fade in time), keeping it running | http://localhost:8080/deck/music/duck/toggle (or `/on`, `/off`) |
 
-- Add `?fade=2` to any of them for a 2 second fade, or `?fade=0` to cut. Without it they use the player's fade time.
+- Add `?fade=2` to any of them for a 2 second fade, or `?fade=0` to cut. Without it they use the player's fade in time (play, resume, duck off) or fade out time (stop, pause, fade, duck on).
 - Songs are named like sources: lower case with dashes for spaces, without the file's ending (**Pre-game bed.mp3** is `pre-game-bed`).
 - While a video with its sound on plays, the music fades out and pauses, then fades back in from where it was (a player setting:
   or lower it, or leave it).
