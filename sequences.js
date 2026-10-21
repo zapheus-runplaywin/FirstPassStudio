@@ -6,8 +6,7 @@
 // next steps play over, and they stay on after the sequence like any scene's), or play another sequence
 // in its place (a mini sequence built once and used in many). Played sequences are flattened into one
 // list of steps when the sequence starts; a sequence can never end up inside itself.
-// Sources kept on for the whole sequence come on at the start. When the last step ends the sequence
-// plays again (repeat) or does its Then: go to a scene, turn off what it turned on, or leave it all.
+// When the last step ends the sequence plays again (repeat) or does its Then: go to a scene, turn off what it turned on, or leave it all.
 //
 // It only ever turns off sources it turned on itself, so a source put on by hand is left alone, and
 // manual controls keep working: Next, Pause and Stop, a source turned
@@ -145,9 +144,11 @@ function clean(input, existing = {}) {
     music: cleanMusic(s.music),
     musicEnd: cleanMusicEnd(s.musicEnd),
     quiet: !!s.quiet,
-    keepOn: ids(s.keepOn),
     steps: (Array.isArray(s.steps) ? s.steps : []).slice(0, 100).map(cleanStep),
   };
+  // Sources once kept on for the whole sequence (a scene step does that now) join each of its source steps.
+  const kept = ids(s.keepOn);
+  if (kept.length) for (const st of out.steps) if (!st.kind || st.kind === 'sources') st.sources = [...new Set([...kept, ...st.sources])];
   if (out.repeat === 'until') out.until = cleanUntil(s.until);
   out.name = uniqueName(s.name, out.id);
   return out;
@@ -159,8 +160,7 @@ function find(ref) {
 }
 const playing = () => run ? list.find(s => s.id === run.id) || null : null;
 
-// A sequence's steps as they play: sequence steps replaced by that sequence's own steps (its kept-on
-// sources on for each of them), over and over for sequences inside those. top is the step of the
+// A sequence's steps as they play: sequence steps replaced by that sequence's own steps, over and over for sequences inside those. top is the step of the
 // sequence itself each one comes from; a sequence already on the way in (one inside itself) is skipped.
 // path is where each one is: the sequence, its step and which time through it (occ, 0 for the sequence
 // itself), from the sequence itself in to the one the step belongs to.
@@ -176,10 +176,7 @@ function flatten(sq, chain = [], out = [], top = null, path = [], count = { occ:
       const sub = list.find(x => x.id === st.sequence);
       const from = out.length;
       flatten(sub, inner, out, at, here, count);
-      for (let k = from; k < out.length; k++) {
-        out[k].sources = [...new Set([...(sub?.keepOn || []), ...out[k].sources])];
-        out[k].via = [sub.name, ...(out[k].via || [])];
-      }
+      for (let k = from; k < out.length; k++) out[k].via = [sub.name, ...(out[k].via || [])];
     } else out.push({ ...st, sources: [...(st.sources || [])], top: at, path: here });
   });
   return out;
@@ -201,7 +198,7 @@ function loops(sq) {
   return null;
 }
 // What a sequence shows first, kept on when it takes over from another.
-const firstOf = sq => { const f = flatten(sq)[0]; return [...sq.keepOn, ...(f ? f.sources : [])]; };
+const firstOf = sq => flatten(sq)[0]?.sources || [];
 const current = () => run && run.steps ? run.steps[run.step] : null;
 // Whose music a step plays: the sequence's own, else that of the outermost sequence inside it (on the way
 // to the step) that has some, with the step it's at in that one.
@@ -311,8 +308,8 @@ function enter(i) {
   const before = run.steps[run.step];
   const step = run.steps[i];
   const sc = step.kind === 'scene' ? api.scene(step.scene) : null;
-  // Sources of the step before that this step (or the whole sequence) doesn't keep go off as these come on.
-  const keep = new Set([...sq.keepOn, ...step.sources, ...(sc ? Object.keys(sc.states).filter(id => sc.states[id] === 'on') : [])]);
+  // Sources of the step before that this step doesn't keep go off as these come on.
+  const keep = new Set([...step.sources, ...(sc ? Object.keys(sc.states).filter(id => sc.states[id] === 'on') : [])]);
   if (before) for (const id of before.sources) if (!keep.has(id)) turnOff(id);
   for (const id of step.sources) turnOn(id);
   // A scene step goes to the scene (without stopping the sequence): the sources it sets are the scene's
@@ -365,7 +362,6 @@ function start(sq, why) {
   run = { id: sq.id, steps: flatten(sq), step: -1, loop: 0, startedAt: now(), loopAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, ready: false, waiting: null, finishing: null };
   log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
   music.quiet(sq.quiet);
-  for (const id of sq.keepOn) turnOn(id);
   if (run.steps.length) enter(0); else finish('it has no steps');
 }
 
@@ -570,9 +566,8 @@ function allOff() { if (run) interrupt(new Set(), 'every source was turned off')
 function sourceRemoved(id) {
   let changedAny = false;
   for (const sq of list) {
-    const count = () => sq.keepOn.length + sq.steps.reduce((n, st) => n + (st.sources || []).length, 0);
+    const count = () => sq.steps.reduce((n, st) => n + (st.sources || []).length, 0);
     const k = count();
-    sq.keepOn = sq.keepOn.filter(x => x !== id);
     for (const st of sq.steps) if (st.sources) st.sources = st.sources.filter(x => x !== id);
     if (k !== count()) changedAny = true;
   }

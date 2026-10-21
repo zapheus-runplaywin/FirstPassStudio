@@ -53,7 +53,7 @@ test('steps play in order for their time, each step\'s sources going off as the 
   assert.equal(st().playing, null);
 });
 
-test('sources kept on stay on for the whole sequence, and a source already on by hand is never turned off', () => {
+test('sources once kept on for the whole sequence join each step, and a source already on by hand is never turned off', () => {
   reset();
   ok({ type: 'show', name: 'Scoreboard' });
   make('Run-up', { keepOn: [id('Countdown'), id('Scoreboard')], steps: [step(['Ladder']), step(['Fixtures'])] });
@@ -201,8 +201,8 @@ test('sequences are saved to their file, and removing a source takes it out of t
   ok({ type: 'remove', id: id('Fixtures') });
   const saved = JSON.parse(fs.readFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'sequences.json'), 'utf8'));
   assert.equal(saved.sequences.length, 1);
-  assert.deepEqual(saved.sequences[0].steps[0].sources, [id('Ladder')]);
-  assert.deepEqual(saved.sequences[0].keepOn, [id('Countdown')]);
+  assert.deepEqual(saved.sequences[0].steps[0].sources, [id('Countdown'), id('Ladder')]);
+  assert.equal(saved.sequences[0].keepOn, undefined, 'kept on sources are now in the steps');
 });
 
 test('every source off stops the sequence', () => {

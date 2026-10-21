@@ -150,7 +150,6 @@
   #seqDialog::backdrop { background: rgba(15, 23, 42, .45); }
   .steps { display: grid; gap: 6px; margin-top: 4px; }
   .stepRow { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--fp-line); border-radius: 10px; padding: 7px 10px; }
-  .stepRow.keep { background: #F0F8F3; border-style: dashed; border-color: #9BD0AF; }
   .stepRow.cur { border-color: var(--fp-orange); background: #FFF7F1; }
   .stepRow .kind { font-size: 12px; font-weight: 800; color: var(--fp-blue-dark); margin-right: 2px; }
   .stepRow.sceneStep:not(.cur) { background: #F4F7FD; }
@@ -364,9 +363,9 @@
         <b>Until the game moves on</b> holds until the clock starts, or the next break or full time.
         A sequence that starts by itself waits its few seconds after the siren first.
         <b>Repeat until</b> finishes the step on screen when its moment comes (or the next sequence's start comes), then ends.
-        <b>Kept on</b> sources stay on from the first step to the last. A sequence only turns off sources it turned on itself.
+        A sequence only turns off sources it turned on itself; to keep sources on for the whole sequence, start it with a scene that turns them on.
         <b>+ Add scene</b> goes to a scene, as a starting point or a reset point: what the scene turns on stays on under the next steps, and after the sequence. It goes straight on, or holds like any step.
-        <b>+ Add sequence</b> plays another sequence's steps there (with its kept on sources, but not its repeat or Then; its music plays while it does, when this sequence has none of its own), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p>
+        <b>+ Add sequence</b> plays another sequence's steps there (but not its repeat or Then; its music plays while it does, when this sequence has none of its own), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p>
       <p class="error" id="sqErr"></p>
       <div class="row" style="margin-top:10px;justify-content:space-between">
         <div class="row"><button class="danger" id="sqDelete">Delete</button><button class="alt" id="sqCopy">Copy</button></div>
@@ -987,7 +986,7 @@
     if (plDraft) renderPlTracks();
   }
   function openSequence(sq) {
-    draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, keepOn: [], steps: [{ sources: [], length: { type: 'time', sec: 20 } }] };
+    draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, steps: [] };
     const start = draft.start || { type: 'hand' };
     $('sqStart').value = start.type;
     $('sqStartMin').value = start.min || 10;
@@ -1065,11 +1064,7 @@
     const box = $('sqSteps');
     box.innerHTML = '';
     const p = scene.playing;
-    const keep = document.createElement('div');
-    keep.className = 'stepRow keep';
-    keep.innerHTML = '<span class="num" title="Kept on for the whole sequence">∞</span><div class="what"></div><div class="len"><span class="hint">kept on for the whole sequence</span></div>';
-    sourcePicker(draft.keepOn, keep.querySelector('.what'));
-    box.appendChild(keep);
+    if (!draft.steps.length) box.innerHTML = '<p class="note" style="margin:0">No steps yet: add sources, a scene or another sequence below.</p>';
     draft.steps.forEach((st, i) => {
       const row = document.createElement('div');
       row.className = 'stepRow' + (st.kind === 'scene' ? ' sceneStep' : st.kind === 'sequence' ? ' seqStep' : '') + (p && p.id === draft.id && p.top === i ? ' cur' : '');
@@ -1192,7 +1187,7 @@
       musicEnd: endType === 'fade' ? { type: 'fade', sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
       ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
       then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : then.startsWith('sequence:') ? { type: 'sequence', sequence: then.slice(9) } : { type: then },
-      keepOn: draft.keepOn, steps: draft.steps };
+      steps: draft.steps };
   }
   async function saveSequence(andPlay) {
     const changes = draftChanges();
