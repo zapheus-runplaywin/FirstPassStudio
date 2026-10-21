@@ -202,6 +202,9 @@ function loops(sq) {
 // What a sequence shows first, kept on when it takes over from another.
 const firstOf = sq => flatten(sq)[0]?.sources || [];
 const current = () => run && run.steps ? run.steps[run.step] : null;
+// How the music on a step ends: as the sequence playing it says (the outermost with music, so the
+// sequence itself when it has some), whichever sequence the step belongs to.
+const musicEndAt = (step, sq) => (musicOf(step)?.sq || sq).musicEnd;
 const quietStep = step => step?.kind === 'scene' && !!api.scene(step.scene)?.quiet;
 // Whose music a step plays: the sequence's own, else that of the outermost sequence inside it (on the way
 // to the step) that has some, with the step it's at in that one.
@@ -305,7 +308,7 @@ function schedule() {
 // step (played once), or a sequence inside's music on that one's last step. 0 when it doesn't end or cuts.
 function fadeOutSecFor(i) {
   const sq = playing(), st = run.steps[i], nx = run.steps[i + 1];
-  if (!nx) return sq.repeat === 'once' && sq.musicEnd.type === 'fade' ? sq.musicEnd.sec : 0;
+  if (!nx) { const end = musicEndAt(st, sq); return sq.repeat === 'once' && end.type === 'fade' ? end.sec : 0; }
   const m = musicOf(st);
   return m && m.occ && musicOf(nx)?.occ !== m.occ && m.sq.musicEnd.type === 'fade' ? m.sq.musicEnd.sec : 0;
 }
@@ -407,7 +410,7 @@ function finish(why) {
   const then = sq ? sq.then : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
   const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
-  const end = sq ? sq.musicEnd : { type: 'fade', sec: music.STOP_FADE_SEC };
+  const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.STOP_FADE_SEC };
   if (next && end.type === 'continue') music.handOver(ended.id, next.id);
   else music.stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
   if (next) {
@@ -438,7 +441,9 @@ function interrupt(keep, why) {
   clearTimeout(fadeTimer);
   timer = fadeTimer = null;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
-  music.stopFor(run.id, music.STOP_FADE_SEC);
+  // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
+  const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
+  music.stopFor(run.id, end.type === 'cut' ? 0 : fadeLeft(run, end.type === 'fade' ? end.sec : music.STOP_FADE_SEC));
   run = null;
   log('info', 'sequence', `Stopped "${sq ? sq.name : '?'}" because ${why}`);
   // One that was waiting for it to finish its step gives way too: something else was picked.

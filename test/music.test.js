@@ -211,6 +211,41 @@ test("a sequence's own music wins over the music of a sequence inside it", () =>
   assert.equal(m().playId, playId, 'the same song carries on');
 });
 
+test("with sequences inside sequences, the one playing the music (the outermost with music) says how it ends", () => {
+  reset();
+  const ladder = sec => ({ sources: [id('Ladder')], length: { type: 'time', sec } });
+  ok({ type: 'seqAdd', changes: { name: 'Hype', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 6 }, steps: [ladder(10)] } });
+  const hype = st().sequences.find(s => s.name === 'Hype').id;
+  // The outer sequence has no music, and its own Music ends (cut) doesn't apply to Hype's.
+  ok({ type: 'seqAdd', changes: { name: 'Break', musicEnd: { type: 'cut' }, steps: [ladder(10), { kind: 'sequence', sequence: hype }] } });
+  ok({ type: 'seqPlay', sequence: 'Break' });
+  wait(10);
+  assert.equal(m().track, 'Walk out.m4a');
+  wait(4);
+  assert.equal(m().gain.to, 0, "fading out over Hype's 6 s, by the end of the sequence");
+  assert.equal(m().gain.ms, 6000);
+  wait(6);
+  assert.equal(st().playing, null);
+  assert.equal(m().status, 'stopped');
+  // When the outer sequence has music of its own, its setting wins over the one inside.
+  ok({ type: 'seqAdd', changes: { name: 'Outer', music: { track: 'Break.mp3', fadeInSec: 0 }, musicEnd: { type: 'cut' }, steps: [{ kind: 'sequence', sequence: hype }] } });
+  ok({ type: 'seqPlay', sequence: 'Outer' });
+  wait(9);
+  assert.equal(gain(), 1, 'no fade: Outer cuts');
+  wait(1);
+  assert.equal(st().playing, null);
+  assert.equal(m().status, 'stopped', 'cut as Outer ended');  // Stopped by going to a scene, it fades over its own Music ends time too (not a fixed 3 s).
+  ok({ type: 'show', name: 'Ladder' });
+  ok({ type: 'sceneSave', name: 'Game' });
+  ok({ type: 'seqPlay', sequence: 'Break' });
+  wait(10);
+  assert.equal(m().track, 'Walk out.m4a');
+  ok({ type: 'sceneGo', scene: 'Game' });
+  assert.equal(m().gain.ms, 6000);
+  wait(6);
+  assert.equal(m().status, 'stopped');
+});
+
 test('Quiet the music: a scene ducks the player, the next scene brings it back; a sequence\'s music ducks too', () => {
   reset();
   ok({ type: 'show', name: 'Interview' });
