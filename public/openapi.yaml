@@ -484,7 +484,7 @@ paths:
         Sequences are made on the Output page (`/output.html`) and belong to the competition in use. Each plays the scene's sources one after
         another, each step for a set time, until it finishes, or until Next. One plays at a time: playing one stops another without its Then.
         With a sequence's name this plays it from the first step. These names act on whatever is playing instead:
-        `next` ends the step now, `pause` pauses or carries on, `resume` carries on, and `stop` stops it and does its Then (go to a scene, turn off what it turned on, or leave it all).
+        `next` ends the step now, `advance` ends it only if it waits for Next (Until I press Next) and otherwise does nothing (one key for every sequence), `pause` pauses or carries on, `resume` carries on, and `stop` stops it and does its Then (go to a scene, turn off what it turned on, or leave it all).
         A sequence set to start by itself (before the game, at a break, at full time) waits a few seconds after the siren first:
         then `now` starts it straight away and `cancel` stops it starting.
       operationId: sequence
@@ -492,7 +492,7 @@ paths:
         - name: name
           in: path
           required: true
-          description: The sequence's name, lower case with dashes for spaces (e.g. `quarter-break`), or `next`, `pause`, `resume`, `stop`, `now` or `cancel`
+          description: The sequence's name, lower case with dashes for spaces (e.g. `quarter-break`), or `next`, `advance`, `pause`, `resume`, `stop`, `now` or `cancel`
           schema: { type: string }
       responses:
         '200':

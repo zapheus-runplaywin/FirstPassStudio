@@ -51,6 +51,16 @@ test("next, pause and stop keys: light while anything plays and show where it is
 	assert.equal(sequenceViewOf({ press: "stop" }, null).title, "Stop\n(off air)");
 });
 
+test("next when waiting: lights only while the step on now waits for Next", () => {
+	assert.equal(sequenceViewOf({ press: "advance" }, studio()).title, "Next ⏭\n(none on)");
+	const timed = sequenceViewOf({ press: "advance" }, studio(playingQb({ length: "time" })));
+	assert.equal(timed.title, "Next ⏭\nnot waiting");
+	assert.equal(timed.state, 0);
+	const waiting = sequenceViewOf({ press: "advance" }, studio(playingQb({ length: "next", leftMs: null })));
+	assert.deepEqual(waiting, { state: 1, title: "Next ⏭\n3/5 Next", colour: "purple", ticking: false });
+	assert.equal(sequenceLinkFor({ press: "advance" }), "/deck/sequence/advance");
+});
+
 test("a sequence about to start by itself: its key counts down to it", () => {
 	const scene: Scene = { ...studio(), pending: { id: "qb", leftMs: 4200 } };
 	const play = sequenceViewOf({ sequence: "qb", sequenceName: "Quarter break" }, scene, 1000);

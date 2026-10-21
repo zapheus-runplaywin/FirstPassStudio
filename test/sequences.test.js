@@ -119,6 +119,26 @@ test('Until I press Next holds until Next, from the Output page or the Stream De
   assert.equal(st().playing, null);
 });
 
+test('Next when waiting moves on only from an Until I press Next step, the innermost one, and otherwise does nothing', () => {
+  reset();
+  assert.equal(link('sequence/advance').status, 200, 'nothing playing: ignored, not an error');
+  make('Interview', { steps: [step(['Countdown'], { type: 'next' }), step(['Ad'])] });
+  make('Break', { steps: [step(['Ladder']), { kind: 'sequence', sequence: seq('Interview').id }, step(['Fixtures'], { type: 'next' })] });
+  play('Break');
+  assert.equal(link('sequence/advance').status, 200);
+  assert.deepEqual(on(), ['Ladder'], 'a timed step: the press does nothing');
+  wait(20);
+  assert.deepEqual(on(), ['Countdown'], 'into Interview, waiting for Next');
+  link('sequence/advance');
+  assert.deepEqual(on(), ['Ad']);
+  link('sequence/advance');
+  assert.deepEqual(on(), ['Ad'], 'timed again: ignored');
+  wait(20);
+  assert.deepEqual(on(), ['Fixtures']);
+  link('sequence/advance');
+  assert.equal(st().playing, null);
+});
+
 test('Pause freezes the time left and carrying on uses what was left', () => {
   reset();
   make('Run-up', { steps: [step(['Ladder']), step(['Fixtures'])] });

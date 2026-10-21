@@ -5,7 +5,7 @@ import { wrapTitle } from "./source-key";
 import type { Scene, Sequence } from "./studio";
 
 /** play = play it, or stop it while it plays (one key); start = always play it from the first step. */
-export type SequencePress = "play" | "start" | "next" | "pause" | "stop";
+export type SequencePress = "play" | "start" | "next" | "advance" | "pause" | "stop";
 
 export type SequenceSettings = {
 	/** Studio's address; empty means http://localhost:8080. */
@@ -31,7 +31,7 @@ export type SequenceView = {
 	ticking: boolean;
 };
 
-const PRESS: SequencePress[] = ["play", "start", "next", "pause", "stop"];
+const PRESS: SequencePress[] = ["play", "start", "next", "advance", "pause", "stop"];
 
 export function pressOf(settings: SequenceSettings): SequencePress {
 	return PRESS.includes(settings.press as SequencePress) ? (settings.press as SequencePress) : "play";
@@ -60,7 +60,8 @@ export function progress(scene: Scene, sinceMs: number): { text: string; ticking
 
 /**
  * A play (or start) key lights while its sequence plays and shows its step and time left. The keys for whatever
- * is playing (next, pause, stop) light while any sequence plays and name it. Every key says so when
+ * is playing (next, pause, stop) light while any sequence plays and name it; advance (Next when waiting) lights
+ * only while the step on now waits for Next. Every key says so when
  * Studio is off air.
  */
 export function sequenceViewOf(settings: SequenceSettings, scene: Scene | null, sinceMs = 0): SequenceView {
@@ -86,11 +87,12 @@ export function sequenceViewOf(settings: SequenceSettings, scene: Scene | null, 
 		const { text, ticking } = progress(scene, sinceMs);
 		return view(`${wrapTitle(sq.name, 9).split("\n").slice(0, 2).join("\n")}\n${text}`, sq, 1, ticking);
 	}
-	const label = { next: "Next ⏭", pause: "Pause", stop: "Stop" }[press];
+	const label = { next: "Next ⏭", advance: "Next ⏭", pause: "Pause", stop: "Stop" }[press];
 	if (!scene) return view(`${label}\n(off air)`);
 	const sq = playingOf(scene);
 	if (!sq) return view(`${label}\n(none on)`);
 	const { text, ticking } = progress(scene, sinceMs);
+	if (press === "advance" && scene.playing!.length !== "next") return view(`${label}\nnot waiting`, sq, 0, false);
 	if (press === "pause") return view(`${scene.playing!.paused ? "Carry on" : "Pause"}\n${text}`, sq, 1, ticking);
 	return view(`${label}\n${text}`, sq, 1, ticking);
 }

@@ -187,9 +187,11 @@ split into four steps. For a Source key:
 **Sequence key.** Drag **FirstPass Studio > Sequence** onto a key for the sequences (see **Sequences** below):
 
 - **Press:** play the sequence picked in its settings, or stop it while it plays (default); always play it from the first step; or, for
-  whatever sequence is playing, **Next**, **Pause / carry on** or **Stop**.
+  whatever sequence is playing, **Next**, **Next when waiting**, **Pause / carry on** or **Stop**.
 - A sequence's key lights up orange while it plays and shows its step and the time left, like **3/5 0:12** (or **paused**, or **Next**
   while the step waits for a press). The Next, Pause and Stop keys light while any sequence plays.
+- **Next when waiting** is one key for every sequence: it moves on only when the step on now (the innermost, in a sequence inside
+  another) is **Until I press Next**, and lights only then; at any other time a press does nothing.
 - **Colour:** the sequence's own colour (set in its editor on the Output page), or one of the five groups.
 - When a sequence is about to start by itself after the siren, its key counts down to it (**in 0:04**).
 - It follows the sequence by id, so renaming it doesn't break the key; a deleted sequence's key says **gone**.
@@ -245,6 +247,7 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 | Play a sequence | http://localhost:8080/deck/sequence/quarter-break |
 | Play it, or stop it if it's playing | http://localhost:8080/deck/sequence/quarter-break/toggle |
 | Next step of whatever is playing | http://localhost:8080/deck/sequence/next |
+| Next, only if the step on now is Until I press Next (else nothing) | http://localhost:8080/deck/sequence/advance |
 | Pause, or carry on | http://localhost:8080/deck/sequence/pause |
 | Stop whatever is playing (does its "then") | http://localhost:8080/deck/sequence/stop |
 | Start the one about to start now | http://localhost:8080/deck/sequence/now |
@@ -260,7 +263,7 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 - Stop ends the sequence and does its **Then** (go to a scene, turn off what it turned on, or leave it all). Going to a scene, playing
   another sequence or `/deck/layers/off` stops it without its Then.
 - The plugin's **Sequence** key (above) presses these links and counts down the step on screen.
-- `next`, `stop`, `pause`, `resume`, `now`, `cancel` and `auto` can't be sequence names, so these links never clash with one.
+- `next`, `advance`, `stop`, `pause`, `resume`, `now`, `cancel` and `auto` can't be sequence names, so these links never clash with one.
 
 ## Music (Output page)
 
