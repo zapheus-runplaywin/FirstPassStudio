@@ -76,11 +76,11 @@ test("links", () => {
 
 test("changed dot: only when asked, on both states, in every colour", () => {
 	for (const g of Object.keys(GROUPS)) {
-		assert.ok(!keyImage(g, 0).includes("<circle"));
-		assert.ok(keyImage(g, 0, true).includes(`<circle cx="124" cy="20" r="11" fill="${DOT}"`) && keyImage(g, 1, true).includes("<circle"));
+		assert.ok(!keyImage("scene", g, 0).includes("<circle"));
+		assert.ok(keyImage("scene", g, 0, true).includes(`<circle cx="124" cy="20" r="11" fill="${DOT}"`) && keyImage("scene", g, 1, true).includes("<circle"));
 	}
 	// Sent to Stream Deck as a data URL, dot included.
-	assert.equal(decodeURIComponent(keyImageUrl("green", 1, true).replace("data:image/svg+xml,", "")), keyImage("green", 1, true));
+	assert.equal(decodeURIComponent(keyImageUrl("scene", "green", 1, true).replace("data:image/svg+xml,", "")), keyImage("scene", "green", 1, true));
 });
 
 test("scene settings panel lists the scene's own colour first, then every group with the same labels", () => {

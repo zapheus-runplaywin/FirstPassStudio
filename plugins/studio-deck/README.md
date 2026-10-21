@@ -47,7 +47,7 @@ com.runplaywin.firstpass-studio.sdPlugin/
   ui/source.html       Source key settings panel (plain HTML/JS)
   ui/scene.html        Scene key settings panel
   ui/sequence.html     Sequence key settings panel
-  imgs/                plugin, category, action and key images (the default blue group: off navy, on orange)
+  imgs/                plugin, category, action and key images per kind (the default blue group: off navy, on orange)
 test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
   scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot, settings panel list

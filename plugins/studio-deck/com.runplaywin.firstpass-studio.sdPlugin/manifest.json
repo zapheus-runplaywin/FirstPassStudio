@@ -56,7 +56,7 @@
 		{
 			"Name": "Scene",
 			"UUID": "com.runplaywin.firstpass-studio.scene",
-			"Icon": "imgs/actions/source/icon",
+			"Icon": "imgs/actions/scene/icon",
 			"Tooltip": "Goes to a saved scene in Studio, or the next or previous one, or back to the current one as saved. Lights up while its scene is on.",
 			"PropertyInspectorPath": "ui/scene.html",
 			"Controllers": [
@@ -66,13 +66,13 @@
 			"DisableAutomaticStates": true,
 			"States": [
 				{
-					"Image": "imgs/actions/source/off",
+					"Image": "imgs/actions/scene/off",
 					"Name": "Off",
 					"TitleAlignment": "middle",
 					"FontSize": 12
 				},
 				{
-					"Image": "imgs/actions/source/on",
+					"Image": "imgs/actions/scene/on",
 					"Name": "On now",
 					"TitleAlignment": "middle",
 					"FontSize": 12
@@ -82,7 +82,7 @@
 		{
 			"Name": "Sequence",
 			"UUID": "com.runplaywin.firstpass-studio.sequence",
-			"Icon": "imgs/actions/source/icon",
+			"Icon": "imgs/actions/sequence/icon",
 			"Tooltip": "Plays or stops a sequence in Studio, or moves on, delays, pauses or stops whatever is playing. Lights up and counts down while it plays.",
 			"PropertyInspectorPath": "ui/sequence.html",
 			"Controllers": [
@@ -92,13 +92,13 @@
 			"DisableAutomaticStates": true,
 			"States": [
 				{
-					"Image": "imgs/actions/source/off",
+					"Image": "imgs/actions/sequence/off",
 					"Name": "Off",
 					"TitleAlignment": "middle",
 					"FontSize": 12
 				},
 				{
-					"Image": "imgs/actions/source/on",
+					"Image": "imgs/actions/sequence/on",
 					"Name": "Playing",
 					"TitleAlignment": "middle",
 					"FontSize": 12
