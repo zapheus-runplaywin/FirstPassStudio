@@ -2,7 +2,8 @@
 
 Keys for FirstPass Studio's own scene (the Output page). The **Source** key shows or hides a source and lights up
 while it's on. The **Scene** key goes to a saved scene (or the next or previous one, or back to the current one as
-saved), lights up while its scene is on, and shows a yellow dot when sources have changed since. It follows the scene live through Studio's `/api/scene/events`, so the key changes the moment the
+saved), lights up while its scene is on, and shows a yellow dot when sources have changed since. The **Sequence** key plays a sequence (or presses Next,
+Delay +10 s, Pause or Stop for whatever is playing), lights up while it plays and counts down the step on screen. It follows the scene live through Studio's `/api/scene/events`, so the key changes the moment the
 source does, whether it was turned on from the key, the Output page or a `/deck/layer` link.
 
 The Mac app's release workflow packs this plugin into the app, and the app installs it (menu bar icon >
@@ -34,18 +35,22 @@ src/
   plugin.ts            registers the action and connects to Stream Deck
   actions/source.ts    SDK action: one SourceKey per key on screen; answers the settings panel's list request
   actions/scene.ts     SDK action: one SceneKey per key on screen; answers the settings panel's scene list request
+  actions/sequence.ts  SDK action: one SequenceKey per key on screen, redrawn each second while it counts down
   lib/source-key.ts    what a key shows (lit, title) and which link a press opens (no SDK)
   lib/scene-key.ts     what a Scene key shows (lit, changed dot, title, colour) and which link a press opens (no SDK)
+  lib/sequence-key.ts  what a Sequence key shows (lit, step and time left, colour) and which link a press opens (no SDK)
   lib/colours.ts       colour groups (blue, green, grey, yellow, purple) and the key images drawn for each
   lib/studio.ts        one live scene connection per Studio address, shared by its keys; presses and the source list
 com.runplaywin.firstpass-studio.sdPlugin/
   manifest.json
   ui/source.html       Source key settings panel (plain HTML/JS)
   ui/scene.html        Scene key settings panel
+  ui/sequence.html     Sequence key settings panel
   imgs/                plugin, category, action and key images (the default blue group: off navy, on orange)
 test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
   scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot, settings panel list
+  sequence.test.ts     Sequence key views (playing, paused, Next, delayed, off air, gone), links, settings panel list
   colours.test.ts      colour groups, key images and contrast (on vs off in every colour), settings panel list
   plugin.e2e.test.ts   real SDK + real Studio + fake Stream Deck app
 ```

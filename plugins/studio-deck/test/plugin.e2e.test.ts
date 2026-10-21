@@ -28,6 +28,7 @@ const REPO = path.resolve(ROOT, "..", "..");
 const SD_PLUGIN = path.join(ROOT, "com.runplaywin.firstpass-studio.sdPlugin");
 const ACTION = "com.runplaywin.firstpass-studio.source";
 const SCENE_ACTION = "com.runplaywin.firstpass-studio.scene";
+const SEQUENCE_ACTION = "com.runplaywin.firstpass-studio.sequence";
 
 type Msg = { event: string; context?: string; payload?: any; _at: number }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -279,6 +280,65 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 		mark = deck.received.length;
 		await post({ type: "sceneRemove", scene: pre.id });
 		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "S1" && m.payload?.title === "Pre-game\n(gone)", "gone");
+	} finally {
+		plugin.kill();
+		studio.kill();
+		deck.close();
+		fs.rmSync(dataDir, { recursive: true, force: true });
+	}
+});
+
+test("real SDK and real Studio: Sequence keys play and stop a sequence and show its step", { timeout: 60000 }, async () => {
+	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-deck-"));
+	const studioPort = 20000 + Math.floor(Math.random() * 20000);
+	const studio = await startStudio(studioPort, dataDir);
+	const host = `http://127.0.0.1:${studioPort}`;
+	const deck = await startDeck();
+	const plugin = launchPlugin(deck.port);
+	const post = (body: object) => fetch(`${host}/api/scene`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+	type Studio = { sources: { id: string; name: string; visible: boolean }[]; sequences: { id: string; name: string }[]; playing: { id: string; step: number } | null };
+	const scene = async () => (await (await fetch(`${host}/api/scene`)).json()) as Studio;
+	const after = (mark: number) => (m: Msg) => deck.received.indexOf(m) >= mark;
+
+	try {
+		await deck.waitFor((m) => m.event === "registerPlugin", "registration", 15000);
+		await post({ type: "add", sources: [{ type: "browser", name: "Ladder", url: "ladder.html" }, { type: "browser", name: "Fixtures", url: "fixtures.html" }] });
+		const [ladder, fixtures] = (await scene()).sources;
+		await post({ type: "seqAdd", changes: { name: "Quarter break", colour: "purple", steps: [
+			{ sources: [ladder.id], length: { type: "next" } }, { sources: [fixtures.id], length: { type: "time", sec: 30 } }] } });
+		const [qb] = (await scene()).sequences;
+		const settings = { host, sequence: qb.id, sequenceName: qb.name };
+
+		deck.send(keyEvent("willAppear", "Q1", settings, SEQUENCE_ACTION));
+		deck.send(keyEvent("willAppear", "Q2", { host, press: "next" }, SEQUENCE_ACTION));
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "Q1" && m.payload?.title === "Quarter\nbreak\n▶", "sequence title");
+		await deck.waitFor((m) => m.event === "setImage" && m.context === "Q1" && m.payload?.state === 0 && svgOf(m).includes(GROUPS.purple.off), "sequence's own colour");
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "Q2" && m.payload?.title === "Next ⏭\n(none on)", "next with nothing playing");
+
+		// Pressing it plays it: it lights and shows the first step waiting for Next.
+		let mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "Q1", settings, SEQUENCE_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "Q1" && m.payload?.state === 1, "lit while playing");
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "Q1" && m.payload?.title === "Quarter\nbreak\n1/2 Next", "first step");
+		assert.equal((await scene()).playing?.id, qb.id);
+
+		// Next moves on: the key counts down the 30 s step.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "Q2", { host, press: "next" }, SEQUENCE_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "Q1" && /^Quarter\nbreak\n2\/2 0:(30|29|28)$/.test(m.payload?.title), "second step counting down");
+		assert.equal((await scene()).playing?.step, 1);
+
+		// Pressing the key again stops it.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "Q1", settings, SEQUENCE_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "Q1" && m.payload?.state === 0, "dark when stopped");
+		assert.equal((await scene()).playing, null);
+
+		// The settings panel asks for the sequences.
+		deck.send({ event: "propertyInspectorDidAppear", action: SEQUENCE_ACTION, context: "Q1", device: "DEV" });
+		deck.send({ event: "sendToPlugin", action: SEQUENCE_ACTION, context: "Q1", payload: { cmd: "sequences", host } });
+		const list = await deck.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "sequences", "sequence list");
+		assert.deepEqual(list.payload.sequences, [{ id: qb.id, name: "Quarter break", colour: "purple" }]);
 	} finally {
 		plugin.kill();
 		studio.kill();

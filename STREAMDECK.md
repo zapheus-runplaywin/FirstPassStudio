@@ -179,6 +179,15 @@ app update to update the plugin). Then drag **FirstPass Studio > Source** onto a
 - **Colour:** the scene's own colour (set in **Edit scenes** on the Output page), or one of the five groups.
 - It follows the scene by id, so renaming it doesn't break the key; a deleted scene's key says **gone**.
 
+**Sequence key.** Drag **FirstPass Studio > Sequence** onto a key for the sequences (see **Sequences** below):
+
+- **Press:** play the sequence picked in its settings, or stop it while it plays (default); always play it from the first step; or, for
+  whatever sequence is playing, **Next**, **Delay +10 s**, **Pause / carry on** or **Stop**.
+- A sequence's key lights up orange while it plays and shows its step and the time left, like **3/5 0:12** (or **paused**, or **Next**
+  while the step waits for a press). The Next, Delay, Pause and Stop keys light while any sequence plays; Delay shows how much it has added.
+- **Colour:** the sequence's own colour (set in its editor on the Output page), or one of the five groups.
+- It follows the sequence by id, so renaming it doesn't break the key; a deleted sequence's key says **gone**.
+
 **Links.** The plugin isn't needed: these links work in a **Website** action (tick **GET request in background**), but the key
 doesn't light up.
 Each source in the scene gets these links, using its name in lower case with dashes for spaces
@@ -237,6 +246,7 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 - **Delay** is for a shot after the siren: press it once or twice and the step on screen stays 10 seconds longer each time.
 - Stop ends the sequence and does its **Then** (go to a scene, turn off what it turned on, or leave it all). Going to a scene, playing
   another sequence or `/deck/layers/off` stops it without its Then.
+- The plugin's **Sequence** key (above) presses these links and counts down the step on screen.
 - `next`, `stop`, `pause`, `resume` and `delay` can't be sequence names, so these links never clash with one.
 
 ## Timed buttons (Timed Sequence plugin)
