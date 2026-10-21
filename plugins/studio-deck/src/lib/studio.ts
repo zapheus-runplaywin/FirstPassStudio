@@ -14,7 +14,7 @@ export type SavedScene = { id: string; name: string; colour?: string; states: Re
 /** A sequence: sources played one after another (only the fields the keys use). */
 export type Sequence = { id: string; name: string; colour?: string };
 /** The sequence playing now: its step (from 0) of steps, and the step's time left when Studio sent it (null: waits for Next). */
-export type Playing = { id: string; step: number; steps: number; paused: boolean; leftMs: number | null };
+export type Playing = { id: string; step: number; steps: number; paused: boolean; leftMs: number | null; length?: string | null };
 /** A sequence about to start by itself. */
 export type Pending = { id: string; leftMs: number | null };
 /**

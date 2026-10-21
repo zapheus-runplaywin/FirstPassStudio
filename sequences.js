@@ -48,7 +48,7 @@ const BREAK_NAMES = { qt: 'quarter time', ht: 'half time', '3qt': 'three quarter
 const THENS = ['scene', 'off', 'leave', 'sequence'];
 const MUSIC_ENDS = ['fade', 'cut', 'continue'];
 // Sequence link names that are the playing-sequence links instead (/deck/sequence/next).
-const RESERVED = new Set(['next', 'stop', 'pause', 'resume', 'now', 'cancel', 'auto']);
+const RESERVED = new Set(['next', 'advance', 'stop', 'pause', 'resume', 'now', 'cancel', 'auto']);
 // Until it finishes stops waiting after this: a page that never says it's done, a video of unknown length.
 const PAGE_LIMIT_MS = 60000, VIDEO_LIMIT_MS = 10 * 60000, VIDEO_SPARE_MS = 3000;
 // A clock at 0:00 counts as the siren once it has stayed there this long (a scorer's correction
@@ -649,6 +649,13 @@ function apply(a) {
       log('info', 'sequence', 'Next pressed');
       advance();
       return null;
+    case 'seqAdvance':
+      // Next only for a step waiting on it (Until I press Next), the one on now, so one key fits every
+      // sequence: anything else (a timed step, nothing playing) and the press does nothing.
+      if (!run || current()?.length.type !== 'next') { log('info', 'sequence', 'Next (when waiting) pressed, nothing waiting for it'); return null; }
+      log('info', 'sequence', `Next (when waiting) pressed: "${playing().name}" moves on`);
+      advance();
+      return null;
     case 'seqPause': case 'seqResume': case 'seqPauseToggle': {
       if (!run) return 'No sequence is playing.';
       const pause = a.type === 'seqPause' || (a.type === 'seqPauseToggle' && !run.paused);
@@ -699,7 +706,7 @@ function deck(parts) {
     apply({ type: 'seqAuto', value: verb || 'toggle' });
     return { body: { ok: true, auto } };
   }
-  const PLAYING = { next: 'seqNext', stop: 'seqStop', pause: 'seqPauseToggle', resume: 'seqResume', now: 'seqStartNow', cancel: 'seqCancel' };
+  const PLAYING = { next: 'seqNext', advance: 'seqAdvance', stop: 'seqStop', pause: 'seqPauseToggle', resume: 'seqResume', now: 'seqStartNow', cancel: 'seqCancel' };
   const ONE = { play: 'seqPlay', start: 'seqPlay', toggle: 'seqToggle', stop: 'seqStop' };
   const action = !verb ? (PLAYING[name] ? { type: PLAYING[name] } : { type: 'seqPlay', sequence: name }) : ONE[verb] ? { type: ONE[verb], sequence: name } : null;
   if (!action) return null;
