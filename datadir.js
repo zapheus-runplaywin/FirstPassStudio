@@ -6,7 +6,11 @@
 //   Mac      ~/Library/Application Support/FirstPass Studio
 //   Windows  %APPDATA%\FirstPass Studio
 //   Linux    ~/.config/FirstPass Studio
-// FIRSTPASS_DATA_DIR picks another folder (the desktop app sets it to the same place).
+// The settings can instead be kept in iCloud Drive (datalocation.js), in a subfolder named
+// after this Mac; data-location.json in the folder above says where. The logs, the scores and
+// clock and caches stay in the folder above either way (LOCAL_DIR, local()).
+// FIRSTPASS_DATA_DIR picks another folder (the desktop app passes the one it resolved), and
+// FIRSTPASS_LOCAL_DIR the local one (it defaults to FIRSTPASS_DATA_DIR when only that is set).
 // The app folder itself only holds the app: the pages, the code, the default config.json
 // and the import configs in imports/.
 
@@ -15,6 +19,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const location = require('./datalocation');
 
 const APP_DIR = __dirname;
 const NAME = 'FirstPass Studio';
@@ -26,7 +31,15 @@ function defaultDir() {
   return path.join(process.env.XDG_CONFIG_HOME || path.join(home, '.config'), NAME);
 }
 
-const DATA_DIR = path.resolve(process.env.FIRSTPASS_DATA_DIR || defaultDir());
+const LOCAL_DIR = path.resolve(process.env.FIRSTPASS_LOCAL_DIR || process.env.FIRSTPASS_DATA_DIR || defaultDir());
+fs.mkdirSync(LOCAL_DIR, { recursive: true });
+const LOCATION = location.current(LOCAL_DIR);
+const DATA_DIR = path.resolve(process.env.FIRSTPASS_DATA_DIR || LOCATION.dataDir);
+// A cloud folder that has gone (iCloud Drive turned off, or signed out) is never made again
+// empty: that would look like every setting had been lost.
+if (!LOCATION.local && DATA_DIR === LOCATION.dataDir && !fs.existsSync(DATA_DIR)) {
+  throw new Error(`The settings folder in ${LOCATION.name} can't be found: ${DATA_DIR}. Check ${LOCATION.name} is on, or move the settings back to this Mac from the 1P menu.`);
+}
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // Import configs can be saved into imports/ only when running from a copy of the
@@ -39,7 +52,12 @@ function canSaveImports() {
 module.exports = {
   APP_DIR,
   DATA_DIR,
+  LOCAL_DIR,
+  // Where the settings are, for the setup and home pages: { local } or { provider, name, folder, computer }.
+  location: process.env.FIRSTPASS_DATA_DIR && DATA_DIR !== LOCATION.dataDir ? { local: true, dataDir: DATA_DIR } : LOCATION,
   IMPORTS_DIR: path.join(APP_DIR, 'imports'),
   file: (...parts) => path.join(DATA_DIR, ...parts),
+  // Files that stay on this computer when the settings are in a cloud drive (datalocation.LOCAL_ONLY).
+  local: (...parts) => path.join(LOCAL_DIR, ...parts),
   canSaveImports,
 };

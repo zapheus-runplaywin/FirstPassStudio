@@ -44,10 +44,10 @@ const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
 const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
 
 // ─── Debug log ──────────────────────────────────────────────────────────────
-// logs/playhq-graphics.log in the data folder: helper requests, PlayHQ calls, scoreboard changes and
+// logs/playhq-graphics.log in the local data folder (it stays on this computer when the settings are in iCloud Drive): helper requests, PlayHQ calls, scoreboard changes and
 // errors from every page. Capped at logMaxMB (default 15): when full, the oldest
 // half is dropped so the newest lines are always kept.
-const LOG_DIR = DATA('logs');
+const LOG_DIR = datadir.local('logs');
 const LOG_FILE = path.join(LOG_DIR, 'playhq-graphics.log');
 const LOG_MAX = Math.max(1, Number(MACHINE.logMaxMB) || 15) * 1024 * 1024;
 let logSize = 0;
@@ -439,7 +439,7 @@ const gameInFlight = new Map();
 // folder, with the player gender field PlayHQ accepted: after a restart the team lists'
 // squads, top shooters and the athletes page don't ask PlayHQ for the whole season again.
 // A game id is PlayHQ's own, so the file serves every competition.
-const GAME_CACHE_FILE = DATA('game-cache.json');
+const GAME_CACHE_FILE = datadir.local('game-cache.json');
 const GAME_CACHE_MAX = 3000, GAME_CACHE_DAYS = 120;
 const finishedSummaries = new Map(); // game id -> parsed game
 const finishedAt = new Map();        // game id -> when it was kept
@@ -846,7 +846,7 @@ function getCountdown() {
 // Kept in scoreboard-state.json so a restart mid-game keeps the score. The lasting
 // settings (LASTING) also go to control.json, which wins when both have them. Studio runs one
 // scoreboard (one Studio per court); both files keep it under "1", as when there could be more.
-const STATE_FILE = DATA('scoreboard-state.json');
+const STATE_FILE = datadir.local('scoreboard-state.json');
 let boards = {};
 try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
 boards = boards['1'] ? { 1: boards['1'] } : {}; // one scoreboard: drop any old second board
@@ -1621,7 +1621,7 @@ async function setupRoute(req, res, url, q) {
   if (!m) return send(res, 404, { error: 'Unknown setup link' });
   const [, id, what] = m;
   if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), imports: competitions.imports(),
-    canSaveImports: datadir.canSaveImports(), dataDir: datadir.DATA_DIR, readOnly: competitions.isReadOnly(),
+    canSaveImports: datadir.canSaveImports(), dataDir: datadir.DATA_DIR, dataLocation: datadir.location.local ? null : { name: datadir.location.name, computer: datadir.location.computer }, readOnly: competitions.isReadOnly(),
     fonts: competitions.FONTS, defaults: competitions.DEFAULTS, finalsFormats: finals.list(), finalsMarks: finals.MARKS });
   if (what === 'export' && req.method === 'POST') {
     const body = await readBody(req);
@@ -1703,7 +1703,7 @@ async function fetchGameSummary(gameId) {
   if (!res.ok) throw new Error(`PlayHQ Game Summary answered HTTP ${res.status} for ${url}`);
   let json;
   try { json = JSON.parse(text); } catch { throw new Error('PlayHQ Game Summary was not JSON'); }
-  fs.writeFile(DATA('last-game-summary.json'), JSON.stringify(json, null, 2), () => {});
+  fs.writeFile(datadir.local('last-game-summary.json'), JSON.stringify(json, null, 2), () => {});
   return json;
 }
 

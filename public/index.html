@@ -350,6 +350,20 @@
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
+    <h3>Keeping the settings in iCloud Drive</h3>
+    <p class="page__help">In the 1P menu, <b>Settings folder &gt; Move to iCloud Drive…</b> asks for a folder in iCloud Drive (make one called
+      FirstPass Studio, say) and moves the settings into a subfolder named after this Mac, its <b>Local hostname</b> in
+      System Settings &gt; General &gt; Sharing: <code style="display:inline">iCloud Drive/FirstPass Studio/Studio-MacBook-Pro</code>.
+      Each Mac signed in to the same Apple account gets its own subfolder, so two Studios never save over each other's settings,
+      and a second Mac with the same name is stopped from using the first one's. Studio goes off air for the move and comes straight back.
+      Before anything moves, a copy of the settings is saved in <b>backups/</b> in the folder on this Mac, and the originals are removed only
+      once every file has copied across. If the folder already has settings for this Mac (from before), Studio asks whether to use those or replace them.</p>
+    <p class="page__help">Some files always stay on this Mac: the debug log, the scores and clock (<code style="display:inline">scoreboard-state.json</code>,
+      saved every few seconds during a game), PlayHQ caches, the app's window positions and <code style="display:inline">data-location.json</code>,
+      which says where the settings are. If iCloud has kept only a placeholder of a file (Optimise Mac Storage), Studio downloads it before going on air;
+      to keep it all on the Mac, right-click the folder in Finder and choose <b>Keep Downloaded</b>. If the iCloud folder can't be found
+      (iCloud Drive turned off, signed out), Studio says so and doesn't start, rather than starting with no settings.
+      <b>Settings folder &gt; Move back to this Mac…</b> moves them back. <b>Open the settings folder</b> opens wherever they are now.</p>
     <p class="page__help">Studio starts with no competitions. On the <a href="/setup.html" target="_blank">competition setup page</a>,
       make a new one or import a template file. The starter competitions (Thunder League, AMMNA Nationals, GIG WANL, West Coast Thunder)
       are template files in the repository's <code style="display:inline">templates/</code> folder.
