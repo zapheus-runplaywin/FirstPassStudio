@@ -300,7 +300,7 @@
     <div class="seqs" id="playlists"></div>
     <div class="form" style="margin-top:12px">
       <label for="mFadeSec">Fade time</label>
-      <div class="row"><input type="number" id="mFadeSec" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Stop, Pause and the links (<code>?fade=</code> changes it per press)</span></div>
+      <div class="row"><input type="number" id="mFadeSec" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Stop, Pause, Duck and the links (<code>?fade=</code> changes it per press)</span></div>
       <label for="mUnder">While a video with sound plays</label>
       <div class="row"><select id="mUnder"><option value="pause">Fade the music out and pause it, then fade it back in</option><option value="lower">Lower the music</option><option value="leave">Leave the music as it is</option></select>
         <label class="inline mLowerTo">to <input type="number" id="mLowerTo" min="0" max="100" style="width:64px"> %</label></div>
@@ -681,6 +681,7 @@
       b.className = 'scene' + (sc.id === scene.current ? ' cur' : '') + (sc.id === scene.current && changed.length ? ' changed' : '');
       b.innerHTML = '<b></b><small></small><span class="band"></span>';
       b.querySelector('b').textContent = sc.name;
+      if (sc.quiet) b.querySelector('b').append(quietMark());
       b.querySelector('small').textContent = sceneCounts(sc);
       b.querySelector('.band').classList.add(sc.colour);
       b.title = sc.id === scene.current ? (changed.length ? `Go back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
@@ -741,6 +742,12 @@
     if (!scenes.length) editing = false;
     $('sceneGrid').classList.toggle('hidden', !editing);
     if (editing) renderGrid();
+  }
+  // 🤫 beside the name of a scene or sequence with Quiet the music ticked.
+  function quietMark() {
+    const m = Object.assign(document.createElement('span'), { textContent: ' 🤫', title: 'Quiets the music' });
+    m.setAttribute('role', 'img'); m.setAttribute('aria-label', 'Quiets the music');
+    return m;
   }
   async function saveNewScene() {
     const name = await askText('Name the new scene (what\'s on now is saved in it)', '');
@@ -842,6 +849,7 @@
       card.className = 'seq' + (run ? ' run' : '') + (run && p.paused ? ' paused' : '') + (waiting ? ' pend' : '');
       card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
       card.querySelector('b').textContent = sq.name;
+      if (sq.quiet) card.querySelector('b').append(quietMark());
       card.querySelector('.band').classList.add(sq.colour);
       if (run) {
         const dots = document.createElement('div');
