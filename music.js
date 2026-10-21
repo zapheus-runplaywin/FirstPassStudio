@@ -7,7 +7,8 @@
 //
 // Where a track is: pos { sec, at } is the position (sec) at time at (ms), so a page opened part way
 // through starts in the right place. Fades: gain { from, to, at, ms } is the fade the pages follow,
-// from 0 (silent) to 1 (full). The volume, mute and duck sit on top of that.
+// from 0 (silent) to 1 (full). The volume, mute and duck sit on top of that. The duck fades too, over the
+// fade time: duck { from, to, at, ms } goes from 0 (not ducked) to 1 (down at the Duck to level).
 //
 // Other things change the music:
 //   - A video with its sound on: by default the music fades out and pauses, then fades back in from where
@@ -44,7 +45,7 @@ let endTimer = null, fadeTimer = null;
 
 function blank() {
   return { queue: [], index: 0, playlist: null, loop: false, status: 'stopped', pos: { sec: 0, at: 0 }, gain: { from: 1, to: 1, at: 0, ms: 0 },
-    playId: 0, muted: false, ducked: null, video: null, owner: null, after: null };
+    playId: 0, muted: false, ducked: null, duck: { from: 0, to: 0, at: 0, ms: 0 }, video: null, owner: null, after: null };
 }
 
 const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
@@ -116,6 +117,18 @@ function gainNow() {
   return g.from + (g.to - g.from) * Math.max(0, (now() - g.at) / g.ms);
 }
 function fadeTo(to, sec) { p.gain = { from: gainNow(), to, at: now(), ms: Math.round(sec * 1000) }; }
+function duckNow() {
+  const d = p.duck;
+  if (!d.ms || now() >= d.at + d.ms) return d.to;
+  return d.from + (d.to - d.from) * Math.max(0, (now() - d.at) / d.ms);
+}
+// Ducks (why: 'hand' or 'quiet') or brings the music back up (null), over the fade time unless told otherwise.
+function setDuck(why, fade) {
+  p.ducked = why;
+  const to = why ? 1 : 0;
+  if (p.duck.to === to) return;
+  p.duck = { from: duckNow(), to, at: now(), ms: Math.round(fadeSec(fade) * 1000) };
+}
 
 // After a fade out: stop or pause once it's silent.
 function afterFade(sec, then) {
@@ -261,11 +274,11 @@ function videoSound(on) {
 function quiet(on) {
   if (on) {
     if (p.owner && p.status !== 'stopped') { log('info', 'music', 'Quiet the music: the sequence\'s music fades out'); stop(STOP_FADE_SEC); return true; }
-    if (p.status !== 'stopped' && !p.ducked) { p.ducked = 'quiet'; log('info', 'music', 'Quiet the music: ducked'); return true; }
+    if (p.status !== 'stopped' && !p.ducked) { setDuck('quiet'); log('info', 'music', 'Quiet the music: ducked'); return true; }
     return false;
   }
   if (p.ducked !== 'quiet') return false;
-  p.ducked = null;
+  setDuck(null);
   log('info', 'music', 'Music back up after the quiet scene');
   return true;
 }
@@ -327,7 +340,7 @@ function apply(a) {
     case 'musicMute': p.muted = a.value === 'toggle' ? !p.muted : !!a.value && a.value !== 'off'; return null;
     case 'musicDuck': {
       const on = a.value === 'toggle' ? !p.ducked : !!a.value && a.value !== 'off';
-      p.ducked = on ? 'hand' : null;
+      setDuck(on ? 'hand' : null, a.fade);
       return null;
     }
     case 'musicVolume': settings = cleanSettings({ ...settings, volume: a.value }); save(); return null;
@@ -376,7 +389,7 @@ function deck(parts, q = {}) {
   if (SIMPLE[verb] && !arg) action = { type: SIMPLE[verb], fade };
   else if (verb === 'load' && arg) action = { type: 'musicLoad', track: arg, fade, play: q.play !== undefined };
   else if (verb === 'playlist' && arg) action = { type: 'musicPlaylist', playlist: arg, fade, play: q.play !== undefined };
-  else if ((verb === 'mute' || verb === 'duck') && ['on', 'off', 'toggle'].includes(arg || 'toggle')) action = { type: verb === 'mute' ? 'musicMute' : 'musicDuck', value: arg || 'toggle' };
+  else if ((verb === 'mute' || verb === 'duck') && ['on', 'off', 'toggle'].includes(arg || 'toggle')) action = { type: verb === 'mute' ? 'musicMute' : 'musicDuck', value: arg || 'toggle', fade };
   if (!action) return null;
   const error = apply(action);
   if (error) return { status: /^No (track|playlist) /.test(error) ? 404 : 409, error };
@@ -389,7 +402,7 @@ function state() {
       track: track(), queue: p.queue, index: p.index, playlist: p.playlist, loop: p.loop,
       // Paused for a video's sound counts as playing for the buttons: it comes back by itself.
       status: p.status, after: p.after, pos: p.pos, gain: p.gain, playId: p.playId,
-      muted: p.muted, ducked: !!p.ducked, video: p.video, owner: p.owner,
+      muted: p.muted, ducked: !!p.ducked, duck: p.duck, video: p.video, owner: p.owner,
       volume: settings.volume, level: p.video === 'lower' ? settings.lowerTo : 100, duckTo: settings.duckTo,
       length: track() ? api.duration(track()) : null,
     },

@@ -230,9 +230,12 @@
     if (!m || m.status === 'stopped') return 0;
     const g = m.gain, t = Date.now();
     const fade = !g.ms || t >= g.at + g.ms ? g.to : g.from + (g.to - g.from) * Math.max(0, (t - g.at) / g.ms);
-    return fade * (m.volume / 100) * (m.level / 100) * (m.ducked ? m.duckTo / 100 : 1) * (m.muted ? 0 : 1);
+    // The duck fades over the fade time too (duck: 0 up, 1 down at duckTo); a Studio without it just switches.
+    const d = m.duck;
+    const down = !d ? (m.ducked ? 1 : 0) : !d.ms || t >= d.at + d.ms ? d.to : d.from + (d.to - d.from) * Math.max(0, (t - d.at) / d.ms);
+    return fade * (m.volume / 100) * (m.level / 100) * (1 - down * (1 - m.duckTo / 100)) * (m.muted ? 0 : 1);
   }
-  // The volume follows the fade, easing mute and duck in and out.
+  // The volume follows the fade, easing mute in and out.
   setInterval(() => {
     const target = silent ? 0 : musicGain(music);
     level += (target - level) * 0.3;

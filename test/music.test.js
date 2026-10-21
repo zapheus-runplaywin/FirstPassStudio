@@ -181,3 +181,27 @@ test('the music links: toggle, fade, mute and duck, and ?fade=0 cuts', () => {
   const saved = JSON.parse(fs.readFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'music.json'), 'utf8'));
   assert.equal(saved.settings.fadeSec, 2);
 });
+
+test('the duck fades over the fade time, and ?fade sets its own', () => {
+  reset();
+  const down = () => { const d = m().duck; return !d.ms || Date.now() >= d.at + d.ms ? d.to : d.from + (d.to - d.from) * (Date.now() - d.at) / d.ms; };
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  ok({ type: 'musicDuck', value: 'on' });
+  assert.equal(m().ducked, true);
+  assert.equal(m().duck.ms, 2000);
+  wait(1);
+  assert.ok(Math.abs(down() - 0.5) < 0.01);
+  wait(1);
+  assert.equal(down(), 1);
+  link('music/duck/off', { fade: '0' });
+  assert.equal(m().ducked, false);
+  assert.equal(down(), 0);
+  // Quiet the music ducks over the fade time too.
+  ok({ type: 'musicSettings', settings: { fadeSec: 4, underVideo: 'pause' } });
+  ok({ type: 'show', name: 'Interview' });
+  ok({ type: 'sceneSave', name: 'Interview' });
+  ok({ type: 'sceneUpdate', scene: 'Interview', changes: { quiet: true } });
+  ok({ type: 'sceneGo', scene: 'Interview' });
+  assert.equal(m().duck.ms, 4000);
+  assert.equal(m().duck.to, 1);
+});

@@ -276,14 +276,14 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
 | Load a song (ready to play) | http://localhost:8080/deck/music/load/pre-game-bed |
 | Load a playlist and play it | http://localhost:8080/deck/music/playlist/pre-game?play |
 | Mute, keeping it running | http://localhost:8080/deck/music/mute/toggle (or `/on`, `/off`) |
-| Duck: dip it low, keeping it running | http://localhost:8080/deck/music/duck/toggle (or `/on`, `/off`) |
+| Duck: dip it low over the fade time, keeping it running | http://localhost:8080/deck/music/duck/toggle (or `/on`, `/off`) |
 
 - Add `?fade=2` to any of them for a 2 second fade, or `?fade=0` to cut. Without it they use the player's fade time.
 - Songs are named like sources: lower case with dashes for spaces, without the file's ending (**Pre-game bed.mp3** is `pre-game-bed`).
 - While a video with its sound on plays, the music fades out and pauses, then fades back in from where it was (a player setting:
   or lower it, or leave it).
 - A sequence can bring its own music; going to a scene or another sequence fades it out. A scene or sequence with **Quiet the music**
-  ticked (an interview on court) fades a sequence's music out, or ducks the player's own music until the next scene or sequence without it.
+  ticked (an interview on court) fades a sequence's music out, or ducks the player's own music (over the fade time) until the next scene or sequence without it.
 
 ## Timed buttons (Timed Sequence plugin)
 
