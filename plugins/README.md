@@ -7,6 +7,7 @@ to run.
 | Plugin | Folder | What it does |
 |---|---|---|
 | FirstPass Studio (Stream Deck) | [`studio-deck/`](studio-deck/) | A **Source** key that shows or hides a source in Studio's scene and lights up while it's on. Ships inside the Mac app |
+| Characters icon pack (Stream Deck) | [`characters-iconpack/`](characters-iconpack/) | Key images for every letter, digit and US keyboard symbol, for labelling keys |
 | Timed Sequence (Stream Deck) | [`streamdeck/`](streamdeck/) | A Stream Deck key that waits until a set time of day, then runs a list of steps with delays in between |
 
 ## FirstPass Studio (Stream Deck)
@@ -15,6 +16,12 @@ Keys for Studio's own scene (the Output page). Its **Source** key shows or hides
 a video's sound on or off, and lights up while the source is on. It follows the scene live, so the key changes the moment the source does,
 wherever the change came from. The Mac app's build packs it and the app installs it (menu bar icon > **Install the Stream Deck plugin**),
 so there's nothing to build by hand. To work on it, see [`studio-deck/README.md`](studio-deck/README.md).
+
+## Characters icon pack (Stream Deck)
+
+A Stream Deck icon pack with one key image per character: A-Z, a-z, 0-9 and every US keyboard symbol, white on the
+Studio keys' navy. Build it with `npm run iconpack` and double-click the `.streamDeckIconPack` it makes. See
+[`characters-iconpack/README.md`](characters-iconpack/README.md).
 
 ## Timed Sequence (Stream Deck)
 

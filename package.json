@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/*.test.js",
+    "iconpack": "node plugins/characters-iconpack/build.js",
     "app": "electron .",
     "dist": "electron-builder --mac --publish never",
     "release": "electron-builder --mac --publish always"
