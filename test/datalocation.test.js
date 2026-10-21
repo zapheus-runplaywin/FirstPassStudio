@@ -113,3 +113,53 @@ test('Studio follows data-location.json and refuses to start on a missing iCloud
   fs.mkdirSync(dataDir, { recursive: true });
   assert.equal(run().trim(), `${dataDir}|${path.join(local, 'logs')}`);
 });
+
+test('another Mac\'s settings are restored over this Mac\'s, backed up first, and the other Mac keeps its own', () => {
+  const folder = path.join(ICLOUD, 'Restore');
+  const other = path.join(folder, 'Other-Mac'), mine = path.join(folder, 'This-Mac');
+  fs.mkdirSync(path.join(other, 'competitions', 'wanl'), { recursive: true });
+  fs.writeFileSync(path.join(other, 'competitions', 'wanl', 'settings.json'), '{"displayName":"WANL"}');
+  fs.writeFileSync(path.join(other, 'control.json'), '{"round":"7"}');
+  fs.writeFileSync(path.join(other, location.COMPUTER_FILE), '{"computerId":"other","computer":"Other-Mac"}');
+  fs.mkdirSync(path.join(mine, 'competitions', 'thunder'), { recursive: true });
+  fs.writeFileSync(path.join(mine, 'competitions', 'thunder', 'settings.json'), '{"displayName":"Thunder"}');
+  fs.writeFileSync(path.join(mine, 'control.json'), '{"round":"3"}');
+  fs.writeFileSync(path.join(mine, location.COMPUTER_FILE), '{"computerId":"mine","computer":"This-Mac"}');
+  const local = setup();
+
+  assert.deepEqual(location.otherMacs(folder, mine).map(o => o.computer), ['Other-Mac']);
+  assert.throws(() => location.restore({ from: mine, to: mine, localDir: local }), /own settings folder/);
+  assert.throws(() => location.restore({ from: path.join(folder, 'nope'), to: mine, localDir: local }), /no FirstPass Studio settings/);
+
+  const { backup } = location.restore({ from: other, to: mine, localDir: local });
+  assert.equal(read(path.join(mine, 'control.json')), '{"round":"7"}');
+  assert.equal(read(path.join(mine, 'competitions', 'wanl', 'settings.json')), '{"displayName":"WANL"}');
+  assert.ok(!fs.existsSync(path.join(mine, 'competitions', 'thunder')));
+  // This Mac stays this Mac's; the other Mac's folder is untouched; no staging left behind.
+  assert.equal(location.owner(mine).computer, 'This-Mac');
+  assert.equal(read(path.join(other, 'control.json')), '{"round":"7"}');
+  assert.deepEqual(fs.readdirSync(mine).filter(n => n.startsWith('.restoring')), []);
+  assert.equal(read(path.join(backup, 'control.json')), '{"round":"3"}');
+  assert.equal(read(path.join(backup, 'competitions', 'thunder', 'settings.json')), '{"displayName":"Thunder"}');
+});
+
+test('restoring onto a Mac whose settings are on the Mac puts them in its own iCloud subfolder', () => {
+  const folder = path.join(ICLOUD, 'RestoreLocal');
+  const other = path.join(folder, 'Other-Mac');
+  fs.mkdirSync(path.join(other, 'competitions', 'wanl'), { recursive: true });
+  fs.writeFileSync(path.join(other, 'control.json'), '{"round":"7"}');
+  fs.writeFileSync(path.join(other, location.COMPUTER_FILE), '{"computerId":"other","computer":"Other-Mac"}');
+  const local = setup();
+  assert.throws(() => location.restoreToCloud({ from: other, localDir: local, computer: 'Other-Mac' }), /named after this Mac/);
+
+  const { backup, target } = location.restoreToCloud({ from: other, localDir: local, computer: 'New-Mac' });
+  assert.equal(target.dataDir, path.join(folder, 'New-Mac'));
+  assert.equal(read(path.join(target.dataDir, 'control.json')), '{"round":"7"}');
+  assert.equal(location.current(local).dataDir, target.dataDir);
+  assert.equal(location.owner(target.dataDir).computer, 'New-Mac');
+  // The Mac's old settings are backed up and gone from the Mac; local-only files stay.
+  assert.equal(read(path.join(backup, 'control.json')), '{"round":"3"}');
+  assert.ok(!fs.existsSync(path.join(local, 'control.json')));
+  assert.ok(fs.existsSync(path.join(local, 'scoreboard-state.json')));
+  assert.equal(read(path.join(other, 'control.json')), '{"round":"7"}');
+});

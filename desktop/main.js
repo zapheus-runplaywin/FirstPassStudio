@@ -240,6 +240,8 @@ function settingsFolderMenu() {
       { type: 'separator' },
       { label: where.local ? 'Move to iCloud Drive…' : 'Move to another iCloud Drive folder…', enabled: !moving, click: () => moveSettings('icloud') },
       { label: 'Move back to this Mac…', enabled: !where.local && !moving, click: () => moveSettings(null) },
+      { type: 'separator' },
+      { label: 'Restore from another Mac…', enabled: !moving, click: restoreFromMac },
     ],
   };
 }
@@ -362,6 +364,73 @@ async function moveSettings(provider) {
   } catch (err) {
     log(`Couldn't move the settings: ${err.message}`);
     dialog.showMessageBox({ type: 'error', message: 'Couldn\'t move the settings', detail: `${err.message}\n\nStudio carries on with the settings in ${where.dataDir}.` });
+  } finally {
+    moving = false;
+    status = 'Studio is off air';
+    if (wasOn && wanted) startHelper(); else refreshMenu();
+  }
+}
+
+// Copies another Mac's settings (its subfolder in iCloud Drive) over this Mac's, after backing
+// this Mac's up. The other Mac's folder is only read. Studio goes off air for the copy.
+async function restoreFromMac() {
+  const where = location.current(LOCAL_DIR);
+  const drive = location.PROVIDERS.icloud;
+  let from = null;
+  const others = where.local ? [] : location.otherMacs(where.folder, where.dataDir).slice(0, 4);
+  if (others.length) {
+    const { response } = await dialog.showMessageBox({
+      type: 'question', buttons: [...others.map(o => o.computer), 'Choose a folder…', 'Cancel'], cancelId: others.length + 1,
+      message: 'Restore the settings from which Mac?',
+      detail: `These Macs keep their settings beside this one's in ${drive.name}.`,
+    });
+    if (response === others.length + 1) return;
+    if (response < others.length) from = others[response].dir;
+  }
+  if (!from) {
+    const pick = await dialog.showOpenDialog({
+      title: 'Restore from another Mac',
+      message: 'Pick the other Mac\'s settings folder (the one named after that Mac).',
+      buttonLabel: 'Restore from this folder',
+      defaultPath: where.local ? (fs.existsSync(drive.root()) ? drive.root() : undefined) : where.folder,
+      properties: ['openDirectory'],
+    });
+    if (pick.canceled || !pick.filePaths[0]) return;
+    from = pick.filePaths[0];
+  }
+  if (path.resolve(from) === path.resolve(where.dataDir)) {
+    return dialog.showMessageBox({ type: 'warning', message: 'That is this Mac\'s own settings folder', detail: 'Pick the folder named after the other Mac.' });
+  }
+  if (!location.hasSettings(from) && !location.placeholders(from).length) {
+    return dialog.showMessageBox({ type: 'warning', message: 'No settings in that folder', detail: `${from}\n\nPick the folder named after the other Mac, inside the folder you chose for ${drive.name}.` });
+  }
+  const name = (location.owner(from) || {}).computer || path.basename(from);
+  const wasOn = !!helper || wanted;
+  const { response } = await dialog.showMessageBox({
+    type: 'warning', buttons: ['Restore', 'Cancel'], defaultId: 0, cancelId: 1,
+    message: `Replace this Mac's settings with ${name}'s?`,
+    detail: `Competitions, scenes, sequences, music and the control page's choices are copied from ${from}${where.local ? ` into a folder for this Mac beside it (${location.computerName()}), and this Mac keeps its settings in ${drive.name} from then on` : ''}. ${name} keeps its own. This Mac's settings are backed up first, in the backups folder on this Mac.${wasOn ? '\n\nStudio goes off air while they copy and comes straight back. Avoid doing this during a live game.' : ''}`,
+  });
+  if (response === 1) return;
+  moving = true; refreshMenu();
+  try {
+    await helperStopped();
+    if (wasOn) windows.showOffAir();
+    status = 'Restoring the settings…'; refreshMenu();
+    const left = await location.download(from);
+    if (left.length) throw new Error(`${left.length} files are still downloading from ${drive.name}. Try again in a minute`);
+    // Settings on the Mac itself go to iCloud Drive too, in this Mac's subfolder beside the other Mac's.
+    const result = where.local
+      ? location.restoreToCloud({ from, localDir: LOCAL_DIR, log })
+      : location.restore({ from, to: where.dataDir, localDir: LOCAL_DIR, log });
+    const into = result.target ? result.target.dataDir : where.dataDir;
+    dialog.showMessageBox({
+      message: `Restored the settings from ${name}`,
+      detail: `${result.files} files copied into ${into}${result.target ? `, this Mac's own folder in ${drive.name}. This Mac keeps its settings there from now on` : ''}.${result.backup ? `\n\nThis Mac's settings as they were are in ${result.backup}.` : ''}`,
+    });
+  } catch (err) {
+    log(`Couldn't restore the settings: ${err.message}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t restore the settings', detail: err.message });
   } finally {
     moving = false;
     status = 'Studio is off air';

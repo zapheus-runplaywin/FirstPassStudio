@@ -78,7 +78,10 @@ the Mac using it, and a different Mac with the same name is refused. The move ba
 (`LOCAL_ONLY`). Before going on air the app downloads any file iCloud has evicted (`.<name>.icloud` placeholders, via
 `brctl download`); if the iCloud folder is missing, Studio won't start rather than start empty. `PROVIDERS` in
 `datalocation.js` is where other cloud drives (Dropbox, Google Drive, OneDrive in `~/Library/CloudStorage`) would go.
-**Move back to this Mac…** reverses it. `npm start` follows `data-location.json` too.
+**Move back to this Mac…** reverses it. **Restore from another Mac…** copies another Mac's subfolder over this
+Mac's (`restore()`: back up to `backups/<date>-before-restore`, copy into a hidden `.restoring-<date>` folder, check
+sizes, then swap); the other Mac's folder is only read. On a Mac whose settings are local, `restoreToCloud()` puts them
+in a new subfolder for this Mac beside the other Mac's and points this Mac there. `npm start` follows `data-location.json` too.
 
 ### Template files
 

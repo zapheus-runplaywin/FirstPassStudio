@@ -14,6 +14,9 @@
 // logs (written all the time), the scores and clock (saved every few seconds while a game is
 // live), caches, the app's window positions and this file. Only settings sync.
 //
+// Another Mac's settings can be restored onto this one (restore()): they are copied, never
+// moved, so the other Mac keeps its own.
+//
 // PROVIDERS is the list of cloud drives; only iCloud Drive for now. Others (Dropbox, Google
 // Drive, OneDrive all live under ~/Library/CloudStorage on a Mac) can be added beside it.
 
@@ -179,6 +182,81 @@ function move({ from, to, localDir, existing, log = () => {} }) {
   return { backup, kept: false };
 }
 
+// Restores another Mac's settings over this Mac's: copies the settings in `from` (another Mac's
+// subfolder, left as it is) into `to` (this Mac's settings folder). This Mac's settings are
+// first copied to the local backups/<date>-before-restore. The copy goes into a hidden folder
+// beside them and is checked file by file before it takes their place, so a failed copy
+// leaves this Mac's settings untouched. Returns { backup, files }.
+function restore({ from, to, localDir, log = () => {} }) {
+  from = path.resolve(from); to = path.resolve(to);
+  if (from === to) throw new Error('That is this Mac\'s own settings folder.');
+  const names = movable(from);
+  if (!names.length) throw new Error('That folder has no FirstPass Studio settings in it.');
+  const mine = movable(to);
+  const backup = backupTo(to, mine, path.join(localDir, 'backups', `${stamp()}-before-restore`));
+  if (backup) log(`Backed up this Mac's settings to ${backup}`);
+  const staging = path.join(to, `.restoring-${stamp()}`);
+  const want = listing(from, names);
+  try {
+    fs.mkdirSync(staging, { recursive: true });
+    for (const n of names) {
+      const a = path.join(from, n), b = path.join(staging, n);
+      if (fs.statSync(a).isDirectory()) copyDir(a, b); else fs.copyFileSync(a, b);
+    }
+    const got = listing(staging, names);
+    const bad = Object.keys(want).find(k => got[k] !== want[k]);
+    if (bad) throw new Error(`${bad} didn't copy across in full`);
+  } catch (err) {
+    fs.rmSync(staging, { recursive: true, force: true });
+    throw new Error(`Couldn't copy the settings: ${err.message}. This Mac's settings weren't changed.`);
+  }
+  for (const n of mine) fs.rmSync(path.join(to, n), { recursive: true, force: true });
+  for (const n of names) fs.renameSync(path.join(staging, n), path.join(to, n));
+  fs.rmSync(staging, { recursive: true, force: true });
+  log(`Restored ${Object.keys(want).length} files from ${from} to ${to}`);
+  return { backup, files: Object.keys(want).length };
+}
+
+function backupTo(dir, names, backup) {
+  if (!names.length) return null;
+  fs.mkdirSync(backup, { recursive: true });
+  for (const n of names) {
+    const p = path.join(dir, n);
+    if (fs.statSync(p).isDirectory()) copyDir(p, path.join(backup, n)); else fs.copyFileSync(p, path.join(backup, n));
+  }
+  return backup;
+}
+
+// Restores another Mac's settings for a Mac whose settings are on the Mac itself: they go into
+// a new subfolder for this Mac beside the other Mac's in the cloud folder, and this Mac then
+// keeps its settings there. This Mac's old settings are backed up, then removed from the Mac.
+// Returns { backup, files, target }.
+function restoreToCloud({ from, localDir, provider = 'icloud', computer = computerName(), log = () => {} }) {
+  const target = check(path.dirname(path.resolve(from)), provider, { computer });
+  if (!target.ok) throw new Error(target.error);
+  if (path.resolve(target.dataDir) === path.resolve(from)) throw new Error(`That folder is named after this Mac (${computer}). Pick the folder named after the other Mac.`);
+  const other = usedByAnother(target.dataDir, localDir);
+  if (other) throw new Error(`Another Mac called ${other.computer} already uses ${target.dataDir}. Give this Mac its own name in System Settings > General > Sharing > Local hostname, then try again.`);
+  const mine = movable(localDir);
+  const backup = backupTo(localDir, mine, path.join(localDir, 'backups', `${stamp()}-before-restore`));
+  if (backup) log(`Backed up this Mac's settings to ${backup}`);
+  fs.mkdirSync(target.dataDir, { recursive: true });
+  const { files, backup: replaced } = restore({ from, to: target.dataDir, localDir, log });
+  save(localDir, target);
+  for (const n of mine) fs.rmSync(path.join(localDir, n), { recursive: true, force: true });
+  log(`Settings now in ${target.dataDir}`);
+  return { backup: backup || replaced, files, target };
+}
+
+// The other Macs' settings folders beside this one in a cloud folder: [{ dir, computer, since }].
+function otherMacs(folder, dataDir) {
+  let list; try { list = fs.readdirSync(folder, { withFileTypes: true }); } catch { return []; }
+  return list.filter(e => e.isDirectory() && !e.name.startsWith('.'))
+    .map(e => path.join(folder, e.name))
+    .filter(d => path.resolve(d) !== path.resolve(dataDir || '') && hasSettings(d))
+    .map(d => ({ dir: d, computer: (owner(d) || {}).computer || path.basename(d), since: (owner(d) || {}).since }));
+}
+
 // Points this Mac at a cloud folder (or back at the local one with provider null), and marks
 // the cloud subfolder as this Mac's.
 function save(localDir, { provider, folder, dataDir, computer }) {
@@ -216,4 +294,4 @@ async function download(dir, { timeoutMs = 60000 } = {}) {
   return left;
 }
 
-module.exports = { PROVIDERS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, save, placeholders, download, isInside };
+module.exports = { PROVIDERS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, restore, restoreToCloud, otherMacs, save, placeholders, download, isInside };
