@@ -1,0 +1,74 @@
+// The Output page's Scene View popped out into its own window (preview.html) and brought back:
+// Bring it back here puts the Scene View back on the Output page, Pop out opens the window again,
+// and a window that goes without saying so (the Mac app's windows can) doesn't leave the Output
+// page stuck on "The Scene View is in its own window".
+// The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { startStudio } = require('./support/studio');
+
+let chromium = null;
+try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+
+test('the Scene View pops out, comes back and pops out again', async t => {
+  let browser = null, why = 'playwright is not installed';
+  if (chromium) {
+    try { browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); }
+    catch (err) { why = err.message.split('\n')[0]; }
+  }
+  if (!browser) {
+    if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail(`no browser to test the pages in: ${why}`);
+    t.skip(`no browser to test the pages in (${why}); run npx playwright install chromium`);
+    return;
+  }
+  t.after(() => browser.close());
+  const studio = await startStudio(t);
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  t.after(() => context.close());
+  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+
+  const output = await context.newPage();
+  await output.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
+  const state = () => output.evaluate(() => ({
+    frame: document.getElementById('previewFrame').getAttribute('src'),
+    placeholder: !document.getElementById('previewOff').classList.contains('hidden'),
+    button: document.getElementById('popOut').textContent,
+  }));
+  const here = { frame: '/scene.html?mute=1', placeholder: false, button: 'Pop out' };
+  const away = { frame: 'about:blank', placeholder: true, button: 'Show window' };
+  const becomes = async want => {
+    await output.waitForFunction(w => document.getElementById('previewFrame').getAttribute('src') === w.frame
+      && document.getElementById('previewOff').classList.contains('hidden') !== w.placeholder
+      && document.getElementById('popOut').textContent === w.button, want, { timeout: 10000 }).catch(() => {});
+    assert.deepEqual(await state(), want);
+  };
+  const popOut = async () => {
+    const [win] = await Promise.all([output.waitForEvent('popup'), output.click('#popOut')]);
+    await win.waitForLoadState('load');
+    await becomes(away);
+    return win;
+  };
+  await becomes(here);
+
+  // Pop out, then Bring it back here: the window closes and the Scene View is back.
+  let win = await popOut();
+  await output.click('#popIn');
+  await win.waitForEvent('close', { timeout: 5000 });
+  await becomes(here);
+
+  // Pop out works again afterwards.
+  win = await popOut();
+
+  // A window that goes without a word (as the Mac app's can): the Output page notices it's gone.
+  await win.evaluate(() => { channel.close(); });
+  await win.close();
+  await becomes(here);
+
+  // And Show window on a window that's gone opens a new one.
+  win = await popOut();
+  await win.evaluate(() => { channel.close(); });
+  await win.close();
+  const [again] = await Promise.all([output.waitForEvent('popup', { timeout: 5000 }), output.click('#popOut')]);
+  await again.waitForLoadState('load');
+  await becomes(away);
+});

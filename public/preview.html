@@ -152,17 +152,25 @@
   try { fold(localStorage.getItem('previewPanel') === 'min'); } catch {}
 
   // The Output page knows this window is open (and turns its own preview off) through this channel.
+  // It also hears from it every couple of seconds: the Mac app's window can close without the
+  // goodbye below ever arriving, and then the Output page puts its own preview back by itself.
   const channel = new BroadcastChannel('studio-preview');
-  const tell = (open = true) => channel.postMessage({ open, note });
+  let closing = false;
+  const tell = (open = true) => { if (!closing || !open) channel.postMessage({ open, note }); };
+  const goodbye = () => {
+    if (closing) return;
+    tell(false);
+    closing = true;
+    navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false }));
+  };
   channel.onmessage = e => {
     if (e.data === 'ask') listen(); // and says it's open once it knows the sound
-    if (e.data === 'focus') focus();
-    if (e.data === 'close') close();
+    if (e.data === 'focus') { focus(); tell(); }
+    // Say goodbye before closing, not as the window goes, so the Output page always hears it.
+    if (e.data === 'close') { goodbye(); setTimeout(close, 50); }
   };
-  addEventListener('pagehide', () => {
-    tell(false);
-    navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false }));
-  });
+  addEventListener('pagehide', goodbye);
+  setInterval(() => tell(), 2000);
   tell();
 </script>
 </body>
