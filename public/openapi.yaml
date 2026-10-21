@@ -362,6 +362,49 @@ paths:
                   totalGoals: { type: integer }
                   gapInHistory: { type: boolean, description: Studio picked the game up part way, so runs only count from then }
 
+  /api/worm:
+    get:
+      tags: [Status]
+      summary: Read the score worm
+      description: >-
+        What worm.html shows: the margin (home minus away) after each goal, in the goal order goals.html uses. Time t
+        is in periods (1.5 is half way through the first quarter), from the game clock when each goal came in; a quarter
+        without clock times has its goals spread evenly. Each gap (the game picked up part way, a score typed in, or a
+        score jumping by more than 3 at once) starts a new segment from the score after it, and is listed in gaps.
+      operationId: getWorm
+      responses:
+        '200':
+          description: The worm's lines, gaps and biggest leads
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periods: { type: integer, description: Periods across the chart (4 quarters, 2 halves, more with extra time) }
+                  segments:
+                    type: array
+                    description: Lines between gaps, each a list of points oldest first, ending at the game time now.
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          t: { type: number }
+                          home: { type: integer }
+                          away: { type: integer }
+                          margin: { type: integer, description: Home minus away }
+                          side: { type: string, enum: [home, away], description: Who scored (not on a line's first or last point) }
+                          points: { type: integer }
+                  gaps:
+                    type: array
+                    items: { type: object, properties: { from: { type: number }, to: { type: number } } }
+                  end: { type: number, description: Game time now, in periods }
+                  biggestLead:
+                    type: object
+                    description: home and away, each margin and t, or null when that team never led.
+                  leadChanges: { type: integer }
+                  totalGoals: { type: integer }
+
   /api/goals:
     get:
       tags: [Status]

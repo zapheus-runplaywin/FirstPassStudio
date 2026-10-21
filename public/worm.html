@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Score Worm</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+<script src="fit.js"></script>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page, after the game:
+       http://localhost:8080/worm.html
+       The score worm: the margin over the game, the home team above the line and the away team
+       below, in their club colours, with the quarters marked. Studio works it out from the goal
+       order it saw as the game went (/api/worm), so a stretch it wasn't watching (the game picked
+       up part way, a score typed in or a jump of more than 3 at once) shows as a gap.
+       Loads once, each time it comes on, and draws the line in. Options: ?title=Score%20worm,
+       ?draw=3 seconds to draw the line (0 shows it straight away), ?leads=0 leaves out the
+       biggest leads and lead changes, ?colours=0 uses the competition's colours, not the clubs'. -->
+  <main class="card worm" id="card" data-fit hidden>
+    <header class="matchup__header">
+      <div class="tab" id="title">Score worm</div>
+      <div class="matchup__division" id="division"></div>
+    </header>
+    <div class="worm__teams">
+      <div class="worm__team" id="homeTeam"></div>
+      <div class="worm__nums"><span id="homeScore"></span><span class="worm__dash">–</span><span id="awayScore"></span></div>
+      <div class="worm__team worm__team--away" id="awayTeam"></div>
+    </div>
+    <svg class="worm__chart" id="chart" viewBox="0 0 1320 420" width="1320" height="420" aria-label="Score worm"></svg>
+    <div class="worm__facts" id="facts"></div>
+    <footer class="card__footer" id="footer"></footer>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const off = key => params.get(key) === '0';
+    if (params.get('title')) document.getElementById('title').textContent = params.get('title');
+    const DRAW_MS = Math.max(0, Math.min(15, Number(params.get('draw') ?? 3))) * 1000;
+
+    // The plot, inside the 1320 x 420 chart: margin labels on the left, quarter labels underneath.
+    const W = 1320, H = 420, X0 = 70, X1 = 1290, Y0 = 16, Y1 = 370;
+    const NS = 'http://www.w3.org/2000/svg';
+    function svg(tag, attrs, parent) {
+      const e = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+      if (parent) parent.appendChild(e);
+      return e;
+    }
+
+    // Club colours, kept readable on the card: a very dark one is lightened, and two that look
+    // alike fall back to the competition's pink (home) and yellow (away).
+    const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    function rgb(c) {
+      const m = String(c || '').match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+      if (!m) return null;
+      const h = m[1].length === 3 ? m[1].replace(/./g, x => x + x) : m[1];
+      return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+    }
+    const lum = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const mix = (c, w, t) => c.map((v, i) => Math.round(v + (w[i] - v) * t));
+    const hex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+    function teamColours(d) {
+      const fallback = { home: css('--pink') || '#e6007e', away: css('--yellow') || '#ffcd00' };
+      if (off('colours')) return fallback;
+      const c = { home: rgb(d.home.colour), away: rgb(d.away.colour) };
+      for (const side of ['home', 'away']) if (c[side] && lum(c[side]) < 0.35) c[side] = mix(c[side], [255, 255, 255], 0.35 - lum(c[side]) + 0.15);
+      if (c.home && c.away && c.home.reduce((t, v, i) => t + Math.abs(v - c.away[i]), 0) < 90) return fallback;
+      return { home: c.home ? hex(c.home) : fallback.home, away: c.away ? hex(c.away) : fallback.away };
+    }
+
+    function niceMax(m) {
+      const top = Math.max(3, m);
+      const step = top <= 4 ? 1 : top <= 10 ? 2 : top <= 25 ? 5 : 10;
+      return { max: Math.ceil((top + 1) / step) * step, step }; // room above the biggest lead for its label
+    }
+
+    function draw(d) {
+      const chart = document.getElementById('chart');
+      chart.replaceChildren();
+      const colours = teamColours(d);
+      const all = d.segments.flat();
+      const { max, step } = niceMax(Math.max(0, ...all.map(p => Math.abs(p.margin))));
+      const span = Math.max(1, d.periods);
+      const x = t => X0 + (X1 - X0) * Math.min(span, Math.max(0, t)) / span;
+      const mid = (Y0 + Y1) / 2;
+      const y = m => mid - (Y1 - Y0) / 2 * m / max;
+
+      const defs = svg('defs', {}, chart);
+      const hatch = svg('pattern', { id: 'hatch', width: 14, height: 14, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, defs);
+      svg('rect', { width: 6, height: 14, fill: 'rgba(255,255,255,.07)' }, hatch);
+      const clip = (id, top, bottom) => { const c = svg('clipPath', { id }, defs); svg('rect', { x: 0, y: top, width: W, height: bottom - top }, c); };
+      clip('above', 0, mid);
+      clip('below', mid, H);
+      // The reveal: everything drawn is shown up to this rect's right edge, which moves across as the line draws in.
+      const reveal = svg('clipPath', { id: 'reveal' }, defs);
+      const revealRect = svg('rect', { x: 0, y: 0, width: X0, height: H }, reveal);
+
+      // Each team's half, tinted (the team names above say which is which).
+      svg('rect', { x: X0, y: Y0, width: X1 - X0, height: mid - Y0, fill: colours.home, opacity: .07 }, chart);
+      svg('rect', { x: X0, y: mid, width: X1 - X0, height: Y1 - mid, fill: colours.away, opacity: .07 }, chart);
+      for (const side of ['home', 'away']) document.getElementById(side + 'Team').style.setProperty('--team', colours[side]);
+
+      // Margin grid and labels.
+      for (let m = step; m <= max; m += step) {
+        for (const s of [1, -1]) {
+          svg('line', { x1: X0, x2: X1, y1: y(m * s), y2: y(m * s), class: 'worm__grid' }, chart);
+          const t = svg('text', { x: X0 - 14, y: y(m * s), class: 'worm__axis', 'text-anchor': 'end', 'dominant-baseline': 'middle' }, chart);
+          t.textContent = m;
+        }
+      }
+      // Stretches Studio wasn't watching.
+      for (const g of d.gaps) {
+        const gx = x(g.from), gw = x(g.to) - gx;
+        if (gw < 2) continue;
+        svg('rect', { x: gx, y: Y0, width: gw, height: Y1 - Y0, fill: 'url(#hatch)' }, chart);
+        if (gw > 150) {
+          const t = svg('text', { x: gx + gw / 2, y: Y1 - 40, class: 'worm__gap', 'text-anchor': 'middle' }, chart);
+          t.textContent = 'Not watching';
+        }
+      }
+      // Quarters: a line at each break and the label under each.
+      for (let n = 1; n <= span; n++) {
+        if (n < span) svg('line', { x1: x(n), x2: x(n), y1: Y0, y2: Y1, class: 'worm__break' }, chart);
+        const t = svg('text', { x: (x(n - 1) + x(n)) / 2, y: Y1 + 34, class: 'worm__quarter', 'text-anchor': 'middle' }, chart);
+        t.textContent = n > d.regularPeriods ? 'ET' : `${d.periodLabel}${n}`;
+      }
+      svg('line', { x1: X0, x2: X1, y1: mid, y2: mid, class: 'worm__zero' }, chart);
+
+      // The worm: each line between gaps, filled to the middle in the team's colour, and a dotted join across each gap.
+      const drawn = svg('g', { 'clip-path': 'url(#reveal)' }, chart);
+      const path = seg => seg.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)} ${y(p.margin).toFixed(1)}`).join(' ');
+      const area = seg => `${path(seg)} L${x(seg[seg.length - 1].t).toFixed(1)} ${mid} L${x(seg[0].t).toFixed(1)} ${mid} Z`;
+      for (let i = 1; i < d.segments.length; i++) {
+        const a = d.segments[i - 1], b = d.segments[i][0];
+        if (!a.length) continue;
+        const p = a[a.length - 1];
+        svg('line', { x1: x(p.t), y1: y(p.margin), x2: x(b.t), y2: y(b.margin), class: 'worm__join' }, drawn);
+      }
+      for (const [half, colour] of [['above', colours.home], ['below', colours.away]]) {
+        const g = svg('g', { 'clip-path': `url(#${half})` }, drawn);
+        for (const seg of d.segments.filter(s => s.length > 1)) {
+          svg('path', { d: area(seg), fill: colour, opacity: .28 }, g);
+          svg('path', { d: path(seg), class: 'worm__shadow' }, g);
+          svg('path', { d: path(seg), class: 'worm__line', stroke: colour }, g);
+        }
+      }
+      const marks = svg('g', { class: 'worm__marks' }, chart);
+      const lastSeg = d.segments[d.segments.length - 1];
+      const last = lastSeg[lastSeg.length - 1];
+      const colourOf = m => (m > 0 ? colours.home : m < 0 ? colours.away : 'var(--text)');
+      const mark = (p, text, colour, below) => {
+        svg('circle', { cx: x(p.t), cy: y(p.margin), r: 8, fill: colour, class: 'worm__dot' }, marks);
+        if (below && y(p.margin) + 60 > Y1) below = false; // keep the label inside the chart
+        if (!below && y(p.margin) - 40 < Y0) below = true;
+        const t = svg('text', { x: Math.min(X1 - 30, Math.max(X0 + 30, x(p.t))), y: y(p.margin) + (below ? 34 : -18), fill: colour, class: 'worm__mark', 'text-anchor': 'middle', 'dominant-baseline': below ? 'hanging' : 'auto' }, marks);
+        t.textContent = text;
+      };
+      if (!off('leads')) {
+        const h = d.biggestLead.home, a = d.biggestLead.away;
+        if (h) mark({ t: h.t, margin: h.margin }, `+${h.margin}`, colours.home, false);
+        if (a) mark({ t: a.t, margin: -a.margin }, `+${a.margin}`, colours.away, true);
+      }
+      const head = svg('circle', { cx: X0, cy: mid, r: 9, class: 'worm__head', fill: colourOf(0) }, chart);
+      return { revealRect, head, x, y, colourOf, marks, endX: x(last.t), segments: d.segments };
+    }
+
+    // Draws the line in from the left by elapsed time (so it's the same at 50 or 60 fps), the head
+    // riding along it, then shows the biggest leads.
+    function animate(p) {
+      const yAt = X => {
+        for (const seg of p.segments) {
+          for (let i = 1; i < seg.length; i++) {
+            const a = seg[i - 1], b = seg[i], ax = p.x(a.t), bx = p.x(b.t);
+            if (X >= ax && X <= bx) return bx === ax ? b.margin : a.margin + (b.margin - a.margin) * (X - ax) / (bx - ax);
+          }
+        }
+        return null; // in a gap
+      };
+      const finish = () => {
+        p.revealRect.setAttribute('width', W);
+        const m = yAt(p.endX);
+        p.head.setAttribute('cx', p.endX);
+        if (m !== null) { p.head.setAttribute('cy', p.y(m)); p.head.setAttribute('fill', p.colourOf(m)); }
+        p.marks.classList.add('is-shown');
+      };
+      if (!DRAW_MS) { finish(); return; }
+      p.head.style.opacity = 0;
+      const ease = t => (t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+      let start = null;
+      const DELAY = 600; // after the card has risen in
+      function frame(now) {
+        if (start === null) start = now;
+        const t = Math.min(1, Math.max(0, (now - start - DELAY) / DRAW_MS));
+        const X = X0 + (p.endX - X0) * ease(t);
+        p.revealRect.setAttribute('width', X + 1);
+        const m = yAt(X);
+        p.head.style.opacity = m === null || t === 0 ? 0 : 1;
+        if (m !== null) { p.head.setAttribute('cx', X); p.head.setAttribute('cy', p.y(m)); p.head.setAttribute('fill', p.colourOf(m)); }
+        if (t < 1) requestAnimationFrame(frame); else finish();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function facts(d) {
+      const box = document.getElementById('facts');
+      box.replaceChildren();
+      if (off('leads')) { box.hidden = true; return; }
+      const when = t => (Math.floor(t) + 1 > d.regularPeriods ? 'ET' : `${d.periodLabel}${Math.min(d.periods, Math.floor(t) + 1)}`);
+      const fact = (label, value, note) => {
+        const f = el('div', 'worm__fact');
+        f.append(el('span', 'label', label), el('span', 'num', value));
+        if (note) f.appendChild(el('span', 'note', note));
+        box.appendChild(f);
+      };
+      for (const side of ['home', 'away']) {
+        const l = d.biggestLead[side];
+        fact(`${d[side].name} biggest lead`, l ? l.margin : '–', l ? when(l.t) : '');
+      }
+      fact('Lead changes', d.leadChanges);
+      box.hidden = false;
+      if (d.gaps.length) console.info(`Score worm: Studio wasn't watching ${d.gaps.length} stretch${d.gaps.length === 1 ? '' : 'es'} of the game, shown as gaps`);
+    }
+
+    async function load() {
+      let d;
+      try { d = await (await fetch('/api/worm', { cache: 'no-store' })).json(); }
+      catch (err) { console.warn('Score worm unavailable:', err.message); return; }
+      document.getElementById('division').textContent = [d.division, d.round && /^\d+$/.test(d.round) ? `Round ${d.round}` : d.round, d.court].filter(Boolean).join('  ·  ');
+      for (const side of ['home', 'away']) {
+        const t = d[side];
+        const name = el('div', 'worm__name', t.name);
+        name.appendChild(el('span', 'worm__key', side === 'home' ? '▲ Ahead above the line' : '▼ Ahead below the line'));
+        document.getElementById(side + 'Team').replaceChildren(logoEl(t, 'worm__logo'), name);
+        const num = document.getElementById(side + 'Score');
+        num.textContent = t.score;
+        num.className = t.score > d[side === 'home' ? 'away' : 'home'].score ? 'is-win' : '';
+      }
+      document.getElementById('footer').textContent = d.competition || '';
+      const plot = draw(d);
+      facts(d);
+      document.getElementById('card').hidden = false;
+      animate(plot);
+    }
+    load();
+  </script>
+</body>
+</html>

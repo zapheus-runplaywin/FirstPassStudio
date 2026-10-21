@@ -973,7 +973,17 @@ function applyOneAction(b, a) {
       streak(b, { kind, side: both ? '' : side, goals: STREAK_GOALS[kind] || 0, from: kind === 'goalForGoal' ? side : '', down: kind === 'comeback' ? COMEBACK_DOWN + 1 : 0 }, 'test');
       break;
     }
-    case 'setScore': side.score = Math.max(0, Number(a.value) || 0); b.source = 'manual'; break;
+    case 'setScore': {
+      const before = Number(side.score) || 0;
+      side.score = Math.max(0, Number(a.value) || 0);
+      b.source = 'manual';
+      // A score typed in isn't a list of goals: noted as a gap, so runs and the worm carry on from the new score.
+      if (side.score !== before) {
+        if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
+        pushGap(b, { [a.side === 'away' ? 'away' : 'home']: side.score });
+      }
+      break;
+    }
     case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division; b.court = a.court ?? b.court; break;
     case 'selectGame':
       if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
@@ -1110,8 +1120,13 @@ function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b
 function clockLeft(b) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
 function pushGoal(b, side, points, how) {
   b.goalsSeq = (b.goalsSeq || 0) + 1;
-  b.goals.push({ id: b.goalsSeq, side, points, period: b.period, clockLeft: clockLeft(b), at: Date.now(), how });
+  b.goals.push({ id: b.goalsSeq, side, points, period: b.period, clockLeft: clockLeft(b), periodSec: b.clock ? b.clock.lengthSec : null, at: Date.now(), how });
   if (b.goals.length > GOALS_KEPT) b.goals.splice(0, b.goals.length - GOALS_KEPT);
+}
+// A gap: the score moved without Studio seeing the goals. `set` is the score it moved to
+// ({ home, away }, or just the side that jumped), so worm.html can carry on from there.
+function pushGap(b, set) {
+  b.goals.push({ id: ++b.goalsSeq, gap: true, set, period: b.period, clockLeft: clockLeft(b), periodSec: b.clock ? b.clock.lengthSec : null, at: Date.now() });
 }
 // A score taken off (a correction) removes that team's latest goals.
 function takeGoals(b, side, points) {
@@ -1144,7 +1159,7 @@ function goalsFromPlayhq(b, game, live) {
     const onBoard = (Number(b.home.score) || 0) + (Number(b.away.score) || 0);
     if ((deltas.home || deltas.away) && (onBoard || deltas.home > MAX_STEP || deltas.away > MAX_STEP || deltas.home < 0 || deltas.away < 0)) {
       log('info', 'goals', `Picked up ${b.home.name} v ${b.away.name} at ${game.home.score}-${game.away.score}, so goals are listed from here`);
-      b.goals.push({ id: ++b.goalsSeq, gap: true, at: Date.now() });
+      pushGap(b, { home: game.home.score ?? (Number(b.home.score) || 0), away: game.away.score ?? (Number(b.away.score) || 0) });
       b.playhqCounts = counts;
       return true;
     }
@@ -1154,7 +1169,7 @@ function goalsFromPlayhq(b, game, live) {
     if (!d) continue;
     if (d > MAX_STEP) {
       log('info', 'goals', `${b[side].name} went up ${d} points between readings, too many to list one by one; noted as a gap`);
-      b.goals.push({ id: ++b.goalsSeq, gap: true, at: Date.now() });
+      pushGap(b, { [side]: game[side].score });
       continue;
     }
     const was = b.playhqCounts && b.playhqCounts[side], now = counts && counts[side];
@@ -1374,6 +1389,84 @@ function getStats() {
       runs3: both(side => runsOf(side, 3)), runs5: both(side => runsOf(side, 5)), longestRun: both(longest),
     },
     totalGoals: goals.length, gapInHistory: b.goals.some(g => g.gap),
+  };
+}
+
+// ─── Score worm (worm.html) ─────────────────────────────────────────────────
+// The margin (home minus away) over game time, from the goal order. Time is in periods:
+// 1.5 is half way through the first quarter, from the clock when each goal came in. A
+// quarter whose goals have no clock times (the clock wasn't run) has its goals spread
+// evenly across it. Each gap (the game picked up part way, a score typed in or a jump of
+// more than 3) ends a line: the next one starts from the score after the gap, and the gap
+// is listed so the page can show Studio wasn't watching then.
+function getWorm() {
+  const b = board();
+  if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
+  const r = rules(b.division);
+  const defaultSec = (Number(r.periodMinutes) || 10) * 60;
+  const fraction = (left, sec) => {
+    const len = Number(sec) || defaultSec;
+    return left == null ? null : Math.max(0, Math.min(1, (len - left) / len));
+  };
+  const entries = b.goals.map(g => ({ g, period: Number(g.period) || 1, frac: fraction(g.clockLeft, g.periodSec) }));
+  // Goals in a quarter without usable clock times (none running, or all at the same moment) are spread evenly.
+  const byPeriod = new Map();
+  for (const e of entries) if (!e.g.gap) (byPeriod.get(e.period) || byPeriod.set(e.period, []).get(e.period)).push(e);
+  for (const list of byPeriod.values()) {
+    const fracs = list.map(e => e.frac);
+    if (fracs.some(f => f == null) || (list.length > 1 && fracs.every(f => f === fracs[0]))) list.forEach((e, i) => { e.frac = (i + 1) / (list.length + 1); });
+  }
+  const score = { home: 0, away: 0 };
+  const segments = [], gaps = [];
+  let seg = null, lastT = 0;
+  const point = (t, extra) => ({ t: Math.round(t * 10000) / 10000, home: score.home, away: score.away, margin: score.home - score.away, ...extra });
+  if (entries.length && !entries[0].g.gap) segments.push(seg = [point(0)]);
+  if (!entries.length) segments.push(seg = [point(0)]);
+  for (const e of entries) {
+    let t = e.frac == null ? lastT : e.period - 1 + e.frac;
+    t = Math.max(t, lastT);
+    if (e.g.gap) {
+      for (const side of ['home', 'away']) if (e.g.set && e.g.set[side] != null) score[side] = Number(e.g.set[side]) || 0;
+      if (seg && seg.length === 1 && seg.fromGap) { // gaps in a row (both scores typed in): one gap, to the last of them
+        seg[0] = point(t);
+        gaps[gaps.length - 1].to = t;
+      } else {
+        gaps.push({ from: seg ? lastT : 0, to: t });
+        segments.push(seg = [point(t)]);
+        seg.fromGap = true;
+      }
+    } else {
+      score[e.g.side] += e.g.points;
+      seg.push(point(t, { side: e.g.side, points: e.g.points }));
+    }
+    lastT = t;
+  }
+  // The line carries on to now (the end of the game, once it's over); a score now different
+  // from the line's (corrections Studio couldn't place) moves the end to the board's score.
+  const nowFrac = fraction(clockLeft(b), b.clock && b.clock.lengthSec);
+  const end = Math.max(lastT, (Number(b.period) || 1) - 1 + (nowFrac ?? 0));
+  const board_ = { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 };
+  if (board_.home !== score.home || board_.away !== score.away) {
+    gaps.push({ from: lastT, to: end });
+    Object.assign(score, board_);
+    segments.push(seg = [point(end)]);
+  } else if (end > lastT) seg.push(point(end));
+  const all = segments.flat();
+  const lead = side => all.reduce((top, p) => {
+    const m = side === 'home' ? p.margin : -p.margin;
+    return m > 0 && (!top || m > top.margin) ? { margin: m, t: p.t } : top;
+  }, null);
+  let changes = 0, leader = 0;
+  for (const p of all) { const now = Math.sign(p.margin); if (now && leader && now !== leader) changes++; if (now) leader = now; }
+  const periods = Math.max(r.periods, Number(b.period) || 1, ...entries.map(e => e.period));
+  return {
+    gameId: b.gameId, division: b.division, court: b.court, round: b.round, period: b.period, competition: competitionName(),
+    periodType: r.periodType, periodLabel: r.periodLabel, periods, regularPeriods: r.periods,
+    home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
+    away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
+    segments, gaps: gaps.filter(g => g.to > g.from), end,
+    biggestLead: { home: lead('home'), away: lead('away') }, leadChanges: changes,
+    totalGoals: entries.filter(e => !e.g.gap).length,
   };
 }
 
@@ -2793,6 +2886,10 @@ http.createServer(async (req, res) => {
       saveBoards();
       log('info', 'deck', `${action.type}: now ${b.home.score}-${b.away.score}, clock ${b.clock.running ? 'running' : 'stopped'}`, action);
       return send(res, 200, { ok: true, home: b.home.score, away: b.away.score, source: b.source, clockRunning: b.clock.running });
+    }
+    if (url.pathname === '/api/worm') {
+      await refreshFromPlayhq(board()); // shares the scoreboard's cached PlayHQ reading
+      return send(res, 200, getWorm());
     }
     if (url.pathname === '/api/stats') {
       await refreshFromPlayhq(board()); // shares the scoreboard's cached PlayHQ reading
