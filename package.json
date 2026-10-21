@@ -38,6 +38,7 @@
       "datadir.js",
       "migrations.js",
       "linkhost.js",
+      "sequences.js",
       "config.json",
       "public/**/*",
       "imports/**/*",
