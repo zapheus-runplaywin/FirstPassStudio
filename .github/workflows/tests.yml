@@ -1,6 +1,6 @@
 # Runs the tests on every pull request (and on main after a merge), so a change that breaks
 # something shows as a red check on the pull request before it's merged.
-#   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing and more.
+#   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, and every page in a browser.
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
 # PlayHQ is never called: the tests that need it run against recorded answers.
 name: Tests
@@ -34,7 +34,11 @@ jobs:
       - run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      # Chromium for the page test (test/pages.test.js), which fails here rather than skipping without it.
+      - run: npx playwright install --with-deps chromium
       - run: npm test
+        env:
+          STUDIO_TEST_REQUIRE_BROWSER: '1'
 
   stream-deck:
     name: Stream Deck plugin
