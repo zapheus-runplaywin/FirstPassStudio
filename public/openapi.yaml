@@ -581,7 +581,7 @@ paths:
           schema: { type: string, enum: [toggle, play, pause, resume, stop, fade, next, prev] }
         - name: fade
           in: query
-          description: Seconds to fade over (0 cuts). Without it, the player's fade time.
+          description: Seconds to fade over (0 cuts). Without it, the player's fade in time (play, resume, duck off) or fade out time (stop, pause, fade, duck on).
           schema: { type: number }
       responses:
         '200':

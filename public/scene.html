@@ -234,7 +234,7 @@
   function musicGain(m) {
     if (!m || m.status === 'stopped') return 0;
     const t = Date.now();
-    // The duck fades over the fade time too (duck: 0 up, 1 down at duckTo), evenly in loudness between
+    // The duck fades too, over the fade out or in time (duck: 0 up, 1 down at duckTo), evenly in loudness between
     // the two levels; a Studio without it just switches.
     const down = m.duck ? along(m.duck, t) : m.ducked ? 1 : 0;
     const low = Math.max(m.duckTo / 100, 0.01);

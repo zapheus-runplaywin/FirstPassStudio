@@ -28,7 +28,7 @@ function reset() {
   ok({ type: 'musicStop', fade: 0 });
   ok({ type: 'musicDuck', value: 'off' });
   ok({ type: 'musicMute', value: 'off' });
-  ok({ type: 'musicSettings', settings: { fadeSec: 2, underVideo: 'pause' } });
+  ok({ type: 'musicSettings', settings: { fadeInSec: 2, fadeOutSec: 2, underVideo: 'pause', duckHalf: false } });
   for (const s of [...st().sequences]) ok({ type: 'seqRemove', sequence: s.id });
   for (const s of [...st().scenes]) ok({ type: 'sceneRemove', scene: s.id });
   for (const s of [...st().playlists]) ok({ type: 'playlistRemove', playlist: s.id });
@@ -179,7 +179,7 @@ test('the music links: toggle, fade, mute and duck, and ?fade=0 cuts', () => {
   assert.equal(link('music/load/nothing').status, 404);
   assert.equal(link('music/whatever'), null);
   const saved = JSON.parse(fs.readFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'music.json'), 'utf8'));
-  assert.equal(saved.settings.fadeSec, 2);
+  assert.equal(saved.settings.fadeInSec, 2);
 });
 
 test('the duck fades over the fade time, and ?fade sets its own', () => {
@@ -202,12 +202,41 @@ test('the duck fades over the fade time, and ?fade sets its own', () => {
   link('music/duck/off', { fade: '0' });
   assert.equal(m().ducked, false);
   assert.equal(down(), 0);
-  // Quiet the music ducks over the fade time too.
-  ok({ type: 'musicSettings', settings: { fadeSec: 4, underVideo: 'pause' } });
+  // Quiet the music ducks over the fade out time too.
+  ok({ type: 'musicSettings', settings: { fadeInSec: 2, fadeOutSec: 4 } });
   ok({ type: 'show', name: 'Interview' });
   ok({ type: 'sceneSave', name: 'Interview' });
   ok({ type: 'sceneUpdate', scene: 'Interview', changes: { quiet: true } });
   ok({ type: 'sceneGo', scene: 'Interview' });
   assert.equal(m().duck.ms, 4000);
   assert.equal(m().duck.to, 1);
+  // Back up over the fade in time; over half the fade times when set; a link's ?fade still sets its own.
+  ok({ type: 'musicDuck', value: 'off' });
+  assert.equal(m().duck.ms, 2000);
+  ok({ type: 'musicSettings', settings: { duckHalf: true } });
+  ok({ type: 'musicDuck', value: 'on' });
+  assert.equal(m().duck.ms, 2000);
+  ok({ type: 'musicDuck', value: 'off' });
+  assert.equal(m().duck.ms, 1000);
+  link('music/duck/on', { fade: '3' });
+  assert.equal(m().duck.ms, 3000);
+  ok({ type: 'musicSettings', settings: { duckHalf: false } });
+});
+
+test('separate fade in and fade out times', () => {
+  reset();
+  ok({ type: 'musicSettings', settings: { fadeInSec: 1, fadeOutSec: 5 } });
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true });
+  assert.equal(m().gain.ms, 1000);
+  wait(2);
+  ok({ type: 'musicPause' });
+  assert.equal(m().gain.ms, 5000);
+  wait(5);
+  assert.equal(m().status, 'paused');
+  ok({ type: 'musicResume' });
+  assert.equal(m().gain.ms, 1000);
+  ok({ type: 'musicStop' });
+  assert.equal(m().gain.ms, 5000);
+  wait(5);
+  assert.equal(m().status, 'stopped');
 });

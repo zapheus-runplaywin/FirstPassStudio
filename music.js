@@ -8,7 +8,7 @@
 // Where a track is: pos { sec, at } is the position (sec) at time at (ms), so a page opened part way
 // through starts in the right place. Fades: gain { from, to, at, ms } is the fade the pages follow,
 // from 0 (silent) to 1 (full). The volume, mute and duck sit on top of that. The duck fades too, over the
-// fade time: duck { from, to, at, ms } goes from 0 (not ducked) to 1 (down at the Duck to level).
+// fade out time (and back up over the fade in time): duck { from, to, at, ms } goes from 0 (not ducked) to 1 (down at the Duck to level).
 //
 // Other things change the music:
 //   - A video with its sound on: by default the music fades out and pauses, then fades back in from where
@@ -39,7 +39,7 @@ const UNKNOWN_MS = 5000;
 let log = () => {};
 let api = null; // { duration(file), changed(), exists(file) }
 let playlists = [];
-let settings = { fadeSec: 2, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25 };
+let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false };
 let p = blank();
 let endTimer = null, fadeTimer = null;
 
@@ -54,7 +54,10 @@ const newId = () => Math.random().toString(36).slice(2, 10);
 const cleanFile = f => String(f || '').split(/[\\/]/).pop().replace(/^\.+/, '');
 const isAudio = f => !!AUDIO_TYPES[require('path').extname(String(f || '')).toLowerCase()];
 const now = () => Date.now();
-const fadeSec = v => v === undefined || v === null || v === '' ? settings.fadeSec : clamp(v, 0, 60, settings.fadeSec);
+// The seconds a fade takes: the one asked for, else the player's fade in or fade out time.
+const given = v => v !== undefined && v !== null && v !== '';
+const fadeIn = v => given(v) ? clamp(v, 0, 60, settings.fadeInSec) : settings.fadeInSec;
+const fadeOut = v => given(v) ? clamp(v, 0, 60, settings.fadeOutSec) : settings.fadeOutSec;
 
 // ─── Saving ──────────────────────────────────────────────────────────────
 function cleanPlaylist(pl, existing = {}) {
@@ -75,11 +78,14 @@ function cleanPlaylist(pl, existing = {}) {
 function cleanSettings(v) {
   const s = { ...settings, ...(v && typeof v === 'object' ? v : {}) };
   return {
-    fadeSec: clamp(s.fadeSec, 0, 30, 2),
+    // A music.json from before fade in and out were separate has one fadeSec: fade in over it, out over twice it.
+    fadeInSec: clamp(s.fadeInSec ?? s.fadeSec, 0, 30, 2),
+    fadeOutSec: clamp(s.fadeOutSec ?? (s.fadeSec === undefined ? undefined : Number(s.fadeSec) * 2), 0, 30, 4),
     volume: Math.round(clamp(s.volume, 0, 100, 80)),
     underVideo: UNDER_VIDEO.includes(s.underVideo) ? s.underVideo : 'pause',
     lowerTo: Math.round(clamp(s.lowerTo, 0, 100, 25)),
     duckTo: Math.round(clamp(s.duckTo, 0, 100, 25)),
+    duckHalf: s.duckHalf === true, // the duck fades over half the fade in and out times
   };
 }
 function load() {
@@ -121,12 +127,14 @@ function along(e) {
 const gainNow = () => along(p.gain);
 function fadeTo(to, sec) { p.gain = { from: gainNow(), to, at: now(), ms: Math.round(sec * 1000) }; }
 const duckNow = () => along(p.duck);
-// Ducks (why: 'hand' or 'quiet') or brings the music back up (null), over the fade time unless told otherwise.
+// Ducks (why: 'hand' or 'quiet') over the fade out time, or brings the music back up (null) over the fade in
+// time (or half of them, a setting), unless told otherwise.
 function setDuck(why, fade) {
   p.ducked = why;
   const to = why ? 1 : 0;
   if (p.duck.to === to) return;
-  p.duck = { from: duckNow(), to, at: now(), ms: Math.round(fadeSec(fade) * 1000) };
+  const sec = given(fade) ? (why ? fadeOut(fade) : fadeIn(fade)) : (why ? settings.fadeOutSec : settings.fadeInSec) * (settings.duckHalf ? 0.5 : 1);
+  p.duck = { from: duckNow(), to, at: now(), ms: Math.round(sec * 1000) };
 }
 
 // After a fade out: stop or pause once it's silent.
@@ -197,12 +205,12 @@ function loadPlaylist(pl, owner = null) {
 
 function play(fade, fromSec = 0) {
   if (!track()) return 'Load a track or a playlist first.';
-  start(fromSec, fadeSec(fade));
+  start(fromSec, fadeIn(fade));
   return null;
 }
 function stop(fade) {
   if (p.status === 'stopped') return null;
-  const sec = p.status === 'paused' ? 0 : fadeSec(fade);
+  const sec = p.status === 'paused' ? 0 : fadeOut(fade);
   log('info', 'music', `Stopping ${track()}${sec ? `, fading out over ${sec} s` : ''}`);
   fadeTo(0, sec);
   afterFade(sec, 'stop');
@@ -210,7 +218,7 @@ function stop(fade) {
 }
 function pause(fade) {
   if (p.status !== 'playing') return p.status === 'paused' ? null : 'No music is playing.';
-  const sec = fadeSec(fade);
+  const sec = fadeOut(fade);
   fadeTo(0, sec);
   afterFade(sec, 'pause');
   return null;
@@ -218,7 +226,7 @@ function pause(fade) {
 function resume(fade) {
   if (p.status === 'playing' && !p.after) return null;
   if (p.status === 'stopped') return play(fade);
-  const sec = fadeSec(fade);
+  const sec = fadeIn(fade);
   clearTimeout(fadeTimer);
   fadeTimer = null;
   p.after = null;
@@ -335,7 +343,7 @@ function apply(a) {
       p.index = i;
       return play(a.fade);
     }
-    case 'musicFade': return stop(a.fade === undefined ? settings.fadeSec || 3 : a.fade);
+    case 'musicFade': return stop(a.fade === undefined ? settings.fadeOutSec || 3 : a.fade);
     case 'musicMute': p.muted = a.value === 'toggle' ? !p.muted : !!a.value && a.value !== 'off'; return null;
     case 'musicDuck': {
       const on = a.value === 'toggle' ? !p.ducked : !!a.value && a.value !== 'off';
