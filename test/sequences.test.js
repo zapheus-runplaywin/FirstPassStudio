@@ -225,6 +225,16 @@ test('sequences are saved to their file, and removing a source takes it out of t
   assert.equal(saved.sequences[0].keepOn, undefined, 'kept on sources are now in the steps');
 });
 
+test('a hidden sequence is kept hidden and still plays', () => {
+  reset();
+  make('Mini', { hidden: true, steps: [step(['Ladder'])] });
+  assert.equal(seq('Mini').hidden, true);
+  play('Mini');
+  assert.deepEqual(on(), ['Ladder']);
+  ok({ type: 'seqUpdate', sequence: seq('Mini').id, changes: { hidden: false } });
+  assert.equal(seq('Mini').hidden, false);
+});
+
 test('every source off stops the sequence', () => {
   reset();
   make('Run-up', { steps: [step(['Ladder'])] });

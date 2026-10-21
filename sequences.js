@@ -144,6 +144,7 @@ function clean(input, existing = {}) {
     music: cleanMusic(s.music),
     musicEnd: cleanMusicEnd(s.musicEnd),
     quiet: !!s.quiet,
+    hidden: !!s.hidden,  // left off the Output page's list (a mini sequence used inside others)
     steps: (Array.isArray(s.steps) ? s.steps : []).slice(0, 100).map(cleanStep),
   };
   // Sources once kept on for the whole sequence (a scene step does that now) join each of its source steps.

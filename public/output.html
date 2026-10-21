@@ -121,6 +121,7 @@
   .seq.run::after { content: 'Playing'; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
                     background: var(--fp-orange); color: var(--fp-navy); padding: 1px 6px; border-radius: 5px; }
   .seq.run.paused::after { content: 'Paused'; }
+  .seq.hiddenSeq { opacity: .65; }
   .seq.pend { border-color: var(--fp-blue); border-style: dashed; }
   .seq.pend::after { content: 'Starting'; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
                      background: var(--fp-blue); color: var(--fp-white); padding: 1px 6px; border-radius: 5px; }
@@ -315,7 +316,7 @@
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h2 style="margin:0">Sequences</h2>
     </div>
-    <div class="seqAuto"><label><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small></div>
+    <div class="seqAuto"><label><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
     <div class="seqs" id="seqs"></div>
     <p class="note" id="seqNote"></p>
     <dialog id="seqDialog">
@@ -352,6 +353,8 @@
           <select id="sqMusicEnd"><option value="fade">Fades out with the sequence</option><option value="cut">Cuts with the sequence</option><option value="continue">Carries on into the next sequence</option></select>
           <label class="inline sqEndSec">over <input type="number" id="sqMusicEndSec" min="0.5" max="30" step="0.5" style="width:56px"> s</label>
         </div>
+        <label for="sqHidden">Hide</label>
+        <label class="inline"><input type="checkbox" id="sqHidden"> Hide it from the sequence list (it still plays inside other sequences, when its start comes, and from the Stream Deck)</label>
         <label for="sqQuiet">Quiet</label>
         <label class="inline"><input type="checkbox" id="sqQuiet"> Quiet the music when this starts (an interview on court): whatever is playing ducks until the next scene or sequence without it</label>
       </div>
@@ -861,6 +864,13 @@
     if (sq.then.type === 'sequence') { const nx = sequences().find(x => x.id === sq.then.sequence); return nx ? `then ${nx.name}` : 'then its next sequence (gone)'; }
     return sq.then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';
   }
+  let showHidden = false;
+  try { showHidden = localStorage.getItem('studio.seqShowHidden') === '1'; } catch { /* no storage */ }
+  $('seqShowHidden').onchange = () => {
+    showHidden = $('seqShowHidden').checked;
+    try { localStorage.setItem('studio.seqShowHidden', showHidden ? '1' : '0'); } catch { /* no storage */ }
+    renderSequences();
+  };
   function renderSequences() {
     const box = $('seqs'), p = scene.playing, pend = scene.pending;
     box.innerHTML = '';
@@ -869,14 +879,21 @@
     $('seqNext').textContent = scene.auto === false ? 'Nothing starts by itself; every sequence still plays by hand.'
       : next ? `Next: ${next.name} at ${clockTime(scene.nextAuto.at)}, ${next.start.min} min before ${scene.game?.label || 'the game'}`
       : sequences().some(s => s.start.type !== 'hand') ? 'Sequences start by themselves from the scoreboard\'s game and clock.' : '';
+    // Hidden sequences stay off the list (unless Show hidden is ticked, or one is playing or about to start).
+    const hiddenCount = sequences().filter(s => s.hidden).length;
+    $('seqShowHiddenRow').classList.toggle('hidden', !hiddenCount);
+    $('seqShowHidden').checked = showHidden;
+    $('seqShowHiddenRow').querySelector('span').textContent = `Show hidden (${hiddenCount})`;
     for (const sq of sequences()) {
-      const card = document.createElement('div');
       const run = p && p.id === sq.id;
       const waiting = !run && pend && pend.id === sq.id;
+      if (sq.hidden && !showHidden && !run && !waiting) continue;
+      const card = document.createElement('div');
       card.className = 'seq' + (run ? ' run' : '') + (run && p.paused ? ' paused' : '') + (waiting ? ' pend' : '');
       card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
       card.querySelector('b').textContent = sq.name;
       if (sq.quiet) card.querySelector('b').append(quietMark());
+      if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'master', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
       if (isMaster(sq)) card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'master', textContent: 'Master', title: 'Made of other sequences' }));
       card.querySelector('.band').classList.add(sq.colour);
       if (run) {
@@ -937,7 +954,7 @@
         + 'and <b>Stop</b> ends it and does its "then". Going to a scene, or playing another sequence, stops it without its "then". Turning the step\'s source off by hand moves to the next step. '
         + 'A sequence can start by itself before the game, at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '
         + 'while it waits to start, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
-        + 'Sequences belong to the competition in use. '
+        + 'A sequence with <b>Hide</b> ticked (in its editor) stays off this list unless <b>Show hidden</b> is ticked; it plays as before. Sequences belong to the competition in use. '
         + `Stream Deck: <code>${base}/deck/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
         + '<code>/deck/sequence/next</code> (or <code>/deck/sequence/advance</code>, only for a step waiting on Next), <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>; for one about to start '
         + '<code>/deck/sequence/now</code> and <code>/deck/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.'
@@ -1023,6 +1040,7 @@
     $('sqMusicEnd').value = end.type;
     $('sqMusicEndSec').value = end.sec || 3;
     $('sqQuiet').checked = !!draft.quiet;
+    $('sqHidden').checked = !!draft.hidden;
     stopListening();
     showStartFields();
     if (!then.value) then.value = 'off';
@@ -1183,7 +1201,7 @@
     const mus = $('sqMusic').value, endType = $('sqMusicEnd').value;
     const musicChoice = !mus ? null : { ...(mus.startsWith('playlist:') ? { playlist: mus.slice(9) } : { track: mus.slice(6) }),
       startStep: Number($('sqMusicStep').value) || 1, startAtSec: Number($('sqMusicMark').value) || 0, fadeInSec: Number($('sqMusicFade').value) || 0 };
-    return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start, music: musicChoice, quiet: $('sqQuiet').checked,
+    return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start, music: musicChoice, quiet: $('sqQuiet').checked, hidden: $('sqHidden').checked,
       musicEnd: endType === 'fade' ? { type: 'fade', sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
       ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
       then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : then.startsWith('sequence:') ? { type: 'sequence', sequence: then.slice(9) } : { type: then },
