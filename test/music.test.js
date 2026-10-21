@@ -193,6 +193,12 @@ test('the duck fades over the fade time, and ?fade sets its own', () => {
   assert.ok(Math.abs(down() - 0.5) < 0.01);
   wait(1);
   assert.equal(down(), 1);
+  // Fades ease in and out: turned back a quarter of the way through, it starts from where it's heard.
+  ok({ type: 'musicDuck', value: 'off' });
+  wait(0.5);
+  ok({ type: 'musicDuck', value: 'on' });
+  assert.ok(Math.abs(m().duck.from - (1 - 0.15625)) < 0.001);
+  wait(2);
   link('music/duck/off', { fade: '0' });
   assert.equal(m().ducked, false);
   assert.equal(down(), 0);

@@ -111,17 +111,16 @@ function findTrack(ref, files) {
 // ─── Playing ─────────────────────────────────────────────────────────────
 const track = () => p.queue[p.index] || null;
 const position = () => p.status === 'playing' ? p.pos.sec + (now() - p.pos.at) / 1000 : p.pos.sec;
-function gainNow() {
-  const g = p.gain;
-  if (!g.ms || now() >= g.at + g.ms) return g.to;
-  return g.from + (g.to - g.from) * Math.max(0, (now() - g.at) / g.ms);
+// Where a fade or duck is now. Fades ease in and out (scene.html uses the same curve), so one that
+// changes part way carries on from where it is heard.
+const ease = x => x * x * (3 - 2 * x);
+function along(e) {
+  if (!e.ms || now() >= e.at + e.ms) return e.to;
+  return e.from + (e.to - e.from) * ease(Math.max(0, (now() - e.at) / e.ms));
 }
+const gainNow = () => along(p.gain);
 function fadeTo(to, sec) { p.gain = { from: gainNow(), to, at: now(), ms: Math.round(sec * 1000) }; }
-function duckNow() {
-  const d = p.duck;
-  if (!d.ms || now() >= d.at + d.ms) return d.to;
-  return d.from + (d.to - d.from) * Math.max(0, (now() - d.at) / d.ms);
-}
+const duckNow = () => along(p.duck);
 // Ducks (why: 'hand' or 'quiet') or brings the music back up (null), over the fade time unless told otherwise.
 function setDuck(why, fade) {
   p.ducked = why;

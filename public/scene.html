@@ -226,22 +226,28 @@
   audio.preload = 'auto';
   let music = null, musicPlayId = -1, level = 0;
   const musicPos = m => m.status === 'playing' ? m.pos.sec + (Date.now() - m.pos.at) / 1000 : m.pos.sec;
+  // Fades ease in and out (no sudden start or stop) and follow how loud they sound: a straight line in
+  // volume sounds like nothing much happens and then the music drops away at the end.
+  const ease = x => x * x * (3 - 2 * x);
+  const along = (e, t) => !e.ms || t >= e.at + e.ms ? e.to : e.from + (e.to - e.from) * ease(Math.max(0, (t - e.at) / e.ms));
+  const heard = x => x * x * x; // 0..1 along the fade to volume, close to even steps in loudness
   function musicGain(m) {
     if (!m || m.status === 'stopped') return 0;
-    const g = m.gain, t = Date.now();
-    const fade = !g.ms || t >= g.at + g.ms ? g.to : g.from + (g.to - g.from) * Math.max(0, (t - g.at) / g.ms);
-    // The duck fades over the fade time too (duck: 0 up, 1 down at duckTo); a Studio without it just switches.
-    const d = m.duck;
-    const down = !d ? (m.ducked ? 1 : 0) : !d.ms || t >= d.at + d.ms ? d.to : d.from + (d.to - d.from) * Math.max(0, (t - d.at) / d.ms);
-    return fade * (m.volume / 100) * (m.level / 100) * (1 - down * (1 - m.duckTo / 100)) * (m.muted ? 0 : 1);
+    const t = Date.now();
+    // The duck fades over the fade time too (duck: 0 up, 1 down at duckTo), evenly in loudness between
+    // the two levels; a Studio without it just switches.
+    const down = m.duck ? along(m.duck, t) : m.ducked ? 1 : 0;
+    const low = Math.max(m.duckTo / 100, 0.01);
+    const duck = down >= 1 ? m.duckTo / 100 : Math.pow(low, down);
+    return heard(along(m.gain, t)) * (m.volume / 100) * (m.level / 100) * duck * (m.muted ? 0 : 1);
   }
-  // The volume follows the fade, easing mute in and out.
+  // The volume follows the fade, easing mute and the video lowering in and out.
   setInterval(() => {
     const target = silent ? 0 : musicGain(music);
-    level += (target - level) * 0.3;
-    if (Math.abs(target - level) < 0.002) level = target;
+    level += (target - level) * 0.25;
+    if (Math.abs(target - level) < 0.001) level = target;
     audio.volume = Math.max(0, Math.min(1, level));
-  }, 50);
+  }, 25);
   function seek(sec) {
     if (audio.readyState >= 1) { try { audio.currentTime = sec; } catch {} return; }
     audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = music ? musicPos(music) : sec; } catch {} }, { once: true });
