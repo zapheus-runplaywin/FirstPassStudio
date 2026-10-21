@@ -157,15 +157,20 @@
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
       <li><b>Sequences:</b> play the scene's sources one after another, for the run-up to a game, a quarter break or full time. <b>+ New sequence</b> on the Output page opens
         a list of steps: each step turns on the sources you pick and stays <b>for a set time</b> (seconds), <b>until it finishes</b> (its videos end, or pages that switch themselves off when done;
-        it moves on after the video's length plus 3 s, or a minute for a page, if the end never comes) or <b>until I press Next</b>. Sources in the <b>kept on</b> row stay on
-        from the first step to the last. As a step ends, sources the next step doesn't use go off with their own fades. <b>Repeat</b> plays it once or until stopped, and
+        it moves on after the video's length plus 3 s, or a minute for a page, if the end never comes), <b>until the game moves on</b> (the clock starts, or the next break or full time) or <b>until I press Next</b>. Sources in the <b>kept on</b> row stay on
+        from the first step to the last. As a step ends, sources the next step doesn't use go off with their own fades. <b>Starts</b> is by hand, N minutes before the picked game's scheduled start, at the breaks you tick (quarter, half and three quarter time) or at full time,
+        a few seconds after the siren (from the scoreboard's clock, the PlayHQ scorer's or yours; no extra PlayHQ calls). While it waits to start its card says <b>Starting</b>
+        with <b>Delay +10 s</b> (start 10 seconds later, each press, for a shot after the siren), <b>Start now</b> and <b>Cancel</b>. <b>Automatic sequences on</b> above the cards turns all of
+        that off and on (remembered). <b>Repeat</b> plays it once, until stopped, until play resumes or until N minutes before the start (it finishes the step on screen, then ends), and
         <b>Then</b> goes to a scene, turns off what it turned on, or leaves everything as it is. A sequence only turns off sources it turned on itself.
         While one plays, its card shows a dot per step and the time left, with <b>Next</b> (end the step now), <b>Pause</b>, <b>Delay +10 s</b> (hold the step 10 seconds longer, each press,
         for a shot after the siren) and <b>Stop</b> (ends it and does its Then). Going to a scene, playing another sequence or hiding everything stops it without its Then;
         turning the step's source off by hand moves to the next step. One plays at a time, it keeps going with the Output page closed, and nothing is playing after Studio restarts.
         Sequences belong to the competition in use (saved in its folder as <code>sequences.json</code>) and change with <b>Use this one</b>; the sources and scenes are shared.
         Stream Deck: <code>/deck/sequence/&lt;name&gt;</code> plays one (<code>/toggle</code> stops it on a second press, <code>/stop</code> stops it),
-        and <code>/deck/sequence/next</code>, <code>delay</code>, <code>pause</code> and <code>stop</code> act on whatever is playing.</li>
+        <code>/deck/sequence/next</code>, <code>delay</code>, <code>pause</code> and <code>stop</code> act on whatever is playing, <code>/deck/sequence/now</code> and <code>cancel</code>
+        on one about to start, and <code>/deck/sequence/auto/on</code>, <code>off</code> or <code>toggle</code> set the switch.
+        The break lengths (Competitions setup, Game rules) let the editor say how many times a break sequence fits in each break.</li>
       <li><b>Scene View:</b> the Output page shows the scene as it is right now (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick <b>Live View</b> when the Mac is busy.
         <b>Scene View sound</b> plays the sound from the Scene View, with or without an output on; a display, Blackmagic or NDI output is muted while it does, so it never plays twice;
         it goes back to the outputs when the Output page closes. <b>Pop out</b> shows the Scene View in its own window to resize, move to another screen

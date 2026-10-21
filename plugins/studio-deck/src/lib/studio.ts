@@ -15,6 +15,8 @@ export type SavedScene = { id: string; name: string; colour?: string; states: Re
 export type Sequence = { id: string; name: string; colour?: string };
 /** The sequence playing now: its step (from 0) of steps, and the step's time left when Studio sent it (null: waits for Next). */
 export type Playing = { id: string; step: number; steps: number; paused: boolean; leftMs: number | null; delayMs?: number };
+/** A sequence about to start by itself, and how much Delay has added. */
+export type Pending = { id: string; leftMs: number | null; delayMs: number };
 /**
  * The whole scene as Studio sends it. scenes, current (the last scene gone to) and changed (sources that differ
  * from it) are missing from a Studio older than scenes; sequences and playing from one older than sequences.
@@ -27,6 +29,8 @@ export type Scene = {
 	changed?: string[];
 	sequences?: Sequence[];
 	playing?: Playing | null;
+	/** A sequence about to start by itself (a few seconds after the siren): its time left (null while it waits for the one playing). */
+	pending?: Pending | null;
 };
 
 /** The scene, or null while Studio can't be reached. */
