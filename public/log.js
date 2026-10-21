@@ -1,7 +1,7 @@
 // Sends this page's errors and warnings to the helper's debug log
 // (logs/playhq-graphics.log, or http://localhost:8080/api/log).
 (function () {
-  const page = location.pathname.replace(/^\//, '') + location.search || 'index.html';
+  const page = location.pathname.replace(/^\//, '') + location.search || 'output.html';
   let sent = 0;
   function send(level, message, detail) {
     if (++sent > 200) return; // stop a broken page from filling the log

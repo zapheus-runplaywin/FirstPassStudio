@@ -8,7 +8,7 @@ every link in its API reference, where **Try it out** sends any link to the scor
 **Setup for each button:** drag a **System → Website** action onto a key, paste a link from below,
 and tick **GET request in background** so no browser window opens.
 The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running Studio.
-The home page shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
+The Graphics page (http://localhost:8080/graphics.html) shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
 which also works from a Stream Deck on another computer on the same network.
 
 ## Scores

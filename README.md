@@ -108,8 +108,8 @@ removes the tracked `competitions/` files when you pull, so import your competit
 ## Desktop app (Mac)
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
-the app to Applications and open it. It opens the home page in its own window and lives in the menu bar (the **1P**
-icon). The Output page and the Stream Deck use the same links as the home page.
+the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
+icon). The Output page and the Stream Deck use the same links as the Graphics page.
 
 **Studio only runs while a Studio window is open.** Opening a Studio window (opening the app, **Open Studio** or any
 page in the menu bar icon, ⌘N) puts Studio on air: it serves the graphics and the Stream Deck links, talks to PlayHQ,
@@ -120,7 +120,7 @@ page, for the whole stream.
 
 ### Links use the Mac's .local name
 
-The links on the home page, the control page and the Mac app's menu (including **Copy the Studio link**) start with
+The links on the Graphics page, the control page and the Mac app's menu (including **Copy the Studio link**) start with
 the Mac's Bonjour name, e.g. `http://matts-macbook-pro.local:8080/`, instead of `localhost`. That name is the
 **Local hostname** in System Settings > General > Sharing, and it works on the Mac itself and from a phone,
 another computer or a Stream Deck on the same network, without looking up an IP address. The port stays 8080.
@@ -227,7 +227,7 @@ data folder of their own, so they never touch PlayHQ or your settings.
 
 ## Each stream
 
-1. Open the FirstPass Studio app. Its home page opens and Studio goes on air; leave a Studio window open for the
+1. Open the FirstPass Studio app. The Output page opens and Studio goes on air; leave a Studio window open for the
    whole stream (closing the last one takes Studio off air).
 2. Open **Output** (⌘1) and add the graphics you need with **Add page** (the scoreboard, a ladder per division, and so
    on), then turn on the display or Blackmagic output that feeds your switcher (see **Output** below).
@@ -238,14 +238,14 @@ Only the scoreboard updates itself (every second, and it reloads when Studio res
 automatic super shot (every second) and the countdown (every 5 seconds, asking Studio only). Every other page
 loads once, and again each time it's turned on on the Output page (with **Load the page fresh each time it's shown**, the
 default), or press **Refresh page** to get the latest. Divisions are numbered in name order, as listed on the
-http://localhost:8080/ page. You can also use part of a name, e.g. `?division=Premier`.
+http://localhost:8080/graphics.html page. You can also use part of a name, e.g. `?division=Premier`.
 
 Frame rate: every graphic and animation is timed by the clock, not by frames, so it plays at the same speed at 25, 30,
 50 or 60 fps. The Blackmagic and NDI outputs render at the video format's frame rate.
 
 ## Output (the Studio scene)
 
-http://localhost:8080/output.html (**Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
+http://localhost:8080/ (the home page, also at /output.html; **Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
 sources drawn as layers, top layer first, sent to a display, a Blackmagic device or NDI® for your switcher.
 
 - **Test pattern:** http://localhost:8080/testpattern.html (in **Add page**) is a 1920 x 1080 pattern on a see-through background for checking an output
@@ -267,14 +267,14 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   that hasn't been converted yet converts. `/api/scene/export` (`?media=0` without media) and `POST /api/scene/import` (the file as the body) do the same.
 - **Page options:** a Studio graphic's link options (position, heading, division, round, animate away and so on) show as fields under its
   **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
-  new option there as well as on the home page.
+  new option there as well as on the Graphics page.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
 - **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
   (1920 x 1080 for full-frame graphics).
 - **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
   when hidden. Untick it to keep a page running while hidden so it shows instantly.
   **Refresh page** reloads it now.
-- **Preview** opens the selected source on its own in a new window, like the home page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same.
+- **Preview** opens the selected source on its own in a new window, like the Graphics page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's Scene View is silent unless **Scene View sound** is ticked. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it

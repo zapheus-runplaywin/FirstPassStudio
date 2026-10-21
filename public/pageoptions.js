@@ -1,5 +1,5 @@
 // FirstPass Studio - the options each graphics page takes in its link (?position=top and so on), so the Output
-// page can offer them as fields instead of sending people to the home page to read them. The home page
+// page can offer them as fields instead of sending people to the Graphics page to read them. The Graphics page
 // describes the same options in words: keep the two in step when a page gets a new one.
 //
 // Each option: { key, label, type: 'select' | 'text' | 'number', ... }. A select's first choice is the
