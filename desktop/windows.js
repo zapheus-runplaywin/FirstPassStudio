@@ -5,8 +5,7 @@
 // the title bar, and the app shows in the Dock and the app switcher while a window is open.
 // Links that open a new tab on Studio (a preview, the setup page) open another app window;
 // links to anywhere else (PlayHQ, GitHub) open in the browser. "Open in Browser" in the File
-// menu opens the page on show in the browser, and the menu bar icon can send every page to
-// the browser instead (saved as openInBrowser in app-settings.json).
+// menu opens the page on show in the browser.
 //
 // Studio is on air only while one of these windows is open: opening one starts it (main.js) and
 // closing the last one takes it off air, after asking if it is on air.
@@ -27,7 +26,7 @@ const HEADER_CSS = `
   .fp-bar a, .fp-bar button, .fp-bar input, .fp-bar select { -webkit-app-region: no-drag; }
 `;
 
-module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, openBrowser, onWindowOpened, onAllClosed }) {
+module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, onWindowOpened, onAllClosed }) {
   const local = p => `http://localhost:${port}${p}`;
   // A page on this Studio: localhost, or the .local name the home page's links use.
   const isStudio = u => {
@@ -47,9 +46,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.confirmedClose = true;
   });
 
-  // Closing the last window takes Studio off air (unless pages open in the browser), so on air
-  // it asks first: mid-stream that would stop the graphics and the Stream Deck.
-  const closingGoesOffAir = () => isOnAir() && !appSettings().openInBrowser;
+  // Closing the last window takes Studio off air, so on air it asks first: mid-stream that
+  // would stop the graphics and the Stream Deck.
+  const closingGoesOffAir = () => isOnAir();
   // Asks without blocking (a blocking dialog inside a window's close can lock the app up).
   async function confirmOffAir(parent) {
     const { response } = await dialog.showMessageBox(parent || undefined, {
@@ -61,9 +60,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   }
 
   // ─── Splash ─────────────────────────────────────────────────────────────
-  // The 1P Studio logo, shown while the app starts Studio when opened by hand. It stays up for
-  // at least SPLASH_MIN so it doesn't flash, then closes as Studio's first window shows (or the
-  // page opens in the browser). It never stays longer than SPLASH_MAX, whatever happens.
+  // The 1P Studio logo, shown while Studio starts from off air (Open Studio or a page in the menu
+  // bar icon). It stays up for at least SPLASH_MIN so it doesn't flash, then closes as Studio's
+  // first window shows. It never stays longer than SPLASH_MAX, whatever happens.
   const SPLASH_MIN = 1500, SPLASH_MAX = 30000;
   let splash = null, splashDone = Promise.resolve();
   const isSplash = w => w && w.isSplash;
@@ -193,12 +192,12 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   });
 
   // Opens a Studio page (a path such as /control.html) in the app's window, reusing the main
-  // one, or in the browser when that is chosen in the menu bar icon.
+  // one.
   function open(p) {
-    if (appSettings().openInBrowser) { log(`Opening ${p} in the browser (Open pages in the browser is ticked)`); closeSplash(); return openBrowser(p); }
     const url = local(p);
     if (main && !main.isDestroyed()) {
       if (main.studioUrl !== url) main.loadURL(url);
+      closeSplash();
       if (main.isMinimized()) main.restore();
       main.show();
       main.focus();
@@ -208,7 +207,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     app.focus({ steal: true });
   }
 
-  // After Start Studio: pages showing "off air" load their page again.
+  // Once Studio is on air: pages showing "off air" load their page again.
   function reloadOffAir() {
     for (const w of pageWindows()) {
       if (w.studioUrl && w.webContents.getURL().startsWith('file:')) w.loadURL(w.studioUrl);
@@ -247,7 +246,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   const current = () => { const w = BrowserWindow.getFocusedWindow(); return w && !w.isDestroyed() && !isSplash(w) ? w : null; };
 
   function refreshMenu() {
-    const go = p => ({ click: () => { const w = current(); if (w && !appSettings().openInBrowser) w.loadURL(local(p)); else open(p); } });
+    const go = p => ({ click: () => { const w = current(); if (w) w.loadURL(local(p)); else open(p); } });
     const w = current();
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       {

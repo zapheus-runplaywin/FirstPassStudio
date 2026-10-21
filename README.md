@@ -63,7 +63,7 @@ In it:
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log.
-- `app-settings.json`: the Mac app's own choices (whether Studio opens at login, pages in the browser, the window's size and position).
+- `app-settings.json`: the Mac app's own choices (the window's size and position).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
 
 ### Template files
@@ -115,19 +115,14 @@ Studio has always listened on every network connection, not just this Mac, so an
 open the pages and press the Stream Deck links (scores, clock, game). Stream on a network you trust (not open venue
 Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
 
-The menu bar icon has: Start/Stop Studio, Open Studio, Scoreboard control, Competition setup, Copy the Studio link,
-Install the Stream Deck plugin, Open the settings folder, Open the debug log, Restart Studio, Open at login, Open Studio at
-login, Open pages in the browser instead of the app window (with the settings, so it isn't ticked by accident; the app's
-`logs/app.log` notes each page it sends to the browser), Check for updates and Quit.
+The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
+Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Restart Studio, Open at
+login, Check for updates and Quit.
 
-The status line under the version reads "Studio is on air at …" or "Studio is off air". **Start Studio** opens the
-home page, which puts Studio on air; **Stop Studio** closes the Studio windows without asking and takes it off air.
-Opened at login, the app sits in the menu bar off air unless **Open Studio at login** is ticked (saved as
-`startHelperAtLogin` in `app-settings.json` in the data folder), which opens the home page and goes on air. Opened by
-hand, it opens the home page.
-
-With **Open pages in the browser instead of the app window** ticked the app can't tell when the browser tabs close, so Studio stays on air from
-**Start Studio** (or any page opened from the menu) until **Stop Studio** or Quit.
+The status line under the version reads "Studio is on air at …" or "Studio is off air". The app always starts in the
+menu bar off air, at login or opened by hand; **Open Studio** (or any page in the menu) shows the splash, puts Studio
+on air and opens the page. **Stop Studio** closes the Studio windows without asking and takes it off air. Opening the
+app again while it is running opens Studio.
 
 ### The app window
 
@@ -139,9 +134,7 @@ anywhere else open in the browser. The app menu has FirstPass Studio > Close Stu
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
 ⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 athletes, ⌘6 Stream Deck) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
-shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds`, and
-**Open pages in the browser instead of the app window** in the menu bar icon (`openInBrowser`, both in `app-settings.json`) sends every page to
-the browser as before.
+shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.
 
 Settings live in the data folder (see **Saved settings**). Updates download in the background and install when the app quits, so they never
 interrupt a stream; once one has downloaded, **Restart to update** in the menu installs it straight away. Either way it's the
