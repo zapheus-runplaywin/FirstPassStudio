@@ -24,6 +24,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
+const sequences = require('./sequences');
 
 const FILE = datadir.file('scene.json');
 const MEDIA_DIR = datadir.file('media');
@@ -160,7 +161,9 @@ function changed() {
 
 // Turns sources on and off to match a scene. A source already on stays as it is (a page isn't
 // reloaded and a video doesn't start again), and a source the scene doesn't set is left alone.
-function goTo(sc) {
+// Picking a scene stops a playing sequence, unless it's the sequence's own Then going there.
+function goTo(sc, fromSequence) {
+  if (!fromSequence) sequences.beforeScene(sc);
   let on = 0, off = 0;
   for (const s of scene.sources) {
     const want = sc.states[s.id];
@@ -254,7 +257,7 @@ function upgrade(req, socket) {
 
 function state() {
   return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: scene.scenes, current: currentScene() ? scene.current : null,
-    changed: changed(), converting: [...converting.keys()] };
+    changed: changed(), converting: [...converting.keys()], ...sequences.state() };
 }
 
 function find(ref) {
@@ -265,9 +268,12 @@ function find(ref) {
 // One change to the scene, from the Output page or the Stream Deck. Returns an error or null.
 function apply(a) {
   const error = change(a);
+  noteShowings();
+  return error;
+}
+function noteShowings() {
   for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;
   wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
-  return error;
 }
 function change(a) {
   const src = a.id || a.name ? find(a.id || a.name) : null;
@@ -297,6 +303,7 @@ function change(a) {
       scene.sources.splice(scene.sources.indexOf(src), 1);
       for (const sc of scene.scenes) delete sc.states[src.id];
       ended.delete(src.id);
+      sequences.sourceRemoved(src.id);
       log('info', 'scene', `Removed source "${src.name}"`);
       return null;
     case 'move': {
@@ -314,6 +321,7 @@ function change(a) {
       src.visible = a.type === 'toggle' ? !src.visible : a.type === 'show';
       ended.delete(src.id);
       log('info', 'scene', `"${src.name}" ${src.visible ? 'on' : 'off'}`);
+      if (!src.visible) sequences.turnedOff(src);
       return null;
     case 'restart':
       if (need()) return need();
@@ -328,18 +336,21 @@ function change(a) {
       return null;
     case 'ended': {
       // scene.html says a video finished (fade it out if it's set to hide when done) or a page animated
-      // away (it only says so when it leaves the frame clear). loadSeq and showSeq make sure it's this
-      // play that ended, not one from before a restart or from the last time it was on.
+      // away (it only says so when it leaves the frame clear), and a sequence waiting for it moves on.
+      // loadSeq and showSeq make sure it's this play that ended, not one from before a restart or from
+      // the last time it was on.
       if (need()) return need();
-      const done = src.type === 'video' ? src.hideWhenDone && !src.loop : src.type === 'browser';
-      if (done && src.visible && Number(a.loadSeq) === src.loadSeq && (a.showSeq === undefined || Number(a.showSeq) === src.showSeq)) {
+      if (!src.visible || Number(a.loadSeq) !== src.loadSeq || (a.showSeq !== undefined && Number(a.showSeq) !== src.showSeq)) return null;
+      if (src.type === 'video' ? src.hideWhenDone && !src.loop : src.type === 'browser') {
         src.visible = false;
         if (currentScene()?.states[src.id] === 'on') ended.add(src.id);
         log('info', 'scene', `"${src.name}" ${src.type === 'video' ? 'finished' : 'animated away'}, off`);
       }
+      sequences.ended(src);
       return null;
     }
     case 'hideAll':
+      sequences.allOff();
       for (const s of scene.sources) s.visible = false;
       ended = new Set();
       log('info', 'scene', 'Every source off');
@@ -419,8 +430,10 @@ function applyScene(a) {
       if (to >= 0 && to < scene.scenes.length) goTo(scene.scenes[to]);
       return null;
     }
-    default:
-      return `Unknown scene change "${a.type}".`;
+    default: {
+      const error = sequences.apply(a);
+      return error === undefined ? `Unknown scene change "${a.type}".` : error;
+    }
   }
 }
 
@@ -429,6 +442,13 @@ function applyScene(a) {
 // isn't a scene link, so the scoreboard's own links carry on as before.
 function deck(parts) {
   const [what, name, verb] = parts;
+  if (what === 'sequence') {
+    const r = sequences.deck(parts);
+    if (!r) return null;
+    if (r.error) return { status: r.status, body: { error: r.error } };
+    save();
+    return { status: 200, body: r.body };
+  }
   let action = null;
   if (what === 'layers' && name === 'off') action = { type: 'hideAll' };
   if (what === 'scene' && name && !verb) {
@@ -470,11 +490,37 @@ function ffmpegPath() {
 }
 const webmFor = f => path.basename(f, path.extname(f)) + '.webm';
 
+// How long each video is, in seconds, from ffmpeg (null until it's been measured). A sequence's
+// Until it finishes step waits that long at most, and the Output page shows it.
+const durations = new Map(); // file -> { mtimeMs, sec } (sec null while measuring or if ffmpeg couldn't tell)
+function duration(name) {
+  const file = path.join(MEDIA_DIR, cleanFile(name));
+  let mtimeMs;
+  try { mtimeMs = fs.statSync(file).mtimeMs; } catch { return null; }
+  const known = durations.get(name);
+  if (known && known.mtimeMs === mtimeMs) return known.sec;
+  const bin = ffmpegPath();
+  if (!bin) return null;
+  durations.set(name, { mtimeMs, sec: null });
+  let out = '';
+  const child = require('child_process').spawn(bin, ['-hide_banner', '-i', file], { stdio: ['ignore', 'ignore', 'pipe'] });
+  child.stderr.on('data', d => { if (out.length < 20000) out += d; });
+  child.on('error', () => {});
+  child.on('close', () => {
+    const m = /Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/.exec(out);
+    if (!m) return;
+    durations.set(name, { mtimeMs, sec: Math.round((Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])) * 10) / 10 });
+    notify();
+  });
+  return null;
+}
+
 function mediaList() {
   let files = [];
   try { files = fs.readdirSync(MEDIA_DIR).filter(f => kindOf(f) && !f.startsWith('.')).sort((a, b) => a.localeCompare(b)); } catch { /* none yet */ }
   return files.map(name => {
     const m = { name, kind: kindOf(name) };
+    if (m.kind === 'video') m.duration = duration(name);
     if (path.extname(name).toLowerCase() === '.mov') {
       if (converting.has(name)) m.converting = true;
       else if (files.includes(webmFor(name))) m.converted = webmFor(name);
@@ -760,11 +806,23 @@ async function route(req, res, url, { send, readBody }) {
   return false;
 }
 
-function init(logger, { ffmpeg } = {}) {
+function init(logger, { ffmpeg, sequencesFile } = {}) {
   log = logger || log;
   ffmpegSetting = ffmpeg || '';
   load();
+  sequences.init(log, {
+    source: id => scene.sources.find(s => s.id === id) || null,
+    setVisible: (s, on) => { s.visible = on; ended.delete(s.id); },
+    scene: id => scene.scenes.find(s => s.id === id) || null,
+    goTo: sc => goTo(sc, true),
+    duration,
+    // A step's time ran out: sources it turned on are new showings too.
+    changed: () => { noteShowings(); save(); },
+  }, sequencesFile);
   if (scene.sources.length) log('info', 'scene', `Scene has ${scene.sources.length} sources`);
 }
 
-module.exports = { STREAMDECK_PLUGIN, importFile, exportFiles, init, route, upgrade, deck, apply, state, slug, FILE, MEDIA_DIR };
+// The competition in use changed (or its setup was saved): load its sequences if it's another one.
+function competitionChanged() { if (sequences.reload()) notify(); }
+
+module.exports = { STREAMDECK_PLUGIN, importFile, exportFiles, init, route, upgrade, deck, apply, state, slug, competitionChanged, FILE, MEDIA_DIR };

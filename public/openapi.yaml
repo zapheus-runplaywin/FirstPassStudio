@@ -476,6 +476,70 @@ paths:
                   changed: { type: integer }
         '404': { description: No scene by that name, no scenes at all, or no current scene to go back to }
 
+  /deck/sequence/{name}:
+    get:
+      tags: [Scene]
+      summary: Play a sequence, or act on the one playing
+      description: |
+        Sequences are made on the Output page (`/output.html`) and belong to the competition in use. Each plays the scene's sources one after
+        another, each step for a set time, until it finishes, or until Next. One plays at a time: playing one stops another without its Then.
+        With a sequence's name this plays it from the first step. These names act on whatever is playing instead:
+        `next` ends the step now, `delay` holds the step 10 seconds longer (each call adds 10 s, for a shot after the siren),
+        `pause` pauses or carries on, `resume` carries on, and `stop` stops it and does its Then (go to a scene, turn off what it turned on, or leave it all).
+      operationId: sequence
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The sequence's name, lower case with dashes for spaces (e.g. `quarter-break`), or `next`, `delay`, `pause`, `resume` or `stop`
+          schema: { type: string }
+      responses:
+        '200':
+          description: Done. Returns what's playing now, its step (from 1) and whether it's paused.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  playing: { type: string, nullable: true }
+                  step: { type: integer, nullable: true }
+                  paused: { type: boolean }
+        '404': { description: No sequence by that name }
+        '409': { description: Next, delay or pause with no sequence playing }
+
+  /deck/sequence/{name}/{action}:
+    get:
+      tags: [Scene]
+      summary: Play, toggle or stop one sequence
+      description: |
+        `play` (or `start`) plays it from the first step. `toggle` plays it, or stops it (doing its Then) if it's the one playing.
+        `stop` stops it if it's the one playing, and does nothing otherwise.
+      operationId: sequenceAction
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The sequence's name, lower case with dashes for spaces (e.g. `quarter-break`)
+          schema: { type: string }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [play, start, toggle, stop] }
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  playing: { type: string, nullable: true }
+                  step: { type: integer, nullable: true }
+                  paused: { type: boolean }
+        '404': { description: No sequence by that name }
+
   /deck/output/{action}:
     get:
       tags: [Scene]
