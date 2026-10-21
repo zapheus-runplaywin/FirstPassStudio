@@ -1414,7 +1414,7 @@ function getWorm() {
   for (const e of entries) if (!e.g.gap) (byPeriod.get(e.period) || byPeriod.set(e.period, []).get(e.period)).push(e);
   for (const list of byPeriod.values()) {
     const fracs = list.map(e => e.frac);
-    if (fracs.some(f => f == null) || (list.length > 1 && fracs.every(f => f === fracs[0]))) list.forEach((e, i) => { e.frac = (i + 1) / (list.length + 1); });
+    if (fracs.some(f => f == null) || (list.length > 1 && fracs.every(f => f === fracs[0]))) list.forEach((e, i) => { e.frac = (i + 1) / (list.length + 1); e.spread = true; });
   }
   const score = { home: 0, away: 0 };
   const segments = [], gaps = [];
@@ -1459,13 +1459,28 @@ function getWorm() {
   let changes = 0, leader = 0;
   for (const p of all) { const now = Math.sign(p.margin); if (now && leader && now !== leader) changes++; if (now) leader = now; }
   const periods = Math.max(r.periods, Number(b.period) || 1, ...entries.map(e => e.period));
+  // The super shot period (the last superShotMinutes of each quarter, super shot divisions only):
+  // where it falls on the chart, and the points each team scored in it (goals with clock times only).
+  let superShot = null;
+  const ssSec = (Number(r.superShotMinutes) || 0) * 60;
+  if (r.superShots && ssSec > 0) {
+    const windows = [];
+    for (let n = 1; n <= r.periods; n++) {
+      const seen = entries.find(e => e.period === n && e.g.periodSec);
+      const len = Number(seen ? seen.g.periodSec : n === Number(b.period) && b.clock ? b.clock.lengthSec : 0) || defaultSec;
+      windows.push({ n, from: n - Math.min(ssSec, len) / len, to: n });
+    }
+    const inWindow = entries.filter(e => !e.g.gap && !e.spread && e.g.clockLeft != null && e.g.clockLeft <= ssSec && e.period <= r.periods);
+    const pts = side => inWindow.filter(e => e.g.side === side).reduce((t, e) => t + e.g.points, 0);
+    superShot = { minutes: r.superShotMinutes, windows, points: { home: pts('home'), away: pts('away') }, timed: entries.some(e => !e.g.gap && !e.spread) };
+  }
   return {
     gameId: b.gameId, division: b.division, court: b.court, round: b.round, period: b.period, competition: competitionName(),
     periodType: r.periodType, periodLabel: r.periodLabel, periods, regularPeriods: r.periods,
     home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
     away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
     segments, gaps: gaps.filter(g => g.to > g.from), end,
-    biggestLead: { home: lead('home'), away: lead('away') }, leadChanges: changes,
+    biggestLead: { home: lead('home'), away: lead('away') }, leadChanges: changes, superShot,
     totalGoals: entries.filter(e => !e.g.gap).length,
   };
 }

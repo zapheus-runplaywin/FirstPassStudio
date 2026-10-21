@@ -92,6 +92,7 @@ const PAGE_OPTIONS = (() => {
       title('Score worm'),
       { key: 'draw', label: 'Draw the line in', type: 'number', min: 0, max: 15, placeholder: '3 seconds (0 shows it straight away)' },
       show('leads', 'Biggest leads and lead changes'),
+      show('supershot', 'Super shot periods (super shot divisions)'),
       { key: 'colours', label: 'Colours', type: 'select', choices: [['', 'Club colours'], ['0', 'Competition colours']] },
     ],
     'winner.html': [

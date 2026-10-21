@@ -20,7 +20,8 @@
        up part way, a score typed in or a jump of more than 3 at once) shows as a gap.
        Loads once, each time it comes on, and draws the line in. Options: ?title=Score%20worm,
        ?draw=3 seconds to draw the line (0 shows it straight away), ?leads=0 leaves out the
-       biggest leads and lead changes, ?colours=0 uses the competition's colours, not the clubs'. -->
+       biggest leads and lead changes, ?supershot=0 leaves out the super shot periods (shaded in
+       super shot divisions, with the points each team scored in them), ?colours=0 uses the competition's colours, not the clubs'. -->
   <main class="card worm" id="card" data-fit hidden>
     <header class="matchup__header">
       <div class="tab" id="title">Score worm</div>
@@ -41,6 +42,7 @@
     const params = new URLSearchParams(location.search);
     const off = key => params.get(key) === '0';
     if (params.get('title')) document.getElementById('title').textContent = params.get('title');
+    const showSuperShot = d => !!d.superShot && !off('supershot');
     const DRAW_MS = Math.max(0, Math.min(15, Number(params.get('draw') ?? 3))) * 1000;
 
     // The plot, inside the 1320 x 420 chart: margin labels on the left, quarter labels underneath.
@@ -114,6 +116,17 @@
           t.textContent = m;
         }
       }
+      // The super shot period of each quarter: a light band with a yellow cap along the top.
+      if (showSuperShot(d)) {
+        for (const w of d.superShot.windows) {
+          if (w.n > span) continue;
+          const wx = x(w.from), ww = x(w.to) - wx;
+          svg('rect', { x: wx, y: Y0, width: ww, height: Y1 - Y0, class: 'worm__ss' }, chart);
+          svg('rect', { x: wx, y: Y0, width: ww, height: 5, class: 'worm__sscap' }, chart);
+          const t = svg('text', { x: wx + ww / 2, y: Y0 + 22, class: 'worm__sslabel', 'text-anchor': 'middle' }, chart);
+          t.textContent = ww > 110 ? 'Super shot' : 'SS';
+        }
+      }
       // Stretches Studio wasn't watching.
       for (const g of d.gaps) {
         const gx = x(g.from), gw = x(g.to) - gx;
@@ -157,7 +170,7 @@
       const mark = (p, text, colour, below) => {
         svg('circle', { cx: x(p.t), cy: y(p.margin), r: 8, fill: colour, class: 'worm__dot' }, marks);
         if (below && y(p.margin) + 60 > Y1) below = false; // keep the label inside the chart
-        if (!below && y(p.margin) - 40 < Y0) below = true;
+        if (!below && y(p.margin) - 34 < Y0) below = true;
         const t = svg('text', { x: Math.min(X1 - 30, Math.max(X0 + 30, x(p.t))), y: y(p.margin) + (below ? 34 : -18), fill: colour, class: 'worm__mark', 'text-anchor': 'middle', 'dominant-baseline': below ? 'hanging' : 'auto' }, marks);
         t.textContent = text;
       };
@@ -210,20 +223,27 @@
     function facts(d) {
       const box = document.getElementById('facts');
       box.replaceChildren();
-      if (off('leads')) { box.hidden = true; return; }
       const when = t => (Math.floor(t) + 1 > d.regularPeriods ? 'ET' : `${d.periodLabel}${Math.min(d.periods, Math.floor(t) + 1)}`);
-      const fact = (label, value, note) => {
+      const fact = (label, value, note, team) => {
         const f = el('div', 'worm__fact');
+        if (team) f.appendChild(logoEl(team, 'worm__factlogo'));
         f.append(el('span', 'label', label), el('span', 'num', value));
         if (note) f.appendChild(el('span', 'note', note));
         box.appendChild(f);
       };
-      for (const side of ['home', 'away']) {
-        const l = d.biggestLead[side];
-        fact(`${d[side].name} biggest lead`, l ? l.margin : '–', l ? when(l.t) : '');
+      if (!off('leads')) {
+        for (const side of ['home', 'away']) {
+          const l = d.biggestLead[side];
+          fact('Biggest lead', l ? l.margin : '–', l ? when(l.t) : '', d[side]);
+        }
+        fact('Lead changes', d.leadChanges);
       }
-      fact('Lead changes', d.leadChanges);
-      box.hidden = false;
+      // Points each team scored in super shot time (only goals Studio has clock times for).
+      if (showSuperShot(d) && d.superShot.timed) {
+        fact('Super shot time', `${d.superShot.points.home}–${d.superShot.points.away}`, 'points');
+        box.lastChild.classList.add('worm__fact--ss');
+      }
+      box.hidden = !box.children.length;
       if (d.gaps.length) console.info(`Score worm: Studio wasn't watching ${d.gaps.length} stretch${d.gaps.length === 1 ? '' : 'es'} of the game, shown as gaps`);
     }
 

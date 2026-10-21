@@ -62,3 +62,27 @@ test('a score typed in is a gap, and the line carries on from the new score', as
   assert.equal(w.gaps.length, 1);
   assert.ok(w.gaps[0].to >= 2 && w.gaps[0].from < 1); // from Q1's last goal to when the score was typed in Q3
 });
+
+test('super shot divisions mark the super shot period and count the points scored in it', async t => {
+  const { startStudio } = require('./support/studio');
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  const post = body => studio.post('/api/scoreboard', body);
+  await post({ type: 'autoSelect', value: false });
+  await post({ type: 'source', value: 'manual' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'clockLength', value: 600 });
+  await post({ type: 'period', value: 1 });
+  const goal = async (left, side, delta) => { await post({ type: 'clockSet', secondsLeft: left }); await post({ type: 'score', side, delta }); };
+  await goal(400, 'home', 1); // before the super shot period
+  await goal(150, 'away', 2); // in it (last 3 minutes)
+  await goal(100, 'home', 1);
+  await goal(30, 'away', 2);
+
+  const w = await studio.get('/api/worm');
+  assert.ok(w.superShot, 'Thunder League plays super shots');
+  assert.equal(w.superShot.minutes, 3);
+  assert.deepEqual(w.superShot.windows.map(x => [x.n, x.from, x.to]), [[1, 0.7, 1], [2, 1.7, 2], [3, 2.7, 3], [4, 3.7, 4]]);
+  assert.deepEqual(w.superShot.points, { home: 1, away: 4 });
+  assert.equal(w.superShot.timed, true);
+});

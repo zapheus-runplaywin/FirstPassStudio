@@ -403,6 +403,12 @@ paths:
                     type: object
                     description: home and away, each margin and t, or null when that team never led.
                   leadChanges: { type: integer }
+                  superShot:
+                    type: object
+                    nullable: true
+                    description: >-
+                      Super shot divisions only: minutes, windows (n, from, to in periods: the last minutes of each quarter),
+                      points (home and away scored in those windows, from goals with clock times) and timed (any goal had a clock time).
                   totalGoals: { type: integer }
 
   /api/goals:
