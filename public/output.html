@@ -366,7 +366,7 @@
         <b>Repeat until</b> finishes the step on screen when its moment comes (or the next sequence's start comes), then ends.
         <b>Kept on</b> sources stay on from the first step to the last. A sequence only turns off sources it turned on itself.
         <b>+ Add scene</b> goes to a scene, as a starting point or a reset point: what the scene turns on stays on under the next steps, and after the sequence. It goes straight on, or holds like any step.
-        <b>+ Add sequence</b> plays another sequence's steps there (with its kept on sources, but not its repeat, music or Then), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p>
+        <b>+ Add sequence</b> plays another sequence's steps there (with its kept on sources, but not its repeat or Then; its music plays while it does, when this sequence has none of its own), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p>
       <p class="error" id="sqErr"></p>
       <div class="row" style="margin-top:10px;justify-content:space-between">
         <div class="row"><button class="danger" id="sqDelete">Delete</button><button class="alt" id="sqCopy">Copy</button></div>
@@ -1276,7 +1276,7 @@
     $('musicNote').innerHTML = 'Music plays wherever video sound plays: the outputs, or this page\'s Scene View sound, never both. '
       + 'Add MP3, M4A, AAC, WAV or AIFF songs you\'re licensed to stream (Apple Music songs are copy-protected and can\'t be used). '
       + 'With <b>Even out its loudness</b> ticked, a song is levelled to the same loudness as the others (as streaming services do) and the original is kept in the media folder\'s originals. '
-      + 'A sequence can bring its own music (in its editor), which fades out when the sequence is stopped by a scene or another sequence. '
+      + 'A sequence can bring its own music (in its editor), which fades out when the sequence is stopped by a scene or another sequence. A sequence with no music of its own plays the music of a sequence inside it while that one plays. '
       + 'A scene or sequence with <b>Quiet the music</b> ticked (an interview on court) fades a sequence\'s music out, or ducks the player\'s own music until the next scene or sequence without it. '
       + 'The <b>super shot song</b> cuts in over whatever is playing (no fade) once the clock runs in the super shot period (the competition setup\'s super shot minutes, in a division with super shots), plays round until the period ends, then fades out. Stop it by hand and it stays stopped for that quarter. '
       + `Stream Deck: <code>${base}/deck/music/toggle</code> (play or pause), <code>/play</code>, <code>/pause</code>, <code>/resume</code>, <code>/stop</code>, <code>/fade</code>, <code>/next</code>, <code>/prev</code>, `

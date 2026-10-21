@@ -142,6 +142,46 @@ test('music carries on into the next sequence, and going to a scene fades it out
   assert.equal(m().status, 'stopped');
 });
 
+test("a sequence inside one with no music of its own brings its music, from its step, and it ends with that sequence's part", () => {
+  reset();
+  const ladder = { sources: [id('Ladder')], length: { type: 'time', sec: 10 } };
+  ok({ type: 'seqAdd', changes: { name: 'Hype', music: { track: 'Walk out.m4a', startStep: 2, fadeInSec: 0 }, musicEnd: { type: 'cut' }, steps: [ladder, ladder] } });
+  const hype = st().sequences.find(s => s.name === 'Hype').id;
+  ok({ type: 'seqAdd', changes: { name: 'Break', steps: [ladder, { kind: 'sequence', sequence: hype }, ladder, { kind: 'sequence', sequence: hype }] } });
+  const brk = st().sequences.find(s => s.name === 'Break').id;
+  ok({ type: 'seqPlay', sequence: 'Break' });
+  wait(10);
+  assert.equal(m().status, 'stopped', 'not at its step yet');
+  wait(10);
+  assert.equal(m().track, 'Walk out.m4a');
+  assert.equal(m().status, 'playing');
+  assert.equal(m().owner, brk, 'the sequence playing owns it');
+  wait(10);
+  assert.equal(m().status, 'stopped', 'cut as Hype ended');
+  wait(10);
+  assert.equal(m().status, 'stopped');
+  wait(10);
+  assert.equal(m().status, 'playing', 'again the second time Hype plays');
+  wait(10);
+  assert.equal(st().playing, null);
+  wait(4);
+  assert.equal(m().status, 'stopped');
+});
+
+test("a sequence's own music wins over the music of a sequence inside it", () => {
+  reset();
+  const ladder = { sources: [id('Ladder')], length: { type: 'time', sec: 10 } };
+  ok({ type: 'seqAdd', changes: { name: 'Hype', music: { track: 'Walk out.m4a', fadeInSec: 0 }, steps: [ladder] } });
+  const hype = st().sequences.find(s => s.name === 'Hype').id;
+  ok({ type: 'seqAdd', changes: { name: 'Break', music: { track: 'Break.mp3', fadeInSec: 0 }, steps: [ladder, { kind: 'sequence', sequence: hype }] } });
+  ok({ type: 'seqPlay', sequence: 'Break' });
+  assert.equal(m().track, 'Break.mp3');
+  const playId = m().playId;
+  wait(10);
+  assert.equal(m().track, 'Break.mp3');
+  assert.equal(m().playId, playId, 'the same song carries on');
+});
+
 test('Quiet the music: a scene ducks the player, the next scene brings it back; a sequence\'s music fades out', () => {
   reset();
   ok({ type: 'show', name: 'Interview' });
