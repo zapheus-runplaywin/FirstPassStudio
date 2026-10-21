@@ -210,4 +210,11 @@ test('the duck fades over the fade time, and ?fade sets its own', () => {
   ok({ type: 'sceneGo', scene: 'Interview' });
   assert.equal(m().duck.ms, 4000);
   assert.equal(m().duck.to, 1);
+  // Duck over half the fade time; a link's ?fade still sets its own.
+  ok({ type: 'musicSettings', settings: { duckHalf: true } });
+  ok({ type: 'musicDuck', value: 'off' });
+  assert.equal(m().duck.ms, 2000);
+  link('music/duck/on', { fade: '3' });
+  assert.equal(m().duck.ms, 3000);
+  ok({ type: 'musicSettings', settings: { duckHalf: false } });
 });

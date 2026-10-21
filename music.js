@@ -39,7 +39,7 @@ const UNKNOWN_MS = 5000;
 let log = () => {};
 let api = null; // { duration(file), changed(), exists(file) }
 let playlists = [];
-let settings = { fadeSec: 2, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25 };
+let settings = { fadeSec: 2, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false };
 let p = blank();
 let endTimer = null, fadeTimer = null;
 
@@ -80,6 +80,7 @@ function cleanSettings(v) {
     underVideo: UNDER_VIDEO.includes(s.underVideo) ? s.underVideo : 'pause',
     lowerTo: Math.round(clamp(s.lowerTo, 0, 100, 25)),
     duckTo: Math.round(clamp(s.duckTo, 0, 100, 25)),
+    duckHalf: s.duckHalf === true, // the duck fades over half the fade time
   };
 }
 function load() {
@@ -121,12 +122,14 @@ function along(e) {
 const gainNow = () => along(p.gain);
 function fadeTo(to, sec) { p.gain = { from: gainNow(), to, at: now(), ms: Math.round(sec * 1000) }; }
 const duckNow = () => along(p.duck);
-// Ducks (why: 'hand' or 'quiet') or brings the music back up (null), over the fade time unless told otherwise.
+// Ducks (why: 'hand' or 'quiet') or brings the music back up (null), over the fade time (or half of it, a
+// setting) unless told otherwise.
 function setDuck(why, fade) {
   p.ducked = why;
   const to = why ? 1 : 0;
   if (p.duck.to === to) return;
-  p.duck = { from: duckNow(), to, at: now(), ms: Math.round(fadeSec(fade) * 1000) };
+  const sec = fade === undefined || fade === null || fade === '' ? settings.fadeSec * (settings.duckHalf ? 0.5 : 1) : fadeSec(fade);
+  p.duck = { from: duckNow(), to, at: now(), ms: Math.round(sec * 1000) };
 }
 
 // After a fade out: stop or pause once it's silent.

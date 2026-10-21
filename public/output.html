@@ -278,12 +278,13 @@
     <div class="seqs" id="playlists"></div>
     <div class="form" style="margin-top:12px">
       <label for="mFadeSec">Fade time</label>
-      <div class="row"><input type="number" id="mFadeSec" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Stop, Pause, Duck and the links (<code>?fade=</code> changes it per press)</span></div>
+      <div class="row"><input type="number" id="mFadeSec" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Stop, Pause, Duck (or half, below) and the links (<code>?fade=</code> changes it per press)</span></div>
       <label for="mUnder">While a video with sound plays</label>
       <div class="row"><select id="mUnder"><option value="pause">Fade the music out and pause it, then fade it back in</option><option value="lower">Lower the music</option><option value="leave">Leave the music as it is</option></select>
         <label class="inline mLowerTo">to <input type="number" id="mLowerTo" min="0" max="100" style="width:64px"> %</label></div>
       <label for="mDuckTo">Duck to</label>
-      <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that quiets the music)</span></div>
+      <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that quiets the music)</span>
+        <label class="inline"><input type="checkbox" id="mDuckHalf"> Duck over half the fade time</label></div>
     </div>
     <p class="note" id="musicNote"></p>
     <dialog id="plDialog">
@@ -1165,6 +1166,7 @@
     if (document.activeElement !== $('mVolume')) $('mVolume').value = m.volume;
     const set = scene.musicSettings || {};
     for (const [id, key] of [['mFadeSec', 'fadeSec'], ['mLowerTo', 'lowerTo'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
+    $('mDuckHalf').checked = !!set.duckHalf;
     $('mUnder').value = set.underVideo || 'pause';
     document.querySelector('.mLowerTo').classList.toggle('hidden', $('mUnder').value !== 'lower');
     const pick = $('mTrackPick'), keep = pick.value;
@@ -1202,8 +1204,8 @@
   $('mVolume').onchange = () => act({ type: 'musicVolume', value: Number($('mVolume').value) });
   $('mLoad').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value }); };
   $('mLoadPlay').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value, play: true }); };
-  const musicSettings = () => act({ type: 'musicSettings', settings: { fadeSec: Number($('mFadeSec').value), underVideo: $('mUnder').value, lowerTo: Number($('mLowerTo').value), duckTo: Number($('mDuckTo').value) } });
-  for (const id of ['mFadeSec', 'mUnder', 'mLowerTo', 'mDuckTo']) $(id).onchange = musicSettings;
+  const musicSettings = () => act({ type: 'musicSettings', settings: { fadeSec: Number($('mFadeSec').value), underVideo: $('mUnder').value, lowerTo: Number($('mLowerTo').value), duckTo: Number($('mDuckTo').value), duckHalf: $('mDuckHalf').checked } });
+  for (const id of ['mFadeSec', 'mUnder', 'mLowerTo', 'mDuckTo', 'mDuckHalf']) $(id).onchange = musicSettings;
   $('mUpload').onchange = async () => {
     const file = $('mUpload').files[0];
     if (!file) return;
