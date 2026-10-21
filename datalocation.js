@@ -10,7 +10,8 @@
 // lose the settings. studio-computer.json in the subfolder records which Mac uses it, so a
 // second Mac with the same name is caught instead of sharing (and fighting over) one folder.
 //
-// Some files stay on this Mac whichever folder holds the settings (LOCAL_ONLY): the debug
+// Only the settings Studio saves move (SETTINGS); the Mac app's folder also holds Electron's
+// own files, which never do. Some files stay on this Mac whichever folder holds the settings (LOCAL_ONLY): the debug
 // logs (written all the time), the scores and clock (saved every few seconds while a game is
 // live), caches, the app's window positions and this file. Only settings sync.
 //
@@ -30,12 +31,18 @@ const { execFile, execFileSync } = require('child_process');
 
 const LOCATION_FILE = 'data-location.json';
 const COMPUTER_FILE = 'studio-computer.json';
-// Kept in the local folder (or recreated there) whichever folder holds the settings.
+// The settings that move: only these. The Mac app's folder also holds Electron's own files
+// (caches, cookies, SingletonLock...), which must never move. A new file saved with
+// datadir.file() must be added here (test/datalocation.test.js checks).
+const SETTINGS = new Set([
+  'competitions', 'config.json', 'control.json', 'round-choice.json', 'data-version.json',
+  'scene.json', 'media', 'outputs.json', 'music.json', 'sequences.json', 'sequence-settings.json',
+]);
+// Kept in the local folder whichever folder holds the settings (saved with datadir.local()).
 const LOCAL_ONLY = new Set([
   LOCATION_FILE, 'app-settings.json', 'logs', 'backups',
   'scoreboard-state.json', 'game-cache.json', 'last-game-summary.json',
 ]);
-const SKIP = name => LOCAL_ONLY.has(name) || name.startsWith('.') || name === COMPUTER_FILE;
 
 const PROVIDERS = {
   icloud: {
@@ -88,7 +95,8 @@ function computerId(localDir) {
 
 // What's in a folder that Studio would move: the settings, not the local-only files.
 function movable(dir) {
-  try { return fs.readdirSync(dir).filter(n => !SKIP(n)).sort(); } catch { return []; }
+  const real = n => { try { const st = fs.lstatSync(path.join(dir, n)); return st.isFile() || st.isDirectory(); } catch { return false; } };
+  try { return fs.readdirSync(dir).filter(n => SETTINGS.has(n) && real(n)).sort(); } catch { return []; }
 }
 function hasSettings(dir) { return movable(dir).length > 0; }
 
@@ -294,4 +302,4 @@ async function download(dir, { timeoutMs = 60000 } = {}) {
   return left;
 }
 
-module.exports = { PROVIDERS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, restore, restoreToCloud, otherMacs, save, placeholders, download, isInside };
+module.exports = { PROVIDERS, SETTINGS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, restore, restoreToCloud, otherMacs, save, placeholders, download, isInside };

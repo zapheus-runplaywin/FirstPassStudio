@@ -22,6 +22,10 @@ function setup() {
   fs.mkdirSync(path.join(local, 'logs'));
   fs.writeFileSync(path.join(local, 'logs', 'playhq-graphics.log'), 'log');
   fs.writeFileSync(path.join(local, 'app-settings.json'), '{}');
+  // Electron's own files in the Mac app's folder: never moved (a dangling symlink among them).
+  fs.mkdirSync(path.join(local, 'Cache'));
+  fs.writeFileSync(path.join(local, 'Preferences'), '{}');
+  fs.symlinkSync('/nowhere/at/all', path.join(local, 'SingletonCookie'));
   return local;
 }
 const read = f => fs.readFileSync(f, 'utf8');
@@ -48,6 +52,10 @@ test('moving to iCloud Drive backs up, moves the settings into the Mac\'s subfol
   assert.ok(!fs.existsSync(path.join(target.dataDir, 'scoreboard-state.json')));
   assert.ok(fs.existsSync(path.join(local, 'scoreboard-state.json')));
   assert.ok(fs.existsSync(path.join(local, 'logs', 'playhq-graphics.log')));
+  for (const n of ['Cache', 'Preferences', 'SingletonCookie']) {
+    assert.ok(fs.lstatSync(path.join(local, n)), `${n} stays`);
+    assert.ok(!fs.existsSync(path.join(target.dataDir, n)), `${n} isn't moved`);
+  }
   assert.equal(read(path.join(backup, 'control.json')), '{"round":"3"}');
   assert.ok(backup.startsWith(path.join(local, 'backups')));
   // Where they are is remembered on this Mac, and the subfolder is marked as this Mac's.
@@ -162,4 +170,16 @@ test('restoring onto a Mac whose settings are on the Mac puts them in its own iC
   assert.ok(!fs.existsSync(path.join(local, 'control.json')));
   assert.ok(fs.existsSync(path.join(local, 'scoreboard-state.json')));
   assert.equal(read(path.join(other, 'control.json')), '{"round":"7"}');
+});
+
+test('every file Studio saves is either a setting that moves or one that stays on the Mac', () => {
+  const ROOT = path.join(__dirname, '..');
+  const names = { file: new Set(), local: new Set() };
+  for (const f of fs.readdirSync(ROOT).filter(f => f.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    for (const [, kind, name] of src.matchAll(/(?:datadir\.(file|local)|\b(?:DATA))\(['"]([^'"\/]+)['"]/g)) names[kind === 'local' ? 'local' : 'file'].add(name);
+  }
+  assert.ok(names.file.has('competitions') && names.local.has('logs'));
+  for (const n of names.file) assert.ok(location.SETTINGS.has(n), `${n} is saved with datadir.file() but isn't in SETTINGS, so it wouldn't move`);
+  for (const n of names.local) assert.ok(location.LOCAL_ONLY.has(n), `${n} is saved with datadir.local() but isn't in LOCAL_ONLY`);
 });
