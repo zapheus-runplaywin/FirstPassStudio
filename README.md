@@ -492,6 +492,10 @@ These follow the game picked on the scoreboard control page:
   (`?form=0` or `?h2h=0` hides them).
 - http://localhost:8080/finals.html?division=1: the division's finals, week by week (see **Finals** below).
 - http://localhost:8080/fulltime.html: final score with each team's top shooter and shooting accuracy.
+- http://localhost:8080/gamestats.html: after the game, the score by quarter, then quarters won, best quarter, super shots made,
+  3 and 5 goal runs and the longest run for each team. Studio works the quarters out from the scoreboard as the game goes
+  (/api/stats), so keep it on air for the whole game; `?quarters=0`, `?won=0`, `?best=0`, `?supershots=0`, `?runs3=0`,
+  `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. Lines starting `[stats]` in the log say when a quarter isn't sure.
 - http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage. It sits
   right above the scoreboard, scaled to the scoreboard's width.
 - http://localhost:8080/lowerthird.html?name=Jane%20Smith: lower third introducing an athlete (name, team name, club logo),

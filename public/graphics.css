@@ -279,6 +279,50 @@ body.lower:has(.ticker) { padding-bottom: 0; }
 .fulltime__line { font-size: 22px; font-weight: 700; color: var(--yellow); margin-bottom: 12px; }
 .fulltime__pct { font-size: 40px; font-weight: 800; color: var(--yellow); }
 
+/* Game stats (after the game): score by quarter, then team v team rows */
+.gamestats { --card-width: 1400px; text-align: center; }
+.gamestats__score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 30px; padding: 22px 44px 8px; }
+.gamestats__team { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 20px; min-width: 0; }
+.gamestats__team--away { grid-template-columns: minmax(0, 1fr) 120px; }
+.gamestats__team--away .gamestats__logo { order: 2; }
+.gamestats__logo { width: 120px; height: 120px; flex: none; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+.gamestats__logo.logo-fallback { font-size: 38px; box-sizing: border-box; }
+.gamestats__name { font-size: 36px; font-weight: 800; line-height: 1.1; text-transform: uppercase; color: var(--yellow); text-align: right; overflow-wrap: anywhere; }
+.gamestats__team--away .gamestats__name { text-align: left; }
+.gamestats__nums { font-size: 96px; font-weight: 800; line-height: 1; display: flex; gap: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gamestats__nums .is-win { color: var(--text); }
+.gamestats__dash { color: var(--pink); }
+.gamestats__quarters { margin: 14px 44px 4px; width: calc(100% - 88px); border-collapse: separate; border-spacing: 0 6px; font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.gamestats__quarters[hidden] { display: none; }
+.gamestats__quarters th { color: var(--muted); font-size: 17px; letter-spacing: .12em; text-transform: uppercase; padding: 0 10px; }
+.gamestats__quarters td { background: var(--purple-deep-alt); padding: 8px 10px; color: var(--muted); width: 110px; }
+.gamestats__quarters td:first-child { border-radius: 8px 0 0 8px; }
+.gamestats__quarters td:last-child { border-radius: 0 8px 8px 0; }
+.gamestats__quarters td.who { width: auto; text-align: left; color: var(--text); font-size: 24px; text-transform: uppercase; }
+.gamestats__quarters td.who span { vertical-align: middle; }
+.gamestats__quarters td.is-win { color: var(--yellow); }
+.gamestats__quarters td.is-unsure { opacity: .45; }
+.gamestats__quarters td.total { color: var(--text); background: var(--purple); }
+.gamestats__quarters td.total.is-win { color: var(--yellow); }
+.gamestats__mini { width: 40px; height: 40px; object-fit: contain; vertical-align: middle; margin-right: 14px; }
+.gamestats__mini.logo-fallback { display: inline-flex; font-size: 14px; box-sizing: border-box; border-width: 3px; }
+.gamestats__rows { padding: 10px 44px 28px; display: grid; gap: 8px; }
+.gamestats__rows[hidden] { display: none; }
+.gamestats__row { display: grid; grid-template-columns: 220px 1fr 220px; align-items: center; gap: 24px; padding: 6px 0; animation: rise .45s ease-out both; }
+.gamestats__val { display: flex; align-items: baseline; gap: 12px; color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
+.gamestats__val--home { justify-content: flex-end; }
+.gamestats__val--away { flex-direction: row-reverse; justify-content: flex-end; }
+.gamestats__val .num { font-size: 44px; line-height: 1; }
+.gamestats__val .note { font-size: 20px; letter-spacing: .08em; }
+.gamestats__val.is-win { color: var(--text); }
+.gamestats__val.is-win .num { color: var(--yellow); }
+.gamestats__label { font-size: 22px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.gamestats__bar { display: flex; gap: 4px; height: 10px; margin-top: 10px; }
+.gamestats__bar span { border-radius: 5px; min-width: 4px; }
+.gamestats__bar .home { background: var(--pink); }
+.gamestats__bar .away { background: var(--yellow); }
+.gamestats__bar.is-empty span { background: var(--purple); }
+
 /* Match up: form and head to head */
 .matchup .matchup__logo { width: 260px; height: 260px; }
 .matchup__middle { display: flex; flex-direction: column; align-items: center; gap: 22px; }

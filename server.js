@@ -943,6 +943,12 @@ function watchSuperShots(b, game, live, kind) {
 }
 
 function applyOne(b, a) {
+  trackPeriods(b); // anything PlayHQ put on the board before this goes to the period it came in
+  applyOneAction(b, a);
+  if (a.type === 'resetScores' || a.type === 'reset') b.periodTrack = null;
+  trackPeriods(b);
+}
+function applyOneAction(b, a) {
   if (['score', 'setScore', 'resetScores', 'selectGame', 'source', 'reset'].includes(a.type)) superSeen.delete(b); // start again from the next reading
   if (MANUAL_CLOCK.has(a.type) && b.followPlayhqClock && !a.fromToggle) {
     b.followPlayhqClock = false;
@@ -1055,6 +1061,8 @@ async function refreshFromPlayhq(b) {
       // Follow the scorer's quarter when it changes (the Stream Deck can still set it in between).
       const q = s.live && PERIOD_NUMBER[s.live.period];
       if (q && b.playhqPeriodSeen !== s.live.period) {
+        // This reading's score still belongs to the quarter that was on (the quarter moves on when the next one starts).
+        if (b.period !== q) trackPeriods(b, { home: s.home, away: s.away });
         if (b.period !== q) { b.period = q; log('info', 'scoreboard', `PlayHQ moved to quarter ${q}`); }
         b.playhqPeriodSeen = s.live.period;
       }
@@ -1074,6 +1082,7 @@ async function refreshFromPlayhq(b) {
     const goalsChanged = goalsFromPlayhq(b, game, s && s.live);
     if (game.home.score !== null) b.home.score = game.home.score;
     if (game.away.score !== null) b.away.score = game.away.score;
+    trackPeriods(b);
     if (goalsChanged) {
       if (!isFinished(game)) watchStreaks(b, 'playhq'); // after the score is on the board, which the moments read
       saveBoards();
@@ -1095,7 +1104,7 @@ async function refreshFromPlayhq(b) {
 // super shot (two goals inside 5 seconds can't happen). The first reading of a game picked
 // part way through, or a jump of more than 3 points for one team at once (the helper was
 // closed, or nothing was polling), isn't split into goals: a gap is noted instead.
-const GOALS_KEPT = 120;
+const GOALS_KEPT = 400; // a whole game, so gamestats.html can count its runs
 const MAX_STEP = 3;
 function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; momentsFrom(b); }
 function clockLeft(b) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
@@ -1283,6 +1292,88 @@ function getGoals(count) {
     away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
     count: n, goals: out, tally: { home: tally('home'), away: tally('away') }, run,
     totalGoals: b.goals.filter(g => !g.gap).length, gapInHistory: b.goals.some(g => g.gap),
+  };
+}
+
+// ─── Game stats (gamestats.html) ────────────────────────────────────────────
+// Points per quarter (or half) are tracked from the score on the board: whatever the score
+// goes up or down by is put on the quarter that is on at the time. The quarter only moves on
+// when the next one starts, so the goals up to then are the last quarter's. A quarter is
+// "unsure" when its points can't be split out: the game was picked up part way through it, or
+// the score jumped by more than MAX_STEP for a team in one go (Studio was closed, or a score was
+// typed in). Quarters before the one the game was picked up in aren't known at all.
+function trackPeriods(b, score) {
+  const now = { home: Number(score && score.home != null ? score.home : b.home.score) || 0, away: Number(score && score.away != null ? score.away : b.away.score) || 0 };
+  let t = b.periodTrack;
+  if (!t || t.gameId !== (b.gameId || null)) {
+    const fresh = !now.home && !now.away;
+    t = b.periodTrack = { gameId: b.gameId || null, period: b.period, base: now, periods: {} };
+    t.periods[b.period] = { home: 0, away: 0, sure: fresh };
+    if (!fresh) log('info', 'stats', `Quarter scores for ${b.home.name} v ${b.away.name} start at ${now.home}-${now.away} in ${rules(b.division).periodLabel}${b.period}, so earlier quarters aren't known`);
+    return;
+  }
+  const p = t.periods[t.period] || (t.periods[t.period] = { home: 0, away: 0, sure: true });
+  for (const side of ['home', 'away']) {
+    const d = now[side] - t.base[side];
+    if (!d) continue;
+    if (Math.abs(d) > MAX_STEP && p.sure) { p.sure = false; log('info', 'stats', `${b[side].name} went ${d > 0 ? 'up' : 'down'} ${Math.abs(d)} at once in ${rules(b.division).periodLabel}${t.period}, so that quarter's split isn't sure`); }
+    p[side] = Math.max(0, p[side] + d);
+  }
+  t.base = now;
+  if (b.period !== t.period) {
+    t.period = b.period;
+    if (!t.periods[b.period]) t.periods[b.period] = { home: 0, away: 0, sure: true };
+  }
+}
+// Runs: goals in a row by one team (a super goal is one goal, as on the Last 10 goals graphic).
+// A gap in the goal order (picked up part way, a jump) ends a run.
+function runsFrom(goals) {
+  const runs = [];
+  let run = null;
+  for (const g of goals) {
+    if (g.gap) { run = null; continue; }
+    if (!run || run.side !== g.side) runs.push(run = { side: g.side, goals: 0, period: g.period });
+    run.goals++;
+  }
+  return runs;
+}
+function getStats() {
+  const b = board();
+  trackPeriods(b);
+  if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
+  const r = rules(b.division);
+  const t = b.periodTrack;
+  const last = Math.max(r.periods, ...Object.keys(t.periods).map(Number));
+  const periods = [];
+  for (let n = 1; n <= last; n++) {
+    const p = t.periods[n];
+    if (n > r.periods && !p) continue; // no extra time
+    periods.push({ n, label: n > r.periods ? 'ET' : `${r.periodLabel}${n}`, played: !!p || n < t.period,
+      home: p ? p.home : null, away: p ? p.away : null, sure: !!(p && p.sure) && n <= t.period });
+  }
+  const sure = periods.filter(p => p.sure && p.n <= r.periods && (p.n < t.period || p.home || p.away));
+  const won = side => sure.filter(p => p[side] > p[side === 'home' ? 'away' : 'home']).length;
+  const best = side => sure.reduce((top, p) => (!top || p[side] > top.points ? { n: p.n, label: p.label, points: p[side] } : top), null);
+  const goals = b.goals.filter(g => !g.gap);
+  const counts = b.playhqCounts || {};
+  const supers = side => Math.max(goals.filter(g => g.side === side && g.points === 2).length, Number(counts[side] && counts[side].superGoals) || 0);
+  const runs = runsFrom(b.goals);
+  const runsOf = (side, n) => runs.filter(x => x.side === side && x.goals >= n).length;
+  const longest = side => runs.filter(x => x.side === side).reduce((m, x) => Math.max(m, x.goals), 0);
+  const both = f => ({ home: f('home'), away: f('away') });
+  return {
+    gameId: b.gameId, division: b.division, court: b.court, round: b.round, period: b.period, competition: competitionName(),
+    periodType: r.periodType, periodLabel: r.periodLabel, periods: r.periods, superShots: r.superShots,
+    home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
+    away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
+    quarters: periods,
+    stats: {
+      quartersWon: { ...both(won), drawn: sure.filter(p => p.home === p.away).length, of: sure.length },
+      bestQuarter: both(best),
+      superShots: both(supers),
+      runs3: both(side => runsOf(side, 3)), runs5: both(side => runsOf(side, 5)), longestRun: both(longest),
+    },
+    totalGoals: goals.length, gapInHistory: b.goals.some(g => g.gap),
   };
 }
 
@@ -2702,6 +2793,10 @@ http.createServer(async (req, res) => {
       saveBoards();
       log('info', 'deck', `${action.type}: now ${b.home.score}-${b.away.score}, clock ${b.clock.running ? 'running' : 'stopped'}`, action);
       return send(res, 200, { ok: true, home: b.home.score, away: b.away.score, source: b.source, clockRunning: b.clock.running });
+    }
+    if (url.pathname === '/api/stats') {
+      await refreshFromPlayhq(board()); // shares the scoreboard's cached PlayHQ reading
+      return send(res, 200, getStats());
     }
     if (url.pathname === '/api/goals') {
       await refreshFromPlayhq(board()); // shares the scoreboard's cached PlayHQ reading

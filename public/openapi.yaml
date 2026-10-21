@@ -325,6 +325,43 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Scoreboard' }
 
+  /api/stats:
+    get:
+      tags: [Status]
+      summary: Read the game stats
+      description: >-
+        What gamestats.html shows. Points per quarter are worked out by Studio from the score on the board as the game
+        goes (whatever the score goes up by is put on the quarter that is on), and runs from the goal order goals.html uses.
+        A quarter with sure false was only partly seen (the game was picked up part way, or a score jumped by more than 3
+        at once) and isn't counted in quarters won or best quarter; home and away null means it wasn't seen at all.
+      operationId: getStats
+      responses:
+        '200':
+          description: The score by quarter and each team's stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quarters:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        n: { type: integer }
+                        label: { type: string, description: Q1 .. Q4, H1 and H2 for halves, ET for extra time }
+                        home: { type: integer, nullable: true }
+                        away: { type: integer, nullable: true }
+                        sure: { type: boolean }
+                  stats:
+                    type: object
+                    description: >-
+                      quartersWon (home, away, drawn, of), bestQuarter (per team n, label, points), superShots,
+                      runs3 and runs5 (runs of at least 3 or 5 goals in a row, a super goal counting as one goal) and
+                      longestRun, each with home and away.
+                  totalGoals: { type: integer }
+                  gapInHistory: { type: boolean, description: Studio picked the game up part way, so runs only count from then }
+
   /api/goals:
     get:
       tags: [Status]

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Game Stats</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+<script src="fit.js"></script>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page, after the game:
+       http://localhost:8080/gamestats.html
+       The score by quarter, then team against team: quarters won, best quarter, super shots,
+       3 and 5 goal runs and the longest run. Quarter scores and runs are worked out by Studio
+       from the scoreboard as the game goes (/api/stats), so they cover the time it was on.
+       Loads once, each time it comes on. Options: ?title=Game%20stats, and =0 leaves a part
+       out: ?quarters=0 ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0 -->
+  <main class="card gamestats" id="card" data-fit hidden>
+    <header class="matchup__header">
+      <div class="tab" id="title">Game stats</div>
+      <div class="matchup__division" id="division"></div>
+    </header>
+    <div class="gamestats__score">
+      <div class="gamestats__team" id="homeTeam"></div>
+      <div class="gamestats__nums"><span id="homeScore"></span><span class="gamestats__dash">–</span><span id="awayScore"></span></div>
+      <div class="gamestats__team gamestats__team--away" id="awayTeam"></div>
+    </div>
+    <table class="gamestats__quarters" id="quarters" hidden></table>
+    <div class="gamestats__rows" id="rows"></div>
+    <footer class="card__footer" id="footer"></footer>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const off = key => params.get(key) === '0';
+    if (params.get('title')) document.getElementById('title').textContent = params.get('title');
+
+    // Each stat row: home value | label | away value, the better one lit up, with a bar
+    // split between them. To add a stat, add a row here (and its number to getStats in server.js).
+    //   value(side, d) the number the bar and the highlight use; text(side, d) what is shown (default the value).
+    const word = d => (d.periodType === 'halves' ? 'half' : 'quarter');
+    const plural = d => (d.periodType === 'halves' ? 'Halves' : 'Quarters');
+    const STATS = [
+      { key: 'won', label: d => `${plural(d)} won`, value: (s, d) => d.stats.quartersWon[s], when: d => d.stats.quartersWon.of > 0 },
+      { key: 'best', label: d => `Best ${word(d)}`, value: (s, d) => (d.stats.bestQuarter[s] || {}).points ?? 0,
+        text: (s, d) => { const b = d.stats.bestQuarter[s]; return b ? `${b.points}` : '–'; },
+        note: (s, d) => { const b = d.stats.bestQuarter[s]; return b ? b.label : ''; }, when: d => d.stats.quartersWon.of > 0 },
+      { key: 'supershots', label: () => 'Super shots made', value: (s, d) => d.stats.superShots[s], when: d => d.superShots || d.stats.superShots.home || d.stats.superShots.away },
+      { key: 'runs3', label: () => '3 goal runs', value: (s, d) => d.stats.runs3[s], when: d => d.totalGoals > 0 },
+      { key: 'runs5', label: () => '5 goal runs', value: (s, d) => d.stats.runs5[s], when: d => d.totalGoals > 0 },
+      { key: 'longest', label: () => 'Longest run', value: (s, d) => d.stats.longestRun[s], note: (s, d) => (d.stats.longestRun[s] ? 'goals' : ''), when: d => d.totalGoals > 0 },
+    ];
+
+    function quarterTable(d) {
+      const t = document.getElementById('quarters');
+      const shown = d.quarters.filter(q => q.n <= d.periods || q.home !== null);
+      if (off('quarters') || !shown.some(q => q.home !== null)) { t.hidden = true; return; }
+      t.replaceChildren();
+      const head = t.createTHead().insertRow();
+      head.appendChild(el('th', 'who', ''));
+      shown.forEach(q => head.appendChild(el('th', '', q.label)));
+      head.appendChild(el('th', 'total', 'Total'));
+      const body = t.createTBody();
+      for (const side of ['home', 'away']) {
+        const other = side === 'home' ? 'away' : 'home';
+        const r = body.insertRow();
+        const who = el('td', 'who');
+        who.append(logoEl(d[side], 'gamestats__mini'), el('span', '', d[side].name));
+        r.appendChild(who);
+        shown.forEach(q => {
+          const known = q.home !== null && q.sure;
+          // A quarter Studio only saw part of shows its points greyed out, and isn't counted as won.
+          const c = el('td', known && q[side] > q[other] ? 'is-win' : q.home !== null && !q.sure ? 'is-unsure' : '', q.home === null ? '–' : q[side]);
+          r.appendChild(c);
+        });
+        r.appendChild(el('td', 'total' + (d[side].score > d[other].score ? ' is-win' : ''), d[side].score));
+      }
+      t.hidden = false;
+    }
+
+    function statRows(d) {
+      const rows = document.getElementById('rows');
+      rows.replaceChildren();
+      STATS.filter(s => !off(s.key) && (!s.when || s.when(d))).forEach((s, i) => {
+        const h = Number(s.value('home', d)) || 0, a = Number(s.value('away', d)) || 0;
+        const row = el('div', 'gamestats__row');
+        row.style.animationDelay = `${300 + i * 90}ms`;
+        const cell = side => {
+          const v = side === 'home' ? h : a, o = side === 'home' ? a : h;
+          const box = el('div', `gamestats__val gamestats__val--${side}${v > o ? ' is-win' : ''}`);
+          box.appendChild(el('span', 'num', s.text ? s.text(side, d) : v));
+          const note = s.note && s.note(side, d);
+          if (note) box.appendChild(el('span', 'note', note));
+          return box;
+        };
+        const mid = el('div', 'gamestats__label', s.label(d));
+        const bar = el('div', 'gamestats__bar');
+        const share = h + a ? h / (h + a) : 0.5;
+        const hb = el('span', 'home'), ab = el('span', 'away');
+        hb.style.flexGrow = share; ab.style.flexGrow = 1 - share;
+        if (!h && !a) bar.classList.add('is-empty');
+        bar.append(hb, ab);
+        mid.appendChild(bar);
+        row.append(cell('home'), mid, cell('away'));
+        rows.appendChild(row);
+      });
+      rows.hidden = !rows.children.length;
+    }
+
+    async function load() {
+      let d;
+      try { d = await (await fetch('/api/stats', { cache: 'no-store' })).json(); }
+      catch (err) { console.warn('Game stats unavailable:', err.message); return; }
+      document.getElementById('division').textContent = [d.division, d.round && /^\d+$/.test(d.round) ? `Round ${d.round}` : d.round, d.court].filter(Boolean).join('  ·  ');
+      for (const side of ['home', 'away']) {
+        const t = d[side];
+        document.getElementById(side + 'Team').replaceChildren(logoEl(t, 'gamestats__logo'), el('div', 'gamestats__name', t.name));
+        const num = document.getElementById(side + 'Score');
+        num.textContent = t.score;
+        num.className = t.score > d[side === 'home' ? 'away' : 'home'].score ? 'is-win' : '';
+      }
+      quarterTable(d);
+      statRows(d);
+      document.getElementById('footer').textContent = d.competition || '';
+      if (d.gapInHistory) console.info('Game stats: Studio picked this game up part way, so runs only count from then');
+      document.getElementById('card').hidden = false;
+    }
+    load();
+  </script>
+</body>
+</html>
