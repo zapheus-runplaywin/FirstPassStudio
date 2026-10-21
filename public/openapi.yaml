@@ -486,12 +486,14 @@ paths:
         With a sequence's name this plays it from the first step. These names act on whatever is playing instead:
         `next` ends the step now, `delay` holds the step 10 seconds longer (each call adds 10 s, for a shot after the siren),
         `pause` pauses or carries on, `resume` carries on, and `stop` stops it and does its Then (go to a scene, turn off what it turned on, or leave it all).
+        A sequence set to start by itself (before the game, at a break, at full time) waits a few seconds after the siren first:
+        then `delay` starts it 10 seconds later (each call), `now` starts it straight away and `cancel` stops it starting.
       operationId: sequence
       parameters:
         - name: name
           in: path
           required: true
-          description: The sequence's name, lower case with dashes for spaces (e.g. `quarter-break`), or `next`, `delay`, `pause`, `resume` or `stop`
+          description: The sequence's name, lower case with dashes for spaces (e.g. `quarter-break`), or `next`, `delay`, `pause`, `resume`, `stop`, `now` or `cancel`
           schema: { type: string }
       responses:
         '200':
@@ -506,7 +508,31 @@ paths:
                   step: { type: integer, nullable: true }
                   paused: { type: boolean }
         '404': { description: No sequence by that name }
-        '409': { description: Next, delay or pause with no sequence playing }
+        '409': { description: Next, delay or pause with no sequence playing, or now with none about to start }
+
+  /deck/sequence/auto/{state}:
+    get:
+      tags: [Scene]
+      summary: Turn automatic sequences on or off
+      description: |
+        With it off, no sequence starts by itself (before the game, at a break or at full time), and one about to start is cancelled.
+        Every sequence still plays by hand. Remembered when Studio opens again.
+      operationId: sequenceAuto
+      parameters:
+        - name: state
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+      responses:
+        '200':
+          description: Done. Returns whether it's on now.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  auto: { type: boolean }
 
   /deck/sequence/{name}/{action}:
     get:

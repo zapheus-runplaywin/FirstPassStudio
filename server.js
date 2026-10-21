@@ -972,7 +972,7 @@ function applyOne(b, a) {
     case 'selectGame':
       if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
       Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
-        round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null });
+        round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null });
       b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
       b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
       if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);
@@ -1395,6 +1395,7 @@ setTimeout(autoPick, 3000); // Studio starts with a game on, following PlayHQ
 function followClock(b, live) {
   const c = live.clock;
   b.playhqClock = c;
+  b.playhqBreak = live.break || null;
   const key = `${c.periodValue || c.period} ${c.status} ${c.time} ${c.lastUpdatedAt} ${live.break || ''}`;
   if (b.playhqClockKey === key) return;
   b.playhqClockKey = key;
@@ -1409,6 +1410,23 @@ function followClock(b, live) {
   b.clock = { ...b.clock, elapsedMs: b.clock.lengthSec * 1000 - leftMs, running: running && leftMs > 0, startedAt: running && leftMs > 0 ? Date.now() : null };
   b.updatedAt = Date.now();
 }
+
+// The game, each second, for sequences that start by themselves (scene.js, sequences.js): the picked
+// game's scheduled start, the quarter, the clock (PlayHQ's scorer's or the manual one) and PlayHQ's
+// break flag and finished status, all from the board, so it costs no PlayHQ calls.
+function gameSnapshot() {
+  const b = board();
+  const left = clockLeft(b);
+  const following = b.source === 'playhq' && b.followPlayhqClock;
+  return {
+    id: b.gameId || 'manual', label: `${b.home.name} v ${b.away.name}${b.court ? ` on ${b.court}` : ''}`,
+    startAt: b.gameId ? startOf({ date: b.date, time: b.time }) : null,
+    period: b.period, last: CONFIG.periodType === 'halves' ? 2 : 4, left, running: !!b.clock.running && left > 0,
+    onBreak: following && !!b.playhqBreak, finished: b.source === 'playhq' && /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(b.playhqStatus || ''),
+    breaks: { qt: CONFIG.quarterBreakMinutes, ht: CONFIG.halfTimeMinutes, '3qt': CONFIG.threeQuarterBreakMinutes },
+  };
+}
+setInterval(() => { try { scene.game(gameSnapshot()); } catch (err) { log('error', 'sequence', `Game triggers failed: ${err.message}`); } }, 1000);
 
 // ─── Stream Deck links ──────────────────────────────────────────────────────
 // Plain GET links, so a Stream Deck "Website" button (with "GET request in

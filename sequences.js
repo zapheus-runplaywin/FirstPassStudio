@@ -12,6 +12,16 @@
 // Sequences belong to the competition in use (sequences.json in its folder) and refer to the scene's
 // shared sources and scenes by id. The runner lives here in Studio, not in a page, so it keeps time
 // with the Output page closed. What's playing isn't saved: after a restart nothing is playing.
+//
+// Game triggers: a sequence can start by itself N minutes before the picked game's scheduled start,
+// at quarter time, half time or three quarter time, or at full time, a few seconds after the siren.
+// The moments come from the scoreboard Studio already keeps (server.js calls game() each second with
+// the clock, quarter and start time), so there are no extra PlayHQ calls. A triggered start waits
+// its few seconds as "pending", where Delay pushes it back 10 s a press (a shot after the siren),
+// Start now and Cancel. Automatic starts sit behind one switch, remembered between launches; with it
+// off nothing starts by itself. A step can last until the game moves on (the clock starts, or a break
+// or full time comes), and a sequence can repeat until play resumes or until N minutes before the start:
+// it finishes the step on screen, then ends.
 
 'use strict';
 
@@ -20,14 +30,20 @@ const path = require('path');
 const datadir = require('./datadir');
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
-const LENGTHS = ['time', 'done', 'next'];
-const REPEATS = ['once', 'loop'];
+const LENGTHS = ['time', 'done', 'next', 'game'];
+const REPEATS = ['once', 'loop', 'until'];
+const STARTS = ['hand', 'before', 'break', 'fulltime'];
+const BREAKS = ['qt', 'ht', '3qt'];
+const BREAK_NAMES = { qt: 'quarter time', ht: 'half time', '3qt': 'three quarter time' };
 const THENS = ['scene', 'off', 'leave'];
 // Sequence link names that are the playing-sequence links instead (/deck/sequence/next).
-const RESERVED = new Set(['next', 'stop', 'pause', 'resume', 'delay']);
+const RESERVED = new Set(['next', 'stop', 'pause', 'resume', 'delay', 'now', 'cancel', 'auto']);
 const DELAY_MS = 10000;
 // Until it finishes stops waiting after this: a page that never says it's done, a video of unknown length.
 const PAGE_LIMIT_MS = 60000, VIDEO_LIMIT_MS = 10 * 60000, VIDEO_SPARE_MS = 3000;
+// A clock at 0:00 counts as the siren once it has stayed there this long (a scorer's correction
+// can touch 0:00 for a moment).
+const SETTLE_MS = 3000;
 
 let log = () => {};
 let api = null;       // the scene, from scene.js
@@ -36,6 +52,12 @@ let file = null;      // sequences.json of the competition in use
 let list = [];
 let run = null;       // what's playing
 let timer = null;
+let pending = null;   // a triggered start waiting its few seconds: { id, reason, at, delayMs, afterEnd }
+let pendTimer = null;
+let auto = true;      // the Automatic sequences switch
+let settingsFile = null;
+let game = null;      // the latest scoreboard reading, from game()
+let watch = null;     // what's been seen of that game: { id, fired, ranIn, everRan, zeroAt, running, period, onBreak }
 
 const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -56,6 +78,22 @@ function cleanStep(st) {
   const type = LENGTHS.includes(l.type) ? l.type : 'time';
   return { id: cleanId(s.id, newId()), sources: ids(s.sources), length: type === 'time' ? { type, sec: Math.round(clamp(l.sec, 1, 3600, 20)) } : { type } };
 }
+function cleanStart(v) {
+  const s = v && typeof v === 'object' ? v : {};
+  const type = STARTS.includes(s.type) ? s.type : 'hand';
+  if (type === 'before') return { type, min: Math.round(clamp(s.min, 1, 120, 10)) };
+  const afterSec = Math.round(clamp(s.afterSec, 0, 120, 5));
+  if (type === 'fulltime') return { type, afterSec };
+  if (type === 'break') {
+    const breaks = BREAKS.filter(b => Array.isArray(s.breaks) && s.breaks.includes(b));
+    return { type, breaks: breaks.length ? breaks : [...BREAKS], afterSec };
+  }
+  return { type };
+}
+function cleanUntil(v) {
+  const u = v && typeof v === 'object' ? v : {};
+  return u.moment === 'before' ? { moment: 'before', min: Math.round(clamp(u.min, 0, 120, 2)) } : { moment: 'resume' };
+}
 
 // Fills in and tidies every setting, so a hand-edited or older sequences.json is always usable.
 function clean(input, existing = {}) {
@@ -66,10 +104,12 @@ function clean(input, existing = {}) {
     name: '',
     colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
     repeat: REPEATS.includes(s.repeat) ? s.repeat : 'once',
+    start: cleanStart(s.start),
     then: THENS.includes(then.type) ? { type: then.type, ...(then.type === 'scene' ? { scene: cleanId(then.scene, '') } : {}) } : { type: 'off' },
     keepOn: ids(s.keepOn),
     steps: (Array.isArray(s.steps) ? s.steps : []).slice(0, 100).map(cleanStep),
   };
+  if (out.repeat === 'until') out.until = cleanUntil(s.until);
   out.name = uniqueName(s.name, out.id);
   return out;
 }
@@ -100,6 +140,16 @@ function save() {
   }
 }
 
+// The Automatic sequences switch, kept in the data folder for every competition.
+function loadSettings() {
+  try { auto = JSON.parse(fs.readFileSync(settingsFile, 'utf8')).auto !== false; }
+  catch (err) { if (err.code !== 'ENOENT') log('warn', 'sequence', `Could not read ${settingsFile}: ${err.message}`); }
+}
+function saveSettings() {
+  try { fs.writeFileSync(settingsFile, JSON.stringify({ auto }, null, 2) + '\n'); }
+  catch (err) { log('error', 'sequence', `Could not save ${settingsFile}: ${err.message}`); }
+}
+
 // The competition in use may have changed: stop what's playing and load that competition's sequences.
 // Saving the same competition's setup leaves a playing sequence running.
 function reload() {
@@ -107,6 +157,7 @@ function reload() {
   const next = fileOf() || datadir.file('sequences.json');
   if (next === file) return false;
   if (run) interrupt(new Set(), 'the competition changed');
+  cancelPending('the competition changed');
   file = next;
   load();
   log('info', 'sequence', `${list.length} sequence${list.length === 1 ? '' : 's'} for this competition`);
@@ -172,7 +223,7 @@ function enter(i) {
   for (const id of step.sources) turnOn(id);
   Object.assign(run, { step: i, stepAt: now(), paused: false, pausedLeft: null, delayMs: 0, ready: false, waiting: null });
   if (step.length.type === 'time') run.endsAt = now() + step.length.sec * 1000;
-  else if (step.length.type === 'next') run.endsAt = null;
+  else if (step.length.type === 'next' || step.length.type === 'game') run.endsAt = null;
   else {
     run.waiting = finishers(step);
     run.endsAt = now() + (run.waiting.size ? limitFor(step) : 0);
@@ -184,14 +235,17 @@ function enter(i) {
 function advance() {
   const sq = playing();
   if (!sq) return;
+  // A repeat until that has had its moment ends with the step that was on.
+  if (run.finishing) return finish(run.finishing);
   if (run.step + 1 < sq.steps.length) return enter(run.step + 1);
-  if (sq.repeat === 'loop' && sq.steps.length) { run.loop++; return enter(0); }
+  if ((sq.repeat === 'loop' || sq.repeat === 'until') && sq.steps.length) { run.loop++; return enter(0); }
   finish('it finished');
 }
 
-function start(sq) {
-  run = { id: sq.id, step: -1, loop: 0, startedAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, delayMs: 0, ready: false, waiting: null };
-  log('info', 'sequence', `Started "${sq.name}"`);
+function start(sq, why) {
+  if (pending && pending.id === sq.id) cancelPending(null);
+  run = { id: sq.id, step: -1, loop: 0, startedAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, delayMs: 0, ready: false, waiting: null, finishing: null };
+  log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
   for (const id of sq.keepOn) turnOn(id);
   if (sq.steps.length) enter(0); else finish('it has no steps');
 }
@@ -211,6 +265,8 @@ function finish(why) {
   run = null;
   log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}`);
   if (sc) api.goTo(sc);
+  // A triggered start that waited for this one to finish goes now.
+  if (pending && pending.afterEnd) startPending();
 }
 
 // Stopped by something else (a scene, another sequence, every source off): no Then, and its own
@@ -223,6 +279,140 @@ function interrupt(keep, why) {
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
   run = null;
   log('info', 'sequence', `Stopped "${sq ? sq.name : '?'}" because ${why}`);
+  // One that was waiting for it to finish its step gives way too: something else was picked.
+  if (pending && pending.afterEnd) cancelPending(`"${sq ? sq.name : '?'}" stopped because ${why}`);
+}
+
+// ─── Game triggers ───────────────────────────────────────────────────────
+// A repeat until sequence that has had its moment finishes the step on screen, then ends. A step that
+// only ends with Next or the game ends now.
+function finishSoon(why) {
+  if (!run || run.finishing) return;
+  run.finishing = why;
+  const step = playing()?.steps[run.step];
+  log('info', 'sequence', `"${playing()?.name}" ends after this step: ${why}`);
+  if (!step || step.length.type === 'next' || step.length.type === 'game') finish(why);
+}
+
+function schedulePending() {
+  clearTimeout(pendTimer);
+  pendTimer = null;
+  if (!pending || pending.afterEnd) return;
+  pendTimer = setTimeout(() => {
+    pendTimer = null;
+    if (pending && pending.at <= now()) { startPending(); api.changed(); } else schedulePending();
+  }, Math.max(0, pending.at - now()));
+}
+function cancelPending(why) {
+  if (!pending) return;
+  if (why) log('info', 'sequence', `"${find(pending.id)?.name || '?'}" won't start: ${why}`);
+  pending = null;
+  schedulePending();
+}
+// Its few seconds are up (or Start now). A repeat until sequence on screen gets to finish its step first.
+function startPending() {
+  const p = pending;
+  const sq = p && find(p.id);
+  if (!sq) { cancelPending(null); return; }
+  if (run && run.finishing && run.id !== sq.id && !p.now) {
+    p.afterEnd = true;
+    schedulePending();
+    log('info', 'sequence', `"${sq.name}" starts when "${playing()?.name}" finishes its step`);
+    return;
+  }
+  pending = null;
+  schedulePending();
+  if (run) interrupt(new Set([...sq.keepOn, ...(sq.steps[0]?.sources || [])]), `"${sq.name}" started`);
+  start(sq, p.reason);
+}
+// A game moment that starts a sequence: it waits afterSec as pending, unless Automatic sequences is off.
+function trigger(sq, reason, afterSec) {
+  if (!auto) { log('info', 'sequence', `${reason}: "${sq.name}" would start, but Automatic sequences is off`); return; }
+  if (run && run.id === sq.id) return;
+  // The sequence on screen repeats until the next trigger: this is it.
+  if (playing()?.repeat === 'until') finishSoon(`"${sq.name}" is next`);
+  pending = { id: sq.id, reason, at: now() + afterSec * 1000, delayMs: 0, afterEnd: false };
+  log('info', 'sequence', `${reason}: "${sq.name}" starts${afterSec ? ` in ${afterSec} s` : ''}`);
+  if (afterSec) schedulePending(); else startPending();
+}
+
+function breakAfter(period, last) {
+  if (last === 2) return period === 1 ? 'ht' : null;
+  return BREAKS[period - 1] || null;
+}
+// The end of a quarter (or half): a break, or full time after the last one. Each counts once a game.
+function periodEnded(period) {
+  const last = game.last || 4;
+  const key = period >= last ? 'fulltime' : `end${period}`;
+  if (watch.fired.has(key)) return null;
+  watch.fired.add(key);
+  if (period >= last) return { kind: 'fulltime' };
+  const which = breakAfter(period, last);
+  return which ? { kind: 'break', which } : null;
+}
+
+// The scoreboard now, each second: { id, label, startAt, period, last, left (seconds), running, onBreak,
+// finished, breaks: { qt, ht, '3qt' } (minutes) }. Works out the game's moments and acts on them.
+function gameTick(g) {
+  const t = now();
+  const was = game;
+  game = g && g.id ? g : null;
+  if (!game) { watch = null; if (was) api.changed(); return; }
+  if (!watch || watch.id !== game.id) watch = { id: game.id, fired: new Set(), ranIn: 0, everRan: false, zeroAt: null, running: game.running, period: game.period, onBreak: !!game.onBreak, finished: !!game.finished };
+  // Back to an earlier quarter (the scoreboard reset for another game by hand): its breaks count again.
+  if (game.period < watch.period) Object.assign(watch, { fired: new Set(), ranIn: 0, everRan: false, zeroAt: null });
+  const moments = [];
+  let changed = !was || was.id !== game.id || was.label !== game.label || was.startAt !== game.startAt;
+  if (game.running && !watch.running) moments.push({ kind: 'resume' });
+  if (game.running) { watch.ranIn = game.period; watch.everRan = true; }
+  // The siren: the clock at 0:00 for a moment (in a quarter it ran in), PlayHQ's break flag, the scorer
+  // moving on to the next quarter, or the game marked finished.
+  if (game.period > watch.period && watch.ranIn === watch.period) { const m = periodEnded(watch.period); if (m) moments.push(m); }
+  if (game.left === 0 && watch.ranIn === game.period) watch.zeroAt ??= t; else watch.zeroAt = null;
+  if ((watch.zeroAt !== null && t - watch.zeroAt >= SETTLE_MS) || (game.onBreak && !watch.onBreak && watch.ranIn === game.period)) { const m = periodEnded(game.period); if (m) moments.push(m); }
+  if (game.finished && !watch.finished && watch.everRan && !watch.fired.has('fulltime')) { watch.fired.add('fulltime'); moments.push({ kind: 'fulltime' }); }
+  Object.assign(watch, { running: game.running, period: game.period, onBreak: !!game.onBreak, finished: !!game.finished });
+
+  for (const m of moments) {
+    log('info', 'sequence', `Game moment: ${m.kind === 'resume' ? 'the clock started' : m.kind === 'break' ? BREAK_NAMES[m.which] : 'full time'} (${game.label || game.id})`);
+    changed = true;
+    // A step until the game moves on ends; a sequence repeating until play resumes finishes its step.
+    if (playing()?.steps[run.step]?.length.type === 'game') advance();
+    if (m.kind === 'resume') {
+      if (playing()?.repeat === 'until' && playing().until.moment === 'resume') finishSoon('play resumed');
+      if (pending && !pending.afterEnd) cancelPending('play resumed first');
+      continue;
+    }
+    const next = list.find(s => m.kind === 'break' ? s.start.type === 'break' && s.start.breaks.includes(m.which) : s.start.type === 'fulltime');
+    if (next) trigger(next, m.kind === 'break' ? `It's ${BREAK_NAMES[m.which]}` : `It's full time`, next.start.afterSec);
+  }
+  // Before the start: N minutes before the scheduled start, while the game hasn't begun.
+  if (game.startAt && !watch.everRan && t < game.startAt) {
+    const on = playing();
+    if (on && on.repeat === 'until' && on.until.moment === 'before' && !run.finishing && t >= game.startAt - on.until.min * 60000) {
+      finishSoon(`${on.until.min} min before the start`);
+      changed = true;
+    }
+    for (const sq of list) {
+      if (sq.start.type !== 'before' || t < game.startAt - sq.start.min * 60000 || watch.fired.has(`before:${sq.id}`)) continue;
+      watch.fired.add(`before:${sq.id}`);
+      trigger(sq, `${sq.start.min} min before ${game.label || 'the game'}`, 0);
+      changed = true;
+    }
+  }
+  if (changed) api.changed();
+}
+
+// The next start before the game, for the Output page: { id, at }.
+function nextAuto() {
+  if (!auto || !game || !game.startAt || (watch && watch.everRan)) return null;
+  let best = null;
+  for (const sq of list) {
+    if (sq.start.type !== 'before' || (watch && watch.fired.has(`before:${sq.id}`))) continue;
+    const at = game.startAt - sq.start.min * 60000;
+    if (at > now() && (!best || at < best.at)) best = { id: sq.id, at };
+  }
+  return best;
 }
 
 // ─── What the scene tells the sequence ───────────────────────────────────
@@ -343,7 +533,15 @@ function apply(a) {
       return null;
     }
     case 'seqDelay': {
-      // 10 s more on the step showing now, for each press (a shot after the siren).
+      // A sequence about to start by itself starts 10 s later for each press (a shot after the siren).
+      if (pending && !pending.afterEnd) {
+        pending.at += DELAY_MS;
+        pending.delayMs += DELAY_MS;
+        log('info', 'sequence', `Delay: "${find(pending.id)?.name}" starts ${pending.delayMs / 1000} s later`);
+        schedulePending();
+        return null;
+      }
+      // 10 s more on the step showing now, for each press.
       if (!run) return 'No sequence is playing.';
       const step = playing().steps[run.step];
       run.delayMs += DELAY_MS;
@@ -355,17 +553,41 @@ function apply(a) {
       schedule();
       return null;
     }
+    case 'seqStartNow':
+      if (!pending) return 'No sequence is about to start.';
+      pending.now = true;
+      startPending();
+      return null;
+    case 'seqCancel':
+      cancelPending('Cancel was pressed');
+      return null;
+    case 'seqAuto': {
+      const v = a.value === 'toggle' ? !auto : a.value === true || a.value === 'on' || a.value === 'true';
+      if (v !== auto) {
+        auto = v;
+        saveSettings();
+        log('info', 'sequence', `Automatic sequences ${auto ? 'on' : 'off'}`);
+        if (!auto) cancelPending('Automatic sequences was turned off');
+      }
+      return null;
+    }
     default:
       return undefined;
   }
 }
 
-// /deck/sequence/<name> (play), /deck/sequence/<name>/play|toggle|stop, and for whatever is playing
-// /deck/sequence/next|stop|pause|resume|delay.
+// /deck/sequence/<name> (play), /deck/sequence/<name>/play|toggle|stop, for whatever is playing
+// /deck/sequence/next|stop|pause|resume|delay, for one about to start by itself /deck/sequence/now|cancel
+// (and delay), and the Automatic sequences switch /deck/sequence/auto/on|off|toggle.
 function deck(parts) {
   const [what, name, verb] = parts;
   if (what !== 'sequence' || !name) return null;
-  const PLAYING = { next: 'seqNext', stop: 'seqStop', pause: 'seqPauseToggle', resume: 'seqResume', delay: 'seqDelay' };
+  if (name === 'auto') {
+    if (!['on', 'off', 'toggle'].includes(verb || 'toggle')) return null;
+    apply({ type: 'seqAuto', value: verb || 'toggle' });
+    return { body: { ok: true, auto } };
+  }
+  const PLAYING = { next: 'seqNext', stop: 'seqStop', pause: 'seqPauseToggle', resume: 'seqResume', delay: 'seqDelay', now: 'seqStartNow', cancel: 'seqCancel' };
   const ONE = { play: 'seqPlay', start: 'seqPlay', toggle: 'seqToggle', stop: 'seqStop' };
   const action = !verb ? (PLAYING[name] ? { type: PLAYING[name] } : { type: 'seqPlay', sequence: name }) : ONE[verb] ? { type: ONE[verb], sequence: name } : null;
   if (!action) return null;
@@ -385,8 +607,13 @@ function state() {
       // Time left on the step, when it has one: the page counts down from when it hears this.
       leftMs: run.paused ? run.pausedLeft : run.endsAt === null ? null : Math.max(0, run.endsAt - now()),
       length: sq.steps[run.step]?.length.type || null, ready: run.ready, delayMs: run.delayMs,
-      waiting: run.waiting ? [...run.waiting] : [],
+      waiting: run.waiting ? [...run.waiting] : [], finishing: !!run.finishing,
     } : null,
+    auto,
+    // A triggered start counting down: its time left (null while it waits for the one on screen to finish).
+    pending: pending && find(pending.id) ? { id: pending.id, reason: pending.reason, leftMs: pending.afterEnd ? null : Math.max(0, pending.at - now()), delayMs: pending.delayMs } : null,
+    nextAuto: nextAuto(),
+    game: game ? { label: game.label || '', startAt: game.startAt || null, breaks: game.breaks || null, last: game.last || 4 } : null,
   };
 }
 
@@ -394,7 +621,9 @@ function init(logger, hooks, sequencesFile) {
   log = logger || log;
   api = hooks;
   if (sequencesFile) fileOf = sequencesFile;
+  settingsFile = datadir.file('sequence-settings.json');
+  loadSettings();
   reload();
 }
 
-module.exports = { init, reload, apply, deck, state, ended, turnedOff, beforeScene, allOff, sourceRemoved, slug, DELAY_MS };
+module.exports = { init, reload, apply, deck, state, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, slug, DELAY_MS };

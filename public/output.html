@@ -120,6 +120,11 @@
   .seq.run::after { content: 'Playing'; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
                     background: var(--fp-orange); color: var(--fp-navy); padding: 1px 6px; border-radius: 5px; }
   .seq.run.paused::after { content: 'Paused'; }
+  .seq.pend { border-color: var(--fp-blue); border-style: dashed; }
+  .seq.pend::after { content: 'Starting'; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+                     background: var(--fp-blue); color: var(--fp-white); padding: 1px 6px; border-radius: 5px; }
+  .seqAuto { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; margin-bottom: 4px; }
+  .seqAuto small { color: var(--fp-muted); }
   .seq.addSeq { border-style: dashed; color: var(--fp-blue); place-items: center; text-align: center; font-weight: 700; min-height: 90px; cursor: pointer; background: var(--fp-white); }
   .seq.addSeq:hover { background: var(--fp-gray); border-color: var(--fp-blue); }
   .dots { display: flex; gap: 3px; }
@@ -197,6 +202,7 @@
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h2 style="margin:0">Sequences</h2>
     </div>
+    <div class="seqAuto"><label><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small></div>
     <div class="seqs" id="seqs"></div>
     <p class="note" id="seqNote"></p>
     <dialog id="seqDialog">
@@ -204,15 +210,28 @@
       <div class="form">
         <label for="sqName">Name</label><input id="sqName" maxlength="60" placeholder="Quarter break">
         <label for="sqColour">Stream Deck colour</label><select id="sqColour"></select>
+        <label for="sqStart">Starts</label>
+        <div class="row" style="gap:8px">
+          <select id="sqStart"><option value="hand">By hand</option><option value="before">Before the game starts</option><option value="break">At a break</option><option value="fulltime">At full time</option></select>
+          <label class="inline sqBefore"><input type="number" id="sqStartMin" min="1" max="120" style="width:64px"> min before the scheduled start</label>
+          <span class="sqBreaks row" style="gap:8px"><label class="inline"><input type="checkbox" value="qt"> Quarter time</label><label class="inline"><input type="checkbox" value="ht"> Half time</label><label class="inline"><input type="checkbox" value="3qt"> Three quarter time</label></span>
+          <label class="inline sqAfter"><input type="number" id="sqAfter" min="0" max="120" style="width:64px"> s after the siren</label>
+        </div>
         <label for="sqRepeat">Repeat</label>
-        <select id="sqRepeat"><option value="once">Play once</option><option value="loop">Repeat until stopped</option></select>
+        <div class="row" style="gap:8px">
+          <select id="sqRepeat"><option value="once">Play once</option><option value="loop">Repeat until stopped</option><option value="until:resume">Repeat until play resumes</option><option value="until:before">Repeat until before the start</option></select>
+          <label class="inline sqUntilMin"><input type="number" id="sqUntilMin" min="0" max="120" style="width:64px"> min before the scheduled start</label>
+        </div>
         <label for="sqThen">Then</label><select id="sqThen"></select>
       </div>
       <h2 style="margin:16px 0 4px">Steps</h2>
       <div class="steps" id="sqSteps"></div>
-      <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add step</button></div>
+      <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add step</button><span class="note" id="sqLoop" style="margin:0"></span></div>
       <p class="note" style="margin-top:10px">Each step turns its sources on together and keeps them on for its length; when it ends, sources the next step doesn't use go off with their own fades.
         <b>Until it finishes</b> waits for the step's videos to end (and pages that switch themselves off when done), and moves on after the video's length plus 3 s, or a minute for a page, if the end never comes.
+        <b>Until the game moves on</b> holds until the clock starts, or the next break or full time.
+        A sequence that starts by itself waits its few seconds after the siren first, so <b>Delay +10 s</b> can hold it for a shot after the siren.
+        <b>Repeat until</b> finishes the step on screen when its moment comes (or the next sequence's start comes), then ends.
         <b>Kept on</b> sources stay on from the first step to the last. A sequence only turns off sources it turned on itself.</p>
       <p class="error" id="sqErr"></p>
       <div class="row" style="margin-top:10px;justify-content:space-between">
@@ -709,19 +728,29 @@
   // Studio last sent the scene, so the page doesn't need to ask.
   const sequences = () => scene.sequences || [];
   const fmt = ms => { const t = Math.ceil(Math.max(0, ms) / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-  const lengthText = st => st.length.type === 'time' ? `${st.length.sec} s` : st.length.type === 'done' ? 'until it finishes' : 'until Next';
+  const BREAK_SHORT = { qt: 'QT', ht: 'HT', '3qt': '3QT' };
+  const startText = sq => sq.start.type === 'before' ? `${sq.start.min} min before the start` : sq.start.type === 'break' ? `at ${sq.start.breaks.map(b => BREAK_SHORT[b]).join(' · ')}`
+    : sq.start.type === 'fulltime' ? 'at full time' : 'by hand';
+  const repeatText = sq => sq.repeat === 'loop' ? 'repeats' : sq.repeat === 'until' ? (sq.until.moment === 'resume' ? 'repeats until play resumes' : `repeats until ${sq.until.min} min before`) : 'plays once';
+  const clockTime = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   let heardAt = 0;
   function thenText(sq) {
     if (sq.then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === sq.then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
     return sq.then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';
   }
   function renderSequences() {
-    const box = $('seqs'), p = scene.playing;
+    const box = $('seqs'), p = scene.playing, pend = scene.pending;
     box.innerHTML = '';
+    $('seqAuto').checked = scene.auto !== false;
+    const next = scene.nextAuto && sequences().find(s => s.id === scene.nextAuto.id);
+    $('seqNext').textContent = scene.auto === false ? 'Nothing starts by itself; every sequence still plays by hand.'
+      : next ? `Next: ${next.name} at ${clockTime(scene.nextAuto.at)}, ${next.start.min} min before ${scene.game?.label || 'the game'}`
+      : sequences().some(s => s.start.type !== 'hand') ? 'Sequences start by themselves from the scoreboard\'s game and clock.' : '';
     for (const sq of sequences()) {
       const card = document.createElement('div');
       const run = p && p.id === sq.id;
-      card.className = 'seq' + (run ? ' run' : '') + (run && p.paused ? ' paused' : '');
+      const waiting = !run && pend && pend.id === sq.id;
+      card.className = 'seq' + (run ? ' run' : '') + (run && p.paused ? ' paused' : '') + (waiting ? ' pend' : '');
       card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
       card.querySelector('b').textContent = sq.name;
       card.querySelector('.band').classList.add(sq.colour);
@@ -745,9 +774,23 @@
         row.querySelector('.stop').onclick = () => act({ type: 'seqStop' });
         row.querySelector('.stop').title = `Stop it, ${thenText(sq)}`;
         card.append(dots, line, row);
+        if (p.finishing) line.lastChild.dataset.last = '1';
+      } else if (waiting) {
+        const line = document.createElement('div');
+        line.className = 'nowLine';
+        line.innerHTML = '<span></span><span class="left pendLeft"></span>';
+        line.firstChild.textContent = `${pend.reason || 'Starting'} · starts in`;
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = '<button class="alt delay" title="Start it 10 seconds later, for each press">Delay +10 s</button><button class="now">Start now</button><button class="alt cancel">Cancel</button>';
+        row.querySelector('.delay').onclick = () => act({ type: 'seqDelay' });
+        row.querySelector('.delay').disabled = pend.leftMs === null;
+        row.querySelector('.now').onclick = () => act({ type: 'seqStartNow' });
+        row.querySelector('.cancel').onclick = () => act({ type: 'seqCancel' });
+        card.append(line, row);
       } else {
         const small = document.createElement('small');
-        small.textContent = `${sq.steps.length} step${sq.steps.length === 1 ? '' : 's'} · ${sq.repeat === 'loop' ? 'repeats' : 'plays once'} · ${thenText(sq)}`;
+        small.textContent = `${startText(sq)} · ${sq.steps.length} step${sq.steps.length === 1 ? '' : 's'} · ${repeatText(sq)} · ${thenText(sq)}`;
         const row = document.createElement('div');
         row.className = 'row';
         row.innerHTML = '<button class="play">▶ Play</button><button class="alt edit">Edit</button>';
@@ -770,19 +813,25 @@
     $('seqNote').innerHTML = first
       ? 'A sequence plays its steps one after another: <b>Play</b> starts it, <b>Next</b> ends the step now, <b>Delay +10 s</b> holds the step 10 seconds longer each press, '
         + 'and <b>Stop</b> ends it and does its "then". Going to a scene, or playing another sequence, stops it without its "then". Turning the step\'s source off by hand moves to the next step. '
+        + 'A sequence can start by itself before the game, at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '
+        + 'while it waits to start, <b>Delay +10 s</b> pushes it back, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
         + 'Sequences belong to the competition in use. '
         + `Stream Deck: <code>${base}/deck/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
-        + '<code>/deck/sequence/next</code>, <code>/deck/sequence/delay</code>, <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>.'
+        + '<code>/deck/sequence/next</code>, <code>/deck/sequence/delay</code>, <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>; for one about to start '
+        + '<code>/deck/sequence/now</code> and <code>/deck/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.'
       : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
         + 'Add your sources below first, then <b>+ New sequence</b>.';
   }
   function tickSequence() {
+    const pend = scene.pending, pl = document.querySelector('.seq.pend .pendLeft');
+    if (pend && pl) pl.textContent = pend.leftMs === null ? 'after this one' : `${fmt(pend.leftMs - (performance.now() - heardAt))}${pend.delayMs ? ` (+${pend.delayMs / 1000} s)` : ''}`;
     const p = scene.playing;
     const left = document.querySelector('.seq.run .left');
     if (!p || !left) return;
-    if (p.leftMs === null || p.leftMs === undefined) { left.textContent = p.length === 'next' ? 'waits for Next' : ''; return; }
+    const last = p.finishing ? ', then ends' : '';
+    if (p.leftMs === null || p.leftMs === undefined) { left.textContent = p.length === 'next' ? 'waits for Next' : p.length === 'game' ? 'until the game moves on' : ''; return; }
     const ms = p.paused ? p.leftMs : p.leftMs - (performance.now() - heardAt);
-    left.textContent = p.length === 'done' && !p.ready ? `up to ${fmt(ms)}` : `${fmt(ms)} left`;
+    left.textContent = (p.length === 'done' && !p.ready ? `up to ${fmt(ms)}` : `${fmt(ms)} left`) + last;
   }
   setInterval(tickSequence, 250);
 
@@ -790,12 +839,19 @@
   let draft = null;
   const durationOf = file => media.find(m => m.name === file)?.duration;
   function openSequence(sq) {
-    draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', then: { type: 'off' }, keepOn: [], steps: [{ sources: [], length: { type: 'time', sec: 20 } }] };
+    draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, keepOn: [], steps: [{ sources: [], length: { type: 'time', sec: 20 } }] };
+    const start = draft.start || { type: 'hand' };
+    $('sqStart').value = start.type;
+    $('sqStartMin').value = start.min || 10;
+    $('sqAfter').value = start.afterSec ?? 5;
+    document.querySelectorAll('.sqBreaks input').forEach(c => { c.checked = start.type === 'break' ? start.breaks.includes(c.value) : true; });
+    $('sqRepeat').value = draft.repeat === 'until' ? `until:${draft.until.moment}` : draft.repeat;
+    $('sqUntilMin').value = draft.until?.min ?? 2;
+    showStartFields();
     $('sqTitle').textContent = sq ? 'Edit sequence' : 'New sequence';
     $('sqName').value = draft.name;
     $('sqColour').innerHTML = '';
     for (const [v, label] of COLOURS) $('sqColour').add(new Option(label, v, false, v === draft.colour));
-    $('sqRepeat').value = draft.repeat;
     const then = $('sqThen');
     then.innerHTML = '';
     then.add(new Option('Turn off what it turned on', 'off'));
@@ -849,7 +905,7 @@
     draft.steps.forEach((st, i) => {
       const row = document.createElement('div');
       row.className = 'stepRow' + (p && p.id === draft.id && p.step === i ? ' cur' : '');
-      row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><select class="type" aria-label="How long"><option value="time">For a set time</option><option value="done">Until it finishes</option><option value="next">Until I press Next</option></select>'
+      row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><select class="type" aria-label="How long"><option value="time">For a set time</option><option value="done">Until it finishes</option><option value="next">Until I press Next</option><option value="game">Until the game moves on</option></select>'
         + '<input type="number" class="sec" min="1" max="3600" aria-label="Seconds"><span class="hint"></span><button class="alt up" title="Earlier">↑</button><button class="alt down" title="Later">↓</button><button class="danger del" title="Delete this step">✕</button></div>';
       row.querySelector('.num').textContent = i + 1;
       sourcePicker(st.sources, row.querySelector('.what'));
@@ -867,16 +923,58 @@
       row.querySelector('.del').onclick = () => { draft.steps.splice(i, 1); renderSteps(); };
       box.appendChild(row);
     });
+    loopHint();
+  }
+  // Only the start and repeat settings that fit what's picked.
+  function showStartFields() {
+    const type = $('sqStart').value;
+    document.querySelector('.sqBefore').classList.toggle('hidden', type !== 'before');
+    document.querySelector('.sqBreaks').classList.toggle('hidden', type !== 'break' || scene.game?.last === 2);
+    document.querySelector('.sqAfter').classList.toggle('hidden', type !== 'break' && type !== 'fulltime');
+    document.querySelector('.sqUntilMin').classList.toggle('hidden', $('sqRepeat').value !== 'until:before');
+    loopHint();
+  }
+  $('sqStart').onchange = $('sqRepeat').onchange = showStartFields;
+  document.querySelectorAll('.sqBreaks input').forEach(c => { c.onchange = loopHint; });
+  // How long one time through takes, and for a break sequence how many times it fits in the break.
+  function loopHint() {
+    const hint = $('sqLoop');
+    if (!draft) return;
+    let sec = 0, open = false;
+    for (const st of draft.steps) {
+      if (st.length.type === 'time') sec += st.length.sec;
+      else if (st.length.type === 'done') { const d = stepSeconds(st); if (d) sec += d; else open = true; }
+      else open = true;
+    }
+    if (!sec) { hint.textContent = ''; return; }
+    let text = `One time through is ${open ? 'at least ' : 'about '}${fmt(sec * 1000)}.`;
+    const breaks = scene.game?.breaks;
+    if (!open && $('sqStart').value === 'break' && breaks) {
+      const ticked = [...document.querySelectorAll('.sqBreaks input:checked')].map(c => c.value);
+      const NAMES = { qt: 'quarter time', ht: 'half time', '3qt': 'three quarter time' };
+      const fits = (scene.game.last === 2 ? ['ht'] : ticked).filter(b => breaks[b] > 0).map(b => `${NAMES[b]} (${breaks[b]} min) about ${Math.round(breaks[b] * 60 / sec * 2) / 2} times`);
+      if (fits.length) text += ` It plays ${fits.join(', ')}, as set in Competitions setup.`;
+    }
+    hint.textContent = text;
+  }
+  function stepSeconds(st) {
+    const secs = st.sources.map(id => scene.sources.find(s => s.id === id)).filter(s => s && s.type === 'video').map(v => durationOf(v.file)).filter(Boolean);
+    return secs.length ? Math.max(...secs) : 0;
   }
   function draftChanges() {
-    const then = $('sqThen').value;
-    return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat: $('sqRepeat').value,
+    const then = $('sqThen').value, type = $('sqStart').value, [repeat, moment] = $('sqRepeat').value.split(':');
+    const start = type === 'before' ? { type, min: Number($('sqStartMin').value) || 10 }
+      : type === 'break' ? { type, breaks: [...document.querySelectorAll('.sqBreaks input:checked')].map(c => c.value), afterSec: Number($('sqAfter').value) || 0 }
+      : type === 'fulltime' ? { type, afterSec: Number($('sqAfter').value) || 0 } : { type: 'hand' };
+    return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start,
+      ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
       then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : { type: then }, keepOn: draft.keepOn, steps: draft.steps };
   }
   async function saveSequence(andPlay) {
     const changes = draftChanges();
     if (!changes.name) { $('sqErr').textContent = 'Give the sequence a name.'; return; }
     if (!changes.steps.length) { $('sqErr').textContent = 'Add at least one step.'; return; }
+    if (changes.start.type === 'break' && !changes.start.breaks.length && scene.game?.last !== 2) { $('sqErr').textContent = 'Tick at least one break.'; return; }
     const before = new Set(sequences().map(s => s.id));
     const body = draft.id ? await act({ type: 'seqUpdate', sequence: draft.id, changes }) : await act({ type: 'seqAdd', changes });
     if (!body) { $('sqErr').textContent = $('err').textContent; return; }
@@ -885,6 +983,7 @@
     draft = null;
     if (andPlay && id) act({ type: 'seqPlay', sequence: id });
   }
+  $('seqAuto').onchange = () => act({ type: 'seqAuto', value: $('seqAuto').checked });
   $('sqAddStep').onclick = () => { draft.steps.push({ sources: [], length: { type: 'time', sec: 20 } }); renderSteps(); };
   $('sqSave').onclick = () => saveSequence(false);
   $('sqTry').onclick = () => saveSequence(true);

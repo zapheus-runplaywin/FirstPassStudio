@@ -73,7 +73,8 @@
         <li>The key shows the source's name and lights up orange while the source is on, however it was turned on. A sound key lights while the video's sound is on.</li>
         <li>It follows the source itself, so renaming the source doesn't break the key. A removed source says <b>gone</b>; while Studio isn't running it says <b>off air</b>.</li>
         <li><b>FirstPass Studio › Scene</b> goes to a saved scene; <b>FirstPass Studio › Sequence</b> plays a sequence, or presses Next, Delay +10 s,
-          Pause or Stop for whatever is playing. It lights up while its sequence plays and shows the step and time left, like <b>3/5 0:12</b>.</li>
+          Pause or Stop for whatever is playing. It lights up while its sequence plays and shows the step and time left, like <b>3/5 0:12</b>.
+          When a sequence is about to start by itself, its key and the Delay key count down to it (<b>in 0:04</b>).</li>
         <li><b>Studio</b> in its settings stays empty when the Stream Deck is on the same Mac; for another Mac type its address, like <code>http://studio-mac.local:8080</code>.</li>
       </ul>
       <p class="note">No plugin? Every source also has links for a <b>Website</b> action (the Output page copies them), but those keys don't light up.
@@ -134,7 +135,9 @@
         ['Fade every source out', '/deck/layers/off'], ['Video output on / off (Mac app)', '/deck/output/toggle'],
         ['Video output on', '/deck/output/on'], ['Video output off', '/deck/output/off'],
         ['Sequence: next step', '/deck/sequence/next'], ['Sequence: hold this step 10 s longer (each press)', '/deck/sequence/delay'],
-        ['Sequence: pause / carry on', '/deck/sequence/pause'], ['Sequence: stop (does its "then")', '/deck/sequence/stop']],
+        ['Sequence: pause / carry on', '/deck/sequence/pause'], ['Sequence: stop (does its "then")', '/deck/sequence/stop'],
+        ['Sequence about to start: start now', '/deck/sequence/now'], ['Sequence about to start: cancel', '/deck/sequence/cancel'],
+        ['Automatic sequences on / off', '/deck/sequence/auto/toggle']],
       modeLinks: [['Follow PlayHQ (score and clock)', '/deck/source/playhq'], ['Manual', '/deck/source/manual'], ['Toggle between the two', '/deck/source/toggle'],
         ['Follow the PlayHQ scorer\'s clock', '/deck/clock/playhq/on'], ['Stop following the clock', '/deck/clock/playhq/off']],
       scoreLinks: [['Home +1', '/deck/home/add1'], ['Home +2 (super shot)', '/deck/home/add2'], ['Home −1', '/deck/home/minus1'], ['Home −2', '/deck/home/minus2'],

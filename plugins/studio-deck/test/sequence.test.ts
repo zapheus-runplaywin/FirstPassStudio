@@ -52,6 +52,21 @@ test("next, delay, pause and stop keys: light while anything plays and show wher
 	assert.equal(sequenceViewOf({ press: "stop" }, null).title, "Stop\n(off air)");
 });
 
+test("a sequence about to start by itself: its key counts down to it, and the Delay key shows how long until it starts", () => {
+	const scene: Scene = { ...studio(), pending: { id: "qb", leftMs: 4200, delayMs: 10000 } };
+	const play = sequenceViewOf({ sequence: "qb", sequenceName: "Quarter break" }, scene, 1000);
+	assert.equal(play.title, "Quarter\nbreak\nin 0:04");
+	assert.equal(play.state, 0);
+	assert.equal(play.ticking, true);
+	const delay = sequenceViewOf({ press: "delay" }, scene);
+	assert.equal(delay.title, "Delay +10\nin 0:05 (+10)");
+	assert.equal(delay.state, 1);
+	assert.equal(delay.colour, "purple");
+	// Waiting for the playing sequence to finish its step: no countdown yet.
+	const waiting = sequenceViewOf({ sequence: "qb" }, { ...scene, pending: { id: "qb", leftMs: null, delayMs: 0 } });
+	assert.equal(waiting.title, "Quarter\nbreak\nnext");
+});
+
 test("links", () => {
 	assert.equal(sequenceLinkFor({ sequence: "qb" }), "/deck/sequence/qb/toggle");
 	assert.equal(sequenceLinkFor({ press: "start", sequence: "qb" }), "/deck/sequence/qb/play");

@@ -3,7 +3,8 @@
 Keys for FirstPass Studio's own scene (the Output page). The **Source** key shows or hides a source and lights up
 while it's on. The **Scene** key goes to a saved scene (or the next or previous one, or back to the current one as
 saved), lights up while its scene is on, and shows a yellow dot when sources have changed since. The **Sequence** key plays a sequence (or presses Next,
-Delay +10 s, Pause or Stop for whatever is playing), lights up while it plays and counts down the step on screen. It follows the scene live through Studio's `/api/scene/events`, so the key changes the moment the
+Delay +10 s, Pause or Stop for whatever is playing), lights up while it plays and counts down the step on screen, or to a
+sequence about to start by itself after the siren. It follows the scene live through Studio's `/api/scene/events`, so the key changes the moment the
 source does, whether it was turned on from the key, the Output page or a `/deck/layer` link.
 
 The Mac app's release workflow packs this plugin into the app, and the app installs it (menu bar icon >

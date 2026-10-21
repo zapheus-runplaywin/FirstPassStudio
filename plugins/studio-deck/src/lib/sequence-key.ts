@@ -78,12 +78,23 @@ export function sequenceViewOf(settings: SequenceSettings, scene: Scene | null, 
 		if (!scene) return view(`${wrapTitle(name)}\n(off air)`);
 		const sq = sequencesOf(scene).find((s) => s.id === settings.sequence);
 		if (!sq) return view(`${wrapTitle(name)}\n(gone)`);
+	const pend = scene.pending;
+	if (pend && pend.id === sq.id && scene.playing?.id !== sq.id) {
+		return view(`${wrapTitle(sq.name)}\n${pend.leftMs === null ? "next" : `in ${clock(pend.leftMs - sinceMs)}`}`, sq, 0, pend.leftMs !== null);
+	}
 		if (scene.playing?.id !== sq.id) return view(`${wrapTitle(sq.name)}\n▶`, sq);
 		const { text, ticking } = progress(scene, sinceMs);
 		return view(`${wrapTitle(sq.name, 9).split("\n").slice(0, 2).join("\n")}\n${text}`, sq, 1, ticking);
 	}
 	const label = { next: "Next ⏭", delay: "Delay\n+10 s", pause: "Pause", stop: "Stop" }[press];
 	if (!scene) return view(`${label}\n(off air)`);
+	// A sequence about to start by itself: Delay pushes it back, so that key counts down to it.
+	const pend = scene.pending;
+	const coming = pend && sequencesOf(scene).find((s) => s.id === pend.id);
+	if (press === "delay" && pend && coming && pend.leftMs !== null) {
+		const held = pend.delayMs ? ` (+${Math.round(pend.delayMs / 1000)})` : "";
+		return view(`Delay +10\nin ${clock(pend.leftMs - sinceMs)}${held}`, coming, 1, true);
+	}
 	const sq = playingOf(scene);
 	if (!sq) return view(`${label}\n(none on)`);
 	const { text, ticking } = progress(scene, sinceMs);
