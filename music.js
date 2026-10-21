@@ -18,6 +18,9 @@
 //     sequence it hands over to. Going to a scene or another sequence fades it out.
 //   - "Quiet the music" on a scene or sequence (an interview on court): sequence music fades out and stops,
 //     the player's own music ducks low and keeps playing until the next scene or sequence without it.
+//   - The super shot song (a setting, with its own volume): when the scoreboard's super shot period starts
+//     (the last minutes of a quarter, in a division with super shots) it cuts in over whatever is playing,
+//     round and round, and fades out over the fade out time when the period ends.
 //
 // Saved as music.json in the data folder: the playlists and the player's settings. What's playing isn't.
 
@@ -39,7 +42,10 @@ const UNKNOWN_MS = 5000;
 let log = () => {};
 let api = null; // { duration(file), changed(), exists(file) }
 let playlists = [];
-let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false };
+let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false, superShotSong: '', superShotVolume: 80 };
+// The super shot song plays as this owner; superFired is the game and quarter it last started for.
+const SUPER = 'supershot';
+let superFired = null;
 let p = blank();
 let endTimer = null, fadeTimer = null;
 
@@ -86,6 +92,8 @@ function cleanSettings(v) {
     lowerTo: Math.round(clamp(s.lowerTo, 0, 100, 25)),
     duckTo: Math.round(clamp(s.duckTo, 0, 100, 25)),
     duckHalf: s.duckHalf === true, // the duck fades over half the fade in and out times
+    superShotSong: cleanFile(s.superShotSong),
+    superShotVolume: Math.round(clamp(s.superShotVolume, 0, 100, 80)),
   };
 }
 function load() {
@@ -310,6 +318,27 @@ function stopFor(seqId, sec) {
 // The music carries on into the next sequence.
 function handOver(fromId, toId) { if (p.owner === fromId) p.owner = toId; }
 
+// The scoreboard each second: { id, period, superShot (in the super shot period now), running }. The super shot
+// song cuts in once the period's clock is running (once per quarter, so stopping it by hand keeps it stopped)
+// and fades out when the period ends. Returns whether the music changed.
+function superShotPeriod(g) {
+  const key = g ? `${g.id}:${g.period}` : null;
+  if (g && g.superShot) {
+    if (!g.running || superFired === key || !settings.superShotSong) return false;
+    superFired = key;
+    const file = findTrack(settings.superShotSong, api.files());
+    if (!file) { log('warn', 'music', `The super shot song (${settings.superShotSong}) isn't in the media folder`); return false; }
+    log('info', 'music', `Super shot period: ${file} cuts in`);
+    loadTrack(file, SUPER, true);
+    start(0, 0);
+    return true;
+  }
+  if (p.owner !== SUPER || p.status === 'stopped' || p.after === 'stop') return false;
+  log('info', 'music', 'Super shot period over: its song fades out');
+  stop();
+  return true;
+}
+
 // ─── Changes from the Output page and the Stream Deck ────────────────────
 // Returns an error, null when done, or undefined when it isn't a music change.
 function apply(a) {
@@ -410,7 +439,7 @@ function state() {
       // Paused for a video's sound counts as playing for the buttons: it comes back by itself.
       status: p.status, after: p.after, pos: p.pos, gain: p.gain, playId: p.playId,
       muted: p.muted, ducked: !!p.ducked, duck: p.duck, video: p.video, owner: p.owner,
-      volume: settings.volume, level: p.video === 'lower' ? settings.lowerTo : 100, duckTo: settings.duckTo,
+      volume: p.owner === SUPER ? settings.superShotVolume : settings.volume, level: p.video === 'lower' ? settings.lowerTo : 100, duckTo: settings.duckTo,
       length: track() ? api.duration(track()) : null,
     },
     playlists,
@@ -424,4 +453,4 @@ function init(logger, hooks) {
   load();
 }
 
-module.exports = { init, apply, deck, state, videoSound, quiet, playFor, stopFor, handOver, isAudio, AUDIO_TYPES, STOP_FADE_SEC };
+module.exports = { init, apply, deck, state, videoSound, quiet, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };

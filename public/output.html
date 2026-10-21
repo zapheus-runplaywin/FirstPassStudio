@@ -286,6 +286,9 @@
       <label for="mDuckTo">Duck to</label>
       <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that quiets the music)</span>
         <label class="inline"><input type="checkbox" id="mDuckHalf"> Duck over half the fade times</label></div>
+      <label for="mSuperSong">Super shot song</label>
+      <div class="row"><select id="mSuperSong"></select> <label class="inline">at <input type="number" id="mSuperVolume" min="0" max="100" style="width:64px"> % volume</label>
+        <span>(cuts in when the super shot period starts, fades out when it ends)</span></div>
     </div>
     <p class="note" id="musicNote"></p>
     <dialog id="plDialog">
@@ -1148,11 +1151,11 @@
   function renderMusic() {
     const m = scene.music;
     if (!m) return;
-    const owner = m.owner && sequences().find(s => s.id === m.owner);
+    const owner = m.owner === 'supershot' ? { name: 'the super shot period' } : m.owner && sequences().find(s => s.id === m.owner);
     const pl = m.playlist && playlistsOf().find(x => x.id === m.playlist);
     $('player').classList.toggle('on', m.status === 'playing');
     $('mTrack').textContent = m.track ? songName(m.track) : 'Nothing loaded';
-    $('mWhere').textContent = [pl ? `${pl.name}, ${m.index + 1} of ${m.queue.length}` : '', owner ? `for "${owner.name}"` : '',
+    $('mWhere').textContent = [pl ? `${pl.name}, ${m.index + 1} of ${m.queue.length}` : '', owner ? (m.owner === 'supershot' ? `for ${owner.name}` : `for "${owner.name}"`) : '',
       m.video === 'pause' ? 'paused while a video plays its sound' : m.video === 'lower' ? 'lowered while a video plays its sound' : '',
       m.status === 'paused' && !m.video ? 'paused' : m.status === 'stopped' && m.track ? 'stopped' : ''].filter(Boolean).join(' · ');
     const playing = m.status === 'playing' && m.after !== 'pause' && m.after !== 'stop';
@@ -1174,6 +1177,15 @@
     pick.innerHTML = '';
     if (!tracks().length) pick.add(new Option('No songs yet: add one', ''));
     for (const f of tracks()) pick.add(new Option(songName(f), f, false, f === keep));
+    if (document.activeElement !== $('mSuperSong')) {
+      const ss = $('mSuperSong');
+      ss.innerHTML = '';
+      ss.add(new Option('None', ''));
+      for (const f of tracks()) ss.add(new Option(songName(f), f));
+      if (set.superShotSong && !tracks().includes(set.superShotSong)) ss.add(new Option(`${songName(set.superShotSong)} (missing)`, set.superShotSong));
+      ss.value = set.superShotSong || '';
+    }
+    if (document.activeElement !== $('mSuperVolume')) $('mSuperVolume').value = set.superShotVolume ?? 80;
     const busy = media.filter(x => x.kind === 'audio' && x.converting).map(x => x.name);
     $('mNote').textContent = busy.length ? `Evening out the loudness of ${busy.map(songName).join(', ')}…` : '';
     renderPlaylists();
@@ -1184,6 +1196,7 @@
       + 'With <b>Even out its loudness</b> ticked, a song is levelled to the same loudness as the others (as streaming services do) and the original is kept in the media folder\'s originals. '
       + 'A sequence can bring its own music (in its editor), which fades out when the sequence is stopped by a scene or another sequence. '
       + 'A scene or sequence with <b>Quiet the music</b> ticked (an interview on court) fades a sequence\'s music out, or ducks the player\'s own music until the next scene or sequence without it. '
+      + 'The <b>super shot song</b> cuts in over whatever is playing (no fade) once the clock runs in the super shot period (the competition setup\'s super shot minutes, in a division with super shots), plays round until the period ends, then fades out. Stop it by hand and it stays stopped for that quarter. '
       + `Stream Deck: <code>${base}/deck/music/toggle</code> (play or pause), <code>/play</code>, <code>/pause</code>, <code>/resume</code>, <code>/stop</code>, <code>/fade</code>, <code>/next</code>, <code>/prev</code>, `
       + '<code>/mute/toggle</code>, <code>/duck/toggle</code>, <code>/load/&lt;song&gt;</code> and <code>/playlist/&lt;name&gt;</code> (add <code>?play</code> to start it too); add <code>?fade=2</code> to any of them for a 2 second fade, or <code>?fade=0</code> to cut.';
   }
@@ -1204,8 +1217,9 @@
   $('mVolume').onchange = () => act({ type: 'musicVolume', value: Number($('mVolume').value) });
   $('mLoad').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value }); };
   $('mLoadPlay').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value, play: true }); };
-  const musicSettings = () => act({ type: 'musicSettings', settings: { fadeInSec: Number($('mFadeIn').value), fadeOutSec: Number($('mFadeOut').value), underVideo: $('mUnder').value, lowerTo: Number($('mLowerTo').value), duckTo: Number($('mDuckTo').value), duckHalf: $('mDuckHalf').checked } });
-  for (const id of ['mFadeIn', 'mFadeOut', 'mUnder', 'mLowerTo', 'mDuckTo', 'mDuckHalf']) $(id).onchange = musicSettings;
+  const musicSettings = () => act({ type: 'musicSettings', settings: { fadeInSec: Number($('mFadeIn').value), fadeOutSec: Number($('mFadeOut').value), underVideo: $('mUnder').value, lowerTo: Number($('mLowerTo').value), duckTo: Number($('mDuckTo').value), duckHalf: $('mDuckHalf').checked,
+    superShotSong: $('mSuperSong').value, superShotVolume: Number($('mSuperVolume').value) } });
+  for (const id of ['mFadeIn', 'mFadeOut', 'mUnder', 'mLowerTo', 'mDuckTo', 'mDuckHalf', 'mSuperSong', 'mSuperVolume']) $(id).onchange = musicSettings;
   $('mUpload').onchange = async () => {
     const file = $('mUpload').files[0];
     if (!file) return;

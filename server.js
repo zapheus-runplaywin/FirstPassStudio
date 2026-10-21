@@ -1418,10 +1418,14 @@ function gameSnapshot() {
   const b = board();
   const left = clockLeft(b);
   const following = b.source === 'playhq' && b.followPlayhqClock;
+  // The super shot period: the last superShotMinutes of the quarter in a division with super shots, as the
+  // scoreboard's Super shot tab shows it (public/scoreboard.js superShotTime).
+  const window = (CONFIG.superShotMinutes ?? 3) * 60;
+  const superShot = competitions.superShotsFor(CONFIG, b.division) && window > 0 && left > 0 && left <= window && left < b.clock.lengthSec;
   return {
     id: b.gameId || 'manual', label: `${b.home.name} v ${b.away.name}${b.court ? ` on ${b.court}` : ''}`,
     startAt: b.gameId ? startOf({ date: b.date, time: b.time }) : null,
-    period: b.period, last: CONFIG.periodType === 'halves' ? 2 : 4, left, running: !!b.clock.running && left > 0,
+    period: b.period, last: CONFIG.periodType === 'halves' ? 2 : 4, left, running: !!b.clock.running && left > 0, superShot,
     onBreak: following && !!b.playhqBreak, finished: b.source === 'playhq' && /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(b.playhqStatus || ''),
     breaks: { qt: CONFIG.quarterBreakMinutes, ht: CONFIG.halfTimeMinutes, '3qt': CONFIG.threeQuarterBreakMinutes },
   };

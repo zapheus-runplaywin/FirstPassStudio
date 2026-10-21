@@ -240,3 +240,33 @@ test('separate fade in and fade out times', () => {
   wait(5);
   assert.equal(m().status, 'stopped');
 });
+
+test('the super shot song cuts in when the super shot period starts and fades out when it ends', () => {
+  reset();
+  ok({ type: 'musicSettings', settings: { superShotSong: 'walk-out', superShotVolume: 60, fadeOutSec: 4 } });
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  const g = (superShot, running = true, period = 1) => scene.game({ id: 'g1', period, superShot, running, left: 100, last: 4 });
+  g(false);
+  assert.equal(m().track, 'Break.mp3');
+  g(true, false); // clock stopped: waits
+  assert.equal(m().track, 'Break.mp3');
+  g(true);
+  assert.equal(m().track, 'Walk out.m4a');
+  assert.equal(m().owner, 'supershot');
+  assert.equal(m().gain.ms, 0, 'cuts in');
+  assert.equal(m().volume, 60);
+  g(false); // the period ends
+  assert.equal(m().gain.ms, 4000);
+  wait(4);
+  assert.equal(m().status, 'stopped');
+  assert.equal(m().volume, 80);
+  // Once a quarter: stopped by hand, it doesn't come back until the next quarter.
+  g(true, true, 2);
+  ok({ type: 'musicStop', fade: 0 });
+  g(true, true, 2);
+  assert.equal(m().status, 'stopped');
+  g(true, true, 3);
+  assert.equal(m().status, 'playing');
+  ok({ type: 'musicStop', fade: 0 });
+  ok({ type: 'musicSettings', settings: { superShotSong: '' } });
+});
