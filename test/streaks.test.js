@@ -2,28 +2,17 @@
 // for goal, each played once per run. Runs server.js and presses the scores like the control page.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { runServer } = require('./support/studio');
 
-function listen(server) { return new Promise(r => server.listen(0, '127.0.0.1', () => r(server.address().port))); }
 
 async function start(t) {
-  const probe = http.createServer();
-  const port = await listen(probe);
-  await new Promise(r => probe.close(r));
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
-  const server = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
-    env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir, PLAYHQ_API_URL: 'http://127.0.0.1:1/graphql', PLAYHQ_SPECTATOR_URL: 'http://127.0.0.1:1/spectator' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  t.after(() => { server.kill(); fs.rmSync(dataDir, { recursive: true, force: true }); });
-  await new Promise((resolve, reject) => {
-    server.stdout.on('data', d => { if (/is running/.test(d)) resolve(); });
-    server.on('exit', code => reject(new Error(`server.js exited (${code})`)));
-  });
+  const server = await runServer({ FIRSTPASS_DATA_DIR: dataDir, PLAYHQ_API_URL: 'http://127.0.0.1:1/graphql', PLAYHQ_SPECTATOR_URL: 'http://127.0.0.1:1/spectator' });
+  const { port } = server;
+  t.after(async () => { server.child.kill(); await server.exit; fs.rmSync(dataDir, { recursive: true, force: true }); });
 
   const base = `http://127.0.0.1:${port}`;
   const post = async body => (await fetch(`${base}/api/scoreboard`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();

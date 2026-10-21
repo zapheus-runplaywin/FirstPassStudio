@@ -7,7 +7,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { runServer } = require('./support/studio');
 
 const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 const players = prefix => POSITIONS.map((pos, i) => ({
@@ -72,25 +72,15 @@ test('team lists: warmed up when a game is picked, and finished games kept acros
   const readyLines = () => { try { return fs.readFileSync(logFile, 'utf8').split('\n').filter(l => /Team lists ready/.test(l)); } catch { return []; } };
 
   let server = null;
-  t.after(() => { if (server) server.kill(); playhq.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  t.after(async () => { if (server) { server.child.kill(); await server.exit; } playhq.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
   async function start() {
-    const probe = http.createServer();
-    const port = await listen(probe);
-    await new Promise(r => probe.close(r));
-    server = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
-      env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir,
-        PLAYHQ_API_URL: `http://127.0.0.1:${playhqPort}/graphql`, PLAYHQ_SPECTATOR_URL: `http://127.0.0.1:${playhqPort}/spectator` },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    await new Promise((resolve, reject) => {
-      server.stdout.on('data', d => { if (/is running/.test(d)) resolve(); });
-      server.on('exit', code => reject(new Error(`server.js exited (${code})`)));
-    });
-    return `http://127.0.0.1:${port}`;
+    server = await runServer({ FIRSTPASS_DATA_DIR: dataDir,
+      PLAYHQ_API_URL: `http://127.0.0.1:${playhqPort}/graphql`, PLAYHQ_SPECTATOR_URL: `http://127.0.0.1:${playhqPort}/spectator` });
+    return `http://127.0.0.1:${server.port}`;
   }
   async function stop() {
     const s = server; server = null;
-    await new Promise(r => { s.on('exit', r); s.kill(); });
+    s.child.kill(); await s.exit;
   }
   async function untilReady(count) {
     for (let i = 0; i < 100 && readyLines().length < count; i++) await wait(100);

@@ -27,36 +27,47 @@ function freePort() {
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
+// Runs server.js with env on a free port until it says it is running. The free port is found by
+// opening and closing a socket, so another process can take it before server.js does (seen on the
+// Mac runner, where test files run side by side): then it is tried again on another port.
+// Gives { child, port, output, exit (a promise of the exit code), exited() }.
+async function runServer(env, tries = 3) {
+  for (let attempt = 1; ; attempt++) {
+    const port = await freePort();
+    const output = [];
+    const child = spawn(process.execPath, [SERVER], { cwd: ROOT, env: { ...process.env, ...env, PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.on('data', d => output.push(String(d)));
+    child.stderr.on('data', d => output.push(String(d)));
+    let exited = null;
+    const exit = new Promise(r => child.on('exit', code => { exited = code; r(code); }));
+    const running = await new Promise(resolve => {
+      const timer = setTimeout(() => resolve(false), 15000);
+      child.stdout.on('data', () => { if (output.join('').includes('is running')) { clearTimeout(timer); resolve(true); } });
+      exit.then(() => { clearTimeout(timer); resolve(false); });
+    });
+    if (running) return { child, port, output, exit, exited: () => exited };
+    if (exited === null) { child.kill(); await exit; }
+    if (attempt < tries && /EADDRINUSE/.test(output.join(''))) continue;
+    throw new Error(exited === null ? `server.js didn't start:\n${output.join('')}` : `server.js exited (${exited}):\n${output.join('')}`);
+  }
+}
+
 // Starts Studio. Options: competition (a template in templates/ to import, by its file name),
 // dataDir (an existing data folder to use), world (the stand-in PlayHQ's season), env.
 async function startStudio(t, opts = {}) {
   const playhq = await startPlayhq(opts.world || createWorld());
   const dataDir = opts.dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
-  const port = await freePort();
-  const output = [];
-  const child = spawn(process.execPath, [SERVER], {
-    cwd: ROOT,
-    env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir, TZ: localZone(playhq.world.now).tz,
-      PLAYHQ_API_URL: playhq.url, PLAYHQ_SPECTATOR_URL: playhq.spectatorUrl, ...opts.env },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  child.stdout.on('data', d => output.push(String(d)));
-  child.stderr.on('data', d => output.push(String(d)));
-  let exited = null;
-  const exit = new Promise(r => child.on('exit', code => { exited = code; r(code); }));
+  let server = null;
   const stop = async () => {
-    if (exited === null) { child.kill(); await exit; }
+    if (server && server.exited() === null) { server.child.kill(); await server.exit; }
     await playhq.close();
     if (!opts.dataDir && !opts.keepDataDir) fs.rmSync(dataDir, { recursive: true, force: true });
   };
   if (t) t.after(stop);
-
-  await new Promise((resolve, reject) => {
-    const started = () => output.join('').includes('is running');
-    const timer = setTimeout(() => reject(new Error(`server.js didn't start:\n${output.join('')}`)), 15000);
-    child.stdout.on('data', () => { if (started()) { clearTimeout(timer); resolve(); } });
-    exit.then(code => { clearTimeout(timer); reject(new Error(`server.js exited (${code}):\n${output.join('')}`)); });
-  });
+  server = await runServer({ FIRSTPASS_DATA_DIR: dataDir, TZ: localZone(playhq.world.now).tz,
+    PLAYHQ_API_URL: playhq.url, PLAYHQ_SPECTATOR_URL: playhq.spectatorUrl, ...opts.env });
+  const { child, port, output } = server;
+  const exited = server.exited;
 
   const base = `http://127.0.0.1:${port}`;
   const request = async (method, p, body, headers = {}) => {
@@ -70,7 +81,7 @@ async function startStudio(t, opts = {}) {
   };
   const studio = {
     base, port, dataDir, playhq, world: playhq.world, output, child, stop,
-    exited: () => exited,
+    exited,
     request,
     // The JSON answer of a GET or POST (fails the test on an HTTP error).
     async get(p) { const r = await request('GET', p); if (r.status >= 400) throw new Error(`GET ${p} answered ${r.status}: ${r.text}`); return r.json; },
@@ -94,4 +105,4 @@ async function startStudio(t, opts = {}) {
   return studio;
 }
 
-module.exports = { startStudio, wait, ROOT };
+module.exports = { startStudio, runServer, wait, ROOT };

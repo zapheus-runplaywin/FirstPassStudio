@@ -6,7 +6,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { runServer } = require('./support/studio');
 
 const GAME = 'game-1';
 const state = { status: 'UPCOMING', scoring: false, lineups: false };
@@ -52,21 +52,11 @@ test('position match ups: scoring state and line ups through a game', async t =>
     });
   });
   const playhqPort = await listen(playhq);
-  const probe = http.createServer();
-  const port = await listen(probe);
-  await new Promise(r => probe.close(r));
-
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
-  const server = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
-    env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir,
-      PLAYHQ_API_URL: `http://127.0.0.1:${playhqPort}/graphql`, PLAYHQ_SPECTATOR_URL: `http://127.0.0.1:${playhqPort}/spectator` },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  t.after(() => { server.kill(); playhq.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
-  await new Promise((resolve, reject) => {
-    server.stdout.on('data', d => { if (/is running/.test(d)) resolve(); });
-    server.on('exit', code => reject(new Error(`server.js exited (${code})`)));
-  });
+  const server = await runServer({ FIRSTPASS_DATA_DIR: dataDir,
+    PLAYHQ_API_URL: `http://127.0.0.1:${playhqPort}/graphql`, PLAYHQ_SPECTATOR_URL: `http://127.0.0.1:${playhqPort}/spectator` });
+  const { port } = server;
+  t.after(async () => { server.child.kill(); await server.exit; playhq.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
 
   const base = `http://127.0.0.1:${port}`;
   const teams = async () => (await fetch(`${base}/api/teams`)).json();
