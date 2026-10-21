@@ -496,6 +496,10 @@ These follow the game picked on the scoreboard control page:
   3 and 5 goal runs and the longest run for each team. Studio works the quarters out from the scoreboard as the game goes
   (/api/stats), so keep it on air for the whole game; `?quarters=0`, `?won=0`, `?best=0`, `?supershots=0`, `?runs3=0`,
   `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. Lines starting `[stats]` in the log say when a quarter isn't sure.
+- http://localhost:8080/worm.html: after the game, the score worm: the margin over the game, home above the line and away
+  below in club colours, with the quarters marked, each team's biggest lead and the lead changes. The line draws itself in.
+  Studio works it out from the goal order it saw (/api/worm); a stretch it wasn't watching is hatched. `?draw=3` seconds to
+  draw (0 shows it straight away), `?leads=0`, `?colours=0` (competition colours), `?title=`.
 - http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage. It sits
   right above the scoreboard, scaled to the scoreboard's width.
 - http://localhost:8080/lowerthird.html?name=Jane%20Smith: lower third introducing an athlete (name, team name, club logo),

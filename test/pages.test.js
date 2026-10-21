@@ -17,7 +17,7 @@ try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
 const VARIANTS = ['fixtures.html?round=prev', 'results.html?round=prev', 'ladder.html?division=2', 'title.html?logo=show&emoji=%E2%9A%A1',
   'branding.html?mode=light', 'clash.html?word=Battle', 'winner.html?winner=home', 'lowerthird.html?name=Blizzardz%20GS',
   'lowerthird.html?type=guest&name=Pat&title=Commentator', 'scoreboard.html?position=top-center', 'matchup.html?form=0&h2h=0',
-  'topshooters.html?division=2', 'finals.html?division=2', 'streak.html', 'supershot.html', 'gamestats.html?quarters=0&runs5=0'];
+  'topshooters.html?division=2', 'finals.html?division=2', 'streak.html', 'supershot.html', 'gamestats.html?quarters=0&runs5=0', 'worm.html?leads=0&colours=0&draw=0'];
 // What a few pages show once they've read their data from PlayHQ (the stand-in's season).
 const SHOWS = {
   'scoreboard.html': ['Blizzardz', "Travis' Disciples"],
@@ -30,6 +30,7 @@ const SHOWS = {
   'teamlist.html': ['Blizzardz GS'],
   'control.html': ['Blizzardz'],
   'gamestats.html': ['Blizzardz', 'Game stats'],
+  'worm.html': ['Blizzardz', 'Score worm', 'Lead changes'],
 };
 // How long each page gets to load its data and draw.
 const SETTLE_MS = 2500;

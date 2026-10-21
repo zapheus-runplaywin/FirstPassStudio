@@ -88,6 +88,12 @@ const PAGE_OPTIONS = (() => {
       show('quarters', 'Score by quarter'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
       show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'),
     ],
+    'worm.html': [
+      title('Score worm'),
+      { key: 'draw', label: 'Draw the line in', type: 'number', min: 0, max: 15, placeholder: '3 seconds (0 shows it straight away)' },
+      show('leads', 'Biggest leads and lead changes'),
+      { key: 'colours', label: 'Colours', type: 'select', choices: [['', 'Club colours'], ['0', 'Competition colours']] },
+    ],
     'winner.html': [
       { key: 'winner', label: 'Result', type: 'select', choices: [['', 'From the score'], ['home', 'Home wins'], ['away', 'Away wins'], ['draw', 'Draw']] },
       out(),
