@@ -1,5 +1,5 @@
 // Sequences that start by themselves from the game (sequences.js game(), through scene.js): before the
-// start, at the breaks and full time, the pending start with Delay / Start now / Cancel, "until the game
+// start, at the breaks and full time, the pending start with Start now / Cancel, "until the game
 // moves on", "repeat until", and the Automatic sequences switch.
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -123,16 +123,13 @@ test('a break sequence starts a few seconds after the siren at the breaks it is 
   assert.equal(playingName(), 'Quarter break');
 });
 
-test('Delay pushes a pending start back 10 s a press; Start now and Cancel', () => {
+test('a pending start waits its few seconds; Start now and Cancel', () => {
   reset();
   make('Full time', { start: { type: 'fulltime', afterSec: 5 }, steps: [step(['Winner'], { type: 'next' })] });
   set({ startAt: Date.now() - 1000, period: 4, running: true });
   siren();
   assert.equal(st().pending.id, seq('Full time').id);
-  link('sequence/delay');
-  link('sequence/delay');
-  assert.equal(st().pending.delayMs, 20000);
-  tick(24);
+  tick(4);
   assert.equal(st().playing, null);
   tick(1);
   assert.equal(playingName(), 'Full time');
