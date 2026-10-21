@@ -151,6 +151,9 @@
   .stepRow { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--fp-line); border-radius: 10px; padding: 7px 10px; }
   .stepRow.keep { background: #F0F8F3; border-style: dashed; border-color: #9BD0AF; }
   .stepRow.cur { border-color: var(--fp-orange); background: #FFF7F1; }
+  .stepRow .kind { font-size: 12px; font-weight: 800; color: var(--fp-blue-dark); margin-right: 2px; }
+  .stepRow.sceneStep:not(.cur) { background: #F4F7FD; }
+  .stepRow.seqStep:not(.cur) { background: #F7F4FC; }
   .stepRow .num { width: 24px; height: 24px; border-radius: 50%; background: var(--fp-blue-soft); color: var(--fp-blue-dark); font-weight: 800; font-size: 12px; display: grid; place-items: center; }
   .stepRow .what { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-width: 0; }
   .chip { font-size: 13px; font-weight: 600; border-radius: 6px; padding: 2px 4px 2px 8px; background: var(--fp-blue-soft); color: var(--fp-navy); display: inline-flex; gap: 4px; align-items: center; }
@@ -354,13 +357,15 @@
       </div>
       <h2 style="margin:16px 0 4px">Steps</h2>
       <div class="steps" id="sqSteps"></div>
-      <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add step</button><span class="note" id="sqLoop" style="margin:0"></span></div>
+      <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add sources</button><button class="alt" id="sqAddScene" title="Go to a scene: a starting or reset point the next steps play over">+ Add scene</button><button class="alt" id="sqAddSeq" title="Play another sequence here, step by step: a mini sequence built once and used in many">+ Add sequence</button><span class="note" id="sqLoop" style="margin:0"></span></div>
       <p class="note" style="margin-top:10px">Each step turns its sources on together and keeps them on for its length; when it ends, sources the next step doesn't use go off with their own fades.
         <b>Until it finishes</b> waits for the step's videos to end (and pages that switch themselves off when done), and moves on after the video's length plus 3 s, or a minute for a page, if the end never comes.
         <b>Until the game moves on</b> holds until the clock starts, or the next break or full time.
         A sequence that starts by itself waits its few seconds after the siren first, so <b>Delay +10 s</b> can hold it for a shot after the siren.
         <b>Repeat until</b> finishes the step on screen when its moment comes (or the next sequence's start comes), then ends.
-        <b>Kept on</b> sources stay on from the first step to the last. A sequence only turns off sources it turned on itself.</p>
+        <b>Kept on</b> sources stay on from the first step to the last. A sequence only turns off sources it turned on itself.
+        <b>+ Add scene</b> goes to a scene, as a starting point or a reset point: what the scene turns on stays on under the next steps, and after the sequence. It goes straight on, or holds like any step.
+        <b>+ Add sequence</b> plays another sequence's steps there (with its kept on sources, but not its repeat, music or Then), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p>
       <p class="error" id="sqErr"></p>
       <div class="row" style="margin-top:10px;justify-content:space-between">
         <div class="row"><button class="danger" id="sqDelete">Delete</button><button class="alt" id="sqCopy">Copy</button></div>
@@ -879,13 +884,13 @@
       if (run) {
         const dots = document.createElement('div');
         dots.className = 'dots';
-        for (let i = 0; i < sq.steps.length; i++) dots.appendChild(Object.assign(document.createElement('i'), { className: i < p.step ? 'done' : i === p.step ? 'now' : '' }));
-        const st = sq.steps[p.step];
+        for (let i = 0; i < p.steps; i++) dots.appendChild(Object.assign(document.createElement('i'), { className: i < p.step ? 'done' : i === p.step ? 'now' : '' }));
         const line = document.createElement('div');
         line.className = 'nowLine';
         line.innerHTML = '<span></span><span class="left"></span>';
-        const names = st ? st.sources.map(nameOf).filter(Boolean).join(', ') : '';
-        line.firstChild.textContent = `${p.step + 1} of ${p.steps}${p.loop ? ` (again ×${p.loop})` : ''}${names ? ` · ${names}` : ''}`;
+        const sc = p.scene && (scene.scenes || []).find(x => x.id === p.scene);
+        const names = sc ? `scene ${sc.name}` : (p.sources || []).map(nameOf).filter(Boolean).join(', ');
+        line.firstChild.textContent = `${p.step + 1} of ${p.steps}${p.loop ? ` (again ×${p.loop})` : ''}${p.via && p.via.length ? ` · in ${p.via.join(' › ')}` : ''}${names ? ` · ${names}` : ''}`;
         const row = document.createElement('div');
         row.className = 'row';
         row.innerHTML = '<button class="alt next" title="End this step now">Next ⏭</button><button class="alt pause"></button><button class="alt delay" title="Hold this step 10 seconds longer, for each press">Delay +10 s</button><button class="danger stop">Stop</button>';
@@ -1046,18 +1051,49 @@
     box.appendChild(keep);
     draft.steps.forEach((st, i) => {
       const row = document.createElement('div');
-      row.className = 'stepRow' + (p && p.id === draft.id && p.step === i ? ' cur' : '');
-      row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><select class="type" aria-label="How long"><option value="time">For a set time</option><option value="done">Until it finishes</option><option value="next">Until I press Next</option><option value="game">Until the game moves on</option></select>'
+      row.className = 'stepRow' + (st.kind === 'scene' ? ' sceneStep' : st.kind === 'sequence' ? ' seqStep' : '') + (p && p.id === draft.id && p.top === i ? ' cur' : '');
+      row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><select class="type" aria-label="How long"><option value="now">Then straight on</option><option value="time">For a set time</option><option value="done">Until it finishes</option><option value="next">Until I press Next</option><option value="game">Until the game moves on</option></select>'
         + '<input type="number" class="sec" min="1" max="3600" aria-label="Seconds"><span class="hint"></span><button class="alt up" title="Earlier">↑</button><button class="alt down" title="Later">↓</button><button class="danger del" title="Delete this step">✕</button></div>';
       row.querySelector('.num').textContent = i + 1;
-      sourcePicker(st.sources, row.querySelector('.what'));
       const type = row.querySelector('.type'), sec = row.querySelector('.sec');
+      if (st.kind === 'scene') {
+        // Go to a scene: a starting or reset point.
+        const what = row.querySelector('.what');
+        const sel = document.createElement('select');
+        sel.setAttribute('aria-label', 'Scene');
+        sel.add(new Option('Pick a scene', ''));
+        for (const sc of scene.scenes || []) sel.add(new Option(sc.name, sc.id));
+        if (st.scene && !(scene.scenes || []).some(sc => sc.id === st.scene)) sel.add(new Option('(scene gone)', st.scene));
+        sel.value = st.scene || '';
+        sel.onchange = () => { st.scene = sel.value; };
+        what.append(Object.assign(document.createElement('span'), { className: 'kind', textContent: 'Go to scene' }), sel);
+        [...type.options].find(o => o.value === 'done').remove();
+      } else if (st.kind === 'sequence') {
+        // Play another sequence here: its steps, with their own lengths.
+        const what = row.querySelector('.what');
+        const sel = document.createElement('select');
+        sel.setAttribute('aria-label', 'Sequence');
+        sel.add(new Option('Pick a sequence', ''));
+        for (const other of sequences()) if (other.id !== draft.id && !playsInside(other, draft.id)) sel.add(new Option(other.name, other.id));
+        if (st.sequence && !sequences().some(x => x.id === st.sequence)) sel.add(new Option('(sequence gone)', st.sequence));
+        sel.value = st.sequence || '';
+        sel.onchange = () => { st.sequence = sel.value; renderSteps(); };
+        what.append(Object.assign(document.createElement('span'), { className: 'kind', textContent: 'Play sequence' }), sel);
+        type.remove(); sec.remove();
+        const sub = sequences().find(x => x.id === st.sequence);
+        row.querySelector('.hint').textContent = sub ? (sub.steps.length === 1 ? 'its 1 step, with its own length' : `its ${sub.steps.length} steps, with their own lengths`) : '';
+      } else {
+        sourcePicker(st.sources, row.querySelector('.what'));
+        [...type.options].find(o => o.value === 'now').remove();
+      }
+      if (st.kind !== 'sequence') {
       type.value = st.length.type;
       sec.value = st.length.sec || 20;
       sec.classList.toggle('hidden', st.length.type !== 'time');
-      row.querySelector('.hint').textContent = st.length.type === 'time' ? 's' : stepHint(st);
+      row.querySelector('.hint').textContent = st.length.type === 'time' ? 's' : st.kind === 'scene' ? '' : stepHint(st);
       type.onchange = () => { st.length = type.value === 'time' ? { type: 'time', sec: Number(sec.value) || 20 } : { type: type.value }; renderSteps(); };
       sec.oninput = sec.onchange = () => { st.length = { type: 'time', sec: Math.max(1, Math.min(3600, Math.round(Number(sec.value) || 20))) }; };
+      }
       row.querySelector('.up').disabled = i === 0;
       row.querySelector('.down').disabled = i === draft.steps.length - 1;
       row.querySelector('.up').onclick = () => { draft.steps.splice(i - 1, 0, draft.steps.splice(i, 1)[0]); renderSteps(); };
@@ -1066,6 +1102,12 @@
       box.appendChild(row);
     });
     loopHint();
+  }
+  // Whether a sequence plays the sequence id somewhere inside it (so id can't play it: no loops).
+  function playsInside(sq, id, seen = new Set()) {
+    if (!sq || seen.has(sq.id)) return false;
+    seen.add(sq.id);
+    return sq.steps.some(st => st.kind === 'sequence' && (st.sequence === id || playsInside(sequences().find(x => x.id === st.sequence), id, seen)));
   }
   // Only the start and repeat settings that fit what's picked.
   function showStartFields() {
@@ -1102,11 +1144,18 @@
     const hint = $('sqLoop');
     if (!draft) return;
     let sec = 0, open = false;
-    for (const st of draft.steps) {
-      if (st.length.type === 'time') sec += st.length.sec;
-      else if (st.length.type === 'done') { const d = stepSeconds(st); if (d) sec += d; else open = true; }
-      else open = true;
-    }
+    const add = (steps, seen) => {
+      for (const st of steps) {
+        if (st.kind === 'sequence') {
+          const sub = sequences().find(x => x.id === st.sequence);
+          if (sub && !seen.has(sub.id)) add(sub.steps, new Set([...seen, sub.id]));
+        } else if (st.length.type === 'now') continue;
+        else if (st.length.type === 'time') sec += st.length.sec;
+        else if (st.length.type === 'done') { const d = stepSeconds(st); if (d) sec += d; else open = true; }
+        else open = true;
+      }
+    };
+    add(draft.steps, new Set([draft.id]));
     if (!sec) { hint.textContent = ''; return; }
     let text = `One time through is ${open ? 'at least ' : 'about '}${fmt(sec * 1000)}.`;
     const breaks = scene.game?.breaks;
@@ -1140,6 +1189,8 @@
     const changes = draftChanges();
     if (!changes.name) { $('sqErr').textContent = 'Give the sequence a name.'; return; }
     if (!changes.steps.length) { $('sqErr').textContent = 'Add at least one step.'; return; }
+    if (changes.steps.some(st => st.kind === 'scene' && !st.scene)) { $('sqErr').textContent = 'Pick a scene for each scene step.'; return; }
+    if (changes.steps.some(st => st.kind === 'sequence' && !st.sequence)) { $('sqErr').textContent = 'Pick a sequence for each sequence step.'; return; }
     if (changes.start.type === 'break' && !changes.start.breaks.length && scene.game?.last !== 2) { $('sqErr').textContent = 'Tick at least one break.'; return; }
     const before = new Set(sequences().map(s => s.id));
     const body = draft.id ? await act({ type: 'seqUpdate', sequence: draft.id, changes }) : await act({ type: 'seqAdd', changes });
@@ -1151,6 +1202,8 @@
   }
   $('seqAuto').onchange = () => act({ type: 'seqAuto', value: $('seqAuto').checked });
   $('sqAddStep').onclick = () => { draft.steps.push({ sources: [], length: { type: 'time', sec: 20 } }); renderSteps(); };
+  $('sqAddScene').onclick = () => { draft.steps.push({ kind: 'scene', scene: '', sources: [], length: { type: 'now' } }); renderSteps(); };
+  $('sqAddSeq').onclick = () => { draft.steps.push({ kind: 'sequence', sequence: '' }); renderSteps(); };
   $('sqSave').onclick = () => saveSequence(false);
   $('sqTry').onclick = () => saveSequence(true);
   $('sqCancel').onclick = () => { $('seqDialog').close(); draft = null; };
