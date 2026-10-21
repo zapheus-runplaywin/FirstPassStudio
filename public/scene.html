@@ -38,7 +38,7 @@
   let first = true;
   const params = new URLSearchParams(location.search);
   let silent = params.get('mute') === '1'; // the Output page's preview and the key output play no sound
-  // The Output page turns its preview's sound on and off with this (Scene View sound), without a reload.
+  // The Output page turns its preview's sound on and off with this (it plays only while no video output is on), without a reload.
   // A browser that won't play sound until the page is clicked pauses a video as it's unmuted (or
   // refuses to play it): it then plays muted, and soundState() says so.
   let blocked = false;

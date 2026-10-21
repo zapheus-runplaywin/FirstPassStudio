@@ -83,11 +83,11 @@ module.exports = function ndi({ port, log, onStatus }) {
     if (addon) addon.stop();
   }
 
-  // w: { signal, name, format: { id, width, height, rateN, rateD }, color, muted } from outputs.js, or
-  // null to stop. muted: the Output page's preview is playing the sound instead.
+  // w: { signal, name, format: { id, width, height, rateN, rateD }, color } from outputs.js, or
+  // null to stop.
   function show(w) {
     const key = w && JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '']);
-    if (key && running?.key === key) { win?.setMuted(w.muted); return; }
+    if (key && running?.key === key) return;
     stop();
     error = '';
     if (!w) return report();
@@ -106,7 +106,7 @@ module.exports = function ndi({ port, log, onStatus }) {
     log(`NDI output on: ${sources.map(s => s.name).join(', ')} (${w.format.id}, ${width} x ${height})`);
 
     win = sceneWindow({
-      port, width, height, frameRate: rateN / rateD, muted: w.muted, log, label: 'NDI output',
+      port, width, height, frameRate: rateN / rateD, log, label: 'NDI output',
       onFrame: (bitmap, bw, bh) => addon.frame(bitmap, bw, bh),
     });
 

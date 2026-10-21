@@ -276,7 +276,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   **Refresh page** reloads it now.
 - **Preview** opens the selected source on its own in a new window, like the Graphics page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
-  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's Scene View is silent unless **Scene View sound** is ticked. **Restart video** starts it again from the top.
+  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
   without alpha) gives an opaque WebM: the Output page and the log say so. This needs
@@ -317,8 +317,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   music plays while that step's sequence does), and scenes and sequences can be `quiet`.
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
-  **Live View** when the Mac is busy. **Scene View sound** plays the scene's sound from the Scene View, with or without an output on;
-  a display or Blackmagic output is muted while it does, so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
+  **Live View** when the Mac is busy. The Scene View plays the scene's sound only while **Video output** is off (for testing);
+  with a display, Blackmagic or NDI output on, the output carries the sound and the Scene View is silent, so it never plays twice. Only one Output
   page plays it at a time (click another page's Scene View to bring the sound there). A line under the Scene View says why it's silent, if it is.
   **Pop out** opens the Scene View in its own window (`/preview.html`) that you can resize, move to another screen or make full screen while
   testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it plays the sound just as the Scene View does, and the Output page's Scene View turns off while it's open (so the scene only runs

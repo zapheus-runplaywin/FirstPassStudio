@@ -3,7 +3,7 @@
 // The player plays audio files from the media folder (MP3, M4A, AAC, WAV, AIFF), one at a time, alone or
 // from a playlist (a named list of tracks, shuffled or not, looping or not). Studio keeps the player's
 // state and every scene.html plays it, so music takes the same route as video sound: the Mac's sound
-// output, an output's embedded audio, or Scene View sound, and is never heard twice.
+// output, an output's embedded audio, or the Scene View while no video output is on, and is never heard twice.
 //
 // Where a track is: pos { sec, at } is the position (sec) at time at (ms), so a page opened part way
 // through starts in the right place. Fades: gain { from, to, at, ms } is the fade the pages follow,

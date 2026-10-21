@@ -391,20 +391,20 @@
   <section>
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h2 style="margin:0">Scene View</h2>
-      <div class="row"><label><input id="previewSound" type="checkbox"> Scene View sound</label> <label><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></div>
+      <div class="row"><label><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></div>
     </div>
     <div class="preview" id="preview">
       <iframe id="previewFrame" title="Scene View"></iframe>
       <div class="box" id="selBox"></div>
       <div class="off hidden" id="previewOff"><div style="text-align:center"><span id="previewOffText">Live View is off</span><br><button id="popIn" class="alt hidden" style="margin-top:8px">Bring it back here</button></div></div>
     </div>
+    <p class="note">Sound plays in the Scene View only while <b>Video output</b> is off, for testing. With a video output on, the output carries the sound and the Scene View is silent.</p>
     <p class="note" id="previewSoundNote" style="font-weight:600"></p>
     <p class="note">The Scene View shows the scene as it is right now, whether or not your switcher has it on air. It runs every page in the scene a second time, so turn
       <b>Live View</b> off on stream nights if the Mac is busy. The dashed box is the selected source.
       <b>Pop out</b> shows the Scene View in its own window that you can resize, move to another screen or make full screen, with On/Off buttons for the sources floating in it; the one here
-      turns off while it's open, and closing it brings it back. <b>Scene View sound</b> plays the scene's sound here, with or without an output on. A display, Blackmagic or NDI output goes
-      silent while it does, so the sound never plays twice. It needs Live View on, and moves back to the outputs
-      when this page closes. Only one Output page plays it at a time: click a Scene View to bring the sound to it. The line above says why it's silent, if it is.</p>
+      turns off while it's open, and closing it brings it back. The Scene View's sound needs Live View on, and only one Output page plays it at a time:
+      click a Scene View to bring the sound to it. The line above says why it's silent, if it is.</p>
   </section>
 
   <div class="cols">
@@ -487,7 +487,7 @@
           <label class="forVideo">Sound</label>
           <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
         </div>
-        <p class="note forVideo">Sound plays through this Mac's audio output. The Scene View above is silent unless <b>Scene View sound</b> is ticked.</p>
+        <p class="note forVideo">Sound plays through this Mac's audio output. The Scene View above plays it only while <b>Video output</b> is off.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
           <button class="alt" id="fPreview" title="Open this source on its own, the way the Graphics page's Preview does">Preview</button>
@@ -1283,7 +1283,7 @@
     renderPlaylists();
     musicHeard = performance.now();
     tickMusic();
-    $('musicNote').innerHTML = 'Music plays wherever video sound plays: the outputs, or this page\'s Scene View sound, never both. '
+    $('musicNote').innerHTML = 'Music plays wherever video sound plays: the outputs, or this page\'s Scene View while Video output is off, never both. '
       + 'Add MP3, M4A, AAC, WAV or AIFF songs you\'re licensed to stream (Apple Music songs are copy-protected and can\'t be used). '
       + 'With <b>Even out its loudness</b> ticked, a song is levelled to the same loudness as the others (as streaming services do) and the original is kept in the media folder\'s originals. '
       + 'A sequence can bring its own music (in its editor), which fades out when the sequence is stopped by a scene or another sequence. A sequence with no music of its own plays the music of a sequence inside it while that one plays. '
@@ -1583,9 +1583,9 @@
   $('hideAll').onclick = () => act({ type: 'hideAll' });
   // Display output (the Mac app opens the windows; outputs.js decides what goes where).
   let out = null;
-  // Scene View sound (previewSound): this page asks the helper for the sound, which mutes the display and Blackmagic
-  // outputs while it has it; only the page it says yes to unmutes its preview. It checks in every few seconds and lets
-  // go when it closes, so the sound goes back to the outputs.
+  // The Scene View's sound: only while no video output is on (out.previewSound); with one on, the output carries
+  // the sound. This page asks the helper for it, and only the page it says yes to unmutes its Scene View. It checks
+  // in every few seconds and lets go when it closes.
   const listenId = Math.random().toString(36).slice(2);
   let previewSound = false;
   const applySound = () => { try { $('previewFrame').contentWindow.setSilent?.(!previewSound); } catch {} soundNote(); };
@@ -1594,13 +1594,14 @@
   function soundNote() {
     let st = null;
     try { st = $('previewFrame').contentWindow.soundState?.(); } catch {}
-    const note = !out || !out.previewSound ? ''
+    const note = !out ? ''
+      : !out.previewSound ? 'Silent: a video output is on, so the output plays the sound.'
       : popped ? popped.note
       : !$('previewOn').checked ? 'Silent: turn Live View on.'
       : !previewSound ? 'Silent: another Output page is playing the sound. Click the Scene View to bring it here.'
       : st && st.blocked ? 'Blocked by this browser until you click: click the Scene View to hear it. (The Studio app\'s own window doesn\'t need this.)'
-      : st && !st.videos ? `Sound plays here once a video with Sound ticked is on.${out.showing.length ? ' The outputs are muted.' : ''}`
-      : `Sound plays here, through this Mac's sound output.${out.showing.length ? ' The outputs are muted.' : ''}`;
+      : st && !st.videos ? 'Sound plays here once a video with Sound ticked is on.'
+      : 'Sound plays here, through this Mac\'s sound output.';
     $('previewSoundNote').textContent = note;
     if (note !== lastNote) { if (note) console.log(`Scene View sound: ${note}`); lastNote = note; }
   }
@@ -1629,8 +1630,7 @@
   const showOut = o => {
     const relisten = !out || out.previewSound !== o.previewSound;
     out = o;
-    $('previewSound').checked = o.previewSound;
-    if (relisten) listen();
+    if (relisten) { listen(); if (popped) popChannel.postMessage('ask'); }
     $('outNoApp').classList.toggle('hidden', o.app);
     $('outForm').classList.toggle('hidden', !o.app);
     $('outOn').classList.toggle('hidden', !o.app);
@@ -1758,11 +1758,6 @@
   $('outNdiName').onchange = () => setOut({ ndiName: $('outNdiName').value });
   for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
   $('outOn').onclick = () => setOut({ on: !(out && out.on) });
-  $('previewSound').onchange = () => {
-    // Unmute during the click too, for Safari (see the preview's click above).
-    if ($('previewSound').checked && !popped) { try { $('previewFrame').contentWindow.unlockSound?.(); } catch {} }
-    setOut({ previewSound: $('previewSound').checked }).then(() => { listen(true); if (popped) popChannel.postMessage('ask'); });
-  };
 
   // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
   fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});

@@ -126,7 +126,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       // The Studio header is the title bar; the window buttons sit inside it.
       titleBarStyle: studioPage ? 'hiddenInset' : 'default',
       trafficLightPosition: { x: 18, y: 26 },
-      // Autoplay with sound: the Output page's preview plays the scene's sound (Scene View sound).
+      // Autoplay with sound: the Output page's Scene View plays the scene's sound while no video output is on.
       webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true, autoplayPolicy: 'no-user-gesture-required' },
     });
     win.studioUrl = url;
