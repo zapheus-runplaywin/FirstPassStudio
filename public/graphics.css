@@ -347,6 +347,7 @@ body.lower:has(.ticker) { padding-bottom: 0; }
 .worm__join { stroke: rgba(255,255,255,.45); stroke-width: 3; stroke-dasharray: 3 9; stroke-linecap: round; }
 .worm__shadow { fill: none; stroke: rgba(0,0,0,.45); stroke-width: 9; stroke-linejoin: round; stroke-linecap: round; }
 .worm__line { fill: none; stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+.worm__glow { filter: blur(12px); opacity: 0; pointer-events: none; }
 .worm__head { stroke: var(--text); stroke-width: 3; filter: drop-shadow(0 0 8px rgba(255,255,255,.7)); }
 .worm__marks { opacity: 0; transition: opacity .5s ease-out; }
 .worm__marks.is-shown { opacity: 1; }
