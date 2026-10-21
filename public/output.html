@@ -540,7 +540,7 @@
   function setPreview(on) {
     try { localStorage.setItem('outputPreview', on ? '1' : '0'); } catch {}
     $('previewOn').checked = on;
-    if (!on && popped) popChannel.postMessage('close');
+    if (!on && popped) { popChannel.postMessage('close'); popped = null; }
     showPreview();
   }
   // The preview here runs only while it's on and not popped out into its own window (preview.html).
@@ -556,18 +556,25 @@
   }
   // Pop out: the popped-out window says it's open (and why it's silent, if it is) on this channel,
   // and says so again when this page asks, so a reopened Output page knows too.
+  // The window also says it's open every couple of seconds; if it goes quiet it has gone (the Mac
+  // app's windows can close without saying so), and the preview comes back here.
   let popped = null; // { note } while the preview window is open
+  let poppedHeard = 0;
   const popChannel = new BroadcastChannel('studio-preview');
-  popChannel.onmessage = e => {
-    if (!e.data || typeof e.data !== 'object') return;
+  const setPopped = p => {
     const was = !!popped;
-    popped = e.data.open ? { note: e.data.note || '', heard: true } : null;
+    popped = p;
     if (was !== !!popped) { console.log(popped ? 'Scene View popped out into its own window' : 'Scene View back on the Output page'); showPreview(); }
     else soundNote();
   };
+  popChannel.onmessage = e => {
+    if (!e.data || typeof e.data !== 'object') return;
+    poppedHeard = Date.now();
+    setPopped(e.data.open ? { note: e.data.note || '', heard: true } : null);
+  };
+  setInterval(() => { if (popped && popped.heard && Date.now() - poppedHeard > 6000) setPopped(null); }, 1000);
   popChannel.postMessage('ask');
-  $('popOut').onclick = () => {
-    if (popped) return popChannel.postMessage('focus');
+  const openPopOut = () => {
     window.open('/preview.html', 'studio-preview', 'popup,width=1280,height=720');
     popped = { note: '' };
     // A blocked pop-up never says it's open: put the preview back here.
@@ -576,7 +583,20 @@
     try { localStorage.setItem('outputPreview', '1'); } catch {}
     showPreview();
   };
-  $('popIn').onclick = e => { e.stopPropagation(); popChannel.postMessage('close'); };
+  // Show window: the window answers when asked to come forward; if it doesn't, it has gone, so open
+  // a new one.
+  $('popOut').onclick = () => {
+    if (!popped) return openPopOut();
+    const asked = Date.now();
+    popChannel.postMessage('focus');
+    setTimeout(() => { if (popped && poppedHeard < asked) { popped = null; openPopOut(); } }, 1000);
+  };
+  // Bring it back: the preview comes back here straight away, whether or not the window says goodbye.
+  $('popIn').onclick = e => {
+    e.stopPropagation();
+    popChannel.postMessage('close');
+    setPopped(null);
+  };
   function drawBox() {
     const s = current(), box = $('selBox');
     if (!s) { box.style.display = 'none'; return; }
