@@ -16,8 +16,8 @@
 //   - A sequence can bring its own music: a track or playlist that starts at one of its steps, from a
 //     start mark, with a fade in, and ends with the sequence (fading or cut) or carries on into the
 //     sequence it hands over to. Going to a scene or another sequence fades it out.
-//   - "Quiet the music" on a scene or sequence (an interview on court): sequence music fades out and stops,
-//     the player's own music ducks low and keeps playing until the next scene or sequence without it.
+//   - "Quiet the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
+//     or a sequence's) ducks low and keeps playing until the next scene, sequence or step without it.
 //   - The super shot song (a setting, with its own volume): when the scoreboard's super shot period starts
 //     (the last minutes of a quarter, in a division with super shots) it cuts in over whatever is playing,
 //     round and round, and fades out over the fade out time when the period ends.
@@ -288,7 +288,6 @@ function videoSound(on) {
 // A scene or sequence with "Quiet the music" ticked started (quiet true), or one without it (false).
 function quiet(on) {
   if (on) {
-    if (p.owner && p.status !== 'stopped') { log('info', 'music', 'Quiet the music: the sequence\'s music fades out'); stop(STOP_FADE_SEC); return true; }
     if (p.status !== 'stopped' && !p.ducked) { setDuck('quiet'); log('info', 'music', 'Quiet the music: ducked'); return true; }
     return false;
   }
