@@ -681,6 +681,7 @@
       b.className = 'scene' + (sc.id === scene.current ? ' cur' : '') + (sc.id === scene.current && changed.length ? ' changed' : '');
       b.innerHTML = '<b></b><small></small><span class="band"></span>';
       b.querySelector('b').textContent = sc.name;
+      if (sc.quiet) b.querySelector('b').append(quietMark());
       b.querySelector('small').textContent = sceneCounts(sc);
       b.querySelector('.band').classList.add(sc.colour);
       b.title = sc.id === scene.current ? (changed.length ? `Go back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
@@ -741,6 +742,12 @@
     if (!scenes.length) editing = false;
     $('sceneGrid').classList.toggle('hidden', !editing);
     if (editing) renderGrid();
+  }
+  // 🤫 beside the name of a scene or sequence with Quiet the music ticked.
+  function quietMark() {
+    const m = Object.assign(document.createElement('span'), { textContent: ' 🤫', title: 'Quiets the music' });
+    m.setAttribute('role', 'img'); m.setAttribute('aria-label', 'Quiets the music');
+    return m;
   }
   async function saveNewScene() {
     const name = await askText('Name the new scene (what\'s on now is saved in it)', '');
@@ -842,6 +849,7 @@
       card.className = 'seq' + (run ? ' run' : '') + (run && p.paused ? ' paused' : '') + (waiting ? ' pend' : '');
       card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
       card.querySelector('b').textContent = sq.name;
+      if (sq.quiet) card.querySelector('b').append(quietMark());
       card.querySelector('.band').classList.add(sq.colour);
       if (run) {
         const dots = document.createElement('div');
