@@ -113,7 +113,7 @@
   .seq { position: relative; display: grid; gap: 6px; align-content: start; padding: 9px 12px 12px; border: 2px solid var(--fp-line-strong); border-radius: 10px; background: var(--fp-white); min-width: 0; }
   .seq .t { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
   .seq b { font-weight: 800; overflow-wrap: anywhere; }
-  .seq .master { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--fp-navy); color: var(--fp-white); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+  .seq .tag { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--fp-navy); color: var(--fp-white); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
   .seq small { font-size: 12px; color: var(--fp-muted); }
   .seq .band { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0 0 7px 7px; }
   .seq .row button { padding: 4px 10px; font-size: 13px; }
@@ -838,8 +838,6 @@
   const repeatText = sq => sq.repeat === 'loop' ? 'repeats' : sq.repeat === 'until' ? (sq.until.moment === 'resume' ? 'repeats until play resumes' : `repeats until ${sq.until.min} min before`) : 'plays once';
   const clockTime = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   let heardAt = 0;
-  // A sequence made only of other sequences.
-  const isMaster = sq => sq.steps.length > 0 && sq.steps.every(st => st.kind === 'sequence');
   // How long one time through takes: steps' set times and video lengths, sequences inside added up. open: a
   // step that waits (Next, the game, a page or video of unknown length), so it's at least that.
   function runTime(steps, seen = new Set()) {
@@ -893,8 +891,7 @@
       card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
       card.querySelector('b').textContent = sq.name;
       if (sq.quiet) card.querySelector('b').append(quietMark());
-      if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'master', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
-      if (isMaster(sq)) card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'master', textContent: 'Master', title: 'Made of other sequences' }));
+      if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
       card.querySelector('.band').classList.add(sq.colour);
       if (run) {
         const dots = document.createElement('div');
