@@ -64,7 +64,7 @@ test('a scene step in the middle is a reset point, and can hold for a time', () 
   assert.deepEqual(on(), ['Fixtures']);
 });
 
-test('a sequence step plays that sequence\'s steps in place, with its kept-on sources, then carries on', () => {
+test('a sequence step plays that sequence\'s steps in place, then carries on', () => {
   reset();
   make('Ad break', { keepOn: [id('Title')], steps: [step(['Ad'], 5), step(['Ladder'], 5)] });
   make('Quarter time', { steps: [step(['Fixtures']), seqStep('Ad break'), step(['Scoreboard'])] });

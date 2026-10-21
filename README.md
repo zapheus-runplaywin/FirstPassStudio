@@ -299,7 +299,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   stopping at the ends) and `/deck/scene/again` (back to saved). The pop-out Scene View has the scenes as buttons too. Exports include the scenes.
 - **Sequences:** the scene's sources played one after another (run-up, quarter break, full time), built on the Output page with **+ New sequence**.
   Each step turns on the sources picked for it and stays for a set time, until it finishes (its videos end, or pages that switch themselves off;
-  at most the video's length plus 3 s, or a minute for a page), until the game moves on, or until Next. Kept-on sources stay on for the whole sequence; it plays once, repeats
+  at most the video's length plus 3 s, or a minute for a page), until the game moves on, or until Next. It plays once, repeats
   until stopped, or repeats until play resumes or N minutes before the start (finishing its step), then goes to a scene, turns off what it turned on, or leaves it all. It only turns off sources it turned on. Next, Pause
   and Stop on its card; going to a scene, another sequence or hiding everything stops it without its Then, and hiding the step's source
   moves on. One at a time, run by Studio itself (sequences.js), not saved while playing. Saved per competition as `sequences.json` in its folder.
