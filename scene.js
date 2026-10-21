@@ -167,7 +167,8 @@ function changed() {
 // Turns sources on and off to match a scene. A source already on stays as it is (a page isn't
 // reloaded and a video doesn't start again), and a source the scene doesn't set is left alone.
 // Picking a scene stops a playing sequence, unless it's the sequence's own Then going there.
-function goTo(sc, fromSequence) {
+// A sequence's scene step (step) leaves the music alone unless the scene quiets it.
+function goTo(sc, fromSequence, step) {
   if (!fromSequence) sequences.beforeScene(sc);
   let on = 0, off = 0;
   for (const s of scene.sources) {
@@ -179,7 +180,7 @@ function goTo(sc, fromSequence) {
   ended = new Set();
   scene.current = sc.id;
   log('info', 'scene', `Went to scene "${sc.name}": ${on} on, ${off} off`);
-  music.quiet(sc.quiet);
+  if (!step || sc.quiet) music.quiet(sc.quiet);
 }
 
 function load() {
@@ -885,7 +886,7 @@ function init(logger, { ffmpeg, sequencesFile } = {}) {
     source: id => scene.sources.find(s => s.id === id) || null,
     setVisible: (s, on) => { s.visible = on; ended.delete(s.id); },
     scene: id => scene.scenes.find(s => s.id === id) || null,
-    goTo: sc => goTo(sc, true),
+    goTo: (sc, step) => goTo(sc, true, step),
     duration,
     // A step's time ran out: sources it turned on are new showings too.
     changed: () => { noteShowings(); save(); },

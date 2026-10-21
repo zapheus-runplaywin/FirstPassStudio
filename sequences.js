@@ -2,6 +2,10 @@
 //
 // A sequence is a list of steps. Each step turns on one or more sources and stays for a length: a set
 // time (a still graphic or a page), until its videos and animations finish, or until Next is pressed.
+// A step can instead go to a scene (a starting or reset point: the scene's sources become the base the
+// next steps play over, and they stay on after the sequence like any scene's), or play another sequence
+// in its place (a mini sequence built once and used in many). Played sequences are flattened into one
+// list of steps when the sequence starts; a sequence can never end up inside itself.
 // Sources kept on for the whole sequence come on at the start. When the last step ends the sequence
 // plays again (repeat) or does its Then: go to a scene, turn off what it turned on, or leave it all.
 //
@@ -31,7 +35,10 @@ const datadir = require('./datadir');
 const music = require('./music');
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
-const LENGTHS = ['time', 'done', 'next', 'game'];
+const LENGTHS = ['time', 'done', 'next', 'game', 'now'];
+const KINDS = ['sources', 'scene', 'sequence'];
+// How deep sequences inside sequences go, and how many steps one can flatten to.
+const MAX_DEPTH = 8, MAX_FLAT = 1000;
 const REPEATS = ['once', 'loop', 'until'];
 const STARTS = ['hand', 'before', 'break', 'fulltime'];
 const BREAKS = ['qt', 'ht', '3qt'];
@@ -74,11 +81,19 @@ function uniqueName(name, id) {
   for (let i = 2; ; i++) if (!taken.has(slug(`${base} ${i}`))) return `${base} ${i}`;
 }
 
+// A step: sources (kind left out), a scene to go to, or another sequence played in its place (no length:
+// its own steps have theirs). 'now' (straight on) is for scene steps.
 function cleanStep(st) {
   const s = st && typeof st === 'object' ? st : {};
+  const kind = KINDS.includes(s.kind) ? s.kind : 'sources';
+  const id = cleanId(s.id, newId());
+  if (kind === 'sequence') return { id, kind, sequence: cleanId(s.sequence, '') };
   const l = s.length && typeof s.length === 'object' ? s.length : {};
-  const type = LENGTHS.includes(l.type) ? l.type : 'time';
-  return { id: cleanId(s.id, newId()), sources: ids(s.sources), length: type === 'time' ? { type, sec: Math.round(clamp(l.sec, 1, 3600, 20)) } : { type } };
+  let type = LENGTHS.includes(l.type) ? l.type : kind === 'scene' ? 'now' : 'time';
+  if (type === 'now' && kind !== 'scene') type = 'time';
+  const length = type === 'time' ? { type, sec: Math.round(clamp(l.sec, 1, 3600, 20)) } : { type };
+  if (kind === 'scene') return { id, kind, scene: cleanId(s.scene, ''), sources: [], length };
+  return { id, sources: ids(s.sources), length };
 }
 function cleanStart(v) {
   const s = v && typeof v === 'object' ? v : {};
@@ -141,6 +156,47 @@ function find(ref) {
   return list.find(s => s.id === r) || list.find(s => slug(s.name) === slug(r)) || null;
 }
 const playing = () => run ? list.find(s => s.id === run.id) || null : null;
+
+// A sequence's steps as they play: sequence steps replaced by that sequence's own steps (its kept-on
+// sources on for each of them), over and over for sequences inside those. top is the step of the
+// sequence itself each one comes from; a sequence already on the way in (one inside itself) is skipped.
+function flatten(sq, chain = [], out = [], top = null) {
+  if (!sq || chain.includes(sq.id) || chain.length >= MAX_DEPTH) return out;
+  const inner = [...chain, sq.id];
+  sq.steps.forEach((st, i) => {
+    if (out.length >= MAX_FLAT) return;
+    const at = top === null ? i : top;
+    if (st.kind === 'sequence') {
+      const sub = list.find(x => x.id === st.sequence);
+      const from = out.length;
+      flatten(sub, inner, out, at);
+      for (let k = from; k < out.length; k++) {
+        out[k].sources = [...new Set([...(sub?.keepOn || []), ...out[k].sources])];
+        out[k].via = [sub.name, ...(out[k].via || [])];
+      }
+    } else out.push({ ...st, sources: [...(st.sources || [])], top: at });
+  });
+  return out;
+}
+// Whether sq plays the sequence id somewhere inside it (so id can't play sq).
+function contains(sq, id, seen = new Set()) {
+  if (!sq || seen.has(sq.id)) return false;
+  seen.add(sq.id);
+  return sq.steps.some(st => st.kind === 'sequence' && (st.sequence === id || contains(list.find(x => x.id === st.sequence), id, seen)));
+}
+// A sequence about to be saved that would play itself: the reason it can't, or null.
+function loops(sq) {
+  for (const st of sq.steps) {
+    if (st.kind !== 'sequence') continue;
+    const sub = list.find(x => x.id === st.sequence);
+    if (st.sequence === sq.id) return `"${sq.name}" can't play itself.`;
+    if (sub && contains(sub, sq.id)) return `"${sub.name}" already plays "${sq.name}", so it can't go inside it.`;
+  }
+  return null;
+}
+// What a sequence shows first, kept on when it takes over from another.
+const firstOf = sq => { const f = flatten(sq)[0]; return [...sq.keepOn, ...(f ? f.sources : [])]; };
+const current = () => run && run.steps ? run.steps[run.step] : null;
 
 // ─── Saving: one file per competition ────────────────────────────────────
 function load() {
@@ -237,22 +293,29 @@ function tick() {
 
 function enter(i) {
   const sq = playing();
-  const before = sq.steps[run.step];
-  const step = sq.steps[i];
+  const before = run.steps[run.step];
+  const step = run.steps[i];
+  const sc = step.kind === 'scene' ? api.scene(step.scene) : null;
   // Sources of the step before that this step (or the whole sequence) doesn't keep go off as these come on.
-  const keep = new Set([...sq.keepOn, ...step.sources]);
+  const keep = new Set([...sq.keepOn, ...step.sources, ...(sc ? Object.keys(sc.states).filter(id => sc.states[id] === 'on') : [])]);
   if (before) for (const id of before.sources) if (!keep.has(id)) turnOff(id);
   for (const id of step.sources) turnOn(id);
+  // A scene step goes to the scene (without stopping the sequence): the sources it sets are the scene's
+  // now, the base the next steps play over, and they stay as the scene left them when the sequence ends.
+  if (sc) { api.goTo(sc, true); for (const id of Object.keys(sc.states)) run.shown.delete(id); }
   Object.assign(run, { step: i, stepAt: now(), paused: false, pausedLeft: null, delayMs: 0, ready: false, waiting: null });
-  if (step.length.type === 'time') run.endsAt = now() + step.length.sec * 1000;
+  if (step.length.type === 'now') run.endsAt = now();
+  else if (step.length.type === 'time') run.endsAt = now() + step.length.sec * 1000;
   else if (step.length.type === 'next' || step.length.type === 'game') run.endsAt = null;
   else {
     run.waiting = finishers(step);
     run.endsAt = now() + (run.waiting.size ? limitFor(step) : 0);
   }
-  log('info', 'sequence', `"${sq.name}" step ${i + 1} of ${sq.steps.length}${step.sources.length ? `: ${step.sources.map(id => source(id)?.name).filter(Boolean).join(', ')}` : ''}`);
-  // Its music starts at its step, the first time through (the track itself loops).
-  if (sq.music && !run.loop && i === Math.min(sq.music.startStep, sq.steps.length) - 1) music.playFor(sq.id, sq.music);
+  const what = step.kind === 'scene' ? `scene "${sc ? sc.name : 'gone'}"` : step.sources.map(id => source(id)?.name).filter(Boolean).join(', ');
+  log('info', 'sequence', `"${sq.name}" step ${i + 1} of ${run.steps.length}${step.via ? ` (in ${step.via.join(' › ')})` : ''}${what ? `: ${what}` : ''}`);
+  // Its music starts at its step (the first one played from it), the first time through (the track itself loops).
+  const musicAt = Math.min(sq.music ? sq.music.startStep : 1, sq.steps.length) - 1;
+  if (sq.music && !run.loop && step.top === musicAt && !(before && before.top === musicAt && run.step < i)) music.playFor(sq.id, sq.music);
   schedule();
 }
 
@@ -261,18 +324,24 @@ function advance() {
   if (!sq) return;
   // A repeat until that has had its moment ends with the step that was on.
   if (run.finishing) return finish(run.finishing);
-  if (run.step + 1 < sq.steps.length) return enter(run.step + 1);
-  if ((sq.repeat === 'loop' || sq.repeat === 'until') && sq.steps.length) { run.loop++; return enter(0); }
+  if (run.step + 1 < run.steps.length) return enter(run.step + 1);
+  if ((sq.repeat === 'loop' || sq.repeat === 'until') && run.steps.length) {
+    // Steps that all go straight on (scenes, nothing to wait for) would go round as fast as they can.
+    if (now() - run.loopAt < 1000) return finish('one time through took no time, so it can\'t repeat');
+    run.loop++;
+    run.loopAt = now();
+    return enter(0);
+  }
   finish('it finished');
 }
 
 function start(sq, why) {
   if (pending && pending.id === sq.id) cancelPending(null);
-  run = { id: sq.id, step: -1, loop: 0, startedAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, delayMs: 0, ready: false, waiting: null, finishing: null };
+  run = { id: sq.id, steps: flatten(sq), step: -1, loop: 0, startedAt: now(), loopAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, delayMs: 0, ready: false, waiting: null, finishing: null };
   log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
   music.quiet(sq.quiet);
   for (const id of sq.keepOn) turnOn(id);
-  if (sq.steps.length) enter(0); else finish('it has no steps');
+  if (run.steps.length) enter(0); else finish('it has no steps');
 }
 
 // The end of a sequence, played out or stopped: its Then.
@@ -289,7 +358,7 @@ function finish(why) {
   else music.stopFor(ended.id, end.type === 'cut' ? 0 : end.sec || music.STOP_FADE_SEC);
   if (next) {
     // Hands over to the next sequence: its own sources go off as the next one's first step comes on.
-    const keep = new Set([...next.keepOn, ...(next.steps[0]?.sources || [])]);
+    const keep = new Set(firstOf(next));
     for (const id of [...ended.shown]) if (!keep.has(id)) turnOff(id);
   } else if (then.type === 'scene' && sc) {
     // The scene decides about the sources it sets; the sequence turns off its own that the scene leaves alone.
@@ -299,7 +368,7 @@ function finish(why) {
   log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${next ? `, then "${next.name}"` : sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'sequence' ? ', its next sequence has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}`);
   if (sc) api.goTo(sc);
   // A sequence with no steps would end at once, so a chain of them can't go round for ever.
-  if (next && next.steps.length && !(pending && pending.afterEnd)) start(next, `after "${sq.name}"`);
+  if (next && flatten(next).length && !(pending && pending.afterEnd)) start(next, `after "${sq.name}"`);
   // A triggered start that waited for this one to finish goes now.
   if (pending && pending.afterEnd) startPending();
 }
@@ -325,7 +394,7 @@ function interrupt(keep, why) {
 function finishSoon(why) {
   if (!run || run.finishing) return;
   run.finishing = why;
-  const step = playing()?.steps[run.step];
+  const step = current();
   log('info', 'sequence', `"${playing()?.name}" ends after this step: ${why}`);
   if (!step || step.length.type === 'next' || step.length.type === 'game') finish(why);
 }
@@ -358,7 +427,7 @@ function startPending() {
   }
   pending = null;
   schedulePending();
-  if (run) interrupt(new Set([...sq.keepOn, ...(sq.steps[0]?.sources || [])]), `"${sq.name}" started`);
+  if (run) interrupt(new Set(firstOf(sq)), `"${sq.name}" started`);
   start(sq, p.reason);
 }
 // A game moment that starts a sequence: it waits afterSec as pending, unless Automatic sequences is off.
@@ -413,7 +482,7 @@ function gameTick(g) {
     log('info', 'sequence', `Game moment: ${m.kind === 'resume' ? 'the clock started' : m.kind === 'break' ? BREAK_NAMES[m.which] : 'full time'} (${game.label || game.id})`);
     changed = true;
     // A step until the game moves on ends; a sequence repeating until play resumes finishes its step.
-    if (playing()?.steps[run.step]?.length.type === 'game') advance();
+    if (current()?.length.type === 'game') advance();
     if (m.kind === 'resume') {
       if (playing()?.repeat === 'until' && playing().until.moment === 'resume') finishSoon('play resumed');
       if (pending && !pending.afterEnd) cancelPending('play resumed first');
@@ -466,7 +535,7 @@ function ended(src) {
 function turnedOff(src) {
   if (!run) return;
   run.shown.delete(src.id);
-  const step = playing()?.steps[run.step];
+  const step = current();
   if (step && step.sources.includes(src.id)) { log('info', 'sequence', `"${src.name}" turned off by hand, next step`); advance(); }
 }
 function beforeScene(sc) {
@@ -476,12 +545,13 @@ function allOff() { if (run) interrupt(new Set(), 'every source was turned off')
 function sourceRemoved(id) {
   let changedAny = false;
   for (const sq of list) {
-    const k = sq.keepOn.length + sq.steps.reduce((n, st) => n + st.sources.length, 0);
+    const count = () => sq.keepOn.length + sq.steps.reduce((n, st) => n + (st.sources || []).length, 0);
+    const k = count();
     sq.keepOn = sq.keepOn.filter(x => x !== id);
-    for (const st of sq.steps) st.sources = st.sources.filter(x => x !== id);
-    if (k !== sq.keepOn.length + sq.steps.reduce((n, st) => n + st.sources.length, 0)) changedAny = true;
+    for (const st of sq.steps) if (st.sources) st.sources = st.sources.filter(x => x !== id);
+    if (k !== count()) changedAny = true;
   }
-  if (run) { run.shown.delete(id); run.waiting?.delete(id); }
+  if (run) { run.shown.delete(id); run.waiting?.delete(id); for (const st of run.steps) st.sources = st.sources.filter(x => x !== id); }
   if (changedAny) save();
 }
 
@@ -493,6 +563,7 @@ function apply(a) {
   switch (a.type) {
     case 'seqAdd': {
       const made = clean({ ...(a.changes || {}), id: undefined }, { id: newId() });
+      if (loops(made)) return loops(made);
       list.push(made);
       save();
       log('info', 'sequence', `Made sequence "${made.name}"`);
@@ -502,9 +573,14 @@ function apply(a) {
       if (need()) return need();
       const { id, ...changes } = a.changes || {};
       const i = list.indexOf(sq);
-      list[i] = clean(changes, sq);
-      // The playing sequence keeps going with its new steps.
-      if (run && run.id === sq.id && run.step >= list[i].steps.length) { if (list[i].steps.length) enter(list[i].steps.length - 1); else finish('its steps were removed'); }
+      const updated = clean(changes, sq);
+      if (loops(updated)) return loops(updated);
+      list[i] = updated;
+      // The playing sequence (or one playing it inside) keeps going with its new steps.
+      if (run) {
+        run.steps = flatten(playing());
+        if (run.step >= run.steps.length) { if (run.steps.length) enter(run.steps.length - 1); else finish('its steps were removed'); }
+      }
       save();
       return null;
     }
@@ -520,6 +596,8 @@ function apply(a) {
       if (need()) return need();
       if (run && run.id === sq.id) interrupt(new Set(), 'it was deleted');
       list.splice(list.indexOf(sq), 1);
+      // Steps that played it play nothing now (the Output page says it's gone).
+      if (run) { run.steps = flatten(playing()); if (run.step >= run.steps.length) { if (run.steps.length) enter(run.steps.length - 1); else finish('its steps were removed'); } }
       save();
       log('info', 'sequence', `Deleted sequence "${sq.name}"`);
       return null;
@@ -537,7 +615,7 @@ function apply(a) {
       if (need()) return need();
       if (a.type === 'seqToggle' && run && run.id === sq.id) { finish('Stop was pressed'); return null; }
       // Another sequence stops first, keeping what this one shows straight away so it doesn't flicker.
-      if (run) interrupt(new Set([...sq.keepOn, ...(sq.steps[0]?.sources || [])]), `"${sq.name}" started`);
+      if (run) interrupt(new Set(firstOf(sq)), `"${sq.name}" started`);
       start(sq);
       return null;
     }
@@ -579,7 +657,7 @@ function apply(a) {
       }
       // 10 s more on the step showing now, for each press.
       if (!run) return 'No sequence is playing.';
-      const step = playing().steps[run.step];
+      const step = current();
       run.delayMs += DELAY_MS;
       if (step.length.type !== 'next') {
         if (run.paused) { if (run.pausedLeft !== null) run.pausedLeft += DELAY_MS; }
@@ -639,10 +717,13 @@ function state() {
   return {
     sequences: list,
     playing: run && sq ? {
-      id: run.id, step: run.step, steps: sq.steps.length, loop: run.loop, paused: run.paused,
+      // step and steps count every step as it plays (sequences inside opened out); top is the sequence's own
+      // step it comes from, via the sequences it's inside, and what it shows.
+      id: run.id, step: run.step, steps: run.steps.length, loop: run.loop, paused: run.paused,
+      top: current()?.top ?? null, via: current()?.via || [], scene: current()?.kind === 'scene' ? current().scene : null, sources: current()?.sources || [],
       // Time left on the step, when it has one: the page counts down from when it hears this.
       leftMs: run.paused ? run.pausedLeft : run.endsAt === null ? null : Math.max(0, run.endsAt - now()),
-      length: sq.steps[run.step]?.length.type || null, ready: run.ready, delayMs: run.delayMs,
+      length: current()?.length.type || null, ready: run.ready, delayMs: run.delayMs,
       waiting: run.waiting ? [...run.waiting] : [], finishing: !!run.finishing,
     } : null,
     auto,
