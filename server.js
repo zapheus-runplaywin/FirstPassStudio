@@ -37,7 +37,7 @@ const MACHINE = { ...readConfig(path.join(ROOT, 'config.json')), ...readConfig(D
 delete MACHINE._note;
 let CONFIG = { ...MACHINE };
 const PORT = Number(process.env.PORT || MACHINE.port || 8080);
-// The start of every page link shown to people (home page, control page, Mac app): the Mac's
+// The start of every page link shown to people (Graphics page, control page, Mac app): the Mac's
 // Bonjour name unless config.json linkHost says otherwise. See linkhost.js.
 const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
@@ -2724,7 +2724,10 @@ http.createServer(async (req, res) => {
       return send(res, 200, { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: CONFIG.name, venueName, logos, teamColours,
         clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() });
     }
-    const ALIASES = { '/': 'index.html', '/results.html': 'fixtures.html' }; // results.html is the fixture page showing finished games
+    // / is the Output page; results.html is the fixture page showing finished games.
+    const ALIASES = { '/': 'output.html', '/results.html': 'fixtures.html' };
+    // The Graphics page was the home page at /index.html: old links still find it.
+    if (url.pathname === '/index.html') { res.writeHead(302, { location: '/graphics.html' + url.search }); return res.end(); }
     let file = path.normalize(path.join(PUBLIC_DIR, ALIASES[url.pathname] || decodeURIComponent(url.pathname)));
     if (!file.startsWith(PUBLIC_DIR)) return send(res, 403, 'Forbidden', 'text/plain');
     fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file)] || 'application/octet-stream'));
@@ -2739,6 +2742,6 @@ http.createServer(async (req, res) => {
   log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
   console.log(`Debug log: ${LOG_FILE}`);
   setTimeout(() => warmTeamLists('start up'), 2000);
-  console.log(`PlayHQ Graphics is running. Open ${LINK_BASE}/ for the page links.`);
+  console.log(`PlayHQ Graphics is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });

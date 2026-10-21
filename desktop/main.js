@@ -4,7 +4,7 @@
 // (windows.js), or the browser if chosen, and runs the helper in the background only while a
 // Studio window is open. Opening a window puts Studio on air; closing the last one takes it off
 // air, so nothing talks to PlayHQ while Studio isn't on screen. The Output page and the Stream Deck use the
-// links on the home page (the Mac's .local name, or localhost).
+// links on the Graphics page (the Mac's .local name, or localhost).
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
 // installing or updating the app never touches, or in a folder in iCloud Drive picked from the
@@ -59,7 +59,7 @@ function machineConfig() {
 const MACHINE = machineConfig();
 const PORT = Number(MACHINE.port) || 8080;
 // Links opened and copied from the menu use the Mac's Bonjour name (linkhost.js), the same as
-// the home page shows. The app checks the helper on localhost, which always works.
+// the Graphics page shows. The app checks the helper on localhost, which always works.
 const HOST = linkHost(MACHINE.linkHost);
 const pageUrl = p => `http://${HOST}:${PORT}${p}`;
 // Opens a page in the app's own window, putting Studio on air first (with the splash, the

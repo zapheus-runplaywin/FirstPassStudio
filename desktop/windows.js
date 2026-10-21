@@ -17,7 +17,7 @@ const path = require('path');
 
 // The pages with the Studio header (body class "fp"); everything else (the overlays, the
 // debug log) gets a normal title bar.
-const STUDIO_PAGES = new Set(['/', '/index.html', '/control.html', '/setup.html', '/athletes.html', '/api.html', '/output.html']);
+const STUDIO_PAGES = new Set(['/', '/graphics.html', '/control.html', '/setup.html', '/athletes.html', '/api.html', '/output.html']);
 
 // Room for the window buttons (red, yellow, green) at the left of the Studio header, which
 // becomes the title bar: drag it to move the window, double-click it to zoom.
@@ -28,7 +28,7 @@ const HEADER_CSS = `
 
 module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, onWindowOpened, onAllClosed }) {
   const local = p => `http://localhost:${port}${p}`;
-  // A page on this Studio: localhost, or the .local name the home page's links use.
+  // A page on this Studio: localhost, or the .local name the Studio links use.
   const isStudio = u => {
     try {
       const url = new URL(u);
@@ -294,8 +294,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       {
         label: 'Go',
         submenu: [
-          { label: 'Output', accelerator: 'CmdOrCtrl+1', ...go('/output.html') },
-          { label: 'Graphics', accelerator: 'CmdOrCtrl+2', ...go('/') },
+          { label: 'Output', accelerator: 'CmdOrCtrl+1', ...go('/') },
+          { label: 'Graphics', accelerator: 'CmdOrCtrl+2', ...go('/graphics.html') },
           { label: 'Scoreboard Control', accelerator: 'CmdOrCtrl+3', ...go('/control.html') },
           { label: 'Competitions Setup', accelerator: 'CmdOrCtrl+4', ...go('/setup.html') },
           { label: 'Athletes', accelerator: 'CmdOrCtrl+5', ...go('/athletes.html') },
