@@ -189,11 +189,12 @@ test('a video that loops or is set to stay on is not switched off when it ends',
   assert.equal(src('Sponsor').visible, true);
 });
 
-test('Next and Previous step through the scenes in order and stop at the ends', () => {
+test('Next and Previous step through the scenes in order (by colour, then name) and stop at the ends', () => {
   reset();
-  for (const n of ['Pre-game', 'Live', 'Full time']) ok({ type: 'sceneSave', name: n, states: {} });
-  ok({ type: 'sceneRemove', scene: 'Full time' });
-  ok({ type: 'sceneSave', name: 'Full time', states: {} });
+  ok({ type: 'sceneSave', name: 'Full time', colour: 'grey', states: {} });
+  ok({ type: 'sceneSave', name: 'Live', colour: 'blue', states: {} });
+  ok({ type: 'sceneSave', name: 'Pre-game', colour: 'green', states: {} });
+  assert.deepEqual(st().scenes.map(s => s.name), ['Pre-game', 'Live', 'Full time']);
   // No current scene: Next goes to the first, Previous to the last.
   assert.equal(st().current, null);
   ok({ type: 'sceneNext' });
@@ -209,8 +210,8 @@ test('Next and Previous step through the scenes in order and stop at the ends', 
   assert.equal(st().current, null);
   ok({ type: 'scenePrev' });
   assert.equal(st().current, sc('Live').id);
-  // Moving a scene changes the order Next and Previous use.
-  ok({ type: 'sceneMove', scene: 'Live', direction: 'up' });
+  // A scene's colour changes the order Next and Previous use: same colour, then by name.
+  ok({ type: 'sceneUpdate', scene: 'Live', changes: { colour: 'green' } });
   assert.deepEqual(st().scenes.map(s => s.name), ['Live', 'Pre-game']);
 });
 
@@ -219,13 +220,13 @@ test('scene names are unique and never next, prev or again; rename, colour and c
   ok({ type: 'sceneSave', name: 'Live', states: {} });
   ok({ type: 'sceneSave', name: 'live', states: {} });
   ok({ type: 'sceneSave', name: 'Next', states: {} });
-  assert.deepEqual(st().scenes.map(s => s.name), ['Live', 'live 2', 'Next 2']);
+  assert.deepEqual(st().scenes.map(s => s.name).sort(), ['Live', 'live 2', 'Next 2'].sort());
   ok({ type: 'sceneUpdate', scene: 'live-2', changes: { name: 'Quarter time', colour: 'purple' } });
   assert.equal(sc('Quarter time').colour, 'purple');
   ok({ type: 'sceneUpdate', scene: 'Quarter time', changes: { colour: 'pink' } });
   assert.equal(sc('Quarter time').colour, 'blue', 'an unknown colour falls back to blue');
   ok({ type: 'sceneCopy', scene: 'Live' });
-  assert.deepEqual(st().scenes.map(s => s.name), ['Live', 'Live copy', 'Quarter time', 'Next 2']);
+  assert.deepEqual(st().scenes.map(s => s.name), ['Live', 'Live copy', 'Next 2', 'Quarter time'], 'all blue now, so by name');
   assert.notEqual(sc('Live copy').id, sc('Live').id);
 });
 

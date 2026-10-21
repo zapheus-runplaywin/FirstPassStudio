@@ -200,7 +200,7 @@ test('the Stream Deck links play, toggle and stop sequences by name, and say whe
   assert.equal(link('sequence/next').status, 409);
   // A sequence can't take a name the playing-sequence links use.
   ok({ type: 'seqAdd', changes: { name: 'Next' } });
-  assert.equal(st().sequences.at(-1).name, 'Next 2');
+  assert.ok(seq('Next 2'));
 });
 
 test('sequences are saved to their file, and removing a source takes it out of them', () => {

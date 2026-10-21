@@ -35,6 +35,10 @@ const datadir = require('./datadir');
 const music = require('./music');
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
+// Scenes and sequences are listed by their colour group, in the order of a stream (pre-game, live stream,
+// quarter time, post-game, ads), then by name. Stream Deck Next and Previous go in this order too.
+const COLOUR_ORDER = ['green', 'blue', 'purple', 'grey', 'yellow'];
+const byColour = (a, b) => (COLOUR_ORDER.indexOf(a.colour) - COLOUR_ORDER.indexOf(b.colour)) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' });
 const LENGTHS = ['time', 'done', 'next', 'game', 'now'];
 const KINDS = ['sources', 'scene', 'sequence'];
 // How deep sequences inside sequences go, and how many steps one can flatten to.
@@ -715,7 +719,7 @@ function deck(parts) {
 function state() {
   const sq = playing();
   return {
-    sequences: list,
+    sequences: [...list].sort(byColour),
     playing: run && sq ? {
       // step and steps count every step as it plays (sequences inside opened out); top is the sequence's own
       // step it comes from, via the sequences it's inside, and what it shows.
@@ -743,4 +747,4 @@ function init(logger, hooks, sequencesFile) {
   reload();
 }
 
-module.exports = { init, reload, apply, deck, state, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, slug, DELAY_MS };
+module.exports = { init, reload, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, slug, DELAY_MS };
