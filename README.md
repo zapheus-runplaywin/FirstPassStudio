@@ -499,7 +499,8 @@ These follow the game picked on the scoreboard control page:
 - http://localhost:8080/worm.html: after the game, the score worm: the margin over the game, home above the line and away
   below in club colours, with the quarters marked, each team's biggest lead and the lead changes. The line draws itself in.
   Studio works it out from the goal order it saw (/api/worm); a stretch it wasn't watching is hatched. `?draw=3` seconds to
-  draw (0 shows it straight away), `?leads=0`, `?colours=0` (competition colours), `?title=`.
+  draw (0 shows it straight away), `?leads=0`, `?colours=0` (competition colours), `?title=`. In super shot
+  divisions the super shot period of each quarter is shaded, with the points each team scored in it (`?supershot=0` hides it).
 - http://localhost:8080/ladderbar.html: lower third with both teams' ladder position, record, points and percentage. It sits
   right above the scoreboard, scaled to the scoreboard's width.
 - http://localhost:8080/lowerthird.html?name=Jane%20Smith: lower third introducing an athlete (name, team name, club logo),
