@@ -62,6 +62,7 @@ let file = null;      // sequences.json of the competition in use
 let list = [];
 let run = null;       // what's playing
 let timer = null;
+let fadeTimer = null; // starts a music fade out early, so it's done as the step (and the music with it) ends
 let pending = null;   // a triggered start waiting its few seconds: { id, reason, at, afterEnd }
 let pendTimer = null;
 let auto = true;      // the Automatic sequences switch
@@ -298,7 +299,33 @@ function schedule() {
   clearTimeout(timer);
   timer = null;
   if (run && !run.paused && run.endsAt !== null) timer = setTimeout(tick, Math.max(0, run.endsAt - now()));
+  planFade();
 }
+// How long the music fades out over as step i ends, when it ends there: the sequence's music on its last
+// step (played once), or a sequence inside's music on that one's last step. 0 when it doesn't end or cuts.
+function fadeOutSecFor(i) {
+  const sq = playing(), st = run.steps[i], nx = run.steps[i + 1];
+  if (!nx) return sq.repeat === 'once' && sq.musicEnd.type === 'fade' ? sq.musicEnd.sec : 0;
+  const m = musicOf(st);
+  return m && m.occ && musicOf(nx)?.occ !== m.occ && m.sq.musicEnd.type === 'fade' ? m.sq.musicEnd.sec : 0;
+}
+// A fade out starts that long before a step of set time ends, so the music is gone as it ends and never
+// carries into what comes next. (A step ended early by Next fades out from then.)
+function planFade() {
+  clearTimeout(fadeTimer);
+  fadeTimer = null;
+  if (!run || run.paused || run.endsAt === null || run.fadeEndsAt || current()?.length.type !== 'time') return;
+  const sec = fadeOutSecFor(run.step);
+  if (!sec) return;
+  fadeTimer = setTimeout(() => {
+    fadeTimer = null;
+    if (!run || run.paused || run.endsAt === null) return;
+    run.fadeEndsAt = run.endsAt;
+    music.stopFor(run.id, Math.max(0, run.endsAt - now()) / 1000);
+  }, Math.max(0, run.endsAt - sec * 1000 - now()));
+}
+// What's left of a fade out already under way, or the whole of it.
+const fadeLeft = (r, sec) => r.fadeEndsAt ? Math.max(0, r.fadeEndsAt - now()) / 1000 : sec;
 function tick() {
   timer = null;
   if (run && !run.paused && run.endsAt !== null && run.endsAt <= now()) { advance(); api.changed(); }
@@ -309,6 +336,7 @@ function enter(i) {
   const sq = playing();
   const before = run.steps[run.step];
   const step = run.steps[i];
+  const faded = { fadeEndsAt: run.fadeEndsAt };
   const sc = step.kind === 'scene' ? api.scene(step.scene) : null;
   // Sources of the step before that this step doesn't keep go off as these come on.
   const keep = new Set([...step.sources, ...(sc ? Object.keys(sc.states).filter(id => sc.states[id] === 'on') : [])]);
@@ -319,7 +347,7 @@ function enter(i) {
   if (sc) { api.goTo(sc, true); for (const id of Object.keys(sc.states)) run.shown.delete(id); }
   // A scene step with Quiet the music ducked it: the music comes back up as the sequence moves on.
   if (quietStep(before) && !(sc && sc.quiet)) music.quiet(sq.quiet);
-  Object.assign(run, { step: i, stepAt: now(), paused: false, pausedLeft: null, ready: false, waiting: null });
+  Object.assign(run, { step: i, stepAt: now(), paused: false, pausedLeft: null, ready: false, waiting: null, fadeEndsAt: null });
   if (step.length.type === 'now') run.endsAt = now();
   else if (step.length.type === 'time') run.endsAt = now() + step.length.sec * 1000;
   else if (step.length.type === 'next' || step.length.type === 'game') run.endsAt = null;
@@ -333,7 +361,7 @@ function enter(i) {
   const m = musicOf(step), was = before ? musicOf(before) : null;
   // Out of a sequence inside whose music was on: it ends as that sequence's music ends (fade or cut).
   if (was && was.occ && (!m || m.occ !== was.occ) && was.sq.musicEnd.type !== 'continue') {
-    music.stopFor(run.id, was.sq.musicEnd.type === 'cut' ? 0 : was.sq.musicEnd.sec || music.STOP_FADE_SEC);
+    music.stopFor(run.id, was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || music.STOP_FADE_SEC));
   }
   // It starts at its step (the first one played from it). The sequence's own starts the first time through
   // only (the track itself loops); one inside starts each time that sequence plays.
@@ -373,14 +401,15 @@ function start(sq, why) {
 function finish(why) {
   const sq = playing();
   clearTimeout(timer);
-  timer = null;
+  clearTimeout(fadeTimer);
+  timer = fadeTimer = null;
   const ended = run;
   const then = sq ? sq.then : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
   const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
   const end = sq ? sq.musicEnd : { type: 'fade', sec: music.STOP_FADE_SEC };
   if (next && end.type === 'continue') music.handOver(ended.id, next.id);
-  else music.stopFor(ended.id, end.type === 'cut' ? 0 : end.sec || music.STOP_FADE_SEC);
+  else music.stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
   if (next) {
     // Hands over to the next sequence: its own sources go off as the next one's first step comes on.
     const keep = new Set(firstOf(next));
@@ -406,7 +435,8 @@ function interrupt(keep, why) {
   if (!run) return;
   const sq = playing();
   clearTimeout(timer);
-  timer = null;
+  clearTimeout(fadeTimer);
+  timer = fadeTimer = null;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
   music.stopFor(run.id, music.STOP_FADE_SEC);
   run = null;
