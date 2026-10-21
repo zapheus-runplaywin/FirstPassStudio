@@ -107,3 +107,14 @@ test('a deleted mini sequence plays nothing, and scene steps that go straight on
   wait(1);
   assert.equal(st().playing, null);
 });
+
+test('sequences are listed by colour (pre-game, live, quarter time, post-game, ads), then name', () => {
+  reset();
+  make('Sponsor', { colour: 'yellow', steps: [step(['Ad'])] });
+  make('Full time', { colour: 'grey', steps: [step(['Ladder'])] });
+  make('Walk out', { colour: 'green', steps: [step(['Title'])] });
+  make('Run-up', { colour: 'green', steps: [step(['Title'])] });
+  make('Quarter time', { colour: 'purple', steps: [step(['Fixtures'])] });
+  make('Live', { colour: 'blue', steps: [step(['Scoreboard'])] });
+  assert.deepEqual(st().sequences.map(s => s.name), ['Run-up', 'Walk out', 'Live', 'Quarter time', 'Full time', 'Sponsor']);
+});

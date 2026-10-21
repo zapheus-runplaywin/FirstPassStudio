@@ -225,7 +225,7 @@ changes them without touching what's on.
   and ticker don't reload or jump.
 - The sources are shared by every scene, so Source keys keep working whichever scene you're in. A source turned on or off after going to a
   scene shows as **changed** on the Output page; `/deck/scene/again` (or pressing the scene's link again) puts it back.
-- Next and previous go in the order the scenes are in on the Output page (drag them to change it) and stop at the first and last.
+- Next and previous go in the order the scenes are listed on the Output page (by colour: pre-game, live stream, quarter time, post-game, ads; then by name) and stop at the first and last.
 - A source added later is off in every scene. A video that fades out by itself when it finishes doesn't count as a change.
 - A scene's link uses its name like a source's does, so renaming a scene changes its link.
 - The Timed Sequence plugin can press these too, for example `get http://localhost:8080/deck/scene/pre-game` at 18:55.

@@ -264,7 +264,7 @@ function upgrade(req, socket) {
 }
 
 function state() {
-  return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: scene.scenes, current: currentScene() ? scene.current : null,
+  return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: orderedScenes(), current: currentScene() ? scene.current : null,
     changed: changed(), converting: [...converting.keys()], ...sequences.state(), ...music.state() };
 }
 
@@ -373,6 +373,9 @@ function change(a) {
   }
 }
 
+// The scenes in the order they're listed and Next and Previous go: by colour group, then name.
+const orderedScenes = () => [...scene.scenes].sort(sequences.byColour);
+
 // Changes to the scenes, and going to one. a.scene names the scene by id or name.
 function applyScene(a) {
   const sc = a.scene ? findScene(a.scene) : null;
@@ -437,10 +440,11 @@ function applyScene(a) {
     }
     case 'sceneNext': case 'scenePrev': {
       // Stops at the ends. With no current scene, Next goes to the first and Previous to the last.
-      if (!scene.scenes.length) return 'There are no scenes.';
-      const i = scene.scenes.indexOf(currentScene());
-      const to = i < 0 ? (a.type === 'sceneNext' ? 0 : scene.scenes.length - 1) : i + (a.type === 'sceneNext' ? 1 : -1);
-      if (to >= 0 && to < scene.scenes.length) goTo(scene.scenes[to]);
+      const list = orderedScenes();
+      if (!list.length) return 'There are no scenes.';
+      const i = list.indexOf(currentScene());
+      const to = i < 0 ? (a.type === 'sceneNext' ? 0 : list.length - 1) : i + (a.type === 'sceneNext' ? 1 : -1);
+      if (to >= 0 && to < list.length) goTo(list[to]);
       return null;
     }
     default: {

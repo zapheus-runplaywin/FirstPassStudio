@@ -113,6 +113,7 @@
   .seq { position: relative; display: grid; gap: 6px; align-content: start; padding: 9px 12px 12px; border: 2px solid var(--fp-line-strong); border-radius: 10px; background: var(--fp-white); min-width: 0; }
   .seq .t { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
   .seq b { font-weight: 800; overflow-wrap: anywhere; }
+  .seq .master { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--fp-navy); color: var(--fp-white); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
   .seq small { font-size: 12px; color: var(--fp-muted); }
   .seq .band { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0 0 7px 7px; }
   .seq .row button { padding: 4px 10px; font-size: 13px; }
@@ -691,11 +692,11 @@
   // ─── Scenes ───────────────────────────────────────────────────────────
   // A scene sets each source on or off, or leaves it as it is (not in its states). Going to one
   // changes only what differs; the server says which sources have changed since (scene.changed).
-  const COLOURS = [['blue', 'Blue: live stream'], ['green', 'Green: pre-game'], ['grey', 'Grey: post-game'], ['yellow', 'Yellow: ads'], ['purple', 'Purple: quarter time']];
+  // In the order scenes and sequences are listed: pre-game, live stream, quarter time, post-game, ads.
+  const COLOURS = [['green', 'Green: pre-game'], ['blue', 'Blue: live stream'], ['purple', 'Purple: quarter time'], ['grey', 'Grey: post-game'], ['yellow', 'Yellow: ads']];
   const currentScene = () => (scene.scenes || []).find(s => s.id === scene.current) || null;
   const nameOf = id => scene.sources.find(s => s.id === id)?.name || '';
   let editing = false;
-  let dragScene = null;
   function sceneCounts(sc) {
     const v = Object.values(sc.states);
     const on = v.filter(x => x === 'on').length, off = v.filter(x => x === 'off').length, left = scene.sources.length - on - off;
@@ -716,26 +717,6 @@
       b.querySelector('.band').classList.add(sc.colour);
       b.title = sc.id === scene.current ? (changed.length ? `Go back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
       b.onclick = () => act({ type: 'sceneGo', scene: sc.id });
-      // Drag a scene along the row to change the order Next and Previous go in.
-      b.draggable = true;
-      b.ondragstart = e => { dragScene = sc.id; b.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sc.id); };
-      b.ondragend = () => { dragScene = null; renderScenes(); };
-      b.ondragover = e => {
-        if (!dragScene || dragScene === sc.id) return;
-        e.preventDefault();
-        const after = e.offsetX > b.offsetWidth / 2;
-        b.classList.toggle('dropBefore', !after); b.classList.toggle('dropAfter', after);
-      };
-      b.ondragleave = () => b.classList.remove('dropBefore', 'dropAfter');
-      b.ondrop = e => {
-        e.preventDefault();
-        if (!dragScene || dragScene === sc.id) return;
-        const from = scenes.findIndex(x => x.id === dragScene);
-        let to = scenes.indexOf(sc) + (e.offsetX > b.offsetWidth / 2 ? 1 : 0);
-        if (from < to) to--;
-        const id = dragScene; dragScene = null;
-        if (to !== from) act({ type: 'sceneMove', scene: id, to }); else renderScenes();
-      };
       box.appendChild(b);
     }
     const add = document.createElement('button');
@@ -763,7 +744,7 @@
     $('scenesNote').innerHTML = scenes.length
       ? 'Click a scene to go to it: it turns sources on and off to match, and a source that\'s already on stays on (it isn\'t reloaded). '
         + 'Turning sources on and off by hand changes them everywhere and shows them as <b>changed</b>; click the scene again or <b>Back to saved</b> to put them back. '
-        + 'Drag scenes along the row to set the order the Stream Deck\'s Next and Previous go in (they stop at the ends). A source you add later is off in every scene. '
+        + 'Scenes are listed by colour (pre-game, live stream, quarter time, post-game, ads), then name, and the Stream Deck\'s Next and Previous go in that order (they stop at the ends). A source you add later is off in every scene. '
         + `Stream Deck: <code>${base}/deck/scene/${encodeURIComponent(slug(scenes[0].name))}</code>, <code>/deck/scene/next</code>, <code>/deck/scene/prev</code> and <code>/deck/scene/again</code> (back to saved).`
       : 'A scene is a saved look: which sources are on and which are off. Set the sources up below, then <b>Save what\'s on now</b> and name it '
         + '(Pre-game, Live, Quarter time, Full time…). Going to a scene, here or from the Stream Deck, puts the graphics back to that look.';
@@ -799,7 +780,7 @@
     head.appendChild(Object.assign(document.createElement('th'), { textContent: 'Source' }));
     scenes.forEach((sc, i) => {
       const th = document.createElement('th');
-      th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt left" title="Earlier: where Previous goes">←</button><button class="alt right" title="Later: where Next goes">→</button><button class="alt copy">Copy</button><button class="danger del">Delete</button></div><label class="quietMusic" style="font-weight:400;font-size:12px"><input type="checkbox"> Quiet the music</label>';
+      th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt copy">Copy</button><button class="danger del">Delete</button></div><label class="quietMusic" style="font-weight:400;font-size:12px"><input type="checkbox"> Quiet the music</label>';
       const input = th.querySelector('input');
       input.value = sc.name; input.dataset.scene = sc.id; input.setAttribute('aria-label', 'Scene name');
       input.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { name: input.value } });
@@ -812,10 +793,6 @@
       quiet.checked = !!sc.quiet;
       quiet.title = 'Going to this scene ducks the music (or fades out a sequence\'s music), for an interview on court';
       quiet.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { quiet: quiet.checked } });
-      th.querySelector('.left').disabled = i === 0;
-      th.querySelector('.right').disabled = i === scenes.length - 1;
-      th.querySelector('.left').onclick = () => act({ type: 'sceneMove', scene: sc.id, direction: 'up' });
-      th.querySelector('.right').onclick = () => act({ type: 'sceneMove', scene: sc.id, direction: 'down' });
       th.querySelector('.copy').onclick = () => act({ type: 'sceneCopy', scene: sc.id });
       th.querySelector('.del').onclick = () => {
         if (confirm(`Delete the scene "${sc.name}"? Its Stream Deck keys will say gone. The sources stay as they are.`)) act({ type: 'sceneRemove', scene: sc.id });
@@ -859,6 +836,27 @@
   const repeatText = sq => sq.repeat === 'loop' ? 'repeats' : sq.repeat === 'until' ? (sq.until.moment === 'resume' ? 'repeats until play resumes' : `repeats until ${sq.until.min} min before`) : 'plays once';
   const clockTime = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   let heardAt = 0;
+  // A sequence made only of other sequences.
+  const isMaster = sq => sq.steps.length > 0 && sq.steps.every(st => st.kind === 'sequence');
+  // How long one time through takes: steps' set times and video lengths, sequences inside added up. open: a
+  // step that waits (Next, the game, a page or video of unknown length), so it's at least that.
+  function runTime(steps, seen = new Set()) {
+    let sec = 0, open = false;
+    for (const st of steps) {
+      if (st.kind === 'sequence') {
+        const sub = sequences().find(x => x.id === st.sequence);
+        if (sub && !seen.has(sub.id)) { const t = runTime(sub.steps, new Set([...seen, sub.id])); sec += t.sec; open = open || t.open; }
+      } else if (st.length.type === 'now') continue;
+      else if (st.length.type === 'time') sec += st.length.sec;
+      else if (st.length.type === 'done') { const d = stepSeconds(st); if (d) sec += d; else open = true; }
+      else open = true;
+    }
+    return { sec, open };
+  }
+  function runText(sq) {
+    const t = runTime(sq.steps, new Set([sq.id]));
+    return !t.sec ? (t.open ? 'runs until Next' : 'runs 0:00') : `runs ${t.open ? 'at least ' : ''}${fmt(t.sec * 1000)}`;
+  }
   function thenText(sq) {
     if (sq.then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === sq.then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
     if (sq.then.type === 'sequence') { const nx = sequences().find(x => x.id === sq.then.sequence); return nx ? `then ${nx.name}` : 'then its next sequence (gone)'; }
@@ -880,6 +878,7 @@
       card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
       card.querySelector('b').textContent = sq.name;
       if (sq.quiet) card.querySelector('b').append(quietMark());
+      if (isMaster(sq)) card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'master', textContent: 'Master', title: 'Made of other sequences' }));
       card.querySelector('.band').classList.add(sq.colour);
       if (run) {
         const dots = document.createElement('div');
@@ -917,7 +916,7 @@
         card.append(line, row);
       } else {
         const small = document.createElement('small');
-        small.textContent = `${startText(sq)} · ${sq.steps.length} step${sq.steps.length === 1 ? '' : 's'} · ${repeatText(sq)} · ${thenText(sq)}`;
+        small.textContent = `${startText(sq)} · ${sq.steps.length} step${sq.steps.length === 1 ? '' : 's'} · ${runText(sq)} · ${repeatText(sq)} · ${thenText(sq)}`;
         const row = document.createElement('div');
         row.className = 'row';
         row.innerHTML = '<button class="play">▶ Play</button><button class="alt edit">Edit</button>';
@@ -1143,19 +1142,7 @@
   function loopHint() {
     const hint = $('sqLoop');
     if (!draft) return;
-    let sec = 0, open = false;
-    const add = (steps, seen) => {
-      for (const st of steps) {
-        if (st.kind === 'sequence') {
-          const sub = sequences().find(x => x.id === st.sequence);
-          if (sub && !seen.has(sub.id)) add(sub.steps, new Set([...seen, sub.id]));
-        } else if (st.length.type === 'now') continue;
-        else if (st.length.type === 'time') sec += st.length.sec;
-        else if (st.length.type === 'done') { const d = stepSeconds(st); if (d) sec += d; else open = true; }
-        else open = true;
-      }
-    };
-    add(draft.steps, new Set([draft.id]));
+    const { sec, open } = runTime(draft.steps, new Set([draft.id]));
     if (!sec) { hint.textContent = ''; return; }
     let text = `One time through is ${open ? 'at least ' : 'about '}${fmt(sec * 1000)}.`;
     const breaks = scene.game?.breaks;
