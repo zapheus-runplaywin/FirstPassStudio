@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the ffmpeg the Mac app bundles, for converting ProRes clips added to the Studio
-# scene's media folder into WebM (VP9 with transparency, Opus sound) that the pages can play.
+# scene's media folder into WebM (VP9 with transparency, Opus sound) that the pages can play,
+# for measuring how long videos and songs are, and for evening out a song's loudness (to AAC in M4A).
 #
 # A small static build: ffmpeg under the LGPL (no --enable-gpl or --enable-nonfree, so the
 # app may ship it), with libvpx and libopus (both BSD) built in. It needs nothing installed
@@ -56,16 +57,18 @@ run cmake --install "$WORK/opus/out"
 
 echo "== ffmpeg $FFMPEG_VERSION"
 fetch FFmpeg/FFmpeg "$FFMPEG_VERSION" ffmpeg
-# Only what converting a .mov needs: reading QuickTime files with ProRes (or H.264/HEVC) video
-# and PCM or AAC sound, and writing WebM with VP9 and Opus. Everything else (other formats,
+# Only what Studio needs: reading QuickTime files with ProRes (or H.264/HEVC) video and PCM or AAC
+# sound, and writing WebM with VP9 and Opus; reading back the WebM it made (to measure its length); reading songs (MP3, M4A with AAC or Apple Lossless, AAC,
+# WAV, AIFF) and writing them evened out (loudnorm) as AAC in M4A. Everything else (other formats,
 # network, devices) is left out, so far fewer of FFmpeg's security fixes ever apply to it.
 (cd "$WORK/ffmpeg" && run ./configure --prefix="$PREFIX" --pkg-config-flags=--static \
   --disable-autodetect --disable-shared --enable-static --disable-debug --disable-doc \
   --disable-everything --disable-network --disable-ffplay --disable-ffprobe \
-  --enable-protocol=file --enable-demuxer=mov --enable-muxer=webm \
-  --enable-decoder=prores,h264,hevc,aac,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s24be,pcm_s32le,pcm_f32le \
-  --enable-libvpx --enable-libopus --enable-encoder=libvpx_vp9,libopus \
-  --enable-filter=scale,format,aformat,aresample,null,anull --enable-bsf=vp9_superframe \
+  --enable-protocol=file --enable-demuxer=mov,matroska,mp3,aac,wav,aiff --enable-muxer=webm,mp4,ipod \
+  --enable-parser=mpegaudio,aac \
+  --enable-decoder=prores,h264,hevc,aac,mp3,mp3float,alac,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s24be,pcm_s32le,pcm_s32be,pcm_f32le,pcm_f32be,pcm_u8,pcm_s8 \
+  --enable-libvpx --enable-libopus --enable-encoder=libvpx_vp9,libopus,aac \
+  --enable-filter=scale,format,aformat,aresample,null,anull,loudnorm --enable-bsf=vp9_superframe \
   --extra-cflags="-I$PREFIX/include" --extra-ldflags="-L$PREFIX/lib" \
   || { tail -40 ffbuild/config.log >&2; exit 1; })
 (cd "$WORK/ffmpeg" && run make -j"$JOBS")
@@ -75,12 +78,13 @@ strip "$HERE/ffmpeg" 2>/dev/null || true
 version="$("$HERE/ffmpeg" -hide_banner -version)"
 echo "${version%%$'\n'*}"
 codecs="$("$HERE/ffmpeg" -hide_banner -encoders 2>/dev/null; "$HERE/ffmpeg" -hide_banner -decoders 2>/dev/null)"
-for want in libvpx-vp9 libopus prores; do
+for want in libvpx-vp9 libopus prores aac mp3float alac; do
   grep -q " $want " <<<"$codecs" || {
     echo "$want is missing from the build. What configure found:" >&2
     grep -A30 '^check_pkg_config libvpx_vp9_encoder' "$WORK/ffmpeg/ffbuild/config.log" >&2 || true
     exit 1
   }
 done
+"$HERE/ffmpeg" -hide_banner -filters 2>/dev/null | grep -q ' loudnorm ' || { echo "the loudnorm filter is missing from the build" >&2; exit 1; }
 if grep -q -- '--enable-gpl\|--enable-nonfree' <<<"$version"; then echo "the build isn't LGPL" >&2; exit 1; fi
 echo "Built $HERE/ffmpeg"

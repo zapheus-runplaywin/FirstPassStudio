@@ -963,7 +963,32 @@
 
   // The editor works on a copy, saved with Save.
   let draft = null;
-  const durationOf = file => media.find(m => m.name === file)?.duration;
+  // A video's or song's length: Studio's (ffmpeg's), else measured here by this browser when Studio couldn't tell.
+  const measured = new Map(); // file -> seconds (null while measuring or if it can't be read here)
+  function durationOf(f) {
+    const m = media.find(x => x.name === f);
+    if (!m || m.duration) return m?.duration || 0;
+    if ((m.kind === 'video' || m.kind === 'audio') && !m.converting && !measured.has(f)) {
+      measured.set(f, null);
+      const el = document.createElement(m.kind);
+      el.preload = 'metadata';
+      el.muted = true;
+      el.onloadedmetadata = () => {
+        if (!Number.isFinite(el.duration)) return;
+        measured.set(f, el.duration);
+        el.removeAttribute('src');
+        lengthsChanged();
+      };
+      el.src = '/media/' + encodeURIComponent(f);
+    }
+    return measured.get(f) || 0;
+  }
+  function lengthsChanged() {
+    renderSequences();
+    if (draft) renderSteps();
+    if (scene.music) renderMusic();
+    if (plDraft) renderPlTracks();
+  }
   function openSequence(sq) {
     draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, keepOn: [], steps: [{ sources: [], length: { type: 'time', sec: 20 } }] };
     const start = draft.start || { type: 'hand' };
@@ -1264,8 +1289,9 @@
     const m = scene.music;
     if (!m) return;
     const pos = m.track && m.status !== 'stopped' ? musicPos(m) : 0;
-    $('mTime').textContent = m.track ? `${fmt(pos * 1000)}${m.length ? ` / ${fmt(m.length * 1000)}` : ''}` : '';
-    $('mBar').style.width = m.length ? `${Math.min(100, pos / m.length * 100)}%` : '0';
+    const len = m.length || (m.track ? durationOf(m.track) : 0);
+    $('mTime').textContent = m.track ? `${fmt(pos * 1000)}${len ? ` / ${fmt(len * 1000)}` : ''}` : '';
+    $('mBar').style.width = len ? `${Math.min(100, pos / len * 100)}%` : '0';
   }
   setInterval(tickMusic, 500);
   $('mPlay').onclick = () => act({ type: 'musicToggle' });
@@ -1304,7 +1330,7 @@
       card.className = 'seq' + (on ? ' run' : '');
       card.innerHTML = '<div class="t"><b></b></div><small></small><div class="row"><button class="play">▶ Play</button><button class="alt load">Load</button><button class="alt edit">Edit</button></div>';
       card.querySelector('b').textContent = pl.name;
-      const lens = pl.tracks.map(f => media.find(x => x.name === f)?.duration || 0);
+      const lens = pl.tracks.map(durationOf);
       const runs = lens.reduce((a, b) => a + b, 0);
       card.querySelector('small').textContent = `${pl.tracks.length} song${pl.tracks.length === 1 ? '' : 's'}${runs ? ` · ${lens.includes(0) ? 'at least ' : ''}${fmt(runs * 1000)}` : ''}${pl.shuffle ? ' · shuffled' : ''}${pl.loop ? ' · starts again' : ''}`;
       card.querySelector('.play').onclick = () => act({ type: 'musicPlaylist', playlist: pl.id, play: true });
@@ -1344,7 +1370,7 @@
       row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><span class="hint"></span><button class="alt up" title="Earlier">↑</button><button class="alt down" title="Later">↓</button><button class="danger del" title="Take it out">✕</button></div>';
       row.querySelector('.num').textContent = i + 1;
       row.querySelector('.what').textContent = songName(f) + (tracks().includes(f) ? '' : ' (missing)');
-      const len = media.find(x => x.name === f)?.duration;
+      const len = durationOf(f);
       if (len) total += len; else unknown++;
       row.querySelector('.hint').textContent = len ? `${fmt(len * 1000)} · ${unknown ? 'at least ' : ''}${fmt(total * 1000)} in` : 'length not known yet';
       row.querySelector('.up').disabled = i === 0;
@@ -1815,8 +1841,8 @@
     const s = current();
     if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
     if (scene.music) renderMusic();
-    // Studio measures a song's length the first time it's asked: ask again shortly for the ones it hadn't yet.
-    if (!mediaRetried && media.some(m => m.kind === 'audio' && !m.converting && !m.duration)) { mediaRetried = true; setTimeout(() => loadMedia(), 1500); }
+    // Studio measures a song's or video's length the first time it's asked: ask again shortly for the ones it hadn't yet.
+    if (!mediaRetried && media.some(m => (m.kind === 'audio' || m.kind === 'video') && !m.converting && !m.duration)) { mediaRetried = true; setTimeout(() => loadMedia(), 1500); }
   }
   let mediaRetried = false;
   // Adding a source: a dialog, so it's clear the choices are for the new source. It goes above the selected
