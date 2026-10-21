@@ -105,7 +105,7 @@ test('a video with its sound on fades the music out and pauses it, then it fades
   assert.equal(m().level, 100, 'the video ended and switched off');
 });
 
-test("a sequence's music starts at its step from the start mark, and fades out when the sequence ends", () => {
+test("a sequence's music starts at its step from the start mark, and fades out as the sequence ends", () => {
   reset();
   ok({ type: 'seqAdd', changes: { name: 'Run-up', music: { track: 'Pre-game bed.mp3', startStep: 2, startAtSec: 42, fadeInSec: 2 }, musicEnd: { type: 'fade', sec: 4 },
     steps: [{ sources: [id('Ladder')], length: { type: 'time', sec: 10 } }, { sources: [id('Ladder')], length: { type: 'time', sec: 10 } }] } });
@@ -115,11 +115,40 @@ test("a sequence's music starts at its step from the start mark, and fades out w
   assert.equal(m().track, 'Pre-game bed.mp3');
   assert.equal(m().pos.sec, 42);
   assert.equal(m().owner, st().sequences[0].id);
-  wait(10);
+  wait(6);
+  assert.equal(gain(), 1, 'full until the fade has to start');
+  assert.equal(m().gain.to, 0, 'fading out over the last 4 s of the sequence');
+  assert.equal(m().gain.ms, 4000);
+  wait(2);
+  assert.equal(st().playing.step, 1);
+  assert.ok(gain() > 0 && gain() < 1);
+  wait(2);
+  assert.equal(st().playing, null);
+  assert.equal(m().status, 'stopped', 'gone as the sequence ends, so nothing bleeds into what comes next');
+});
+
+test("Next before the fade has started fades out from then; a sequence inside fades its music out within its own steps", () => {
+  reset();
+  const ladder = sec => ({ sources: [id('Ladder')], length: { type: 'time', sec } });
+  ok({ type: 'seqAdd', changes: { name: 'Short', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 3 }, steps: [ladder(10)] } });
+  ok({ type: 'seqPlay', sequence: 'Short' });
+  wait(2);
+  ok({ type: 'seqNext' });
   assert.equal(st().playing, null);
   assert.equal(m().status, 'playing', 'fading out');
-  wait(4);
+  wait(3);
   assert.equal(m().status, 'stopped');
+  ok({ type: 'seqAdd', changes: { name: 'Hype', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 4 }, steps: [ladder(10)] } });
+  const hype = st().sequences.find(s => s.name === 'Hype').id;
+  ok({ type: 'seqAdd', changes: { name: 'Break', steps: [{ kind: 'sequence', sequence: hype }, ladder(10)] } });
+  ok({ type: 'seqPlay', sequence: 'Break' });
+  assert.equal(m().status, 'playing');
+  wait(6);
+  assert.equal(m().gain.to, 0, 'Hype\'s music fades out over its last 4 s');
+  wait(4);
+  assert.equal(st().playing.step, 1);
+  assert.equal(m().status, 'stopped');
+  ok({ type: 'seqStop' });
 });
 
 test('music carries on into the next sequence, and going to a scene fades it out', () => {
