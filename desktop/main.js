@@ -58,14 +58,14 @@ const PORT = Number(MACHINE.port) || 8080;
 // the home page shows. The app checks the helper on localhost, which always works.
 const HOST = linkHost(MACHINE.linkHost);
 const pageUrl = p => `http://${HOST}:${PORT}${p}`;
-// Opens a page in the browser; on localhost if the .local name doesn't answer (no network).
-const openInBrowser = p => require('dns').lookup(HOST, err => shell.openExternal(err ? `http://localhost:${PORT}${p}` : pageUrl(p)));
-// Opens a page in the app's own window (or the browser, if ticked in the menu), putting Studio
-// on air first. Nothing opens if Studio can't start (something else has the port).
+// Opens a page in the app's own window, putting Studio on air first (with the splash, the
+// 1P Studio logo, while it starts). Nothing opens if Studio can't start (something else has the port).
 async function openPage(p) {
   if (!helper) {
-    if (!await startHelperChecked()) return;
+    windows.showSplash();
+    if (!await startHelperChecked()) return windows.closeSplash(true);
     await waitUntilRunning();
+    windows.splashStatus(helper ? 'Studio is on air' : 'Still starting…', !!helper);
   }
   windows.open(p);
 }
@@ -79,7 +79,7 @@ function answering() {
   });
 }
 
-// The app's own settings (not the helper's): whether the helper starts at login.
+// The app's own settings (not the helper's): where the main window was.
 const APP_SETTINGS = path.join(DATA_DIR, 'app-settings.json');
 function appSettings() { try { return JSON.parse(fs.readFileSync(APP_SETTINGS, 'utf8')); } catch { return {}; } }
 function saveAppSetting(key, value) {
@@ -87,13 +87,12 @@ function saveAppSetting(key, value) {
 }
 
 const windows = require('./windows')({
-  port: PORT, linkHost: HOST, appSettings, saveAppSetting, log, openBrowser: openInBrowser,
+  port: PORT, linkHost: HOST, appSettings, saveAppSetting, log,
   isOnAir: () => wanted && !!helper,
   // A window opened another way (File > New Window, a link opening a new tab) puts Studio on air too.
   onWindowOpened: () => { if (!helper && !wanted) startHelperChecked(); },
-  // The last window closed: Studio goes off air, unless pages open in the browser instead
-  // (the app can't see browser tabs, so then Stop Studio takes it off air).
-  onAllClosed: () => { if (!appSettings().openInBrowser) { log('Last Studio window closed'); stopHelper(); } },
+  // The last window closed: Studio goes off air.
+  onAllClosed: () => { log('Last Studio window closed'); stopHelper(); },
 });
 
 // The scene full screen on the Mac's displays (chroma, or fill and key), set up on the Output page.
@@ -101,8 +100,8 @@ const windows = require('./windows')({
 let outputs = null;
 
 // ─── The helper ─────────────────────────────────────────────────────────────
-// wanted: whether it should be running (a Studio window is open, or Start Studio was chosen with
-// pages in the browser), so a pending restart doesn't bring back a helper that was just stopped.
+// wanted: whether it should be running (a Studio window is open), so a pending restart doesn't
+// bring back a helper that was just stopped.
 let helper = null, wanted = false, status = 'Studio is off air', quitting = false, restarts = 0, tray = null;
 
 function startHelper() {
@@ -131,7 +130,7 @@ function startHelper() {
     if (Date.now() - started > 60000) restarts = 0;
     if (++restarts <= 5) { status = 'Restarting…'; refreshMenu(); setTimeout(() => { if (wanted && !helper) startHelper(); }, 1000); return; }
     status = 'Studio stopped: see the debug log'; refreshMenu();
-    dialog.showMessageBox({ type: 'error', message: 'FirstPass Studio stopped', detail: 'Studio stopped several times in a row. Open the debug log from the menu bar icon to see why, then choose Start Studio.' });
+    dialog.showMessageBox({ type: 'error', message: 'FirstPass Studio stopped', detail: 'Studio stopped several times in a row. Open the debug log from the menu bar icon to see why, then choose Open Studio.' });
   });
 }
 
@@ -200,12 +199,11 @@ function refreshMenu() {
   const running = !!helper;
   const pending = !helper && wanted && status === 'Restarting…';
   tray.setToolTip(`FirstPass Studio: ${status}`);
+  // Studio starts by opening one of its pages; Stop Studio only shows while it is on air.
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: `FirstPass Studio ${app.getVersion()}`, enabled: false },
     { label: status, enabled: false },
-    running || pending
-      ? { label: 'Stop Studio', click: stopStudio }
-      : { label: 'Start Studio', enabled: status !== 'Starting…', click: () => openPage('/') },
+    ...(running || pending ? [{ label: 'Stop Studio', click: stopStudio }] : []),
     { type: 'separator' },
     { label: 'Open Studio', click: () => openPage('/') },
     { label: 'Scoreboard control', click: () => openPage('/control.html') },
@@ -219,9 +217,6 @@ function refreshMenu() {
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
-    { label: 'Open Studio at login', type: 'checkbox', checked: !!appSettings().startHelperAtLogin, enabled: login, click: item => { saveAppSetting('startHelperAtLogin', item.checked); refreshMenu(); } },
-    // With the other settings, away from the page links, so it isn't ticked by accident.
-    { label: 'Open pages in the browser instead of the app window', type: 'checkbox', checked: !!appSettings().openInBrowser, click: item => { saveAppSetting('openInBrowser', item.checked); log(`Open pages in the browser: ${item.checked ? 'on' : 'off'}`); refreshMenu(); } },
     updateMenuItem(),
     { type: 'separator' },
     { label: 'Quit FirstPass Studio', click: () => app.quit() },
@@ -288,18 +283,9 @@ async function start() {
   windows.refreshMenu();
   log(`Starting ${app.getVersion()}, settings in ${DATA_DIR}`);
 
-  // Opened at login, the app sits in the menu bar off air (nothing talks to PlayHQ) unless
-  // "Open Studio at login" (startHelperAtLogin) is ticked. Opened by hand, it opens Studio,
-  // which puts it on air, with the splash (the 1P Studio logo) showing until Studio's window opens.
-  const atLogin = app.getLoginItemSettings().wasOpenedAtLogin;
-  if (!atLogin) windows.showSplash();
-  if (atLogin && !appSettings().startHelperAtLogin) {
-    log('Opened at login: off air until Studio is opened');
-  } else if (await startHelperChecked()) {
-    await waitUntilRunning();
-    windows.splashStatus(helper ? 'Studio is on air' : 'Still starting…', !!helper);
-    await openPage('/');
-  }
+  // The app always starts in the menu bar off air (nothing talks to PlayHQ), at login or opened
+  // by hand. Open Studio, or any page in the menu, puts it on air.
+  log('Off air until Studio is opened');
   checkForUpdates(false);
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
 }

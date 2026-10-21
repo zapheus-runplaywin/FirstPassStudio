@@ -19,12 +19,12 @@
   <div class="logo">FirstPass <b>STUDIO</b></div>
   <div class="bar"></div>
   <h1 id="head">Studio is off air</h1>
-  <p id="help">Studio couldn't start. Open the debug log from the 1P icon in the menu bar to see why, then choose <b>Start Studio</b> there. This page opens by itself once Studio is on air.</p>
+  <p id="help">Studio couldn't start. Open the debug log from the 1P icon in the menu bar to see why, then choose <b>Open Studio</b> there. This page opens by itself once Studio is on air.</p>
 </div>
 <script>
   // Shown when a Studio page can't load. While Studio is starting it tries again every couple of
   // seconds. Studio only runs while a window is open, so off air here means it couldn't start;
-  // the app loads the page again once Start Studio is chosen.
+  // the app loads the page again once Studio is on air again.
   const q = new URLSearchParams(location.search);
   const to = q.get('to');
   if (q.get('on')) {
