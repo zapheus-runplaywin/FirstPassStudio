@@ -18,7 +18,7 @@
        below, in their club colours, with the quarters marked. Studio works it out from the goal
        order it saw as the game went (/api/worm), so a stretch it wasn't watching (the game picked
        up part way, a score typed in or a jump of more than 3 at once) shows as a gap.
-       Loads once, each time it comes on, and draws the line in. Options: ?title=Score%20worm,
+       Loads once, each time it comes on, and draws the line in (the dot at its tip glows bigger and brighter the faster the margin is changing). Options: ?title=Score%20worm,
        ?draw=3 seconds to draw the line (0 shows it straight away), ?leads=0 leaves out the
        biggest leads and lead changes, ?supershot=0 leaves out the super shot periods (shaded in
        super shot divisions, with the points each team scored in them), ?colours=0 uses the competition's colours, not the clubs'. -->
@@ -179,8 +179,9 @@
         if (h) mark({ t: h.t, margin: h.margin }, `+${h.margin}`, colours.home, false);
         if (a) mark({ t: a.t, margin: -a.margin }, `+${a.margin}`, colours.away, true);
       }
+      const glow = svg('circle', { cx: X0, cy: mid, r: 0, class: 'worm__glow', fill: colourOf(0) }, chart);
       const head = svg('circle', { cx: X0, cy: mid, r: 9, class: 'worm__head', fill: colourOf(0) }, chart);
-      return { revealRect, head, x, y, colourOf, marks, endX: x(last.t), segments: d.segments };
+      return { revealRect, head, glow, x, y, colourOf, marks, endX: x(last.t), segments: d.segments, tAt: X => (X - X0) / (X1 - X0) * span };
     }
 
     // Draws the line in from the left by elapsed time (so it's the same at 50 or 60 fps), the head
@@ -195,8 +196,29 @@
         }
         return null; // in a gap
       };
+      // How fast the line is moving: the margin change from goals in the last RATE_WINDOW of game
+      // time (a period is 1), the older ones counting less, as a share of the busiest moment in the game.
+      const RATE_WINDOW = 0.2; // two minutes of a 10 minute quarter
+      const moves = [];
+      for (const seg of p.segments) for (let i = 1; i < seg.length; i++) {
+        const dm = Math.abs(seg[i].margin - seg[i - 1].margin);
+        if (dm) moves.push({ t: seg[i].t, dm });
+      }
+      const rateAt = t => moves.reduce((sum, e) => (e.t <= t && e.t > t - RATE_WINDOW ? sum + e.dm * (1 - (t - e.t) / RATE_WINDOW) : sum), 0);
+      const busiest = Math.max(1, ...moves.map(e => rateAt(e.t)));
+      let heat = 0; // flares up at once and fades over about a quarter of a second, so a quick burst still shows
+      const glowAt = (X, Y, colour, dtMs) => {
+        const target = Math.min(1, rateAt(p.tAt(X)) / busiest);
+        heat = target > heat ? target : heat + (target - heat) * Math.min(1, dtMs / 250);
+        p.glow.setAttribute('cx', X); p.glow.setAttribute('cy', Y); p.glow.setAttribute('fill', colour);
+        p.glow.setAttribute('r', (10 + 40 * heat).toFixed(1));
+        p.glow.style.opacity = (0.1 + 0.9 * heat).toFixed(3);
+        p.head.setAttribute('r', (9 + 6 * heat).toFixed(1));
+      };
       const finish = () => {
         p.revealRect.setAttribute('width', W);
+        p.glow.style.opacity = 0;
+        p.head.setAttribute('r', 9);
         const m = yAt(p.endX);
         p.head.setAttribute('cx', p.endX);
         if (m !== null) { p.head.setAttribute('cy', p.y(m)); p.head.setAttribute('fill', p.colourOf(m)); }
@@ -205,16 +227,22 @@
       if (!DRAW_MS) { finish(); return; }
       p.head.style.opacity = 0;
       const ease = t => (t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-      let start = null;
+      let start = null, prev = null;
       const DELAY = 600; // after the card has risen in
       function frame(now) {
         if (start === null) start = now;
+        const dtMs = Math.min(100, prev === null ? 0 : now - prev);
+        prev = now;
         const t = Math.min(1, Math.max(0, (now - start - DELAY) / DRAW_MS));
         const X = X0 + (p.endX - X0) * ease(t);
         p.revealRect.setAttribute('width', X + 1);
         const m = yAt(X);
         p.head.style.opacity = m === null || t === 0 ? 0 : 1;
-        if (m !== null) { p.head.setAttribute('cx', X); p.head.setAttribute('cy', p.y(m)); p.head.setAttribute('fill', p.colourOf(m)); }
+        if (m === null || t === 0) p.glow.style.opacity = 0;
+        if (m !== null) {
+          p.head.setAttribute('cx', X); p.head.setAttribute('cy', p.y(m)); p.head.setAttribute('fill', p.colourOf(m));
+          if (t > 0) glowAt(X, p.y(m), p.colourOf(m), dtMs);
+        }
         if (t < 1) requestAnimationFrame(frame); else finish();
       }
       requestAnimationFrame(frame);
