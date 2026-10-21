@@ -64,6 +64,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The same tests as on pull requests (tests.yml), so a manual build of a broken commit stops here.
+      - run: npm test
       # ffmpeg converts ProRes clips added to the Studio scene (vendor/ffmpeg/build.sh). Built from
       # source once and cached until build.sh changes (its versions are in it).
       - name: Cache ffmpeg

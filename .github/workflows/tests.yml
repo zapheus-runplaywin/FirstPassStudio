@@ -1,0 +1,55 @@
+# Runs the tests on every pull request (and on main after a merge), so a change that breaks
+# something shows as a red check on the pull request before it's merged.
+#   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing and more.
+#   Stream Deck plugin: plugins/studio-deck's type check and tests.
+# PlayHQ is never called: the tests that need it run against recorded answers.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same pull request replaces a run still going.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  studio:
+    name: Studio
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      # Electron itself isn't needed to test Studio, only its packages.
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm test
+
+  stream-deck:
+    name: Stream Deck plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: plugins/studio-deck
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: plugins/studio-deck/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
