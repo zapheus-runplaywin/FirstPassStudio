@@ -16,6 +16,7 @@
   [hidden] { display: none !important; }
   .card { position: absolute; background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-sizing: border-box;
     border-top: 6px solid var(--pink); box-shadow: 0 14px 40px rgba(0, 0, 0, .45); animation: rise .5s ease-out both;
+    --size: .8; /* drawn at 80% of its layout size (on top of fit.js's scale), so it takes less of the frame */
     --home: var(--yellow); --away: var(--pink); --home-text: var(--text-on-yellow); --away-text: #fff; }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
   .head { display: flex; align-items: center; gap: 18px; padding: 16px 26px 6px; }
@@ -66,19 +67,19 @@
 
   /* ── Horizontal: lanes for each team, oldest goal on the left ─────────────────────── */
   /* Placed in the space between the title and the scoreboard (fit.js sets --zone-* and scales the card down if it's too big). */
-  .card--h { --ball: 78px; --slot: 104px; left: 50%; transform: translateX(-50%) scale(var(--fit, 1)); transform: translateX(round(-50%, 1px)) scale(var(--fit, 1)); bottom: calc(1080px - var(--zone-bottom, 894px)); transform-origin: bottom center; }
+  .card--h { --ball: 72px; --slot: 104px; left: 50%; transform: translateX(-50%) scale(calc(var(--fit, 1) * var(--size))); transform: translateX(round(-50%, 1px)) scale(calc(var(--fit, 1) * var(--size))); bottom: calc(1080px - var(--zone-bottom, 894px)); transform-origin: bottom center; }
   body.top .card--h { top: var(--zone-top, 244px); bottom: auto; transform-origin: top center; }
-  body.middle .card--h { top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); bottom: auto; transform: translate(-50%, -50%) scale(var(--fit, 1)); transform: translate(round(-50%, 1px), round(-50%, 1px)) scale(var(--fit, 1)); transform-origin: center; }
+  body.middle .card--h { top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); bottom: auto; transform: translate(-50%, -50%) scale(calc(var(--fit, 1) * var(--size))); transform: translate(round(-50%, 1px), round(-50%, 1px)) scale(calc(var(--fit, 1) * var(--size))); transform-origin: center; }
   .card--h .grid { display: grid; grid-template-columns: 330px auto; padding: 6px 26px 14px; column-gap: 14px; }
-  .card--h .team { display: grid; grid-template-columns: 64px minmax(0, 1fr) 58px; align-items: center; gap: 12px; height: 96px; }
+  .card--h .team { display: grid; grid-template-columns: 64px minmax(0, 1fr) 58px; align-items: center; gap: 12px; height: 86px; }
   .card--h .team .badge { width: 64px; height: 64px; }
   .card--h .team .name { font-size: 26px; }
   .card--h .team .count { font-size: 34px; padding: 4px 0; background: var(--c); color: var(--t); }
   .card--h .team--home { --c: var(--home); --t: var(--home-text); }
   .card--h .team--away { --c: var(--away); --t: var(--away-text); }
-  .card--h .worm-label { display: flex; align-items: center; height: 70px; color: var(--muted); font-size: 15px; font-weight: 800;
+  .card--h .worm-label { display: flex; align-items: center; height: 50px; color: var(--muted); font-size: 15px; font-weight: 800;
     letter-spacing: .12em; text-transform: uppercase; }
-  .card--h .track { position: relative; display: grid; grid-template-rows: 96px 70px 96px; }
+  .card--h .track { position: relative; display: grid; grid-template-rows: 86px 50px 86px; }
   .card--h .lane { display: flex; }
   .card--h .slot { width: var(--slot); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: relative; }
   .card--h .lane--home .slot { justify-content: flex-end; padding-bottom: 2px; }
@@ -87,32 +88,35 @@
   .card--h .slot.is-break::before { content: ""; position: absolute; left: -1px; top: -6px; bottom: -6px; border-left: 2px dashed rgba(255, 255, 255, .35); }
   .qlabel { position: absolute; z-index: 2; background: var(--yellow); color: var(--text-on-yellow); border-radius: 4px; padding: 2px 6px;
     font-size: 13px; font-weight: 900; letter-spacing: .06em; line-height: 1.2; }
-  .card--h .qlabel { left: 6px; top: -58px; }
-  .card--h .lane--away .slot.is-break::before { top: -76px; }
-  .card--h .worm { width: 100%; height: 70px; display: block; }
+  .card--h .qlabel { left: 6px; top: -48px; }
+  .card--h .lane--away .slot.is-break::before { top: -56px; }
+  .card--h .worm { width: 100%; height: 50px; display: block; }
 
   /* ── Vertical: home goals on the left, away on the right, newest at the bottom ───── */
-  .card--v { --ball: 58px; width: 500px; right: 60px; top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); transform: translateY(-50%) scale(var(--fit, 1)); transform: translateY(round(-50%, 1px)) scale(var(--fit, 1)); transform-origin: right center; }
+  .card--v { --ball: 48px; width: 400px; right: 60px; top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); transform: translateY(-50%) scale(calc(var(--fit, 1) * var(--size))); transform: translateY(round(-50%, 1px)) scale(calc(var(--fit, 1) * var(--size))); transform-origin: right center; }
   body.left .card--v { right: auto; left: 60px; transform-origin: left center; }
-  .card--v .run { font-size: 18px; padding: 10px 16px; }
+  .card--v .run { font-size: 18px; padding: 10px 14px; }
+  .card--v .run .says { white-space: nowrap; overflow: hidden; min-width: 0; }
   .card--v .head { justify-content: center; padding: 18px 20px 8px; }
-  .card--v .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 18px 12px; }
+  .card--v .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 14px 12px; }
   .card--v .team { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 12px; border-radius: 10px; background: var(--c); color: var(--t); min-width: 0; }
   .card--v .team--home { --c: var(--home); --t: var(--home-text); }
   .card--v .team--away { --c: var(--away); --t: var(--away-text); }
-  .card--v .team .badge { width: 70px; height: 70px; }
-  .card--v .team .name { font-size: 19px; max-width: 100%; text-align: center; }
+  .card--v .team .badge { width: 56px; height: 56px; }
+  /* Long names wrap onto a second line rather than shrinking to nothing in the narrow column */
+  .card--v .team .name { font-size: 21px; max-width: 100%; text-align: center; white-space: normal; overflow-wrap: break-word;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .card--v .team .count { font-size: 30px; line-height: 1; }
   .card--v .team .count small { display: block; font-size: 12px; letter-spacing: .1em; opacity: .8; margin-top: 2px; }
-  .card--v .rows { position: relative; padding: 2px 18px 12px; }
-  .card--v .row { display: grid; grid-template-columns: 1fr 92px 1fr; align-items: center; height: 66px; }
-  .card--v .cell { display: flex; align-items: center; gap: 10px; }
+  .card--v .rows { position: relative; padding: 2px 14px 12px; }
+  .card--v .row { display: grid; grid-template-columns: 1fr 64px 1fr; align-items: center; height: 52px; }
+  .card--v .cell { display: flex; align-items: center; gap: 8px; }
   .card--v .cell--home { justify-content: flex-end; }
   .card--v .cell--away { justify-content: flex-start; }
   .card--v .cell--home .when { order: -1; }
   .card--v .row.is-break { border-top: 2px dashed rgba(255, 255, 255, .35); position: relative; }
   .card--v .qlabel { left: 0; top: -12px; }
-  .card--v .worm { position: absolute; left: calc(50% - 46px); width: 92px; top: 2px; display: block; }
+  .card--v .worm { position: absolute; left: calc(50% - 32px); width: 64px; top: 2px; display: block; }
   .card--v .row .empty { margin: 0 auto; grid-column: 1 / -1; width: 36px; height: 36px; }
   .gap { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 </style>
@@ -136,7 +140,7 @@
     card.classList.add(vertical ? 'card--v' : 'card--h');
     if (!vertical && count > 10) card.style.setProperty('--slot', `${Math.max(64, Math.floor(1040 / count))}px`);
     if (!vertical && count > 13) card.style.setProperty('--ball', `${Math.max(48, Math.floor(1040 / count) - 18)}px`);
-    if (vertical && count > 10) card.style.setProperty('--ball', '46px');
+    if (vertical && count > 10) card.style.setProperty('--ball', '42px');
 
     const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
     const svgEl = (tag, attrs) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
@@ -217,7 +221,7 @@
       bar.append(el('span', 'chip'));
       const txt = r.goals === 1 ? `Last goal: ${team.name}` : vertical ? `${team.name}: ${r.goals} in a row`
         : `${team.name}: ${r.goals} goals in a row${r.points !== r.goals ? ` (${r.points} points)` : ''}`;
-      bar.append(el('span', '', txt));
+      bar.append(el('span', 'says', txt));
       if (hot) bar.prepend(el('span', 'flame', '🔥'));
       return bar;
     }
@@ -260,7 +264,7 @@
           lanes[side].append(slot);
         }
       }
-      track.append(lanes.home, worm(goals, slotW * count, 70, slotW, 0), lanes.away);
+      track.append(lanes.home, worm(goals, slotW * count, 50, slotW, 0), lanes.away);
       grid.append(teams, track);
       card.replaceChildren(head(), grid, runBar());
       fit(homeName); fit(awayName);
@@ -278,7 +282,7 @@
         teams.append(box);
       }
       const rows = el('div', 'rows');
-      const rowH = 66;
+      const rowH = 52;
       for (let i = 0; i < count; i++) {
         const g = goals[i], row = el('div', 'row');
         if (!g) { row.append(el('div', 'empty')); rows.append(row); continue; }
@@ -291,11 +295,13 @@
         row.append(home, el('div', ''), away);
         rows.append(row);
       }
-      const svg = worm(goals, 92, rowH * count, rowH, 0);
+      const svg = worm(goals, 64, rowH * count, rowH, 0);
       svg.style.height = `${rowH * count}px`;
       rows.append(svg);
       card.replaceChildren(head(), teams, rows, runBar());
       names.forEach(n => fit(n, 11));
+      const says = card.querySelector('.run .says');
+      if (says) fit(says, 12);
     }
 
     // Slide the goals that were already showing from where they were to where they are now.
@@ -336,6 +342,8 @@
     }
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(load);
     setInterval(load, 2000);
+    // The competition font can finish loading after the first draw; draw again so team names are sized in it.
+    if (document.fonts) document.fonts.addEventListener('loadingdone', () => { if (data) render(); });
   </script>
 </body>
 </html>
