@@ -53,7 +53,7 @@ test('every file listed in build.files is in the repository or built by the Mac 
 });
 
 test('the files Studio reads next to itself at run time are packed', () => {
-  for (const rel of ['config.json', 'package.json', 'public/index.html', 'public/studio.css', 'desktop/splash.html', 'desktop/offair.html',
+  for (const rel of ['config.json', 'package.json', 'public/graphics.html', 'public/output.html', 'public/studio.css', 'desktop/splash.html', 'desktop/offair.html',
     'desktop/trayTemplate.png', 'desktop/trayTemplate@2x.png', ...Object.keys(BUILT)]) {
     assert.ok(packed(rel), `${rel} is used by Studio but not listed in package.json build.files`);
   }

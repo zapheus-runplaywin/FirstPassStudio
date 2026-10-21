@@ -31,7 +31,7 @@
 <body class="fp">
 <header class="fp-bar">
   <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
-  <nav><a href="/output.html">Output</a><a href="/" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck</a></nav>
+  <nav><a href="/output.html">Output</a><a href="/graphics.html" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck</a></nav>
 </header>
 <main>
   <h1>Graphics</h1>
@@ -309,7 +309,7 @@
     <h2>Mac app</h2>
     <p class="page__help">FirstPass Studio is a Mac app for Apple silicon Macs (M1 and later). Open it from Applications or Spotlight
       and the <b>1P</b> icon appears in the menu bar, off air. Choose <b>Open Studio</b> (or any page) there to put Studio on air;
-      the home page opens in the app's own window.</p>
+      the Output page opens in the app's own window.</p>
     <p class="page__help"><b>Studio only runs while a Studio window is open.</b> Opening a window (<b>Open Studio</b> or any page
       in the 1P menu, ⌘N) puts Studio on air: it serves the graphics and the Stream Deck links, talks to PlayHQ, and restarts by itself if it stops.
       Closing the last Studio window takes it off air, so nothing talks to PlayHQ and the graphics and Stream Deck get no answer until a window opens again.
@@ -610,7 +610,7 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
       list.appendChild(card);
     });
   } catch (err) {
-    console.warn("Home page could not load from PlayHQ:", err.message);
+    console.warn("Graphics page could not load from PlayHQ:", err.message);
     fetch('/api/setup').then(r => r.json()).then(d => { const c = d.competitions.find(x => x.active); if (c) document.getElementById('compNow').textContent = `In use now: ${c.name}.`; }).catch(() => {});
     sub.textContent = '';
     list.innerHTML = '<div class="card error"></div>';

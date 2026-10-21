@@ -53,7 +53,7 @@ module.exports = {
   APP_DIR,
   DATA_DIR,
   LOCAL_DIR,
-  // Where the settings are, for the setup and home pages: { local } or { provider, name, folder, computer }.
+  // Where the settings are, for the setup and Graphics pages: { local } or { provider, name, folder, computer }.
   location: process.env.FIRSTPASS_DATA_DIR && DATA_DIR !== LOCATION.dataDir ? { local: true, dataDir: DATA_DIR } : LOCATION,
   IMPORTS_DIR: path.join(APP_DIR, 'imports'),
   file: (...parts) => path.join(DATA_DIR, ...parts),
