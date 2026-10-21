@@ -566,6 +566,69 @@ paths:
                   paused: { type: boolean }
         '404': { description: No sequence by that name }
 
+  /deck/music/{action}:
+    get:
+      tags: [Scene]
+      summary: Play, pause, stop or skip the music
+      description: |
+        The Output page's Music player. `toggle` plays or pauses, `play` plays the loaded song from the start, `pause` and `resume`,
+        `stop`, `fade` (fade out and stop), `next` and `prev` (the playlist's next or previous song).
+      operationId: music
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [toggle, play, pause, resume, stop, fade, next, prev] }
+        - name: fade
+          in: query
+          description: Seconds to fade over (0 cuts). Without it, the player's fade time.
+          schema: { type: number }
+      responses:
+        '200':
+          description: Done. Returns the song and whether it's playing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  track: { type: string, nullable: true }
+                  status: { type: string, enum: [playing, paused, stopped] }
+                  muted: { type: boolean }
+                  ducked: { type: boolean }
+        '409': { description: Nothing loaded to play, or nothing playing to pause }
+
+  /deck/music/{what}/{name}:
+    get:
+      tags: [Scene]
+      summary: Load a song or playlist, or mute or duck the music
+      description: |
+        `load/<song>` loads a song from the media folder (named lower case with dashes for spaces, without its ending), ready to play;
+        `playlist/<name>` loads a playlist. Add `?play` to start it straight away. `mute/on|off|toggle` silences the music and
+        `duck/on|off|toggle` dips it low, both keeping it running.
+      operationId: musicLoad
+      parameters:
+        - name: what
+          in: path
+          required: true
+          schema: { type: string, enum: [load, playlist, mute, duck] }
+        - name: name
+          in: path
+          required: true
+          description: The song or playlist, or on, off or toggle for mute and duck
+          schema: { type: string }
+        - name: play
+          in: query
+          description: Start the song or playlist straight away
+          schema: { type: string }
+        - name: fade
+          in: query
+          description: Seconds to fade in over when it plays (0 cuts)
+          schema: { type: number }
+      responses:
+        '200': { description: Done. }
+        '404': { description: No song or playlist by that name }
+
   /deck/output/{action}:
     get:
       tags: [Scene]

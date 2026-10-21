@@ -7,7 +7,7 @@
   The scene built on the Output page (output.html): every source drawn as a layer on one
   1920 x 1080 transparent frame, top layer first, shown and hidden with each source's fade.
   It follows the helper's scene straight away (server-sent events), so a Stream Deck press
-  shows at once. ?mute=1 silences every video (the Output page's preview). The
+  shows at once. ?mute=1 silences every video and the music (the Output page's preview). The
   other pages still work on their own at their own links.
   The Mac app's display outputs (desktop/outputs.js) open it full screen with ?fit=1 (scales the
   frame to the window), ?bg=<hex> (a background colour: black for fill, the chroma colour for chroma)
@@ -55,6 +55,7 @@
       if (v.paused) v.play().catch(err => { if (err.name === 'NotAllowedError') fallBack(); });
       setTimeout(() => { if (L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
     }
+    renderMusic(music);
   };
   // Called by the Output page during a click: Safari lets a video play sound later only if it was played
   // during a click, so start and stop the hidden ones too (muted as they are, so nothing is heard).
@@ -63,13 +64,14 @@
       const v = L.el.querySelector('video');
       if (v && L.src && !L.src.visible && v.paused) { v.play().then(() => v.pause()).catch(() => {}); }
     }
+    if (audio.paused) audio.play().then(() => { if (!music || music.status !== 'playing') audio.pause(); }).catch(() => {});
     window.setSilent(false);
   };
   // For the Output page: how many shown videos play sound here, and whether the browser blocks it.
   window.soundState = () => {
     let videos = 0;
     for (const L of layers.values()) if (L.src && L.src.type === 'video' && L.src.visible && L.src.sound) videos++;
-    return { videos, blocked };
+    return { videos, blocked, music: !!music && music.status === 'playing' };
   };
   if (/^[0-9a-f]{6}$/i.test(params.get('bg') || '')) document.documentElement.style.background = document.body.style.background = '#' + params.get('bg');
   if (params.get('key') === '1') { document.body.classList.add('key'); document.documentElement.style.background = document.body.style.background = '#000'; }
@@ -217,6 +219,49 @@
     }
   }
 
+  // ─── Music (music.js) ───────────────────────────────────────────────────
+  // Studio keeps the player: the track, where it is (pos: sec at time at), and its fade (gain: from, to,
+  // at, ms). Each scene window plays it, unless it's silent, so music goes wherever video sound goes.
+  const audio = new Audio();
+  audio.preload = 'auto';
+  let music = null, musicPlayId = -1, level = 0;
+  const musicPos = m => m.status === 'playing' ? m.pos.sec + (Date.now() - m.pos.at) / 1000 : m.pos.sec;
+  function musicGain(m) {
+    if (!m || m.status === 'stopped') return 0;
+    const g = m.gain, t = Date.now();
+    const fade = !g.ms || t >= g.at + g.ms ? g.to : g.from + (g.to - g.from) * Math.max(0, (t - g.at) / g.ms);
+    return fade * (m.volume / 100) * (m.level / 100) * (m.ducked ? m.duckTo / 100 : 1) * (m.muted ? 0 : 1);
+  }
+  // The volume follows the fade, easing mute and duck in and out.
+  setInterval(() => {
+    const target = silent ? 0 : musicGain(music);
+    level += (target - level) * 0.3;
+    if (Math.abs(target - level) < 0.002) level = target;
+    audio.volume = Math.max(0, Math.min(1, level));
+  }, 50);
+  function seek(sec) {
+    if (audio.readyState >= 1) { try { audio.currentTime = sec; } catch {} return; }
+    audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = music ? musicPos(music) : sec; } catch {} }, { once: true });
+  }
+  function renderMusic(m) {
+    music = m || null;
+    if (!music || !music.track || music.status === 'stopped' || silent) { if (!audio.paused) audio.pause(); if (!music || !music.track) audio.removeAttribute('src'); return; }
+    const want = '/media/' + encodeURIComponent(music.track);
+    if (audio.getAttribute('src') !== want) audio.src = want;
+    const pos = musicPos(music);
+    if (music.playId !== musicPlayId || Math.abs(audio.currentTime - pos) > 1.5) seek(pos);
+    musicPlayId = music.playId;
+    if (music.status === 'playing' && audio.paused) audio.play().catch(err => {
+      if (err.name === 'NotAllowedError') { blocked = true; console.warn('Music is waiting: this browser blocks sound until the page is clicked'); }
+      else console.warn(`Music would not play: ${err.message}`);
+    });
+    if (music.status === 'paused' && !audio.paused) audio.pause();
+  }
+  // Studio moves on when the track's length is up; this covers a track whose length it couldn't measure.
+  audio.addEventListener('ended', () => {
+    if (music && music.status === 'playing') fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'musicEnded', playId: music.playId }) }).catch(() => {});
+  });
+
   function render(scene) {
     const seen = new Set();
     scene.sources.forEach((s, i) => {
@@ -227,6 +272,7 @@
       update(L, s, scene.sources.length - i);
     });
     for (const [id, L] of layers) if (!seen.has(id)) { L.el.remove(); layers.delete(id); }
+    renderMusic(scene.music);
     first = false;
   }
 

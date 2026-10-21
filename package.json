@@ -39,6 +39,7 @@
       "migrations.js",
       "linkhost.js",
       "sequences.js",
+      "music.js",
       "config.json",
       "public/**/*",
       "imports/**/*",

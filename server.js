@@ -2685,7 +2685,7 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/deck/')) {
       const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);
       // The scene's links: /deck/layer/<name>/on|off|toggle|restart and /deck/layers/off.
-      const layer = scene.deck(parts);
+      const layer = scene.deck(parts, q);
       if (layer) return send(res, layer.status, layer.body);
       // The display outputs: /deck/output/on|off|toggle.
       const output = outputs.deck(parts);

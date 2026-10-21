@@ -289,6 +289,12 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/delay`, `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
+- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; every unmuted scene.html plays it with an
+  `<audio>` element, so it follows video sound. Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
+  files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
+  pauses under a visible video with sound on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
+  startAtSec, fadeInSec; `musicEnd`: fade, cut, or continue into a `then: { type: 'sequence' }`), and scenes and sequences can be `quiet`.
+  Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
   **Live View** when the Mac is busy. **Scene View sound** plays the scene's sound from the Scene View, with or without an output on;
   a display or Blackmagic output is muted while it does, so it never plays twice. It goes back to the outputs when the Output page closes, and only one Output
