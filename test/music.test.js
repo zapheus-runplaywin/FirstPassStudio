@@ -182,7 +182,7 @@ test("a sequence's own music wins over the music of a sequence inside it", () =>
   assert.equal(m().playId, playId, 'the same song carries on');
 });
 
-test('Quiet the music: a scene ducks the player, the next scene brings it back; a sequence\'s music fades out', () => {
+test('Quiet the music: a scene ducks the player, the next scene brings it back; a sequence\'s music ducks too', () => {
   reset();
   ok({ type: 'show', name: 'Interview' });
   ok({ type: 'sceneSave', name: 'Interview' });
@@ -195,13 +195,29 @@ test('Quiet the music: a scene ducks the player, the next scene brings it back; 
   assert.equal(m().status, 'playing');
   ok({ type: 'sceneGo', scene: 'Game' });
   assert.equal(m().ducked, false);
-  // A sequence's music stops instead.
-  ok({ type: 'seqAdd', changes: { name: 'Break', music: { track: 'Break.mp3' }, steps: [{ sources: [id('Ladder')], length: { type: 'next' } }] } });
+  // In a sequence, a quiet scene step ducks the sequence's music, and it comes back up as the sequence moves on.
+  ok({ type: 'seqAdd', changes: { name: 'Break', music: { track: 'Walk out.m4a' }, steps: [
+    { sources: [id('Ladder')], length: { type: 'time', sec: 10 } },
+    { kind: 'scene', scene: st().scenes.find(s => s.name === 'Interview').id, length: { type: 'time', sec: 10 } },
+    { sources: [id('Ladder')], length: { type: 'time', sec: 10 } }] } });
   ok({ type: 'seqPlay', sequence: 'Break' });
-  ok({ type: 'sceneGo', scene: 'Interview' });
-  wait(3);
-  assert.equal(m().status, 'stopped');
+  assert.equal(m().track, 'Walk out.m4a');
+  wait(10);
+  assert.equal(m().ducked, true, 'the interview ducks it');
+  assert.equal(m().status, 'playing', 'and it keeps playing');
+  wait(10);
+  assert.equal(m().ducked, false, 'back up for the next step');
+  assert.equal(m().track, 'Walk out.m4a');
+  // Ending on the quiet scene step brings it back up too.
+  ok({ type: 'seqStop' });
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  ok({ type: 'seqAdd', changes: { name: 'Chat', steps: [{ kind: 'scene', scene: st().scenes.find(s => s.name === 'Interview').id, length: { type: 'time', sec: 10 } }] } });
+  ok({ type: 'seqPlay', sequence: 'Chat' });
+  assert.equal(m().ducked, true);
+  wait(10);
+  assert.equal(st().playing, null);
   assert.equal(m().ducked, false);
+  assert.equal(m().status, 'playing');  wait(4); // let the duck come all the way back up
 });
 
 test('the music links: toggle, fade, mute and duck, and ?fade=0 cuts', () => {

@@ -200,6 +200,7 @@ function loops(sq) {
 // What a sequence shows first, kept on when it takes over from another.
 const firstOf = sq => flatten(sq)[0]?.sources || [];
 const current = () => run && run.steps ? run.steps[run.step] : null;
+const quietStep = step => step?.kind === 'scene' && !!api.scene(step.scene)?.quiet;
 // Whose music a step plays: the sequence's own, else that of the outermost sequence inside it (on the way
 // to the step) that has some, with the step it's at in that one.
 function musicOf(step) {
@@ -315,6 +316,8 @@ function enter(i) {
   // A scene step goes to the scene (without stopping the sequence): the sources it sets are the scene's
   // now, the base the next steps play over, and they stay as the scene left them when the sequence ends.
   if (sc) { api.goTo(sc, true); for (const id of Object.keys(sc.states)) run.shown.delete(id); }
+  // A scene step with Quiet the music ducked it: the music comes back up as the sequence moves on.
+  if (quietStep(before) && !(sc && sc.quiet)) music.quiet(sq.quiet);
   Object.assign(run, { step: i, stepAt: now(), paused: false, pausedLeft: null, ready: false, waiting: null });
   if (step.length.type === 'now') run.endsAt = now();
   else if (step.length.type === 'time') run.endsAt = now() + step.length.sec * 1000;
@@ -385,6 +388,8 @@ function finish(why) {
     // The scene decides about the sources it sets; the sequence turns off its own that the scene leaves alone.
     for (const id of [...ended.shown]) if (!sc.states[id]) turnOff(id);
   } else if (then.type !== 'leave') for (const id of [...ended.shown]) turnOff(id);
+  // Ending on a scene step that quieted the music brings it back up, unless a scene or sequence takes over.
+  if (quietStep(ended.steps[ended.step]) && !sc && !next) music.quiet(false);
   run = null;
   log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${next ? `, then "${next.name}"` : sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'sequence' ? ', its next sequence has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}`);
   if (sc) api.goTo(sc);
