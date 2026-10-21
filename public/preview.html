@@ -8,7 +8,7 @@
 <!--
   The Output page's preview in its own window (Pop out on the Output page), to resize it, put it
   on another screen or watch it full screen while testing. It shows the scene on a checkerboard,
-  scaled to fit the window, and plays the scene's sound when Scene View sound is ticked, exactly as
+  scaled to fit the window, and plays the scene's sound while Video output is off, exactly as
   the preview on the Output page does (that one turns off while this window is open, so the scene
   only runs once more). Closing this window puts the preview back on the Output page.
   A floating Sources panel shows or hides each source while you watch (its – button tucks it away, kept per
@@ -66,8 +66,8 @@
   addEventListener('resize', fit);
   fit();
 
-  // Scene View sound, the same way as the Output page's Scene View: ask the helper for the sound (which
-  // mutes the outputs while this window has it), check in every few seconds, let go on closing.
+  // The Scene View's sound, the same way as the Output page's Scene View: only while no video output is on
+  // (with one on, the output carries the sound), ask the helper for it, check in every few seconds, let go on closing.
   // Opening the window takes the sound, since the Output page's own preview has just turned off.
   const listenId = 'popout-' + Math.random().toString(36).slice(2);
   let wanted = false, sound = false, note = '';
@@ -85,13 +85,13 @@
     try { s?.setSilent?.(!sound); } catch {}
     let st = null;
     try { st = s?.soundState?.(); } catch {}
-    const muted = o && o.showing && o.showing.length ? ' The outputs are muted.' : '';
     // The same line here ("here") and under the Output page's preview ("in the Scene View window").
-    const line = (here, there) => !wanted ? ''
+    const line = (here, there) => !o ? ''
+      : !wanted ? 'Silent: a video output is on, so the output plays the sound.'
       : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the Scene View window'} to bring it ${here ? 'to this window' : 'there'}.`
       : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the Scene View window'} to hear it.`
-      : st && !st.videos ? `Sound plays ${there} once a video with Sound ticked is on.${muted}`
-      : `Sound plays ${there}, through this Mac's sound output.${muted}`;
+      : st && !st.videos ? `Sound plays ${there} once a video with Sound ticked is on.`
+      : `Sound plays ${there}, through this Mac's sound output.`;
     note = line(false, 'in the Scene View window');
     // Only the reasons it's silent show over the picture; the Output page shows every line.
     $('note').textContent = wanted && (!sound || (st && st.blocked)) ? line(true, 'here') : '';

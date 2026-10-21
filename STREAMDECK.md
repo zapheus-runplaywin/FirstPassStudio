@@ -268,7 +268,7 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 ## Music (Output page)
 
 The Output page's **Music** player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF), one at a time or from a
-playlist. Music plays wherever video sound plays (the outputs, or the Output page's Scene View sound) and is never heard twice.
+playlist. Music plays wherever video sound plays (the outputs, or the Output page's Scene View while Video output is off) and is never heard twice.
 
 | Button | Link |
 |---|---|

@@ -176,7 +176,7 @@
       <li><b>Music:</b> the Output page's <b>Music</b> player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF; use music you're licensed to stream, as Apple Music songs
         are copy-protected), one song or a <b>playlist</b> (shuffled or not, starting again after the last or not). <b>Add a song</b> with <b>Even out its loudness</b> ticked
         levels it to the same loudness as the others and keeps the original in the media folder's <code>originals</code>. It plays wherever video sound plays (the outputs, or
-        Scene View sound), never twice. Play fades in over the <b>fade in</b> time; Pause and Stop fade out over the <b>fade out</b> time (slower by default); <b>Duck</b> (dip it low, keeping it running) goes down over the fade out time and back up over the fade in time (or half of each: a setting); <b>Mute</b> keeps it running. While a video with its
+        the Scene View while Video output is off), never twice. Play fades in over the <b>fade in</b> time; Pause and Stop fade out over the <b>fade out</b> time (slower by default); <b>Duck</b> (dip it low, keeping it running) goes down over the fade out time and back up over the fade in time (or half of each: a setting); <b>Mute</b> keeps it running. While a video with its
         sound on plays, the music fades out and pauses, then fades back in from where it was (or lowers, or carries on: a setting).
         A <b>sequence</b> can bring its own music: a song or playlist starting at one of its steps, from a <b>start mark</b> (type it, or <b>Listen</b> and press <b>Mark here</b>),
         with a fade in; it fades out so it's gone as the sequence ends (when its last step has a set time; ended early, it fades from then), or cuts as it ends, or <b>carries on into the next sequence</b> when the sequence's Then plays another one (Run-up then Walk out
@@ -187,8 +187,7 @@
         <code>/deck/music/mute/toggle</code>, <code>/deck/music/duck/toggle</code>, <code>/deck/music/load/&lt;song&gt;</code> and <code>/deck/music/playlist/&lt;name&gt;</code>
         (<code>?play</code> starts it too); <code>?fade=2</code> on any of them fades over 2 seconds, <code>?fade=0</code> cuts.</li>
       <li><b>Scene View:</b> the Output page shows the scene as it is right now (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick <b>Live View</b> when the Mac is busy.
-        <b>Scene View sound</b> plays the sound from the Scene View, with or without an output on; a display, Blackmagic or NDI output is muted while it does, so it never plays twice;
-        it goes back to the outputs when the Output page closes. <b>Pop out</b> shows the Scene View in its own window to resize, move to another screen
+        The Scene View plays the scene's sound only while <b>Video output</b> is off (for testing); with a display, Blackmagic or NDI output on, the output carries the sound and the Scene View is silent, so it never plays twice. <b>Pop out</b> shows the Scene View in its own window to resize, move to another screen
         or make full screen while testing (with the same sound), with a floating Sources list to show or hide each source from there; the Output page's own Scene View turns off while it's open and comes back when it closes.</li>
       <li><b>Display output (Mac app):</b> sends the scene full screen to the Mac's extra displays (HDMI into a switcher).
         <b>Chroma</b> puts it over a solid colour on one display (green, blue or any colour) for a switcher that keys on that colour.

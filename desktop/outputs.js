@@ -66,8 +66,6 @@ module.exports = function outputs({ port, log }) {
       if (!d) continue;
       const url = pageFor(w);
       const o = open.get(id);
-      // Muted while the Output page's preview plays the sound, so it isn't heard twice.
-      if (o) o.win.webContents.setAudioMuted(!!w.muted);
       if (o && o.url === url) continue;
       if (o) { o.url = url; o.win.loadURL(url); continue; }
       const win = new BrowserWindow({
@@ -81,7 +79,6 @@ module.exports = function outputs({ port, log }) {
       win.webContents.on('before-input-event', (e, input) => {
         if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); if (helper) helper.postMessage({ type: 'escape' }); }
       });
-      win.webContents.setAudioMuted(!!w.muted);
       // Opens full screen on its display, without taking the focus from the window you're working in.
       win.once('ready-to-show', () => { win.showInactive(); win.setFullScreen(true); });
       // Closed by hand (not by Studio): the output is off, rather than reopening on the next change.

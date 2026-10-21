@@ -45,11 +45,10 @@ module.exports = function decklink({ port, log, onStatus }) {
     if (addon) addon.stop();
   }
 
-  // w: { device, mode, keying, straight, muted } from outputs.js, or null to stop. muted: the Output
-  // page's preview is playing the sound instead, so it isn't heard twice.
+  // w: { device, mode, keying, straight } from outputs.js, or null to stop.
   function show(w) {
     const key = w && JSON.stringify([w.device, w.mode, w.keying, w.straight]);
-    if (key && running?.key === key) { win?.setMuted(w.muted); return; }
+    if (key && running?.key === key) return;
     stop();
     error = '';
     if (!w) return report();
@@ -69,7 +68,7 @@ module.exports = function decklink({ port, log, onStatus }) {
     log(`DeckLink output on ${r.name}: ${running.mode} (${r.width} x ${r.height}, ${r.frameRate} fps), ${w.keying === 'external' ? 'fill and key' : 'fill only'}${w.straight ? ', straight alpha' : ''}`);
 
     win = sceneWindow({
-      port, width: r.width, height: r.height, frameRate: r.frameRate, muted: w.muted, log, label: 'DeckLink output',
+      port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output',
       onFrame: (bitmap, width, height) => addon.frame(bitmap, width, height),
     });
 

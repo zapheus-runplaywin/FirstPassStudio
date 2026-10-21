@@ -16,7 +16,7 @@ const SCENE_READY = `new Promise(done => !document.getElementById('stage') ? don
 
 // onFrame(bitmap, width, height): each new picture, BGRA with premultiplied alpha, at width x height;
 // returns false when the output didn't take it.
-module.exports = function sceneWindow({ port, width, height, frameRate, muted, log, label, onFrame }) {
+module.exports = function sceneWindow({ port, width, height, frameRate, log, label, onFrame }) {
   // The window is the format's full size at one pixel per point, so the scene is drawn 1:1 with no
   // scaling anywhere. (Drawn at half size at twice the density, it came out soft on the Mac, as if
   // drawn at half size and scaled up.) enableLargerThanScreen lets it be bigger than the
@@ -37,7 +37,6 @@ module.exports = function sceneWindow({ port, width, height, frameRate, muted, l
     win.destroy();
     win = make(2);
   }
-  win.webContents.setAudioMuted(!!muted);
   win.webContents.setFrameRate(Math.min(240, Math.ceil(frameRate) || 30));
   const url = `http://localhost:${port}/scene.html?fit=1`;
   let loaded = false;
@@ -80,7 +79,6 @@ module.exports = function sceneWindow({ port, width, height, frameRate, muted, l
   win.loadURL(url);
 
   return {
-    setMuted: m => win?.webContents.setAudioMuted(!!m),
     destroy() { if (win) { win.destroy(); win = null; } },
   };
 };

@@ -39,7 +39,7 @@ let log = () => {};
 let settings = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
-  ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT, previewSound: false,
+  ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT,
 };
 // The Mac app's displays: [{ id, label, width, height, scale, primary }]; null when not run by the app.
 // width x height is the size macOS draws at; scale 2 means it draws each point as 2 x 2 pixels (HiDPI).
@@ -53,9 +53,10 @@ let decklinkStatus = { running: false };
 let ndi = null;
 let ndiStatus = { running: false };
 const port = process.parentPort || null;
-// The Output page whose preview plays the sound (previewSound): { id, until }. Only one at a time, and
-// while it does the outputs are muted, so the same sound never plays twice. It checks in every few
-// seconds; if it stops (the page closed without saying so) the outputs get their sound back.
+// The Output page (or Scene View window) whose Scene View plays the sound: { id, until }. Only while no
+// video output is on (an output on carries the sound itself, so the Scene View is silent and the same sound
+// never plays twice), and only one at a time. It checks in every few seconds; if it stops (the page closed
+// without saying so) it lets go.
 let listener = null;
 const LISTEN_MS = 70000; // a hidden page's timers can slow to once a minute
 
@@ -78,7 +79,6 @@ function clean(s, old = settings) {
     // NDI shows sources as "MAC NAME (this name)", so brackets in it would confuse things.
     ndiName: String(pick('ndiName', '')).replace(/[()\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) || DEFAULT_NDI_NAME,
     ndiFormat: NDI_FORMATS.some(f => f.id === pick('ndiFormat')) ? pick('ndiFormat') : DEFAULT_NDI_FORMAT,
-    previewSound: pick('previewSound', false) === true,
   };
 }
 
@@ -93,16 +93,14 @@ function save() {
   send();
 }
 
-const listening = () => !!(settings.previewSound && listener && listener.until > Date.now());
+// Whether the Scene View may play the sound: only with no video output on.
+const sceneViewSound = () => !outputWindows().length;
+const listening = () => !!(sceneViewSound() && listener && listener.until > Date.now());
 
-// What each display should show now: [{ display, kind: 'fill' | 'key' | 'chroma', color, muted }], or the
-// Blackmagic output: [{ kind: 'decklink', device, mode, keying, straight, muted }], or the NDI output:
-// [{ kind: 'ndi', signal, name, format, color, muted }]. muted: the
-// Output page's preview is playing the sound instead.
-function windows() {
-  const muted = listening();
-  return outputWindows().map(w => ({ ...w, muted }));
-}
+// What each display should show now: [{ display, kind: 'fill' | 'key' | 'chroma', color }], or the
+// Blackmagic output: [{ kind: 'decklink', device, mode, keying, straight }], or the NDI output:
+// [{ kind: 'ndi', signal, name, format, color }]. An output on always plays the scene's sound.
+const windows = () => outputWindows();
 
 // The Blackmagic format to send: the one picked if it's 1080p, else (nothing picked yet, or an interlaced or
 // 720p format saved before they were taken off the Output page, as they look soft) the one the Output page
@@ -147,7 +145,9 @@ function send() {
 function state() {
   return {
     ...settings, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' }, decklinkStatus,
-    ndi: ndi || { ok: false, error: '' }, ndiStatus, ndiFormats: NDI_FORMATS, showing: windows(), listening: listening(),
+    ndi: ndi || { ok: false, error: '' }, ndiStatus, ndiFormats: NDI_FORMATS, showing: windows(),
+    // previewSound: no video output is on, so the Scene View plays the sound (listening: one does now).
+    previewSound: sceneViewSound(), listening: listening(),
   };
 }
 
@@ -155,7 +155,6 @@ function apply(changes) {
   const before = JSON.stringify(settings);
   settings = clean(changes || {});
   if (JSON.stringify(settings) !== before) {
-    if (!settings.previewSound) listener = null;
     listenChanged();
     const w = windows();
     log('info', 'outputs', `Output ${settings.on ? settings.mode : 'off'}${w.length ? `: ${w.map(describe).join(', ')}` : ''}`);
@@ -170,23 +169,24 @@ const label = id => (displays || []).find(d => d.id === id)?.label || `display $
 const deviceName = id => decklink?.devices?.find(d => d.id === id)?.name || 'Blackmagic device';
 const modeName = (id, mode) => decklink?.devices?.find(d => d.id === id)?.modes.find(m => m.mode === mode)?.name || 'video format';
 
-// The preview's sound moving to or from the Output page: mute or unmute the outputs.
+// The sound moving to or from a Scene View (logged; the outputs play it whenever they're on).
 let wasListening = false;
 function listenChanged() {
+  if (listener && !sceneViewSound()) listener = null;
   const now = listening();
   if (now === wasListening) return;
   wasListening = now;
-  log('info', 'outputs', now ? 'Sound from the Output page preview; the outputs are muted' : 'Sound from the outputs again');
-  send();
+  log('info', 'outputs', now ? 'Sound from the Scene View (no video output on)' : 'The Scene View is silent');
 }
 
-// POST /api/outputs/listen { id, on, take }: an Output page asking to play the sound in its preview (on),
-// or letting go of it. take: someone ticked Scene View sound or clicked the Scene View on that page, so it takes
-// the sound from another page. Answers { sound }: whether that page's preview should play sound.
+// POST /api/outputs/listen { id, on, take }: an Output page (or the Scene View window) asking to play the
+// sound in its Scene View (on), or letting go of it. take: someone clicked that Scene View, so it takes the
+// sound from another page. Answers { sound }: whether that Scene View should play sound, which it never
+// does while a video output is on.
 function listen({ id, on, take } = {}) {
   id = String(id || '');
   const mine = listener && listener.id === id;
-  if (on && id && settings.previewSound && (mine || take || !listening())) listener = { id, until: Date.now() + LISTEN_MS };
+  if (on && id && sceneViewSound() && (mine || take || !listening())) listener = { id, until: Date.now() + LISTEN_MS };
   else if (mine) listener = null;
   listenChanged();
   return { sound: listening() && listener.id === id };
@@ -214,35 +214,38 @@ function deck(parts) {
   return { status: 200, body: { ok: true, on: settings.on, mode: settings.mode } };
 }
 
+// A message from the Mac app: its displays, Blackmagic devices, NDI and how they're doing.
+function message(msg) {
+  if (msg.type === 'displays' && Array.isArray(msg.displays)) {
+    displays = msg.displays.map(d => ({ id: String(d.id), label: String(d.label || `Display ${d.id}`), width: d.width, height: d.height, scale: Number(d.scale) || 1, primary: !!d.primary }));
+    send();
+  }
+  if (msg.type === 'decklink') {
+    const before = JSON.stringify(windows());
+    decklink = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), devices: Array.isArray(msg.devices) ? msg.devices : [] };
+    if (JSON.stringify(windows()) !== before) send();
+  }
+  if (msg.type === 'decklinkStatus') decklinkStatus = msg.status || { running: false };
+  if (msg.type === 'ndi') {
+    const before = JSON.stringify(windows());
+    ndi = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), url: String(msg.url || '') };
+    if (JSON.stringify(windows()) !== before) send();
+  }
+  if (msg.type === 'ndiStatus') ndiStatus = msg.status || { running: false };
+  // Esc on an output window turns the output off, in case it covers the screen you work on.
+  if (msg.type === 'escape') apply({ on: false });
+  listenChanged(); // an output may have come or gone
+}
+
 function init(logger) {
   log = logger;
   load();
   setInterval(listenChanged, 5000).unref(); // a preview that stopped checking in
 
   if (port) {
-    port.on('message', e => {
-      const msg = e.data || {};
-      if (msg.type === 'displays' && Array.isArray(msg.displays)) {
-        displays = msg.displays.map(d => ({ id: String(d.id), label: String(d.label || `Display ${d.id}`), width: d.width, height: d.height, scale: Number(d.scale) || 1, primary: !!d.primary }));
-        send();
-      }
-      if (msg.type === 'decklink') {
-        const before = JSON.stringify(windows());
-        decklink = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), devices: Array.isArray(msg.devices) ? msg.devices : [] };
-        if (JSON.stringify(windows()) !== before) send();
-      }
-      if (msg.type === 'decklinkStatus') decklinkStatus = msg.status || { running: false };
-      if (msg.type === 'ndi') {
-        const before = JSON.stringify(windows());
-        ndi = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), url: String(msg.url || '') };
-        if (JSON.stringify(windows()) !== before) send();
-      }
-      if (msg.type === 'ndiStatus') ndiStatus = msg.status || { running: false };
-      // Esc on an output window turns the output off, in case it covers the screen you work on.
-      if (msg.type === 'escape') apply({ on: false });
-    });
+    port.on('message', e => message(e.data || {}));
     port.postMessage({ type: 'ready' });
   }
 }
 
-module.exports = { init, route, deck, state, apply, windows };
+module.exports = { init, route, deck, state, apply, windows, listen, message };
