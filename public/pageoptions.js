@@ -83,6 +83,11 @@ const PAGE_OPTIONS = (() => {
       title('Last 10 goals'),
     ],
     'fulltime.html': [title('default')],
+    'gamestats.html': [
+      title('Game stats'),
+      show('quarters', 'Score by quarter'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
+      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'),
+    ],
     'winner.html': [
       { key: 'winner', label: 'Result', type: 'select', choices: [['', 'From the score'], ['home', 'Home wins'], ['away', 'Away wins'], ['draw', 'Draw']] },
       out(),
