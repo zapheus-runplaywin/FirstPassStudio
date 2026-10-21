@@ -1,7 +1,7 @@
 // Bringing the data folder up to date after an update (migrations.js): each step from an old
 // folder, the backup made first, a folder saved by a newer Studio left alone, and Studio
 // starting on an old folder. Each case runs migrations.js in a process of its own with its
-// own app folder (a copy of migrations.js, datadir.js, datalocation.js and imports/) and data folder.
+// own app folder (a copy of migrations.js, the files it needs, and imports/) and data folder.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -16,10 +16,19 @@ const tmp = name => fs.mkdtempSync(path.join(os.tmpdir(), `studio-migrate-${name
 const write = (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, typeof data === 'string' ? data : JSON.stringify(data, null, 2)); };
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
+// Copies a file of the app and every file of the app it requires (./name), so a new one doesn't
+// need adding here.
+function copyWithRequires(file, app) {
+  if (fs.existsSync(path.join(app, file))) return;
+  const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  fs.writeFileSync(path.join(app, file), text);
+  for (const [, name] of text.matchAll(/require\(['"]\.\/([^'"]+)['"]\)/g)) copyWithRequires(name.endsWith('.js') ? name : `${name}.js`, app);
+}
+
 // An app folder like an older Studio's, with whatever it kept inside it.
 function appFolder(t, files = {}) {
   const app = tmp('app');
-  for (const f of ['migrations.js', 'datadir.js', 'datalocation.js']) fs.copyFileSync(path.join(ROOT, f), path.join(app, f));
+  copyWithRequires('migrations.js', app);
   fs.cpSync(path.join(ROOT, 'imports'), path.join(app, 'imports'), { recursive: true });
   for (const [f, data] of Object.entries(files)) write(path.join(app, f), data);
   t.after(() => fs.rmSync(app, { recursive: true, force: true }));
