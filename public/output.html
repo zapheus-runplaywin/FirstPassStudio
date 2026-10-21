@@ -123,6 +123,18 @@
   .seq.pend { border-color: var(--fp-blue); border-style: dashed; }
   .seq.pend::after { content: 'Starting'; position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
                      background: var(--fp-blue); color: var(--fp-white); padding: 1px 6px; border-radius: 5px; }
+  .player { display: grid; gap: 8px; border: 2px solid var(--fp-line-strong); border-radius: 10px; padding: 10px 12px; background: var(--fp-white); margin-bottom: 10px; }
+  .player.on { border-color: var(--fp-orange); }
+  .player .np { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .player .np b { font-weight: 800; overflow-wrap: anywhere; }
+  .player .np .t { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .player .bar { height: 6px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
+  .player .bar i { display: block; height: 100%; background: var(--fp-orange); width: 0; }
+  .player .row button { padding: 4px 10px; font-size: 13px; }
+  .player button.lit { background: var(--fp-orange); color: var(--fp-navy); }
+  .player small { color: var(--fp-muted); }
+  #plDialog { border: 0; border-radius: var(--fp-radius); padding: 18px 20px; width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 40px); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
+  #plDialog::backdrop { background: rgba(15, 23, 42, .45); }
   .seqAuto { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; margin-bottom: 4px; }
   .seqAuto small { color: var(--fp-muted); }
   .seq.addSeq { border-style: dashed; color: var(--fp-blue); place-items: center; text-align: center; font-weight: 700; min-height: 90px; cursor: pointer; background: var(--fp-white); }
@@ -223,6 +235,24 @@
           <label class="inline sqUntilMin"><input type="number" id="sqUntilMin" min="0" max="120" style="width:64px"> min before the scheduled start</label>
         </div>
         <label for="sqThen">Then</label><select id="sqThen"></select>
+        <label for="sqMusic">Music</label>
+        <div class="row" style="gap:8px">
+          <select id="sqMusic"></select>
+          <span class="sqMusicOn row" style="gap:8px">
+            <label class="inline">from step <input type="number" id="sqMusicStep" min="1" max="100" style="width:56px"></label>
+            <label class="inline">start mark <input type="number" id="sqMusicMark" min="0" max="3600" step="0.1" style="width:70px"> s</label>
+            <button class="alt" id="sqListen" type="button" title="Listen here (on this Mac only) from the start mark">▶ Listen</button>
+            <button class="alt hidden" id="sqMarkHere" type="button" title="Set the start mark to where it's playing">Mark here</button>
+            <label class="inline">fade in <input type="number" id="sqMusicFade" min="0" max="30" step="0.5" style="width:56px"> s</label>
+          </span>
+        </div>
+        <label for="sqMusicEnd">Music ends</label>
+        <div class="row" style="gap:8px">
+          <select id="sqMusicEnd"><option value="fade">Fades out with the sequence</option><option value="cut">Cuts with the sequence</option><option value="continue">Carries on into the next sequence</option></select>
+          <label class="inline sqEndSec">over <input type="number" id="sqMusicEndSec" min="0.5" max="30" step="0.5" style="width:56px"> s</label>
+        </div>
+        <label for="sqQuiet">Quiet</label>
+        <label class="inline"><input type="checkbox" id="sqQuiet"> Quiet the music when this starts (an interview on court): other music ducks, a sequence's music fades out</label>
       </div>
       <h2 style="margin:16px 0 4px">Steps</h2>
       <div class="steps" id="sqSteps"></div>
@@ -237,6 +267,60 @@
       <div class="row" style="margin-top:10px;justify-content:space-between">
         <div class="row"><button class="danger" id="sqDelete">Delete</button><button class="alt" id="sqCopy">Copy</button></div>
         <div class="row"><button class="alt" id="sqCancel">Cancel</button><button class="alt" id="sqTry">Save and play</button><button id="sqSave">Save</button></div>
+      </div>
+    </dialog>
+  </section>
+
+  <section id="musicSection">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">Music</h2>
+    </div>
+    <div class="player" id="player">
+      <div class="np"><span><b id="mTrack">Nothing loaded</b> <small id="mWhere"></small></span><span class="t" id="mTime"></span></div>
+      <div class="bar"><i id="mBar"></i></div>
+      <div class="row">
+        <button class="alt" id="mPrev" title="Previous song">⏮</button>
+        <button id="mPlay">▶ Play</button>
+        <button class="alt" id="mStop" title="Stop, fading out">⏹ Stop</button>
+        <button class="alt" id="mNext" title="Next song">⏭</button>
+        <button class="alt" id="mFade" title="Fade out and stop">Fade out</button>
+        <button class="alt" id="mMute">Mute</button>
+        <button class="alt" id="mDuck" title="Dip the music low and keep it playing">Duck</button>
+        <label class="inline" style="font-weight:400">Volume <input type="range" id="mVolume" min="0" max="100" style="width:120px"></label>
+      </div>
+      <div class="row">
+        <select id="mTrackPick" aria-label="Song"></select>
+        <button class="alt" id="mLoad" title="Load it, ready to play">Load</button>
+        <button class="alt" id="mLoadPlay">Play this</button>
+        <label class="inline" style="font-weight:400">Add a song <input type="file" id="mUpload" accept=".mp3,.m4a,.aac,.wav,.aif,.aiff,audio/*"></label>
+        <label class="inline" style="font-weight:400"><input type="checkbox" id="mLevel" checked> Even out its loudness</label>
+      </div>
+      <p class="note" id="mNote" style="margin:0"></p>
+    </div>
+    <div class="seqs" id="playlists"></div>
+    <div class="form" style="margin-top:12px">
+      <label for="mFadeSec">Fade time</label>
+      <div class="row"><input type="number" id="mFadeSec" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Stop, Pause and the links (<code>?fade=</code> changes it per press)</span></div>
+      <label for="mUnder">While a video with sound plays</label>
+      <div class="row"><select id="mUnder"><option value="pause">Fade the music out and pause it, then fade it back in</option><option value="lower">Lower the music</option><option value="leave">Leave the music as it is</option></select>
+        <label class="inline mLowerTo">to <input type="number" id="mLowerTo" min="0" max="100" style="width:64px"> %</label></div>
+      <label for="mDuckTo">Duck to</label>
+      <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that quiets the music)</span></div>
+    </div>
+    <p class="note" id="musicNote"></p>
+    <dialog id="plDialog">
+      <h2 id="plTitle">Playlist</h2>
+      <div class="form">
+        <label for="plName">Name</label><input id="plName" maxlength="60" placeholder="Pre-game">
+        <label>Play</label>
+        <div class="row"><label class="inline"><input type="checkbox" id="plShuffle"> Shuffle</label><label class="inline"><input type="checkbox" id="plLoop"> Start again after the last song</label></div>
+      </div>
+      <div class="steps" id="plTracks" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:8px"><select id="plAdd" aria-label="Add a song"></select></div>
+      <p class="error" id="plErr"></p>
+      <div class="row" style="margin-top:10px;justify-content:space-between">
+        <div class="row"><button class="danger" id="plDelete">Delete</button></div>
+        <div class="row"><button class="alt" id="plCancel">Cancel</button><button id="plSave">Save</button></div>
       </div>
     </dialog>
   </section>
@@ -678,7 +762,7 @@
     head.appendChild(Object.assign(document.createElement('th'), { textContent: 'Source' }));
     scenes.forEach((sc, i) => {
       const th = document.createElement('th');
-      th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt left" title="Earlier: where Previous goes">←</button><button class="alt right" title="Later: where Next goes">→</button><button class="alt copy">Copy</button><button class="danger del">Delete</button></div>';
+      th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt left" title="Earlier: where Previous goes">←</button><button class="alt right" title="Later: where Next goes">→</button><button class="alt copy">Copy</button><button class="danger del">Delete</button></div><label class="quietMusic" style="font-weight:400;font-size:12px"><input type="checkbox"> Quiet the music</label>';
       const input = th.querySelector('input');
       input.value = sc.name; input.dataset.scene = sc.id; input.setAttribute('aria-label', 'Scene name');
       input.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { name: input.value } });
@@ -687,6 +771,10 @@
       sel.setAttribute('aria-label', 'Stream Deck colour');
       for (const [v, label] of COLOURS) sel.add(new Option(label, v, false, v === sc.colour));
       sel.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { colour: sel.value } });
+      const quiet = th.querySelector('.quietMusic input');
+      quiet.checked = !!sc.quiet;
+      quiet.title = 'Going to this scene ducks the music (or fades out a sequence\'s music), for an interview on court';
+      quiet.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { quiet: quiet.checked } });
       th.querySelector('.left').disabled = i === 0;
       th.querySelector('.right').disabled = i === scenes.length - 1;
       th.querySelector('.left').onclick = () => act({ type: 'sceneMove', scene: sc.id, direction: 'up' });
@@ -736,6 +824,7 @@
   let heardAt = 0;
   function thenText(sq) {
     if (sq.then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === sq.then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
+    if (sq.then.type === 'sequence') { const nx = sequences().find(x => x.id === sq.then.sequence); return nx ? `then ${nx.name}` : 'then its next sequence (gone)'; }
     return sq.then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';
   }
   function renderSequences() {
@@ -857,7 +946,27 @@
     then.add(new Option('Turn off what it turned on', 'off'));
     then.add(new Option('Leave everything as it is', 'leave'));
     for (const sc of scene.scenes || []) then.add(new Option(`Go to scene: ${sc.name}`, `scene:${sc.id}`));
-    then.value = draft.then.type === 'scene' ? `scene:${draft.then.scene}` : draft.then.type;
+    for (const other of sequences()) if (other.id !== draft.id) then.add(new Option(`Play sequence: ${other.name}`, `sequence:${other.id}`));
+    then.value = draft.then.type === 'scene' ? `scene:${draft.then.scene}` : draft.then.type === 'sequence' ? `sequence:${draft.then.sequence}` : draft.then.type;
+    // Music: none, a song or a playlist.
+    const mus = $('sqMusic');
+    mus.innerHTML = '';
+    mus.add(new Option('No music of its own', ''));
+    for (const f of tracks()) mus.add(new Option(`Song: ${songName(f)}`, `track:${f}`));
+    for (const pl of playlistsOf()) mus.add(new Option(`Playlist: ${pl.name}`, `playlist:${pl.id}`));
+    const dm = draft.music;
+    const want = dm ? (dm.playlist ? `playlist:${dm.playlist}` : `track:${dm.track}`) : '';
+    if (want && ![...mus.options].some(o => o.value === want)) mus.add(new Option(`${dm.track || dm.playlist} (missing)`, want));
+    mus.value = want;
+    $('sqMusicStep').value = dm?.startStep || 1;
+    $('sqMusicMark').value = dm?.startAtSec || 0;
+    $('sqMusicFade').value = dm?.fadeInSec ?? 2;
+    const end = draft.musicEnd || { type: 'fade', sec: 3 };
+    $('sqMusicEnd').value = end.type;
+    $('sqMusicEndSec').value = end.sec || 3;
+    $('sqQuiet').checked = !!draft.quiet;
+    stopListening();
+    showStartFields();
     if (!then.value) then.value = 'off';
     $('sqDelete').classList.toggle('hidden', !sq);
     $('sqCopy').classList.toggle('hidden', !sq);
@@ -928,13 +1037,32 @@
   // Only the start and repeat settings that fit what's picked.
   function showStartFields() {
     const type = $('sqStart').value;
+    const hasMusic = !!$('sqMusic').value;
+    document.querySelector('.sqMusicOn').classList.toggle('hidden', !hasMusic);
+    $('sqListen').classList.toggle('hidden', !$('sqMusic').value.startsWith('track:'));
+    const chained = $('sqThen').value.startsWith('sequence:');
+    [...$('sqMusicEnd').options].find(o => o.value === 'continue').disabled = !chained;
+    if (!chained && $('sqMusicEnd').value === 'continue') $('sqMusicEnd').value = 'fade';
+    document.querySelector('.sqEndSec').classList.toggle('hidden', $('sqMusicEnd').value !== 'fade');
     document.querySelector('.sqBefore').classList.toggle('hidden', type !== 'before');
     document.querySelector('.sqBreaks').classList.toggle('hidden', type !== 'break' || scene.game?.last === 2);
     document.querySelector('.sqAfter').classList.toggle('hidden', type !== 'break' && type !== 'fulltime');
     document.querySelector('.sqUntilMin').classList.toggle('hidden', $('sqRepeat').value !== 'until:before');
     loopHint();
   }
-  $('sqStart').onchange = $('sqRepeat').onchange = showStartFields;
+  $('sqStart').onchange = $('sqRepeat').onchange = $('sqMusic').onchange = $('sqThen').onchange = $('sqMusicEnd').onchange = showStartFields;
+  // Listening for the start mark, on this Mac only (not on air): plays from the mark, Mark here sets it.
+  const markAudio = new Audio();
+  function stopListening() { markAudio.pause(); $('sqListen').textContent = '▶ Listen'; $('sqMarkHere').classList.add('hidden'); }
+  $('sqListen').onclick = () => {
+    if (!markAudio.paused) { stopListening(); return; }
+    const file = $('sqMusic').value.replace(/^track:/, '');
+    markAudio.src = '/media/' + encodeURIComponent(file);
+    markAudio.currentTime = Number($('sqMusicMark').value) || 0;
+    markAudio.play().then(() => { $('sqListen').textContent = '⏸ Stop listening'; $('sqMarkHere').classList.remove('hidden'); }).catch(err => { $('sqErr').textContent = `Can't play it here: ${err.message}`; });
+  };
+  $('sqMarkHere').onclick = () => { $('sqMusicMark').value = Math.round(markAudio.currentTime * 10) / 10; };
+  $('seqDialog').addEventListener('close', stopListening);
   document.querySelectorAll('.sqBreaks input').forEach(c => { c.onchange = loopHint; });
   // How long one time through takes, and for a break sequence how many times it fits in the break.
   function loopHint() {
@@ -966,9 +1094,14 @@
     const start = type === 'before' ? { type, min: Number($('sqStartMin').value) || 10 }
       : type === 'break' ? { type, breaks: [...document.querySelectorAll('.sqBreaks input:checked')].map(c => c.value), afterSec: Number($('sqAfter').value) || 0 }
       : type === 'fulltime' ? { type, afterSec: Number($('sqAfter').value) || 0 } : { type: 'hand' };
-    return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start,
+    const mus = $('sqMusic').value, endType = $('sqMusicEnd').value;
+    const musicChoice = !mus ? null : { ...(mus.startsWith('playlist:') ? { playlist: mus.slice(9) } : { track: mus.slice(6) }),
+      startStep: Number($('sqMusicStep').value) || 1, startAtSec: Number($('sqMusicMark').value) || 0, fadeInSec: Number($('sqMusicFade').value) || 0 };
+    return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start, music: musicChoice, quiet: $('sqQuiet').checked,
+      musicEnd: endType === 'fade' ? { type: 'fade', sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
       ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
-      then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : { type: then }, keepOn: draft.keepOn, steps: draft.steps };
+      then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : then.startsWith('sequence:') ? { type: 'sequence', sequence: then.slice(9) } : { type: then },
+      keepOn: draft.keepOn, steps: draft.steps };
   }
   async function saveSequence(andPlay) {
     const changes = draftChanges();
@@ -994,6 +1127,163 @@
     if (await act({ type: 'seqRemove', sequence: draft.id })) { $('seqDialog').close(); draft = null; }
   };
   $('seqDialog').addEventListener('close', () => { draft = null; });
+
+  // ─── Music ─────────────────────────────────────────────────────────────
+  // The player Studio keeps (music.js): what's loaded, the buttons, the songs in the media folder, and the playlists.
+  const tracks = () => media.filter(m => m.kind === 'audio' && !m.converting).map(m => m.name);
+  const songName = f => String(f || '').replace(/\.[^.]+$/, '');
+  const playlistsOf = () => scene.playlists || [];
+  let musicHeard = 0;
+  const musicPos = m => m.status === 'playing' ? m.pos.sec + (Date.now() - m.pos.at) / 1000 : m.pos.sec;
+  function renderMusic() {
+    const m = scene.music;
+    if (!m) return;
+    const owner = m.owner && sequences().find(s => s.id === m.owner);
+    const pl = m.playlist && playlistsOf().find(x => x.id === m.playlist);
+    $('player').classList.toggle('on', m.status === 'playing');
+    $('mTrack').textContent = m.track ? songName(m.track) : 'Nothing loaded';
+    $('mWhere').textContent = [pl ? `${pl.name}, ${m.index + 1} of ${m.queue.length}` : '', owner ? `for "${owner.name}"` : '',
+      m.video === 'pause' ? 'paused while a video plays its sound' : m.video === 'lower' ? 'lowered while a video plays its sound' : '',
+      m.status === 'paused' && !m.video ? 'paused' : m.status === 'stopped' && m.track ? 'stopped' : ''].filter(Boolean).join(' · ');
+    const playing = m.status === 'playing' && m.after !== 'pause' && m.after !== 'stop';
+    $('mPlay').textContent = playing ? '⏸ Pause' : m.status === 'paused' ? '▶ Carry on' : '▶ Play';
+    $('mPlay').disabled = !m.track;
+    $('mStop').disabled = $('mFade').disabled = m.status === 'stopped';
+    $('mPrev').disabled = $('mNext').disabled = m.queue.length < 2;
+    $('mMute').classList.toggle('lit', m.muted);
+    $('mMute').textContent = m.muted ? 'Muted' : 'Mute';
+    $('mDuck').classList.toggle('lit', m.ducked);
+    $('mDuck').textContent = m.ducked ? 'Ducked' : 'Duck';
+    if (document.activeElement !== $('mVolume')) $('mVolume').value = m.volume;
+    const set = scene.musicSettings || {};
+    for (const [id, key] of [['mFadeSec', 'fadeSec'], ['mLowerTo', 'lowerTo'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
+    $('mUnder').value = set.underVideo || 'pause';
+    document.querySelector('.mLowerTo').classList.toggle('hidden', $('mUnder').value !== 'lower');
+    const pick = $('mTrackPick'), keep = pick.value;
+    pick.innerHTML = '';
+    if (!tracks().length) pick.add(new Option('No songs yet: add one', ''));
+    for (const f of tracks()) pick.add(new Option(songName(f), f, false, f === keep));
+    const busy = media.filter(x => x.kind === 'audio' && x.converting).map(x => x.name);
+    $('mNote').textContent = busy.length ? `Evening out the loudness of ${busy.map(songName).join(', ')}…` : '';
+    renderPlaylists();
+    musicHeard = performance.now();
+    tickMusic();
+    $('musicNote').innerHTML = 'Music plays wherever video sound plays: the outputs, or this page\'s Scene View sound, never both. '
+      + 'Add MP3, M4A, AAC, WAV or AIFF songs you\'re licensed to stream (Apple Music songs are copy-protected and can\'t be used). '
+      + 'With <b>Even out its loudness</b> ticked, a song is levelled to the same loudness as the others (as streaming services do) and the original is kept in the media folder\'s originals. '
+      + 'A sequence can bring its own music (in its editor), which fades out when the sequence is stopped by a scene or another sequence. '
+      + 'A scene or sequence with <b>Quiet the music</b> ticked (an interview on court) fades a sequence\'s music out, or ducks the player\'s own music until the next scene or sequence without it. '
+      + `Stream Deck: <code>${base}/deck/music/toggle</code> (play or pause), <code>/play</code>, <code>/pause</code>, <code>/resume</code>, <code>/stop</code>, <code>/fade</code>, <code>/next</code>, <code>/prev</code>, `
+      + '<code>/mute/toggle</code>, <code>/duck/toggle</code>, <code>/load/&lt;song&gt;</code> and <code>/playlist/&lt;name&gt;</code> (add <code>?play</code> to start it too); add <code>?fade=2</code> to any of them for a 2 second fade, or <code>?fade=0</code> to cut.';
+  }
+  function tickMusic() {
+    const m = scene.music;
+    if (!m) return;
+    const pos = m.track && m.status !== 'stopped' ? musicPos(m) : 0;
+    $('mTime').textContent = m.track ? `${fmt(pos * 1000)}${m.length ? ` / ${fmt(m.length * 1000)}` : ''}` : '';
+    $('mBar').style.width = m.length ? `${Math.min(100, pos / m.length * 100)}%` : '0';
+  }
+  setInterval(tickMusic, 500);
+  $('mPlay').onclick = () => act({ type: 'musicToggle' });
+  $('mStop').onclick = () => act({ type: 'musicStop' });
+  $('mFade').onclick = () => act({ type: 'musicFade' });
+  $('mPrev').onclick = () => act({ type: 'musicPrev' });
+  $('mNext').onclick = () => act({ type: 'musicNext' });
+  $('mMute').onclick = () => act({ type: 'musicMute', value: 'toggle' });
+  $('mDuck').onclick = () => act({ type: 'musicDuck', value: 'toggle' });
+  $('mVolume').onchange = () => act({ type: 'musicVolume', value: Number($('mVolume').value) });
+  $('mLoad').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value }); };
+  $('mLoadPlay').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value, play: true }); };
+  const musicSettings = () => act({ type: 'musicSettings', settings: { fadeSec: Number($('mFadeSec').value), underVideo: $('mUnder').value, lowerTo: Number($('mLowerTo').value), duckTo: Number($('mDuckTo').value) } });
+  for (const id of ['mFadeSec', 'mUnder', 'mLowerTo', 'mDuckTo']) $(id).onchange = musicSettings;
+  $('mUpload').onchange = async () => {
+    const file = $('mUpload').files[0];
+    if (!file) return;
+    $('mNote').textContent = `Adding ${file.name}…`;
+    try {
+      const res = await fetch(`/api/scene/media?name=${encodeURIComponent(file.name)}&level=${$('mLevel').checked ? 1 : 0}`, { method: 'POST', body: file });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      await loadMedia();
+      $('mTrackPick').value = body.file;
+      renderMusic();
+    } catch (err) { $('mNote').textContent = `Could not add ${file.name}: ${err.message}`; }
+    $('mUpload').value = '';
+  };
+
+  function renderPlaylists() {
+    const box = $('playlists'), m = scene.music;
+    box.innerHTML = '';
+    for (const pl of playlistsOf()) {
+      const card = document.createElement('div');
+      const on = m && m.playlist === pl.id && m.status !== 'stopped';
+      card.className = 'seq' + (on ? ' run' : '');
+      card.innerHTML = '<div class="t"><b></b></div><small></small><div class="row"><button class="play">▶ Play</button><button class="alt load">Load</button><button class="alt edit">Edit</button></div>';
+      card.querySelector('b').textContent = pl.name;
+      card.querySelector('small').textContent = `${pl.tracks.length} song${pl.tracks.length === 1 ? '' : 's'}${pl.shuffle ? ' · shuffled' : ''}${pl.loop ? ' · starts again' : ''}`;
+      card.querySelector('.play').onclick = () => act({ type: 'musicPlaylist', playlist: pl.id, play: true });
+      card.querySelector('.play').disabled = card.querySelector('.load').disabled = !pl.tracks.length;
+      card.querySelector('.load').onclick = () => act({ type: 'musicPlaylist', playlist: pl.id });
+      card.querySelector('.edit').onclick = () => openPlaylist(pl);
+      box.appendChild(card);
+    }
+    const add = document.createElement('button');
+    add.className = 'seq addSeq';
+    add.innerHTML = '+ New playlist<small>songs played one after another</small>';
+    add.onclick = () => openPlaylist(null);
+    box.appendChild(add);
+  }
+  let plDraft = null;
+  function openPlaylist(pl) {
+    plDraft = pl ? JSON.parse(JSON.stringify(pl)) : { name: '', tracks: [], shuffle: false, loop: true };
+    $('plTitle').textContent = pl ? 'Edit playlist' : 'New playlist';
+    $('plName').value = plDraft.name;
+    $('plShuffle').checked = plDraft.shuffle;
+    $('plLoop').checked = plDraft.loop;
+    $('plDelete').classList.toggle('hidden', !pl);
+    $('plErr').textContent = '';
+    loadMedia().then(renderPlTracks);
+    renderPlTracks();
+    if (!$('plDialog').open) $('plDialog').showModal();
+  }
+  function renderPlTracks() {
+    if (!plDraft) return;
+    const box = $('plTracks');
+    box.innerHTML = '';
+    plDraft.tracks.forEach((f, i) => {
+      const row = document.createElement('div');
+      row.className = 'stepRow';
+      row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><span class="hint"></span><button class="alt up" title="Earlier">↑</button><button class="alt down" title="Later">↓</button><button class="danger del" title="Take it out">✕</button></div>';
+      row.querySelector('.num').textContent = i + 1;
+      row.querySelector('.what').textContent = songName(f) + (tracks().includes(f) ? '' : ' (missing)');
+      const len = media.find(x => x.name === f)?.duration;
+      row.querySelector('.hint').textContent = len ? fmt(len * 1000) : '';
+      row.querySelector('.up').disabled = i === 0;
+      row.querySelector('.down').disabled = i === plDraft.tracks.length - 1;
+      row.querySelector('.up').onclick = () => { plDraft.tracks.splice(i - 1, 0, plDraft.tracks.splice(i, 1)[0]); renderPlTracks(); };
+      row.querySelector('.down').onclick = () => { plDraft.tracks.splice(i + 1, 0, plDraft.tracks.splice(i, 1)[0]); renderPlTracks(); };
+      row.querySelector('.del').onclick = () => { plDraft.tracks.splice(i, 1); renderPlTracks(); };
+      box.appendChild(row);
+    });
+    const sel = $('plAdd');
+    sel.innerHTML = '';
+    sel.add(new Option(tracks().length ? '+ Add a song' : 'No songs yet: add them in Music first', ''));
+    for (const f of tracks()) sel.add(new Option(songName(f), f));
+  }
+  $('plAdd').onchange = () => { if ($('plAdd').value) { plDraft.tracks.push($('plAdd').value); renderPlTracks(); } };
+  $('plCancel').onclick = () => { $('plDialog').close(); };
+  $('plDialog').addEventListener('close', () => { plDraft = null; });
+  $('plSave').onclick = async () => {
+    const changes = { name: $('plName').value.trim(), shuffle: $('plShuffle').checked, loop: $('plLoop').checked, tracks: plDraft.tracks };
+    if (!changes.name) { $('plErr').textContent = 'Give the playlist a name.'; return; }
+    const body = plDraft.id ? await act({ type: 'playlistUpdate', playlist: plDraft.id, changes }) : await act({ type: 'playlistAdd', changes });
+    if (!body) { $('plErr').textContent = $('err').textContent; return; }
+    $('plDialog').close();
+  };
+  $('plDelete').onclick = async () => {
+    if (!plDraft?.id || !confirm(`Delete the playlist "${plDraft.name}"? The songs stay in the media folder.`)) return;
+    if (await act({ type: 'playlistRemove', playlist: plDraft.id })) $('plDialog').close();
+  };
 
   // ─── Settings for the selected source ─────────────────────────────────
   const FIELDS = { fName: 'name', fUrl: 'url', fFile: 'file', fWidth: 'width', fHeight: 'height', fFade: 'fadeMs', fX: 'x', fY: 'y', fScale: 'scale' };
@@ -1434,6 +1724,7 @@
     mediaNote();
     const s = current();
     if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
+    if (scene.music) renderMusic();
   }
   // Adding a source: a dialog, so it's clear the choices are for the new source. It goes above the selected
   // source (or on top), and is selected once added, ready to set up.
@@ -1534,7 +1825,7 @@
     const now = (s.converting || []).join('|');
     if (now !== wasConverting) { wasConverting = now; loadMedia(); }
     if (selected && !current()) selected = null;
-    renderList(); renderForm(); drawBox(); renderScenes(); renderSequences();
+    renderList(); renderForm(); drawBox(); renderScenes(); renderSequences(); renderMusic();
     // A source added, renamed or removed while the editor is open.
     if (draft && $('seqDialog').open && !$('sqSteps').contains(document.activeElement)) renderSteps();
   }

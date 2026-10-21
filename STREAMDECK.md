@@ -260,6 +260,31 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 - The plugin's **Sequence** key (above) presses these links and counts down the step on screen.
 - `next`, `stop`, `pause`, `resume`, `delay`, `now`, `cancel` and `auto` can't be sequence names, so these links never clash with one.
 
+## Music (Output page)
+
+The Output page's **Music** player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF), one at a time or from a
+playlist. Music plays wherever video sound plays (the outputs, or the Output page's Scene View sound) and is never heard twice.
+
+| Button | Link |
+|---|---|
+| Play or pause | http://localhost:8080/deck/music/toggle |
+| Play from the start | http://localhost:8080/deck/music/play |
+| Pause, or carry on | http://localhost:8080/deck/music/pause, http://localhost:8080/deck/music/resume |
+| Stop | http://localhost:8080/deck/music/stop |
+| Fade out and stop | http://localhost:8080/deck/music/fade |
+| Next or previous song | http://localhost:8080/deck/music/next, http://localhost:8080/deck/music/prev |
+| Load a song (ready to play) | http://localhost:8080/deck/music/load/pre-game-bed |
+| Load a playlist and play it | http://localhost:8080/deck/music/playlist/pre-game?play |
+| Mute, keeping it running | http://localhost:8080/deck/music/mute/toggle (or `/on`, `/off`) |
+| Duck: dip it low, keeping it running | http://localhost:8080/deck/music/duck/toggle (or `/on`, `/off`) |
+
+- Add `?fade=2` to any of them for a 2 second fade, or `?fade=0` to cut. Without it they use the player's fade time.
+- Songs are named like sources: lower case with dashes for spaces, without the file's ending (**Pre-game bed.mp3** is `pre-game-bed`).
+- While a video with its sound on plays, the music fades out and pauses, then fades back in from where it was (a player setting:
+  or lower it, or leave it).
+- A sequence can bring its own music; going to a scene or another sequence fades it out. A scene or sequence with **Quiet the music**
+  ticked (an interview on court) fades a sequence's music out, or ducks the player's own music until the next scene or sequence without it.
+
 ## Timed buttons (Timed Sequence plugin)
 
 `plugins/streamdeck` is a Stream Deck plugin that waits until a set time of day, then presses a list of links

@@ -25,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
 const sequences = require('./sequences');
+const music = require('./music');
 
 const FILE = datadir.file('scene.json');
 const MEDIA_DIR = datadir.file('media');
@@ -32,17 +33,20 @@ const WIDTH = 1920, HEIGHT = 1080;
 const TYPES = ['browser', 'image', 'video'];
 const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const VIDEO_TYPES = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
-const MEDIA_TYPES = { ...IMAGE_TYPES, ...VIDEO_TYPES };
-const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024;
+const AUDIO_TYPES = music.AUDIO_TYPES;
+const MEDIA_TYPES = { ...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES };
+const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024, MAX_AUDIO = 2 * 1024 * 1024 * 1024;
 // The Studio Stream Deck plugin (plugins/studio-deck), packed by the Mac app's build so it ships with the app.
 const STREAMDECK_PLUGIN = path.join(__dirname, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
-const kindOf = f => IMAGE_TYPES[path.extname(f).toLowerCase()] ? 'image' : VIDEO_TYPES[path.extname(f).toLowerCase()] ? 'video' : null;
+const kindOf = f => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPES[x] ? 'image' : VIDEO_TYPES[x] ? 'video' : AUDIO_TYPES[x] ? 'audio' : null; };
 
 let log = () => {};
 let scene = { sources: [], scenes: [], current: null };
 // Sources set on in the current scene that went off by themselves (a video that hides when it's
 // done): not a change from the scene.
 let ended = new Set();
+// Videos that finished but stay on screen (not set to switch off when done): their sound has stopped.
+const soundDone = new Set();
 // Sources on after the last change, so each time one comes on its showSeq goes up: a page or video that
 // says it's done names the showing it means, and a late word from an earlier showing is ignored.
 let wasOn = new Set();
@@ -134,6 +138,7 @@ function cleanScene(sc, existing = {}) {
     name: '',
     colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
     states,
+    quiet: !!s.quiet,  // Quiet the music when this scene is picked (an interview on court)
   };
   out.name = uniqueSceneName(s.name, out.id);
   return out;
@@ -174,6 +179,7 @@ function goTo(sc, fromSequence) {
   ended = new Set();
   scene.current = sc.id;
   log('info', 'scene', `Went to scene "${sc.name}": ${on} on, ${off} off`);
+  music.quiet(sc.quiet);
 }
 
 function load() {
@@ -199,6 +205,7 @@ function save() {
 }
 // Sends the scene to every open scene.html and Output page.
 function notify() {
+  videoSound();
   rev++;
   const json = JSON.stringify(state());
   const body = `data: ${json}\n\n`;
@@ -257,7 +264,7 @@ function upgrade(req, socket) {
 
 function state() {
   return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: scene.scenes, current: currentScene() ? scene.current : null,
-    changed: changed(), converting: [...converting.keys()], ...sequences.state() };
+    changed: changed(), converting: [...converting.keys()], ...sequences.state(), ...music.state() };
 }
 
 function find(ref) {
@@ -271,7 +278,10 @@ function apply(a) {
   noteShowings();
   return error;
 }
+// Music gets out of the way while a video with its sound on plays.
+function videoSound() { music.videoSound(scene.sources.some(s => s.type === 'video' && s.visible && s.sound && !soundDone.has(s.id))); }
 function noteShowings() {
+  videoSound();
   for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;
   wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
 }
@@ -320,12 +330,14 @@ function change(a) {
       if (need()) return need();
       src.visible = a.type === 'toggle' ? !src.visible : a.type === 'show';
       ended.delete(src.id);
+      soundDone.delete(src.id);
       log('info', 'scene', `"${src.name}" ${src.visible ? 'on' : 'off'}`);
       if (!src.visible) sequences.turnedOff(src);
       return null;
     case 'restart':
       if (need()) return need();
       src.loadSeq++;
+      soundDone.delete(src.id);
       log('info', 'scene', `${src.type === 'video' ? 'Restarted' : 'Reloaded'} "${src.name}"`);
       return null;
     case 'soundOn': case 'soundOff': case 'soundToggle':
@@ -345,7 +357,7 @@ function change(a) {
         src.visible = false;
         if (currentScene()?.states[src.id] === 'on') ended.add(src.id);
         log('info', 'scene', `"${src.name}" ${src.type === 'video' ? 'finished' : 'animated away'}, off`);
-      }
+      } else if (src.type === 'video' && !src.loop) soundDone.add(src.id);
       sequences.ended(src);
       return null;
     }
@@ -431,7 +443,8 @@ function applyScene(a) {
       return null;
     }
     default: {
-      const error = sequences.apply(a);
+      let error = sequences.apply(a);
+      if (error === undefined) error = music.apply(a);
       return error === undefined ? `Unknown scene change "${a.type}".` : error;
     }
   }
@@ -440,8 +453,15 @@ function applyScene(a) {
 // /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle,
 // /deck/layers/off and /deck/scene/<name>|next|prev|again. Returns null when the link
 // isn't a scene link, so the scoreboard's own links carry on as before.
-function deck(parts) {
+function deck(parts, q = {}) {
   const [what, name, verb] = parts;
+  if (what === 'music') {
+    const r = music.deck(parts, q);
+    if (!r) return null;
+    if (r.error) return { status: r.status, body: { error: r.error } };
+    notify();
+    return { status: 200, body: r.body };
+  }
   if (what === 'sequence') {
     const r = sequences.deck(parts);
     if (!r) return null;
@@ -520,7 +540,11 @@ function mediaList() {
   try { files = fs.readdirSync(MEDIA_DIR).filter(f => kindOf(f) && !f.startsWith('.')).sort((a, b) => a.localeCompare(b)); } catch { /* none yet */ }
   return files.map(name => {
     const m = { name, kind: kindOf(name) };
-    if (m.kind === 'video') m.duration = duration(name);
+    if (m.kind === 'video' || m.kind === 'audio') m.duration = duration(name);
+    if (m.kind === 'audio') {
+      if (converting.has(name)) m.converting = true;
+      if (levelled(name)) m.levelled = true;
+    }
     if (path.extname(name).toLowerCase() === '.mov') {
       if (converting.has(name)) m.converting = true;
       else if (files.includes(webmFor(name))) m.converted = webmFor(name);
@@ -576,6 +600,43 @@ function convert(name) {
   child.on('error', err => { errors = err.message; finish(false); });
   child.on('close', code => { if (converting.has(name)) finish(code === 0); });
   return true;
+}
+
+// Evens out a song's loudness (EBU R128, -16 LUFS, like streaming services) into an M4A beside it, so
+// tracks from different places play at the same level. The original is kept in media/originals.
+const ORIGINALS = path.join(MEDIA_DIR, 'originals');
+const levelled = name => { try { return fs.readdirSync(ORIGINALS).some(f => path.basename(f, path.extname(f)) === path.basename(name, path.extname(name))); } catch { return false; } };
+function level(name) {
+  const bin = ffmpegPath();
+  if (!bin) { log('warn', 'scene', `Can't even out the loudness of ${name}: no ffmpeg`); return false; }
+  const out = path.basename(name, path.extname(name)) + '.m4a', part = path.join(MEDIA_DIR, `.${out}.part`);
+  fs.mkdirSync(ORIGINALS, { recursive: true });
+  const original = path.join(ORIGINALS, name);
+  fs.renameSync(path.join(MEDIA_DIR, name), original);
+  converting.set(out, out);
+  const started = Date.now();
+  log('info', 'scene', `Evening out the loudness of ${name} into ${out}`);
+  const args = ['-hide_banner', '-loglevel', 'error', '-nostats', '-y', '-i', original, '-vn', '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '48000', '-c:a', 'aac', '-b:a', '256k', '-f', 'mp4', part];
+  const child = require('child_process').spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  let errors = '';
+  child.stderr.on('data', d => { errors = (errors + d).slice(-2000); });
+  const finish = ok => {
+    if (!converting.has(out)) return;
+    converting.delete(out);
+    if (ok) {
+      fs.renameSync(part, path.join(MEDIA_DIR, out));
+      log('info', 'scene', `Evened out ${name} into ${out} in ${Math.round((Date.now() - started) / 1000)}s (the original is in media/originals)`);
+    } else {
+      fs.rm(part, { force: true }, () => {});
+      // Put the original back as it was.
+      try { fs.renameSync(original, path.join(MEDIA_DIR, name)); } catch { /* left in originals */ }
+      log('error', 'scene', `Could not even out the loudness of ${name}; kept it as it was`, errors.trim());
+    }
+    notify();
+  };
+  child.on('error', err => { errors = err.message; finish(false); });
+  child.on('close', code => finish(code === 0));
+  return out;
 }
 
 // Saves an upload straight to disk (videos can be gigabytes), then converts a .mov.
@@ -784,9 +845,14 @@ async function route(req, res, url, { send, readBody }) {
   if (p === '/api/scene/media' && req.method === 'POST') {
     const name = cleanFile(url.searchParams.get('name')).replace(/[^\w .()'&+-]/g, '_').replace(/^\.+/, '');
     const kind = name && kindOf(name);
-    if (!kind) return send(res, 400, { error: 'Pick a PNG, JPG, GIF, WebP or SVG image, or an MP4, WebM or MOV video.' }), true;
-    const size = await saveUpload(req, name, kind === 'video' ? MAX_VIDEO : MAX_IMAGE);
+    if (!kind) return send(res, 400, { error: 'Pick a PNG, JPG, GIF, WebP or SVG image, an MP4, WebM or MOV video, or an MP3, M4A, AAC, WAV or AIFF song.' }), true;
+    const size = await saveUpload(req, name, kind === 'video' ? MAX_VIDEO : kind === 'audio' ? MAX_AUDIO : MAX_IMAGE);
     log('info', 'scene', `Saved ${name} to the media folder (${Math.round(size / 1024)} KB)`);
+    // Songs are evened out unless the Output page's tick box says not to.
+    if (kind === 'audio' && url.searchParams.get('level') !== '0') {
+      const out = level(name);
+      if (out) return send(res, 200, { file: out, converting: true, media: mediaList() }), true;
+    }
     const converted = path.extname(name).toLowerCase() === '.mov' ? convert(name) : null;
     return send(res, 200, { file: name, converting: !!converted, cantConvert: converted === false, media: mediaList() }), true;
   }
@@ -810,6 +876,11 @@ function init(logger, { ffmpeg, sequencesFile } = {}) {
   log = logger || log;
   ffmpegSetting = ffmpeg || '';
   load();
+  music.init(log, {
+    duration: file => duration(file),
+    files: () => mediaList().filter(m => m.kind === 'audio' && !m.converting).map(m => m.name),
+    changed: () => save(),
+  });
   sequences.init(log, {
     source: id => scene.sources.find(s => s.id === id) || null,
     setVisible: (s, on) => { s.visible = on; ended.delete(s.id); },

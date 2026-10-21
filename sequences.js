@@ -28,6 +28,7 @@
 const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
+const music = require('./music');
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 const LENGTHS = ['time', 'done', 'next', 'game'];
@@ -35,7 +36,8 @@ const REPEATS = ['once', 'loop', 'until'];
 const STARTS = ['hand', 'before', 'break', 'fulltime'];
 const BREAKS = ['qt', 'ht', '3qt'];
 const BREAK_NAMES = { qt: 'quarter time', ht: 'half time', '3qt': 'three quarter time' };
-const THENS = ['scene', 'off', 'leave'];
+const THENS = ['scene', 'off', 'leave', 'sequence'];
+const MUSIC_ENDS = ['fade', 'cut', 'continue'];
 // Sequence link names that are the playing-sequence links instead (/deck/sequence/next).
 const RESERVED = new Set(['next', 'stop', 'pause', 'resume', 'delay', 'now', 'cancel', 'auto']);
 const DELAY_MS = 10000;
@@ -90,6 +92,23 @@ function cleanStart(v) {
   }
   return { type };
 }
+// A sequence's music: a track or a playlist, starting at a step (from 1), from a start mark, with a fade in.
+function cleanMusic(v) {
+  const m = v && typeof v === 'object' ? v : null;
+  if (!m || (!m.track && !m.playlist)) return null;
+  return {
+    ...(m.playlist ? { playlist: cleanId(m.playlist, '') } : { track: String(m.track).split(/[\\/]/).pop().slice(0, 200) }),
+    startStep: Math.round(clamp(m.startStep, 1, 100, 1)),
+    startAtSec: Math.round(clamp(m.startAtSec, 0, 3600, 0) * 10) / 10,
+    fadeInSec: clamp(m.fadeInSec, 0, 30, 2),
+  };
+}
+// How the music ends with the sequence: fade out (sec), cut, or carry on into the sequence it hands over to.
+function cleanMusicEnd(v) {
+  const e = v && typeof v === 'object' ? v : {};
+  const type = MUSIC_ENDS.includes(e.type) ? e.type : 'fade';
+  return type === 'fade' ? { type, sec: clamp(e.sec, 0.5, 30, 3) } : { type };
+}
 function cleanUntil(v) {
   const u = v && typeof v === 'object' ? v : {};
   return u.moment === 'before' ? { moment: 'before', min: Math.round(clamp(u.min, 0, 120, 2)) } : { moment: 'resume' };
@@ -105,7 +124,10 @@ function clean(input, existing = {}) {
     colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
     repeat: REPEATS.includes(s.repeat) ? s.repeat : 'once',
     start: cleanStart(s.start),
-    then: THENS.includes(then.type) ? { type: then.type, ...(then.type === 'scene' ? { scene: cleanId(then.scene, '') } : {}) } : { type: 'off' },
+    then: THENS.includes(then.type) ? { type: then.type, ...(then.type === 'scene' ? { scene: cleanId(then.scene, '') } : then.type === 'sequence' ? { sequence: cleanId(then.sequence, '') } : {}) } : { type: 'off' },
+    music: cleanMusic(s.music),
+    musicEnd: cleanMusicEnd(s.musicEnd),
+    quiet: !!s.quiet,
     keepOn: ids(s.keepOn),
     steps: (Array.isArray(s.steps) ? s.steps : []).slice(0, 100).map(cleanStep),
   };
@@ -229,6 +251,8 @@ function enter(i) {
     run.endsAt = now() + (run.waiting.size ? limitFor(step) : 0);
   }
   log('info', 'sequence', `"${sq.name}" step ${i + 1} of ${sq.steps.length}${step.sources.length ? `: ${step.sources.map(id => source(id)?.name).filter(Boolean).join(', ')}` : ''}`);
+  // Its music starts at its step, the first time through (the track itself loops).
+  if (sq.music && !run.loop && i === Math.min(sq.music.startStep, sq.steps.length) - 1) music.playFor(sq.id, sq.music);
   schedule();
 }
 
@@ -246,6 +270,7 @@ function start(sq, why) {
   if (pending && pending.id === sq.id) cancelPending(null);
   run = { id: sq.id, step: -1, loop: 0, startedAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, delayMs: 0, ready: false, waiting: null, finishing: null };
   log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
+  music.quiet(sq.quiet);
   for (const id of sq.keepOn) turnOn(id);
   if (sq.steps.length) enter(0); else finish('it has no steps');
 }
@@ -258,13 +283,23 @@ function finish(why) {
   const ended = run;
   const then = sq ? sq.then : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
-  if (then.type === 'scene' && sc) {
+  const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
+  const end = sq ? sq.musicEnd : { type: 'fade', sec: music.STOP_FADE_SEC };
+  if (next && end.type === 'continue') music.handOver(ended.id, next.id);
+  else music.stopFor(ended.id, end.type === 'cut' ? 0 : end.sec || music.STOP_FADE_SEC);
+  if (next) {
+    // Hands over to the next sequence: its own sources go off as the next one's first step comes on.
+    const keep = new Set([...next.keepOn, ...(next.steps[0]?.sources || [])]);
+    for (const id of [...ended.shown]) if (!keep.has(id)) turnOff(id);
+  } else if (then.type === 'scene' && sc) {
     // The scene decides about the sources it sets; the sequence turns off its own that the scene leaves alone.
     for (const id of [...ended.shown]) if (!sc.states[id]) turnOff(id);
   } else if (then.type !== 'leave') for (const id of [...ended.shown]) turnOff(id);
   run = null;
-  log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}`);
+  log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${next ? `, then "${next.name}"` : sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'sequence' ? ', its next sequence has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}`);
   if (sc) api.goTo(sc);
+  // A sequence with no steps would end at once, so a chain of them can't go round for ever.
+  if (next && next.steps.length && !(pending && pending.afterEnd)) start(next, `after "${sq.name}"`);
   // A triggered start that waited for this one to finish goes now.
   if (pending && pending.afterEnd) startPending();
 }
@@ -277,6 +312,7 @@ function interrupt(keep, why) {
   clearTimeout(timer);
   timer = null;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
+  music.stopFor(run.id, music.STOP_FADE_SEC);
   run = null;
   log('info', 'sequence', `Stopped "${sq ? sq.name : '?'}" because ${why}`);
   // One that was waiting for it to finish its step gives way too: something else was picked.
