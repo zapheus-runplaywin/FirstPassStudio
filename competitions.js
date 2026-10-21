@@ -209,7 +209,8 @@ function init(log, opts = {}) {
   const active = activeId();
   if (!active || !fs.existsSync(path.join(DIR, active, 'settings.json'))) {
     const first = list()[0];
-    if (first) setActive(first.id);
+    // A folder saved by a newer Studio can't be written to, so it's left with none in use.
+    if (first && !readOnly) setActive(first.id);
     else if (active && !readOnly) fs.rmSync(ACTIVE_FILE, { force: true });
   }
   if (!list().length) log('info', 'setup', 'No competitions yet: import one or make a new one on the setup page');
