@@ -157,7 +157,12 @@ For Studio's scene, built on the Output page (http://localhost:8080/output.html)
 
 **FirstPass Studio plugin (easiest).** The Mac app includes a Stream Deck plugin. Install it from the menu bar icon
 (**Install the Stream Deck plugin**) or the button on the Output page; the Stream Deck app opens it and installs it (do the same after an
-app update to update the plugin). Then drag **FirstPass Studio > Source** onto a key and pick the source in its settings:
+app update to update the plugin). Then drag **FirstPass Studio > Source** onto a key and pick the source in its settings.
+
+The three kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
+**Scene** key has stacked layers and a frame in its colour round the whole key, and a **Sequence** key has a play button and its strip
+split into four steps. For a Source key:
+
 
 - **Press:** show or hide (default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.
 - The key shows the source's name and lights up orange while the source is on, whether it was turned on from this key, another key, the

@@ -70,8 +70,8 @@ class SourceKey {
 		const colour = this.settings.colour ?? "";
 		if (colour === this.painted) return;
 		this.painted = colour;
-		void this.key.setImage(keyImageUrl(colour, 0), { state: 0 });
-		void this.key.setImage(keyImageUrl(colour, 1), { state: 1 });
+		void this.key.setImage(keyImageUrl("source", colour, 0), { state: 0 });
+		void this.key.setImage(keyImageUrl("source", colour, 1), { state: 1 });
 	}
 
 	async press(): Promise<void> {

@@ -69,8 +69,8 @@ class SequenceKey {
 		// Both states' images in the colour group; only sent again when it changes.
 		if (view.colour !== this.painted) {
 			this.painted = view.colour;
-			void this.key.setImage(keyImageUrl(view.colour, 0), { state: 0 });
-			void this.key.setImage(keyImageUrl(view.colour, 1), { state: 1 });
+			void this.key.setImage(keyImageUrl("sequence", view.colour, 0), { state: 0 });
+			void this.key.setImage(keyImageUrl("sequence", view.colour, 1), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;
