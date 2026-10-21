@@ -7,7 +7,8 @@
 // links on the home page (the Mac's .local name, or localhost).
 //
 // Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
-// installing or updating the app never touches. Updates download in the background and
+// installing or updating the app never touches, or in a folder in iCloud Drive picked from the
+// menu (datalocation.js), in a subfolder named after this Mac. Updates download in the background and
 // are installed when the app quits, so they never interrupt a stream.
 
 'use strict';
@@ -17,15 +18,18 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { linkHost } = require('../linkhost');
+const location = require('../datalocation');
 const { INSTALL_TIMEOUT } = require('./updates');
 
 const APP_DIR = path.join(__dirname, '..');
 // Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
 const STREAMDECK_PLUGIN = path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
 // Electron names this folder after productName: ~/Library/Application Support/FirstPass Studio,
-// the same folder the helper uses when run from the repository.
-const DATA_DIR = app.getPath('userData');
-const LOG_FILE = path.join(DATA_DIR, 'logs', 'app.log');
+// the same folder the helper uses when run from the repository. The logs and the app's own
+// settings always stay here; the rest of the settings are here or in iCloud Drive (dataDir()).
+const LOCAL_DIR = app.getPath('userData');
+const dataDir = () => location.current(LOCAL_DIR).dataDir;
+const LOG_FILE = path.join(LOCAL_DIR, 'logs', 'app.log');
 
 function log(message) {
   try {
@@ -50,7 +54,7 @@ if (!app.requestSingleInstanceLock()) {
 // This computer's settings from config.json (the app's defaults, then the data folder's).
 function machineConfig() {
   const read = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return {}; } };
-  return { ...read(path.join(APP_DIR, 'config.json')), ...read(path.join(DATA_DIR, 'config.json')) };
+  return { ...read(path.join(APP_DIR, 'config.json')), ...read(path.join(dataDir(), 'config.json')) };
 }
 const MACHINE = machineConfig();
 const PORT = Number(MACHINE.port) || 8080;
@@ -63,7 +67,7 @@ const pageUrl = p => `http://${HOST}:${PORT}${p}`;
 async function openPage(p) {
   if (!helper) {
     windows.showSplash();
-    if (!await startHelperChecked()) return windows.closeSplash(true);
+    if (!await settingsReady() || !await startHelperChecked()) return windows.closeSplash(true);
     await waitUntilRunning();
     windows.splashStatus(helper ? 'Studio is on air' : 'Still starting…', !!helper);
   }
@@ -80,7 +84,7 @@ function answering() {
 }
 
 // The app's own settings (not the helper's): where the main window was.
-const APP_SETTINGS = path.join(DATA_DIR, 'app-settings.json');
+const APP_SETTINGS = path.join(LOCAL_DIR, 'app-settings.json');
 function appSettings() { try { return JSON.parse(fs.readFileSync(APP_SETTINGS, 'utf8')); } catch { return {}; } }
 function saveAppSetting(key, value) {
   try { fs.writeFileSync(APP_SETTINGS, JSON.stringify({ ...appSettings(), [key]: value }, null, 2) + '\n'); } catch (err) { log(`Couldn't save ${key}: ${err.message}`); }
@@ -110,7 +114,7 @@ function startHelper() {
     cwd: APP_DIR,
     serviceName: 'FirstPass Studio helper',
     stdio: 'ignore',
-    env: { ...process.env, FIRSTPASS_DATA_DIR: DATA_DIR, FIRSTPASS_PACKAGED: app.isPackaged ? '1' : '' },
+    env: { ...process.env, FIRSTPASS_DATA_DIR: dataDir(), FIRSTPASS_LOCAL_DIR: LOCAL_DIR, FIRSTPASS_PACKAGED: app.isPackaged ? '1' : '' },
   });
   outputs?.attach(child);
   const started = Date.now();
@@ -212,8 +216,9 @@ function refreshMenu() {
     // Opening the file hands it to the Stream Deck app, which installs or updates the plugin.
     { label: 'Install the Stream Deck plugin', enabled: fs.existsSync(STREAMDECK_PLUGIN), click: () => shell.openPath(STREAMDECK_PLUGIN) },
     { type: 'separator' },
-    { label: 'Open the settings folder', click: () => shell.openPath(DATA_DIR) },
-    { label: 'Open the debug log', click: () => shell.openPath(path.join(DATA_DIR, 'logs', 'playhq-graphics.log')) },
+    { label: 'Open the settings folder', click: () => shell.openPath(dataDir()) },
+    settingsFolderMenu(),
+    { label: 'Open the debug log', click: () => shell.openPath(path.join(LOCAL_DIR, 'logs', 'playhq-graphics.log')) },
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
@@ -221,6 +226,147 @@ function refreshMenu() {
     { type: 'separator' },
     { label: 'Quit FirstPass Studio', click: () => app.quit() },
   ]));
+}
+
+// ─── Settings folder ────────────────────────────────────────────────────────
+// On this Mac, or in iCloud Drive in a subfolder named after this Mac (datalocation.js).
+
+function settingsFolderMenu() {
+  const where = location.current(LOCAL_DIR);
+  return {
+    label: 'Settings folder',
+    submenu: [
+      { label: where.local ? 'Saved on this Mac' : `Saved in ${where.name} (${where.computer})`, enabled: false },
+      { type: 'separator' },
+      { label: where.local ? 'Move to iCloud Drive…' : 'Move to another iCloud Drive folder…', enabled: !moving, click: () => moveSettings('icloud') },
+      { label: 'Move back to this Mac…', enabled: !where.local && !moving, click: () => moveSettings(null) },
+    ],
+  };
+}
+
+// Before Studio starts: the settings folder in iCloud Drive is there, belongs to this Mac, and
+// every file in it is downloaded (iCloud may keep only placeholders of files not used lately).
+async function settingsReady() {
+  for (;;) {
+    const where = location.current(LOCAL_DIR);
+    if (where.local) return true;
+    if (fs.existsSync(where.dataDir)) {
+      const other = location.usedByAnother(where.dataDir, LOCAL_DIR);
+      if (other) {
+        windows.closeSplash(true);
+        const { response } = await dialog.showMessageBox({
+          type: 'warning', buttons: ['Cancel', 'Use them anyway'], defaultId: 0, cancelId: 0,
+          message: 'Another Mac is using these settings',
+          detail: `The settings folder ${where.dataDir} is used by another Mac called ${other.computer}. Two copies of Studio saving into one folder overwrite each other's settings. Give this Mac its own name (System Settings > General > Sharing > Local hostname) and move the settings again, or use them anyway if the other Mac has stopped using them.`,
+        });
+        if (response === 0) return false;
+        location.save(LOCAL_DIR, where);
+        windows.showSplash();
+      }
+      if (location.placeholders(where.dataDir).length) {
+        windows.splashStatus(`Downloading the settings from ${where.name}…`);
+        const left = await location.download(where.dataDir);
+        if (left.length) log(`Still not downloaded from ${where.name}: ${left.join(', ')}`);
+      }
+      return true;
+    }
+    windows.closeSplash(true);
+    log(`Settings folder not found: ${where.dataDir}`);
+    const { response } = await dialog.showMessageBox({
+      type: 'warning', buttons: ['Try again', 'Cancel'], defaultId: 0, cancelId: 1,
+      message: `The settings folder in ${where.name} can't be found`,
+      detail: `${where.dataDir}\n\nCheck ${where.name} is turned on and this Mac is signed in to iCloud, then choose Try again. To use this Mac's own folder instead, choose Settings folder > Move back to this Mac in the menu bar.`,
+    });
+    if (response === 1) return false;
+    windows.showSplash();
+  }
+}
+
+// Stops the helper and waits until it has gone, so nothing is saving while the folder moves.
+function helperStopped() {
+  if (!helper) return Promise.resolve();
+  const child = helper;
+  child.restarting = true;
+  helper = null;
+  return new Promise(resolve => { child.once('exit', resolve); child.kill(); setTimeout(resolve, 5000); });
+}
+
+let moving = false;
+// Moves the settings into a folder in a cloud drive (provider 'icloud'), or back to this Mac
+// (provider null). Studio goes off air for the move and comes back on after.
+async function moveSettings(provider) {
+  const where = location.current(LOCAL_DIR);
+  let target = { provider: null, dataDir: LOCAL_DIR };
+  if (provider) {
+    const drive = location.PROVIDERS[provider];
+    if (!fs.existsSync(drive.root())) {
+      return dialog.showMessageBox({ type: 'warning', message: `${drive.name} isn't turned on`, detail: 'Turn it on in System Settings > your name > iCloud > iCloud Drive, then try again.' });
+    }
+    const pick = await dialog.showOpenDialog({
+      title: `Keep the settings in ${drive.name}`,
+      message: `Pick a folder in ${drive.name}. The settings go in a subfolder named after this Mac (${location.computerName()}).`,
+      buttonLabel: 'Use this folder',
+      defaultPath: where.local ? drive.root() : where.folder,
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (pick.canceled || !pick.filePaths[0]) return;
+    const checked = location.check(pick.filePaths[0], provider);
+    if (!checked.ok) return dialog.showMessageBox({ type: 'warning', message: 'Pick another folder', detail: checked.error });
+    target = checked;
+    if (path.resolve(target.dataDir) === path.resolve(where.dataDir)) return;
+    const other = location.usedByAnother(target.dataDir, LOCAL_DIR);
+    if (other) {
+      return dialog.showMessageBox({ type: 'warning', message: `Another Mac called ${other.computer} uses that folder`,
+        detail: `Two Macs saving into one folder overwrite each other's settings. Give this Mac its own name in System Settings > General > Sharing > Local hostname (it is ${checked.computer}), then try again.` });
+    }
+  } else {
+    const { response } = await dialog.showMessageBox({
+      type: 'question', buttons: ['Move back', 'Cancel'], defaultId: 0, cancelId: 1,
+      message: 'Move the settings back to this Mac?',
+      detail: `They are moved from ${where.dataDir} to ${LOCAL_DIR}, and stop syncing with ${where.name}.`,
+    });
+    if (response === 1) return;
+  }
+  let existing = null;
+  if (location.hasSettings(target.dataDir)) {
+    const { response } = await dialog.showMessageBox({
+      type: 'question', buttons: ['Use those', 'Replace them', 'Cancel'], defaultId: 0, cancelId: 2,
+      message: 'That folder already has settings for this Mac',
+      detail: `${target.dataDir}\n\nUse those: Studio uses the settings already there.\nReplace them: Studio puts the settings it uses now there instead.\n\nEither way a copy of both is kept in the backups folder on this Mac.`,
+    });
+    if (response === 2) return;
+    existing = response === 0 ? 'use' : 'replace';
+  }
+  const wasOn = !!helper || wanted;
+  if (wasOn) {
+    const { response } = await dialog.showMessageBox({
+      type: 'question', buttons: ['Move', 'Cancel'], defaultId: 0, cancelId: 1,
+      message: 'Studio goes off air while the settings move',
+      detail: 'It comes back on air straight after, usually within a few seconds. Avoid moving them during a live game.',
+    });
+    if (response === 1) return;
+  }
+  moving = true; refreshMenu();
+  try {
+    await helperStopped();
+    if (wasOn) windows.showOffAir();
+    status = 'Moving the settings…'; refreshMenu();
+    if (!where.local && location.placeholders(where.dataDir).length) await location.download(where.dataDir);
+    const result = location.move({ from: where.dataDir, to: target.dataDir, localDir: LOCAL_DIR, existing, log });
+    location.save(LOCAL_DIR, target);
+    log(`Settings now in ${target.dataDir}`);
+    dialog.showMessageBox({
+      message: provider ? `The settings are in ${location.PROVIDERS[provider].name}` : 'The settings are back on this Mac',
+      detail: `${target.dataDir}${result.backup ? `\n\nA copy of the settings as they were is in ${result.backup}.` : ''}${provider ? '\n\nThe debug log, the scores and the clock stay on this Mac.' : ''}`,
+    });
+  } catch (err) {
+    log(`Couldn't move the settings: ${err.message}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t move the settings', detail: `${err.message}\n\nStudio carries on with the settings in ${where.dataDir}.` });
+  } finally {
+    moving = false;
+    status = 'Studio is off air';
+    if (wasOn && wanted) startHelper(); else refreshMenu();
+  }
 }
 
 // ─── Updates ────────────────────────────────────────────────────────────────
@@ -281,7 +427,7 @@ async function start() {
   outputs = require('./outputs')({ port: PORT, log });
   refreshMenu();
   windows.refreshMenu();
-  log(`Starting ${app.getVersion()}, settings in ${DATA_DIR}`);
+  log(`Starting ${app.getVersion()}, settings in ${dataDir()}`);
 
   // The app always starts in the menu bar off air (nothing talks to PlayHQ), at login or opened
   // by hand. Open Studio, or any page in the menu, puts it on air.

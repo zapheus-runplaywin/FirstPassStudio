@@ -51,7 +51,8 @@ Everything Studio saves lives in one data folder on this computer, outside the a
 installing an update never touches it:
 
 - Mac: `~/Library/Application Support/FirstPass Studio`
-- Set `FIRSTPASS_DATA_DIR` to use another folder.
+- Or a folder in iCloud Drive, in a subfolder named after the Mac (see **Settings in iCloud Drive** below).
+- Set `FIRSTPASS_DATA_DIR` to use another folder (and `FIRSTPASS_LOCAL_DIR` for the files that stay on the computer).
 
 In it:
 
@@ -65,6 +66,19 @@ In it:
 - `logs/`: the debug log.
 - `app-settings.json`: the Mac app's own choices (the window's size and position).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
+
+### Settings in iCloud Drive
+
+**Settings folder > Move to iCloud Drive…** in the Mac app's menu picks a folder in iCloud Drive and moves the settings
+into `<that folder>/<Local hostname>/`, so Macs on one Apple account each keep their own (`datalocation.js`). Where they
+are is saved on the Mac only, in `data-location.json` in the local folder; `studio-computer.json` in the subfolder names
+the Mac using it, and a different Mac with the same name is refused. The move backs up to the local
+`backups/<date>-before-move`, copies, checks every file's size, then removes the originals. The debug logs,
+`scoreboard-state.json`, `game-cache.json`, `last-game-summary.json`, `app-settings.json` and `backups/` stay local
+(`LOCAL_ONLY`). Before going on air the app downloads any file iCloud has evicted (`.<name>.icloud` placeholders, via
+`brctl download`); if the iCloud folder is missing, Studio won't start rather than start empty. `PROVIDERS` in
+`datalocation.js` is where other cloud drives (Dropbox, Google Drive, OneDrive in `~/Library/CloudStorage`) would go.
+**Move back to this Mac…** reverses it. `npm start` follows `data-location.json` too.
 
 ### Template files
 

@@ -36,6 +36,7 @@
       "zip.js",
       "outputs.js",
       "datadir.js",
+      "datalocation.js",
       "migrations.js",
       "linkhost.js",
       "sequences.js",

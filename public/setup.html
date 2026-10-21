@@ -364,7 +364,7 @@
     $('font').replaceChildren(...info.fonts.map(f => Object.assign(el('option', '', f), { value: f })));
     $('readOnlyNote').hidden = !info.readOnly;
     $('noComps').hidden = info.competitions.length > 0;
-    $('dataDir').textContent = `Saved on this computer in ${info.dataDir}`;
+    $('dataDir').textContent = info.dataLocation ? `Saved in ${info.dataLocation.name}, in this Mac's folder: ${info.dataDir}` : `Saved on this computer in ${info.dataDir}`;
     $('importTemplate').disabled = info.readOnly;
     const comps = $('comps');
     comps.replaceChildren();
