@@ -284,6 +284,7 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
   or lower it, or leave it).
 - A sequence can bring its own music; going to a scene or another sequence fades it out. A scene or sequence with **Quiet the music**
   ticked (an interview on court) fades a sequence's music out, or ducks the player's own music (over the fade time) until the next scene or sequence without it.
+- The super shot song (a music setting, with its own volume) cuts in when the super shot period starts and fades out when it ends.
 
 ## Timed buttons (Timed Sequence plugin)
 

@@ -896,7 +896,10 @@ function init(logger, { ffmpeg, sequencesFile } = {}) {
 // The competition in use changed (or its setup was saved): load its sequences if it's another one.
 function competitionChanged() { if (sequences.reload()) notify(); }
 
-// The scoreboard, each second, for the sequences' game triggers (sequences.js game()).
-function game(snapshot) { sequences.game(snapshot); }
+// The scoreboard, each second, for the sequences' game triggers (sequences.js game()) and the super shot song.
+function game(snapshot) {
+  sequences.game(snapshot);
+  if (music.superShotPeriod(snapshot)) notify();
+}
 
 module.exports = { STREAMDECK_PLUGIN, importFile, exportFiles, init, route, upgrade, deck, apply, state, slug, competitionChanged, game, FILE, MEDIA_DIR };
