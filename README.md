@@ -313,7 +313,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   `<audio>` element, so it follows video sound. Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
   pauses under a visible video with sound on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
-  startAtSec, fadeInSec; `musicEnd`: fade, cut, or continue into a `then: { type: 'sequence' }`), and scenes and sequences can be `quiet`.
+  startAtSec, fadeInSec; `musicEnd`: fade, cut, or continue into a `then: { type: 'sequence' }`; with none, a sequence step's own
+  music plays while that step's sequence does), and scenes and sequences can be `quiet`.
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
   **Live View** when the Mac is busy. **Scene View sound** plays the scene's sound from the Scene View, with or without an output on;

@@ -162,21 +162,25 @@ const playing = () => run ? list.find(s => s.id === run.id) || null : null;
 // A sequence's steps as they play: sequence steps replaced by that sequence's own steps (its kept-on
 // sources on for each of them), over and over for sequences inside those. top is the step of the
 // sequence itself each one comes from; a sequence already on the way in (one inside itself) is skipped.
-function flatten(sq, chain = [], out = [], top = null) {
+// path is where each one is: the sequence, its step and which time through it (occ, 0 for the sequence
+// itself), from the sequence itself in to the one the step belongs to.
+function flatten(sq, chain = [], out = [], top = null, path = [], count = { occ: 0 }) {
   if (!sq || chain.includes(sq.id) || chain.length >= MAX_DEPTH) return out;
   const inner = [...chain, sq.id];
+  const occ = count.occ++;
   sq.steps.forEach((st, i) => {
     if (out.length >= MAX_FLAT) return;
     const at = top === null ? i : top;
+    const here = [...path, { id: sq.id, i, occ }];
     if (st.kind === 'sequence') {
       const sub = list.find(x => x.id === st.sequence);
       const from = out.length;
-      flatten(sub, inner, out, at);
+      flatten(sub, inner, out, at, here, count);
       for (let k = from; k < out.length; k++) {
         out[k].sources = [...new Set([...(sub?.keepOn || []), ...out[k].sources])];
         out[k].via = [sub.name, ...(out[k].via || [])];
       }
-    } else out.push({ ...st, sources: [...(st.sources || [])], top: at });
+    } else out.push({ ...st, sources: [...(st.sources || [])], top: at, path: here });
   });
   return out;
 }
@@ -199,6 +203,15 @@ function loops(sq) {
 // What a sequence shows first, kept on when it takes over from another.
 const firstOf = sq => { const f = flatten(sq)[0]; return [...sq.keepOn, ...(f ? f.sources : [])]; };
 const current = () => run && run.steps ? run.steps[run.step] : null;
+// Whose music a step plays: the sequence's own, else that of the outermost sequence inside it (on the way
+// to the step) that has some, with the step it's at in that one.
+function musicOf(step) {
+  for (const at of step?.path || []) {
+    const sq = list.find(x => x.id === at.id);
+    if (sq && sq.music) return { sq, ...at };
+  }
+  return null;
+}
 
 // ─── Saving: one file per competition ────────────────────────────────────
 function load() {
@@ -315,9 +328,19 @@ function enter(i) {
   }
   const what = step.kind === 'scene' ? `scene "${sc ? sc.name : 'gone'}"` : step.sources.map(id => source(id)?.name).filter(Boolean).join(', ');
   log('info', 'sequence', `"${sq.name}" step ${i + 1} of ${run.steps.length}${step.via ? ` (in ${step.via.join(' › ')})` : ''}${what ? `: ${what}` : ''}`);
-  // Its music starts at its step (the first one played from it), the first time through (the track itself loops).
-  const musicAt = Math.min(sq.music ? sq.music.startStep : 1, sq.steps.length) - 1;
-  if (sq.music && !run.loop && step.top === musicAt && !(before && before.top === musicAt && run.step < i)) music.playFor(sq.id, sq.music);
+  // Music: the sequence's own, or with none, that of a sequence inside it while that one plays.
+  const m = musicOf(step), was = before ? musicOf(before) : null;
+  // Out of a sequence inside whose music was on: it ends as that sequence's music ends (fade or cut).
+  if (was && was.occ && (!m || m.occ !== was.occ) && was.sq.musicEnd.type !== 'continue') {
+    music.stopFor(run.id, was.sq.musicEnd.type === 'cut' ? 0 : was.sq.musicEnd.sec || music.STOP_FADE_SEC);
+  }
+  // It starts at its step (the first one played from it). The sequence's own starts the first time through
+  // only (the track itself loops); one inside starts each time that sequence plays.
+  if (m) {
+    const musicAt = Math.min(m.sq.music.startStep, m.sq.steps.length) - 1;
+    const from = before && before.path.find(at => at.occ === m.occ);
+    if (m.i === musicAt && !(from && from.i === musicAt && run.step < i) && !(m.occ === 0 && run.loop)) music.playFor(run.id, m.sq.music);
+  }
   schedule();
 }
 
