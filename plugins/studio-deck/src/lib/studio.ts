@@ -11,11 +11,23 @@ export const DEFAULT_HOST = "http://localhost:8080";
 export type SceneSource = { id: string; name: string; type: string; visible: boolean; sound?: boolean };
 /** A saved look: on or off for each source it sets, by source id (only the fields the keys use). */
 export type SavedScene = { id: string; name: string; colour?: string; states: Record<string, "on" | "off"> };
+/** A sequence: sources played one after another (only the fields the keys use). */
+export type Sequence = { id: string; name: string; colour?: string };
+/** The sequence playing now: its step (from 0) of steps, and the step's time left when Studio sent it (null: waits for Next). */
+export type Playing = { id: string; step: number; steps: number; paused: boolean; leftMs: number | null; delayMs?: number };
 /**
  * The whole scene as Studio sends it. scenes, current (the last scene gone to) and changed (sources that differ
- * from it) are missing from a Studio older than scenes.
+ * from it) are missing from a Studio older than scenes; sequences and playing from one older than sequences.
  */
-export type Scene = { rev: number; sources: SceneSource[]; scenes?: SavedScene[]; current?: string | null; changed?: string[] };
+export type Scene = {
+	rev: number;
+	sources: SceneSource[];
+	scenes?: SavedScene[];
+	current?: string | null;
+	changed?: string[];
+	sequences?: Sequence[];
+	playing?: Playing | null;
+};
 
 /** The scene, or null while Studio can't be reached. */
 export type Listener = (scene: Scene | null) => void;
@@ -172,6 +184,17 @@ export async function listScenes(host: string): Promise<SavedScene[] | null> {
 		const res = await fetch(`${host}/api/scene`, { signal: AbortSignal.timeout(5000) });
 		if (!res.ok) return null;
 		return ((await res.json()) as Scene).scenes ?? [];
+	} catch {
+		return null;
+	}
+}
+
+/** The competition's sequences, for the Sequence key settings' list; null if Studio can't be reached. */
+export async function listSequences(host: string): Promise<Sequence[] | null> {
+	try {
+		const res = await fetch(`${host}/api/scene`, { signal: AbortSignal.timeout(5000) });
+		if (!res.ok) return null;
+		return ((await res.json()) as Scene).sequences ?? [];
 	} catch {
 		return null;
 	}

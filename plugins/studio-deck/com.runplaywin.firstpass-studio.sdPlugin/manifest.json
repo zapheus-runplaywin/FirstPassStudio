@@ -3,7 +3,7 @@
 	"Name": "FirstPass Studio",
 	"Version": "1.0.0.0",
 	"Author": "PIVT",
-	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, and see which are on.",
+	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, play sequences, and see which are on.",
 	"Icon": "imgs/plugin/icon",
 	"Category": "FirstPass Studio",
 	"CategoryIcon": "imgs/plugin/category",
@@ -74,6 +74,32 @@
 				{
 					"Image": "imgs/actions/source/on",
 					"Name": "On now",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				}
+			]
+		},
+		{
+			"Name": "Sequence",
+			"UUID": "com.runplaywin.firstpass-studio.sequence",
+			"Icon": "imgs/actions/source/icon",
+			"Tooltip": "Plays or stops a sequence in Studio, or moves on, delays, pauses or stops whatever is playing. Lights up and counts down while it plays.",
+			"PropertyInspectorPath": "ui/sequence.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": true,
+			"DisableAutomaticStates": true,
+			"States": [
+				{
+					"Image": "imgs/actions/source/off",
+					"Name": "Off",
+					"TitleAlignment": "middle",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/source/on",
+					"Name": "Playing",
 					"TitleAlignment": "middle",
 					"FontSize": 12
 				}
