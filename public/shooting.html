@@ -12,7 +12,8 @@
 <body>
   <!-- A 1920 x 1080 page for the Output page, for quarter breaks:
        http://localhost:8080/shooting.html
-       Options: &title=Half%20time (otherwise it names the break from the quarter on the scoreboard) -->
+       Options: &title=Half%20time (otherwise it names the break from the quarter on the scoreboard)
+       Presented by the next sponsor in rotation from Major and up (Sponsors page) in the footer: ?sponsor=0 leaves it off, ?sponsor=Golds%20Bakery always that one. -->
   <main class="card shooting" id="card" data-fit hidden>
     <header class="shooting__header">
       <div class="tab" id="title">Shooting stats</div>
@@ -26,8 +27,10 @@
       <section class="shooting__team" id="home"></section>
       <section class="shooting__team" id="away"></section>
     </div>
-    <footer class="card__footer" id="footer"></footer>
+    <div class="card__foot"><footer class="card__footer" id="footer"></footer><div class="card__sponsor" id="sponsor" hidden></div></div>
   </main>
+  <script src="sponsorspot.js"></script>
+  <script>sponsorSpot.footer('stats');</script>
   <script src="teams.js"></script>
   <script>
     const params = new URLSearchParams(location.search);

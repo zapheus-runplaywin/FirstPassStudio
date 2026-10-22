@@ -101,6 +101,20 @@
     } catch (err) { console.warn('Scoreboard unavailable:', err.message); }
   }
 
+  // The naming rights sponsor in a tab above the court, checked again every few minutes (Studio only, not PlayHQ).
+  async function sponsor() {
+    const s = await sponsorSpot.naming('scoreboard');
+    const tab = $('sponsor');
+    const key = s ? `${s.id} ${s.logoUrl}` : '';
+    if (tab.dataset.key === key) return;
+    tab.dataset.key = key;
+    tab.replaceChildren(...(s ? [sponsorSpot.badge(s)] : []));
+    tab.hidden = !s;
+    $('bug').classList.toggle('sponsor-on', !!s);
+  }
+  sponsor();
+  setInterval(sponsor, 5 * 60 * 1000);
+
   if (document.fonts) document.fonts.ready.then(() => { fitName('homeName'); fitName('awayName'); fitName('court'); });
   load();
   setInterval(load, 1000);

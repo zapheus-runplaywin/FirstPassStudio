@@ -35,6 +35,8 @@
   }
   .title__venue:empty { display: none; }
   .fire { font-size: .9em; }
+  .title__sponsor { margin-top: 10px; background: var(--purple-dark); color: var(--text); font-size: 22px; padding: 6px 18px; border-radius: 22px; }
+  .title__sponsor[hidden] { display: none; }
   .title__logo { height: 150px; max-width: 520px; object-fit: contain; margin-bottom: 10px; filter: drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
 </style>
 <script src="log.js"></script>
@@ -48,7 +50,8 @@
        logo, shown above the banner only with ?logo=show.
        Options: ?position=bottom, ?emoji=🔥 for an emoji either side of the title (none without it),
        ?logo=show to put the competition logo above the banner (off by default; ?logo=hide also leaves it off),
-       ?mode=dark to use the setup's dark mode competition logo instead of the light mode one. -->
+       ?mode=dark to use the setup's dark mode competition logo instead of the light mode one,
+       ?sponsor=0 to leave off "presented by" the naming rights sponsor (Sponsors page) under the banner. -->
   <div class="title" id="title" hidden>
     <img class="title__logo" id="logo" alt="" hidden>
     <div class="title__round" id="round"></div>
@@ -56,7 +59,9 @@
       <div class="title__comp" id="comp"></div>
       <div class="title__venue" id="venue"></div>
     </div>
+    <div class="title__sponsor" id="sponsor" hidden></div>
   </div>
+  <script src="sponsorspot.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     let emoji = '';
@@ -104,6 +109,13 @@
       } catch (err) { console.warn('Title unavailable:', err.message); }
     }
     load();
+    sponsorSpot.naming('title').then(s => {
+      if (!s) return;
+      const box = document.getElementById('sponsor');
+      box.replaceChildren(sponsorSpot.badge(s));
+      box.hidden = false;
+      fitBetweenLogos();
+    });
   </script>
 </body>
 </html>

@@ -18,7 +18,9 @@
        After the last game of the night it shows the end of night card instead: the last game of the
        night (or season), the competition and organisation, and when to join again (next week, a day,
        finals, or a thank you for the season). ?wrap=1 shows that card now, ?wrap=0 never shows it,
-       ?message= changes the invite line and ?mode=dark uses the dark mode competition logo. -->
+       ?message= changes the invite line and ?mode=dark uses the dark mode competition logo. The end of
+       night card thanks the competition's sponsors (Sponsors page) with a strip of their logos, naming
+       rights to Major; ?sponsors=0 leaves it out, ?sponsors=all shows every tier. -->
   <main class="card matchup upnext" id="card" data-fit hidden>
     <header class="matchup__header">
       <div class="upnext__tabs"><div class="tab upnext__tab">Up next</div><div class="tab" id="comp"></div></div>
@@ -47,6 +49,7 @@
       <div class="wrap__invite" id="wrapInvite"></div>
       <div class="wrap__when" id="wrapWhen"></div>
     </footer>
+    <section class="wrap__sponsors" id="wrapSponsors" hidden><div class="wrap__sponsors-title">Thanks to our sponsors</div><div class="wrap__sponsors-row" id="wrapSponsorRow"></div></section>
   </main>
   <p class="message" id="message" hidden></p>
   <script src="teams.js"></script>
@@ -102,6 +105,34 @@
       set('wrapWhen', detail);
       document.getElementById('wrap').hidden = false;
       confetti();
+      sponsors();
+    }
+    // Thanks to our sponsors: their logos on white plates, naming rights to Major (?sponsors=all for every tier).
+    async function sponsors() {
+      const want = params.get('sponsors');
+      if (want === '0') return;
+      try {
+        const tiers = want === 'all' ? '' : '?tiers=naming,elite,major';
+        const r = await (await fetch(`/api/sponsors/wall${tiers}`, { cache: 'no-store' })).json();
+        const list = (r.tiers || []).flatMap(t => t.sponsors).slice(0, 8);
+        if (!list.length) return;
+        const row = document.getElementById('wrapSponsorRow');
+        for (const s of list) {
+          const plate = document.createElement('div');
+          plate.className = 'wrap__sponsor';
+          const words = () => { const w = document.createElement('span'); w.textContent = s.name; return w; };
+          if (s.logoUrl) {
+            const img = new Image();
+            img.alt = s.name;
+            img.onerror = () => { img.replaceWith(words()); };
+            img.src = s.logoUrl;
+            plate.append(img);
+          } else plate.append(words());
+          row.append(plate);
+        }
+        document.getElementById('wrapSponsors').hidden = false;
+        window.pageLog && pageLog('info', `End of night sponsors: ${list.map(s => s.name).join(', ')}`);
+      } catch (err) { console.warn('Sponsors unavailable:', err.message); }
     }
     // A short burst of confetti in the competition's colours, falling once behind the words.
     function confetti() {

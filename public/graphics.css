@@ -20,6 +20,12 @@ body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080
   letter-spacing: 0.1em; text-transform: uppercase;
 }
 .card__footer:empty { display: none; }
+/* A footer with "presented by" a sponsor (sponsorspot.js) on its right. */
+.card__foot { display: flex; align-items: center; background: var(--purple); }
+.card__foot .card__footer { flex: 1; }
+.ticker__sponsor { display: inline-flex; align-items: center; gap: 14px; }
+.ticker__tagline { color: var(--muted); font-weight: 700; }
+.card__sponsor { color: var(--muted); padding: 8px 28px 8px 16px; font-size: 18px; margin-left: auto; }
 .tab {
   display: inline-block; background: var(--pink); color: var(--text); padding: 8px 20px; border-radius: 6px;
   font-size: 22px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
@@ -177,6 +183,12 @@ body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080
 .wrap__next { position: relative; z-index: 1; background: var(--purple); padding: 22px 40px 24px; border-top: 4px solid var(--yellow); animation: rise 0.5s 0.9s ease-out both; }
 .wrap__invite { font-size: 46px; font-weight: 800; text-transform: uppercase; color: var(--yellow); line-height: 1.1; text-wrap: balance; }
 .wrap__when { margin-top: 8px; font-size: 26px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.wrap__sponsors { position: relative; z-index: 1; padding: 18px 40px 22px; text-align: center; animation: rise 0.5s 1.2s ease-out both; }
+.wrap__sponsors-title { font-size: 18px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.wrap__sponsors-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.wrap__sponsor { box-sizing: border-box; width: 190px; height: 74px; padding: 10px; background: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.wrap__sponsor img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.wrap__sponsor span { color: var(--purple-dark); font-size: 18px; font-weight: 800; text-transform: uppercase; text-align: center; line-height: 1.05; overflow-wrap: anywhere; }
 .wrap__confetti { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .wrap__confetti i {
   position: absolute; top: -24px; width: 12px; height: 18px; border-radius: 2px; opacity: 0;
