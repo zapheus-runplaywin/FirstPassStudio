@@ -805,8 +805,10 @@ async function getFixtures(q) {
 
 // The game after the one on the scoreboard: the next timeslot on the same court
 // (any court if that court has nothing later). With no game picked, it assumes the
-// stream is on the first timeslot and shows the game after it.
-async function getUpNext() {
+// stream is on the first timeslot and shows the game after it. With { wrap: true }, when
+// there's no later game (or with { wrap: 'force' } always) it adds the end of night card's
+// details as wrap (see endOfNight).
+async function getUpNext({ wrap = false } = {}) {
   const b = board();
   const games = await getCurrentGames();
   const key = g => `${g.date || ''} ${String(g.time || '').padStart(5, '0')}`;
@@ -826,8 +828,42 @@ async function getUpNext() {
   const next = later.find(g => court && g.court === court) || later[0];
   const out = { competition: competitionName(), venueName: CONFIG.venueName || current.venue || '',
     after: { home: current.home.name, away: current.away.name, court: current.court, time: current.time } };
+  if (wrap && (!next || wrap === 'force')) {
+    const w = await endOfNight(current);
+    log('info', 'upnext', `End of night after ${current.home.name} v ${current.away.name} (${current.round}): ${w.next ? `next ${w.next.round} on ${w.next.date || 'a date not set yet'}` : w.finalsNext ? 'finals next' : 'end of the season'}`);
+    return { ...out, ...(next ? { nextGame: { home: next.home.name, away: next.away.name, court: next.court, time: next.time } } : {}), wrap: w };
+  }
   if (!next) return { ...out, error: 'No later game in this round' };
   return { ...out, ...next, logos: { home: logoFor(next.home.name), away: logoFor(next.away.name) } };
+}
+
+// The end of night card on Up next: the competition and organisation to thank, and when to come
+// back. The next round is the first round in any division dated after tonight (its name, date,
+// days away, and whether it's a finals round). Without one: finals are next when the round played
+// tonight wasn't a finals round and some division has a finals format (PlayHQ often adds finals
+// fixtures late), otherwise the season is over.
+async function endOfNight(current) {
+  const st = await getStructure();
+  let next = null, undated = null;
+  for (const grade of st.grades) {
+    const rounds = await getRounds(grade.id);
+    const dates = await roundDates(grade).catch(() => new Map());
+    const at = rounds.findIndex(r => r.name === current.round);
+    rounds.forEach((r, i) => {
+      const date = dates.get(r.id);
+      if (date && current.date && date > current.date) {
+        if (!next || date < next.date) next = { round: r.name, date };
+      } else if (!date && at >= 0 && i > at && !undated) undated = { round: r.name, date: '' };
+    });
+  }
+  next = next || undated;
+  const r = rules();
+  const finalsNext = !next && !FINALS_ROUND.test(current.round || '') && st.grades.some(g => finalsFor(g.name));
+  return { competition: st.competition || competitionName() || '', organisation: st.organisation || '', season: (st.season && st.season.name) || '',
+    competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark,
+    round: current.round || '', date: current.date || '', finalRound: FINALS_ROUND.test(current.round || ''),
+    next: next ? { ...next, days: next.date && current.date ? dayDiff(next.date, current.date) : null, finals: FINALS_ROUND.test(next.round) } : null,
+    finalsNext, seasonOver: !next && !finalsNext };
 }
 
 // The countdown page: when the game picked on the scoreboard starts. Read from the board
@@ -2903,7 +2939,7 @@ http.createServer(async (req, res) => {
       return send(res, 200, await getRoundInfo());
     }
     if (url.pathname === '/api/countdown') return send(res, 200, getCountdown());
-    if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext());
+    if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext({ wrap: q.wrap === '0' ? false : q.wrap === '1' ? 'force' : true }));
     if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar());
     if (url.pathname === '/api/lowerthird/athletes') return send(res, 200, getLowerThirdAthletes());
     if (url.pathname === '/api/lowerthird') return send(res, 200, getLowerThird(q));

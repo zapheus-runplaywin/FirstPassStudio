@@ -112,6 +112,36 @@ test('up next: the next game on the same court', async () => {
   assert.ok(u.logos.home && u.logos.away);
 });
 
+test('up next: after the last game of the night, the end of night card with next week\'s round', async () => {
+  const g = studio.world.games['game-d2-r3-2']; // Division 2, Court 2: the last game today
+  const pick = x => studio.post('/api/scoreboard', { type: 'selectGame', game: { id: x.id, roundId: x.roundId, division: x.division, court: x.court, date: x.date, time: x.time, home: { name: x.home }, away: { name: x.away } } });
+  await pick(g);
+  const u = await get('/api/upnext');
+  assert.equal(u.home, undefined, 'no next game');
+  assert.equal(u.wrap.competition, 'Thunder League');
+  assert.equal(u.wrap.organisation, 'West Coast Mens and Mixed Netball Association');
+  assert.equal(u.wrap.round, 'Round 3');
+  assert.deepEqual(u.wrap.next, { round: 'Round 4', date: studio.world.divisions[0].rounds[3].games[0].date, days: 7, finals: false });
+  assert.equal(u.wrap.seasonOver, false);
+  assert.match(u.wrap.competitionLogoLight, /^\/brand\//);
+  assert.match((await get('/api/upnext?wrap=0')).error, /No later game/, '?wrap=0 keeps the old message');
+
+  // The last round: no round after it, and the setup has a finals format, so finals are next.
+  await studio.post('/api/rounds', { round: '4' });
+  await pick(studio.world.games['game-d2-r4-2']);
+  const last = (await get('/api/upnext')).wrap;
+  assert.equal(last.next, null);
+  assert.equal(last.finalsNext, true);
+  assert.equal(last.seasonOver, false);
+
+  // ?wrap=1 shows it with a game still to come.
+  await studio.post('/api/rounds', { round: '' });
+  await studio.post('/api/scoreboard', { type: 'autoSelect', value: true });
+  const forced = await get('/api/upnext?wrap=1');
+  assert.equal(forced.wrap.next.round, 'Round 4');
+  assert.equal(forced.nextGame.home, 'Stormz');
+});
+
 test('ladder bar, form and top shooters for the game on the scoreboard', async () => {
   const bar = await get('/api/ladderbar');
   assert.equal(bar.division, 'Division 1');

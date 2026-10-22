@@ -506,7 +506,14 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   'A -1 or -2 takes that team\'s latest goal off. The list starts again when a new game is picked or the scores are reset. It only builds while the scoreboard (or this page) is open, and if the score jumps by more than 3 for one team at once, or the game was picked part way through, a dashed … marks the gap. ' +
   'Options: <code>?layout=vertical</code> (the default is <code>horizontal</code>, above the scoreboard), <code>?count=8</code> shows a different number of goals (3 to 30), <code>?times=0</code> leaves the quarter and time off, ' +
   '<code>?position=top</code> or <code>middle</code> moves the horizontal one (it stays between the title and the scoreboard), <code>?position=left</code> puts the vertical one on the left and <code>?title=Momentum</code> changes the heading.'],
- ['Last 10 goals: vertical', '/goals.html?layout=vertical'], ['Up next (half time)', '/upnext.html'], ['Countdown to the start of the game', '/countdown.html',
+ ['Last 10 goals: vertical', '/goals.html?layout=vertical'], ['Up next (half time), and the end of night card after the last game', '/upnext.html',
+  'The next game on the same court (any court when that court has nothing later), for half time. With no game picked, it shows the game after the first timeslot. ' +
+  '<b>After the last game of the night</b> it shows an end of night card instead: <b>That\'s the last game of the night</b>, the competition logo, name and organisation (from the competition setup, else PlayHQ), a little confetti, and when to join again: ' +
+  '<b>next week</b> (or tomorrow, a day, or a date) with the next round and its date, <b>Grand Final next week</b> (the round\'s name) when the next round is a final, ' +
+  '<b>Finals are next</b> after the last round when PlayHQ has no finals fixtures yet and a finals format is set, and after that <b>the last game of the season</b> with a thank you (or congratulations to the champions after a final). ' +
+  'The next round is the first one dated after tonight in any division. ' +
+  'Options: <code>?wrap=1</code> shows the end of night card now (to check it, or to close a stream early), <code>?wrap=0</code> never shows it (the old message instead), ' +
+  '<code>?message=See%20you%20at%20finals</code> changes the invite line and <code>?mode=dark</code> uses the dark mode competition logo.'], ['Countdown to the start of the game', '/countdown.html',
   'Counts down (days, hours, minutes and seconds as needed) to the scheduled start time from PlayHQ of the game picked on the control page, with both teams, their logos, the division, round, court, time and venue. ' +
   'The clock ticks in the page, so it can stay on screen: every 5 seconds it checks with Studio which game is picked (PlayHQ is not asked), so when a new game is picked, by hand or by automatic game selection, it counts down to that one. ' +
   'The last 10 seconds pulse in the accent colour, and at zero it shows <b>STARTING SOON</b> until the next game is picked. ' +

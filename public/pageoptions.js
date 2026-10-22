@@ -59,6 +59,11 @@ const PAGE_OPTIONS = (() => {
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Middle'], ['top', 'Top'], ['bottom', 'Bottom']] },
     ],
     'matchup.html': [show('form', 'Form'), show('h2h', 'Head to head')],
+    'upnext.html': [
+      { key: 'wrap', label: 'End of night card', type: 'select', choices: [['', 'After the last game of the night'], ['1', 'Show it now'], ['0', 'Never']] },
+      { key: 'message', label: 'Invite line', type: 'text', placeholder: 'Join us again next week', help: 'Replaces the line saying when to join again.' },
+      mode(),
+    ],
     'clash.html': [
       out(),
       { key: 'word', label: 'Big word', type: 'text', placeholder: 'CLASH' },

@@ -14,7 +14,11 @@
        http://localhost:8080/upnext.html
        Shows the game after the one picked on the scoreboard control page, on the same
        court (for half time). With no game picked, it shows the second timeslot.
-       Loads once, each time it comes on. -->
+       Loads once, each time it comes on.
+       After the last game of the night it shows the end of night card instead: the last game of the
+       night (or season), the competition and organisation, and when to join again (next week, a day,
+       finals, or a thank you for the season). ?wrap=1 shows that card now, ?wrap=0 never shows it,
+       ?message= changes the invite line and ?mode=dark uses the dark mode competition logo. -->
   <main class="card matchup upnext" id="card" data-fit hidden>
     <header class="matchup__header">
       <div class="upnext__tabs"><div class="tab upnext__tab">Up next</div><div class="tab" id="comp"></div></div>
@@ -26,6 +30,23 @@
       <div class="matchup__team"><div id="awayLogo"></div><h2 id="awayName"></h2></div>
     </div>
     <footer class="matchup__info" id="info"></footer>
+  </main>
+  <main class="card wrap" id="wrap" data-fit hidden>
+    <div class="wrap__confetti" id="confetti"></div>
+    <header class="wrap__header">
+      <div class="upnext__tabs"><div class="tab upnext__tab" id="wrapTab">That's a wrap</div><div class="tab" id="wrapRound"></div></div>
+      <h1 class="wrap__title" id="wrapTitle">That's the last game of the night</h1>
+    </header>
+    <div class="wrap__body">
+      <img class="wrap__logo" id="wrapLogo" alt="" hidden>
+      <div class="wrap__thanks" id="wrapThanks">Thanks for watching</div>
+      <h2 class="wrap__comp" id="wrapComp"></h2>
+      <div class="wrap__org" id="wrapOrg"></div>
+    </div>
+    <footer class="wrap__next">
+      <div class="wrap__invite" id="wrapInvite"></div>
+      <div class="wrap__when" id="wrapWhen"></div>
+    </footer>
   </main>
   <p class="message" id="message" hidden></p>
   <script src="teams.js"></script>
@@ -41,10 +62,70 @@
       document.getElementById(id).replaceWith(node);
     }
 
+    const params = new URLSearchParams(location.search);
+    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    function day(date, withDate) {
+      const d = new Date(`${date}T12:00:00Z`);
+      return Number.isNaN(d.getTime()) ? '' : withDate ? `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}` : DAYS[d.getUTCDay()];
+    }
+    // When to come back, in words: next week, tomorrow, on Saturday, or on Saturday 7 November.
+    function when(next) {
+      if (next.days === 7) return 'next week';
+      if (next.days === 1) return 'tomorrow';
+      if (next.days > 1 && next.days < 7) return `on ${day(next.date)}`;
+      return next.date ? `on ${day(next.date, true)}` : 'next round';
+    }
+    // The end of night card: no game after this one tonight.
+    function showWrap(w) {
+      const set = (id, text) => { document.getElementById(id).textContent = text; };
+      const seasonOver = w.seasonOver;
+      set('wrapRound', w.round);
+      set('wrapTitle', seasonOver ? 'That\'s the last game of the season' : 'That\'s the last game of the night');
+      set('wrapComp', w.competition);
+      set('wrapOrg', w.organisation && w.organisation !== w.competition ? w.organisation : '');
+      const logo = (params.get('mode') === 'dark' ? w.competitionLogoDark : w.competitionLogoLight) || w.competitionLogoLight;
+      const img = document.getElementById('wrapLogo');
+      if (logo) { img.src = logo; img.hidden = false; img.onerror = () => { img.hidden = true; }; }
+      let invite, detail;
+      if (w.next) {
+        invite = w.next.finals ? `${w.next.round} ${when(w.next)}` : `Join us again ${when(w.next)}`;
+        detail = [!w.next.finals && w.next.round, w.next.date && day(w.next.date, true)].filter(Boolean).join('  ·  ');
+      } else if (w.finalsNext) {
+        invite = 'Finals are next';
+        detail = 'See you there';
+      } else {
+        invite = w.finalRound ? 'Congratulations to all our champions' : 'Thanks for a great season';
+        detail = [w.season, 'See you next season'].filter(Boolean).join('  ·  ');
+      }
+      set('wrapInvite', params.get('message') || invite);
+      set('wrapWhen', detail);
+      document.getElementById('wrap').hidden = false;
+      confetti();
+    }
+    // A short burst of confetti in the competition's colours, falling once behind the words.
+    function confetti() {
+      const box = document.getElementById('confetti');
+      const colours = ['var(--yellow)', 'var(--pink)', 'var(--text)', 'var(--yellow-light)'];
+      for (let i = 0; i < 36; i++) {
+        const bit = document.createElement('i');
+        bit.style.left = `${Math.random() * 100}%`;
+        bit.style.background = colours[i % colours.length];
+        bit.style.animationDelay = `${0.2 + Math.random() * 1.4}s`;
+        bit.style.animationDuration = `${2.4 + Math.random() * 1.6}s`;
+        bit.style.setProperty('--spin', `${(Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 540)}deg`);
+        bit.style.setProperty('--drift', `${Math.round((Math.random() - 0.5) * 160)}px`);
+        if (i % 3 === 0) bit.style.borderRadius = '50%';
+        box.appendChild(bit);
+      }
+    }
+
     (async () => {
       const msg = document.getElementById('message');
       try {
-        const g = await (await fetch('/api/upnext', { cache: 'no-store' })).json();
+        const wrap = params.get('wrap');
+        const g = await (await fetch(`/api/upnext${wrap === '0' || wrap === '1' ? `?wrap=${wrap}` : ''}`, { cache: 'no-store' })).json();
+        if (g.wrap) return showWrap(g.wrap);
         if (g.error) throw new Error(g.error);
         document.getElementById('comp').textContent = g.competition || '';
         document.getElementById('division').textContent = [g.division, g.round].filter(Boolean).join('  ·  ');
