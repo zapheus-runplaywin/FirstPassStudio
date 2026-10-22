@@ -22,6 +22,9 @@ const competitions = require('./competitions');
 const DIR = datadir.file('sponsors');
 const FILE = path.join(DIR, 'sponsors.json');
 const IMAGE = /\.(png|jpe?g|webp|svg|gif)$/i;
+// Ads are files in the scene's media folder: a video, or a still (an image shown for its seconds).
+const AD_FILE = /\.(png|jpe?g|webp|svg|gif|mp4|m4v|webm|mov)$/i;
+const AD_VIDEO = /\.(mp4|m4v|webm|mov)$/i;
 const TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
 const HEX = /^#[0-9a-f]{6}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -78,6 +81,8 @@ function clean(input, old = {}) {
     end: DATE.test(v.end) ? v.end : '',
     targetSeconds: num(v.targetSeconds, 4 * 3600),   // seconds on screen per stream
     targetPlays: num(v.targetPlays, 100),            // ad plays per stream
+    ads: (Array.isArray(v.ads) ? v.ads : []).map(a => ({ file: path.basename(String((a && a.file) || '')), seconds: Math.round(Math.min(60, Math.max(3, Number(a && a.seconds) || 8))) }))
+      .filter(a => AD_FILE.test(a.file)).slice(0, 10),
     competitions: comps,
   };
 }
@@ -245,10 +250,11 @@ function candidates(compId, tiers, place, opts = {}) {
   for (const t of tiers) {
     const r = pick(compId, t, { ...opts, place });
     if (r.sponsors) for (const s of r.sponsors) {
+      if (opts.filter && !opts.filter(s)) continue;
       const c = out.get(s.id) || { id: s.id, sponsor: s, tier: s.competitions[compId].tier, weight: 0 };
       c.weight += SHARES[t];
       out.set(s.id, c);
-    } else if (r.vacancy) {
+    } else if (r.vacancy && !opts.filter) {
       const c = out.get('vacancy') || { id: 'vacancy', vacancy: r.vacancy, tier: t, weight: 0 };
       c.weight += SHARES[t];
       out.set('vacancy', c);
@@ -279,6 +285,24 @@ function next(compId, opts = {}) {
   }
   return chosen;
 }
+// ─── Ads ────────────────────────────────────────────────────────────────────
+// A Sponsor ads step in a sequence (and /deck/sponsor/ad) plays the next ad: the sponsor from the same
+// rotation (every tier, by tier share, never twice running, competitors apart, counted on its own as
+// place "ad"), then that sponsor's ads in turn. exists says whether an ad's file is in the media folder;
+// an ad whose file has gone is passed over. Null when no sponsor of the competition has an ad to play.
+const adTurns = new Map();   // "competition sponsor" -> how many of its ads have played
+function nextAd(compId, opts = {}) {
+  const exists = opts.exists || (() => true);
+  const playable = s => s.ads.filter(a => exists(a.file));
+  const c = compId && next(compId, { place: 'ad', tiers: TIERS, filter: s => playable(s).length > 0, count: opts.count });
+  if (!c) return null;
+  const ads = playable(c.sponsor), key = `${compId} ${c.sponsor.id}`;
+  const n = adTurns.get(key) || 0;
+  if (opts.count !== false) adTurns.set(key, n + 1);
+  const ad = ads[n % ads.length];
+  return { sponsor: { id: c.sponsor.id, name: c.sponsor.name }, file: ad.file, kind: AD_VIDEO.test(ad.file) ? 'video' : 'image', seconds: ad.seconds };
+}
+
 // A sponsor named in a link: its id, or its name as on the Sponsors page.
 function find(nameOrId) {
   const want = String(nameOrId || '').trim();
@@ -477,4 +501,4 @@ async function route(req, res, url, ctx) {
   return false;
 }
 
-module.exports = { init, all, byId, find, save, remove, saveLogo, removeLogo, logoFile, exportFor, importFor, pick, next, wall, forGraphic, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };
+module.exports = { init, all, byId, find, save, remove, saveLogo, removeLogo, logoFile, exportFor, importFor, nextAd, pick, next, wall, forGraphic, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };

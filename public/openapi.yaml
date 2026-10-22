@@ -533,6 +533,29 @@ paths:
                 properties:
                   ok: { type: boolean }
 
+  /deck/sponsor/ad:
+    get:
+      tags: [Scene]
+      summary: Play the next sponsor ad
+      description: |
+        Plays the next ad from the Sponsors page (`/sponsors.html`) in the scene's Sponsor ad source, taking turns with
+        the Sponsor ads steps in sequences: sponsors by their tier's share, never the same one twice running. A video plays
+        to its end with its sound and goes off; a still stays for its seconds. A sequence that's playing carries on.
+      operationId: sponsorAd
+      responses:
+        '200':
+          description: The ad is on.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  sponsor: { type: string, description: The sponsor whose ad is playing }
+                  source: { type: string, description: The scene source it plays in }
+        '404':
+          description: No sponsor of the competition in use has an ad to play.
+
   /deck/scene/{name}:
     get:
       tags: [Scene]

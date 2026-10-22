@@ -361,7 +361,7 @@
       </div>
       <h2 style="margin:16px 0 4px">Steps</h2>
       <div class="steps" id="sqSteps"></div>
-      <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add sources</button><button class="alt" id="sqAddScene" title="Go to a scene: a starting or reset point the next steps play over">+ Add scene</button><button class="alt" id="sqAddSeq" title="Play another sequence here, step by step: a mini sequence built once and used in many">+ Add sequence</button><span class="note" id="sqLoop" style="margin:0"></span></div>
+      <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add sources</button><button class="alt" id="sqAddScene" title="Go to a scene: a starting or reset point the next steps play over">+ Add scene</button><button class="alt" id="sqAddSeq" title="Play another sequence here, step by step: a mini sequence built once and used in many">+ Add sequence</button><button class="alt" id="sqAddAds" title="Play the next sponsor ads (from the Sponsors page), each as long as it is">+ Add sponsor ads</button><span class="note" id="sqLoop" style="margin:0"></span></div>
       <p class="note" style="margin-top:10px">Each step turns its sources on together and keeps them on for its length; when it ends, sources the next step doesn't use go off with their own fades.
         <b>Until it finishes</b> waits for the step's videos to end (and pages that switch themselves off when done), and moves on after the video's length plus 3 s, or a minute for a page, if the end never comes.
         <b>Until the game moves on</b> holds until the clock starts, or the next break or full time.
@@ -369,6 +369,7 @@
         <b>Repeat until</b> finishes the step on screen when its moment comes (or the next sequence's start comes), then ends.
         A sequence only turns off sources it turned on itself; to keep sources on for the whole sequence, start it with a scene that turns them on.
         <b>+ Add scene</b> goes to a scene, as a starting point or a reset point: what the scene turns on stays on under the next steps, and after the sequence. It goes straight on, or holds like any step.
+        <b>+ Add sponsor ads</b> plays the next ads from the <a href="/sponsors.html">Sponsors page</a>, taking turns fairly by tier: a video until it ends, a still for its seconds, in the Sponsor ad sources it adds to the scene (the House ad when no sponsor has an ad, unless unticked).
         <b>+ Add sequence</b> plays another sequence's steps there (but not its repeat or Then; its music plays while it does, when this sequence has none of its own), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p>
       <p class="error" id="sqErr"></p>
       <div class="row" style="margin-top:10px;justify-content:space-between">
@@ -842,21 +843,22 @@
   // How long one time through takes: steps' set times and video lengths, sequences inside added up. open: a
   // step that waits (Next, the game, a page or video of unknown length), so it's at least that.
   function runTime(steps, seen = new Set()) {
-    let sec = 0, open = false;
+    let sec = 0, open = false, ads = false;
     for (const st of steps) {
       if (st.kind === 'sequence') {
         const sub = sequences().find(x => x.id === st.sequence);
-        if (sub && !seen.has(sub.id)) { const t = runTime(sub.steps, new Set([...seen, sub.id])); sec += t.sec; open = open || t.open; }
-      } else if (st.length.type === 'now') continue;
+        if (sub && !seen.has(sub.id)) { const t = runTime(sub.steps, new Set([...seen, sub.id])); sec += t.sec; open = open || t.open; ads = ads || t.ads; }
+      } else if (st.kind === 'ads') { open = true; ads = true; }
+      else if (st.length.type === 'now') continue;
       else if (st.length.type === 'time') sec += st.length.sec;
       else if (st.length.type === 'done') { const d = stepSeconds(st); if (d) sec += d; else open = true; }
       else open = true;
     }
-    return { sec, open };
+    return { sec, open, ads };
   }
   function runText(sq) {
     const t = runTime(sq.steps, new Set([sq.id]));
-    return !t.sec ? (t.open ? 'runs until Next' : 'runs 0:00') : `runs ${t.open ? 'at least ' : ''}${fmt(t.sec * 1000)}`;
+    return !t.sec ? (t.ads ? 'runs as long as its ads' : t.open ? 'runs until Next' : 'runs 0:00') : `runs ${t.open ? 'at least ' : ''}${fmt(t.sec * 1000)}`;
   }
   function thenText(sq) {
     if (sq.then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === sq.then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
@@ -902,7 +904,7 @@
         line.className = 'nowLine';
         line.innerHTML = '<span></span><span class="left"></span>';
         const sc = p.scene && (scene.scenes || []).find(x => x.id === p.scene);
-        const names = sc ? `scene ${sc.name}` : (p.sources || []).map(nameOf).filter(Boolean).join(', ');
+        const names = sc ? `scene ${sc.name}` : p.ad !== undefined ? (p.ad ? `ad: ${p.ad}` : 'no ad to play') : (p.sources || []).map(nameOf).filter(Boolean).join(', ');
         line.firstChild.textContent = `${p.step + 1} of ${p.steps}${p.loop ? ` (again ×${p.loop})` : ''}${p.via && p.via.length ? ` · in ${p.via.join(' › ')}` : ''}${names ? ` · ${names}` : ''}`;
         const row = document.createElement('div');
         row.className = 'row';
@@ -1098,7 +1100,7 @@
     if (!draft.steps.length) box.innerHTML = '<p class="note" style="margin:0">No steps yet: add sources, a scene or another sequence below.</p>';
     draft.steps.forEach((st, i) => {
       const row = document.createElement('div');
-      row.className = 'stepRow' + (st.kind === 'scene' ? ' sceneStep' : st.kind === 'sequence' ? ' seqStep' : '') + (p && p.id === draft.id && p.top === i ? ' cur' : '');
+      row.className = 'stepRow' + (st.kind === 'scene' ? ' sceneStep' : st.kind === 'sequence' || st.kind === 'ads' ? ' seqStep' : '') + (p && p.id === draft.id && p.top === i ? ' cur' : '');
       row.innerHTML = '<span class="num"></span><div class="what"></div><div class="len"><select class="type" aria-label="How long"><option value="now">Then straight on</option><option value="time">For a set time</option><option value="done">Until it finishes</option><option value="next">Until I press Next</option><option value="game">Until the game moves on</option></select>'
         + '<input type="number" class="sec" min="1" max="3600" aria-label="Seconds"><span class="hint"></span><button class="alt up" title="Earlier">↑</button><button class="alt down" title="Later">↓</button><button class="danger del" title="Delete this step">✕</button></div>';
       row.querySelector('.num').textContent = i + 1;
@@ -1115,6 +1117,21 @@
         sel.onchange = () => { st.scene = sel.value; };
         what.append(Object.assign(document.createElement('span'), { className: 'kind', textContent: 'Go to scene' }), sel);
         [...type.options].find(o => o.value === 'done').remove();
+      } else if (st.kind === 'ads') {
+        // Sponsor ads: the next ads in the sponsors' rotation, each as long as it is.
+        const what = row.querySelector('.what');
+        const count = document.createElement('select');
+        count.setAttribute('aria-label', 'How many ads');
+        for (let n = 1; n <= 5; n++) count.add(new Option(n === 1 ? '1 ad' : `${n} ads`, n));
+        count.value = st.count || 1;
+        count.onchange = () => { st.count = Number(count.value); };
+        const house = Object.assign(document.createElement('label'), { className: 'note', title: 'The PIVT and FirstPass Studio ad (ad.html) plays when no sponsor has an ad' });
+        const tick = Object.assign(document.createElement('input'), { type: 'checkbox', checked: st.house !== false });
+        tick.onchange = () => { st.house = tick.checked; };
+        house.append(tick, ' House ad when no sponsor has one');
+        what.append(Object.assign(document.createElement('span'), { className: 'kind', textContent: 'Sponsor ads' }), count, house);
+        type.remove(); sec.remove();
+        row.querySelector('.hint').textContent = 'each as long as the ad';
       } else if (st.kind === 'sequence') {
         // Play another sequence here: its steps, with their own lengths.
         const what = row.querySelector('.what');
@@ -1133,7 +1150,7 @@
         sourcePicker(st.sources, row.querySelector('.what'));
         [...type.options].find(o => o.value === 'now').remove();
       }
-      if (st.kind !== 'sequence') {
+      if (st.kind !== 'sequence' && st.kind !== 'ads') {
       type.value = st.length.type;
       sec.value = st.length.sec || 20;
       sec.classList.toggle('hidden', st.length.type !== 'time');
@@ -1239,6 +1256,7 @@
   $('sqAddStep').onclick = () => { draft.steps.push({ sources: [], length: { type: 'time', sec: 20 } }); renderSteps(); };
   $('sqAddScene').onclick = () => { draft.steps.push({ kind: 'scene', scene: '', sources: [], length: { type: 'now' } }); renderSteps(); };
   $('sqAddSeq').onclick = () => { draft.steps.push({ kind: 'sequence', sequence: '' }); renderSteps(); };
+  $('sqAddAds').onclick = () => { draft.steps.push({ kind: 'ads', count: 1, house: true }); renderSteps(); };
   $('sqSave').onclick = () => saveSequence(false);
   $('sqTry').onclick = () => saveSequence(true);
   $('sqCancel').onclick = () => { $('seqDialog').close(); draft = null; };
