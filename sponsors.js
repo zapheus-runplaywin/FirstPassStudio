@@ -149,6 +149,42 @@ function logoFile(id, fileName) {
 }
 const logoUrl = (s, which) => s[which] ? `/sponsors/${s.id}/${encodeURIComponent(s[which])}` : null;
 
+// ─── In a competition's template file ───────────────────────────────────────
+// Export as template (Competitions setup) carries the competition's sponsors with their logos, at
+// their tier in that competition, so the sponsors go wherever the competition goes. Importing merges
+// them into the sponsors already here: one with the same name is the same sponsor, shown on the new
+// competition too (keeping its own details, and taking a logo only where it has none).
+function exportFor(compId) {
+  return all().filter(s => s.competitions[compId]).map(({ id, competitions: comps, ...s }) => {
+    const logos = {};
+    for (const f of new Set(LOGO_FIELDS.map(w => s[w]).filter(Boolean))) {
+      try { logos[f] = fs.readFileSync(path.join(DIR, id, f)).toString('base64'); } catch { /* a logo file gone missing is left out */ }
+    }
+    return { ...s, tier: comps[compId].tier, logos };
+  });
+}
+function importFor(compId, list) {
+  if (!Array.isArray(list) || !list.length) return 0;
+  writable();
+  let n = 0;
+  for (const t of list) {
+    if (!t || !TIERS.includes(t.tier) || !text(t.name, 60)) continue;
+    const { tier, logos = {}, ...fields } = t;
+    const same = all().find(s => s.name.toLowerCase() === text(t.name, 60).toLowerCase());
+    let s = same
+      ? save({ ...same, competitions: { ...same.competitions, [compId]: { tier } } })
+      : save({ ...fields, logo: '', logoWhite: '', competitions: { [compId]: { tier } } });
+    for (const which of LOGO_FIELDS) {
+      const file = fields[which], b64 = file && logos[file];
+      if (!b64 || s[which]) continue;
+      try { s = saveLogo(s.id, which, file, Buffer.from(String(b64), 'base64')); } catch { /* skip a file that isn't an image */ }
+    }
+    n++;
+  }
+  log('info', 'sponsors', `Imported ${n} sponsor${n === 1 ? '' : 's'} with the competition template`);
+  return n;
+}
+
 // ─── Which sponsors fill a tier ─────────────────────────────────────────────
 // A sponsor is shown from its deal's start date to its end date (either can be blank).
 function current(s, date) {
@@ -340,4 +376,4 @@ async function route(req, res, url, ctx) {
   return false;
 }
 
-module.exports = { init, all, byId, save, remove, saveLogo, removeLogo, logoFile, pick, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };
+module.exports = { init, all, byId, save, remove, saveLogo, removeLogo, logoFile, exportFor, importFor, pick, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };

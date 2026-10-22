@@ -1880,6 +1880,7 @@ async function setupRoute(req, res, url, q) {
     try { tpl = JSON.parse((await readRaw(req, 100 * 1024 * 1024)).toString('utf8')); } catch { return send(res, 400, { error: "That isn't a FirstPass Studio competition template." }); }
     const hadActive = competitions.activeId();
     const id = competitions.importTemplate(tpl, q.name);
+    sponsors.importFor(id, tpl.sponsors);
     log('info', 'setup', `Imported a template file as ${id}`);
     if (!hadActive) applyCompetition('First competition imported');
     return send(res, 200, setupInfo(id));
@@ -1938,7 +1939,7 @@ async function setupRoute(req, res, url, q) {
     if (id === competitions.activeId()) applyCompetition('Competition setup saved');
     return send(res, 200, setupInfo(id));
   }
-  if (what === 'template') return send(res, 200, competitions.exportTemplate(id));
+  if (what === 'template') return send(res, 200, { ...competitions.exportTemplate(id), sponsors: sponsors.exportFor(id) });
   if (req.method === 'DELETE') {
     const wasActive = id === competitions.activeId();
     const active = competitions.remove(id);

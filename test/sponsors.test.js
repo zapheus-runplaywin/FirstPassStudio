@@ -176,3 +176,26 @@ test('QR codes: the sponsor\'s tracked website or the vacancy card\'s link, as S
   await studio.post('/api/sponsors/settings', { sponsorVacancy: {} });
   assert.equal((await studio.request('GET', '/api/sponsors/qr.svg?vacancy=1')).status, 404, 'no link, no QR code');
 });
+
+test('a competition template carries its sponsors and logos; importing merges them by name', async () => {
+  await reset();
+  await add({ name: 'Golds Bakery', website: 'golds.com.au', tagline: 'Fresh bread' }, 'naming');
+  await studio.request('POST', '/api/sponsors/logo?id=golds-bakery&which=logo&name=golds.png', PNG);
+  await studio.post('/api/sponsors', { name: 'Elsewhere Only', competitions: { 'some-other-comp': { tier: 'major' } } });
+  const tpl = await studio.get(`/api/setup/${comp}/template`);
+  assert.deepEqual(tpl.sponsors.map(s => [s.name, s.tier, Object.keys(s.logos)]), [['Golds Bakery', 'naming', ['golds.png']]], 'only this competition\'s sponsors go');
+  assert.equal(tpl.sponsors[0].id, undefined, 'ids are this Studio\'s own');
+
+  // A sponsor already here by the same name is shared with the new competition, not doubled.
+  tpl.sponsors.push({ name: 'Surf Club', tier: 'partner', website: 'surf.com.au', logo: 'surf.png', logos: { 'surf.png': PNG.toString('base64') } });
+  const imported = await studio.post('/api/setup-template?name=Thunder%20Copy', JSON.stringify(tpl));
+  const view = await studio.get('/api/sponsors');
+  const golds = view.sponsors.filter(s => s.name === 'Golds Bakery');
+  assert.equal(golds.length, 1);
+  assert.deepEqual(golds[0].competitions, { [comp]: { tier: 'naming' }, [imported.id]: { tier: 'naming' } });
+  const surf = view.sponsors.find(s => s.name === 'Surf Club');
+  assert.deepEqual(surf.competitions, { [imported.id]: { tier: 'partner' } });
+  assert.equal(surf.logo, 'surf.png');
+  assert.equal(surf.website, 'https://surf.com.au');
+  await studio.del(`/api/setup/${imported.id}`);
+});
