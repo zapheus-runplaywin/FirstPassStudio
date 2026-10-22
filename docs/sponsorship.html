@@ -139,7 +139,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
 
 <section id="library">
   <h2>1. The sponsor library</h2>
-  <p>Sponsors live in one library in the data folder, shared by every competition, the same way scene sources are shared. Each competition then ticks which sponsors appear on its stream and at which tier. A local business that backs both Thunder League and WANL is set up once, and its logo or link is fixed in one place.</p>
+  <p>Sponsors get their own <b>Sponsors</b> tab, after Competitions setup. It opens on the competition in use, like every Studio page. A new sponsor belongs to that competition; its "Also shown on" list shares it with other competitions (the same PlayHQ organisation's first) without copying it, at its own tier in each. A business that backs every Thunder League division is set up once, and its logo or link is fixed in one place.</p>
   <div class="grid2">
     <div class="card">
       <h3>What a sponsor holds</h3>
@@ -162,16 +162,16 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
       <p class="muted">Five tiers in a fixed order. Each competition names them: <b>Names</b> (Naming rights, Elite, Major, Partner, Supporter, the default), <b>Metals</b> (Naming rights, Platinum, Gold, Silver, Bronze) or its own. Tiers set the default share of screen time (5 : 3 : 2 : 1 : ½). A sponsor's own target overrides it. Every tier also shows on the sponsor wall.</p>
     </div>
   </div>
-  <div class="screen" role="img" aria-label="Mockup of the Sponsors section on the Competitions setup page">
-    <div class="bar"><span>Output</span><span>Graphics</span><span>Scoreboard control</span><b>Competitions setup</b><span>Athletes</span><span>Stream Deck</span></div>
+  <div class="screen" role="img" aria-label="Mockup of the Sponsors tab">
+    <div class="bar"><span>Output</span><span>Graphics</span><span>Scoreboard control</span><span>Competitions setup</span><b>Sponsors</b><span>Athletes</span><span>Stream Deck</span></div>
     <div class="body">
-      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b style="font-size:15px">Sponsors on Thunder League</b><span class="tier">+ Add sponsor &nbsp;·&nbsp; Pick from library</span></div>
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b style="font-size:15px">Sponsors on Thunder League</b><span class="tier">+ Add sponsor &nbsp;·&nbsp; Share one from another competition</span></div>
       <div class="sp"><div class="lg" style="background:#B91C1C">GOLDS</div><div><div class="nm">Golds Bakery <span class="tier nr">Naming rights</span></div><div class="meta">goldsbakery.com.au · 1 video ad (30 s) · until 31 Mar 2027</div><div class="meter"><i style="width:82%"></i></div><div class="meta">Tonight 6:10 of 7:30 target</div></div><div class="meta">QR ✓</div></div>
       <div class="sp"><div class="lg" style="background:#1D4ED8">WAVE</div><div><div class="nm">Wave Physio <span class="tier mj">Elite</span></div><div class="meta">wavephysio.com.au · offer "First consult $49" · 2 ads</div><div class="meter"><i class="done" style="width:100%"></i></div><div class="meta">Tonight 4:05 of 4:00 target ✓</div></div><div class="meta">QR ✓</div></div>
       <div class="sp"><div class="lg" style="background:#0F766E">SURF</div><div><div class="nm">Scarborough Surf Club <span class="tier">Partner</span></div><div class="meta">No target · logo spots and ticker</div></div><div class="meta">QR ✓</div></div>
     </div>
   </div>
-  <p class="muted">Sponsors sit in their own section of Competitions setup, after Colours and logos. Sponsors whose deal has ended stay in the library, greyed and skipped by rotation, so last season's report still works.</p>
+  <p class="muted">The tier names, empty-tier rules and vacancy card for the competition in use sit at the top of the same tab. Sponsors whose deal has ended stay in the library, greyed and skipped by rotation, so last season's report still works.</p>
   <h3>When a tier is empty</h3>
   <p>Each competition sets, for every tier, what its spots do when no sponsor is in it:</p>
   <div class="tblwrap"><table>
@@ -335,7 +335,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
   <h2>9. Build order</h2>
   <p>Each step is its own PR, usable on its own. Only the first carries the minor version label.</p>
   <ol class="ship">
-    <li><div><b>Sponsors in Competitions setup.</b> The library, tiers and their names, empty-tier rules, the vacancy card, logos, link, offer, deal dates, QR preview and Save QR as PNG. Data version bump.</div></li>
+    <li><div><b>The Sponsors tab.</b> The library, tiers and their names, empty-tier rules, the vacancy card, logos, link, offer, deal dates, QR preview and Save QR as PNG. Data version bump.</div></li>
     <li><div><b>Sponsor card and sponsor wall.</b> <code>sponsor.html</code> and <code>sponsorwall.html</code> with rotation, on the Graphics page, Output page page options and examples. MP4 preview.</div></li>
     <li><div><b>Sponsors on existing graphics.</b> Naming rights on title, countdown and scoreboard tab; ticker slot; presented-by footers; end of night strip.</div></li>
     <li><div><b>Sponsor ads in sequences.</b> Ads on a sponsor, the Sponsor ads step, fair rotation, the house ad, <code>/deck/sponsor/ad</code> and a Stream Deck key.</div></li>
@@ -349,7 +349,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
   <h2>10. Decided</h2>
   <p class="muted">Matt's answers, 22 October 2026. Questions he didn't answer go with the default.</p>
   <ol class="qa">
-    <li><b>Where sponsors belong.</b> One library shared by all competitions; each competition ticks its own sponsors and tiers.</li>
+    <li><b>Where sponsors belong.</b> Their own Sponsors tab (after Competitions setup; Go menu ⌘5, Athletes ⌘6, Stream Deck ⌘7). Sponsors belong to a competition and can be shared with others, the same organisation's first, at their own tier in each.</li>
     <li><b>Tiers.</b> Five: Naming rights, Elite, Major, Partner, Supporter, renamed per competition (Names, Metals or its own), screen share 5 : 3 : 2 : 1 : ½.</li>
     <li><b>Empty tiers.</b> A per-tier setting: Push up, Push down, Skip tier or Advertise vacancy. The vacancy card is the competition admin's, not PIVT's.</li>
     <li><b>Guaranteed exposure.</b> Optional targets per sponsor; the report is always there. <span class="def">[default]</span></li>
