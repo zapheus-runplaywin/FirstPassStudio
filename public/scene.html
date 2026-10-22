@@ -28,6 +28,7 @@
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
 <script src="autoreload.js"></script>
+<script src="sfx.js"></script>
 </head>
 <body>
 <div id="stage"></div>
@@ -56,6 +57,7 @@
       setTimeout(() => { if (L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
     }
     renderMusic(music);
+    pageSoundLevel();
   };
   // Called by the Output page during a click: Safari lets a video play sound later only if it was played
   // during a click, so start and stop the hidden ones too (muted as they are, so nothing is heard).
@@ -65,13 +67,15 @@
       if (v && L.src && !L.src.visible && v.paused) { v.play().then(() => v.pause()).catch(() => {}); }
     }
     if (audio.paused) audio.play().then(() => { if (!music || music.status !== 'playing') audio.pause(); }).catch(() => {});
+    if (sfxCtx && sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {});
     window.setSilent(false);
   };
   // For the Output page: how many shown videos play sound here, and whether the browser blocks it.
   window.soundState = () => {
     let videos = 0;
     for (const L of layers.values()) if (L.src && L.src.type === 'video' && L.src.visible && L.src.sound) videos++;
-    return { videos, blocked, music: !!music && music.status === 'playing' };
+    const pages = [...layers.values()].filter(L => L.sound && L.src.visible).length;
+    return { videos, pages, blocked: blocked || (pages > 0 && !!sfxCtx && sfxCtx.state === 'suspended'), music: !!music && music.status === 'playing' };
   };
   if (/^[0-9a-f]{6}$/i.test(params.get('bg') || '')) document.documentElement.style.background = document.body.style.background = '#' + params.get('bg');
   if (params.get('key') === '1') { document.body.classList.add('key'); document.documentElement.style.background = document.body.style.background = '#000'; }
@@ -105,16 +109,44 @@
   function tellDone(src, showSeq) {
     fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'ended', id: src.id, loadSeq: src.loadSeq, showSeq }) }).catch(() => {});
   }
-  // Pages that animate away say so with done.js (postMessage { studio: 'done' }).
+  // Pages that animate away say so with done.js (postMessage { studio: 'done' }); pages with sound (the intro and
+  // outro) send their plan with pagesound.js (postMessage { studio: 'sound', plan }).
   addEventListener('message', e => {
-    if (!e.data || e.data.studio !== 'done') return;
+    if (!e.data || (e.data.studio !== 'done' && e.data.studio !== 'sound')) return;
     for (const L of layers.values()) {
       const f = L.el.querySelector('iframe');
       if (!f || f.contentWindow !== e.source) continue;
+      if (e.data.studio === 'sound') { if (L.src.visible) playPageSound(L, e.data.plan); continue; }
       // A page loaded fresh each time it's shown names that showing; one kept loaded names this one.
       if (L.src.visible && L.shown) tellDone(L.src, L.src.reloadOnShow ? L.pageShow : L.src.showSeq);
     }
   });
+  // Page sound (sfx.js): every scene window plays it, and a silent one (the preview, the key output) at no volume, so
+  // the Output page can turn its preview's sound on part way through. It stops when the source goes off.
+  let sfxCtx = null, sfxOut = null;
+  function pageSoundLevel() {
+    if (!sfxOut) return;
+    const t = sfxCtx.currentTime;
+    sfxOut.gain.cancelScheduledValues(t);
+    sfxOut.gain.setTargetAtTime(silent ? 0 : 1, t, .05);
+  }
+  function playPageSound(L, plan) {
+    if (typeof StudioSfx === 'undefined' || !plan) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!sfxCtx) {
+      sfxCtx = new Ctx();
+      sfxOut = sfxCtx.createGain();
+      sfxOut.gain.value = silent ? 0 : 1;
+      sfxOut.connect(sfxCtx.destination);
+    }
+    if (sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {});
+    stopPageSound(L, .1);
+    L.sound = StudioSfx.run(sfxCtx, sfxOut, { ...plan, onBlocked: () => { blocked = true; } });
+  }
+  function stopPageSound(L, fade = .4) {
+    if (L.sound) { L.sound.stop(fade); L.sound = null; }
+  }
 
   function create(s) {
     const el = document.createElement('div');
@@ -152,6 +184,7 @@
     const want = `${addressOf(s)}#${s.loadSeq}`;
     L.loaded = want;
     L.pageShow = s.showSeq;
+    stopPageSound(L, .1);
     return new Promise(resolve => {
       const done = () => { clearTimeout(t); f.removeEventListener('load', done); resolve(); };
       const t = setTimeout(done, LOAD_WAIT_MS);
@@ -196,6 +229,7 @@
     } else {
       el.classList.remove('on');
       L.shown = false;
+      stopPageSound(L, Math.max(.1, (first ? 0 : s.fadeMs) / 1000));
       if (s.type === 'browser') {
         if (!s.reloadOnShow && L.loaded !== pageKey) loadPage(L, s); // keep it ready to show at once
         else if (s.reloadOnShow) setTimeout(() => { if (token === L.token) unloadPage(L); }, first ? 0 : s.fadeMs + 50);
@@ -290,7 +324,7 @@
       if (!L) { L = create(s); layers.set(s.id, L); }
       update(L, s, scene.sources.length - i);
     });
-    for (const [id, L] of layers) if (!seen.has(id)) { L.el.remove(); layers.delete(id); }
+    for (const [id, L] of layers) if (!seen.has(id)) { stopPageSound(L, .1); L.el.remove(); layers.delete(id); }
     renderMusic(scene.music);
     first = false;
   }

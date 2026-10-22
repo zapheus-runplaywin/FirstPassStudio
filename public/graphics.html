@@ -618,7 +618,12 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
   'It holds for 5 seconds once the words are in, then animates away and switches its source off: <code>?hold=10</code> holds longer, <code>?out=0</code> stays on screen. ' +
   'Options: <code>?message=</code> changes the yellow line, <code>?speed=1.5</code> plays it faster (0.5 slower), <code>?mode=dark</code> the dark mode competition logo, ' +
   '<code>?bg=</code>, <code>?bg2=</code> and <code>?bgimage=</code> a background as on the logo animations (it is see-through without them; the blueprint style brings its own grid), ' +
-  'and <code>?fit=1</code> fits it between the title and the scoreboard instead of full screen. Plays once each time it comes on.';
+  'and <code>?fit=1</code> fits it between the title and the scoreboard instead of full screen. Plays once each time it comes on. ' +
+  '<b>Sound:</b> each style has its own effects (orbit a swirl, parade footsteps, tiles clicks and clacks, spotlight a light\'s clunk for each team and the lights swelling up, court the umpire\'s whistle, catches and passes and the net\'s swish, blueprint a grid hum, lasers and zaps), with a boom as the competition logo lands, a lift as the words come in and a whoosh as it leaves. ' +
+  '<code>?sfx=40</code> sets their volume in % (80 without it), <code>?sfx=0</code> turns them off. <code>?theme=</code> plays a song or sound from the media folder with it, at <code>?volume=</code>% (100). ' +
+  '<code>?themefit=</code> lines the theme up: <b>start</b> (the default) starts it with the animation, <b>logo</b> ends it as the competition logo lands (good for a short stinger), <b>end</b> ends it as the animation finishes, and <b>stretch</b> plays the animation up to 25% faster or slower so it lasts as long as the theme. ' +
+  'On the Output page the source\'s options say how long the theme and the animation are, and warn when they are more than 25% apart. Music playing on the Output page fades out while an intro or outro with a theme is on. ' +
+  'The sound plays where Studio\'s sound goes (not in the Graphics page\'s previews); as a page on its own, like an OBS browser source, it plays itself (<code>?sound=0</code> keeps it quiet).';
 [['Intro', '/introoutro.html', INTRO_HELP], ['Outro', '/introoutro.html?type=outro'],
  ...['parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => [`Intro: ${st}`, `/introoutro.html?style=${st}`])]
   .forEach(([n, p, h]) => document.getElementById('introPages').appendChild(pageRow(n, p, h)));

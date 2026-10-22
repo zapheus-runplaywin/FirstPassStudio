@@ -105,6 +105,23 @@ test('a video with its sound on fades the music out and pauses it, then it fades
   assert.equal(m().level, 100, 'the video ended and switched off');
 });
 
+test('an intro or outro playing a theme song gets the music out of the way too; its sound effects alone do not', () => {
+  reset();
+  ok({ type: 'add', sources: [{ type: 'browser', name: 'Intro', url: 'introoutro.html?style=court&theme=Walk%20out.m4a' },
+    { type: 'browser', name: 'Outro', url: 'introoutro.html?type=outro&sfx=60' }] });
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  wait(5);
+  ok({ type: 'show', name: 'Outro' });
+  assert.equal(m().video, null, 'effects only');
+  ok({ type: 'show', name: 'Intro' });
+  assert.equal(m().video, 'pause');
+  wait(1);
+  assert.equal(m().status, 'paused');
+  // It animates away and switches itself off: the music comes back.
+  ok({ type: 'ended', id: id('Intro'), loadSeq: st().sources.find(s => s.name === 'Intro').loadSeq });
+  assert.equal(m().status, 'playing');
+});
+
 test("a sequence's music starts at its step from the start mark, and fades out as the sequence ends", () => {
   reset();
   ok({ type: 'seqAdd', changes: { name: 'Run-up', music: { track: 'Pre-game bed.mp3', startStep: 2, startAtSec: 42, fadeInSec: 2 }, musicEnd: { type: 'fade', sec: 4 },

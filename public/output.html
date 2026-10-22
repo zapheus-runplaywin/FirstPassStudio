@@ -173,6 +173,7 @@
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
 <script src="pageoptions.js"></script>
+<script src="introtiming.js"></script>
 <script src="asktext.js"></script>
 </head>
 <body class="fp">
@@ -1012,6 +1013,7 @@
     return measured.get(f) || 0;
   }
   function lengthsChanged() {
+    checkThemeLength();
     renderSequences();
     if (draft) renderSteps();
     if (scene.music) renderMusic();
@@ -1502,7 +1504,8 @@
       if (o.type === 'select') {
         input = document.createElement('select');
         for (const [v, text] of o.choices) input.add(new Option(text, v));
-        if (!o.choices.some(([v]) => v === value)) input.add(new Option(value, value));
+        if (o.list === 'audio') for (const f of tracks()) if (!o.choices.some(([v]) => v === f)) input.add(new Option(songName(f), f));
+        if (![...input.options].some(opt => opt.value === value)) input.add(new Option(value, value));
       } else {
         input = document.createElement('input');
         input.type = o.type === 'number' ? 'number' : 'text';
@@ -1545,9 +1548,62 @@
         cell.appendChild(tick);
       }
       if (o.help) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '2px 0 0'; n.textContent = o.help; cell.appendChild(n); }
+      if (o.lengthCheck) { const n = document.createElement('p'); n.className = 'note'; n.id = 'optLengthCheck'; n.style.margin = '4px 0 0'; cell.appendChild(n); }
       box.append(label, cell);
     }
-    if (options.some(o => o.list)) loadAthletes();
+    if (options.some(o => o.list === 'athletes' || o.list === 'teams')) loadAthletes();
+    if (options.some(o => o.lengthCheck)) checkThemeLength(params);
+  }
+  // The intro and outro's theme against the animation (introtiming.js), checked again whenever its options change (a new
+  // style, theme, timing, hold or division): a warning when the two are more than 25% apart, as the theme can line up
+  // with only one end of the animation and stretching it goes only 25% either way.
+  const teamCounts = new Map(); // type|division -> { n, at }
+  let lengthParams = null;
+  async function checkThemeLength(params = lengthParams) {
+    lengthParams = params;
+    const note = $('optLengthCheck');
+    if (!note || !params) return;
+    const theme = params.get('theme') || '', fit = params.get('themefit') || 'start';
+    if (!theme) { note.textContent = ''; return; }
+    const sec = durationOf(theme);
+    if (!sec) { note.textContent = 'Reading the theme\'s length…'; return; }
+    const key = `${params.get('type') || ''}|${params.get('division') || ''}`;
+    let n = teamCounts.get(key);
+    if (!n || Date.now() - n.at > 60000) {
+      try {
+        const q = new URLSearchParams({ type: params.get('type') || 'intro' });
+        if (params.get('division')) q.set('division', params.get('division'));
+        const d = await (await fetch('/api/introoutro?' + q, { cache: 'no-store' })).json();
+        n = { n: (d.teams || []).length, at: Date.now() };
+        teamCounts.set(key, n);
+      } catch { n = { n: 8, at: 0 }; }
+      if (params !== lengthParams) return; // changed again while asking
+    }
+    const hold = Number.isFinite(parseFloat(params.get('hold'))) ? parseFloat(params.get('hold')) : 5, outOn = params.get('out') !== '0';
+    const speed = parseFloat(params.get('speed')) > 0 ? parseFloat(params.get('speed')) : 0;
+    const style = (params.get('style') || 'orbit').toLowerCase(), STYLES = ['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'];
+    const s1 = x => x.toFixed(1) + ' s';
+    const say = (warn, text) => { note.textContent = (warn ? '⚠️ ' : '') + text; note.style.color = warn ? '#b45309' : ''; note.style.fontWeight = warn ? '700' : ''; };
+    const runs = st => introLength(st, n.n, hold, outOn) / (speed || 1);
+    if (!STYLES.includes(style)) {
+      const lens = STYLES.map(runs), lo = Math.min(...lens), hi = Math.max(...lens);
+      const off = lens.some(l => Math.abs(sec - l) / l > .25);
+      return say(off, `The theme is ${s1(sec)}. A different style each time runs ${s1(lo)} to ${s1(hi)}${off ? ', so some styles are more than 25% longer or shorter than the theme.' : '.'}`);
+    }
+    const len = runs(style), apart = Math.abs(sec - len) / len;
+    const head = `The theme is ${s1(sec)} and this animation ${s1(len)} with ${n.n} team${n.n === 1 ? '' : 's'}.`;
+    const k = len / sec, fits = k >= .75 && k <= 1.25;
+    if (fit === 'stretch' && !speed) {
+      const rate = Math.max(.75, Math.min(1.25, k));
+      if (fits) return say(false, `${head} It plays at ${rate.toFixed(2)}× to last as long as the theme.`);
+      return say(true, `${head} That's more than 25% apart and stretching goes only 25%, so it plays at ${rate.toFixed(2)}× and ${sec > len / rate ? `the theme runs ${s1(sec - len / rate)} past the end` : `the theme ends ${s1(len / rate - sec)} early`}.`);
+    }
+    if (apart <= .25) return say(false, `${head} They line up${fit === 'logo' ? ' with the theme ending on the logo' : fit === 'end' ? ' at the end' : ' from the start'}.`);
+    const ct = introTiming(style, n.n).ct / (speed || 1);
+    const what = fit === 'logo' ? (sec > ct ? `the theme is longer than the ${s1(ct)} before the logo lands, so its first ${s1(sec - ct)} are skipped` : `the theme starts ${s1(ct - sec)} in and ends as the logo lands`)
+      : fit === 'end' ? (sec > len ? `its first ${s1(sec - len)} are skipped` : `the theme starts ${s1(len - sec)} in`)
+      : sec > len ? `the theme runs ${s1(sec - len)} past the end and is cut off` : `the theme ends ${s1(len - sec)} before the animation`;
+    say(true, `${head} They're more than 25% apart: ${what}.${fit === 'stretch' ? ' Speed is set, so it doesn\'t stretch.' : fits ? ' Stretch would fit them.' : ''}`);
   }
   // The person lower third's suggestions (list: 'athletes' and list: 'teams' in pageoptions.js): the active
   // competition's athletes, read again each time its options are shown so a competition switched on the
@@ -1635,7 +1691,7 @@
       : !$('previewOn').checked ? 'Silent: turn Live View on.'
       : !previewSound ? 'Silent: another Output page is playing the sound. Click the Scene View to bring it here.'
       : st && st.blocked ? 'Blocked by this browser until you click: click the Scene View to hear it. (The Studio app\'s own window doesn\'t need this.)'
-      : st && !st.videos ? 'Sound plays here once a video with Sound ticked is on.'
+      : st && !st.videos && !st.pages ? 'Sound plays here once a video with Sound ticked, or an animation with sound, is on.'
       : 'Sound plays here, through this Mac\'s sound output.';
     $('previewSoundNote').textContent = note;
     if (note !== lastNote) { if (note) console.log(`Scene View sound: ${note}`); lastNote = note; }

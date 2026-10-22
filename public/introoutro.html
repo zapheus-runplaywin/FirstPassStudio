@@ -11,6 +11,9 @@
 <script src="done.js"></script>
 <script src="backdrop.js"></script>
 <script src="fit.js"></script>
+<script src="introtiming.js"></script>
+<script src="sfx.js"></script>
+<script src="pagesound.js"></script>
 <style>
   /* The competition's intro (start of the stream) or outro (end of the night): the competition logo and name, the
      organisation, and the logos of every team in a division, in one of five styles (?style=):
@@ -224,6 +227,10 @@
                 the yellow line; ?hold=5 seconds on screen after the words come in (?out=0 stays on screen); ?speed=1.5 plays it
                 faster (0.5 slower); ?mode=dark the dark mode competition logo; ?bg=, ?bg2= and ?bgimage= a background, as on
                 the logo animation; ?fit=1 fits it between the title and the scoreboard instead of full screen.
+       Sound: each style has its own effects (?sfx=80 their volume in %, 0 for none). ?theme= a song from the media folder
+                plays with it (?volume=100 in %); ?themefit= when: start (default, with the animation), logo (ends as
+                the competition logo lands), end (ends as it finishes animating away) or stretch (plays the animation
+                up to 25% faster or slower so it lasts as long as the theme).
                 Plays once when the page loads. -->
   <!-- The blueprint style's laser outlines: the logo's edges (its outline and the lines inside it) in light blue, glowing -->
   <svg width="0" height="0" style="position:absolute">
@@ -280,7 +287,8 @@
       if (!STYLES.includes(style)) { console.warn(`${LABEL}: no style called`, style, '- using orbit. Styles:', STYLES.join(', ')); style = 'orbit'; }
       stage.classList.add('s-' + style);
       const num = (k, min = 0) => { const v = parseFloat(params.get(k)); return Number.isFinite(v) && v >= min ? v : null; };
-      const speed = num('speed', 0.1) || 1, hold = num('hold') ?? 5;
+      let speed = num('speed', 0.1) || 1;
+      const hold = num('hold') ?? 5, outOn = params.get('out') !== '0';
       studioBackdrop($('backdrop'), params, LABEL);
       // Full screen by default (an intro or outro has the frame to itself); ?fit=1 fits it between the title and the scoreboard.
       if (params.get('fit') === '1') { stage.dataset.fitBox = '70 1010'; if (window.fitBox) window.fitBox(stage); }
@@ -329,7 +337,8 @@
             box.style.setProperty('--fx', px(CX + far * Math.cos(from) - s.x));
             box.style.setProperty('--fy', px(CY + far * .7 * Math.sin(from) - s.y));
           });
-          return { ct: 1.1, wt: 1.9 + spots.length * .04 };
+          const { ct, wt } = introTiming('orbit', spots.length);
+          return { ct, wt, cues: [[0, 'swirl'], ...spots.map(s => [1.45 + s.i * .07, 'pop', .3]), [ct, 'boom', .8], [ct + .15, 'shimmer']] };
         },
         parade({ teams }) {
           // The teams march in along a line near the bottom with their names and stay there, like a line up;
@@ -343,8 +352,8 @@
           placeTeams(teams, teams.map((t, i) => ({ x: CX + (i - (n - 1) / 2) * slot, y })));
           $('under').innerHTML = '<div class="lane"></div>';
           root.setProperty('--cy', '290px'); root.setProperty('--clh', '240px'); root.setProperty('--wy', '430px');
-          const done = n * step + .6;
-          return { ct: done, wt: done + .5 };
+          const { ct, wt } = introTiming('parade', teams.length);
+          return { ct, wt, cues: [[0, 'whoosh', .7], ...teams.map((t, i) => [i * step + .45, 'stomp', .8]), [ct, 'boom', .9]] };
         },
         tiles({ teams, logo, aspect }) {
           // A wall of tiles, team logos on the front and a piece of the competition logo on the back.
@@ -367,7 +376,10 @@
             if (team) f.appendChild(logoEl(team, 'tl'));
           });
           root.setProperty('--wy', px(top + H + 34));
-          return { ct: 1.3 + (C + R) * .08 + .8, wt: 1.3 + (C + R) * .08 + 1.1 };
+          // A click as each diagonal of tiles turns up, a clack as each flips, and the shine across the finished mosaic.
+          const { ct, wt } = introTiming('tiles', teams.length), diagonals = [...Array(C + R - 1).keys()];
+          return { ct, wt, cues: [...diagonals.map(k => [.1 + k * .06, 'tick', .6]), ...diagonals.map(k => [1.55 + k * .08, 'clack', .7]),
+            [ct, 'shimmer', 1.2], [ct, 'boom', .45]] };
         },
         spotlight({ teams }) {
           // The teams stand under an arch across the top of the frame; in the dark, a spotlight visits each in turn
@@ -396,7 +408,8 @@
           document.head.appendChild(css);
           $('over').innerHTML = '<div class="spot"></div><div class="flash"></div>';
           root.setProperty('--cy', '600px'); root.setProperty('--clh', '230px'); root.setProperty('--wy', '735px');
-          return { ct: tour + .15, wt: tour + .7 };
+          const { ct, wt } = introTiming('spotlight', teams.length);
+          return { ct, wt, cues: [...spots.map(s => [.5 + s.i * per + glide - .05, 'clunk', .7]), [tour, 'swell'], [ct, 'boom', .55]] };
         },
         court({ teams }) {
           // A netball court: the outline, the thirds, the centre circle, the goal circles and a goal post at each end.
@@ -481,8 +494,12 @@
             moves[i].push(at(end, spot.x, spot.y));
           });
           root.setProperty('--cy', '410px'); root.setProperty('--clh', '250px'); root.setProperty('--wy', '565px');
-          const ct = tGoal + .25;
-          return { ct, wt: ct + .6, start() {
+          const { ct, wt } = introTiming('court', teams.length);
+          // The umpire's whistle, a catch and a throw for every pass, the shot through the net, and the crowd's moment.
+          const cues = [[0, 'whoosh', .5], [T0 - .55, 'whistle']];
+          pts.forEach((pt, k) => { cues.push([tc(k), 'catch'], [tc(k) + turn, 'pass']); });
+          cues.push([tGoal - .05, 'swish'], [ct, 'boom', .8]);
+          return { ct, wt, cues, start() {
             const ease = { easing: 'linear', fill: 'both', duration: end * 1000 };
             players.forEach((p, i) => {
               p.animate(moves[i].sort((a, b) => a.offset - b.offset).map(f => ({ ...f, easing: 'ease-in-out' })), ease);
@@ -496,7 +513,7 @@
           const n = Math.max(teams.length, 1), cols = Math.min(n, Math.ceil(Math.sqrt(n * 2.2))), rows = Math.ceil(n / cols);
           const cw = Math.min(280, 1640 / cols - 30, (900 / rows - 30) / 1.3), ch = cw * 1.3;
           root.setProperty('--cw', px(cw)); root.setProperty('--ch', px(ch)); root.setProperty('--nameS', px(Math.max(13, Math.min(22, cw / 11))));
-          const step = Math.min(.12, 1 / n), solid = .35 + n * step + .9, push = solid + .9, trace = push + .55, ct = trace + .85;
+          const step = Math.min(.12, 1 / n), solid = .35 + n * step + .9, push = solid + .9, trace = push + .55;
           root.setProperty('--push', push + 's'); root.setProperty('--trace', trace + 's');
           let cards = '';
           teams.forEach((t, i) => {
@@ -521,7 +538,10 @@
             card.querySelector('.bp-solid').prepend(logoEl(t, 'tl'));
           });
           $('over').innerHTML = (logo ? `<img class="bp-comp" src="${esc(logo)}" alt=""><div class="bp-comp-laser"></div>` : '') + `<div class="flash"></div>${bits}`;
-          return { ct, wt: ct + .7 };
+          const { ct, wt } = introTiming('blueprint', teams.length);
+          const cues = [[0, 'hum'], ...teams.map((t, i) => [.35 + i * step, 'laser', 1 / Math.sqrt(Math.max(1, n / 4))]),
+            ...teams.map((t, i) => [.35 + i * step + .9, 'zap', .8]), [push, 'whoosh', .8], [trace, 'laser', 2.2], [ct, 'boom'], [ct + .05, 'sparkle']];
+          return { ct, wt, cues };
         },
       };
 
@@ -541,13 +561,41 @@
         ['kicker', 'title', 'org', 'line', 'detail'].forEach(id => fitLine($(id)));
       }
 
-      function play(timing) {
+      // The sound: the style's effects, the words rising in and the exit, and the theme, timed as ?themefit= says.
+      // Times here are at speed 1; the plan is in real seconds from now.
+      async function soundPlan(timing) {
+        const theme = (params.get('theme') || '').trim(), fit = (params.get('themefit') || 'start').toLowerCase();
+        const sfx = (num('sfx') ?? 80) / 100;
+        const cues = [...timing.cues || [], [timing.wt, 'rise'], ...(outOn ? [[timing.wt + 1 + hold, 'out', .8]] : [])];
+        let themeAt = 0;
+        const length = outOn ? timing.wt + 1 + hold + INTRO_OUT_SEC : timing.wt + 1;
+        if (theme) {
+          const sec = await studioSound.lengthOf(theme);
+          if (!sec) console.warn(`${LABEL}: could not read the theme "${theme}", so it starts with the animation`);
+          else {
+            if (fit === 'stretch') {
+              if (num('speed', 0.1)) console.info(`${LABEL}: ?speed= is set, so the animation isn't stretched to the theme`);
+              else speed = Math.max(.75, Math.min(1.25, length / sec));
+            } else if (fit === 'logo') themeAt = timing.ct - sec;
+            else if (fit === 'end') themeAt = length - sec;
+            const runs = length / speed, apart = Math.abs(sec - runs) / runs;
+            console.info(`${LABEL}: theme "${theme}" ${sec.toFixed(1)} s, animation ${runs.toFixed(1)} s at ${speed.toFixed(2)}x, theme ${fit}`);
+            if (apart > .25) console.warn(`${LABEL}: the theme and the animation are more than 25% apart in length`);
+            if (themeAt < 0 && fit !== 'start') console.warn(`${LABEL}: the theme is longer than the animation before it, so its first ${(-themeAt / speed).toFixed(1)} s are skipped`);
+          }
+        }
+        return { sfx, cues: cues.map(([t, name, gain]) => [t / speed, name, gain]),
+          theme: theme ? { file: theme, volume: (num('volume') ?? 100) / 100, at: themeAt / speed } : null };
+      }
+
+      function play(timing, plan) {
         root.setProperty('--ct', timing.ct + 's');
         root.setProperty('--wt', timing.wt + 's');
         stage.classList.add('go');
         if (timing.start) timing.start();
         if (speed !== 1) document.getAnimations().forEach(a => { a.playbackRate = speed; });
-        if (params.get('out') === '0') return;
+        if (plan.sfx > 0 || plan.theme) studioSound(plan);
+        if (!outOn) return;
         setTimeout(() => {
           stage.classList.add('out');
           if (speed !== 1) requestAnimationFrame(() => document.getAnimations().forEach(a => { a.playbackRate = speed; }));
@@ -578,8 +626,9 @@
           await Promise.all([...document.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
           if (document.fonts) await document.fonts.ready;
           ['kicker', 'title', 'org', 'line', 'detail'].forEach(id => fitLine($(id)));
+          const plan = await soundPlan(timing);
           console.info(`${LABEL}: ${type}, ${style}, ${data.teams.length} teams`);
-          play(timing);
+          play(timing, plan);
         } catch (err) { console.warn(`${LABEL} unavailable:`, err.message); }
       }
       load();

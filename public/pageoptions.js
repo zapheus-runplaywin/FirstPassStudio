@@ -8,6 +8,8 @@
 // list: 'athletes' suggests the active competition's athletes (from the Athletes page) as you type in a text box;
 // with gameOnly a tick box under it narrows them to the two teams in the picked game. list: 'teams' on a select
 // adds the teams those athletes play for as choices, and narrows the athlete suggestions to the one picked.
+// list: 'audio' on a select adds the songs in the media folder as choices. lengthCheck (the intro and outro's theme
+// timing) shows under it how the theme's length compares with the animation's.
 
 /* exported PAGE_OPTIONS */
 const PAGE_OPTIONS = (() => {
@@ -202,6 +204,11 @@ const PAGE_OPTIONS = (() => {
       { key: 'fit', label: 'Size', type: 'select', choices: [['', 'Full screen'], ['1', 'Between the title and the scoreboard']] },
       mode(),
       ...background,
+      { key: 'sfx', label: 'Sound effects volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '80', help: 'Each style has its own effects. 0 turns them off.' },
+      { key: 'theme', label: 'Theme', type: 'select', list: 'audio', choices: [['', 'None']], help: 'A song or sound from the media folder (add it under Media), played with the animation.' },
+      { key: 'themefit', label: 'Theme timing', type: 'select', lengthCheck: true, choices: [['', 'Starts with the animation'], ['logo', 'Ends as the competition logo lands'],
+        ['end', 'Ends as the animation finishes'], ['stretch', 'Stretch the animation to fit the theme (up to 25%)']] },
+      { key: 'volume', label: 'Theme volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '100' },
     ],
     'logo.html': [
       { key: 'template', label: 'Animation', type: 'select', choices: [['', 'fun (default)'], ...LOGO_TEMPLATES.slice(1).map(t => [t, t]), ['random', 'A different one each time']] },
