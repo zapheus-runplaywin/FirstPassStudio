@@ -177,6 +177,53 @@ test('QR codes: the sponsor\'s tracked website or the vacancy card\'s link, as S
   assert.equal((await studio.request('GET', '/api/sponsors/qr.svg?vacancy=1')).status, 404, 'no link, no QR code');
 });
 
+test('the sponsor card rotates fairly by tier share, never the same twice running, competitors kept apart', async () => {
+  await reset();
+  await studio.post('/api/sponsors/settings', { sponsorEmpty: { naming: 'skip', elite: 'skip' }, sponsorVacancy: {} });
+  await add({ name: 'Big Bank', category: 'Bank' }, 'naming');            // share 5
+  await add({ name: 'Wave Physio', category: 'Physio' }, 'major');        // share 2
+  await add({ name: 'Back Physio', category: 'Physio' }, 'major');        // share 2
+  const seen = [];
+  for (let i = 0; i < 18; i++) {
+    const r = await studio.get('/api/sponsors/next?place=card');
+    seen.push(r.sponsor.name);
+  }
+  for (let i = 1; i < seen.length; i++) assert.notEqual(seen[i], seen[i - 1], `the same sponsor twice running at ${i}: ${seen.join(', ')}`);
+  for (let i = 1; i < seen.length; i++) {
+    assert.ok(!(seen[i].includes('Physio') && seen[i - 1].includes('Physio')), `two physios back to back at ${i}: ${seen.join(', ')}`);
+  }
+  const n = name => seen.filter(x => x === name).length;
+  assert.ok(n('Big Bank') >= 8, `naming rights gets the biggest share: ${seen.join(', ')}`);
+  assert.ok(n('Wave Physio') >= 4 && n('Back Physio') >= 4, `both majors get turns: ${seen.join(', ')}`);
+  // One sponsor by name, without counting a turn; a tier list; the vacancy card in the rotation.
+  const one = await studio.get('/api/sponsors/next?sponsor=wave%20physio');
+  assert.equal(one.sponsor.id, 'wave-physio');
+  assert.equal(one.sponsor.tierName, 'Major');
+  assert.deepEqual(await studio.get('/api/sponsors/next?sponsor=nobody'), { none: true });
+  assert.equal((await studio.get('/api/sponsors/next?tiers=naming')).sponsor.name, 'Big Bank');
+  await studio.post('/api/sponsors/settings', { sponsorEmpty: { elite: 'vacancy' }, sponsorVacancy: { link: 'thunder.com.au/sponsor', contact: 'Matt' } });
+  const names = [];
+  for (let i = 0; i < 12; i++) { const r = await studio.get('/api/sponsors/next'); names.push(r.vacancy ? 'vacancy' : r.sponsor.name); }
+  assert.ok(names.includes('vacancy'), `the vacancy card takes the empty Elite tier's turns: ${names.join(', ')}`);
+});
+
+test('the sponsor wall: every tier with a sponsor, top first, and the vacancy card in an empty tier', async () => {
+  await reset();
+  await studio.post('/api/sponsors/settings', { sponsorTierNames: 'metals', sponsorEmpty: {}, sponsorVacancy: { link: 'thunder.com.au/sponsor' } });
+  await add({ name: 'Surf Club' }, 'partner');
+  await add({ name: 'Golds Bakery', website: 'golds.com.au' }, 'major');
+  await add({ name: 'Old Deal', end: '2020-01-01' }, 'major');
+  const w = await studio.get('/api/sponsors/wall');
+  assert.equal(w.competition, 'Thunder League');
+  assert.deepEqual(w.tiers.map(t => [t.name, t.sponsors.map(s => s.name), !!t.vacancy]),
+    [['Naming rights', [], true], ['Gold', ['Golds Bakery'], false], ['Silver', ['Surf Club'], false]],
+    'Platinum pushes down (not shown), Bronze skips, Naming rights advertises, ended deals are left out');
+  assert.equal(w.tiers[1].sponsors[0].website, 'golds.com.au');
+  const some = await studio.get('/api/sponsors/wall?tiers=partner,supporter');
+  assert.deepEqual(some.tiers.map(t => t.key), ['partner']);
+  await studio.post('/api/sponsors/settings', { sponsorTierNames: 'names', sponsorVacancy: {} });
+});
+
 test('a competition template carries its sponsors and logos; importing merges them by name', async () => {
   await reset();
   await add({ name: 'Golds Bakery', website: 'golds.com.au', tagline: 'Fresh bread' }, 'naming');

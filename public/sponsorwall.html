@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sponsor Wall</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+<script src="fit.js"></script>
+<script src="done.js"></script>
+<style>
+  .swall { --card-width: 1300px; text-align: center; }
+  .swall__head { padding: 28px 40px 0; }
+  .swall__title { margin: 14px 0 0; font-size: 46px; font-weight: 800; text-transform: uppercase; color: var(--yellow); line-height: 1.05; text-wrap: balance; animation: rise .5s .1s ease-out both; }
+  .swall__tiers { display: grid; gap: 14px; padding: 24px 50px 34px; }
+  .swall__tier { display: grid; grid-template-columns: 150px 1fr 150px; align-items: center; gap: 16px; }
+  .swall__tier.nonames { grid-template-columns: 1fr; }
+  .swall__tiername { font-size: 18px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); text-align: right; }
+  .swall__row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+  .swall__tile { box-sizing: border-box; background: #fff; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 14px;
+    box-shadow: 0 8px 20px rgba(0,0,0,.3); animation: tile-in .55s cubic-bezier(.2, 1.3, .4, 1) both; }
+  .swall__tile img { max-width: 100%; min-height: 0; flex: 1; object-fit: contain; }
+  .swall__tile .words { color: var(--purple-dark); font-weight: 800; text-transform: uppercase; line-height: 1.05; overflow-wrap: anywhere; }
+  .swall__tile .label { color: #333; font-size: 14px; font-weight: 700; }
+  .swall__tile.vacant { background: transparent; border: 3px dashed rgba(var(--yellow-rgb), .7); box-shadow: none; flex-direction: row; gap: 14px; text-align: left; width: auto !important; padding: 10px 18px 10px 10px; }
+  .swall__tile.vacant .words { color: var(--yellow); }
+  .swall__tile.vacant .sub { color: var(--text); font-size: 16px; font-weight: 600; margin-top: 4px; }
+  .swall__tile.vacant img { flex: none; height: 100%; aspect-ratio: 1; background: #fff; border-radius: 6px; padding: 4px; box-sizing: border-box; }
+  /* Sizes by tier: naming rights biggest */
+  .t-naming .swall__tile { width: 520px; height: 170px; } .t-naming .words { font-size: 44px; }
+  .t-elite .swall__tile { width: 380px; height: 130px; } .t-elite .words { font-size: 32px; }
+  .t-major .swall__tile { width: 310px; height: 110px; } .t-major .words { font-size: 26px; }
+  .t-partner .swall__tile { width: 240px; height: 86px; } .t-partner .words { font-size: 21px; }
+  .t-supporter .swall__tile { width: 200px; height: 64px; padding: 8px; } .t-supporter .words { font-size: 17px; }
+  .swall.out { animation: wall-out .6s ease-in both; }
+  @keyframes tile-in { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+  @keyframes wall-out { to { opacity: 0; transform: translateY(30px); } }
+</style>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page:
+       http://localhost:8080/sponsorwall.html
+       Every sponsor of the competition in use (Sponsors page), sized by tier, naming rights first, with
+       the competition's vacancy card in an empty tier set to Advertise vacancy. For the run-up to a game.
+       ?title= changes the heading, ?tiers=naming,elite,major shows only some tiers, ?names=1 puts each
+       sponsor's name under its logo, ?tiernames=0 leaves the tier names out, ?out=12 animates it away
+       after 12 seconds. Loads once. -->
+  <main class="card swall" id="card" data-fit hidden>
+    <header class="swall__head"><div class="tab" id="comp"></div><h1 class="swall__title" id="title">Proudly supported by</h1></header>
+    <div class="swall__tiers" id="tiers"></div>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+
+    function tile(s, delay) {
+      const t = el('div', 'swall__tile');
+      t.style.animationDelay = `${delay}s`;
+      if (s.logoUrl) {
+        const img = new Image();
+        img.alt = s.name;
+        img.onerror = () => { img.replaceWith(el('div', 'words', s.name)); };
+        img.src = s.logoUrl;
+        t.append(img);
+        if (params.get('names') === '1') t.append(el('div', 'label', s.name));
+      } else t.append(el('div', 'words', s.name));
+      return t;
+    }
+    function vacancyTile(v, delay) {
+      const t = el('div', 'swall__tile vacant');
+      t.style.animationDelay = `${delay}s`;
+      const img = new Image();
+      img.alt = '';
+      img.src = '/api/sponsors/qr.svg?vacancy=1';
+      const words = el('div');
+      words.append(el('div', 'words', v.heading), el('div', 'sub', v.contact ? `Scan or talk to ${v.contact}` : 'Scan to find out how'));
+      t.append(img, words);
+      return t;
+    }
+
+    (async () => {
+      try {
+        const q = params.get('tiers') ? `?tiers=${encodeURIComponent(params.get('tiers'))}` : '';
+        const r = await (await fetch(`/api/sponsors/wall${q}`, { cache: 'no-store' })).json();
+        if (r.error) throw new Error(r.error);
+        if (!r.tiers.length) throw new Error('No sponsors to show yet: add them on the Sponsors page');
+        $('comp').textContent = r.competition || '';
+        $('comp').hidden = !r.competition;
+        if (params.get('title')) $('title').textContent = params.get('title');
+        let delay = 0.3;
+        for (const t of r.tiers) {
+          const box = el('section', `swall__tier t-${t.key}`);
+          const names = params.get('tiernames') !== '0';
+          if (names) box.append(el('div', 'swall__tiername', t.name)); else box.classList.add('nonames');
+          const row = el('div', 'swall__row');
+          for (const s of t.sponsors) { row.append(tile(s, delay)); delay += 0.08; }
+          if (t.vacancy) row.append(vacancyTile(t.vacancy, delay));
+          box.append(row);
+          if (names) box.append(el('div'));
+          $('tiers').append(box);
+          delay += 0.15;
+        }
+        $('card').hidden = false;
+        window.pageLog && pageLog('info', `Sponsor wall: ${r.tiers.map(t => `${t.name} ${t.sponsors.length}`).join(', ')}`);
+        const out = Number(params.get('out'));
+        if (out > 0) {
+          setTimeout(() => { $('card').classList.add('out'); }, out * 1000);
+          studioDone(out * 1000 + 700);
+        }
+      } catch (err) {
+        console.warn('Sponsor wall unavailable:', err.message);
+        $('message').textContent = err.message;
+        $('message').hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>
