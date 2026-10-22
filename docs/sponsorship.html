@@ -129,7 +129,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
   <div class="eyebrow">FirstPass Studio · Design · issue #180</div>
   <h1>Sponsors that <em>show up</em>, and proof that they did</h1>
   <p class="lede">A sponsor library in Studio, placements across in-game, break, pre-game and post-game graphics, sponsor video ads that rotate fairly through sequences, a QR code per sponsor, live viewer numbers from YouTube and Facebook, and an exposure report to hand each sponsor after the night.</p>
-  <p class="muted">Design agreed with Matt on 22 October 2026 and built the same day (PRs #184 to #195, listed under Build order). This page now describes what Studio does; "As built" notes mark where it differs from the first design.</p>
+  <p class="muted">Design agreed with Matt on 22 October 2026 and built the same day (PRs #184 to #198, listed under Build order). This page now describes what Studio does; "As built" notes mark where it differs from the first design.</p>
   <nav class="toc" aria-label="Sections">
     <a href="#library">Sponsor library</a><a href="#placements">Placements</a><a href="#ads">Video ads</a><a href="#rotation">Rotation</a>
     <a href="#qr">QR codes</a><a href="#viewers">Viewer numbers</a><a href="#report">Exposure report</a><a href="#ideas">Marketing ideas</a>
@@ -302,7 +302,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
     <div class="bar"><b>Output</b><span>Graphics</span><span>Scoreboard control</span><span>Competitions setup</span><span>Athletes</span><span>Stream Deck</span></div>
     <div class="body"><div class="live"><span class="pill"><span class="dot"></span>YouTube 143 watching</span><span class="pill"><span class="dot"></span>Facebook 61 watching</span><span class="pill">Peak tonight 231 · Q2 2:10</span></div></div>
   </div>
-  <p>Viewer numbers go on the Output page and into the exposure report as viewer-minutes, with the night's peak and average. <b>Next:</b> an optional on-screen viewers graphic (a "204 watching" tab in game, "peak 312 tonight" at the end), hidden below a minimum the competition sets, since small numbers can look worse than none.</p>
+  <p>Viewer numbers go on the Output page and into the exposure report as viewer-minutes, with the night's peak and average. <b>As built (#198):</b> an optional viewers graphic, <code>viewers.html</code>: a "● 204 watching" pill in the top right during the game, or with <code>?show=peak</code> a "Tonight's peak" card at the end. It hides when no stream is live or the count is under the minimum set on Competitions setup (default 50; <code>?min=</code> for one page), since small numbers can look worse than none.</p>
 </section>
 
 <section id="report">
@@ -341,7 +341,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
     <li><div><b>Sponsors on existing graphics</b> (#187). Naming rights on title, countdown and scoreboard tab; ticker slot; presented-by footers; end of night strip.</div></li>
     <li><div><b>Sponsor ads in sequences</b> (#192). Ads on a sponsor, the Sponsor ads step, fair rotation, the house ad, <code>/deck/sponsor/ad</code> (a Stream Deck key to follow).</div></li>
     <li><div><b>Exposure report</b> (#193). On-air log, report page per night and season, saved as PDF, targets shown on the setup list.</div></li>
-    <li><div><b>Viewer numbers</b> (#195). YouTube and Facebook together, any number of each per competition, on the Output page and in the report.</div></li>
+    <li><div><b>Viewer numbers</b> (#195). YouTube and Facebook together, any number of each per competition, on the Output page and in the report. The viewers graphic followed (#198).</div></li>
     <li><div><b>Sponsored moments</b> (#194). "Brought to you by" tags on the super shot, streaks and moments; each moment owned by one sponsor or the Elite sponsors taking turns.</div></li>
   </ol>
 </section>
