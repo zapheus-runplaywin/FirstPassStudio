@@ -660,6 +660,11 @@ number of YouTube channels and Facebook Pages (**Add a YouTube channel**, **Add 
 - Each reading on air is saved with the sponsor log, so the sponsor report shows **viewer-minutes** (the people watching
   while each sponsor was on screen) and the night's peak and average.
 
+**Viewers graphic** (`viewers.html`, opt-in): a small "204 watching" pill top right, counting up to each new reading,
+or with `?show=peak` a card with tonight's peak for the end of the night. It stays hidden while no stream is live and
+below **The viewers graphic shows from** on the setup page (50 by default; `?min=` for one page), since small numbers can
+look worse than none.
+
 ### Sponsor report
 
 http://localhost:8080/sponsorreport.html (**Sponsor report** on the Sponsors page) shows what each sponsor got on screen,

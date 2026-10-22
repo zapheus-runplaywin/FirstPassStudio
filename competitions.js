@@ -76,6 +76,7 @@ const DEFAULTS = {
   // Where the competition streams, for live viewer numbers (viewers.js): [{ id, platform: 'youtube' | 'facebook',
   // name, where }], filled in by its admin. Their keys and tokens are kept on this Mac only (stream-keys.json).
   streams: [],
+  viewersMinimum: 50,                  // the viewers graphic (viewers.html) stays hidden below this many watching
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
   apiTenant: '',
 };
