@@ -845,4 +845,4 @@ function init(logger, hooks, sequencesFile) {
   reload();
 }
 
-module.exports = { init, reload, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, slug };
+module.exports = { init, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, slug };

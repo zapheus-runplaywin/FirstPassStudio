@@ -161,6 +161,11 @@
         <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output. <b>Restart video</b> starts it again.</li>
       <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency; the Output page warns when a .mov has none to keep, such as H.264),
         and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>
+      <li><b>Media folder:</b> the Output page's <b>Media folder</b> (at the bottom; click to open it) lists every song, video and image added (under Music, Add image or video, or on the Sponsors page),
+        with its length, size and where it's used: sources, page themes (<code>?theme=</code>), sequence music (in any competition), playlists, the super shot song, the music player and sponsors' ads.
+        <b>Remove</b> deletes a file for good (with a levelled song's original) after asking, and says where it's used first. A file on air (a source showing it, or the song playing) can't be removed until it's off.
+        Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file.
+        A .mov and the WebM converted from it are separate files.</li>
       <li><b>Stream Deck plugin:</b> the Mac app includes a FirstPass Studio plugin for the Stream Deck app. Install it from the menu bar icon
         (<b>Install the Stream Deck plugin</b>) or the Output page's button. Its <b>Source</b> key shows or hides the source you pick in its settings
         (or fades it in, fades it out, restarts it, or turns a video's sound on or off) and lights up orange while the source is on, whether it was
