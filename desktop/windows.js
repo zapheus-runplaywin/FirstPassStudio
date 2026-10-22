@@ -17,7 +17,7 @@ const path = require('path');
 
 // The pages with the Studio header (body class "fp"); everything else (the overlays, the
 // debug log) gets a normal title bar.
-const STUDIO_PAGES = new Set(['/', '/graphics.html', '/control.html', '/setup.html', '/athletes.html', '/api.html', '/output.html']);
+const STUDIO_PAGES = new Set(['/', '/graphics.html', '/control.html', '/setup.html', '/sponsors.html', '/athletes.html', '/api.html', '/output.html']);
 
 // Room for the window buttons (red, yellow, green) at the left of the Studio header, which
 // becomes the title bar: drag it to move the window, double-click it to zoom.
@@ -309,8 +309,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
           { label: 'Graphics', accelerator: 'CmdOrCtrl+2', ...go('/graphics.html') },
           { label: 'Scoreboard Control', accelerator: 'CmdOrCtrl+3', ...go('/control.html') },
           { label: 'Competitions Setup', accelerator: 'CmdOrCtrl+4', ...go('/setup.html') },
-          { label: 'Athletes', accelerator: 'CmdOrCtrl+5', ...go('/athletes.html') },
-          { label: 'Stream Deck', accelerator: 'CmdOrCtrl+6', ...go('/api.html') },
+          { label: 'Sponsors', accelerator: 'CmdOrCtrl+5', ...go('/sponsors.html') },
+          { label: 'Athletes', accelerator: 'CmdOrCtrl+6', ...go('/athletes.html') },
+          { label: 'Stream Deck', accelerator: 'CmdOrCtrl+7', ...go('/api.html') },
         ],
       },
       { role: 'windowMenu' },

@@ -36,7 +36,7 @@ const COMPUTER_FILE = 'studio-computer.json';
 // datadir.file() must be added here (test/datalocation.test.js checks).
 const SETTINGS = new Set([
   'competitions', 'config.json', 'control.json', 'round-choice.json', 'data-version.json',
-  'scene.json', 'media', 'outputs.json', 'music.json', 'sequences.json', 'sequence-settings.json',
+  'scene.json', 'media', 'outputs.json', 'music.json', 'sequences.json', 'sequence-settings.json', 'sponsors',
 ]);
 // Kept in the local folder whichever folder holds the settings (saved with datadir.local()).
 const LOCAL_ONLY = new Set([

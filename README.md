@@ -3,7 +3,7 @@
 Transparent ladder, scoreboard and game graphics for a livestream, fed live from PlayHQ's public data (no API key). Set up for
 Thunder League, with saved setups ready for the AMMNA Nationals and GIG WANL (the WA Netball League).
 
-The pages you work in (output, graphics, scoreboard control, competitions setup, athletes and Stream Deck) carry the FirstPass
+The pages you work in (output, graphics, scoreboard control, competitions setup, sponsors, athletes and Stream Deck) carry the FirstPass
 Studio look from `public/studio.css`, with the Montserrat font served from `public/vendor/montserrat` so it works
 offline. The graphics don't use it: they keep the colours, font and logos of the competition in use.
 
@@ -66,6 +66,7 @@ In it:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
   `athletes.json` (the athlete register from the Athletes page), and `competitions/active.json`, the one in use.
+- `sponsors/`: the sponsors (`sponsors.json`) and their logos, shared by every competition (see **Sponsors** below).
 - `control.json`: the control page's choices (the round picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
@@ -157,7 +158,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
-⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 athletes, ⌘6 Stream Deck) and Window. Closing the last window takes Studio off air (see
+⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 sponsors, ⌘6 athletes, ⌘7 Stream Deck) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.
 
@@ -564,6 +565,30 @@ Team logos are added on the competition setup page, named after the team. A logo
 PlayHQ team name can be picked for that team in the setup page's team list. The same list gives a club its own colour
 (**Add colour**, then the colour picker or a pasted HEX or RGB value, or × to go back to the competition's colours), shared by every team of that club; the scoreboard and The Clash use it behind those teams. The
 match up page keeps the competition's colours.
+
+## Sponsors
+
+http://localhost:8080/sponsors.html (**Sponsors** in the menu) keeps the sponsors of the competition in use, by tier:
+Naming rights, Elite, Major, Partner and Supporter. Each competition can call them by the Metals names (Naming rights,
+Platinum, Gold, Silver, Bronze) or its own. The share beside each tier (5, 3, 2, 1, ½) is how screen time is split when a
+sponsor has no target of its own.
+
+- **A sponsor** has a colour logo and a white one for dark panels (without one, graphics make the colour logo white), a
+  tagline, website, offer, brand colour, category (keeps competing sponsors apart in rotation), deal start and end dates
+  (graphics skip a sponsor outside them) and optional targets: minutes on screen and ad plays per stream.
+- **Shown on:** a sponsor can be on more than one competition, at its own tier in each, and is kept once in
+  `sponsors/sponsors.json` in the data folder, with its logos in `sponsors/<id>/`. Competitions from the same PlayHQ
+  organisation are listed first.
+- **QR code:** made on this Mac for the sponsor's website, with tracking tags (`utm_source=livestream&utm_medium=qr`,
+  the competition and the spot) so the sponsor sees visits from the stream in their own website analytics. Untick
+  **Add tracking tags** to leave the link as it is. **Save QR code as PNG** saves a copy for the sponsor's own use.
+- **When a tier has no sponsor:** Push up or Push down (a sponsor from the nearest tier above or below with one takes its
+  spots), Skip tier, or Advertise vacancy: the competition's vacancy card goes where a card fits and the tier is skipped
+  elsewhere. The vacancy card (heading, message, contact, and a link or email for its QR code) is the competition's, kept in
+  its `settings.json` with the tier names and rules. Without a link it's never shown.
+
+`GET /api/sponsors/pick?tier=major&place=card` says which sponsors fill a tier's spots in the competition in use after
+those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pushed from an empty tier, `{ vacancy }` or `{ skip: true }`.
 
 ## Athlete photos and position match ups
 

@@ -21,6 +21,7 @@ const competitions = require('./competitions');
 const finals = require('./finals');
 const fonts = require('./fonts');
 const scene = require('./scene');
+const sponsors = require('./sponsors');
 const outputs = require('./outputs');
 const { linkHost } = require('./linkhost');
 
@@ -81,6 +82,7 @@ const DATA_STATE = migrations.run(log);
 scene.init(log, { ffmpeg: MACHINE.ffmpegPath,
   sequencesFile: () => { const id = competitions.activeId(); return id ? path.join(competitions.DIR, id, 'sequences.json') : null; } });
 outputs.init(log);
+sponsors.init(log);
 
 // ─── Where the data comes from ──────────────────────────────────────────────
 // config.json holds the organisation's PlayHQ page link. From it we read the
@@ -2993,6 +2995,10 @@ http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/scene') || url.pathname.startsWith('/media/')) {
       if (await scene.route(req, res, url, { send, readBody })) return;
+    }
+    if (url.pathname.startsWith('/api/sponsors') || url.pathname.startsWith('/sponsors/')) {
+      const saveSettings = (id, changes) => { competitions.save(id, changes); if (id === competitions.activeId()) applyCompetition('Sponsor settings saved'); };
+      if (await sponsors.route(req, res, url, { send, readBody, readRaw, saveSettings })) return;
     }
     if (url.pathname.startsWith('/deck/')) {
       const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);

@@ -1,0 +1,377 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studio Sponsorship</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Design doc for issue #180, also published at https://claude.ai/artifact/71KvQbz4u6wV4m2sBn6eNV -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column; mockups of stream frames and Studio screens sit in it as fixed-look panels, like the app and the broadcast. */
+:root {
+  --bg: #F8FAFC; --fg: #0F172A; --muted: #475569; --line: #E2E8F0; --panel: #FFFFFF;
+  --accent: #F75C03; --blue: #2274A5; --soft: #E8F1F7; --ok: #127A3E; --warn-bg: #FFF4E5; --warn-fg: #8A3B00;
+  /* Broadcast look for frame mockups (Thunder League colours), the same in both themes. */
+  --tv-main: #7f4092; --tv-dark: #260e2e; --tv-hi: #ffcd00; --tv-pink: #e6007e; --tv-ink: #ffffff;
+  --ui-bg: #F8FAFC; --ui-panel: #FFFFFF; --ui-ink: #0F172A; --ui-muted: #475569; --ui-line: #E2E8F0; --ui-blue: #2274A5; --ui-orange: #F75C03; --ui-gold: #F1C40F;
+  --body: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E;
+  --accent: #FF7A2E; --blue: #6CB4E4; --soft: #13263A; --ok: #4ADE80; --warn-bg: #3A2410; --warn-fg: #FFD2B0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E;
+  --accent: #FF7A2E; --blue: #6CB4E4; --soft: #13263A; --ok: #4ADE80; --warn-bg: #3A2410; --warn-fg: #FFD2B0; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.55; font-size: 15px;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 44px; }
+header.top { display: grid; gap: 10px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font-weight: 900; font-style: italic; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 em { color: var(--accent); }
+h2 { font-weight: 800; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-weight: 800; font-size: 1.02rem; margin: 0; }
+p, li { max-width: 70ch; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+section { display: grid; gap: 14px; }
+.lede { font-size: 1.08rem; }
+.muted { color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+code { background: var(--soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.note { background: var(--warn-bg); color: var(--warn-fg); border-radius: 10px; padding: 12px 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.grid2 > * { min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--soft); color: var(--blue); }
+.tag.new { background: var(--accent); color: #fff; }
+.tblwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.toc a { color: var(--blue); text-decoration: none; font-weight: 700; font-size: 13px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.toc a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Stream frame mockups: 16:9, scaled to the column. */
+.frame { position: relative; aspect-ratio: 16 / 9; max-width: 100%; border-radius: 10px; overflow: hidden;
+         background: linear-gradient(160deg, #3b4a3f, #24302a 55%, #1a221d); container-type: inline-size; }
+.frame .court { position: absolute; inset: 58% -10% -20% -10%; border-top: .4cqw solid rgba(255,255,255,.35); transform: perspective(40cqw) rotateX(40deg); }
+.frame .cap { position: absolute; left: 1.2cqw; top: 1cqw; font-size: 1.4cqw; color: rgba(255,255,255,.7); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.sb { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); display: flex; align-items: stretch; height: 5.2cqw; font-weight: 800; color: var(--tv-ink); font-size: 2.1cqw; }
+.sb > div { display: flex; align-items: center; padding: 0 1.4cqw; }
+.sb .crt { background: var(--tv-pink); font-size: 1.5cqw; }
+.sb .team { background: var(--tv-main); min-width: 14cqw; }
+.sb .sc { background: var(--tv-dark); color: var(--tv-hi); font-size: 2.8cqw; }
+.sb .clk { background: var(--tv-pink); font-size: 1.7cqw; }
+.sb .spon { position: absolute; right: 0; bottom: 100%; background: #fff; color: #111; font-size: 1.15cqw; padding: .3cqw 1cqw; border-radius: .5cqw .5cqw 0 0; display: flex; gap: .6cqw; align-items: center; font-weight: 700; }
+.logo-chip { display: inline-grid; place-items: center; font-weight: 900; font-style: italic; letter-spacing: -.02em; }
+.ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 4.4cqw; background: var(--tv-dark); color: #fff; display: flex; align-items: center; gap: 2cqw; padding-left: 1.5cqw; font-size: 1.4cqw; font-weight: 700; white-space: nowrap; overflow: hidden; }
+.ticker .slot { background: #fff; color: #111; padding: .3cqw 1cqw; border-radius: .4cqw; }
+.bcard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -54%); width: 62cqw; background: var(--tv-dark); border-radius: 1.4cqw; color: #fff;
+         display: grid; grid-template-columns: 1fr auto; gap: 2cqw; padding: 2.6cqw; box-shadow: 0 1.5cqw 4cqw rgba(0,0,0,.5); border-top: .6cqw solid var(--tv-hi); }
+.bcard .k { font-size: 1.3cqw; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--tv-hi); }
+.bcard .n { font-size: 4.2cqw; font-weight: 900; font-style: italic; line-height: 1; margin-top: .6cqw; }
+.bcard .t { font-size: 1.7cqw; margin-top: 1cqw; opacity: .9; }
+.bcard .o { margin-top: 1.6cqw; display: inline-block; background: var(--tv-pink); font-weight: 800; font-size: 1.5cqw; padding: .5cqw 1.2cqw; border-radius: .5cqw; }
+.bcard .qr { background: #fff; border-radius: 1cqw; padding: 1cqw; display: grid; gap: .6cqw; justify-items: center; color: #111; font-size: 1.15cqw; font-weight: 800; }
+.bcard canvas { width: 14cqw; height: 14cqw; image-rendering: pixelated; }
+.wall { position: absolute; inset: 14% 12% 22%; display: grid; gap: 1.6cqw; align-content: center; text-align: center; color: #fff; }
+.wall .h { font-size: 1.5cqw; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--tv-hi); }
+.wall .row { display: flex; justify-content: center; gap: 1.6cqw; flex-wrap: wrap; }
+.wall .lg { background: rgba(255,255,255,.95); color: #111; border-radius: .8cqw; display: grid; place-items: center; font-weight: 900; font-style: italic; }
+.wall .lg.xl { width: 30cqw; height: 9cqw; font-size: 3.4cqw; }
+.wall .lg.l { width: 16cqw; height: 6cqw; font-size: 1.9cqw; }
+.wall .lg.m { width: 11cqw; height: 4.2cqw; font-size: 1.3cqw; }
+.moment { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; color: #fff; }
+.moment .big { font-size: 7cqw; font-weight: 900; font-style: italic; color: var(--tv-hi); line-height: .95; text-shadow: 0 .4cqw 0 var(--tv-pink); }
+.moment .by { margin-top: 1.4cqw; display: inline-flex; gap: .8cqw; align-items: center; background: #fff; color: #111; font-weight: 800; font-size: 1.5cqw; padding: .5cqw 1.4cqw; border-radius: 999px; }
+
+/* Studio screen mockups: always the light Studio look. */
+.screen { background: var(--ui-bg); color: var(--ui-ink); border: 1px solid var(--ui-line); border-radius: 12px; overflow: hidden; font-size: 13px; }
+.screen .bar { background: #0F172A; color: #fff; padding: 8px 14px; font-weight: 800; display: flex; gap: 16px; font-size: 12px; flex-wrap: wrap; }
+.screen .bar span { opacity: .55; }
+.screen .bar b { color: #fff; border-bottom: 2px solid var(--ui-orange); }
+.screen .body { padding: 14px; display: grid; gap: 12px; }
+.sp { background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: 10px; padding: 12px; display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; }
+.sp > div { min-width: 0; }
+.sp .lg { width: 64px; height: 40px; border-radius: 6px; display: grid; place-items: center; font-weight: 900; font-style: italic; color: #fff; font-size: 12px; }
+.sp .nm { font-weight: 800; }
+.sp .meta { color: var(--ui-muted); font-size: 12px; overflow-wrap: anywhere; }
+.tier { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: #F1F5F9; color: #334155; white-space: nowrap; }
+.tier.nr { background: #0F172A; color: var(--ui-gold); }
+.tier.mj { background: var(--ui-blue); color: #fff; }
+.meter { height: 6px; background: var(--ui-line); border-radius: 3px; overflow: hidden; margin-top: 6px; max-width: 220px; }
+.meter i { display: block; height: 100%; background: var(--ui-blue); }
+.meter i.done { background: #127A3E; }
+.live { display: flex; gap: 10px; flex-wrap: wrap; }
+.live .pill { background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: 999px; padding: 6px 12px; font-weight: 700; display: flex; gap: 8px; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #DC2626; }
+
+/* Exposure report bars */
+.bar-cell { display: flex; align-items: center; gap: 8px; min-width: 180px; }
+.bar-cell i { display: block; height: 10px; border-radius: 3px; background: var(--blue); }
+.bar-cell i.t { background: var(--line); }
+
+.qa { display: grid; gap: 12px; counter-reset: q; }
+.qa li { list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; max-width: none; }
+.qa li b:first-child::before { counter-increment: q; content: counter(q) ".  "; color: var(--accent); }
+.qa .def { color: var(--muted); font-size: 14px; }
+.ship { display: grid; gap: 10px; counter-reset: pr; }
+.ship li { list-style: none; display: grid; grid-template-columns: 2.4em 1fr; gap: 10px; max-width: none; }
+.ship li::before { counter-increment: pr; content: counter(pr); font-weight: 900; font-style: italic; font-size: 1.4rem; color: var(--accent); line-height: 1.1; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head><body>
+<main>
+<header class="top">
+  <div class="eyebrow">FirstPass Studio · Design · issue #180</div>
+  <h1>Sponsors that <em>show up</em>, and proof that they did</h1>
+  <p class="lede">A sponsor library in Studio, placements across in-game, break, pre-game and post-game graphics, sponsor video ads that rotate fairly through sequences, a QR code per sponsor, live viewer numbers from YouTube and Facebook, and an exposure report to hand each sponsor after the night.</p>
+  <p class="muted">Design agreed with Matt on 22 October 2026; the answers are in Decided at the end. Built in the PRs listed under Build order.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#library">Sponsor library</a><a href="#placements">Placements</a><a href="#ads">Video ads</a><a href="#rotation">Rotation</a>
+    <a href="#qr">QR codes</a><a href="#viewers">Viewer numbers</a><a href="#report">Exposure report</a><a href="#ideas">Marketing ideas</a>
+    <a href="#ship">Build order</a><a href="#questions">Decided</a>
+  </nav>
+</header>
+
+<section id="library">
+  <h2>1. The sponsor library</h2>
+  <p>Sponsors get their own <b>Sponsors</b> tab, after Competitions setup. It opens on the competition in use, like every Studio page. A new sponsor belongs to that competition; its "Also shown on" list shares it with other competitions (the same PlayHQ organisation's first) without copying it, at its own tier in each. A business that backs every Thunder League division is set up once, and its logo or link is fixed in one place.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>What a sponsor holds</h3>
+      <ul>
+        <li><b>Name</b> and a short <b>tagline</b> ("Fresh bread since 1987")</li>
+        <li><b>Logos</b>: full colour, and white for dark panels (Studio makes a white one from the colour logo if none is given)</li>
+        <li><b>Brand colour</b>, used for the card edge and QR panel</li>
+        <li><b>Website link</b> for the QR code, plus an optional <b>offer</b> ("10% off with code THUNDER")</li>
+        <li><b>Ads</b>: video ads and still ad cards from the media folder</li>
+        <li><b>Deal</b>: start and end dates, and optional targets (seconds on screen per stream, ad plays per stream)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Tiers</h3>
+      <p><span class="tier nr">Naming rights</span> one per competition. Title reads "Thunder League presented by…", logo on the scoreboard tab, first in every rotation.</p>
+      <p><span class="tier mj">Elite</span> sponsored moments, video ads, break cards.</p>
+      <p><span class="tier mj">Major</span> video ads, break cards, presented-by footers on stat cards.</p>
+      <p><span class="tier">Partner</span> ticker slot and rotating logo spots.</p>
+      <p><span class="tier">Supporter</span> sponsor wall and end of night thank you.</p>
+      <p class="muted">Five tiers in a fixed order. Each competition names them: <b>Names</b> (Naming rights, Elite, Major, Partner, Supporter, the default), <b>Metals</b> (Naming rights, Platinum, Gold, Silver, Bronze) or its own. Tiers set the default share of screen time (5 : 3 : 2 : 1 : ½). A sponsor's own target overrides it. Every tier also shows on the sponsor wall.</p>
+    </div>
+  </div>
+  <div class="screen" role="img" aria-label="Mockup of the Sponsors tab">
+    <div class="bar"><span>Output</span><span>Graphics</span><span>Scoreboard control</span><span>Competitions setup</span><b>Sponsors</b><span>Athletes</span><span>Stream Deck</span></div>
+    <div class="body">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b style="font-size:15px">Sponsors on Thunder League</b><span class="tier">+ Add sponsor &nbsp;·&nbsp; Share one from another competition</span></div>
+      <div class="sp"><div class="lg" style="background:#B91C1C">GOLDS</div><div><div class="nm">Golds Bakery <span class="tier nr">Naming rights</span></div><div class="meta">goldsbakery.com.au · 1 video ad (30 s) · until 31 Mar 2027</div><div class="meter"><i style="width:82%"></i></div><div class="meta">Tonight 6:10 of 7:30 target</div></div><div class="meta">QR ✓</div></div>
+      <div class="sp"><div class="lg" style="background:#1D4ED8">WAVE</div><div><div class="nm">Wave Physio <span class="tier mj">Elite</span></div><div class="meta">wavephysio.com.au · offer "First consult $49" · 2 ads</div><div class="meter"><i class="done" style="width:100%"></i></div><div class="meta">Tonight 4:05 of 4:00 target ✓</div></div><div class="meta">QR ✓</div></div>
+      <div class="sp"><div class="lg" style="background:#0F766E">SURF</div><div><div class="nm">Scarborough Surf Club <span class="tier">Partner</span></div><div class="meta">No target · logo spots and ticker</div></div><div class="meta">QR ✓</div></div>
+    </div>
+  </div>
+  <p class="muted">The tier names, empty-tier rules and vacancy card for the competition in use sit at the top of the same tab. Sponsors whose deal has ended stay in the library, greyed and skipped by rotation, so last season's report still works.</p>
+  <h3>When a tier is empty</h3>
+  <p>Each competition sets, for every tier, what its spots do when no sponsor is in it:</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Choice</th><th>What happens</th><th>Default for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Push up</b></td><td>A sponsor from the tier above takes the spot.</td><td>Partner</td></tr>
+      <tr><td><b>Push down</b></td><td>A sponsor from the tier below takes the spot.</td><td>Elite, Major</td></tr>
+      <tr><td><b>Skip tier</b></td><td>The spot is hidden: no tab, no footer, no tag.</td><td>Supporter</td></tr>
+      <tr><td><b>Advertise vacancy</b></td><td>The competition's "Your business here" card, with a QR code to its contact, takes the spot.</td><td>Naming rights</td></tr>
+    </tbody>
+  </table></div>
+  <p>If the tier it pushes to is empty too, Studio keeps going the same way, and skips once it runs out of tiers. A vacancy card only goes where a card fits (breaks and the sponsor wall). On the scoreboard tab and sponsored moments, Advertise vacancy acts as Skip tier. A Sponsor ads step with nothing to play uses the house ad, or moves straight on when the house ad is off.</p>
+  <p>The vacancy card belongs to the competition and is filled in by its admin: a heading, a short message, a contact name and a link or email for the QR code. With no link set, Advertise vacancy acts as Skip tier, so a half-finished card never goes to air.</p>
+</section>
+
+<section id="placements">
+  <h2>2. Where sponsors appear</h2>
+  <p>Every placement is a page option on the Output page, so each graphic can show a sponsor, rotate through them, or show none. Pages still work on their own at their own links (<code>?sponsor=rotate</code>, <code>?sponsor=golds-bakery</code>, <code>?sponsor=0</code>).</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>When</th><th>Placement</th><th>What it looks like</th><th>Tiers</th></tr></thead>
+    <tbody>
+      <tr><td>In game</td><td>Scoreboard tab <span class="tag new">new</span></td><td>Small white "presented by" tab above the score, like the Super shot tab. Naming rights only, so it never changes during play.</td><td>Naming rights</td></tr>
+      <tr><td>In game</td><td>Ticker slot</td><td>Every few items a sponsor logo and tagline slides through the ticker.</td><td>Partner and up</td></tr>
+      <tr><td>In game</td><td>Sponsored moments <span class="tag new">new</span></td><td>"Super shot brought to you by Wave Physio" on the super shot, hot streak and moment animations, a 2 s tag under the big word.</td><td>Elite (one sponsor per moment)</td></tr>
+      <tr><td>Breaks</td><td>Sponsor card <span class="tag new">sponsor.html</span></td><td>Logo, tagline, offer and QR code in the graphics zone. Rotates through sponsors, one per showing.</td><td>Major and up</td></tr>
+      <tr><td>Breaks</td><td>Video ads</td><td>The sponsor's own 15 or 30 s video, picked by the rotation (see Video ads).</td><td>Major and up</td></tr>
+      <tr><td>Breaks</td><td>Stat cards</td><td>"Quarter time stats presented by…" footer on Game stats, Shooting, Top shooters, Ladder.</td><td>Major and up</td></tr>
+      <tr><td>Pre-game</td><td>Sponsor wall <span class="tag new">sponsorwall.html</span></td><td>"Tonight's stream is proudly supported by", every sponsor sized by tier, for the run-up sequence.</td><td>All</td></tr>
+      <tr><td>Pre-game</td><td>Title and countdown</td><td>"Thunder League presented by Golds Bakery"; logo beside the countdown.</td><td>Naming rights</td></tr>
+      <tr><td>Post-game</td><td>Player of the match and Game stats</td><td>Presented-by footer, and the winner animation can carry the naming rights logo.</td><td>Major and up</td></tr>
+      <tr><td>Post-game</td><td>End of night card</td><td>A "Thanks to our sponsors" strip of logos on Up next's end of night card (#179).</td><td>All</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid2">
+    <figure style="margin:0;display:grid;gap:6px">
+      <div class="frame" role="img" aria-label="Mockup: scoreboard with a naming rights tab and a sponsor slot in the ticker">
+        <div class="court"></div><div class="cap">In game</div>
+        <div class="sb"><div class="crt">CT 1</div><div class="team">Blizzardz</div><div class="sc">24 – 21</div><div class="team">Knights</div><div class="clk">Q3 6:42</div>
+          <div class="spon">presented by <span class="logo-chip" style="color:#B91C1C">GOLDS</span></div></div>
+        <div class="ticker"><span>Div 2 · Game of Throws 31 – 28 Designer</span><span class="slot"><b style="color:#0F766E">SURF</b> Scarborough Surf Club · nippers sign up now</span><span>Div 3 · …</span></div>
+      </div>
+      <figcaption class="muted" style="font-size:13px">Scoreboard tab (naming rights) and ticker slot (partner).</figcaption>
+    </figure>
+    <figure style="margin:0;display:grid;gap:6px">
+      <div class="frame" role="img" aria-label="Mockup: super shot moment tagged as brought to you by a sponsor">
+        <div class="court"></div><div class="cap">Sponsored moment</div>
+        <div class="moment"><div class="big">SUPER<br>SHOT!</div><div class="by">brought to you by <span class="logo-chip" style="color:#1D4ED8">WAVE PHYSIO</span></div></div>
+      </div>
+      <figcaption class="muted" style="font-size:13px">A moment owned by one sponsor for the season is the easiest thing to sell.</figcaption>
+    </figure>
+    <figure style="margin:0;display:grid;gap:6px">
+      <div class="frame" role="img" aria-label="Mockup: break sponsor card with QR code">
+        <div class="court"></div><div class="cap">Break card</div>
+        <div class="bcard"><div><div class="k">Quarter time is brought to you by</div><div class="n">Wave Physio</div><div class="t">Sports injuries, sorted. Two minutes from the courts.</div><div class="o">First consult $49</div></div>
+          <div class="qr"><canvas class="qrc" width="29" height="29" data-seed="7"></canvas>Scan me</div></div>
+      </div>
+      <figcaption class="muted" style="font-size:13px">sponsor.html in the graphics zone. The QR here is an illustration.</figcaption>
+    </figure>
+    <figure style="margin:0;display:grid;gap:6px">
+      <div class="frame" role="img" aria-label="Mockup: pre-game sponsor wall sized by tier">
+        <div class="court"></div><div class="cap">Pre-game</div>
+        <div class="wall"><div class="h">Tonight's stream is proudly supported by</div>
+          <div class="row"><div class="lg xl" style="color:#B91C1C">GOLDS BAKERY</div></div>
+          <div class="row"><div class="lg l" style="color:#1D4ED8">WAVE PHYSIO</div><div class="lg l" style="color:#7C2D12">BAYSIDE AUTO</div></div>
+          <div class="row"><div class="lg m" style="color:#0F766E">SURF CLUB</div><div class="lg m" style="color:#6D28D9">CORNER CAFE</div><div class="lg m" style="color:#334155">PIVT</div></div></div>
+      </div>
+      <figcaption class="muted" style="font-size:13px">sponsorwall.html: size follows tier, order follows the setup list.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="ads">
+  <h2>3. Video ads</h2>
+  <p>Sponsor ads are ordinary videos in the media folder, attached to a sponsor. They play through what already exists: a scene source draws them, <code>done.js</code> and the video's end switch them off, and sequences decide when.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>New sequence step: Sponsor ads</h3>
+      <p>Instead of naming one video, a step says "play <b>1</b> sponsor ad" (or 2, or "fill 60 s"). When the step starts, the rotation picks which ad, Studio plays it in a shared <b>Sponsor ad</b> source, and the step lasts as long as that ad. The quarter time sequence then never needs editing as sponsors come and go.</p>
+    </div>
+    <div class="card">
+      <h3>Still ads and the PIVT ad</h3>
+      <p>A still ad card (a sponsor's own designed PNG) plays for a set time, 8 s by default. The existing PIVT and FirstPass Studio ad (<code>ad.html</code>) can join the rotation as a house ad that fills any gap when no sponsor is due.</p>
+    </div>
+  </div>
+  <p class="muted">Ads keep the current sound rules: music fades out and pauses under an ad with sound, and fades back after. A Stream Deck <code>/deck/sponsor/ad</code> link plays the next due ad by hand.</p>
+</section>
+
+<section id="rotation">
+  <h2>4. Fair rotation</h2>
+  <p>One rotation decides every "rotate" placement and every Sponsor ads step, so a sponsor's share holds across graphics and ads together.</p>
+  <ol>
+    <li><b>Who is furthest behind</b> their target (or their tier share) for tonight goes next.</li>
+    <li><b>Never the same sponsor twice in a row</b>, and a sponsor's own ads take turns.</li>
+    <li><b>Competitors kept apart</b>: sponsors in the same category (two physios) are never back to back. Category is an optional field.</li>
+    <li><b>Only on air counts</b>: time is counted while a video output is on (or, for pages used on their own, while the page is visible), so rehearsals before the stream don't use up a sponsor's share.</li>
+  </ol>
+</section>
+
+<section id="qr">
+  <h2>5. QR codes</h2>
+  <p>Every sponsor with a website link gets a QR code, made locally by Studio (a small QR library bundled with the app, no web service). It shows on the sponsor card, can be a page option on the sponsor wall and Up next, and can be saved as a PNG for the sponsor's own use.</p>
+  <ul>
+    <li><b>Tracking tags added for the sponsor</b>: the link gets <code>utm_source=livestream&amp;utm_medium=qr&amp;utm_campaign=thunder-league&amp;utm_content=quarter-time</code>, so the sponsor sees scans from the stream in their own website analytics. Studio can't count scans itself without a web server in the middle; that could come later as a FirstPass short link.</li>
+    <li><b>Readable on a phone watching a phone</b>: at least 220 px on the 1080 frame, white panel with a full quiet border, shown for at least 8 s. Studio warns when a link is so long the code gets too dense, and suggests the sponsor's shorter link.</li>
+    <li><b>The same QR on the sponsor's poster at the venue</b> gives one link for court-side and stream.</li>
+  </ul>
+</section>
+
+<section id="viewers">
+  <h2>6. Live viewer numbers</h2>
+  <p>Both platforms give a live viewer count, and Studio can read it the same way it reads PlayHQ: the helper on the Mac polls while on air and pages only talk to the helper. An MCP server isn't the right tool here; MCP is how Claude reaches a service, not how a running app does. Studio calls the platforms directly with a key or token Matt sets once, and keeps it in the Mac's keychain, never in the settings folder that can sync to iCloud.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>YouTube <span class="tag">straightforward</span></h3>
+      <p>The YouTube Data API returns <code>concurrentViewers</code> for a live video (<code>videos.list</code>, part <code>liveStreamingDetails</code>). A free API key from Google Cloud is enough for a public stream; no sign-in.</p>
+      <p>Studio finds tonight's live video from the channel once (a search that costs 100 of the 10,000 free daily units), or Matt pastes the stream link. Polling every 30 s for a 4 hour night costs about 480 units.</p>
+      <p class="muted">The count is missing if the channel hides live viewer counts.</p>
+    </div>
+    <div class="card">
+      <h3>Facebook <span class="tag">more setup</span></h3>
+      <p>A Page's live video has a <code>live_views</code> field, "the instant viewer count of the live video now". Reading it needs a Page access token, which means a free Meta developer app with Matt as its admin and a one-time "Connect Facebook" sign-in from Studio.</p>
+      <p>An app used only by its own admins works without Meta's App Review. A long-lived Page token doesn't expire unless the password or permissions change. I'll confirm the exact permissions against Matt's Page while building.</p>
+    </div>
+  </div>
+  <div class="screen" role="img" aria-label="Mockup: viewer numbers on the Output page">
+    <div class="bar"><b>Output</b><span>Graphics</span><span>Scoreboard control</span><span>Competitions setup</span><span>Athletes</span><span>Stream Deck</span></div>
+    <div class="body"><div class="live"><span class="pill"><span class="dot"></span>YouTube 143 watching</span><span class="pill"><span class="dot"></span>Facebook 61 watching</span><span class="pill">Peak tonight 231 · Q2 2:10</span></div></div>
+  </div>
+  <p>Viewer numbers go on the Output page and into the exposure report. An on-screen "204 watching" graphic is possible, but small numbers can look worse than none, so it's off unless asked for. If the stream goes through a multistream service such as Restream, its API could give one combined number instead; that depends on how PIVT streams.</p>
+</section>
+
+<section id="report">
+  <h2>7. Exposure report (proof of play)</h2>
+  <p>This is the piece that sells the next season. Studio logs every time a sponsor is on air: which placement, from when to when, and the viewer count at the time. After the night, a report page shows each sponsor what they got, and saves as a PDF to email them.</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Sponsor</th><th>On screen</th><th>Ad plays</th><th>QR on screen</th><th>Viewer-minutes</th><th>vs target</th></tr></thead>
+    <tbody>
+      <tr><td>Golds Bakery <span class="tier nr">NR</span></td><td class="num">1:52:10</td><td class="num">6 × 30 s</td><td class="num">2:40</td><td class="num">16,930</td><td><div class="bar-cell"><i style="width:120px"></i><span class="muted">100%</span></div></td></tr>
+      <tr><td>Wave Physio <span class="tier mj">Elite</span></td><td class="num">9:05</td><td class="num">4 × 15 s</td><td class="num">1:20</td><td class="num">1,410</td><td><div class="bar-cell"><i style="width:120px"></i><span class="muted">101%</span></div></td></tr>
+      <tr><td>Scarborough Surf Club</td><td class="num">4:30</td><td class="num">–</td><td class="num">0:40</td><td class="num">690</td><td><div class="bar-cell"><i class="t" style="width:120px"></i><span class="muted">no target</span></div></td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Example numbers. Viewer-minutes adds up viewers × minutes on screen. The report also lists each showing with a time and placement, and a few still frames grabbed from the output as proof. Season totals roll up from each night.</p>
+</section>
+
+<section id="ideas">
+  <h2>8. Marketing ideas</h2>
+  <p>Things the Studio features above make easy to sell. Only the first three need anything beyond this design.</p>
+  <div class="grid2">
+    <div class="card"><h3>Sponsor packages</h3><p>A one-page rate card generated from the library: what each tier gets (placements, seconds per stream, ad plays) and last season's audience from the report. Clubs can hand it straight to local businesses.</p></div>
+    <div class="card"><h3>Scan to win</h3><p>A sponsor giveaway at a break: "Scan to win a $100 voucher". The QR links to the sponsor's form, so the sponsor gets leads they can count. It is the strongest reason to put up a QR at all.</p></div>
+    <div class="card"><h3>Sponsor clips for socials</h3><p>Studio records the sponsor's moments (super shots they own, the quarter time card) as short clips the sponsor can post. Sponsors value content they can share as much as airtime.</p></div>
+    <div class="card"><h3>Own a moment</h3><p>Sell each recurring moment once a season: super shots, player of the match, goal of the quarter, the last 2 minutes. Clear, cheap to deliver, and easy for a business to picture.</p></div>
+    <div class="card"><h3>Club and player sponsors</h3><p>A club's own sponsor on its team list and match up card, sold by the club and shown by Studio. That spreads sponsorship work to clubs instead of the association alone.</p></div>
+    <div class="card"><h3>Offer codes</h3><p>A stream-only code ("THUNDER10") on the card gives the sponsor sales they can count, even when nobody scans.</p></div>
+  </div>
+</section>
+
+<section id="ship">
+  <h2>9. Build order</h2>
+  <p>Each step is its own PR, usable on its own. Only the first carries the minor version label.</p>
+  <ol class="ship">
+    <li><div><b>The Sponsors tab.</b> The library, tiers and their names, empty-tier rules, the vacancy card, logos, link, offer, deal dates, QR preview and Save QR as PNG. Data version bump.</div></li>
+    <li><div><b>Sponsor card and sponsor wall.</b> <code>sponsor.html</code> and <code>sponsorwall.html</code> with rotation, on the Graphics page, Output page page options and examples. MP4 preview.</div></li>
+    <li><div><b>Sponsors on existing graphics.</b> Naming rights on title, countdown and scoreboard tab; ticker slot; presented-by footers; end of night strip.</div></li>
+    <li><div><b>Sponsor ads in sequences.</b> Ads on a sponsor, the Sponsor ads step, fair rotation, the house ad, <code>/deck/sponsor/ad</code> and a Stream Deck key.</div></li>
+    <li><div><b>Exposure report.</b> On-air log, report page per night and season, saved as PDF, targets shown on the setup list.</div></li>
+    <li><div><b>Viewer numbers.</b> YouTube first, then Facebook, on the Output page and in the report.</div></li>
+    <li><div><b>Sponsored moments.</b> Presented-by tags on super shot, streaks and moments.</div></li>
+  </ol>
+</section>
+
+<section id="questions">
+  <h2>10. Decided</h2>
+  <p class="muted">Matt's answers, 22 October 2026. Questions he didn't answer go with the default.</p>
+  <ol class="qa">
+    <li><b>Where sponsors belong.</b> Their own Sponsors tab (after Competitions setup; Go menu ⌘5, Athletes ⌘6, Stream Deck ⌘7). Sponsors belong to a competition and can be shared with others, the same organisation's first, at their own tier in each.</li>
+    <li><b>Tiers.</b> Five: Naming rights, Elite, Major, Partner, Supporter, renamed per competition (Names, Metals or its own), screen share 5 : 3 : 2 : 1 : ½.</li>
+    <li><b>Empty tiers.</b> A per-tier setting: Push up, Push down, Skip tier or Advertise vacancy. The vacancy card is the competition admin's, not PIVT's.</li>
+    <li><b>Guaranteed exposure.</b> Optional targets per sponsor; the report is always there. <span class="def">[default]</span></li>
+    <li><b>Viewer count on screen.</b> Output page and reports only. <span class="def">[default]</span></li>
+    <li><b>Order.</b> The build order above. <span class="def">[default]</span></li>
+    <li><b>Streaming accounts.</b> Still open; only needed for the viewer numbers PR.</li>
+  </ol>
+</section>
+</main>
+
+<script>
+// Illustration only: a QR-looking pattern (finder squares and noise), not a real code.
+document.querySelectorAll('canvas.qrc').forEach(c => {
+  const n = 29, g = c.getContext('2d'); let s = Number(c.dataset.seed) || 1;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, n, n); g.fillStyle = '#111';
+  const finder = (x, y) => { g.fillRect(x, y, 7, 7); g.clearRect(x + 1, y + 1, 5, 5); g.fillStyle = '#fff'; g.fillRect(x + 1, y + 1, 5, 5); g.fillStyle = '#111'; g.fillRect(x + 2, y + 2, 3, 3); };
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const inF = (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
+    if (!inF && rnd() < .48) g.fillRect(x, y, 1, 1);
+  }
+  finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
+});
+</script>
+</body></html>
