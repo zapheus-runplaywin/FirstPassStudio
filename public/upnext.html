@@ -53,6 +53,7 @@
   </main>
   <p class="message" id="message" hidden></p>
   <script src="teams.js"></script>
+  <script src="wrapwords.js"></script>
   <script>
 
     function clock(time) {
@@ -66,43 +67,19 @@
     }
 
     const params = new URLSearchParams(location.search);
-    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    function day(date, withDate) {
-      const d = new Date(`${date}T12:00:00Z`);
-      return Number.isNaN(d.getTime()) ? '' : withDate ? `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}` : DAYS[d.getUTCDay()];
-    }
-    // When to come back, in words: next week, tomorrow, on Saturday, or on Saturday 7 November.
-    function when(next) {
-      if (next.days === 7) return 'next week';
-      if (next.days === 1) return 'tomorrow';
-      if (next.days > 1 && next.days < 7) return `on ${day(next.date)}`;
-      return next.date ? `on ${day(next.date, true)}` : 'next round';
-    }
     // The end of night card: no game after this one tonight.
     function showWrap(w) {
       const set = (id, text) => { document.getElementById(id).textContent = text; };
-      const seasonOver = w.seasonOver;
+      const words = wrapWords(w);
       set('wrapRound', w.round);
-      set('wrapTitle', seasonOver ? 'That\'s the last game of the season' : 'That\'s the last game of the night');
+      set('wrapTitle', words.title);
       set('wrapComp', w.competition);
       set('wrapOrg', w.organisation && w.organisation !== w.competition ? w.organisation : '');
       const logo = (params.get('mode') === 'dark' ? w.competitionLogoDark : w.competitionLogoLight) || w.competitionLogoLight;
       const img = document.getElementById('wrapLogo');
       if (logo) { img.src = logo; img.hidden = false; img.onerror = () => { img.hidden = true; }; }
-      let invite, detail;
-      if (w.next) {
-        invite = w.next.finals ? `${w.next.round} ${when(w.next)}` : `Join us again ${when(w.next)}`;
-        detail = [!w.next.finals && w.next.round, w.next.date && day(w.next.date, true)].filter(Boolean).join('  ·  ');
-      } else if (w.finalsNext) {
-        invite = 'Finals are next';
-        detail = 'See you there';
-      } else {
-        invite = w.finalRound ? 'Congratulations to all our champions' : 'Thanks for a great season';
-        detail = [w.season, 'See you next season'].filter(Boolean).join('  ·  ');
-      }
-      set('wrapInvite', params.get('message') || invite);
-      set('wrapWhen', detail);
+      set('wrapInvite', params.get('message') || words.invite);
+      set('wrapWhen', words.detail);
       document.getElementById('wrap').hidden = false;
       confetti();
       sponsors();

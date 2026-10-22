@@ -280,6 +280,10 @@
     <div id="logoPages"></div>
   </div>
   <div class="card">
+    <h2>Intro and outro (six styles, full screen, about 8 seconds)</h2>
+    <div id="introPages"></div>
+  </div>
+  <div class="card">
     <h2>PIVT and FirstPass Studio ad (10 seconds, for the breaks)</h2>
     <div id="adPages"></div>
   </div>
@@ -603,6 +607,21 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   'Combine them with &amp;, e.g. <code>/logo.html?template=badge&amp;mode=dark&amp;bg=7f4092</code>. The templates after fun and pro use flat, hard edged shapes only, so nothing leaves a halo over key and fill. ' +
   'With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
+const INTRO_HELP = 'The competition logo and name, the organisation, and the logos of every team in a division, for the start and the end of the stream. ' +
+  '<b>Intro:</b> Welcome to the competition, with this round, the division, the venue and the date. ' +
+  '<b>Outro</b> (<code>?type=outro</code>): the last game of the night (or season) and when to join again, the same words as Up next\'s end of night card: next week with the next round, the finals round\'s name, Finals are next, or a thank you for the season. ' +
+  '<b>Styles</b> (<code>?style=</code>), each with its own ending: <b>orbit</b> (the default: the logos spiral in from the edges and settle in a ring round the competition logo that turns slowly), <b>parade</b> (they march in along a line near the bottom with their names and stay there like a line up, the competition logo above), ' +
+  '<b>tiles</b> (a wall of team logo tiles flips over, tile by tile, into a mosaic of the competition logo), <b>spotlight</b> (the teams stand under an arch; in the dark a spotlight visits each with its name, then the lights come up), ' +
+  '<b>court</b> (netball court lines draw on and the teams play the ball from one goal circle to the other, left to right: each drives in to catch it, turns and passes on, then clears; with fewer than 7 teams each runs on and reoffers for a second catch. The last one shoots, the goal brings in the competition logo, and the teams line up along the side lines), ' +
+  '<b>blueprint</b> (on a glowing grid, lasers sketch the team logos like blueprints, they solidify into holographic cards, the camera pushes through them and the competition logo is traced and blasted in as the grid scatters), or <b>random</b>. ' +
+  'The teams are the division of the game picked on the control page; <code>?division=2</code> picks one, <code>?division=all</code> shows one team per club across the competition. Logos get smaller as there are more teams. ' +
+  'It holds for 5 seconds once the words are in, then animates away and switches its source off: <code>?hold=10</code> holds longer, <code>?out=0</code> stays on screen. ' +
+  'Options: <code>?message=</code> changes the yellow line, <code>?speed=1.5</code> plays it faster (0.5 slower), <code>?mode=dark</code> the dark mode competition logo, ' +
+  '<code>?bg=</code>, <code>?bg2=</code> and <code>?bgimage=</code> a background as on the logo animations (it is see-through without them; the blueprint style brings its own grid), ' +
+  'and <code>?fit=1</code> fits it between the title and the scoreboard instead of full screen. Plays once each time it comes on.';
+[['Intro', '/introoutro.html', INTRO_HELP], ['Outro', '/introoutro.html?type=outro'],
+ ...['parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => [`Intro: ${st}`, `/introoutro.html?style=${st}`])]
+  .forEach(([n, p, h]) => document.getElementById('introPages').appendChild(pageRow(n, p, h)));
 [['Athlete lower third', '/lowerthird.html?name=Jane%20Smith',
   'For the breaks and before and after the game, when the stream cuts to someone on camera. An athlete\'s name in big letters, their team name under it and their club\'s logo beside it. ' +
   'The athlete is found by name among the competition\'s athletes (everyone in the PlayHQ line ups read so far, the same list as <b>All athletes</b> on the <a href="/athletes.html" target="_blank">Athletes page</a>); ' +

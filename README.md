@@ -457,6 +457,11 @@ These follow the game picked on the scoreboard control page:
   round, the finals round's name when the next round is a final, "Finals are next" after the last round when a finals format
   is set, or a thank you for the season after that. `?wrap=1` shows the card now, `?wrap=0` never shows it, `?message=`
   changes the invite line and `?mode=dark` uses the dark mode competition logo.
+- http://localhost:8080/introoutro.html: the intro (or `?type=outro`, the outro) for the start and end of the stream, full screen,
+  about 8 seconds: the competition logo, name and organisation with the logos of a division's teams in a ring, in one of six
+  styles (`?style=orbit`, `parade`, `tiles`, `spotlight`, `court`, `blueprint`, or `random`). The intro welcomes viewers to this
+  round, division and venue; the outro uses the end of night card's words. `?division=2` or `all`, `?message=`, `?hold=`,
+  `?out=0`, `?speed=`, `?mode=dark`, `?bg=`/`?bg2=`/`?bgimage=` and `?fit=1` (between the title and the scoreboard).
 - http://localhost:8080/countdown.html: counts down to the scheduled start time of the game picked on the control page,
   with both teams, logos, division, round, court, time and venue. The clock ticks in the page and it asks Studio (never PlayHQ)
   every 5 seconds which game is picked, so it follows a new game without a refresh. The last 10 seconds pulse; at zero it shows
