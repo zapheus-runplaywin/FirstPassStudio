@@ -4,36 +4,6 @@
 // address), and images and videos from the media folder. Each source can be shown and hidden with its
 // own fade, and placed and scaled on the 1920 x 1080 frame. The Output page (output.html)
 // builds it, scene.html draws it, and the Stream Deck shows and hides sources with
-// ─── Sponsor ads ─────────────────────────────────────────────────────────
-// Ads play in their own sources, made the first time they're needed and kept on top of the scene: Sponsor
-// ad (video), Sponsor ad (still) and House ad (ad.html, when no sponsor has an ad and the step allows it).
-// Each ad sets the source's file; a new file reloads it. Returns what a sequence step needs, or null.
-const AD_SOURCES = {
-  video: { id: 'sponsoradvideo', type: 'video', name: 'Sponsor ad (video)', sound: true, hideWhenDone: true, restartOnShow: true },
-  image: { id: 'sponsoradimage', type: 'image', name: 'Sponsor ad (still)' },
-  house: { id: 'sponsoradhouse', type: 'browser', name: 'House ad', url: 'ad.html' },
-};
-function adSource(kind, file) {
-  const spec = AD_SOURCES[kind];
-  let src = scene.sources.find(s => s.id === spec.id);
-  if (!src) {
-    change({ type: 'add', sources: [{ ...spec, ...(file ? { file } : {}) }] });
-    src = scene.sources.find(s => s.id === spec.id);
-  } else if (file && src.file !== file) {
-    src.file = file;
-    src.loadSeq++;
-  }
-  return src;
-}
-function sponsorAd(opts = {}) {
-  const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))) });
-  if (!ad && !opts.house) return null;
-  const src = ad ? adSource(ad.kind, ad.file) : adSource('house');
-  if (ad) log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})`);
-  return { source: src.id, name: ad ? ad.sponsor.name : 'House ad', sponsor: ad ? ad.sponsor.id : null,
-    length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };
-}
-
 // /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle and
 // /deck/layers/off.
 //
@@ -71,6 +41,36 @@ const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024, MAX_AUD
 // The Studio Stream Deck plugin (plugins/studio-deck), packed by the Mac app's build so it ships with the app.
 const STREAMDECK_PLUGIN = path.join(__dirname, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
 const kindOf = f => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPES[x] ? 'image' : VIDEO_TYPES[x] ? 'video' : AUDIO_TYPES[x] ? 'audio' : null; };
+
+// ─── Sponsor ads ─────────────────────────────────────────────────────────
+// Ads play in their own sources, made the first time they're needed and kept on top of the scene: Sponsor
+// ad (video), Sponsor ad (still) and House ad (ad.html, when no sponsor has an ad and the step allows it).
+// Each ad sets the source's file; a new file reloads it. Returns what a sequence step needs, or null.
+const AD_SOURCES = {
+  video: { id: 'sponsoradvideo', type: 'video', name: 'Sponsor ad (video)', sound: true, hideWhenDone: true, restartOnShow: true },
+  image: { id: 'sponsoradimage', type: 'image', name: 'Sponsor ad (still)' },
+  house: { id: 'sponsoradhouse', type: 'browser', name: 'House ad', url: 'ad.html' },
+};
+function adSource(kind, file) {
+  const spec = AD_SOURCES[kind];
+  let src = scene.sources.find(s => s.id === spec.id);
+  if (!src) {
+    change({ type: 'add', sources: [{ ...spec, ...(file ? { file } : {}) }] });
+    src = scene.sources.find(s => s.id === spec.id);
+  } else if (file && src.file !== file) {
+    src.file = file;
+    src.loadSeq++;
+  }
+  return src;
+}
+function sponsorAd(opts = {}) {
+  const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))) });
+  if (!ad && !opts.house) return null;
+  const src = ad ? adSource(ad.kind, ad.file) : adSource('house');
+  if (ad) log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})`);
+  return { source: src.id, name: ad ? ad.sponsor.name : 'House ad', sponsor: ad ? ad.sponsor.id : null,
+    length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };
+}
 
 let log = () => {};
 let scene = { sources: [], scenes: [], current: null };
