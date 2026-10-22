@@ -606,6 +606,20 @@ those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pulled into a
 - Every spot takes `?sponsor=0` for none or `?sponsor=Golds%20Bakery` to always show one sponsor. With no sponsors the
   graphics look as they always did.
 
+### Sponsor ads
+
+- **Ads on a sponsor:** up to 10 videos or stills in the sponsor's editor (**Add a video or still** saves the file to
+  the media folder, or pick one already there). A still stays on for its seconds (3 to 60, 8 by default).
+- **Sponsor ads step** (**+ Add sponsor ads** in a sequence on the Output page): plays the next 1 to 5 ads. Sponsors with
+  an ad take turns by their tier's share, never the same one twice running, competitors apart, and each sponsor's own
+  ads take turns. A video plays to its end with its sound (music gets out of the way as for any video), a still for its
+  seconds. They play in sources the step adds to the scene the first time: **Sponsor ad (video)**, **Sponsor ad
+  (still)**, and **House ad** (`ad.html`), which plays when no sponsor has an ad, unless the step's tick box is off; with
+  nothing to play the step goes straight on. An ad whose file has left the media folder is passed over.
+- **`/deck/sponsor/ad`** plays the next ad by hand, outside any sequence.
+- Turns are counted while Studio runs. Ad files aren't in competition templates; copy the media with the Output page's
+  export.
+
 ## Athlete photos and position match ups
 
 http://localhost:8080/athletes.html (**Athletes** in the menu) keeps a photo of each athlete for the competition in use.

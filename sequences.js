@@ -38,7 +38,7 @@ const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 const COLOUR_ORDER = ['green', 'blue', 'purple', 'grey', 'yellow'];
 const byColour = (a, b) => (COLOUR_ORDER.indexOf(a.colour) - COLOUR_ORDER.indexOf(b.colour)) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' });
 const LENGTHS = ['time', 'done', 'next', 'game', 'now'];
-const KINDS = ['sources', 'scene', 'sequence'];
+const KINDS = ['sources', 'scene', 'sequence', 'ads'];
 // How deep sequences inside sequences go, and how many steps one can flatten to.
 const MAX_DEPTH = 8, MAX_FLAT = 1000;
 const REPEATS = ['once', 'loop', 'until'];
@@ -90,6 +90,9 @@ function cleanStep(st) {
   const kind = KINDS.includes(s.kind) ? s.kind : 'sources';
   const id = cleanId(s.id, newId());
   if (kind === 'sequence') return { id, kind, sequence: cleanId(s.sequence, '') };
+  // Sponsor ads: the next count ads in the sponsors' rotation, each as long as it is; house: the house ad
+  // (ad.html) plays when no sponsor has an ad.
+  if (kind === 'ads') return { id, kind, count: Math.round(clamp(s.count, 1, 5, 1)), house: s.house !== false };
   const l = s.length && typeof s.length === 'object' ? s.length : {};
   let type = LENGTHS.includes(l.type) ? l.type : kind === 'scene' ? 'now' : 'time';
   if (type === 'now' && kind !== 'scene') type = 'time';
@@ -179,6 +182,9 @@ function flatten(sq, chain = [], out = [], top = null, path = [], count = { occ:
       const from = out.length;
       flatten(sub, inner, out, at, here, count);
       for (let k = from; k < out.length; k++) out[k].via = [sub.name, ...(out[k].via || [])];
+    } else if (st.kind === 'ads') {
+      // One step per ad, filled in with the ad as it comes on (fillAd); until then it waits, as far as anyone can tell.
+      for (let n = 0; n < st.count && out.length < MAX_FLAT; n++) out.push({ id: `${st.id}${n}`, kind: 'ad', house: st.house, sources: [], length: { type: 'next' }, top: at, path: here });
     } else out.push({ ...st, sources: [...(st.sources || [])], top: at, path: here });
   });
   return out;
@@ -335,10 +341,21 @@ function tick() {
   else schedule();
 }
 
+// A Sponsor ads step coming on: the next ad in the rotation, in the scene's Sponsor ad source (scene.js
+// sponsorAd), as long as the ad: a video until it finishes, a still for its seconds. With no ad to play
+// (and no house ad), it goes straight on.
+function fillAd(step) {
+  const ad = api.sponsorAd ? api.sponsorAd({ house: step.house }) : null;
+  step.sources = ad ? [ad.source] : [];
+  step.length = ad ? ad.length : { type: 'now' };
+  step.ad = ad ? ad.name : null;
+}
+
 function enter(i) {
   const sq = playing();
   const before = run.steps[run.step];
   const step = run.steps[i];
+  if (step.kind === 'ad') fillAd(step);
   const faded = { fadeEndsAt: run.fadeEndsAt };
   const sc = step.kind === 'scene' ? api.scene(step.scene) : null;
   // Sources of the step before that this step doesn't keep go off as these come on.
@@ -358,7 +375,7 @@ function enter(i) {
     run.waiting = finishers(step);
     run.endsAt = now() + (run.waiting.size ? limitFor(step) : 0);
   }
-  const what = step.kind === 'scene' ? `scene "${sc ? sc.name : 'gone'}"` : step.sources.map(id => source(id)?.name).filter(Boolean).join(', ');
+  const what = step.kind === 'scene' ? `scene "${sc ? sc.name : 'gone'}"` : step.kind === 'ad' ? (step.ad ? `ad: ${step.ad}` : 'no ad to play') : step.sources.map(id => source(id)?.name).filter(Boolean).join(', ');
   log('info', 'sequence', `"${sq.name}" step ${i + 1} of ${run.steps.length}${step.via ? ` (in ${step.via.join(' › ')})` : ''}${what ? `: ${what}` : ''}`);
   // Music: the sequence's own, or with none, that of a sequence inside it while that one plays.
   const m = musicOf(step), was = before ? musicOf(before) : null;
@@ -802,6 +819,7 @@ function state() {
       // step it comes from, via the sequences it's inside, and what it shows.
       id: run.id, step: run.step, steps: run.steps.length, loop: run.loop, paused: run.paused,
       top: current()?.top ?? null, via: current()?.via || [], scene: current()?.kind === 'scene' ? current().scene : null, sources: current()?.sources || [],
+      ad: current()?.kind === 'ad' ? current().ad || null : undefined,
       // Time left on the step, when it has one: the page counts down from when it hears this.
       leftMs: stepLeft,
       length: current()?.length.type || null, ready: run.ready,

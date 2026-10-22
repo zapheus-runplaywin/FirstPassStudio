@@ -60,6 +60,10 @@
   .sets label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
   /* Vacancy card */
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .ads { display: grid; gap: 6px; }
+  .ads .ad { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 6px 10px; border: 1px solid var(--fp-line); border-radius: 8px; font-size: 14px; }
+  .ads .ad input { width: 70px; }
+  .ads .empty { color: var(--fp-muted); font-size: 14px; }
   .grid label, dialog label.field { display: grid; gap: 4px; font-size: 13px; font-weight: 700; }
   .grid label input, dialog label.field input, dialog label.field select { width: 100%; }
   .qrbox { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
@@ -176,6 +180,15 @@
     <p class="help">Drop a file on either box. Without a white logo, graphics on dark panels make the colour logo white. PNG or SVG with a transparent background look best.</p>
     <p class="help" id="edLogoNote" hidden>Save the sponsor first, then add its logos.</p>
 
+    <h3>Ads</h3>
+    <div id="edAds" class="ads"></div>
+    <div class="row" style="margin-top:6px">
+      <label class="btn alt small">Add a video or still<input type="file" id="edAdFile" accept="video/mp4,video/webm,video/quicktime,.m4v,image/*"></label>
+      <select id="edAdPick" aria-label="Or pick one from the media folder"><option value="">or pick from the media folder…</option></select>
+      <span class="help" id="edAdNote" style="margin:0"></span>
+    </div>
+    <p class="help">Sponsor ads steps in sequences (Output page) and the Stream Deck's <code>/deck/sponsor/ad</code> link play them, taking turns fairly by tier: a video plays to its end with its sound, a still stays for its seconds. Files go in the media folder.</p>
+
     <h3>QR code</h3>
     <div class="qrbox">
       <div class="qr" id="edQr">No website yet</div>
@@ -285,7 +298,7 @@ function card(s) {
   const d = document.createElement('div');
   d.className = 'sp' + (s.state === 'ended' ? ' ended' : '');
   const meta = [s.website.replace(/^https?:\/\/(www\.)?|^mailto:/g, '').replace(/\/$/, ''), s.offer && `offer "${s.offer}"`,
-    s.targetSeconds && `${Math.round(s.targetSeconds / 6) / 10} min a stream`, s.targetPlays && `${s.targetPlays} ad plays`].filter(Boolean).join(' · ');
+    s.targetSeconds && `${Math.round(s.targetSeconds / 6) / 10} min a stream`, s.targetPlays && `${s.targetPlays} ad plays`, s.ads && s.ads.length && (s.ads.length === 1 ? '1 ad' : `${s.ads.length} ads`)].filter(Boolean).join(' · ');
   const others = Object.keys(s.competitions).filter(id => id !== view.competition.id).map(id => (view.competitions.find(c => c.id === id) || {}).name).filter(Boolean);
   const state = s.state === 'ended' ? `<span class="pill ended">Ended ${esc(s.end)}</span>` : s.state === 'starts' ? `<span class="pill starts">Starts ${esc(s.start)}</span>` : '';
   d.innerHTML = `<div class="sp__logo">${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="">` : esc(s.name.slice(0, 8).toUpperCase())}</div>
@@ -383,11 +396,63 @@ function openEditor(s) {
   colourField.setValue(editing.colour || '#2274a5');
   $('edDelete').hidden = !s;
   $('edError').hidden = true;
+  editing.ads = editing.ads || [];
   renderLogos();
+  renderAds();
   renderShown();
   renderEditorQr();
   $('editor').showModal();
 }
+
+// Ads: files in the scene's media folder, a still with its seconds on screen.
+let media = [];
+const VIDEO = /\.(mp4|m4v|webm|mov)$/i;
+async function loadMedia() {
+  try { media = ((await (await fetch('/api/scene/media', { cache: 'no-store' })).json()).media || []).filter(m => m.kind === 'video' || m.kind === 'image'); } catch { media = []; }
+  $('edAdPick').innerHTML = '<option value="">or pick from the media folder…</option>' + media.map(m => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');
+}
+function renderAds() {
+  $('edAds').innerHTML = editing.ads.length ? '' : '<div class="empty">No ads yet.</div>';
+  editing.ads.forEach((ad, i) => {
+    const row = document.createElement('div');
+    row.className = 'ad';
+    const m = media.find(x => x.name === ad.file);
+    const video = VIDEO.test(ad.file);
+    row.innerHTML = `<div><b></b> <span class="help" style="margin:0"></span></div><div class="len"></div><button class="alt small" type="button">Remove</button>`;
+    row.querySelector('b').textContent = ad.file;
+    row.querySelector('span').textContent = !m ? 'not in the media folder' : video ? `video${m.duration ? `, ${Math.round(m.duration)} s` : ''}` : 'still';
+    if (!video) {
+      const sec = Object.assign(document.createElement('input'), { type: 'number', min: 3, max: 60, value: ad.seconds || 8, title: 'Seconds on screen' });
+      sec.onchange = () => { ad.seconds = Math.max(3, Math.min(60, Math.round(Number(sec.value) || 8))); };
+      row.querySelector('.len').append(sec, ' s');
+    }
+    row.querySelector('button').onclick = () => { editing.ads.splice(i, 1); renderAds(); };
+    row.querySelector('button').disabled = view.readOnly;
+    $('edAds').append(row);
+  });
+  $('edAdFile').disabled = $('edAdPick').disabled = view.readOnly || editing.ads.length >= 10;
+}
+function addAd(file) {
+  if (!file || editing.ads.some(a => a.file === file)) return;
+  editing.ads.push({ file, seconds: 8 });
+  renderAds();
+}
+$('edAdPick').onchange = () => { addAd($('edAdPick').value); $('edAdPick').value = ''; };
+$('edAdFile').onchange = async () => {
+  const f = $('edAdFile').files[0];
+  $('edAdFile').value = '';
+  if (!f) return;
+  $('edAdNote').textContent = `Adding ${f.name}…`;
+  try {
+    const r = await fetch(`/api/scene/media?name=${encodeURIComponent(f.name)}`, { method: 'POST', body: f });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || r.statusText);
+    await loadMedia();
+    addAd(body.file);
+    $('edAdNote').textContent = body.converting ? 'Added. Studio is converting the .mov so it plays in a browser.' : 'Added. Save to keep it.';
+  } catch (err) { $('edAdNote').textContent = `Couldn't add it: ${err.message}`; }
+};
+loadMedia();
 
 function renderLogos() {
   $('edLogoNote').hidden = !!editing.id;
@@ -436,7 +501,7 @@ function fromEditor() {
   return { ...editing, name: $('edName').value, tagline: $('edTagline').value, website: $('edWebsite').value, offer: $('edOffer').value,
     category: $('edCategory').value, start: $('edStart').value, end: $('edEnd').value, colour: editColour,
     targetSeconds: Math.round((Number($('edTargetMin').value) || 0) * 60), targetPlays: Number($('edTargetPlays').value) || 0,
-    tracking: $('edTracking').checked, competitions: comps };
+    tracking: $('edTracking').checked, competitions: comps, ads: editing.ads || [] };
 }
 
 async function saveSponsor() {

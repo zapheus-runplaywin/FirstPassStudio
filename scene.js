@@ -26,6 +26,8 @@ const path = require('path');
 const datadir = require('./datadir');
 const sequences = require('./sequences');
 const music = require('./music');
+const sponsors = require('./sponsors');
+const competitions = require('./competitions');
 
 const FILE = datadir.file('scene.json');
 const MEDIA_DIR = datadir.file('media');
@@ -40,6 +42,36 @@ const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024, MAX_AUD
 const STREAMDECK_PLUGIN = path.join(__dirname, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
 const kindOf = f => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPES[x] ? 'image' : VIDEO_TYPES[x] ? 'video' : AUDIO_TYPES[x] ? 'audio' : null; };
 
+// ─── Sponsor ads ─────────────────────────────────────────────────────────
+// Ads play in their own sources, made the first time they're needed and kept on top of the scene: Sponsor
+// ad (video), Sponsor ad (still) and House ad (ad.html, when no sponsor has an ad and the step allows it).
+// Each ad sets the source's file; a new file reloads it. Returns what a sequence step needs, or null.
+const AD_SOURCES = {
+  video: { id: 'sponsoradvideo', type: 'video', name: 'Sponsor ad (video)', sound: true, hideWhenDone: true, restartOnShow: true },
+  image: { id: 'sponsoradimage', type: 'image', name: 'Sponsor ad (still)' },
+  house: { id: 'sponsoradhouse', type: 'browser', name: 'House ad', url: 'ad.html' },
+};
+function adSource(kind, file) {
+  const spec = AD_SOURCES[kind];
+  let src = scene.sources.find(s => s.id === spec.id);
+  if (!src) {
+    change({ type: 'add', sources: [{ ...spec, ...(file ? { file } : {}) }] });
+    src = scene.sources.find(s => s.id === spec.id);
+  } else if (file && src.file !== file) {
+    src.file = file;
+    src.loadSeq++;
+  }
+  return src;
+}
+function sponsorAd(opts = {}) {
+  const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))) });
+  if (!ad && !opts.house) return null;
+  const src = ad ? adSource(ad.kind, ad.file) : adSource('house');
+  if (ad) log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})`);
+  return { source: src.id, name: ad ? ad.sponsor.name : 'House ad', sponsor: ad ? ad.sponsor.id : null,
+    length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };
+}
+
 let log = () => {};
 let scene = { sources: [], scenes: [], current: null };
 // Sources set on in the current scene that went off by themselves (a video that hides when it's
@@ -50,6 +82,7 @@ const soundDone = new Set();
 // Sources on after the last change, so each time one comes on its showSeq goes up: a page or video that
 // says it's done names the showing it means, and a late word from an earlier showing is ignored.
 let wasOn = new Set();
+let stillTimer = null; // takes a still sponsor ad played by hand (/deck/sponsor/ad) off after its seconds
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 const STATES = ['on', 'off'];
 // Scene link names that are the next/prev/again links instead.
@@ -466,6 +499,21 @@ function deck(parts, q = {}) {
     if (r.error) return { status: r.status, body: { error: r.error } };
     notify();
     return { status: 200, body: r.body };
+  }
+  // /deck/sponsor/ad: the next sponsor ad, by hand. A video plays to its end and goes off; a still stays
+  // for its seconds. It isn't part of a sequence, so a sequence playing carries on.
+  if (what === 'sponsor' && name === 'ad' && !verb) {
+    const ad = sponsorAd({ house: false });
+    if (!ad) return { status: 404, body: { error: 'No sponsor of the competition in use has an ad to play. Add ads on the Sponsors page.' } };
+    const src = find(ad.source);
+    if (src.visible) { src.loadSeq++; soundDone.delete(src.id); } else apply({ type: 'show', id: src.id });
+    if (ad.length.type === 'time') {
+      clearTimeout(stillTimer);
+      const file = src.file, load = src.loadSeq;
+      stillTimer = setTimeout(() => { if (src.visible && src.file === file && src.loadSeq === load) { apply({ type: 'hide', id: src.id }); save(); } }, ad.length.sec * 1000);
+    }
+    save();
+    return { status: 200, body: { ok: true, sponsor: ad.name, source: src.name } };
   }
   if (what === 'sequence') {
     const r = sequences.deck(parts);
@@ -892,6 +940,7 @@ function init(logger, { ffmpeg, sequencesFile } = {}) {
     scene: id => scene.scenes.find(s => s.id === id) || null,
     goTo: (sc, step) => goTo(sc, true, step),
     duration,
+    sponsorAd,
     // A step's time ran out: sources it turned on are new showings too.
     changed: () => { noteShowings(); save(); },
   }, sequencesFile);
