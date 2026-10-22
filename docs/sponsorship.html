@@ -116,7 +116,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
 
 .qa { display: grid; gap: 12px; counter-reset: q; }
 .qa li { list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; max-width: none; }
-.qa li b:first-child::before { counter-increment: q; content: "Q" counter(q) "  "; color: var(--accent); }
+.qa li b:first-child::before { counter-increment: q; content: counter(q) ".  "; color: var(--accent); }
 .qa .def { color: var(--muted); font-size: 14px; }
 .ship { display: grid; gap: 10px; counter-reset: pr; }
 .ship li { list-style: none; display: grid; grid-template-columns: 2.4em 1fr; gap: 10px; max-width: none; }
@@ -129,11 +129,11 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
   <div class="eyebrow">FirstPass Studio · Design · issue #180</div>
   <h1>Sponsors that <em>show up</em>, and proof that they did</h1>
   <p class="lede">A sponsor library in Studio, placements across in-game, break, pre-game and post-game graphics, sponsor video ads that rotate fairly through sequences, a QR code per sponsor, live viewer numbers from YouTube and Facebook, and an exposure report to hand each sponsor after the night.</p>
-  <p class="muted">Design only. Nothing is built yet. The questions at the end each have a default, so any you skip go with the default.</p>
+  <p class="muted">Design agreed with Matt on 22 October 2026; the answers are in Decided at the end. Built in the PRs listed under Build order.</p>
   <nav class="toc" aria-label="Sections">
     <a href="#library">Sponsor library</a><a href="#placements">Placements</a><a href="#ads">Video ads</a><a href="#rotation">Rotation</a>
     <a href="#qr">QR codes</a><a href="#viewers">Viewer numbers</a><a href="#report">Exposure report</a><a href="#ideas">Marketing ideas</a>
-    <a href="#ship">Build order</a><a href="#questions">Questions</a>
+    <a href="#ship">Build order</a><a href="#questions">Decided</a>
   </nav>
 </header>
 
@@ -155,10 +155,11 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
     <div class="card">
       <h3>Tiers</h3>
       <p><span class="tier nr">Naming rights</span> one per competition. Title reads "Thunder League presented by…", logo on the scoreboard tab, first in every rotation.</p>
-      <p><span class="tier mj">Major</span> break cards, video ads, a sponsored moment, big logos on the sponsor wall.</p>
-      <p><span class="tier">Partner</span> rotating logo spots, ticker slot, sponsor wall.</p>
+      <p><span class="tier mj">Elite</span> sponsored moments, video ads, break cards.</p>
+      <p><span class="tier mj">Major</span> video ads, break cards, presented-by footers on stat cards.</p>
+      <p><span class="tier">Partner</span> ticker slot and rotating logo spots.</p>
       <p><span class="tier">Supporter</span> sponsor wall and end of night thank you.</p>
-      <p class="muted">Tiers set the default share of screen time (4 : 2 : 1 : ½). A sponsor's own target overrides it.</p>
+      <p class="muted">Five tiers in a fixed order. Each competition names them: <b>Names</b> (Naming rights, Elite, Major, Partner, Supporter, the default), <b>Metals</b> (Naming rights, Platinum, Gold, Silver, Bronze) or its own. Tiers set the default share of screen time (5 : 3 : 2 : 1 : ½). A sponsor's own target overrides it. Every tier also shows on the sponsor wall.</p>
     </div>
   </div>
   <div class="screen" role="img" aria-label="Mockup of the Sponsors section on the Competitions setup page">
@@ -166,11 +167,24 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
     <div class="body">
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b style="font-size:15px">Sponsors on Thunder League</b><span class="tier">+ Add sponsor &nbsp;·&nbsp; Pick from library</span></div>
       <div class="sp"><div class="lg" style="background:#B91C1C">GOLDS</div><div><div class="nm">Golds Bakery <span class="tier nr">Naming rights</span></div><div class="meta">goldsbakery.com.au · 1 video ad (30 s) · until 31 Mar 2027</div><div class="meter"><i style="width:82%"></i></div><div class="meta">Tonight 6:10 of 7:30 target</div></div><div class="meta">QR ✓</div></div>
-      <div class="sp"><div class="lg" style="background:#1D4ED8">WAVE</div><div><div class="nm">Wave Physio <span class="tier mj">Major</span></div><div class="meta">wavephysio.com.au · offer "First consult $49" · 2 ads</div><div class="meter"><i class="done" style="width:100%"></i></div><div class="meta">Tonight 4:05 of 4:00 target ✓</div></div><div class="meta">QR ✓</div></div>
+      <div class="sp"><div class="lg" style="background:#1D4ED8">WAVE</div><div><div class="nm">Wave Physio <span class="tier mj">Elite</span></div><div class="meta">wavephysio.com.au · offer "First consult $49" · 2 ads</div><div class="meter"><i class="done" style="width:100%"></i></div><div class="meta">Tonight 4:05 of 4:00 target ✓</div></div><div class="meta">QR ✓</div></div>
       <div class="sp"><div class="lg" style="background:#0F766E">SURF</div><div><div class="nm">Scarborough Surf Club <span class="tier">Partner</span></div><div class="meta">No target · logo spots and ticker</div></div><div class="meta">QR ✓</div></div>
     </div>
   </div>
   <p class="muted">Sponsors sit in their own section of Competitions setup, after Colours and logos. Sponsors whose deal has ended stay in the library, greyed and skipped by rotation, so last season's report still works.</p>
+  <h3>When a tier is empty</h3>
+  <p>Each competition sets, for every tier, what its spots do when no sponsor is in it:</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Choice</th><th>What happens</th><th>Default for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Push up</b></td><td>A sponsor from the tier above takes the spot.</td><td>Partner</td></tr>
+      <tr><td><b>Push down</b></td><td>A sponsor from the tier below takes the spot.</td><td>Elite, Major</td></tr>
+      <tr><td><b>Skip tier</b></td><td>The spot is hidden: no tab, no footer, no tag.</td><td>Supporter</td></tr>
+      <tr><td><b>Advertise vacancy</b></td><td>The competition's "Your business here" card, with a QR code to its contact, takes the spot.</td><td>Naming rights</td></tr>
+    </tbody>
+  </table></div>
+  <p>If the tier it pushes to is empty too, Studio keeps going the same way, and skips once it runs out of tiers. A vacancy card only goes where a card fits (breaks and the sponsor wall). On the scoreboard tab and sponsored moments, Advertise vacancy acts as Skip tier. A Sponsor ads step with nothing to play uses the house ad, or moves straight on when the house ad is off.</p>
+  <p>The vacancy card belongs to the competition and is filled in by its admin: a heading, a short message, a contact name and a link or email for the QR code. With no link set, Advertise vacancy acts as Skip tier, so a half-finished card never goes to air.</p>
 </section>
 
 <section id="placements">
@@ -181,7 +195,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
     <tbody>
       <tr><td>In game</td><td>Scoreboard tab <span class="tag new">new</span></td><td>Small white "presented by" tab above the score, like the Super shot tab. Naming rights only, so it never changes during play.</td><td>Naming rights</td></tr>
       <tr><td>In game</td><td>Ticker slot</td><td>Every few items a sponsor logo and tagline slides through the ticker.</td><td>Partner and up</td></tr>
-      <tr><td>In game</td><td>Sponsored moments <span class="tag new">new</span></td><td>"Super shot brought to you by Wave Physio" on the super shot, hot streak and moment animations, a 2 s tag under the big word.</td><td>Major (one sponsor per moment)</td></tr>
+      <tr><td>In game</td><td>Sponsored moments <span class="tag new">new</span></td><td>"Super shot brought to you by Wave Physio" on the super shot, hot streak and moment animations, a 2 s tag under the big word.</td><td>Elite (one sponsor per moment)</td></tr>
       <tr><td>Breaks</td><td>Sponsor card <span class="tag new">sponsor.html</span></td><td>Logo, tagline, offer and QR code in the graphics zone. Rotates through sponsors, one per showing.</td><td>Major and up</td></tr>
       <tr><td>Breaks</td><td>Video ads</td><td>The sponsor's own 15 or 30 s video, picked by the rotation (see Video ads).</td><td>Major and up</td></tr>
       <tr><td>Breaks</td><td>Stat cards</td><td>"Quarter time stats presented by…" footer on Game stats, Shooting, Top shooters, Ladder.</td><td>Major and up</td></tr>
@@ -297,7 +311,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
     <thead><tr><th>Sponsor</th><th>On screen</th><th>Ad plays</th><th>QR on screen</th><th>Viewer-minutes</th><th>vs target</th></tr></thead>
     <tbody>
       <tr><td>Golds Bakery <span class="tier nr">NR</span></td><td class="num">1:52:10</td><td class="num">6 × 30 s</td><td class="num">2:40</td><td class="num">16,930</td><td><div class="bar-cell"><i style="width:120px"></i><span class="muted">100%</span></div></td></tr>
-      <tr><td>Wave Physio <span class="tier mj">Major</span></td><td class="num">9:05</td><td class="num">4 × 15 s</td><td class="num">1:20</td><td class="num">1,410</td><td><div class="bar-cell"><i style="width:120px"></i><span class="muted">101%</span></div></td></tr>
+      <tr><td>Wave Physio <span class="tier mj">Elite</span></td><td class="num">9:05</td><td class="num">4 × 15 s</td><td class="num">1:20</td><td class="num">1,410</td><td><div class="bar-cell"><i style="width:120px"></i><span class="muted">101%</span></div></td></tr>
       <tr><td>Scarborough Surf Club</td><td class="num">4:30</td><td class="num">–</td><td class="num">0:40</td><td class="num">690</td><td><div class="bar-cell"><i class="t" style="width:120px"></i><span class="muted">no target</span></div></td></tr>
     </tbody>
   </table></div>
@@ -321,7 +335,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
   <h2>9. Build order</h2>
   <p>Each step is its own PR, usable on its own. Only the first carries the minor version label.</p>
   <ol class="ship">
-    <li><div><b>Sponsors in Competitions setup.</b> The library, tiers, logos, link, offer, deal dates, QR preview and Save QR as PNG. Data version bump.</div></li>
+    <li><div><b>Sponsors in Competitions setup.</b> The library, tiers and their names, empty-tier rules, the vacancy card, logos, link, offer, deal dates, QR preview and Save QR as PNG. Data version bump.</div></li>
     <li><div><b>Sponsor card and sponsor wall.</b> <code>sponsor.html</code> and <code>sponsorwall.html</code> with rotation, on the Graphics page, Output page page options and examples. MP4 preview.</div></li>
     <li><div><b>Sponsors on existing graphics.</b> Naming rights on title, countdown and scoreboard tab; ticker slot; presented-by footers; end of night strip.</div></li>
     <li><div><b>Sponsor ads in sequences.</b> Ads on a sponsor, the Sponsor ads step, fair rotation, the house ad, <code>/deck/sponsor/ad</code> and a Stream Deck key.</div></li>
@@ -332,15 +346,16 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
 </section>
 
 <section id="questions">
-  <h2>10. Questions</h2>
-  <p class="muted">Each has a default in brackets. Anything left unanswered goes with it.</p>
+  <h2>10. Decided</h2>
+  <p class="muted">Matt's answers, 22 October 2026. Questions he didn't answer go with the default.</p>
   <ol class="qa">
-    <li><b>Where sponsors belong.</b> One library shared by all competitions, each competition ticks its own sponsors and tiers? <span class="def">[Yes]</span></li>
-    <li><b>Tiers.</b> Naming rights, Major, Partner, Supporter, with screen share 4 : 2 : 1 : ½? <span class="def">[Yes]</span></li>
-    <li><b>Guaranteed exposure.</b> Do any sponsors pay for set screen time or ad plays, so targets matter, or is the report enough? <span class="def">[Optional targets per sponsor, report always]</span></li>
-    <li><b>Streaming accounts.</b> Where do you stream: YouTube, Facebook, both, through Restream or similar, and on PIVT's accounts or each league's? <span class="def">[Both, PIVT's own channel and Page, YouTube built first]</span></li>
-    <li><b>Viewer count on screen.</b> Show a "watching now" graphic, or keep numbers on the Output page and in reports? <span class="def">[Output page and reports only]</span></li>
-    <li><b>Order.</b> Start with the library plus sponsor card, or would ads in sequences be more useful first? <span class="def">[Build order above]</span></li>
+    <li><b>Where sponsors belong.</b> One library shared by all competitions; each competition ticks its own sponsors and tiers.</li>
+    <li><b>Tiers.</b> Five: Naming rights, Elite, Major, Partner, Supporter, renamed per competition (Names, Metals or its own), screen share 5 : 3 : 2 : 1 : ½.</li>
+    <li><b>Empty tiers.</b> A per-tier setting: Push up, Push down, Skip tier or Advertise vacancy. The vacancy card is the competition admin's, not PIVT's.</li>
+    <li><b>Guaranteed exposure.</b> Optional targets per sponsor; the report is always there. <span class="def">[default]</span></li>
+    <li><b>Viewer count on screen.</b> Output page and reports only. <span class="def">[default]</span></li>
+    <li><b>Order.</b> The build order above. <span class="def">[default]</span></li>
+    <li><b>Streaming accounts.</b> Still open; only needed for the viewer numbers PR.</li>
   </ol>
 </section>
 </main>
