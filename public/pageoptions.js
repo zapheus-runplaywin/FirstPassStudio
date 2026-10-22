@@ -167,6 +167,18 @@ const PAGE_OPTIONS = (() => {
       { key: 'sort', label: 'Order by', type: 'select', choices: [['', 'Points (goals + 2 per super shot)'], ['goals', 'Goals'], ['super', 'Super shots']] },
       { key: 'limit', label: 'Shooters', type: 'number', min: 1, max: 20, placeholder: '8' },
     ],
+    'introoutro.html': [
+      { key: 'type', label: 'Intro or outro', type: 'select', choices: [['', 'Intro: welcome to the competition'], ['outro', 'Outro: last game of the night, join us again']] },
+      { key: 'style', label: 'Style', type: 'select', choices: [['', 'Orbit (default)'], ['parade', 'Parade'], ['tiles', 'Tiles'], ['spotlight', 'Spotlight'], ['court', 'Court'], ['blueprint', 'Blueprint'], ['random', 'A different one each time']] },
+      { key: 'division', label: 'Teams from', type: 'text', placeholder: 'the picked game\'s division', help: 'A division number like 1, or all for one team per club across the competition.' },
+      { key: 'message', label: 'Yellow line', type: 'text', placeholder: 'the round, or when to join again' },
+      { key: 'hold', label: 'On screen for', type: 'number', min: 0, max: 600, unit: 's', placeholder: '5', help: 'After the words come in, before it animates away.' },
+      { key: 'out', label: 'At the end', type: 'select', choices: [['', 'Animates away'], ['0', 'Stays on screen']] },
+      { key: 'speed', label: 'Speed', type: 'number', min: 0.25, max: 4, step: 0.25, unit: '×', placeholder: '1' },
+      { key: 'fit', label: 'Size', type: 'select', choices: [['', 'Full screen'], ['1', 'Between the title and the scoreboard']] },
+      mode(),
+      ...background,
+    ],
     'logo.html': [
       { key: 'template', label: 'Animation', type: 'select', choices: [['', 'fun (default)'], ...LOGO_TEMPLATES.slice(1).map(t => [t, t]), ['random', 'A different one each time']] },
       { key: 'text', label: 'Words', type: 'text', placeholder: 'the competition name', help: 'For the badge and title animations.' },

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="logo-templates.css">
 <script src="log.js"></script>
 <script src="done.js"></script>
+<script src="backdrop.js"></script>
 <script src="fit.js"></script>
 <style>
   /* The competition logo from the active setup, animated in the middle of the frame for about 5 seconds.
@@ -235,43 +236,8 @@
         }
       }
 
-      // Background: ?bg=gradient (the dark grey preview gradient), ?bg=7f4092 or ?bg=purple (a radial gradient from that
-      // colour in the middle to a darker shade of it at the edges; ?bg2= sets the edge colour), ?bg=solid-7f4092 for a
-      // flat colour, and ?bgimage= a picture: a file name in the competition's brand folder or a full link.
-      function colour(v) {
-        if (!v) return null;
-        v = v.trim();
-        if (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)) v = '#' + v;
-        return CSS.supports('color', v) ? v : null;
-      }
-      function darker(c) {
-        const ctx = document.createElement('canvas').getContext('2d');
-        ctx.fillStyle = c; ctx.fillRect(0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        return `rgb(${Math.round(r * .3)}, ${Math.round(g * .3)}, ${Math.round(b * .3)})`;
-      }
-      function backdrop() {
-        const bg = (params.get('bg') || '').trim(), image = (params.get('bgimage') || '').trim();
-        const layers = [];
-        if (image) {
-          const url = /[/:]/.test(image) ? image : '/brand/' + encodeURIComponent(image);
-          layers.push(`url("${url.replace(/"/g, '%22')}")`);
-        }
-        if (bg) {
-          const solid = bg.toLowerCase().startsWith('solid-') ? colour(bg.slice(6)) : null;
-          const centre = bg.toLowerCase() === 'gradient' ? '#3a4250' : colour(bg);
-          const edge = colour(params.get('bg2')) || (bg.toLowerCase() === 'gradient' ? '#15181d' : centre && darker(centre));
-          if (solid) layers.push(`linear-gradient(${solid}, ${solid})`);
-          else if (centre) layers.push(`radial-gradient(circle at 50% 40%, ${centre}, ${edge})`);
-          else console.warn('Logo animation: ?bg= is not a colour or "gradient":', bg);
-        }
-        if (!layers.length) return;
-        const box = $('backdrop');
-        box.style.backgroundImage = layers.join(', ');
-        box.hidden = false;
-        if (image) { const test = new Image(); test.onerror = () => console.warn('Logo animation: could not load the background image', image); test.src = layers[0].slice(5, -2); }
-      }
-      backdrop();
+      // The optional background (?bg=, ?bg2=, ?bgimage=; see backdrop.js).
+      studioBackdrop($('backdrop'), params, 'Logo animation');
 
       // The ten built templates. Each returns the markup for its logo (url), with the page's logo size and a seeded random
       // (so it plays the same each time). Everything moves by CSS from the moment .go is added; nothing is timed in script.

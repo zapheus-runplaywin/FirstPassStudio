@@ -182,6 +182,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
       ['Round fixture', '/fixtures.html', 3000],
       ['Next round fixture', '/fixtures.html?round=next', 3000],
       ['Round results', '/results.html', 3000],
+      ...['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => [`Intro: ${st}`, `/introoutro.html?style=${st}&out=0&bg=gradient`, 8000]),
+      ['Outro', '/introoutro.html?type=outro&out=0&bg=gradient', 8000],
       ['Logo animation: fun (mid animation)', '/logo.html?template=fun', 2200],
       ['Logo animation: pro (mid animation)', '/logo.html?template=pro', 2600],
       ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net']

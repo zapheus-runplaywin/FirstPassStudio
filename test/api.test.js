@@ -142,6 +142,25 @@ test('up next: after the last game of the night, the end of night card with next
   assert.equal(forced.nextGame.home, 'Stormz');
 });
 
+test('intro and outro: the competition, this round and a division\'s teams, and for the outro when to join again', async () => {
+  const intro = await get('/api/introoutro');
+  assert.equal(intro.competition, 'Thunder League');
+  assert.equal(intro.organisation, 'West Coast Mens and Mixed Netball Association');
+  assert.equal(intro.division, 'Division 1');
+  assert.equal(intro.round, 'Round 3');
+  assert.deepEqual(intro.teams.map(t => t.name), ['Blizzardz', 'Knights', 'Mavericks', "Travis' Disciples"]);
+  assert.ok(intro.teams.every(t => 'logo' in t && 'colour' in t));
+  assert.equal(intro.wrap, undefined, 'the intro has no end of night words');
+  assert.equal((await get('/api/introoutro?division=2')).teams.length, 4);
+  const all = await get('/api/introoutro?division=all');
+  assert.equal(all.division, '');
+  assert.equal(all.teams.length, 8, 'one team per club across both divisions');
+  const outro = await get('/api/introoutro?type=outro');
+  assert.equal(outro.wrap.next.round, 'Round 4');
+  assert.equal(outro.wrap.next.days, 7);
+  assert.match((await studio.request('GET', '/api/introoutro?division=Premier')).json.error, /No division "Premier"/);
+});
+
 test('ladder bar, form and top shooters for the game on the scoreboard', async () => {
   const bar = await get('/api/ladderbar');
   assert.equal(bar.division, 'Division 1');

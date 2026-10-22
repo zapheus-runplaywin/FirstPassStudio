@@ -866,6 +866,41 @@ async function endOfNight(current) {
     finalsNext, seasonOver: !next && !finalsNext };
 }
 
+// The intro and outro animations (introoutro.html): the competition, this round and the teams of a division
+// (?division=N, or the picked game's division; ?division=all for one team a club across the competition), and for
+// the outro, when to join again (endOfNight, as on Up next's end of night card).
+async function getIntroOutro(q = {}) {
+  const st = await getStructure();
+  const b = board();
+  const games = await getCurrentGames();
+  const key = g => `${g.date || ''} ${String(g.time || '').padStart(5, '0')}`;
+  games.sort((x, y) => key(x).localeCompare(key(y)));
+  const current = games.find(g => g.id === b.gameId) || games[0] || null;
+  const all = String(q.division || '').toLowerCase() === 'all';
+  const grades = all ? st.grades : [q.division ? findGrade(st, q) : st.grades.find(g => g.name === (b.division || (current && current.division))) || st.grades[0]].filter(Boolean);
+  if (!grades.length) return { error: q.division ? `No division "${q.division}"` : 'This season has no divisions' };
+  const seen = new Map();
+  for (const grade of grades) {
+    for (const g of await getSeasonGames(grade)) {
+      for (const name of [g.home.name, g.away.name]) {
+        if (!name || name === 'TBC' || /^bye$/i.test(name)) continue;
+        const k = all ? norm(competitions.clubFor(CONFIG, name)) : norm(name);
+        if (!seen.has(k)) seen.set(k, all ? competitions.clubFor(CONFIG, name) || name : name);
+      }
+    }
+  }
+  const teams = [...seen.values()].sort((a, c) => a.localeCompare(c)).map(name => ({ name, logo: logoFor(name), colour: colourFor(name) }));
+  const r = rules();
+  const round = current ? current.round : '';
+  const out = { competition: st.competition || competitionName() || '', organisation: st.organisation || '', season: (st.season && st.season.name) || '',
+    competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark,
+    division: all ? '' : grades[0].name, round, date: current ? current.date || '' : '', venueName: CONFIG.venueName || (current && current.venue) || '',
+    finalRound: FINALS_ROUND.test(round || ''), teams };
+  if (q.type === 'outro' && current) out.wrap = await endOfNight(current);
+  log('info', 'introoutro', `${q.type === 'outro' ? 'Outro' : 'Intro'} for ${out.division || 'every club'}: ${teams.length} teams${out.wrap ? `, ${out.wrap.next ? `next ${out.wrap.next.round}` : out.wrap.finalsNext ? 'finals next' : 'end of the season'}` : ''}`);
+  return out;
+}
+
 // The countdown page: when the game picked on the scoreboard starts. Read from the board
 // alone (no PlayHQ call), so countdown.html can ask every few seconds to notice a new game.
 function getCountdown() {
@@ -2939,6 +2974,7 @@ http.createServer(async (req, res) => {
       return send(res, 200, await getRoundInfo());
     }
     if (url.pathname === '/api/countdown') return send(res, 200, getCountdown());
+    if (url.pathname === '/api/introoutro') return send(res, 200, await getIntroOutro(q));
     if (url.pathname === '/api/upnext') return send(res, 200, await getUpNext({ wrap: q.wrap === '0' ? false : q.wrap === '1' ? 'force' : true }));
     if (url.pathname === '/api/ladderbar') return send(res, 200, await getLadderBar());
     if (url.pathname === '/api/lowerthird/athletes') return send(res, 200, getLowerThirdAthletes());
