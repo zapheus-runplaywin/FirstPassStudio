@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Preview · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<!--
+  One source or page previewed on its own: the PVW and Preview buttons on the Output page and the
+  Preview buttons on the Graphics page open this in a 960 x 540 window. The page is still laid out
+  at 1920 x 1080 (so it looks exactly as it does on air) and scaled to fit the window, half size
+  to start, on a checkerboard so the see-through parts show. Resize the window to make it bigger
+  or smaller. A video is shown fitted to the window.
+  ?src=/ladder.html?division=2 (a Studio page or media file, or a full http(s) link) &name=Ladder
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1E293B; }
+  #box { position: absolute; overflow: hidden; background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
+  #box iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+  #box video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #note { position: fixed; inset: 0; display: grid; place-items: center; color: #fff; font: 600 14px system-ui, sans-serif; }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+<div id="box"></div>
+<script>
+  const box = document.getElementById('box');
+  const q = new URLSearchParams(location.search);
+  const src = q.get('src') || '';
+  const name = q.get('name');
+  if (name) document.title = `${name} · Preview · FirstPass Studio`;
+  // Only Studio's own pages and media, or an http(s) link (a page source can be any web page).
+  const ok = /^\/(?!\/)/.test(src) || /^https?:\/\//i.test(src);
+  if (!ok) {
+    box.remove();
+    document.body.insertAdjacentHTML('beforeend', '<div id="note">Nothing to preview.</div>');
+  } else if (/^\/media\//.test(src)) {
+    const v = document.createElement('video');
+    Object.assign(v, { src, autoplay: true, loop: true, muted: true, controls: true, playsInline: true });
+    box.appendChild(v);
+  } else {
+    const f = document.createElement('iframe');
+    f.title = name || 'Preview';
+    f.src = src;
+    box.appendChild(f);
+  }
+  console.log(`Preview ${name ? `"${name}" ` : ''}${src}`);
+
+  // Scale the 1920 x 1080 page to fit the window, centred, with the window's colour around it.
+  function fit() {
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    Object.assign(box.style, { width: 1920 * k + 'px', height: 1080 * k + 'px', left: (innerWidth - 1920 * k) / 2 + 'px', top: (innerHeight - 1080 * k) / 2 + 'px' });
+    const f = box.querySelector('iframe');
+    if (f) f.style.transform = `scale(${k})`;
+  }
+  addEventListener('resize', fit);
+  fit();
+</script>
+</body>
+</html>

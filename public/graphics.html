@@ -116,7 +116,7 @@
   <div class="card">
     <h2>Output (the Studio scene)</h2>
     <code id="sceneUrl"></code>
-    <div class="row"><button id="sceneCopy">Copy link</button><a class="btn" href="/output.html" target="_blank">Open the Output page</a><a class="btn" href="/scene.html" target="_blank">Preview</a></div>
+    <div class="row"><button id="sceneCopy">Copy link</button><a class="btn" href="/output.html" target="_blank">Open the Output page</a><a class="btn pvw" href="/pvw.html?src=%2Fscene.html&amp;name=Scene" target="_blank">Preview</a></div>
     <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
       top layer first, and sends it to a display, a Blackmagic device or NDI® for your switcher.</p>
     <ul class="page__help">
@@ -140,7 +140,7 @@
         with <b>At the end: Animates away</b> (their default), and the super shot and hot streak animations when they play once.
         Pages that stay on screen or wait for something to happen (super shots and hot streaks playing by themselves, the countdown, the scoreboard) stay on.
         This needs a scene window open (the Output page's Live View, its pop-out or a display or DeckLink output) to see the animation finish.</li>
-      <li><b>Preview</b> opens the selected source on its own in a new window, the way the Preview buttons on this page do; the small <b>PVW</b> button beside a source's On / Off does the same from the list.</li>
+      <li><b>Preview</b> opens the selected source on its own in a new window, the way the Preview buttons on this page do; the small <b>PVW</b> button beside a source's On / Off does the same from the list. A preview opens at half size (960 x 540): the page is still laid out at 1080p, just scaled down, on a checkerboard so the see-through parts show, so a few fit on one screen. Resize the window to make it bigger.</li>
       <li><b>Videos</b> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
         A video that fades out when it finishes is switched off in the scene, so the Sources list and its Stream Deck key show it off and the next On plays it again.
         <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output. <b>Restart video</b> starts it again.</li>
@@ -430,13 +430,22 @@ fetch('/api/version').then(r => r.json()).then(v => {
   links.forEach(l => l.draw());
   document.getElementById('linkBase').textContent = linkBase;
 }).catch(() => {});
+// Preview opens the page in a half-size window (laid out at 1080p and scaled, pvw.html), so a few
+// fit on one screen. The link itself still goes to the preview, for a middle click or Copy Link.
+const previewLink = (path, name) => `/pvw.html?${new URLSearchParams(name ? { src: path, name } : { src: path })}`;
+document.addEventListener('click', e => {
+  const a = e.target.closest('a.pvw');
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+  e.preventDefault();
+  window.open(a.href, '_blank', 'popup,width=960,height=540');
+});
 // One line per page: name, full link, Copy link and Preview.
 function pageRow(name, path, help) {
   const row = document.createElement('div');
   row.className = 'page';
-  row.innerHTML = '<div class="page__name"></div><code></code><div class="row"><button>Copy link</button><a class="btn" target="_blank">Preview</a></div>';
+  row.innerHTML = '<div class="page__name"></div><code></code><div class="row"><button>Copy link</button><a class="btn pvw" target="_blank">Preview</a></div>';
   row.querySelector('.page__name').textContent = name;
-  row.querySelector('a').href = path;
+  row.querySelector('a').href = previewLink(path, name);
   showLink(path, row.querySelector('code'), row.querySelector('button'));
   if (help) {
     const p = document.createElement('p');
@@ -614,9 +623,9 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
       const path = `/ladder.html?division=${g.division}`;
       const card = document.createElement('div');
       card.className = 'card';
-      card.innerHTML = `<h2></h2><code></code><div class="row"><button>Copy link</button><a class="btn" target="_blank">Preview</a></div>`;
+      card.innerHTML = `<h2></h2><code></code><div class="row"><button>Copy link</button><a class="btn pvw" target="_blank">Preview</a></div>`;
       card.querySelector('h2').textContent = `Ladder: ${g.name}`;
-      card.querySelector('a').href = path;
+      card.querySelector('a').href = previewLink(path, `Ladder: ${g.name}`);
       showLink(path, card.querySelector('code'), card.querySelector('button'));
       list.appendChild(card);
     });
