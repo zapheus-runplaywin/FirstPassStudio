@@ -134,11 +134,13 @@ const PAGE_OPTIONS = (() => {
     ],
     'supershot.html': [
       { key: 'team', label: 'Plays', type: 'select', choices: [['', 'By itself for every super shot'], ['home', 'Once, for the home team'], ['away', 'Once, for the away team'], ['none', 'Once, no team']] },
+      spot('Brought to you by: from the Sponsors page'),
     ],
     'streak.html': [
       { key: 'play', label: 'Plays', type: 'select', choices: [['', 'By itself for every streak and moment'], ['heating', 'Once: heating up'], ['fire', 'Once: on fire'], ['goalforgoal', 'Once: goal for goal'],
         ['lead', 'Once: hits the front'], ['level', 'Once: all square'], ['comeback', 'Once: coming back'], ['siren', 'Once: on the siren'], ['backtoback', 'Once: back to back super shots']] },
       { key: 'team', label: 'Team (when played once)', type: 'select', choices: [['', 'Home'], ['away', 'Away']] },
+      spot('Brought to you by: from the Sponsors page'),
       show('heating', 'Heating up (3 in a row, by itself)', 'Leave out'),
       show('fire', 'On fire (5 in a row, by itself)', 'Leave out'),
       show('goalforgoal', 'Goal for goal (10, by itself)', 'Leave out'),

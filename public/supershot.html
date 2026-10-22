@@ -13,7 +13,9 @@
      By default it stays on and plays whenever the scoreboard gets a super shot, with that team's logo, name and club colour.
      ?team=home|away|none plays it once when the page loads instead (manual), for that team or without one.
      Every animation runs from one start on the page's CSS clock, so it plays the same each time.
-     Times in seconds: ball flies in 0 to 0.5, bursts 0.5, SUPER SHOT slams 0.45 to 0.65, team 0.95, fades 2.4 to 3. */
+     Times in seconds: ball flies in 0 to 0.5, bursts 0.5, SUPER SHOT slams 0.45 to 0.65, team 0.95, sponsor 1.1, fades 2.4 to 3.
+     "Brought to you by" the sponsor that owns the super shot on the Sponsors page (or the Elite sponsors taking turns);
+     ?sponsor=0 leaves it off, ?sponsor=Golds%20Bakery always that one. */
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 900; src: url("vendor/montserrat/montserrat-latin-900-italic.woff2") format("woff2"); }
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 800; src: url("vendor/montserrat/montserrat-latin-800-italic.woff2") format("woff2"); }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -127,7 +129,7 @@
        http://localhost:8080/supershot.html?team=home   (or ?team=away: that team's logo, name and club colour)
        http://localhost:8080/supershot.html?team=none   (no team, the competition's colours) -->
   <div class="stage" id="stage" data-fit-box="188 780" data-fit-scale=".3" data-fit-place="under-title">
-    <div class="shaker">
+    <div class="shaker" id="shaker">
       <div class="centre"><div class="rays"></div><div class="halo"></div></div>
       <div class="lines" id="lines"></div>
       <div class="centre" id="sparks"><div class="flash"></div><div class="ring ring--1"></div><div class="ring ring--2"></div><div class="ring ring--3"></div></div>
@@ -146,6 +148,7 @@
     </svg>
   </template>
   <script src="teams.js"></script>
+  <script src="sponsorspot.js"></script>
   <script>
     const opts = new URLSearchParams(location.search);
     const $ = id => document.getElementById(id);
@@ -220,12 +223,14 @@
     const LENGTH_MS = 3000;
     let playingUntil = 0, queued = null;
     async function play(s, side) {
-      const who = await dress(s, side);
+      const [who, sponsor] = await Promise.all([dress(s, side), sponsorSpot.moment('superShot', $('shaker'))]);
+      stage.style.setProperty('--moment-top', side ? '800px' : '640px');
+      stage.style.setProperty('--moment-at', '.9s');
       stage.classList.remove('go');
       void stage.offsetWidth;
       stage.classList.add('go');
       playingUntil = performance.now() + LENGTH_MS;
-      window.pageLog && window.pageLog('info', `Playing the super shot${who ? ` for ${who} (${side})` : ''}`);
+      window.pageLog && window.pageLog('info', `Playing the super shot${who ? ` for ${who} (${side})` : ''}${sponsor ? `, brought to you by ${sponsor.name}` : ''}`);
       setTimeout(() => { if (queued) { const q = queued; queued = null; play(q.s, q.side); } }, LENGTH_MS);
     }
 

@@ -21,6 +21,8 @@
        siren         "<team> ON THE SIREN!", a spinning red beacon and a flash, the quarter and time left
        backToBack    "<team> BACK TO BACK SUPER SHOTS", two netballs dropping in
      ?play=heating|fire|goalforgoal|lead|level|comeback|siren|backtoback plays one once when the page loads instead (manual), with ?team=home|away.
+     Each says who it's "brought to you by": the sponsor that owns that moment on the Sponsors page, or the Elite sponsors
+     taking turns; ?sponsor=0 leaves it off, ?sponsor=Golds%20Bakery always that one.
      Laid out at full size and shrunk under the title like the super shot (fit.js). The CSS animations run from one start
      on the page's clock; the embers, flames and sparks are a canvas moved by elapsed time, so 50p and 60p look the same. */
   @font-face { font-family: "Montserrat"; font-style: italic; font-weight: 900; src: url("vendor/montserrat/montserrat-latin-900-italic.woff2") format("woff2"); }
@@ -28,7 +30,7 @@
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
   .stage { position: absolute; inset: 0; visibility: hidden; font-family: var(--font, "Montserrat"), "Montserrat", sans-serif;
     --team-rgb: var(--purple-rgb, 127, 64, 146); --side-dark: var(--deep-rgb, 40, 16, 50); --side-text: #fff;
-    --home-rgb: var(--purple-rgb, 127, 64, 146); --away-rgb: var(--pink-rgb, 230, 0, 126); }
+    --home-rgb: var(--purple-rgb, 127, 64, 146); --away-rgb: var(--pink-rgb, 230, 0, 126); --moment-at: 1.3s; }
   .stage.go { visibility: visible; animation: out .6s ease-in 3s forwards; }
   @keyframes out { to { opacity: 0; transform: scale(1.06); filter: blur(8px); } }
   .shaker { position: absolute; inset: 0; }
@@ -209,7 +211,7 @@
        Manual, plays once each time the source comes on (keep "Load the page fresh each time it's shown" ticked):
        http://localhost:8080/streak.html?play=heating&team=home   (?play=fire, ?play=goalforgoal; ?team=away) -->
   <div class="stage" id="stage" data-fit-box="290 790" data-fit-scale=".3" data-fit-place="under-title">
-    <div class="shaker">
+    <div class="shaker" id="shaker">
       <canvas id="fx" width="1920" height="1080"></canvas>
       <div class="kind heating">
         <div class="hot-glow"></div>
@@ -248,6 +250,7 @@
     </svg>
   </template>
   <script src="teams.js"></script>
+  <script src="sponsorspot.js"></script>
   <script>
     const opts = new URLSearchParams(location.search);
     const $ = id => document.getElementById(id);
@@ -493,13 +496,13 @@
     const queue = [];
     async function play(s, ev) {
       playingUntil = performance.now() + LENGTH_MS + 2000; // held while the logo loads
-      const who = await dress(s, ev);
+      const [who, sponsor] = await Promise.all([dress(s, ev), sponsorSpot.moment(ev.kind, $('shaker'))]);
       stage.classList.remove('go');
       void stage.offsetWidth;
       stage.classList.add('go');
       startFx(ev, s);
       playingUntil = performance.now() + LENGTH_MS;
-      window.pageLog && window.pageLog('info', `Playing ${NAMES[ev.kind]}${who ? ` for ${who}` : ''}${ev.goals ? `, ${ev.goals} goals` : ''}`);
+      window.pageLog && window.pageLog('info', `Playing ${NAMES[ev.kind]}${who ? ` for ${who}` : ''}${ev.goals ? `, ${ev.goals} goals` : ''}${sponsor ? `, brought to you by ${sponsor.name}` : ''}`);
       setTimeout(next, LENGTH_MS);
     }
     function next() { if (queue.length && performance.now() >= playingUntil) { const q = queue.shift(); play(q.s, q.ev); } }
