@@ -135,7 +135,7 @@
       <input type="file" id="templateFile" accept=".json,application/json" hidden>
     </div>
     <p class="help">A new competition starts from scratch with Studio's default settings. To start from an existing one, import its template file and change it.</p>
-    <p class="help">A template file is a competition saved with <b>Export as template</b>, with its settings and logos in one <code>.json</code> file.</p>
+    <p class="help">A template file is a competition saved with <b>Export as template</b>, with its settings, logos and sponsors in one <code>.json</code> file.</p>
     <p class="help" id="dataDir"></p>
   </section>
 
@@ -326,8 +326,9 @@
         <button class="alt" id="templateComp">Export as template</button>
         <button class="danger" id="deleteComp">Delete this competition</button>
       </div>
-      <p class="help">Export as template saves this competition's settings, team logos and competition logo (not athlete photos)
-        as one <code>.json</code> file, to import on any Studio or keep as a backup.</p>
+      <p class="help">Export as template saves this competition's settings, team logos, competition logo and sponsors (with their logos; not athlete photos)
+        as one <code>.json</code> file, to import on any Studio or keep as a backup. Importing adds its sponsors to the Sponsors page;
+        a sponsor already there by the same name is shown on the new competition too, keeping its own details.</p>
     </section>
   </div>
 </main>

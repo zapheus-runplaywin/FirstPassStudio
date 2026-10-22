@@ -94,9 +94,11 @@ in a new subfolder for this Mac beside the other Mac's and points this Mac there
 
 ### Template files
 
-**Export as template** on the setup page downloads a competition as one `.json` file (settings, team logos and
-competition logo as base64, format `firstpass-studio-competition`), which **Import a template file** adds on any
-Studio, including the installed app. `templates/` in the repository holds the starter competitions as template files.
+**Export as template** on the setup page downloads a competition as one `.json` file (settings, team logos,
+competition logo and its sponsors with their logos, as base64, format `firstpass-studio-competition`), which **Import a
+template file** adds on any Studio, including the installed app. Its sponsors join the Sponsors page at their tier in the
+new competition; one already there by the same name (case aside) is the same sponsor, shown on the new competition too,
+keeping its own details and taking a logo only where it has none. `templates/` in the repository holds the starter competitions as template files.
 `imports/<name>/` still holds the same competitions as folders, but the setup page no longer lists them. **Delete this competition** works on any competition, the one in use included:
 the graphics switch to the first one left, or to none.
 
