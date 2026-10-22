@@ -584,13 +584,13 @@ sponsor has no target of its own.
 - **QR code:** made on this Mac for the sponsor's website, with tracking tags (`utm_source=livestream&utm_medium=qr`,
   the competition and the spot) so the sponsor sees visits from the stream in their own website analytics. Untick
   **Add tracking tags** to leave the link as it is. **Save QR code as PNG** saves a copy for the sponsor's own use.
-- **When a tier has no sponsor:** Push up or Push down (a sponsor from the nearest tier above or below with one takes its
-  spots), Skip tier, or Advertise vacancy: the competition's vacancy card goes where a card fits and the tier is skipped
+- **When a tier has no sponsor:** Pull up or Pull down (a sponsor pulled up from the nearest tier below, or down from the nearest
+  tier above, with one takes its spots), Skip tier, or Advertise vacancy: the competition's vacancy card goes where a card fits and the tier is skipped
   elsewhere. The vacancy card (heading, message, contact, and a link or email for its QR code) is the competition's, kept in
   its `settings.json` with the tier names and rules. Without a link it's never shown.
 
 `GET /api/sponsors/pick?tier=major&place=card` says which sponsors fill a tier's spots in the competition in use after
-those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pushed from an empty tier, `{ vacancy }` or `{ skip: true }`.
+those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pulled into an empty tier, `{ vacancy }` or `{ skip: true }`.
 
 ### Sponsors on the graphics
 
