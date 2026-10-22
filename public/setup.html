@@ -17,7 +17,7 @@
   h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
   label { display: block; font-weight: 600; font-size: 14px; margin: 12px 0 4px; }
   label.inline { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin: 10px 16px 0 0; }
-  input[type=text], input[type=number], input[type=url], select { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; width: 100%; color: var(--fp-navy); background: var(--fp-white); }
+  input[type=text], input[type=number], input[type=url], input[type=password], select { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; width: 100%; color: var(--fp-navy); background: var(--fp-white); }
   input[type=checkbox], input[type=radio] { accent-color: var(--fp-blue); }
   input[type=number] { width: 100px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
@@ -30,6 +30,12 @@
   button.danger, button.danger:hover { background: var(--fp-white); color: var(--fp-danger); border-color: var(--fp-danger); }
   button:disabled { opacity: .5; cursor: default; }
   .help { font-size: 13px; color: var(--fp-muted); margin: 4px 0 0; line-height: 1.5; }
+  .streams { display: grid; grid-template-columns: auto minmax(120px, 1fr) minmax(180px, 2fr) minmax(160px, 1.5fr) auto; gap: 8px; align-items: center; }
+  .streams .platform { font-weight: 700; }
+  .streams .status { grid-column: 2 / -1; font-size: 12px; color: var(--fp-muted); margin: -4px 0 6px; }
+  .streams .status.live { color: #15803d; font-weight: 600; }
+  .streams .status.error { color: var(--fp-danger); }
+  @media (max-width: 760px) { .streams { grid-template-columns: 1fr; } .streams .status { grid-column: 1; } }
   .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
   .error { color: var(--fp-danger); }
   .ok { color: var(--fp-ok); }
@@ -312,6 +318,30 @@
     </section>
 
     <section>
+      <h2>Live viewers</h2>
+      <p class="help" style="margin:0 0 10px">Where this competition streams: any number of YouTube channels and Facebook Pages. While a video output is on,
+        Studio adds up how many are watching every 30 seconds, for the Output page and the viewer-minutes in the sponsor report.
+        Keys and tokens are kept on this Mac only: never in iCloud, templates or exports.</p>
+      <div id="streams"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="alt" type="button" id="addYoutube">Add a YouTube channel</button>
+        <button class="alt" type="button" id="addFacebook">Add a Facebook Page</button>
+        <button class="alt" type="button" id="checkViewers">Check now</button>
+      </div>
+      <p class="note" id="viewersNote"></p>
+      <details style="margin-top:10px">
+        <summary>How to get a YouTube API key and a Facebook Page token</summary>
+        <p class="help"><b>YouTube:</b> in the Google Cloud console (console.cloud.google.com), make a project, turn on <b>YouTube Data API v3</b>
+          and make an <b>API key</b> under Credentials. It's free; Studio uses about 120 of its 10,000 daily units an hour on air, and 100 each time it
+          looks for the channel's live video (at most every 5 minutes, only until it finds one). For <b>Where</b>, use the channel's
+          ID (UC…), its @handle, or the live video's link.</p>
+        <p class="help"><b>Facebook:</b> an admin of the Page makes an app at developers.facebook.com, and in the Graph API Explorer gets a
+          <b>Page access token</b> for the Page with <b>pages_read_engagement</b> and <b>pages_read_user_content</b> (no app review is needed for
+          your own Page; exchange it for a long-lived token so it lasts). For <b>Where</b>, use the Page's ID or link.</p>
+      </details>
+    </section>
+
+    <section>
       <h2>More</h2>
       <p class="help">The emoji either side of the title banner and The Clash's big word are set on each graphic on the <a href="/output.html">Output page</a>.</p>
       <details style="margin-top:14px">
@@ -436,7 +466,57 @@
     $('panelOpacity').value = form.panelOpacity;
     buildColours();
     renderBrand(); renderLogos(); renderFinals(); renderSuperShots(); preview();
+    streamKeys = {};
+    loadViewers();
   }
+
+  // ─── Live viewers: the streams, with their keys saved separately (kept on this Mac only) ───────
+  let streamKeys = {}, viewerState = null;
+  const PLATFORMS = { youtube: { name: 'YouTube', where: 'Channel ID, @handle or live video link', key: 'YouTube API key' },
+    facebook: { name: 'Facebook', where: "Page ID or link", key: 'Page access token' } };
+  async function loadViewers(check) {
+    try { viewerState = await api(`/api/viewers?competition=${encodeURIComponent(editing)}${check ? '&check=1' : ''}`); } catch { viewerState = null; }
+    renderStreams();
+  }
+  function renderStreams() {
+    form.streams = form.streams || [];
+    const box = $('streams');
+    box.replaceChildren();
+    if (!form.streams.length) { box.append(el('p', 'help', 'No streams yet.')); return; }
+    const grid = el('div', 'streams');
+    form.streams.forEach((st, i) => {
+      const p = PLATFORMS[st.platform];
+      const known = viewerState && viewerState.streams.find(x => x.id === st.id);
+      const name = el('input'); name.type = 'text'; name.placeholder = 'Name, e.g. PIVT YouTube'; name.value = st.name || ''; name.maxLength = 40;
+      name.oninput = () => { st.name = name.value; markDirty(); };
+      const where = el('input'); where.type = 'text'; where.placeholder = p.where; where.value = st.where || ''; where.maxLength = 300;
+      where.oninput = () => { st.where = where.value; markDirty(); };
+      const key = el('input'); key.type = 'password'; key.autocomplete = 'off';
+      key.placeholder = st.id && known && known.hasKey ? `${p.key} saved` : p.key;
+      key.value = streamKeys[st.id || `new-${i}`] || '';
+      key.oninput = () => { streamKeys[st.id || `new-${i}`] = key.value; markDirty(); };
+      const rm = el('button', 'alt small', 'Remove'); rm.type = 'button';
+      rm.onclick = () => { form.streams.splice(i, 1); markDirty(); renderStreams(); };
+      grid.append(el('span', 'platform', p.name), name, where, key, rm);
+      if (known && known.at) {
+        const text = known.error ? known.error : known.live ? `${known.count.toLocaleString()} watching${known.title ? ` · ${known.title}` : ''}` : 'Not live right now';
+        grid.append(el('div', `status ${known.error ? 'error' : known.live ? 'live' : ''}`, text));
+      }
+    });
+    box.append(grid);
+  }
+  const addStream = platform => { form.streams = form.streams || []; if (form.streams.length >= 8) return; form.streams.push({ platform, name: '', where: '' }); markDirty(); renderStreams(); };
+  $('addYoutube').onclick = () => addStream('youtube');
+  $('addFacebook').onclick = () => addStream('facebook');
+  $('checkViewers').onclick = async () => {
+    try {
+      if (dirty) await save(true);
+      note('viewersNote', 'Checking…');
+      await loadViewers(true);
+      const v = viewerState;
+      note('viewersNote', !v || !v.streams.length ? 'Add a stream first.' : v.live ? `${v.total.toLocaleString()} watching on ${v.live} stream${v.live === 1 ? '' : 's'}.` : 'None of them is live right now.', v && v.live ? 'ok' : '');
+    } catch (err) { note('viewersNote', `Couldn't check: ${err.message}`, 'error'); }
+  };
 
   // ─── Finals formats ─────────────────────────────────────────────────────
   const formatById = id => (info.finalsFormats || []).find(f => f.id === id) || null;
@@ -854,8 +934,14 @@
 
   // ─── Save, new, delete ──────────────────────────────────────────────────
   async function save(quiet) {
+    const streamsBefore = (form.streams || []).map((st, i) => st.id || `new-${i}`);
     const d = await post(`/api/setup/${editing}`, form);
     form = d.settings; dirty = false;
+    const keys = {};
+    streamsBefore.forEach((k, i) => { if (streamKeys[k] && form.streams[i]) keys[form.streams[i].id] = streamKeys[k]; });
+    // Always sent, so the keys of streams that were removed go too.
+    try { await post('/api/viewers/keys', { competition: editing, keys }); streamKeys = {}; } catch (err) { note('saveNote', `Saved, but the stream keys weren't: ${err.message}`, 'error'); }
+    loadViewers();
     if (!quiet) note('saveNote', d.active ? 'Saved. Graphics reload with the changes on their own.' : 'Saved.', 'ok');
     const before = JSON.stringify(info.competitions);
     info = await api('/api/setup');

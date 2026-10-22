@@ -414,6 +414,7 @@
       <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen. NDI's video goes over your local network only, never the internet.</li>
       <li>Stream Deck plugin's Source keys: nothing. The plugin keeps one connection open to the helper while any of its keys is on screen, and the helper only sends when the scene changes.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
+      <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>

@@ -9,6 +9,7 @@
 // sponsors/exposure/<night>.jsonl:
 //   { t: 'seen', s: sponsor, c: competition, p: place, src: source name, from, to, air, qr }
 //   { t: 'play', s: sponsor, c: competition, file, kind, at, air }        one sponsor ad starting
+//   { t: 'viewers', c: competition, at, n, by: [{ id, n }] }             live viewers (viewers.js), on air
 // air is whether a video output was on: by default the report only counts time on air, so rehearsals
 // don't count. A night runs from 4 am to 4 am, so a stream that runs past midnight stays one night.
 // Only what plays through the scene is counted (a page used on its own elsewhere can't be seen).
@@ -94,6 +95,13 @@ function flash(req, sponsor, place, seconds, opts = {}) {
   append({ t: 'seen', s: sponsor.id || sponsor, c: opts.competition || competitions.activeId(), p: place, src: src.name, air: !!onAir(), qr: false, from: now, to: now + Math.round(seconds * 1000) });
 }
 
+// A live viewer reading (viewers.js), taken while on air: { total, streams }.
+function viewers(st, now = Date.now()) {
+  if (!st || !st.streams || !st.streams.length) return;
+  append({ t: 'viewers', c: st.competition || competitions.activeId(), at: now, air: true, n: st.total,
+    by: st.streams.filter(x => x.live).map(x => ({ id: x.id, n: x.count })) });
+}
+
 // One sponsor ad starting to play.
 function play(ad) {
   if (!ad || !ad.sponsor) return;
@@ -115,16 +123,36 @@ function read(night) {
   return text.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
 }
 
-// Seconds covered by a list of [from, to] stretches, counting overlaps once.
-function covered(list) {
-  const sorted = [...list].sort((a, b) => a[0] - b[0]);
-  let total = 0, end = -Infinity;
-  for (const [from, to] of sorted) {
-    if (to <= end) continue;
-    total += to - Math.max(from, end);
-    end = to;
+// A list of [from, to] stretches with the overlaps joined, in order.
+function merge(list) {
+  const out = [];
+  for (const [from, to] of [...list].sort((a, b) => a[0] - b[0])) {
+    const last = out[out.length - 1];
+    if (last && from <= last[1]) last[1] = Math.max(last[1], to);
+    else out.push([from, to]);
   }
-  return Math.round(total / 1000);
+  return out;
+}
+// Seconds covered by a list of [from, to] stretches, counting overlaps once.
+const covered = list => Math.round(merge(list).reduce((n, [from, to]) => n + to - from, 0) / 1000);
+
+// Viewer-minutes over some stretches: the viewers each reading found, held until the next reading (for up to
+// two readings' worth of time; with none for longer, nobody is counted). samples: [{ at, n }] in order.
+const STALE = 75 * 1000;
+function viewerMinutes(list, samples) {
+  if (!samples.length) return 0;
+  let total = 0;
+  for (const [a, b] of merge(list)) {
+    let i = -1;
+    while (i + 1 < samples.length && samples[i + 1].at <= a) i++;
+    for (let t = a; t < b; i++) {
+      const end = Math.min(b, i + 1 < samples.length ? samples[i + 1].at : Infinity);
+      const cur = samples[i];
+      if (cur) { const until = Math.min(end, cur.at + STALE); if (until > t) total += cur.n * (until - t); }
+      t = end;
+    }
+  }
+  return Math.round(total / 60000);
 }
 
 // The report for these nights (default tonight's) and competition (default the one in use):
@@ -136,6 +164,7 @@ function report({ nights: want, competition, offAir = false, now = Date.now() } 
   const recs = list.flatMap(read).filter(r => (!compId || r.c === compId) && (offAir || r.air));
   // Tonight's stretches still on screen count up to now.
   if (list.includes(nightOf(now))) for (const seg of open.values()) if ((!compId || seg.c === compId) && (offAir || seg.air)) recs.push({ t: 'seen', ...seg, to: now });
+  const samples = recs.filter(r => r.t === 'viewers').map(r => ({ at: r.at, n: Number(r.n) || 0 })).sort((a, b) => a.at - b.at);
   const rows = new Map();
   const row = id => {
     if (!rows.has(id)) {
@@ -147,6 +176,7 @@ function report({ nights: want, competition, offAir = false, now = Date.now() } 
     return rows.get(id);
   };
   for (const r of recs.sort((a, b) => (a.from || a.at) - (b.from || b.at))) {
+    if (r.t === 'viewers') continue;
     const x = row(r.s);
     if (r.t === 'play') { x.plays++; x.adFiles[r.file] = (x.adFiles[r.file] || 0) + 1; continue; }
     if (r.t !== 'seen') continue;
@@ -161,13 +191,16 @@ function report({ nights: want, competition, offAir = false, now = Date.now() } 
   const out = [...rows.values()].map(x => ({
     id: x.id, name: x.name, tier: x.tier, gone: x.gone,
     seconds: covered(x.stretches), qrSeconds: covered(x.qr), plays: x.plays, adFiles: x.adFiles,
+    viewerMinutes: viewerMinutes(x.stretches, samples),
     places: Object.fromEntries(Object.entries(x.places).map(([p, l]) => [p, covered(l)])),
     target: x.target,
     showings: x.showings.sort((a, b) => a.from - b.from).map(s => ({ ...s, seconds: Math.round((s.to - s.from) / 1000) })),
   })).sort((a, b) => (tierOrder.indexOf(a.tier) + 1 || 99) - (tierOrder.indexOf(b.tier) + 1 || 99) || b.seconds - a.seconds);
   const settings = compId ? competitions.get(compId) : null;
   return { competition: compId ? { id: compId, name: settings.displayName || settings.competitionName || settings.name, tiers: competitions.sponsorTiers(settings) } : null,
-    nights: list, offAir, sponsors: out };
+    nights: list, offAir, sponsors: out,
+    // The live viewer readings (viewers.js): the most at once and the average while they were read.
+    viewers: samples.length ? { peak: Math.max(...samples.map(x => x.n)), average: Math.round(samples.reduce((n, x) => n + x.n, 0) / samples.length), readings: samples.length } : null };
 }
 
 // /api/sponsors/report?nights=2026-10-22,2026-10-15&competition=&offair=1 and /api/sponsors/nights.
@@ -195,4 +228,4 @@ function init(logger, hooks = {}) {
   }
 }
 
-module.exports = { init, gave, flash, tick, play, flush, report, nights, nightOf, route, DIR };
+module.exports = { init, gave, flash, viewers, tick, play, flush, report, nights, nightOf, route, DIR };

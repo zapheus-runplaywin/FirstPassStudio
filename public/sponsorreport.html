@@ -46,6 +46,7 @@
   .showings td { font-size: 13px; padding: 4px 10px; }
   .empty { color: var(--fp-muted); }
   .printhead { display: none; }
+  .noviewers .vm { display: none; }
   @media print {
     .fp-bar, .noprint { display: none !important; }
     main { padding: 0; max-width: none; }
@@ -67,6 +68,7 @@
   <h1>Sponsor report</h1>
   <p class="sub noprint">What each sponsor of <b id="compName">the competition in use</b> got on screen: how long, where, the ad plays and the time
     their QR code was up, against their targets. Studio counts what plays through the scene while a video output is on.
+    With live viewers set up (Competitions setup), viewer-minutes add up the people watching while each sponsor was on screen.
     Save it as a PDF to send each sponsor. <a href="/sponsors.html">Back to Sponsors</a></p>
   <p class="sub printhead" id="printHead"></p>
 
@@ -87,7 +89,7 @@
     <h2 id="tableTitle">Tonight</h2>
     <div class="tblwrap">
       <table>
-        <thead><tr><th>Sponsor</th><th class="num">On screen</th><th class="num">Ad plays</th><th class="num">QR on screen</th><th>Against target</th></tr></thead>
+        <thead><tr><th>Sponsor</th><th class="num">On screen</th><th class="num">Ad plays</th><th class="num">QR on screen</th><th class="num vm">Viewer-minutes</th><th>Against target</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
@@ -137,7 +139,8 @@ async function report() {
   const name = r.competition ? r.competition.name : '';
   $('compName').textContent = name || 'the competition in use';
   const when = r.nights.length === 1 ? (r.nights[0] === tonight ? 'Tonight' : day(r.nights[0])) : `${r.nights.length} nights`;
-  $('tableTitle').textContent = when;
+  $('tableTitle').textContent = when + (r.viewers ? ` · up to ${r.viewers.peak.toLocaleString()} watching, ${r.viewers.average.toLocaleString()} on average` : '');
+  $('rows').closest('table').classList.toggle('noviewers', !r.viewers);
   $('printHead').innerHTML = `<b>${esc(name)}</b> · ${esc(r.nights.length === 1 ? day(r.nights[0]) : `${r.nights.length} nights, ${day(r.nights[r.nights.length - 1])} to ${day(r.nights[0])}`)}`;
   document.title = `Sponsor report ${name ? '· ' + name + ' ' : ''}· FirstPass Studio`;
   $('none').hidden = r.sponsors.length > 0;
@@ -152,12 +155,12 @@ async function report() {
   $('rows').innerHTML = r.sponsors.map(s => `<tr>
       <td><b>${esc(s.name)}</b>${s.tier ? `<span class="tier">${esc(tierName[s.tier] || s.tier)}</span>` : ''}
         <div class="places">${Object.entries(s.places).sort((a, b) => b[1] - a[1]).map(([p, sec]) => `${esc(place(p))} ${time(sec)}`).join(' · ')}</div></td>
-      <td class="num">${time(s.seconds)}</td><td class="num">${s.plays || '–'}</td><td class="num">${s.qrSeconds ? time(s.qrSeconds) : '–'}</td>
+      <td class="num">${time(s.seconds)}</td><td class="num">${s.plays || '–'}</td><td class="num">${s.qrSeconds ? time(s.qrSeconds) : '–'}</td><td class="num vm">${s.viewerMinutes ? s.viewerMinutes.toLocaleString() : '–'}</td>
       <td>${against(s)}</td></tr>`).join('');
 
   $('details').innerHTML = r.sponsors.map(s => `<section class="sponsor">
       <h2>${esc(s.name)}</h2>
-      <div class="row"><span>On screen <b>${time(s.seconds)}</b></span><span>Ad plays <b>${s.plays}</b></span><span>QR on screen <b>${time(s.qrSeconds)}</b></span></div>
+      <div class="row"><span>On screen <b>${time(s.seconds)}</b></span><span>Ad plays <b>${s.plays}</b></span><span>QR on screen <b>${time(s.qrSeconds)}</b></span>${r.viewers ? `<span>Viewer-minutes <b>${s.viewerMinutes.toLocaleString()}</b></span>` : ''}</div>
       ${Object.keys(s.adFiles).length ? `<p class="help">Ads: ${Object.entries(s.adFiles).map(([f, n]) => `${esc(f)} × ${n}`).join(', ')}</p>` : ''}
       <details${matchMedia('print').matches ? ' open' : ''}><summary>Every showing (${s.showings.length})</summary>
         <div class="tblwrap"><table class="showings"><thead><tr>${r.nights.length > 1 ? '<th>Night</th>' : ''}<th>From</th><th>Where</th><th>Source</th><th class="num">How long</th></tr></thead><tbody>

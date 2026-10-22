@@ -23,6 +23,7 @@ const fonts = require('./fonts');
 const scene = require('./scene');
 const sponsors = require('./sponsors');
 const exposure = require('./exposure');
+const viewers = require('./viewers');
 const outputs = require('./outputs');
 const { linkHost } = require('./linkhost');
 
@@ -86,6 +87,8 @@ outputs.init(log);
 sponsors.init(log);
 // Proof of play for the sponsors: what's on screen, and whether a video output is on.
 exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().length > 0 });
+// Live viewer numbers from the competition's streams, read only while on air.
+viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
 
 // ─── Where the data comes from ──────────────────────────────────────────────
 // config.json holds the organisation's PlayHQ page link. From it we read the
@@ -2999,6 +3002,9 @@ http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/scene') || url.pathname.startsWith('/media/')) {
       if (await scene.route(req, res, url, { send, readBody })) return;
+    }
+    if (url.pathname.startsWith('/api/viewers')) {
+      if (await viewers.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname.startsWith('/api/sponsors') || url.pathname.startsWith('/sponsors/')) {
       const saveSettings = (id, changes) => { competitions.save(id, changes); if (id === competitions.activeId()) applyCompetition('Sponsor settings saved'); };
