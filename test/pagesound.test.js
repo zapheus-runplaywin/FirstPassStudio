@@ -75,6 +75,11 @@ test('an intro plays its sound in the scene until it goes off, and the Output pa
   assert.match(court, /this animation 1\d\.\d s/, 'court runs longer');
   await output.selectOption('#opt-themefit', 'stretch');
   assert.match(await note('stretching goes only 25%'), /stretching goes only 25%, so it plays at 1\.25× and the theme ends [\d.]+ s early/);
+  // A sound added right there goes into the media folder and becomes the theme.
+  await output.setInputFiles('#opt-theme-add', { name: 'Thunder League.wav', mimeType: 'audio/wav', buffer: quiet(1.5) });
+  await studio.until(async () => /theme=Thunder(\+|%20)League\.wav/.test((await studio.get('/api/scene')).sources.find(s => s.name === 'Intro').url));
+  assert.ok(fs.existsSync(path.join(studio.dataDir, 'media', 'Thunder League.wav')));
+  await output.waitForFunction(() => document.getElementById('opt-theme')?.value === 'Thunder League.wav', null, { timeout: 5000 });
   const url = (await studio.get('/api/scene')).sources.find(s => s.name === 'Intro').url;
   assert.match(url, /style=court/);
   assert.match(url, /themefit=stretch/);
