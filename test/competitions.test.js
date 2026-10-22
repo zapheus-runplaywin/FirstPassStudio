@@ -31,7 +31,7 @@ test('clean: a setup with nothing in it gets every default', () => {
 test('clean: bad values are put right rather than saved', () => {
   const s = clean({
     name: 'x'.repeat(200), periodType: 'thirds', quarterMinutes: 500, superShotMinutes: 99, autoSelectMinutesBefore: -5,
-    roundLookaheadDays: 40, panelOpacity: 0.01, font: 'Comic Sans', finalsFormat: 'made-up',
+    roundLookaheadDays: 40, panelOpacity: 0.01, font: '";}', finalsFormat: 'made-up',
     colours: { main: 'purple', highlight: '#FFCD00' }, superShots: 'true', autoSelectGame: 'nope',
     competitionLogo: '../../etc/passwd.png', brandColours: [{ hex: '#ABCDEF', name: ' Sky ' }, { hex: 'blue' }],
     clubs: { ' Comets ': { logo: '../x/Comets.png', colour: '#FF0000' }, Empty: {} }, teamClubs: { 'Comets 21U': ' Comets ', Bad: 3 },
@@ -45,7 +45,7 @@ test('clean: bad values are put right rather than saved', () => {
   assert.equal(s.autoSelectMinutesBefore, 0);
   assert.equal(s.roundLookaheadDays, 14);
   assert.equal(s.panelOpacity, 0.3);
-  assert.equal(s.font, 'Montserrat');
+  assert.equal(s.font, 'Montserrat', 'nothing left of the name once the CSS breaking letters are gone');
   assert.equal(s.finalsFormat, 'top4-page');
   assert.equal(s.colours.main, DEFAULTS.colours.main, 'not a colour, so the default');
   assert.equal(s.colours.highlight, '#ffcd00', 'lower case');
@@ -201,10 +201,41 @@ test('every import config in imports/ imports', () => {
 });
 
 test('theme.css: the setup\'s colours, font and panel opacity', () => {
-  const css = competitions.themeCss(clean({ name: 'Look', font: 'Bebas Neue', colours: { main: '#2c8e3e', panel: '#000000' }, panelOpacity: 0.5 }));
+  const css = competitions.themeCss(clean({ name: 'Look', font: 'Raleway', colours: { main: '#2c8e3e', panel: '#000000' }, panelOpacity: 0.5 }));
   assert.match(css, /--purple: #2c8e3e;/);
   assert.match(css, /--purple-rgb: 44, 142, 62;/);
   assert.match(css, /--purple-deep: rgba\(0, 0, 0, 0\.5\);/);
-  assert.match(css, /family=Bebas\+Neue&display=swap/);
-  assert.match(css, /--font: "Bebas Neue"/);
+  assert.match(css, /^@import url\("\/vendor\/fonts\/montserrat\/montserrat\.css"\);$/m, 'Montserrat, the fallback, from Studio itself');
+  assert.match(css, /^@import url\("\/vendor\/fonts\/raleway\/raleway\.css"\);$/m);
+  assert.match(css, /--font: "Raleway", "Montserrat"/);
+  assert.doesNotMatch(css, /googleapis/, 'no font comes from the internet');
+});
+
+test('fonts: every bundled font is in public/vendor/fonts, with its licence and files', () => {
+  const fonts = require('../fonts');
+  for (const [name, id] of Object.entries(fonts.BUNDLED)) {
+    const dir = path.join(fonts.VENDOR, id);
+    assert.ok(fs.existsSync(path.join(dir, 'LICENSE')), `${name} has no licence; run npm run fonts`);
+    const css = fs.readFileSync(path.join(dir, `${id}.css`), 'utf8');
+    assert.match(css, new RegExp(`font-family: '${name}';`));
+    for (const [, file] of css.matchAll(/url\(([^)]+)\)/g)) assert.ok(fs.existsSync(path.join(dir, file)), `${name}: ${file} is missing`);
+  }
+});
+
+test('fonts: a Mac font is used by name, and an added font file by its family, weight and style', () => {
+  const fonts = require('../fonts');
+  let css = competitions.themeCss(clean({ font: 'Helvetica Neue' }));
+  assert.match(css, /--font: "Helvetica Neue", "Montserrat"/);
+  assert.doesNotMatch(css, /@font-face/, 'nothing to load: it is on the Mac');
+  assert.deepEqual(fonts.fontFile('Gotham-BoldItalic.otf'), { file: 'Gotham-BoldItalic.otf', family: 'Gotham', weight: 700, italic: true });
+  assert.deepEqual(fonts.fontFile('BebasNeue-Regular.ttf'), { file: 'BebasNeue-Regular.ttf', family: 'Bebas Neue', weight: 400, italic: false });
+  assert.deepEqual(fonts.fontFile('Club Sans Extra Bold.woff2'), { file: 'Club Sans Extra Bold.woff2', family: 'Club Sans', weight: 800, italic: false });
+  assert.equal(fonts.fontFile('Inter-VariableFont_opsz,wght.ttf').weight, '100 900');
+  assert.equal(fonts.fontFile('Kanit-SemiBold.ttf').weight, 600);
+  const files = ['Gotham-Bold.otf', 'Gotham-Black.otf', 'Other-Regular.ttf'];
+  assert.deepEqual(fonts.families(files), ['Gotham', 'Other']);
+  css = competitions.themeCss(clean({ font: 'Gotham' }), files);
+  assert.match(css, /@font-face { font-family: "Gotham"; font-style: normal; font-weight: 700; font-display: block; src: url\("\/fonts\/Gotham-Bold\.otf"\) format\("opentype"\); }/);
+  assert.match(css, /font-weight: 900;.*Gotham-Black\.otf/);
+  assert.doesNotMatch(css, /Other-Regular/, 'only the family in use');
 });

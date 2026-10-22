@@ -29,10 +29,18 @@ division on the end ("Comets 21U", "Comets Men" and "Comets Open" are all Comets
 list's **Club** box links a team to another club, or a new one. Setups saved with a logo or colour per team are moved to
 clubs when loaded.
 
+**Fonts.** The Font box lists the fonts bundled with Studio first, then fonts added to the competition, then every font
+installed on the Mac (`/api/setup-fonts`, from AppKit). Bundled fonts are open licence (OFL) fonts in
+`public/vendor/fonts/<id>/`, fetched from Fontsource by `npm run fonts` (add one to `BUNDLED` in `fonts.js` first), so the
+graphics load no fonts from the internet. A Mac font is used by name and shows only on that Mac; elsewhere the graphics fall
+back to Montserrat, as they do for any letter a font lacks. **Add a font file** saves TTF, OTF, WOFF or WOFF2 files in the
+competition's `fonts/` folder (served at `/fonts/`, and included in template files); the family, weight and style come from
+each file's name ("Gotham-BoldItalic.otf", "Club Sans Black.ttf", "Inter-VariableFont_wght.ttf").
+
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics.
 
-Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logos/`, `brand/`); see **Saved settings** below.
+Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logos/`, `brand/`, `fonts/`); see **Saved settings** below.
 Studio starts with no competitions: **Import a template file** on the setup page (the starter competitions are in
 `templates/`: Thunder League, AMMNA Nationals, GIG WANL, West Coast Thunder) or make a new one, which starts from scratch with the default settings. AMMNA Nationals and GIG WANL come with their PlayHQ organisation link, colours (AMMNA green and gold from its logo;
 GIG WANL in Netball WA greens with Gold Industry Group gold) and competition logo. AMMNA's PlayHQ competition is set to
@@ -650,5 +658,6 @@ pick each winner (the score is optional); those are kept in `control.json`, and 
 ## Licence
 
 FirstPass Studio is open source under the MIT licence; see [LICENSE](LICENSE). Bundled third-party code keeps its own
-licence (Montserrat in `public/vendor/montserrat/OFL.txt`, Swagger UI in `public/vendor/swagger-ui/LICENSE`). Team and
+licence (Montserrat in `public/vendor/montserrat/OFL.txt`, the graphics' fonts under the SIL Open Font Licence in
+`public/vendor/fonts/<font>/LICENSE`, Swagger UI in `public/vendor/swagger-ui/LICENSE`). Team and
 competition logos belong to their owners and are not covered by the MIT licence.

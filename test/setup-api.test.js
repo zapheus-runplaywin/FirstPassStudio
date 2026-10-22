@@ -69,6 +69,27 @@ test('logos: uploaded, served to the pages, listed, and removed', async () => {
   assert.equal((await studio.request('GET', '/logos/Knights.png')).status, 404);
 });
 
+test('font files: added to a competition, picked, loaded by theme.css, and only fonts', async () => {
+  const r = await studio.request('POST', '/api/setup/my-league/image?kind=fonts&name=ClubSans-Bold.woff2', Buffer.from('wOF2 font'), { 'content-type': 'application/octet-stream' });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.family, 'Club Sans');
+  assert.deepEqual(r.json.fonts, ['ClubSans-Bold.woff2']);
+  assert.deepEqual(r.json.fontFamilies, ['Club Sans']);
+  await studio.post('/api/setup/my-league', { ...(await studio.get('/api/setup/my-league')).settings, font: 'Club Sans' });
+  const css = (await studio.request('GET', '/theme.css')).text;
+  assert.match(css, /--font: "Club Sans", "Montserrat"/);
+  assert.match(css, /font-family: "Club Sans"; font-style: normal; font-weight: 700;.*url\("\/fonts\/ClubSans-Bold\.woff2"\) format\("woff2"\)/);
+  const served = await studio.request('GET', '/fonts/ClubSans-Bold.woff2');
+  assert.equal(served.status, 200);
+  assert.equal(served.type, 'font/woff2');
+  const preview = await studio.request('GET', '/api/setup/my-league/fontcss?font=Club%20Sans');
+  assert.match(preview.text, /url\("\/api\/setup\/my-league\/image\?kind=fonts&name=ClubSans-Bold\.woff2"\)/);
+  const bad = await studio.request('POST', '/api/setup/my-league/image?kind=fonts&name=Knights.png', PNG, { 'content-type': 'application/octet-stream' });
+  assert.equal(bad.status, 502);
+  assert.match(bad.json.error, /Fonts must be TTF, OTF, WOFF or WOFF2/);
+  assert.deepEqual(await studio.get('/api/setup-fonts'), { mac: [] }, 'no Mac fonts where the tests run');
+});
+
 test('a template file exported from one setup and imported as another', async () => {
   const tpl = await studio.get('/api/setup/my-league/template');
   assert.equal(tpl.format, 'firstpass-studio-competition');
@@ -78,6 +99,8 @@ test('a template file exported from one setup and imported as another', async ()
   assert.equal(imported.settings.name, 'Copy of My League');
   assert.equal(imported.settings.venueName, 'The Hall');
   assert.deepEqual(imported.brand, ['League.png']);
+  assert.deepEqual(imported.fonts, ['ClubSans-Bold.woff2'], 'added fonts go with it');
+  assert.equal(imported.settings.font, 'Club Sans');
   assert.equal(imported.active, false, 'importing another doesn\'t change the one in use');
   const bad = await studio.request('POST', '/api/setup-template', 'not json');
   assert.equal(bad.status, 400);

@@ -3,7 +3,7 @@
 // Everything that belongs to one competition and doesn't come from PlayHQ lives in
 // competitions/<id>/ in the data folder (datadir.js): settings.json (PlayHQ link, names,
 // rules, colours, font and options), logos/ (team logos), brand/ (the competition's own
-// logo), photos/ (athlete photos, each named after the athlete, e.g. "Jane Smith.jpg") and
+// logo), fonts/ (font files added on the setup page, fonts.js), photos/ (athlete photos, each named after the athlete, e.g. "Jane Smith.jpg") and
 // athletes.json. competitions/active.json says which one the helper and every page use.
 //
 // The data folder starts with no competitions. imports/ in the app holds import configs,
@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const finals = require('./finals');
+const fonts = require('./fonts');
 const datadir = require('./datadir');
 
 const DIR = datadir.file('competitions');
@@ -67,11 +68,6 @@ const DEFAULTS = {
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
   apiTenant: '',
 };
-// Google Fonts, with the weights each one has (asking for one it doesn't have fails).
-const FULL = 'ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900';
-const FONT_WEIGHTS = { 'Montserrat': FULL, 'Barlow Condensed': FULL, 'Roboto Condensed': FULL, 'Poppins': FULL, 'Raleway': FULL, 'Exo 2': FULL,
-  'Oswald': 'wght@400;500;600;700', 'Teko': 'wght@400;500;600;700', 'Bebas Neue': '', 'Anton': '' };
-const FONTS = Object.keys(FONT_WEIGHTS);
 const HEX = /^#[0-9a-f]{6}$/i;
 
 const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'competition';
@@ -185,7 +181,9 @@ function clean(input, base = DEFAULTS) {
   out.autoSelectMinutesBefore = Math.min(120, Math.max(0, out.autoSelectMinutesBefore));
   out.roundLookaheadDays = Math.min(14, Math.max(1, Math.round(out.roundLookaheadDays)));
   out.panelOpacity = Math.min(1, Math.max(0.3, out.panelOpacity));
-  if (!FONTS.includes(out.font)) out.font = DEFAULTS.font;
+  // Any font name: a bundled one, one on the Mac or an added one (fonts.js). One that isn't there
+  // falls back to Montserrat on the graphics.
+  out.font = fonts.cleanName(out.font) || DEFAULTS.font;
   out.competitionLogo = out.competitionLogo ? path.basename(out.competitionLogo) : '';
   out.competitionLogoDark = out.competitionLogoDark ? path.basename(out.competitionLogoDark) : '';
   out.name = out.name.slice(0, 80) || out.competitionName || DEFAULTS.name;
@@ -281,7 +279,7 @@ const TEMPLATE_FORMAT = 'firstpass-studio-competition';
 
 function exportTemplate(id) {
   const out = { format: TEMPLATE_FORMAT, version: 1, settings: get(id) };
-  for (const sub of ['logos', 'brand']) {
+  for (const sub of ['logos', 'brand', 'fonts']) {
     out[sub] = {};
     for (const f of images(id, sub)) out[sub][f] = fs.readFileSync(path.join(dirOf(id), sub, f)).toString('base64');
   }
@@ -296,9 +294,9 @@ function importTemplate(tpl, name) {
   const id = freeId(slug(name), name);
   for (const sub of ['logos', 'brand']) fs.mkdirSync(path.join(DIR, id, sub), { recursive: true });
   writeJson(path.join(DIR, id, 'settings.json'), clean({ ...from, name }));
-  for (const sub of ['logos', 'brand']) {
+  for (const sub of ['logos', 'brand', 'fonts']) {
     for (const [f, b64] of Object.entries(tpl[sub] || {})) {
-      try { saveImage(id, sub, f, Buffer.from(String(b64), 'base64')); } catch { /* skip a file that isn't an image */ }
+      try { saveImage(id, sub, f, Buffer.from(String(b64), 'base64')); } catch { /* skip a file that isn't an image or font */ }
     }
   }
   if (!activeId()) setActive(id);
@@ -333,7 +331,7 @@ function saveAsImport(id, importId, replace) {
   const to = path.join(IMPORTS, importId);
   if (fs.existsSync(to) && !replace) { const e = new Error(`There is already an import config called "${importId}".`); e.exists = importId; throw e; }
   fs.rmSync(to, { recursive: true, force: true });
-  for (const sub of ['logos', 'brand']) {
+  for (const sub of ['logos', 'brand', 'fonts']) {
     const files = images(id, sub);
     fs.mkdirSync(path.join(to, sub), { recursive: true });
     for (const f of files) fs.copyFileSync(path.join(dirOf(id), sub, f), path.join(to, sub, f));
@@ -343,16 +341,18 @@ function saveAsImport(id, importId, replace) {
   return importId;
 }
 
-// ─── Images ─────────────────────────────────────────────────────────────────
-const KINDS = ['logos', 'brand', 'photos'];
+// ─── Images (and font files) ────────────────────────────────────────────────
+const KINDS = ['logos', 'brand', 'photos', 'fonts'];
 function imageDir(id, kind) { return path.join(dirOf(id), KINDS.includes(kind) ? kind : 'logos'); }
+const typeOf = kind => kind === 'fonts' ? fonts.FILE : IMAGE;
 function images(id, kind) {
-  try { return fs.readdirSync(imageDir(id, kind)).filter(f => IMAGE.test(f)).sort((a, b) => a.localeCompare(b)); } catch { return []; }
+  try { return fs.readdirSync(imageDir(id, kind)).filter(f => typeOf(kind).test(f)).sort((a, b) => a.localeCompare(b)); } catch { return []; }
 }
 function saveImage(id, kind, fileName, buf) {
   writable();
   const name = path.basename(String(fileName || '')).replace(/[^\w .'()&+-]/g, '').trim();
-  if (!IMAGE.test(name)) throw new Error(`${kind === 'photos' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
+  if (!typeOf(kind).test(name)) throw new Error(kind === 'fonts' ? 'Fonts must be TTF, OTF, WOFF or WOFF2 files.'
+    : `${kind === 'photos' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
   if (!buf.length) throw new Error('That file is empty.');
   fs.mkdirSync(imageDir(id, kind), { recursive: true });
   fs.writeFileSync(path.join(imageDir(id, kind), name), buf);
@@ -372,10 +372,10 @@ function renameImage(id, kind, from, to) {
   fs.renameSync(src, path.join(imageDir(id, kind), name));
   return name;
 }
-// The file behind a /logos/, /brand/ or /photos/ link, for the competition in use.
+// The file behind a /logos/, /brand/, /photos/ or /fonts/ link, for the competition in use.
 function imageFile(id, kind, fileName) {
   const name = path.basename(decodeURIComponent(fileName));
-  return IMAGE.test(name) ? path.join(imageDir(id, kind), name) : null;
+  return typeOf(kind).test(name) ? path.join(imageDir(id, kind), name) : null;
 }
 
 // ─── Colours (theme.css) ────────────────────────────────────────────────────
@@ -383,14 +383,13 @@ const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
 const toHex = a => '#' + a.map(v => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('');
 const mix = (hex, other, t) => { const a = rgb(hex), b = rgb(other); return toHex(a.map((v, i) => v + (b[i] - v) * t)); };
 
-// Every overlay links theme.css; the helper writes it from the competition's colours.
-// The variable names are the original Thunder League ones, so every page keeps working.
-function themeCss(s) {
+// Every overlay links theme.css; the helper writes it from the competition's colours and font
+// (with fontFiles, the competition's added font files). The variable names are the original
+// Thunder League ones, so every page keeps working.
+function themeCss(s, fontFiles = []) {
   const c = s.colours, o = s.panelOpacity;
-  const w = FONT_WEIGHTS[s.font];
-  const font = s.font.replace(/ /g, '+') + (w ? ':' + w : '');
   const vars = {
-    '--font': `"${s.font}", "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
+    '--font': fonts.stack(s.font),
     '--purple': c.main, '--purple-rgb': rgb(c.main).join(', '),
     '--purple-light': mix(c.main, '#ffffff', 0.25), '--purple-shade': mix(c.main, '#000000', 0.15),
     '--purple-dark': c.dark, '--purple-dark-light': mix(c.dark, '#ffffff', 0.15),
@@ -401,8 +400,8 @@ function themeCss(s) {
     '--text': c.text, '--text-on-yellow': c.textOnHighlight, '--muted': c.muted,
   };
   return `/* ${s.name}: colours and font from the competition setup page (setup.html). */\n` +
-    `@import url("https://fonts.googleapis.com/css2?family=${font}&display=swap");\n` +
+    fonts.css(s.font, fontFiles) + '\n' +
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, FONTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };
+module.exports = { DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };

@@ -12,6 +12,7 @@
     "test": "node --test test/*.test.js",
     "test:ci": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mjs --test-reporter-destination=stdout test/*.test.js",
     "iconpack": "node plugins/characters-iconpack/build.js",
+    "fonts": "node vendor/fonts/fetch.js",
     "app": "electron .",
     "dist": "electron-builder --mac --publish never",
     "release": "electron-builder --mac --publish always"
@@ -44,6 +45,7 @@
       "linkhost.js",
       "sequences.js",
       "music.js",
+      "fonts.js",
       "config.json",
       "public/**/*",
       "imports/**/*",
