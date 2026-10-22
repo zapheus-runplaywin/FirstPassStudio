@@ -48,6 +48,7 @@
       "music.js",
       "fonts.js",
       "sponsors.js",
+      "exposure.js",
       "config.json",
       "public/**/*",
       "imports/**/*",

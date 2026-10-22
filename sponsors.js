@@ -407,7 +407,7 @@ function view(compId) {
 // competition's tier names, empty-tier rules and vacancy card), /api/sponsors/logo (POST or DELETE
 // ?id=&which=logo|logoWhite&name=), /api/sponsors/qr.svg (?id=&place= or ?vacancy=1),
 // /api/sponsors/pick (?tier=&place=) and /sponsors/<id>/<file> for logos.
-// ctx: { send, readBody, readRaw, saveSettings(id, changes) }. Answers true when it handled the request.
+// ctx: { send, readBody, readRaw, saveSettings(id, changes), gave(req, sponsors, place, opts) (exposure.js) }. Answers true when it handled the request.
 async function route(req, res, url, ctx) {
   const { send, readBody, readRaw } = ctx;
   const q = Object.fromEntries(url.searchParams);
@@ -478,6 +478,7 @@ async function route(req, res, url, ctx) {
       if (!c) log('warn', 'sponsors', `No sponsor "${q.sponsor}" for the ${place}`);
     } else c = next(compId, { place, tiers, count: q.count !== '0' });
     const settings = competitions.get(compId);
+    if (ctx.gave) ctx.gave(req, c && c.sponsor ? [c.sponsor] : [], place, { qr: place === 'card' && !!(c && c.sponsor && c.sponsor.website), competition: compId });
     if (!c) send(res, 200, { none: true });
     else if (c.vacancy) send(res, 200, { vacancy: c.vacancy, tier: c.tier, competition: settings.displayName || settings.competitionName || settings.name });
     else send(res, 200, { sponsor: forGraphic(c.sponsor, compId, place, settings) });
@@ -486,13 +487,18 @@ async function route(req, res, url, ctx) {
   }
   if (p === '/api/sponsors/wall') {
     const settings = compId ? competitions.get(compId) : competitions.get();
-    send(res, 200, { competition: settings.displayName || settings.competitionName || settings.name, tiers: compId ? wall(compId, { tiers: q.tiers ? q.tiers.split(',') : null }) : [] });
+    const tiers = compId ? wall(compId, { tiers: q.tiers ? q.tiers.split(',') : null }) : [];
+    // ?max= when the page shows only the first few.
+    if (ctx.gave) ctx.gave(req, tiers.flatMap(t => t.sponsors || []).slice(0, Number(q.max) || Infinity), q.place || 'wall', { competition: compId });
+    send(res, 200, { competition: settings.displayName || settings.competitionName || settings.name, tiers });
     return true;
   }
   if (p === '/api/sponsors/pick') {
     if (!compId) { send(res, 200, { skip: true }); return true; }
     const r = pick(compId, q.tier, { place: q.place });
     const settings = competitions.get(compId);
+    // The graphics show the first one (naming rights is one sponsor).
+    if (ctx.gave) ctx.gave(req, (r.sponsors || []).slice(0, 1), q.place, { competition: compId });
     const out = r.sponsors ? { ...r, sponsors: r.sponsors.map(s => ({ ...s, logoUrl: logoUrl(s, 'logo'), logoWhiteUrl: logoUrl(s, 'logoWhite'),
       qrLink: trackedLink(s, { competition: settings.name, place: q.place }) })) } : r;
     send(res, 200, out);

@@ -624,6 +624,23 @@ those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pulled into a
 - Turns are counted while Studio runs. Ad files aren't in competition templates; copy the media with the Output page's
   export.
 
+### Sponsor report
+
+http://localhost:8080/sponsorreport.html (**Sponsor report** on the Sponsors page) shows what each sponsor got on screen,
+to save as a PDF and send them after the night (**Print or save as PDF**).
+
+- **What counts:** a graphic in the scene that's on and showing the sponsor (the scoreboard tab, title, countdown, stat
+  card footers, ticker, sponsor card, sponsor wall, end of night card) and their ads. Each graphic tells Studio which
+  sponsor it was given when it loaded, and Studio looks at the scene once a second. Only while a video output is on
+  (rehearsals don't count), unless **Count time with no video output on** is ticked. A page used on its own outside
+  the scene isn't counted.
+- **The report:** per sponsor, time on screen (two graphics at once count once), where (time per place), ad plays and
+  which ads, time with their QR code up (the sponsor card), and progress against their targets (per stream, so two
+  nights double them). **Every showing** lists each one with its time, place and source. Pick tonight, any nights, or
+  the whole season, for any competition.
+- **The Sponsors page** shows tonight so far on each sponsor's card, against their target.
+- A night runs to 4 am. The log is kept in `sponsors/exposure/` in the settings folder, one file a night.
+
 ## Athlete photos and position match ups
 
 http://localhost:8080/athletes.html (**Athletes** in the menu) keeps a photo of each athlete for the competition in use.
