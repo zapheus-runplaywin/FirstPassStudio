@@ -116,10 +116,18 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     const saved = isMain && appSettings().windowBounds;
     // The popped-out preview starts at 16:9 (it fits the scene to whatever size it's made).
     const popout = new URL(url).pathname === '/preview.html';
-    const bounds = saved && onScreen(saved) ? saved : popout ? { width: 1280, height: 720, useContentSize: true } : { width: 1280, height: 860 };
+    // A source or page preview (PVW, Preview) starts at half size, each one a step down and right of
+    // the last so a few can be laid out on one screen.
+    const pvw = new URL(url).pathname === '/pvw.html';
+    const step = pvw ? 30 * (BrowserWindow.getAllWindows().filter(w => !w.isDestroyed() && w.isPvw).length % 10) : 0;
+    const pvwBounds = () => {
+      const a = screen.getPrimaryDisplay().workArea;
+      return { width: 960, height: 540, useContentSize: true, x: a.x + 40 + step, y: a.y + 40 + step };
+    };
+    const bounds = saved && onScreen(saved) ? saved : popout ? { width: 1280, height: 720, useContentSize: true } : pvw ? pvwBounds() : { width: 1280, height: 860 };
     const win = new BrowserWindow({
       ...bounds,
-      minWidth: popout ? 320 : 560, minHeight: popout ? 180 : 400,
+      minWidth: popout || pvw ? 320 : 560, minHeight: popout || pvw ? 180 : 400,
       title: popout ? 'Scene View · FirstPass Studio' : 'FirstPass Studio',
       backgroundColor: studioPage ? '#F8FAFC' : '#1E293B', // overlays are see-through: show them on dark
       show: false,
@@ -130,6 +138,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true, autoplayPolicy: 'no-user-gesture-required' },
     });
     win.studioUrl = url;
+    win.isPvw = pvw;
     // While the splash is up, the window shows as it closes rather than behind it.
     win.once('ready-to-show', () => {
       if (!splash) return win.show();

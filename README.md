@@ -274,7 +274,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
   when hidden. Untick it to keep a page running while hidden so it shows instantly.
   **Refresh page** reloads it now.
-- **Preview** opens the selected source on its own in a new window, like the Graphics page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same.
+- **Preview** opens the selected source on its own in a new window, like the Graphics page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger. The Graphics page's Preview buttons open the same half-size window.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it

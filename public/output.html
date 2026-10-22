@@ -1573,7 +1573,8 @@
   function previewSource(s) {
     const to = s.type === 'browser' ? (/^https?:\/\//i.test(s.url) ? s.url : '/' + String(s.url).replace(/^\/+/, '')) : '/media/' + encodeURIComponent(s.file);
     console.log(`Preview "${s.name}": ${to}`);
-    window.open(to, '_blank');
+    // Half size (the page is still laid out at 1080p and scaled), so a few fit on one screen.
+    window.open(`/pvw.html?src=${encodeURIComponent(to)}&name=${encodeURIComponent(s.name)}`, '_blank', 'popup,width=960,height=540');
   }
   $('fPreview').onclick = () => { const s = current(); if (s) previewSource(s); };
   $('fRemove').onclick = () => {
