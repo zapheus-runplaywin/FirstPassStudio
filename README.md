@@ -440,7 +440,12 @@ These follow the game picked on the scoreboard control page:
   either side of the title (none without it). The competition logo is off by default, since the logos
   page shows it beside the title: `?logo=show` puts it above the banner, `?logo=hide` leaves it off. It is the light mode logo unless you add `?mode=dark`.
 - http://localhost:8080/upnext.html: the next game on the same court, for half time. With no game picked, it
-  assumes the stream is on the first timeslot and shows the game after it.
+  assumes the stream is on the first timeslot and shows the game after it. After the last game of the night it
+  shows an end of night card instead: "That's the last game of the night", the competition logo, name and organisation
+  (from the competition setup, else PlayHQ), and when to join again: next week (or tomorrow, a day, a date) with the next
+  round, the finals round's name when the next round is a final, "Finals are next" after the last round when a finals format
+  is set, or a thank you for the season after that. `?wrap=1` shows the card now, `?wrap=0` never shows it, `?message=`
+  changes the invite line and `?mode=dark` uses the dark mode competition logo.
 - http://localhost:8080/countdown.html: counts down to the scheduled start time of the game picked on the control page,
   with both teams, logos, division, round, court, time and venue. The clock ticks in the page and it asks Studio (never PlayHQ)
   every 5 seconds which game is picked, so it follows a new game without a refresh. The last 10 seconds pulse; at zero it shows

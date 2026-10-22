@@ -154,6 +154,42 @@ body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080
 }
 .upnext__time:empty { display: none; }
 
+/* Up next's end of night card: after the last game, thanks and when to join again */
+.wrap { --card-width: 1400px; position: relative; text-align: center; }
+.wrap__header { padding: 34px 40px 0; position: relative; z-index: 1; }
+.wrap__title {
+  margin: 22px 0 0; font-size: 58px; font-weight: 800; text-transform: uppercase; color: var(--yellow);
+  line-height: 1.05; letter-spacing: 0.02em; text-wrap: balance; animation: rise 0.6s 0.15s ease-out both;
+}
+.wrap__body { position: relative; z-index: 1; padding: 22px 60px 34px; display: flex; flex-direction: column; align-items: center; }
+.wrap__logo {
+  width: 260px; height: 260px; object-fit: contain; margin-bottom: 18px;
+  filter: drop-shadow(0 0 28px rgba(var(--yellow-rgb), .35)) drop-shadow(0 10px 22px rgba(0,0,0,.5));
+  animation: wrap-pop 0.8s 0.3s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.wrap__thanks { color: var(--muted); font-size: 26px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; animation: rise 0.5s 0.5s ease-out both; }
+.wrap__comp {
+  margin: 8px 0 0; font-size: 64px; font-weight: 800; text-transform: uppercase; line-height: 1.05; text-wrap: balance;
+  animation: rise 0.5s 0.6s ease-out both;
+}
+.wrap__org { margin-top: 12px; color: var(--muted); font-size: 28px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-wrap: balance; animation: rise 0.5s 0.7s ease-out both; }
+.wrap__org:empty, .wrap__comp:empty, .wrap__when:empty { display: none; }
+.wrap__next { position: relative; z-index: 1; background: var(--purple); padding: 22px 40px 24px; border-top: 4px solid var(--yellow); animation: rise 0.5s 0.9s ease-out both; }
+.wrap__invite { font-size: 46px; font-weight: 800; text-transform: uppercase; color: var(--yellow); line-height: 1.1; text-wrap: balance; }
+.wrap__when { margin-top: 8px; font-size: 26px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.wrap__confetti { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.wrap__confetti i {
+  position: absolute; top: -24px; width: 12px; height: 18px; border-radius: 2px; opacity: 0;
+  animation: wrap-fall 3s ease-in both;
+}
+@keyframes wrap-pop { from { opacity: 0; transform: scale(.4) rotate(-8deg); } to { opacity: 1; transform: none; } }
+@keyframes wrap-fall {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  8% { opacity: .85; }
+  80% { opacity: .85; }
+  100% { opacity: 0; transform: translate(var(--drift), 860px) rotate(var(--spin)); }
+}
+
 /* Shared: lower-third pages sit at the bottom of the screen */
 body.lower { align-items: flex-end; padding: 0 0 56px; }
 .form-dot {
