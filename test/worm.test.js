@@ -86,3 +86,37 @@ test('super shot divisions mark the super shot period and count the points score
   assert.deepEqual(w.superShot.points, { home: 1, away: 4 });
   assert.equal(w.superShot.timed, true);
 });
+
+test('a goal after "next quarter" at the end of a game that wasn\'t level goes on the last quarter\'s siren, not extra time', async t => {
+  const { post, goals, worm } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'period', value: 4 });
+  await goals('home', 1, 1);
+  await goals('away', 1);
+  await post({ type: 'period', value: 'next' }); // pressed at the siren: the board is on extra time
+  await goals('away', 1); // the shot after the siren levels it, but it was 2-1 at the end of the fourth
+
+  const w = await worm();
+  assert.equal(w.periods, 4);
+  const line = w.segments[0];
+  assert.deepEqual(line.map(p => p.margin), [0, 1, 2, 1, 0]);
+  assert.equal(line[line.length - 1].t, 4);
+  assert.ok(w.end <= 4);
+
+});
+
+test('extra time from a level score is kept', async t => {
+  const { post, goals, worm } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'period', value: 4 });
+  await goals('home', 1);
+  await goals('away', 1);
+  await post({ type: 'period', value: 'next' });
+  await goals('home', 1);
+  const w = await worm();
+  assert.equal(w.periods, 5);
+  assert.deepEqual(w.segments[0].map(p => p.margin), [0, 1, 0, 1]);
+  assert.ok(w.segments[0].at(-1).t >= 4); // in extra time
+});

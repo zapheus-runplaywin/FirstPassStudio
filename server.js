@@ -1340,6 +1340,14 @@ function trackPeriods(b, score) {
     if (!t.periods[b.period]) t.periods[b.period] = { home: 0, away: 0, sure: true };
   }
 }
+// Extra time is only played from a level score, so anything put on a period after the last
+// quarter (a "next quarter" press at the siren, then a shot after the siren) when the scores
+// weren't level at the end of normal time belongs to the last quarter. `extra` is the points
+// put on the periods after it.
+function playedExtraTime(b, extra) {
+  const h = (Number(b.home.score) || 0) - (extra.home || 0), a = (Number(b.away.score) || 0) - (extra.away || 0);
+  return h === a;
+}
 // Runs: goals in a row by one team (a super goal is one goal, as on the Last 10 goals graphic).
 // A gap in the goal order (picked up part way, a jump) ends a run.
 function runsFrom(goals) {
@@ -1358,15 +1366,27 @@ function getStats() {
   if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
   const r = rules(b.division);
   const t = b.periodTrack;
-  const last = Math.max(r.periods, ...Object.keys(t.periods).map(Number));
+  let last = Math.max(r.periods, ...Object.keys(t.periods).map(Number));
+  let current = t.period;
+  const tracked = { ...t.periods };
+  if (last > r.periods) {
+    const extra = { home: 0, away: 0 };
+    for (let n = r.periods + 1; n <= last; n++) if (tracked[n]) { extra.home += tracked[n].home; extra.away += tracked[n].away; }
+    if (!playedExtraTime(b, extra)) {
+      const into = tracked[r.periods] = { ...(tracked[r.periods] || { home: 0, away: 0, sure: false }) };
+      for (let n = r.periods + 1; n <= last; n++) if (tracked[n]) { into.home += tracked[n].home; into.away += tracked[n].away; into.sure = into.sure && tracked[n].sure; delete tracked[n]; }
+      last = r.periods;
+      current = Math.min(current, r.periods + 1); // the last quarter counts as finished
+    }
+  }
   const periods = [];
   for (let n = 1; n <= last; n++) {
-    const p = t.periods[n];
+    const p = tracked[n];
     if (n > r.periods && !p) continue; // no extra time
-    periods.push({ n, label: n > r.periods ? 'ET' : `${r.periodLabel}${n}`, played: !!p || n < t.period,
-      home: p ? p.home : null, away: p ? p.away : null, sure: !!(p && p.sure) && n <= t.period });
+    periods.push({ n, label: n > r.periods ? 'ET' : `${r.periodLabel}${n}`, played: !!p || n < current,
+      home: p ? p.home : null, away: p ? p.away : null, sure: !!(p && p.sure) && n <= current });
   }
-  const sure = periods.filter(p => p.sure && p.n <= r.periods && (p.n < t.period || p.home || p.away));
+  const sure = periods.filter(p => p.sure && p.n <= r.periods && (p.n < current || p.home || p.away));
   const won = side => sure.filter(p => p[side] > p[side === 'home' ? 'away' : 'home']).length;
   const best = side => sure.reduce((top, p) => (!top || p[side] > top.points ? { n: p.n, label: p.label, points: p[side] } : top), null);
   const goals = b.goals.filter(g => !g.gap);
@@ -1409,12 +1429,20 @@ function getWorm() {
     return left == null ? null : Math.max(0, Math.min(1, (len - left) / len));
   };
   const entries = b.goals.map(g => ({ g, period: Number(g.period) || 1, frac: fraction(g.clockLeft, g.periodSec) }));
+  // Goals after the last quarter without a level score at its end (see playedExtraTime) were on the siren of the last quarter.
+  const extra = { home: 0, away: 0 };
+  for (const e of entries) if (!e.g.gap && e.period > r.periods) extra[e.g.side] += e.g.points;
+  const extraTime = (extra.home || extra.away || (Number(b.period) || 1) > r.periods) && playedExtraTime(b, extra);
+  if (!extraTime) for (const e of entries) if (e.period > r.periods) { e.period = r.periods; e.frac = 1; e.atSiren = true; }
   // Goals in a quarter without usable clock times (none running, or all at the same moment) are spread evenly.
   const byPeriod = new Map();
   for (const e of entries) if (!e.g.gap) (byPeriod.get(e.period) || byPeriod.set(e.period, []).get(e.period)).push(e);
   for (const list of byPeriod.values()) {
-    const fracs = list.map(e => e.frac);
-    if (fracs.some(f => f == null) || (list.length > 1 && fracs.every(f => f === fracs[0]))) list.forEach((e, i) => { e.frac = (i + 1) / (list.length + 1); e.spread = true; });
+    const timed = list.filter(e => !e.atSiren);
+    const fracs = timed.map(e => e.frac);
+    if (timed.length && (fracs.some(f => f == null) || (timed.length > 1 && fracs.every(f => f === fracs[0])))) {
+      timed.forEach((e, i) => { e.frac = (i + 1) / (timed.length + 1); e.spread = true; });
+    }
   }
   const score = { home: 0, away: 0 };
   const segments = [], gaps = [];
@@ -1444,7 +1472,8 @@ function getWorm() {
   // The line carries on to now (the end of the game, once it's over); a score now different
   // from the line's (corrections Studio couldn't place) moves the end to the board's score.
   const nowFrac = fraction(clockLeft(b), b.clock && b.clock.lengthSec);
-  const end = Math.max(lastT, (Number(b.period) || 1) - 1 + (nowFrac ?? 0));
+  const nowPeriod = Number(b.period) || 1;
+  const end = Math.max(lastT, extraTime || nowPeriod <= r.periods ? nowPeriod - 1 + (nowFrac ?? 0) : r.periods);
   const board_ = { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 };
   if (board_.home !== score.home || board_.away !== score.away) {
     gaps.push({ from: lastT, to: end });
@@ -1458,7 +1487,7 @@ function getWorm() {
   }, null);
   let changes = 0, leader = 0;
   for (const p of all) { const now = Math.sign(p.margin); if (now && leader && now !== leader) changes++; if (now) leader = now; }
-  const periods = Math.max(r.periods, Number(b.period) || 1, ...entries.map(e => e.period));
+  const periods = extraTime ? Math.max(r.periods, nowPeriod, ...entries.map(e => e.period)) : r.periods;
   // The super shot period (the last superShotMinutes of each quarter, super shot divisions only):
   // where it falls on the chart, and the points each team scored in it (goals with clock times only).
   let superShot = null;

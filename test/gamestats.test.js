@@ -91,3 +91,16 @@ test('following PlayHQ, a goal in the same reading as the next quarter starting 
   assert.deepEqual(s.quarters.slice(0, 2).map(q => [q.home, q.away, q.sure]), [[2, 0, true], [0, 1, true]]);
   assert.deepEqual(s.stats.quartersWon, { home: 1, away: 1, drawn: 0, of: 2 });
 });
+
+test('points put on extra time when the game wasn\'t level go on the last quarter', async t => {
+  const { post, goals, stats } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'period', value: 4 });
+  await goals('home', 1, 1);
+  await post({ type: 'period', value: 'next' }); // pressed at the siren
+  await goals('away', 1); // the shot after the siren
+  const s = await stats();
+  assert.deepEqual(s.quarters.map(q => q.label), ['Q1', 'Q2', 'Q3', 'Q4']);
+  assert.deepEqual([s.quarters[3].home, s.quarters[3].away], [2, 1]);
+});
