@@ -88,6 +88,16 @@
     fit();
   }
 
+  // Runs fn on the next frame, so a layer fades in rather than just appearing. A window that's hidden or
+  // covered (the popped-out Scene View behind the Output page) gets no frames, so a timer stands in:
+  // otherwise it would show nothing new until it was looked at again.
+  const nextFrame = fn => {
+    let done = false;
+    const once = () => { if (!done) { done = true; fn(); } };
+    requestAnimationFrame(once);
+    setTimeout(once, 100);
+  };
+
   const addressOf = s => /^https?:\/\//i.test(s.url) ? s.url : '/' + s.url;
 
   // A video finished, or a page animated away: the helper switches the source off (once, however many
@@ -182,7 +192,7 @@
       if (needsLoad) await loadPage(L, s);
       if (token !== L.token) return; // changed again while loading
       L.shown = true;
-      requestAnimationFrame(() => { if (token === L.token) el.classList.add('on'); });
+      nextFrame(() => { if (token === L.token) el.classList.add('on'); });
     } else {
       el.classList.remove('on');
       L.shown = false;
@@ -211,7 +221,7 @@
         else console.warn(`Video "${s.name}" would not play: ${err.message}`);
       });
       L.shown = true;
-      requestAnimationFrame(() => { if (token === L.token) el.classList.add('on'); });
+      nextFrame(() => { if (token === L.token) el.classList.add('on'); });
     } else {
       el.classList.remove('on');
       L.shown = false;

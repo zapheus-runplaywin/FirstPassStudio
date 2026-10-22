@@ -10,7 +10,8 @@ const { startStudio } = require('./support/studio');
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
 
-test('the Scene View pops out, comes back and pops out again', async t => {
+// The browser, closed when the test ends; null (and the test skipped) when there isn't one.
+async function launch(t) {
   let browser = null, why = 'playwright is not installed';
   if (chromium) {
     try { browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); }
@@ -19,9 +20,15 @@ test('the Scene View pops out, comes back and pops out again', async t => {
   if (!browser) {
     if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail(`no browser to test the pages in: ${why}`);
     t.skip(`no browser to test the pages in (${why}); run npx playwright install chromium`);
-    return;
+    return null;
   }
   t.after(() => browser.close());
+  return browser;
+}
+
+test('the Scene View pops out, comes back and pops out again', async t => {
+  const browser = await launch(t);
+  if (!browser) return;
   const studio = await startStudio(t);
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   t.after(() => context.close());
@@ -71,4 +78,42 @@ test('the Scene View pops out, comes back and pops out again', async t => {
   const [again] = await Promise.all([output.waitForEvent('popup', { timeout: 5000 }), output.click('#popOut')]);
   await again.waitForLoadState('load');
   await becomes(away);
+});
+
+// The popped-out window behind the Output page (where sequences are played from) gets no frames to
+// draw: it still follows one sequence after another, without being brought back and opened again.
+test('the popped-out Scene View follows each sequence played while it is covered', async t => {
+  const browser = await launch(t);
+  if (!browser) return;
+  const studio = await startStudio(t);
+  await studio.post('/api/scene', { type: 'add', sources: [
+    { type: 'browser', name: 'Ladder', url: 'testpattern.html' },
+    { type: 'browser', name: 'Fixtures', url: 'testpattern.html?b=1' },
+  ] });
+  const { sources } = await studio.get('/api/scene');
+  const id = name => sources.find(s => s.name === name).id;
+  for (const name of ['Ladder', 'Fixtures']) {
+    await studio.post('/api/scene', { type: 'seqAdd', changes: { name: `Show ${name}`, steps: [{ sources: [id(name)], length: { type: 'time', sec: 60 } }] } });
+  }
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  t.after(() => context.close());
+  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+  // A covered window: the scene inside the pop-out never gets an animation frame.
+  await context.addInitScript(() => {
+    if (location.pathname === '/scene.html' && window.parent !== window && window.parent.location.pathname === '/preview.html') window.requestAnimationFrame = () => 0;
+  });
+
+  const output = await context.newPage();
+  await output.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
+  const [win] = await Promise.all([output.waitForEvent('popup'), output.click('#popOut')]);
+  await win.waitForLoadState('load');
+  const showing = want => win.waitForFunction(w => {
+    const doc = document.getElementById('frame').contentDocument;
+    return doc && JSON.stringify([...doc.querySelectorAll('.layer.on')].map(l => l.dataset.id)) === JSON.stringify(w);
+  }, want, { timeout: 5000 }).then(() => true, () => false);
+
+  await studio.post('/api/scene', { type: 'seqPlay', sequence: 'Show Ladder' });
+  assert.ok(await showing([id('Ladder')]), 'the first sequence shows in the pop-out');
+  await studio.post('/api/scene', { type: 'seqPlay', sequence: 'Show Fixtures' });
+  assert.ok(await showing([id('Fixtures')]), 'the next sequence shows in the pop-out too');
 });

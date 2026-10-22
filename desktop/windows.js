@@ -135,7 +135,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       titleBarStyle: studioPage ? 'hiddenInset' : 'default',
       trafficLightPosition: { x: 18, y: 26 },
       // Autoplay with sound: the Output page's Scene View plays the scene's sound while no video output is on.
-      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true, autoplayPolicy: 'no-user-gesture-required' },
+      // The popped-out Scene View keeps playing at full speed behind other windows, as the outputs do: a
+      // throttled one stopped following the scene (a sequence played from the Output page) until it was reopened.
+      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true, autoplayPolicy: 'no-user-gesture-required', backgroundThrottling: !popout },
     });
     win.studioUrl = url;
     win.isPvw = pvw;
