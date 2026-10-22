@@ -87,7 +87,15 @@ test('font files: added to a competition, picked, loaded by theme.css, and only 
   const bad = await studio.request('POST', '/api/setup/my-league/image?kind=fonts&name=Knights.png', PNG, { 'content-type': 'application/octet-stream' });
   assert.equal(bad.status, 502);
   assert.match(bad.json.error, /Fonts must be TTF, OTF, WOFF or WOFF2/);
-  assert.deepEqual(await studio.get('/api/setup-fonts'), { mac: [] }, 'no Mac fonts where the tests run');
+  // The Mac app workflow runs the tests on a Mac, which has fonts of its own; anywhere else there are none.
+  const { mac } = await studio.get('/api/setup-fonts');
+  if (process.platform === 'darwin') {
+    assert.ok(mac.length > 0, 'the Mac lists its fonts');
+    assert.ok(mac.every(f => typeof f === 'string' && f && !f.startsWith('.')), 'only plain font family names');
+    assert.deepEqual(mac, [...mac].sort((a, b) => a.localeCompare(b)), 'sorted by name');
+  } else {
+    assert.deepEqual(mac, [], 'no Mac fonts off a Mac');
+  }
 });
 
 test('a template file exported from one setup and imported as another', async () => {
