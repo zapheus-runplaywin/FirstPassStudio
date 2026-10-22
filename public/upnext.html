@@ -89,8 +89,8 @@
       const want = params.get('sponsors');
       if (want === '0') return;
       try {
-        const tiers = want === 'all' ? '' : '?tiers=naming,elite,major';
-        const r = await (await fetch(`/api/sponsors/wall${tiers}`, { cache: 'no-store' })).json();
+        const tiers = want === 'all' ? '' : '&tiers=naming,elite,major';
+        const r = await (await fetch(`/api/sponsors/wall?place=night&max=8${tiers}`, { cache: 'no-store' })).json();
         const list = (r.tiers || []).flatMap(t => t.sponsors).slice(0, 8);
         if (!list.length) return;
         const row = document.getElementById('wrapSponsorRow');

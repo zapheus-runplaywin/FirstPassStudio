@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sponsor report · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<link rel="stylesheet" href="studio.css">
+<style>
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+  .sub b { color: var(--fp-navy); }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 18px 22px; margin-bottom: 14px; }
+  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+  select { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
+  button { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; }
+  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  button.alt { background: var(--fp-white); color: var(--fp-blue); }
+  button.alt:hover { background: var(--fp-blue-soft); }
+  button.small { font-size: 12px; padding: 3px 9px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+  .help { font-size: 13px; color: var(--fp-muted); margin: 8px 0 0; line-height: 1.5; }
+  .nights { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .nights label { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--fp-line-strong); border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; }
+  .nights label.on { background: var(--fp-blue-soft); border-color: var(--fp-blue); }
+  .nights input { margin: 0; }
+  .tblwrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--fp-muted); padding: 6px 10px; border-bottom: 1px solid var(--fp-line-strong); white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--fp-line); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tier { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--fp-blue-soft); color: var(--fp-blue); margin-left: 6px; white-space: nowrap; }
+  .places { font-size: 12px; color: var(--fp-muted); margin-top: 3px; }
+  .bar { display: flex; align-items: center; gap: 8px; min-width: 280px; margin-bottom: 3px; }
+  .bar span { flex: 1; height: 9px; border-radius: 4px; background: var(--fp-line); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--fp-blue); }
+  .bar i.met { background: var(--fp-success, #15803d); }
+  .bar b { font-size: 12px; font-weight: 600; color: var(--fp-muted); min-width: 120px; white-space: nowrap; }
+  .bar em { font-style: normal; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--fp-muted); width: 34px; }
+  .bar span { min-width: 80px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; font-weight: 700; }
+  .showings td { font-size: 13px; padding: 4px 10px; }
+  .empty { color: var(--fp-muted); }
+  .printhead { display: none; }
+  @media print {
+    .fp-bar, .noprint { display: none !important; }
+    main { padding: 0; max-width: none; }
+    section { border: 0; padding: 0; margin-bottom: 18px; }
+    .printhead { display: block; }
+    .sponsor { break-inside: avoid-page; }
+    .bar span, .bar i, .tier { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    summary { list-style: none; }
+  }
+</style>
+</head>
+<body class="fp">
+<script src="log.js"></script>
+<header class="fp-bar">
+  <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
+  <nav><a href="/output.html">Output</a><a href="/graphics.html">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/sponsors.html" aria-current="page">Sponsors</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck</a></nav>
+</header>
+<main>
+  <h1>Sponsor report</h1>
+  <p class="sub noprint">What each sponsor of <b id="compName">the competition in use</b> got on screen: how long, where, the ad plays and the time
+    their QR code was up, against their targets. Studio counts what plays through the scene while a video output is on.
+    Save it as a PDF to send each sponsor. <a href="/sponsors.html">Back to Sponsors</a></p>
+  <p class="sub printhead" id="printHead"></p>
+
+  <section class="noprint">
+    <div class="row">
+      <label>Competition <select id="comp"></select></label>
+      <button class="alt small" id="allNights">Whole season</button>
+      <button class="alt small" id="tonightOnly">Tonight</button>
+      <label><input type="checkbox" id="offAir"> Count time with no video output on</label>
+      <button id="print">Print or save as PDF</button>
+    </div>
+    <div class="nights" id="nights"></div>
+    <p class="help">Pick the nights to include. A night runs to 4 am, so a late stream stays one night. Tick "Count time with no video output on"
+      when the stream went out some other way, such as sharing the Scene View: otherwise rehearsals before the stream would count.</p>
+  </section>
+
+  <section>
+    <h2 id="tableTitle">Tonight</h2>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Sponsor</th><th class="num">On screen</th><th class="num">Ad plays</th><th class="num">QR on screen</th><th>Against target</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="none" hidden>Nothing on screen for these nights yet.</p>
+  </section>
+
+  <div id="details"></div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const PLACES = { scoreboard: 'Scoreboard tab', title: 'Title', countdown: 'Countdown', stats: 'Stat card footers', ticker: 'Ticker',
+  card: 'Sponsor card', wall: 'Sponsor wall', night: 'End of night card', ad: 'Ads' };
+const place = p => PLACES[p] || p;
+function time(sec) {
+  sec = Math.round(sec || 0);
+  const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+const clock = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+const day = n => new Date(n + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+const params = new URLSearchParams(location.search);
+let tonight = '', picked = new Set(), comp = params.get('competition') || '';
+
+async function load() {
+  const [n, v] = await Promise.all([
+    fetch('/api/sponsors/nights', { cache: 'no-store' }).then(r => r.json()),
+    fetch('/api/sponsors', { cache: 'no-store' }).then(r => r.json()),
+  ]);
+  tonight = n.tonight;
+  const all = [...new Set([tonight, ...n.nights])].sort().reverse();
+  if (!picked.size) for (const x of (params.get('nights') || tonight).split(',')) picked.add(x);
+  const comps = v.competitions || [];
+  if (!comp) comp = (v.competition && v.competition.id) || (comps[0] && comps[0].id) || '';
+  $('comp').innerHTML = comps.map(c => `<option value="${esc(c.id)}"${c.id === comp ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
+  $('nights').innerHTML = all.map(x => `<label class="${picked.has(x) ? 'on' : ''}"><input type="checkbox" value="${x}"${picked.has(x) ? ' checked' : ''}>${x === tonight ? 'Tonight' : esc(day(x))}</label>`).join('');
+  $('nights').dataset.all = all.join(',');
+  await report();
+}
+
+async function report() {
+  const q = new URLSearchParams({ nights: [...picked].join(','), competition: comp });
+  if ($('offAir').checked) q.set('offair', '1');
+  const r = await (await fetch(`/api/sponsors/report?${q}`, { cache: 'no-store' })).json();
+  const tierName = Object.fromEntries(((r.competition && r.competition.tiers) || []).map(t => [t.key, t.name]));
+  const name = r.competition ? r.competition.name : '';
+  $('compName').textContent = name || 'the competition in use';
+  const when = r.nights.length === 1 ? (r.nights[0] === tonight ? 'Tonight' : day(r.nights[0])) : `${r.nights.length} nights`;
+  $('tableTitle').textContent = when;
+  $('printHead').innerHTML = `<b>${esc(name)}</b> · ${esc(r.nights.length === 1 ? day(r.nights[0]) : `${r.nights.length} nights, ${day(r.nights[r.nights.length - 1])} to ${day(r.nights[0])}`)}`;
+  document.title = `Sponsor report ${name ? '· ' + name + ' ' : ''}· FirstPass Studio`;
+  $('none').hidden = r.sponsors.length > 0;
+
+  const against = s => {
+    const parts = [];
+    if (s.target.seconds) parts.push(['Time', s.seconds / s.target.seconds, `${time(s.seconds)} of ${time(s.target.seconds)}`]);
+    if (s.target.plays) parts.push(['Ads', s.plays / s.target.plays, `${s.plays} of ${s.target.plays} plays`]);
+    if (!parts.length) return '<span class="empty">No target</span>';
+    return parts.map(([what, f, words]) => `<div class="bar" title="${esc(words)}"><em>${what}</em><span><i class="${f >= 1 ? 'met' : ''}" style="width:${Math.min(100, Math.round(f * 100))}%"></i></span><b>${esc(words)}</b></div>`).join('');
+  };
+  $('rows').innerHTML = r.sponsors.map(s => `<tr>
+      <td><b>${esc(s.name)}</b>${s.tier ? `<span class="tier">${esc(tierName[s.tier] || s.tier)}</span>` : ''}
+        <div class="places">${Object.entries(s.places).sort((a, b) => b[1] - a[1]).map(([p, sec]) => `${esc(place(p))} ${time(sec)}`).join(' · ')}</div></td>
+      <td class="num">${time(s.seconds)}</td><td class="num">${s.plays || '–'}</td><td class="num">${s.qrSeconds ? time(s.qrSeconds) : '–'}</td>
+      <td>${against(s)}</td></tr>`).join('');
+
+  $('details').innerHTML = r.sponsors.map(s => `<section class="sponsor">
+      <h2>${esc(s.name)}</h2>
+      <div class="row"><span>On screen <b>${time(s.seconds)}</b></span><span>Ad plays <b>${s.plays}</b></span><span>QR on screen <b>${time(s.qrSeconds)}</b></span></div>
+      ${Object.keys(s.adFiles).length ? `<p class="help">Ads: ${Object.entries(s.adFiles).map(([f, n]) => `${esc(f)} × ${n}`).join(', ')}</p>` : ''}
+      <details${matchMedia('print').matches ? ' open' : ''}><summary>Every showing (${s.showings.length})</summary>
+        <div class="tblwrap"><table class="showings"><thead><tr>${r.nights.length > 1 ? '<th>Night</th>' : ''}<th>From</th><th>Where</th><th>Source</th><th class="num">How long</th></tr></thead><tbody>
+        ${s.showings.map(x => `<tr>${r.nights.length > 1 ? `<td>${esc(day(nightOf(x.from)))}</td>` : ''}<td>${esc(clock(x.from))}</td><td>${esc(place(x.place))}</td><td>${esc(x.source)}</td><td class="num">${time(x.seconds)}</td></tr>`).join('')}
+        </tbody></table></div></details></section>`).join('');
+}
+function nightOf(ms) {
+  const d = new Date(ms - 4 * 3600 * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+$('nights').addEventListener('change', e => {
+  if (e.target.checked) picked.add(e.target.value); else picked.delete(e.target.value);
+  if (!picked.size) { picked.add(e.target.value); e.target.checked = true; }
+  e.target.closest('label').classList.toggle('on', e.target.checked);
+  report();
+});
+const pickOnly = list => { picked = new Set(list); for (const b of $('nights').querySelectorAll('input')) { b.checked = picked.has(b.value); b.closest('label').classList.toggle('on', b.checked); } report(); };
+$('allNights').onclick = () => pickOnly($('nights').dataset.all.split(','));
+$('tonightOnly').onclick = () => pickOnly([tonight]);
+$('comp').onchange = () => { comp = $('comp').value; report(); };
+$('offAir').onchange = report;
+$('print').onclick = () => window.print();
+window.addEventListener('beforeprint', () => document.querySelectorAll('details').forEach(d => { d.open = true; }));
+load().catch(err => { $('none').hidden = false; $('none').textContent = `The report couldn't load: ${err.message}`; });
+</script>
+</body>
+</html>

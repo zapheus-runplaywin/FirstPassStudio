@@ -28,6 +28,7 @@ const sequences = require('./sequences');
 const music = require('./music');
 const sponsors = require('./sponsors');
 const competitions = require('./competitions');
+const exposure = require('./exposure');
 
 const FILE = datadir.file('scene.json');
 const MEDIA_DIR = datadir.file('media');
@@ -63,11 +64,17 @@ function adSource(kind, file) {
   }
   return src;
 }
+// Which sponsor's ad each Sponsor ad source has in it, for the exposure report (exposure.js).
+const adSponsor = new Map();
+// The sources on now, for the exposure report: [{ id, name, url, sponsor }].
+function showing() {
+  return scene.sources.filter(s => s.visible).map(s => ({ id: s.id, name: s.name, url: s.type === 'browser' ? s.url : '', sponsor: adSponsor.get(s.id) || null }));
+}
 function sponsorAd(opts = {}) {
   const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))) });
   if (!ad && !opts.house) return null;
   const src = ad ? adSource(ad.kind, ad.file) : adSource('house');
-  if (ad) log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})`);
+  if (ad) { log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})`); adSponsor.set(src.id, ad.sponsor.id); exposure.play(ad); }
   return { source: src.id, name: ad ? ad.sponsor.name : 'House ad', sponsor: ad ? ad.sponsor.id : null,
     length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };
 }
@@ -956,4 +963,4 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { STREAMDECK_PLUGIN, importFile, exportFiles, init, route, upgrade, deck, apply, state, slug, competitionChanged, game, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, FILE, MEDIA_DIR };

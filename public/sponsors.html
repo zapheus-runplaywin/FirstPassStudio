@@ -18,10 +18,10 @@
   h3 { font-size: 13px; color: var(--fp-muted); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
   input[type=text], input[type=date], input[type=number], select, textarea { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
   textarea { width: 100%; resize: vertical; }
-  button, label.btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; display: inline-block; }
+  button, label.btn, a.btn { text-decoration: none; font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; display: inline-block; }
   button:hover, label.btn:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
-  button.alt, label.btn.alt { background: var(--fp-white); color: var(--fp-blue); }
-  button.alt:hover, label.btn.alt:hover { background: var(--fp-blue-soft); }
+  button.alt, label.btn.alt, a.btn.alt { background: var(--fp-white); color: var(--fp-blue); }
+  button.alt:hover, label.btn.alt:hover, a.btn.alt:hover { background: var(--fp-blue-soft); }
   button.danger { background: var(--fp-white); color: var(--fp-danger); border-color: var(--fp-danger); }
   button.small, label.btn.small { font-size: 12px; padding: 3px 9px; }
   button:disabled { opacity: .5; cursor: default; }
@@ -50,6 +50,9 @@
   .sp__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .sp__name { font-weight: 800; overflow-wrap: anywhere; }
   .sp__meta { font-size: 12px; color: var(--fp-muted); overflow-wrap: anywhere; }
+  .meter { height: 6px; border-radius: 3px; background: var(--fp-line); overflow: hidden; margin: 6px 0 3px; max-width: 320px; }
+  .meter i { display: block; height: 100%; background: var(--fp-blue); }
+  .meter i.done { background: #15803d; }
   /* Tiers */
   .tiers { width: 100%; border-collapse: collapse; font-size: 14px; }
   .tiers th { text-align: left; font-size: 12px; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .05em; padding: 6px; }
@@ -108,6 +111,7 @@
     <div id="tierList"></div>
     <div class="row" style="margin-top:14px">
       <button id="addSponsor">Add sponsor</button>
+      <a class="btn alt" href="/sponsorreport.html" id="reportLink">Sponsor report</a>
       <span id="shareRow" class="row" hidden>
         <select id="shareWhich" aria-label="Sponsor from another competition"></select>
         <select id="shareTier" aria-label="Tier on this competition"></select>
@@ -306,6 +310,7 @@ function card(s) {
     ${others.length ? `<div class="sp__meta">Also on ${esc(others.join(', '))}</div>` : ''}</div>
     <div><button class="alt small" type="button">Edit</button></div>`;
   d.querySelector('button').onclick = () => openEditor(s);
+  d.children[1].append(tonightLine(s.id));
   return d;
 }
 
@@ -317,6 +322,33 @@ function showQr(box, linkEl, src, link, none) {
 async function load() {
   view = await api('/api/sponsors');
   render();
+  tonightNow();
+}
+
+// Tonight so far on each sponsor's card (the Sponsor report has the rest), every 30 seconds.
+let tonight = {};
+const mins = sec => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+async function tonightNow() {
+  clearTimeout(tonightNow.timer);
+  tonightNow.timer = setTimeout(tonightNow, 30000);
+  if (!view || !view.competition) return;
+  try {
+    const r = await api(`/api/sponsors/report?competition=${encodeURIComponent(view.competition.id)}`);
+    tonight = Object.fromEntries(r.sponsors.map(s => [s.id, s]));
+  } catch { return; }
+  for (const el of document.querySelectorAll('[data-tonight]')) el.replaceWith(tonightLine(el.dataset.tonight));
+}
+function tonightLine(id) {
+  const d = document.createElement('div');
+  d.dataset.tonight = id;
+  const s = view.sponsors.find(x => x.id === id), t = tonight[id];
+  if (!s || (!t && !s.targetSeconds)) return d;
+  const sec = t ? t.seconds : 0, plays = t ? t.plays : 0;
+  const words = [s.targetSeconds ? `Tonight ${mins(sec)} of ${mins(s.targetSeconds)} on screen` : `Tonight ${mins(sec)} on screen`,
+    s.targetPlays ? `${plays} of ${s.targetPlays} ad plays` : plays ? `${plays} ad play${plays === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+  const f = s.targetSeconds ? Math.min(1, sec / s.targetSeconds) : 0;
+  d.innerHTML = `${s.targetSeconds ? `<div class="meter"><i class="${f >= 1 ? 'done' : ''}" style="width:${Math.round(f * 100)}%"></i></div>` : ''}<div class="sp__meta">${esc(words)}${f >= 1 ? ' ✓' : ''}</div>`;
+  return d;
 }
 
 // ─── Tiers and vacancy card: saved as they change ──────────────────────────

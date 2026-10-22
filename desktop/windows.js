@@ -17,7 +17,7 @@ const path = require('path');
 
 // The pages with the Studio header (body class "fp"); everything else (the overlays, the
 // debug log) gets a normal title bar.
-const STUDIO_PAGES = new Set(['/', '/graphics.html', '/control.html', '/setup.html', '/sponsors.html', '/athletes.html', '/api.html', '/output.html']);
+const STUDIO_PAGES = new Set(['/', '/graphics.html', '/control.html', '/setup.html', '/sponsors.html', '/sponsorreport.html', '/athletes.html', '/api.html', '/output.html']);
 
 // Room for the window buttons (red, yellow, green) at the left of the Studio header, which
 // becomes the title bar: drag it to move the window, double-click it to zoom.

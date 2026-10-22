@@ -22,6 +22,7 @@ const finals = require('./finals');
 const fonts = require('./fonts');
 const scene = require('./scene');
 const sponsors = require('./sponsors');
+const exposure = require('./exposure');
 const outputs = require('./outputs');
 const { linkHost } = require('./linkhost');
 
@@ -83,6 +84,8 @@ scene.init(log, { ffmpeg: MACHINE.ffmpegPath,
   sequencesFile: () => { const id = competitions.activeId(); return id ? path.join(competitions.DIR, id, 'sequences.json') : null; } });
 outputs.init(log);
 sponsors.init(log);
+// Proof of play for the sponsors: what's on screen, and whether a video output is on.
+exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().length > 0 });
 
 // ─── Where the data comes from ──────────────────────────────────────────────
 // config.json holds the organisation's PlayHQ page link. From it we read the
@@ -2999,7 +3002,8 @@ http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/sponsors') || url.pathname.startsWith('/sponsors/')) {
       const saveSettings = (id, changes) => { competitions.save(id, changes); if (id === competitions.activeId()) applyCompetition('Sponsor settings saved'); };
-      if (await sponsors.route(req, res, url, { send, readBody, readRaw, saveSettings })) return;
+      if (await exposure.route(req, res, url, { send })) return;
+      if (await sponsors.route(req, res, url, { send, readBody, readRaw, saveSettings, gave: exposure.gave })) return;
     }
     if (url.pathname.startsWith('/deck/')) {
       const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);
