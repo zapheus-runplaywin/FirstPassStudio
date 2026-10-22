@@ -37,6 +37,15 @@ back to Montserrat, as they do for any letter a font lacks. **Add a font file** 
 competition's `fonts/` folder (served at `/fonts/`, and included in template files); the family, weight and style come from
 each file's name ("Gotham-BoldItalic.otf", "Club Sans Black.ttf", "Inter-VariableFont_wght.ttf").
 
+The graphics were drawn with Montserrat, so every other font is made to measure like it (`normalise` in `fonts.js`):
+theme.css gives each of its faces `size-adjust` so its capitals are as tall as Montserrat's, and ascent, descent and line
+gap overrides so its line box is as tall as Montserrat's with the capitals centred in it the same way. Text then fills its
+box and sits centred whatever the font. A narrow font (capitals narrower than Montserrat's, such as Oswald or Bebas Neue)
+stands taller, by up to a fifth, so it doesn't look small, and the setup's **Text size** (80 to 130%, `fontSize`) scales any
+font other than Montserrat on top. Bundled fonts and added font files are measured from their files; a Mac font is measured
+by the Mac (`macFaces`, AppKit) and loaded as "Studio <font>" faces by PostScript name, with the font itself next in
+case a face isn't found.
+
 **Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics.
 
