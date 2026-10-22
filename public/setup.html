@@ -256,6 +256,16 @@
           <label class="inline">Dark panels see-through <input type="range" id="panelOpacity" min="0.3" max="1" step="0.01" style="width:140px"> <span id="opacityPct"></span></label>
           <label for="font">Font</label>
           <select id="font" data-key="font"></select>
+          <p class="help" id="fontHelp"></p>
+          <details class="kit" id="fontKit">
+            <summary>Add a font file <span class="comp__sub" id="fontCount"></span></summary>
+            <p class="help">Add a TTF, OTF, WOFF or WOFF2 file, one for each weight you have (Regular, Bold, Black…) or one variable font file.
+              It's saved with this competition, and in its template file, so it looks the same on any computer. Then pick it in the Font box.
+              Only add fonts you're allowed to use: open licence fonts, such as those on Google Fonts, are free to use.</p>
+            <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" multiple>
+            <p class="note" id="fontNote"></p>
+            <div class="kitlist" id="fontList"></div>
+          </details>
           <div class="row" style="margin-top:10px"><button class="alt" id="resetColours">Use the default colours</button></div>
         </div>
         <div>
@@ -344,7 +354,8 @@
   let info = null;     // { active, competitions, fonts, defaults }
   let editing = null;  // id being edited
   let form = null;     // settings being edited
-  let files = { logos: [], brand: [] };
+  let files = { logos: [], brand: [], fonts: [], fontFamilies: [] };
+  let macFonts = [];   // the fonts installed on this Mac (/api/setup-fonts)
   let dirty = false;
 
   async function api(path, opts = {}) {
@@ -361,7 +372,7 @@
   // ─── Competition list ───────────────────────────────────────────────────
   async function loadList(pick) {
     info = await api('/api/setup');
-    $('font').replaceChildren(...info.fonts.map(f => Object.assign(el('option', '', f), { value: f })));
+    api('/api/setup-fonts').then(d => { macFonts = d.mac || []; if (form) { buildFonts(); preview(); } }).catch(() => {});
     $('readOnlyNote').hidden = !info.readOnly;
     $('noComps').hidden = info.competitions.length > 0;
     $('dataDir').textContent = info.dataLocation ? `Saved in ${info.dataLocation.name}, in this Mac's folder: ${info.dataDir}` : `Saved on this computer in ${info.dataDir}`;
@@ -391,7 +402,7 @@
   async function open(id) {
     if (dirty && !confirm('Leave without saving your changes?')) return;
     const d = await api(`/api/setup/${id}`);
-    editing = id; form = d.settings; files = { logos: d.logos, brand: d.brand }; dirty = false;
+    editing = id; form = d.settings; files = { logos: d.logos, brand: d.brand, fonts: d.fonts, fontFamilies: d.fontFamilies }; dirty = false;
     [...$('comps').children].forEach((row, i) => row.classList.toggle('editing', info.competitions[i].id === id));
     fill(); note('saveNote', d.active ? 'This competition is in use.' : 'Not in use. Save and use it to put it on the graphics.');
     $('useComp').hidden = d.active;
@@ -415,6 +426,7 @@
 
   // ─── The form ───────────────────────────────────────────────────────────
   function fill() {
+    buildFonts();
     document.querySelectorAll('[data-key]').forEach(i => {
       const v = form[i.dataset.key];
       if (i.type === 'checkbox') i.checked = !!v; else i.value = v ?? '';
@@ -566,7 +578,11 @@
     for (const [k, v] of Object.entries(vars)) p.setProperty(k, v);
     $('opacityPct').textContent = `${Math.round((1 - o) * 100)}%`;
     if (!fontLink) { fontLink = el('link'); fontLink.rel = 'stylesheet'; document.head.append(fontLink); }
-    fontLink.href = `https://fonts.googleapis.com/css2?family=${form.font.replace(/ /g, '+')}&display=swap`;
+    fontLink.href = `/api/setup/${editing}/fontcss?font=${encodeURIComponent(form.font)}`;
+    $('fontHelp').textContent = fontKind(form.font) === 'mac' ? 'A font on this Mac: a graphic opened on another computer shows Montserrat instead.'
+      : fontKind(form.font) === 'added' ? 'A font added to this competition: it goes with it in its template file.'
+      : fontKind(form.font) === 'missing' ? `${form.font} isn't on this computer, so the graphics show Montserrat instead.`
+      : 'Comes with Studio: works on any computer, with no internet.';
     $('pvComp').textContent = form.displayName || form.competitionName || form.name;
     $('pvVenue').textContent = form.venueName || 'Venue';
     $('pvClock').textContent = `${form.periodType === 'halves' ? 'H' : 'Q'}2 7:42`;
@@ -586,6 +602,49 @@
       lad.append(r);
     });
   }
+
+  // ─── Fonts ──────────────────────────────────────────────────────────────
+  // The Font box: the fonts that come with Studio, then this competition's added fonts, then every
+  // font on this Mac. A saved font that's none of them (a Mac font on another computer) shows too.
+  const fontKind = f => info.fonts.includes(f) ? 'bundled' : files.fontFamilies.includes(f) ? 'added' : macFonts.includes(f) ? 'mac' : 'missing';
+  function buildFonts() {
+    const group = (label, list) => { const g = el('optgroup'); g.label = label; g.append(...list.map(f => Object.assign(el('option', '', f), { value: f }))); return g; };
+    const groups = [group('Comes with Studio', info.fonts)];
+    const added = files.fontFamilies.filter(f => !info.fonts.includes(f));
+    if (added.length) groups.push(group('Added to this competition', added));
+    const mac = macFonts.filter(f => !info.fonts.includes(f) && !added.includes(f));
+    if (mac.length) groups.push(group('On this Mac', mac));
+    if (form.font && fontKind(form.font) === 'missing') groups.unshift(Object.assign(el('option', '', `${form.font} (not on this computer)`), { value: form.font }));
+    $('font').replaceChildren(...groups);
+    $('font').value = form.font;
+    $('fontCount').textContent = files.fonts.length ? `(${files.fonts.length} added)` : '';
+    const list = $('fontList');
+    list.replaceChildren(...files.fonts.map(name => {
+      const chip = el('span', 'kitc'); chip.append(el('code', '', name));
+      const del = el('button', '', '×'); del.type = 'button'; del.title = `Remove ${name}`;
+      del.onclick = async () => {
+        if (!confirm(`Remove ${name}?`)) return;
+        const d = await api(`/api/setup/${editing}/image?kind=fonts&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+        files.fonts = d.fonts; files.fontFamilies = d.fontFamilies; buildFonts(); preview();
+      };
+      chip.append(del); return chip;
+    }));
+  }
+  $('fontFile').onchange = async () => {
+    const list = [...$('fontFile').files];
+    $('fontFile').value = '';
+    let d = null;
+    for (const f of list) {
+      note('fontNote', `Adding ${f.name}…`);
+      try { d = await upload('fonts', f); }
+      catch (err) { note('fontNote', `Couldn't add ${f.name}: ${err.message}`, 'error'); return; }
+    }
+    if (!d) return;
+    // Pick the font just added.
+    files.fonts = d.fonts; files.fontFamilies = d.fontFamilies; form.font = d.family; markDirty();
+    buildFonts(); preview();
+    note('fontNote', `Added ${list.length} font file${list.length === 1 ? '' : 's'}: ${d.family} is picked in the Font box. Press Save to use it.`, 'ok');
+  };
 
   // ─── PlayHQ lookup ──────────────────────────────────────────────────────
   let found = null;

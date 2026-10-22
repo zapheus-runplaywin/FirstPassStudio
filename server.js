@@ -19,6 +19,7 @@ const datadir = require('./datadir');
 const migrations = require('./migrations');
 const competitions = require('./competitions');
 const finals = require('./finals');
+const fonts = require('./fonts');
 const scene = require('./scene');
 const outputs = require('./outputs');
 const { linkHost } = require('./linkhost');
@@ -1783,7 +1784,8 @@ function applyCompetition(why) {
 // What the setup page shows for one competition.
 function setupInfo(id) {
   return { id, active: id === competitions.activeId(), settings: competitions.get(id),
-    logos: competitions.images(id, 'logos'), brand: competitions.images(id, 'brand') };
+    logos: competitions.images(id, 'logos'), brand: competitions.images(id, 'brand'),
+    fonts: competitions.images(id, 'fonts'), fontFamilies: fonts.families(competitions.images(id, 'fonts')) };
 }
 
 // The organisation's competitions and seasons on PlayHQ, to pick from on the setup page.
@@ -1824,7 +1826,9 @@ function readRaw(req, max) {
 }
 
 async function setupRoute(req, res, url, q) {
-  const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image|export|template))?)?$/);
+  const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image|export|template|fontcss))?)?$/);
+  // The fonts installed on this Mac, for the setup page's Font box (none on another computer).
+  if (url.pathname === '/api/setup-fonts') return send(res, 200, { mac: await fonts.macFonts() });
   if (url.pathname === '/api/setup-find') return send(res, 200, await findCompetitions(q.url || (await readBody(req)).organisationUrl));
   if (url.pathname === '/api/setup-teams') return send(res, 200, await setupTeams());
   if (url.pathname === '/api/setup-new' && req.method === 'POST') {
@@ -1854,7 +1858,7 @@ async function setupRoute(req, res, url, q) {
   const [, id, what] = m;
   if (!id) return send(res, 200, { active: competitions.activeId(), competitions: competitions.list(), imports: competitions.imports(),
     canSaveImports: datadir.canSaveImports(), dataDir: datadir.DATA_DIR, dataLocation: datadir.location.local ? null : { name: datadir.location.name, computer: datadir.location.computer }, readOnly: competitions.isReadOnly(),
-    fonts: competitions.FONTS, defaults: competitions.DEFAULTS, finalsFormats: finals.list(), finalsMarks: finals.MARKS });
+    fonts: fonts.bundled(), defaults: competitions.DEFAULTS, finalsFormats: finals.list(), finalsMarks: finals.MARKS });
   if (what === 'export' && req.method === 'POST') {
     const body = await readBody(req);
     try {
@@ -1871,12 +1875,16 @@ async function setupRoute(req, res, url, q) {
     applyCompetition('Switched competition');
     return send(res, 200, setupInfo(id));
   }
+  // The CSS that loads a font for the setup page's preview, with this competition's added fonts.
+  if (what === 'fontcss') {
+    return send(res, 200, fonts.css(q.font, competitions.images(id, 'fonts'), f => `/api/setup/${id}/image?kind=fonts&name=${encodeURIComponent(f)}`), 'text/css; charset=utf-8');
+  }
   if (what === 'image') {
-    const kind = q.kind === 'brand' ? 'brand' : 'logos';
+    const kind = ['brand', 'fonts'].includes(q.kind) ? q.kind : 'logos';
     if (req.method === 'POST') {
       const name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024));
-      log('info', 'setup', `${id}: added ${kind === 'brand' ? 'competition logo' : 'team logo'} ${name}`);
-      return send(res, 200, { name, ...setupInfo(id) });
+      log('info', 'setup', `${id}: added ${{ brand: 'competition logo', fonts: 'font file' }[kind] || 'team logo'} ${name}`);
+      return send(res, 200, { name, ...(kind === 'fonts' ? { family: fonts.fontFile(name).family } : {}), ...setupInfo(id) });
     }
     if (req.method === 'DELETE') {
       competitions.deleteImage(id, kind, q.name);
@@ -2837,7 +2845,7 @@ applyCompetition('Using competition');
 
 // ─── HTTP ───────────────────────────────────────────────────────────────────
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.ico': 'image/x-icon' };
 
 function send(res, status, body, type) {
   res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
@@ -2870,9 +2878,9 @@ http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/structure') return send(res, 200, { ...await getStructure(), setup: CONFIG.name, rules: rules() });
     if (url.pathname.startsWith('/api/setup')) return await setupRoute(req, res, url, q);
-    // The competition in use: its colours, team logos, competition logo and athlete photos.
-    if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG), 'text/css; charset=utf-8');
-    if (/^\/(logos|brand|photos)\//.test(url.pathname)) {
+    // The competition in use: its colours and font, team logos, competition logo, athlete photos and added fonts.
+    if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG, competitions.images(competitions.activeId(), 'fonts')), 'text/css; charset=utf-8');
+    if (/^\/(logos|brand|photos|fonts)\//.test(url.pathname)) {
       const file = competitions.imageFile(competitions.activeId(), url.pathname.split('/')[1], url.pathname.split('/')[2] || '');
       return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
     }

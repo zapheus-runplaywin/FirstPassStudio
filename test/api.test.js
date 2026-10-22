@@ -217,7 +217,8 @@ test('competition look: theme.css has the setup\'s colours and font, and logos a
   assert.match(css.type, /text\/css/);
   assert.match(css.text, /--purple: #7f4092;/i);
   assert.match(css.text, /--yellow: #ffcd00;/i);
-  assert.match(css.text, /fonts\.googleapis\.com/);
+  assert.match(css.text, /@import url\("\/vendor\/fonts\/montserrat\/montserrat\.css"\)/);
+  assert.equal((await studio.request('GET', '/vendor/fonts/montserrat/montserrat.css')).status, 200);
   const logo = await studio.request('GET', '/logos/Blizzardz.png');
   assert.equal(logo.status, 200);
   assert.equal(logo.type, 'image/png');
