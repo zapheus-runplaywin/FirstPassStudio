@@ -195,10 +195,12 @@ function onCompetition(compId, opts = {}) {
 }
 
 // The sponsors that fill a tier's spots in a competition: the tier's own, or, when it has none,
-// what the competition's empty-tier rule says. Pushing up or down keeps going past empty tiers
+// what the competition's empty-tier rule says. Its values name where to look for a sponsor: 'up' searches
+// the tiers above (shown as Pull down, a sponsor pulled down into the empty tier) and 'down' the tiers
+// below (Pull up). Either keeps going past empty tiers
 // and gives up (skip) at the end. place is the kind of spot: a vacancy card only goes where a card
 // fits (CARD_PLACES), elsewhere advertising a vacancy is a skip.
-// Returns { tier, sponsors, from? } (from: the empty tier pushed from), { vacancy } or { skip: true }.
+// Returns { tier, sponsors, from? } (from: the empty tier it was pulled into), { vacancy } or { skip: true }.
 function pick(compId, tier, opts = {}) {
   if (!TIERS.includes(tier)) throw new Error(`There is no sponsor tier "${tier}". The tiers are ${TIERS.join(', ')}.`);
   const settings = opts.settings || competitions.get(compId);
@@ -232,7 +234,7 @@ function vacancy(settings) {
 
 // ─── Rotation ───────────────────────────────────────────────────────────────
 // Graphics that rotate (the sponsor card) ask for the next sponsor each time they come on. Every
-// sponsor filling the tiers' spots is a candidate with its tier's share (a pushed sponsor gets the
+// sponsor filling the tiers' spots is a candidate with its tier's share (a pulled sponsor gets the
 // share of the empty tier it fills too); the vacancy card is one when a tier advertises it. The one
 // shown least for its share goes next, never the one just shown, and not one in the same category as
 // it while there's another. Showings are counted while Studio runs, per competition and place.

@@ -124,7 +124,7 @@
       <thead><tr><th>Tier</th><th>Share of screen time</th><th>When this tier has no sponsor</th></tr></thead>
       <tbody id="tierRows"></tbody>
     </table></div>
-    <p class="help"><b>Push up</b> and <b>Push down</b> give the tier's spots to a sponsor from the tier above or below, and keep going past empty tiers.
+    <p class="help"><b>Pull up</b> and <b>Pull down</b> fill the empty tier's spots with a sponsor pulled up from the tier below or down from the tier above, and keep going past empty tiers.
       <b>Skip tier</b> leaves the spots out. <b>Advertise vacancy</b> puts the vacancy card below in the tier's spots where a card fits (break cards and the sponsor wall);
       on the scoreboard tab and "brought to you by" tags it skips. The share sets how screen time is split between tiers when a sponsor has no target of its own.</p>
     <p class="saved" id="tierSaved" aria-live="polite"></p>
@@ -202,7 +202,7 @@
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-const EMPTY = [['up', 'Push up'], ['down', 'Push down'], ['skip', 'Skip tier'], ['vacancy', 'Advertise vacancy']];
+const EMPTY = [['down', 'Pull up'], ['up', 'Pull down'], ['skip', 'Skip tier'], ['vacancy', 'Advertise vacancy']];
 let view = null, editing = null, editColour = '';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

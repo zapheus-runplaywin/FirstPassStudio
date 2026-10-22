@@ -50,7 +50,7 @@ test('tier names: Names, Metals or the competition\'s own', async () => {
   assert.deepEqual(setup.settings.sponsorOwnNames, { elite: 'Diamond' });
 });
 
-test('an empty tier pushes up or down past empty tiers, skips, or shows the vacancy card where a card fits', async () => {
+test('an empty tier pulls up or down past empty tiers, skips, or shows the vacancy card where a card fits', async () => {
   await reset();
   await studio.post('/api/sponsors/settings', { sponsorEmpty: {}, sponsorVacancy: {} });
   const view = await studio.get('/api/sponsors');
@@ -63,7 +63,7 @@ test('an empty tier pushes up or down past empty tiers, skips, or shows the vaca
   assert.deepEqual(r.sponsors.map(s => s.name), ['Wave Physio']);
   assert.equal(r.tier, 'major');
   r = await pick('elite');
-  assert.equal(r.tier, 'major', 'Elite pushes down to Major');
+  assert.equal(r.tier, 'major', 'Elite pulls up from Major');
   assert.equal(r.from, 'elite');
   assert.equal(r.sponsors[0].logoUrl, null);
   assert.match(r.sponsors[0].qrLink, /^https:\/\/wavephysio\.com\.au\/\?utm_source=livestream&utm_medium=qr&utm_campaign=thunder-league&utm_content=card$/);
@@ -78,7 +78,7 @@ test('an empty tier pushes up or down past empty tiers, skips, or shows the vaca
   assert.equal(r.vacancy.contact, 'Matt');
   assert.deepEqual(await pick('naming', 'tab'), { skip: true }, 'a scoreboard tab can\'t hold a card');
 
-  // Push up keeps going past an empty tier, and gives up at the top.
+  // Pull down keeps going past an empty tier, and gives up at the top.
   await studio.post('/api/sponsors/settings', { sponsorEmpty: { supporter: 'up', naming: 'down' } });
   r = await pick('supporter');
   assert.equal(r.tier, 'partner');
@@ -86,7 +86,7 @@ test('an empty tier pushes up or down past empty tiers, skips, or shows the vaca
   r = await pick('supporter');
   assert.equal(r.tier, 'major', 'past the empty Partner tier');
   r = await pick('naming');
-  assert.equal(r.tier, 'major', 'Naming rights set to push down');
+  assert.equal(r.tier, 'major', 'Naming rights set to pull up');
   await studio.del(`/api/sponsors?id=wave-physio`);
   assert.deepEqual(await pick('supporter'), { skip: true }, 'nothing above: skipped');
   const bad = await studio.request('GET', '/api/sponsors/pick?tier=diamond');
@@ -217,7 +217,7 @@ test('the sponsor wall: every tier with a sponsor, top first, and the vacancy ca
   assert.equal(w.competition, 'Thunder League');
   assert.deepEqual(w.tiers.map(t => [t.name, t.sponsors.map(s => s.name), !!t.vacancy]),
     [['Naming rights', [], true], ['Gold', ['Golds Bakery'], false], ['Silver', ['Surf Club'], false]],
-    'Platinum pushes down (not shown), Bronze skips, Naming rights advertises, ended deals are left out');
+    'Platinum pulls up from Gold (not shown), Bronze skips, Naming rights advertises, ended deals are left out');
   assert.equal(w.tiers[1].sponsors[0].website, 'golds.com.au');
   const some = await studio.get('/api/sponsors/wall?tiers=partner,supporter');
   assert.deepEqual(some.tiers.map(t => t.key), ['partner']);
