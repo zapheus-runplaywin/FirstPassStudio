@@ -2,7 +2,7 @@
  * What a Sequence key shows and does, worked out from its settings and the scene (no SDK here).
  */
 import { wrapTitle } from "./source-key";
-import type { Scene, Sequence } from "./studio";
+import type { Playing, Scene, Sequence } from "./studio";
 
 /** play = play it, or stop it while it plays (one key); start = always play it from the first step. */
 export type SequencePress = "play" | "start" | "next" | "advance" | "pause" | "stop";
@@ -20,7 +20,12 @@ export type SequenceSettings = {
 	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
 	keepTitle?: boolean;
+	/** Which time left the key shows while its sequence plays; step when not set. */
+	time?: SequenceTime;
 };
+
+/** step = the step's time left, total = the whole sequence's, both, or none (just the step number). */
+export type SequenceTime = "step" | "total" | "both" | "none";
 
 export type SequenceView = {
 	/** 0 = dark, 1 = lit (orange): its sequence is playing (or, for the playing keys, any is). */
@@ -37,6 +42,12 @@ export function pressOf(settings: SequenceSettings): SequencePress {
 	return PRESS.includes(settings.press as SequencePress) ? (settings.press as SequencePress) : "play";
 }
 
+const TIMES: SequenceTime[] = ["step", "total", "both", "none"];
+
+export function timeOf(settings: SequenceSettings): SequenceTime {
+	return TIMES.includes(settings.time as SequenceTime) ? (settings.time as SequenceTime) : "step";
+}
+
 const sequencesOf = (scene: Scene | null): Sequence[] => scene?.sequences ?? [];
 const playingOf = (scene: Scene | null): Sequence | undefined => sequencesOf(scene).find((s) => s.id === scene?.playing?.id);
 
@@ -47,15 +58,34 @@ export function clock(ms: number): string {
 }
 
 /**
- * Where the playing sequence is: "3/5 0:04", "3/5 paused", "3/5 Next" or "3/5 ends". sinceMs is how long
+ * The whole sequence's time left: "all 1:40", with + when part of it waits (Next, the game, a page) so it's at
+ * least that, ↻ when it goes round again after this time through, and "all –" when all that's left waits.
+ */
+export function totalOf(p: Playing, sinceMs: number): string {
+	if (p.totalLeftMs === null || p.totalLeftMs === undefined) return "";
+	const ms = p.totalLeftMs - sinceMs;
+	if (p.totalOpen && ms < 1000) return p.repeats ? "all ↻" : "all –";
+	return `all ${clock(ms)}${p.totalOpen ? "+" : ""}${p.repeats ? "↻" : ""}`;
+}
+
+/**
+ * Where the playing sequence is: "3/5 0:04", "3/5 paused" or "3/5 Next", and with time set to total or both
+ * the whole sequence's time left ("all 1:40") instead or on the next line; none shows just "3/5". sinceMs is how long
  * ago the scene arrived, since Studio sends the time left only when something changes.
  */
-export function progress(scene: Scene, sinceMs: number): { text: string; ticking: boolean } {
+export function progress(scene: Scene, sinceMs: number, time: SequenceTime = "step"): { text: string; ticking: boolean } {
 	const p = scene.playing!;
 	const at = `${p.step + 1}/${p.steps}`;
-	if (p.paused) return { text: `${at} paused`, ticking: false };
-	if (p.leftMs === null || p.leftMs === undefined) return { text: `${at} Next`, ticking: false };
-	return { text: `${at} ${clock(p.leftMs - sinceMs)}`, ticking: true };
+	const counting = !p.paused && p.leftMs !== null && p.leftMs !== undefined;
+	const since = counting ? sinceMs : 0;
+	const step = p.paused ? `${at} paused` : counting ? `${at} ${clock(p.leftMs! - since)}` : `${at} Next`;
+	// A Studio from before the whole sequence's time left sends none: the step's time shows instead.
+	const total = totalOf(p, since);
+	if (time === "none") return { text: p.paused ? `${at} paused` : at, ticking: false };
+	// Just the whole sequence's (the step number would make it too long for the key).
+	if (time === "total" && total) return { text: p.paused ? `${at} paused` : total, ticking: counting };
+	if (time === "both" && total) return { text: `${step}\n${total}`, ticking: counting };
+	return { text: step, ticking: counting };
 }
 
 /**
@@ -84,14 +114,16 @@ export function sequenceViewOf(settings: SequenceSettings, scene: Scene | null, 
 		return view(`${wrapTitle(sq.name)}\n${pend.leftMs === null ? "next" : `in ${clock(pend.leftMs - sinceMs)}`}`, sq, 0, pend.leftMs !== null);
 	}
 		if (scene.playing?.id !== sq.id) return view(`${wrapTitle(sq.name)}\n▶`, sq);
-		const { text, ticking } = progress(scene, sinceMs);
-		return view(`${wrapTitle(sq.name, 9).split("\n").slice(0, 2).join("\n")}\n${text}`, sq, 1, ticking);
+		const { text, ticking } = progress(scene, sinceMs, timeOf(settings));
+		// Two lines of time leave room for one of the name.
+		const lines = text.includes("\n") ? 1 : 2;
+		return view(`${wrapTitle(sq.name, 9).split("\n").slice(0, lines).join("\n")}\n${text}`, sq, 1, ticking);
 	}
 	const label = { next: "Next ⏭", advance: "Next ⏭", pause: "Pause", stop: "Stop" }[press];
 	if (!scene) return view(`${label}\n(off air)`);
 	const sq = playingOf(scene);
 	if (!sq) return view(`${label}\n(none on)`);
-	const { text, ticking } = progress(scene, sinceMs);
+	const { text, ticking } = progress(scene, sinceMs, timeOf(settings));
 	if (press === "advance" && scene.playing!.length !== "next") return view(`${label}\nnot waiting`, sq, 0, false);
 	if (press === "pause") return view(`${scene.playing!.paused ? "Carry on" : "Pause"}\n${text}`, sq, 1, ticking);
 	return view(`${label}\n${text}`, sq, 1, ticking);

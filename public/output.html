@@ -108,7 +108,7 @@
   .cell { min-width: 58px; padding: 4px 8px; font-size: 12px; }
   .cell.on, .cell.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
   .cell.off, .cell.off:hover { background: var(--fp-line); color: var(--fp-muted); }
-  /* Sequences: cards like the scenes', the playing one with a dot per step and the time left. */
+  /* Sequences: cards like the scenes', the playing one with a dot per step, the step's time left and the whole sequence's. */
   .seqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px 10px; padding-top: 6px; }
   .seq { position: relative; display: grid; gap: 6px; align-content: start; padding: 9px 12px 12px; border: 2px solid var(--fp-line-strong); border-radius: 10px; background: var(--fp-white); min-width: 0; }
   .seq .t { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
@@ -146,6 +146,7 @@
   .dots i.done { background: #FDBA8C; }
   .dots i.now { background: var(--fp-orange); }
   .nowLine { font-size: 13px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .nowLine.totalLine { color: var(--fp-muted); }
   .nowLine .left { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 600; font-variant-numeric: tabular-nums; }
   #seqDialog { border: 0; border-radius: var(--fp-radius); padding: 18px 20px; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 40px); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
   #seqDialog::backdrop { background: rgba(15, 23, 42, .45); }
@@ -911,7 +912,11 @@
         row.querySelector('.pause').onclick = () => act({ type: 'seqPauseToggle' });
         row.querySelector('.stop').onclick = () => act({ type: 'seqStop' });
         row.querySelector('.stop').title = `Stop it, ${thenText(sq)}`;
-        card.append(dots, line, row);
+        // The whole sequence's time left under the step's.
+        const total = document.createElement('div');
+        total.className = 'nowLine totalLine';
+        total.innerHTML = `<span>${p.repeats ? 'This time round' : 'Total'}</span><span class="left total"></span>`;
+        card.append(dots, line, total, row);
         if (p.finishing) line.lastChild.dataset.last = '1';
       } else if (waiting) {
         const line = document.createElement('div');
@@ -964,10 +969,21 @@
     const p = scene.playing;
     const left = document.querySelector('.seq.run .left');
     if (!p || !left) return;
+    const total = document.querySelector('.seq.run .total');
+    const since = p.paused || p.leftMs === null || p.leftMs === undefined ? 0 : performance.now() - heardAt;
+    if (total) total.textContent = totalText(p, since);
     const last = p.finishing ? ', then ends' : '';
     if (p.leftMs === null || p.leftMs === undefined) { left.textContent = p.length === 'next' ? 'waits for Next' : p.length === 'game' ? 'until the game moves on' : ''; return; }
-    const ms = p.paused ? p.leftMs : p.leftMs - (performance.now() - heardAt);
+    const ms = p.leftMs - since;
     left.textContent = (p.length === 'done' && !p.ready ? `up to ${fmt(ms)}` : `${fmt(ms)} left`) + last;
+  }
+  // The whole sequence's time left (this time round when it repeats): "1:40 left", "at least 1:40 left" when part
+  // of it waits (Next, the game, a page), "no set time" when all that's left waits.
+  function totalText(p, since) {
+    if (p.totalLeftMs === undefined || p.totalLeftMs === null) return '';
+    const ms = p.totalLeftMs - since;
+    if (p.totalOpen && ms < 1000) return 'no set time';
+    return `${p.totalOpen ? 'at least ' : ''}${fmt(ms)} left`;
   }
   setInterval(tickSequence, 250);
 
