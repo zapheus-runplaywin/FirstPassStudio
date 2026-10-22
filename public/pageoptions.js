@@ -93,6 +93,20 @@ const PAGE_OPTIONS = (() => {
       show('quarters', 'Score by quarter'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
       show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'),
     ],
+    'sponsor.html': [
+      { key: 'sponsor', label: 'Sponsor', type: 'text', placeholder: 'the next one in rotation', help: 'A sponsor\'s name as on the Sponsors page, to always show that one.' },
+      { key: 'tiers', label: 'Tiers in rotation', type: 'select', choices: [['', 'Major and up'], ['naming,elite', 'Elite and up'], ['naming', 'Naming rights only'], ['naming,elite,major,partner,supporter', 'Every tier']] },
+      title('Brought to you by'),
+      show('offer', 'Offer'), show('tagline', 'Tagline'), show('qr', 'QR code'),
+      out(),
+    ],
+    'sponsorwall.html': [
+      title('Proudly supported by'),
+      { key: 'tiers', label: 'Tiers', type: 'select', choices: [['', 'Every tier'], ['naming,elite,major', 'Major and up'], ['naming,elite,major,partner', 'Partner and up']] },
+      { key: 'names', label: 'Sponsor names', type: 'select', choices: [['', 'Logos only'], ['1', 'Under each logo']] },
+      show('tiernames', 'Tier names'),
+      out(),
+    ],
     'worm.html': [
       title('Score worm'),
       { key: 'draw', label: 'Draw the line in', type: 'number', min: 0, max: 15, placeholder: '3 seconds (0 shows it straight away)' },

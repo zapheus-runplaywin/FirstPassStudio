@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sponsor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+<script src="fit.js"></script>
+<script src="done.js"></script>
+<style>
+  .sponsor { --card-width: 1320px; --brand: var(--yellow); border-top-color: var(--brand); position: relative; }
+  .sponsor__head { display: flex; gap: 12px; padding: 30px 40px 0; }
+  .sponsor__tier { background: var(--purple); color: var(--muted); }
+  .sponsor__body { display: grid; grid-template-columns: 400px 1fr auto; gap: 40px; align-items: center; padding: 28px 40px 36px; }
+  .sponsor__plate { box-sizing: border-box; width: 400px; height: 260px; border-radius: 14px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 26px;
+    box-shadow: 0 10px 26px rgba(0,0,0,.35); animation: plate-in .7s .15s cubic-bezier(.2, 1.3, .4, 1) both; }
+  .sponsor__plate img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .sponsor__plate .initials { font-size: 64px; font-weight: 800; color: var(--purple-dark); text-transform: uppercase; text-align: center; line-height: 1; overflow-wrap: anywhere; }
+  .sponsor__plate.vacant { background: transparent; border: 4px dashed rgba(var(--yellow-rgb), .7); box-shadow: none; }
+  .sponsor__plate.vacant .initials { color: var(--yellow); font-size: 40px; letter-spacing: .08em; }
+  .sponsor__words { min-width: 0; display: grid; gap: 14px; align-content: center; }
+  .sponsor__name { margin: 0; font-size: 72px; font-weight: 800; text-transform: uppercase; line-height: 1; overflow-wrap: anywhere; text-wrap: balance; animation: rise .5s .3s ease-out both; }
+  .sponsor__tagline { font-size: 30px; font-weight: 600; color: var(--muted); line-height: 1.25; text-wrap: balance; animation: rise .5s .45s ease-out both; }
+  .sponsor__offer { justify-self: start; background: var(--pink); color: var(--text); font-size: 30px; font-weight: 800; padding: 10px 22px; border-radius: 10px; text-transform: uppercase; letter-spacing: .02em;
+    animation: offer-pop .6s .7s cubic-bezier(.2, 1.5, .4, 1) both; }
+  .sponsor__site { font-size: 26px; font-weight: 700; color: var(--yellow); letter-spacing: .02em; overflow-wrap: anywhere; animation: rise .5s .6s ease-out both; }
+  .sponsor__qr { background: #fff; border-radius: 14px; padding: 16px 16px 10px; display: grid; justify-items: center; gap: 6px; animation: rise .5s .8s ease-out both; }
+  .sponsor__qr img { width: 250px; height: 250px; image-rendering: pixelated; display: block; }
+  .sponsor__qr span { color: #111; font-size: 22px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+  .sponsor__body.noqr { grid-template-columns: 400px 1fr; }
+  .sponsor.out { animation: sponsor-out .6s ease-in both; }
+  @keyframes plate-in { from { opacity: 0; transform: scale(.6) rotate(-4deg); } to { opacity: 1; transform: none; } }
+  @keyframes offer-pop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+  @keyframes sponsor-out { to { opacity: 0; transform: translateY(30px); } }
+</style>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page:
+       http://localhost:8080/sponsor.html
+       A sponsor of the competition in use (Sponsors page): logo, name, tagline, offer, website and a QR
+       code to it. Each time it comes on it shows the next sponsor in rotation from Major and up
+       (?tiers=naming,elite,major), fairly by tier, never the same one twice running; an empty tier set
+       to Advertise vacancy puts the competition's vacancy card in the rotation.
+       ?sponsor=Golds%20Bakery always shows one sponsor, ?title= changes the heading, ?qr=0, ?offer=0
+       and ?tagline=0 leave those out, ?out=12 animates it away after 12 seconds. Loads once. -->
+  <main class="card sponsor" id="card" data-fit hidden>
+    <header class="sponsor__head"><div class="tab" id="heading">Brought to you by</div><div class="tab sponsor__tier" id="tier" hidden></div></header>
+    <div class="sponsor__body" id="body">
+      <div class="sponsor__plate" id="plate"></div>
+      <div class="sponsor__words">
+        <h1 class="sponsor__name" id="name"></h1>
+        <div class="sponsor__tagline" id="tagline" hidden></div>
+        <div class="sponsor__offer" id="offer" hidden></div>
+        <div class="sponsor__site" id="site" hidden></div>
+      </div>
+      <div class="sponsor__qr" id="qr" hidden><img id="qrImg" alt=""><span>Scan me</span></div>
+    </div>
+  </main>
+  <p class="message" id="message" hidden></p>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+    const off = k => params.get(k) === '0';
+    const show = (id, text) => { $(id).textContent = text || ''; $(id).hidden = !text; };
+
+    function plate(src, words, vacant) {
+      const p = $('plate');
+      p.classList.toggle('vacant', !!vacant);
+      if (src) {
+        const img = new Image();
+        img.alt = '';
+        img.onerror = () => { p.replaceChildren(initials(words)); };
+        img.src = src;
+        p.replaceChildren(img);
+      } else p.replaceChildren(initials(words));
+    }
+    function initials(words) { const d = document.createElement('div'); d.className = 'initials'; d.textContent = words; return d; }
+    function qr(src) {
+      if (off('qr') || !src) { $('qr').hidden = true; $('body').classList.add('noqr'); return; }
+      $('qrImg').src = src;
+      $('qr').hidden = false;
+    }
+
+    (async () => {
+      try {
+        const q = new URLSearchParams({ place: 'card' });
+        if (params.get('sponsor')) q.set('sponsor', params.get('sponsor'));
+        if (params.get('tiers')) q.set('tiers', params.get('tiers'));
+        const r = await (await fetch(`/api/sponsors/next?${q}`, { cache: 'no-store' })).json();
+        if (r.error) throw new Error(r.error);
+        if (r.none) throw new Error(params.get('sponsor') ? `There is no sponsor "${params.get('sponsor')}" on the Sponsors page` : 'No sponsors to show yet: add them on the Sponsors page');
+        if (r.vacancy) {
+          const v = r.vacancy;
+          show('heading', params.get('title') || 'Sponsor this stream');
+          plate(null, 'Your logo here', true);
+          show('name', v.heading);
+          show('tagline', v.message);
+          show('site', v.contact ? `Talk to ${v.contact}` : '');
+          qr('/api/sponsors/qr.svg?vacancy=1');
+          window.pageLog && pageLog('info', 'Showing the vacancy card');
+        } else {
+          const s = r.sponsor;
+          if (s.colour) $('card').style.setProperty('--brand', s.colour);
+          show('heading', params.get('title') || 'Brought to you by');
+          show('tier', s.tierName && s.tier === 'naming' ? s.tierName : '');
+          plate(s.logoUrl, s.name);
+          show('name', s.name);
+          show('tagline', off('tagline') ? '' : s.tagline);
+          show('offer', off('offer') ? '' : s.offer);
+          show('site', s.website);
+          qr(s.qrLink ? `/api/sponsors/qr.svg?id=${encodeURIComponent(s.id)}&place=card` : null);
+          window.pageLog && pageLog('info', `Showing ${s.name}`);
+        }
+        $('card').hidden = false;
+        const out = Number(params.get('out'));
+        if (out > 0) {
+          setTimeout(() => { $('card').classList.add('out'); }, out * 1000);
+          studioDone(out * 1000 + 700);
+        }
+      } catch (err) {
+        console.warn('Sponsor unavailable:', err.message);
+        show('message', err.message);
+      }
+    })();
+  </script>
+</body>
+</html>
