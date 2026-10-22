@@ -3,7 +3,7 @@
 Keys for FirstPass Studio's own scene (the Output page). The **Source** key shows or hides a source and lights up
 while it's on. The **Scene** key goes to a saved scene (or the next or previous one, or back to the current one as
 saved), lights up while its scene is on, and shows a yellow dot when sources have changed since. The **Sequence** key plays a sequence (or presses Next,
-Pause or Stop for whatever is playing), lights up while it plays and counts down the step on screen, or to a
+Pause or Stop for whatever is playing), lights up while it plays and counts down the step on screen, the whole sequence or both (its Time left setting), or to a
 sequence about to start by itself after the siren. It follows the scene live through Studio's `/api/scene/events`, so the key changes the moment the
 source does, whether it was turned on from the key, the Output page or a `/deck/layer` link.
 
@@ -51,7 +51,7 @@ com.runplaywin.firstpass-studio.sdPlugin/
 test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
   scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot, settings panel list
-  sequence.test.ts     Sequence key views (playing, paused, Next, off air, gone), links, settings panel list
+  sequence.test.ts     Sequence key views (playing, paused, Next, off air, gone, time left), links, settings panel lists
   colours.test.ts      colour groups, key images and contrast (on vs off in every colour), settings panel list
   plugin.e2e.test.ts   real SDK + real Studio + fake Stream Deck app
 ```

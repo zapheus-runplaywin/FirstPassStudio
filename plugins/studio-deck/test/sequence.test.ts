@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { GROUPS } from "../src/lib/colours";
-import { clock, sequenceLinkFor, sequenceViewOf } from "../src/lib/sequence-key";
+import { clock, sequenceLinkFor, sequenceViewOf, timeOf } from "../src/lib/sequence-key";
 import type { Playing, Scene } from "../src/lib/studio";
 
 const PANEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "com.runplaywin.firstpass-studio.sdPlugin", "ui", "sequence.html");
@@ -70,6 +70,35 @@ test("a sequence about to start by itself: its key counts down to it", () => {
 	// Waiting for the playing sequence to finish its step: no countdown yet.
 	const waiting = sequenceViewOf({ sequence: "qb" }, { ...scene, pending: { id: "qb", leftMs: null } });
 	assert.equal(waiting.title, "Quarter\nbreak\nnext");
+});
+
+test("time left setting: the step's (default), the whole sequence's, both or none", () => {
+	const s = { sequence: "qb", sequenceName: "Quarter break" };
+	const p = playingQb({ totalLeftMs: 100200, totalOpen: false, repeats: false });
+	assert.equal(sequenceViewOf(s, studio(p)).title, "Quarter\nbreak\n3/5 0:05");
+	assert.deepEqual(sequenceViewOf({ ...s, time: "total" }, studio(p), 1300), { state: 1, title: "Quarter\nbreak\nall 1:39", colour: "purple", ticking: true });
+	// Both: one line of name, then the step's and the whole sequence's.
+	assert.equal(sequenceViewOf({ ...s, time: "both" }, studio(p), 1300).title, "Quarter\n3/5 0:03\nall 1:39");
+	assert.deepEqual(sequenceViewOf({ ...s, time: "none" }, studio(p)), { state: 1, title: "Quarter\nbreak\n3/5", colour: "purple", ticking: false });
+	assert.equal(sequenceViewOf({ press: "next", time: "both" }, studio(p)).title, "Next ⏭\n3/5 0:05\nall 1:41");
+	// Part of it waits: at least that; it repeats: this time round; all that's left waits.
+	assert.equal(sequenceViewOf({ ...s, time: "total" }, studio({ ...p, totalOpen: true })).title, "Quarter\nbreak\nall 1:41+");
+	assert.equal(sequenceViewOf({ ...s, time: "total" }, studio({ ...p, repeats: true })).title, "Quarter\nbreak\nall 1:41↻");
+	assert.equal(sequenceViewOf({ ...s, time: "both" }, studio({ ...p, leftMs: null, totalLeftMs: 0, totalOpen: true })).title, "Quarter\n3/5 Next\nall –");
+	// Waiting on Next or paused, the whole sequence's time stands still.
+	const still = sequenceViewOf({ ...s, time: "both" }, studio({ ...p, paused: true }), 5000);
+	assert.equal(still.title, "Quarter\n3/5 paused\nall 1:41");
+	assert.equal(still.ticking, false);
+	// A Studio from before the whole sequence's time left: the step's shows.
+	assert.equal(sequenceViewOf({ ...s, time: "total" }, studio(playingQb())).title, "Quarter\nbreak\n3/5 0:05");
+	assert.equal(timeOf({ time: "bogus" as never }), "step");
+});
+
+test("sequence settings panel offers every time left choice", () => {
+	const html = fs.readFileSync(PANEL, "utf8");
+	const select = html.match(/<select id="time">([\s\S]*?)<\/select>/)?.[1] ?? "";
+	assert.deepEqual([...select.matchAll(/<option value="([^"]*)">/g)].map((m) => m[1]), ["step", "total", "both", "none"]);
+	assert.match(html, /time: \$\("time"\)\.value/);
 });
 
 test("links", () => {

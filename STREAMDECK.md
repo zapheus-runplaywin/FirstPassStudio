@@ -190,6 +190,9 @@ split into four steps. For a Source key:
   whatever sequence is playing, **Next**, **Next when waiting**, **Pause / carry on** or **Stop**.
 - A sequence's key lights up orange while it plays and shows its step and the time left, like **3/5 0:12** (or **paused**, or **Next**
   while the step waits for a press). The Next, Pause and Stop keys light while any sequence plays.
+- **Time left:** what the key counts down while the sequence plays: the step's (default), the whole sequence's (**all 1:40**, with
+  **+** when part of it waits for Next, the game or a page, and **↻** when it repeats, for the time left this time round), both (one
+  line each), or none (just the step number).
 - **Next when waiting** is one key for every sequence: it moves on only when the step on now (the innermost, in a sequence inside
   another) is **Until I press Next**, and lights only then; at any other time a press does nothing.
 - **Colour:** the sequence's own colour (set in its editor on the Output page), or one of the five groups.

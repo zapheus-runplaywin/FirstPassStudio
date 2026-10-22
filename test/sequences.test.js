@@ -156,6 +156,27 @@ test('Pause freezes the time left and carrying on uses what was left', () => {
   assert.deepEqual(on(), ['Fixtures']);
 });
 
+test('the whole sequence\'s time left counts the step on now and every step after it, open when part of it waits', () => {
+  reset();
+  make('Run-up', { steps: [step(['Ladder']), step(['Fixtures'], { type: 'time', sec: 10 }), step(['Countdown'], { type: 'time', sec: 5 })] });
+  play('Run-up');
+  wait(5);
+  assert.deepEqual([st().playing.totalLeftMs, st().playing.totalOpen, st().playing.repeats], [30000, false, false]);
+  wait(15);
+  assert.equal(st().playing.totalLeftMs, 15000, 'into the second step');
+  ok({ type: 'seqPauseToggle' });
+  wait(60);
+  assert.equal(st().playing.totalLeftMs, 15000, 'paused: it stands still');
+  ok({ type: 'seqStop' });
+
+  // A step waiting for Next (or a video of unknown length) makes it at least that; a repeat counts this time round.
+  make('Break', { repeat: 'loop', steps: [step(['Ladder'], { type: 'next' }), step(['Fixtures']), step(['Ad'], { type: 'done' })] });
+  play('Break');
+  assert.deepEqual([st().playing.leftMs, st().playing.totalLeftMs, st().playing.totalOpen, st().playing.repeats], [null, 20000, true, true]);
+  link('sequence/next');
+  assert.deepEqual([st().playing.totalLeftMs, st().playing.totalOpen], [20000, true]);
+});
+
 test('Delay is gone: its old link is no sequence', () => {
   reset();
   make('Full time', { steps: [step(['Ladder']), step(['Fixtures'])] });

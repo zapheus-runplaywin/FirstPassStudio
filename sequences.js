@@ -758,8 +758,43 @@ function deck(parts) {
   return { body: { ok: true, playing: sq ? sq.name : null, step: run ? run.step + 1 : null, paused: run ? run.paused : false } };
 }
 
+// How long a step still to come will take: its set time or its videos' length. open: it waits (Next, the
+// game, a page, a video of unknown length), so it takes at least that.
+function lengthOf(step) {
+  const t = step.length.type;
+  if (t === 'now') return { ms: 0, open: false };
+  if (t === 'time') return { ms: step.length.sec * 1000, open: false };
+  if (t !== 'done') return { ms: 0, open: true };
+  let ms = 0, open = false;
+  for (const id of step.sources) {
+    const s = source(id);
+    if (!s || (s.type === 'video' && s.loop)) continue;
+    const sec = s.type === 'video' ? api.duration(s.file) : 0;
+    if (sec) ms = Math.max(ms, sec * 1000); else if (s.type === 'video' || s.type === 'browser') open = true;
+  }
+  return { ms, open };
+}
+// Time left in the whole sequence: the step on now and every step after it (one time through when it repeats,
+// unless it's finishing). open: some of it waits, so it's at least that.
+function totalLeft(stepLeftMs) {
+  const step = current();
+  let ms = 0, open = stepLeftMs === null;
+  if (stepLeftMs !== null) {
+    ms = stepLeftMs;
+    // Until it finishes counts to the video's end, not the few seconds' grace after it.
+    if (step.length.type === 'done' && !run.ready && !run.paused) {
+      const est = lengthOf(step);
+      if (!est.open && est.ms) ms = Math.min(ms, Math.max(0, est.ms - (now() - run.stepAt)));
+    }
+  }
+  if (!run.finishing) for (const st of run.steps.slice(run.step + 1)) { const l = lengthOf(st); ms += l.ms; open = open || l.open; }
+  return { ms, open };
+}
+
 function state() {
   const sq = playing();
+  const stepLeft = run && sq ? (run.paused ? run.pausedLeft : run.endsAt === null ? null : Math.max(0, run.endsAt - now())) : null;
+  const total = run && sq ? totalLeft(stepLeft) : null;
   return {
     sequences: [...list].sort(byColour),
     playing: run && sq ? {
@@ -768,8 +803,11 @@ function state() {
       id: run.id, step: run.step, steps: run.steps.length, loop: run.loop, paused: run.paused,
       top: current()?.top ?? null, via: current()?.via || [], scene: current()?.kind === 'scene' ? current().scene : null, sources: current()?.sources || [],
       // Time left on the step, when it has one: the page counts down from when it hears this.
-      leftMs: run.paused ? run.pausedLeft : run.endsAt === null ? null : Math.max(0, run.endsAt - now()),
+      leftMs: stepLeft,
       length: current()?.length.type || null, ready: run.ready,
+      // Time left in the whole sequence (counting down like leftMs while the step does); totalOpen: part of it
+      // waits (Next, the game, a page), so it's at least that; repeats: it goes round again after this time through.
+      totalLeftMs: total.ms, totalOpen: total.open, repeats: sq.repeat !== 'once' && !run.finishing,
       waiting: run.waiting ? [...run.waiting] : [], finishing: !!run.finishing,
     } : null,
     auto,

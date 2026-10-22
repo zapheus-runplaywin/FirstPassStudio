@@ -68,7 +68,20 @@
       </select>
     </div>
   </div>
-  <p class="note">The sequence's own colour is the one set in its editor on Studio's Output page. The key turns orange while its sequence plays (for Next, Pause and Stop, while any plays) and shows the step and the time left.</p>
+  <p class="note">The sequence's own colour is the one set in its editor on Studio's Output page. The key turns orange while its sequence plays (for Next, Pause and Stop, while any plays) and shows the step and the time left (set below).</p>
+
+  <div class="row">
+    <label for="time">Time left</label>
+    <div class="field">
+      <select id="time">
+        <option value="step">The step's</option>
+        <option value="total">The whole sequence's</option>
+        <option value="both">Both: the step's, then the whole sequence's</option>
+        <option value="none">None, just the step number</option>
+      </select>
+    </div>
+  </div>
+  <p class="note">What the key shows while the sequence plays. The whole sequence's shows as <b>all 1:40</b>, with <b>+</b> when part of it waits (for Next, the game or a page) so it takes at least that, and <b>↻</b> when it repeats (the time left this time round).</p>
 
   <div class="row">
     <label>Title</label>
@@ -100,6 +113,7 @@
     $("press").value = settings.press || "play";
     $("colour").value = settings.colour || "";
     $("keepTitle").checked = !!settings.keepTitle;
+    $("time").value = settings.time || "step";
     $("host").value = settings.host || "";
     showSequencePick();
     fillSequences();
@@ -157,6 +171,7 @@
       press: $("press").value,
       colour: $("colour").value,
       keepTitle: $("keepTitle").checked,
+      time: $("time").value,
       host: $("host").value.trim(),
     });
     send({ event: "setSettings", context: uuid, payload: settings });
@@ -166,6 +181,7 @@
   $("press").addEventListener("change", () => { showSequencePick(); save(); });
   $("colour").addEventListener("change", save);
   $("keepTitle").addEventListener("change", save);
+  $("time").addEventListener("change", save);
   $("host").addEventListener("change", () => { save(); askForSequences(); });
   $("refresh").addEventListener("click", askForSequences);
 </script>
