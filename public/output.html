@@ -1505,7 +1505,10 @@
       if (o.type === 'select') {
         input = document.createElement('select');
         for (const [v, text] of o.choices) input.add(new Option(text, v));
-        if (o.list === 'audio') for (const f of tracks()) if (!o.choices.some(([v]) => v === f)) input.add(new Option(songName(f), f));
+        if (o.list === 'audio') {
+          input.dataset.list = 'audio';
+          for (const f of tracks()) if (!o.choices.some(([v]) => v === f)) input.add(new Option(songName(f), f));
+        }
         if (![...input.options].some(opt => opt.value === value)) input.add(new Option(value, value));
       } else {
         input = document.createElement('input');
@@ -1526,6 +1529,32 @@
       row.className = 'row';
       row.appendChild(input);
       if (o.type !== 'select') input.style.flex = '1';
+      // A song or sound added here goes into the media folder (as is, no loudness change) and is picked at once.
+      if (o.list === 'audio') {
+        const add = document.createElement('label');
+        add.className = 'inline';
+        add.style.fontWeight = '400';
+        add.innerHTML = 'Add a sound <input type="file" accept=".mp3,.m4a,.aac,.wav,.aif,.aiff,audio/*">';
+        const file = add.querySelector('input');
+        file.id = 'opt-' + o.key + '-add';
+        file.onchange = async () => {
+          const f = file.files[0];
+          if (!f) return;
+          const note = cell.querySelector('.addNote') || cell.appendChild(Object.assign(document.createElement('p'), { className: 'note addNote' }));
+          note.textContent = `Adding ${f.name}…`;
+          try {
+            const res = await fetch(`/api/scene/media?name=${encodeURIComponent(f.name)}&level=0`, { method: 'POST', body: f });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || res.statusText);
+            await loadMedia();
+            input.add(new Option(songName(body.file), body.file));
+            input.value = body.file;
+            note.remove();
+            input.onchange();
+          } catch (err) { note.textContent = `Could not add ${f.name}: ${err.message}`; }
+        };
+        row.appendChild(add);
+      }
       if (o.unit) { const u = document.createElement('span'); u.className = 'unit'; u.textContent = o.unit; row.appendChild(u); }
       cell.appendChild(row);
       if (o.picks) {
@@ -1934,6 +1963,8 @@
     mediaNote();
     const s = current();
     if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
+    // A page option that lists the songs (the intro and outro's Theme) shows the ones just added.
+    if (s && s.type === 'browser' && $('fOptions').querySelector('[data-list="audio"]')) renderOptions(s);
     if (scene.music) renderMusic();
     // Studio measures a song's or video's length the first time it's asked: ask again shortly for the ones it hadn't yet.
     if (!mediaRetried && media.some(m => (m.kind === 'audio' || m.kind === 'video') && !m.converting && !m.duration)) { mediaRetried = true; setTimeout(() => loadMedia(), 1500); }

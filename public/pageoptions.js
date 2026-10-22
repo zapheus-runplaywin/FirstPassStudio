@@ -207,7 +207,7 @@ const PAGE_OPTIONS = (() => {
       mode(),
       ...background,
       { key: 'sfx', label: 'Sound effects volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '80', help: 'Each style has its own effects. 0 turns them off.' },
-      { key: 'theme', label: 'Theme', type: 'select', list: 'audio', choices: [['', 'None']], help: 'A song or sound from the media folder (add it under Media), played with the animation.' },
+      { key: 'theme', label: 'Theme', type: 'select', list: 'audio', choices: [['', 'None']], help: 'Played with the animation: a song or sound already in Studio (added here or in Music), or Add a sound to add one, like a short stinger.' },
       { key: 'themefit', label: 'Theme timing', type: 'select', lengthCheck: true, choices: [['', 'Starts with the animation'], ['logo', 'Ends as the competition logo lands'],
         ['end', 'Ends as the animation finishes'], ['stretch', 'Stretch the animation to fit the theme (up to 25%)']] },
       { key: 'volume', label: 'Theme volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '100' },
