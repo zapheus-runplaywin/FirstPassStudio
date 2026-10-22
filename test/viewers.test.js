@@ -126,3 +126,38 @@ test('readings are only taken on air, and give each sponsor viewer-minutes in th
   assert.equal(r.sponsors.find(s => s.name === 'Golds Bakery').viewerMinutes, 700);
   assert.deepEqual(r.viewers, { peak: 300, average: 233, readings: 6 });
 });
+
+test('the viewers graphic shows the total over the minimum, hides under it, and shows tonight\'s peak', async t => {
+  let chromium = null, browser = null;
+  try { ({ chromium } = require('playwright')); browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); } catch { browser = null; }
+  if (!browser) {
+    if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail('no browser to test the pages in');
+    t.skip('no browser to test the pages in; run npx playwright install chromium');
+    return;
+  }
+  t.after(() => browser.close());
+  const { startStudio } = require('./support/studio');
+  const studio = await startStudio(t, { competition: 'Thunder League', env: { FIRSTPASS_YOUTUBE_API: process.env.FIRSTPASS_YOUTUBE_API, FIRSTPASS_FACEBOOK_API: process.env.FIRSTPASS_FACEBOOK_API } });
+  const id = (await studio.get('/api/sponsors')).competition.id;
+  const setup = await studio.get(`/api/setup/${id}`);
+  await studio.post(`/api/setup/${id}`, { ...setup.settings, streams: [{ platform: 'youtube', name: 'PIVT', where: '@pivt' }], viewersMinimum: 100 });
+  await studio.post('/api/viewers/keys', { competition: id, keys: { 'youtube-1': 'yt-key' } });
+  world.ytLive = true; world.ytViewers = 150;
+  const v = await studio.get('/api/viewers?check=1');
+  assert.deepEqual([v.total, v.minimum, v.peak.n], [150, 100, 150]);
+
+  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
+  const errors = [];
+  page.on('pageerror', err => errors.push(err.message));
+  const look = async link => {
+    await page.goto(`${studio.base}/${link}`);
+    await page.waitForTimeout(1800);
+    return page.evaluate(() => ({ now: document.getElementById('now').classList.contains('on') ? document.getElementById('nowN').textContent : '',
+      peak: document.getElementById('peak').hidden ? '' : document.getElementById('peakN').textContent + ' ' + document.getElementById('peakSub').textContent }));
+  };
+  assert.deepEqual(await look('viewers.html'), { now: '150', peak: '' });
+  assert.deepEqual(await look('viewers.html?min=200'), { now: '', peak: '' }, 'under the minimum: hidden');
+  assert.deepEqual(await look('viewers.html?show=peak'), { now: '', peak: '150 watching live on YouTube' });
+  assert.deepEqual(errors, []);
+});

@@ -401,7 +401,7 @@
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b> and the automatic <b>supershot.html</b> and <b>streak.html</b> keep asking for new data (the control page does too, but it isn't a graphic). <b>countdown.html</b> also asks Studio which game is picked every 5 seconds, and <b>ticker.html</b> asks for its speed every 3 seconds, but neither reaches PlayHQ.
+    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b>, <b>viewers.html</b> (every 15 seconds, Studio only) and the automatic <b>supershot.html</b> and <b>streak.html</b> keep asking for new data (the control page does too, but it isn't a graphic). <b>countdown.html</b> also asks Studio which game is picked every 5 seconds, and <b>ticker.html</b> asks for its speed every 3 seconds, but neither reaches PlayHQ.
       The super shot and hot streak pages ask Studio every second for the scoreboard and nothing else, so they add no PlayHQ requests.
       Every other graphic gets its data once when it loads, and again each time it's shown on the Output page (with <b>Load the page fresh each time it's shown</b>, the default).
       The Clash and the winner celebration only retry if Studio isn't running.</p>
@@ -539,6 +539,10 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   'Every sponsor of the competition in use, sized by tier with naming rights biggest, and the vacancy card (with its QR code) in an empty tier set to Advertise vacancy. Sponsors outside their deal dates are left out. ' +
   'Options: <code>?title=Tonight\'s%20stream%20is%20proudly%20supported%20by</code> changes the heading, <code>?tiers=naming,elite,major</code> shows only some tiers, <code>?names=1</code> puts each sponsor\'s name under its logo, ' +
   '<code>?tiernames=0</code> leaves the tier names out, and <code>?out=12</code> animates it away after 12 seconds.'],
+ ['Viewers (how many are watching)', '/viewers.html',
+  'How many are watching the stream right now, added up from the competition\'s YouTube channels and Facebook Pages (<b>Live viewers</b> on the <a href="/setup.html" target="_blank">Competitions setup</a> page, read while a video output is on): a small pill in the top right corner, counting up to each new reading. ' +
+  'It stays hidden while no stream is live and below the setup page\'s minimum (50 by default), since a small number can look worse than none; <code>?min=200</code> sets another for this page. It checks Studio every 15 seconds and nothing else. ' +
+  '<code>?show=peak</code> is a card with tonight\'s peak instead (for the end of the night; loads once), with <code>?title=</code> for its heading and <code>?out=12</code> to animate it away after 12 seconds.'],
  ['Countdown to the start of the game', '/countdown.html',
   'Counts down (days, hours, minutes and seconds as needed) to the scheduled start time from PlayHQ of the game picked on the control page, with both teams, their logos, the division, round, court, time and venue. ' +
   'The clock ticks in the page, so it can stay on screen: every 5 seconds it checks with Studio which game is picked (PlayHQ is not asked), so when a new game is picked, by hand or by automatic game selection, it counts down to that one. ' +

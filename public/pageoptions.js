@@ -111,6 +111,12 @@ const PAGE_OPTIONS = (() => {
       show('offer', 'Offer'), show('tagline', 'Tagline'), show('qr', 'QR code'),
       out(),
     ],
+    'viewers.html': [
+      { key: 'show', label: 'Shows', type: 'select', choices: [['', 'Watching now, live (top right)'], ['peak', "Tonight's peak, as a card"]] },
+      { key: 'min', label: 'Only from', type: 'text', placeholder: 'the setup page minimum', help: 'Hidden below this many watching (the Competitions setup page sets the usual minimum).' },
+      title("Tonight's peak"),
+      out(),
+    ],
     'sponsorwall.html': [
       title('Proudly supported by'),
       { key: 'tiers', label: 'Tiers', type: 'select', choices: [['', 'Every tier'], ['naming,elite,major', 'Major and up'], ['naming,elite,major,partner', 'Partner and up']] },

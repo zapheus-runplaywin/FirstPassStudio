@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Viewers</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<script src="log.js"></script>
+<script src="fit.js"></script>
+<script src="done.js"></script>
+<style>
+  /* Watching now: a small pill in the top right corner, the live total counting up to each new reading. */
+  .now { position: absolute; top: 48px; right: 56px; display: flex; align-items: center; gap: 14px; padding: 10px 24px 10px 18px;
+    background: var(--purple-dark); border-radius: 999px; border: 3px solid var(--yellow); box-shadow: 0 10px 26px rgba(0,0,0,.4);
+    color: var(--text); font-weight: 800; font-size: 30px; opacity: 0; transform: translateY(-20px); transition: opacity .5s, transform .5s; }
+  .now.on { opacity: 1; transform: none; }
+  .now .dot { width: 16px; height: 16px; border-radius: 50%; background: #e11d48; box-shadow: 0 0 0 0 rgba(225, 29, 72, .7); animation: pulse 1.6s infinite; }
+  .now b { color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .now span { text-transform: uppercase; letter-spacing: .08em; font-size: 22px; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 14px rgba(225, 29, 72, 0); } 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); } }
+
+  /* Tonight's peak: a card in the graphics zone. */
+  .peak { --card-width: 900px; text-align: center; }
+  .peak__head { padding: 28px 40px 0; }
+  .peak__words { font-size: 30px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 16px; }
+  .peak__n { font-size: 170px; font-weight: 900; font-style: italic; color: var(--yellow); line-height: 1; font-variant-numeric: tabular-nums; margin: 6px 0 0; }
+  .peak__sub { font-size: 30px; font-weight: 700; color: var(--text); padding: 4px 40px 34px; }
+  .peak.out { animation: card-out .6s ease-in both; }
+  @keyframes card-out { to { opacity: 0; transform: translateY(30px); } }
+</style>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page:
+       http://localhost:8080/viewers.html            how many are watching now, live, top right (checks Studio every 15 seconds)
+       http://localhost:8080/viewers.html?show=peak  tonight's peak, as a card (loads once; ?out=12 animates it away after 12 seconds)
+       The numbers come from the competition's streams under Live viewers on the Competitions setup page, added up.
+       Hidden below that page's minimum (small numbers can look worse than none); ?min= sets another for this page. -->
+  <div class="now" id="now"><i class="dot"></i><b id="nowN">0</b><span>watching</span></div>
+  <main class="card peak" id="peak" data-fit hidden>
+    <header class="peak__head"><div class="peak__words" id="peakTitle">Tonight's peak</div></header>
+    <div class="peak__n" id="peakN"></div>
+    <div class="peak__sub" id="peakSub">watching live</div>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+    const show = params.get('show') === 'peak' ? 'peak' : 'now';
+    const minOf = v => params.has('min') ? Number(params.get('min')) || 0 : v.minimum || 0;
+    const platforms = v => {
+      const names = [...new Set(v.streams.map(s => s.platform === 'facebook' ? 'Facebook' : 'YouTube'))];
+      return names.length ? `on ${names.join(' and ')}` : '';
+    };
+
+    // Counts from the number on screen to the new one, so a reading going up looks alive.
+    let shown = 0, raf = 0;
+    function countTo(box, n) {
+      cancelAnimationFrame(raf);
+      const from = shown, start = performance.now();
+      const step = now => {
+        const f = Math.min(1, (now - start) / 1200);
+        shown = Math.round(from + (n - from) * (1 - Math.pow(1 - f, 3)));
+        box.textContent = shown.toLocaleString();
+        if (f < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }
+
+    async function viewers() { return (await fetch('/api/viewers', { cache: 'no-store' })).json(); }
+
+    let wasOn = null;
+    async function now() {
+      try {
+        const v = await viewers();
+        const on = v.live > 0 && v.total >= minOf(v);
+        if (on) countTo($('nowN'), v.total);
+        $('now').classList.toggle('on', on);
+        if (on !== wasOn) window.pageLog && pageLog('info', on ? `Viewers: showing ${v.total} watching` : `Viewers: hidden (${v.live ? `${v.total} is under ${minOf(v)}` : 'no stream live'})`);
+        wasOn = on;
+      } catch (err) { console.warn('Viewers unavailable:', err.message); }
+      setTimeout(now, 15000);
+    }
+
+    async function peak() {
+      try {
+        const v = await viewers();
+        const p = v.peak;
+        if (!p || p.n < minOf(v)) { window.pageLog && pageLog('info', `Viewers: no peak to show tonight${p ? ` (${p.n} is under ${minOf(v)})` : ''}`); return; }
+        if (params.get('title')) $('peakTitle').textContent = params.get('title');
+        $('peakSub').textContent = ['watching live', platforms(v)].filter(Boolean).join(' ');
+        $('peak').hidden = false;
+        countTo($('peakN'), p.n);
+        window.pageLog && pageLog('info', `Viewers: tonight's peak ${p.n}`);
+        const out = Number(params.get('out'));
+        if (out > 0) {
+          setTimeout(() => { $('peak').classList.add('out'); }, out * 1000);
+          studioDone(out * 1000 + 700);
+        }
+      } catch (err) { console.warn('Viewers unavailable:', err.message); }
+    }
+
+    if (show === 'peak') { $('now').hidden = true; peak(); } else now();
+  </script>
+</body>
+</html>

@@ -31,6 +31,9 @@ let record = () => {};
 let timer = null;
 // Per stream ("competition stream"): { count, live, video, title, error, at, findAt, channel }
 const status = new Map();
+// The most watching at once tonight, per competition: "competition night" -> { n, at }. A night runs to 4 am.
+const peaks = new Map();
+const nightOf = ms => { const d = new Date(ms - 4 * 3600 * 1000); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 
 function readKeys() { try { return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8')) || {}; } catch { return {}; } }
 function keyFor(compId, streamId) { return ((readKeys()[compId] || {})[streamId]) || ''; }
@@ -143,11 +146,14 @@ async function check(compId = competitions.activeId(), now = Date.now()) {
     }
     st.at = now;
   }));
-  return state(compId);
+  const s = state(compId);
+  const key = `${compId} ${nightOf(now)}`;
+  if (s.live && (!peaks.has(key) || s.total > peaks.get(key).n)) peaks.set(key, { n: s.total, at: now });
+  return state(compId, now);
 }
 
 // What the Output page and setup page show: the total watching now and each stream.
-function state(compId = competitions.activeId()) {
+function state(compId = competitions.activeId(), now = Date.now()) {
   const keys = readKeys()[compId] || {};
   const streams = streamsOf(compId).map(s => {
     const st = status.get(`${compId} ${s.id}`) || {};
@@ -155,7 +161,10 @@ function state(compId = competitions.activeId()) {
       live: !!st.live, count: st.count || 0, title: st.title || '', error: st.error || '', at: st.at || 0 };
   });
   const live = streams.filter(s => s.live);
-  return { competition: compId, total: live.reduce((n, s) => n + s.count, 0), live: live.length, streams, every: EVERY / 1000 };
+  let minimum = 0;
+  try { minimum = compId ? Number(competitions.get(compId).viewersMinimum) || 0 : 0; } catch { /* no competition */ }
+  return { competition: compId, total: live.reduce((n, s) => n + s.count, 0), live: live.length, streams, every: EVERY / 1000,
+    peak: peaks.get(`${compId} ${nightOf(now)}`) || null, minimum };
 }
 
 async function tick() {
