@@ -70,6 +70,11 @@ body.above-ticker .scorebug { top: auto; bottom: calc(var(--ticker-height) + var
    translate would put it on a half pixel (the bar is an odd 1335px wide) and soften it. */
 .scorebug__live { left: calc(var(--clock-width) + var(--team-width)); width: calc(var(--score-width) * 2 + 3px); }
 
+/* "Presented by" the naming rights sponsor, above the court on the left (the Super shot tab is on the right). */
+.scorebug__sponsor { left: 0; min-width: var(--clock-width); background: var(--score-bg); color: var(--score-text); font-size: 15px; padding: 5px 10px 5px; }
+.scorebug__sponsor .sponsor-badge__plate { padding: 0 .2em; }
+.scorebug.sponsor-on .scorebug__main { border-top-left-radius: 0; }
+
 /* "Super shot" tab above the clock, in the last minutes of a quarter while super shots count (setup superShotMinutes).
    Same height as the Live tab, so it reaches no higher than it (the goals and lower thirds sit above that). Right-aligned
    to the bar, so it stays on whole pixels. It rises out from behind the bar and sinks back when the quarter ends; a light

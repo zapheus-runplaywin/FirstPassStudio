@@ -15,7 +15,9 @@
        Like the scoreboard, it updates its scores itself every 30 seconds.
        Speed: set on the control page (Ticker speed) or the Stream Deck (/deck/ticker/faster, slower);
        a change shows within a few seconds, carrying on from where the scroll is.
-       Options: ?refresh=60 (seconds; 0 = load once)  ?speed=120 (pixels per second; fixes the speed for this link only) -->
+       Options: ?refresh=60 (seconds; 0 = load once)  ?speed=120 (pixels per second; fixes the speed for this link only)
+       A sponsor slot goes round with the scores: the next sponsor in rotation from Partner and up (Sponsors page),
+       a new one each time the scores update. ?sponsor=0 leaves it out, ?sponsor=Golds%20Bakery always that one. -->
   <div class="ticker" id="ticker" hidden>
     <div class="ticker__label">Around the courts</div>
     <div class="ticker__window"><div class="ticker__track" id="track"></div></div>
@@ -23,13 +25,14 @@
   <p class="message" id="message" hidden></p>
   <script src="teams.js"></script>
   <script src="season.js"></script>
+  <script src="sponsorspot.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const refresh = params.has('refresh') ? Number(params.get('refresh')) : 30;
     const fixedSpeed = Number(params.get('speed')) > 0 ? Number(params.get('speed')) : null; // ?speed= wins over the control page
     let speed = fixedSpeed || 120;
     const track = document.getElementById('track');
-    let pending = null, half = 0;
+    let pending = null, half = 0, sponsor = null;
 
     const duration = () => Math.max(1, half / speed);
     // Change the speed mid-scroll, carrying on from the same place instead of jumping.
@@ -44,8 +47,16 @@
       if (window.pageLog) pageLog('info', `Ticker speed ${speed} pixels per second (${why})`);
     }
 
+    // The sponsor slot: logo (or name) and tagline, ahead of the scores.
+    function sponsorItem(s) {
+      const it = el('span', 'ticker__item ticker__sponsor');
+      it.append(sponsorSpot.badge(s, { words: '' }));
+      if (s.tagline) it.append(el('span', 'ticker__tagline', s.tagline));
+      return it;
+    }
     function items(games) {
       const frag = document.createDocumentFragment();
+      if (sponsor) frag.append(sponsorItem(sponsor));
       if (!games.length) frag.append(el('span', 'ticker__item', 'Scores from the other courts will appear here'));
       for (const g of games) {
         const it = el('span', 'ticker__item');
@@ -68,6 +79,7 @@
       try {
         const d = await (await fetch('/api/ticker', { cache: 'no-store' })).json();
         if (d.error) throw new Error(d.error);
+        sponsor = await sponsorSpot.next('ticker', 'naming,elite,major,partner');
         if (first) {
           if (!fixedSpeed && d.speed > 0) speed = d.speed;
           // Unhide first: a hidden ticker has no width, which left the scroll distance at 0.

@@ -16,7 +16,8 @@
        3 and 5 goal runs and the longest run. Quarter scores and runs are worked out by Studio
        from the scoreboard as the game goes (/api/stats), so they cover the time it was on.
        Loads once, each time it comes on. Options: ?title=Game%20stats, and =0 leaves a part
-       out: ?quarters=0 ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0 -->
+       out: ?quarters=0 ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0
+       Presented by the next sponsor in rotation from Major and up (Sponsors page) in the footer: ?sponsor=0 leaves it off, ?sponsor=Golds%20Bakery always that one. -->
   <main class="card gamestats" id="card" data-fit hidden>
     <header class="matchup__header">
       <div class="tab" id="title">Game stats</div>
@@ -29,9 +30,11 @@
     </div>
     <table class="gamestats__quarters" id="quarters" hidden></table>
     <div class="gamestats__rows" id="rows"></div>
-    <footer class="card__footer" id="footer"></footer>
+    <div class="card__foot"><footer class="card__footer" id="footer"></footer><div class="card__sponsor" id="sponsor" hidden></div></div>
   </main>
   <p class="message" id="message" hidden></p>
+  <script src="sponsorspot.js"></script>
+  <script>sponsorSpot.footer('stats');</script>
   <script src="teams.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
