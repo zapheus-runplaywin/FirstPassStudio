@@ -239,6 +239,7 @@
           clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key.</p>
       </div>
       <p class="note" id="outStatus"></p>
+      <p class="note" id="viewersNow" hidden></p>
       <p class="note hidden" id="outLocked">Turn the output off to change these settings.</p>
       <p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
         shows and black where it's see-through (grey where it's partly see-through). Sound plays from the fill or chroma display's window
@@ -2044,6 +2045,23 @@
 
   // Follow the scene live, so Stream Deck presses show here too.
   sceneEvents(show);
+
+  // Live viewers on the competition's streams (Competitions setup, Live viewers), read by Studio while on air.
+  async function viewersNow() {
+    try {
+      const v = await (await fetch('/api/viewers', { cache: 'no-store' })).json();
+      const box = $('viewersNow');
+      box.hidden = !v.streams || !v.streams.length;
+      if (box.hidden) return;
+      const read = v.streams.filter(x => x.at);
+      const parts = read.map(x => `${x.name || (x.platform === 'facebook' ? 'Facebook' : 'YouTube')} ${x.error ? 'error' : x.live ? x.count.toLocaleString() : 'not live'}`);
+      box.textContent = !read.length ? 'Live viewers: read every 30 seconds while a video output is on.'
+        : `👁 ${v.total.toLocaleString()} watching · ${parts.join(' · ')}`;
+      box.title = read.filter(x => x.error).map(x => `${x.name || x.platform}: ${x.error}`).join('\n');
+    } catch { /* Studio restarting: try again next time */ }
+  }
+  viewersNow();
+  setInterval(viewersNow, 15000);
 
   fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base; renderForm(); }).catch(() => {});
   let pref = '1'; try { pref = localStorage.getItem('outputPreview') ?? '1'; } catch {}

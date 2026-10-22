@@ -49,6 +49,7 @@
       "fonts.js",
       "sponsors.js",
       "exposure.js",
+      "viewers.js",
       "config.json",
       "public/**/*",
       "imports/**/*",

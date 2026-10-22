@@ -634,6 +634,23 @@ sponsor**, or (the default) the Elite tier's sponsors taking turns, one per play
 `?sponsor=0` on the page leaves the tag off and `?sponsor=Golds%20Bakery` always names that sponsor. Each tag counts as
 2 seconds on screen in the sponsor report (place "Sponsored moments") when the page is on in the scene.
 
+### Live viewers
+
+On the Competitions setup page, **Live viewers** lists where the competition streams, for its admin to fill in: any
+number of YouTube channels and Facebook Pages (**Add a YouTube channel**, **Add a Facebook Page**).
+
+- **YouTube:** the channel's ID (UC…), its @handle, or the live video's link, and a YouTube Data API key (Google Cloud,
+  free). Studio finds the channel's live video with a search (100 of the key's 10,000 daily units, at most every 5
+  minutes and only until it finds one), then reads its viewers every 30 seconds (1 unit each).
+- **Facebook:** the Page's ID or link, and a Page access token from a Meta app the Page's admin makes (no app review for
+  their own Page; use a long-lived token).
+- Studio reads them only while a video output is on, adds them up, and shows the total on the Output page. **Check now**
+  reads them straight away and shows each stream's number or what's wrong (a bad key, not live).
+- Keys and tokens are kept on this Mac only (`stream-keys.json` in the local folder): never in iCloud, templates or
+  exports. The streams themselves go with the competition.
+- Each reading on air is saved with the sponsor log, so the sponsor report shows **viewer-minutes** (the people watching
+  while each sponsor was on screen) and the night's peak and average.
+
 ### Sponsor report
 
 http://localhost:8080/sponsorreport.html (**Sponsor report** on the Sponsors page) shows what each sponsor got on screen,

@@ -72,6 +72,9 @@ const DEFAULTS = {
   sponsorEmpty: {},                    // { tier: 'up' | 'down' | 'skip' | 'vacancy' }, missing = SPONSOR_EMPTY_DEFAULTS
   sponsorVacancy: {},                  // { heading, message, contact, link }: the vacancy card, filled in by the competition's admin
   sponsorMoments: {},                  // { moment: sponsor id | 'off' }: who a moment's "brought to you by" tag is for; missing = Elite take turns
+  // Where the competition streams, for live viewer numbers (viewers.js): [{ id, platform: 'youtube' | 'facebook',
+  // name, where }], filled in by its admin. Their keys and tokens are kept on this Mac only (stream-keys.json).
+  streams: [],
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
   apiTenant: '',
 };
@@ -195,6 +198,14 @@ function clean(input, base = DEFAULTS) {
       v = Object.fromEntries(SPONSOR_TIERS.map(t => [t, String((v || {})[t] ?? '').trim().slice(0, 30)]).filter(([, n]) => n));
     } else if (k === 'sponsorEmpty') {
       v = Object.fromEntries(SPONSOR_TIERS.map(t => [t, (v || {})[t]]).filter(([, e]) => SPONSOR_EMPTY.includes(e)));
+    } else if (k === 'streams') {
+      const ids = new Set();
+      v = (Array.isArray(v) ? v : []).map(x => x && typeof x === 'object' ? x : {}).filter(x => ['youtube', 'facebook'].includes(x.platform)).slice(0, 8).map(x => {
+        let id = /^[a-z0-9-]{1,40}$/.test(x.id) && !ids.has(x.id) ? x.id : '';
+        for (let n = 1; !id; n++) if (!ids.has(`${x.platform}-${n}`)) id = `${x.platform}-${n}`;
+        ids.add(id);
+        return { id, platform: x.platform, name: String(x.name ?? '').trim().slice(0, 40), where: String(x.where ?? '').trim().slice(0, 300) };
+      });
     } else if (k === 'sponsorMoments') {
       v = Object.fromEntries(Object.keys(SPONSOR_MOMENTS).map(m => [m, String((v || {})[m] ?? '').trim()]).filter(([, o]) => /^[a-z0-9-]{1,60}$/.test(o)));
     } else if (k === 'sponsorVacancy') {
