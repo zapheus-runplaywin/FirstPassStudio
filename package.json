@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/*.test.js",
+    "test:ci": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mjs --test-reporter-destination=stdout test/*.test.js",
     "iconpack": "node plugins/characters-iconpack/build.js",
     "app": "electron .",
     "dist": "electron-builder --mac --publish never",

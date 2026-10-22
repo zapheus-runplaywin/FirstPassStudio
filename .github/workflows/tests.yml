@@ -3,6 +3,8 @@
 #   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, and every page in a browser.
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
 # PlayHQ is never called: the tests that need it run against recorded answers.
+# Each run's summary page has a results table and every failure with its message
+# (test/support/github-report.mjs), and failures are marked on the test in the pull request's Files tab.
 name: Tests
 
 on:
@@ -36,9 +38,10 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       # Chromium for the page test (test/pages.test.js), which fails here rather than skipping without it.
       - run: npx playwright install --with-deps chromium
-      - run: npm test
+      - run: npm run test:ci
         env:
           STUDIO_TEST_REQUIRE_BROWSER: '1'
+          TEST_REPORT_TITLE: Studio tests
 
   stream-deck:
     name: Stream Deck plugin
@@ -56,4 +59,6 @@ jobs:
           cache-dependency-path: plugins/studio-deck/package-lock.json
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:ci
+        env:
+          TEST_REPORT_TITLE: Stream Deck plugin tests
