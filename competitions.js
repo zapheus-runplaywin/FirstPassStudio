@@ -65,10 +65,28 @@ const DEFAULTS = {
   competitionLogoDark: '',             // a file in brand/: the dark mode logo (for a dark background); either one alone is used for both
   clubs: {},                           // { "Club": { logo: "file.png", colour: "#rrggbb" } }, shared by every team of the club in every division
   teamClubs: {},                       // { "PlayHQ team name": "Club" }, only for a team whose club isn't found from its name
+  // Sponsors (sponsors.js and the Sponsors page): what this competition calls each tier, what a tier's
+  // spots do when no sponsor is in it, and its own "advertise with us" card for empty spots.
+  sponsorTierNames: 'names',           // 'names', 'metals' or 'own' (sponsorOwnNames)
+  sponsorOwnNames: {},                 // { tier: "Diamond" }, for 'own'; a blank one uses the Names name
+  sponsorEmpty: {},                    // { tier: 'up' | 'down' | 'skip' | 'vacancy' }, missing = SPONSOR_EMPTY_DEFAULTS
+  sponsorVacancy: {},                  // { heading, message, contact, link }: the vacancy card, filled in by the competition's admin
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
   apiTenant: '',
 };
 const HEX = /^#[0-9a-f]{6}$/i;
+
+// Sponsor tiers, top first. Each competition names them from a set (or its own names) and says
+// what an empty tier's spots do: a sponsor from the tier above or below takes them, they're
+// hidden, or the competition's vacancy card goes there.
+const SPONSOR_TIERS = ['naming', 'elite', 'major', 'partner', 'supporter'];
+const SPONSOR_NAME_SETS = {
+  names: { naming: 'Naming rights', elite: 'Elite', major: 'Major', partner: 'Partner', supporter: 'Supporter' },
+  metals: { naming: 'Naming rights', elite: 'Platinum', major: 'Gold', partner: 'Silver', supporter: 'Bronze' },
+};
+const SPONSOR_EMPTY = ['up', 'down', 'skip', 'vacancy'];
+const SPONSOR_EMPTY_DEFAULTS = { naming: 'vacancy', elite: 'down', major: 'down', partner: 'up', supporter: 'skip' };
+const VACANCY_KEYS = { heading: 60, message: 160, contact: 60, link: 300 };
 
 const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'competition';
 const validId = id => /^[a-z0-9-]{1,40}$/.test(String(id || ''));
@@ -168,11 +186,18 @@ function clean(input, base = DEFAULTS) {
     } else if (k === 'divisionSuperShots') {
       v = Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).map(([d, on]) => [String(d).trim(), on])
         .filter(([d, on]) => d && [true, false, 'true', 'false'].includes(on)).map(([d, on]) => [d, on === true || on === 'true']));
+    } else if (k === 'sponsorOwnNames') {
+      v = Object.fromEntries(SPONSOR_TIERS.map(t => [t, String((v || {})[t] ?? '').trim().slice(0, 30)]).filter(([, n]) => n));
+    } else if (k === 'sponsorEmpty') {
+      v = Object.fromEntries(SPONSOR_TIERS.map(t => [t, (v || {})[t]]).filter(([, e]) => SPONSOR_EMPTY.includes(e)));
+    } else if (k === 'sponsorVacancy') {
+      v = Object.fromEntries(Object.entries(VACANCY_KEYS).map(([f, max]) => [f, String((v || {})[f] ?? '').trim().slice(0, max)]).filter(([, t]) => t));
     } else if (typeof def === 'boolean') v = v === true || v === 'true' || v === 'on';
     else if (typeof def === 'number') { v = Number(v); if (!Number.isFinite(v)) v = def; }
     else v = String(v ?? '').trim();
     out[k] = v;
   }
+  if (!['names', 'metals', 'own'].includes(out.sponsorTierNames)) out.sponsorTierNames = 'names';
   out.periodType = out.periodType === 'halves' ? 'halves' : 'quarters';
   out.quarterMinutes = Math.min(60, Math.max(1, out.quarterMinutes));
   for (const k of ['quarterBreakMinutes', 'halfTimeMinutes', 'threeQuarterBreakMinutes']) out[k] = Math.min(60, Math.max(0, out[k]));
@@ -404,4 +429,11 @@ function themeCss(s, fontFiles = []) {
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
-module.exports = { DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };
+// What a competition calls each sponsor tier, and what each empty tier does.
+function sponsorTiers(s) {
+  const set = SPONSOR_NAME_SETS[s && s.sponsorTierNames] || SPONSOR_NAME_SETS.names;
+  const own = (s && s.sponsorTierNames === 'own' && s.sponsorOwnNames) || {};
+  return SPONSOR_TIERS.map(key => ({ key, name: own[key] || set[key], empty: ((s && s.sponsorEmpty) || {})[key] || SPONSOR_EMPTY_DEFAULTS[key] }));
+}
+
+module.exports = { SPONSOR_TIERS, SPONSOR_NAME_SETS, SPONSOR_EMPTY, SPONSOR_EMPTY_DEFAULTS, sponsorTiers, DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };

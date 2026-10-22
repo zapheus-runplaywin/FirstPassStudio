@@ -146,7 +146,7 @@ function readVersion() {
 function writeVersion(v) { fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: v }, null, 2) + '\n'); }
 
 // What Studio saves in the data folder (the desktop app keeps its own files there too).
-const SAVED = ['competitions', 'config.json', 'control.json', 'round-choice.json', 'scoreboard-state.json', 'last-game-summary.json', 'scene.json', 'outputs.json'];
+const SAVED = ['competitions', 'config.json', 'control.json', 'round-choice.json', 'scoreboard-state.json', 'last-game-summary.json', 'scene.json', 'outputs.json', 'sponsors'];
 
 function backup(from, log) {
   const have = SAVED.filter(n => exists(path.join(DATA_DIR, n)));

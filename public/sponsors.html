@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sponsors · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<link rel="stylesheet" href="studio.css">
+<style>
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+  .sub b { color: var(--fp-navy); }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 18px 22px; margin-bottom: 14px; }
+  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+  h3 { font-size: 13px; color: var(--fp-muted); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+  input[type=text], input[type=date], input[type=number], select, textarea { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
+  textarea { width: 100%; resize: vertical; }
+  button, label.btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; display: inline-block; }
+  button:hover, label.btn:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  button.alt, label.btn.alt { background: var(--fp-white); color: var(--fp-blue); }
+  button.alt:hover, label.btn.alt:hover { background: var(--fp-blue-soft); }
+  button.danger { background: var(--fp-white); color: var(--fp-danger); border-color: var(--fp-danger); }
+  button.small, label.btn.small { font-size: 12px; padding: 3px 9px; }
+  button:disabled { opacity: .5; cursor: default; }
+  input[type=file] { display: none; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
+  .error { color: var(--fp-danger); }
+  .ok { color: var(--fp-ok); }
+  .saved { font-size: 13px; color: var(--fp-ok); min-height: 1.2em; }
+  /* Sponsors by tier */
+  .tier { border-top: 1px solid var(--fp-line); padding: 12px 0 4px; }
+  .tier:first-of-type { border-top: 0; padding-top: 0; }
+  .tier__head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; margin-bottom: 8px; }
+  .tier__name { font-weight: 800; font-size: 16px; }
+  .tier__empty { font-size: 13px; color: var(--fp-muted); }
+  .pill { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--fp-blue-soft); color: var(--fp-blue-dark); white-space: nowrap; }
+  .pill.naming { background: var(--fp-navy); color: var(--fp-gold); }
+  .pill.ended { background: #FEF3F2; color: var(--fp-danger); }
+  .pill.starts { background: #FFF4E5; color: #8A3B00; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+  .sp { border: 1px solid var(--fp-line); border-radius: 10px; padding: 10px; display: grid; grid-template-columns: 76px 1fr auto; gap: 12px; align-items: center; }
+  .sp > div { min-width: 0; }
+  .sp.ended { opacity: .6; }
+  .sp__logo { width: 76px; height: 48px; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 12px 12px; font-weight: 900; font-style: italic; font-size: 12px; color: var(--fp-muted); }
+  .sp__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .sp__name { font-weight: 800; overflow-wrap: anywhere; }
+  .sp__meta { font-size: 12px; color: var(--fp-muted); overflow-wrap: anywhere; }
+  /* Tiers */
+  .tiers { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tiers th { text-align: left; font-size: 12px; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .05em; padding: 6px; }
+  .tiers td { padding: 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
+  .tiers input[type=text] { width: 100%; max-width: 200px; }
+  .tablewrap { overflow-x: auto; }
+  .sets { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 10px; }
+  .sets label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
+  /* Vacancy card */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .grid label, dialog label.field { display: grid; gap: 4px; font-size: 13px; font-weight: 700; }
+  .grid label input, dialog label.field input, dialog label.field select { width: 100%; }
+  .qrbox { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .qr { width: 132px; height: 132px; border: 1px solid var(--fp-line); border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; color: var(--fp-muted); font-size: 12px; text-align: center; padding: 6px; }
+  .qr img { width: 100%; height: 100%; }
+  .qrlink { font-size: 12px; color: var(--fp-muted); overflow-wrap: anywhere; max-width: 520px; }
+  /* Sponsor editor */
+  dialog { border: 1px solid var(--fp-line-strong); border-radius: var(--fp-radius); padding: 20px 22px; max-width: 820px; width: calc(100% - 32px); color: var(--fp-navy); font-family: var(--fp-font); }
+  dialog::backdrop { background: rgba(15,23,42,.45); }
+  dialog h2 { color: var(--fp-navy); font-size: 20px; text-transform: none; letter-spacing: 0; }
+  .logos2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .logoslot { border: 2px dashed var(--fp-line-strong); border-radius: 10px; padding: 10px; display: grid; gap: 8px; justify-items: center; text-align: center; font-size: 13px; }
+  .logoslot.over { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
+  .logoslot .pic { width: 100%; height: 90px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 12px 12px; }
+  .logoslot.white .pic { background: #0f172a; color: #94a3b8; }
+  .logoslot .pic img { max-width: 90%; max-height: 80px; object-fit: contain; }
+  .shown { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .shown td { padding: 5px 6px; border-top: 1px solid var(--fp-line); }
+  .shown .org { font-size: 11px; color: var(--fp-muted); }
+  .dlgbuttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .dlgbuttons .left { margin-right: auto; }
+  .empty { color: var(--fp-muted); font-size: 14px; }
+  @media (max-width: 760px) { .grid, .logos2 { grid-template-columns: 1fr; } }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<header class="fp-bar">
+  <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
+  <nav><a href="/output.html">Output</a><a href="/graphics.html">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/sponsors.html" aria-current="page">Sponsors</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck</a></nav>
+</header>
+<main>
+  <h1>Sponsors</h1>
+  <p class="sub">The sponsors of <b id="compName">the competition in use</b>, by tier. Each sponsor has its logos, website, offer and deal dates,
+    and a QR code to its website. A sponsor can be shown on more than one competition, at its own tier in each, and is kept once:
+    change its logo or link here and it changes everywhere. <a href="/graphics.html">Back to the Graphics page</a></p>
+  <p class="error" id="readOnlyNote" hidden>These settings were saved by a newer version of FirstPass Studio, so they can't be changed here. Update Studio to change them.</p>
+  <p class="error" id="noComp" hidden>No competition yet. Make or import one on the <a href="/setup.html">Competitions setup</a> page first.</p>
+
+  <section id="listSection">
+    <h2>Sponsors on this competition</h2>
+    <div id="tierList"></div>
+    <div class="row" style="margin-top:14px">
+      <button id="addSponsor">Add sponsor</button>
+      <span id="shareRow" class="row" hidden>
+        <select id="shareWhich" aria-label="Sponsor from another competition"></select>
+        <select id="shareTier" aria-label="Tier on this competition"></select>
+        <button class="alt" id="shareAdd">Add to this competition</button>
+      </span>
+    </div>
+    <p class="help">Sponsors whose deal has ended stay here, greyed, and graphics skip them. To show one from another competition here too, pick it beside Add sponsor.</p>
+  </section>
+
+  <section id="tierSection">
+    <h2>Tiers</h2>
+    <div class="sets" id="sets" role="radiogroup" aria-label="Tier names">
+      <label><input type="radio" name="set" value="names"> <span id="setNames"></span></label>
+      <label><input type="radio" name="set" value="metals"> <span id="setMetals"></span></label>
+      <label><input type="radio" name="set" value="own"> Our own names</label>
+    </div>
+    <div class="tablewrap"><table class="tiers">
+      <thead><tr><th>Tier</th><th>Share of screen time</th><th>When this tier has no sponsor</th></tr></thead>
+      <tbody id="tierRows"></tbody>
+    </table></div>
+    <p class="help"><b>Push up</b> and <b>Push down</b> give the tier's spots to a sponsor from the tier above or below, and keep going past empty tiers.
+      <b>Skip tier</b> leaves the spots out. <b>Advertise vacancy</b> puts the vacancy card below in the tier's spots where a card fits (break cards and the sponsor wall);
+      on the scoreboard tab and "brought to you by" tags it skips. The share sets how screen time is split between tiers when a sponsor has no target of its own.</p>
+    <p class="saved" id="tierSaved" aria-live="polite"></p>
+  </section>
+
+  <section id="vacancySection">
+    <h2>Vacancy card</h2>
+    <p class="help" style="margin:0 0 10px">Shown in an empty tier's spots when it's set to <b>Advertise vacancy</b>, to find this competition a sponsor. Without a link or email it's never shown.</p>
+    <div class="grid">
+      <label>Heading <input type="text" id="vHeading" maxlength="60"></label>
+      <label>Contact name <input type="text" id="vContact" maxlength="60" placeholder="Who to talk to"></label>
+      <label style="grid-column:1/-1">Message <input type="text" id="vMessage" maxlength="160"></label>
+      <label style="grid-column:1/-1">Link or email for the QR code <input type="text" id="vLink" maxlength="300" placeholder="sponsorship@yourclub.com.au or a web page"></label>
+    </div>
+    <div class="qrbox" style="margin-top:12px">
+      <div class="qr" id="vQr">No link yet</div>
+      <div><div class="qrlink" id="vQrLink"></div><div class="row" style="margin-top:8px"><button class="alt small" id="vSave" type="button">Save QR code as PNG</button></div></div>
+    </div>
+    <p class="saved" id="vacancySaved" aria-live="polite"></p>
+  </section>
+</main>
+
+<dialog id="editor" aria-labelledby="edTitle">
+  <form method="dialog" id="edForm">
+    <h2 id="edTitle">Sponsor</h2>
+    <div class="grid">
+      <label class="field">Name <input type="text" id="edName" maxlength="60" required></label>
+      <label class="field">Tier on <span class="edComp"></span> <select id="edTier"></select></label>
+      <label class="field" style="grid-column:1/-1">Tagline <input type="text" id="edTagline" maxlength="120" placeholder="A short line about the sponsor"></label>
+      <label class="field">Website <input type="text" id="edWebsite" maxlength="300" placeholder="goldsbakery.com.au"></label>
+      <label class="field">Offer <input type="text" id="edOffer" maxlength="80" placeholder="10% off with code THUNDER"></label>
+      <label class="field">Brand colour <span id="edColour"></span></label>
+      <label class="field">Category <input type="text" id="edCategory" maxlength="40" placeholder="Physio, Bakery…" list="categories"></label>
+      <label class="field">Deal starts <input type="date" id="edStart"></label>
+      <label class="field">Deal ends <input type="date" id="edEnd"></label>
+      <label class="field">Target on screen per stream (minutes) <input type="number" id="edTargetMin" min="0" max="240" step="0.5" placeholder="None"></label>
+      <label class="field">Target ad plays per stream <input type="number" id="edTargetPlays" min="0" max="100" step="1" placeholder="None"></label>
+    </div>
+    <datalist id="categories"></datalist>
+    <p class="help">Category keeps competing sponsors (two physios) apart in rotation. Targets are optional: without one, the tier's share decides.</p>
+
+    <h3>Logos</h3>
+    <div class="logos2">
+      <div class="logoslot" data-which="logo"><div class="pic"></div><div><b>Colour logo</b></div>
+        <div class="row"><label class="btn alt small">Choose file<input type="file" accept="image/*"></label><button class="alt small" type="button" data-remove>Remove</button></div></div>
+      <div class="logoslot white" data-which="logoWhite"><div class="pic"></div><div><b>White logo</b>, for dark panels</div>
+        <div class="row"><label class="btn alt small">Choose file<input type="file" accept="image/*"></label><button class="alt small" type="button" data-remove>Remove</button></div></div>
+    </div>
+    <p class="help">Drop a file on either box. Without a white logo, graphics on dark panels make the colour logo white. PNG or SVG with a transparent background look best.</p>
+    <p class="help" id="edLogoNote" hidden>Save the sponsor first, then add its logos.</p>
+
+    <h3>QR code</h3>
+    <div class="qrbox">
+      <div class="qr" id="edQr">No website yet</div>
+      <div>
+        <label class="row" style="font-size:14px"><input type="checkbox" id="edTracking"> Add tracking tags, so visits from the stream show in the sponsor's website analytics</label>
+        <div class="qrlink" id="edQrLink"></div>
+        <div class="row" style="margin-top:8px"><button class="alt small" id="edQrSave" type="button">Save QR code as PNG</button></div>
+      </div>
+    </div>
+
+    <h3>Shown on</h3>
+    <table class="shown"><tbody id="edShown"></tbody></table>
+
+    <p class="error" id="edError" hidden></p>
+    <div class="dlgbuttons">
+      <button class="danger left" type="button" id="edDelete">Delete sponsor</button>
+      <button class="alt" value="cancel" formnovalidate>Cancel</button>
+      <button id="edSaveBtn" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="colourpicker.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const EMPTY = [['up', 'Push up'], ['down', 'Push down'], ['skip', 'Skip tier'], ['vacancy', 'Advertise vacancy']];
+let view = null, editing = null, editColour = '';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `Studio answered ${r.status}`);
+  return data;
+}
+const post = (path, body) => api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+const tierName = key => (view.tiers.find(t => t.key === key) || {}).name || key;
+const here = s => view.competition && s.competitions[view.competition.id];
+const share = n => n === 0.5 ? '½' : String(n);
+const flashSaved = (el, text = 'Saved') => { el.textContent = text; clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ''; }, 2500); };
+
+function render() {
+  const c = view.competition;
+  $('noComp').hidden = !!c;
+  for (const id of ['listSection', 'tierSection', 'vacancySection']) $(id).hidden = !c;
+  $('readOnlyNote').hidden = !view.readOnly;
+  if (!c) return;
+  $('compName').textContent = c.name;
+  document.querySelectorAll('.edComp').forEach(e => { e.textContent = c.name; });
+
+  // Sponsors, by tier
+  const list = $('tierList');
+  list.innerHTML = '';
+  for (const t of view.tiers) {
+    const inTier = view.sponsors.filter(s => here(s) && here(s).tier === t.key);
+    const div = document.createElement('div');
+    div.className = 'tier';
+    const rule = EMPTY.find(e => e[0] === t.empty)[1];
+    const emptyText = inTier.length ? '' : t.empty === 'vacancy' && !view.vacancyLink
+      ? 'No sponsor · Advertise vacancy, but the vacancy card has no link yet, so it skips'
+      : `No sponsor · ${rule}`;
+    div.innerHTML = `<div class="tier__head"><span class="pill ${t.key === 'naming' ? 'naming' : ''}">${esc(t.name)}</span>${emptyText ? `<span class="tier__empty">${esc(emptyText)}</span>` : ''}</div>`;
+    if (inTier.length) {
+      const cards = document.createElement('div');
+      cards.className = 'cards';
+      for (const s of inTier) cards.append(card(s));
+      div.append(cards);
+    }
+    list.append(div);
+  }
+
+  // Sponsors from other competitions (or none) that can be shown here too
+  const others = view.sponsors.filter(s => !here(s));
+  $('shareRow').hidden = !others.length;
+  $('shareWhich').innerHTML = others.map(s => {
+    const on = Object.keys(s.competitions).map(id => (view.competitions.find(c => c.id === id) || {}).name).filter(Boolean);
+    return `<option value="${esc(s.id)}">${esc(s.name)}${on.length ? ` (${esc(on.join(', '))})` : ''}</option>`;
+  }).join('');
+  $('shareTier').innerHTML = view.tiers.map(t => `<option value="${t.key}">${esc(t.name)}</option>`).join('');
+  $('shareTier').value = 'major';
+
+  // Tier names and empty rules
+  $('setNames').textContent = 'Names: ' + Object.values(view.nameSets.names).slice(1).join(', ');
+  $('setMetals').textContent = 'Metals: ' + Object.values(view.nameSets.metals).slice(1).join(', ');
+  document.querySelector(`input[name=set][value=${view.tierNames}]`).checked = true;
+  const own = view.tierNames === 'own';
+  $('tierRows').innerHTML = view.tiers.map(t => `<tr>
+    <td>${own ? `<input type="text" data-own="${t.key}" maxlength="30" value="${esc(view.ownNames[t.key] || '')}" placeholder="${esc(view.nameSets.names[t.key])}" aria-label="Name for the ${esc(view.nameSets.names[t.key])} tier">` : `<b>${esc(t.name)}</b>`}</td>
+    <td>${share(t.share)}</td>
+    <td><select data-empty="${t.key}" aria-label="When ${esc(t.name)} has no sponsor">${EMPTY.map(([v, l]) =>
+      `<option value="${v}" ${t.empty === v ? 'selected' : ''} ${(v === 'up' && t.key === 'naming') || (v === 'down' && t.key === 'supporter') ? 'disabled' : ''}>${l}${v === view.emptyDefaults[t.key] ? ' (default)' : ''}</option>`).join('')}</select></td></tr>`).join('');
+
+  // Vacancy card
+  for (const [f, el] of [['heading', 'vHeading'], ['message', 'vMessage'], ['contact', 'vContact'], ['link', 'vLink']]) {
+    if (document.activeElement !== $(el)) $(el).value = view.vacancy[f] || '';
+  }
+  $('vHeading').placeholder = view.vacancyDefaults.heading;
+  $('vMessage').placeholder = view.vacancyDefaults.message;
+  showQr($('vQr'), $('vQrLink'), view.vacancyLink ? `/api/sponsors/qr.svg?vacancy=1&t=${Date.now()}` : null, view.vacancyLink, 'No link yet');
+
+  document.querySelectorAll('main input, main select, main button').forEach(e => { if (view.readOnly && !e.closest('.fp-bar')) e.disabled = true; });
+}
+
+function card(s) {
+  const d = document.createElement('div');
+  d.className = 'sp' + (s.state === 'ended' ? ' ended' : '');
+  const meta = [s.website.replace(/^https?:\/\/(www\.)?|^mailto:/g, '').replace(/\/$/, ''), s.offer && `offer "${s.offer}"`,
+    s.targetSeconds && `${Math.round(s.targetSeconds / 6) / 10} min a stream`, s.targetPlays && `${s.targetPlays} ad plays`].filter(Boolean).join(' · ');
+  const others = Object.keys(s.competitions).filter(id => id !== view.competition.id).map(id => (view.competitions.find(c => c.id === id) || {}).name).filter(Boolean);
+  const state = s.state === 'ended' ? `<span class="pill ended">Ended ${esc(s.end)}</span>` : s.state === 'starts' ? `<span class="pill starts">Starts ${esc(s.start)}</span>` : '';
+  d.innerHTML = `<div class="sp__logo">${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="">` : esc(s.name.slice(0, 8).toUpperCase())}</div>
+    <div><div class="sp__name">${esc(s.name)} ${state}</div><div class="sp__meta">${esc(meta || 'No website yet')}</div>
+    ${others.length ? `<div class="sp__meta">Also on ${esc(others.join(', '))}</div>` : ''}</div>
+    <div><button class="alt small" type="button">Edit</button></div>`;
+  d.querySelector('button').onclick = () => openEditor(s);
+  return d;
+}
+
+function showQr(box, linkEl, src, link, none) {
+  box.innerHTML = src ? `<img src="${esc(src)}" alt="QR code">` : esc(none);
+  linkEl.textContent = link || '';
+}
+
+async function load() {
+  view = await api('/api/sponsors');
+  render();
+}
+
+// ─── Tiers and vacancy card: saved as they change ──────────────────────────
+let settingsTimer = null;
+function saveSettings(which) {
+  clearTimeout(settingsTimer);
+  settingsTimer = setTimeout(async () => {
+    const own = {};
+    document.querySelectorAll('[data-own]').forEach(i => { own[i.dataset.own] = i.value; });
+    const empty = {};
+    document.querySelectorAll('[data-empty]').forEach(s => { empty[s.dataset.empty] = s.value; });
+    const body = {
+      sponsorTierNames: document.querySelector('input[name=set]:checked').value,
+      sponsorEmpty: empty,
+      sponsorVacancy: { heading: $('vHeading').value, message: $('vMessage').value, contact: $('vContact').value, link: $('vLink').value },
+    };
+    if (Object.keys(own).length || body.sponsorTierNames !== 'own') body.sponsorOwnNames = Object.keys(own).length ? own : view.ownNames;
+    try {
+      view = await post('/api/sponsors/settings', body);
+      render();
+      flashSaved($(which === 'vacancy' ? 'vacancySaved' : 'tierSaved'));
+    } catch (err) { $(which === 'vacancy' ? 'vacancySaved' : 'tierSaved').textContent = err.message; }
+  }, 450);
+}
+$('sets').onchange = () => saveSettings('tiers');
+$('tierRows').addEventListener('change', () => saveSettings('tiers'));
+$('tierRows').addEventListener('input', e => { if (e.target.dataset.own) saveSettings('tiers'); });
+for (const id of ['vHeading', 'vMessage', 'vContact', 'vLink']) $(id).addEventListener('input', () => saveSettings('vacancy'));
+
+// ─── QR codes as PNG files ─────────────────────────────────────────────────
+async function savePng(src, name) {
+  const svg = await (await fetch(src)).text();
+  const img = new Image();
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = c.height = 1200;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, 0, 0, c.width, c.height);
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png');
+  a.download = `${name} QR code.png`;
+  a.click();
+}
+$('vSave').onclick = () => view.vacancyLink && savePng('/api/sponsors/qr.svg?vacancy=1', `${view.competition.name} sponsorship`);
+
+// ─── Sponsors ──────────────────────────────────────────────────────────────
+$('addSponsor').onclick = () => openEditor(null);
+$('shareAdd').onclick = async () => {
+  const s = view.sponsors.find(x => x.id === $('shareWhich').value);
+  if (!s) return;
+  view = await post('/api/sponsors', { ...s, competitions: { ...s.competitions, [view.competition.id]: { tier: $('shareTier').value } } });
+  render();
+};
+
+const colourField = ColourPicker.field('#2274a5', h => { editColour = h; }, { label: 'Brand colour' });
+$('edColour').append(colourField);
+
+function openEditor(s) {
+  editing = s ? JSON.parse(JSON.stringify(s)) : { id: '', name: '', tracking: true, competitions: { [view.competition.id]: { tier: 'major' } } };
+  $('edTitle').textContent = s ? s.name : 'New sponsor';
+  $('edName').value = editing.name;
+  $('edTier').innerHTML = `<option value="">Not shown</option>` + view.tiers.map(t => `<option value="${t.key}">${esc(t.name)}</option>`).join('');
+  $('edTier').value = (editing.competitions[view.competition.id] || {}).tier || '';
+  $('edTagline').value = editing.tagline || '';
+  $('edWebsite').value = (editing.website || '').replace(/^mailto:/, '');
+  $('edOffer').value = editing.offer || '';
+  $('edCategory').value = editing.category || '';
+  $('categories').innerHTML = [...new Set(view.sponsors.map(x => x.category).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join('');
+  $('edStart').value = editing.start || '';
+  $('edEnd').value = editing.end || '';
+  $('edTargetMin').value = editing.targetSeconds ? editing.targetSeconds / 60 : '';
+  $('edTargetPlays').value = editing.targetPlays || '';
+  $('edTracking').checked = editing.tracking !== false;
+  editColour = editing.colour || '';
+  colourField.setValue(editing.colour || '#2274a5');
+  $('edDelete').hidden = !s;
+  $('edError').hidden = true;
+  renderLogos();
+  renderShown();
+  renderEditorQr();
+  $('editor').showModal();
+}
+
+function renderLogos() {
+  $('edLogoNote').hidden = !!editing.id;
+  document.querySelectorAll('.logoslot').forEach(slot => {
+    const which = slot.dataset.which, url = editing.id && editing[which] ? `/sponsors/${editing.id}/${encodeURIComponent(editing[which])}?t=${Date.now()}` : null;
+    const made = !url && which === 'logoWhite' && editing.id && editing.logo ? `/sponsors/${editing.id}/${encodeURIComponent(editing.logo)}` : null;
+    slot.querySelector('.pic').innerHTML = url ? `<img src="${esc(url)}" alt="">`
+      : made ? `<img src="${esc(made)}" alt="" style="filter:brightness(0) invert(1)" title="Made from the colour logo">` : 'No logo';
+    slot.querySelector('[data-remove]').hidden = !url;
+    slot.querySelectorAll('input, button').forEach(e => { e.disabled = !editing.id || view.readOnly; });
+  });
+}
+
+function renderShown() {
+  $('edShown').innerHTML = view.competitions.filter(c => c.id !== view.competition.id).map(c => `<tr>
+    <td>${esc(c.name)}${c.sameOrganisation ? ' <span class="org">same organisation</span>' : ''}</td>
+    <td><select data-comp="${esc(c.id)}" aria-label="Tier on ${esc(c.name)}"><option value="">Not shown</option>${view.tiers.map(t =>
+      `<option value="${t.key}" ${(editing.competitions[c.id] || {}).tier === t.key ? 'selected' : ''}>${esc(view.nameSets.names[t.key])}</option>`).join('')}</select></td></tr>`).join('')
+    || `<tr><td class="empty">No other competitions yet. A sponsor can be shown on more than one, at its own tier in each.</td></tr>`;
+}
+
+let qrTimer = null;
+function renderEditorQr() {
+  clearTimeout(qrTimer);
+  qrTimer = setTimeout(() => {
+    const website = $('edWebsite').value.trim();
+    if (!editing.id || !website) {
+      showQr($('edQr'), $('edQrLink'), null, '', website ? 'Save the sponsor to see its QR code' : 'No website yet');
+      $('edQrSave').disabled = true;
+      return;
+    }
+    const src = `/api/sponsors/qr.svg?id=${encodeURIComponent(editing.id)}&link=${encodeURIComponent(website)}&tracking=${$('edTracking').checked ? 1 : 0}`;
+    const s = view.sponsors.find(x => x.id === editing.id);
+    showQr($('edQr'), $('edQrLink'), src, $('edTracking').checked ? (s && s.website === editing.website ? s.qrLink : '') : website, '');
+    $('edQrSave').disabled = false;
+    $('edQrSave').onclick = () => savePng(src, $('edName').value || 'Sponsor');
+  }, 300);
+}
+$('edWebsite').addEventListener('input', renderEditorQr);
+$('edTracking').addEventListener('change', renderEditorQr);
+
+function fromEditor() {
+  const comps = {};
+  document.querySelectorAll('[data-comp]').forEach(s => { if (s.value) comps[s.dataset.comp] = { tier: s.value }; });
+  if ($('edTier').value) comps[view.competition.id] = { tier: $('edTier').value };
+  return { ...editing, name: $('edName').value, tagline: $('edTagline').value, website: $('edWebsite').value, offer: $('edOffer').value,
+    category: $('edCategory').value, start: $('edStart').value, end: $('edEnd').value, colour: editColour,
+    targetSeconds: Math.round((Number($('edTargetMin').value) || 0) * 60), targetPlays: Number($('edTargetPlays').value) || 0,
+    tracking: $('edTracking').checked, competitions: comps };
+}
+
+async function saveSponsor() {
+  if (!$('edName').value.trim()) { $('edName').focus(); return false; }
+  try {
+    const wasNew = !editing.id;
+    const before = new Set(view.sponsors.map(s => s.id));
+    view = await post('/api/sponsors', fromEditor());
+    render();
+    if (wasNew) {
+      // Stay open on a new sponsor, so its logos can be added straight away.
+      const s = view.sponsors.find(x => !before.has(x.id));
+      if (s) { editing = JSON.parse(JSON.stringify(s)); $('edTitle').textContent = s.name; $('edDelete').hidden = false; renderLogos(); renderEditorQr(); return false; }
+    }
+    return true;
+  } catch (err) { $('edError').textContent = err.message; $('edError').hidden = false; return false; }
+}
+$('edForm').addEventListener('submit', async e => {
+  if (e.submitter && e.submitter.value === 'cancel') return;
+  e.preventDefault();
+  if (await saveSponsor()) $('editor').close();
+});
+$('edDelete').onclick = async () => {
+  const on = Object.keys(editing.competitions).length;
+  if (!confirm(`Delete ${editing.name}${on > 1 ? ` from all ${on} competitions it's shown on` : ''}, with its logos? To take it off just this competition, set its tier to Not shown.`)) return;
+  view = await api(`/api/sponsors?id=${encodeURIComponent(editing.id)}`, { method: 'DELETE' });
+  render();
+  $('editor').close();
+};
+
+async function uploadLogo(which, file) {
+  if (!file || !editing.id) return;
+  try {
+    view = await api(`/api/sponsors/logo?id=${encodeURIComponent(editing.id)}&which=${which}&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+    const s = view.sponsors.find(x => x.id === editing.id);
+    editing[which] = s[which];
+    render(); renderLogos();
+  } catch (err) { $('edError').textContent = err.message; $('edError').hidden = false; }
+}
+document.querySelectorAll('.logoslot').forEach(slot => {
+  const which = slot.dataset.which;
+  slot.querySelector('input[type=file]').onchange = e => uploadLogo(which, e.target.files[0]);
+  slot.querySelector('[data-remove]').onclick = async () => {
+    view = await api(`/api/sponsors/logo?id=${encodeURIComponent(editing.id)}&which=${which}`, { method: 'DELETE' });
+    editing[which] = '';
+    render(); renderLogos();
+  };
+  slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('over'); });
+  slot.addEventListener('dragleave', () => slot.classList.remove('over'));
+  slot.addEventListener('drop', e => { e.preventDefault(); slot.classList.remove('over'); uploadLogo(which, e.dataTransfer.files[0]); });
+});
+
+load().catch(err => { document.querySelector('main').insertAdjacentHTML('beforeend', `<p class="error">${esc(err.message)}</p>`); });
+</script>
+</body>
+</html>

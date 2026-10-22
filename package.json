@@ -18,7 +18,8 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
-    "electron-updater": "6.8.10"
+    "electron-updater": "6.8.10",
+    "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
     "electron": "44.8.0",
@@ -46,6 +47,7 @@
       "sequences.js",
       "music.js",
       "fonts.js",
+      "sponsors.js",
       "config.json",
       "public/**/*",
       "imports/**/*",
