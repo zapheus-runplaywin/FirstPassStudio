@@ -590,6 +590,20 @@ sponsor has no target of its own.
 `GET /api/sponsors/pick?tier=major&place=card` says which sponsors fill a tier's spots in the competition in use after
 those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pushed from an empty tier, `{ vacancy }` or `{ skip: true }`.
 
+### Sponsors on the graphics
+
+- **Sponsor card** (`/sponsor.html`, breaks) and **sponsor wall** (`/sponsorwall.html`, pre-game): see the Graphics page.
+  The card shows the next sponsor in rotation from Major and up, by tier share, never the same one twice running.
+- **Naming rights** (the naming rights tier, or what its empty-tier rule gives instead): a "Presented by" tab over the
+  home team on the scoreboard (checked every 5 minutes), a pill under the title banner, and a line under the countdown.
+- **Rotation, Major and up:** the footer of the game stats, shooting stats and top shooters cards; each time a card
+  comes on it's the next sponsor's turn.
+- **Ticker:** the next sponsor in rotation from Partner and up leads the line of scores, with its tagline.
+- **End of night card** (Up next after the last game): "Thanks to our sponsors" with their logos, Major and up
+  (`?sponsors=all` every tier, `?sponsors=0` none).
+- Every spot takes `?sponsor=0` for none or `?sponsor=Golds%20Bakery` to always show one sponsor. With no sponsors the
+  graphics look as they always did.
+
 ## Athlete photos and position match ups
 
 http://localhost:8080/athletes.html (**Athletes** in the menu) keeps a photo of each athlete for the competition in use.

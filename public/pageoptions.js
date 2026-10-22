@@ -24,6 +24,9 @@ const PAGE_OPTIONS = (() => {
     { key: 'bg2', label: 'Background edge', type: 'text', placeholder: 'a darker shade', help: 'The gradient\'s edge colour, like 1e293b.' },
     { key: 'bgimage', label: 'Background picture', type: 'text', placeholder: 'none', help: 'A file in the competition\'s brand folder, like court.jpg, or a full link.' },
   ];
+  // A sponsor spot (sponsorspot.js): the competition's sponsor by default, 0 for none, or a sponsor's name.
+  const spot = (placeholder, picks = [['', 'From the Sponsors page'], ['0', 'None']]) => ({ key: 'sponsor', label: 'Sponsor', type: 'text', placeholder, picks,
+    help: 'A sponsor\'s name as on the Sponsors page to always show that one, or 0 for no sponsor.' });
   const LOGO_TEMPLATES = ['fun', 'pro', 'coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net'];
 
   return {
@@ -31,10 +34,12 @@ const PAGE_OPTIONS = (() => {
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Bottom centre, above the ticker'], ['bottom-center', 'Bottom centre (no gap for the ticker)'], ['top-center', 'Top centre'], ['top-left', 'Top left'], ['bottom-left', 'Bottom left']] },
       { key: 'supershot', label: 'Super shot tab', type: 'select', choices: [['', 'On, in the super shot minutes'], ['0', 'Off']],
         help: 'A small "Super shot" tab above the clock in the last minutes of each quarter (3 unless the competition setup says otherwise), for divisions with super shots.' },
+      spot('naming rights sponsor, in a tab over the home team'),
     ],
     'ticker.html': [
       { key: 'speed', label: 'Speed', type: 'number', min: 20, max: 600, unit: 'px a second', placeholder: 'from the control page' },
       { key: 'refresh', label: 'Update scores every', type: 'number', min: 0, max: 3600, unit: 's', placeholder: '30', help: '0 loads them once.' },
+      spot('next sponsor in rotation, Partner and up, first in the line'),
     ],
     'title.html': [
       { key: 'emoji', label: 'Emoji either side', type: 'text', placeholder: 'None',
@@ -43,6 +48,7 @@ const PAGE_OPTIONS = (() => {
       { key: 'logo', label: 'Competition logo', type: 'select', choices: [['', 'Off'], ['show', 'Above the banner']] },
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Top'], ['bottom', 'Bottom']] },
       mode(),
+      spot('naming rights sponsor, under the banner'),
     ],
     'branding.html': [
       show('pivt', 'PIVT logo'), show('studio', 'FirstPass Studio logo'), show('comp', 'Competition logo'),
@@ -57,12 +63,14 @@ const PAGE_OPTIONS = (() => {
       { key: 'fade', label: 'Fade out over the last', type: 'number', min: 2, max: 60, unit: 's', placeholder: 'no fade' },
       show('teams', 'Teams', 'Clock only'),
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Middle'], ['top', 'Top'], ['bottom', 'Bottom']] },
+      spot('naming rights sponsor, under the clock'),
     ],
     'matchup.html': [show('form', 'Form'), show('h2h', 'Head to head')],
     'upnext.html': [
       { key: 'wrap', label: 'End of night card', type: 'select', choices: [['', 'After the last game of the night'], ['1', 'Show it now'], ['0', 'Never']] },
       { key: 'message', label: 'Invite line', type: 'text', placeholder: 'Join us again next week', help: 'Replaces the line saying when to join again.' },
       mode(),
+      { key: 'sponsors', label: 'Sponsors on the end of night card', type: 'select', choices: [['', 'Major and up'], ['all', 'Every tier'], ['0', 'None']] },
     ],
     'clash.html': [
       out(),
@@ -79,7 +87,7 @@ const PAGE_OPTIONS = (() => {
       show('waiting', 'Message before live scoring'),
     ],
     'teamlist.html': [{ key: 'side', label: 'Team', type: 'select', choices: [['', 'Home'], ['away', 'Away']] }],
-    'shooting.html': [title('default')],
+    'shooting.html': [title('default'), spot('next sponsor in rotation, Major and up, in the footer')],
     'goals.html': [
       { key: 'layout', label: 'Layout', type: 'select', choices: [['', 'Horizontal (above the scoreboard)'], ['vertical', 'Vertical']] },
       { key: 'count', label: 'Goals', type: 'number', min: 3, max: 30, placeholder: '10' },
@@ -92,6 +100,21 @@ const PAGE_OPTIONS = (() => {
       title('Game stats'),
       show('quarters', 'Score by quarter'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
       show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'),
+      spot('next sponsor in rotation, Major and up, in the footer'),
+    ],
+    'sponsor.html': [
+      { key: 'sponsor', label: 'Sponsor', type: 'text', placeholder: 'the next one in rotation', help: 'A sponsor\'s name as on the Sponsors page, to always show that one.' },
+      { key: 'tiers', label: 'Tiers in rotation', type: 'select', choices: [['', 'Major and up'], ['naming,elite', 'Elite and up'], ['naming', 'Naming rights only'], ['naming,elite,major,partner,supporter', 'Every tier']] },
+      title('Brought to you by'),
+      show('offer', 'Offer'), show('tagline', 'Tagline'), show('qr', 'QR code'),
+      out(),
+    ],
+    'sponsorwall.html': [
+      title('Proudly supported by'),
+      { key: 'tiers', label: 'Tiers', type: 'select', choices: [['', 'Every tier'], ['naming,elite,major', 'Major and up'], ['naming,elite,major,partner', 'Partner and up']] },
+      { key: 'names', label: 'Sponsor names', type: 'select', choices: [['', 'Logos only'], ['1', 'Under each logo']] },
+      show('tiernames', 'Tier names'),
+      out(),
     ],
     'worm.html': [
       title('Score worm'),
@@ -166,6 +189,7 @@ const PAGE_OPTIONS = (() => {
       division,
       { key: 'sort', label: 'Order by', type: 'select', choices: [['', 'Points (goals + 2 per super shot)'], ['goals', 'Goals'], ['super', 'Super shots']] },
       { key: 'limit', label: 'Shooters', type: 'number', min: 1, max: 20, placeholder: '8' },
+      spot('next sponsor in rotation, Major and up, in the footer'),
     ],
     'introoutro.html': [
       { key: 'type', label: 'Intro or outro', type: 'select', choices: [['', 'Intro: welcome to the competition'], ['outro', 'Outro: last game of the night, join us again']] },

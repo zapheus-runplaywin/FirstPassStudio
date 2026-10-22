@@ -44,6 +44,10 @@
       each with its colour and white logos, tagline, website, offer, brand colour, category, deal dates and optional targets, and a QR code to its website (made on this Mac, with tracking tags for the sponsor's website analytics unless turned off; <b>Save QR code as PNG</b> gives a copy).
       A sponsor can be shown on more than one competition at its own tier in each, and is kept once. For each tier, pick what its spots do when it has no sponsor:
       <b>Push up</b> or <b>Push down</b> to the nearest tier with one, <b>Skip tier</b>, or <b>Advertise vacancy</b> with the competition's vacancy card (heading, message, contact and a link or email for its QR code; never shown without one).</p>
+    <p class="page__help"><b>Sponsors on the graphics:</b> the naming rights sponsor (or what its empty-tier rule gives instead) is a <b>Presented by</b> tab over the home team on the scoreboard, a pill under the title banner and a line under the countdown.
+      The game stats, shooting stats and top shooters cards carry the next sponsor in rotation from Major and up in their footer, the ticker leads with the next from Partner and up, and the end of night card (Up next after the last game) thanks the sponsors from Major and up with their logos
+      (<code style="display:inline">?sponsors=all</code> every tier, <code style="display:inline">?sponsors=0</code> none).
+      On any of them, <code style="display:inline">?sponsor=0</code> leaves the sponsor off and <code style="display:inline">?sponsor=Golds%20Bakery</code> always shows that one; set it in the source's options on the Output page. With no sponsors they look as they always did.</p>
     <p class="page__help">The <a href="/athletes.html" target="_blank">Athletes page</a> keeps a photo of each athlete for the position match ups.
       Pick a team to see every athlete in its PlayHQ line ups this season and add a photo to each (or drop one onto them).
       Teams are listed by division, so a club with a team in more than one division (Knights) has a button in each, showing that division's line ups.
@@ -521,7 +525,17 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   '<b>Finals are next</b> after the last round when PlayHQ has no finals fixtures yet and a finals format is set, and after that <b>the last game of the season</b> with a thank you (or congratulations to the champions after a final). ' +
   'The next round is the first one dated after tonight in any division. ' +
   'Options: <code>?wrap=1</code> shows the end of night card now (to check it, or to close a stream early), <code>?wrap=0</code> never shows it (the old message instead), ' +
-  '<code>?message=See%20you%20at%20finals</code> changes the invite line and <code>?mode=dark</code> uses the dark mode competition logo.'], ['Countdown to the start of the game', '/countdown.html',
+  '<code>?message=See%20you%20at%20finals</code> changes the invite line and <code>?mode=dark</code> uses the dark mode competition logo.'], ['Sponsor card (breaks)', '/sponsor.html',
+  'A sponsor of the competition in use from the <a href="/sponsors.html" target="_blank">Sponsors page</a>: its logo on a white plate, name, tagline, offer, website and a QR code to its website, edged in the sponsor\'s brand colour. ' +
+  'Each time it comes on it shows the <b>next sponsor in rotation</b> from Major and up: each sponsor\'s turn comes round by its tier\'s share (a sponsor pushed into an empty tier gets that tier\'s share too), never the same one twice running, and not one in the same category as the last while there\'s another. ' +
+  'An empty tier set to <b>Advertise vacancy</b> puts the competition\'s vacancy card in the rotation (heading, message, contact and its QR code). Turns are counted while Studio runs. ' +
+  'Options: <code>?sponsor=Golds%20Bakery</code> always shows one sponsor, <code>?tiers=naming,elite</code> changes the tiers in rotation (<code>naming</code>, <code>elite</code>, <code>major</code>, <code>partner</code>, <code>supporter</code>), <code>?title=Quarter%20time%20is%20brought%20to%20you%20by</code> changes the heading, ' +
+  '<code>?offer=0</code>, <code>?tagline=0</code> and <code>?qr=0</code> leave those out, and <code>?out=12</code> animates it away after 12 seconds (and switches its source off).'],
+ ['Sponsor wall (pre-game)', '/sponsorwall.html',
+  'Every sponsor of the competition in use, sized by tier with naming rights biggest, and the vacancy card (with its QR code) in an empty tier set to Advertise vacancy. Sponsors outside their deal dates are left out. ' +
+  'Options: <code>?title=Tonight\'s%20stream%20is%20proudly%20supported%20by</code> changes the heading, <code>?tiers=naming,elite,major</code> shows only some tiers, <code>?names=1</code> puts each sponsor\'s name under its logo, ' +
+  '<code>?tiernames=0</code> leaves the tier names out, and <code>?out=12</code> animates it away after 12 seconds.'],
+ ['Countdown to the start of the game', '/countdown.html',
   'Counts down (days, hours, minutes and seconds as needed) to the scheduled start time from PlayHQ of the game picked on the control page, with both teams, their logos, the division, round, court, time and venue. ' +
   'The clock ticks in the page, so it can stay on screen: every 5 seconds it checks with Studio which game is picked (PlayHQ is not asked), so when a new game is picked, by hand or by automatic game selection, it counts down to that one. ' +
   'The last 10 seconds pulse in the accent colour, and at zero it shows <b>STARTING SOON</b> until the next game is picked. ' +

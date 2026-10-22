@@ -194,6 +194,83 @@ function vacancy(settings) {
   return { heading: v.heading || VACANCY_DEFAULTS.heading, message: v.message || VACANCY_DEFAULTS.message, contact: v.contact || '', link: cleanLink(v.link) };
 }
 
+// ─── Rotation ───────────────────────────────────────────────────────────────
+// Graphics that rotate (the sponsor card) ask for the next sponsor each time they come on. Every
+// sponsor filling the tiers' spots is a candidate with its tier's share (a pushed sponsor gets the
+// share of the empty tier it fills too); the vacancy card is one when a tier advertises it. The one
+// shown least for its share goes next, never the one just shown, and not one in the same category as
+// it while there's another. Showings are counted while Studio runs, per competition and place.
+const shown = new Map();   // "competition place" -> { counts: Map(id -> n), last: { id, category } }
+const CARD_TIERS = ['naming', 'elite', 'major'];
+function candidates(compId, tiers, place, opts = {}) {
+  const out = new Map();
+  for (const t of tiers) {
+    const r = pick(compId, t, { ...opts, place });
+    if (r.sponsors) for (const s of r.sponsors) {
+      const c = out.get(s.id) || { id: s.id, sponsor: s, tier: s.competitions[compId].tier, weight: 0 };
+      c.weight += SHARES[t];
+      out.set(s.id, c);
+    } else if (r.vacancy) {
+      const c = out.get('vacancy') || { id: 'vacancy', vacancy: r.vacancy, tier: t, weight: 0 };
+      c.weight += SHARES[t];
+      out.set('vacancy', c);
+    }
+  }
+  return [...out.values()];
+}
+function next(compId, opts = {}) {
+  const place = opts.place || 'card';
+  const tiers = (opts.tiers && opts.tiers.length ? opts.tiers : CARD_TIERS).filter(t => TIERS.includes(t));
+  const key = `${compId} ${place}`;
+  const st = shown.get(key) || { counts: new Map(), last: null };
+  shown.set(key, st);
+  let list = candidates(compId, tiers, place, opts);
+  if (!list.length) return null;
+  const count = id => st.counts.get(id) || 0;
+  const category = c => (c.sponsor && c.sponsor.category || '').toLowerCase();
+  if (list.length > 1 && st.last) {
+    const notLast = list.filter(c => c.id !== st.last.id);
+    const apart = st.last.category ? notLast.filter(c => category(c) !== st.last.category) : notLast;
+    list = apart.length ? apart : notLast;
+  }
+  const chosen = list.slice().sort((a, b) => count(a.id) / a.weight - count(b.id) / b.weight || b.weight - a.weight
+    || TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) || String(a.id).localeCompare(String(b.id)))[0];
+  if (opts.count !== false) {
+    st.counts.set(chosen.id, count(chosen.id) + 1);
+    st.last = { id: chosen.id, category: category(chosen) };
+  }
+  return chosen;
+}
+// A sponsor named in a link: its id, or its name as on the Sponsors page.
+function find(nameOrId) {
+  const want = String(nameOrId || '').trim();
+  return all().find(s => s.id === want) || all().find(s => s.name.toLowerCase() === want.toLowerCase()) || all().find(s => s.id === slug(want)) || null;
+}
+
+// What a graphic needs to draw a sponsor: logos as links, the tier's name and the tracked QR link.
+function forGraphic(s, compId, place, settings) {
+  settings = settings || competitions.get(compId);
+  const tier = s.competitions[compId] && s.competitions[compId].tier;
+  return { id: s.id, name: s.name, tagline: s.tagline, offer: s.offer, colour: s.colour, category: s.category,
+    website: s.website.replace(/^https?:\/\/(www\.)?|^mailto:/g, '').replace(/\/$/, ''),
+    logoUrl: logoUrl(s, 'logo'), logoWhiteUrl: logoUrl(s, 'logoWhite'),
+    tier: tier || null, tierName: tier ? competitions.sponsorTiers(settings).find(t => t.key === tier).name : null,
+    qrLink: trackedLink(s, { competition: settings.name, place }) };
+}
+
+// The sponsor wall: every tier with a sponsor, top first, and a vacancy tile in an empty tier that
+// advertises it. Pushing up or down doesn't apply: each sponsor is on the wall once, in its own tier.
+function wall(compId, opts = {}) {
+  const settings = competitions.get(compId);
+  const list = onCompetition(compId, opts);
+  const tiers = (opts.tiers && opts.tiers.length ? opts.tiers : TIERS).filter(t => TIERS.includes(t));
+  const v = vacancy(settings);
+  return competitions.sponsorTiers(settings).filter(t => tiers.includes(t.key)).map(t => {
+    const sponsors = list.filter(s => s.competitions[compId].tier === t.key).map(s => forGraphic(s, compId, 'wall', settings));
+    return { key: t.key, name: t.name, sponsors, ...(!sponsors.length && t.empty === 'vacancy' && v.link ? { vacancy: v } : {}) };
+  }).filter(t => t.sponsors.length || t.vacancy);
+}
+
 // ─── QR codes ───────────────────────────────────────────────────────────────
 // A sponsor's website with tracking tags (utm_source/medium/campaign/content) for their website
 // analytics, unless the sponsor has them turned off or the link already has its own.
@@ -328,6 +405,28 @@ async function route(req, res, url, ctx) {
     send(res, 200, qrSvg(link).svg, 'image/svg+xml');
     return true;
   }
+  if (p === '/api/sponsors/next') {
+    if (!compId) { send(res, 200, { none: true }); return true; }
+    const place = q.place || 'card';
+    const tiers = q.tiers ? q.tiers.split(',') : null;
+    let c;
+    if (q.sponsor) {
+      const s = find(q.sponsor);
+      c = s ? { id: s.id, sponsor: s } : null;
+      if (!c) log('warn', 'sponsors', `No sponsor "${q.sponsor}" for the ${place}`);
+    } else c = next(compId, { place, tiers, count: q.count !== '0' });
+    const settings = competitions.get(compId);
+    if (!c) send(res, 200, { none: true });
+    else if (c.vacancy) send(res, 200, { vacancy: c.vacancy, tier: c.tier, competition: settings.displayName || settings.competitionName || settings.name });
+    else send(res, 200, { sponsor: forGraphic(c.sponsor, compId, place, settings) });
+    if (c && !q.sponsor && q.count !== '0') log('info', 'sponsors', `${place}: ${c.vacancy ? 'the vacancy card' : `"${c.sponsor.name}"`} is next`);
+    return true;
+  }
+  if (p === '/api/sponsors/wall') {
+    const settings = compId ? competitions.get(compId) : competitions.get();
+    send(res, 200, { competition: settings.displayName || settings.competitionName || settings.name, tiers: compId ? wall(compId, { tiers: q.tiers ? q.tiers.split(',') : null }) : [] });
+    return true;
+  }
   if (p === '/api/sponsors/pick') {
     if (!compId) { send(res, 200, { skip: true }); return true; }
     const r = pick(compId, q.tier, { place: q.place });
@@ -340,4 +439,4 @@ async function route(req, res, url, ctx) {
   return false;
 }
 
-module.exports = { init, all, byId, save, remove, saveLogo, removeLogo, logoFile, pick, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };
+module.exports = { init, all, byId, find, save, remove, saveLogo, removeLogo, logoFile, pick, next, wall, forGraphic, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };
