@@ -129,7 +129,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
   <div class="eyebrow">FirstPass Studio · Design · issue #180</div>
   <h1>Sponsors that <em>show up</em>, and proof that they did</h1>
   <p class="lede">A sponsor library in Studio, placements across in-game, break, pre-game and post-game graphics, sponsor video ads that rotate fairly through sequences, a QR code per sponsor, live viewer numbers from YouTube and Facebook, and an exposure report to hand each sponsor after the night.</p>
-  <p class="muted">Design agreed with Matt on 22 October 2026; the answers are in Decided at the end. Built in the PRs listed under Build order.</p>
+  <p class="muted">Design agreed with Matt on 22 October 2026 and built the same day (PRs #184 to #195, listed under Build order). This page now describes what Studio does; "As built" notes mark where it differs from the first design.</p>
   <nav class="toc" aria-label="Sections">
     <a href="#library">Sponsor library</a><a href="#placements">Placements</a><a href="#ads">Video ads</a><a href="#rotation">Rotation</a>
     <a href="#qr">QR codes</a><a href="#viewers">Viewer numbers</a><a href="#report">Exposure report</a><a href="#ideas">Marketing ideas</a>
@@ -250,24 +250,24 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
   <div class="grid2">
     <div class="card">
       <h3>New sequence step: Sponsor ads</h3>
-      <p>Instead of naming one video, a step says "play <b>1</b> sponsor ad" (or 2, or "fill 60 s"). When the step starts, the rotation picks which ad, Studio plays it in a shared <b>Sponsor ad</b> source, and the step lasts as long as that ad. The quarter time sequence then never needs editing as sponsors come and go.</p>
+      <p>Instead of naming one video, a step says "play <b>1 to 5</b> sponsor ads" (<b>+ Add sponsor ads</b>). When each one starts, the rotation picks which ad, Studio plays it in its own <b>Sponsor ad (video)</b> or <b>Sponsor ad (still)</b> source, and it lasts as long as that ad. The quarter time sequence then never needs editing as sponsors come and go. An ad whose file has left the media folder is passed over.</p>
     </div>
     <div class="card">
       <h3>Still ads and the PIVT ad</h3>
-      <p>A still ad card (a sponsor's own designed PNG) plays for a set time, 8 s by default. The existing PIVT and FirstPass Studio ad (<code>ad.html</code>) can join the rotation as a house ad that fills any gap when no sponsor is due.</p>
+      <p>A still ad card (a sponsor's own designed PNG) plays for a set time, 3 to 60 s, 8 s by default. Up to 10 ads per sponsor, added in the sponsor's editor. The PIVT and FirstPass Studio ad (<code>ad.html</code>) plays as the <b>House ad</b> when no sponsor has an ad, unless the step's tick box is off; then the step goes straight on.</p>
     </div>
   </div>
-  <p class="muted">Ads keep the current sound rules: music fades out and pauses under an ad with sound, and fades back after. A Stream Deck <code>/deck/sponsor/ad</code> link plays the next due ad by hand.</p>
+  <p class="muted">Ads keep the current sound rules: music fades out and pauses under an ad with sound, and fades back after. A Stream Deck <code>/deck/sponsor/ad</code> link plays the next ad by hand. <b>As built:</b> the link is there; a dedicated Stream Deck plugin key isn't yet.</p>
 </section>
 
 <section id="rotation">
   <h2>4. Fair rotation</h2>
   <p>One rotation decides every "rotate" placement and every Sponsor ads step, so a sponsor's share holds across graphics and ads together.</p>
   <ol>
-    <li><b>Who is furthest behind</b> their target (or their tier share) for tonight goes next.</li>
+    <li><b>Turns by tier share</b>: the sponsor with the fewest turns for its tier's share goes next. <b>As built:</b> turns are counted while Studio runs, per kind of spot; targets are measured in the report rather than steering the rotation.</li>
     <li><b>Never the same sponsor twice in a row</b>, and a sponsor's own ads take turns.</li>
     <li><b>Competitors kept apart</b>: sponsors in the same category (two physios) are never back to back. Category is an optional field.</li>
-    <li><b>Only on air counts</b>: time is counted while a video output is on (or, for pages used on their own, while the page is visible), so rehearsals before the stream don't use up a sponsor's share.</li>
+    <li><b>Only on air counts</b> in the report: time is counted while a video output is on, so rehearsals before the stream don't count (a tick box includes them, for a stream sent some other way).</li>
   </ol>
 </section>
 
@@ -283,30 +283,31 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
 
 <section id="viewers">
   <h2>6. Live viewer numbers</h2>
-  <p>Both platforms give a live viewer count, and Studio can read it the same way it reads PlayHQ: the helper on the Mac polls while on air and pages only talk to the helper. An MCP server isn't the right tool here; MCP is how Claude reaches a service, not how a running app does. Studio calls the platforms directly with a key or token Matt sets once, and keeps it in the Mac's keychain, never in the settings folder that can sync to iCloud.</p>
+  <p>Both platforms give a live viewer count, and Studio reads it the same way it reads PlayHQ: the helper on the Mac asks while on air and pages only talk to the helper. Studio calls the platforms directly; no MCP server is involved.</p>
+  <p><b>As built:</b> each competition's admin lists where it streams under <b>Live viewers</b> on Competitions setup: any number of YouTube channels and Facebook Pages, since a competition may stream to several. Studio adds them up. Keys and tokens are kept on that Mac only (<code>stream-keys.json</code> in the local folder), never in iCloud, templates or exports. <b>Check now</b> shows each stream's number or what's wrong.</p>
   <div class="grid2">
     <div class="card">
       <h3>YouTube <span class="tag">straightforward</span></h3>
       <p>The YouTube Data API returns <code>concurrentViewers</code> for a live video (<code>videos.list</code>, part <code>liveStreamingDetails</code>). A free API key from Google Cloud is enough for a public stream; no sign-in.</p>
-      <p>Studio finds tonight's live video from the channel once (a search that costs 100 of the 10,000 free daily units), or Matt pastes the stream link. Polling every 30 s for a 4 hour night costs about 480 units.</p>
+      <p>Studio finds tonight's live video from the channel's ID or @handle (a search that costs 100 of the 10,000 free daily units, at most every 5 minutes and only until it finds one), or the admin pastes the stream link. Reading every 30 s for a 4 hour night costs about 480 units.</p>
       <p class="muted">The count is missing if the channel hides live viewer counts.</p>
     </div>
     <div class="card">
       <h3>Facebook <span class="tag">more setup</span></h3>
-      <p>A Page's live video has a <code>live_views</code> field, "the instant viewer count of the live video now". Reading it needs a Page access token, which means a free Meta developer app with Matt as its admin and a one-time "Connect Facebook" sign-in from Studio.</p>
-      <p>An app used only by its own admins works without Meta's App Review. A long-lived Page token doesn't expire unless the password or permissions change. I'll confirm the exact permissions against Matt's Page while building.</p>
+      <p>A Page's live video has a <code>live_views</code> field, "the instant viewer count of the live video now". Reading it needs a Page access token, from a free Meta developer app the Page's admin makes; the admin pastes the token into setup (the setup page explains how to get one).</p>
+      <p>An app used only by its own admins works without Meta's App Review. A long-lived Page token doesn't expire unless the password or permissions change.</p>
     </div>
   </div>
   <div class="screen" role="img" aria-label="Mockup: viewer numbers on the Output page">
     <div class="bar"><b>Output</b><span>Graphics</span><span>Scoreboard control</span><span>Competitions setup</span><span>Athletes</span><span>Stream Deck</span></div>
     <div class="body"><div class="live"><span class="pill"><span class="dot"></span>YouTube 143 watching</span><span class="pill"><span class="dot"></span>Facebook 61 watching</span><span class="pill">Peak tonight 231 · Q2 2:10</span></div></div>
   </div>
-  <p>Viewer numbers go on the Output page and into the exposure report. An on-screen "204 watching" graphic is possible, but small numbers can look worse than none, so it's off unless asked for. If the stream goes through a multistream service such as Restream, its API could give one combined number instead; that depends on how PIVT streams.</p>
+  <p>Viewer numbers go on the Output page and into the exposure report as viewer-minutes, with the night's peak and average. <b>Next:</b> an optional on-screen viewers graphic (a "204 watching" tab in game, "peak 312 tonight" at the end), hidden below a minimum the competition sets, since small numbers can look worse than none.</p>
 </section>
 
 <section id="report">
   <h2>7. Exposure report (proof of play)</h2>
-  <p>This is the piece that sells the next season. Studio logs every time a sponsor is on air: which placement, from when to when, and the viewer count at the time. After the night, a report page shows each sponsor what they got, and saves as a PDF to email them.</p>
+  <p>This is the piece that sells the next season. Studio logs every time a sponsor is on air: which placement, from when to when, and the viewer count at the time. After the night, the <b>Sponsor report</b> (from the Sponsors page) shows each sponsor what they got, and prints or saves as a PDF to email them. The Sponsors page shows tonight so far on each sponsor's card, against their target.</p>
   <div class="tblwrap"><table>
     <thead><tr><th>Sponsor</th><th>On screen</th><th>Ad plays</th><th>QR on screen</th><th>Viewer-minutes</th><th>vs target</th></tr></thead>
     <tbody>
@@ -315,7 +316,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
       <tr><td>Scarborough Surf Club</td><td class="num">4:30</td><td class="num">–</td><td class="num">0:40</td><td class="num">690</td><td><div class="bar-cell"><i class="t" style="width:120px"></i><span class="muted">no target</span></div></td></tr>
     </tbody>
   </table></div>
-  <p class="muted">Example numbers. Viewer-minutes adds up viewers × minutes on screen. The report also lists each showing with a time and placement, and a few still frames grabbed from the output as proof. Season totals roll up from each night.</p>
+  <p class="muted">Example numbers. Viewer-minutes adds up viewers × minutes on screen. The report also lists each showing with a time, place and source. Pick tonight, any nights or the whole season. <b>As built:</b> Studio counts what plays through the scene (a page used on its own elsewhere isn't seen); still frames as proof aren't built.</p>
 </section>
 
 <section id="ideas">
@@ -333,15 +334,15 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
 
 <section id="ship">
   <h2>9. Build order</h2>
-  <p>Each step is its own PR, usable on its own. Only the first carries the minor version label.</p>
+  <p>Each step was its own PR, usable on its own. Only the first carried the minor version label. All built on 22 October 2026.</p>
   <ol class="ship">
-    <li><div><b>The Sponsors tab.</b> The library, tiers and their names, empty-tier rules, the vacancy card, logos, link, offer, deal dates, QR preview and Save QR as PNG. Data version bump.</div></li>
-    <li><div><b>Sponsor card and sponsor wall.</b> <code>sponsor.html</code> and <code>sponsorwall.html</code> with rotation, on the Graphics page, Output page page options and examples. MP4 preview.</div></li>
-    <li><div><b>Sponsors on existing graphics.</b> Naming rights on title, countdown and scoreboard tab; ticker slot; presented-by footers; end of night strip.</div></li>
-    <li><div><b>Sponsor ads in sequences.</b> Ads on a sponsor, the Sponsor ads step, fair rotation, the house ad, <code>/deck/sponsor/ad</code> and a Stream Deck key.</div></li>
-    <li><div><b>Exposure report.</b> On-air log, report page per night and season, saved as PDF, targets shown on the setup list.</div></li>
-    <li><div><b>Viewer numbers.</b> YouTube first, then Facebook, on the Output page and in the report.</div></li>
-    <li><div><b>Sponsored moments.</b> Presented-by tags on super shot, streaks and moments.</div></li>
+    <li><div><b>The Sponsors tab</b> (#184, #186; templates #188; Pull up / Pull down #191). The library, tiers and their names, empty-tier rules, the vacancy card, logos, link, offer, deal dates, QR preview and Save QR as PNG. Data version bump.</div></li>
+    <li><div><b>Sponsor card and sponsor wall</b> (#185). <code>sponsor.html</code> and <code>sponsorwall.html</code> with rotation, on the Graphics page, Output page page options and examples. MP4 preview.</div></li>
+    <li><div><b>Sponsors on existing graphics</b> (#187). Naming rights on title, countdown and scoreboard tab; ticker slot; presented-by footers; end of night strip.</div></li>
+    <li><div><b>Sponsor ads in sequences</b> (#192). Ads on a sponsor, the Sponsor ads step, fair rotation, the house ad, <code>/deck/sponsor/ad</code> (a Stream Deck key to follow).</div></li>
+    <li><div><b>Exposure report</b> (#193). On-air log, report page per night and season, saved as PDF, targets shown on the setup list.</div></li>
+    <li><div><b>Viewer numbers</b> (#195). YouTube and Facebook together, any number of each per competition, on the Output page and in the report.</div></li>
+    <li><div><b>Sponsored moments</b> (#194). "Brought to you by" tags on the super shot, streaks and moments; each moment owned by one sponsor or the Elite sponsors taking turns.</div></li>
   </ol>
 </section>
 
@@ -353,9 +354,9 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: now
     <li><b>Tiers.</b> Five: Naming rights, Elite, Major, Partner, Supporter, renamed per competition (Names, Metals or its own), screen share 5 : 3 : 2 : 1 : ½.</li>
     <li><b>Empty tiers.</b> A per-tier setting: Pull up, Pull down, Skip tier or Advertise vacancy. The vacancy card is the competition admin's, not PIVT's.</li>
     <li><b>Guaranteed exposure.</b> Optional targets per sponsor; the report is always there. <span class="def">[default]</span></li>
-    <li><b>Viewer count on screen.</b> Output page and reports only. <span class="def">[default]</span></li>
+    <li><b>Viewer count on screen.</b> Output page and reports, plus an optional viewers graphic for competitions where it's interesting (Matt, 22 October).</li>
     <li><b>Order.</b> The build order above. <span class="def">[default]</span></li>
-    <li><b>Streaming accounts.</b> Still open; only needed for the viewer numbers PR.</li>
+    <li><b>Streaming accounts.</b> Each competition's admin adds where it streams; it can be several YouTube channels and Facebook Pages at once (Matt, 22 October).</li>
   </ol>
 </section>
 </main>
