@@ -71,6 +71,7 @@ const DEFAULTS = {
   sponsorOwnNames: {},                 // { tier: "Diamond" }, for 'own'; a blank one uses the Names name
   sponsorEmpty: {},                    // { tier: 'up' | 'down' | 'skip' | 'vacancy' }, missing = SPONSOR_EMPTY_DEFAULTS
   sponsorVacancy: {},                  // { heading, message, contact, link }: the vacancy card, filled in by the competition's admin
+  sponsorMoments: {},                  // { moment: sponsor id | 'off' }: who a moment's "brought to you by" tag is for; missing = Elite take turns
   apiKey: '',                          // PlayHQ Client ID, only needed for the REST Game Summary
   apiTenant: '',
 };
@@ -87,6 +88,10 @@ const SPONSOR_NAME_SETS = {
 const SPONSOR_EMPTY = ['up', 'down', 'skip', 'vacancy'];
 const SPONSOR_EMPTY_DEFAULTS = { naming: 'vacancy', elite: 'down', major: 'down', partner: 'up', supporter: 'skip' };
 const VACANCY_KEYS = { heading: 60, message: 160, contact: 60, link: 300 };
+// The moments a sponsor can own: the super shot animation (supershot.html) and the hot streaks and game moments
+// (streak.html), each with a "brought to you by" tag (SPONSOR_MOMENTS keys are the pages' own names for them).
+const SPONSOR_MOMENTS = { superShot: 'Super shot', heating: 'Heating up', fire: 'On fire', goalForGoal: 'Goal for goal',
+  lead: 'Hits the front', level: 'All square', comeback: 'Coming back', siren: 'On the siren', backToBack: 'Back to back super shots' };
 
 const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'competition';
 const validId = id => /^[a-z0-9-]{1,40}$/.test(String(id || ''));
@@ -190,6 +195,8 @@ function clean(input, base = DEFAULTS) {
       v = Object.fromEntries(SPONSOR_TIERS.map(t => [t, String((v || {})[t] ?? '').trim().slice(0, 30)]).filter(([, n]) => n));
     } else if (k === 'sponsorEmpty') {
       v = Object.fromEntries(SPONSOR_TIERS.map(t => [t, (v || {})[t]]).filter(([, e]) => SPONSOR_EMPTY.includes(e)));
+    } else if (k === 'sponsorMoments') {
+      v = Object.fromEntries(Object.keys(SPONSOR_MOMENTS).map(m => [m, String((v || {})[m] ?? '').trim()]).filter(([, o]) => /^[a-z0-9-]{1,60}$/.test(o)));
     } else if (k === 'sponsorVacancy') {
       v = Object.fromEntries(Object.entries(VACANCY_KEYS).map(([f, max]) => [f, String((v || {})[f] ?? '').trim().slice(0, max)]).filter(([, t]) => t));
     } else if (typeof def === 'boolean') v = v === true || v === 'true' || v === 'on';
@@ -436,4 +443,4 @@ function sponsorTiers(s) {
   return SPONSOR_TIERS.map(key => ({ key, name: own[key] || set[key], empty: ((s && s.sponsorEmpty) || {})[key] || SPONSOR_EMPTY_DEFAULTS[key] }));
 }
 
-module.exports = { SPONSOR_TIERS, SPONSOR_NAME_SETS, SPONSOR_EMPTY, SPONSOR_EMPTY_DEFAULTS, sponsorTiers, DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };
+module.exports = { SPONSOR_TIERS, SPONSOR_NAME_SETS, SPONSOR_EMPTY, SPONSOR_EMPTY_DEFAULTS, SPONSOR_MOMENTS, sponsorTiers, DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };

@@ -4,8 +4,9 @@
 // The graphics ask the helper for their sponsor when they load (/api/sponsors/next, /pick and /wall), so
 // the helper knows which sponsor each page link was given (gave(), from the request's Referer). Once a
 // second it looks at the scene: a source that's on with that link shows those sponsors, and the Sponsor ad
-// sources show the sponsor whose ad they're playing. Each stretch on screen is a segment, saved when it
-// ends (and at least once a minute) as one line of sponsors/exposure/<night>.jsonl:
+// sources show the sponsor whose ad they're playing; a moment's tag counts for its few seconds (flash()).
+// Each stretch on screen is a segment, saved when it ends (and at least once a minute) as one line of
+// sponsors/exposure/<night>.jsonl:
 //   { t: 'seen', s: sponsor, c: competition, p: place, src: source name, from, to, air, qr }
 //   { t: 'play', s: sponsor, c: competition, file, kind, at, air }        one sponsor ad starting
 // air is whether a video output was on: by default the report only counts time on air, so rehearsals
@@ -79,6 +80,18 @@ function tick(now = Date.now()) {
     else if (now - seg.from >= SAVE_EVERY) { close(key, seg, now); open.set(key, { ...w, from: now }); }
   }
   for (const [key, w] of want) if (!open.has(key)) open.set(key, { ...w, from: now });
+}
+
+// A sponsor shown for a few seconds by a page that stays on (a moment's "brought to you by" tag): counted
+// when that page is on in the scene now.
+function flash(req, sponsor, place, seconds, opts = {}) {
+  const ref = req && req.headers && req.headers.referer;
+  if (!ref || !sponsor) return;
+  const link = linkOf(ref);
+  const src = showing().find(x => x.url && linkOf(x.url) === link);
+  if (!src) return;
+  const now = Date.now();
+  append({ t: 'seen', s: sponsor.id || sponsor, c: opts.competition || competitions.activeId(), p: place, src: src.name, air: !!onAir(), qr: false, from: now, to: now + Math.round(seconds * 1000) });
 }
 
 // One sponsor ad starting to play.
@@ -182,4 +195,4 @@ function init(logger, hooks = {}) {
   }
 }
 
-module.exports = { init, gave, tick, play, flush, report, nights, nightOf, route, DIR };
+module.exports = { init, gave, flash, tick, play, flush, report, nights, nightOf, route, DIR };

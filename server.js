@@ -3003,7 +3003,7 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/sponsors') || url.pathname.startsWith('/sponsors/')) {
       const saveSettings = (id, changes) => { competitions.save(id, changes); if (id === competitions.activeId()) applyCompetition('Sponsor settings saved'); };
       if (await exposure.route(req, res, url, { send })) return;
-      if (await sponsors.route(req, res, url, { send, readBody, readRaw, saveSettings, gave: exposure.gave })) return;
+      if (await sponsors.route(req, res, url, { send, readBody, readRaw, saveSettings, gave: exposure.gave, flash: exposure.flash })) return;
     }
     if (url.pathname.startsWith('/deck/')) {
       const parts = url.pathname.split('/').slice(2).map(decodeURIComponent);

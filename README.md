@@ -620,6 +620,16 @@ those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pulled into a
 - Turns are counted while Studio runs. Ad files aren't in competition templates; copy the media with the Output page's
   export.
 
+### Sponsored moments
+
+The super shot (`supershot.html`) and the hot streaks and game moments (`streak.html`) show a white **Brought to you by**
+tag under the big words. **Sponsored moments** on the Sponsors page sets, for each moment (super shot, heating up, on fire,
+goal for goal, hits the front, all square, coming back, on the siren, back to back), one sponsor that owns it, **No
+sponsor**, or (the default) the Elite tier's sponsors taking turns, one per play. An empty Elite tier follows its rule
+(Pull up, Pull down or Skip; a vacancy shows nothing). An owner whose deal has ended goes back to the turns.
+`?sponsor=0` on the page leaves the tag off and `?sponsor=Golds%20Bakery` always names that sponsor. Each tag counts as
+2 seconds on screen in the sponsor report (place "Sponsored moments") when the page is on in the scene.
+
 ### Sponsor report
 
 http://localhost:8080/sponsorreport.html (**Sponsor report** on the Sponsors page) shows what each sponsor got on screen,

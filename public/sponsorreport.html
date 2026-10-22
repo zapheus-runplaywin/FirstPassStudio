@@ -100,7 +100,7 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const PLACES = { scoreboard: 'Scoreboard tab', title: 'Title', countdown: 'Countdown', stats: 'Stat card footers', ticker: 'Ticker',
-  card: 'Sponsor card', wall: 'Sponsor wall', night: 'End of night card', ad: 'Ads' };
+  card: 'Sponsor card', wall: 'Sponsor wall', night: 'End of night card', ad: 'Ads', moment: 'Sponsored moments' };
 const place = p => PLACES[p] || p;
 function time(sec) {
   sec = Math.round(sec || 0);

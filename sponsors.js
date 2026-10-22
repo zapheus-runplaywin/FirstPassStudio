@@ -303,6 +303,21 @@ function nextAd(compId, opts = {}) {
   return { sponsor: { id: c.sponsor.id, name: c.sponsor.name }, file: ad.file, kind: AD_VIDEO.test(ad.file) ? 'video' : 'image', seconds: ad.seconds };
 }
 
+// ─── Sponsored moments ──────────────────────────────────────────────────────
+// The super shot, hot streak and game moment animations say who they're "brought to you by": the sponsor
+// that owns the moment on this competition (sponsorMoments), or else the Elite tier's sponsors taking turns
+// (with Elite's empty-tier rule; advertising a vacancy skips). 'off' tags no one. Null when no one.
+function moment(compId, key, opts = {}) {
+  if (!competitions.SPONSOR_MOMENTS[key]) throw new Error(`There is no sponsored moment "${key}". They are ${Object.keys(competitions.SPONSOR_MOMENTS).join(', ')}.`);
+  if (!compId) return null;
+  const owner = (competitions.get(compId).sponsorMoments || {})[key] || '';
+  if (owner === 'off') return null;
+  const own = owner && onCompetition(compId).find(s => s.id === owner);
+  if (own) return own;
+  const c = next(compId, { place: 'moment', tiers: ['elite'], count: opts.count });
+  return c && c.sponsor ? c.sponsor : null;
+}
+
 // A sponsor named in a link: its id, or its name as on the Sponsors page.
 function find(nameOrId) {
   const want = String(nameOrId || '').trim();
@@ -389,6 +404,7 @@ function view(compId) {
     ownNames: settings.sponsorOwnNames,
     emptyDefaults: competitions.SPONSOR_EMPTY_DEFAULTS,
     vacancy: { ...settings.sponsorVacancy },
+    moments: Object.entries(competitions.SPONSOR_MOMENTS).map(([key, name]) => ({ key, name, owner: (settings.sponsorMoments || {})[key] || '' })),
     vacancyDefaults: VACANCY_DEFAULTS,
     vacancyLink: vacancy(settings).link,
     sponsors: all().map(s => ({
@@ -436,7 +452,7 @@ async function route(req, res, url, ctx) {
     if (!compId) throw new Error('Make or import a competition first.');
     const b = await readBody(req);
     const changes = {};
-    for (const k of ['sponsorTierNames', 'sponsorOwnNames', 'sponsorEmpty', 'sponsorVacancy']) if (b[k] !== undefined) changes[k] = b[k];
+    for (const k of ['sponsorTierNames', 'sponsorOwnNames', 'sponsorEmpty', 'sponsorVacancy', 'sponsorMoments']) if (b[k] !== undefined) changes[k] = b[k];
     ctx.saveSettings(compId, changes);
     log('info', 'sponsors', `${compId}: saved sponsor tiers and vacancy card`, changes);
     send(res, 200, view(compId));
@@ -485,6 +501,19 @@ async function route(req, res, url, ctx) {
     if (c && !q.sponsor && q.count !== '0') log('info', 'sponsors', `${place}: ${c.vacancy ? 'the vacancy card' : `"${c.sponsor.name}"`} is next`);
     return true;
   }
+  if (p === '/api/sponsors/moment') {
+    const key = q.moment;
+    if (!competitions.SPONSOR_MOMENTS[key]) { send(res, 400, { error: `There is no sponsored moment "${key}".` }); return true; }
+    let s = null;
+    if (q.sponsor) s = find(q.sponsor);
+    else s = moment(compId, key, { count: q.count !== '0' });
+    if (!s) { send(res, 200, { none: true }); return true; }
+    // On screen for the tag's seconds, if the page is on in the scene (exposure.js).
+    if (ctx.flash) ctx.flash(req, s, 'moment', Math.min(10, Number(q.seconds) || 2.5), { competition: compId });
+    send(res, 200, { sponsor: forGraphic(s, compId, 'moment', competitions.get(compId)) });
+    if (q.count !== '0' && !q.sponsor) log('info', 'sponsors', `${competitions.SPONSOR_MOMENTS[key]}: brought to you by "${s.name}"`);
+    return true;
+  }
   if (p === '/api/sponsors/wall') {
     const settings = compId ? competitions.get(compId) : competitions.get();
     const tiers = compId ? wall(compId, { tiers: q.tiers ? q.tiers.split(',') : null }) : [];
@@ -507,4 +536,4 @@ async function route(req, res, url, ctx) {
   return false;
 }
 
-module.exports = { init, all, byId, find, save, remove, saveLogo, removeLogo, logoFile, exportFor, importFor, nextAd, pick, next, wall, forGraphic, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };
+module.exports = { init, all, byId, find, moment, save, remove, saveLogo, removeLogo, logoFile, exportFor, importFor, nextAd, pick, next, wall, forGraphic, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };

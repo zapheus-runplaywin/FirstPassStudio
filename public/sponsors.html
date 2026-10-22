@@ -50,6 +50,8 @@
   .sp__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .sp__name { font-weight: 800; overflow-wrap: anywhere; }
   .sp__meta { font-size: 12px; color: var(--fp-muted); overflow-wrap: anywhere; }
+  table.moments td { padding: 4px 10px 4px 0; }
+  table.moments th { text-align: left; font-size: 12px; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .05em; padding: 0 10px 6px 0; }
   .meter { height: 6px; border-radius: 3px; background: var(--fp-line); overflow: hidden; margin: 6px 0 3px; max-width: 320px; }
   .meter i { display: block; height: 100%; background: var(--fp-blue); }
   .meter i.done { background: #15803d; }
@@ -136,6 +138,14 @@
       <b>Skip tier</b> leaves the spots out. <b>Advertise vacancy</b> puts the vacancy card below in the tier's spots where a card fits (break cards and the sponsor wall);
       on the scoreboard tab and "brought to you by" tags it skips. The share sets how screen time is split between tiers when a sponsor has no target of its own.</p>
     <p class="saved" id="tierSaved" aria-live="polite"></p>
+  </section>
+
+  <section id="momentSection">
+    <h2>Sponsored moments</h2>
+    <p class="help" style="margin:0 0 10px">The super shot, hot streak and game moment animations say who they're <b>brought to you by</b>.
+      Sell a moment to one sponsor for the season, or let the <b id="momentTier">Elite</b> sponsors take turns (when that tier is empty it follows its rule above; a vacancy shows nothing).</p>
+    <div class="tblwrap"><table class="moments"><thead><tr><th>Moment</th><th>Brought to you by</th></tr></thead><tbody id="momentRows"></tbody></table></div>
+    <p class="saved" id="momentSaved" aria-live="polite"></p>
   </section>
 
   <section id="vacancySection">
@@ -239,7 +249,7 @@ const flashSaved = (el, text = 'Saved') => { el.textContent = text; clearTimeout
 function render() {
   const c = view.competition;
   $('noComp').hidden = !!c;
-  for (const id of ['listSection', 'tierSection', 'vacancySection']) $(id).hidden = !c;
+  for (const id of ['listSection', 'tierSection', 'momentSection', 'vacancySection']) $(id).hidden = !c;
   $('readOnlyNote').hidden = !view.readOnly;
   if (!c) return;
   $('compName').textContent = c.name;
@@ -286,6 +296,19 @@ function render() {
     <td>${share(t.share)}</td>
     <td><select data-empty="${t.key}" aria-label="When ${esc(t.name)} has no sponsor">${EMPTY.map(([v, l]) =>
       `<option value="${v}" ${t.empty === v ? 'selected' : ''} ${(v === 'up' && t.key === 'naming') || (v === 'down' && t.key === 'supporter') ? 'disabled' : ''}>${l}${v === view.emptyDefaults[t.key] ? ' (default)' : ''}</option>`).join('')}</select></td></tr>`).join('');
+
+  // Sponsored moments
+  const elite = tierName('elite');
+  $('momentTier').textContent = elite;
+  const mine = view.sponsors.filter(s => here(s) && s.state !== 'ended')
+    .sort((a, b) => view.tiers.findIndex(t => t.key === here(a).tier) - view.tiers.findIndex(t => t.key === here(b).tier) || a.name.localeCompare(b.name));
+  $('momentRows').innerHTML = view.moments.map(m => {
+    const gone = m.owner && m.owner !== 'off' && !mine.some(s => s.id === m.owner);
+    return `<tr><td>${esc(m.name)}</td><td><select data-moment="${m.key}" aria-label="${esc(m.name)} brought to you by">
+      <option value="">${esc(elite)} sponsors take turns</option><option value="off"${m.owner === 'off' ? ' selected' : ''}>No sponsor</option>
+      ${mine.map(s => `<option value="${esc(s.id)}"${m.owner === s.id ? ' selected' : ''}>${esc(s.name)} (${esc(tierName(here(s).tier))})</option>`).join('')}
+      ${gone ? `<option value="${esc(m.owner)}" selected disabled>A sponsor no longer here: ${esc(elite)} take turns</option>` : ''}</select></td></tr>`;
+  }).join('');
 
   // Vacancy card
   for (const [f, el] of [['heading', 'vHeading'], ['message', 'vMessage'], ['contact', 'vContact'], ['link', 'vLink']]) {
@@ -377,6 +400,15 @@ $('sets').onchange = () => saveSettings('tiers');
 $('tierRows').addEventListener('change', () => saveSettings('tiers'));
 $('tierRows').addEventListener('input', e => { if (e.target.dataset.own) saveSettings('tiers'); });
 for (const id of ['vHeading', 'vMessage', 'vContact', 'vLink']) $(id).addEventListener('input', () => saveSettings('vacancy'));
+$('momentRows').addEventListener('change', async () => {
+  const moments = {};
+  document.querySelectorAll('[data-moment]').forEach(s => { if (s.value) moments[s.dataset.moment] = s.value; });
+  try {
+    view = await post('/api/sponsors/settings', { sponsorMoments: moments });
+    render();
+    flashSaved($('momentSaved'));
+  } catch (err) { $('momentSaved').textContent = err.message; }
+});
 
 // ─── QR codes as PNG files ─────────────────────────────────────────────────
 async function savePng(src, name) {
