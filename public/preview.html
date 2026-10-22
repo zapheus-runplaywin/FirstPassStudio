@@ -90,7 +90,7 @@
       : !wanted ? 'Silent: a video output is on, so the output plays the sound.'
       : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the Scene View window'} to bring it ${here ? 'to this window' : 'there'}.`
       : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the Scene View window'} to hear it.`
-      : st && !st.videos ? `Sound plays ${there} once a video with Sound ticked is on.`
+      : st && !st.videos && !st.pages ? `Sound plays ${there} once a video with Sound ticked, or an animation with sound, is on.`
       : `Sound plays ${there}, through this Mac's sound output.`;
     note = line(false, 'in the Scene View window');
     // Only the reasons it's silent show over the picture; the Output page shows every line.

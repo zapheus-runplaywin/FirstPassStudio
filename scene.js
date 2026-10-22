@@ -279,8 +279,10 @@ function apply(a) {
   noteShowings();
   return error;
 }
-// Music gets out of the way while a video with its sound on plays.
-function videoSound() { music.videoSound(scene.sources.some(s => s.type === 'video' && s.visible && s.sound && !soundDone.has(s.id))); }
+// Music gets out of the way while a video with its sound on plays, or a page playing a theme song (the intro and outro's
+// ?theme=; its effects alone don't count).
+const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
+function videoSound() { music.videoSound(scene.sources.some(s => s.visible && ((s.type === 'video' && s.sound && !soundDone.has(s.id)) || playsTheme(s)))); }
 function noteShowings() {
   videoSound();
   for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;

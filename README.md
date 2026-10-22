@@ -458,10 +458,14 @@ These follow the game picked on the scoreboard control page:
   is set, or a thank you for the season after that. `?wrap=1` shows the card now, `?wrap=0` never shows it, `?message=`
   changes the invite line and `?mode=dark` uses the dark mode competition logo.
 - http://localhost:8080/introoutro.html: the intro (or `?type=outro`, the outro) for the start and end of the stream, full screen,
-  about 8 seconds: the competition logo, name and organisation with the logos of a division's teams in a ring, in one of six
+  about 8 seconds: the competition logo, name and organisation with the logos of a division's teams, in one of six
   styles (`?style=orbit`, `parade`, `tiles`, `spotlight`, `court`, `blueprint`, or `random`). The intro welcomes viewers to this
   round, division and venue; the outro uses the end of night card's words. `?division=2` or `all`, `?message=`, `?hold=`,
   `?out=0`, `?speed=`, `?mode=dark`, `?bg=`/`?bg2=`/`?bgimage=` and `?fit=1` (between the title and the scoreboard).
+  Each style has its own sound effects (`?sfx=` volume in %, 80 by default, 0 for none). `?theme=` plays a song from the
+  media folder with it (`?volume=` in %) and `?themefit=start|logo|end|stretch` lines it up with the start, the competition
+  logo landing, or the end, or stretches the animation up to 25% to last as long as the theme. The Output page warns when
+  the theme and animation lengths are more than 25% apart. Music fades out while a themed intro or outro is on.
 - http://localhost:8080/countdown.html: counts down to the scheduled start time of the game picked on the control page,
   with both teams, logos, division, round, court, time and venue. The clock ticks in the page and it asks Studio (never PlayHQ)
   every 5 seconds which game is picked, so it follows a new game without a refresh. The last 10 seconds pulse; at zero it shows

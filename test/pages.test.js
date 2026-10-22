@@ -17,7 +17,7 @@ try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
 const VARIANTS = ['fixtures.html?round=prev', 'results.html?round=prev', 'ladder.html?division=2', 'title.html?logo=show&emoji=%E2%9A%A1',
   'branding.html?mode=light', 'clash.html?word=Battle', 'winner.html?winner=home', 'lowerthird.html?name=Blizzardz%20GS',
   'lowerthird.html?type=guest&name=Pat&title=Commentator', 'scoreboard.html?position=top-center', 'matchup.html?form=0&h2h=0',
-  'topshooters.html?division=2', 'finals.html?division=2', 'streak.html', 'supershot.html', 'gamestats.html?quarters=0&runs5=0', 'worm.html?leads=0&colours=0&draw=0', 'pvw.html?src=%2Fladder.html&name=Ladder', 'pvw.html?src=%2Fscene.html', 'upnext.html?wrap=1&mode=dark', ...['parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => `introoutro.html?style=${st}&division=all`), 'introoutro.html?type=outro&fit=1&bg=gradient'];
+  'topshooters.html?division=2', 'finals.html?division=2', 'streak.html', 'supershot.html', 'gamestats.html?quarters=0&runs5=0', 'worm.html?leads=0&colours=0&draw=0', 'pvw.html?src=%2Fladder.html&name=Ladder', 'pvw.html?src=%2Fscene.html', 'upnext.html?wrap=1&mode=dark', ...['parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => `introoutro.html?style=${st}&division=all`), 'introoutro.html?type=outro&fit=1&bg=gradient', 'introoutro.html?style=court&sfx=0&sound=0', 'introoutro.html?style=spotlight&theme=Theme.wav&themefit=stretch&sound=0'];
 // What a few pages show once they've read their data from PlayHQ (the stand-in's season).
 const SHOWS = {
   'scoreboard.html': ['Blizzardz', "Travis' Disciples"],
@@ -58,6 +58,12 @@ test('every page loads without errors', async t => {
   t.after(() => browser.close());
   const studio = await startStudio(t, { competition: 'Thunder League' });
   await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  // A theme for the intro: 2 seconds of quiet as a WAV.
+  const rate = 8000, bytes = rate * 2 * 2, wav = Buffer.alloc(44 + bytes);
+  wav.write('RIFF', 0); wav.writeUInt32LE(36 + bytes, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(bytes, 40);
+  fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
+  fs.writeFileSync(path.join(studio.dataDir, 'media', 'Theme.wav'), wav);
 
   const pages = fs.readdirSync(path.join(ROOT, 'public')).filter(n => n.endsWith('.html')).sort();
   const links = [...pages, ...VARIANTS];
