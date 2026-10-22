@@ -16,7 +16,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const qrcode = require('qrcode-generator');
 const datadir = require('./datadir');
 const competitions = require('./competitions');
 
@@ -251,7 +250,8 @@ function trackedLink(s, opts = {}) {
 // scalable to any size. Error correction M copes with a phone filming a screen.
 function qrSvg(link) {
   if (!link) throw new Error('There is no link to make a QR code for.');
-  const qr = qrcode(0, 'M');
+  // Loaded only when a QR code is made, so the helper still starts where npm install hasn't run (the Stream Deck tests).
+  const qr = require('qrcode-generator')(0, 'M');
   qr.addData(link, 'Byte');
   qr.make();
   const n = qr.getModuleCount(), q = 4, size = n + q * 2;
