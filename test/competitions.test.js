@@ -206,9 +206,17 @@ test('theme.css: the setup\'s colours, font and panel opacity', () => {
   assert.match(css, /--purple-rgb: 44, 142, 62;/);
   assert.match(css, /--purple-deep: rgba\(0, 0, 0, 0\.5\);/);
   assert.match(css, /^@import url\("\/vendor\/fonts\/montserrat\/montserrat\.css"\);$/m, 'Montserrat, the fallback, from Studio itself');
-  assert.match(css, /^@import url\("\/vendor\/fonts\/raleway\/raleway\.css"\);$/m);
+  assert.match(css, /font-family: 'Raleway';[^}]*url\("\/vendor\/fonts\/raleway\/[^}]*size-adjust/, 'Raleway from Studio itself, normalised (fonts.test.js)');
   assert.match(css, /--font: "Raleway", "Montserrat"/);
   assert.doesNotMatch(css, /googleapis/, 'no font comes from the internet');
+});
+
+test('setup: Text size is a percentage from 80 to 130', () => {
+  assert.equal(clean({}).fontSize, 100);
+  assert.equal(clean({ fontSize: 115.4 }).fontSize, 115);
+  assert.equal(clean({ fontSize: 500 }).fontSize, 130);
+  assert.equal(clean({ fontSize: 10 }).fontSize, 80);
+  assert.equal(clean({ fontSize: 'big' }).fontSize, 100);
 });
 
 test('fonts: every bundled font is in public/vendor/fonts, with its licence and files', () => {

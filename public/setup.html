@@ -263,6 +263,9 @@
           <label for="font">Font</label>
           <select id="font" data-key="font"></select>
           <p class="help" id="fontHelp"></p>
+          <label class="inline" id="fontSizeRow">Text size <input type="range" id="fontSize" min="80" max="130" step="1" style="width:140px"> <span id="fontSizePct"></span></label>
+          <p class="help" id="fontSizeHelp">Every font is sized and centred to match Montserrat, which the graphics were drawn with: its capitals are as tall as
+            Montserrat's. A narrow font can look small at that size; make it bigger here. Keep an eye on long team names.</p>
           <details class="kit" id="fontKit">
             <summary>Add a font file <span class="comp__sub" id="fontCount"></span></summary>
             <p class="help">Add a TTF, OTF, WOFF or WOFF2 file, one for each weight you have (Regular, Bold, Black…) or one variable font file.
@@ -464,6 +467,7 @@
     });
     document.querySelectorAll('[name=periodType]').forEach(r => { r.checked = r.value === form.periodType; });
     $('panelOpacity').value = form.panelOpacity;
+    $('fontSize').value = form.fontSize;
     buildColours();
     renderBrand(); renderLogos(); renderFinals(); renderSuperShots(); preview();
     streamKeys = {};
@@ -599,6 +603,7 @@
   });
   document.querySelectorAll('[name=periodType]').forEach(r => r.onchange = () => { form.periodType = r.value; markDirty(); preview(); });
   $('panelOpacity').oninput = () => { form.panelOpacity = Number($('panelOpacity').value); markDirty(); preview(); };
+  $('fontSize').oninput = () => { form.fontSize = Number($('fontSize').value); markDirty(); preview(); };
 
   // Swatches in every colour picker: the brand kit, then the colours this setup already uses.
   const swatches = () => [
@@ -655,11 +660,14 @@
     const vars = { '--purple': c.main, '--purple-light': mix(c.main, '#ffffff', .25), '--purple-shade': mix(c.main, '#000000', .15),
       '--purple-dark': c.dark, '--purple-dark-light': mix(c.dark, '#ffffff', .15), '--purple-deep': `rgba(${rgb(c.panel)}, ${o})`,
       '--purple-deep-alt': `rgba(${rgb(c.panelAlt)}, ${o})`, '--yellow': c.highlight, '--pink': c.accent, '--text': c.text,
-      '--text-on-yellow': c.textOnHighlight, '--muted': c.muted, '--font': `"${form.font}", "Montserrat", Arial, sans-serif` };
+      '--text-on-yellow': c.textOnHighlight, '--muted': c.muted, '--font': `"Studio ${form.font}", "${form.font}", "Montserrat", Arial, sans-serif` };
     for (const [k, v] of Object.entries(vars)) p.setProperty(k, v);
     $('opacityPct').textContent = `${Math.round((1 - o) * 100)}%`;
     if (!fontLink) { fontLink = el('link'); fontLink.rel = 'stylesheet'; document.head.append(fontLink); }
-    fontLink.href = `/api/setup/${editing}/fontcss?font=${encodeURIComponent(form.font)}`;
+    fontLink.href = `/api/setup/${editing}/fontcss?font=${encodeURIComponent(form.font)}&size=${form.fontSize}`;
+    // Montserrat is the size every other font is matched to, so it has no Text size.
+    $('fontSizeRow').style.display = $('fontSizeHelp').style.display = form.font === 'Montserrat' ? 'none' : '';
+    $('fontSizePct').textContent = `${form.fontSize}%`;
     $('fontHelp').textContent = fontKind(form.font) === 'mac' ? 'A font on this Mac: a graphic opened on another computer shows Montserrat instead.'
       : fontKind(form.font) === 'added' ? 'A font added to this competition: it goes with it in its template file.'
       : fontKind(form.font) === 'missing' ? `${form.font} isn't on this computer, so the graphics show Montserrat instead.`

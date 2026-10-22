@@ -61,6 +61,7 @@ const DEFAULTS = {
   brandColours: [],                    // [{ hex, name }] pasted from a brand kit, shown as swatches in the colour pickers
   panelOpacity: 0.92,
   font: 'Montserrat',
+  fontSize: 100,                       // %: how tall another font's capitals are next to Montserrat's (fonts.js normalise)
   competitionLogo: '',                 // a file in brand/: the light mode logo (for a light background)
   competitionLogoDark: '',             // a file in brand/: the dark mode logo (for a dark background); either one alone is used for both
   clubs: {},                           // { "Club": { logo: "file.png", colour: "#rrggbb" } }, shared by every team of the club in every division
@@ -227,6 +228,7 @@ function clean(input, base = DEFAULTS) {
   // Any font name: a bundled one, one on the Mac or an added one (fonts.js). One that isn't there
   // falls back to Montserrat on the graphics.
   out.font = fonts.cleanName(out.font) || DEFAULTS.font;
+  out.fontSize = Math.round(Math.min(130, Math.max(80, Number(out.fontSize) || DEFAULTS.fontSize)));
   out.competitionLogo = out.competitionLogo ? path.basename(out.competitionLogo) : '';
   out.competitionLogoDark = out.competitionLogoDark ? path.basename(out.competitionLogoDark) : '';
   out.name = out.name.slice(0, 80) || out.competitionName || DEFAULTS.name;
@@ -427,12 +429,13 @@ const toHex = a => '#' + a.map(v => Math.round(Math.min(255, Math.max(0, v))).to
 const mix = (hex, other, t) => { const a = rgb(hex), b = rgb(other); return toHex(a.map((v, i) => v + (b[i] - v) * t)); };
 
 // Every overlay links theme.css; the helper writes it from the competition's colours and font
-// (with fontFiles, the competition's added font files). The variable names are the original
+// (with fontFiles, the paths of the competition's added font files, and macFaces when the font is a
+// Mac font, from fonts.macFaces). The variable names are the original
 // Thunder League ones, so every page keeps working.
-function themeCss(s, fontFiles = []) {
+function themeCss(s, fontFiles = [], macFaces = null) {
   const c = s.colours, o = s.panelOpacity;
   const vars = {
-    '--font': fonts.stack(s.font),
+    '--font': fonts.stack(s.font, macFaces),
     '--purple': c.main, '--purple-rgb': rgb(c.main).join(', '),
     '--purple-light': mix(c.main, '#ffffff', 0.25), '--purple-shade': mix(c.main, '#000000', 0.15),
     '--purple-dark': c.dark, '--purple-dark-light': mix(c.dark, '#ffffff', 0.15),
@@ -443,7 +446,7 @@ function themeCss(s, fontFiles = []) {
     '--text': c.text, '--text-on-yellow': c.textOnHighlight, '--muted': c.muted,
   };
   return `/* ${s.name}: colours and font from the competition setup page (setup.html). */\n` +
-    fonts.css(s.font, fontFiles) + '\n' +
+    fonts.css(s.font, fontFiles, undefined, { mac: macFaces, size: s.fontSize / 100 }) + '\n' +
     `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 

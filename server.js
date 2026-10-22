@@ -1861,6 +1861,9 @@ function applyCompetition(why) {
 }
 
 // What the setup page shows for one competition.
+// A competition's added font files, as paths, so theme.css can measure them (fonts.js normalise).
+const fontPaths = id => competitions.images(id, 'fonts').map(f => competitions.imageFile(id, 'fonts', f)).filter(Boolean);
+
 function setupInfo(id) {
   return { id, active: id === competitions.activeId(), settings: competitions.get(id),
     logos: competitions.images(id, 'logos'), brand: competitions.images(id, 'brand'),
@@ -1957,7 +1960,8 @@ async function setupRoute(req, res, url, q) {
   }
   // The CSS that loads a font for the setup page's preview, with this competition's added fonts.
   if (what === 'fontcss') {
-    return send(res, 200, fonts.css(q.font, competitions.images(id, 'fonts'), f => `/api/setup/${id}/image?kind=fonts&name=${encodeURIComponent(f)}`), 'text/css; charset=utf-8');
+    return send(res, 200, fonts.css(q.font, fontPaths(id), f => `/api/setup/${id}/image?kind=fonts&name=${encodeURIComponent(path.basename(f))}`,
+      { mac: await fonts.macFaces(q.font), size: (Number(q.size) || 100) / 100 }), 'text/css; charset=utf-8');
   }
   if (what === 'image') {
     const kind = ['brand', 'fonts'].includes(q.kind) ? q.kind : 'logos';
@@ -2959,7 +2963,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/structure') return send(res, 200, { ...await getStructure(), setup: CONFIG.name, rules: rules() });
     if (url.pathname.startsWith('/api/setup')) return await setupRoute(req, res, url, q);
     // The competition in use: its colours and font, team logos, competition logo, athlete photos and added fonts.
-    if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG, competitions.images(competitions.activeId(), 'fonts')), 'text/css; charset=utf-8');
+    if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG, fontPaths(competitions.activeId()), await fonts.macFaces(CONFIG.font)), 'text/css; charset=utf-8');
     if (/^\/(logos|brand|photos|fonts)\//.test(url.pathname)) {
       const file = competitions.imageFile(competitions.activeId(), url.pathname.split('/')[1], url.pathname.split('/')[2] || '');
       return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
