@@ -446,10 +446,32 @@ function state() {
   };
 }
 
+// A file the Output page's Media list is removing from the media folder: where the player uses it (onAir while
+// it's the song playing or paused), and taking it out of the playlists, the super shot song and the queue.
+function uses(file) {
+  const out = playlists.filter(pl => pl.tracks.includes(file)).map(pl => ({ type: 'playlist', name: pl.name }));
+  if (settings.superShotSong === file) out.push({ type: 'superShot', name: 'Super shot song' });
+  if (p.queue.includes(file)) out.push({ type: 'player', name: 'The music player', onAir: p.status !== 'stopped' && track() === file });
+  return out;
+}
+function forget(file) {
+  for (const pl of playlists) pl.tracks = pl.tracks.filter(t => t !== file);
+  if (settings.superShotSong === file) settings.superShotSong = '';
+  if (p.queue.includes(file)) {
+    const cur = track();
+    const at = p.queue.slice(0, p.index).filter(t => t !== file).length;
+    p.queue = p.queue.filter(t => t !== file);
+    p.index = cur !== file ? p.queue.indexOf(cur) : Math.min(at, Math.max(0, p.queue.length - 1));
+    if (cur === file) p.pos = { sec: 0, at: now() };
+    if (!p.queue.length) p.playlist = null;
+  }
+  save();
+}
+
 function init(logger, hooks) {
   log = logger || log;
   api = hooks;
   load();
 }
 
-module.exports = { init, apply, deck, state, videoSound, quiet, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };
+module.exports = { init, apply, uses, forget, deck, state, videoSound, quiet, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };

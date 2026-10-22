@@ -761,6 +761,69 @@ paths:
                   mode: { type: string, enum: [off, chroma, fillkey, decklink, ndi] }
         '404': { $ref: '#/components/responses/UnknownLink' }
 
+  /api/scene/media:
+    get:
+      tags: [Scene]
+      summary: List the media folder
+      description: >-
+        Every song, video and image in the media folder (the Output page's Media folder list). With `?uses=1` each one
+        also lists where it's used.
+      operationId: listMedia
+      parameters:
+        - name: uses
+          in: query
+          required: false
+          schema: { type: integer, enum: [0, 1] }
+      responses:
+        '200':
+          description: The media folder
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  media: { type: array, items: { $ref: '#/components/schemas/MediaFile' } }
+                  canConvert: { type: boolean, description: There is an ffmpeg to convert a .mov with }
+    delete:
+      tags: [Scene]
+      summary: Remove a file from the media folder
+      description: >-
+        Deletes the file for good (a levelled song's original too). A file that's used somewhere answers 409 with its
+        uses unless `force=1` is added; one on air now (a source showing it, the song playing) or still converting
+        answers 409 even then. Removing it takes it out of the playlists, the super shot song and sponsors' ads;
+        sources, page themes and sequence music keep its name and show it as missing.
+      operationId: removeMedia
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema: { type: string, example: Pre-game bed.m4a }
+        - name: force
+          in: query
+          required: false
+          schema: { type: integer, enum: [0, 1] }
+      responses:
+        '200':
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed: { type: string }
+                  uses: { type: array, items: { $ref: '#/components/schemas/MediaUse' } }
+                  media: { type: array, items: { $ref: '#/components/schemas/MediaFile' } }
+        '404': { description: No such file in the media folder, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409':
+          description: Used (without force), on air, or still converting
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  uses: { type: array, items: { $ref: '#/components/schemas/MediaUse' } }
+
 components:
   responses:
     Ok:
@@ -775,6 +838,23 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
+    MediaFile:
+      type: object
+      properties:
+        name: { type: string, example: Pre-game bed.m4a }
+        kind: { type: string, enum: [audio, video, image] }
+        size: { type: integer, description: Bytes }
+        duration: { type: number, nullable: true, description: Seconds, for songs and videos once measured }
+        converting: { type: boolean }
+        converted: { type: string, description: The WebM a .mov was converted to }
+        uses: { type: array, items: { $ref: '#/components/schemas/MediaUse' }, description: 'With ?uses=1' }
+    MediaUse:
+      type: object
+      properties:
+        type: { type: string, enum: [source, theme, sequence, playlist, superShot, player, sponsor] }
+        name: { type: string, description: 'The source, sequence, playlist or sponsor' }
+        competition: { type: string, description: The competition a sequence belongs to }
+        onAir: { type: boolean, description: On screen or playing now }
     DeckResult:
       type: object
       properties:

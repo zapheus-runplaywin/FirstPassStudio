@@ -57,6 +57,11 @@
   #addDialog::backdrop { background: rgba(15, 23, 42, .45); }
   .empty { padding: 16px; color: var(--fp-muted); cursor: default !important; display: block !important; }
 
+  .mediaList li { grid-template-columns: minmax(0, 1fr) auto; cursor: default; }
+  .mediaList li:hover { background: none; }
+  .mediaList .uses { font-size: 13px; color: var(--fp-muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .mediaList .uses b { color: var(--fp-danger); }
+  #mediaBox summary { cursor: pointer; list-style-position: outside; }
   .form { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
   .form > label { font-weight: 600; font-size: 14px; }
   .form .wide { grid-column: 1 / -1; }
@@ -507,6 +512,23 @@
       </div>
     </section>
   </div>
+
+  <section id="mediaSection">
+    <details id="mediaBox">
+      <summary><h2 style="display:inline;margin:0">Media folder</h2> <span class="note" id="mediaCount" style="margin:0 0 0 6px"></span></summary>
+      <div class="row" style="margin:12px 0 10px">
+        <select id="mediaKind" aria-label="Show">
+          <option value="">Everything</option><option value="audio">Songs and sounds</option><option value="video">Videos</option><option value="image">Images and stills</option>
+        </select>
+      </div>
+      <ul class="sources mediaList" id="mediaList"></ul>
+      <p class="error" id="mediaErr"></p>
+      <p class="note">Every song, video and image added here, under Music or on the Sponsors page. <b>Remove</b> deletes the file from the media folder for good
+        (with a levelled song's original, kept in <i>originals</i>), and asks first, listing where it's used. Something on air (a source showing it, or the song playing)
+        can't be removed until it's off. Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as
+        <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file. A .mov and the WebM converted from it are separate files: remove each one you don't want.</p>
+    </details>
+  </section>
 </main>
 <script>
   const $ = id => document.getElementById(id);
@@ -523,7 +545,7 @@
   let scene = { sources: [] };
   let selected = null;
   let base = location.origin;
-  let media = [];
+  let media = [], mediaLoaded = false;
   let adding = null;
   const naturalSize = new Map(); // image or video file -> [w, h], for the preview box and Full frame
   const ACCEPT = { image: '.png,.jpg,.jpeg,.gif,.webp,.svg', video: '.mp4,.m4v,.webm,.mov' };
@@ -648,7 +670,7 @@
       li.querySelector('.pvw').onclick = e => { e.stopPropagation(); previewSource(s); };
       li.querySelector('.name').textContent = s.name;
       const tag = document.createElement('small');
-      tag.textContent = s.type === 'browser' ? 'page' : s.type;
+      tag.textContent = s.type === 'browser' ? 'page' : s.type + (mediaLoaded && !media.some(m => m.name === s.file) ? ' (missing)' : '');
       li.querySelector('.name').appendChild(tag);
       if ((scene.changed || []).includes(s.id)) {
         const chg = document.createElement('span');
@@ -1958,7 +1980,8 @@
         : 'A .mov (ProRes) has to be converted to play, and this copy of Studio has no ffmpeg to do it (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg). MP4 and WebM play as they are.');
   }
   async function loadMedia(value) {
-    try { const body = await (await fetch('/api/scene/media')).json(); media = body.media || []; canConvert = !!body.canConvert; } catch { media = []; }
+    try { const body = await (await fetch('/api/scene/media')).json(); media = body.media || []; canConvert = !!body.canConvert; mediaLoaded = true; } catch { media = []; }
+    renderList();
     if (adding && adding !== 'browser') fillMedia($('newFile'), value || $('newFile').value, adding);
     mediaNote();
     const s = current();
@@ -1968,8 +1991,62 @@
     if (scene.music) renderMusic();
     // Studio measures a song's or video's length the first time it's asked: ask again shortly for the ones it hadn't yet.
     if (!mediaRetried && media.some(m => (m.kind === 'audio' || m.kind === 'video') && !m.converting && !m.duration)) { mediaRetried = true; setTimeout(() => loadMedia(), 1500); }
+    if ($('mediaBox').open) loadLibrary();
   }
   let mediaRetried = false;
+
+  // ─── The media folder: every file, where it's used, and Remove ───────────
+  const KIND_NAMES = { audio: 'Song or sound', video: 'Video', image: 'Image' };
+  const size = b => b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
+  const useName = u => ({
+    source: `Source “${u.name}”`, theme: `Theme of “${u.name}”`, sequence: `Sequence “${u.name}” music${u.competition ? ` (${u.competition})` : ''}`,
+    playlist: `Playlist “${u.name}”`, superShot: 'Super shot song', player: 'Loaded in the music player', sponsor: `Sponsor “${u.name}” ad`,
+  }[u.type] || u.name) + (u.onAir ? ' (on air now)' : '');
+  let library = [];
+  async function loadLibrary() {
+    try { library = (await (await fetch('/api/scene/media?uses=1')).json()).media || []; } catch { library = []; }
+    renderLibrary();
+  }
+  function renderLibrary() {
+    const list = $('mediaList'), kind = $('mediaKind').value, shown = library.filter(m => !kind || m.kind === kind);
+    $('mediaCount').textContent = library.length ? `${library.length} file${library.length === 1 ? '' : 's'}, ${size(library.reduce((t, m) => t + (m.size || 0), 0))}` : '';
+    list.innerHTML = '';
+    if (!shown.length) { list.innerHTML = `<li class="empty">${library.length ? 'None of those.' : 'Nothing in the media folder yet.'}</li>`; return; }
+    for (const m of shown) {
+      const li = document.createElement('li');
+      li.innerHTML = '<div><div class="name"></div><div class="uses"></div></div><button class="danger">Remove</button>';
+      li.querySelector('.name').textContent = m.name;
+      const small = document.createElement('small');
+      small.textContent = [KIND_NAMES[m.kind], m.duration ? fmt(m.duration * 1000) : '', m.size ? size(m.size) : '', m.converting ? 'converting…' : ''].filter(Boolean).join(' · ');
+      li.querySelector('.name').append(small);
+      const uses = m.uses || [];
+      li.querySelector('.uses').innerHTML = uses.length ? 'Used by: ' : 'Not used';
+      uses.forEach((u, i) => { const b = document.createElement(u.onAir ? 'b' : 'span'); b.textContent = (i ? ', ' : '') + useName(u); li.querySelector('.uses').append(b); });
+      li.querySelector('button').onclick = () => removeMedia(m.name);
+      list.append(li);
+    }
+  }
+  async function removeMedia(name) {
+    $('mediaErr').textContent = '';
+    await loadLibrary(); // where it's used now, not when the list was drawn
+    const m = library.find(x => x.name === name);
+    if (!m) return;
+    const uses = m.uses || [];
+    if (uses.some(u => u.onAir)) { $('mediaErr').textContent = `${name} is on air now (${uses.filter(u => u.onAir).map(useName).join(', ')}). Turn it off first.`; return; }
+    if (!confirm(`Remove ${name} from the media folder? This can't be undone.`
+      + (uses.length ? `\n\nIt's used by:\n${uses.map(u => '• ' + useName(u)).join('\n')}\n\nPlaylists, the super shot song and sponsors' ads let go of it. Sources, page themes and sequence music keep its name, shown as missing, until you pick another file.` : ''))) return;
+    try {
+      const res = await fetch(`/api/scene/media?name=${encodeURIComponent(name)}&force=1`, { method: 'DELETE' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      console.log(`Removed ${name} from the media folder`);
+    } catch (err) { $('mediaErr').textContent = `Couldn't remove ${name}: ${err.message}`; }
+    await loadMedia();
+  }
+  $('mediaKind').onchange = renderLibrary;
+  $('mediaBox').ontoggle = () => { if ($('mediaBox').open) loadLibrary(); };
+  // The Sponsors page links here to remove ads' files.
+  if (location.hash === '#mediaSection') $('mediaBox').open = true;
   // Adding a source: a dialog, so it's clear the choices are for the new source. It goes above the selected
   // source (or on top), and is selected once added, ready to set up.
   const usedPages = () => new Set(scene.sources.filter(x => x.type === 'browser').map(x => String(x.url).split('?')[0].replace(/^\/+/, '')));

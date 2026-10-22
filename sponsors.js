@@ -111,6 +111,17 @@ function save(input) {
   return s;
 }
 
+// The sponsors with an ad in this media file, and taking it out of their ads (the Output page's Media list
+// removing it from the media folder).
+function adUses(file) { return all().filter(s => s.ads.some(a => a.file === file)).map(s => ({ type: 'sponsor', name: s.name })); }
+function dropAd(file) {
+  const list = all();
+  if (!list.some(s => s.ads.some(a => a.file === file))) return;
+  writable();
+  for (const s of list) s.ads = s.ads.filter(a => a.file !== file);
+  write(list);
+}
+
 function remove(id) {
   writable();
   const list = all();
@@ -536,4 +547,4 @@ async function route(req, res, url, ctx) {
   return false;
 }
 
-module.exports = { init, all, byId, find, moment, save, remove, saveLogo, removeLogo, logoFile, exportFor, importFor, nextAd, pick, next, wall, forGraphic, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };
+module.exports = { init, all, byId, find, moment, save, remove, adUses, dropAd, saveLogo, removeLogo, logoFile, exportFor, importFor, nextAd, pick, next, wall, forGraphic, vacancy, trackedLink, qrSvg, cleanLink, view, route, SHARES, DIR, FILE };

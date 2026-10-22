@@ -602,6 +602,7 @@ function mediaList() {
   try { files = fs.readdirSync(MEDIA_DIR).filter(f => kindOf(f) && !f.startsWith('.')).sort((a, b) => a.localeCompare(b)); } catch { /* none yet */ }
   return files.map(name => {
     const m = { name, kind: kindOf(name) };
+    try { m.size = fs.statSync(path.join(MEDIA_DIR, name)).size; } catch { /* just gone */ }
     if (m.kind === 'video' || m.kind === 'audio') m.duration = duration(name);
     if (m.kind === 'audio') {
       if (converting.has(name)) m.converting = true;
@@ -614,6 +615,70 @@ function mediaList() {
     }
     return m;
   });
+}
+
+// ─── Removing media ──────────────────────────────────────────────────────
+// Where a media file is used: sources showing it, pages playing it as their ?theme=, the sequences (of every
+// competition) whose music it is, the music player's playlists, super shot song and queue, and sponsors' ads.
+// onAir marks a use that's on screen or playing now, which stops it being removed.
+// A sequence names its track by file, or as a link spells it (music.js findTrack), which a file of that exact name wins.
+const sameTrack = (ref, file) => ref === file || (!fs.existsSync(path.join(MEDIA_DIR, cleanFile(ref))) && slug(String(ref).replace(/\.[^.]+$/, '')) === slug(file.replace(/\.[^.]+$/, '')));
+function sequenceFiles() {
+  const files = new Map([[sequences.file(), null], [datadir.file('sequences.json'), null]]);
+  for (const c of competitions.list()) files.set(path.join(competitions.DIR, c.id, 'sequences.json'), c.name);
+  return [...files].filter(([f]) => f);
+}
+function mediaUses(file) {
+  const uses = [];
+  const ads = new Set(Object.values(AD_SOURCES).map(a => a.id));
+  for (const s of scene.sources) {
+    // The Sponsor ad sources hold whichever ad played last: only one on screen counts.
+    if (s.type !== 'browser' && s.file === file && (!ads.has(s.id) || s.visible)) uses.push({ type: 'source', name: s.name, onAir: s.visible });
+    if (s.type === 'browser') {
+      let theme = '';
+      try { theme = new URL(String(s.url || ''), 'http://studio/').searchParams.get('theme') || ''; } catch { /* not an address */ }
+      if (theme === file) uses.push({ type: 'theme', name: s.name, onAir: s.visible });
+    }
+  }
+  if (kindOf(file) === 'audio') {
+    const seen = new Set();
+    for (const [f, competition] of sequenceFiles()) {
+      let list = [];
+      try { list = JSON.parse(fs.readFileSync(f, 'utf8')).sequences || []; } catch { continue; }
+      for (const sq of list) {
+        const key = `${competition} ${sq.id}`;
+        if (sq && sq.music && sq.music.track && !sq.music.playlist && sameTrack(sq.music.track, file) && !seen.has(key)) {
+          seen.add(key);
+          uses.push({ type: 'sequence', name: sq.name, ...(competition ? { competition } : {}) });
+        }
+      }
+    }
+    uses.push(...music.uses(file));
+  }
+  uses.push(...sponsors.adUses(file));
+  return uses;
+}
+// Removes a file from the media folder (with a levelled song's original, and a .mov's WebM only if asked
+// separately). Lists keeping it (playlists, the super shot song, sponsors' ads) let go of it; sources, page
+// themes and sequence music keep its name and show it as missing, so their settings and Stream Deck keys stay
+// for a replacement. Returns { error, status, uses } when it can't.
+function removeMedia(file, force) {
+  if (!file || file.startsWith('.') || !kindOf(file) || !fs.existsSync(path.join(MEDIA_DIR, file))) return { status: 404, error: `No ${file} in the media folder.` };
+  if (converting.has(file) || [...converting.values()].includes(file)) return { status: 409, error: `${file} is still being converted. Try again once it's done.` };
+  const uses = mediaUses(file);
+  if (uses.some(u => u.onAir)) return { status: 409, error: `${file} is on air now. Turn it off (or stop the music) first.`, uses };
+  if (uses.length && !force) return { status: 409, error: `${file} is still used. Remove it anyway with force=1.`, uses };
+  fs.rmSync(path.join(MEDIA_DIR, file), { force: true });
+  if (kindOf(file) === 'audio') {
+    try { for (const f of fs.readdirSync(ORIGINALS)) if (path.basename(f, path.extname(f)) === path.basename(file, path.extname(file))) fs.rmSync(path.join(ORIGINALS, f), { force: true }); } catch { /* no originals */ }
+    music.forget(file);
+  }
+  try { sponsors.dropAd(file); } catch (err) { log('warn', 'scene', `Kept ${file} in the sponsors' ads: ${err.message}`); }
+  durations.delete(file);
+  opaque.delete(file);
+  log('info', 'scene', `Removed ${file} from the media folder${uses.length ? ` (it was used by ${uses.map(u => `${u.type} ${u.name}`).join(', ')})` : ''}`);
+  notify();
+  return { uses };
 }
 
 // Converts a .mov (ProRes 4444 keeps its transparency) to a VP9 WebM Chromium can play.
@@ -844,7 +909,7 @@ async function importFile(file) {
   return { sources: sources.length, scenes: Array.isArray(parsed.scenes) ? scene.scenes.length : null, copied, missing };
 }
 
-// The scene's HTTP routes: /api/scene, /api/scene/events, /api/scene/media, /api/scene/export and
+// The scene's HTTP routes: /api/scene, /api/scene/events, /api/scene/media (GET, POST and DELETE), /api/scene/export and
 // /api/scene/import, and /media/<file>.
 // Returns false for anything else.
 async function route(req, res, url, { send, readBody }) {
@@ -903,7 +968,17 @@ async function route(req, res, url, { send, readBody }) {
     log('info', 'scene', 'Opened the Stream Deck plugin to install it');
     return send(res, 200, { ok: true }), true;
   }
-  if (p === '/api/scene/media' && req.method === 'GET') return send(res, 200, { media: mediaList(), canConvert: !!ffmpegPath() }), true;
+  if (p === '/api/scene/media' && req.method === 'GET') {
+    const media = mediaList();
+    if (url.searchParams.get('uses') === '1') for (const m of media) m.uses = mediaUses(m.name);
+    return send(res, 200, { media, canConvert: !!ffmpegPath() }), true;
+  }
+  if (p === '/api/scene/media' && req.method === 'DELETE') {
+    const name = cleanFile(url.searchParams.get('name'));
+    const out = removeMedia(name, url.searchParams.get('force') === '1');
+    if (out.error) return send(res, out.status, { error: out.error, uses: out.uses || [] }), true;
+    return send(res, 200, { removed: name, uses: out.uses, media: mediaList() }), true;
+  }
   if (p === '/api/scene/media' && req.method === 'POST') {
     const name = cleanFile(url.searchParams.get('name')).replace(/[^\w .()'&+-]/g, '_').replace(/^\.+/, '');
     const kind = name && kindOf(name);
@@ -965,4 +1040,4 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { STREAMDECK_PLUGIN, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, FILE, MEDIA_DIR };
