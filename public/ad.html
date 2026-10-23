@@ -5,6 +5,7 @@
 <title>PIVT and FirstPass Studio ad</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="log.js"></script>
+<script src="chroma.js"></script>
 <script src="done.js"></script>
 <style>
   /* A 10 second ad for the breaks: the PIVT and FirstPass Studio logos animated together.
@@ -221,7 +222,8 @@
       }
       if (layers.length) { $('backdrop').style.backgroundImage = layers.join(', '); $('backdrop').hidden = false; }
       const glow = params.get('glow');
-      if (glow === '1' || (glow !== '0' && layers.length)) stage.classList.add('with-glow');
+      // Chroma key safe (chroma.js): the soft glow would only key as a coloured oval, so it's left out.
+      if (!window.studioChroma && (glow === '1' || (glow !== '0' && layers.length))) stage.classList.add('with-glow');
 
       // The wordmark: the coloured one (light mode) over a light or busy picture, the white one (dark mode) over a dark one.
       const asked = (params.get('mode') || '').toLowerCase();

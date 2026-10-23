@@ -51,6 +51,7 @@ module.exports = function outputs({ port, log }) {
     const q = new URLSearchParams({ fit: '1' });
     if (w.kind === 'key') { q.set('key', '1'); q.set('mute', '1'); }
     q.set('bg', w.kind === 'chroma' ? w.color.replace('#', '') : '000000');
+    if (w.safe) q.set('chromaKey', 'true'); // chroma key safe (public/chroma.js)
     return `http://localhost:${port}/scene.html?${q}`;
   };
 

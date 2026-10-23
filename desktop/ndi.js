@@ -83,10 +83,10 @@ module.exports = function ndi({ port, log, onStatus }) {
     if (addon) addon.stop();
   }
 
-  // w: { signal, name, format: { id, width, height, rateN, rateD }, color } from outputs.js, or
+  // w: { signal, name, format: { id, width, height, rateN, rateD }, color, safe } from outputs.js, or
   // null to stop.
   function show(w) {
-    const key = w && JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '']);
+    const key = w && JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '', !!w.safe]);
     if (key && running?.key === key) return;
     stop();
     error = '';
@@ -106,7 +106,7 @@ module.exports = function ndi({ port, log, onStatus }) {
     log(`NDI output on: ${sources.map(s => s.name).join(', ')} (${w.format.id}, ${width} x ${height})`);
 
     win = sceneWindow({
-      port, width, height, frameRate: rateN / rateD, log, label: 'NDI output',
+      port, width, height, frameRate: rateN / rateD, log, label: 'NDI output', chromaKey: !!w.safe,
       onFrame: (bitmap, bw, bh) => addon.frame(bitmap, bw, bh),
     });
 

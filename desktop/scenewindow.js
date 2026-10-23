@@ -16,7 +16,8 @@ const SCENE_READY = `new Promise(done => !document.getElementById('stage') ? don
 
 // onFrame(bitmap, width, height): each new picture, BGRA with premultiplied alpha, at width x height;
 // returns false when the output didn't take it.
-module.exports = function sceneWindow({ port, width, height, frameRate, log, label, onFrame }) {
+// chromaKey: draw the scene chroma key safe (public/chroma.js), for NDI's chroma signal.
+module.exports = function sceneWindow({ port, width, height, frameRate, log, label, onFrame, chromaKey = false }) {
   // The window is the format's full size at one pixel per point, so the scene is drawn 1:1 with no
   // scaling anywhere. (Drawn at half size at twice the density, it came out soft on the Mac, as if
   // drawn at half size and scaled up.) enableLargerThanScreen lets it be bigger than the
@@ -38,7 +39,7 @@ module.exports = function sceneWindow({ port, width, height, frameRate, log, lab
     win = make(2);
   }
   win.webContents.setFrameRate(Math.min(240, Math.ceil(frameRate) || 30));
-  const url = `http://localhost:${port}/scene.html?fit=1`;
+  const url = `http://localhost:${port}/scene.html?fit=1${chromaKey ? '&chromaKey=true' : ''}`;
   let loaded = false;
   const retry = () => setTimeout(() => { if (win) win.loadURL(url); }, 1000);
   win.webContents.on('did-finish-load', async () => {

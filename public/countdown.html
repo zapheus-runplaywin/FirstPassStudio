@@ -54,6 +54,7 @@
   .countdown__sponsor { background: var(--purple-dark); color: var(--muted); padding: 10px 32px; font-size: 18px; }
 </style>
 <script src="log.js"></script>
+<script src="chroma.js"></script>
 <script src="fit.js"></script>
 </head>
 <body>
@@ -99,8 +100,10 @@
     const endText = params.get('end') || 'Starting soon';
     // ?fade=1 (or ?fade=8 for 8 seconds) fades the whole card out over the last 5 seconds and leaves it gone at zero.
     const fadeParam = params.get('fade');
-    const fadeMs = fadeParam === null || fadeParam === '0' ? 0 : 1000 * (Number(fadeParam) > 1 ? Math.min(60, Number(fadeParam)) : 5);
-    const endHides = fadeMs > 0 || endText.toLowerCase() === 'hide';
+    const wantsFade = !(fadeParam === null || fadeParam === '0');
+    // Chroma key safe (chroma.js): nothing half see-through, so the card goes at zero instead of fading.
+    const fadeMs = !wantsFade || window.studioChroma ? 0 : 1000 * (Number(fadeParam) > 1 ? Math.min(60, Number(fadeParam)) : 5);
+    const endHides = wantsFade || endText.toLowerCase() === 'hide';
     const showTeams = params.get('teams') !== '0';
     if (['top', 'bottom'].includes(params.get('position'))) document.body.classList.add(params.get('position'));
     document.getElementById('label').textContent = params.get('label') || 'Starting in';

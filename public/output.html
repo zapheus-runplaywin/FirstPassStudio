@@ -219,6 +219,15 @@
         <label for="outColor" class="forChroma forNdiChroma">Colour</label>
         <div class="row forChroma forNdiChroma"><input id="outColor" type="color" style="width:56px;height:36px;padding:2px">
           <button class="alt" data-color="#00b140">Green</button><button class="alt" data-color="#0047bb">Blue</button></div>
+        <label for="outChromaSafe" class="forNdiChroma">Graphics</label>
+        <div class="forNdiChroma">
+          <label style="font-weight:400"><input type="checkbox" id="outChromaSafe"> Chroma key safe</label>
+          <p class="note hidden" id="outChromaWarn" style="margin:4px 0 0"><b>Sources are switched to chroma key safe,</b> which limits some of their options:
+            panels are solid, soft shadows, glows and light rays are left out, nothing is half see-through (fades become cuts, soft edges are hard),
+            and options that only fade, like the countdown's fade and the ad's glow, are skipped. Titles, logos, light and dark modes and every other setting
+            work as usual. Nothing is saved over: pick another output, or untick this, and every source is back exactly as it was.</p>
+          <p class="note hidden" id="outNearKey" style="margin:4px 0 0"></p>
+        </div>
         <label for="outFillDisplay" class="forFillKey">Fill display</label>
         <select id="outFillDisplay" class="forFillKey"></select>
         <label for="outKeyDisplay" class="forFillKey">Key display</label>
@@ -480,7 +489,8 @@
           <label class="forBrowser">Page size</label>
           <div class="row forBrowser"><input id="fWidth" type="number" min="16" max="7680"> × <input id="fHeight" type="number" min="16" max="4320"> px</div>
           <label for="fFade">Fade</label>
-          <div class="row"><input id="fFade" type="number" min="0" max="10000" step="50"> ms <span class="note" style="margin:0">0 is a cut</span></div>
+          <div class="row"><input id="fFade" type="number" min="0" max="10000" step="50"> ms <span class="note" style="margin:0">0 is a cut</span>
+            <span class="note hidden" id="fFadeChroma" style="margin:0">Chroma key safe: a cut on the chroma output</span></div>
           <label>Position</label>
           <div class="row">x <input id="fX" type="number"> y <input id="fY" type="number"> px</div>
           <label for="fScale">Scale</label>
@@ -577,10 +587,12 @@
     if (!on && popped) { popChannel.postMessage('close'); popped = null; }
     showPreview();
   }
+  var chromaWas = false; // whether the chroma output is chroma key safe (var: showPreview can run before the outputs load)
   // The preview here runs only while it's on and not popped out into its own window (preview.html).
   function showPreview() {
     const on = $('previewOn').checked, here = on && !popped;
-    const src = here ? '/scene.html?mute=1' : 'about:blank';
+    // While a chroma output is chroma key safe, the Live View shows the scene that way too.
+    const src = here ? `/scene.html?mute=1${chromaWas ? '&chromaKey=true' : ''}` : 'about:blank';
     if ($('previewFrame').getAttribute('src') !== src) $('previewFrame').src = src;
     $('previewOff').classList.toggle('hidden', here);
     $('previewOffText').textContent = popped ? 'The Scene View is in its own window' : 'Live View is off';
@@ -1579,6 +1591,13 @@
       }
       if (o.unit) { const u = document.createElement('span'); u.className = 'unit'; u.textContent = o.unit; row.appendChild(u); }
       cell.appendChild(row);
+      // While the chroma output is chroma key safe, say what this option does then (its setting is kept for the other outputs).
+      if (o.chroma && out && out.chromaSafeNow) {
+        const note = document.createElement('p');
+        note.className = 'note chromaNote';
+        note.textContent = `Chroma key safe: ${o.chroma}`;
+        cell.appendChild(note);
+      }
       if (o.picks) {
         const picks = document.createElement('div');
         picks.className = 'row picks';
@@ -1830,6 +1849,20 @@
     $('outNdiFormat').value = o.ndiFormat;
     if (document.activeElement !== $('outNdiName')) $('outNdiName').value = o.ndiName;
     $('outColor').value = o.chromaColor;
+    $('outChromaSafe').checked = o.chromaSafe;
+    $('outChromaWarn').classList.toggle('hidden', !o.chromaSafeNow);
+    // The competition's colours a key on this colour would cut into (logos can't be checked).
+    $('outNearKey').innerHTML = (o.nearKey || []).length ? `<b>Close to the key colour:</b> ${o.nearKey.map(c => `${esc(c.name)} (${esc(c.hex)})`).join(', ')}. `
+      + 'A keyer may cut holes in these: try the other key colour, or change them in the Competitions setup. Check the logos too.' : '';
+    $('outNearKey').classList.toggle('hidden', !(o.nearKey || []).length);
+    $('fFadeChroma').classList.toggle('hidden', !o.chromaSafeNow);
+    // Chroma key safe changed: the Live View shows it as it goes out, and the source's options say what it does to them.
+    if (chromaWas !== o.chromaSafeNow) {
+      chromaWas = o.chromaSafeNow;
+      showPreview();
+      const s = current();
+      if (s) renderOptions(s, true);
+    }
     for (const el of document.querySelectorAll('.forNdi')) el.classList.toggle('hidden', o.mode !== 'ndi');
     for (const el of document.querySelectorAll('.forNdiChroma')) el.classList.toggle('hidden', o.mode !== 'chroma' && !(o.mode === 'ndi' && o.ndiSignal === 'chroma'));
     for (const el of document.querySelectorAll('.forChroma:not(.forNdiChroma)')) el.classList.toggle('hidden', o.mode !== 'chroma');
@@ -1892,6 +1925,7 @@
   $('outFillDisplay').onchange = () => setOut({ fillDisplay: $('outFillDisplay').value });
   $('outKeyDisplay').onchange = () => setOut({ keyDisplay: $('outKeyDisplay').value });
   $('outColor').onchange = () => setOut({ chromaColor: $('outColor').value });
+  $('outChromaSafe').onchange = () => setOut({ chromaSafe: $('outChromaSafe').checked });
   $('outDlDevice').onchange = () => setOut({ decklinkDevice: $('outDlDevice').value, decklinkMode: 0 }).then(() => setOut({ decklinkMode: Number($('outDlMode').value) || 0 }));
   $('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').value) || 0 });
   $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
