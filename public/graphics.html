@@ -235,6 +235,15 @@
         It needs NDI's runtime for Mac installed (free, the libNDI installer from <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>; Studio also uses the copy inside NDI Tools' apps if it finds one);
         the Output page says if it isn't, with where to get it, and finds it as soon as it's installed. Use a wired network: each 1080p source is roughly 100 to 150 Mbit/s. Sound plays through the Mac's audio output, not over NDI.
         Output on/off and the <code>/deck/output</code> links work the same. NDI® is a registered trademark of Vizrt NDI AB.</li>
+      <li><b>Chroma key safe:</b> a chroma key cuts out one colour, so anything half see-through (see-through panels, soft shadows and glows,
+        fades, soft edges) mixes with that colour and keys with a fringe or holes. With <b>Chroma</b> (a display, or NDI's chroma signal) picked,
+        <b>Chroma key safe</b> is ticked unless you untick it, and the Output page warns that the sources are switched to it: every graphic and animation
+        goes out with solid panels, no soft shadows, glows, light rays or flashes (hard shadows stay, made solid), and nothing half see-through, so
+        fades become cuts (sources cut instead of fading) and soft edges are hard. Options that only fade, like the countdown's fade and the ad's glow,
+        are skipped, and the source's options say so. Titles, logos, light and dark modes and every other setting work as usual. It never changes a
+        saved setting: pick another output, or untick it, and everything is back as it was. The Scene View shows the scene chroma key safe while it's on.
+        The Output page also lists any competition or club colour close to the key colour (a keyer would cut holes in it); logos can't be checked, so look at those.
+        For a page on its own (such as an OBS browser source keyed on a colour) add <code>?chromaKey=true</code> to its link.</li>
     </ul>
     <p class="page__help">The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>

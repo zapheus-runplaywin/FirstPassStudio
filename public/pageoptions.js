@@ -9,7 +9,8 @@
 // with gameOnly a tick box under it narrows them to the two teams in the picked game. list: 'teams' on a select
 // adds the teams those athletes play for as choices, and narrows the athlete suggestions to the one picked.
 // list: 'audio' on a select adds the songs in the media folder as choices. lengthCheck (the intro and outro's theme
-// timing) shows under it how the theme's length compares with the animation's.
+// timing) shows under it how the theme's length compares with the animation's. chroma: what happens to the option
+// while the chroma output is chroma key safe (chroma.js), shown under it then; the option itself is kept.
 
 /* exported PAGE_OPTIONS */
 const PAGE_OPTIONS = (() => {
@@ -62,7 +63,8 @@ const PAGE_OPTIONS = (() => {
     'countdown.html': [
       { key: 'label', label: 'Heading', type: 'text', placeholder: 'default' },
       { key: 'end', label: 'Words at zero', type: 'text', placeholder: 'STARTING SOON', help: 'Keep them short. hide fades the card away instead.' },
-      { key: 'fade', label: 'Fade out over the last', type: 'number', min: 2, max: 60, unit: 's', placeholder: 'no fade' },
+      { key: 'fade', label: 'Fade out over the last', type: 'number', min: 2, max: 60, unit: 's', placeholder: 'no fade',
+        chroma: 'no fade: the card goes at zero instead.' },
       show('teams', 'Teams', 'Clock only'),
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Middle'], ['top', 'Top'], ['bottom', 'Bottom']] },
       spot('naming rights sponsor, under the clock'),
@@ -231,7 +233,8 @@ const PAGE_OPTIONS = (() => {
     'ad.html': [
       { key: 'tagline', label: 'Tagline', type: 'text', placeholder: 'none' },
       { key: 'out', label: 'At the end', type: 'select', choices: [['', 'Animates away'], ['0', 'Stays on screen']] },
-      { key: 'glow', label: 'Glow', type: 'select', choices: [['', 'Only with a background'], ['1', 'Always'], ['0', 'Never']] },
+      { key: 'glow', label: 'Glow', type: 'select', choices: [['', 'Only with a background'], ['1', 'Always'], ['0', 'Never']],
+        chroma: 'no glow.' },
       { key: 'mode', label: 'Wordmark', type: 'select', choices: [['', 'Coloured (white with a background)'], ['light', 'Coloured'], ['dark', 'White']] },
       ...background,
     ],

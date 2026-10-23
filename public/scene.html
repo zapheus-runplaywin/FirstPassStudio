@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-chroma-alpha="#stage">
 <head>
 <meta charset="utf-8">
 <title>Scene · FirstPass Studio</title>
@@ -12,7 +12,8 @@
   The Mac app's display outputs (desktop/outputs.js) open it full screen with ?fit=1 (scales the
   frame to the window), ?bg=<hex> (a background colour: black for fill, the chroma colour for chroma)
   and ?key=1 (the key signal: white wherever the scene isn't see-through, grey where it's partly
-  see-through, on black).
+  see-through, on black). The chroma outputs add ?chromaKey=true (chroma.js): every source drawn
+  chroma key safe, with nothing half see-through, and sources cut instead of fading.
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -24,8 +25,11 @@
   /* Key output: every pixel of a layer turns white, keeping its transparency, so on black it reads as the alpha. */
   body.key .layer { filter: brightness(0) invert(1); }
   body.fit { cursor: none; }
+  /* Chroma key safe (chroma.js, ?chromaKey=true): a fade would be half see-through over the key colour, so sources cut. */
+  html.chroma-safe .layer { transition-duration: 0s !important; }
 </style>
 <script src="log.js"></script>
+<script src="chroma.js"></script>
 <script src="sceneevents.js"></script>
 <script src="autoreload.js"></script>
 <script src="sfx.js"></script>

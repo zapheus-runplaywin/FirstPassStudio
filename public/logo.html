@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="logo-templates.css">
 <script src="log.js"></script>
+<script src="chroma.js"></script>
 <script src="done.js"></script>
 <script src="backdrop.js"></script>
 <script src="fit.js"></script>
@@ -62,6 +63,8 @@
   .go .trail .logo-box { animation: trailHide calc(.15s / var(--speed)) linear calc(1.3s / var(--speed)) forwards; }
   .go.out .trail .logo-box { animation: none; }
   @keyframes trailHide { to { opacity: 0; } }
+  /* Chroma key safe (chroma.js): see-through ghosts would key as solid copies, so there's no trail. */
+  html.chroma-safe .trail { display: none; }
   /* The landing: a squash, then a slow push in while it holds */
   .go .hero .logo-box { animation: squash calc(.4s / var(--speed)) cubic-bezier(.3,1.6,.5,1) calc(1.3s / var(--speed)),
                                    push calc(2.5s / var(--speed)) ease-out calc(1.7s / var(--speed)) forwards; }

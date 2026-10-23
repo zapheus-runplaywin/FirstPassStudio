@@ -74,6 +74,9 @@
   async function listen(take = false) {
     try {
       const o = await (await fetch('/api/outputs')).json();
+      // While a chroma output is chroma key safe, the Scene View shows the scene that way too.
+      const src = `/scene.html?mute=1${o.chromaSafeNow ? '&chromaKey=true' : ''}`;
+      if (frame.getAttribute('src') !== src) frame.src = src;
       wanted = !!o.previewSound;
       const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on: wanted, take }) });
       sound = !!(await r.json()).sound;

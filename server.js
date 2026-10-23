@@ -83,7 +83,14 @@ const DATA_STATE = migrations.run(log);
 // Sequences belong to the competition in use, in its folder.
 scene.init(log, { ffmpeg: MACHINE.ffmpegPath,
   sequencesFile: () => { const id = competitions.activeId(); return id ? path.join(competitions.DIR, id, 'sequences.json') : null; } });
-outputs.init(log);
+// The colours the Output page checks against the chroma key colour.
+const COLOUR_NAMES = { main: 'Main colour', dark: 'Dark colour', panel: 'Panels', panelAlt: 'Every second row', highlight: 'Highlight', accent: 'Accent', text: 'Text', textOnHighlight: 'Text on highlight', muted: 'Small print' };
+outputs.init(log, {
+  colours: () => [
+    ...Object.entries(CONFIG.colours || {}).map(([k, hex]) => ({ name: COLOUR_NAMES[k] || k, hex })),
+    ...Object.entries(CONFIG.clubs || {}).filter(([, c]) => c && c.colour).map(([club, c]) => ({ name: `${club}'s colour`, hex: c.colour })),
+  ],
+});
 sponsors.init(log);
 // Proof of play for the sponsors: what's on screen, and whether a video output is on.
 exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().length > 0 });

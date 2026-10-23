@@ -37,7 +37,7 @@ const DEFAULT_NDI_FORMAT = '1080p50';
 
 let log = () => {};
 let settings = {
-  mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, fillDisplay: '', keyDisplay: '',
+  mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
   ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT,
 };
@@ -69,6 +69,9 @@ function clean(s, old = settings) {
     on: pick('on', true) !== false,
     chromaDisplay: String(pick('chromaDisplay', '')),
     chromaColor: hex(pick('chromaColor')),
+    // Chroma key safe graphics (public/chroma.js): solid panels, no soft shadows, nothing half see-through.
+    // On unless turned off; it only changes how the chroma outputs draw, never any source's own settings.
+    chromaSafe: pick('chromaSafe', true) !== false,
     fillDisplay: String(pick('fillDisplay', '')),
     keyDisplay: String(pick('keyDisplay', '')),
     decklinkDevice: String(pick('decklinkDevice', '')),
@@ -97,9 +100,9 @@ function save() {
 const sceneViewSound = () => !outputWindows().length;
 const listening = () => !!(sceneViewSound() && listener && listener.until > Date.now());
 
-// What each display should show now: [{ display, kind: 'fill' | 'key' | 'chroma', color }], or the
+// What each display should show now: [{ display, kind: 'fill' | 'key' | 'chroma', color, safe }], or the
 // Blackmagic output: [{ kind: 'decklink', device, mode, keying, straight }], or the NDI output:
-// [{ kind: 'ndi', signal, name, format, color }]. An output on always plays the scene's sound.
+// [{ kind: 'ndi', signal, name, format, color, safe }]. safe: the scene drawn chroma key safe. An output on always plays the scene's sound.
 const windows = () => outputWindows();
 
 // The Blackmagic format to send: the one picked if it's 1080p, else (nothing picked yet, or an interlaced or
@@ -123,11 +126,11 @@ function outputWindows() {
   if (settings.mode === 'ndi') {
     if (!ndi?.ok) return [];
     const format = NDI_FORMATS.find(f => f.id === settings.ndiFormat);
-    return [{ kind: 'ndi', signal: settings.ndiSignal, name: settings.ndiName, format, color: settings.chromaColor }];
+    return [{ kind: 'ndi', signal: settings.ndiSignal, name: settings.ndiName, format, color: settings.chromaColor, safe: chromaSafe() }];
   }
   if (!displays) return [];
   const have = id => displays.some(d => d.id === id);
-  if (settings.mode === 'chroma' && have(settings.chromaDisplay)) return [{ display: settings.chromaDisplay, kind: 'chroma', color: settings.chromaColor }];
+  if (settings.mode === 'chroma' && have(settings.chromaDisplay)) return [{ display: settings.chromaDisplay, kind: 'chroma', color: settings.chromaColor, safe: chromaSafe() }];
   if (settings.mode === 'fillkey') {
     const out = [];
     if (have(settings.fillDisplay)) out.push({ display: settings.fillDisplay, kind: 'fill' });
@@ -137,6 +140,31 @@ function outputWindows() {
   return [];
 }
 
+// Whether the scene goes out chroma key safe: ticked, and the output is keyed on a colour.
+const chromaSafe = () => settings.chromaSafe && (settings.mode === 'chroma' || (settings.mode === 'ndi' && settings.ndiSignal === 'chroma'));
+
+// The competition's colours that sit close to the key colour, so a keyer would cut holes in them:
+// a strong colour (not too grey or dark) within 55 degrees of its hue. colours: [{ name, hex }].
+let competitionColours = () => [];
+const hsv = h => {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  const hue = !d ? 0 : max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  return { h: (hue + 360) % 360, s: max ? d / max : 0, v: max };
+};
+function nearKey(colours, key) {
+  const k = hsv(key);
+  const seen = new Set();
+  return colours.filter(c => {
+    if (!/^#[0-9a-f]{6}$/i.test(c.hex || '') || seen.has(c.name)) return false;
+    const x = hsv(c.hex.toLowerCase());
+    const apart = Math.min(Math.abs(x.h - k.h), 360 - Math.abs(x.h - k.h));
+    if (x.s < 0.35 || x.v < 0.25 || apart > 55) return false;
+    seen.add(c.name);
+    return true;
+  });
+}
+
 // Tells the Mac app which windows to open.
 function send() {
   if (port) port.postMessage({ type: 'outputs', windows: windows() });
@@ -144,10 +172,12 @@ function send() {
 
 function state() {
   return {
-    ...settings, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' }, decklinkStatus,
+    ...settings, chromaSafeNow: chromaSafe(), app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' }, decklinkStatus,
     ndi: ndi || { ok: false, error: '' }, ndiStatus, ndiFormats: NDI_FORMATS, showing: windows(),
     // previewSound: no video output is on, so the Scene View plays the sound (listening: one does now).
     previewSound: sceneViewSound(), listening: listening(),
+    // Colours in the graphics a chroma key on chromaColor would cut into.
+    nearKey: nearKey(competitionColours(), settings.chromaColor),
   };
 }
 
@@ -162,7 +192,8 @@ function apply(changes) {
   }
 }
 
-const describe = x => x.kind === 'decklink' ? `${deviceName(x.device)} (${modeName(x.device, x.mode)}, ${x.keying === 'external' ? 'fill and key' : 'fill only'})`
+const describe = x => (x.safe ? 'chroma key safe ' : '') + describe1(x);
+const describe1 = x => x.kind === 'decklink' ? `${deviceName(x.device)} (${modeName(x.device, x.mode)}, ${x.keying === 'external' ? 'fill and key' : 'fill only'})`
   : x.kind === 'ndi' ? `NDI "${x.name}" (${x.format.id}, ${{ fillkey: 'fill and key', chroma: `chroma ${x.color}`, alpha: 'with transparency' }[x.signal]})`
   : `${x.kind} on ${label(x.display)}`;
 const label = id => (displays || []).find(d => d.id === id)?.label || `display ${id}`;
@@ -237,8 +268,10 @@ function message(msg) {
   listenChanged(); // an output may have come or gone
 }
 
-function init(logger) {
+// colours(): the active competition's colours and club colours, [{ name, hex }].
+function init(logger, { colours } = {}) {
   log = logger;
+  if (colours) competitionColours = () => { try { return colours() || []; } catch { return []; } };
   load();
   setInterval(listenChanged, 5000).unref(); // a preview that stopped checking in
 
