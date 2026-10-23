@@ -162,6 +162,16 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       e.preventDefault();
       if (/^https?:|^mailto:/.test(to)) shell.openExternal(to);
     });
+    // A page with unsaved changes (Competitions setup) blocks leaving it; Electron would cancel
+    // quietly, so ask. preventDefault here means leave anyway.
+    wc.on('will-prevent-unload', e => {
+      const choice = dialog.showMessageBoxSync(win, {
+        type: 'warning', buttons: ['Leave without saving', 'Stay'], defaultId: 1, cancelId: 1,
+        message: "This page has changes that aren't saved.",
+        detail: 'Stay to save them, or leave and lose them.',
+      });
+      if (choice === 0) e.preventDefault();
+    });
     wc.on('did-navigate', (e, to) => { if (isStudio(to)) win.studioUrl = to; });
     wc.on('did-navigate-in-page', (e, to) => { if (isStudio(to)) win.studioUrl = to; });
     // Off air (or still starting): a page saying so, which tries again by itself.
@@ -256,8 +266,16 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // ─── The app menu (the bar at the top of the screen while a window is in front) ──
   const current = () => { const w = BrowserWindow.getFocusedWindow(); return w && !w.isDestroyed() && !isSplash(w) ? w : null; };
 
+  // Before the menu loads another page in a window: a page with unsaved changes
+  // (window.studioBeforeLeave, Competitions setup) asks Save, Don't save or Cancel first.
+  function leaving(w, then) {
+    w.webContents.executeJavaScript('window.studioBeforeLeave ? window.studioBeforeLeave() : true', true)
+      .catch(() => true)
+      .then(ok => { if (ok && !w.isDestroyed()) then(); });
+  }
+
   function refreshMenu() {
-    const go = p => ({ click: () => { const w = current(); if (w) w.loadURL(local(p)); else open(p); } });
+    const go = p => ({ click: () => { const w = current(); if (w) leaving(w, () => w.loadURL(local(p))); else open(p); } });
     const w = current();
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       {
@@ -291,8 +309,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
           { role: 'reload' },
           { role: 'forceReload' },
           { type: 'separator' },
-          { label: 'Back', accelerator: 'CmdOrCtrl+[', click: () => { const c = current(); if (c && c.webContents.navigationHistory.canGoBack()) c.webContents.navigationHistory.goBack(); } },
-          { label: 'Forward', accelerator: 'CmdOrCtrl+]', click: () => { const c = current(); if (c && c.webContents.navigationHistory.canGoForward()) c.webContents.navigationHistory.goForward(); } },
+          { label: 'Back', accelerator: 'CmdOrCtrl+[', click: () => { const c = current(); if (c && c.webContents.navigationHistory.canGoBack()) leaving(c, () => c.webContents.navigationHistory.goBack()); } },
+          { label: 'Forward', accelerator: 'CmdOrCtrl+]', click: () => { const c = current(); if (c && c.webContents.navigationHistory.canGoForward()) leaving(c, () => c.webContents.navigationHistory.goForward()); } },
           { type: 'separator' },
           { role: 'resetZoom' },
           { role: 'zoomIn' },

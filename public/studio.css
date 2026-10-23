@@ -81,7 +81,7 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
 .cp-chip:hover { transform: scale(1.12); }
 .cp-tools { display: flex; gap: 8px; justify-content: flex-end; }
 
-/* askText() dialog (asktext.js) */
+/* askText() and askChoice() dialogs (asktext.js) */
 .fp-ask { border: 1px solid var(--fp-line-strong); border-radius: var(--fp-radius); padding: 20px 22px; width: min(460px, calc(100% - 32px));
   color: var(--fp-navy); font-family: var(--fp-font); }
 .fp-ask::backdrop { background: rgba(15,23,42,.45); }
@@ -89,3 +89,5 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
 .fp-ask input { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; font: inherit; font-weight: 400; padding: 7px 9px;
   border: 1px solid var(--fp-line-strong); border-radius: 6px; }
 .fp-ask__buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.fp-ask__question { margin: 0; font-weight: 700; }
+.fp-ask__detail { margin: 8px 0 0; color: var(--fp-muted); }

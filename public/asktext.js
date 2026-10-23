@@ -39,3 +39,40 @@ window.askText = function askText(question, value = '') {
     input.select();
   });
 };
+
+// askChoice(question, detail, buttons) shows a question with a button for each of buttons
+// ([{ label, value, alt }], the last one the default) and resolves to the value of the one
+// pressed, or null when the dialog is closed with Escape.
+window.askChoice = function askChoice(question, detail, buttons) {
+  return new Promise(resolve => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'fp-ask';
+    const form = document.createElement('form');
+    form.method = 'dialog';
+    const q = document.createElement('p');
+    q.className = 'fp-ask__question';
+    q.textContent = question;
+    form.append(q);
+    if (detail) { const p = document.createElement('p'); p.className = 'fp-ask__detail'; p.textContent = detail; form.append(p); }
+    const row = document.createElement('div');
+    row.className = 'fp-ask__buttons';
+    let last = null;
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.type = 'submit'; btn.value = b.value; btn.textContent = b.label;
+      if (b.alt) btn.className = 'alt';
+      row.append(btn);
+      last = btn;
+    }
+    form.append(row);
+    dlg.append(form);
+    document.body.append(dlg);
+    dlg.addEventListener('close', () => {
+      const v = buttons.find(b => b.value === dlg.returnValue);
+      dlg.remove();
+      resolve(v ? v.value : null);
+    });
+    dlg.showModal();
+    if (last) last.focus();
+  });
+};

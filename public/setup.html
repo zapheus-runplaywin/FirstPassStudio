@@ -406,6 +406,22 @@
   function note(id, text, cls) { $(id).textContent = text; $(id).className = 'note' + (cls ? ' ' + cls : ''); }
   function markDirty() { dirty = true; note('saveNote', 'Not saved yet.'); }
 
+  // Before anything that would lose unsaved changes: asks to save them, discard them or stay put.
+  // Resolves to false to stay put, else to 'saved', 'discarded' or true (nothing to save).
+  async function settle() {
+    if (!dirty) return true;
+    const choice = await askChoice(`Save your changes to ${form.name || 'this competition'}?`, "If you don't save them, they're lost.",
+      [{ label: 'Cancel', value: 'cancel', alt: true }, { label: "Don't save", value: 'discard', alt: true }, { label: 'Save', value: 'save' }]);
+    if (choice === 'discard') { dirty = false; return 'discarded'; }
+    if (choice !== 'save') return false;
+    try { await save(true); return 'saved'; }
+    catch (err) { note('saveNote', `Couldn't save: ${err.message}`, 'error'); return false; }
+  }
+  // The Mac app asks this before its Go menu, Back and Forward load another page.
+  window.studioBeforeLeave = async () => !!await settle();
+  // After discarding changes but staying on this competition: show what's saved again.
+  async function reopen() { const id = editing; editing = null; if (id) await open(id); }
+
   // ─── Competition list ───────────────────────────────────────────────────
   async function loadList(pick) {
     info = await api('/api/setup');
@@ -437,7 +453,7 @@
   }
 
   async function open(id) {
-    if (dirty && !confirm('Leave without saving your changes?')) return;
+    if (!await settle()) return;
     const d = await api(`/api/setup/${id}`);
     editing = id; form = d.settings; files = { logos: d.logos, brand: d.brand, fonts: d.fonts, fontFamilies: d.fontFamilies }; dirty = false;
     [...$('comps').children].forEach((row, i) => row.classList.toggle('editing', info.competitions[i].id === id));
@@ -451,9 +467,10 @@
   }
 
   async function activate(id) {
-    if (!confirm('Switch every graphic, the control page and the Stream Deck to this competition? The scoreboard starts again on its first game.')) return;
+    const settled = await settle();
+    if (!settled) return;
+    if (!confirm('Switch every graphic, the control page and the Stream Deck to this competition? The scoreboard starts again on its first game.')) { if (settled === 'discarded') reopen(); return; }
     try {
-      if (id === editing && dirty) await save(true);
       await post(`/api/setup/${id}/activate`, {});
       editing = null; dirty = false;
       await loadList(id);
@@ -964,10 +981,8 @@
   $('useComp').onclick = () => activate(editing);
   $('newComp').onclick = async () => {
     const name = await askText('Name for the new competition (e.g. AMMNA Nationals 2027)');
-    if (!name) return;
+    if (!name || !await settle()) return;
     try {
-      if (dirty && confirm('Save your changes first?')) await save(true);
-      dirty = false;
       const d = await post('/api/setup-new', { name });
       editing = null;
       await loadList(d.id);
@@ -987,7 +1002,12 @@
   };
   $('templateComp').onclick = async () => {
     try {
-      if (dirty && confirm('Save your changes first?')) await save(true);
+      if (dirty) {
+        const choice = await askChoice('Save your changes first?', 'The template file is made from the saved settings.',
+          [{ label: 'Cancel', value: 'cancel', alt: true }, { label: 'Save', value: 'save' }]);
+        if (choice !== 'save') return;
+        await save(true);
+      }
       const tpl = await api(`/api/setup/${editing}/template`);
       const a = el('a');
       a.href = URL.createObjectURL(new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' }));
@@ -1001,16 +1021,26 @@
   $('templateFile').onchange = async () => {
     const file = $('templateFile').files[0];
     $('templateFile').value = '';
-    if (!file) return;
+    if (!file || !await settle()) return;
     try {
-      if (dirty && confirm('Save your changes first?')) await save(true);
-      dirty = false;
       const d = await api('/api/setup-template', { method: 'POST', headers: { 'content-type': 'application/json' }, body: file });
       editing = null;
       await loadList(d.id);
       note('saveNote', d.active ? `Imported ${d.settings.name}. It's in use now.` : `Imported ${d.settings.name}. Check its settings, then Save and use it.`, 'ok');
     } catch (err) { note('saveNote', `Couldn't import it: ${err.message}`, 'error'); }
   };
+  // Following a link to another page in this window (the tabs at the top) asks first too.
+  document.addEventListener('click', async e => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!dirty || !a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if ((a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+    const to = new URL(a.href, location.href);
+    if (to.origin === location.origin && to.pathname === location.pathname && to.search === location.search && to.hash) return;
+    e.preventDefault();
+    if (await settle()) location.href = to.href;
+  });
+  // Anything else (closing the window, reloading): the browser's own "Leave page?" question; the
+  // Mac app asks Leave or Stay itself (desktop/windows.js), as Electron would cancel it silently.
   addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
   loadList().catch(err => note('saveNote', `Couldn't load the competitions: ${err.message}`, 'error'));
