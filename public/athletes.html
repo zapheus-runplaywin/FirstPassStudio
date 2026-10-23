@@ -82,6 +82,8 @@
   .pic.unmatched .tag { color: var(--fp-orange); }
 </style>
 <script src="log.js"></script>
+<script src="asktext.js"></script>
+<script src="unsaved.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar">
@@ -393,11 +395,7 @@ function editStats(a) {
   if (!totals.childNodes.length) totals.textContent = 'No games yet.';
   $('statsError').textContent = '';
   $('statsSave').onclick = async () => {
-    const records = [...rows.children].map(tr => {
-      const [div, club, games, asOf] = tr.querySelectorAll('select, input');
-      return { division: div.value, club: club.value, games: games.value, asOf: asOf.value };
-    }).filter(r => r.games !== '');
-    const positions = [...pos.querySelectorAll('input:checked:not(:disabled)')].map(c => c.value);
+    const { records, positions } = statsInDialog();
     try {
       const d = await api('/api/athletes/stats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ athlete: a.name, records, positions }) });
       Object.assign(a, { career: d.career, positionsPlayed: d.positionsPlayed, positionsTyped: d.positionsTyped, records: d.records });
@@ -406,7 +404,22 @@ function editStats(a) {
     } catch (err) { $('statsError').textContent = err.message; }
   };
   dlg.showModal();
+  statsGuard.opened();
 }
+// What the games dialog holds now.
+function statsInDialog() {
+  const records = [...$('statsRows').children].map(tr => {
+    const [div, club, games, asOf] = tr.querySelectorAll('select, input');
+    return { division: div.value, club: club.value, games: games.value, asOf: asOf.value };
+  }).filter(r => r.games !== '');
+  const positions = [...$('statsPositions').querySelectorAll('input:checked:not(:disabled)')].map(c => c.value);
+  return { records, positions };
+}
+// Escape or leaving the page with changes not saved asks first (unsaved.js).
+const statsGuard = unsavedDialog($('statsDialog'), {
+  what: () => `${$('statsName').textContent}'s games`, snapshot: statsInDialog,
+  save: async () => { await $('statsSave').onclick(); return !$('statsDialog').open; },
+});
 
 // Which silhouette an athlete without a photo gets: PlayHQ's gender, or one picked here.
 function genderPicker(a) {
