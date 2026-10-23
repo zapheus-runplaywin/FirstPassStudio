@@ -226,6 +226,8 @@
 </dialog>
 
 <script src="colourpicker.js"></script>
+<script src="asktext.js"></script>
+<script src="unsaved.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -466,6 +468,7 @@ function openEditor(s) {
   renderShown();
   renderEditorQr();
   $('editor').showModal();
+  editorGuard.opened();
 }
 
 // Ads: files in the scene's media folder, a still with its seconds on screen.
@@ -578,7 +581,7 @@ async function saveSponsor() {
     if (wasNew) {
       // Stay open on a new sponsor, so its logos can be added straight away.
       const s = view.sponsors.find(x => !before.has(x.id));
-      if (s) { editing = JSON.parse(JSON.stringify(s)); $('edTitle').textContent = s.name; $('edDelete').hidden = false; renderLogos(); renderEditorQr(); return false; }
+      if (s) { editing = JSON.parse(JSON.stringify(s)); $('edTitle').textContent = s.name; $('edDelete').hidden = false; renderLogos(); renderEditorQr(); editorGuard.opened(); return 'open'; }
     }
     return true;
   } catch (err) { $('edError').textContent = err.message; $('edError').hidden = false; return false; }
@@ -586,7 +589,14 @@ async function saveSponsor() {
 $('edForm').addEventListener('submit', async e => {
   if (e.submitter && e.submitter.value === 'cancel') return;
   e.preventDefault();
-  if (await saveSponsor()) $('editor').close();
+  if (await saveSponsor() === true) $('editor').close();
+});
+// Escape or leaving the page with changes not saved asks first (unsaved.js). Logos are saved as
+// they're added, so they don't count.
+const editorGuard = unsavedDialog($('editor'), {
+  what: () => $('edName').value.trim() || 'the new sponsor',
+  snapshot: () => { const x = fromEditor(); document.querySelectorAll('.logoslot').forEach(s => delete x[s.dataset.which]); return x; },
+  save: async () => { if (!await saveSponsor()) return false; $('editor').close(); return true; },
 });
 $('edDelete').onclick = async () => {
   const on = Object.keys(editing.competitions).length;

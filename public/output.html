@@ -180,6 +180,7 @@
 <script src="pageoptions.js"></script>
 <script src="introtiming.js"></script>
 <script src="asktext.js"></script>
+<script src="unsaved.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar">
@@ -1103,6 +1104,7 @@
     // Video lengths for the hints, measured since the media list was last fetched.
     loadMedia().then(() => { if (draft && !$('sqSteps').contains(document.activeElement)) renderSteps(); });
     if (!$('seqDialog').open) $('seqDialog').showModal();
+    seqGuard.opened();
     if (!sq) $('sqName').focus();
   }
   // A row of source chips with an add list; list is the array of source ids it changes.
@@ -1303,6 +1305,11 @@
     if (await act({ type: 'seqRemove', sequence: draft.id })) { $('seqDialog').close(); draft = null; }
   };
   $('seqDialog').addEventListener('close', () => { draft = null; });
+  // Escape or leaving the page with changes not saved asks first (unsaved.js).
+  const seqGuard = unsavedDialog($('seqDialog'), {
+    what: () => $('sqName').value.trim() || 'the new sequence', snapshot: draftChanges,
+    save: async () => { await saveSequence(false); return !$('seqDialog').open; },
+  });
 
   // ─── Music ─────────────────────────────────────────────────────────────
   // The player Studio keeps (music.js): what's loaded, the buttons, the songs in the media folder, and the playlists.
@@ -1435,6 +1442,7 @@
     loadMedia().then(renderPlTracks);
     renderPlTracks();
     if (!$('plDialog').open) $('plDialog').showModal();
+    plGuard.opened();
   }
   function renderPlTracks() {
     if (!plDraft) return;
@@ -1467,6 +1475,11 @@
   $('plAdd').onchange = () => { if ($('plAdd').value) { plDraft.tracks.push($('plAdd').value); renderPlTracks(); } };
   $('plCancel').onclick = () => { $('plDialog').close(); };
   $('plDialog').addEventListener('close', () => { plDraft = null; });
+  const plGuard = unsavedDialog($('plDialog'), {
+    what: () => $('plName').value.trim() || 'the new playlist',
+    snapshot: () => ({ name: $('plName').value.trim(), shuffle: $('plShuffle').checked, loop: $('plLoop').checked, tracks: plDraft.tracks }),
+    save: async () => { await $('plSave').onclick(); return !$('plDialog').open; },
+  });
   $('plSave').onclick = async () => {
     const changes = { name: $('plName').value.trim(), shuffle: $('plShuffle').checked, loop: $('plLoop').checked, tracks: plDraft.tracks };
     if (!changes.name) { $('plErr').textContent = 'Give the playlist a name.'; return; }
