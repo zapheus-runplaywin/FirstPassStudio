@@ -19,6 +19,7 @@ const http = require('http');
 const path = require('path');
 const { linkHost } = require('../linkhost');
 const location = require('../datalocation');
+const savefile = require('../savefile');
 const { INSTALL_TIMEOUT } = require('./updates');
 const whatsnew = require('./whatsnew');
 
@@ -91,7 +92,7 @@ function answering() {
 const APP_SETTINGS = path.join(LOCAL_DIR, 'app-settings.json');
 function appSettings() { try { return JSON.parse(fs.readFileSync(APP_SETTINGS, 'utf8')); } catch { return {}; } }
 function saveAppSetting(key, value) {
-  try { fs.writeFileSync(APP_SETTINGS, JSON.stringify({ ...appSettings(), [key]: value }, null, 2) + '\n'); } catch (err) { log(`Couldn't save ${key}: ${err.message}`); }
+  try { savefile.writeJsonSync(APP_SETTINGS, { ...appSettings(), [key]: value }); } catch (err) { log(`Couldn't save ${key}: ${err.message}`); }
 }
 
 const windows = require('./windows')({

@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 
 const FILE = datadir.file('outputs.json');
 const MODES = ['off', 'chroma', 'fillkey', 'decklink', 'ndi'];
@@ -91,7 +92,7 @@ function load() {
 }
 
 function save() {
-  try { fs.writeFileSync(FILE, JSON.stringify(settings, null, 2) + '\n'); }
+  try { savefile.writeJsonSync(FILE, settings); }
   catch (err) { log('error', 'outputs', `Could not save outputs.json: ${err.message}`); }
   send();
 }

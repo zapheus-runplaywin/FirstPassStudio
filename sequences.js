@@ -30,6 +30,7 @@
 const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 const music = require('./music');
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
@@ -236,8 +237,7 @@ function load() {
 function save() {
   if (file) {
     try {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, JSON.stringify({ sequences: list }, null, 2) + '\n');
+      savefile.writeJsonSync(file, { sequences: list });
     } catch (err) { log('error', 'sequence', `Could not save ${file}: ${err.message}`); }
   }
 }
@@ -248,7 +248,7 @@ function loadSettings() {
   catch (err) { if (err.code !== 'ENOENT') log('warn', 'sequence', `Could not read ${settingsFile}: ${err.message}`); }
 }
 function saveSettings() {
-  try { fs.writeFileSync(settingsFile, JSON.stringify({ auto }, null, 2) + '\n'); }
+  try { savefile.writeJsonSync(settingsFile, { auto }); }
   catch (err) { log('error', 'sequence', `Could not save ${settingsFile}: ${err.message}`); }
 }
 

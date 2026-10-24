@@ -17,6 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 const competitions = require('./competitions');
 
 const DIR = datadir.file('sponsors');
@@ -37,7 +38,7 @@ const CARD_PLACES = new Set(['card', 'wall']);
 const VACANCY_DEFAULTS = { heading: 'Your business here', message: 'Put your business in front of everyone watching. Scan to find out how.' };
 
 let log = () => {};
-const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } };
+const readJson = (file, fallback) => savefile.readJson(file, fallback, (err, movedTo) => console.warn(`Could not read ${file}: ${err.message}${movedTo ? `; moved it to ${path.basename(movedTo)}` : ''}`));
 const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 const validId = id => /^[a-z0-9-]{1,40}$/.test(String(id || ''));
 const text = (v, max) => String(v ?? '').trim().slice(0, max);
@@ -89,8 +90,7 @@ function clean(input, old = {}) {
 
 function all() { return (readJson(FILE, {}).sponsors || []).map(s => clean(s, s)); }
 function write(list) {
-  fs.mkdirSync(DIR, { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify({ sponsors: list }, null, 2) + '\n');
+  savefile.writeJsonSync(FILE, { sponsors: list });
 }
 function byId(id) { return all().find(s => s.id === id) || null; }
 
@@ -146,7 +146,7 @@ function saveLogo(id, which, fileName, buf) {
   fs.mkdirSync(dir, { recursive: true });
   // The logo it replaces goes, unless the other logo uses the same file.
   const old = s[which];
-  fs.writeFileSync(path.join(dir, name), buf);
+  savefile.writeFileSync(path.join(dir, name), buf);
   if (old && old !== name && old !== s[LOGO_FIELDS.find(f => f !== which)]) fs.rmSync(path.join(dir, old), { force: true });
   return save({ ...s, [which]: name });
 }
