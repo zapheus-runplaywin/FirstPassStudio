@@ -14,10 +14,12 @@
 
 const { app, BrowserWindow, Menu, shell, clipboard, screen, dialog } = require('electron');
 const path = require('path');
+// The Studio pages, in tab order, shared with the tab bar on every page (public/studiobar.js).
+const { STUDIO_PAGES: TABS } = require('../public/studiobar.js');
 
 // The pages with the Studio header (body class "fp"); everything else (the overlays, the
 // debug log) gets a normal title bar.
-const STUDIO_PAGES = new Set(['/', '/graphics.html', '/control.html', '/setup.html', '/sponsors.html', '/sponsorreport.html', '/athletes.html', '/api.html', '/output.html']);
+const STUDIO_PAGES = new Set(TABS.flatMap(p => [p.href, ...(p.also || [])]));
 
 // Room for the window buttons (red, yellow, green) at the left of the Studio header, which
 // becomes the title bar: drag it to move the window, double-click it to zoom.
@@ -376,15 +378,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       },
       {
         label: 'Go',
-        submenu: [
-          { label: 'Output', accelerator: 'CmdOrCtrl+1', ...go('/') },
-          { label: 'Scoreboard Control', accelerator: 'CmdOrCtrl+2', ...go('/control.html') },
-          { label: 'Competitions Setup', accelerator: 'CmdOrCtrl+3', ...go('/setup.html') },
-          { label: 'Sponsors', accelerator: 'CmdOrCtrl+4', ...go('/sponsors.html') },
-          { label: 'Athletes', accelerator: 'CmdOrCtrl+5', ...go('/athletes.html') },
-          { label: 'Stream Deck', accelerator: 'CmdOrCtrl+6', ...go('/api.html') },
-          { label: 'Docs', accelerator: 'CmdOrCtrl+7', ...go('/graphics.html') },
-        ],
+        // ⌘1, ⌘2... in tab order, the same list as the tab bar on every page.
+        submenu: TABS.map((p, i) => ({ label: p.label.replace(/\b([a-z])/g, (m, c) => c.toUpperCase()), accelerator: `CmdOrCtrl+${i + 1}`, ...go(p.also && p.also[0] === '/' ? '/' : p.href) })),
       },
       { role: 'windowMenu' },
     ]));
