@@ -618,6 +618,8 @@ function scoringNotYet(game) {
 const notScoredLogged = new Set(); // games already logged as not being scored yet
 const liveCache = new Map();
 const liveInFlight = new Map();
+// The last answer from PlayHQ's live feed, for /api/health: when, and the error if it failed.
+const lastLive = { at: 0, error: '', errorAt: 0 };
 async function getLive(gameId, maxAgeMs) {
   const hit = liveCache.get(gameId);
   if (hit && Date.now() - hit.at < maxAgeMs) return hit.live;
@@ -625,7 +627,8 @@ async function getLive(gameId, maxAgeMs) {
   if (wait) throw Object.assign(new Error(wait), { notYet: true });
   if (!liveInFlight.has(gameId)) {
     liveInFlight.set(gameId, fetchLive(gameId)
-      .then(live => { liveCache.set(gameId, { at: Date.now(), live }); return live; })
+      .then(live => { liveCache.set(gameId, { at: Date.now(), live }); lastLive.at = Date.now(); lastLive.error = ''; return live; })
+      .catch(err => { if (!err.notScored) { lastLive.error = err.message; lastLive.errorAt = Date.now(); } throw err; })
       .finally(() => liveInFlight.delete(gameId)));
   }
   return liveInFlight.get(gameId);
@@ -1820,6 +1823,41 @@ function readBody(req) {
 // Pages reload themselves when this changes: after a restart, or when a file in
 // public/ or config.json is edited (so updated pages show on their own).
 const STARTED_AT = Date.now();
+// What's going on, in one answer, for the Output page's status line (and anything else that wants to
+// show a light): the competition and game, whether the score and clock follow PlayHQ, how long since
+// PlayHQ last answered and the last error, the video output and how many sources are on.
+function health() {
+  const b = board();
+  const now = Date.now();
+  const following = b.source === 'playhq' && !!b.gameId;
+  const waiting = following ? scoringNotYet(b) : '';
+  const refreshMs = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
+  const finished = following && /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(b.playhqStatus || '');
+  const readAgoMs = lastLive.at ? now - lastLive.at : null;
+  // ok: fine or nothing to read; warn: a reading is overdue; bad: PlayHQ has been failing for a minute.
+  // Overdue is measured from the later of the last answer and the switch to following PlayHQ (clockMatchedAt),
+  // so the first seconds after a switch back from manual scores aren't a false alarm.
+  const since = Math.max(lastLive.at, b.clockMatchedAt || 0);
+  let playhq = 'ok';
+  if (following && !waiting && !finished) {
+    if (lastLive.error && lastLive.errorAt > lastLive.at && now - since > 60000) playhq = 'bad';
+    else if (now - since > 2 * refreshMs + 2000) playhq = 'warn';
+  }
+  const out = outputs.state();
+  const sc = scene.state();
+  return {
+    version: pageVersion(), serverNow: now, competition: competitionName(), competitionSetup: CONFIG.name,
+    game: b.gameId ? { id: b.gameId, label: `${b.home.name} v ${b.away.name}`, court: b.court || '', division: b.division || '', time: b.time || '' } : null,
+    source: b.source, autoSelect: !!b.autoSelect,
+    playhq: { state: playhq, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
+      error: lastLive.error && lastLive.errorAt > lastLive.at ? lastLive.error : (b.playhqError || '') },
+    clock: { following: following && !!b.followPlayhqClock, running: !!b.clock.running, period: b.period, left: clockLeft(b) },
+    output: { on: !!out.on && out.mode !== 'off', mode: out.on && out.mode !== 'off' ? out.mode : '', showing: (out.showing || []).length },
+    sourcesOn: (sc.sources || []).filter(s => s.visible).length, sources: (sc.sources || []).length,
+    scene: sc.current || null, sequence: sc.playing ? (sc.playing.name || true) : null,
+  };
+}
+
 function pageVersion() {
   let latest = STARTED_AT;
   const walk = dir => {
@@ -2987,6 +3025,7 @@ http.createServer(async (req, res) => {
         rules: { ...rules(grade.name), finalsPlaces: marks.places }, finals: marks, ...ladder });
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion(), base: LINK_BASE });
+    if (url.pathname === '/api/health') return send(res, 200, health());
     if (url.pathname === '/api/settings/export' && req.method === 'GET') {
       // Every setting in one zip with its summary (datalocation.exportEntries); ?media=0 leaves out the media folder, ?notes= heads the summary.
       const name = datalocation.exportName();
