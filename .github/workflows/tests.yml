@@ -59,6 +59,8 @@ jobs:
           cache-dependency-path: plugins/studio-deck/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+      # The bundle the Mac app packs, so a dependency update that breaks it shows here first.
+      - run: npm run build
       - run: npm run test:ci
         env:
           TEST_REPORT_TITLE: Stream Deck plugin tests
