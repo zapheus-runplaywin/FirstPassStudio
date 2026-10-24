@@ -35,7 +35,9 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 
 | File | Owns |
 | --- | --- |
-| `server.js` | Routing, the scoreboard ("the board": scores, clock, period, manual or following), PlayHQ reading (session, fixtures, ladders, rounds, games, live feed, scoring window), game auto-select, athletes, the Graphics page's JSON for each page, start-up and shutdown. Being split by review decision D6: `playhq.js` first, then board, athletes and games. |
+| `server.js` | Routing, the scoreboard ("the board": scores, clock, period, manual or following), game auto-select, team sheets and shooting stats, the season graphics' JSON (fixtures, ladder bar, ticker, finals), start-up and shutdown. Being split by review decision D6: board and games next. |
+| `playhq.js` | Everything that talks to PlayHQ: the guest session, the organisation's competitions and seasons, ladders, rounds and games, one game in detail, the live feed, the scoring window, the game cache. |
+| `athletes.js` | Team logos, athlete photos, the athlete register (`athletes.json`), what the athletes page shows and edits, a team's season squad for short line ups. |
 | `competitions.js` | Saved competition setups in `competitions/`, `active.json`, templates import, per-club logos and colours. |
 | `scene.js` | The scene: sources as layers on one frame, scenes (saved sets of sources), the Output page's state, the WebSocket and SSE feeds that push it to pages and the plugin, game triggers. |
 | `sequences.js` | Sequences: steps played in order, waits, repeats, Stream Deck key, time left. |
