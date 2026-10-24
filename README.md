@@ -7,6 +7,18 @@ The pages you work in (output, graphics, scoreboard control, competitions setup,
 Studio look from `public/studio.css`, with the Montserrat font served from `public/vendor/montserrat` so it works
 offline. The graphics don't use it: they keep the colours, font and logos of the competition in use.
 
+## Words used here
+
+- **Studio** is the whole thing: the Mac app, the pages you work in and the graphics it puts on screen.
+- **The helper** is the small Node server inside Studio (`server.js`) that serves the pages, talks to PlayHQ and saves settings.
+  The app calls it "on air" while it runs. Nothing in the app's menus says "helper"; the README and the code do.
+- **A source** is one graphic in the scene: a page such as the scoreboard or a lower third, with its own position and options.
+- **The scene** is Studio's own 1920 x 1080 frame on the Output page, built from sources switched on and off.
+- **A scene** (on the Scenes list) is a saved set of sources to switch on together.
+- **A sequence** is a list of steps (scenes, sources, waits and music) that plays in order from one key.
+- **The data folder** is where Studio saves everything outside the app: `~/Library/Application Support/FirstPass Studio`,
+  or your iCloud Drive folder when settings are moved there.
+
 ## One-time setup
 
 1. Install the FirstPass Studio app (see **Desktop app** below) and open it.
@@ -277,7 +289,7 @@ Frame rate: every graphic and animation is timed by the clock, not by frames, so
 
 ## Output (the Studio scene)
 
-http://localhost:8080/ (the home page, also at /output.html; **Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
+http://localhost:8080/ (the Output page, also at /output.html; **Output** in the menu, ⌘1 in the app) builds Studio's own scene: one 1920 x 1080 frame of
 sources drawn as layers, top layer first, sent to a display, a Blackmagic device or NDI® for your switcher.
 
 - **Test pattern:** http://localhost:8080/testpattern.html (in **Add page**) is a 1920 x 1080 pattern on a see-through background for checking an output
