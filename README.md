@@ -281,8 +281,8 @@ data folder of their own, so they never touch PlayHQ or your settings.
 The Docs page has a **Before you go on air** checklist for the night, and `docs/ARCHITECTURE.md` says how Studio is put
 together (which file owns what, how a request reaches PlayHQ, what runs on a timer) for anyone working on it.
 
-Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds), the ticker, the
-automatic super shot (every second) and the countdown (every 5 seconds, asking Studio only). Every other page
+Only the scoreboard, the last 10 goals and the countdown update themselves (Studio pushes each change to them the moment it
+happens, and they reload when Studio restarts), along with the ticker and the automatic super shot (every second, asking Studio only). Every other page
 loads once, and again each time it's turned on on the Output page (with **Load the page fresh each time it's shown**, the
 default), or press **Refresh page** to get the latest. Divisions are numbered in name order, as listed on the
 http://localhost:8080/graphics.html page. You can also use part of a name, e.g. `?division=Premier`.

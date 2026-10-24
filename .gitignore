@@ -5,6 +5,7 @@
 /control.json
 /settings.old/
 .DS_Store
+node_modules
 node_modules/
 /Examples/
 /competitions/

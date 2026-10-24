@@ -388,7 +388,23 @@ function getCountdown() {
 const STATE_FILE = datadir.local('scoreboard-state.json');
 let boards = savefile.readJson(STATE_FILE, {}, (err, movedTo) => log('warn', 'scoreboard', `Could not read scoreboard-state.json, starting fresh: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
 boards = boards['1'] ? { 1: boards['1'] } : {}; // one scoreboard: drop any old second board
+// The scoreboard as the pages see it (GET /api/scoreboard, and the board message on the scene socket).
+function scoreboardJson(b = board()) {
+  const logos = { home: logoFor(b.home.name), away: logoFor(b.away.name) };
+  const teamColours = { home: colourFor(b.home.name), away: colourFor(b.away.name) };
+  const venueName = CONFIG.venueName || b.venue || '';
+  const r = rules(b.division);
+  return { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: CONFIG.name, venueName, logos, teamColours,
+    clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() };
+}
+// Pushes the board to the pages following it (scene.js), once the current change has finished.
+let boardPushTimer = null;
+function pushBoard() {
+  if (boardPushTimer) return;
+  boardPushTimer = setImmediate(() => { boardPushTimer = null; try { scene.publishBoard(); } catch (err) { log('warn', 'scoreboard', `Board not pushed: ${err.message}`); } });
+}
 function saveBoards() {
+  pushBoard();
   savefile.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), err => { if (err) log('warn', 'scoreboard', `scoreboard-state.json not saved: ${err.message}`); });
   if (boards['1']) control.boards['1'] = Object.fromEntries(LASTING.map(k => [k, boards['1'][k]]));
   saveControl();
@@ -1209,6 +1225,10 @@ function gameSnapshot() {
   };
 }
 setInterval(() => { try { scene.game(gameSnapshot()); } catch (err) { log('error', 'sequence', `Game triggers failed: ${err.message}`); } }, 1000);
+// The board to the pages following it over the scene socket: on every save (a press, a PlayHQ reading) and
+// each second while the clock runs, since what the pages show of it (elapsed time) moves on its own.
+scene.setBoardSource(() => scoreboardJson(board()));
+setInterval(pushBoard, 1000);
 
 // ─── Stream Deck links ──────────────────────────────────────────────────────
 // Plain GET links, so a Stream Deck "Website" button (with "GET request in
@@ -2572,12 +2592,7 @@ http.createServer(async (req, res) => {
         saveBoards();
       }
       else await refreshFromPlayhq(b);
-      const logos = { home: logoFor(b.home.name), away: logoFor(b.away.name) };
-      const teamColours = { home: colourFor(b.home.name), away: colourFor(b.away.name) };
-      const venueName = CONFIG.venueName || b.venue || '';
-      const r = rules(b.division);
-      return send(res, 200, { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: CONFIG.name, venueName, logos, teamColours,
-        clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() });
+      return send(res, 200, scoreboardJson(b));
     }
     // / is the Output page; results.html is the fixture page showing finished games.
     const ALIASES = { '/': 'output.html', '/results.html': 'fixtures.html' };

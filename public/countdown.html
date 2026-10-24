@@ -56,6 +56,7 @@
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 <script src="fit.js"></script>
+<script src="sceneevents.js"></script>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page:
@@ -199,8 +200,14 @@
       }
     }
 
-    load();
-    setInterval(load, 5000);
+    // Asks which game is next when the picked game changes (over Studio's scene socket), not every five seconds.
+    let pickedKey = '';
+    sceneEvents(null, { board: b => {
+      const key = `${b.gameId}|${b.date}|${b.time}`;
+      if (key === pickedKey) return;
+      pickedKey = key;
+      load();
+    } });
     (function frame() { render(); requestAnimationFrame(frame); })();
   </script>
 </body>

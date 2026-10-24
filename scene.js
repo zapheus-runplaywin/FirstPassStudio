@@ -98,6 +98,23 @@ const RESERVED = new Set(['next', 'prev', 'previous', 'again']);
 let rev = 0;
 const listeners = new Set(); // server-sent events (/api/scene/events): the Stream Deck plugin
 const sockets = new Set();   // WebSockets (/api/scene/socket): Studio's own pages
+// The scoreboard over the same socket, for the pages that asked for it ({"subscribe":"board"}): the
+// scoreboard, the control page, the goals and the countdown follow it instead of polling. server.js
+// gives boardSource (the scoreboard's JSON) and calls publishBoard when the board may have changed.
+const boardSockets = new Set();
+let boardSource = null;
+let lastBoardKey = '';
+function boardFrame(json) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'board', board: json }))); }
+function setBoardSource(fn) { boardSource = fn; }
+function publishBoard() {
+  if (!boardSource || !boardSockets.size) return;
+  const json = boardSource();
+  const key = JSON.stringify({ ...json, serverNow: 0 }); // only a change is sent, not the clock reading
+  if (key === lastBoardKey) return;
+  lastBoardKey = key;
+  const frame = boardFrame(json);
+  for (const s of boardSockets) s.write(frame);
+}
 
 const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 // The name used in Stream Deck links: "Up Next" is /deck/layer/up-next/on.
@@ -277,7 +294,7 @@ function upgrade(req, socket) {
   socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
   socket.setNoDelay(true);
   sockets.add(socket);
-  const drop = () => { sockets.delete(socket); socket.destroy(); };
+  const drop = () => { sockets.delete(socket); boardSockets.delete(socket); socket.destroy(); };
   socket.on('close', drop);
   socket.on('error', drop);
   // Frames from the page (always masked): pings get a pong, a close is answered and ends it.
@@ -298,6 +315,11 @@ function upgrade(req, socket) {
       pending = pending.subarray(end);
       if (opcode === 8) { socket.end(wsFrame(8, Buffer.alloc(0))); sockets.delete(socket); return; }
       if (opcode === 9) socket.write(wsFrame(10, payload));
+      if (opcode === 1) { // a text frame from the page: what it wants besides the scene
+        let msg = null;
+        try { msg = JSON.parse(payload.toString()); } catch { /* not for us */ }
+        if (msg && msg.subscribe === 'board' && boardSource) { boardSockets.add(socket); socket.write(boardFrame(boardSource())); }
+      }
     }
   });
   socket.write(wsFrame(1, Buffer.from(JSON.stringify(state()))));
@@ -1041,4 +1063,4 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { STREAMDECK_PLUGIN, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, FILE, MEDIA_DIR };

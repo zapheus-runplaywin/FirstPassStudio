@@ -68,6 +68,9 @@ debug log), `autoreload.js`.
    restart picks up where it was.
 6. Anything that changes the scene (a source on or off, a scene or sequence starting) goes through `scene.js`, which
    pushes the whole scene to every page holding the WebSocket at `/api/scene/socket` and to the plugin's SSE feed.
+7. The scoreboard travels the same socket as a second message type: a page that sends `{"subscribe":"board"}` gets
+   what `GET /api/scoreboard` gives, at once and on every change (`scene.publishBoard`, called from `saveBoards` and
+   each second). `sceneevents.js` wraps both for the pages; the HTTP endpoints stay for the plugin and other tools.
 
 Every change to a saved file uses `savefile.js` (write to a temporary file, then rename), so a crash mid-write never
 leaves a half-written settings file.
@@ -82,7 +85,8 @@ leaves a half-written settings file.
 | `viewers.js` | 30 s per stream | Live viewer counts, only while a video output is on. |
 | `outputs.js` listenChanged | 5 s | Notices a preview that stopped checking in. |
 | `scene.js` SSE ping | 25 s | Keeps the plugin's event stream open. |
-| Pages | 1-30 s | Scoreboard, goals, ticker, countdown, super shot and streak pages poll the helper only (see "Data and bandwidth" on the Docs page). |
+| `server.js` pushBoard | on each save, and 1 s | Pushes the scoreboard to the pages following it over the scene socket (scoreboard, control page, goals, countdown) when it has changed. |
+| Pages | 1-30 s | Ticker, super shot and streak pages poll the helper only (see "Data and bandwidth" on the Docs page). |
 
 Logging: one debug log, `logs/playhq-graphics.log` in the data folder (15 MB cap), written by the helper and by pages
 through `/api/log`. The log file keeps its old name on purpose.
