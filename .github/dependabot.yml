@@ -1,0 +1,19 @@
+# Keeps the versions rule without anyone remembering it: a pull request for each newer dependency,
+# GitHub Action and the Stream Deck plugin's packages, once a month, grouped so one PR covers a batch.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: monthly }
+    groups:
+      studio: { patterns: ["*"] }
+    versioning-strategy: increase
+  - package-ecosystem: npm
+    directory: /plugins/studio-deck
+    schedule: { interval: monthly }
+    groups:
+      stream-deck-plugin: { patterns: ["*"] }
+    versioning-strategy: increase
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
