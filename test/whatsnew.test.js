@@ -44,7 +44,15 @@ test('a fresh install shows nothing and remembers the version', () => {
   assert.deepEqual(whatsnew.onLaunch({ data, current: '0.4.11', lastSeen: undefined, usedBefore: false }), { show: null, seen: '0.4.11' });
 });
 
-test('the first version with the window, on a Mac that used the app before, shows its own changes only', () => {
+test('upgrading from a version before the window: the log\'s last start is the version it came from', () => {
+  const log = '2026-10-20T01:00:00.000Z Starting 0.4.7, settings in /x\n2026-10-21T01:00:00.000Z Quitting\n2026-10-22T01:00:00.000Z Starting 0.4.8, settings in /x\n';
+  assert.equal(whatsnew.lastStarted(log), '0.4.8');
+  assert.equal(whatsnew.lastStarted('nothing here'), null);
+  const r = whatsnew.onLaunch({ data, current: '0.4.11', lastSeen: whatsnew.lastStarted(log), usedBefore: true });
+  assert.deepEqual(r.show.map(x => x.version), ['0.4.11', '0.4.10']);
+});
+
+test('with no record of the last version at all, it shows its own changes only', () => {
   const r = whatsnew.onLaunch({ data, current: '0.4.11', lastSeen: undefined, usedBefore: true });
   assert.deepEqual(r.show.map(x => x.version), ['0.4.11']);
 });
