@@ -48,6 +48,8 @@ const PORT = Number(process.env.PORT || MACHINE.port || 8080);
 const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
 const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
+// The exit code when the port is already taken, so the Mac app says so instead of restarting the helper.
+const EXIT_PORT_IN_USE = 3;
 
 // ─── Debug log ──────────────────────────────────────────────────────────────
 // logs/playhq-graphics.log in the local data folder (it stays on this computer when the settings are in iCloud Drive): helper requests, PlayHQ calls, scoreboard changes and
@@ -3094,6 +3096,18 @@ http.createServer(async (req, res) => {
 }).on('upgrade', (req, socket) => {
   // WebSockets: the scene's live updates for Studio's pages (scene.js).
   if (!scene.upgrade(req, socket)) socket.destroy();
+}).on('error', err => {
+  // Without this Node throws, the helper dies with a stack trace and the Mac app restarts it
+  // five times before giving up with a generic message. Say what is wrong instead.
+  if (err.code === 'EADDRINUSE') {
+    const why = `Port ${PORT} is already in use, so Studio can't start. Another copy of Studio (the app, or npm start) is probably running: quit it, or set another port in config.json.`;
+    log('error', 'helper', why);
+    console.error(why);
+    process.exit(EXIT_PORT_IN_USE);
+  }
+  log('error', 'helper', `Could not listen on port ${PORT}: ${err.message}`);
+  console.error(`Studio can't listen on port ${PORT}: ${err.message}`);
+  process.exit(1);
 }).listen(PORT, () => {
   log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
   console.log(`Debug log: ${LOG_FILE}`);
