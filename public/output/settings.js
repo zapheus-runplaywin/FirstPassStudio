@@ -266,51 +266,7 @@ $('fRemove').onclick = () => {
   if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
 };
 $('hideAll').onclick = () => act({ type: 'hideAll' });
-// Display output (the Mac app opens the windows; outputs.js decides what goes where).
-let out = null;
-// The Scene View's sound: only while no video output is on (out.previewSound); with one on, the output carries
-// the sound. This page asks the helper for it, and only the page it says yes to unmutes its Scene View. It checks
-// in every few seconds and lets go when it closes.
-const listenId = Math.random().toString(36).slice(2);
-let previewSound = false;
-const applySound = () => { try { $('previewFrame').contentWindow.setSilent?.(!previewSound); } catch {} soundNote(); };
-// Says why the preview is or isn't playing the sound, next to the tick box (and in the log when it changes).
-let lastNote = '';
-function soundNote() {
-  let st = null;
-  try { st = $('previewFrame').contentWindow.soundState?.(); } catch {}
-  const note = !out ? ''
-    : !out.previewSound ? 'Silent: a video output is on, so the output plays the sound.'
-    : popped ? popped.note
-    : !$('previewOn').checked ? 'Silent: turn Live View on.'
-    : !previewSound ? 'Silent: another Output page is playing the sound. Click the Scene View to bring it here.'
-    : st && st.blocked ? 'Blocked by this browser until you click: click the Scene View to hear it. (The Studio app\'s own window doesn\'t need this.)'
-    : st && !st.videos && !st.pages ? 'Sound plays here once a video with Sound ticked, or an animation with sound, is on.'
-    : 'Sound plays here, through this Mac\'s sound output.';
-  $('previewSoundNote').textContent = note;
-  if (note !== lastNote) { if (note) console.log(`Scene View sound: ${note}`); lastNote = note; }
-}
-// Clicking the preview brings the sound here from another Output page, and is what a browser needs
-// before it plays sound.
-// Safari only lets a video play sound if it's unmuted during the click itself, so unmute straight away
-// (that unlocks it for later), then take the sound properly.
-$('preview').addEventListener('click', () => {
-  if (popped) return popChannel.postMessage('focus');
-  if (!out || !out.previewSound) return;
-  try { $('previewFrame').contentWindow.unlockSound?.(); } catch {}
-  listen(true);
-});
-$('previewFrame').addEventListener('load', applySound);
-async function listen(take = false) {
-  const on = !!(out && out.previewSound && $('previewOn').checked && !popped);
-  try {
-    const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take }) });
-    previewSound = !!(await r.json()).sound;
-  } catch { previewSound = false; }
-  applySound();
-}
-setInterval(() => listen(), 5000);
-addEventListener('pagehide', () => navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false })));
+// The video output state (`out`), the Scene View's sound and listen() are in preview.js, which runs first.
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const showOut = o => {
   const relisten = !out || out.previewSound !== o.previewSound;
