@@ -11,3 +11,4 @@ node_modules/
 /dist/
 /vendor/ffmpeg/ffmpeg
 /vendor/ffmpeg/.build/
+/desktop/whatsnew.json

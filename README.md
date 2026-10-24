@@ -82,7 +82,7 @@ In it:
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log.
-- `app-settings.json`: the Mac app's own choices (the window's size and position).
+- `app-settings.json`: the Mac app's own choices (the window's size and position, the version What's new was last shown for).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
 
 ### Settings in iCloud Drive
@@ -137,6 +137,11 @@ and restarts by itself if it stops. Closing the last Studio window takes it off 
 the graphics and Stream Deck get no answer until a window opens again. Closing the last window while on air asks
 first (**Take Off Air** or **Cancel**), so a stray ⌘W can't stop a stream. Keep a window open, such as the Output
 page, for the whole stream.
+
+**What's new.** The first time the app opens after an update, a window lists what changed in each version since the one
+last opened (the titles in the release notes, bundled into the app when it's built, so it works offline). It doesn't put
+Studio on air; **Open Studio** in it does. Opened at login, it waits until Studio is first opened. A fresh install
+doesn't show it. **What's new…** in the menu bar icon shows the latest changes again.
 
 ### Links use the Mac's .local name
 

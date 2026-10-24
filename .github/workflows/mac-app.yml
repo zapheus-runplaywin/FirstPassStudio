@@ -173,6 +173,19 @@ jobs:
           cat "$NOTES"
           { echo; cat "$NOTES"; } >> "$GITHUB_STEP_SUMMARY"
           echo "NOTES_FILE=$NOTES" >> "$GITHUB_ENV"
+      # The app's What's new window (desktop/whatsnew.js) lists the changes since the version last
+      # opened, from every published release's notes plus this build's, bundled so it works offline.
+      # If the releases can't be read it lists only this build's changes.
+      - name: Bundle the release notes for What's new
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          RELEASES="$RUNNER_TEMP/releases.ndjson"
+          gh api --paginate 'repos/zapheus-runplaywin/FirstPassStudio-releases/releases?per_page=100' \
+            --jq '.[] | {tag_name, published_at, body, draft}' > "$RELEASES" \
+            || { echo "::warning::Couldn't read the published releases, so What's new lists only this version's changes."; : > "$RELEASES"; }
+          node desktop/whatsnew.js "$RELEASES" "$NOTES_FILE" "$VERSION" > desktop/whatsnew.json
+          node -e 'const d = require("./desktop/whatsnew.json"); console.log(`What'"'"'s new covers ${d.releases.length} versions`)'
       # Put the Developer ID certificate in a keychain of its own (electron-builder's own
       # keychain step fails on the current macOS runners), so codesign finds it.
       - name: Import the signing certificate
