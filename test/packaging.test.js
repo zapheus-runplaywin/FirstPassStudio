@@ -57,11 +57,14 @@ test('the files Studio reads next to itself at run time are packed', () => {
     'desktop/trayTemplate.png', 'desktop/trayTemplate@2x.png', ...Object.keys(BUILT)]) {
     assert.ok(packed(rel), `${rel} is used by Studio but not listed in package.json build.files`);
   }
-  // Any other file the desktop code opens from its own folder.
+  // Any other file the desktop code opens from its own folder, or that the Mac app workflow makes there.
+  const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'mac-app.yml'), 'utf8');
+  const builtHere = { 'whatsnew.json': '> desktop/whatsnew.json' };
   for (const name of fs.readdirSync(path.join(ROOT, 'desktop')).filter(n => n.endsWith('.js'))) {
     const src = fs.readFileSync(path.join(ROOT, 'desktop', name), 'utf8');
     for (const [, file] of src.matchAll(/path\.join\(__dirname, '([^']+)'\)/g)) {
-      assert.ok(fs.existsSync(path.join(ROOT, 'desktop', file)), `desktop/${name} opens desktop/${file}, which is missing`);
+      if (builtHere[file]) assert.ok(workflow.includes(builtHere[file]), `desktop/${name} opens desktop/${file}, but the Mac app workflow no longer makes it`);
+      else assert.ok(fs.existsSync(path.join(ROOT, 'desktop', file)), `desktop/${name} opens desktop/${file}, which is missing`);
     }
   }
 });

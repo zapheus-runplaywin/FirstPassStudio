@@ -20,6 +20,7 @@ const path = require('path');
 const { linkHost } = require('../linkhost');
 const location = require('../datalocation');
 const { INSTALL_TIMEOUT } = require('./updates');
+const whatsnew = require('./whatsnew');
 
 const APP_DIR = path.join(__dirname, '..');
 // Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
@@ -30,6 +31,8 @@ const STREAMDECK_PLUGIN = path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', '
 const LOCAL_DIR = app.getPath('userData');
 const dataDir = () => location.current(LOCAL_DIR).dataDir;
 const LOG_FILE = path.join(LOCAL_DIR, 'logs', 'app.log');
+// Whether this Mac had run the app before this launch (What's new isn't shown on a fresh install).
+const USED_BEFORE = fs.existsSync(LOG_FILE) || fs.existsSync(path.join(LOCAL_DIR, 'app-settings.json'));
 
 function log(message) {
   try {
@@ -72,6 +75,7 @@ async function openPage(p) {
     windows.splashStatus(helper ? 'Studio is on air' : 'Still starting…', !!helper);
   }
   windows.open(p);
+  if (whatsNewLater) { const later = whatsNewLater; whatsNewLater = null; showWhatsNew(later); }
 }
 
 // Whether something already answers on the port (another copy, or server.js run by hand).
@@ -235,6 +239,7 @@ function refreshMenu() {
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
     updateMenuItem(),
+    { label: 'What\'s new…', enabled: !!whatsnew.since(whatsnew.load(), null, app.getVersion()).length, click: () => showWhatsNew(whatsnew.since(whatsnew.load(), null, app.getVersion()).slice(0, 10), { recent: true }) },
     { type: 'separator' },
     { label: 'Quit FirstPass Studio', click: () => app.quit() },
   ]));
@@ -599,6 +604,24 @@ function updateErrorText(err) {
   return `${err.message.split('\n')[0]}\n\nThe details are in the debug log.`;
 }
 
+// ─── What's new ─────────────────────────────────────────────────────────────
+// The first time the app opens after an update, a window lists what changed since the version
+// last opened (whatsnew.js, from the release notes bundled at build time). Opened at login it
+// waits until Studio is first opened, rather than popping up as the Mac starts. The version it
+// was shown for is saved in app-settings.json (whatsNewSeen), so it shows once.
+let whatsNewLater = null;
+function whatsNewOnLaunch() {
+  const { show, seen } = whatsnew.onLaunch({ data: whatsnew.load(), current: app.getVersion(), lastSeen: appSettings().whatsNewSeen, usedBefore: USED_BEFORE });
+  if (seen) saveAppSetting('whatsNewSeen', seen);
+  if (!show) return;
+  log(`What's new: ${show.map(r => r.version).join(', ')}`);
+  if (app.getLoginItemSettings().wasOpenedAtLogin) whatsNewLater = show;
+  else showWhatsNew(show);
+}
+function showWhatsNew(releases, options) {
+  windows.showWhatsNew(releases, options).then(choice => { if (choice === 'open') openPage('/'); });
+}
+
 // ─── Start ──────────────────────────────────────────────────────────────────
 async function start() {
   if (process.platform === 'darwin') app.dock.hide(); // a menu bar app (Info.plist LSUIElement does the same when installed)
@@ -613,6 +636,7 @@ async function start() {
   // The app always starts in the menu bar off air (nothing talks to PlayHQ), at login or opened
   // by hand. Open Studio, or any page in the menu, puts it on air.
   log('Off air until Studio is opened');
+  whatsNewOnLaunch();
   checkForUpdates(false);
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
 }

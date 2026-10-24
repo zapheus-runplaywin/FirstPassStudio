@@ -126,6 +126,34 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     });
   }
 
+  // ─── What's new ─────────────────────────────────────────────────────────
+  // The changes since the version last opened (whatsnew.js), shown once after an update. A panel,
+  // so it doesn't put Studio on air. recent: the latest releases, from the menu bar. Resolves 'open' (Open Studio) or null (Close, or closed).
+  let whatsNew = null;
+  function showWhatsNew(releases, { recent = false } = {}) {
+    if (whatsNew && !whatsNew.isDestroyed()) { whatsNew.focus(); return Promise.resolve(null); }
+    const win = whatsNew = new BrowserWindow({
+      width: 560, height: 560, center: true, resizable: true, minWidth: 420, minHeight: 320, minimizable: false,
+      maximizable: false, fullscreenable: false, show: false, backgroundColor: '#0F172A', title: "What's new",
+      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    });
+    win.isPanel = true;
+    // Links in a change's title (there shouldn't be any) never open in the panel.
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    win.webContents.on('will-navigate', e => e.preventDefault());
+    win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
+    win.loadFile(path.join(__dirname, 'whatsnew.html'));
+    return new Promise(resolve => {
+      win.on('closed', () => { if (whatsNew === win) whatsNew = null; resolve(null); });
+      win.webContents.once('did-finish-load', () => {
+        win.webContents.executeJavaScript(`show(${JSON.stringify(releases)}, ${JSON.stringify(app.getVersion())}, ${recent}); window.choice`, true)
+          .then(choice => resolve(choice === 'open' ? 'open' : null))
+          .catch(() => resolve(null))
+          .finally(() => { if (!win.isDestroyed()) win.close(); });
+      });
+    });
+  }
+
   // ─── Dock ───────────────────────────────────────────────────────────────
   // A menu bar app (LSUIElement) until a window opens: then it is in the Dock and the app
   // switcher like any app, and back to just the menu bar icon when the last one closes.
@@ -361,5 +389,5 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       { role: 'windowMenu' },
     ]));
   }
-  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport };
+  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport, showWhatsNew };
 };
