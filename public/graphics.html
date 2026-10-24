@@ -462,7 +462,7 @@
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help">Only <b>scoreboard.html</b>, <b>goals.html</b>, <b>ticker.html</b>, <b>viewers.html</b> (every 15 seconds, Studio only) and the automatic <b>supershot.html</b> and <b>streak.html</b> keep asking for new data (the control page does too, but it isn't a graphic). <b>countdown.html</b> also asks Studio which game is picked every 5 seconds, and <b>ticker.html</b> asks for its speed every 3 seconds, but neither reaches PlayHQ.
+    <p class="page__help"><b>scoreboard.html</b>, <b>goals.html</b> and <b>countdown.html</b> (and the control page) follow the scoreboard over the one connection Studio's pages keep open for the scene, so a score press or a PlayHQ reading reaches them the moment it happens, with no asking in between. <b>ticker.html</b>, <b>viewers.html</b> (every 15 seconds, Studio only) and the automatic <b>supershot.html</b> and <b>streak.html</b> keep asking for new data; <b>ticker.html</b> also asks for its speed every 3 seconds. None of that reaches PlayHQ.
       The super shot and hot streak pages ask Studio every second for the scoreboard and nothing else, so they add no PlayHQ requests.
       Every other graphic gets its data once when it loads, and again each time it's shown on the Output page (with <b>Load the page fresh each time it's shown</b>, the default).
       The Clash and the winner celebration only retry if Studio isn't running.</p>

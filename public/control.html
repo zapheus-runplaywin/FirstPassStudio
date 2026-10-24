@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="studio/favicon.png">
 <link rel="stylesheet" href="studio.css">
+<script src="sceneevents.js"></script>
 <style>
   * { box-sizing: border-box; }
   main { max-width: 920px; margin: 0 auto; padding: 24px 16px 40px; }
@@ -270,9 +271,11 @@
     $('clockface').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
-  async function poll() {
-    try { apply(await (await fetch(api, { cache: 'no-store' })).json()); } catch {}
-  }
+  // The board arrives over Studio's scene socket as it changes (a press here or on the Stream Deck, a PlayHQ
+  // reading), so a change shows at once rather than on the next poll.
+  let boardReady = null;
+  const firstBoard = new Promise(r => { boardReady = r; });
+  sceneEvents(null, { board: s => { apply(s); boardReady(); } });
 
   // The round every page uses: automatic by date, or one picked here (for testing).
   async function loadRounds(post) {
@@ -375,8 +378,7 @@
     } catch {}
   }
   pollTeams(); setInterval(pollTeams, 10000);
-  poll().then(loadGames);
-  setInterval(poll, 2000);
+  firstBoard.then(loadGames);
   setInterval(tick, 250);
 })();
 </script>

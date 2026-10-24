@@ -8,6 +8,7 @@
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 <script src="fit.js"></script>
+<script src="sceneevents.js"></script>
 <style>
   /* Last 10 goals: who scored each of the game's last ten goals, oldest to newest, with a
      momentum line (up for a home goal, down for an away goal) and the current run.
@@ -354,8 +355,14 @@
         render();
       } catch (err) { console.warn('Last goals unavailable:', err.message); }
     }
-    (document.fonts ? document.fonts.ready : Promise.resolve()).then(load);
-    setInterval(load, 2000);
+    // Asks for the goals when the board changes (over Studio's scene socket) rather than every two seconds.
+    let boardKey = '';
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => sceneEvents(null, { board: b => {
+      const key = `${b.gameId}|${b.home.score}|${b.away.score}|${b.period}|${b.source}`;
+      if (key === boardKey) return;
+      boardKey = key;
+      load();
+    } }));
     // The competition font can finish loading after the first draw; draw again so team names are sized in it.
     if (document.fonts) document.fonts.addEventListener('loadingdone', () => { if (data) render(); });
   </script>
