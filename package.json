@@ -18,12 +18,12 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
-    "electron-updater": "6.8.10",
+    "electron-updater": "6.8.11",
     "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
-    "electron": "44.8.0",
-    "electron-builder": "26.17.0",
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
     "playwright": "1.64.1"
   },
   "build": {
@@ -31,7 +31,10 @@
     "productName": "FirstPass Studio",
     "copyright": "© PIVT",
     "asar": false,
-    "directories": { "output": "dist", "buildResources": "build" },
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
     "files": [
       "package.json",
       "server.js",
@@ -62,19 +65,38 @@
     ],
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["arm64"] },
-        { "target": "zip", "arch": ["arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
       ],
       "artifactName": "FirstPass-Studio-${version}-${arch}-mac.${ext}",
       "category": "public.app-category.video",
       "icon": "build/icon.png",
       "hardenedRuntime": true,
       "notarize": true,
-      "extendInfo": { "LSUIElement": true }
+      "extendInfo": {
+        "LSUIElement": true
+      }
     },
-    "dmg": { "title": "FirstPass Studio" },
+    "dmg": {
+      "title": "FirstPass Studio"
+    },
     "publish": [
-      { "provider": "github", "owner": "zapheus-runplaywin", "repo": "FirstPassStudio-releases", "releaseType": "release" }
+      {
+        "provider": "github",
+        "owner": "zapheus-runplaywin",
+        "repo": "FirstPassStudio-releases",
+        "releaseType": "release"
+      }
     ]
   }
 }
