@@ -195,7 +195,8 @@ function move({ from, to, localDir, existing, log = () => {} }) {
 // first copied to the local backups/<date>-before-restore. The copy goes into a hidden folder
 // beside them and is checked file by file before it takes their place, so a failed copy
 // leaves this Mac's settings untouched. Returns { backup, files }.
-function restore({ from, to, localDir, log = () => {} }) {
+//   keep: names this Mac keeps when `from` has none of its own (a backup made without the media folder).
+function restore({ from, to, localDir, keep = [], log = () => {} }) {
   from = path.resolve(from); to = path.resolve(to);
   if (from === to) throw new Error('That is this Mac\'s own settings folder.');
   const names = movable(from);
@@ -218,7 +219,7 @@ function restore({ from, to, localDir, log = () => {} }) {
     fs.rmSync(staging, { recursive: true, force: true });
     throw new Error(`Couldn't copy the settings: ${err.message}. This Mac's settings weren't changed.`);
   }
-  for (const n of mine) fs.rmSync(path.join(to, n), { recursive: true, force: true });
+  for (const n of mine) if (names.includes(n) || !keep.includes(n)) fs.rmSync(path.join(to, n), { recursive: true, force: true });
   for (const n of names) fs.renameSync(path.join(staging, n), path.join(to, n));
   fs.rmSync(staging, { recursive: true, force: true });
   log(`Restored ${Object.keys(want).length} files from ${from} to ${to}`);
@@ -339,6 +340,56 @@ function exportName(d = new Date()) {
   return `FirstPassStudioBackup-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}_${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
 }
 
+// A backup zip made by Back up… (exportEntries): its folder, studio-export.json and summary.txt.
+// Throws if it isn't one. Returns { list, root, about, summary }.
+async function readBackup(file) {
+  const zip = require('./zip');
+  const list = zip.entries(file);
+  const about = list.find(e => /^[^/]+\/studio-export\.json$/.test(e.name));
+  if (!about) throw new Error("That zip isn't a FirstPass Studio backup: there's no studio-export.json in it. Pick a zip made with Back up….");
+  const root = about.name.split('/')[0];
+  const text = async ent => { const chunks = []; for await (const c of zip.open(file, ent)) chunks.push(c); return Buffer.concat(chunks).toString('utf8'); };
+  let info = {};
+  try { info = JSON.parse(await text(about)); } catch { throw new Error('The backup is damaged: its studio-export.json can\'t be read.'); }
+  const sum = list.find(e => e.name === `${root}/summary.txt`);
+  return { list, root, about: info, summary: sum ? await text(sum) : '' };
+}
+
+// The notes typed in when a backup was made, from its summary (exportSummary).
+function backupNotes(summary) {
+  const m = /\n\nNotes\n([\s\S]*?)\n\n[A-Z][a-z]+ \(\d+\)\n/.exec(String(summary || ''));
+  return m ? m[1].trim() : '';
+}
+
+// Restores a backup zip over this Mac's settings in `to`: the zip's settings are unpacked into
+// a hidden folder in localDir and then restored with restore(), so this Mac's settings are
+// backed up first and only replaced once the copy checks out. A backup without the media
+// folder keeps this Mac's media. Only the names in SETTINGS are taken; nothing in the zip can
+// land outside the folder. Returns { backup, files, about }.
+async function restoreBackup({ file, to, localDir, log = () => {} }) {
+  const zip = require('./zip');
+  const { list, root, about } = await readBackup(file);
+  const unpack = path.join(localDir, `.unpacking-${stamp()}`);
+  try {
+    for (const e of list) {
+      if (!e.name.startsWith(`${root}/`) || e.name.endsWith('/')) continue;
+      const rel = e.name.slice(root.length + 1);
+      const parts = rel.split('/');
+      if (!SETTINGS.has(parts[0]) || parts.some(p => !p || p === '.' || p === '..' || p.includes('\\'))) continue;
+      const out = path.join(unpack, ...parts);
+      if (!isInside(out, unpack)) continue;
+      fs.mkdirSync(path.dirname(out), { recursive: true });
+      await new Promise((resolve, reject) => zip.open(file, e).on('error', reject).pipe(fs.createWriteStream(out)).on('finish', resolve).on('error', reject));
+      if (fs.statSync(out).size !== e.size) throw new Error(`${rel} didn't unpack in full`);
+    }
+    if (!hasSettings(unpack)) throw new Error('That backup has no settings in it.');
+    const result = restore({ from: unpack, to, localDir, keep: about.media === false ? ['media'] : [], log });
+    return { ...result, about };
+  } finally {
+    fs.rmSync(unpack, { recursive: true, force: true });
+  }
+}
+
 // Points this Mac at a cloud folder (or back at the local one with provider null), and marks
 // the cloud subfolder as this Mac's.
 function save(localDir, { provider, folder, dataDir, computer }) {
@@ -376,4 +427,4 @@ async function download(dir, { timeoutMs = 60000 } = {}) {
   return left;
 }
 
-module.exports = { PROVIDERS, SETTINGS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, restore, restoreToCloud, otherMacs, exportEntries, exportSummary, exportName, save, placeholders, download, isInside };
+module.exports = { PROVIDERS, SETTINGS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, restore, restoreToCloud, otherMacs, exportEntries, exportSummary, exportName, readBackup, backupNotes, restoreBackup, save, placeholders, download, isInside };
