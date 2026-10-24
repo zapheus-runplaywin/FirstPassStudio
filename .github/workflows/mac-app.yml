@@ -51,22 +51,30 @@ jobs:
     # A build takes 5 to 10 minutes (longer only when ffmpeg is built afresh), so a stuck step
     # stops here instead of holding the queue for hours (run 176 sat in the tests for 3 hours).
     timeout-minutes: 60
+    # The signing certificate and the releases token live in the "release" environment (Settings >
+    # Environments), where a rule can limit them to the main branch; repository secrets of the same
+    # names work too. Studio's build runs about 290 packages' code next to those secrets, so the
+    # less that runs there the better: install scripts are off (below).
+    environment: release
     # Lets the run tag the commit it built (see "Tag the commit") and read the merged pull
     # requests' titles for the release notes.
     permissions:
       contents: write
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The whole history and tags, so the release notes can find the last release's commit.
           fetch-depth: 0
           fetch-tags: true
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      # Install scripts don't run (a package's postinstall is code from outside this repository running next
+      # to the signing certificate); Electron's own download, the one script the build needs, runs on purpose.
+      - run: npm ci --ignore-scripts
+      - run: node node_modules/electron/install.js
       # The same tests as on pull requests (tests.yml), so a manual build of a broken commit stops here.
       - run: npm run test:ci
         timeout-minutes: 10
@@ -76,7 +84,7 @@ jobs:
       # source once and cached until build.sh changes (its versions are in it).
       - name: Cache ffmpeg
         id: ffmpeg
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor/ffmpeg/ffmpeg
           key: ffmpeg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vendor/ffmpeg/build.sh') }}
@@ -148,10 +156,9 @@ jobs:
       # every build above 1.0.0.0, the version the first builds shipped with.
       - name: Pack the Stream Deck plugin
         working-directory: plugins/studio-deck
-        run: npm ci && npm run pack -- --version "1.$VERSION"
+        run: npm ci --ignore-scripts && npm run pack -- --version "1.$VERSION"
       # Lists the titles of the pull requests merged since the last published version, found
-      # from that version's tag on this repository. Only the titles go out: this repository is
-      # private, so the public release links to nothing in it.
+      # from that version's tag on this repository. Only the titles go out, no links.
       - name: Write the release notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -257,7 +264,7 @@ jobs:
           git tag -a "$TAG" "$GITHUB_SHA" -m "FirstPass Studio $VERSION, Mac app run $GITHUB_RUN_NUMBER"
           git push origin "refs/tags/$TAG"
           echo "Tagged ${GITHUB_SHA:0:7} as $TAG" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FirstPass-Studio-${{ env.VERSION }}-mac
           path: dist/*.dmg
