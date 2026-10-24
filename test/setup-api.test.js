@@ -62,7 +62,7 @@ test('logos: uploaded, served to the pages, listed, and removed', async () => {
   assert.ok(games.games.some(g => g.home.name === 'Knights' && g.home.logo === '/logos/Knights.png') ||
     games.games.some(g => g.away.name === 'Knights' && g.away.logo === '/logos/Knights.png'), 'the fixture shows the logo');
   const bad = await studio.request('POST', '/api/setup/my-league/image?kind=logos&name=notes.txt', 'hello', { 'content-type': 'text/plain' });
-  assert.equal(bad.status, 502);
+  assert.equal(bad.status, 400);
   assert.match(bad.json.error, /must be PNG/);
   r = await studio.del('/api/setup/my-league/image?kind=logos&name=Knights.png');
   assert.deepEqual(r.logos, []);
@@ -85,7 +85,7 @@ test('font files: added to a competition, picked, loaded by theme.css, and only 
   const preview = await studio.request('GET', '/api/setup/my-league/fontcss?font=Club%20Sans');
   assert.match(preview.text, /url\("\/api\/setup\/my-league\/image\?kind=fonts&name=ClubSans-Bold\.woff2"\)/);
   const bad = await studio.request('POST', '/api/setup/my-league/image?kind=fonts&name=Knights.png', PNG, { 'content-type': 'application/octet-stream' });
-  assert.equal(bad.status, 502);
+  assert.equal(bad.status, 400);
   assert.match(bad.json.error, /Fonts must be TTF, OTF, WOFF or WOFF2/);
   // The Mac app workflow runs the tests on a Mac, which has fonts of its own; anywhere else there are none.
   const { mac } = await studio.get('/api/setup-fonts');

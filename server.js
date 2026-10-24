@@ -447,7 +447,10 @@ async function setupRoute(req, res, url, q) {
   if (what === 'image') {
     const kind = ['brand', 'fonts'].includes(q.kind) ? q.kind : 'logos';
     if (req.method === 'POST') {
-      const name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024));
+      let name;
+      // A file that isn't what it should be (wrong extension, or not the image its name says) is the person's to fix: 400, not 502.
+      try { name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024)); }
+      catch (err) { return send(res, 400, { error: err.message }); }
       log('info', 'setup', `${id}: added ${{ brand: 'competition logo', fonts: 'font file' }[kind] || 'team logo'} ${name}`);
       return send(res, 200, { name, ...(kind === 'fonts' ? { family: fonts.fontFile(name).family } : {}), ...setupInfo(id) });
     }
