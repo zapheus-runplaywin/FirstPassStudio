@@ -1,0 +1,294 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studio Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Architecture, design and UX review of FirstPass Studio, 24 October 2026, also published at https://claude.ai/artifact/FZkQemvJW39y6vWcqpHiai -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column. A decision list up top, then the findings as numbered decision cards, each with a priority stripe. */
+:root {
+  --bg: #F8FAFC; --fg: #0F172A; --muted: #475569; --line: #E2E8F0; --panel: #FFFFFF; --soft: #E8F1F7;
+  --accent: #F75C03; --blue: #2274A5; --gold: #B7900A;
+  --high: #B42318; --high-bg: #FEF3F2; --med: #B54708; --med-bg: #FFFAEB; --low: #0E7A4E; --low-bg: #ECFDF3; --keep: #2274A5; --keep-bg: #E8F1F7;
+  --body: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.55; font-size: 15px;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+main { max-width: 940px; margin: 0 auto; display: grid; gap: 44px; }
+header.top { display: grid; gap: 10px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font-weight: 900; font-style: italic; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 em { color: var(--accent); font-style: inherit; }
+h2 { font-weight: 800; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-weight: 800; font-size: 1.02rem; margin: 0; }
+p, li { max-width: 70ch; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+section { display: grid; gap: 14px; }
+.lede { font-size: 1.08rem; }
+.muted { color: var(--muted); }
+code { font-family: var(--mono); font-size: .88em; background: var(--soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--blue); }
+
+/* Decision list */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+td.n { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+td a { color: inherit; text-decoration: none; font-weight: 600; }
+td a:hover { color: var(--blue); }
+.pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.high { color: var(--high); background: var(--high-bg); }
+.pill.med { color: var(--med); background: var(--med-bg); }
+.pill.low { color: var(--low); background: var(--low-bg); }
+.pill.keep { color: var(--keep); background: var(--keep-bg); }
+
+/* Decision cards */
+.card { border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; background: var(--panel); padding: 18px 20px; display: grid; gap: 12px; }
+.card.high { border-left-color: var(--high); }
+.card.med { border-left-color: var(--med); }
+.card.low { border-left-color: var(--low); }
+.card .head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.card .head .id { font-family: var(--mono); font-weight: 600; color: var(--muted); font-size: 13px; }
+.card dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+.card dt { font-weight: 700; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+.card dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { .card dl { grid-template-columns: 1fr; } .card dt { padding-top: 6px; } }
+.evidence { font-size: 13.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+.evidence code { font-size: .9em; }
+
+/* Keep list */
+.keep-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.keep-grid div { background: var(--keep-bg); border-radius: 10px; padding: 12px 14px; font-size: 14px; min-width: 0; }
+.keep-grid strong { display: block; margin-bottom: 4px; }
+
+/* Numbers that line up */
+.num { font-variant-numeric: tabular-nums; }
+.plan ol li { padding-left: 4px; }
+</style>
+</head><body>
+
+<main>
+<header class="top">
+  <div class="eyebrow">FirstPass Studio · architecture, design and UX review · 24 October 2026</div>
+  <h1>Studio is in good shape. <em>Fourteen</em> decisions would make it simpler and harder to break.</h1>
+  <p class="lede">The whole repository was read for this review: the local helper (<code>server.js</code> and its twelve modules), the 42 graphics and Studio pages, the Mac app, the Stream Deck plugin, the tests and the workflows. Nothing here is a bug report from a stream night. These are places where the design has grown past the shape it started with, and where one choice now saves many small fixes later.</p>
+  <p class="muted">Each finding ends in a decision for Matt. Nothing changes until a decision is made, and every change goes through its own pull request.</p>
+</header>
+
+<section>
+  <h2>What to keep</h2>
+  <p>These are deliberate choices that are working, and the review found no reason to revisit them.</p>
+  <div class="keep-grid">
+    <div><strong>No framework, no build step</strong>Plain Node, plain HTML. Two runtime dependencies. The helper starts without <code>npm install</code> and a page is one file you can open and read.</div>
+    <div><strong>One data folder, versioned</strong>Everything saved lives outside the app, with numbered migrations and a backup before each one. iCloud placement is handled carefully (size checks, refusal to start empty).</div>
+    <div><strong>Real tests in a real browser</strong>273 tests, every page opened in Chromium against a stand-in PlayHQ, Stream Deck links read from the OpenAPI file so docs and code can't drift.</div>
+    <div><strong>Graphics fail quietly</strong>A page shows an error only before its first load; after that a hiccup goes to the log, never to the stream. The 15 MB capped log with page errors forwarded is exactly right for stream night.</div>
+    <div><strong>WebSocket for scene updates</strong>Switching from server-sent events after the six-connection stall was the correct diagnosis and fix, and the hand-rolled WebSocket is small and readable.</div>
+    <div><strong>Settings belong to the competition</strong>The rule that anything competition-specific lives in the setup and <code>config.json</code> keeps only machine settings has been held to. It should stay a hard rule.</div>
+    <div><strong>Comments explain why</strong>Every module opens with a paragraph on what it is for and what it deliberately doesn't do. That is rarer than it should be and worth protecting.</div>
+    <div><strong>Manual overrides everywhere</strong>Automatic game selection, the PlayHQ clock and sequences all yield to a press. That rule is visible in the code and should stay.</div>
+  </div>
+</section>
+
+<section>
+  <h2>The decisions</h2>
+  <p>Priority is about reliability on a stream night first, then simplicity of the code you will keep changing, then polish. Effort is a rough size for one pull request.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Decision</th><th>Area</th><th>Priority</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td class="n"><a href="#d1">D1</a></td><td><a href="#d1">Read PlayHQ on a timer in the helper, not when a page happens to ask</a></td><td>Reliability</td><td><span class="pill high">High</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#d2">D2</a></td><td><a href="#d2">Write every settings file atomically</a></td><td>Reliability</td><td><span class="pill high">High</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#d3">D3</a></td><td><a href="#d3">Decide who on the network may drive Studio</a></td><td>Reliability</td><td><span class="pill high">High</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#d4">D4</a></td><td><a href="#d4">Say plainly when the port is taken</a></td><td>Reliability</td><td><span class="pill med">Medium</span></td><td>Tiny</td></tr>
+      <tr><td class="n"><a href="#d5">D5</a></td><td><a href="#d5">A health strip on the Output page</a></td><td>UX</td><td><span class="pill med">Medium</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#d6">D6</a></td><td><a href="#d6">Split server.js into the modules it already contains</a></td><td>Architecture</td><td><span class="pill med">Medium</span></td><td>Medium</td></tr>
+      <tr><td class="n"><a href="#d7">D7</a></td><td><a href="#d7">One list of pages instead of three</a></td><td>Architecture</td><td><span class="pill med">Medium</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#d8">D8</a></td><td><a href="#d8">Render the tab bar from one place</a></td><td>Design</td><td><span class="pill med">Medium</span></td><td>Tiny</td></tr>
+      <tr><td class="n"><a href="#d9">D9</a></td><td><a href="#d9">Break the Output page's script into one file per section</a></td><td>Architecture</td><td><span class="pill med">Medium</span></td><td>Medium</td></tr>
+      <tr><td class="n"><a href="#d10">D10</a></td><td><a href="#d10">One convention for where a graphic's styles live</a></td><td>Design</td><td><span class="pill low">Low</span></td><td>Medium</td></tr>
+      <tr><td class="n"><a href="#d11">D11</a></td><td><a href="#d11">Push the scoreboard over the socket the pages already hold</a></td><td>Architecture</td><td><span class="pill low">Low</span></td><td>Medium</td></tr>
+      <tr><td class="n"><a href="#d12">D12</a></td><td><a href="#d12">Finish the renames</a></td><td>UX</td><td><span class="pill low">Low</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#d13">D13</a></td><td><a href="#d13">Pin and bump dependencies</a></td><td>Reliability</td><td><span class="pill low">Low</span></td><td>Tiny</td></tr>
+      <tr><td class="n"><a href="#d14">D14</a></td><td><a href="#d14">A module map and a stream night checklist</a></td><td>Docs</td><td><span class="pill low">Low</span></td><td>Small</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Reliability</h2>
+
+  <article class="card high" id="d1">
+    <div class="head"><span class="id">D1</span><h3>Read PlayHQ on a timer in the helper, not when a page happens to ask</h3><span class="pill high">High</span></div>
+    <p><strong>Finding.</strong> The helper reads the live score only inside four HTTP requests: when a page fetches the scoreboard, the goals, the stats or the worm. There is no timer of its own. Everything else that reacts to the game reads the board the pages last refreshed: the game triggers that start sequences ("It's full time", quarter breaks), the super shot song, the streak and moment animations, and the goal order.</p>
+    <p>So the live state of the game depends on which windows are open. With the default <em>reload on show</em>, a hidden scoreboard source is unloaded to a blank page and stops polling. If the control page is also closed and the Output page is the only thing open, PlayHQ is not read at all, the board freezes at its last score, and a sequence waiting for full time never starts. That is an invisible dependency, and it will fail on a night when the scoreboard is off screen for a sponsor break.</p>
+    <p>The bandwidth rule ("pages only talk to the helper, the helper alone calls PlayHQ") also becomes exact: one reading every <code>playhqRefreshSec</code> whatever is open, instead of one per polling page coalesced by the cache.</p>
+    <dl>
+      <dt>Recommend</dt><dd>One timer in the helper that runs the existing refresh every <code>playhqRefreshSec</code> while a game is being followed and scoring has opened. Pages keep polling or move to D11, but they only read. Game triggers then work with any windows open.</dd>
+      <dt>Alternative</dt><dd>Leave it pull-driven and document that the control page must stay open for triggers. Cheaper, but it moves the rule into people's heads.</dd>
+      <dt>Risk</dt><dd>Low. The refresh already tolerates being called often; the stand-in PlayHQ tests cover following a game.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>refreshFromPlayhq</code> is called from exactly four routes in <code>server.js</code> (scoreboard, goals, stats, worm) and nowhere else. <code>scene.game(gameSnapshot())</code> runs every second but only reads the board. <code>scene.html</code> sets a hidden source's iframe to <code>about:blank</code> when <code>reloadOnShow</code> is on.</div>
+  </article>
+
+  <article class="card high" id="d2">
+    <div class="head"><span class="id">D2</span><h3>Write every settings file atomically</h3><span class="pill high">High</span></div>
+    <p><strong>Finding.</strong> Every JSON file Studio saves is written in place with a plain write: the scene, sequences, music, outputs, sponsors, the control file, competition settings, the athlete register and the data version. A crash, a kill from the app's restart loop, or a power cut in the middle of a write leaves a half-written file. On the next start that is a JSON parse error, which most modules catch by falling back to empty, so the symptom would be "my scene is gone" rather than an error message. The migration backups protect against a bad upgrade, not against this.</p>
+    <dl>
+      <dt>Recommend</dt><dd>One shared <code>writeJson</code> in <code>datadir.js</code> that writes to a temporary file beside the target and renames it over the top, and every module uses it. Fifteen call sites, no behaviour change. Add a one-line "could not read, kept the last good copy" log when a file fails to parse.</dd>
+      <dt>Alternative</dt><dd>Only do it for the files that are hard to rebuild (scene, sequences, sponsors, competitions) and leave the state files.</dd>
+      <dt>Risk</dt><dd>None of note. Rename is atomic on APFS and on iCloud Drive's local folder.</dd>
+    </dl>
+    <div class="evidence">Evidence: 17 <code>fs.writeFileSync</code> sites across <code>competitions.js</code>, <code>datalocation.js</code>, <code>migrations.js</code>, <code>music.js</code>, <code>outputs.js</code>, <code>scene.js</code>, <code>sequences.js</code>, <code>server.js</code>, <code>sponsors.js</code>, <code>viewers.js</code>, <code>desktop/main.js</code>; two local <code>writeJson</code> helpers already exist with the same body.</div>
+  </article>
+
+  <article class="card high" id="d3">
+    <div class="head"><span class="id">D3</span><h3>Decide who on the network may drive Studio</h3><span class="pill high">High</span></div>
+    <p><strong>Finding.</strong> The helper listens on every network interface, answers every request with <code>access-control-allow-origin: *</code>, and has no authentication. That is by design: the links use the Mac's <code>.local</code> name so a phone can open the control page, and the Stream Deck plugin talks to it directly. But the same openness covers the endpoints that switch scenes, start sequences, change scores, upload and delete media, save competition settings and delete a competition. Anyone on the venue Wi-Fi with the Mac's name can do all of that, and the wildcard CORS header means any web page open in any browser on that network can too, without the person noticing.</p>
+    <p>For a one-person setup at a netball centre the practical risk is a mis-tap, not an attacker. But it is a decision that should be made on purpose, and it gets harder to change once more devices depend on the links.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Keep listening on all interfaces (the phone links matter) but drop the wildcard CORS header, so only pages served by Studio itself and non-browser clients like the Stream Deck plugin can call the API. Then add one setup toggle, default on: "Let other devices on this network change things". Off, writes from other addresses get a plain 403 and the reason. Reads stay open.</dd>
+      <dt>Alternative</dt><dd>Leave it as it is and accept that the venue network is trusted. Write that down in the README so it is a choice, not an accident.</dd>
+      <dt>Risk</dt><dd>Low. Any page that calls the API from another origin (there shouldn't be one) would show up in the page test.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>send()</code> in <code>server.js</code> sets the wildcard header on every response; <code>.listen(PORT)</code> has no host; no route checks the caller.</div>
+  </article>
+
+  <article class="card med" id="d4">
+    <div class="head"><span class="id">D4</span><h3>Say plainly when the port is taken</h3><span class="pill med">Medium</span></div>
+    <p><strong>Finding.</strong> The HTTP server has no error handler. If port 8080 is already in use (a stray <code>npm start</code>, a second copy of the app, another tool), Node throws, the helper exits, the Mac app restarts it up to five times a minute and then shows "off air". Nothing tells you why.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Catch the listen error, log "Port 8080 is already in use" and exit with a distinct code the app recognises and shows in the menu and the off-air page, with the fix (quit the other Studio, or change the port in <code>config.json</code>).</dd>
+      <dt>Risk</dt><dd>None.</dd>
+    </dl>
+  </article>
+
+  <article class="card low" id="d13">
+    <div class="head"><span class="id">D13</span><h3>Pin and bump dependencies</h3><span class="pill low">Low</span></div>
+    <p><strong>Finding.</strong> The app pins exact versions, which is the right rule. Electron is on 44.8.0 with 45.0.0 out. The Stream Deck plugin uses a caret range (<code>^3.0.2</code>) for its one dependency, unlike everything else in the repository.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Bump Electron to 45 and pin the plugin's dependency exactly, in the next housekeeping PR. Consider letting Dependabot or Renovate open these so the versions rule needs no one to remember it.</dd>
+    </dl>
+  </article>
+</section>
+
+<section>
+  <h2>Architecture</h2>
+
+  <article class="card med" id="d6">
+    <div class="head"><span class="id">D6</span><h3>Split server.js into the modules it already contains</h3><span class="pill med">Medium</span></div>
+    <p><strong>Finding.</strong> <code>server.js</code> is 3,100 lines. It is well commented and already divided by rulers, but it holds seven separate things: the PlayHQ client (sessions, GraphQL, caches), the round and fixture logic, the scoreboard engine (board, actions, clock, super shots), goal order with streaks and moments, athletes and photos, finals and team sheets, and the HTTP router. Everything else in the repository is a module of 200 to 1,000 lines with one job, so this file is the exception, and the one most PRs touch.</p>
+    <p>Size alone is not a problem. The cost is in review and in risk: a change to the goal order is in the same file as the router, shared module-level state (<code>CONFIG</code>, <code>boards</code>, caches) is reachable from everywhere, and new routes keep being added to a 150-line <code>if</code> chain.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Move code without changing it, one module per PR so each stays reviewable: <code>playhq.js</code> (session, gql, structure, ladders, rounds, live feed), <code>board.js</code> (scoreboard engine and goal tracking), <code>athletes.js</code>, <code>games.js</code> (round choice, fixtures, up next, auto select). <code>server.js</code> keeps the router and the glue. The tests already exercise all of it through HTTP, so a pure move is safe.</dd>
+      <dt>Alternative</dt><dd>Leave it. It works, and the comments make it navigable. Choose this if the pace of new features is about to slow.</dd>
+      <dt>Risk</dt><dd>Low per PR, but it takes a few. Module-level state has to be passed in deliberately, which will expose a couple of hidden couplings. That is also the benefit.</dd>
+    </dl>
+  </article>
+
+  <article class="card med" id="d7">
+    <div class="head"><span class="id">D7</span><h3>One list of pages instead of three</h3><span class="pill med">Medium</span></div>
+    <p><strong>Finding.</strong> Which graphics exist, what options they take and what to call them is written in three places by hand: the Docs page (43 page links), the Output page's "Add a page" options in <code>pageoptions.js</code> (30 pages), and the example-graphics script (32 pages). There are 42 pages in <code>public/</code>. The three lists already disagree, so a new graphic needs three edits and a new option needs two, and the rule "add it to pageoptions as well as the home page" has to be remembered.</p>
+    <dl>
+      <dt>Recommend</dt><dd>One <code>pages.json</code> (name, file, group, options with their quick picks, whether it animates away, whether it appears in examples) served at <code>/api/pages</code>. The Docs page, the Add a page dialog, the examples script and the page test all read it. The page test then fails when a page is missing from the list.</dd>
+      <dt>Risk</dt><dd>Low. The Docs page's prose about each page stays as it is; only the registry moves.</dd>
+    </dl>
+  </article>
+
+  <article class="card med" id="d9">
+    <div class="head"><span class="id">D9</span><h3>Break the Output page's script into one file per section</h3><span class="pill med">Medium</span></div>
+    <p><strong>Finding.</strong> <code>output.html</code> is 2,230 lines, 1,685 of them one inline script covering six features: video output, music, sequences, scenes, sources and the media folder. It is the page you will keep changing most, and every change to any section is a diff in one file. A long inline script also can't be unit tested on its own; today it is covered only by opening the page.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Move each section's script into <code>public/output/&lt;section&gt;.js</code>, loaded in order by the page, with the HTML unchanged. Pure move, same globals. Then the sequence editor or the music player can get a test of its own later.</dd>
+      <dt>Alternative</dt><dd>Leave it as one file, since the page itself was recently reorganised and works.</dd>
+      <dt>Risk</dt><dd>Low. The page test and the pop-out, sequence and music tests cover the behaviour.</dd>
+    </dl>
+  </article>
+
+  <article class="card low" id="d11">
+    <div class="head"><span class="id">D11</span><h3>Push the scoreboard over the socket the pages already hold</h3><span class="pill low">Low</span></div>
+    <p><strong>Finding.</strong> Studio pages follow the scene over one WebSocket, but the game still arrives by polling: the scoreboard every second, the control page every two seconds plus teams every ten, goals every two, the countdown every five, and three pages ask for the version every five seconds to reload themselves. It works and the helper is local, so the cost is small. But two mechanisms for "something changed" is one more than needed, and the one-second scoreboard poll is why the control page can lag a Stream Deck press by up to a second.</p>
+    <dl>
+      <dt>Recommend</dt><dd>After D1, publish the board on the same socket as a second message type, and let the scoreboard, control page, goals and countdown subscribe instead of polling. Keep the HTTP endpoints for OBS sources and the plugin.</dd>
+      <dt>Alternative</dt><dd>Leave polling. It is simple and well understood. Choose this unless D1 is done and the lag is noticed.</dd>
+    </dl>
+  </article>
+</section>
+
+<section>
+  <h2>Design</h2>
+
+  <article class="card med" id="d8">
+    <div class="head"><span class="id">D8</span><h3>Render the tab bar from one place</h3><span class="pill med">Medium</span></div>
+    <p><strong>Finding.</strong> The Studio tab bar is pasted into eight pages. The links are in the same order in all eight, which is good, and yesterday's rename of the Graphics tab to Docs is the proof of the cost: an eight-file PR for one word. Pages with a Stream Deck or Docs link elsewhere also repeat those links in slightly different ways.</p>
+    <dl>
+      <dt>Recommend</dt><dd>A twenty-line <code>studio-bar.js</code> that renders the bar and marks the current tab, like <code>fit.js</code> does for graphics. Each page keeps a <code>&lt;header class="fp-bar"&gt;</code> placeholder for the no-script case. The Go menu in the Mac app could read the same list.</dd>
+      <dt>Risk</dt><dd>None.</dd>
+    </dl>
+  </article>
+
+  <article class="card low" id="d10">
+    <div class="head"><span class="id">D10</span><h3>One convention for where a graphic's styles live</h3><span class="pill low">Low</span></div>
+    <p><strong>Finding.</strong> Two conventions coexist. Twenty graphics put their styles in the shared <code>graphics.css</code> (438 lines of <code>.card</code>, <code>.fixture</code>, <code>.ladderbar</code>, <code>.worm</code> and so on, one block per page). Eleven others carry their own styles inline (The Clash, winner, streaks, super shot, lower third, title, branding, intro and outro, logo, ad, goals), and two have a sheet of their own (scoreboard, ladder). All of them take their colours from the generated <code>theme.css</code>, so the competition look is consistent. What drifts is the chrome: panel radius, shadow, opacity and padding are set in each place, and a change to the house panel style means finding them all.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Decide the rule and write it in the README: shared tokens and the panel primitive (radius, shadow, panel colour and opacity, title tab) in a small <code>graphics.css</code>, and each page's own layout in that page. That means moving the per-page blocks out of <code>graphics.css</code> into their pages, not the other way, so the shared file shrinks to what is actually shared. Do it one page at a time alongside other changes, checking each against the example PNGs.</dd>
+      <dt>Alternative</dt><dd>Leave it. The look is consistent today because the colours are; only future panel changes pay the cost.</dd>
+    </dl>
+  </article>
+</section>
+
+<section>
+  <h2>UX</h2>
+
+  <article class="card med" id="d5">
+    <div class="head"><span class="id">D5</span><h3>A health strip on the Output page</h3><span class="pill med">Medium</span></div>
+    <p><strong>Finding.</strong> Studio is good at hiding problems from the stream, and that means problems hide from you too. On a night, the questions are: is PlayHQ answering, how old is the last reading, which game is being followed, is the clock following the scorer, are the outputs on and the Stream Deck connected. Today those answers are spread over the control page, the menu bar status and the log. The Output page, which stays open all night, shows none of them.</p>
+    <dl>
+      <dt>Recommend</dt><dd>One line at the top of the Output page: the game being followed, "PlayHQ read 4 s ago" (amber past twice the refresh, red with the last error after a minute), clock mode, outputs on, and a link to the log. The same data in <code>/api/version</code> or a small <code>/api/health</code> so the Stream Deck plugin can colour a key with it later.</dd>
+      <dt>Risk</dt><dd>None; it only reads what the board already records (<code>playhqError</code>, <code>playhqSeen</code>, <code>playhqWaiting</code>).</dd>
+    </dl>
+  </article>
+
+  <article class="card low" id="d12">
+    <div class="head"><span class="id">D12</span><h3>Finish the renames</h3><span class="pill low">Low</span></div>
+    <p><strong>Finding.</strong> The product has been renamed twice and the user-facing names are now consistent: FirstPass Studio, on air and off air, Scene View, Sources, Scenes, Sequences, the Docs tab. Underneath, the old names remain where a person can still meet them: the log file is <code>playhq-graphics.log</code>, the helper prints "PlayHQ Graphics is running", the log source for pages is "helper", the README and a few comments still say "helper" and "home page", and <code>index.html</code> redirects to the Docs page. None of this breaks anything. It does cost a new reader a few minutes working out that three names mean one thing.</p>
+    <dl>
+      <dt>Recommend</dt><dd>A glossary at the top of the README (Studio, the helper, the scene, a source, a scene, a sequence, the data folder) and a tidy of the console messages. Leave the log file name alone unless a migration is being written anyway; renaming it is not worth a data step.</dd>
+    </dl>
+  </article>
+
+  <article class="card low" id="d14">
+    <div class="head"><span class="id">D14</span><h3>A module map and a stream night checklist</h3><span class="pill low">Low</span></div>
+    <p><strong>Finding.</strong> The README is thorough about features and settings, and each module explains itself at the top. What is missing is the page in between: one screen that says which file owns what, how a request flows from a page to PlayHQ, and what runs on a timer. Reviewing this repository meant rebuilding that map from the code. Separately, the operational knowledge for a night (what to open, what to check, what to do when PlayHQ stops answering, how to go manual) lives in Matt's head and in thread history.</p>
+    <dl>
+      <dt>Recommend</dt><dd><code>docs/ARCHITECTURE.md</code>, one page, kept current by the same rule as the Docs page. And a "Before you go on air" checklist on the Docs page, which D5 can link to when something is amber.</dd>
+    </dl>
+  </article>
+</section>
+
+<section class="plan">
+  <h2>If all of it is approved, this order</h2>
+  <p>Each line is one pull request. The first three change behaviour and are the ones that protect a stream; the rest are moves that make the code easier to keep changing.</p>
+  <ol>
+    <li><strong>D2</strong> atomic writes, then <strong>D4</strong> the port message. Tiny, no decisions inside them.</li>
+    <li><strong>D1</strong> the helper's own PlayHQ timer. Test on a real night with the scoreboard hidden for a break.</li>
+    <li><strong>D3</strong> network access, once the CORS and toggle choice is made.</li>
+    <li><strong>D5</strong> the health strip, which D1 makes truthful.</li>
+    <li><strong>D8</strong> the tab bar and <strong>D7</strong> the page list. Both remove a "remember to also edit" rule.</li>
+    <li><strong>D6</strong> and <strong>D9</strong> module splits, one module per PR, between feature work.</li>
+    <li><strong>D13</strong>, <strong>D12</strong>, <strong>D14</strong>, <strong>D10</strong> and <strong>D11</strong> as housekeeping when convenient.</li>
+  </ol>
+  <p class="muted">Not recommended: a framework, a bundler, TypeScript for the helper, a database, or moving to a cloud service. The current shape is the right one for a tool that must start on a Mac in a sports hall with no internet beyond PlayHQ.</p>
+</section>
+</main>
+</body></html>
