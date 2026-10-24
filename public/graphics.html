@@ -339,6 +339,21 @@
     <p class="page__help">It uses Studio if it is on air (keep a Studio window open), otherwise starts it on its own for the run, and needs Google Chrome (or Edge, Brave or
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
+  <div class="card" id="onair">
+    <h2>Before you go on air</h2>
+    <ol class="page__help">
+      <li><b>Open the app.</b> The Output page opens and Studio goes on air. Keep a Studio window open all night; closing the last one takes it off air.</li>
+      <li><b>Right competition.</b> Competitions setup shows the one in use at the top. Check its PlayHQ link, the court to follow and the scoring window (<b>Electronic scoring starts N minutes before the game</b>).</li>
+      <li><b>Right game.</b> On Scoreboard control, the picked game is tonight's first on your court and <b>Follow PlayHQ</b> is on. If the round is wrong, force this round there.</li>
+      <li><b>Scores arrive.</b> Once the scorer has started on PlayHQ, the control page says the game is being live scored and the scoreboard moves. Nothing is read before the scoring window opens, so a quiet board before then is normal.</li>
+      <li><b>Scene and output.</b> On the Output page turn on the display, NDI or Blackmagic output your switcher takes, check the fill and key or chroma setting, and show one graphic to see it land.</li>
+      <li><b>Sound.</b> Play a few seconds of music and an animation with sound, and check the preview sound only comes out where you want it.</li>
+      <li><b>Stream Deck.</b> Press a Source key and watch the Output page's Sources list follow it. A score key switches scoring to Manual, so put those back to Follow PlayHQ after testing.</li>
+      <li><b>Sponsors.</b> Spots and ads for tonight are on; the exposure report starts counting when the output turns on.</li>
+    </ol>
+    <p class="page__help"><b>If PlayHQ stops answering</b> the scoreboard keeps its last score and the <a href="/api/log" target="_blank" rel="noopener">debug log</a> records each failed read. Switch to <b>Manual</b> on Scoreboard control (or press a score key) and run the board by hand; <b>Follow PlayHQ</b> picks it up again when it is back. <b>If Studio itself stops</b>, the 1P menu's <b>Restart Studio</b> brings it back with the scores and clock it had.</p>
+    <p class="page__help">How Studio is put together, module by module, is in <code>docs/ARCHITECTURE.md</code> in the repository.</p>
+  </div>
   <div class="card">
     <h2>Mac app</h2>
     <p class="page__help">FirstPass Studio is a Mac app for Apple silicon Macs (M1 and later). Open it from Applications or Spotlight

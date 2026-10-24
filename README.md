@@ -266,6 +266,9 @@ data folder of their own, so they never touch PlayHQ or your settings.
 3. Open **Scoreboard control** (⌘3 in the app, or from the 1P icon) to run the scoreboard.
 4. Turn graphics on and off from the Output page or the Stream Deck.
 
+The Docs page has a **Before you go on air** checklist for the night, and `docs/ARCHITECTURE.md` says how Studio is put
+together (which file owns what, how a request reaches PlayHQ, what runs on a timer) for anyone working on it.
+
 Only the scoreboard updates itself (every second, and it reloads when Studio restarts), along with the last 10 goals (every 2 seconds), the ticker, the
 automatic super shot (every second) and the countdown (every 5 seconds, asking Studio only). Every other page
 loads once, and again each time it's turned on on the Output page (with **Load the page fresh each time it's shown**, the
