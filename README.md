@@ -80,7 +80,7 @@ In it:
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
-  how often to check PlayHQ, `linkHost`); a `config.json` here changes only the settings it names.
+  how often to check PlayHQ, `linkHost`, `remoteChanges`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log.
 - `app-settings.json`: the Mac app's own choices (the window's size and position, the version What's new was last shown for).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
@@ -153,13 +153,17 @@ another computer or a Stream Deck on the same network, without looking up an IP 
 To go back to `localhost` links (or use a fixed name or IP address), set `"linkHost": "localhost"` (or that name) in
 `config.json` in the data folder; `"bonjour"` is the default.
 
-Studio has always listened on every network connection, not just this Mac, so anything on the same network can
-open the pages and press the Stream Deck links (scores, clock, game). Stream on a network you trust (not open venue
-Wi-Fi), or use the Mac's firewall to block incoming connections to FirstPass Studio / Node.
+Studio listens on every network connection, not just this Mac, so anything on the same network can open the pages
+and, unless you say otherwise, change things: press the Stream Deck links (scores, clock, game), switch scenes, run
+sequences and save settings. **Let other devices change things** in the menu bar icon (ticked by default; `"remoteChanges"`
+in `config.json`) is the switch: unticked, Studio takes changes only from this Mac (by any of its own addresses, so the
+Stream Deck plugin on it and links by its `.local` name still work) and answers other devices' changes with a 403 that
+says so, while they can still open every page. Untick it on open venue Wi-Fi. Studio's pages are the only web pages
+that can talk to it from a browser (it sends no CORS header), so a page from another site can't drive it either.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
 Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Restart Studio, Open at
-login, Check for updates and Quit.
+login, Let other devices change things, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". The app always starts in the
 menu bar off air, at login or opened by hand; **Open Studio** (or any page in the menu) shows the splash, puts Studio

@@ -64,6 +64,13 @@ function machineConfig() {
   return { ...read(path.join(APP_DIR, 'config.json')), ...read(path.join(dataDir(), 'config.json')) };
 }
 const MACHINE = machineConfig();
+// Changes one of this computer's settings in the data folder's config.json (the app's own config.json keeps the defaults).
+function setMachineConfig(key, value) {
+  const file = path.join(dataDir(), 'config.json');
+  const own = (() => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; } })();
+  try { savefile.writeJsonSync(file, { ...own, [key]: value }); log(`${key} is now ${JSON.stringify(value)}`); }
+  catch (err) { log(`Couldn't save ${key} to config.json: ${err.message}`); dialog.showMessageBox({ type: 'error', message: `Couldn't save the setting`, detail: err.message }); }
+}
 const PORT = Number(MACHINE.port) || 8080;
 // Links opened and copied from the menu use the Mac's Bonjour name (linkhost.js), the same as
 // the Graphics page shows. The app checks the helper on localhost, which always works.
@@ -253,6 +260,10 @@ function refreshMenu() {
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
+    // config.json remoteChanges (access.js): off, only this Mac can change scores, the scene, settings and media; other
+    // devices can still open every page. The helper reads config.json when it starts, so it restarts on a change.
+    { label: 'Let other devices change things', type: 'checkbox', checked: machineConfig().remoteChanges !== false, toolTip: 'Phones, other computers and Stream Decks on this network can change scores, the scene and settings. Untick to keep changes to this Mac; they can still see every page.',
+      click: item => { setMachineConfig('remoteChanges', item.checked); if (helper) restartHelper(); refreshMenu(); } },
     updateMenuItem(),
     { label: 'What\'s new…', enabled: !!whatsnew.since(whatsnew.load(), null, app.getVersion()).length, click: () => showWhatsNew(whatsnew.since(whatsnew.load(), null, app.getVersion()).slice(0, 10), { recent: true }) },
     { type: 'separator' },

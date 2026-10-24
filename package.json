@@ -45,6 +45,7 @@
       "datalocation.js",
       "migrations.js",
       "linkhost.js",
+      "access.js",
       "sequences.js",
       "music.js",
       "fonts.js",
