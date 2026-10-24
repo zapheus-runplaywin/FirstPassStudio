@@ -31,6 +31,7 @@ const sponsors = require('./sponsors');
 const competitions = require('./competitions');
 const exposure = require('./exposure');
 const { unpacked } = require('./unpacked');
+const uploads = require('./uploads');
 
 const FILE = datadir.file('scene.json');
 const MEDIA_DIR = datadir.file('media');
@@ -123,10 +124,17 @@ const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(
 const newId = () => Math.random().toString(36).slice(2, 10);
 
 // A browser source's address: a Studio page ("scoreboard.html?position=top-center") or a full http(s) link.
+// A browser source's address: one of Studio's own pages (a relative link, or a full one on localhost
+// made relative) or an http(s) page elsewhere. Anything else (javascript:, data:, file:) is dropped.
 function cleanUrl(u) {
   const s = String(u || '').trim().replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i, '');
+  let parsed;
+  try { parsed = new URL(s, 'http://studio.invalid/'); } catch { return ''; }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
   if (/^https?:\/\//i.test(s)) return s;
-  return s.replace(/^\/+/, '').replace(/^javascript:/i, '');
+  // Relative: a scheme-relative or protocol-less absolute form ("//evil", "\\evil") would leave Studio.
+  if (/^[\\/]{2}/.test(s)) return '';
+  return s.replace(/^\/+/, '');
 }
 const cleanFile = f => path.basename(String(f || ''));
 
@@ -818,7 +826,7 @@ function sendMedia(req, res, file, type, send) {
       status = 206;
     }
     res.writeHead(status, { 'content-type': type, 'content-length': end - start + 1, 'accept-ranges': 'bytes', 'cache-control': 'no-store',
-      ...(status === 206 ? { 'content-range': `bytes ${start}-${end}/${st.size}` } : {}) });
+      ...uploads.SERVE_HEADERS, ...(status === 206 ? { 'content-range': `bytes ${start}-${end}/${st.size}` } : {}) });
     if (req.method === 'HEAD') return res.end();
     fs.createReadStream(file, { start, end }).pipe(res);
   });
@@ -1008,6 +1016,17 @@ async function route(req, res, url, { send, readBody }) {
     const kind = name && kindOf(name);
     if (!kind) return send(res, 400, { error: 'Pick a PNG, JPG, GIF, WebP or SVG image, an MP4, WebM or MOV video, or an MP3, M4A, AAC, WAV or AIFF song.' }), true;
     const size = await saveUpload(req, name, kind === 'video' ? MAX_VIDEO : kind === 'audio' ? MAX_AUDIO : MAX_IMAGE);
+    if (kind === 'image') {
+      // An image whose bytes aren't what its name says goes straight back out.
+      const head = Buffer.alloc(4096);
+      const fd = fs.openSync(path.join(MEDIA_DIR, name), 'r');
+      const n = fs.readSync(fd, head, 0, head.length, 0);
+      fs.closeSync(fd);
+      if (!uploads.looksLikeImage(name, head.subarray(0, n))) {
+        fs.rmSync(path.join(MEDIA_DIR, name), { force: true });
+        return send(res, 400, { error: `${name} isn't a ${path.extname(name).slice(1).toUpperCase()} file inside (its first bytes don't match). Export it again from the image program, or rename it to what it really is.` }), true;
+      }
+    }
     log('info', 'scene', `Saved ${name} to the media folder (${Math.round(size / 1024)} KB)`);
     // Songs are evened out unless the Output page's tick box says not to.
     if (kind === 'audio' && url.searchParams.get('level') !== '0') {
@@ -1064,4 +1083,4 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { STREAMDECK_PLUGIN, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, FILE, MEDIA_DIR };

@@ -19,6 +19,23 @@ test('changes: anything but GET and HEAD, and the Stream Deck links', () => {
   assert.equal(access.changes('GET', '/deckchair.html'), false);
 });
 
+test('privateRead: backups, the athlete register, the log, sponsor reports and the setup, on GET only', () => {
+  assert.equal(access.privateRead('GET', '/api/settings/export'), true);
+  assert.equal(access.privateRead('GET', '/api/scene/export'), true);
+  assert.equal(access.privateRead('GET', '/api/athletes'), true);
+  assert.equal(access.privateRead('GET', '/api/athletes/games'), false, 'the positions graphic');
+  assert.equal(access.privateRead('GET', '/api/log'), true);
+  assert.equal(access.privateRead('GET', '/api/sponsors/report'), true);
+  assert.equal(access.privateRead('GET', '/api/setup'), true);
+  assert.equal(access.privateRead('GET', '/api/setup/thunder-league/template'), true);
+  assert.equal(access.privateRead('GET', '/api/setup-teams'), true);
+  assert.equal(access.privateRead('GET', '/api/scoreboard'), false);
+  assert.equal(access.privateRead('GET', '/api/viewers'), false, 'the live viewers graphic');
+  assert.equal(access.privateRead('GET', '/api/teams'), false, 'the team list graphic');
+  assert.equal(access.privateRead('GET', '/media/song.mp3'), false);
+  assert.equal(access.privateRead('POST', '/api/log'), false, 'a change, covered by changes()');
+});
+
 test('isLocal: loopback (IPv4, IPv6 and mapped) and every address of this computer', () => {
   const own = new Set(['127.0.0.1', '::1', '192.168.1.20']);
   assert.equal(access.isLocal('127.0.0.1', own), true);
@@ -42,6 +59,12 @@ test('refusal: only when the setting is off, the request changes something, and 
   assert.match(why, /POST \/api\/scoreboard from 10\.0\.0\.5/);
   assert.match(why, /Let other devices change things/);
   assert.match(access.refusal(false, 'GET', '/deck/home/add1', '10.0.0.5', own), /GET \/deck\/home\/add1/);
+  const priv = access.refusal(false, 'GET', '/api/settings/export', '10.0.0.5', own);
+  assert.match(priv, /private data/);
+  assert.match(priv, /GET \/api\/settings\/export from 10\.0\.0\.5/);
+  assert.equal(access.refusal(false, 'GET', '/api/settings/export', '127.0.0.1', own), null, 'this computer reads everything');
+  assert.equal(access.refusal(true, 'GET', '/api/settings/export', '10.0.0.5', own), null, 'open when the switch is on');
+  assert.equal(access.refusal(false, 'GET', '/api/athletes/games', '10.0.0.5', own), null, 'graphics stay open');
 });
 
 test('Studio sends no CORS header, and with remoteChanges off still takes changes from this computer', async () => {
@@ -54,5 +77,72 @@ test('Studio sends no CORS header, and with remoteChanges off still takes change
     const r = await studio.post('/api/scoreboard', { type: 'score', side: 'home', delta: 1 });
     assert.equal(r.home.score, 1, 'a change from this computer goes through');
     assert.equal((await fetch(`${studio.base}/deck/home/add1`)).status, 200);
+    assert.equal((await fetch(`${studio.base}/api/log`)).status, 200, 'private reads from this computer go through');
+    assert.equal((await fetch(`${studio.base}/api/athletes`)).status, 200);
   } finally { await studio.stop(); fs.rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test('crossSite: a change from another web page is refused, Studio\'s own pages and programs pass', () => {
+  const hosts = access.ownHosts(['matts-mac.local', 'studio.lan'], new Set(['127.0.0.1', '::1', '192.168.1.20']));
+  const ok = headers => access.crossSite('POST', '/api/scoreboard', headers, 8080, hosts);
+  // Programs send no browser headers at all.
+  assert.equal(ok({}), null, 'curl or the Stream Deck plugin');
+  assert.equal(ok({ host: 'localhost:8080' }), null);
+  assert.equal(ok({ host: '192.168.1.20:8080' }), null);
+  assert.equal(ok({ host: '[::1]:8080' }), null);
+  // Studio's own pages: same origin, by any of the names it answers to.
+  assert.equal(ok({ host: 'localhost:8080', origin: 'http://localhost:8080', 'sec-fetch-site': 'same-origin' }), null);
+  assert.equal(ok({ host: 'matts-mac.local:8080', origin: 'http://matts-mac.local:8080', 'sec-fetch-site': 'same-origin' }), null);
+  assert.equal(ok({ host: 'other-mac.local:8080', origin: 'http://Other-Mac.local:8080' }), null, 'any .local name is this network');
+  assert.equal(ok({ host: 'studio.lan:8080', origin: 'http://studio.lan:8080' }), null, 'the configured linkHost');
+  assert.equal(ok({ host: '192.168.1.20:8080', origin: 'http://192.168.1.20:8080', 'sec-fetch-site': 'same-origin' }), null);
+  // Another site: an image tag or a fetch from a page elsewhere.
+  assert.match(ok({ host: 'localhost:8080', 'sec-fetch-site': 'cross-site' }), /another site/);
+  assert.match(ok({ host: 'localhost:8080', origin: 'https://evil.example' }), /evil\.example/);
+  assert.match(ok({ host: 'localhost:8080', origin: 'null' }), /unknown site|null/);
+  assert.match(ok({ host: 'localhost:8080', origin: 'http://localhost:3000' }), /localhost:3000/, 'another port is another origin');
+  assert.match(ok({ host: 'localhost:8080', origin: 'http://192.168.1.77:8080' }), /192\.168\.1\.77/);
+  // DNS rebinding: the page's own name pointed at this computer.
+  const rebound = ok({ host: 'evil.example:8080', origin: 'http://evil.example:8080', 'sec-fetch-site': 'same-origin' });
+  assert.match(rebound, /"evil\.example", a name this computer doesn't answer to/);
+  assert.match(rebound, /"linkHost": "evil\.example"/);
+  assert.equal(access.hostOf('[fe80::1]:8080'), 'fe80::1');
+  assert.equal(access.portOf('https://a.example'), 443);
+  assert.equal(access.portOf('http://a.example'), 80);
+});
+
+test('Studio refuses changes from another site over HTTP and WebSocket, and still takes its own', async () => {
+  const studio = await startStudio(null, { competition: 'Thunder League' });
+  try {
+    const own = `http://127.0.0.1:${studio.port}`;
+    let res = await fetch(`${studio.base}/api/scoreboard`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://evil.example' }, body: JSON.stringify({ type: 'score', side: 'home', delta: 1 }) });
+    assert.equal(res.status, 403);
+    assert.match((await res.json()).error, /another site|evil\.example/);
+    res = await fetch(`${studio.base}/deck/home/add1`, { headers: { 'sec-fetch-site': 'cross-site' } });
+    assert.equal(res.status, 403, 'an image tag on another site pressing a Stream Deck link');
+    // fetch won't send a made-up Host header, so plain http for the DNS rebinding case.
+    const http = require('node:http');
+    const rebound = await new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: '/deck/home/add1', headers: { host: 'evil.example' } }, r => { r.resume(); resolve(r.statusCode); }));
+    assert.equal(rebound, 403, 'DNS rebinding');
+    assert.equal((await studio.get('/api/scoreboard')).home.score, 0, 'nothing changed');
+    // Reads from another site still answer (they can't be read there: no CORS header).
+    res = await fetch(`${studio.base}/api/scoreboard`, { headers: { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' } });
+    assert.equal(res.status, 200);
+    // Studio's own pages.
+    res = await fetch(`${studio.base}/api/scoreboard`, { method: 'POST', headers: { 'content-type': 'application/json', origin: own, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify({ type: 'score', side: 'home', delta: 1 }) });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).home.score, 1);
+    assert.equal((await fetch(`${studio.base}/deck/home/add1`, { headers: { origin: own, 'sec-fetch-site': 'same-origin' } })).status, 200);
+    // The scene socket: refused from another site, opened for Studio's pages.
+    const upgrade = headers => new Promise(resolve => {
+      const req = http.request({ host: '127.0.0.1', port: studio.port, path: '/api/scene/socket', headers: { connection: 'Upgrade', upgrade: 'websocket', 'sec-websocket-version': '13', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==', ...headers } });
+      req.on('upgrade', (r, socket) => { socket.destroy(); resolve(101); });
+      req.on('response', r => { r.resume(); resolve(r.statusCode); });
+      req.on('error', () => resolve(-1));
+      req.end();
+    });
+    assert.equal(await upgrade({ origin: 'https://evil.example' }), 403);
+    assert.equal(await upgrade({ origin: own }), 101);
+    assert.equal(await upgrade({}), 101, 'a program with no Origin');
+  } finally { await studio.stop(); }
 });

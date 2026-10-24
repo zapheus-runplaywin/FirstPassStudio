@@ -140,7 +140,7 @@ test('logos: a colour and a white one, replaced and removed, and served for the 
   await studio.request('POST', '/api/sponsors/logo?id=corner-cafe&which=logo&name=cafe2.png', PNG);
   assert.equal((await studio.request('GET', '/sponsors/corner-cafe/cafe.png')).status, 404);
   const bad = await studio.request('POST', '/api/sponsors/logo?id=corner-cafe&which=logo&name=cafe.exe', PNG);
-  assert.equal(bad.status, 502);
+  assert.equal(bad.status, 400);
   assert.match(bad.json.error, /PNG, JPG, WebP, SVG or GIF/);
   assert.equal((await studio.request('GET', '/sponsors/corner-cafe/..%2F..%2Fsponsors.json')).status, 404);
   view = await studio.request('DELETE', '/api/sponsors/logo?id=corner-cafe&which=logoWhite');

@@ -69,6 +69,7 @@
       "linkhost.js",
       "access.js",
       "unpacked.js",
+      "uploads.js",
       "sequences.js",
       "music.js",
       "fonts.js",
