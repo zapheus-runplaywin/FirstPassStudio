@@ -273,7 +273,7 @@ function refreshMenu() {
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
     // config.json remoteChanges (access.js): off, only this Mac can change scores, the scene, settings and media; other
     // devices can still open every page. The helper reads config.json when it starts, so it restarts on a change.
-    { label: 'Let other devices change things', type: 'checkbox', checked: machineConfig().remoteChanges !== false, toolTip: 'Phones, other computers and Stream Decks on this network can change scores, the scene and settings. Untick to keep changes to this Mac; they can still see every page.',
+    { label: 'Let other devices change things', type: 'checkbox', checked: machineConfig().remoteChanges !== false, toolTip: 'Phones, other computers and Stream Decks on this network can change scores, the scene and settings. Untick to keep changes, backups, the athlete register, the log and sponsor reports to this Mac; they can still see every graphic.',
       click: item => { setMachineConfig('remoteChanges', item.checked); if (helper) restartHelper(); refreshMenu(); } },
     updateMenuItem(),
     { label: 'What\'s new…', enabled: !!whatsnew.since(whatsnew.load(), null, app.getVersion()).length, click: () => showWhatsNew(whatsnew.since(whatsnew.load(), null, app.getVersion()).slice(0, 10), { recent: true }) },

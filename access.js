@@ -23,6 +23,16 @@
 
 const os = require('os');
 
+// Reads of private data rather than graphics: the settings and scene backups (every photo, logo and
+// media file), the athlete register, the debug log, the sponsor exposure report and the competition
+// setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
+// the scene and the media files stay open so the Output page, OBS and the Stream Deck work from anywhere.
+const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights'];
+function privateRead(method, pathname) {
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup');
+}
+
 // Requests that change something: anything but GET and HEAD, plus the Stream Deck links, which
 // act on a plain GET (/deck/...).
 function changes(method, pathname) {
@@ -47,9 +57,11 @@ function isLocal(remoteAddress, own = ownAddresses()) {
 // The 403 message, or null when the request may go ahead.
 function refusal(setting, method, pathname, remoteAddress, own) {
   if (setting !== false) return null;
-  if (!changes(method, pathname)) return null;
+  const change = changes(method, pathname);
+  if (!change && !privateRead(method, pathname)) return null;
   if (isLocal(remoteAddress, own)) return null;
-  return `Studio is set to take changes only from this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let other devices on this network change things, tick "Let other devices change things" in the menu bar icon (or set "remoteChanges": true in config.json).`;
+  const what = change ? 'take changes' : 'keep its private data (settings, backups, the athlete register, the log and sponsor reports)';
+  return `Studio is set to ${what} only ${change ? 'from' : 'on'} this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let other devices on this network change things and read them, tick "Let other devices change things" in the menu bar icon (or set "remoteChanges": true in config.json).`;
 }
 
 // The host part of a Host or Origin header value, lower case, without the port or IPv6 brackets.
@@ -99,4 +111,4 @@ function crossSite(method, pathname, headers, port, hosts) {
   return null;
 }
 
-module.exports = { changes, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, crossSite };
+module.exports = { changes, privateRead, PRIVATE, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, crossSite };
