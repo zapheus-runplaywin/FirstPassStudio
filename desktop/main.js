@@ -22,6 +22,9 @@ const location = require('../datalocation');
 const { INSTALL_TIMEOUT } = require('./updates');
 const whatsnew = require('./whatsnew');
 
+// server.js exits with this when its port is already taken (EXIT_PORT_IN_USE there).
+const EXIT_PORT_IN_USE = 3;
+
 const APP_DIR = path.join(__dirname, '..');
 // Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
 const STREAMDECK_PLUGIN = path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
@@ -133,6 +136,17 @@ function startHelper() {
     if (helper === child) helper = null;
     if (quitting || child.restarting || child.stopping) return;
     log(`Helper stopped (code ${code})`);
+    if (code === EXIT_PORT_IN_USE) {
+      // server.js found the port taken (by something that doesn't answer like Studio, or a copy
+      // that started between the check and the start). Restarting won't help: say so, and offer to try again.
+      wanted = false; status = `Studio is off air: port ${PORT} is in use`; refreshMenu();
+      dialog.showMessageBox({
+        type: 'warning', buttons: ['Try again', 'Cancel'], defaultId: 0, cancelId: 1,
+        message: `Something is already using port ${PORT}`,
+        detail: `Studio can't start until it is free. FirstPass Studio may already be running from a copy of the repository (npm start), or another program is using the port. Stop that, then choose Try again. The debug log has the details.`,
+      }).then(({ response }) => { if (response === 0) startHelperChecked(); });
+      return;
+    }
     // Keep it running: restart straight away, but give up if it keeps failing at start
     // (the debug log says why).
     if (Date.now() - started > 60000) restarts = 0;
