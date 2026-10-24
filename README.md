@@ -417,6 +417,16 @@ to look through them. Pictures keep the transparent background. They follow the 
 control page. It uses Studio if it is on air (keep a Studio window open), or starts it on its own for the run, and needs Node 22+ and Google Chrome, Edge, Brave
 or Chromium (set `CHROME_PATH` for another one).
 
+## Where a graphic's styles live
+
+`public/graphics.css` holds only what two or more graphics share: the 1920 x 1080 see-through page frame centred in
+the zone between the title and the scoreboard, the card panel and its footer, the sponsor footer, the pink tab, the
+logo fallback and the game card header (match up, up next, full time, game stats, score worm, top shooters). Each
+page's own layout goes in a `<style>` block in that page, after the `graphics.css` link. Colours, fonts and the
+transparency come from the generated `theme.css`, so a competition's look is the same whichever file a rule is in.
+A new graphic links `theme.css` and `graphics.css` and keeps its own rules in the page; a rule belongs in
+`graphics.css` only once a second page needs it. The scoreboard and the ladder keep their own sheets.
+
 ## Debug log
 
 Everything goes into `logs/playhq-graphics.log` in the data folder: each page opening, errors and warnings from every page

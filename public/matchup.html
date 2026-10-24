@@ -6,6 +6,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
+<style>
+  /* This page's own layout. What it shares with other graphics is in graphics.css. */
+  /* Form dots (last 5 results) */
+  .form-dot {
+    width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800; flex: none;
+  }
+  .form-dot--W { background: var(--yellow); color: var(--text-on-yellow); }
+  .form-dot--L { background: var(--purple-dark); color: var(--muted); box-shadow: inset 0 0 0 3px var(--purple); }
+  .form-dot--D { background: var(--pink); color: var(--text); }
+  /* Form dots on the match up page */
+  .matchup__form { display: flex; justify-content: center; gap: 10px; margin-top: 14px; min-height: 44px; }
+  /* Match up: form and head to head */
+  .matchup__middle { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  .matchup__caption { font-size: 16px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
+  .matchup__formwrap { margin-top: 14px; }
+  .matchup__formwrap .matchup__form { margin-top: 8px; }
+  .matchup__tally { background: var(--purple-deep-alt); border-radius: 12px; padding: 10px 22px; }
+  .matchup__tallynum { font-size: 40px; font-weight: 800; color: var(--yellow); white-space: nowrap; }
+  .matchup__h2h { padding: 0 60px 22px; }
+  .matchup__h2h > .matchup__caption { margin-bottom: 8px; }
+  .matchup__h2hgame {
+    display: grid; grid-template-columns: 240px minmax(0, 1fr) 130px minmax(0, 1fr); align-items: center; gap: 14px;
+    padding: 6px 16px; border-radius: 8px; background: var(--purple-deep-alt); margin-top: 6px;
+    font-size: 22px; font-weight: 700; text-transform: uppercase;
+  }
+  .matchup__h2hround { font-size: 17px; color: var(--muted); text-align: left; letter-spacing: .06em; }
+  .matchup__h2hteam { text-align: right; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .matchup__h2hteam--away { text-align: left; }
+  .matchup__h2hteam.is-win { color: var(--text); }
+  .matchup__h2hscore { background: var(--pink); border-radius: 999px; padding: 2px 0; font-weight: 800; }
+  .matchup__h2hnone { font-size: 24px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+</style>
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 <script src="fit.js"></script>

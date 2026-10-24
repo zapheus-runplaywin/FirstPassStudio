@@ -6,6 +6,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
+<style>
+  /* This page's own layout. What it shares with other graphics is in graphics.css. */
+  /* Score worm */
+  .worm { --card-width: 1400px; }
+  .worm__teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 30px; padding: 16px 44px 0; }
+  .worm__team { display: flex; justify-content: flex-end; align-items: center; gap: 18px; min-width: 0; }
+  .worm__team--away { justify-content: flex-start; }
+  .worm__team--away .worm__logo { order: 2; }
+  .worm__logo { width: 76px; height: 76px; flex: none; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,.45)); }
+  .worm__logo.logo-fallback { font-size: 26px; box-sizing: border-box; border-width: 3px; }
+  .worm__name { font-size: 30px; font-weight: 800; line-height: 1.1; text-transform: uppercase; color: var(--yellow); text-align: right; overflow-wrap: anywhere; }
+  .worm__team--away .worm__name { text-align: left; }
+  .worm__nums { font-size: 64px; font-weight: 800; line-height: 1; display: flex; gap: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .worm__nums .is-win { color: var(--text); }
+  .worm__dash { color: var(--pink); }
+  .worm__chart { display: block; margin: 10px auto 0; overflow: visible; font-family: var(--font); }
+  .worm__key { display: block; margin-top: 6px; font-size: 16px; letter-spacing: .12em; color: var(--team, var(--muted)); }
+  .worm__axis { fill: var(--muted); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .worm__grid { stroke: rgba(255,255,255,.08); stroke-width: 1; }
+  .worm__zero { stroke: rgba(255,255,255,.55); stroke-width: 2; }
+  .worm__break { stroke: rgba(255,255,255,.3); stroke-width: 2; stroke-dasharray: 6 8; }
+  .worm__quarter { fill: var(--muted); font-size: 20px; font-weight: 800; letter-spacing: .12em; }
+  .worm__gap { fill: var(--muted); font-size: 16px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+  .worm__join { stroke: rgba(255,255,255,.45); stroke-width: 3; stroke-dasharray: 3 9; stroke-linecap: round; }
+  .worm__shadow { fill: none; stroke: rgba(0,0,0,.45); stroke-width: 9; stroke-linejoin: round; stroke-linecap: round; }
+  .worm__line { fill: none; stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+  .worm__glow { filter: blur(12px); opacity: 0; pointer-events: none; }
+  .worm__head { stroke: var(--text); stroke-width: 3; filter: drop-shadow(0 0 8px rgba(255,255,255,.7)); }
+  .worm__marks { opacity: 0; transition: opacity .5s ease-out; }
+  .worm__marks.is-shown { opacity: 1; }
+  .worm__dot { stroke: var(--purple-deep); stroke-width: 3; }
+  .worm__mark { font-size: 24px; font-weight: 800; paint-order: stroke; stroke: var(--purple-deep); stroke-width: 6px; }
+  .worm__ss { fill: rgba(255,255,255,.07); }
+  .worm__sscap { fill: var(--yellow); opacity: .85; }
+  .worm__sslabel { fill: var(--yellow); font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+  .worm__fact--ss { box-shadow: inset 0 4px 0 var(--yellow); }
+  .worm__facts { display: flex; justify-content: center; gap: 14px; padding: 4px 44px 24px; }
+  .worm__facts[hidden] { display: none; }
+  .worm__fact { display: flex; align-items: baseline; gap: 12px; background: var(--purple-deep-alt); border-radius: 8px; padding: 8px 18px; min-width: 0; }
+  .worm__fact { align-items: center; white-space: nowrap; }
+  .worm__fact .label { font-size: 16px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .worm__factlogo { width: 34px; height: 34px; object-fit: contain; flex: none; }
+  .worm__factlogo.logo-fallback { font-size: 12px; box-sizing: border-box; border-width: 2px; }
+  .worm__fact .num { font-size: 32px; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .worm__fact .note { font-size: 16px; font-weight: 800; letter-spacing: .1em; color: var(--muted); }
+</style>
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 <script src="fit.js"></script>

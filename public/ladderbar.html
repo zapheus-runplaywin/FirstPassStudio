@@ -6,6 +6,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
+<style>
+  /* This page's own layout. What it shares with other graphics is in graphics.css. */
+  /* Ladder lower third: sits right above the scoreboard (and its PlayHQ Live tab), scaled to the scoreboard's
+     width. The scoreboard bar is 1335px wide (scoreboard.css: court and clock 150 each, teams 420 each, scores
+     96 + 99), its top 962px down and the tab's top 930px, so the bar's bottom goes 8px above the tab. */
+  body.lower:has(.ladderbar) { padding-bottom: 158px; }
+  .ladderbar {
+    display: grid; grid-template-columns: minmax(0, 1fr) 190px minmax(0, 1fr); width: 1500px; height: 110px;
+    background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    border-bottom: 5px solid var(--pink); animation: rise 0.5s ease-out both;
+    scale: calc(1335 / 1500); transform-origin: bottom center;
+  }
+  .ladderbar__side { display: flex; align-items: center; gap: 18px; padding: 0 20px; min-width: 0; }
+  .ladderbar__side--away { flex-direction: row-reverse; text-align: right; }
+  .ladderbar__logo { width: 80px; height: 80px; object-fit: contain; flex: none; }
+  .ladderbar__logo.logo-fallback { font-size: 24px; box-sizing: border-box; }
+  .ladderbar__info { flex: 1; min-width: 0; }
+  .ladderbar__name { font-size: 32px; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ladderbar__record { font-size: 21px; font-weight: 700; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+  .ladderbar__pos { font-size: 46px; font-weight: 800; color: var(--yellow); flex: none; min-width: 90px; text-align: center; }
+  .ladderbar__mid { background: var(--purple); display: flex; flex-direction: column; align-items: center; justify-content: center; text-transform: uppercase; }
+  .ladderbar__label { font-size: 26px; font-weight: 800; color: var(--yellow); letter-spacing: .08em; }
+  .ladderbar__div { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: .08em; }
+</style>
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 </head>
