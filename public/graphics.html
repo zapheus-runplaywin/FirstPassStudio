@@ -456,7 +456,9 @@
       contacts PlayHQ, and it caches what it gets:</p>
     <ul class="page__help">
       <li>Scoreboard following PlayHQ: one small request every 5 seconds (<b>Check PlayHQ every</b> on the control page), starting when
-        the game's electronic scoring starts (set on the setup page). Nothing is asked before then.</li>
+        the game's electronic scoring starts (set on the setup page). Nothing is asked before then. Studio makes this request itself
+        whatever windows are open, so the score, the goal order and the game triggers (quarter breaks, full time) keep up even while the
+        scoreboard is hidden and the control page is closed; the pages share that reading rather than adding to it.</li>
       <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to the helper, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
       <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen. NDI's video goes over your local network only, never the internet.</li>
       <li>Stream Deck plugin's Source keys: nothing. The plugin keeps one connection open to the helper while any of its keys is on screen, and the helper only sends when the scene changes.</li>
