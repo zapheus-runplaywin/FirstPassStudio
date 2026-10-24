@@ -29,6 +29,7 @@ const viewers = require('./viewers');
 const outputs = require('./outputs');
 const { linkHost, bonjourName } = require('./linkhost');
 const access = require('./access');
+const uploads = require('./uploads');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -449,7 +450,10 @@ async function setupRoute(req, res, url, q) {
   if (what === 'image') {
     const kind = ['brand', 'fonts'].includes(q.kind) ? q.kind : 'logos';
     if (req.method === 'POST') {
-      const name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024));
+      let name;
+      // A file that isn't what it should be (wrong extension, or not the image its name says) is the person's to fix: 400, not 502.
+      try { name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024)); }
+      catch (err) { return send(res, 400, { error: err.message }); }
       log('info', 'setup', `${id}: added ${{ brand: 'competition logo', fonts: 'font file' }[kind] || 'team logo'} ${name}`);
       return send(res, 200, { name, ...(kind === 'fonts' ? { family: fonts.fontFile(name).family } : {}), ...setupInfo(id) });
     }
@@ -802,11 +806,11 @@ applyCompetition('Using competition');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.ico': 'image/x-icon' };
 
-function send(res, status, body, type) {
+function send(res, status, body, type, headers) {
   // No access-control-allow-origin: Studio's pages are served by Studio, so they are the same origin, and the
   // Stream Deck plugin isn't a browser. A web page from anywhere else can't read Studio's answers; access.crossSite
   // stops it changing anything.
-  res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store' });
+  res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', ...headers });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 
@@ -852,7 +856,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG, fontPaths(competitions.activeId()), await fonts.macFaces(CONFIG.font)), 'text/css; charset=utf-8');
     if (/^\/(logos|brand|photos|fonts)\//.test(url.pathname)) {
       const file = competitions.imageFile(competitions.activeId(), url.pathname.split('/')[1], url.pathname.split('/')[2] || '');
-      return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
+      // Added files are served as plain files, never as pages of Studio's (uploads.js).
+      return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
     }
     if (url.pathname === '/api/ladder') {
       const st = await getStructure();
