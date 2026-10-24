@@ -1,0 +1,693 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>FirstPass Studio User Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,500;0,700;0,800;1,800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+  /* Layout: a reading column with a sticky chapter list beside it on wide screens; dark navy chapter bands
+     echo the Studio header, gold marks the things you press. */
+  :root {
+    --bg: #f6f7fb; --paper: #ffffff; --ink: #15213b; --ink-2: #4a5775; --line: #dfe3ee;
+    --navy: #0f172a; --navy-2: #1e293b; --gold: #ffcd00; --gold-ink: #2b2300; --orange: #f97316;
+    --blue: #1e7cf0; --tip: #eef5ff; --tip-line: #bcd4f7; --warn: #fff7e0; --warn-line: #f1d67a;
+    --display: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    --body: "Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0b1220; --paper: #121a2b; --ink: #e8ecf6; --ink-2: #a9b4cc; --line: #26324a;
+    --navy: #050a16; --navy-2: #0f172a; --tip: #12213a; --tip-line: #244a7a; --warn: #2b2408; --warn-line: #6b5a16; color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg: #0b1220; --paper: #121a2b; --ink: #e8ecf6; --ink-2: #a9b4cc; --line: #26324a;
+    --navy: #050a16; --navy-2: #0f172a; --tip: #12213a; --tip-line: #244a7a; --warn: #2b2408; --warn-line: #6b5a16; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.55; }
+  a { color: var(--blue); }
+  h1, h2, h3, h4 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+  h2 { font-size: 1.9rem; font-weight: 800; letter-spacing: -.01em; }
+  h3 { font-size: 1.3rem; font-weight: 700; margin-top: 2.2rem; }
+  h4 { font-size: 1.05rem; font-weight: 700; margin-top: 1.5rem; }
+  p { margin: .8rem 0; max-width: 70ch; }
+  li { margin: .3rem 0; }
+  ul, ol { padding-left: 1.3rem; max-width: 72ch; }
+  code, kbd { font-family: var(--mono); font-size: .86em; background: color-mix(in srgb, var(--ink) 8%, transparent); padding: .1em .35em; border-radius: 4px; }
+  kbd { border: 1px solid var(--line); }
+  strong { font-weight: 600; }
+  .eyebrow { font-family: var(--display); text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 700; color: var(--ink-2); }
+
+  /* Cover */
+  .cover { background: var(--navy); color: #fff; padding-block: 3.5rem 3rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 6px solid var(--orange); }
+  .cover .in { max-width: 1120px; margin: 0 auto; display: grid; gap: 1.2rem; }
+  .cover .brand { font-family: var(--display); font-weight: 800; font-style: italic; font-size: 1.1rem; }
+  .cover .brand b { color: var(--gold); font-style: normal; }
+  .cover h1 { font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 800; letter-spacing: -.02em; }
+  .cover p { color: #c9d2e6; font-size: 1.15rem; max-width: 60ch; }
+  .cover .meta { color: #8e9bb8; font-size: .95rem; }
+  .cover img { max-width: 100%; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+
+  /* Page frame */
+  .frame { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 2.5rem; padding-block: 2rem 4rem; }
+  nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: calc(100vh - 1rem); overflow: auto; font-size: .92rem; padding-top: .6rem; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; }
+  nav.toc li { margin: 0; }
+  nav.toc a { display: block; color: var(--ink-2); text-decoration: none; padding: .28rem .5rem; border-left: 2px solid var(--line); }
+  nav.toc a:hover { color: var(--ink); border-color: var(--gold); }
+  nav.toc a.top { color: var(--ink); font-weight: 600; margin-top: .5rem; }
+  main { min-width: 0; }
+  @media (max-width: 880px) { .frame { grid-template-columns: 1fr; } nav.toc { position: static; max-height: none; } }
+
+  /* Chapters */
+  section.ch { padding-top: 1.5rem; margin-top: 2.5rem; border-top: 1px solid var(--line); }
+  section.ch:first-of-type { margin-top: 0; border-top: 0; padding-top: 0; }
+  .chno { font-family: var(--display); font-weight: 800; color: var(--gold-ink); background: var(--gold); display: inline-block; padding: .15rem .6rem; border-radius: 6px; font-size: .85rem; margin-bottom: .6rem; }
+  .lead { font-size: 1.15rem; color: var(--ink-2); max-width: 66ch; }
+
+  figure { margin: 1.4rem 0; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); }
+  figure.graphic img { border: 0; box-shadow: 0 10px 30px rgba(10, 20, 50, .25); }
+  figcaption { font-size: .9rem; color: var(--ink-2); margin-top: .5rem; max-width: 80ch; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem; align-items: start; }
+  .two figure { margin: 0; }
+
+  .tip, .warn { border: 1px solid var(--tip-line); background: var(--tip); border-radius: 8px; padding: .8rem 1rem; margin: 1.2rem 0; max-width: 76ch; }
+  .tip .eyebrow { color: var(--blue); }
+  .warn { background: var(--warn); border-color: var(--warn-line); }
+  .warn .eyebrow { color: #9a6b00; }
+  .tip p, .warn p { margin: .3rem 0 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; margin: 1rem 0; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--display); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); }
+  .tablewrap { overflow-x: auto; }
+  td.k { white-space: nowrap; font-weight: 600; }
+
+  .steps { counter-reset: s; list-style: none; padding: 0; max-width: 76ch; }
+  .steps li { counter-increment: s; position: relative; padding-left: 2.6rem; margin: .7rem 0; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: .05rem; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--navy); color: var(--gold); font-family: var(--display); font-weight: 800; font-size: .9rem; display: grid; place-items: center; }
+
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1rem 0; }
+  .role { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; }
+  .role h4 { margin-top: 0; }
+  .role ul { padding-left: 1.1rem; font-size: .95rem; }
+
+  .timeline { list-style: none; padding: 0; max-width: 80ch; }
+  .timeline li { display: grid; grid-template-columns: 7.5rem 1fr; gap: 1rem; padding: .6rem 0; border-bottom: 1px dashed var(--line); }
+  .timeline .t { font-family: var(--display); font-weight: 700; color: var(--ink-2); font-size: .9rem; padding-top: .15rem; }
+  @media (max-width: 500px) { .timeline li { grid-template-columns: 1fr; gap: .2rem; } }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.2rem; }
+  .gallery figure { margin: 0; }
+  .gallery figcaption b { color: var(--ink); }
+  .stack { display: grid; gap: 1.2rem; }
+  .stack figure, .two figcaption b, .stack figcaption b { margin: 0; }
+  .two figcaption b, .stack figcaption b { color: var(--ink); }
+
+  .glossary dt { font-weight: 600; margin-top: .6rem; }
+  .glossary dd { margin: .1rem 0 0; color: var(--ink-2); max-width: 70ch; }
+
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  /* Print */
+  @media print {
+    :root { --bg: #fff; --paper: #fff; --ink: #111; --ink-2: #444; --line: #ccc; --tip: #f3f6fb; --warn: #fff8e1; }
+    body { font-size: 11pt; }
+    .cover { padding-block: 3rem; -webkit-print-color-adjust: exact; print-color-adjust: exact; break-after: page; }
+    nav.toc { display: none; }
+    .frame { display: block; max-width: none; padding-block: 0; }
+    section.ch { break-before: page; border-top: 0; margin-top: 0; padding-top: 0; }
+    section.ch:first-of-type { break-before: auto; }
+    h3, h4 { break-after: avoid; }
+    figure, .tip, .warn, .role, table { break-inside: avoid; }
+    figure img { box-shadow: none; max-height: 16cm; width: auto; max-width: 100%; margin: 0 auto; }
+    a { color: inherit; text-decoration: none; }
+    .chno { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .steps li::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  @page { size: A4; margin: 16mm 14mm 18mm; }
+</style>
+
+<header class="cover">
+  <div class="in">
+    <div class="brand">FirstPass <b>STUDIO</b> · by PIVT</div>
+    <h1>FirstPass Studio User Guide</h1>
+    <p>Live scoreboards, ladders, stats and animations for a netball livestream, fed straight from PlayHQ and sent to your switcher. This guide starts with the way most nights run, one operator and Studio doing the rest, then covers running it by hand, setting up a competition, sponsors, athletes and the Stream Deck.</p>
+    <div class="meta">Version 1 · October 2026 · Screenshots use the fictional Elite Netball League</div>
+    <img src="img/g-scene.webp" alt="The Studio scene over a court: title banner, branding logos, live scoreboard and the score ticker">
+  </div>
+</header>
+
+<div class="frame">
+<nav class="toc" aria-label="Chapters">
+  <ol>
+    <li><a class="top" href="#ch1">1 · What Studio is</a></li>
+    <li><a class="top" href="#ch2">2 · Getting started</a></li>
+    <li><a class="top" href="#ch3">3 · Game night, automated</a></li>
+    <li><a href="#s3-1">How it fits together</a></li>
+    <li><a href="#s3-2">Scoreboard control</a></li>
+    <li><a href="#s3-3">The Output page</a></li>
+    <li><a href="#s3-4">The base scene</a></li>
+    <li><a href="#s3-5">Automatic layers</a></li>
+    <li><a href="#s3-6">Scenes</a></li>
+    <li><a href="#s3-7">Sequences</a></li>
+    <li><a href="#s3-8">Music and playlists</a></li>
+    <li><a href="#s3-9">Video output</a></li>
+    <li><a href="#s3-10">A night, start to finish</a></li>
+    <li><a class="top" href="#ch4">4 · Running it by hand</a></li>
+    <li><a class="top" href="#ch5">5 · The graphics</a></li>
+    <li><a class="top" href="#ch6">6 · Competitions setup</a></li>
+    <li><a class="top" href="#ch7">7 · Sponsors</a></li>
+    <li><a class="top" href="#ch8">8 · Athletes</a></li>
+    <li><a class="top" href="#ch9">9 · Stream Deck</a></li>
+    <li><a class="top" href="#ch10">10 · Settings and care</a></li>
+    <li><a class="top" href="#ch11">11 · Quick reference</a></li>
+  </ol>
+</nav>
+<main>
+<section class="ch" id="ch1">
+  <div class="chno">Chapter 1</div>
+  <h2>What Studio is</h2>
+  <p class="lead">FirstPass Studio is a Mac app that draws broadcast graphics for a netball livestream and sends them to your vision switcher. The scores, clocks, ladders, fixtures and line-ups come from PlayHQ's public data, so there is nothing to type in during the game.</p>
+  <p>Studio does one job on stream night: graphics. Your cameras, switcher and streaming encoder stay as they are. Studio hands the switcher a picture with transparency (fill and key, or a chroma colour) so the graphics sit over the vision.</p>
+  <h3>The words used in this guide</h3>
+  <dl class="glossary">
+    <dt>Studio</dt><dd>The whole thing: the Mac app, the pages you work in, and the graphics it puts on screen.</dd>
+    <dt>On air, off air</dt><dd>Studio is on air while a Studio window is open. On air it talks to PlayHQ, serves the graphics and answers the Stream Deck. Closing the last window takes it off air.</dd>
+    <dt>A graphic, or a page</dt><dd>One thing that can go on screen: the scoreboard, a ladder, a lower third, an animation. Each is a web page that Studio draws.</dd>
+    <dt>A source</dt><dd>A graphic placed in the scene, with its own position, options and fade. The scoreboard is one source; a ladder is another.</dd>
+    <dt>The scene</dt><dd>Studio's own 1920 × 1080 frame, built from sources switched on and off. It is what the switcher receives.</dd>
+    <dt>A scene (on the Scenes list)</dt><dd>A saved look: which sources are on and which are off. "Live game" and "Clear" are scenes.</dd>
+    <dt>A sequence</dt><dd>A list of steps played in order from one press: a run-up, a quarter-time break, a full-time wrap.</dd>
+    <dt>The competition</dt><dd>Everything that belongs to one league: its PlayHQ link, names, rules, colours, logos, sponsors and athletes. Studio keeps a setup per competition and uses one at a time.</dd>
+    <dt>The data folder</dt><dd>Where Studio saves everything, outside the app, so updates never touch it.</dd>
+  </dl>
+  <h3>The pages you work in</h3>
+  <p>Every Studio window has the same tab bar: <strong>Output</strong>, <strong>Scoreboard control</strong>, <strong>Competitions setup</strong>, <strong>Sponsors</strong>, <strong>Athletes</strong>, <strong>Stream Deck</strong> and <strong>Docs</strong> (⌘1 to ⌘7 in the app). Output is where the show is built and sent out; Scoreboard control runs the board; the rest are set up before the night.</p>
+  <h3>The sample competition in this guide</h3>
+  <p>The screenshots use a fictional league, the <strong>Elite Netball League</strong>, with eight clubs named after animals (Falcons, Panthers, Stingrays, Cobras, Grizzlies, Hawks, Rhinos and Wolves) across Premier, Men's and Under 21 divisions, playing at the Metro Arena. Its sponsors are fictional too. Everything you see is what Studio draws for any competition once its setup is in.</p>
+</section>
+
+<section class="ch" id="ch2">
+  <div class="chno">Chapter 2</div>
+  <h2>Getting started</h2>
+  <p class="lead">Install the app, import or make your competition, and learn the one rule that matters on stream night: keep a Studio window open.</p>
+  <h3>Install</h3>
+  <ol class="steps">
+    <li>Download <code>FirstPass Studio.dmg</code>, drag the app to Applications and open it. It runs on Apple silicon Macs (M1 and later).</li>
+    <li>The <strong>1P</strong> icon appears in the menu bar, off air. Choose <strong>Open Studio</strong>. A short splash shows, Studio goes on air and the Output page opens in the app's own window.</li>
+    <li>Go to <strong>Competitions setup</strong> and either <strong>Import a template file</strong> (your league's <code>.json</code>, with its logos and sponsors inside) or <strong>New competition</strong> and fill it in (Chapter 6).</li>
+    <li>Back on <strong>Output</strong>, add the graphics you need with <strong>Add page</strong>, and turn on the video output that feeds your switcher (Chapter 3).</li>
+  </ol>
+  <h3>On air and off air</h3>
+  <p>Studio only runs while a Studio window is open. Opening one (Open Studio, any page in the 1P menu, or ⌘N) puts it on air; closing the last one takes it off air, and the graphics and Stream Deck get no answer until a window opens again. Closing the last window while on air asks first, and so does ⌘Q, so a stray keypress can't stop a stream. Leave the Output page open all night.</p>
+  <p>The status line under the Output page's title shows the game on the board, whether scores and clock follow PlayHQ, how long since PlayHQ last answered (amber when overdue, red after a minute of errors) and whether the video output is on. If anything is wrong, this line says so on the page you keep open.</p>
+  <h3>The 1P menu</h3>
+  <p>Open Studio, Scoreboard control, Competition setup, Copy the Studio link, Install the Stream Deck plugin, Back up… and Restore…, Settings folder (iCloud Drive), Open the settings folder, Open the debug log, Restart Studio, Open at login, Let other devices change things, What's new…, Check for updates, Stop Studio (while on air) and Quit. Updates download in the background and install when the app quits, never mid-stream; <strong>Restart to update</strong> installs one straight away.</p>
+  <div class="tip"><div class="eyebrow">Links</div><p>Studio's links start with the Mac's Bonjour name, such as <code>http://matts-macbook-pro.local:8080/</code>, so the same link works from a phone, another computer or a Stream Deck on the same network. <code>http://localhost:8080</code> works on the Mac itself.</p></div>
+  <h3>Before you go on air</h3>
+  <ol class="steps">
+    <li><strong>Open the app.</strong> The Output page opens and Studio goes on air. Keep a window open all night.</li>
+    <li><strong>Right competition.</strong> Competitions setup shows the one in use at the top. Check its PlayHQ link, the court to follow and the scoring window.</li>
+    <li><strong>Right game.</strong> On Scoreboard control, the picked game is tonight's first on your court and Follow PlayHQ is on.</li>
+    <li><strong>Scores arrive.</strong> Once the scorer has started on PlayHQ, the control page says the game is being live scored and the board moves. Nothing is read before the scoring window opens, so a quiet board before then is normal.</li>
+    <li><strong>Scene and output.</strong> On Output, turn on the display, NDI or Blackmagic output your switcher takes, check fill and key or chroma, and show one graphic to see it land.</li>
+    <li><strong>Sound.</strong> Play a few seconds of music and an animation with sound, and check the sound only comes out where you want it.</li>
+    <li><strong>Stream Deck.</strong> Press a Source key and watch the Sources list follow it. A score key switches scoring to Manual, so put it back to Follow PlayHQ after testing.</li>
+    <li><strong>Sponsors.</strong> Tonight's spots and ads are on; the sponsor report starts counting when the output turns on.</li>
+  </ol>
+</section>
+
+<section class="ch" id="ch3">
+  <div class="chno">Chapter 3</div>
+  <h2>Game night, the automated way</h2>
+  <p class="lead">This is how most nights run: one operator, PlayHQ scoring the game, a base scene that stays on, automatic layers that fire by themselves, and sequences that handle the run-up, the breaks and full time.</p>
+
+  <h3 id="s3-1">How it fits together</h3>
+  <p>Four things do the work, and each one is set up once:</p>
+  <ul>
+    <li><strong>Follow PlayHQ.</strong> The scoreboard reads the live score, quarter and clock from the same feed the PlayHQ game page uses, every 5 seconds, while someone live-scores the game on PlayHQ. Automatic game selection moves the board to each next game on your court as its electronic scoring starts.</li>
+    <li><strong>The base scene.</strong> A saved scene with the sources that stay on through the game: the scoreboard, the title banner, the branding logos and the score ticker.</li>
+    <li><strong>Automatic layers.</strong> Sources that stay on but only show when something happens: the super shot celebration, the hot streaks and game moments, the super shot tab on the scoreboard, the naming-rights sponsor's tab. They watch the board and play by themselves.</li>
+    <li><strong>Sequences.</strong> Steps played in order for the parts of the night that aren't live play: the run-up, the walk out, quarter and half time, full time and the close. A sequence can start by itself from the game's clock, carry music, and hand over to another sequence.</li>
+  </ul>
+  <figure><img src="img/s-output.webp" alt="The Output page from top to bottom"><figcaption>The Output page is the whole show on one page: video output, music, sequences, scenes, the Scene View, and the sources with their settings.</figcaption></figure>
+
+  <h3 id="s3-2">Scoreboard control</h3>
+  <figure><img src="img/s-control.webp" alt="The Scoreboard control page"><figcaption>Scoreboard control: the game, the scoring mode, the score, the quarter and clock, quick links to the game graphics, finals winners, and a preview of the board.</figcaption></figure>
+  <h4>Always a game on</h4>
+  <p>When Studio starts, it puts a game on the board with Follow PlayHQ on: the game on now on your court, otherwise the first game of this round on that court. The round is picked by date (the round played in the next 5 days, counting today), so a Tuesday round is found from the Friday before. You can force a round from the <strong>Round</strong> list for testing; set it back to Automatic afterwards.</p>
+  <h4>Automatic game selection</h4>
+  <p>With <strong>Pick the game automatically for court</strong> ticked, the board shows the first game of the night on that court, then switches to each next game when its electronic scoring starts (<em>Electronic scoring starts N minutes before the game</em> on the setup page, 10 by default, 15 in the sample league), with the quarter back to Q1 and a full clock. In finals it keeps the final on until PlayHQ marks it finished, in case of extra time. Picking a game from the list by hand turns automatic selection off; tick it again to go back.</p>
+  <h4>Follow PlayHQ</h4>
+  <p>With <strong>Follow PlayHQ</strong> on, the score and quarter update every 5 seconds from PlayHQ's live scoring, and <strong>Follow the PlayHQ scorer's clock</strong> runs the clock from the scorer's clock. The clock matches the scores: switching to Manual, or pressing any score button, turns clock-following off as well, and the control page says so. Press a clock button to run the clock by hand while scores still follow PlayHQ. To line the clock up with the venue, type the venue's time in <strong>Match venue clock</strong>.</p>
+  <div class="tip"><div class="eyebrow">Nothing before the window</div><p>Studio doesn't ask PlayHQ's live feed for a game until its electronic scoring window opens, whether the game was picked automatically or by hand. The control page says when it will start checking.</p></div>
+
+  <h3 id="s3-3">The Output page</h3>
+  <p>The Output page builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame, top layer first, and sends it to a display, a Blackmagic device or NDI for your switcher.</p>
+  <h4>Sources</h4>
+  <p><strong>Add page</strong> adds any Studio graphic (or any web address), <strong>Add image</strong> a PNG, JPG, GIF, WebP or SVG, and <strong>Add video</strong> an MP4, WebM or MOV. A new source goes in hidden and selected, so its settings are ready to change. Drag a source up or down the list to move it between layers. <strong>Add all unused pages</strong> puts every Studio graphic in the scene at once, hidden.</p>
+  <figure><img src="img/s-output-sources.webp" alt="The Sources list on the Output page"><figcaption>The Sources list, top layer first. The orange On buttons are the base scene and the automatic layers; everything else waits for a scene, a sequence or a key.</figcaption></figure>
+  <h4>Source settings</h4>
+  <p>Select a source to change it. A graphic's link options (position, heading, division, round, animate away and so on) show as fields under its address, so there is nothing to look up. <strong>On / Off</strong> fades it in or out over its own <strong>Fade</strong> time (0 is a cut). <strong>Position and scale</strong> place it on the frame. <strong>Load the page fresh each time it's shown</strong> (on by default) reloads a page as it fades in so its animation replays; untick it to keep a page running so it shows instantly. <strong>Preview</strong> (and the small PVW button) opens the source on its own, half size, on a checkerboard.</p>
+  <figure><img src="img/s-output-source-settings.webp" alt="Source settings for the Title source"><figcaption>Source settings for the title banner: its options are fields, and the Stream Deck links for this source are copied from here.</figcaption></figure>
+  <p>Videos play from the beginning each time they're shown, can loop, and fade out when they finish unless looping; a video that fades out switches its source off, so its key goes dark and the next On plays it again. A ProRes 4444 <code>.mov</code> is converted to a transparent WebM when it is added, keeping its alpha. <strong>Export sources</strong> saves the whole scene with its media as one zip to keep or move to another Mac; <strong>Import sources</strong> puts one back.</p>
+
+  <h3 id="s3-4">The base scene</h3>
+  <p>The base scene is what viewers see for most of the game. In the sample league it is the <strong>Live game</strong> scene: the scoreboard at the bottom, the title banner at the top with the PIVT and FirstPass Studio logos on the left and the competition logo on the right, and the score ticker along the bottom edge with the other courts' scores.</p>
+  <figure class="graphic"><img src="img/g-scene.webp" alt="The base scene: title, branding, scoreboard and ticker over a court"><figcaption>The Live game scene. The court behind it stands in for your vision; the switcher keys the graphics over the cameras.</figcaption></figure>
+  <ul>
+    <li><strong>Scoreboard.</strong> Court in a pink box on the left, both teams in their club colours, the score at screen centre, quarter and clock on the right. "PlayHQ live" shows while scores follow PlayHQ; a "Presented by" tab carries the naming-rights sponsor.</li>
+    <li><strong>Title.</strong> Round, competition and venue, with the naming-rights sponsor's pill under it.</li>
+    <li><strong>Branding logos.</strong> PIVT and FirstPass Studio left of the title, the competition logo right of it, so other graphics can be turned on and off around them.</li>
+    <li><strong>Score ticker.</strong> Scrolling scores from the other games this round, led by a Partner-and-up sponsor's tagline. Its speed is set on the control page or from the Stream Deck.</li>
+  </ul>
+  <p>Build it once: turn those sources on, then press <strong>Save what's on now</strong> under Scenes and name it. From then on, one click (or one Stream Deck key) brings the show back to this look.</p>
+
+  <h3 id="s3-5">Automatic layers</h3>
+  <p>These sources are left on in the base scene and play by themselves from the scoreboard. They add no PlayHQ requests of their own; they ask Studio, which already has the score.</p>
+  <div class="two">
+    <figure class="graphic"><img src="img/g-supershot.webp" alt="The super shot celebration"><figcaption><b>Super shot.</b> A 3-second burst with the team's logo and name in their club colour, played for each successful super shot, from PlayHQ's super shot count or a +2 press. It plays small, centred just under the title.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-streak-fire.webp" alt="The on fire hot streak"><figcaption><b>Hot streaks.</b> "Heating up" at 3 goals in a row, "On fire" at 5, "Goal for goal" when 10 in a row go one each way, from the goal order Studio works out from the score.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-streak-lead.webp" alt="The hits the front moment"><figcaption><b>Game moments</b> on the same page: hits the front, all square (level in the last 2 minutes), coming back, on the siren, back to back super shots. One goal plays one moment at most.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-supershot-tab.webp" alt="The scoreboard with its super shot tab up"><figcaption><b>Super shot tab.</b> In a super shot division, a yellow tab rises above the clock for the last minutes of each quarter (set per competition) and sinks away at the siren.</figcaption></figure>
+  </div>
+  <p>Each celebration can carry a sponsor's "Brought to you by" tag (Chapter 7). A division without super shots plays no super shot animation and counts no super goals; that is set on the competition setup page, per division if needed.</p>
+
+  <h3 id="s3-6">Scenes</h3>
+  <p>A scene is a saved set of sources on and off. Clicking a scene goes to it, turning sources on and off to match while anything already on stays on, not reloaded. Scenes are listed by colour in the order of a stream: green pre-game, blue live, purple quarter time, grey post-game, yellow ads.</p>
+  <figure><img src="img/s-output-scenes.webp" alt="The Scenes list with Live game on now"><figcaption>The sample league's scenes. Pre-game, Live game, Quarter time, Full time, a quiet Interview scene for an on-court chat, and Clear.</figcaption></figure>
+  <p>Turn a source on or off by hand after going to a scene and the scene is marked <strong>changed</strong>; the bar under the scenes offers <strong>Back to saved</strong>, <strong>Save over</strong> it, or <strong>Save as new scene</strong>. <strong>Edit scenes</strong> shows a grid, sources down and scenes across, to set each one On, Off or Leave, rename, colour, copy or delete scenes without changing what's on. A source added later is off in every scene.</p>
+  <figure><img src="img/s-output-scenes-edit.webp" alt="The Edit scenes grid"><figcaption>Edit scenes: every source against every scene. "Leave" keeps a source as it is, so a lower third can stay up through a scene change.</figcaption></figure>
+  <div class="tip"><div class="eyebrow">Quiet scenes</div><p>Tick <strong>Quiet the music when this starts</strong> on a scene for an interview on court: whatever music is playing ducks and keeps playing until the next scene or sequence without the tick.</p></div>
+
+  <h3 id="s3-7">Sequences</h3>
+  <p>A sequence plays the scene's sources one after another. Each step turns on the sources you pick and stays for a set time, until it finishes (its videos end or its animation animates away), until the game moves on (the clock starts, or the next break or full time), or until you press Next. As a step ends, sources the next step doesn't use go off with their own fades.</p>
+  <figure><img src="img/s-output-sequences.webp" alt="The Sequences list"><figcaption>The sample league's sequences. Each card says when it starts, how many steps it has, how long it runs, whether it repeats, and what it does when it ends.</figcaption></figure>
+  <h4>Three kinds of step</h4>
+  <ul>
+    <li><strong>Sources</strong> (<em>+ Add sources</em>): one or more sources on together, for a length.</li>
+    <li><strong>A scene</strong> (<em>+ Add scene</em>): a starting point or a reset point. What the scene turns on stays on under the next steps and after the sequence. Start a break sequence with the Live game scene and the scoreboard stays up under the stats.</li>
+    <li><strong>Another sequence</strong> (<em>+ Add sequence</em>): its steps play in place. Build a mini sequence once (the sample league's <em>Break stats</em> and <em>Sponsor break</em>) and use it inside Quarter time, Half time and Full time. A sequence made only of sequences is marked <strong>Master</strong>. Tick <strong>Hide</strong> on a mini sequence to keep it off the list; it still plays inside the others and from the Stream Deck.</li>
+  </ul>
+  <p><strong>+ Add sponsor ads</strong> adds a step that plays the next one to five sponsor ads in rotation (Chapter 7).</p>
+  <figure><img src="img/s-sequence-editor-halftime.webp" alt="The sequence editor open on Half time"><figcaption>The Half time sequence: starts by itself at half time, repeats until play resumes, plays Break beats, and goes back to the Live game scene when it ends. Its steps are a scene step, two mini sequences and two source steps.</figcaption></figure>
+  <h4>When a sequence starts, repeats and ends</h4>
+  <div class="tablewrap"><table>
+    <tr><th>Setting</th><th>Choices</th><th>Used for</th></tr>
+    <tr><td class="k">Starts</td><td>By hand · N minutes before the picked game's start · at the breaks you tick (QT, HT, 3QT) · at full time, a few seconds after the siren</td><td>Run-up 15 minutes out; the breaks and full time from the scoreboard's clock (the PlayHQ scorer's or yours).</td></tr>
+    <tr><td class="k">Repeat</td><td>Play once · until stopped · until play resumes · until N minutes before the start</td><td>A break sequence loops until the clock starts again, finishing the step on screen.</td></tr>
+    <tr><td class="k">Then</td><td>Go to a scene · turn off what it turned on · leave everything · play another sequence</td><td>Breaks go back to Live game; Run-up hands over to Walk out.</td></tr>
+    <tr><td class="k">Music</td><td>None · a song or playlist from a step, from a start mark, with a fade in; ends by fading, cutting or carrying on into the next sequence</td><td>Warm-up music through the run-up that carries into the walk out.</td></tr>
+  </table></div>
+  <p>A sequence that starts by itself waits a few seconds as <strong>Starting</strong>, with <strong>Start now</strong> and <strong>Cancel</strong>, so a shot after the siren never gets cut off. <strong>Automatic sequences on</strong> above the cards is the one switch for all of that, and it is remembered. Only one sequence plays at a time; going to a scene, playing another sequence or hiding everything stops it without its Then. A sequence only ever turns off sources it turned on itself.</p>
+  <figure><img src="img/s-output-sequence-playing.webp" alt="A sequence playing on the Output page"><figcaption>While a sequence plays its card shows a dot per step, the time left on the step and for the whole sequence, with Next, Pause and Stop.</figcaption></figure>
+  <p>Sequences belong to the competition in use and change with <strong>Use this one</strong>; the sources and scenes are shared. The break lengths on the setup page (quarter time, half time, three quarter time) let the editor say how many times a break sequence fits in each break.</p>
+
+  <h3 id="s3-8">Music and playlists</h3>
+  <figure><img src="img/s-output-music.webp" alt="The Music player and playlists"><figcaption>The Music player, two playlists, and the settings for fades, ducking and what happens under a video with sound.</figcaption></figure>
+  <p>The Music player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF; use music you're licensed to stream), one song or a playlist, shuffled or not. Add a song with <strong>Even out its loudness</strong> ticked and it is levelled to match the others. Music plays wherever the video sound plays: through the output, or in the Scene View while Video output is off, never twice.</p>
+  <ul>
+    <li><strong>Play</strong> fades in; <strong>Pause</strong> and <strong>Stop</strong> fade out (slower by default). <strong>Duck</strong> dips it low and keeps it running; <strong>Mute</strong> keeps it running silently.</li>
+    <li>While a video with its sound on plays, the music fades out and pauses, then fades back in from where it was (or lowers, or carries on: a setting). A themed intro or outro does the same.</li>
+    <li>A sequence can bring its own music, and a sequence inside it plays its own while it runs. Going to a scene fades a sequence's music out.</li>
+    <li>The <strong>super shot song</strong> cuts in when the super shot period starts in a super shot division, loops, and fades out when the period ends.</li>
+  </ul>
+  <figure><img src="img/s-playlist-editor.webp" alt="The playlist editor"><figcaption>A playlist: songs in order, shuffle, and whether it starts again after the last.</figcaption></figure>
+
+  <h3 id="s3-9">Video output</h3>
+  <p>The <strong>Video output</strong> section at the top of the Output page sends the scene to your switcher. Pick one of three routes, then press <strong>Output on</strong>. While the output is on its settings are locked; turn it off to change them. <code>/deck/output/on</code>, <code>off</code> and <code>toggle</code> do the same from a Stream Deck, and the outputs go dark when Studio goes off air.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Route</th><th>What it needs</th><th>What the switcher gets</th></tr>
+    <tr><td class="k">Display</td><td>One or two extra displays on the Mac (HDMI into the switcher), set to exactly 1920 × 1080, not HiDPI or scaled</td><td><strong>Chroma</strong>: the scene over a solid colour on one display (green by default, blue or any colour). <strong>Fill and key</strong>: fill on one display, key (white where the scene shows) on the other. A plain M1 drives one extra display; Pro and Max chips drive more.</td></tr>
+    <tr><td class="k">Blackmagic</td><td>An UltraStudio or DeckLink with Blackmagic Desktop Video installed, and the device free</td><td><strong>Fill and key</strong> through the device's external keyer (fill on one SDI out, key on the other), or fill only, at the switcher's 1080p format (1080p50 is picked first). The fill is premultiplied: turn the switcher's Pre Multiplied Key on for clean edges.</td></tr>
+    <tr><td class="k">NDI®</td><td>NDI's free runtime for Mac, and a wired network</td><td>Fill and key as two sources, chroma as one, or one source with transparency for receivers that key on NDI's alpha. They appear as this Mac's name with the source name in brackets.</td></tr>
+  </table></div>
+  <p>Sound plays through the Mac's audio output on every route. The <strong>Scene View</strong> on the Output page shows the scene as it is right now, on a checkerboard so see-through parts show; <strong>Pop out</strong> opens it in its own window to move to another screen, with a floating list of On/Off buttons. The Scene View plays sound only while Video output is off, so it never plays twice.</p>
+  <figure><img src="img/s-output-sceneview.webp" alt="The Scene View on the Output page"><figcaption>The Scene View: the scene right now. Untick Live View on a busy night, since it runs the scene's pages a second time.</figcaption></figure>
+  <figure class="graphic"><img src="img/g-testpattern.webp" alt="The test pattern"><figcaption>The <b>test pattern</b> (Add page) checks an output and the switcher's key end to end: a 1-pixel border, fine lines that shimmer if anything is resizing the picture, ramps for banding and soft shapes for the key. Not for air.</figcaption></figure>
+  <div class="tip"><div class="eyebrow">Chroma key safe</div><p>A chroma key cuts out one colour, so anything half see-through fringes. With a chroma output picked, <strong>Chroma key safe</strong> is on: every graphic goes out with solid panels, no glows or soft shadows, and fades become cuts. Pick another output and everything is back as it was. The Output page also lists any competition or club colour close to the key colour.</p></div>
+
+  <h3 id="s3-10">A night, start to finish</h3>
+  <p>With the sample league's scenes and sequences, a solo operator's evening looks like this. Everything in the right-hand column happens by itself.</p>
+  <ul class="timeline">
+    <li><span class="t">Arrive</span><span>Open the app. Studio goes on air, picks tonight's first game on Court 1 with Follow PlayHQ on. Turn the video output on and check the test pattern on the switcher.</span></li>
+    <li><span class="t">15 min out</span><span><strong>Run-up</strong> starts by itself: the Pre-game scene, then the sponsor wall, match up and ladder in turn over the warm-up playlist, repeating until 2 minutes before the start.</span></li>
+    <li><span class="t">2 min out</span><span>Run-up hands over to <strong>Walk out</strong>: The Clash smashes the two logos together, the position match ups run through GS to GK, the countdown holds until the clock starts, then the Live game scene comes up and the music fades.</span></li>
+    <li><span class="t">Q1 to Q4</span><span>The scoreboard follows the PlayHQ scorer's score, quarter and clock. Super shots, hot streaks and moments play by themselves. The super shot tab and song mark the last five minutes of each quarter. The operator watches the stream and, if they like, keys up a ladder lower third or a lower third for a commentator.</span></li>
+    <li><span class="t">Quarter time</span><span><strong>Quarter time</strong> starts a few seconds after the siren: shooting stats, the last 10 goals and the ladder, then two sponsor ads and the sponsor card, over the break music, round and round until play resumes, then back to Live game.</span></li>
+    <li><span class="t">Half time</span><span><strong>Half time</strong> does the same with Up next and the ladder lower third added, and the house ad if no sponsor has one due.</span></li>
+    <li><span class="t">Full time</span><span><strong>Full time</strong> starts after the final siren: the winner celebration, the full time card, game stats, the score worm, a sponsor break and Up next (which becomes the end-of-night card after the last game).</span></li>
+    <li><span class="t">Next game</span><span>Automatic selection moves the board to the next game on Court 1 as its electronic scoring opens, with the quarter back to Q1 and a full clock. Run-up starts again 15 minutes out.</span></li>
+    <li><span class="t">Close</span><span>Press <strong>Stream close</strong>: the Clear scene, then the outro with the night's teams. Turn the output off. The sponsor report has the night's exposure ready to send.</span></li>
+  </ul>
+</section>
+
+<section class="ch" id="ch4">
+  <div class="chno">Chapter 4</div>
+  <h2>Running it by hand</h2>
+  <p class="lead">When nobody is live-scoring the game on PlayHQ, or PlayHQ stops answering mid-game, every automatic part of Chapter 3 has a button. The board, the breaks and the celebrations can all be driven from Scoreboard control and a Stream Deck.</p>
+  <p>Studio still needs the competition on PlayHQ for its fixture, ladder, squads and results; what changes in manual mode is who runs the score and the clock. The same competition can be followed one week and run by hand the next, and nothing on the Output page changes between the two.</p>
+
+  <h3 id="s4-1">Two people, not one</h3>
+  <p>A followed game can be run by one person because the score, the clock and the breaks take care of themselves. A game run by hand is a different job: someone has to press a key for every goal within a second or two of it, start and stop the clock with the umpire's whistle, and still call the breaks and the graphics. We recommend two people share it:</p>
+  <div class="roles">
+    <div class="role">
+      <h4>Camera operator</h4>
+      <ul>
+        <li>Frames and follows play on the cameras, and cuts between them on the switcher.</li>
+        <li>Runs the game clock from the whistle, with <strong>Start / Stop</strong> and <strong>Reset clock</strong> keys beside the camera controls.</li>
+        <li>Scores the goals as they go in, <strong>+1</strong> or <strong>+2</strong>, because they are already watching the ring.</li>
+        <li>Nothing else: no graphics, no breaks, no music.</li>
+      </ul>
+    </div>
+    <div class="role">
+      <h4>Production manager</h4>
+      <ul>
+        <li>Keeps the Output page open and watches the stream itself, not the court.</li>
+        <li>Corrects the score (<strong>−1</strong>, <strong>−2</strong>) and the quarter, and sets the clock when it drifts from the venue's.</li>
+        <li>Plays the run-up, break and full time sequences from their keys, and the lower thirds, ladders and stats during play.</li>
+        <li>Runs the music, the sponsor ads and the end of night, and picks the finals winners.</li>
+      </ul>
+    </div>
+  </div>
+  <p>If one person must do it alone, keep the Stream Deck to the score and clock keys and let the sequences do the breaks, exactly as they do in automated mode: the game triggers follow the scoreboard's clock whoever runs it.</p>
+
+  <h3 id="s4-2">Switching to manual</h3>
+  <p>Press <strong>Manual</strong> on Scoreboard control, or just press any score key: either switches the board to manual scoring and stops following the PlayHQ clock as well. Press <strong>Follow PlayHQ</strong> to go back; the score catches up with PlayHQ on the next check and the clock follows the scorer's again.</p>
+  <figure><img src="img/s-control-score.webp" alt="The Score section of Scoreboard control"><figcaption>Score and clock on Scoreboard control. Keyboard: A and Z for the home team, K and M for away, Shift for a super shot, Space for the clock.</figcaption></figure>
+  <div class="tip"><div class="eyebrow">When PlayHQ drops out</div><p>If PlayHQ stops answering during a followed game, the scoreboard keeps its last score and the debug log records each failed read. Switch to Manual and run the board by hand; Follow PlayHQ picks it up again when PlayHQ is back, and corrects the score to the scorer's.</p></div>
+
+  <h3 id="s4-3">The score</h3>
+  <p>Each team has <strong>+1</strong>, <strong>+2</strong>, <strong>−1</strong> and <strong>−2</strong>. A +2 is a super shot: it scores two and plays the super shot celebration, so a +2 pressed by mistake is fixed with −2 (which plays nothing). <strong>Reset scores to 0</strong> clears both. The hot streaks and game moments still play in manual mode, because Studio works out the goal order from the presses just as it does from PlayHQ's score.</p>
+  <table>
+    <tr><th>Key</th><th>What it does</th></tr>
+    <tr><td>Home +1 / Away +1</td><td>A goal.</td></tr>
+    <tr><td>Home +2 / Away +2</td><td>A super shot: two points and the celebration.</td></tr>
+    <tr><td>−1, −2</td><td>Take a goal or a super shot back, quietly.</td></tr>
+    <tr><td>Reset scores to 0</td><td>Both scores to zero, for the next game.</td></tr>
+    <tr><td>Super shot (home / away)</td><td>The celebration only, score unchanged: for a test, or a super shot that was scored as +1 +1.</td></tr>
+  </table>
+
+  <h3 id="s4-4">The clock and the quarter</h3>
+  <p><strong>Start</strong> and <strong>Stop</strong> are one key on the Stream Deck. <strong>Reset clock</strong> puts a full quarter back (the competition's quarter length; a key can set any time). <strong>+10 s</strong> and <strong>−10 s</strong> nudge it, and a key can add or take off any amount. Type the venue's clock in <strong>Match venue clock</strong> to line the two up, and untick <strong>Show clock</strong> for a game with no reliable clock at all. Quarters are <strong>Q1</strong> to <strong>Q4</strong> plus extra time, or H1 and H2 for a competition played in halves; <strong>Next quarter</strong> steps through them. Changing the quarter doesn't touch the clock, so make the quarter key a Stream Deck Multi Action that also resets the clock.</p>
+  <figure><img src="img/s-control-clock.webp" alt="The Quarter and clock section of Scoreboard control"><figcaption>Quarter and clock. The super shot tab, the super shot song and the break sequences all read this clock, so they work by hand as they do when following PlayHQ.</figcaption></figure>
+
+  <h3 id="s4-5">Breaks and celebrations by hand</h3>
+  <p>A sequence that starts by itself at quarter time is started by its key too, so the production manager can run <strong>Quarter time</strong> the moment the siren goes instead of waiting for the clock, or run <strong>Half time</strong> early when a game is called. <strong>Next</strong>, <strong>Pause</strong> and <strong>Stop</strong> work on whatever is playing, and <strong>Automatic sequences on</strong> on the Output page can be unticked for a night where every break is called by hand.</p>
+  <ul>
+    <li><strong>Winner.</strong> One key. The celebration reads the board's score when it comes on, so it covers a home win, an away win and a draw. Check the score first. A source with <em>Result</em> set to home, away or draw forces it.</li>
+    <li><strong>Super shot and streaks, once.</strong> Besides the automatic sources, a Super shot source set to <em>Plays: home</em> or <em>away</em>, or a Hot streaks source set to one streak, plays once each time it is turned on. Don't keep a manual source and the automatic one on together, or it plays twice.</li>
+    <li><strong>The Clash.</strong> A pre-game animation, played from its key or as a step in the walk-out sequence, with the two teams, their logos and club colours.</li>
+    <li><strong>Lower thirds.</strong> The person lower third's name box on the Output page suggests the competition's athletes; type a guest's name and title for a commentator or an official. Turn it on when they appear and off a few seconds later.</li>
+    <li><strong>Stats during play.</strong> The ladder lower third, shooting stats, last 10 goals and match up are all Source keys. Each loads fresh when shown, so it has the latest numbers.</li>
+  </ul>
+
+  <h3 id="s4-6">Finals</h3>
+  <p>PlayHQ often has no finals fixtures until the day. In <strong>Finals</strong> on Scoreboard control, pick the division, then pick each game's winner (the score is optional) as the finals are played; the finals graphic and the ladder's finals key move on with each pick. A result from PlayHQ, when it has one, always wins over one picked here.</p>
+  <figure><img src="img/s-control-finals.webp" alt="The Finals section of Scoreboard control"><figcaption>Finals on Scoreboard control. The format for each division is set on the Competitions setup page, and the teams come from the ladder.</figcaption></figure>
+</section>
+
+<section class="ch" id="ch5">
+  <div class="chno">Chapter 5</div>
+  <h2>The graphics</h2>
+  <p class="lead">Every graphic Studio draws, grouped by when it is used. Each one is added to the scene with <strong>Add page</strong> on the Output page, and its options appear as fields under its address; the options named here are the ones worth knowing.</p>
+  <p>All of them follow the game, round and court picked on Scoreboard control, take the competition's colours, font and logos from its setup, and fit long team names. Cards sit in the space between the title and the scoreboard and shrink to fit when they have more in them than fits. Every page, with its link and a Preview button, is also listed on the Docs tab.</p>
+
+  <h3 id="s5-1">Always on</h3>
+  <div class="stack">
+    <figure class="graphic"><img src="img/g-scoreboard.webp" alt="The scoreboard"><figcaption><b>Scoreboard.</b> Court, both teams with their logos and club colours, the score, the quarter and the clock, centred at the bottom above the ticker. Options: position (top centre, bottom left and so on), super shot tab on or off, and the naming-rights sponsor's tab.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-ticker.webp" alt="The score ticker"><figcaption><b>Score ticker.</b> The scores from this round's other games scrolling along the bottom, leaving out the game on the board, updated every 30 seconds. Speed from the control page or a Stream Deck key; a Partner sponsor's logo takes a slot in the line.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-title.webp" alt="The title banner"><figcaption><b>Title.</b> Competition, round and venue in a banner at the top. Options: an emoji either side, the competition logo above it, top or bottom, and the naming-rights sponsor under it.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-branding.webp" alt="The branding logos"><figcaption><b>Branding logos.</b> PIVT and FirstPass Studio left of the title, the competition logo right. Each can be hidden; gap, height and size adjust the placement.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-viewers.webp" alt="The viewers pill"><figcaption><b>Viewers.</b> "N watching" from the competition's YouTube and Facebook streams, top right, shown only once the count passes the competition's minimum. <em>Shows: peak</em> makes it a card for the end of the night.</figcaption></figure>
+  </div>
+
+  <h3 id="s5-2">Before the game</h3>
+  <div class="gallery">
+    <figure class="graphic"><img src="img/g-countdown.webp" alt="The countdown"><figcaption><b>Countdown.</b> Counts down to the picked game's scheduled start, with the two teams. Options: heading, the words at zero, a fade over the last seconds, position and a sponsor.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-upnext.webp" alt="The Up next card"><figcaption><b>Up next.</b> The next game on this court (or any court), with its time, teams and logos. After the last game it becomes the end-of-night card.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-matchup.webp" alt="The match up card"><figcaption><b>Match up.</b> Both teams side by side with their last five results as form dots and this season's head to head. <em>Form</em> and <em>Head to head</em> can each be hidden.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-clash.webp" alt="The Clash animation"><figcaption><b>The Clash.</b> The two teams slam together behind a big word (IMPACT, CLASH, SHOWDOWN, your own) in their club colours. Options: the word, the bottom line, animate away after N seconds.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-positions-pair.webp" alt="Position match ups, one pairing"><figcaption><b>Position match ups.</b> Who marks whom, position by position, with the athletes' photos from the Athletes page or a silhouette. Options: seconds per pairing, loop or stop, start with GS or GK, one pairing only, animate away at the end.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-positions-all.webp" alt="Position match ups, all seven"><figcaption><b>Position match ups, all seven.</b> The same page can show every pairing at once as one card.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-teamlist.webp" alt="A team list"><figcaption><b>Team list.</b> One team's line-up from PlayHQ with positions, captain and bench, warmed up before the game so it shows at once. Add one source per side.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-intro.webp" alt="The intro animation"><figcaption><b>Intro and outro.</b> Six full-screen styles, about 8 seconds, with the round's teams and a yellow message line. Options: style, teams from a division or round, time on screen, a theme song with its timing and volume, sound effects, a background.</figcaption></figure>
+  </div>
+
+  <h3 id="s5-3">During play</h3>
+  <div class="two">
+    <figure class="graphic"><img src="img/g-supershot.webp" alt="The super shot celebration"><figcaption><b>Super shot.</b> Automatic, 3 seconds, the scoring team's logo and colour; the sponsored-moment tag names who brought it. <em>Plays: home / away / no team</em> makes a manual one.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-streak-heating.webp" alt="Heating up"><figcaption><b>Hot streaks and moments.</b> Heating up, on fire, goal for goal, hits the front, all square, coming back, on the siren, back to back. Automatic from the goal order, or <em>Plays</em> picks one to play once.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-streak-siren.webp" alt="On the siren"><figcaption><b>On the siren.</b> A goal in the last seconds of a quarter. Moments are the only animations that need nothing from you; they also take the sponsor's "brought to you by" tag.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-ladderbar.webp" alt="The ladder lower third"><figcaption><b>Ladder lower third.</b> Both teams' ladder position and record as one strip right above the scoreboard, the same width as it, for a glance during play without covering the game.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-goals.webp" alt="Last 10 goals"><figcaption><b>Last 10 goals.</b> The game's recent goals oldest to newest with a momentum line and the current run, worked out by Studio from the score, updating while it stays on. Options: across the top or down the side, how many goals, position and heading.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-shooting.webp" alt="Shooting stats"><figcaption><b>Shooting stats.</b> Goals, super shots and attempts per shooter from PlayHQ's game page, for a break or a quarter-time sequence. Super columns are left off for a division without super shots.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-lowerthird-athlete.webp" alt="An athlete lower third"><figcaption><b>Person lower third, athlete.</b> Name, team and club logo from the athlete register, with their photo if there is one. The Output page suggests names as you type.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-lowerthird-guest.webp" alt="A guest lower third"><figcaption><b>Person lower third, guest.</b> Name, title and the competition logo, for a commentator, an official or a sponsor's guest. Options: a tab above, position left or right, animate away.</figcaption></figure>
+  </div>
+
+  <h3 id="s5-4">After the game</h3>
+  <div class="gallery">
+    <figure class="graphic"><img src="img/g-winner.webp" alt="The winner celebration"><figcaption><b>Winner.</b> The winning team, logo, final score and a big word, worked out from the board each time it comes on. Options: force a result, the word, the line under the score, animate away.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-fulltime.webp" alt="The full time card"><figcaption><b>Full time.</b> The final score from the board with each team's top shooter and shooting accuracy from PlayHQ's game stats. <em>Heading</em> makes it a half time card.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-gamestats.webp" alt="Game stats"><figcaption><b>Game stats.</b> The score by quarter, tracked by Studio from the board, then team against team: quarters won, best quarter, super shots made, 3 and 5 goal runs and the longest run, with a sponsor's footer.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-worm.webp" alt="The score worm"><figcaption><b>Score worm.</b> The margin through the game as a line, drawn in over a few seconds. Options: drawing time, club colours or the competition's.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-endofnight.webp" alt="The end of night card"><figcaption><b>End of night.</b> Up next after the last game: thanks for watching, next week's date or the finals, and the Supporter sponsors in a strip. Options: the invite line, sponsors on or off.</figcaption></figure>
+  </div>
+
+  <h3 id="s5-5">The competition</h3>
+  <div class="gallery">
+    <figure class="graphic"><img src="img/g-ladder.webp" alt="The ladder"><figcaption><b>Ladder.</b> The division's ladder with the finals places marked and a key under it. Options: division, rows, logo on or off, light or dark mode logo.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-fixtures.webp" alt="The round fixture"><figcaption><b>Round fixture.</b> This round's games across all divisions with day, time and court. <em>Round</em> takes next, prev, +2, a number or a name like Final.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-results.webp" alt="The results card"><figcaption><b>Results.</b> The same round once its games are final, with scores. The same round option applies.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-topshooters.webp" alt="Top shooters"><figcaption><b>Top shooters.</b> The season's leading shooters for a division. Options: order by goals or average, how many shooters, a sponsor footer.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-finals.webp" alt="The finals graphic"><figcaption><b>Finals.</b> Who plays whom week by week in the division's finals format, with ladder positions and scores; "If the season ended today" until the home-and-away rounds finish. Options: one week only, the heading and the line under it.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-logo.webp" alt="The competition logo animation"><figcaption><b>Competition logo animation.</b> Seventeen templates (pro, coin, tiles, glitch, badge, lightning, court, bibs, net and more), about 5 seconds, with optional words and a smaller line.</figcaption></figure>
+  </div>
+
+  <h3 id="s5-6">The breaks</h3>
+  <div class="gallery">
+    <figure class="graphic"><img src="img/g-sponsor.webp" alt="The sponsor card"><figcaption><b>Sponsor card.</b> One sponsor's logo, tagline, offer and a QR code to their website, taking turns by tier. Options: one sponsor always, which tiers rotate, animate away.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-sponsorwall.webp" alt="The sponsor wall"><figcaption><b>Sponsor wall.</b> Every sponsor by tier on one card, for the run-up and the close. Options: which tiers, names under the logos.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-ad.webp" alt="The PIVT and FirstPass Studio ad"><figcaption><b>PIVT and FirstPass Studio ad.</b> A 10-second house ad for a break with nothing sold. A Sponsor ads step plays it when no sponsor's ad is due, if <em>House ad</em> is ticked.</figcaption></figure>
+  </div>
+
+  <h3 id="s5-7">Checking the outputs</h3>
+  <figure class="graphic"><img src="img/g-testpattern.webp" alt="The test pattern"><figcaption><b>Test pattern.</b> Borders, fine lines, ramps and soft shapes to check an output, the switcher's scaling and its key end to end before the stream. Never for air.</figcaption></figure>
+</section>
+
+<section class="ch" id="ch6">
+  <div class="chno">Chapter 6</div>
+  <h2>Competitions setup</h2>
+  <p class="lead">Everything about a competition that doesn't come from PlayHQ lives on one page: its PlayHQ link, the names on the graphics, the game rules, finals, game day, colours, font and logos. Set it up once a season and every graphic follows.</p>
+  <p>Studio keeps a setup per competition. The one marked <strong>In use</strong> is what every graphic, Scoreboard control, the Sponsors page and the Stream Deck use. Changes aren't kept until you press <strong>Save</strong> (or <strong>Save and use this competition</strong>), and leaving the page with unsaved changes asks first.</p>
+  <figure><img src="img/s-setup-competitions.webp" alt="The Competitions list on the setup page"><figcaption>The competitions list. Start from a template file (the repository has Thunder League, AMMNA Nationals, GIG WANL and West Coast Thunder) or press New competition for Studio's defaults.</figcaption></figure>
+
+  <h3 id="s6-1">PlayHQ</h3>
+  <p>Paste the address of the organisation's page on playhq.com and press <strong>Find its competitions</strong>; then pick the competition and the season. For a carnival or a league run under another body, use the organisation the competition is listed under. Nothing else about PlayHQ is needed: no account, no key.</p>
+  <figure><img src="img/s-setup-playhq.webp" alt="The PlayHQ section"><figcaption>The PlayHQ section for the sample league. The season list comes from PlayHQ once the competition is picked.</figcaption></figure>
+
+  <h3 id="s6-2">Names on the graphics</h3>
+  <p>The competition name on the title banner, the organisation name as the ladder's heading, and the venue for the title, fixture and Up next. PlayHQ's names are often long or formal; these are the ones viewers see.</p>
+  <figure><img src="img/s-setup-names.webp" alt="The Names on the graphics section"><figcaption>Names on the graphics.</figcaption></figure>
+
+  <h3 id="s6-3">Game rules</h3>
+  <p>Quarters or halves and their length set the clock, the quarter buttons and the wording of the break cards. <strong>Super shots</strong> turns on the +2 scoring, the celebration, the super shot tab in the last minutes of each quarter and the Super columns on the shooting graphics; a division can have its own setting, by its name or by a word in it ("Open", "Men"). The break lengths let the sequence editor say how many loops of a break sequence fit in the break.</p>
+  <figure><img src="img/s-setup-rules.webp" alt="The Game rules section"><figcaption>Game rules. The sample league plays 15-minute quarters with super shots in the last 5 minutes, except in its Under 21 division.</figcaption></figure>
+
+  <h3 id="s6-4">Finals</h3>
+  <p>Pick the finals format for the competition, or per division: it decides the finals places the ladder marks (double chance or a week off, elimination, playing for third) and the bracket the finals graphic draws week by week. PlayHQ's finals games are used when it has them; otherwise the winners are picked on Scoreboard control.</p>
+  <figure><img src="img/s-setup-finals.webp" alt="The Finals section"><figcaption>Finals formats, per division where they differ.</figcaption></figure>
+
+  <h3 id="s6-5">Game day</h3>
+  <p>The court Studio follows, whether it picks the game automatically, when electronic scoring starts before each game (10 minutes by default; 20 or 30 when games are further apart) and how many days ahead "this round" is found. These are starting points: Scoreboard control can change the court, pick a game by hand or force a round on the night. On a carnival day with several rounds, this round moves on as each round's first game comes up.</p>
+  <figure><img src="img/s-setup-gameday.webp" alt="The Game day section"><figcaption>Game day.</figcaption></figure>
+
+  <h3 id="s6-6">Colours and font</h3>
+  <p>The competition's colours, see-through dark panels, and the font. Paste a brand kit's text into <strong>Brand kit colours</strong> and every HEX or RGB value in it becomes a swatch in each colour picker. Add a font file (TTF, OTF, WOFF or WOFF2, one per weight or a variable font) and it travels with the competition and its template, so the graphics look the same on any Mac; every font is sized to match the capitals of Montserrat, which the graphics were drawn with. The preview under the pickers shows a rough title and scoreboard in the colours before you save.</p>
+  <figure><img src="img/s-setup-colours.webp" alt="The Colours and font section"><figcaption>Colours and font, with the preview.</figcaption></figure>
+
+  <h3 id="s6-7">Logos</h3>
+  <p>The <strong>competition logo</strong> has a light mode and a dark mode version (one is used for both if that's all you add); it shows beside the title in the branding logos, above the title with its option on, in the corner of the ladder and in the logo animations. <strong>Team logos</strong> are matched to PlayHQ team names by file name, so drop in a folder of files named after the teams. Logos and colours belong to clubs: every team of a club, in every division, gets the club's logo and colour, worked out from the team name without its division ("Falcons 21U" is Falcons). Fix a wrong match in the <strong>Club</strong> box. A club colour goes behind its teams' names on the scoreboard and behind their logo on The Clash; without one the competition's colours are used.</p>
+  <div class="two">
+    <figure><img src="img/s-setup-logo.webp" alt="The Competition logo section"><figcaption>Competition logo, light and dark mode.</figcaption></figure>
+    <figure><img src="img/s-setup-teamlogos.webp" alt="The Team logos and Teams on PlayHQ sections"><figcaption>Team logos and the teams on PlayHQ, grouped by club with a club colour each.</figcaption></figure>
+  </div>
+
+  <h3 id="s6-8">Live viewers</h3>
+  <p>Add the YouTube channels and Facebook Pages the competition streams to. While a video output is on, Studio adds up how many are watching every 30 seconds, for the Output page, the viewers graphic (which shows only from the minimum set here) and the viewer-minutes in the sponsor report. The page explains how to get a YouTube API key and a Facebook Page token; both are kept on this Mac only, never in iCloud, templates or exports.</p>
+  <figure><img src="img/s-setup-viewers.webp" alt="The Live viewers section"><figcaption>Live viewers.</figcaption></figure>
+
+  <h3 id="s6-9">Templates, export and more</h3>
+  <p><strong>Export as template</strong> saves the competition's settings, team logos, competition logo, font and sponsors (with their logos) as one .json file to import on any Studio or keep as a backup; <strong>Import a template file</strong> adds it. A PlayHQ Client ID is only needed if PlayHQ's game page has no line-ups and the association has given you one. <strong>Delete this competition</strong> removes it; deleting the one in use switches the graphics to another.</p>
+  <figure><img src="img/s-setup-more.webp" alt="The More section"><figcaption>The More section: Client ID, export and delete.</figcaption></figure>
+</section>
+
+<section class="ch" id="ch7">
+  <div class="chno">Chapter 7</div>
+  <h2>Sponsors</h2>
+  <p class="lead">The Sponsors tab turns sponsorship into something you can sell, run and prove: a tiered library of sponsors, spots on the graphics that fill themselves, ad breaks that take turns fairly, and a report of what each sponsor got.</p>
+  <figure><img src="img/s-sponsors.webp" alt="The Sponsors page"><figcaption>The Sponsors page for the sample league: sponsors by tier with tonight's exposure meter, the tier rules, sponsored moments and the vacancy card.</figcaption></figure>
+
+  <h3 id="s7-1">Tiers</h3>
+  <p>Five fixed ranks, named per competition: the <em>Names</em> preset (Naming rights, Elite, Major, Partner, Supporter), the <em>Metals</em> preset (Naming rights, Platinum, Gold, Silver, Bronze) or your own. Each tier's <strong>share of screen time</strong> decides how turns are split when a sponsor has no target of its own. Each tier gets different places:</p>
+  <table>
+    <tr><th>Tier</th><th>Where it shows</th></tr>
+    <tr><td>Naming rights</td><td>A tab on the scoreboard, under the title banner, first on the sponsor wall, and everything below.</td></tr>
+    <tr><td>Elite</td><td>The sponsored moments (super shot, streaks), ads in the breaks, the break card, and everything below.</td></tr>
+    <tr><td>Major</td><td>Ads and break cards, "presented by" footers on the stats cards, countdown and top shooters.</td></tr>
+    <tr><td>Partner</td><td>A slot in the score ticker and the logo spots.</td></tr>
+    <tr><td>Supporter</td><td>The sponsor wall and the end-of-night strip.</td></tr>
+  </table>
+  <p><strong>When this tier has no sponsor</strong> says what a spot does when its tier is empty: <em>Pull up</em> fills it from the tier below, <em>Pull down</em> from the tier above, <em>Skip tier</em> leaves it out, and <em>Advertise vacancy</em> shows the competition's vacancy card wherever a card fits. The vacancy card has a heading, a contact, a message and a link or email for its QR code, so an empty tier finds its own sponsor.</p>
+
+  <h3 id="s7-2">A sponsor</h3>
+  <p>A sponsor has a name, tagline, website, offer, brand colour, category, deal dates, and optional targets per stream (minutes on screen, ad plays). Category keeps competing sponsors apart in rotation. Add a colour logo and a white one for dark panels (without a white one, the colour logo is made white). A sponsor is kept once and can be <strong>shown on</strong> several competitions at its own tier in each; sponsors whose deal has ended stay greyed and the graphics skip them.</p>
+  <figure><img src="img/s-sponsor-editor.webp" alt="The sponsor editor"><figcaption>The sponsor editor: details, logos, ads, the QR code with tracking tags, and the competitions it is shown on.</figcaption></figure>
+  <p><strong>Ads</strong> are videos or stills (up to 10 per sponsor) in the media folder. A <strong>Sponsor ads</strong> step in a sequence plays the next ads due, taking turns fairly by tier, each video to its end with sound and each still for its seconds; tick <em>House ad</em> and the PIVT and FirstPass Studio ad plays when nothing is due. The <strong>QR code</strong> points to the sponsor's website with tracking tags, so visits from the stream show in their analytics; save it as a PNG for the sponsor's own use.</p>
+
+  <h3 id="s7-3">Spots and moments</h3>
+  <div class="two">
+    <figure class="graphic"><img src="img/g-sponsor.webp" alt="The sponsor card"><figcaption>The sponsor card in a break, with its QR code.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-sponsorwall.webp" alt="The sponsor wall"><figcaption>The sponsor wall before the game, sized by tier.</figcaption></figure>
+  </div>
+  <p>Every spot picks its sponsor from the Sponsors page by default. Each graphic's <strong>Sponsor</strong> option can pin one sponsor or turn the spot off. <strong>Sponsored moments</strong> sells the super shot, each hot streak and each game moment to one sponsor for the season, whose name appears in a "brought to you by" tag on the animation; by default the Elite sponsors take turns.</p>
+
+  <h3 id="s7-4">Proof of play</h3>
+  <p>While a video output is on, Studio logs every second each sponsor is on screen and every ad played, matched to the scene's sources, and reads the live viewer count every 30 seconds. <strong>Sponsor report</strong> turns that into a page per night (or a run of nights) with minutes on screen, ad plays, viewer-minutes, peak and average viewers per sponsor, ready to print or save as a PDF for the sponsor. A tick box counts time with no video output on, for a rehearsal.</p>
+  <figure><img src="img/s-sponsorreport.webp" alt="The sponsor report"><figcaption>The sponsor report for the sample night.</figcaption></figure>
+</section>
+
+<section class="ch" id="ch8">
+  <div class="chno">Chapter 8</div>
+  <h2>Athletes</h2>
+  <p class="lead">PlayHQ gives Studio every athlete in a line-up, but not their faces. The Athletes tab holds a photo per athlete for the position match ups and the person lower third, and a record of positions and games played that PlayHQ's history doesn't cover.</p>
+  <figure><img src="img/s-athletes.webp" alt="The Athletes page"><figcaption>The Athletes page: teams grouped by division, every athlete PlayHQ has in a line-up this season, and the photo library.</figcaption></figure>
+  <h3 id="s8-1">Photos</h3>
+  <p>Pick a team and add a photo to each athlete, or drop a folder of photos named after the athletes ("Jane Smith.jpg" or "smith_jane.png") on <strong>Several photos at once</strong>; any that don't match wait in the photo library to be given to someone. A photo is saved under the athlete's name for the competition, so an athlete in two divisions needs one photo. Photos are made smaller when saved; cut-out PNGs with a transparent background look best. Without a photo the graphics show a silhouette for the athlete's gender, taken from the division (men's, women's; mixed and open are neutral) and changeable under the athlete. <strong>An athlete PlayHQ doesn't list yet</strong> adds one ahead of their first game.</p>
+  <div class="two">
+    <figure class="graphic"><img src="img/g-positions-pair.webp" alt="A position match up with photos"><figcaption>Position match ups use the photos, pairing by pairing.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-lowerthird-athlete.webp" alt="An athlete lower third with photo"><figcaption>The athlete lower third, named from the register as you type on the Output page.</figcaption></figure>
+  </div>
+  <h3 id="s8-2">Positions and games played</h3>
+  <p><strong>Games</strong> under an athlete opens their record. Positions played in a PlayHQ line-up this season are ticked already; tick any others from other seasons or competitions. Games played takes a line per division (and club): the number as of a date, to which Studio adds the games PlayHQ shows after it, so milestones keep up through the season. With no line, a division's games are this season's from PlayHQ.</p>
+  <figure><img src="img/s-athlete-games.webp" alt="The athlete Games dialog"><figcaption>An athlete's positions and games played.</figcaption></figure>
+</section>
+
+<section class="ch" id="ch9">
+  <div class="chno">Chapter 9</div>
+  <h2>Stream Deck</h2>
+  <p class="lead">A Stream Deck is the control surface for stream night: one key per source, scene and sequence, each lit while it's on, plus score, clock and quarter keys for a game run by hand. Studio ships its own plugin, and every control also has a plain link.</p>
+  <figure><img src="img/s-streamdeck.webp" alt="The Stream Deck tab"><figcaption>The Stream Deck tab: the plugin, the scoring and clock links, and the full reference below them.</figcaption></figure>
+
+  <h3 id="s9-1">The plugin</h3>
+  <p>Install it from the 1P menu (<strong>Install the Stream Deck plugin</strong>) or the button on the Output page; the Stream Deck app opens and installs it. Do the same after an app update. The <strong>Studio</strong> field in a key's settings stays empty when the Stream Deck is on the same Mac; for another Mac, type its address, like <code>http://studio-mac.local:8080</code>. Three kinds of key, each a different shape at a glance:</p>
+  <table>
+    <tr><th>Key</th><th>Looks</th><th>Press</th><th>Shows</th></tr>
+    <tr><td><strong>Source</strong></td><td>A faint eye and one strip along the bottom</td><td>Show or hide (default), fade in, fade out, refresh the page or restart the video, video sound on or off</td><td>The source's name; orange while it's on, however it was turned on</td></tr>
+    <tr><td><strong>Scene</strong></td><td>Stacked layers and a frame in its colour</td><td>Go to a scene, next or previous scene, or back to the current scene as saved</td><td>Orange while its scene is on, with a yellow dot when sources have changed since</td></tr>
+    <tr><td><strong>Sequence</strong></td><td>A play button and a strip in four steps</td><td>Play or stop a sequence, play from the first step, or Next, Next when waiting, Pause and Stop for whatever is playing</td><td>Step and time left, like <em>3/5 0:12</em>, the whole sequence's time, both or none; <em>in 0:04</em> when one is about to start by itself</td></tr>
+  </table>
+  <p>Keys follow their source, scene or sequence by id, so renaming on the Output page doesn't break them; a removed one says <em>gone</em>, and while Studio is off air they say <em>off air</em>. Colour groups keys by the part of the stream: green pre-game, blue live, purple quarter time, grey post-game, yellow ads, or the scene's or sequence's own colour.</p>
+
+  <h3 id="s9-2">Links for everything else</h3>
+  <p>Every control is also a link, for a <strong>System &gt; Website</strong> action (tick <em>GET request in background</em>), a Multi Action, or any program on the network. Scoreboard control, the Output page and the Stream Deck tab copy them. The useful ones:</p>
+  <div class="tablewrap"><table>
+    <tr><th>Group</th><th>Links</th></tr>
+    <tr><td>Scores</td><td>Home and away +1, +2, −1, −2; reset to 0; play a super shot or any streak without changing the score.</td></tr>
+    <tr><td>Scoring mode</td><td>Follow PlayHQ, Manual, toggle. Any score key switches to Manual.</td></tr>
+    <tr><td>Clock</td><td>Start, stop, toggle, reset, set to a time, add or take off any amount, follow the PlayHQ clock on or off, quarter length.</td></tr>
+    <tr><td>Quarter</td><td>Q1 to Q4, extra time, next, previous. The clock is separate; pair them in a Multi Action.</td></tr>
+    <tr><td>Game</td><td>Automatic selection on, off, toggle; the court to follow.</td></tr>
+    <tr><td>Ticker</td><td>Faster, slower, normal, a set speed.</td></tr>
+    <tr><td>Sources</td><td>Show, hide, toggle, restart, video sound; every source out; video output on or off.</td></tr>
+    <tr><td>Scenes</td><td>Go to a scene, next, previous, back to the scene as saved.</td></tr>
+    <tr><td>Sequences</td><td>Play, toggle, next, advance (only when waiting), pause, stop, start the one about to start now, cancel it, automatic sequences on or off.</td></tr>
+    <tr><td>Music</td><td>Play, pause, resume, stop, fade out, next, previous, load a song or playlist, mute, duck; add <code>?fade=2</code> for a 2-second fade.</td></tr>
+    <tr><td>Sponsors</td><td>Play the next sponsor ad due.</td></tr>
+  </table></div>
+  <div class="tip"><div class="eyebrow">A layout that works</div><p>Put the scene keys in a row across the top (Pre-game, Live game, Clear), the sequence keys under them with Next when waiting and Stop at the end, and a page of Source keys for the lower thirds and stats. A game run by hand gets a second page: home scores left, away scores right, the clock and quarter keys down the middle.</p></div>
+
+  <h3 id="s9-3">Timed keys and the icon pack</h3>
+  <p>A second plugin, <strong>Timed Sequence</strong>, arms a key for a time of day and then presses a list of links with delays between them: reset the board at 18:55 and start the clock at 19:00, say. It is built from the repository. The <strong>FirstPass Studio Characters</strong> icon pack gives Stream Deck keys letters, numbers and symbols in the Studio style, for labelling keys by hand.</p>
+  <figure><img src="img/stream-deck-characters.webp" alt="The Characters icon pack"><figcaption>The Characters icon pack: A to Z, a to z, 0 to 9 and the usual symbols on navy.</figcaption></figure>
+</section>
+
+<section class="ch" id="ch10">
+  <div class="chno">Chapter 10</div>
+  <h2>Settings and care</h2>
+  <p class="lead">Where Studio keeps its settings, how to carry them between Macs and back them up, how updates arrive, and what to do when something isn't right.</p>
+
+  <h3 id="s10-1">The 1P menu</h3>
+  <p>The menu bar icon is Studio's home. From top to bottom: the version and whether Studio is on air; <strong>Stop Studio</strong> (while on air); <strong>Open Studio</strong>, Scoreboard control, Competition setup and <strong>Copy the Studio link</strong>; <strong>Install the Stream Deck plugin</strong>; <strong>Open the settings folder</strong>, <strong>Settings folder</strong> (iCloud), <strong>Back up…</strong> and <strong>Restore…</strong>; <strong>Open the debug log</strong>, <strong>Restart Studio</strong>, <strong>Check for updates</strong>; <strong>Open at login</strong>, <strong>Let other devices change things</strong>, <strong>What's new…</strong> and Quit.</p>
+
+  <h3 id="s10-2">The data folder</h3>
+  <p>Everything Studio saves lives in one folder outside the app, <code>~/Library/Application Support/FirstPass Studio</code>, so updates never touch it. In it: <strong>competitions/</strong> (a folder per competition with its settings, logos, font, athlete photos and register), <strong>sponsors/</strong>, the scene, sequences, music and playlists, the <strong>media</strong> folder, <strong>control.json</strong> (Scoreboard control's choices), <strong>scoreboard-state.json</strong> (the game, scores and clock, saved every few seconds so a restart mid-game loses nothing), <strong>config.json</strong> for this Mac's own settings, <strong>logs/</strong> and <strong>backups/</strong>.</p>
+
+  <h3 id="s10-3">Settings in iCloud Drive</h3>
+  <p><strong>Settings folder &gt; Move to iCloud Drive…</strong> moves the settings into a folder you choose in iCloud Drive, in a subfolder named after this Mac, so each Mac on the same Apple account keeps its own and none saves over another's. The debug log, scores and clock, caches and window positions always stay on the Mac. <strong>Restore from another Mac…</strong> copies another Mac's settings over this one's (competitions, scenes, sequences, music, control choices), backing this Mac's up first. <strong>Move back to this Mac…</strong> undoes the move. Studio goes off air for a moment for each and comes straight back.</p>
+
+  <h3 id="s10-4">Backup and restore</h3>
+  <p><strong>Back up…</strong> saves every setting in one zip named with the date and time, with notes you type and, if you choose, the media folder; beside it goes a text summary listing the competitions, sequences, playlists, sources, scenes and sponsors inside. <strong>Restore…</strong> shows when and where a backup was made and what it holds, backs up this Mac's settings first, and replaces them only once the whole zip has unpacked and checked out. Make a backup after setting up a season and before trying anything new on the Output page.</p>
+
+  <h3 id="s10-5">Updates</h3>
+  <p>Updates download by themselves and install when the app quits, never mid-stream; <strong>Check for updates</strong> looks now, and <strong>Restart to update</strong> appears when one is ready. The first launch after an update shows <strong>What's new</strong>, the changes since the version you last opened. When an update changes how settings are saved, Studio backs the data folder up to <strong>backups/</strong> first; settings saved by a newer Studio open read-only in an older one.</p>
+  <figure><img src="img/s-docs.webp" alt="The Docs tab"><figcaption>The Docs tab: every page with its link, Copy and Preview, the page options, and the notes this guide draws on.</figcaption></figure>
+
+  <h3 id="s10-6">Links and other devices</h3>
+  <p>Studio's links use this Mac's Bonjour name (the Local hostname in System Settings &gt; General &gt; Sharing), so the same link works from a phone, another computer or a Stream Deck on the network; <code>localhost</code> still works on the Mac. Anything on the network can open the graphics. <strong>Let other devices change things</strong> decides whether they can also change scores, the scene, sequences and settings; untick it on a network you don't control, or block incoming connections to FirstPass Studio in the Mac's firewall.</p>
+
+  <h3 id="s10-7">When something isn't right</h3>
+  <table>
+    <tr><th>What you see</th><th>What to do</th></tr>
+    <tr><td>The board doesn't move before the game</td><td>Normal: nothing is read before the electronic scoring window opens. Scoreboard control says when it will start checking.</td></tr>
+    <tr><td>The board stops mid-game</td><td>PlayHQ isn't answering. Switch to Manual and run it by hand; Follow PlayHQ picks it up again when PlayHQ is back.</td></tr>
+    <tr><td>The wrong round or game is on</td><td>Force the round on Scoreboard control and pick the game; tick automatic selection again afterwards.</td></tr>
+    <tr><td>A key says off air</td><td>No Studio window is open. Open Studio from the 1P menu.</td></tr>
+    <tr><td>A graphic looks stale</td><td>Press its Restart key or turn it off and on; with <em>Load the page fresh</em> on it reloads each time.</td></tr>
+    <tr><td>Studio itself stops</td><td><strong>Restart Studio</strong> in the 1P menu brings it back with the scores and clock it had.</td></tr>
+    <tr><td>Anything else</td><td><strong>Open the debug log</strong> in the 1P menu. Everything Studio does and every PlayHQ answer is in it, 15 MB at most. Send it with a note of the time.</td></tr>
+  </table>
+
+  <h3 id="s10-8">Data and bandwidth</h3>
+  <p>The graphics only ever talk to Studio on the Mac. Studio alone contacts PlayHQ: one small request every 5 seconds for the followed game, the ticker's other courts every 30 seconds, the fixture about once a minute for automatic selection, and the rest once when a graphic loads. Finished games are read once and kept. It all comes to well under a megabyte an hour, so a phone hotspot is enough for Studio; the stream itself is the bandwidth.</p>
+</section>
+
+<section class="ch" id="ch11">
+  <div class="chno">Chapter 11</div>
+  <h2>Quick reference</h2>
+  <h3>Keyboard</h3>
+  <table>
+    <tr><th>Where</th><th>Keys</th></tr>
+    <tr><td>Scoreboard control</td><td>A / Z home +1 / −1, K / M away +1 / −1, Shift for +2 / −2, Space starts or stops the clock.</td></tr>
+    <tr><td>Any Studio window</td><td>⌘1 to ⌘7 go to Output, Scoreboard control, Competitions setup, Sponsors, Athletes, Stream Deck, Docs. ⌘N new window, ⇧⌘O open in the browser, ⇧⌘C copy the page link, ⌘[ back, ⌥⌘W close every Studio window.</td></tr>
+  </table>
+  <h3>Stream night in nine lines</h3>
+  <ol class="steps">
+    <li>Open Studio from the 1P menu and keep the Output page open all night.</li>
+    <li>Check the competition in use and the court on Competitions setup.</li>
+    <li>On Scoreboard control, the first game on your court is picked with Follow PlayHQ on.</li>
+    <li>Turn on the video output your switcher takes and show one graphic to see it land.</li>
+    <li>Play a few seconds of music and an animation with sound.</li>
+    <li>Press a Source key and watch the Output page follow it; put scoring back to Follow PlayHQ after testing.</li>
+    <li>Go to the Live game scene and let the sequences run the breaks.</li>
+    <li>Pick finals winners as they happen; turn on lower thirds when people appear.</li>
+    <li>Press Stream close, turn the output off, and send the sponsor report.</li>
+  </ol>
+  <h3>Where things are set</h3>
+  <table>
+    <tr><th>To change</th><th>Go to</th></tr>
+    <tr><td>Colours, font, logos, rules, finals format, court</td><td>Competitions setup</td></tr>
+    <tr><td>Which game, scoring mode, score, clock, finals winners</td><td>Scoreboard control</td></tr>
+    <tr><td>What's on screen, scenes, sequences, playlists, music, outputs</td><td>Output</td></tr>
+    <tr><td>A graphic's options (heading, position, division, animate away)</td><td>Output, under the source's address</td></tr>
+    <tr><td>Sponsors, tiers, ads, moments, the report</td><td>Sponsors</td></tr>
+    <tr><td>Photos, positions, games played</td><td>Athletes</td></tr>
+    <tr><td>Keys and links</td><td>Stream Deck</td></tr>
+    <tr><td>Backups, iCloud, updates, the debug log</td><td>The 1P menu</td></tr>
+  </table>
+  <p class="meta">FirstPass Studio is made by PIVT. The Elite Netball League, its clubs, athletes and sponsors are fictional.</p>
+</section>
+</main>
+</div>
+</body></html>
