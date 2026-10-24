@@ -183,3 +183,13 @@ test('every file Studio saves is either a setting that moves or one that stays o
   for (const n of names.file) assert.ok(location.SETTINGS.has(n), `${n} is saved with datadir.file() but isn't in SETTINGS, so it wouldn't move`);
   for (const n of names.local) assert.ok(location.LOCAL_ONLY.has(n), `${n} is saved with datadir.local() but isn't in LOCAL_ONLY`);
 });
+
+test('a file not made yet is inside its folder when the folder is reached through a symlink (macOS\'s /var)', () => {
+  const real = path.join(HOME, 'real-var');
+  fs.mkdirSync(path.join(real, 'unpack'), { recursive: true });
+  fs.symlinkSync(real, path.join(HOME, 'var'));
+  const unpack = path.join(HOME, 'var', 'unpack');
+  assert.ok(location.isInside(path.join(unpack, 'control.json'), unpack));
+  assert.ok(location.isInside(path.join(unpack, 'competitions', 'thunder', 'settings.json'), unpack));
+  assert.ok(!location.isInside(path.join(HOME, 'var', 'elsewhere.json'), unpack));
+});

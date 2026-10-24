@@ -54,7 +54,14 @@ const PROVIDERS = {
 };
 
 function isInside(p, dir) {
-  const real = q => { try { return fs.realpathSync(q); } catch { return path.resolve(q); } };
+  // A path not made yet resolves through its nearest folder that exists, so a symlinked
+  // parent (macOS's /var is /private/var) resolves the same for both paths.
+  const real = q => {
+    q = path.resolve(q);
+    try { return fs.realpathSync(q); } catch { /* not made yet */ }
+    const up = path.dirname(q);
+    return up === q ? q : path.join(real(up), path.basename(q));
+  };
   const rel = path.relative(real(dir), real(p));
   return rel === '' || (!!rel && !rel.startsWith('..') && !path.isAbsolute(rel));
 }
