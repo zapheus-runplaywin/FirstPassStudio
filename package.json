@@ -36,6 +36,7 @@
       "package.json",
       "server.js",
       "competitions.js",
+      "playhq.js",
       "finals.js",
       "scene.js",
       "zip.js",
