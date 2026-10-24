@@ -27,7 +27,7 @@ const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
 const outputs = require('./outputs');
-const { linkHost } = require('./linkhost');
+const { linkHost, bonjourName } = require('./linkhost');
 const access = require('./access');
 const uploads = require('./uploads');
 
@@ -48,6 +48,9 @@ const PORT = Number(process.env.PORT || MACHINE.port || 8080);
 // The start of every page link shown to people (Graphics page, control page, Mac app): the Mac's
 // Bonjour name unless config.json linkHost says otherwise. See linkhost.js.
 const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
+// The names a browser may call Studio by when changing something (access.crossSite): read when asked,
+// since the Mac's addresses come and go.
+const ownHosts = () => access.ownHosts([linkHost(MACHINE.linkHost), bonjourName()]);
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
 const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
 // The exit code when the port is already taken, so the Mac app says so instead of restarting the helper.
@@ -805,7 +808,8 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 
 
 function send(res, status, body, type, headers) {
   // No access-control-allow-origin: Studio's pages are served by Studio, so they are the same origin, and the
-  // Stream Deck plugin isn't a browser. A web page from anywhere else can't read or drive Studio from a browser.
+  // Stream Deck plugin isn't a browser. A web page from anywhere else can't read Studio's answers; access.crossSite
+  // stops it changing anything.
   res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', ...headers });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
@@ -827,10 +831,13 @@ http.createServer(async (req, res) => {
     }
   });
   try {
-    // config.json "remoteChanges": false keeps changes (anything but reading, and the Stream Deck links) to this computer.
-    const refused = access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress);
+    // A change (anything but reading, and the Stream Deck links) must come from Studio's own pages or a program, never
+    // from a web page on another site; and config.json "remoteChanges": false keeps changes, and reads of private data
+    // (access.PRIVATE: backups, the athlete register, the log, sponsor reports, the setup), to this computer.
+    const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts()))
+      || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress);
     if (refused) {
-      const from = access.strip(req.socket.remoteAddress);
+      const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
       if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
       return send(res, 403, { error: refused });
     }
@@ -958,14 +965,23 @@ http.createServer(async (req, res) => {
     // The Graphics page was the home page at /index.html: old links still find it.
     if (url.pathname === '/index.html') { res.writeHead(302, { location: '/graphics.html' + url.search }); return res.end(); }
     let file = path.normalize(path.join(PUBLIC_DIR, ALIASES[url.pathname] || decodeURIComponent(url.pathname)));
-    if (!file.startsWith(PUBLIC_DIR)) return send(res, 403, 'Forbidden', 'text/plain');
+    if (file !== PUBLIC_DIR && !file.startsWith(PUBLIC_DIR + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');
     fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file)] || 'application/octet-stream'));
   } catch (err) {
     log('error', 'http', `${req.method} ${url.pathname}${url.search} failed: ${err.message}`, err.stack ? err.stack.split('\n').slice(1, 4).join(' | ') : undefined);
     send(res, 502, { error: err.message });
   }
 }).on('upgrade', (req, socket) => {
-  // WebSockets: the scene's live updates for Studio's pages (scene.js).
+  // WebSockets: the scene's live updates for Studio's pages (scene.js). A page on another site gets
+  // no socket (it could read the scene and the board through one; there is no CORS check on sockets).
+  const url = new URL(req.url, 'http://localhost');
+  const refused = access.crossSite('WEBSOCKET', url.pathname, req.headers, PORT, ownHosts());
+  if (refused) {
+    const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
+    if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
+    socket.end(`HTTP/1.1 403 Forbidden\r\ncontent-type: text/plain\r\nconnection: close\r\n\r\n${refused}`);
+    return;
+  }
   if (!scene.upgrade(req, socket)) socket.destroy();
 }).on('error', err => {
   // Without this Node throws, the helper dies with a stack trace and the Mac app restarts it
