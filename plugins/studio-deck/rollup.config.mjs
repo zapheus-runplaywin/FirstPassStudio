@@ -1,7 +1,9 @@
 import commonjs from "@rollup/plugin-commonjs";
 import nodeResolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
-import typescript from "@rollup/plugin-typescript";
+// esbuild strips the types (TypeScript 7 has no JavaScript API for @rollup/plugin-typescript);
+// npm run typecheck checks them.
+import esbuild from "rollup-plugin-esbuild";
 import path from "node:path";
 import url from "node:url";
 
@@ -28,9 +30,7 @@ const config = {
 				this.addWatchFile(`${sdPlugin}/ui/source.html`);
 			},
 		},
-		typescript({
-			mapRoot: isWatching ? "./" : undefined,
-		}),
+		esbuild({ target: "node24" }),
 		nodeResolve({
 			browser: false,
 			exportConditions: ["node"],
