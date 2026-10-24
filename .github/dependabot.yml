@@ -1,7 +1,8 @@
 # Keeps the versions rule without anyone remembering it: a pull request for each newer dependency,
 # GitHub Action and the Stream Deck plugin's packages, once a month, grouped so one PR covers a batch.
-# Labels are set here because a "major" or "minor" label on a merged PR raises the Mac app's version
-# (mac-app.yml "Pick the version"), and Dependabot would otherwise label a major dependency bump "major".
+# Dependabot adds a "major", "minor" or "patch" label to a PR when a label of that name exists in the
+# repository, so the labels that raise the Mac app's version are named build-major and build-minor
+# (mac-app.yml "Pick the version") and a dependency's major update can't raise it by accident.
 version: 2
 updates:
   - package-ecosystem: npm
