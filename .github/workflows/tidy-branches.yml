@@ -1,0 +1,66 @@
+# Deletes branches whose pull requests are merged, from the Actions tab:
+# Actions > Tidy branches > Run workflow. Leave "Delete them" unticked to only list what it
+# would delete. A branch is deleted only when a merged pull request holds every commit on it;
+# main, branches of open pull requests, branches with no pull request and branches with commits
+# added after their last merged pull request are kept and listed in the run summary.
+# Settings > General > "Automatically delete head branches" keeps this tidy from then on.
+name: Tidy branches
+
+on:
+  workflow_dispatch:
+    inputs:
+      delete:
+        description: Delete them (unticked only lists them)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Find and delete merged branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DELETE: ${{ inputs.delete }}
+          DEFAULT: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch -q origin '+refs/pull/*/head:refs/pull/*/head'
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=all&per_page=100" \
+            --jq '.[] | select(.head.repo.full_name == env.GITHUB_REPOSITORY) | [.head.ref, .state, (.merged_at // ""), .head.sha, .number] | @tsv' > prs.tsv
+          deleted=(); kept=()
+          for b in $(git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin); do
+            [ "$b" = HEAD ] && continue
+            if [ "$b" = "$DEFAULT" ]; then kept+=("$b: default branch"); continue; fi
+            tip="$(git rev-parse "origin/$b")"
+            open="$(awk -F'\t' -v b="$b" '$1==b && $2=="open" {print "#"$5}' prs.tsv | xargs)"
+            if [ -n "$open" ]; then kept+=("$b: open pull request $open"); continue; fi
+            merged=""
+            while IFS=$'\t' read -r ref state at sha num; do
+              [ "$ref" = "$b" ] && [ -n "$at" ] || continue
+              git merge-base --is-ancestor "$tip" "$sha" 2>/dev/null && { merged="#$num"; break; }
+            done < prs.tsv
+            if [ -z "$merged" ]; then
+              if awk -F'\t' -v b="$b" '$1==b && $3!=""' prs.tsv | grep -q .; then kept+=("$b: commits added after its last merged pull request")
+              else kept+=("$b: no merged pull request"); fi
+              continue
+            fi
+            if [ "$DELETE" = true ]; then
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$b" && deleted+=("$b ($merged)") || kept+=("$b: delete failed")
+            else
+              deleted+=("$b ($merged)")
+            fi
+          done
+          {
+            if [ "$DELETE" = true ]; then echo "## Deleted ${#deleted[@]} branches"; else echo "## Would delete ${#deleted[@]} branches (run again with Delete them ticked)"; fi
+            printf -- '- %s\n' "${deleted[@]}"
+            echo; echo "## Kept ${#kept[@]} branches"
+            printf -- '- %s\n' "${kept[@]}"
+          } >> "$GITHUB_STEP_SUMMARY"
