@@ -9,6 +9,15 @@
 // "This computer" is any address the computer itself has: loopback, and every address of its
 // own network interfaces, because the Stream Deck plugin and the pages may reach Studio by the
 // .local name, which resolves to the Mac's LAN address rather than 127.0.0.1.
+//
+// Whatever that setting says, a change must come from Studio's own pages or from a program (the
+// Stream Deck plugin, a Stream Deck "Website" key, curl), never from a web page on another site.
+// Studio sends no CORS header, so another site can't read its answers, but a browser still sends
+// the request: a hidden image tag fires a /deck/ link, and a form or fetch posts to /api/... from
+// the Mac's own address, which the setting above would let through. crossSite() refuses those:
+// a request whose Origin or Sec-Fetch-Site header says it came from another site, and a request
+// whose Host header names something Studio doesn't answer to (a DNS rebinding page, which makes
+// the browser think another site's name is this Mac).
 
 'use strict';
 
@@ -43,4 +52,51 @@ function refusal(setting, method, pathname, remoteAddress, own) {
   return `Studio is set to take changes only from this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let other devices on this network change things, tick "Let other devices change things" in the menu bar icon (or set "remoteChanges": true in config.json).`;
 }
 
-module.exports = { changes, isLocal, ownAddresses, refusal, strip };
+// The host part of a Host or Origin header value, lower case, without the port or IPv6 brackets.
+function hostOf(value) {
+  const s = String(value || '').trim().toLowerCase().replace(/^https?:\/\//, '');
+  const m = s.match(/^\[([^\]]+)\](?::\d+)?$/);
+  if (m) return m[1];
+  return s.replace(/:\d+$/, '');
+}
+// The port part of a Host or Origin header value, or the default for the scheme.
+function portOf(value) {
+  const s = String(value || '').trim().toLowerCase();
+  const m = s.match(/:(\d+)$/);
+  if (m) return Number(m[1]);
+  return s.startsWith('https://') ? 443 : 80;
+}
+
+// The names Studio answers to in a browser: localhost, every address of this computer, its .local
+// name and anything config.json linkHost says, plus extra names given by the caller.
+function ownHosts(extra = [], own = ownAddresses()) {
+  const set = new Set(['localhost', ...own]);
+  for (const h of extra) if (h) set.add(hostOf(h));
+  return set;
+}
+// Whether a name is one of ours: in the set, or any .local name (Bonjour names only resolve on
+// this network, so one can't be pointed at this Mac from elsewhere).
+const isOwnHost = (host, hosts) => !!host && (hosts.has(host) || host.endsWith('.local'));
+
+// The 403 message when a changing request came from another web page, or null when it may go
+// ahead. headers are the request's; port is Studio's; hosts from ownHosts(). A request with no
+// browser headers at all (the Stream Deck plugin, a Website key, curl) always passes.
+function crossSite(method, pathname, headers, port, hosts) {
+  const h = headers || {};
+  const host = hostOf(h.host);
+  if (h.host && !isOwnHost(host, hosts)) {
+    return `Studio refused ${method} ${pathname} because it was asked for as "${hostOf(h.host)}", a name this computer doesn't answer to. Open Studio by its own link (localhost or its .local name), or add "linkHost": "${host}" to config.json if that name really is this computer.`;
+  }
+  const site = String(h['sec-fetch-site'] || '').toLowerCase();
+  if (site === 'cross-site') {
+    return `Studio refused ${method} ${pathname}: it came from a web page on another site${h.origin ? ` (${h.origin})` : ''}, not from Studio's own pages. Only Studio's pages, the Stream Deck and other programs may change things.`;
+  }
+  if (h.origin !== undefined) {
+    const origin = String(h.origin).trim().toLowerCase();
+    const ok = /^http:\/\//.test(origin) && isOwnHost(hostOf(origin), hosts) && portOf(origin) === Number(port);
+    if (!ok) return `Studio refused ${method} ${pathname}: it came from a web page on ${origin || 'an unknown site'}, not from Studio's own pages. Only Studio's pages, the Stream Deck and other programs may change things.`;
+  }
+  return null;
+}
+
+module.exports = { changes, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, crossSite };
