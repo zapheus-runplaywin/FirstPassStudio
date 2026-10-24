@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Back up settings</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { font-family: -apple-system, system-ui, sans-serif; background: #0F172A; color: #F8FAFC; font-size: 13px; }
+  main { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; height: 100%; box-sizing: border-box; }
+  h1 { font-size: 17px; margin: 0; }
+  p { color: #CBD5E1; margin: 0; line-height: 1.5; }
+  label { font-weight: 600; }
+  textarea { flex: 1; min-height: 120px; resize: none; font: inherit; color: #F8FAFC; background: #1E293B; border: 1px solid #334155; border-radius: 6px; padding: 8px 10px; }
+  textarea:focus { outline: 2px solid #F75C03; outline-offset: -1px; }
+  .check { font-weight: 400; display: flex; gap: 8px; align-items: center; }
+  .buttons { display: flex; justify-content: flex-end; gap: 8px; }
+  button { font: inherit; padding: 6px 16px; border-radius: 6px; border: 1px solid #334155; background: #1E293B; color: #F8FAFC; }
+  button.go { background: #F75C03; border-color: #F75C03; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Back up settings</h1>
+  <p>Competitions, sponsors, scenes, sequences, music and the control page's choices go in one zip, with a summary saved beside it.
+    The debug log, the scores and the clock stay out.</p>
+  <label for="notes">Notes for the summary (optional)</label>
+  <textarea id="notes" placeholder="What this backup is for, e.g. Before round 6 changes"></textarea>
+  <label class="check" id="mediaRow" hidden><input type="checkbox" id="media" checked> <span id="mediaLabel"></span></label>
+  <div class="buttons">
+    <button id="cancel">Cancel</button>
+    <button class="go" id="go">Choose where to save…</button>
+  </div>
+</main>
+<script>
+  // The Mac app (windows.js askExport) waits on window.choice: { notes, media }, or null for Cancel.
+  const $ = id => document.getElementById(id);
+  const mediaLabel = new URLSearchParams(location.search).get('media');
+  if (mediaLabel) { $('mediaLabel').textContent = mediaLabel; $('mediaRow').hidden = false; }
+  window.choice = new Promise(resolve => {
+    $('go').onclick = () => resolve({ notes: $('notes').value, media: !!mediaLabel && $('media').checked });
+    $('cancel').onclick = () => resolve(null);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') resolve(null);
+      if (e.key === 'Enter' && e.metaKey) $('go').click();
+    });
+  });
+  $('notes').focus();
+</script>
+</body>
+</html>
