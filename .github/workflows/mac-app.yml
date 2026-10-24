@@ -48,6 +48,9 @@ env:
 jobs:
   build:
     runs-on: macos-latest
+    # A build takes 5 to 10 minutes (longer only when ffmpeg is built afresh), so a stuck step
+    # stops here instead of holding the queue for hours (run 176 sat in the tests for 3 hours).
+    timeout-minutes: 60
     # Lets the run tag the commit it built (see "Tag the commit") and read the merged pull
     # requests' titles for the release notes.
     permissions:
@@ -66,6 +69,7 @@ jobs:
       - run: npm ci
       # The same tests as on pull requests (tests.yml), so a manual build of a broken commit stops here.
       - run: npm run test:ci
+        timeout-minutes: 10
         env:
           TEST_REPORT_TITLE: Studio tests
       # ffmpeg converts ProRes clips added to the Studio scene (vendor/ffmpeg/build.sh). Built from
