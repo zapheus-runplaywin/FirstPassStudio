@@ -26,6 +26,8 @@
   .swagger-ui .markdown code, .swagger-ui .renderedMarkdown code { color: var(--fp-navy); background: var(--fp-blue-soft); }
   .swagger-ui .info .title small.version-stamp { background: var(--fp-blue); }
   .swagger-ui .info .title small:not(.version-stamp) { background: var(--fp-muted); }
+  /* The guide's "Every link" heading stands in for Swagger's title block, which only repeated the guide. */
+  .swagger-ui .information-container { display: none; }
   /* The guide above the API reference. */
   .guide { max-width: 1100px; margin: 0 auto; padding: 24px 20px 0; font-family: var(--fp-font); color: var(--fp-navy); }
   .guide * { box-sizing: border-box; }
@@ -117,7 +119,7 @@
 
     <div class="ref">
       <h2>Every link (API reference)</h2>
-      <span class="note">Try it out sends a link to Studio for real.</span>
+      <span class="note">The OpenAPI reference for every link. Try it out sends a link to Studio for real, so a score or clock link there stops Follow PlayHQ just like a key.</span>
       <a href="/openapi.yaml" download>Download openapi.yaml</a>
     </div>
   </div>
