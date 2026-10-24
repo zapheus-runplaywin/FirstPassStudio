@@ -373,7 +373,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
           { role: 'zoomOut' },
           { type: 'separator' },
           { role: 'togglefullscreen' },
-          { role: 'toggleDevTools' },
+          // Developer tools only from a checkout (npm run app): the shipped app has no use for them.
+          ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' }]),
         ],
       },
       {

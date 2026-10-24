@@ -22,13 +22,14 @@ const location = require('../datalocation');
 const savefile = require('../savefile');
 const { INSTALL_TIMEOUT } = require('./updates');
 const whatsnew = require('./whatsnew');
+const { unpacked } = require('../unpacked');
 
 // server.js exits with this when its port is already taken (EXIT_PORT_IN_USE there).
 const EXIT_PORT_IN_USE = 3;
 
 const APP_DIR = path.join(__dirname, '..');
 // Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
-const STREAMDECK_PLUGIN = path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
+const STREAMDECK_PLUGIN = unpacked(path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin'));
 // Electron names this folder after productName: ~/Library/Application Support/FirstPass Studio,
 // the same folder the helper uses when run from the repository. The logs and the app's own
 // settings always stay here; the rest of the settings are here or in iCloud Drive (dataDir()).
@@ -136,8 +137,10 @@ let helper = null, wanted = false, status = 'Studio is off air', quitting = fals
 
 function startHelper() {
   status = 'Starting…'; refreshMenu();
+  // The working directory is the local data folder, not the app's: the app's code is inside its
+  // archive (app.asar), which can't be a working directory; server.js finds its own files by __dirname.
   const child = helper = utilityProcess.fork(path.join(APP_DIR, 'server.js'), [], {
-    cwd: APP_DIR,
+    cwd: LOCAL_DIR,
     serviceName: 'FirstPass Studio helper',
     stdio: 'ignore',
     env: { ...process.env, FIRSTPASS_DATA_DIR: dataDir(), FIRSTPASS_LOCAL_DIR: LOCAL_DIR, FIRSTPASS_PACKAGED: app.isPackaged ? '1' : '' },

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Hardened runtime entitlements for FirstPass Studio (package.json build.mac.entitlements), the
+     least the app needs rather than electron-builder's defaults. Chromium's JavaScript engine needs
+     the first two. The third lets the app load libraries signed by someone else: the NDI runtime
+     (Vizrt) and Blackmagic's DeckLink API; desktop/signed.js checks the NDI copies it finds. Not
+     here on purpose: allow-dyld-environment-variables (code injection by environment variable)
+     and anything else electron-builder would add. -->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+</dict>
+</plist>

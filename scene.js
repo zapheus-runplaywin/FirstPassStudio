@@ -30,6 +30,7 @@ const music = require('./music');
 const sponsors = require('./sponsors');
 const competitions = require('./competitions');
 const exposure = require('./exposure');
+const { unpacked } = require('./unpacked');
 const uploads = require('./uploads');
 
 const FILE = datadir.file('scene.json');
@@ -42,7 +43,7 @@ const AUDIO_TYPES = music.AUDIO_TYPES;
 const MEDIA_TYPES = { ...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES };
 const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024, MAX_AUDIO = 2 * 1024 * 1024 * 1024;
 // The Studio Stream Deck plugin (plugins/studio-deck), packed by the Mac app's build so it ships with the app.
-const STREAMDECK_PLUGIN = path.join(__dirname, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin');
+const STREAMDECK_PLUGIN = unpacked(path.join(__dirname, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin'));
 const kindOf = f => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPES[x] ? 'image' : VIDEO_TYPES[x] ? 'video' : AUDIO_TYPES[x] ? 'audio' : null; };
 
 // ─── Sponsor ads ─────────────────────────────────────────────────────────
@@ -595,7 +596,7 @@ let ffmpegSetting = '';
 
 // ffmpeg from config.json's ffmpegPath, else the one the Mac app bundles (vendor/ffmpeg,
 // built by vendor/ffmpeg/build.sh), else Homebrew's, else the PATH.
-const BUNDLED_FFMPEG = path.join(__dirname, 'vendor', 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
+const BUNDLED_FFMPEG = unpacked(path.join(__dirname, 'vendor', 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'));
 function ffmpegPath() {
   const candidates = [ffmpegSetting, BUNDLED_FFMPEG, '/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg',
     ...String(process.env.PATH || '').split(path.delimiter).map(d => path.join(d, 'ffmpeg'))];

@@ -266,6 +266,12 @@ One-time setup:
    - `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
    - `RELEASES_TOKEN`: the token from step 4
 
+The app is built hardened: its code is one signed archive (`asar`, checked against the signature at every start) with
+Electron's fuses set so the app can't be run as a plain Node or handed code by an environment variable, and with only the
+three entitlements it needs (`build/entitlements.mac.plist`). ffmpeg, the native modules and the Stream Deck plugin are
+unpacked beside the archive (`asarUnpack`) and the code reaches them through `unpacked.js`. A new file the app runs,
+loads as a native module or hands to another program goes in `asarUnpack` too (`test/app-hardening.test.js` checks).
+
 To build on your own Mac instead: `npm install`, then `npm run dist` (signs with the Developer ID certificate in your
 keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to notarise). The app is in `dist/`.
 `npm run app` runs it from the repository without building (needs Node.js, the LTS version, from https://nodejs.org).
