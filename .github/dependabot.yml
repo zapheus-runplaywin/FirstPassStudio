@@ -1,19 +1,24 @@
 # Keeps the versions rule without anyone remembering it: a pull request for each newer dependency,
 # GitHub Action and the Stream Deck plugin's packages, once a month, grouped so one PR covers a batch.
+# Labels are set here because a "major" or "minor" label on a merged PR raises the Mac app's version
+# (mac-app.yml "Pick the version"), and Dependabot would otherwise label a major dependency bump "major".
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: monthly }
+    labels: [dependencies]
     groups:
       studio: { patterns: ["*"] }
     versioning-strategy: increase
   - package-ecosystem: npm
     directory: /plugins/studio-deck
     schedule: { interval: monthly }
+    labels: [dependencies]
     groups:
       stream-deck-plugin: { patterns: ["*"] }
     versioning-strategy: increase
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    labels: [dependencies]
