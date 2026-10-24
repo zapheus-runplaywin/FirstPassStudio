@@ -1,4 +1,4 @@
-// PlayHQ Graphics - example graphics.
+// FirstPass Studio - example graphics.
 //
 // Takes a 1920x1080 picture of every overlay page with the data PlayHQ has right
 // now, and saves them in Examples/<date and time>/ with an index.html to look

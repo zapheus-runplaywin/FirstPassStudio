@@ -1,6 +1,6 @@
 # Plugins
 
-Add-ons for other apps that work alongside PlayHQ Graphics. Each plugin lives in its own folder with its own
+Add-ons for other apps that work alongside FirstPass Studio. Each plugin lives in its own folder with its own
 README, `package.json` and build. They're separate from the helper (`server.js`), which doesn't need any of them
 to run.
 

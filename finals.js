@@ -1,4 +1,4 @@
-// PlayHQ Graphics - finals formats.
+// FirstPass Studio - finals formats.
 //
 // Each competition setup picks a finals format, and each division can have its own
 // (setup page, Game rules). A format says which ladder places make the finals, what

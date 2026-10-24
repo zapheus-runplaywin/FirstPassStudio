@@ -3181,6 +3181,6 @@ http.createServer(async (req, res) => {
   log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${ORG_ID || '(not set)'} on ${TENANT}`);
   console.log(`Debug log: ${LOG_FILE}`);
   setTimeout(() => warmTeamLists('start up'), 2000);
-  console.log(`PlayHQ Graphics is running. Open ${LINK_BASE}/ for the Output page.`);
+  console.log(`FirstPass Studio is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });
