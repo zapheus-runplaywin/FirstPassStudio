@@ -6,6 +6,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
+<style>
+  /* This page's own layout. What it shares with other graphics is in graphics.css. */
+  /* Top shooters */
+  .shooters { --card-width: 1400px; text-align: center; }
+  .shooters__table { width: calc(100% - 64px); margin: 14px 32px 20px; border-collapse: separate; border-spacing: 0 4px; font-size: 26px; font-weight: 700; }
+  .shooters__table th { font-size: 18px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; padding: 0 12px 4px; }
+  .shooters__table td { padding: 4px 12px; background: var(--purple-deep-alt); }
+  .shooters__table td:first-child { border-radius: 8px 0 0 8px; }
+  .shooters__table td:last-child { border-radius: 0 8px 8px 0; }
+  .shooters__table .left { text-align: left; }
+  .shooters__rank { color: var(--yellow); font-weight: 800; width: 50px; }
+  .shooters__logo { width: 44px; height: 44px; object-fit: contain; display: block; }
+  .shooters__logo.logo-fallback { font-size: 16px; box-sizing: border-box; border-width: 3px; }
+  .shooters__name { text-transform: uppercase; line-height: 1.15; }
+  .shooters__team { font-size: 16px; line-height: 1.15; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .shooters__points { color: var(--yellow); font-weight: 800; }
+</style>
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 <script src="fit.js"></script>

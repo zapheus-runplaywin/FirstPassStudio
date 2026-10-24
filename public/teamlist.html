@@ -6,6 +6,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
+<style>
+  /* This page's own layout. What it shares with other graphics is in graphics.css. */
+  /* Team list */
+  .teamlist { display: grid; grid-template-columns: 460px 1fr; }
+  .teamlist .card__footer { grid-column: 1 / -1; }
+  .teamlist__logo-wrap {
+    background: radial-gradient(circle at 50% 45%, var(--purple) 0%, var(--purple-dark) 75%);
+    display: flex; align-items: center; justify-content: center; padding: 32px;
+  }
+  .teamlist__logo { width: 400px; height: 400px; object-fit: contain; filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); }
+  .teamlist__logo.logo-fallback { font-size: 110px; }
+  .teamlist__body { padding: 36px 44px 32px; }
+  .teamlist__name { margin: 14px 0 18px; font-size: 54px; font-weight: 800; text-transform: uppercase; color: var(--yellow); line-height: 1.05; }
+  .teamlist__players { list-style: none; margin: 0; padding: 0; }
+  .teamlist__player {
+    display: grid; grid-template-columns: 76px 64px 1fr; align-items: center; gap: 14px;
+    padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 28px;
+    animation: slide 0.4s ease-out both;
+  }
+  .teamlist__player .pos {
+    background: var(--yellow); color: var(--text-on-yellow); border-radius: 6px; text-align: center; font-weight: 800; padding: 4px 0;
+  }
+  .teamlist__player .pos:empty { background: transparent; }
+  .teamlist__player .num { color: var(--muted); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .teamlist__player .pname { font-weight: 700; text-transform: uppercase; }
+  .badge {
+    margin-left: 12px; background: var(--pink); color: var(--text); font-size: 14px; padding: 3px 8px; border-radius: 4px;
+    vertical-align: middle; letter-spacing: 0.08em;
+  }
+  .teamlist__bench { margin-top: 12px; color: var(--pink); font-size: 18px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+</style>
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 <script src="fit.js"></script>

@@ -91,14 +91,11 @@
     $('bug').hidden = false;
   }
 
-  async function load() {
-    try {
-      const res = await fetch('/api/scoreboard', { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      state = await res.json();
-      clockOffset = state.serverNow - Date.now();
-      render();
-    } catch (err) { console.warn('Scoreboard unavailable:', err.message); }
+  // The board arrives over Studio's scene socket (sceneevents.js) as it changes, rather than by asking every second.
+  function take(s) {
+    state = s;
+    clockOffset = state.serverNow - Date.now();
+    render();
   }
 
   // The naming rights sponsor in a tab above the court, checked again every few minutes (Studio only, not PlayHQ).
@@ -116,7 +113,6 @@
   setInterval(sponsor, 5 * 60 * 1000);
 
   if (document.fonts) document.fonts.ready.then(() => { fitName('homeName'); fitName('awayName'); fitName('court'); });
-  load();
-  setInterval(load, 1000);
+  sceneEvents(null, { board: take });
   setInterval(render, 250);
 })();

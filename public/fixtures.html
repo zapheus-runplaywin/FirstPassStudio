@@ -6,6 +6,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
+<style>
+  /* This page's own layout. What it shares with other graphics is in graphics.css. */
+  /* Round fixture */
+  .fixtures { width: 1500px; }
+  .fixtures__header { text-align: center; padding: 28px 40px 18px; }
+  .fixtures__round { margin: 14px 0 4px; font-size: 52px; font-weight: 800; text-transform: uppercase; color: var(--yellow); letter-spacing: 0.03em; }
+  .fixtures__venue { font-size: 22px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .fixtures__list { padding: 0 32px 28px; }
+  .fixture {
+    display: grid; grid-template-columns: 150px 170px minmax(0, 1fr) 130px minmax(0, 1fr); align-items: center;
+    gap: 16px; padding: 10px 18px; border-radius: 8px; font-size: 26px; font-weight: 700;
+  }
+  .fixture:nth-child(odd) { background: var(--purple-deep-alt); }
+  .fixture--empty { display: block; text-align: center; color: var(--muted); }
+  .fixture__time { color: var(--yellow); font-weight: 800; white-space: nowrap; }
+  .fixture__time--same { visibility: hidden; }
+  .fixture__where { display: flex; flex-direction: column; line-height: 1.15; }
+  .fixture__court { font-size: 22px; text-transform: uppercase; white-space: nowrap; }
+  .fixture__division { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+  .fixture__team { display: flex; align-items: center; gap: 14px; min-width: 0; text-transform: uppercase; }
+  .fixture__team--home { flex-direction: row-reverse; text-align: right; }
+  .fixture__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fixture__logo { width: 58px; height: 58px; object-fit: contain; flex: none; }
+  .fixture__logo.logo-fallback { font-size: 18px; border-width: 3px; box-sizing: border-box; }
+  .fixture__vs {
+    justify-self: center; background: var(--pink); color: var(--text); border-radius: 999px; padding: 4px 16px;
+    font-size: 22px; font-weight: 800; white-space: nowrap;
+  }
+  .fixture__vs--score { background: var(--yellow); color: var(--text-on-yellow); font-size: 24px; }
+  .message { color: var(--text); background: var(--purple-deep); padding: 16px 24px; border-radius: 8px; font-size: 22px; }
+</style>
 <script src="log.js"></script>
 <script src="chroma.js"></script>
 <script src="fit.js"></script>
