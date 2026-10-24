@@ -19,6 +19,23 @@ test('changes: anything but GET and HEAD, and the Stream Deck links', () => {
   assert.equal(access.changes('GET', '/deckchair.html'), false);
 });
 
+test('privateRead: backups, the athlete register, the log, sponsor reports and the setup, on GET only', () => {
+  assert.equal(access.privateRead('GET', '/api/settings/export'), true);
+  assert.equal(access.privateRead('GET', '/api/scene/export'), true);
+  assert.equal(access.privateRead('GET', '/api/athletes'), true);
+  assert.equal(access.privateRead('GET', '/api/athletes/games'), false, 'the positions graphic');
+  assert.equal(access.privateRead('GET', '/api/log'), true);
+  assert.equal(access.privateRead('GET', '/api/sponsors/report'), true);
+  assert.equal(access.privateRead('GET', '/api/setup'), true);
+  assert.equal(access.privateRead('GET', '/api/setup/thunder-league/template'), true);
+  assert.equal(access.privateRead('GET', '/api/setup-teams'), true);
+  assert.equal(access.privateRead('GET', '/api/scoreboard'), false);
+  assert.equal(access.privateRead('GET', '/api/viewers'), false, 'the live viewers graphic');
+  assert.equal(access.privateRead('GET', '/api/teams'), false, 'the team list graphic');
+  assert.equal(access.privateRead('GET', '/media/song.mp3'), false);
+  assert.equal(access.privateRead('POST', '/api/log'), false, 'a change, covered by changes()');
+});
+
 test('isLocal: loopback (IPv4, IPv6 and mapped) and every address of this computer', () => {
   const own = new Set(['127.0.0.1', '::1', '192.168.1.20']);
   assert.equal(access.isLocal('127.0.0.1', own), true);
@@ -42,6 +59,12 @@ test('refusal: only when the setting is off, the request changes something, and 
   assert.match(why, /POST \/api\/scoreboard from 10\.0\.0\.5/);
   assert.match(why, /Let other devices change things/);
   assert.match(access.refusal(false, 'GET', '/deck/home/add1', '10.0.0.5', own), /GET \/deck\/home\/add1/);
+  const priv = access.refusal(false, 'GET', '/api/settings/export', '10.0.0.5', own);
+  assert.match(priv, /private data/);
+  assert.match(priv, /GET \/api\/settings\/export from 10\.0\.0\.5/);
+  assert.equal(access.refusal(false, 'GET', '/api/settings/export', '127.0.0.1', own), null, 'this computer reads everything');
+  assert.equal(access.refusal(true, 'GET', '/api/settings/export', '10.0.0.5', own), null, 'open when the switch is on');
+  assert.equal(access.refusal(false, 'GET', '/api/athletes/games', '10.0.0.5', own), null, 'graphics stay open');
 });
 
 test('Studio sends no CORS header, and with remoteChanges off still takes changes from this computer', async () => {
@@ -54,6 +77,8 @@ test('Studio sends no CORS header, and with remoteChanges off still takes change
     const r = await studio.post('/api/scoreboard', { type: 'score', side: 'home', delta: 1 });
     assert.equal(r.home.score, 1, 'a change from this computer goes through');
     assert.equal((await fetch(`${studio.base}/deck/home/add1`)).status, 200);
+    assert.equal((await fetch(`${studio.base}/api/log`)).status, 200, 'private reads from this computer go through');
+    assert.equal((await fetch(`${studio.base}/api/athletes`)).status, 200);
   } finally { await studio.stop(); fs.rmSync(dataDir, { recursive: true, force: true }); }
 });
 

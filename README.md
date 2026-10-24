@@ -173,7 +173,9 @@ and, unless you say otherwise, change things: press the Stream Deck links (score
 sequences and save settings. **Let other devices change things** in the menu bar icon (ticked by default; `"remoteChanges"`
 in `config.json`) is the switch: unticked, Studio takes changes only from this Mac (by any of its own addresses, so the
 Stream Deck plugin on it and links by its `.local` name still work) and answers other devices' changes with a 403 that
-says so, while they can still open every page. Untick it on open venue Wi-Fi. Whatever the switch says, a change must
+says so, while they can still open every graphic, the scoreboard and the scene. Private data follows the same switch:
+the settings and scene backups, the athlete register, the debug log, the sponsor reports and the competition setup
+answer only this Mac while it is unticked. Untick it on open venue Wi-Fi. Whatever the switch says, a change must
 come from Studio's own pages or from a program (the Stream Deck plugin, a Website key, `curl`): a request that a
 browser marks as coming from a web page on another site (its `Origin` or `Sec-Fetch-Site` header), or that asks for
 Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the Mac's addresses, its `.local` name and
