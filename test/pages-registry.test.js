@@ -51,7 +51,10 @@ test('the Docs page describes every page in the list, in the section the list na
 test('the Output page and examples.js read the list instead of keeping their own', () => {
   const output = read('output.html');
   assert.match(output, /<script src="pages\.js"><\/script>/);
-  assert.match(output, /const PAGES = STUDIO_GRAPHICS\.map/);
+  // The Output page's script lives in public/output/ (one file per section); the list is read in common.js.
+  const common = read('output/common.js');
+  assert.match(common, /const PAGES = STUDIO_GRAPHICS\.map/);
+  assert.doesNotMatch(common, /\['Scoreboard', 'scoreboard\.html'\]/);
   assert.doesNotMatch(output, /\['Scoreboard', 'scoreboard\.html'\]/);
   const examples = fs.readFileSync(path.join(ROOT, 'examples.js'), 'utf8');
   assert.match(examples, /require\('\.\/public\/pages\.js'\)/);
