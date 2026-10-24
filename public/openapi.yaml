@@ -1,14 +1,11 @@
 openapi: 3.0.3
 info:
-  title: Scoreboard control
+  title: FirstPass Studio links
   version: "1.0"
   description: |
-    Control links for the live scoreboard, made for Stream Deck "Website" buttons
-    (tick "GET request in background"). Every control is a plain GET request.
-
-    Studio must be on air: open the FirstPass Studio app and keep a Studio window open (closing the last one takes
-    Studio off air, and these links get no answer). If the Stream Deck is on a different computer, use the Studio
-    Mac's .local name (shown on the Docs page) or IP address instead of localhost.
+    Every Stream Deck link Studio answers, plus the status reads behind them. Each control is a plain GET request,
+    made for a Stream Deck "Website" action with "GET request in background" ticked. Studio must be on air.
+    Score links switch the scoreboard to Manual; clock links stop the clock following the PlayHQ scorer.
 servers:
   - url: /
     description: The Studio this page was opened from
@@ -18,8 +15,10 @@ servers:
 tags:
   - name: Game
   - name: Scores
+    description: Any score change (and resetting the scores) switches the scoreboard to Manual, so it stops taking the score and the clock from PlayHQ. The super shot and streak animations leave the score alone.
   - name: Scoring mode
   - name: Clock
+    description: Start, stop, toggle, reset, set and adjust stop the clock following the PlayHQ scorer's clock. The score keeps following PlayHQ.
   - name: Quarter
   - name: Ticker
   - name: Status
