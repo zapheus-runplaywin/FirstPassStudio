@@ -29,6 +29,7 @@ const viewers = require('./viewers');
 const outputs = require('./outputs');
 const { linkHost } = require('./linkhost');
 const access = require('./access');
+const uploads = require('./uploads');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -799,10 +800,10 @@ applyCompetition('Using competition');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.ico': 'image/x-icon' };
 
-function send(res, status, body, type) {
+function send(res, status, body, type, headers) {
   // No access-control-allow-origin: Studio's pages are served by Studio, so they are the same origin, and the
   // Stream Deck plugin isn't a browser. A web page from anywhere else can't read or drive Studio from a browser.
-  res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store' });
+  res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', ...headers });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 
@@ -845,7 +846,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG, fontPaths(competitions.activeId()), await fonts.macFaces(CONFIG.font)), 'text/css; charset=utf-8');
     if (/^\/(logos|brand|photos|fonts)\//.test(url.pathname)) {
       const file = competitions.imageFile(competitions.activeId(), url.pathname.split('/')[1], url.pathname.split('/')[2] || '');
-      return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
+      // Added files are served as plain files, never as pages of Studio's (uploads.js).
+      return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
     }
     if (url.pathname === '/api/ladder') {
       const st = await getStructure();

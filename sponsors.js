@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
 const savefile = require('./savefile');
+const uploads = require('./uploads');
 const competitions = require('./competitions');
 
 const DIR = datadir.file('sponsors');
@@ -142,6 +143,7 @@ function saveLogo(id, which, fileName, buf) {
   const name = path.basename(String(fileName || '')).replace(/[^\w .'()&+-]/g, '').trim();
   if (!IMAGE.test(name)) throw new Error('Logos must be PNG, JPG, WebP, SVG or GIF files.');
   if (!buf.length) throw new Error('That file is empty.');
+  uploads.checkImage(name, buf);
   const dir = path.join(DIR, id);
   fs.mkdirSync(dir, { recursive: true });
   // The logo it replaces goes, unless the other logo uses the same file.
@@ -443,7 +445,7 @@ async function route(req, res, url, ctx) {
   if (p.startsWith('/sponsors/')) {
     const [, , id, file] = p.split('/');
     const f = logoFile(id, file);
-    fs.readFile(f || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(f).toLowerCase()]));
+    fs.readFile(f || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(f).toLowerCase()], uploads.SERVE_HEADERS));
     return true;
   }
   if (p === '/api/sponsors') {
@@ -471,7 +473,10 @@ async function route(req, res, url, ctx) {
   }
   if (p === '/api/sponsors/logo') {
     if (req.method === 'POST') {
-      const s = saveLogo(q.id, q.which, q.name, await readRaw(req, 15 * 1024 * 1024));
+      let s;
+      // A file that isn't a logo (wrong extension, or not the image its name says) is the person's to fix: 400, not 502.
+      try { s = saveLogo(q.id, q.which, q.name, await readRaw(req, 15 * 1024 * 1024)); }
+      catch (err) { send(res, 400, { error: err.message }); return true; }
       log('info', 'sponsors', `"${s.name}": added ${q.which === 'logoWhite' ? 'white' : 'colour'} logo ${s[q.which]}`);
     } else if (req.method === 'DELETE') {
       const s = removeLogo(q.id, q.which);

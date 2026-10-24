@@ -19,6 +19,7 @@ const finals = require('./finals');
 const fonts = require('./fonts');
 const datadir = require('./datadir');
 const savefile = require('./savefile');
+const uploads = require('./uploads');
 
 const DIR = datadir.file('competitions');
 const ACTIVE_FILE = path.join(DIR, 'active.json');
@@ -401,6 +402,7 @@ function saveImage(id, kind, fileName, buf) {
   if (!typeOf(kind).test(name)) throw new Error(kind === 'fonts' ? 'Fonts must be TTF, OTF, WOFF or WOFF2 files.'
     : `${kind === 'photos' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
   if (!buf.length) throw new Error('That file is empty.');
+  if (kind !== 'fonts') uploads.checkImage(name, buf);
   fs.mkdirSync(imageDir(id, kind), { recursive: true });
   savefile.writeFileSync(path.join(imageDir(id, kind), name), buf);
   return name;
