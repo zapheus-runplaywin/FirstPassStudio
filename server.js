@@ -27,6 +27,7 @@ const exposure = require('./exposure');
 const viewers = require('./viewers');
 const outputs = require('./outputs');
 const { linkHost } = require('./linkhost');
+const access = require('./access');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -1838,7 +1839,7 @@ function pageVersion() {
 // Puts the competition picked on the setup page to use. A different competition (or a
 // different PlayHQ link) clears everything cached from PlayHQ; switching competition also
 // sets the round back to automatic and puts that competition's first game on every board.
-const MACHINE_KEYS = ['port', 'cacheSeconds', 'playhqRefreshSeconds', 'logMaxMB', 'apiBaseUrl', 'gameSummaryPath'];
+const MACHINE_KEYS = ['port', 'cacheSeconds', 'playhqRefreshSeconds', 'logMaxMB', 'apiBaseUrl', 'gameSummaryPath', 'remoteChanges'];
 function applyCompetition(why) {
   const id = competitions.activeId();
   const prev = CONFIG;
@@ -2940,10 +2941,14 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.ico': 'image/x-icon' };
 
 function send(res, status, body, type) {
-  res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
+  // No access-control-allow-origin: Studio's pages are served by Studio, so they are the same origin, and the
+  // Stream Deck plugin isn't a browser. A web page from anywhere else can't read or drive Studio from a browser.
+  res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store' });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 
+// Addresses already logged as refused a change (one line each, not one per press).
+const refusedFrom = new Set();
 // Requests that pages repeat every second or two are only logged when they fail.
 const QUIET = new Set(['/api/version', '/api/log', '/api/scene/events']);
 http.createServer(async (req, res) => {
@@ -2959,6 +2964,13 @@ http.createServer(async (req, res) => {
     }
   });
   try {
+    // config.json "remoteChanges": false keeps changes (anything but reading, and the Stream Deck links) to this computer.
+    const refused = access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress);
+    if (refused) {
+      const from = access.strip(req.socket.remoteAddress);
+      if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
+      return send(res, 403, { error: refused });
+    }
     if (url.pathname === '/api/log') {
       if (req.method === 'POST') {
         const e = await readBody(req);

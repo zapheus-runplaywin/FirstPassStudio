@@ -386,7 +386,9 @@
       <li><b>control.json</b>: the control page's choices (the round picked by hand, automatic game selection and its court, following the
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
-      <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ) from the app's defaults.</li>
+      <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ, <code style="display:inline">remoteChanges</code>) from the app's defaults.
+        <b>Let other devices change things</b> in the menu bar icon sets <code style="display:inline">remoteChanges</code>: unticked, phones, other computers and Stream Decks on the network can
+        still open every page but can't change scores, the scene, sequences, settings or media; Studio answers those with a 403 that says so.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
