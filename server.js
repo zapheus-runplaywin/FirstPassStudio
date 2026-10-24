@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 const datalocation = require('./datalocation');
 const migrations = require('./migrations');
 const competitions = require('./competitions');
@@ -476,7 +477,7 @@ function saveGameCache() {
   gameCacheTimer = setTimeout(() => {
     gameCacheTimer = null;
     const games = Object.fromEntries([...finishedSummaries].map(([id, game]) => [id, { at: finishedAt.get(id) || Date.now(), game }]));
-    fs.writeFile(GAME_CACHE_FILE, JSON.stringify({ genderField: GENDER_FIELDS[genderField], games }), err => {
+    savefile.writeFile(GAME_CACHE_FILE, JSON.stringify({ genderField: GENDER_FIELDS[genderField], games }), err => {
       if (err) log('warn', 'playhq', `game-cache.json not saved: ${err.message}`);
     });
   }, 2000);
@@ -673,8 +674,7 @@ async function getRounds(gradeId) {
 // in scoreboard-state.json.
 const CONTROL_FILE = DATA('control.json');
 const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock', 'tickerSpeed'];
-let control = {};
-try { control = JSON.parse(fs.readFileSync(CONTROL_FILE, 'utf8')); } catch { /* none saved yet */ }
+let control = savefile.readJson(CONTROL_FILE, {}, (err, movedTo) => log('warn', 'helper', `Could not read control.json, starting from the defaults: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
 if (control.round === undefined) { // the round used to be kept in round-choice.json
   try { control.round = String(JSON.parse(fs.readFileSync(DATA('round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }
 }
@@ -685,7 +685,7 @@ function saveControl() {
   const next = JSON.stringify(control);
   if (next === controlSaved) return;
   controlSaved = next;
-  fs.writeFileSync(CONTROL_FILE, JSON.stringify(control, null, 2) + '\n');
+  savefile.writeJsonSync(CONTROL_FILE, control);
 }
 let roundChoice = String(control.round || '');
 function setRoundChoice(value) {
@@ -935,11 +935,10 @@ function getCountdown() {
 // settings (LASTING) also go to control.json, which wins when both have them. Studio runs one
 // scoreboard (one Studio per court); both files keep it under "1", as when there could be more.
 const STATE_FILE = datadir.local('scoreboard-state.json');
-let boards = {};
-try { boards = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { boards = {}; }
+let boards = savefile.readJson(STATE_FILE, {}, (err, movedTo) => log('warn', 'scoreboard', `Could not read scoreboard-state.json, starting fresh: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
 boards = boards['1'] ? { 1: boards['1'] } : {}; // one scoreboard: drop any old second board
 function saveBoards() {
-  fs.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), () => {});
+  savefile.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), err => { if (err) log('warn', 'scoreboard', `scoreboard-state.json not saved: ${err.message}`); });
   if (boards['1']) control.boards['1'] = Object.fromEntries(LASTING.map(k => [k, boards['1'][k]]));
   saveControl();
 }
@@ -2199,7 +2198,7 @@ function saveRegister() {
   if (!register.dirty || !register.id) return;
   const sorted = Object.fromEntries(Object.keys(register.data).sort().map(k => [k, register.data[k]]));
   try {
-    fs.writeFileSync(registerFile(register.id), JSON.stringify({ athletes: sorted }, null, 2) + '\n');
+    savefile.writeJsonSync(registerFile(register.id), { athletes: sorted });
     register.dirty = false;
   } catch (err) { log('warn', 'athletes', `Could not save athletes.json: ${err.message}`); }
 }

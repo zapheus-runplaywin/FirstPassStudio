@@ -28,6 +28,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { execFile, execFileSync } = require('child_process');
+const savefile = require('./savefile');
 
 const LOCATION_FILE = 'data-location.json';
 const COMPUTER_FILE = 'studio-computer.json';
@@ -78,7 +79,7 @@ function computerName() {
 }
 
 function readJson(file) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } }
-function writeJson(file, value) { fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n'); }
+function writeJson(file, value) { savefile.writeJsonSync(file, value); }
 
 // Where the settings are: { local: true, dataDir } or { provider, name, folder, dataDir, computer, computerId }.
 function current(localDir) {

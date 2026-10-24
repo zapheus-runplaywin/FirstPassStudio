@@ -28,6 +28,7 @@
 
 const fs = require('fs');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 
 const FILE = datadir.file('music.json');
 const AUDIO_TYPES = { '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.wav': 'audio/wav', '.aif': 'audio/aiff', '.aiff': 'audio/aiff' };
@@ -107,7 +108,7 @@ function load() {
   }
 }
 function save() {
-  try { fs.writeFileSync(FILE, JSON.stringify({ settings, playlists }, null, 2) + '\n'); }
+  try { savefile.writeJsonSync(FILE, { settings, playlists }); }
   catch (err) { log('error', 'music', `Could not save music.json: ${err.message}`); }
 }
 

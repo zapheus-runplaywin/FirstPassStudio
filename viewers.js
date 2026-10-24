@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 const competitions = require('./competitions');
 
 const KEYS_FILE = datadir.local('stream-keys.json');
@@ -48,7 +49,7 @@ function saveKeys(compId, keys) {
   }
   for (const id of Object.keys(mine)) if (!streams.has(id)) delete mine[id];
   all[compId] = mine;
-  fs.writeFileSync(KEYS_FILE, JSON.stringify(all, null, 2) + '\n', { mode: 0o600 });
+  savefile.writeJsonSync(KEYS_FILE, all, { mode: 0o600 });
 }
 
 function streamsOf(compId) {

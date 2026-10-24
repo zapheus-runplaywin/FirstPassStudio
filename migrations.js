@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const savefile = require('./savefile');
 const { APP_DIR, DATA_DIR, IMPORTS_DIR } = require('./datadir');
 
 const VERSION_FILE = path.join(DATA_DIR, 'data-version.json');
@@ -66,7 +67,7 @@ const STEPS = [
         try { active = active || JSON.parse(fs.readFileSync(activeFile, 'utf8')).active; } catch { /* none */ }
       }
       if (active && exists(path.join(dest, active, 'settings.json')) && !exists(path.join(dest, 'active.json'))) {
-        fs.writeFileSync(path.join(dest, 'active.json'), JSON.stringify({ active }, null, 2) + '\n');
+        savefile.writeJsonSync(path.join(dest, 'active.json'), { active });
       }
       for (const [from, to] of [
         [path.join(APP_DIR, 'settings', 'control.json'), 'control.json'],
@@ -113,7 +114,7 @@ const STEPS = [
         if (url !== src.url) { src.url = url; changed++; }
       }
       if (changed) {
-        fs.writeFileSync(file, JSON.stringify(scene, null, 2) + '\n');
+        savefile.writeJsonSync(file, scene);
         log('info', 'migrate', `Set the title emoji and The Clash word on ${changed} scene source(s)`);
       }
     },
@@ -132,7 +133,7 @@ const STEPS = [
         if (src && Number(src.fadeMs) === 300) { src.fadeMs = 500; changed++; }
       }
       if (changed) {
-        fs.writeFileSync(file, JSON.stringify(scene, null, 2) + '\n');
+        savefile.writeJsonSync(file, scene);
         log('info', 'migrate', `Raised the fade on ${changed} scene source(s) from 300 to 500 ms`);
       }
     },
@@ -143,7 +144,7 @@ const VERSION = STEPS.length ? STEPS[STEPS.length - 1].to : 0;
 function readVersion() {
   try { return Number(JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8')).version) || 0; } catch { return 0; }
 }
-function writeVersion(v) { fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: v }, null, 2) + '\n'); }
+function writeVersion(v) { savefile.writeJsonSync(VERSION_FILE, { version: v }); }
 
 // What Studio saves in the data folder (the desktop app keeps its own files there too).
 const SAVED = ['competitions', 'config.json', 'control.json', 'round-choice.json', 'scoreboard-state.json', 'last-game-summary.json', 'scene.json', 'outputs.json', 'sponsors'];

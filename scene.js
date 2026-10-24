@@ -24,6 +24,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 const sequences = require('./sequences');
 const music = require('./music');
 const sponsors = require('./sponsors');
@@ -240,7 +241,7 @@ function load() {
 }
 
 function save() {
-  try { fs.writeFileSync(FILE, JSON.stringify({ sources: scene.sources.map(({ loadSeq, showSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }, null, 2) + '\n'); }
+  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }

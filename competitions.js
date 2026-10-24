@@ -18,6 +18,7 @@ const path = require('path');
 const finals = require('./finals');
 const fonts = require('./fonts');
 const datadir = require('./datadir');
+const savefile = require('./savefile');
 
 const DIR = datadir.file('competitions');
 const ACTIVE_FILE = path.join(DIR, 'active.json');
@@ -101,8 +102,8 @@ const SPONSOR_MOMENTS = { superShot: 'Super shot', heating: 'Heating up', fire: 
 const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'competition';
 const validId = id => /^[a-z0-9-]{1,40}$/.test(String(id || ''));
 const dirOf = id => { if (!validId(id)) throw new Error(`No competition "${id}"`); return path.join(DIR, id); };
-const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } };
-const writeJson = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+const readJson = (file, fallback) => savefile.readJson(file, fallback, (err, movedTo) => console.warn(`Could not read ${file}: ${err.message}${movedTo ? `; moved it to ${path.basename(movedTo)}` : ''}`));
+const writeJson = (file, data) => savefile.writeJsonSync(file, data);
 
 // Setups saved before finals formats had only a number of finals places for the ladder marker.
 function fromPlaces(s) {
@@ -401,7 +402,7 @@ function saveImage(id, kind, fileName, buf) {
     : `${kind === 'photos' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
   if (!buf.length) throw new Error('That file is empty.');
   fs.mkdirSync(imageDir(id, kind), { recursive: true });
-  fs.writeFileSync(path.join(imageDir(id, kind), name), buf);
+  savefile.writeFileSync(path.join(imageDir(id, kind), name), buf);
   return name;
 }
 function deleteImage(id, kind, fileName) {

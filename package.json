@@ -41,6 +41,7 @@
       "zip.js",
       "outputs.js",
       "datadir.js",
+      "savefile.js",
       "datalocation.js",
       "migrations.js",
       "linkhost.js",
