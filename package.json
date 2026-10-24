@@ -42,6 +42,7 @@
       "playhq.js",
       "athletes.js",
       "board.js",
+      "games.js",
       "finals.js",
       "scene.js",
       "zip.js",
