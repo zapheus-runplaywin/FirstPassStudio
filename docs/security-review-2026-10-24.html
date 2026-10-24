@@ -1,0 +1,270 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studio Security Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Application security review of FirstPass Studio, 24 October 2026, also published at https://claude.ai/artifact/HgVV2otcziiYah2vG77F9C. Companion to architecture-review-2026-10-24.html. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column, same shape as the architecture review. A two-rating decision list (today / later) up top, then the findings as cards with a priority stripe for today's risk, then what changes if Studio becomes a product. */
+:root {
+  --bg: #F8FAFC; --fg: #0F172A; --muted: #475569; --line: #E2E8F0; --panel: #FFFFFF; --soft: #E8F1F7;
+  --accent: #F75C03; --blue: #2274A5; --gold: #B7900A;
+  --high: #B42318; --high-bg: #FEF3F2; --med: #B54708; --med-bg: #FFFAEB; --low: #0E7A4E; --low-bg: #ECFDF3; --keep: #2274A5; --keep-bg: #E8F1F7; --later: #5B5BD6; --later-bg: #EEEEFC;
+  --body: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; --later: #B4B4FF; --later-bg: #1E1E3F; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; --later: #B4B4FF; --later-bg: #1E1E3F; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.55; font-size: 15px; margin: 0;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+main { max-width: 940px; margin: 0 auto; display: grid; gap: 44px; }
+header.top { display: grid; gap: 10px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font-weight: 900; font-style: italic; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 em { color: var(--accent); font-style: inherit; }
+h2 { font-weight: 800; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-weight: 800; font-size: 1.02rem; margin: 0; }
+p, li { max-width: 70ch; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+section { display: grid; gap: 14px; }
+.lede { font-size: 1.08rem; }
+.muted { color: var(--muted); }
+code { font-family: var(--mono); font-size: .88em; background: var(--soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { font-family: var(--mono); font-size: 12.5px; background: var(--soft); padding: 10px 12px; border-radius: 8px; overflow-x: auto; margin: 0; max-width: 100%; }
+a { color: var(--blue); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+td.n { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+td a { color: inherit; text-decoration: none; font-weight: 600; }
+td a:hover { color: var(--blue); }
+.pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.high { color: var(--high); background: var(--high-bg); }
+.pill.med { color: var(--med); background: var(--med-bg); }
+.pill.low { color: var(--low); background: var(--low-bg); }
+.pill.keep { color: var(--keep); background: var(--keep-bg); }
+.pill.later { color: var(--later); background: var(--later-bg); }
+
+.card { border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; background: var(--panel); padding: 18px 20px; display: grid; gap: 12px; }
+.card.high { border-left-color: var(--high); }
+.card.med { border-left-color: var(--med); }
+.card.low { border-left-color: var(--low); }
+.card.later { border-left-color: var(--later); }
+.card .head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.card .head .id { font-family: var(--mono); font-weight: 600; color: var(--muted); font-size: 13px; }
+.card .ratings { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--muted); align-items: center; }
+.card dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+.card dt { font-weight: 700; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+.card dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { .card dl { grid-template-columns: 1fr; } .card dt { padding-top: 6px; } }
+.evidence { font-size: 13.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+.evidence code { font-size: .9em; }
+
+.keep-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.keep-grid div { background: var(--keep-bg); border-radius: 10px; padding: 12px 14px; font-size: 14px; min-width: 0; }
+.keep-grid strong { display: block; margin-bottom: 4px; }
+.scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.scope div { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 14px; background: var(--panel); min-width: 0; }
+.scope strong { display: block; margin-bottom: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+</style>
+</head><body>
+
+<main>
+<header class="top">
+  <div class="eyebrow">FirstPass Studio · application security review · 24 October 2026</div>
+  <h1>Safe enough for one Mac today. <em>One</em> fix matters now; the rest is groundwork for a product.</h1>
+  <p class="lede">This review read the helper and its modules, the Mac app, the Stream Deck plugin, the four GitHub workflows, the release and update chain, the dependency trees and the tests, and ran <code>npm audit</code> on both package trees. It rates each finding twice: for how Studio is used today (one copy on Matt's Mac, on a home or venue network), and for what would matter if Studio is later licensed to other associations or run in the cloud as a service.</p>
+  <p class="muted">Nothing here comes from an incident. No code was changed for this review; each decision Matt approves becomes its own pull request.</p>
+</header>
+
+<section>
+  <h2>The threat model, in one paragraph each</h2>
+  <div class="scope">
+    <div><strong>Today</strong>Studio runs as Matt's user on his Mac and listens on every network interface on port 8080. Who can reach it: anything on the same Wi-Fi, and any web page open in a browser on the Mac. What is at stake: the stream (someone changes a score or a scene mid-game), and the data Studio holds (athlete names and photos, sponsor details, stream API keys).</div>
+    <div><strong>Licensed app</strong>Other associations install the same signed Mac app and update from the public releases repository. What is added: the app runs on machines Matt doesn't control, so the update chain and the binary's own hardening carry the trust, and each customer's data is theirs.</div>
+    <div><strong>Cloud service</strong>Many tenants share one deployment reachable from the internet. Everything that is "the network is trusted" today becomes authentication, tenancy, quotas and audit. That is a redesign of the trust model, not a list of patches, so it is treated as a separate section at the end.</div>
+  </div>
+</section>
+
+<section>
+  <h2>What is already right</h2>
+  <p>These were checked and need no change. They are worth knowing so the decisions below don't re-cover ground.</p>
+  <div class="keep-grid">
+    <div><strong>No CORS header (D3 of the architecture review)</strong><code>send()</code> sets no <code>access-control-allow-origin</code>, so a page from another site cannot <em>read</em> anything from Studio in a browser. The test in <code>test/access.test.js</code> pins this. The gap it leaves (writing without reading) is finding S1.</div>
+    <div><strong>"Let other devices change things"</strong><code>access.js</code> refuses changes from other addresses with a 403 that explains itself, counts every address the Mac owns as local so the .local name keeps working, and is a tray tick box. Reads stay open on purpose.</div>
+    <div><strong>File paths are disciplined</strong>Every upload name goes through <code>path.basename</code> plus a character allowlist and an extension allowlist; competition and sponsor ids match <code>^[a-z0-9-]{1,40}$</code>; the settings restore checks every path part of every zip entry and refuses <code>..</code>, absolute and backslash paths; the static server normalises and prefix-checks against <code>public/</code>. No traversal was found.</div>
+    <div><strong>Stream keys stay on the Mac</strong>YouTube keys and Facebook Page tokens live in <code>stream-keys.json</code>, which is in <code>LOCAL_ONLY</code>: never moved to iCloud, never in a backup zip, and the API returns only <code>hasKey</code>, not the key.</div>
+    <div><strong>The app's windows are sandboxed</strong>Every Studio window is created with <code>contextIsolation: true, sandbox: true, nodeIntegration: false</code>, no preload, new windows only for Studio's own address, everything else handed to the browser. The output and scene windows use Electron 45's defaults, which are the same.</div>
+    <div><strong>Updates are signed twice over</strong>The app is hardened-runtime signed and notarised; <code>latest-mac.yml</code> carries a SHA-512 the updater checks; and Squirrel.Mac refuses an update whose code signature doesn't match the running app. A stolen releases token alone cannot ship code to installed apps.</div>
+    <div><strong>CI tokens are least-privilege</strong>Tests run on <code>pull_request</code> (not <code>pull_request_target</code>) with <code>contents: read</code> and no secrets, so a pull request from a fork of the now-public repository gets nothing. Only merges to main reach the signing secrets.</div>
+    <div><strong>No shell strings</strong>Every child process (<code>ffmpeg</code>, <code>scutil</code>, <code>osascript</code>, <code>brctl</code>, <code>open</code>) is started with <code>execFile</code> or <code>spawn</code> and an argument array; no user text reaches a shell. The JXA font scripts take the font name as <code>argv</code>, not by string building.</div>
+    <div><strong>Dependencies are current</strong>All five direct dependencies are at their latest release (Electron 45.0.0, electron-updater 6.8.11, electron-builder 26.18.0, Playwright 1.64.1, qrcode-generator 2.0.4), Dependabot runs monthly on three ecosystems, and the helper itself runs on Node alone with two runtime packages.</div>
+  </div>
+</section>
+
+<section>
+  <h2>The decisions</h2>
+  <p><strong>Today</strong> is the priority for Matt's own use now. <strong>Later</strong> is what the same finding becomes if Studio is licensed or hosted. Effort is a rough size for one pull request. The order below is the suggested build order.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Decision</th><th>Today</th><th>Later</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td class="n"><a href="#s1">S1</a></td><td><a href="#s1">Refuse changes that come from another website's page</a></td><td><span class="pill high">High</span></td><td><span class="pill high">High</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#s2">S2</a></td><td><a href="#s2">Keep the backup, the athlete register and the log to this Mac when other devices are locked out</a></td><td><span class="pill med">Medium</span></td><td><span class="pill high">High</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#s3">S3</a></td><td><a href="#s3">Serve uploaded files so they can't run as Studio</a></td><td><span class="pill low">Low</span></td><td><span class="pill med">Medium</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#s4">S4</a></td><td><a href="#s4">Finish hardening the Mac app: fuses, entitlements, asar</a></td><td><span class="pill low">Low</span></td><td><span class="pill high">High</span></td><td>Medium</td></tr>
+      <tr><td class="n"><a href="#s5">S5</a></td><td><a href="#s5">Narrow the release secrets and pin what the build runs</a></td><td><span class="pill low">Low</span></td><td><span class="pill med">Medium</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#s6">S6</a></td><td><a href="#s6">Turn on the free GitHub scanners and check runtime packages in CI</a></td><td><span class="pill low">Low</span></td><td><span class="pill med">Medium</span></td><td>Tiny</td></tr>
+      <tr><td class="n"><a href="#s7">S7</a></td><td><a href="#s7">Load only a signed NDI library</a></td><td><span class="pill low">Low</span></td><td><span class="pill med">Medium</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#s8">S8</a></td><td><a href="#s8">Move keys and tokens into the Mac's Keychain</a></td><td><span class="pill keep">Fine</span></td><td><span class="pill med">Medium</span></td><td>Small</td></tr>
+      <tr><td class="n"><a href="#s9">S9</a></td><td><a href="#s9">Authentication, tenancy and the PlayHQ question before any cloud move</a></td><td><span class="pill keep">n/a</span></td><td><span class="pill later">Design first</span></td><td>Large</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Findings</h2>
+
+  <article class="card high" id="s1">
+    <div class="head"><span class="id">S1</span><h3>Refuse changes that come from another website's page</h3><span class="pill high">High today</span><span class="pill high">High later</span></div>
+    <p><strong>Finding.</strong> Dropping the CORS header (D3) stops other websites <em>reading</em> Studio, but browsers still <em>send</em> cross-site requests without asking. Any web page open in any browser on Matt's Mac, or on any device on the same network, can make the browser fire <code>GET http://localhost:8080/deck/home/add2</code> with a hidden image tag, or <code>POST /api/scoreboard</code>, <code>/api/scene</code>, <code>DELETE /api/scene/media</code> or <code>/api/setup-template</code> with a body, because <code>readBody</code> parses the body as JSON whatever the content type and nothing checks where the request came from. The request arrives from the Mac's own address, so "Let other devices change things" being off does not help. A DNS rebinding page gets the same result against the <code>.local</code> name. The WebSocket at <code>/api/scene/socket</code> also accepts any origin, which lets another site read the scene and board (read only; it takes no commands).</p>
+    <p>The realistic shape today is a stream being tampered with by a malicious or compromised page Matt happens to have open on stream night. Unlikely, but the fix is a dozen lines and removes the only way a remote party can change Studio without being on the network.</p>
+    <dl>
+      <dt>Recommend</dt><dd>In the request handler, for every request <code>access.changes()</code> already classes as a change, and for the WebSocket upgrade: if the request carries an <code>Origin</code> header (browsers always add one to cross-site requests and to all POSTs), require its host to be one Studio answers to (<code>localhost</code>, <code>127.0.0.1</code>, the link host, the Mac's own addresses) on Studio's port; otherwise answer 403 with a plain message. Requests with no <code>Origin</code> (the Stream Deck plugin, Stream Deck "Website" keys, <code>curl</code>) carry on unchanged. Also check the <code>Host</code> header against the same list, which closes DNS rebinding. Pin both with tests in <code>test/access.test.js</code>.</dd>
+      <dt>Alternative</dt><dd>Require a token on every changing request. Stronger, but it breaks every existing Stream Deck "Website" key and the plugin, so it belongs with S9, not now.</dd>
+      <dt>Risk</dt><dd>Low. Studio's own pages send <code>Origin: http://&lt;host&gt;:8080</code>, which passes. The one thing to test by hand is a page opened by the <code>.local</code> name on a phone.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>server.js</code> <code>send()</code> comment ("a web page from anywhere else can't read or drive Studio", which is true for read, not drive); <code>readBody()</code>; <code>access.changes()</code>; <code>scene.js upgrade()</code> checks only the path and key.</div>
+  </article>
+
+  <article class="card med" id="s2">
+    <div class="head"><span class="id">S2</span><h3>Keep the backup, the athlete register and the log to this Mac when other devices are locked out</h3><span class="pill med">Medium today</span><span class="pill high">High later</span></div>
+    <p><strong>Finding.</strong> Reads are open to the whole network by design, so the graphics work from other devices. But a few reads are not graphics: <code>GET /api/settings/export</code> downloads a zip of every setting, every logo, every athlete photo and all media; <code>GET /api/scene/export</code> does the same for the scene; <code>GET /api/athletes</code> returns the register of players by name; <code>GET /api/log</code> returns the whole debug log; <code>GET /api/sponsors/report</code> returns the sponsor exposure figures. On venue Wi-Fi, anyone who finds <code>matts-macbook-pro.local:8080</code> can take all of it, and untick or not, the switch doesn't cover reads.</p>
+    <p>The athlete photos and names are personal information about other people's children in some divisions, which is the part worth taking seriously today.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Add a small list of <em>sensitive reads</em> to <code>access.js</code> (settings and scene export, athletes, log, sponsor report and nights, viewer settings) that follow the same <code>remoteChanges</code> switch: when it is off, they answer only this Mac. Graphics, the scoreboard, the ladder, media files and the scene state stay open so the Output page, OBS and the Stream Deck keep working from anywhere. Describe it on the Docs page under the switch's existing paragraph.</dd>
+      <dt>Alternative</dt><dd>A second switch, "Let other devices read private data". More to explain for little gain; the one switch already means "I'm on a network I don't trust".</dd>
+      <dt>Risk</dt><dd>None on stream night: all of these are Studio-page or browser reads, not graphics.</dd>
+    </dl>
+    <div class="evidence">Evidence: routes in <code>server.js</code> (<code>/api/settings/export</code>, <code>/api/log</code>, <code>/api/athletes</code>), <code>exposure.route()</code>, <code>scene.route()</code> <code>/api/scene/export</code>; <code>access.changes()</code> covers only non-GET and <code>/deck/</code>.</div>
+  </article>
+
+  <article class="card low" id="s3">
+    <div class="head"><span class="id">S3</span><h3>Serve uploaded files so they can't run as Studio</h3><span class="pill low">Low today</span><span class="pill med">Medium later</span></div>
+    <p><strong>Finding.</strong> Logos, brand images, photos, sponsor logos and media files are served from Studio's own origin with the type taken from the extension and no <code>Content-Security-Policy</code>. SVG is on the allowlist everywhere. An SVG file can carry a script, and opened directly at <code>/logos/x.svg</code> that script runs with Studio's origin, from which every API is reachable. Today only Matt puts files there. But a competition template (<code>templates/*.json</code>, imported with "Import a template file") carries logos as base64, and templates are exactly the thing that would be shared between associations once Studio is licensed. <code>cleanUrl()</code> for browser sources strips a leading <code>javascript:</code> once and lets anything else through; there is no check that uploaded bytes match their extension.</p>
+    <dl>
+      <dt>Recommend</dt><dd>One header pair on every response that serves an uploaded or imported file (<code>/logos</code>, <code>/brand</code>, <code>/photos</code>, <code>/fonts</code>, <code>/media</code>, <code>/sponsors</code>): <code>Content-Security-Policy: sandbox; default-src 'none'</code> and <code>X-Content-Type-Options: nosniff</code>. Images still render inside <code>&lt;img&gt;</code> tags; a script inside one no longer runs as Studio. Parse browser-source URLs with <code>new URL()</code> and allow only <code>http:</code>, <code>https:</code> and relative paths. Check the first bytes of image uploads (PNG, JPEG, GIF, WebP signatures; SVG must parse as XML with an <code>&lt;svg&gt;</code> root).</dd>
+      <dt>Alternative</dt><dd>Drop SVG from the allowlist. Simpler, but club logos are often SVG.</dd>
+      <dt>Risk</dt><dd>Low. <code>sandbox</code> on an image response has no effect on how pages display it. The page test opens every page in Chromium and would catch a broken logo.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>competitions.IMAGE</code>, <code>sponsors.js</code> <code>IMAGE</code>, <code>scene.js MEDIA_TYPES</code> and <code>sendMedia()</code>; <code>server.js</code> <code>/logos|brand|photos|fonts/</code> route; <code>scene.js cleanUrl()</code>; no CSP header anywhere in <code>server.js</code> or <code>public/</code>.</div>
+  </article>
+
+  <article class="card low" id="s4">
+    <div class="head"><span class="id">S4</span><h3>Finish hardening the Mac app: fuses, entitlements, asar</h3><span class="pill low">Low today</span><span class="pill high">High later</span></div>
+    <p><strong>Finding.</strong> The renderer side is done well (see "already right"). The binary side is on electron-builder's defaults. Three things follow. Electron's <em>fuses</em> are not set, so the signed app still honours <code>ELECTRON_RUN_AS_NODE</code>, <code>NODE_OPTIONS</code> and <code>--inspect</code>: any process running as the same user can launch FirstPass Studio.app as a plain Node and run its own code under Matt's Developer ID signature and notarisation. The default hardened-runtime entitlements include <code>allow-dyld-environment-variables</code> and <code>disable-library-validation</code>, which is what makes that and library injection (S7) possible. And <code>asar: false</code> leaves the app's JavaScript as plain files inside the bundle, so there is no integrity check on the code that runs.</p>
+    <p>Today this changes nothing: someone who can run code as Matt's user already has everything. It becomes the main question a security-aware customer or Apple reviewer asks of a licensed app, and signed-binary abuse is the standard way a hardened Mac is attacked.</p>
+    <dl>
+      <dt>Recommend</dt><dd>In <code>package.json</code> build: <code>electronFuses</code> with <code>runAsNode: false</code>, <code>enableNodeOptionsEnvironmentVariable: false</code>, <code>enableNodeCliInspectArguments: false</code>, <code>enableCookieEncryption: true</code>, and once asar is on, <code>onlyLoadAppFromAsar: true</code> and <code>enableEmbeddedAsarIntegrityValidation: true</code>. A <code>build/entitlements.mac.plist</code> with only <code>allow-jit</code> and <code>allow-unsigned-executable-memory</code> (Chromium needs those; the dyld and library-validation ones go, with S7 done first because the NDI library then has to be signed). Switch <code>asar</code> on with <code>asarUnpack</code> for <code>vendor/ffmpeg/**</code>, <code>native/**/*.node</code> and the Stream Deck plugin file; <code>utilityProcess.fork</code> of <code>server.js</code> works from inside an asar. Remove the Developer Tools menu item from packaged builds (keep it in <code>npm run app</code>).</dd>
+      <dt>Alternative</dt><dd>Fuses and entitlements only, asar later. Gets most of the value with less risk to the ffmpeg and native-module paths.</dd>
+      <dt>Risk</dt><dd>Medium: paths to ffmpeg, the <code>.node</code> modules and the plugin file change under asar. <code>test/packaging.test.js</code> and a test build from the Actions tab (Publish unticked) cover it before anything ships.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>package.json</code> build has <code>asar: false</code>, <code>hardenedRuntime: true</code>, no <code>electronFuses</code>, no <code>entitlements</code>; <code>build/</code> holds only <code>icon.png</code>; <code>desktop/windows.js</code> View menu has <code>toggleDevTools</code>.</div>
+  </article>
+
+  <article class="card low" id="s5">
+    <div class="head"><span class="id">S5</span><h3>Narrow the release secrets and pin what the build runs</h3><span class="pill low">Low today</span><span class="pill med">Medium later</span></div>
+    <p><strong>Finding.</strong> Everything that lets Studio ship an update lives in five repository secrets: the Developer ID certificate and its password, the Apple ID, app-specific password and team id, and <code>RELEASES_TOKEN</code>, a personal access token that can write to <code>FirstPassStudio-releases</code>. Every merge to main runs with them. During that run <code>npm ci</code> executes the install scripts of about 290 packages (Electron and electron-builder pull most of them), <code>npm ci</code> runs again in two native module folders and the plugin folder, and the ffmpeg build clones three upstream repositories by tag with no commit pin. Each of those is code from outside the repository running next to the signing certificate. GitHub Actions are pinned to major tags (<code>actions/checkout@v7</code>) rather than commit SHAs, so a compromised tag would run too.</p>
+    <p>The signature check in the updater (see "already right") means the worst case for a stolen token alone is a broken or missing update; the worst case for a stolen certificate is a malicious update that installs. The latter is the one to make hard.</p>
+    <dl>
+      <dt>Recommend</dt><dd>One PR: pin the Actions to commit SHAs (Dependabot keeps them current, since the github-actions ecosystem is already configured); run <code>npm ci --ignore-scripts</code> then <code>node node_modules/electron/install.js</code> explicitly, so only Electron's own download runs as a script; pin the ffmpeg, libvpx and opus clones to commit SHAs beside the tags (the ffmpeg-updates workflow fills both in). One setting change outside the repo: make <code>RELEASES_TOKEN</code> a fine-grained token scoped to <code>FirstPassStudio-releases</code> only, Contents read and write, with an expiry, and put the five secrets in a GitHub <em>environment</em> named <code>release</code> that only the <code>main</code> branch can use.</dd>
+      <dt>Alternative</dt><dd>Leave the build as is and rely on the signature check. Reasonable while Matt is the only installer; not once others are.</dd>
+      <dt>Risk</dt><dd>Low. <code>--ignore-scripts</code> can break a package that compiles at install time; the Tests workflow uses the same install, so it shows up there first. The native modules keep their own <code>npm ci</code> plus build steps.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>.github/workflows/mac-app.yml</code> (secrets, four <code>npm ci</code>, <code>vendor/ffmpeg/build.sh</code> <code>fetch()</code> with <code>--branch "$2"</code> only); <code>.github/dependabot.yml</code>. A stale comment in the workflow still says the repository is private; it has been public since 19 October.</div>
+  </article>
+
+  <article class="card low" id="s6">
+    <div class="head"><span class="id">S6</span><h3>Turn on the free GitHub scanners and check runtime packages in CI</h3><span class="pill low">Low today</span><span class="pill med">Medium later</span></div>
+    <p><strong>Finding.</strong> <code>npm audit</code> today: in the main tree, one advisory, <code>undici</code> (denial of service), pulled in by <code>@electron/get</code> and <code>node-gyp</code>, which only run at build time. In the Stream Deck plugin, <code>zod</code> (memory exhaustion on oversized input) through <code>@elgato/utils</code>, which the plugin does ship but uses only to parse its own local settings, plus <code>fast-uri</code> and <code>serialize-javascript</code> in the Rollup build tools. None affects a running Studio. Dependabot <em>version updates</em> are configured; Dependabot <em>security alerts</em> and <em>secret scanning</em> are separate switches, free on a public repository, and nothing in the repo shows whether they are on. No workflow fails on a vulnerable runtime package, so a real one would wait for the monthly Dependabot run.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Settings &gt; Code security: turn on Dependabot alerts, Dependabot security updates and secret scanning with push protection (no PR needed, Matt does it). One PR adds <code>npm audit --omit=dev --audit-level=high</code> to the Tests workflow for the root and the plugin, so a runtime advisory turns a pull request red the same day. Bump <code>@elgato/streamdeck</code> when its next release carries the <code>zod</code> fix (the current 3.0.3 is the latest, so this is a wait).</dd>
+      <dt>Risk</dt><dd>None. A false positive makes a PR red once and is handled by a bump.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>npm audit --json</code> at the root and in <code>plugins/studio-deck</code>, 24 October 2026; <code>package-lock.json</code> shows <code>undici</code> under <code>@electron/get</code> and <code>node-gyp</code>; the repository metadata returns <code>visibility: public</code>.</div>
+  </article>
+
+  <article class="card low" id="s7">
+    <div class="head"><span class="id">S7</span><h3>Load only a signed NDI library</h3><span class="pill low">Low today</span><span class="pill med">Medium later</span></div>
+    <p><strong>Finding.</strong> NDI Tools doesn't install its runtime in <code>/usr/local/lib</code>, so <code>desktop/ndi.js</code> walks <code>/Applications</code> and <code>/Library/Application Support</code> five levels deep and loads the first <code>libndi*.dylib</code> it finds into the app. Any application bundle on the Mac that contains a file by that name gets loaded into FirstPass Studio with its signature and permissions. The <code>disable-library-validation</code> entitlement (S4) is what allows a library signed by someone else to load at all.</p>
+    <dl>
+      <dt>Recommend</dt><dd>Before loading a candidate, run <code>codesign -dv --verbose=2</code> on it (via <code>execFile</code>) and accept only a library whose <code>TeamIdentifier</code> is Vizrt/NewTek's, or whose path is <code>/usr/local/lib/libndi.dylib</code> installed by the official runtime; log and skip the rest. This also lets S4 drop <code>disable-library-validation</code> once the accepted library is itself signed.</dd>
+      <dt>Alternative</dt><dd>Only load from <code>/usr/local/lib</code> and tell the user to install the NDI runtime. Simpler and stricter, but it removes the convenience the current search was written for.</dd>
+      <dt>Risk</dt><dd>Low. The NDI path is only used when an NDI output is on, and <code>desktop/ndi.js</code> already reports why the library wasn't found.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>desktop/ndi.js bundledCopies()</code>.</div>
+  </article>
+
+  <article class="card later" id="s8">
+    <div class="head"><span class="id">S8</span><h3>Move keys and tokens into the Mac's Keychain</h3><span class="pill keep">Fine today</span><span class="pill med">Medium later</span></div>
+    <p><strong>Finding.</strong> <code>stream-keys.json</code> holds YouTube API keys and Facebook Page access tokens in plain text, readable by any process running as Matt's user. The handling around it is careful (local only, never exported, never returned by the API), which is why this is fine for one Mac. A licensed app holding customers' Facebook tokens in a plain file is a different conversation, and so is the PlayHQ Client ID: <code>apiKey</code> is a competition setting, so unlike the stream keys it is in <code>settings.json</code>, in every backup zip, in an exported template and in the <code>GET /api/setup</code> answer. It is empty today.</p>
+    <dl>
+      <dt>Recommend</dt><dd>When licensing is real: keep the file but encrypt the values with Electron's <code>safeStorage</code> (Keychain-backed) when running in the app, falling back to plain text under <code>npm start</code>. Move <code>apiKey</code> from competition settings to the same store, and drop it from template export and the setup answer. Not before: the switch is a migration (<code>migrations.js</code> has the pattern) and gains nothing while there is one user.</dd>
+    </dl>
+    <div class="evidence">Evidence: <code>viewers.js</code> <code>KEYS_FILE</code>, <code>saveKeys()</code>, <code>hasKey</code>; <code>competitions.js</code> <code>DEFAULTS.apiKey</code>; <code>server.js</code> <code>CONFIG.apiKey</code> as <code>x-api-key</code>.</div>
+  </article>
+
+  <article class="card later" id="s9">
+    <div class="head"><span class="id">S9</span><h3>Authentication, tenancy and the PlayHQ question before any cloud move</h3><span class="pill later">Design first</span></div>
+    <p><strong>Finding.</strong> Studio has no users, no sessions and no permissions. Its security model is "whoever can reach the port", narrowed by the one network switch. That is the right model for a tool that lives on the Mac next to the stream, and S1 and S2 make it a sound one. It cannot be stretched to a service. The following would each need a decision before a line of cloud code is written, and none of them is a patch to the current code:</p>
+    <ul>
+      <li><strong>Accounts and tenancy.</strong> Every path today is global: one data folder, one active competition, one board, one scene. A service needs a tenant id on every file and every route, and tests that one tenant cannot read another's.</li>
+      <li><strong>Stream Deck links.</strong> The plain-GET <code>/deck/</code> links are the point of the Stream Deck integration and cannot carry a login. Over the internet each one would need a per-tenant token in the URL or a header the plugin sends, with rotation.</li>
+      <li><strong>Uploads.</strong> Limits are generous for one Mac (20 GB per video, 100 MB templates, 15 MB images) and there is no quota, no virus scan, and the files are served from the same origin (S3). A service needs per-tenant storage with quotas, a separate origin for user files, and S3 done.</li>
+      <li><strong>Outputs are hardware.</strong> NDI, DeckLink and the full-screen output windows are local to a Mac. In the cloud the pages would be rendered by headless browsers and streamed, or the Mac app stays the renderer and only settings move to the cloud. That is the architecture fork to decide first.</li>
+      <li><strong>PlayHQ terms.</strong> Studio reads PlayHQ's website GraphQL as a guest, not the licensed API. For one association that is what any browser does. A commercial service doing it for many customers, from cloud addresses PlayHQ may block, is a licensing and contract question to settle with PlayHQ before anything else, and the earlier note that cloud hosting was declined (11 October) still stands.</li>
+      <li><strong>Error detail and the log.</strong> Error responses return <code>err.message</code> and 502s include internal detail; <code>/api/log</code> returns the whole log. Helpful on one Mac, wrong for a service.</li>
+    </ul>
+    <dl>
+      <dt>Recommend</dt><dd>No work now. When licensing becomes concrete, a one-page design decision record on the fork above (Mac renders, cloud holds settings; or cloud renders) before any code, and then a second security review of that design. Everything in S1 to S8 is needed under either branch and is worth doing in the meantime.</dd>
+    </dl>
+  </article>
+</section>
+
+<section>
+  <h2>Also checked, nothing to do</h2>
+  <ul>
+    <li><strong>Request bodies.</strong> JSON bodies are capped at 100 KB; uploads stream to disk with per-kind limits and are removed on overrun.</li>
+    <li><strong>Static server.</strong> <code>path.normalize</code> plus a prefix check against <code>public/</code>. The check compares against the folder name without a trailing separator, so a sibling folder named <code>public-something</code> would pass; none exists. Fold a <code>path.sep</code> into the check when S1 touches that code.</li>
+    <li><strong>Settings restore.</strong> Zip entries are allowlisted by top-level folder, every path part is checked, each file is size-verified after unpacking, and the result is swapped in only when complete.</li>
+    <li><strong>Page scripts.</strong> Of about 60 <code>innerHTML</code> uses in the pages, the ones that take PlayHQ or user text go through an <code>esc()</code> helper; the rest insert numbers, class names or single characters. One page option (<code>?word=</code> on streak.html) is inserted character by character without escaping; it is set per source by Matt on the Output page, so it needs a crafted link to matter.</li>
+    <li><strong>Secrets in the repository.</strong> A scan of every tracked file for GitHub, Google, Slack, Meta and private-key patterns found nothing but a base64 PNG in a template.</li>
+    <li><strong>Electron process isolation.</strong> The helper runs as a <code>utilityProcess</code>, not in the main process; a crash there restarts it without taking the app down.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Suggested order</h2>
+  <ol>
+    <li><strong>S1</strong> same-site and host checks on changes (the one real fix for today).</li>
+    <li><strong>S2</strong> sensitive reads follow the network switch.</li>
+    <li><strong>S6</strong> scanners on, audit step in Tests (Matt flips the settings; one tiny PR).</li>
+    <li><strong>S3</strong> headers on served uploads, URL parsing, image signatures.</li>
+    <li><strong>S5</strong> pinned Actions and clones, <code>--ignore-scripts</code>, scoped token and release environment.</li>
+    <li><strong>S7</strong> signed NDI library only.</li>
+    <li><strong>S4</strong> fuses and entitlements, then asar, each verified with a test build.</li>
+    <li><strong>S8</strong> and <strong>S9</strong> wait for licensing to be real.</li>
+  </ol>
+  <p class="muted">Each decision becomes its own pull request, built only once Matt approves it, with the Mac app workflow's test build used before anything that touches the binary is published.</p>
+</section>
+</main>
+</body></html>
