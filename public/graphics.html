@@ -231,7 +231,7 @@
         <b>chroma</b> as one source over a solid colour (the same colour setting as the chroma display), or <b>with transparency</b> as one source with alpha
         for receivers that key on NDI's own transparency. They show up on the network as this Mac's name with the <b>Source name</b> in brackets
         (FirstPass Studio unless you change it). Each source only sends while something is receiving it, and the Output page says how many are.
-        It needs NDI's runtime for Mac installed (free, the libNDI installer from <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>; Studio also uses the copy inside NDI Tools' apps if it finds one);
+        It needs NDI's runtime for Mac installed (free, the libNDI installer from <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>; Studio also uses the copy inside NDI Tools' apps if it finds one, as long as that copy is signed by NDI's makers, Vizrt or NewTek: a library runs inside Studio, so an unsigned file by that name is left alone and the log says so);
         the Output page says if it isn't, with where to get it, and finds it as soon as it's installed. Use a wired network: each 1080p source is roughly 100 to 150 Mbit/s. Sound plays through the Mac's audio output, not over NDI.
         Output on/off and the <code>/deck/output</code> links work the same. NDI® is a registered trademark of Vizrt NDI AB.</li>
       <li><b>Chroma key safe:</b> a chroma key cuts out one colour, so anything half see-through (see-through panels, soft shadows and glows,
@@ -400,7 +400,10 @@
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ, <code style="display:inline">remoteChanges</code>) from the app's defaults.
         <b>Let other devices change things</b> in the menu bar icon sets <code style="display:inline">remoteChanges</code>: unticked, phones, other computers and Stream Decks on the network can
-        still open every page but can't change scores, the scene, sequences, settings or media; Studio answers those with a 403 that says so.</li>
+        still open every graphic but can't change scores, the scene, sequences, settings or media, or read private data (the settings and scene
+        backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
+        Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
+        coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>

@@ -53,6 +53,7 @@
       "migrations.js",
       "linkhost.js",
       "access.js",
+      "uploads.js",
       "sequences.js",
       "music.js",
       "fonts.js",

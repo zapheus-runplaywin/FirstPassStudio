@@ -2,6 +2,8 @@
 # something shows as a red check on the pull request before it's merged.
 #   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, and every page in a browser.
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
+#   Packages: npm audit on the packages that ship (not the build tools), so a known vulnerability in
+#   one turns the pull request red the day it is published rather than waiting for Dependabot's month.
 # PlayHQ is never called: the tests that need it run against recorded answers.
 # Each run's summary page has a results table and every failure with its message
 # (test/support/github-report.mjs), and failures are marked on the test in the pull request's Files tab.
@@ -35,6 +37,9 @@ jobs:
       # Electron itself isn't needed to test Studio, only its packages.
       # No install scripts (as in mac-app.yml); Electron's binary isn't needed here at all.
       - run: npm ci --ignore-scripts
+      # Known vulnerabilities in the packages Studio ships (electron-updater, qrcode-generator and what they
+      # pull in). Build-time packages are left out: they never run on anyone's Mac.
+      - run: npm audit --omit=dev --audit-level=high
       # Chromium for the page test (test/pages.test.js), which fails here rather than skipping without it.
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ci
@@ -57,6 +62,12 @@ jobs:
           cache: npm
           cache-dependency-path: plugins/studio-deck/package-lock.json
       - run: npm ci --ignore-scripts
+      # The plugin's shipped packages (@elgato/streamdeck and what it pulls in), as above. A warning rather
+      # than a failure for now: @elgato/streamdeck 3.0.3 (the latest) pulls in a zod with a known
+      # memory-exhaustion advisory that only the plugin's own settings could trigger, and there is no
+      # release without it yet. Drop continue-on-error once a bump clears it.
+      - run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
       - run: npm run typecheck
       # The bundle the Mac app packs, so a dependency update that breaks it shows here first.
       - run: npm run build

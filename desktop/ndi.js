@@ -4,7 +4,9 @@
 // The scene renders off screen (desktop/scenewindow.js) at the chosen format's size and frame rate, and
 // native/ndi sends it as fill and key (two sources), chroma (over a colour) or one source with
 // transparency, repeating the latest picture between changes. It loads the NDI runtime that NDI's
-// runtime installer puts in /usr/local/lib, or the copy inside one of NDI Tools' apps; without it, or
+// runtime installer puts in /usr/local/lib, or the copy inside one of NDI Tools' apps, and only a
+// copy whose code signature is Vizrt's or NewTek's (desktop/signed.js): loading a library runs its
+// code inside Studio, and any app could carry a file called libndi.dylib. Without a runtime, or
 // without the built module, available() says why. Sound plays through the Mac's audio output, as it
 // does for the other outputs.
 // NDI® is a registered trademark of Vizrt NDI AB.
@@ -14,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const sceneWindow = require('./scenewindow');
+const signed = require('./signed');
 
 const MODULE = path.join(__dirname, '..', 'native', 'ndi', 'build', 'Release', 'ndi.node');
 let addon = null;
@@ -28,8 +31,22 @@ const SOURCES = {
 };
 
 // NDI Tools' apps on the Mac carry their own copy of the NDI library rather than installing it in
-// /usr/local/lib (only NDI's runtime installer does that), so look inside them too.
-function bundledCopies() {
+// /usr/local/lib (only NDI's runtime installer does that), so look inside them too. Only copies
+// signed by NDI's makers are offered (signed.trusted); the rest are logged once and left alone.
+const checked = new Map(); // path -> { ok, why }
+function bundledCopies(log = () => {}) {
+  const out = [];
+  for (const file of foundCopies()) {
+    if (!checked.has(file)) {
+      const r = signed.trusted(file);
+      checked.set(file, r);
+      if (!r.ok) log(`NDI: not loading ${file}: ${r.why}`);
+    }
+    if (checked.get(file).ok) out.push(file);
+  }
+  return out;
+}
+function foundCopies() {
   const found = [];
   const look = (dir, depth) => {
     let names = [];
@@ -58,7 +75,7 @@ module.exports = function ndi({ port, log, onStatus }) {
   function available() {
     if (!addon) return { ok: false, error: 'This copy of Studio was built without NDI output (cd native/ndi && npm install && npm run build).' };
     try {
-      const copies = loadedFrom ? [] : bundledCopies();
+      const copies = loadedFrom ? [] : bundledCopies(log);
       const r = addon.available(copies);
       if (r.ok && r.path !== loadedFrom) { loadedFrom = r.path; log(`NDI runtime ${r.version} from ${r.path}`); }
       const why = r.ok ? '' : `${r.error} (also tried ${copies.length ? copies.join(', ') : 'no copies inside NDI apps'})`;
