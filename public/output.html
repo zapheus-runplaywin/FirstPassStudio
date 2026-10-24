@@ -178,6 +178,7 @@
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
 <script src="pageoptions.js"></script>
+<script src="pages.js"></script>
 <script src="introtiming.js"></script>
 <script src="asktext.js"></script>
 <script src="unsaved.js"></script>
@@ -544,15 +545,8 @@
 <script>
   const $ = id => document.getElementById(id);
   // Studio's graphics, offered when adding a page. Page size is what the page is drawn at.
-  const PAGES = [
-    ['Scoreboard', 'scoreboard.html'], ['Score ticker', 'ticker.html'], ['Title', 'title.html'], ['Branding logos', 'branding.html'],
-    ['Up next', 'upnext.html'], ['Countdown', 'countdown.html'], ['Match up', 'matchup.html'], ['The Clash', 'clash.html'],
-    ['Position match ups', 'positions.html'], ['Team list', 'teamlist.html'], ['Shooting stats', 'shooting.html'], ['Last 10 goals', 'goals.html'],
-    ['Full time', 'fulltime.html'], ['Game stats', 'gamestats.html'], ['Score worm', 'worm.html'], ['Winner', 'winner.html'], ['Super shot', 'supershot.html'], ['Hot streaks and moments', 'streak.html'], ['Ladder', 'ladder.html'],
-    ['Ladder lower third', 'ladderbar.html'], ['Person lower third (athlete or guest)', 'lowerthird.html'], ['Finals', 'finals.html'], ['Round fixture', 'fixtures.html'], ['Results', 'results.html'],
-    ['Top shooters', 'topshooters.html'], ['Competition logo animation', 'logo.html'], ['Intro and outro', 'introoutro.html'], ['PIVT and FirstPass Studio ad', 'ad.html'], ['Sponsor card', 'sponsor.html'], ['Sponsor wall', 'sponsorwall.html'], ['Viewers', 'viewers.html'],
-    ['Test pattern (checking the outputs)', 'testpattern.html'],
-  ];
+  // The graphics Add a page offers, from the one list in pages.js.
+  const PAGES = STUDIO_GRAPHICS.map(p => [p.name, p.file]);
   let scene = { sources: [] };
   let selected = null;
   let base = location.origin;

@@ -385,6 +385,10 @@ The scene is saved as `scene.json` in the data folder. http://localhost:8080/sce
 
 ## Example graphics
 
+The graphics are listed once, in `public/pages.js` (link, name, Docs page section, example pictures): the Output page's
+**Add a page** and the Make Examples script read it, and a test checks every graphic in `public/`, every page in
+`pageoptions.js` and the Docs page against it. A new graphic goes there first.
+
 From a copy of the repository, double-click `Make Examples (Mac).command` (or run `node examples.js`) to save a
 1920 x 1080 picture of every graphic with PlayHQ's current data in `Examples/<date and time>/`, with an `index.html`
 to look through them. Pictures keep the transparent background. They follow the game, round and court picked on the

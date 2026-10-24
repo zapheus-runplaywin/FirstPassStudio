@@ -18,6 +18,7 @@ const { spawn } = require('child_process');
 
 const ROOT = __dirname;
 const CONFIG = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+const { STUDIO_GRAPHICS } = require('./public/pages.js');
 const PORT = Number(process.env.PORT || CONFIG.port || 8080);
 const BASE = `http://localhost:${PORT}`;
 
@@ -144,55 +145,11 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
     // An athlete from the picked game's home line up, for the athlete lower third.
     const sheets = await getJson('/api/teams').catch(() => ({}));
     const athlete = ((sheets.home && sheets.home.players) || []).map(p => p.name).find(Boolean);
+    // Every graphic's example pictures come from the one list of pages (public/pages.js); the ladder, top shooters
+    // and finals get one per division, and the athlete lower third one athlete from the picked game.
     const pages = [
-      ['Live scoreboard', '/scoreboard.html', 4000],
-      ['Title banner', '/title.html', 3000],
-      ['Logos beside the title', '/branding.html', 3000],
-      ['Match up', '/matchup.html', 3000],
-      ['The Clash (end of animation)', '/clash.html', 6000],
-      ['Winner celebration: home (end of animation)', '/winner.html?winner=home', 5000],
-      ['Winner celebration: away (end of animation)', '/winner.html?winner=away', 5000],
-      ['Winner celebration: draw (end of animation)', '/winner.html?winner=draw', 5000],
-      ['Super shot: home (mid animation)', '/supershot.html?team=home', 1500],
-      ['Heating up: home (mid animation)', '/streak.html?play=heating&team=home', 2200],
-      ['On fire: home (mid animation)', '/streak.html?play=fire&team=home', 1800],
-      ['Goal for goal (mid animation)', '/streak.html?play=goalforgoal', 2200],
-      ['Hits the front: home (mid animation)', '/streak.html?play=lead&team=home', 2200],
-      ['All square (mid animation)', '/streak.html?play=level', 2200],
-      ['Coming back: away (mid animation)', '/streak.html?play=comeback&team=away', 2200],
-      ['On the siren: home (mid animation)', '/streak.html?play=siren&team=home', 2200],
-      ['Back to back super shots: home (mid animation)', '/streak.html?play=backtoback&team=home', 2400],
-      ['Last 10 goals', '/goals.html', 3000],
-      ['Last 10 goals: vertical', '/goals.html?layout=vertical', 3000],
-      ['Up next', '/upnext.html', 3000],
-      ['Up next: end of night', '/upnext.html?wrap=1', 4500],
-      ['Countdown to the start of the game', '/countdown.html', 3000],
-      ['Sponsor card', '/sponsor.html', 2500],
-      ['Sponsor wall', '/sponsorwall.html', 2500],
-      ['Viewers', '/viewers.html', 2500],
-      ['Viewers peak', '/viewers.html?show=peak', 2500],
-      ['Position match up: GS v GK', '/positions.html?pair=GS', 3000],
-      ['Position match ups: all seven', '/positions.html?show=all', 3000],
-      ['Home team list', '/teamlist.html?side=home', 3000],
-      ['Away team list', '/teamlist.html?side=away', 3000],
-      ['Shooting stats', '/shooting.html', 3000],
-      ['Full time card', '/fulltime.html', 3000],
-      ['Game stats', '/gamestats.html', 3000],
-      ['Score worm', '/worm.html?draw=0', 3000],
-      ['Ladder lower third', '/ladderbar.html', 3000],
+      ...STUDIO_GRAPHICS.flatMap(p => p.examples || []),
       ...(athlete ? [[`Athlete lower third: ${athlete}`, `/lowerthird.html?name=${encodeURIComponent(athlete)}`, 2500]] : []),
-      ['Guest lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator', 2500],
-      ['Score ticker', '/ticker.html', 4000],
-      ['Round fixture', '/fixtures.html', 3000],
-      ['Next round fixture', '/fixtures.html?round=next', 3000],
-      ['Round results', '/results.html', 3000],
-      ...['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => [`Intro: ${st}`, `/introoutro.html?style=${st}&out=0&bg=gradient`, 8000]),
-      ['Outro', '/introoutro.html?type=outro&out=0&bg=gradient', 8000],
-      ['Logo animation: fun (mid animation)', '/logo.html?template=fun', 2200],
-      ['Logo animation: pro (mid animation)', '/logo.html?template=pro', 2600],
-      ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net']
-        .map(t => [`Logo animation: ${t} (mid animation)`, `/logo.html?template=${t}`, 2600]),
-      ['PIVT and FirstPass Studio ad (mid animation)', '/ad.html', 6000],
       ...st.grades.map(g => [`Ladder: ${g.name}`, `/ladder.html?division=${g.division}`, 3000]),
       ...st.grades.map(g => [`Top shooters: ${g.name}`, `/topshooters.html?division=${g.division}`, 6000]),
       ...st.grades.map(g => [`Finals: ${g.name}`, `/finals.html?division=${g.division}`, 3000]),
