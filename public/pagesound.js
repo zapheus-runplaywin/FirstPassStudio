@@ -2,7 +2,7 @@
 //   studioSound(plan)         plays the plan: in the Output page's scene, scene.html plays it (only in the scene
 //                             windows that make sound, and stops it when the source goes off); on its own, like an
 //                             OBS browser source, the page plays it (?sound=0 keeps it quiet). Elsewhere (the
-//                             Graphics page's previews) it's silent.
+//                             Docs page's previews) it's silent.
 //   studioSound.lengthOf(file) a song in the media folder's length in seconds, or null if it can't be read in time
 (function () {
   const params = new URLSearchParams(location.search);

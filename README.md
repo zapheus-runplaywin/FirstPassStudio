@@ -129,7 +129,7 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
-icon). The Output page and the Stream Deck use the same links as the Graphics page.
+icon). The Output page and the Stream Deck use the same links as the Docs page.
 
 **Studio only runs while a Studio window is open.** Opening a Studio window (opening the app, **Open Studio** or any
 page in the menu bar icon, ⌘N) puts Studio on air: it serves the graphics and the Stream Deck links, talks to PlayHQ,
@@ -140,7 +140,7 @@ page, for the whole stream.
 
 ### Links use the Mac's .local name
 
-The links on the Graphics page, the control page and the Mac app's menu (including **Copy the Studio link**) start with
+The links on the Docs page, the control page and the Mac app's menu (including **Copy the Studio link**) start with
 the Mac's Bonjour name, e.g. `http://matts-macbook-pro.local:8080/`, instead of `localhost`. That name is the
 **Local hostname** in System Settings > General > Sharing, and it works on the Mac itself and from a phone,
 another computer or a Stream Deck on the same network, without looking up an IP address. The port stays 8080.
@@ -169,7 +169,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
-⌘2 graphics, ⌘3 control, ⌘4 setup, ⌘5 sponsors, ⌘6 athletes, ⌘7 Stream Deck) and Window. Closing the last window takes Studio off air (see
+⌘2 control, ⌘3 setup, ⌘4 sponsors, ⌘5 athletes, ⌘6 Stream Deck, ⌘7 docs) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.
 
@@ -287,14 +287,14 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   that hasn't been converted yet converts. `/api/scene/export` (`?media=0` without media) and `POST /api/scene/import` (the file as the body) do the same.
 - **Page options:** a Studio graphic's link options (position, heading, division, round, animate away and so on) show as fields under its
   **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
-  new option there as well as on the Graphics page.
+  new option there as well as on the Docs page.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
 - **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
   (1920 x 1080 for full-frame graphics).
 - **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
   when hidden. Untick it to keep a page running while hidden so it shows instantly.
   **Refresh page** reloads it now.
-- **Preview** opens the selected source on its own in a new window, like the Graphics page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger. The Graphics page's Preview buttons open the same half-size window.
+- **Preview** opens the selected source on its own in a new window, like the Docs page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
@@ -607,7 +607,7 @@ those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pulled into a
 
 ### Sponsors on the graphics
 
-- **Sponsor card** (`/sponsor.html`, breaks) and **sponsor wall** (`/sponsorwall.html`, pre-game): see the Graphics page.
+- **Sponsor card** (`/sponsor.html`, breaks) and **sponsor wall** (`/sponsorwall.html`, pre-game): see the Docs page.
   The card shows the next sponsor in rotation from Major and up, by tier share, never the same one twice running.
 - **Naming rights** (the naming rights tier, or what its empty-tier rule gives instead): a "Presented by" tab over the
   home team on the scoreboard (checked every 5 minutes), a pill under the title banner, and a line under the countdown.

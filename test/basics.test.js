@@ -16,7 +16,7 @@ test('every page in public/ is served with the right type', async () => {
     assert.equal(r.status, 200, name);
     assert.match(r.type, /text\/html/, name);
   }
-  // The home page is the Output page; the Graphics page used to be the home page at /index.html.
+  // The home page is the Output page; the Docs page (graphics.html) used to be the home page at /index.html.
   const home = await studio.request('GET', '/');
   assert.equal(home.status, 200);
   assert.equal(home.text, fs.readFileSync(path.join(ROOT, 'public', 'output.html'), 'utf8'));

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Graphics · FirstPass Studio</title>
+<title>Docs · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="studio/favicon.png">
 <link rel="stylesheet" href="studio.css">
@@ -31,11 +31,13 @@
 <body class="fp">
 <header class="fp-bar">
   <a class="fp-logo" href="/" aria-label="FirstPass Studio home"><span class="fp-logo__name">FirstPass</span> <span class="fp-logo__product">STUDIO</span></a>
-  <nav><a href="/output.html">Output</a><a href="/graphics.html" aria-current="page">Graphics</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/sponsors.html">Sponsors</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck</a></nav>
+  <nav><a href="/output.html">Output</a><a href="/control.html">Scoreboard control</a><a href="/setup.html">Competitions setup</a><a href="/sponsors.html">Sponsors</a><a href="/athletes.html">Athletes</a><a href="/api.html">Stream Deck</a><a href="/graphics.html" aria-current="page">Docs</a></nav>
 </header>
 <main>
-  <h1>Graphics</h1>
+  <h1>Docs</h1>
   <p class="sub" id="sub">Loading from PlayHQ…</p>
+  <p class="page__help">How Studio works and what every graphic does. Build the show on the <a href="/output.html">Output page</a>: each graphic's options are fields in its source's settings there.
+    The links here, with <b>Copy link</b> and <b>Preview</b>, are for using a graphic on its own, such as an OBS browser source; the options below can be added to them by hand.</p>
   <div class="card">
     <h2>Competition setup</h2>
     <p class="page__help" id="compNow">Every graphic is set up for one competition at a time.</p>
@@ -676,7 +678,7 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
   '<code>?sfx=40</code> sets their volume in % (80 without it), <code>?sfx=0</code> turns them off. <code>?theme=</code> plays a song or sound from the media folder with it, at <code>?volume=</code>% (100). ' +
   '<code>?themefit=</code> lines the theme up: <b>start</b> (the default) starts it with the animation, <b>logo</b> ends it as the competition logo lands (good for a short stinger), <b>end</b> ends it as the animation finishes, and <b>stretch</b> plays the animation up to 25% faster or slower so it lasts as long as the theme. ' +
   'On the Output page the source\'s options say how long the theme and the animation are, and warn when they are more than 25% apart. Music playing on the Output page fades out while an intro or outro with a theme is on. ' +
-  'The sound plays where Studio\'s sound goes (not in the Graphics page\'s previews); as a page on its own, like an OBS browser source, it plays itself (<code>?sound=0</code> keeps it quiet).';
+  'The sound plays where Studio\'s sound goes (not in these previews); as a page on its own, like an OBS browser source, it plays itself (<code>?sound=0</code> keeps it quiet).';
 [['Intro', '/introoutro.html', INTRO_HELP], ['Outro', '/introoutro.html?type=outro'],
  ...['parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => [`Intro: ${st}`, `/introoutro.html?style=${st}`])]
   .forEach(([n, p, h]) => document.getElementById('introPages').appendChild(pageRow(n, p, h)));
@@ -738,7 +740,7 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
       list.appendChild(card);
     });
   } catch (err) {
-    console.warn("Graphics page could not load from PlayHQ:", err.message);
+    console.warn("Docs page could not load from PlayHQ:", err.message);
     fetch('/api/setup').then(r => r.json()).then(d => { const c = d.competitions.find(x => x.active); if (c) document.getElementById('compNow').textContent = `In use now: ${c.name}.`; }).catch(() => {});
     sub.textContent = '';
     list.innerHTML = '<div class="card error"></div>';
