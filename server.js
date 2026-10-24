@@ -1143,6 +1143,8 @@ function applyOneAction(b, a) {
 }
 
 // While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5).
+// Called every second by refreshTick and by the scoreboard, goals, stats and worm requests; the
+// live feed is cached for playhqRefreshSec, so PlayHQ is asked once per period however often this runs.
 async function refreshFromPlayhq(b) {
   noteClock(b);
   if (b.source !== 'playhq' || !b.roundId) return;
@@ -1703,6 +1705,22 @@ async function autoPick() {
 }
 setInterval(autoPick, 15000);
 setTimeout(autoPick, 3000); // Studio starts with a game on, following PlayHQ
+
+// Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
+// per playhqRefreshSec), whatever windows are open. Before this the reading only happened inside
+// a page's request for the scoreboard, goals, stats or worm, so with the scoreboard source hidden
+// (unloaded) and the control page closed the score froze, and the game triggers ("It's full time",
+// quarter breaks), the super shot song, streaks and the goal order all waited on a page that
+// wasn't there. The pages' requests still read through the same cache, so nothing is asked twice.
+let refreshBusy = false;
+async function refreshTick() {
+  if (refreshBusy) return;
+  refreshBusy = true;
+  try { await refreshFromPlayhq(board()); }
+  catch (err) { log('error', 'scoreboard', `Reading PlayHQ failed: ${err.message}`); }
+  finally { refreshBusy = false; }
+}
+setInterval(refreshTick, 1000);
 
 // The scorer's game clock from PlayHQ's live feed. Seen so far (one finished game):
 // { period: "4th Quarter", periodValue: "FOURTH_QTR", status: "RESUME", time: "00:00", lastUpdatedAt: "<ms>" }.
