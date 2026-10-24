@@ -420,6 +420,13 @@
       Studio stays on air while it backs up, and works off air too.
       Link for scripts: <code style="display:inline">/api/settings/export</code> downloads the same zip (add <code style="display:inline">?media=0</code> to leave media out,
       <code style="display:inline">&amp;notes=…</code> for notes).</p>
+    <p class="page__help"><b>Restore…</b> in the 1P menu puts a backup back: pick a <code style="display:inline">FirstPassStudioBackup-….zip</code>,
+      and Studio shows when and on which Mac it was made, its notes and how many competitions, sequences, playlists, sources, scenes and sponsors it holds,
+      then asks before replacing this Mac's settings with it (on the Mac or in iCloud Drive, wherever they are kept now). This Mac's settings are first
+      copied to <b>backups/</b> in the folder on this Mac, and only replaced once the whole backup has unpacked and checked out, so a damaged zip changes nothing.
+      A backup made without the media folder keeps this Mac's media. The debug log, scores and clock aren't touched. Studio goes off air while the settings
+      swap and comes straight back. A backup from an older Studio is brought up to date as Studio starts; one from a newer Studio opens with competitions read-only
+      until this Mac's Studio is updated.</p>
     <p class="page__help">Studio starts with no competitions. On the <a href="/setup.html" target="_blank">competition setup page</a>,
       make a new one or import a template file. The starter competitions (Thunder League, AMMNA Nationals, GIG WANL, West Coast Thunder)
       are template files in the repository's <code style="display:inline">templates/</code> folder.

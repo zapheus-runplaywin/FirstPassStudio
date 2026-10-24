@@ -229,6 +229,7 @@ function refreshMenu() {
     { label: 'Open the settings folder', click: () => shell.openPath(dataDir()) },
     settingsFolderMenu(),
     { label: exporting ? 'Backing up…' : 'Back up…', icon: menuIcon('backup'), enabled: !moving && !exporting, click: exportSettings },
+    { label: moving === 'backup' ? 'Restoring…' : 'Restore…', icon: menuIcon('restore'), enabled: !moving && !exporting, click: restoreFromBackup },
     { label: 'Open the debug log', click: () => shell.openPath(path.join(LOCAL_DIR, 'logs', 'playhq-graphics.log')) },
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
@@ -494,6 +495,58 @@ async function exportSettings() {
     dialog.showMessageBox({ type: 'error', message: 'Couldn\'t back up the settings', detail: err.message });
   } finally {
     exporting = false; refreshMenu();
+  }
+}
+
+// Restore: puts a backup zip made with Back up… in place of this Mac's settings, wherever they
+// are kept (datalocation.restoreBackup). This Mac's settings are backed up first, in the backups
+// folder. Studio goes off air for the swap and comes back on after.
+async function restoreFromBackup() {
+  const where = location.current(LOCAL_DIR);
+  const pick = await dialog.showOpenDialog({
+    title: 'Restore from a backup', buttonLabel: 'Restore…',
+    message: 'Pick a FirstPassStudioBackup zip made with Back up….',
+    defaultPath: app.getPath('downloads'),
+    filters: [{ name: 'Zip', extensions: ['zip'] }], properties: ['openFile'],
+  });
+  if (pick.canceled || !pick.filePaths[0]) return;
+  const file = pick.filePaths[0];
+  let backup;
+  try { backup = await location.readBackup(file); } catch (err) {
+    return dialog.showMessageBox({ type: 'warning', message: 'Can\'t restore that file', detail: err.message });
+  }
+  const { about, summary } = backup;
+  const made = about.exported ? new Date(about.exported).toLocaleString('en-AU', { dateStyle: 'long', timeStyle: 'short' }) : 'an unknown date';
+  const notes = location.backupNotes(summary);
+  const counts = (summary.match(/^[A-Z][a-z]+ \(\d+\)$/gm) || []).join(', ');
+  const wasOn = !!helper || wanted;
+  const { response } = await dialog.showMessageBox({
+    type: 'warning', buttons: ['Restore', 'Cancel'], defaultId: 0, cancelId: 1,
+    message: 'Replace this Mac\'s settings with this backup?',
+    detail: `${backup.root}\nMade ${made}${about.computer ? ` on ${about.computer}` : ''}${about.studio ? ` with Studio ${about.studio}` : ''}.`
+      + `${notes ? `\n\nNotes: ${notes.length > 300 ? `${notes.slice(0, 300)}…` : notes}` : ''}${counts ? `\n\n${counts}.` : ''}`
+      + `\n\nThis Mac's settings are backed up first, in the backups folder on this Mac.${about.media === false ? ' The backup has no media folder, so this Mac\'s media stays.' : ''}`
+      + `${wasOn ? '\n\nStudio goes off air while they swap and comes straight back. Avoid doing this during a live game.' : ''}`,
+  });
+  if (response === 1) return;
+  moving = 'backup'; refreshMenu();
+  try {
+    await helperStopped();
+    if (wasOn) windows.showOffAir();
+    status = 'Restoring the settings…'; refreshMenu();
+    const result = await location.restoreBackup({ file, to: where.dataDir, localDir: LOCAL_DIR, log });
+    log(`Restored the settings from ${file}`);
+    dialog.showMessageBox({
+      message: 'Restored the settings from the backup',
+      detail: `${result.files} files from ${path.basename(file)} are now in ${where.dataDir}.${result.backup ? `\n\nThis Mac's settings as they were are in ${result.backup}.` : ''}`,
+    });
+  } catch (err) {
+    log(`Couldn't restore the backup: ${err.message}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t restore the backup', detail: `${err.message}\n\nThis Mac's settings weren't changed.` });
+  } finally {
+    moving = false;
+    status = 'Studio is off air';
+    if (wasOn && wanted) startHelper(); else refreshMenu();
   }
 }
 
