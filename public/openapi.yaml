@@ -8,7 +8,7 @@ info:
 
     Studio must be on air: open the FirstPass Studio app and keep a Studio window open (closing the last one takes
     Studio off air, and these links get no answer). If the Stream Deck is on a different computer, use the Studio
-    Mac's .local name (shown on the Graphics page) or IP address instead of localhost.
+    Mac's .local name (shown on the Docs page) or IP address instead of localhost.
 servers:
   - url: /
     description: The Studio this page was opened from
