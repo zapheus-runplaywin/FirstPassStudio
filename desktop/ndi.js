@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const sceneWindow = require('./scenewindow');
 
-const MODULE = path.join(__dirname, '..', 'native', 'ndi', 'build', 'Release', 'ndi.node');
+const MODULE = require('../unpacked').unpacked(path.join(__dirname, '..', 'native', 'ndi', 'build', 'Release', 'ndi.node'));
 let addon = null;
 let loadError = '';
 try { addon = require(MODULE); } catch (err) { loadError = err.message; }

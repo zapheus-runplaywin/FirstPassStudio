@@ -29,8 +29,23 @@
   "build": {
     "appId": "com.runplaywin.firstpassstudio",
     "productName": "FirstPass Studio",
-    "copyright": "\u00a9 PIVT",
-    "asar": false,
+    "copyright": "© PIVT",
+    "asar": true,
+    "asarUnpack": [
+      "vendor/ffmpeg/**",
+      "native/**/*.node",
+      "plugins/studio-deck/dist/**"
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "loadBrowserProcessSpecificV8Snapshot": false,
+      "grantFileProtocolExtraPrivileges": false
+    },
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -53,6 +68,7 @@
       "migrations.js",
       "linkhost.js",
       "access.js",
+      "unpacked.js",
       "sequences.js",
       "music.js",
       "fonts.js",
@@ -91,7 +107,9 @@
       "notarize": true,
       "extendInfo": {
         "LSUIElement": true
-      }
+      },
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "dmg": {
       "title": "FirstPass Studio"
