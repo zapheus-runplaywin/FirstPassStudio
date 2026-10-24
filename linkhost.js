@@ -29,4 +29,4 @@ function linkHost(setting) {
   return want;
 }
 
-module.exports = { linkHost };
+module.exports = { linkHost, bonjourName };

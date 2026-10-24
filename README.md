@@ -173,8 +173,11 @@ and, unless you say otherwise, change things: press the Stream Deck links (score
 sequences and save settings. **Let other devices change things** in the menu bar icon (ticked by default; `"remoteChanges"`
 in `config.json`) is the switch: unticked, Studio takes changes only from this Mac (by any of its own addresses, so the
 Stream Deck plugin on it and links by its `.local` name still work) and answers other devices' changes with a 403 that
-says so, while they can still open every page. Untick it on open venue Wi-Fi. Studio's pages are the only web pages
-that can talk to it from a browser (it sends no CORS header), so a page from another site can't drive it either.
+says so, while they can still open every page. Untick it on open venue Wi-Fi. Whatever the switch says, a change must
+come from Studio's own pages or from a program (the Stream Deck plugin, a Website key, `curl`): a request that a
+browser marks as coming from a web page on another site (its `Origin` or `Sec-Fetch-Site` header), or that asks for
+Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the Mac's addresses, its `.local` name and
+`linkHost` are fine), gets a 403 that says so. Studio also sends no CORS header, so another site can't read its answers.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
 Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Restart Studio, Open at
