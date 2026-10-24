@@ -27,15 +27,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
       # Electron itself isn't needed to test Studio, only its packages.
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      # No install scripts (as in mac-app.yml); Electron's binary isn't needed here at all.
+      - run: npm ci --ignore-scripts
       # Chromium for the page test (test/pages.test.js), which fails here rather than skipping without it.
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ci
@@ -51,13 +50,13 @@ jobs:
       run:
         working-directory: plugins/studio-deck
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: plugins/studio-deck/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run typecheck
       # The bundle the Mac app packs, so a dependency update that breaks it shows here first.
       - run: npm run build

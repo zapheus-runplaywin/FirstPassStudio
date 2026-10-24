@@ -18,18 +18,22 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Raise the pinned versions
         id: bump
         run: |
           latest() { git ls-remote --tags --refs "https://github.com/$1.git" | sed 's#.*refs/tags/##' | grep -E "$2" | sort -V | tail -1; }
+          # The commit a tag points at (an annotated tag's peeled commit, else the tag ref itself), which build.sh checks.
+          commit() { local c; c="$(git ls-remote --tags "https://github.com/$1.git" "refs/tags/$2^{}" | cut -f1)"; [ -n "$c" ] || c="$(git ls-remote --tags "https://github.com/$1.git" "refs/tags/$2" | cut -f1)"; echo "$c"; }
           ffmpeg="$(latest FFmpeg/FFmpeg '^n[0-9]+\.[0-9]+(\.[0-9]+)?$')"
           libvpx="$(latest webmproject/libvpx '^v[0-9]+\.[0-9]+\.[0-9]+$')"
           opus="$(latest xiph/opus '^v[0-9]+\.[0-9]+(\.[0-9]+)?$')"
           [ -n "$ffmpeg" ] && [ -n "$libvpx" ] && [ -n "$opus" ] || { echo "Couldn't read the latest versions" >&2; exit 1; }
+          ffmpeg_c="$(commit FFmpeg/FFmpeg "$ffmpeg")"; libvpx_c="$(commit webmproject/libvpx "$libvpx")"; opus_c="$(commit xiph/opus "$opus")"
+          [ -n "$ffmpeg_c" ] && [ -n "$libvpx_c" ] && [ -n "$opus_c" ] || { echo "Couldn't read the tags' commits" >&2; exit 1; }
           f=vendor/ffmpeg/build.sh
-          sed -i -E "s/^FFMPEG_VERSION=.*/FFMPEG_VERSION=$ffmpeg/; s/^LIBVPX_VERSION=.*/LIBVPX_VERSION=$libvpx/; s/^OPUS_VERSION=.*/OPUS_VERSION=$opus/" "$f"
+          sed -i -E "s/^FFMPEG_VERSION=.*/FFMPEG_VERSION=$ffmpeg/; s/^FFMPEG_COMMIT=.*/FFMPEG_COMMIT=$ffmpeg_c/; s/^LIBVPX_VERSION=.*/LIBVPX_VERSION=$libvpx/; s/^LIBVPX_COMMIT=.*/LIBVPX_COMMIT=$libvpx_c/; s/^OPUS_VERSION=.*/OPUS_VERSION=$opus/; s/^OPUS_COMMIT=.*/OPUS_COMMIT=$opus_c/" "$f"
           sed -i -E "s/^\| FFmpeg \| [^|]+ \|/| FFmpeg | $ffmpeg |/; s/^\| libvpx \(VP9\) \| [^|]+ \|/| libvpx (VP9) | $libvpx |/; s/^\| libopus \| [^|]+ \|/| libopus | $opus |/" vendor/ffmpeg/LICENSE.md
           if git diff --quiet; then echo "Up to date: FFmpeg $ffmpeg, libvpx $libvpx, opus $opus"; exit 0; fi
           git diff

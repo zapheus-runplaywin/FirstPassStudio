@@ -254,8 +254,11 @@ One-time setup:
 2. In Xcode (Settings > Accounts > Manage Certificates) or at developer.apple.com, create a **Developer ID
    Application** certificate. In Keychain Access export it with its private key as a `.p12` with a password.
 3. At appleid.apple.com create an app-specific password. Your Team ID is under Membership at developer.apple.com.
-4. Create a fine-grained GitHub token with **Contents: read and write** on `FirstPassStudio-releases`.
-5. In this repository's Settings > Secrets and variables > Actions, add:
+4. Create a fine-grained GitHub token with **Contents: read and write** on `FirstPassStudio-releases` only (no other
+   repository, no other permission), with an expiry; make a new one when it runs out.
+5. In this repository's Settings > Environments, create `release` and tick **Deployment branches: selected branches**
+   with `main`, so only a merge to main can use the secrets below; then add them to that environment (Settings >
+   Secrets and variables > Actions, as repository secrets, also works):
    - `MAC_CERTIFICATE`: the `.p12` as base64 (`base64 -i certificate.p12 | pbcopy`)
    - `MAC_CERTIFICATE_PASSWORD`: its password
    - `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`

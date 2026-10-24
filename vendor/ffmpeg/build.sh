@@ -11,13 +11,18 @@
 # Needs git, make, a C compiler and pkg-config (Xcode command line tools and Homebrew's
 # pkg-config on a Mac; on an Intel or Linux machine also nasm).
 #
-# Change a version below to update; the workflow's cache is keyed on this file.
+# Change a version below to update; the workflow's cache is keyed on this file. Each version
+# comes with the commit its tag pointed at when it was picked (the ffmpeg-updates workflow fills
+# both in): a tag can be moved, a commit can't, so the build stops if they no longer agree.
 
 set -euo pipefail
 
 FFMPEG_VERSION=n9.0.2
+FFMPEG_COMMIT=946fcce07b6dcd0331c8cc609192aeff5e1924f8
 LIBVPX_VERSION=v1.17.0
+LIBVPX_COMMIT=6df3ec34557879fff673706f4a1d9fbd0f3a6f0e
 OPUS_VERSION=v1.6.1
+OPUS_COMMIT=22244de5a79bd1d6d623c32e72bf1954b56235be
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 WORK="${FFMPEG_WORK:-$HERE/.build}"
@@ -34,8 +39,10 @@ run() {
   rm -f "$log"
 }
 
-fetch() { # repo tag dir
+fetch() { # repo tag dir commit
   [ -d "$WORK/$3" ] || git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$2" "https://github.com/$1.git" "$WORK/$3"
+  local got; got="$(git -C "$WORK/$3" rev-parse HEAD^{commit})"
+  [ "$got" = "$4" ] || { echo "$1 $2 is commit $got, not the pinned $4: the tag has moved. Check the release, then update both in build.sh." >&2; exit 1; }
 }
 
 # Name libvpx's target on Apple silicon: plain arm64-darwin-gcc is its iOS target, which ffmpeg
@@ -44,19 +51,19 @@ VPX_TARGET=""
 [ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] && VPX_TARGET="--target=arm64-darwin21-gcc"
 
 echo "== libvpx $LIBVPX_VERSION"
-fetch webmproject/libvpx "$LIBVPX_VERSION" libvpx
+fetch webmproject/libvpx "$LIBVPX_VERSION" libvpx "$LIBVPX_COMMIT"
 (cd "$WORK/libvpx" && run ./configure $VPX_TARGET --prefix="$PREFIX" --enable-static --disable-shared --enable-pic --enable-vp9-highbitdepth \
   --disable-examples --disable-tools --disable-docs --disable-unit-tests && run make -j"$JOBS" && run make install)
 
 echo "== opus $OPUS_VERSION"
-fetch xiph/opus "$OPUS_VERSION" opus
+fetch xiph/opus "$OPUS_VERSION" opus "$OPUS_COMMIT"
 run cmake -S "$WORK/opus" -B "$WORK/opus/out" -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
   -DOPUS_BUILD_PROGRAMS=OFF -DOPUS_BUILD_TESTING=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 run cmake --build "$WORK/opus/out" -j "$JOBS"
 run cmake --install "$WORK/opus/out"
 
 echo "== ffmpeg $FFMPEG_VERSION"
-fetch FFmpeg/FFmpeg "$FFMPEG_VERSION" ffmpeg
+fetch FFmpeg/FFmpeg "$FFMPEG_VERSION" ffmpeg "$FFMPEG_COMMIT"
 # Only what Studio needs: reading QuickTime files with ProRes (or H.264/HEVC) video and PCM or AAC
 # sound, and writing WebM with VP9 and Opus; reading back the WebM it made (to measure its length); reading songs (MP3, M4A with AAC or Apple Lossless, AAC,
 # WAV, AIFF) and writing them evened out (loudnorm) as AAC in M4A. Everything else (other formats,
