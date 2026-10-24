@@ -197,6 +197,16 @@ function restartHelper() {
 
 // ─── Menu bar ───────────────────────────────────────────────────────────────
 
+// A small symbol for a menu item: desktop/<name>Template.png (and @2x), drawn in the menu's colour.
+const menuIcons = {};
+function menuIcon(name) {
+  if (!menuIcons[name]) {
+    menuIcons[name] = nativeImage.createFromPath(path.join(__dirname, `${name}Template.png`));
+    menuIcons[name].setTemplateImage(true);
+  }
+  return menuIcons[name];
+}
+
 function refreshMenu() {
   if (!tray) return;
   const login = app.getLoginItemSettings().openAtLogin;
@@ -218,6 +228,7 @@ function refreshMenu() {
     { type: 'separator' },
     { label: 'Open the settings folder', click: () => shell.openPath(dataDir()) },
     settingsFolderMenu(),
+    { label: exporting ? 'Backing up…' : 'Back up…', icon: menuIcon('backup'), enabled: !moving && !exporting, click: exportSettings },
     { label: 'Open the debug log', click: () => shell.openPath(path.join(LOCAL_DIR, 'logs', 'playhq-graphics.log')) },
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
@@ -435,6 +446,54 @@ async function restoreFromMac() {
     moving = false;
     status = 'Studio is off air';
     if (wasOn && wanted) startHelper(); else refreshMenu();
+  }
+}
+
+// Back up settings: saves every setting (datalocation.exportEntries) as one zip, named with the
+// date and time so each one is new and they sort oldest to newest, and a summary of what's in it
+// (exportSummary, with the notes typed in) beside it as <name>.txt, also inside the zip.
+// Studio stays on air: nothing is changed.
+let exporting = false;
+async function exportSettings() {
+  const where = location.current(LOCAL_DIR);
+  if (!fs.existsSync(where.dataDir)) return dialog.showMessageBox({ type: 'warning', message: 'The settings folder can\'t be found', detail: where.dataDir });
+  const media = location.exportEntries(where.dataDir).list.filter(e => e.file && e.name.split('/')[1] === 'media');
+  const mb = media.reduce((n, e) => n + fs.statSync(e.file).size, 0) / 1e6;
+  const choice = await windows.askExport({ mediaLabel: media.length ? `Include the media folder (${media.length} files, ${mb < 1 ? '<1' : Math.round(mb)} MB)` : '' });
+  if (!choice) return;
+  const name = location.exportName();
+  const pick = await dialog.showSaveDialog({
+    title: 'Back up settings', buttonLabel: 'Save',
+    message: 'The summary is saved beside the zip, with the same name.',
+    defaultPath: path.join(app.getPath('downloads'), `${name}.zip`),
+    filters: [{ name: 'Zip', extensions: ['zip'] }],
+  });
+  if (pick.canceled || !pick.filePath) return;
+  const summaryFile = pick.filePath.replace(/\.zip$/i, '') + '.txt';
+  const part = `${pick.filePath}.part`;
+  exporting = true; refreshMenu();
+  try {
+    if (!where.local && location.placeholders(where.dataDir).length) await location.download(where.dataDir);
+    const { list, skipped, summary } = location.exportEntries(where.dataDir, { media: choice.media, folder: name, about: { studio: app.getVersion() }, notes: choice.notes });
+    const out = fs.createWriteStream(part);
+    const done = new Promise((resolve, reject) => { out.on('finish', resolve); out.on('error', reject); });
+    await require('../zip').write(out, list);
+    await done;
+    fs.renameSync(part, pick.filePath);
+    fs.writeFileSync(summaryFile, summary);
+    log(`Backed up the settings to ${pick.filePath}: ${list.length - 2} files${skipped.length ? `, without ${skipped.join(', ')} (not downloaded from iCloud)` : ''}`);
+    const { response } = await dialog.showMessageBox({
+      buttons: ['Show in Finder', 'OK'], defaultId: 1, cancelId: 1,
+      message: 'Backed up the settings',
+      detail: `${list.length - 2} files in ${pick.filePath}, and a summary in ${path.basename(summaryFile)} beside it.${skipped.length ? `\n\n${skipped.length} files are still only in iCloud and weren't included: ${skipped.slice(0, 5).join(', ')}${skipped.length > 5 ? '…' : ''}` : ''}`,
+    });
+    if (response === 0) shell.showItemInFolder(pick.filePath);
+  } catch (err) {
+    fs.rmSync(part, { force: true });
+    log(`Couldn't back up the settings: ${err.message}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t back up the settings', detail: err.message });
+  } finally {
+    exporting = false; refreshMenu();
   }
 }
 

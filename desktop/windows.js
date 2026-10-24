@@ -65,8 +65,10 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // first window shows. It never stays longer than SPLASH_MAX, whatever happens.
   const SPLASH_MIN = 1500, SPLASH_MAX = 30000;
   let splash = null, splashDone = Promise.resolve();
-  const isSplash = w => w && w.isSplash;
-  // Every window but the splash: it doesn't put the app in the Dock or take the app menu.
+  // The splash and small panels (Export settings) aren't Studio pages: they don't put the app in
+  // the Dock, take the app menu or keep Studio on air.
+  const isSplash = w => w && (w.isSplash || w.isPanel);
+  // Every window but the splash and panels.
   const pageWindows = () => BrowserWindow.getAllWindows().filter(w => !w.isDestroyed() && !isSplash(w));
 
   function showSplash() {
@@ -98,6 +100,30 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // The line under the logo ("Studio is on air"), and whether the bar stops sweeping.
   function splashStatus(text, done = false) {
     if (splash && !splash.isDestroyed()) splash.webContents.executeJavaScript(`setStatus(${JSON.stringify(text)}, ${done})`).catch(() => {});
+  }
+
+  // ─── Export settings ────────────────────────────────────────────────────
+  // Asks for notes to put at the top of the backup's summary, and whether to include the media
+  // folder (mediaLabel says how big it is; none: no media to ask about). Resolves with
+  // { notes, media }, or null if cancelled or closed.
+  function askExport({ mediaLabel = '' } = {}) {
+    const win = new BrowserWindow({
+      width: 520, height: mediaLabel ? 420 : 380, center: true, resizable: false, minimizable: false, maximizable: false,
+      fullscreenable: false, show: false, backgroundColor: '#0F172A', title: 'Back up settings',
+      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    });
+    win.isPanel = true;
+    win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
+    win.loadFile(path.join(__dirname, 'export.html'), { query: { media: mediaLabel } });
+    return new Promise(resolve => {
+      win.on('closed', () => resolve(null));
+      win.webContents.once('did-finish-load', () => {
+        win.webContents.executeJavaScript('window.choice', true)
+          .then(choice => { resolve(choice && typeof choice === 'object' ? { notes: String(choice.notes || '').slice(0, 5000), media: !!choice.media } : null); })
+          .catch(() => resolve(null))
+          .finally(() => { if (!win.isDestroyed()) win.close(); });
+      });
+    });
   }
 
   // ─── Dock ───────────────────────────────────────────────────────────────
@@ -335,5 +361,5 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       { role: 'windowMenu' },
     ]));
   }
-  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus };
+  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport };
 };

@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const datadir = require('./datadir');
+const datalocation = require('./datalocation');
 const migrations = require('./migrations');
 const competitions = require('./competitions');
 const finals = require('./finals');
@@ -2986,6 +2987,18 @@ http.createServer(async (req, res) => {
         rules: { ...rules(grade.name), finalsPlaces: marks.places }, finals: marks, ...ladder });
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion(), base: LINK_BASE });
+    if (url.pathname === '/api/settings/export' && req.method === 'GET') {
+      // Every setting in one zip with its summary (datalocation.exportEntries); ?media=0 leaves out the media folder, ?notes= heads the summary.
+      const name = datalocation.exportName();
+      const { list, skipped } = datalocation.exportEntries(datadir.DATA_DIR, { media: q.media !== '0', folder: name, about: { studio: pageVersion() }, notes: String(q.notes || '').slice(0, 5000) });
+      if (skipped.length) log('warn', 'settings', `Exporting the settings without ${skipped.join(', ')}: not downloaded from iCloud yet`);
+      res.writeHead(200, { 'content-type': 'application/zip', 'cache-control': 'no-store', 'content-disposition': `attachment; filename="${name}.zip"` });
+      try {
+        await require('./zip').write(res, list);
+        log('info', 'settings', `Exported the settings as ${name}.zip: ${list.length - 2} files`);
+      } catch (err) { log('warn', 'settings', `Settings export stopped: ${err.message}`); res.destroy(); }
+      return;
+    }
     if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets()));
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());

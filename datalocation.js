@@ -265,6 +265,80 @@ function otherMacs(folder, dataDir) {
     .map(d => ({ dir: d, computer: (owner(d) || {}).computer || path.basename(d), since: (owner(d) || {}).since }));
 }
 
+// The settings as zip entries ({ name, file }, zip.js), for Export settings as a zip: every
+// file under SETTINGS in the folder, inside one folder named like the zip, plus
+// studio-export.json saying where and when they came from (folder: exportName()). The local-only files (logs, scores
+// and clock, caches) aren't settings, so they aren't in it. Hidden files (.DS_Store, a copy
+// half made, iCloud's placeholders) are left out; skipped lists the placeholders, files iCloud
+// hasn't downloaded. media: false leaves out the media folder (videos, music, images).
+// summary.txt (exportSummary()) goes in too. Returns { list, skipped, bytes, summary }.
+function exportEntries(dir, { media = true, folder = exportName(), about = {}, notes = '' } = {}) {
+  const list = [], skipped = [];
+  let bytes = 0;
+  const walk = rel => {
+    const p = path.join(dir, rel);
+    let st; try { st = fs.lstatSync(p); } catch { return; }
+    if (st.isDirectory()) {
+      for (const n of fs.readdirSync(p).sort()) {
+        const m = /^\.(.+)\.icloud$/.exec(n);
+        if (m) skipped.push(path.join(rel, m[1]));
+        else if (!n.startsWith('.')) walk(path.join(rel, n));
+      }
+    } else if (st.isFile()) {
+      list.push({ name: `${folder}/${rel.split(path.sep).join('/')}`, file: p });
+      bytes += st.size;
+    }
+  };
+  for (const n of movable(dir)) if (media || n !== 'media') walk(n);
+  const manifest = { exported: new Date().toISOString(), computer: computerName(), media, files: list.length, ...about };
+  const summary = exportSummary(dir, { name: folder, about, files: list.length, bytes, media, skipped, notes });
+  list.unshift({ name: `${folder}/studio-export.json`, data: Buffer.from(JSON.stringify(manifest, null, 2) + '\n') },
+    { name: `${folder}/summary.txt`, data: Buffer.from(summary) });
+  return { list, skipped, bytes, summary };
+}
+
+// A summary of the settings in a folder, as plain text, saved beside an exported zip and in it:
+// the competitions with their sequences, the playlists, the sources, the scenes and the
+// sponsors, by name, under the notes typed in when backing up. It reads the saved files as they are, so it works with Studio off air.
+function exportSummary(dir, { name = exportName(), about = {}, files = 0, bytes = 0, media = true, skipped = [], notes = '' } = {}) {
+  const json = (...p) => readJson(path.join(dir, ...p)) || {};
+  const arr = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object') : [];
+  const lines = [name, '', `Made ${new Date().toLocaleString('en-AU', { dateStyle: 'long', timeStyle: 'short' })} on ${computerName()}${about.studio ? `, FirstPass Studio ${about.studio}` : ''}.`,
+    `${files} files, ${bytes < 1e6 ? '<1' : Math.round(bytes / 1e6)} MB${media ? '' : ', without the media folder'}.`];
+  if (skipped.length) lines.push(`Not included, still only in iCloud: ${skipped.join(', ')}.`);
+  notes = String(notes || '').trim();
+  if (notes) lines.push('', 'Notes', notes);
+  const section = (title, items) => { lines.push('', `${title} (${items.length})`); for (const i of items) lines.push(`- ${i}`); if (!items.length) lines.push('- none'); };
+  const seqNames = file => arr((readJson(file) || {}).sequences).map(q => q.name || 'Untitled sequence');
+  let comps = [];
+  try { comps = fs.readdirSync(path.join(dir, 'competitions'), { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name).sort(); } catch { /* none */ }
+  const active = json('competitions', 'active.json').active;
+  const compName = {};
+  for (const id of comps) { const c = json('competitions', id, 'settings.json'); compName[id] = c.name || c.displayName || id; }
+  comps.sort((a, b) => compName[a].localeCompare(compName[b]));
+  section('Competitions', comps.map(id => `${compName[id]}${id === active ? ' (in use)' : ''}`));
+  const seqs = comps.map(id => [compName[id], seqNames(path.join(dir, 'competitions', id, 'sequences.json'))]);
+  const loose = seqNames(path.join(dir, 'sequences.json'));
+  if (loose.length) seqs.push(['No competition', loose]);
+  section('Sequences', seqs.flatMap(([c, list]) => list.map(q => `${q} (${c})`)));
+  section('Playlists', arr(json('music.json').playlists).map(pl => `${pl.name || 'Playlist'} (${(pl.tracks || []).length} songs)`));
+  const scene = json('scene.json');
+  section('Sources', arr(scene.sources).map(src => `${src.name || src.id || 'Source'}${src.type ? ` (${src.type})` : ''}`));
+  section('Scenes', arr(scene.scenes).map(sc => sc.name || 'Untitled scene'));
+  section('Sponsors', arr(json('sponsors', 'sponsors.json').sponsors).map(sp => {
+    const on = Object.keys(sp.competitions || {}).map(id => compName[id] || id);
+    return `${sp.name || 'Sponsor'}${on.length ? ` (${on.join(', ')})` : ''}`;
+  }));
+  return lines.join('\n') + '\n';
+}
+
+// The name for an exported zip (without .zip): the prefix, then the date and time (this Mac's
+// time), so each one is new and they sort oldest to newest: FirstPassStudioBackup-2026-10-24_10-46-02
+function exportName(d = new Date()) {
+  const two = n => String(n).padStart(2, '0');
+  return `FirstPassStudioBackup-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}_${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
+}
+
 // Points this Mac at a cloud folder (or back at the local one with provider null), and marks
 // the cloud subfolder as this Mac's.
 function save(localDir, { provider, folder, dataDir, computer }) {
@@ -302,4 +376,4 @@ async function download(dir, { timeoutMs = 60000 } = {}) {
   return left;
 }
 
-module.exports = { PROVIDERS, SETTINGS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, restore, restoreToCloud, otherMacs, save, placeholders, download, isInside };
+module.exports = { PROVIDERS, SETTINGS, LOCAL_ONLY, LOCATION_FILE, COMPUTER_FILE, computerName, current, computerId, movable, hasSettings, owner, usedByAnother, check, move, restore, restoreToCloud, otherMacs, exportEntries, exportSummary, exportName, save, placeholders, download, isInside };
