@@ -37,6 +37,17 @@ const dataDir = () => location.current(LOCAL_DIR).dataDir;
 const LOG_FILE = path.join(LOCAL_DIR, 'logs', 'app.log');
 // Whether this Mac had run the app before this launch (What's new isn't shown on a fresh install).
 const USED_BEFORE = fs.existsSync(LOG_FILE) || fs.existsSync(path.join(LOCAL_DIR, 'app-settings.json'));
+// The version the app last started as, from its log ("Starting 0.4.10, …"): what it's upgrading
+// from, when app-settings.json has no record (the versions before What's new).
+const LAST_STARTED = (() => {
+  try {
+    const fd = fs.openSync(LOG_FILE, 'r');
+    const size = fs.fstatSync(fd).size, len = Math.min(size, 512 * 1024), buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, size - len);
+    fs.closeSync(fd);
+    return whatsnew.lastStarted(buf.toString('utf8'));
+  } catch { return null; }
+})();
 
 function log(message) {
   try {
@@ -632,12 +643,12 @@ function updateErrorText(err) {
 
 // ─── What's new ─────────────────────────────────────────────────────────────
 // The first time the app opens after an update, a window lists what changed since the version
-// last opened (whatsnew.js, from the release notes bundled at build time). Opened at login it
+// last opened, every change between the two (whatsnew.js, from the release notes bundled at build time). Opened at login it
 // waits until Studio is first opened, rather than popping up as the Mac starts. The version it
 // was shown for is saved in app-settings.json (whatsNewSeen), so it shows once.
 let whatsNewLater = null;
 function whatsNewOnLaunch() {
-  const { show, seen } = whatsnew.onLaunch({ data: whatsnew.load(), current: app.getVersion(), lastSeen: appSettings().whatsNewSeen, usedBefore: USED_BEFORE });
+  const { show, seen } = whatsnew.onLaunch({ data: whatsnew.load(), current: app.getVersion(), lastSeen: appSettings().whatsNewSeen || LAST_STARTED, usedBefore: USED_BEFORE });
   if (seen) saveAppSetting('whatsNewSeen', seen);
   if (!show) return;
   log(`What's new: ${show.map(r => r.version).join(', ')}`);

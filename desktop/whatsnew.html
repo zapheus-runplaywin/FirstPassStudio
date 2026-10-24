@@ -18,7 +18,6 @@
   h2 { font-size: 13px; margin: 0 0 6px; color: #F1C40F; display: flex; justify-content: space-between; }
   h2 span { color: #64748B; font-weight: 400; }
   ul { margin: 0; padding-left: 18px; line-height: 1.55; color: #E2E8F0; }
-  #more { color: #94A3B8; margin: 6px 0 0; }
   .buttons { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px 18px; border-top: 1px solid #1E293B; }
   button { font: inherit; padding: 6px 16px; border-radius: 6px; border: 1px solid #334155; background: #1E293B; color: #F8FAFC; }
   button.go { background: #F75C03; border-color: #F75C03; font-weight: 600; }
@@ -45,12 +44,11 @@
   // window.choice: 'open' for Open Studio, or null for Close. recent: opened from the menu bar
   // (What's new…), listing the latest releases rather than those since the last version opened.
   const $ = id => document.getElementById(id);
-  const MAX = 30; // releases listed; older ones are summed up in a line
   window.show = (releases, version, recent) => {
     $('sub').textContent = `You're on version ${version}.` + (recent ? ' The latest changes.' : releases.length > 1 ? ` Changes in the ${releases.length} updates since you last opened it.` : '');
     const list = $('list');
     list.textContent = '';
-    for (const r of releases.slice(0, MAX)) {
+    for (const r of releases) {
       const s = document.createElement('section');
       const h = document.createElement('h2');
       h.textContent = `Version ${r.version}`;
@@ -64,12 +62,6 @@
       for (const c of r.changes) { const li = document.createElement('li'); li.textContent = c; ul.append(li); }
       s.append(h, ul);
       list.append(s);
-    }
-    if (releases.length > MAX) {
-      const p = document.createElement('p');
-      p.id = 'more';
-      p.textContent = `And ${releases.length - MAX} earlier updates.`;
-      list.append(p);
     }
   };
   window.choice = new Promise(resolve => {

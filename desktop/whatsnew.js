@@ -64,8 +64,14 @@ function load(file = FILE) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
 }
 
+// The version in the last "Starting <version>, …" line of the app's log.
+function lastStarted(log) {
+  const all = [...String(log || '').matchAll(/ Starting (\d+\.\d+\.\d+),/g)];
+  return all.length ? all[all.length - 1][1] : null;
+}
+
 // What to do as the app opens. lastSeen: the version the app last opened as (app-settings.json
-// whatsNewSeen); usedBefore: whether this Mac had run the app before (a fresh install has nothing
+// whatsNewSeen, or the log's last start); usedBefore: whether this Mac had run the app before (a fresh install has nothing
 // new to tell). Returns { show: releases to list, or null; seen: the version to save, or null }.
 function onLaunch({ data, current, lastSeen, usedBefore }) {
   if (!parse(current) || lastSeen === current) return { show: null, seen: null };
@@ -73,11 +79,11 @@ function onLaunch({ data, current, lastSeen, usedBefore }) {
   if (!usedBefore && !lastSeen) return { show: null, seen: current };
   if (parse(lastSeen) && compare(current, lastSeen) < 0) return { show: null, seen: current };
   const list = since(data, lastSeen, current);
-  // The first version with this window has no record of the last one: show only its own changes.
-  return { show: list.length ? (lastSeen ? list : list.slice(0, 1)) : null, seen: current };
+  // No record of the last version at all: show only this one's changes.
+  return { show: list.length ? (parse(lastSeen) ? list : list.slice(0, 1)) : null, seen: current };
 }
 
-module.exports = { changesIn, build, since, load, onLaunch, compare, FILE };
+module.exports = { changesIn, build, since, load, onLaunch, lastStarted, compare, FILE };
 
 if (require.main === module) {
   const [releasesFile, notesFile, version] = process.argv.slice(2);
