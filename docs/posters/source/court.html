@@ -1,0 +1,119 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FirstPass Studio poster (court)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;0,900;1,800;1,900&amp;display=swap">
+<style>
+:root { --navy:#0F172A; --court:#14406B; --court2:#0F3357; --blue:#2274A5; --orange:#F75C03; --gold:#F1C40F; --white:#FFFFFF; --muted:#D3DEEA; --faint:#9FB4CB; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--navy); }
+.p { position: relative; width: 3179px; height: 4494px; overflow: hidden; background: var(--navy); color: var(--white); font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+.abs { position: absolute; }
+.k { font-weight: 800; letter-spacing: .3em; text-transform: uppercase; }
+img { display: block; }
+
+/* the court: 160..3019 wide, 250..4150 tall, thirds at 1550 and 2850 */
+.court { left: 160px; top: 250px; width: 2859px; height: 3900px; background: linear-gradient(180deg, var(--court), var(--court2) 50%, var(--court)); border-radius: 6px; }
+svg.lines { position: absolute; left: 0; top: 0; }
+
+/* top third */
+.brand { left: 260px; top: 340px; display: flex; align-items: center; gap: 40px; }
+.third-k { font-size: 30px; color: var(--gold); opacity: .9; }
+.t1 { left: 260px; top: 600px; width: 1440px; display: flex; flex-direction: column; gap: 40px; }
+.t1 h1 { margin: 0; font-size: 172px; line-height: .9; font-weight: 900; font-style: italic; letter-spacing: -.04em; }
+.t1 h1 em { color: var(--gold); }
+.t1 p { margin: 0; font-size: 50px; line-height: 1.4; color: var(--muted); }
+.frame { border-radius: 26px; overflow: hidden; border: 4px solid rgba(255,255,255,.85); box-shadow: 0 50px 110px rgba(5,12,28,.6); background: var(--navy); }
+.frame img { width: 100%; height: 100%; object-fit: cover; }
+.f1 { left: 1760px; top: 470px; width: 1160px; height: 652px; }
+.f1b { left: 1760px; top: 1170px; width: 1160px; height: 302px; }
+.live { left: 1800px; top: 420px; background: #E11D48; color: #fff; font-weight: 800; font-size: 34px; letter-spacing: .18em; padding: 16px 28px; border-radius: 12px; display: flex; align-items: center; gap: 18px; }
+.live i { width: 18px; height: 18px; border-radius: 50%; background: #fff; display: block; }
+
+/* centre third */
+.mark { left: 1589px; top: 2200px; transform: translate(-50%, -50%); width: 520px; height: 520px; border-radius: 50%; background: var(--navy); border: 8px solid var(--gold); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 26px rgba(241,196,15,.12), 0 40px 100px rgba(0,0,0,.45); }
+.mark img { width: 330px; }
+.stat { width: 980px; display: flex; flex-direction: column; gap: 14px; }
+.stat b { font-size: 190px; line-height: .9; font-weight: 900; font-style: italic; color: var(--gold); letter-spacing: -.02em; }
+.stat span { font-size: 42px; line-height: 1.38; color: var(--muted); }
+.st1 { left: 260px; top: 1660px; }
+.st2 { right: 260px; top: 1660px; text-align: right; align-items: flex-end; }
+.st3 { left: 260px; top: 2340px; }
+.st4 { right: 260px; top: 2340px; text-align: right; align-items: flex-end; }
+.flow { left: 0; right: 0; top: 2725px; display: flex; justify-content: center; }
+.flow div { font-size: 34px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--white); background: rgba(15,23,42,.7); padding: 18px 34px; border-radius: 40px; border: 2px solid rgba(255,255,255,.18); }
+.flow em { color: var(--gold); font-style: normal; padding: 0 12px; }
+
+/* bottom third */
+.t3 { left: 260px; right: 260px; top: 2950px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 64px; }
+.aud { display: flex; flex-direction: column; gap: 26px; }
+.aud .frame { height: 560px; }
+.aud .k { font-size: 30px; margin-top: 12px; }
+.aud h3 { margin: 0; font-size: 80px; line-height: 1; font-weight: 900; font-style: italic; letter-spacing: -.02em; }
+.aud p { margin: 0; font-size: 39px; line-height: 1.45; color: var(--muted); }
+
+/* off the court */
+.foot { left: 160px; right: 160px; top: 4190px; height: 260px; display: flex; justify-content: space-between; align-items: center; gap: 60px; }
+.foot .k { font-size: 30px; color: #94A3B8; }
+.foot .mail { font-size: 96px; font-weight: 900; font-style: italic; color: var(--gold); letter-spacing: -.02em; line-height: 1; margin-top: 12px; }
+.foot .made { display: flex; flex-direction: column; align-items: flex-end; gap: 16px; }
+.foot .made .row { display: flex; align-items: center; gap: 24px; font-size: 32px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: #CBD5E1; }
+.foot small { font-size: 24px; color: #94A3B8; }
+</style>
+</head><body>
+<div class="p">
+  <div class="abs court"></div>
+  <!-- court lines in poster coordinates -->
+  <svg class="lines" width="3179" height="4494" viewBox="0 0 3179 4494" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="10">
+    <rect x="160" y="250" width="2859" height="3900"/>
+    <line x1="160" y1="1550" x2="3019" y2="1550"/>
+    <line x1="160" y1="2850" x2="3019" y2="2850"/>
+    <path d="M1009 250 A580 580 0 0 0 2169 250" stroke-opacity=".16"/>
+    <path d="M1009 4150 A580 580 0 0 1 2169 4150" stroke-opacity=".16"/>
+    <circle cx="1589" cy="2200" r="330"/>
+  </svg>
+
+  <!-- top third -->
+  <div class="abs brand"><img src="assets/1p-studio.svg" alt="1P Studio" style="height: 170px;"><img src="assets/firstpass-studio.svg" alt="FirstPass Studio" style="height: 84px;"></div>
+  <div class="abs t1">
+    <div class="k third-k">Broadcast graphics for netball</div>
+    <h1>Every goal.<br>Every quarter.<br><em>On screen.</em></h1>
+    <p>FirstPass Studio turns your competition's PlayHQ data into broadcast graphics for your livestream, run from one Mac.</p>
+  </div>
+  <div class="abs frame f1"><img src="assets/g-clash.jpg" alt="The Clash match up animation"></div>
+  <div class="abs frame f1b"><img src="assets/c-g-scoreboard.jpg" alt="Live scoreboard" style="object-fit: contain; background: #0d1b3d;"></div>
+  <div class="abs live"><i></i>LIVE FROM PLAYHQ</div>
+
+  <!-- centre third -->
+  <div class="abs stat st1"><b>1 s</b><span>The score, quarter and clock from the PlayHQ scorer, read as often as every second.</span></div>
+  <div class="abs stat st2"><b>31</b><span>Broadcast graphics, from the scoreboard and ladder to the sponsor wall.</span></div>
+  <div class="abs stat st3"><b>17</b><span>Competition logo animations, plus six intro and outro styles.</span></div>
+  <div class="abs stat st4"><b>1</b><span>Operator. Sequences run the warm-up, the breaks and full time.</span></div>
+  <div class="abs mark"><img src="assets/1p-studio.svg" alt=""></div>
+  <div class="abs flow"><div>PlayHQ <em>→</em> FirstPass Studio <em>→</em> your livestream</div></div>
+
+  <!-- bottom third -->
+  <div class="abs t3">
+    <div class="aud">
+      <div class="frame"><img src="assets/c-g-matchup.jpg" alt="Match up card"></div>
+      <div class="k" style="color: var(--gold);">Premier competitions</div>
+      <h3>Look like a pro league.</h3>
+      <p>Every club in its own logo and colour. Super shots, hot streaks and full time stats play by themselves, and sponsors get a proof-of-play report.</p>
+    </div>
+    <div class="aud">
+      <div class="frame"><img src="assets/c-g-ladder.jpg" alt="Ladder with finals markers" style="object-position: center top;"></div>
+      <div class="k" style="color: #7CC4F0;">Netball WA · state leagues</div>
+      <h3>Every league, its own look.</h3>
+      <p>One setup per competition, rules by division, and a template file that carries a whole competition, logos and sponsors to another Mac.</p>
+    </div>
+    <div class="aud">
+      <div class="frame"><img src="assets/c-g-endofnight.jpg" alt="End of night card" style="object-position: center top;"></div>
+      <div class="k" style="color: #FB8A4A;">AMMNA · nationals</div>
+      <h3>Carnival days, handled.</h3>
+      <p>Studio picks each game on your court as its scoring opens, moves "this round" on through the day and thanks viewers after the last game.</p>
+    </div>
+  </div>
+
+  <div class="abs foot">
+    <div><div class="k">See it on your court</div><div class="mail">pivtmedia@gmail.com</div></div>
+    <div class="made"><div class="row">Made by <img src="assets/pivt.png" alt="PIVT" style="height: 80px;"></div><small>Graphics shown use the fictional Elite Netball League.</small></div>
+  </div>
+</div>
+</body></html>
