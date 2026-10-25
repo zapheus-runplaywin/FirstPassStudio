@@ -9,7 +9,7 @@ const HERE = __dirname; const OUT = path.join(HERE, 'out'); fs.mkdirSync(OUT, { 
   await p.goto('file://' + path.join(HERE, 'web.html'), { waitUntil: 'networkidle' });
   await p.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 60000 });
   await p.emulateMedia({ media: 'screen' });
-  const pages = await p.evaluate(() => [...document.querySelectorAll('.page')].map((e, i) => ({ i, title: e.dataset.title, h: Math.ceil(e.getBoundingClientRect().height) })));
+  const pages = await p.evaluate(() => [...document.querySelectorAll('.page')].map((e, i) => ({ i, title: e.dataset.title, ch: +e.dataset.ch || 0, h: Math.ceil(e.getBoundingClientRect().height) })));
   console.log(JSON.stringify(pages));
   if (process.argv[2] === 'shots') {
     for (const pg of pages) { const e = (await p.$$('.page'))[pg.i]; await e.screenshot({ path: path.join(OUT, `p${String(pg.i).padStart(2,'0')}.png`) }); }

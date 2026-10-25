@@ -31,17 +31,15 @@ QUOTES = {
   10: ("Updates download by themselves and install when the app quits, never mid-stream.", "Updates"),
 }
 
-cover = f'''<div class="page cover" data-title="Cover">{COURT}<div class="glow"></div>
-  <img class="mark" src="../img/1p-studio.svg" alt="1P Studio">
-  <img class="word" src="../img/firstpass-studio.svg" alt="FirstPass Studio">
-  <div class="kicker">User guide</div>
-  <div class="tag">Broadcast graphics for netball livestreams, fed live from PlayHQ and run from one Mac.</div>
-  <div class="stage">
-    <figure class="s-left" data-frame="win" data-title="Scoreboard control"><img src="../img-web/s-control.jpg" alt=""></figure>
-    <figure class="s-right" data-frame="mon"><img src="../img-web/crop/g-clash.jpg" alt=""></figure>
-    <figure class="s-mid" data-frame="mon"><img src="../img-web/g-scene.jpg" alt=""></figure>
+cover = '''<div class="page cover" data-title="Cover">
+  <div class="shot"></div>
+  <div class="top"><div class="brand"><img class="mark" src="../img/1p-studio.svg" alt="1P Studio"><img class="word" src="../img/firstpass-studio.svg" alt="FirstPass Studio"></div><div class="live"><i></i>LIVE FROM PLAYHQ</div></div>
+  <div class="txt">
+    <div class="kicker">User guide</div>
+    <h1>Graphics that<br><em>follow the game.</em></h1>
+    <p class="tag">Broadcast graphics for netball livestreams, fed live from PlayHQ and run from one Mac.</p>
+    <div class="foot">Version 1 · October 2026 <span>·</span> by <img src="../img-web/pivt.jpg" alt="PIVT"></div>
   </div>
-  <div class="foot">Version 1 · October 2026 <span>·</span> by <img src="../img-web/pivt.jpg" alt="PIVT"></div>
 </div>'''
 
 LEADS = [
@@ -87,6 +85,15 @@ intro = f'''<div class="page intro" data-title="About this guide">
   <div class="inside"><h3>Inside</h3><div class="grid">{cards}</div></div>
 </div>'''
 
+MOSAIC = ['crop/g-ladder', 'crop/g-clash', 'crop/g-matchup', 'crop/g-streak-fire', 'crop/g-positions-pair', 'crop/g-supershot', 'g-teamlist', 'g-intro', 'crop/g-sponsorwall', 'crop/g-worm', 'crop/g-gamestats', 'crop/g-fulltime', 'crop/g-streak-siren', 'crop/g-logo', 'crop/g-countdown', 'crop/g-fixtures', 'crop/g-endofnight', 'crop/g-streak-heating']
+mosaic = '''<div class="page mosaic" data-title="FirstPass Studio User Guide">
+  <div class="grid">''' + ''.join(f'<div style="background-image:url(../img-web/{t}.jpg)"></div>' for t in MOSAIC) + '''</div>
+  <div class="veil"></div>
+  <div class="panel"><img class="mark" src="../img/1p-studio.svg" alt="1P Studio"><img class="word" src="../img/firstpass-studio.svg" alt="FirstPass Studio"><div class="kicker">User guide</div>
+    <p>Broadcast graphics for netball livestreams, fed live from PlayHQ and run from one Mac.</p></div>
+  <div class="by"><div>Version 1 · October 2026 <span>·</span> by <img src="../img-web/pivt.jpg" alt="PIVT"></div></div>
+</div>'''
+
 back = f'''<div class="page back" data-title="FirstPass Studio">{COURT}
   <img class="mark" src="../img/1p-studio.svg" alt="1P Studio">
   <img class="word" src="../img/firstpass-studio.svg" alt="FirstPass Studio">
@@ -100,7 +107,7 @@ chapters = ''.join(f'<div class="page chapter" data-ch="{i+1}" data-hero="../img
 doc = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FirstPass Studio User Guide</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;0,900;1,800;1,900&display=swap">
 <link rel="stylesheet" href="web.css"></head><body>
-{cover}{intro}{chapters}{back}
+{mosaic}{cover}{intro}{chapters}{back}
 <script>const QUOTES = {json.dumps(QUOTES)}; const ZOOM = {open(os.path.join(HERE, 'zoom.json')).read()}; const COURT = {json.dumps(COURT)};</script>
 <script src="layout.js"></script></body></html>'''
 open(os.path.join(HERE, 'web.html'), 'w').write(doc)
