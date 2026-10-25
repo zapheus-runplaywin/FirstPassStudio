@@ -132,6 +132,31 @@ test('choosing a court follows that court\'s games', async () => {
   assert.equal((await board()).gameId, game.id);
 });
 
+test('with a round picked by hand, the court\'s games are followed on their own date and time, not as if today', async () => {
+  const later = studio.world.divisions[0].rounds[3].games[0]; // next week, Court 1
+  const played = studio.world.divisions[0].rounds[0].games[0]; // two weeks ago, Court 1
+  try {
+    await studio.post('/api/rounds', { round: '4' });
+    let b = await board();
+    assert.equal(b.autoSelect, true);
+    assert.equal(b.round, 'Round 4');
+    assert.equal(b.court, 'Court 1');
+    assert.equal(b.date, later.date, 'next week\'s game keeps next week\'s date');
+    assert.notEqual(b.date, studio.world.today);
+    // Its countdown and the sequences' "before the game" start go by that date too.
+    assert.equal((await studio.get('/api/countdown')).date, later.date);
+    assert.match(b.autoNote, /switches at .+ \w{3}, \d+ \w{3}\.$/, 'the next game\'s day is named when it isn\'t today');
+    await studio.post('/api/rounds', { round: '1' });
+    b = await board();
+    assert.equal(b.round, 'Round 1');
+    assert.equal(b.date, played.date);
+    assert.match(b.autoNote, /^Last game on this court this round\.$/);
+  } finally {
+    await studio.post('/api/rounds', { round: '' });
+  }
+  assert.equal((await board()).gameId, game.id, 'back to automatic: today\'s game on the court');
+});
+
 test('when the live feed fails the board keeps its score and says why', async () => {
   const score = (await board()).home.score;
   studio.world.fail.live = 503;

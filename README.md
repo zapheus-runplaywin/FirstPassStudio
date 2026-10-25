@@ -477,8 +477,8 @@ competition logo. A competition with only one logo uses it in both modes. The lo
 **Which round.** Every page (game list, fixture, results, ticker, up next) uses the round played in the next 5 days,
 counting today, so a Tuesday round is picked from the Friday before. Otherwise it's the last round played. Change the 5 with
 the days setting on the competition setup page. For testing, pick any round from **Round** on the control page; set it back to
-**Automatic** afterwards (the choice is kept in `control.json`). Automatic game selection uses the picked round too, treating its games
-as if they were today, so you can test the timed switching on any night.
+**Automatic** afterwards (the choice is kept in `control.json`). Automatic game selection uses the picked round too, following its games
+on the court by their own date and time: the game due now, otherwise the next to come, otherwise (a round already played) its last.
 `ladder.html` without `?division=` shows the division of the game picked on the control page. Its corner logo is the
 dark mode competition logo, since it sits on the coloured header; `?mode=light` uses the light mode one.
 
