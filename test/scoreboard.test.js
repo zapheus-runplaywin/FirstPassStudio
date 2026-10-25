@@ -188,7 +188,8 @@ test('ticker speed: faster, slower, normal, a number, within 20 to 600, and kept
 });
 
 test('settings with limits: PlayHQ checks every 3 to 120 seconds, the clock shown or hidden', async () => {
-  assert.equal((await act({ type: 'playhqRefresh', value: 1 })).playhqRefreshSec, 3);
+  assert.equal((await act({ type: 'playhqRefresh', value: 1 })).playhqRefreshSec, 1);
+  assert.equal((await act({ type: 'playhqRefresh', value: -4 })).playhqRefreshSec, 1);
   assert.equal((await act({ type: 'playhqRefresh', value: 500 })).playhqRefreshSec, 120);
   assert.equal((await act({ type: 'playhqRefresh', value: 5 })).playhqRefreshSec, 5);
   assert.equal((await act({ type: 'showClock', value: false })).showClock, false);
