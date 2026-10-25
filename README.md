@@ -292,7 +292,7 @@ data folder of their own, so they never touch PlayHQ or your settings.
 
 The Docs page has a **Before you go on air** checklist for the night, and `docs/ARCHITECTURE.md` says how Studio is put
 together (which file owns what, how a request reaches PlayHQ, what runs on a timer) for anyone working on it.
-The user guide, `docs/user-guide/index.html` (also as PDFs for the web and for print in the same folder), walks a new user
+The user guide, `docs/user-guide/index.html` (also as PDFs in the same folder: print, and web in dark and light), walks a new user
 through a game night, from the automated set-up with PlayHQ to running it by hand, with every page and graphic pictured.
 
 Only the scoreboard, the last 10 goals and the countdown update themselves (Studio pushes each change to them the moment it
