@@ -13,7 +13,7 @@ for p in pages:
     # Chromium rounds the page size up a hair; trim it to the page's own height so no sliver of white shows
     pg = w.pages[p['i']]; top = float(pg.mediabox.top)
     for box in (pg.mediabox, pg.cropbox): box.lower_left = (0, max(0, top - p['h'] * 0.75 + 0.01))
-    t = p['title'] if not 2 <= p['i'] <= 12 else f"{p['i'] - 1}. {p['title']}"
+    t = f"{p['ch']}. {p['title']}" if p.get('ch') else p['title']
     w.add_outline_item(t, p['i'])
 w.add_metadata({'/Title': 'FirstPass Studio User Guide', '/Author': 'PIVT', '/Subject': 'User guide for FirstPass Studio'})
 w.page_mode = '/UseOutlines'
