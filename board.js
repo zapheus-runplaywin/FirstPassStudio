@@ -55,7 +55,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     saveControl();
   }
 
-  const DEFAULT_REFRESH_SEC = Math.max(3, Number(MACHINE.playhqRefreshSeconds) || 5);
+  const DEFAULT_REFRESH_SEC = Math.max(1, Number(MACHINE.playhqRefreshSeconds) || 5);
   let QUARTER_SEC = 600;
   // The ticker's scroll speed in pixels per second: the default, the limits and one Faster / Slower step.
   const TICKER_SPEED = 120, TICKER_MIN = 20, TICKER_MAX = 600, TICKER_STEP = 20;
@@ -239,7 +239,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         applyAction(b, { type: 'clockSet', secondsLeft: Math.max(0, leftMs / 1000 + Number(a.deltaSec || 0)) });
         break;
       }
-      case 'playhqRefresh': b.playhqRefreshSec = Math.max(3, Math.min(120, Math.round(Number(a.value) || DEFAULT_REFRESH_SEC))); break;
+      case 'playhqRefresh': b.playhqRefreshSec = Math.max(1, Math.min(120, Math.round(Number(a.value) || DEFAULT_REFRESH_SEC))); break;
       case 'showClock': b.showClock = !!a.value; break;
       case 'tickerSpeed': { // a speed in pixels per second, or 'faster', 'slower', 'normal'
         const now = b.tickerSpeed || TICKER_SPEED;

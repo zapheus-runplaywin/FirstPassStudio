@@ -495,7 +495,7 @@ Before a game's electronic scoring starts Studio doesn't ask PlayHQ's live feed 
 since PlayHQ only answers "not electronically scored"; the control page says when it will start checking.
 
 On the control page, pick the game from this round's PlayHQ fixtures and press **Use this game**.
-With **Follow PlayHQ** on, the score updates every 5 seconds (change it on the control page) from the same live feed the
+With **Follow PlayHQ** on, the score updates every 5 seconds (change it on the control page, from 1 to 120 seconds) from the same live feed the
 playhq.com game page uses, so it needs no API key, but only if someone is live-scoring that game in PlayHQ. The quarter
 follows the PlayHQ scorer too (you can still change it in between). The clock matches the scores: switching between
 **Follow PlayHQ** and **Manual** (or a score press switching to manual) also turns **Follow the PlayHQ scorer's clock** on or off,
