@@ -34,20 +34,20 @@
   em { font-style: normal; font-weight: 600; color: var(--ink); }
   .eyebrow { font-family: var(--font); text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; font-weight: 800; color: var(--accent); }
 
-  /* Cover: one solid navy ground, the 1P mark large, the title in the display style. */
-  .cover { background: var(--navy); color: var(--white); padding-block: 4rem 3rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .cover .in { max-width: 1120px; margin: 0 auto; display: grid; gap: 1.2rem; }
-  .cover .mark { width: 200px; max-width: 48vw; height: auto; margin-left: -12px; }
-  .cover .eyebrow { margin-top: .8rem; }
-  .cover h1 { font-size: clamp(2.8rem, 6.5vw, 5.4rem); font-weight: 900; font-style: italic; letter-spacing: -.03em; line-height: .98; }
-  .cover h1 span { color: var(--gold); display: block; font-weight: 800; font-style: normal; font-size: .42em; letter-spacing: .08em; margin-top: .45em; text-transform: uppercase; }
-  .cover p { color: var(--muted); font-size: 1.1rem; max-width: 56ch; line-height: 1.55; }
-  .cover .screen { margin: 1.2rem 0 0; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); }
-  .cover .screen img { display: block; width: 100%; height: auto; }
-  .cover .foot { display: flex; align-items: center; gap: 1rem 1.2rem; margin-top: 1.4rem; color: var(--faint); font-weight: 800; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 1.4rem; }
-  .cover .foot img.word { height: 22px; width: auto; }
-  .cover .foot img.pivt { height: 30px; width: auto; }
-  .cover .meta { color: var(--faint); font-size: .85rem; }
+  /* Cover: the mark and the product name, nothing else. Then an intro spread. */
+  .cover { background: var(--navy); color: var(--white); min-height: 78vh; display: grid; place-items: center; padding-block: 4rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); text-align: center; }
+  .cover .hero { display: grid; justify-items: center; gap: 1.6rem; }
+  .cover .mark { width: 300px; max-width: 62vw; height: auto; }
+  .cover .word { width: 540px; max-width: 88vw; height: auto; margin-top: .4rem; }
+  .cover .eyebrow { font-size: 1rem; letter-spacing: .3em; margin-top: .6rem; }
+  .cover .meta { color: var(--faint); font-size: .9rem; letter-spacing: .06em; }
+  .intro { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 3rem 1rem; border-top: 1px solid var(--line); }
+  .intro .in { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 2.5rem; align-items: center; }
+  .intro h2 { font-size: 1.9rem; margin: .6rem 0 .4rem; }
+  .intro p { color: var(--muted); }
+  .intro .screen { margin: 0; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); }
+  .intro .screen img { display: block; width: 100%; height: auto; border: 0; border-radius: 0; }
+  @media (max-width: 880px) { .intro .in { grid-template-columns: 1fr; } }
 
   /* Page frame */
   .frame { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 3rem; padding-block: 2.5rem 5rem; }
@@ -127,8 +127,10 @@
   /* Print: chapters on their own pages. */
   @media print {
     body { font-size: 10.5pt; }
-    .cover { padding-block: 2.5rem 2rem; break-after: page; break-inside: avoid; }
-    .cover .mark { width: 150px; } .cover h1 { font-size: 3rem; } .cover p { font-size: 1rem; } .cover .screen { max-width: 82%; } .cover .in { gap: 1rem; }
+    .cover { min-height: 0; height: 100vh; break-after: page; break-inside: avoid; }
+    .cover .mark { width: 230px; } .cover .word { width: 420px; }
+    .intro { break-after: page; border-top: 0; padding-block: 1rem; }
+    .intro .in { grid-template-columns: 1fr; gap: 1.5rem; }
     nav.toc { display: none; }
     .frame { display: block; max-width: none; padding-block: 0; }
     section.ch { break-before: page; border-top: 0; margin-top: 0; padding-top: 0; }
@@ -144,23 +146,31 @@
     --line: #E2E8F0; --accent: #2274A5; --accent-ink: #FFFFFF; --link: #2274A5; color-scheme: light; }
   :root.light .tip .eyebrow { background: #2274A5; color: #fff; }
   :root.light .steps li::before { background: #2274A5; color: #fff; }
-  :root.light .cover, :root.light .cover h1, :root.light .cover .foot { color: #fff; }
-  :root.light .cover p { color: #CBD5E1; }
-  :root.light .cover .eyebrow, :root.light .cover h1 span { color: #F1C40F; }
-  :root.light .cover .screen { border-color: rgba(255,255,255,.15); }
+  :root.light .cover { color: #fff; }
+  :root.light .cover .eyebrow { color: #F1C40F; }
+  :root.light .cover .meta { color: #CBD5E1; }
   @page { size: A4; margin: 16mm 14mm 18mm; }
 </style>
 
 <header class="cover">
-  <div class="in">
+  <div class="hero">
     <img class="mark" src="img/1p-studio.svg" alt="1P Studio">
-    <div class="eyebrow">User guide · Version 1 · October 2026</div>
-    <h1>FirstPass Studio<span>The user guide</span></h1>
-    <p>Broadcast graphics for a netball livestream, fed straight from PlayHQ and sent to your switcher. This guide starts with the way most nights run, one operator and Studio doing the rest, then covers running it by hand, setting up a competition, sponsors, athletes and the Stream Deck.</p>
-    <figure class="screen"><img src="img/g-scene.webp" alt="The Studio scene over a court: title banner, branding logos, live scoreboard and the score ticker"></figure>
-    <div class="foot"><img class="word" src="img/firstpass-studio.svg" alt="FirstPass Studio"><span>by</span><img class="pivt" src="img/pivt.webp" alt="PIVT"><span class="meta" style="margin-left:auto;letter-spacing:0;text-transform:none;font-weight:400">Screenshots use the fictional Elite Netball League</span></div>
+    <img class="word" src="img/firstpass-studio.svg" alt="FirstPass Studio">
+    <div class="eyebrow">User guide</div>
+    <div class="meta">Version 1 · October 2026 · by PIVT</div>
   </div>
 </header>
+<section class="intro">
+  <div class="in">
+    <div>
+      <div class="eyebrow">About this guide</div>
+      <h2>Graphics for the stream, from the first whistle to the last.</h2>
+      <p>FirstPass Studio draws broadcast graphics for a netball livestream, fed straight from PlayHQ and sent to your switcher. This guide starts with the way most nights run, one operator and Studio doing the rest, then covers running it by hand, setting up a competition, sponsors, athletes and the Stream Deck.</p>
+      <p class="meta">Screenshots use the fictional Elite Netball League.</p>
+    </div>
+    <figure class="screen"><img src="img/g-scene.webp" alt="The Studio scene over a court: title banner, branding logos, live scoreboard and the score ticker"></figure>
+  </div>
+</section>
 
 <div class="frame">
 <nav class="toc" aria-label="Chapters">
