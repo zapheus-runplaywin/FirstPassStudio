@@ -1,7 +1,8 @@
 // FirstPass Studio Mac app - the scene full screen on the Mac's own displays (outputs.js decides
 // what goes where; the Output page sets it up).
 //
-// Each output is a window that opens full screen on its display, showing scene.html: over black (fill),
+// Each display output is a window that opens full screen on its display, showing scene.html (with
+// ?output=<id> for an output besides the primary, which draws that output's sources and is silent): over black (fill),
 // as white on black where the scene isn't see-through (key), or over a chroma colour. They're ordinary
 // windows otherwise: leave full screen (the green button or ⌃⌘F) to move one to another display or get
 // at other apps, and the scene scales to fit whatever size it is. They aren't Studio windows: closing
@@ -18,8 +19,8 @@ module.exports = function outputs({ port, log }) {
   let quitting = false; // quitting closes the windows, which mustn't turn the output off for next time
   app.on('before-quit', () => { quitting = true; });
   let helper = null;
-  const decklink = require('./decklink')({ port, log, onStatus: status => helper?.postMessage({ type: 'decklinkStatus', status }) });
-  const ndi = require('./ndi')({ port, log, onStatus: status => helper?.postMessage({ type: 'ndiStatus', status }) });
+  const decklink = require('./decklink')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }) });
+  const ndi = require('./ndi')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'ndiStatus', status, output }) });
 
   // The Blackmagic devices (and their video formats) for the Output page.
   function sendDecklink() {
@@ -49,7 +50,9 @@ module.exports = function outputs({ port, log }) {
 
   const pageFor = w => {
     const q = new URLSearchParams({ fit: '1' });
-    if (w.kind === 'key') { q.set('key', '1'); q.set('mute', '1'); }
+    if (w.kind === 'key' || w.muted) q.set('mute', '1');
+    if (w.kind === 'key') q.set('key', '1');
+    if (w.output && w.output !== 'main') q.set('output', w.output); // another output's sources, silent
     q.set('bg', w.kind === 'chroma' ? w.color.replace('#', '') : '000000');
     if (w.safe) q.set('chromaKey', 'true'); // chroma key safe (public/chroma.js)
     return `http://localhost:${port}/scene.html?${q}`;
@@ -57,7 +60,7 @@ module.exports = function outputs({ port, log }) {
 
   function show(list) {
     decklink.show(list.find(w => w.kind === 'decklink') || null);
-    ndi.show(list.find(w => w.kind === 'ndi') || null);
+    ndi.show(list.filter(w => w.kind === 'ndi'));
     const wanted = new Map(list.filter(w => w.display).map(w => [w.display, w]));
     for (const [id, o] of open) {
       if (!wanted.has(id)) { o.win.destroy(); open.delete(id); }
@@ -68,7 +71,7 @@ module.exports = function outputs({ port, log }) {
       const url = pageFor(w);
       const o = open.get(id);
       if (o && o.url === url) continue;
-      if (o) { o.url = url; o.win.loadURL(url); continue; }
+      if (o) { o.url = url; o.output = w.output; o.win.loadURL(url); continue; }
       const win = new BrowserWindow({
         x: d.workArea.x, y: d.workArea.y, width: d.workArea.width, height: d.workArea.height,
         show: false, fullscreenable: true,
@@ -78,15 +81,15 @@ module.exports = function outputs({ port, log }) {
       });
       win.on('page-title-updated', e => e.preventDefault()); // keep saying which output it is
       win.webContents.on('before-input-event', (e, input) => {
-        if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); if (helper) helper.postMessage({ type: 'escape' }); }
+        if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); if (helper) helper.postMessage({ type: 'escape', output: open.get(id)?.output }); }
       });
       // Opens full screen on its display, without taking the focus from the window you're working in.
       win.once('ready-to-show', () => { win.showInactive(); win.setFullScreen(true); });
       // Closed by hand (not by Studio): the output is off, rather than reopening on the next change.
-      win.on('close', () => { if (!quitting && open.get(id)?.win === win && helper) helper.postMessage({ type: 'escape' }); });
+      win.on('close', () => { if (!quitting && open.get(id)?.win === win && helper) helper.postMessage({ type: 'escape', output: open.get(id).output }); });
       win.on('closed', () => { if (open.get(id)?.win === win) open.delete(id); });
       win.loadURL(url);
-      open.set(id, { win, url });
+      open.set(id, { win, url, output: w.output });
       log(`Output ${w.kind} on ${d.label || id} (${d.size.width} x ${d.size.height}${d.scaleFactor !== 1 ? ` at ${d.scaleFactor}x` : ''}, ${d.displayFrequency} Hz)`);
     }
   }

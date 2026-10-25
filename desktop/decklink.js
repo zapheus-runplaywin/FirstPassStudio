@@ -35,7 +35,8 @@ module.exports = function decklink({ port, log, onStatus }) {
     return { running: !!s.running, name: s.name || '', mode: running?.mode || '', late: s.late || 0, dropped: s.dropped || 0, error };
   }
 
-  const report = () => onStatus(status());
+  const report = () => onStatus(status(), output);
+  let output = 'main'; // the output it's sending
 
   function stop() {
     if (watch) { clearInterval(watch); watch = null; }
@@ -45,13 +46,14 @@ module.exports = function decklink({ port, log, onStatus }) {
     if (addon) addon.stop();
   }
 
-  // w: { device, mode, keying, straight } from outputs.js, or null to stop.
+  // w: { device, mode, keying, straight, output } from outputs.js, or null to stop.
   function show(w) {
-    const key = w && JSON.stringify([w.device, w.mode, w.keying, w.straight]);
+    const key = w && JSON.stringify([w.device, w.mode, w.keying, w.straight, w.output]);
     if (key && running?.key === key) return;
     stop();
     error = '';
     if (!w) return report();
+    output = w.output || 'main';
     if (!addon) { error = 'DeckLink output isn\'t in this copy of Studio.'; return report(); }
 
     const list = devices();
@@ -68,7 +70,7 @@ module.exports = function decklink({ port, log, onStatus }) {
     log(`DeckLink output on ${r.name}: ${running.mode} (${r.width} x ${r.height}, ${r.frameRate} fps), ${w.keying === 'external' ? 'fill and key' : 'fill only'}${w.straight ? ', straight alpha' : ''}`);
 
     win = sceneWindow({
-      port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output',
+      port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output', output,
       onFrame: (bitmap, width, height) => addon.frame(bitmap, width, height),
     });
 

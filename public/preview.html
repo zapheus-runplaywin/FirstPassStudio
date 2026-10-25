@@ -13,6 +13,7 @@
   only runs once more). Closing this window puts the preview back on the Output page.
   A floating Sources panel shows or hides each source while you watch (its – button tucks it away, kept per
   browser), and follows the Output page and the Stream Deck live.
+  ?output=<id>: one of the outputs besides the primary, as picked on the Output page: its sources, silent.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #1E293B; }
@@ -70,14 +71,18 @@
   // (with one on, the output carries the sound), ask the helper for it, check in every few seconds, let go on closing.
   // Opening the window takes the sound, since the Output page's own preview has just turned off.
   const listenId = 'popout-' + Math.random().toString(36).slice(2);
+  // Another output than the primary (?output=<id>): its sources, and never any sound.
+  const outputId = /^[a-z0-9]{1,20}$/i.test(new URLSearchParams(location.search).get('output') || '') ? new URLSearchParams(location.search).get('output') : 'main';
   let wanted = false, sound = false, note = '';
   async function listen(take = false) {
     try {
       const o = await (await fetch('/api/outputs')).json();
       // While a chroma output is chroma key safe, the Scene View shows the scene that way too.
-      const src = `/scene.html?mute=1${o.chromaSafeNow ? '&chromaKey=true' : ''}`;
+      const mine = (o.outputs || []).find(x => x.id === outputId) || o;
+      const src = `/scene.html?mute=1${outputId !== 'main' ? `&output=${outputId}` : ''}${mine.chromaSafeNow ? '&chromaKey=true' : ''}`;
       if (frame.getAttribute('src') !== src) frame.src = src;
-      wanted = !!o.previewSound;
+      if (outputId !== 'main') document.title = `Scene View · ${mine.name || 'Output'} · FirstPass Studio`;
+      wanted = !!o.previewSound && outputId === 'main';
       const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on: wanted, take }) });
       sound = !!(await r.json()).sound;
       showNote(o);
@@ -90,6 +95,7 @@
     try { st = s?.soundState?.(); } catch {}
     // The same line here ("here") and under the Output page's preview ("in the Scene View window").
     const line = (here, there) => !o ? ''
+      : outputId !== 'main' ? 'Silent: only the primary output plays sound.'
       : !wanted ? 'Silent: a video output is on, so the output plays the sound.'
       : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the Scene View window'} to bring it ${here ? 'to this window' : 'there'}.`
       : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the Scene View window'} to hear it.`
@@ -120,10 +126,11 @@
       const li = document.createElement('li');
       li.innerHTML = '<button class="eye"></button><span></span>';
       const eye = li.querySelector('button');
-      eye.textContent = src.visible ? 'On' : 'Off';
-      eye.classList.toggle('on', src.visible);
-      eye.title = src.visible ? 'Showing: click to fade it out' : 'Hidden: click to fade it in';
-      eye.onclick = () => act({ type: 'toggle', id: src.id });
+      const on = outputId === 'main' ? src.visible : !!(src.out && src.out[outputId]);
+      eye.textContent = on ? 'On' : 'Off';
+      eye.classList.toggle('on', on);
+      eye.title = on ? 'Showing: click to fade it out' : 'Hidden: click to fade it in';
+      eye.onclick = () => act({ type: 'toggle', id: src.id, ...(outputId !== 'main' ? { output: outputId } : {}) });
       li.querySelector('span').textContent = src.name;
       ul.append(li);
     }
@@ -133,6 +140,7 @@
   function showScenes(scn) {
     const box = $('scenes');
     box.innerHTML = '';
+    if (outputId !== 'main') return; // scenes are the primary output's
     for (const sc of scn.scenes || []) {
       const b = document.createElement('button');
       b.textContent = sc.name;

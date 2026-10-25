@@ -13,6 +13,12 @@
 // a source changed by hand afterwards is changed everywhere, and changed lists the ones that
 // differ from the current scene's saved state.
 //
+// With more than one output (outputs.js), each source also has an on and off for each output besides the
+// primary (out: { <output id>: true }), and scene.html?output=<id> draws that output's sources. Scenes,
+// sequences, sponsor ads and the music stay with the primary output, and only the primary plays sound.
+// /deck/output/<output>/layer/<name>/on|off|toggle|restart and /deck/output/<output>/layers/off act on
+// one output (the primary's are the links above).
+//
 // Saved as scene.json in the data folder; images and videos are kept in its media/ folder.
 // Chromium can't play ProRes, so a .mov added to the media folder is converted to a WebM
 // beside it (VP9, keeping transparency) with the ffmpeg the app bundles; the original is kept. Nothing here
@@ -83,6 +89,10 @@ function sponsorAd(opts = {}) {
 }
 
 let log = () => {};
+// The outputs (outputs.js), to find one by its name or number in a Stream Deck link. Without them, only
+// the primary output.
+const PRIMARY = 'main';
+let outputsApi = { find: ref => (ref === PRIMARY || ref === '1' ? { id: PRIMARY } : null) };
 let scene = { sources: [], scenes: [], current: null };
 // Sources set on in the current scene that went off by themselves (a video that hides when it's
 // done): not a change from the scene.
@@ -167,6 +177,9 @@ function clean(src, existing = {}) {
     scale: clamp(s.scale, 1, 1000, 100),
     loadSeq: Math.round(clamp(s.loadSeq, 0, 1e9, 0)),
     showSeq: Math.round(clamp(s.showSeq, 0, 1e9, 0)),
+    // On for each output besides the primary, and (not saved) each output's showSeq, as showSeq is the primary's.
+    out: cleanOut(s.out),
+    outSeq: { ...(s.outSeq && typeof s.outSeq === 'object' ? s.outSeq : {}) },
   };
   if (type === 'browser') {
     out.url = cleanUrl(s.url) || 'scoreboard.html';
@@ -184,6 +197,13 @@ function clean(src, existing = {}) {
     out.volume = Math.round(clamp(s.volume, 0, 100, 100));
   }
   out.name = uniqueName(s.name || defaultName(out), out.id);
+  return out;
+}
+
+const OUTPUT_ID = /^[a-z0-9]{1,20}$/i;
+function cleanOut(o) {
+  const out = {};
+  for (const [k, v] of Object.entries(o && typeof o === 'object' ? o : {})) if (v === true && OUTPUT_ID.test(k) && k !== PRIMARY) out[k] = true;
   return out;
 }
 
@@ -267,7 +287,7 @@ function load() {
 }
 
 function save() {
-  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }); }
+  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }
@@ -359,10 +379,53 @@ function noteShowings() {
   videoSound();
   for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;
   wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
+  for (const s of scene.sources) for (const o of Object.keys(s.out)) if (!wasOnOut.has(`${s.id}|${o}`)) s.outSeq[o] = (s.outSeq[o] || 0) + 1;
+  wasOnOut = new Set(scene.sources.flatMap(s => Object.keys(s.out).map(o => `${s.id}|${o}`)));
+}
+let wasOnOut = new Set();
+
+// The output a change is for: null for the primary (the source's own visible), an output's id for one of
+// the others, or undefined if there's no such output.
+function outputOf(a) {
+  if (a.output === undefined || a.output === null || a.output === '' || a.output === PRIMARY) return null;
+  const o = outputsApi.find(String(a.output));
+  return !o ? undefined : o.id === PRIMARY ? null : o.id;
+}
+// A change to one source on an output other than the primary: on, off, toggle, ended (hides it there).
+function changeOnOutput(a, src, out) {
+  if (a.type === 'ended') {
+    const seq = src.outSeq[out] || 0;
+    if (!src.out[out] || Number(a.loadSeq) !== src.loadSeq || (a.showSeq !== undefined && Number(a.showSeq) !== seq)) return null;
+    if (src.type === 'video' ? src.hideWhenDone && !src.loop : src.type === 'browser') {
+      delete src.out[out];
+      log('info', 'scene', `"${src.name}" ${src.type === 'video' ? 'finished' : 'animated away'}, off on ${outputName(out)}`);
+    }
+    return null;
+  }
+  const on = a.type === 'toggle' ? !src.out[out] : a.type === 'show';
+  if (on) src.out[out] = true; else delete src.out[out];
+  log('info', 'scene', `"${src.name}" ${on ? 'on' : 'off'} on ${outputName(out)}`);
+  return null;
+}
+const outputName = id => outputsApi.summary?.().find(o => o.id === id)?.name || 'another output';
+// An output was removed: nothing is on for it any more.
+function dropOutput(id) {
+  let any = false;
+  for (const s of scene.sources) if (s.out[id]) { delete s.out[id]; delete s.outSeq[id]; any = true; }
+  if (any) { noteShowings(); save(); }
 }
 function change(a) {
   const src = a.id || a.name ? find(a.id || a.name) : null;
   const need = () => src ? null : `No source "${a.id || a.name || ''}" in the scene.`;
+  const out = outputOf(a);
+  if (out === undefined) return `No output "${a.output}".`;
+  if (out && ['show', 'hide', 'toggle', 'ended'].includes(a.type)) return need() || changeOnOutput(a, src, out);
+  if (out && a.type === 'hideAll') {
+    for (const s of scene.sources) delete s.out[out];
+    log('info', 'scene', `Every source off on ${outputName(out)}`);
+    return null;
+  }
+  if (out) return `"${a.type}" is for the primary output only.`;
   switch (a.type) {
     case 'add': {
       // One source (source) or several (sources, top first). New sources go on top, or just
@@ -533,6 +596,25 @@ function applyScene(a) {
 // /deck/layers/off and /deck/scene/<name>|next|prev|again. Returns null when the link
 // isn't a scene link, so the scoreboard's own links carry on as before.
 function deck(parts, q = {}) {
+  // /deck/output/<output>/layer/... and /deck/output/<output>/layers/off: one output's sources. The
+  // primary's are the plain /deck/layer/... links.
+  if (parts[0] === 'output' && (parts[2] === 'layer' || parts[2] === 'layers')) {
+    const o = outputsApi.find(parts[1]);
+    if (!o) return { status: 404, body: { error: `No output "${parts[1]}". Use its name or number, as on the Output page.` } };
+    if (o.id === PRIMARY) return deck(parts.slice(2), q);
+    const [, , w, n, v] = parts;
+    let action = null;
+    if (w === 'layers' && n === 'off' && parts.length === 4) action = { type: 'hideAll', output: o.id };
+    const type = { on: 'show', show: 'show', off: 'hide', hide: 'hide', toggle: 'toggle' }[v];
+    if (w === 'layer' && n && type && parts.length === 5) action = { type, name: n, output: o.id };
+    if (w === 'layer' && n && (v === 'restart' || v === 'reload') && parts.length === 5) action = { type: 'restart', name: n };
+    if (!action) return { status: 404, body: { error: `Use /deck/output/${parts[1]}/layer/<source>/on, off, toggle or restart, or /deck/output/${parts[1]}/layers/off.` } };
+    const error = apply(action);
+    if (error) return { status: 404, body: { error } };
+    save();
+    const src = action.name ? find(action.name) : null;
+    return { status: 200, body: { ok: true, output: outputName(o.id), ...(src ? { name: src.name, visible: !!src.out[o.id] } : {}) } };
+  }
   const [what, name, verb] = parts;
   if (what === 'music') {
     const r = music.deck(parts, q);
@@ -1052,8 +1134,10 @@ async function route(req, res, url, { send, readBody }) {
   return false;
 }
 
-function init(logger, { ffmpeg, sequencesFile } = {}) {
+// outputs: outputs.js's find and summary, for the outputs besides the primary.
+function init(logger, { ffmpeg, sequencesFile, outputs } = {}) {
   log = logger || log;
+  if (outputs) outputsApi = outputs;
   ffmpegSetting = ffmpeg || '';
   load();
   music.init(log, {
@@ -1083,4 +1167,4 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { STREAMDECK_PLUGIN, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, FILE, MEDIA_DIR };

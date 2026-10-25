@@ -40,6 +40,18 @@ function renderForm(force) {
     row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
     $('links').appendChild(row);
   }
+  // With more than one output: each other output's on and off links for this source.
+  for (const o of extraOutputs()) {
+    for (const verb of ['toggle', 'on', 'off']) {
+      const row = document.createElement('div');
+      row.innerHTML = '<code></code><button class="alt">Copy</button>';
+      const link = `${base}/deck/output/${encodeURIComponent(o.link)}/layer/${name}/${verb}`;
+      row.querySelector('code').textContent = link;
+      row.querySelector('code').style.borderLeft = `4px solid ${o.colour}`;
+      row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
+      $('links').appendChild(row);
+    }
+  }
 }
 // A Studio page's options (pageoptions.js) as fields, kept in the source's address. Options it
 // doesn't know, and anything typed into the address by hand, stay as they are.
@@ -115,7 +127,7 @@ function renderOptions(s, force) {
     if (o.unit) { const u = document.createElement('span'); u.className = 'unit'; u.textContent = o.unit; row.appendChild(u); }
     cell.appendChild(row);
     // While the chroma output is chroma key safe, say what this option does then (its setting is kept for the other outputs).
-    if (o.chroma && out && out.chromaSafeNow) {
+    if (o.chroma && out && (out.outputs || [out]).some(x => x.chromaSafeNow)) {
       const note = document.createElement('p');
       note.className = 'note chromaNote';
       note.textContent = `Chroma key safe: ${o.chroma}`;
@@ -265,32 +277,43 @@ $('fRemove').onclick = () => {
   const s = current();
   if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
 };
-$('hideAll').onclick = () => act({ type: 'hideAll' });
+// Hide all: every source off on the outputs the Sources list shows (all of them, or the one picked in Show).
+$('hideAll').onclick = async () => {
+  const outs = out && out.outputs && out.outputs.length > 1 ? out.outputs.filter(o => outFilter === 'all' || o.id === outFilter) : [{ primary: true }];
+  for (const o of outs) await act({ type: 'hideAll', ...(o.primary ? {} : { output: o.id }) });
+};
 // The video output state (`out`), the Scene View's sound and listen() are in preview.js, which runs first.
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const showOut = o => {
   const relisten = !out || out.previewSound !== o.previewSound;
+  const hadExtras = extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join();
   out = o;
+  if (!o.outputs) o.outputs = [{ ...o, id: 'main', slot: 1, name: 'Output 1', primary: true, colour: '#ff9b3d', link: 'output-1' }];
+  // The output being set up here (and shown in the Scene View): picked on its card or tab.
+  const so = o.outputs.find(x => x.id === outSel) || o.outputs[0];
+  outSel = so.id;
+  renderOutputs(o, so);
+  if (hadExtras !== extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join()) { renderList(); renderForm(); renderTabs(); }
   if (relisten) { listen(); if (popped) popChannel.postMessage('ask'); }
   $('outNoApp').classList.toggle('hidden', o.app);
   $('outForm').classList.toggle('hidden', !o.app);
   $('outOn').classList.toggle('hidden', !o.app);
   const extra = o.displays.filter(d => !d.primary);
-  for (const r of document.querySelectorAll('input[name=outMode]')) { r.checked = r.value === o.mode; r.disabled = false; }
+  for (const r of document.querySelectorAll('input[name=outMode]')) { r.checked = r.value === so.mode; r.disabled = false; }
   // Fill and key needs two displays besides the Mac's own (an M1 MacBook Pro drives only one).
-  $('outFillKey').disabled = extra.length < 2 && o.mode !== 'fillkey';
+  $('outFillKey').disabled = extra.length < 2 && so.mode !== 'fillkey';
   const fillSel = (id, value, fallback) => {
     const sel = $(id);
     sel.innerHTML = '<option value="">Choose a display</option>' + o.displays.map(d => `<option value="${d.id}">${d.label} (${d.width} × ${d.height})${d.primary ? ', this Mac\'s main screen' : ''}</option>`).join('');
     sel.value = o.displays.some(d => d.id === value) ? value : '';
     if (!sel.value && fallback) sel.value = fallback.id;
   };
-  fillSel('outChromaDisplay', o.chromaDisplay, extra[0]);
-  fillSel('outFillDisplay', o.fillDisplay, extra[0]);
-  fillSel('outKeyDisplay', o.keyDisplay, extra[1]);
+  fillSel('outChromaDisplay', so.chromaDisplay, extra[0]);
+  fillSel('outFillDisplay', so.fillDisplay, extra[0]);
+  fillSel('outKeyDisplay', so.keyDisplay, extra[1]);
   // A display that isn't drawn at exactly 1920 x 1080 (a 720p signal, or a scaled or HiDPI setting) makes
   // the scene softer than it is: say which, and how to fix it.
-  const picked = o.mode === 'chroma' ? [o.chromaDisplay] : o.mode === 'fillkey' ? [o.fillDisplay, o.keyDisplay] : [];
+  const picked = so.mode === 'chroma' ? [so.chromaDisplay] : so.mode === 'fillkey' ? [so.fillDisplay, so.keyDisplay] : [];
   const off = o.displays.filter(d => picked.includes(d.id) && (d.width !== 1920 || d.height !== 1080 || (d.scale || 1) !== 1));
   $('outDisplaySize').innerHTML = off.map(d => `<b>${esc(d.label)}</b> is set to ${d.width} × ${d.height}${(d.scale || 1) !== 1 ? ` (HiDPI, ${d.scale}x)` : ''}, not 1920 × 1080, so the scene is scaled and looks softer. `
     + 'In System Settings, Displays, pick it, turn on Show all resolutions and choose 1920 × 1080 (not the HiDPI one).').join('<br>');
@@ -298,20 +321,20 @@ const showOut = o => {
   // Blackmagic devices, and the 1080p formats each can send (interlaced and 720p look soft, so they aren't offered).
   const dl = o.decklink || {};
   const devices = dl.ok ? dl.devices : [];
-  $('outDecklink').disabled = !devices.length && o.mode !== 'decklink';
+  $('outDecklink').disabled = !devices.length && so.mode !== 'decklink';
   $('outDlNote').textContent = dl.ok ? (devices.length ? '' : '(no device connected)') : dl.error ? (/Desktop Video/.test(dl.error) ? '(needs Blackmagic Desktop Video)' : '(not available)') : '';
   $('outDlDevice').innerHTML = devices.length ? devices.map(d => `<option value="${d.id}">${d.name}${d.externalKeying ? '' : ' (no fill and key)'}</option>`).join('') : '<option value="">No device connected</option>';
-  const device = devices.find(d => d.id === o.decklinkDevice) || devices[0];
+  const device = devices.find(d => d.id === so.decklinkDevice) || devices[0];
   $('outDlDevice').value = device ? device.id : '';
   const modes = device ? device.modes.filter(m => m.supported && m.height === 1080 && !m.interlaced) : [];
-  $('outDlMode').innerHTML = modes.map(m => `<option value="${m.mode}">${m.name}${o.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`).join('');
-  const pickedMode = modes.find(m => m.mode === o.decklinkMode) || defaultMode(modes);
+  $('outDlMode').innerHTML = modes.map(m => `<option value="${m.mode}">${m.name}${so.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`).join('');
+  const pickedMode = modes.find(m => m.mode === so.decklinkMode) || defaultMode(modes);
   $('outDlMode').value = String((pickedMode || {}).mode || '');
-  $('outDlKeying').value = o.decklinkKeying;
-  $('outDlStraight').checked = o.decklinkStraight;
+  $('outDlKeying').value = so.decklinkKeying;
+  $('outDlStraight').checked = so.decklinkStraight;
   // NDI: whether the NDI runtime is installed, and the formats it can send.
   const nd = o.ndi || {};
-  $('outNdi').disabled = !nd.ok && o.mode !== 'ndi';
+  $('outNdi').disabled = !nd.ok && so.mode !== 'ndi';
   $('outNdiNote').textContent = nd.ok ? '' : nd.error ? (/runtime isn't installed/.test(nd.error) ? '(needs the NDI runtime)' : '(not available)') : '';
   // What to install for an option that can't be picked yet, with where to get it.
   const needs = [];
@@ -323,61 +346,68 @@ const showOut = o => {
     : `<b>NDI:</b> ${esc(nd.error)}`);
   $('outNeeds').innerHTML = needs.join('<br>');
   $('outNeeds').classList.toggle('hidden', !needs.length);
-  $('outNdiSignal').value = o.ndiSignal;
+  $('outNdiSignal').value = so.ndiSignal;
   if ($('outNdiFormat').options.length !== o.ndiFormats.length) $('outNdiFormat').innerHTML = o.ndiFormats.map(f => `<option value="${f.id}">${f.id}</option>`).join('');
-  $('outNdiFormat').value = o.ndiFormat;
-  if (document.activeElement !== $('outNdiName')) $('outNdiName').value = o.ndiName;
-  $('outColor').value = o.chromaColor;
-  $('outChromaSafe').checked = o.chromaSafe;
-  $('outChromaWarn').classList.toggle('hidden', !o.chromaSafeNow);
+  $('outNdiFormat').value = so.ndiFormat;
+  if (document.activeElement !== $('outNdiName')) $('outNdiName').value = so.ndiName;
+  $('outColor').value = so.chromaColor;
+  $('outChromaSafe').checked = so.chromaSafe;
+  $('outChromaWarn').classList.toggle('hidden', !so.chromaSafeNow);
   // The competition's colours a key on this colour would cut into (logos can't be checked).
-  $('outNearKey').innerHTML = (o.nearKey || []).length ? `<b>Close to the key colour:</b> ${o.nearKey.map(c => `${esc(c.name)} (${esc(c.hex)})`).join(', ')}. `
+  $('outNearKey').innerHTML = (so.nearKey || []).length ? `<b>Close to the key colour:</b> ${so.nearKey.map(c => `${esc(c.name)} (${esc(c.hex)})`).join(', ')}. `
     + 'A keyer may cut holes in these: try the other key colour, or change them in the Competitions setup. Check the logos too.' : '';
-  $('outNearKey').classList.toggle('hidden', !(o.nearKey || []).length);
-  $('fFadeChroma').classList.toggle('hidden', !o.chromaSafeNow);
-  // Chroma key safe changed: the Live View shows it as it goes out, and the source's options say what it does to them.
-  if (chromaWas !== o.chromaSafeNow) {
-    chromaWas = o.chromaSafeNow;
+  $('outNearKey').classList.toggle('hidden', !(so.nearKey || []).length);
+  $('fFadeChroma').classList.toggle('hidden', !so.chromaSafeNow);
+  // Chroma key safe changed, or another output picked: the Live View shows that output as it goes out, and the
+  // source's options say what chroma key safe does to them.
+  if (chromaWas !== so.chromaSafeNow || previewOutput !== so.id) {
+    chromaWas = so.chromaSafeNow;
+    previewOutput = so.id;
     showPreview();
     const s = current();
     if (s) renderOptions(s, true);
   }
-  for (const el of document.querySelectorAll('.forNdi')) el.classList.toggle('hidden', o.mode !== 'ndi');
-  for (const el of document.querySelectorAll('.forNdiChroma')) el.classList.toggle('hidden', o.mode !== 'chroma' && !(o.mode === 'ndi' && o.ndiSignal === 'chroma'));
-  for (const el of document.querySelectorAll('.forChroma:not(.forNdiChroma)')) el.classList.toggle('hidden', o.mode !== 'chroma');
-  for (const el of document.querySelectorAll('.forFillKey')) el.classList.toggle('hidden', o.mode !== 'fillkey');
-  for (const el of document.querySelectorAll('.forDecklink')) el.classList.toggle('hidden', o.mode !== 'decklink');
-  const sending = o.on && o.mode !== 'off';
-  $('outOn').textContent = sending ? 'Output on' : 'Output off';
+  for (const el of document.querySelectorAll('.forNdi')) el.classList.toggle('hidden', so.mode !== 'ndi');
+  for (const el of document.querySelectorAll('.forNdiChroma')) el.classList.toggle('hidden', so.mode !== 'chroma' && !(so.mode === 'ndi' && so.ndiSignal === 'chroma'));
+  for (const el of document.querySelectorAll('.forChroma:not(.forNdiChroma)')) el.classList.toggle('hidden', so.mode !== 'chroma');
+  for (const el of document.querySelectorAll('.forFillKey')) el.classList.toggle('hidden', so.mode !== 'fillkey');
+  for (const el of document.querySelectorAll('.forDecklink')) el.classList.toggle('hidden', so.mode !== 'decklink');
+  const sending = so.on && so.mode !== 'off';
+  $('outOn').textContent = o.outputs.length > 1 ? `${so.name} ${sending ? 'on' : 'off'}` : sending ? 'Output on' : 'Output off';
   $('outOn').className = sending ? '' : 'alt';
   const name = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
-  const st = o.decklinkStatus || {};
-  const ns = o.ndiStatus || {};
+  const st = so.decklinkStatus || {};
+  const ns = so.ndiStatus || {};
   const watching = s => s.connections ? `${s.name} (${s.connections} receiving)` : `${s.name} (nothing receiving yet)`;
-  $('outStatus').textContent = o.mode === 'off' ? 'Not sending the scene anywhere.'
-    : !o.on ? 'Output is off: nothing is sent until it\'s turned on.'
-    : o.mode === 'decklink' ? (st.error ? `Couldn't start the Blackmagic output: ${st.error}`
-      : st.running ? `Sending to ${st.name} (${st.mode}${o.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
-      : o.showing.length ? 'Starting the Blackmagic output…' : dl.ok ? 'Pick the device and video format.' : dl.error || 'Looking for Blackmagic devices…')
-    : o.mode === 'ndi' ? (ns.error ? `Couldn't start NDI: ${ns.error}`
+  $('outStatus').textContent = so.clash ? `${so.name} can't send: ${so.clash} is already using that ${so.mode === 'ndi' ? 'NDI source name' : so.mode === 'decklink' ? 'Blackmagic device' : 'display'}. Pick another, or change ${so.clash}.`
+    : so.mode === 'off' ? 'Not sending the scene anywhere.'
+    : !so.on ? 'Output is off: nothing is sent until it\'s turned on.'
+    : so.mode === 'decklink' ? (st.error ? `Couldn't start the Blackmagic output: ${st.error}`
+      : st.running ? `Sending to ${st.name} (${st.mode}${so.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
+      : so.showing.length ? 'Starting the Blackmagic output…' : dl.ok ? 'Pick the device and video format.' : dl.error || 'Looking for Blackmagic devices…')
+    : so.mode === 'ndi' ? (ns.error ? `Couldn't start NDI: ${ns.error}`
       : ns.running && ns.sources?.length ? `Sending NDI at ${ns.format}: ${ns.sources.map(watching).join(', ')}.`
-      : o.showing.length ? 'Starting NDI…' : nd.ok ? 'Pick the signal and video format.' : nd.error || 'Checking for NDI…')
-    : o.showing.length ? 'Showing ' + o.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
+      : so.showing.length ? 'Starting NDI…' : nd.ok ? 'Pick the signal and video format.' : nd.error || 'Checking for NDI…')
+    : so.showing.length ? 'Showing ' + so.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
     : 'Pick the display to use.';
-  $('outDeck').textContent = `${base}/deck/output/toggle`;
+  $('outDeck').textContent = so.primary ? `${base}/deck/output/toggle` : `${base}/deck/output/${so.link}/toggle`;
   // Off has nothing to turn on; and while the output is on its setup is locked, so it's turned off before changing.
   const live = sending;
-  $('outOn').disabled = o.mode === 'off';
+  $('outOn').disabled = so.mode === 'off';
   for (const el of document.querySelectorAll('#outForm .form input, #outForm .form select, #outForm .form button')) {
     if (live) el.disabled = true;
     else if (el.name !== 'outMode') el.disabled = false;
   }
   $('outLocked').classList.toggle('hidden', !live);
 };
+// Changes the output being set up here (changes.output), or adds or removes one ({ add }, { remove }).
 const setOut = async changes => {
   try {
+    if (!changes.add && changes.remove === undefined && changes.output === undefined) changes = { output: outSel, ...changes };
     const r = await fetch('/api/outputs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes) });
-    showOut(await r.json());
+    const body = await r.json();
+    if (!r.ok && body.error) $('err').textContent = body.error;
+    showOut(body);
     setTimeout(loadOut, 1500); // the Blackmagic and NDI outputs report how they started a moment later
   } catch (err) { $('err').textContent = `Could not change the display output: ${err.message}`; }
 };
@@ -413,7 +443,64 @@ $('outNdiSignal').onchange = () => setOut({ ndiSignal: $('outNdiSignal').value }
 $('outNdiFormat').onchange = () => setOut({ ndiFormat: $('outNdiFormat').value });
 $('outNdiName').onchange = () => setOut({ ndiName: $('outNdiName').value });
 for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
-$('outOn').onclick = () => setOut({ on: !(out && out.on) });
+$('outOn').onclick = () => setOut({ on: !(selectedOutput() && selectedOutput().on) });
+$('outName').onchange = () => setOut({ name: $('outName').value });
+$('outAdd').onclick = async () => {
+  const before = new Set((out?.outputs || []).map(o => o.id));
+  await setOut({ add: true });
+  const added = (out?.outputs || []).find(o => !before.has(o.id));
+  if (added) pickOutput(added.id);
+};
+$('outRemove').onclick = () => {
+  const so = selectedOutput();
+  if (!so || so.primary) return;
+  if (!confirm(`Remove ${so.name}? It stops sending, and its Stream Deck links stop working. The sources stay; only what was on for ${so.name} is forgotten.`)) return;
+  setOut({ remove: so.id }).then(() => pickOutput('main'));
+};
+
+// ─── More than one output ─────────────────────────────────────────────
+// The cards above the setup (one per output, with its colour, what it sends to and an on/off), shown once
+// there's more than one. Picking a card picks that output here and in the Scene View.
+function renderOutputs(o, so) {
+  const many = o.outputs.length > 1;
+  $('outAdd').classList.toggle('hidden', !o.app || o.outputs.length >= (o.max || 4));
+  $('outList').classList.toggle('hidden', !many);
+  for (const el of document.querySelectorAll('.forMulti')) el.classList.toggle('hidden', !many);
+  $('outRemove').classList.toggle('hidden', so.primary);
+  $('outExtraNote').classList.toggle('hidden', so.primary);
+  if (document.activeElement !== $('outName')) $('outName').value = so.name;
+  document.documentElement.style.setProperty('--oc', many ? so.colour : 'transparent');
+  $('outSection').classList.toggle('picked', many);
+  const list = $('outList');
+  list.innerHTML = '';
+  if (!many) return;
+  for (const x of o.outputs) {
+    const card = document.createElement('div');
+    card.className = 'outCard' + (x.id === so.id ? ' sel' : '');
+    card.style.setProperty('--c', x.colour);
+    card.innerHTML = '<span class="dot"></span><span class="what"><b></b> <small></small></span><button></button>';
+    card.querySelector('b').textContent = `${x.slot} · ${x.name}`;
+    card.querySelector('small').textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.primary ? ' · primary, with sound' : '');
+    const live = x.on && x.mode !== 'off';
+    const b = card.querySelector('button');
+    b.textContent = live ? 'On' : 'Off';
+    b.className = live ? 'onBtn' : 'alt';
+    b.disabled = x.mode === 'off';
+    b.title = live ? `${x.name} is sending: click to turn it off` : `Turn ${x.name} on`;
+    b.onclick = e => { e.stopPropagation(); setOut({ output: x.id, on: !x.on }); };
+    card.onclick = () => pickOutput(x.id);
+    list.appendChild(card);
+  }
+}
+// What an output sends to, in a few words.
+function outWhere(o, x) {
+  const disp = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
+  return x.mode === 'off' ? 'not set up'
+    : x.mode === 'chroma' ? `chroma on ${disp(x.chromaDisplay)}`
+    : x.mode === 'fillkey' ? `fill and key on ${disp(x.fillDisplay)} and ${disp(x.keyDisplay)}`
+    : x.mode === 'decklink' ? 'Blackmagic, ' + (x.decklinkKeying === 'external' ? 'fill and key' : 'fill only')
+    : `NDI "${x.ndiName}"` + { fillkey: ', fill and key', chroma: ', chroma', alpha: ', with transparency' }[x.ndiSignal];
+}
 
 // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
 fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});

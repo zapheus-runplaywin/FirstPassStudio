@@ -18,6 +18,7 @@ function soundNote() {
   let st = null;
   try { st = $('previewFrame').contentWindow.soundState?.(); } catch {}
   const note = !out ? ''
+    : previewOutput !== 'main' ? 'Silent: this output never plays sound (only Output 1, the primary, does).'
     : !out.previewSound ? 'Silent: a video output is on, so the output plays the sound.'
     : popped ? popped.note
     : !$('previewOn').checked ? 'Silent: turn Live View on.'
@@ -40,7 +41,7 @@ $('preview').addEventListener('click', () => {
 });
 $('previewFrame').addEventListener('load', applySound);
 async function listen(take = false) {
-  const on = !!(out && out.previewSound && $('previewOn').checked && !popped);
+  const on = !!(out && out.previewSound && $('previewOn').checked && !popped && previewOutput === 'main');
   try {
     const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take }) });
     previewSound = !!(await r.json()).sound;
@@ -49,6 +50,37 @@ async function listen(take = false) {
 }
 setInterval(() => listen(), 5000);
 addEventListener('pagehide', () => navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false })));
+
+// ─── More than one output ─────────────────────────────────────────────
+// The output picked on the page (its card in Video output, its tab over the Scene View): the one being set
+// up, and the one the Scene View shows. Remembered in this browser.
+let outSel = (() => { try { return localStorage.getItem('outputPicked') || 'main'; } catch { return 'main'; } })();
+var previewOutput = 'main'; // the output the Scene View is drawing (var: showPreview can run before the outputs load)
+const extraOutputs = () => (out && out.outputs ? out.outputs.filter(o => !o.primary) : []);
+const selectedOutput = () => (out && out.outputs ? out.outputs.find(o => o.id === outSel) || out.outputs[0] : null);
+function pickOutput(id) {
+  outSel = id;
+  try { localStorage.setItem('outputPicked', id); } catch {}
+  if (out) showOut(out);
+  renderTabs();
+}
+// One tab per output over the Scene View, in its colour, once there's more than one.
+function renderTabs() {
+  const tabs = $('outTabs');
+  const list = out && out.outputs && out.outputs.length > 1 ? out.outputs : [];
+  tabs.classList.toggle('hidden', !list.length);
+  tabs.innerHTML = '';
+  for (const o of list) {
+    const b = document.createElement('button');
+    b.className = 'outTab' + (o.id === outSel ? ' sel' : '');
+    b.style.setProperty('--c', o.colour);
+    b.textContent = `${o.slot} · ${o.name}`;
+    b.title = `Show ${o.name} in the Scene View, and set it up in Video output`;
+    b.onclick = () => pickOutput(o.id);
+    tabs.appendChild(b);
+  }
+  $('previewWhich').textContent = list.length ? `Showing ${(selectedOutput() || {}).name || ''}: pick a tab to see another output.` : '';
+}
 
 // ─── Preview ───────────────────────────────────────────────────────────
 function fitPreview() {
@@ -67,9 +99,11 @@ var chromaWas = false; // whether the chroma output is chroma key safe (var: sho
 function showPreview() {
   const on = $('previewOn').checked, here = on && !popped;
   // While a chroma output is chroma key safe, the Live View shows the scene that way too.
-  const src = here ? `/scene.html?mute=1${chromaWas ? '&chromaKey=true' : ''}` : 'about:blank';
+  const which = previewOutput && previewOutput !== 'main' ? `&output=${encodeURIComponent(previewOutput)}` : '';
+  const src = here ? `/scene.html?mute=1${which}${chromaWas ? '&chromaKey=true' : ''}` : 'about:blank';
   if ($('previewFrame').getAttribute('src') !== src) $('previewFrame').src = src;
   $('previewOff').classList.toggle('hidden', here);
+  $('preview').classList.toggle('picked', !!(out && out.outputs && out.outputs.length > 1));
   $('previewOffText').textContent = popped ? 'The Scene View is in its own window' : 'Live View is off';
   $('popIn').classList.toggle('hidden', !popped);
   $('popOut').textContent = popped ? 'Show window' : 'Pop out';
@@ -96,7 +130,7 @@ popChannel.onmessage = e => {
 setInterval(() => { if (popped && popped.heard && Date.now() - poppedHeard > 6000) setPopped(null); }, 1000);
 popChannel.postMessage('ask');
 const openPopOut = () => {
-  window.open('/preview.html', 'studio-preview', 'popup,width=1280,height=720');
+  window.open(`/preview.html${previewOutput && previewOutput !== 'main' ? `?output=${encodeURIComponent(previewOutput)}` : ''}`, 'studio-preview', 'popup,width=1280,height=720');
   popped = { note: '' };
   // A blocked pop-up never says it's open: put the preview back here.
   setTimeout(() => { if (popped && !popped.heard) { popped = null; showPreview(); $('err').textContent = 'The Scene View window didn\'t open: allow pop-ups for Studio in this browser.'; } }, 4000);
