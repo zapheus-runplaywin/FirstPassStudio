@@ -16,7 +16,8 @@
 // shared sources and scenes by id. The runner lives here in Studio, not in a page, so it keeps time
 // with the Output page closed. What's playing isn't saved: after a restart nothing is playing.
 //
-// Game triggers: a sequence can start by itself N minutes before the picked game's scheduled start,
+// Game triggers: a sequence can start by itself N minutes before the picked game's scheduled start
+// (only when Studio was running at that moment: opened inside the window, it's left to the operator),
 // at quarter time, half time or three quarter time, or at full time, a few seconds after the siren.
 // The moments come from the scoreboard Studio already keeps (server.js calls game() each second with
 // the clock, quarter and start time), so there are no extra PlayHQ calls. A triggered start waits
@@ -70,6 +71,7 @@ let auto = true;      // the Automatic sequences switch
 let settingsFile = null;
 let game = null;      // the latest scoreboard reading, from game()
 let watch = null;     // what's been seen of that game: { id, fired, ranIn, everRan, zeroAt, running, period, onBreak }
+let studioStartedAt = Date.now(); // when Studio started: a "before the start" moment passed before then is skipped
 
 const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -578,8 +580,14 @@ function gameTick(g) {
       changed = true;
     }
     for (const sq of list) {
-      if (sq.start.type !== 'before' || t < game.startAt - sq.start.min * 60000 || watch.fired.has(`before:${sq.id}`)) continue;
+      const at = game.startAt - sq.start.min * 60000;
+      if (sq.start.type !== 'before' || t < at || watch.fired.has(`before:${sq.id}`)) continue;
       watch.fired.add(`before:${sq.id}`);
+      // Its moment came while Studio wasn't running (it was opened inside the window): left to the operator.
+      if (at < studioStartedAt) {
+        log('info', 'sequence', `"${sq.name}" won't start by itself: Studio wasn't running ${sq.start.min} min before ${game.label || 'the game'}`);
+        continue;
+      }
       trigger(sq, `${sq.start.min} min before ${game.label || 'the game'}`, 0);
       changed = true;
     }
@@ -837,6 +845,7 @@ function state() {
 }
 
 function init(logger, hooks, sequencesFile) {
+  studioStartedAt = now();
   log = logger || log;
   api = hooks;
   if (sequencesFile) fileOf = sequencesFile;
