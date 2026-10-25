@@ -1,103 +1,115 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>FirstPass Studio User Guide</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,500;0,700;0,800;1,800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;1,800;1,900&display=swap">
 <style>
-  /* One visual world, chosen on purpose: the Studio navy from the 1P logo, gold for the things you press,
-     white type with plenty of air. The print PDF swaps the paper for white; everything else stays dark. */
+  /* FirstPass brand kit, applied whole: deep navy ground, white ink, electric gold as the accent on dark,
+     blaze orange for alerts, Montserrat for everything (headings 800 upright, display 900 italic, body 400).
+     One ground colour only, so nothing frames anything. The print PDF swaps to the light grounds (.light). */
   :root {
-    --bg: #0b1120; --paper: #101729; --paper-2: #151e33; --ink: #eef1f8; --ink-2: #a7b1c9; --ink-3: #6f7b99; --line: rgba(255,255,255,.1);
-    --navy: #101729; --gold: #f1c40f; --gold-2: #ffd84d; --gold-ink: #1a1500; --orange: #f75c03; --blue: #5aa9ff;
-    --tip: rgba(90,169,255,.08); --tip-line: rgba(90,169,255,.35); --warn: rgba(241,196,15,.08); --warn-line: rgba(241,196,15,.4);
-    --display: "Montserrat", "Helvetica Neue", Arial, sans-serif;
-    --body: "Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
+    --navy: #0F172A; --soft: #1E293B; --soft-2: #273449; --white: #FFFFFF; --muted: #CBD5E1; --faint: #8B98B3;
+    --blue: #2274A5; --blue-bright: #3E93C8; --orange: #F75C03; --gold: #F1C40F; --line: rgba(203,213,225,.18);
+    --bg: var(--navy); --paper: var(--soft); --ink: var(--white); --ink-2: var(--muted); --ink-3: var(--faint);
+    --accent: var(--gold); --accent-ink: #0F172A; --link: var(--gold);
+    --font: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    color-scheme: dark;
+    --r: 12px; color-scheme: dark;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
-  a { color: var(--gold-2); text-decoration-color: rgba(255,216,77,.4); text-underline-offset: 3px; }
-  h1, h2, h3, h4 { font-family: var(--display); text-wrap: balance; line-height: 1.12; margin: 0; color: #fff; }
-  h2 { font-size: 2.4rem; font-weight: 800; letter-spacing: -.02em; }
-  h3 { font-size: 1.35rem; font-weight: 700; margin-top: 2.6rem; }
-  h3::before { content: ""; display: block; width: 2.2rem; height: 2px; background: var(--gold); margin-bottom: .7rem; }
-  h4 { font-size: 1.02rem; font-weight: 700; margin-top: 1.6rem; color: var(--gold-2); text-transform: uppercase; letter-spacing: .06em; font-size: .86rem; }
-  p { margin: .8rem 0; max-width: 68ch; }
-  li { margin: .35rem 0; }
-  ul, ol { padding-left: 1.3rem; max-width: 70ch; }
-  ul li::marker { color: var(--gold); }
-  code, kbd { font-family: var(--mono); font-size: .84em; background: rgba(255,255,255,.07); padding: .12em .4em; border-radius: 4px; color: #fff; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  a { color: var(--link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--link) 50%, transparent); }
+  a:hover { text-decoration-color: var(--link); }
+  h1, h2, h3, h4 { font-family: var(--font); text-wrap: balance; margin: 0; color: var(--ink); }
+  h2 { font-size: 2.5rem; font-weight: 900; font-style: italic; letter-spacing: -.02em; line-height: 1.05; }
+  h3 { font-size: 1.35rem; font-weight: 800; margin-top: 2.6rem; line-height: 1.2; display: flex; align-items: center; gap: .7rem; }
+  h3::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: var(--accent); flex: none; }
+  h4 { font-size: .8rem; font-weight: 800; margin-top: 1.6rem; color: var(--accent); text-transform: uppercase; letter-spacing: .1em; }
+  p { margin: .8rem 0; max-width: 66ch; }
+  li { margin: .4rem 0; }
+  ul, ol { padding-left: 1.3rem; max-width: 68ch; }
+  ul li::marker { color: var(--accent); }
+  code, kbd { font-family: var(--mono); font-size: .86em; background: var(--soft); padding: .12em .4em; border-radius: 5px; color: var(--ink); }
   kbd { border: 1px solid var(--line); }
-  strong { font-weight: 600; color: #fff; }
-  em { color: var(--ink); }
-  .eyebrow { font-family: var(--display); text-transform: uppercase; letter-spacing: .16em; font-size: .72rem; font-weight: 700; color: var(--gold); }
+  strong { font-weight: 800; color: var(--ink); }
+  em { font-style: normal; font-weight: 600; color: var(--ink); }
+  .eyebrow { font-family: var(--font); text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; font-weight: 800; color: var(--accent); }
 
-  /* Cover */
-  .cover { background: #101729 radial-gradient(1200px 600px at 70% -10%, rgba(34,116,165,.35), transparent 60%); color: #fff; padding-block: 4rem 3.5rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid rgba(241,196,15,.5); position: relative; overflow: hidden; }
-  .cover::after { content: ""; position: absolute; inset: auto 0 0 0; height: 4px; background: linear-gradient(90deg, var(--gold), var(--orange)); }
-  .cover .in { max-width: 1120px; margin: 0 auto; display: grid; gap: 1.4rem; }
-  .cover .mark { width: 190px; max-width: 46vw; height: auto; margin-left: -14px; }
-  .cover .eyebrow { margin-top: .6rem; }
-  .cover h1 { font-size: clamp(2.6rem, 6.2vw, 5rem); font-weight: 800; letter-spacing: -.03em; line-height: 1; }
-  .cover h1 span { color: var(--gold); display: block; font-weight: 700; font-size: .5em; letter-spacing: .02em; margin-top: .3em; text-transform: uppercase; }
-  .cover p { color: #c9d2e6; font-size: 1.2rem; max-width: 58ch; }
-  .cover .screen { margin: 1rem 0 0; padding: 10px; border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 30px 80px rgba(0,0,0,.55); }
-  .cover .screen img { display: block; width: 100%; height: auto; border-radius: 8px; }
-  .cover .foot { display: flex; align-items: center; gap: 1rem; margin-top: 1.4rem; color: var(--ink-3); font-family: var(--display); font-weight: 700; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; flex-wrap: wrap; }
+  /* Cover: one solid navy ground, the 1P mark large, the title in the display style. */
+  .cover { background: var(--navy); color: var(--white); padding-block: 4rem 3rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .cover .in { max-width: 1120px; margin: 0 auto; display: grid; gap: 1.2rem; }
+  .cover .mark { width: 200px; max-width: 48vw; height: auto; margin-left: -12px; }
+  .cover .eyebrow { margin-top: .8rem; }
+  .cover h1 { font-size: clamp(2.8rem, 6.5vw, 5.4rem); font-weight: 900; font-style: italic; letter-spacing: -.03em; line-height: .98; }
+  .cover h1 span { color: var(--gold); display: block; font-weight: 800; font-style: normal; font-size: .42em; letter-spacing: .08em; margin-top: .45em; text-transform: uppercase; }
+  .cover p { color: var(--muted); font-size: 1.1rem; max-width: 56ch; line-height: 1.55; }
+  .cover .screen { margin: 1.2rem 0 0; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); }
+  .cover .screen img { display: block; width: 100%; height: auto; }
+  .cover .foot { display: flex; align-items: center; gap: 1rem 1.2rem; margin-top: 1.4rem; color: var(--faint); font-weight: 800; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 1.4rem; }
   .cover .foot img.word { height: 22px; width: auto; }
   .cover .foot img.pivt { height: 30px; width: auto; }
-  .cover .meta { color: var(--ink-3); font-size: .9rem; }
+  .cover .meta { color: var(--faint); font-size: .85rem; }
 
   /* Page frame */
   .frame { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 3rem; padding-block: 2.5rem 5rem; }
-  nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: calc(100vh - 1rem); overflow: auto; font-size: .9rem; padding-top: .8rem; scrollbar-width: thin; }
+  nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: calc(100vh - 1rem); overflow: auto; font-size: .84rem; padding-top: .8rem; scrollbar-width: thin; }
   nav.toc ol { list-style: none; padding: 0; margin: 0; }
   nav.toc li { margin: 0; }
-  nav.toc a { display: block; color: var(--ink-2); text-decoration: none; padding: .3rem .7rem; border-left: 1px solid var(--line); }
-  nav.toc a:hover { color: #fff; border-color: var(--gold); }
-  nav.toc a.top { color: #fff; font-weight: 600; margin-top: .6rem; font-family: var(--display); font-size: .82rem; }
+  nav.toc a { display: block; color: var(--muted); text-decoration: none; padding: .3rem .75rem; border-left: 2px solid var(--line); border-radius: 0 6px 6px 0; }
+  nav.toc a:hover { color: var(--white); border-color: var(--gold); background: var(--soft); }
+  nav.toc a.top { color: var(--white); font-weight: 800; margin-top: .7rem; }
   main { min-width: 0; }
   @media (max-width: 880px) { .frame { grid-template-columns: 1fr; } nav.toc { position: static; max-height: none; } }
 
-  /* Chapters */
+  /* Chapters: a number, a title, what's in it, then the lead. */
   section.ch { padding-top: 3rem; margin-top: 3.5rem; border-top: 1px solid var(--line); }
   section.ch:first-of-type { margin-top: 0; border-top: 0; padding-top: 0; }
-  .chno { font-family: var(--display); font-weight: 700; color: var(--gold); font-size: .78rem; letter-spacing: .2em; text-transform: uppercase; margin-bottom: .8rem; display: flex; align-items: center; gap: .8rem; }
-  .chno::after { content: ""; flex: 0 0 3rem; height: 1px; background: var(--gold); opacity: .7; }
-  .lead { font-size: 1.22rem; color: var(--ink-2); max-width: 64ch; line-height: 1.5; margin-top: 1rem; }
+  .chno { font-weight: 800; color: var(--accent); font-size: .74rem; letter-spacing: .18em; text-transform: uppercase; margin-bottom: .9rem; display: flex; align-items: center; gap: .7rem; }
+  .chno .dots { display: inline-flex; gap: 4px; }
+  .chno .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); display: block; }
+  .chno .dots i.on { background: var(--accent); }
+  .lead { font-size: 1.15rem; color: var(--muted); max-width: 62ch; line-height: 1.5; margin-top: 1rem; }
+  .inthis { background: var(--soft); border-radius: var(--r); padding: 1rem 1.2rem; margin: 1.4rem 0 .4rem; max-width: 76ch; }
+  .inthis .eyebrow { margin-bottom: .4rem; }
+  .inthis ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .2rem 1.2rem; max-width: none; }
+  .inthis li { margin: 0; font-size: .92rem; }
+  .inthis a { color: var(--ink); text-decoration: none; display: flex; gap: .5rem; align-items: baseline; padding: .22rem 0; }
+  .inthis a:hover { color: var(--gold); }
+  .inthis a b { color: var(--accent); font-size: .74rem; font-weight: 800; min-width: 1.4rem; }
 
   figure { margin: 1.6rem 0; }
-  figure img { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: var(--paper); box-shadow: 0 18px 50px rgba(0,0,0,.45); }
-  figure.graphic img { border: 1px solid rgba(255,255,255,.08); }
-  figcaption { font-size: .9rem; color: var(--ink-2); margin-top: .65rem; max-width: 80ch; line-height: 1.5; }
-  figcaption b { color: #fff; font-weight: 600; }
+  figure img { width: 100%; height: auto; display: block; border-radius: var(--r); border: 1px solid var(--line); background: var(--soft); }
+  figcaption { font-size: .88rem; color: var(--muted); margin-top: .65rem; max-width: 80ch; line-height: 1.5; }
+  figcaption b { color: var(--ink); font-weight: 800; }
   .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.4rem; align-items: start; }
   .two figure { margin: 0; }
 
-  .tip, .warn { border: 1px solid var(--tip-line); border-left: 3px solid var(--blue); background: var(--tip); border-radius: 8px; padding: .9rem 1.1rem; margin: 1.4rem 0; max-width: 76ch; }
-  .tip .eyebrow { color: var(--blue); }
-  .warn { background: var(--warn); border-color: var(--warn-line); border-left-color: var(--gold); }
-  .warn .eyebrow { color: var(--gold); }
-  .tip p, .warn p { margin: .3rem 0 0; }
+  /* Callouts: a label pill, no side stripes. Tip = gold, Watch out = orange. */
+  .tip, .warn { background: var(--soft); border-radius: var(--r); padding: 1rem 1.2rem 1rem; margin: 1.4rem 0; max-width: 76ch; }
+  .tip .eyebrow, .warn .eyebrow { display: inline-block; background: var(--gold); color: var(--accent-ink); padding: .18rem .55rem; border-radius: 999px; font-size: .66rem; }
+  .warn .eyebrow { background: var(--orange); color: var(--white); }
+  .tip p, .warn p { margin: .5rem 0 0; }
 
-  table { border-collapse: collapse; width: 100%; font-size: .95rem; margin: 1.2rem 0; }
-  th, td { text-align: left; padding: .6rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-family: var(--display); font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; color: var(--gold); border-bottom-color: rgba(241,196,15,.4); }
-  tr:nth-child(even) td { background: rgba(255,255,255,.02); }
-  .tablewrap { overflow-x: auto; }
-  td.k { white-space: nowrap; font-weight: 600; color: #fff; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; margin: 1.2rem 0; }
+  th, td { text-align: left; padding: .65rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); font-weight: 800; }
+  tr:nth-child(even) td { background: color-mix(in srgb, var(--soft) 55%, transparent); }
+  .tablewrap { overflow-x: auto; } .tablewrap table { min-width: 560px; }
+  td.k { white-space: nowrap; font-weight: 800; color: var(--ink); }
 
   .steps { counter-reset: s; list-style: none; padding: 0; max-width: 76ch; }
-  .steps li { counter-increment: s; position: relative; padding-left: 2.8rem; margin: .8rem 0; }
-  .steps li::before { content: counter(s); position: absolute; left: 0; top: .05rem; width: 2rem; height: 2rem; border-radius: 50%; background: var(--gold); color: var(--gold-ink); font-family: var(--display); font-weight: 800; font-size: .9rem; display: grid; place-items: center; }
+  .steps li { counter-increment: s; position: relative; padding-left: 2.9rem; margin: .9rem 0; min-height: 2rem; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: -.05rem; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: var(--gold); color: var(--accent-ink); font-weight: 900; font-style: italic; font-size: .95rem; display: grid; place-items: center; }
 
   .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem; margin: 1.2rem 0; }
-  .role { background: var(--paper-2); border: 1px solid var(--line); border-top: 2px solid var(--gold); border-radius: 12px; padding: 1.1rem 1.2rem; }
-  .role h4 { margin-top: 0; color: #fff; text-transform: none; letter-spacing: 0; font-size: 1.05rem; }
-  .role ul { padding-left: 1.1rem; font-size: .95rem; }
+  .role { background: var(--soft); border-radius: var(--r); padding: 1.1rem 1.2rem; }
+  .role h4 { margin-top: 0; color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 1.05rem; display: flex; gap: .6rem; align-items: center; }
+  .role h4::before { content: ""; width: .8rem; height: .8rem; border-radius: 3px; background: var(--blue-bright); }
+  .role:nth-child(2) h4::before { background: var(--orange); }
+  .role ul { padding-left: 1.1rem; font-size: .92rem; }
 
   .timeline { list-style: none; padding: 0; max-width: 80ch; }
   .timeline li { display: grid; grid-template-columns: 7.5rem 1fr; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
-  .timeline .t { font-family: var(--display); font-weight: 700; color: var(--gold); font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; padding-top: .25rem; }
+  .timeline .t { font-weight: 800; color: var(--accent); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; padding-top: .3rem; }
   @media (max-width: 500px) { .timeline li { grid-template-columns: 1fr; gap: .2rem; } }
 
   .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.4rem; }
@@ -105,40 +117,37 @@
   .stack { display: grid; gap: 1.4rem; }
   .stack figure { margin: 0; }
 
-  .glossary dt { font-weight: 600; margin-top: .7rem; color: #fff; }
-  .glossary dd { margin: .1rem 0 0; color: var(--ink-2); max-width: 70ch; }
-  .meta { color: var(--ink-3); font-size: .9rem; }
+  .glossary dt { font-weight: 800; margin-top: .7rem; color: var(--ink); }
+  .glossary dd { margin: .1rem 0 0; color: var(--muted); max-width: 70ch; }
+  .meta { color: var(--faint); font-size: .88rem; }
 
   @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
-  :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
 
-  /* Print: chapters on their own pages. The print PDF turns the paper white (see the light rules); the dark
-     web PDF keeps these colours. */
+  /* Print: chapters on their own pages. */
   @media print {
-    body { font-size: 11pt; }
-    .cover { padding-block: 2.5rem 2rem; -webkit-print-color-adjust: exact; print-color-adjust: exact; break-after: page; break-inside: avoid; }
-    .cover .mark { width: 150px; } .cover h1 { font-size: 3rem; } .cover p { font-size: 1.05rem; } .cover .screen { max-width: 82%; } .cover .in { gap: 1rem; }
-    .cover::after { display: none; }
+    body { font-size: 10.5pt; }
+    .cover { padding-block: 2.5rem 2rem; break-after: page; break-inside: avoid; }
+    .cover .mark { width: 150px; } .cover h1 { font-size: 3rem; } .cover p { font-size: 1rem; } .cover .screen { max-width: 82%; } .cover .in { gap: 1rem; }
     nav.toc { display: none; }
     .frame { display: block; max-width: none; padding-block: 0; }
     section.ch { break-before: page; border-top: 0; margin-top: 0; padding-top: 0; }
     section.ch:first-of-type { break-before: auto; }
     h3, h4 { break-after: avoid; }
-    figure, .tip, .warn, .role, table { break-inside: avoid; }
-    figure img { box-shadow: none; max-height: 16cm; width: auto; max-width: 100%; margin: 0 auto; }
+    figure, .tip, .warn, .role, table, .inthis { break-inside: avoid; }
+    figure img { max-height: 16cm; width: auto; max-width: 100%; margin: 0 auto; }
     a { color: inherit; text-decoration: none; }
     *, *::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
-  :root.light { --bg: #fff; --paper: #fff; --paper-2: #f5f7fb; --ink: #15213b; --ink-2: #4a5775; --ink-3: #7b86a3; --line: #dfe3ee;
-    --gold: #b58900; --gold-2: #8a6a00; --blue: #1e63c8; --tip: #eef5ff; --tip-line: #bcd4f7; --warn: #fff7e0; --warn-line: #f1d67a; color-scheme: light; }
-  :root.light h1, :root.light h2, :root.light h3, :root.light strong, :root.light figcaption b, :root.light .glossary dt, :root.light td.k, :root.light nav.toc a.top, :root.light .role h4 { color: var(--ink); }
-  :root.light code, :root.light kbd { background: rgba(0,0,0,.06); color: var(--ink); }
-  :root.light figure img { box-shadow: none; border-color: #d5dae6; }
-  :root.light .steps li::before { background: #101729; color: #f1c40f; }
-  :root.light tr:nth-child(even) td { background: #f7f8fb; }
-  :root.light .cover, :root.light .cover h1, :root.light .cover strong { color: #fff; }
-  :root.light .cover h1 span, :root.light .chno { color: #c99a00; }
-  :root.light .cover .eyebrow { color: #f1c40f; }
+  /* Light grounds for the print PDF: navy ink, pacific blue as the accent (gold is never text on white). */
+  :root.light { --bg: #FFFFFF; --paper: #F8FAFC; --soft: #F8FAFC; --soft-2: #EEF2F7; --ink: #0F172A; --ink-2: #475569; --ink-3: #64748B; --muted: #475569; --faint: #64748B;
+    --line: #E2E8F0; --accent: #2274A5; --accent-ink: #FFFFFF; --link: #2274A5; color-scheme: light; }
+  :root.light .tip .eyebrow { background: #2274A5; color: #fff; }
+  :root.light .steps li::before { background: #2274A5; color: #fff; }
+  :root.light .cover, :root.light .cover h1, :root.light .cover .foot { color: #fff; }
+  :root.light .cover p { color: #CBD5E1; }
+  :root.light .cover .eyebrow, :root.light .cover h1 span { color: #F1C40F; }
+  :root.light .cover .screen { border-color: rgba(255,255,255,.15); }
   @page { size: A4; margin: 16mm 14mm 18mm; }
 </style>
 
@@ -181,11 +190,12 @@
 </nav>
 <main>
 <section class="ch" id="ch1">
-  <div class="chno">Chapter 1</div>
+  <div class="chno">Chapter 1 of 11 <span class="dots"><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>What Studio is</h2>
   <p class="lead">FirstPass Studio is a Mac app that draws broadcast graphics for a netball livestream and sends them to your vision switcher. The scores, clocks, ladders, fixtures and line-ups come from PlayHQ's public data, so there is nothing to type in during the game.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s1-1"><b>1</b>The words used in this guide</a></li><li><a href="#s1-2"><b>2</b>The pages you work in</a></li><li><a href="#s1-3"><b>3</b>The sample competition in this guide</a></li></ol></div>
   <p>Studio does one job on stream night: graphics. Your cameras, switcher and streaming encoder stay as they are. Studio hands the switcher a picture with transparency (fill and key, or a chroma colour) so the graphics sit over the vision.</p>
-  <h3>The words used in this guide</h3>
+  <h3 id="s1-1">The words used in this guide</h3>
   <dl class="glossary">
     <dt>Studio</dt><dd>The whole thing: the Mac app, the pages you work in, and the graphics it puts on screen.</dd>
     <dt>On air, off air</dt><dd>Studio is on air while a Studio window is open. On air it talks to PlayHQ, serves the graphics and answers the Stream Deck. Closing the last window takes it off air.</dd>
@@ -197,30 +207,31 @@
     <dt>The competition</dt><dd>Everything that belongs to one league: its PlayHQ link, names, rules, colours, logos, sponsors and athletes. Studio keeps a setup per competition and uses one at a time.</dd>
     <dt>The data folder</dt><dd>Where Studio saves everything, outside the app, so updates never touch it.</dd>
   </dl>
-  <h3>The pages you work in</h3>
+  <h3 id="s1-2">The pages you work in</h3>
   <p>Every Studio window has the same tab bar: <strong>Output</strong>, <strong>Scoreboard control</strong>, <strong>Competitions setup</strong>, <strong>Sponsors</strong>, <strong>Athletes</strong>, <strong>Stream Deck</strong> and <strong>Docs</strong> (⌘1 to ⌘7 in the app). Output is where the show is built and sent out; Scoreboard control runs the board; the rest are set up before the night.</p>
-  <h3>The sample competition in this guide</h3>
+  <h3 id="s1-3">The sample competition in this guide</h3>
   <p>The screenshots use a fictional league, the <strong>Elite Netball League</strong>, with eight clubs named after animals (Falcons, Panthers, Stingrays, Cobras, Grizzlies, Hawks, Rhinos and Wolves) across Premier, Men's and Under 21 divisions, playing at the Metro Arena. Its sponsors are fictional too. Everything you see is what Studio draws for any competition once its setup is in.</p>
 </section>
 
 <section class="ch" id="ch2">
-  <div class="chno">Chapter 2</div>
+  <div class="chno">Chapter 2 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Getting started</h2>
   <p class="lead">Install the app, import or make your competition, and learn the one rule that matters on stream night: keep a Studio window open.</p>
-  <h3>Install</h3>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s2-1"><b>1</b>Install</a></li><li><a href="#s2-2"><b>2</b>On air and off air</a></li><li><a href="#s2-3"><b>3</b>The 1P menu</a></li><li><a href="#s2-4"><b>4</b>Before you go on air</a></li></ol></div>
+  <h3 id="s2-1">Install</h3>
   <ol class="steps">
     <li>Download <code>FirstPass Studio.dmg</code>, drag the app to Applications and open it. It runs on Apple silicon Macs (M1 and later).</li>
     <li>The <strong>1P</strong> icon appears in the menu bar, off air. Choose <strong>Open Studio</strong>. A short splash shows, Studio goes on air and the Output page opens in the app's own window.</li>
     <li>Go to <strong>Competitions setup</strong> and either <strong>Import a template file</strong> (your league's <code>.json</code>, with its logos and sponsors inside) or <strong>New competition</strong> and fill it in (Chapter 6).</li>
     <li>Back on <strong>Output</strong>, add the graphics you need with <strong>Add page</strong>, and turn on the video output that feeds your switcher (Chapter 3).</li>
   </ol>
-  <h3>On air and off air</h3>
+  <h3 id="s2-2">On air and off air</h3>
   <p>Studio only runs while a Studio window is open. Opening one (Open Studio, any page in the 1P menu, or ⌘N) puts it on air; closing the last one takes it off air, and the graphics and Stream Deck get no answer until a window opens again. Closing the last window while on air asks first, and so does ⌘Q, so a stray keypress can't stop a stream. Leave the Output page open all night.</p>
   <p>The status line under the Output page's title shows the game on the board, whether scores and clock follow PlayHQ, how long since PlayHQ last answered (amber when overdue, red after a minute of errors) and whether the video output is on. If anything is wrong, this line says so on the page you keep open.</p>
-  <h3>The 1P menu</h3>
+  <h3 id="s2-3">The 1P menu</h3>
   <p>Open Studio, Scoreboard control, Competition setup, Copy the Studio link, Install the Stream Deck plugin, Back up… and Restore…, Settings folder (iCloud Drive), Open the settings folder, Open the debug log, Restart Studio, Open at login, Let other devices change things, What's new…, Check for updates, Stop Studio (while on air) and Quit. Updates download in the background and install when the app quits, never mid-stream; <strong>Restart to update</strong> installs one straight away.</p>
   <div class="tip"><div class="eyebrow">Links</div><p>Studio's links start with the Mac's Bonjour name, such as <code>http://matts-macbook-pro.local:8080/</code>, so the same link works from a phone, another computer or a Stream Deck on the same network. <code>http://localhost:8080</code> works on the Mac itself.</p></div>
-  <h3>Before you go on air</h3>
+  <h3 id="s2-4">Before you go on air</h3>
   <ol class="steps">
     <li><strong>Open the app.</strong> The Output page opens and Studio goes on air. Keep a window open all night.</li>
     <li><strong>Right competition.</strong> Competitions setup shows the one in use at the top. Check its PlayHQ link, the court to follow and the scoring window.</li>
@@ -234,9 +245,10 @@
 </section>
 
 <section class="ch" id="ch3">
-  <div class="chno">Chapter 3</div>
+  <div class="chno">Chapter 3 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Game night, the automated way</h2>
   <p class="lead">This is how most nights run: one operator, PlayHQ scoring the game, a base scene that stays on, automatic layers that fire by themselves, and sequences that handle the run-up, the breaks and full time.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s3-1"><b>1</b>How it fits together</a></li><li><a href="#s3-2"><b>2</b>Scoreboard control</a></li><li><a href="#s3-3"><b>3</b>The Output page</a></li><li><a href="#s3-4"><b>4</b>The base scene</a></li><li><a href="#s3-5"><b>5</b>Automatic layers</a></li><li><a href="#s3-6"><b>6</b>Scenes</a></li><li><a href="#s3-7"><b>7</b>Sequences</a></li><li><a href="#s3-8"><b>8</b>Music and playlists</a></li><li><a href="#s3-9"><b>9</b>Video output</a></li><li><a href="#s3-10"><b>10</b>A night, start to finish</a></li></ol></div>
 
   <h3 id="s3-1">How it fits together</h3>
   <p>Four things do the work, and each one is set up once:</p>
@@ -359,9 +371,10 @@
 </section>
 
 <section class="ch" id="ch4">
-  <div class="chno">Chapter 4</div>
+  <div class="chno">Chapter 4 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Running it by hand</h2>
   <p class="lead">When nobody is live-scoring the game on PlayHQ, or PlayHQ stops answering mid-game, every automatic part of Chapter 3 has a button. The board, the breaks and the celebrations can all be driven from Scoreboard control and a Stream Deck.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s4-1"><b>1</b>Two people, not one</a></li><li><a href="#s4-2"><b>2</b>Switching to manual</a></li><li><a href="#s4-3"><b>3</b>The score</a></li><li><a href="#s4-4"><b>4</b>The clock and the quarter</a></li><li><a href="#s4-5"><b>5</b>Breaks and celebrations by hand</a></li><li><a href="#s4-6"><b>6</b>Finals</a></li></ol></div>
   <p>Studio still needs the competition on PlayHQ for its fixture, ladder, squads and results; what changes in manual mode is who runs the score and the clock. The same competition can be followed one week and run by hand the next, and nothing on the Output page changes between the two.</p>
 
   <h3 id="s4-1">Two people, not one</h3>
@@ -424,9 +437,10 @@
 </section>
 
 <section class="ch" id="ch5">
-  <div class="chno">Chapter 5</div>
+  <div class="chno">Chapter 5 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>The graphics</h2>
   <p class="lead">Every graphic Studio draws, grouped by when it is used. Each one is added to the scene with <strong>Add page</strong> on the Output page, and its options appear as fields under its address; the options named here are the ones worth knowing.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s5-1"><b>1</b>Always on</a></li><li><a href="#s5-2"><b>2</b>Before the game</a></li><li><a href="#s5-3"><b>3</b>During play</a></li><li><a href="#s5-4"><b>4</b>After the game</a></li><li><a href="#s5-5"><b>5</b>The competition</a></li><li><a href="#s5-6"><b>6</b>The breaks</a></li><li><a href="#s5-7"><b>7</b>Checking the outputs</a></li></ol></div>
   <p>All of them follow the game, round and court picked on Scoreboard control, take the competition's colours, font and logos from its setup, and fit long team names. Cards sit in the space between the title and the scoreboard and shrink to fit when they have more in them than fits. Every page, with its link and a Preview button, is also listed on the Docs tab.</p>
 
   <h3 id="s5-1">Always on</h3>
@@ -493,9 +507,10 @@
 </section>
 
 <section class="ch" id="ch6">
-  <div class="chno">Chapter 6</div>
+  <div class="chno">Chapter 6 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Competitions setup</h2>
   <p class="lead">Everything about a competition that doesn't come from PlayHQ lives on one page: its PlayHQ link, the names on the graphics, the game rules, finals, game day, colours, font and logos. Set it up once a season and every graphic follows.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s6-1"><b>1</b>PlayHQ</a></li><li><a href="#s6-2"><b>2</b>Names on the graphics</a></li><li><a href="#s6-3"><b>3</b>Game rules</a></li><li><a href="#s6-4"><b>4</b>Finals</a></li><li><a href="#s6-5"><b>5</b>Game day</a></li><li><a href="#s6-6"><b>6</b>Colours and font</a></li><li><a href="#s6-7"><b>7</b>Logos</a></li><li><a href="#s6-8"><b>8</b>Live viewers</a></li><li><a href="#s6-9"><b>9</b>Templates, export and more</a></li></ol></div>
   <p>Studio keeps a setup per competition. The one marked <strong>In use</strong> is what every graphic, Scoreboard control, the Sponsors page and the Stream Deck use. Changes aren't kept until you press <strong>Save</strong> (or <strong>Save and use this competition</strong>), and leaving the page with unsaved changes asks first.</p>
   <figure><img src="img/s-setup-competitions.webp" alt="The Competitions list on the setup page"><figcaption>The competitions list. Start from a template file (the repository has Thunder League, AMMNA Nationals, GIG WANL and West Coast Thunder) or press New competition for Studio's defaults.</figcaption></figure>
 
@@ -540,9 +555,10 @@
 </section>
 
 <section class="ch" id="ch7">
-  <div class="chno">Chapter 7</div>
+  <div class="chno">Chapter 7 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Sponsors</h2>
   <p class="lead">The Sponsors tab turns sponsorship into something you can sell, run and prove: a tiered library of sponsors, spots on the graphics that fill themselves, ad breaks that take turns fairly, and a report of what each sponsor got.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s7-1"><b>1</b>Tiers</a></li><li><a href="#s7-2"><b>2</b>A sponsor</a></li><li><a href="#s7-3"><b>3</b>Spots and moments</a></li><li><a href="#s7-4"><b>4</b>Proof of play</a></li></ol></div>
   <figure><img src="img/s-sponsors.webp" alt="The Sponsors page"><figcaption>The Sponsors page for the sample league: sponsors by tier with tonight's exposure meter, the tier rules, sponsored moments and the vacancy card.</figcaption></figure>
 
   <h3 id="s7-1">Tiers</h3>
@@ -575,9 +591,10 @@
 </section>
 
 <section class="ch" id="ch8">
-  <div class="chno">Chapter 8</div>
+  <div class="chno">Chapter 8 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Athletes</h2>
   <p class="lead">PlayHQ gives Studio every athlete in a line-up, but not their faces. The Athletes tab holds a photo per athlete for the position match ups and the person lower third, and a record of positions and games played that PlayHQ's history doesn't cover.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s8-1"><b>1</b>Photos</a></li><li><a href="#s8-2"><b>2</b>Positions and games played</a></li></ol></div>
   <figure><img src="img/s-athletes.webp" alt="The Athletes page"><figcaption>The Athletes page: teams grouped by division, every athlete PlayHQ has in a line-up this season, and the photo library.</figcaption></figure>
   <h3 id="s8-1">Photos</h3>
   <p>Pick a team and add a photo to each athlete, or drop a folder of photos named after the athletes ("Jane Smith.jpg" or "smith_jane.png") on <strong>Several photos at once</strong>; any that don't match wait in the photo library to be given to someone. A photo is saved under the athlete's name for the competition, so an athlete in two divisions needs one photo. Photos are made smaller when saved; cut-out PNGs with a transparent background look best. Without a photo the graphics show a silhouette for the athlete's gender, taken from the division (men's, women's; mixed and open are neutral) and changeable under the athlete. <strong>An athlete PlayHQ doesn't list yet</strong> adds one ahead of their first game.</p>
@@ -591,19 +608,20 @@
 </section>
 
 <section class="ch" id="ch9">
-  <div class="chno">Chapter 9</div>
+  <div class="chno">Chapter 9 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i></span></div>
   <h2>Stream Deck</h2>
   <p class="lead">A Stream Deck is the control surface for stream night: one key per source, scene and sequence, each lit while it's on, plus score, clock and quarter keys for a game run by hand. Studio ships its own plugin, and every control also has a plain link.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s9-1"><b>1</b>The plugin</a></li><li><a href="#s9-2"><b>2</b>Links for everything else</a></li><li><a href="#s9-3"><b>3</b>Timed keys and the icon pack</a></li></ol></div>
   <figure><img src="img/s-streamdeck.webp" alt="The Stream Deck tab"><figcaption>The Stream Deck tab: the plugin, the scoring and clock links, and the full reference below them.</figcaption></figure>
 
   <h3 id="s9-1">The plugin</h3>
   <p>Install it from the 1P menu (<strong>Install the Stream Deck plugin</strong>) or the button on the Output page; the Stream Deck app opens and installs it. Do the same after an app update. The <strong>Studio</strong> field in a key's settings stays empty when the Stream Deck is on the same Mac; for another Mac, type its address, like <code>http://studio-mac.local:8080</code>. Three kinds of key, each a different shape at a glance:</p>
-  <table>
+  <div class="tablewrap"><table>
     <tr><th>Key</th><th>Looks</th><th>Press</th><th>Shows</th></tr>
     <tr><td><strong>Source</strong></td><td>A faint eye and one strip along the bottom</td><td>Show or hide (default), fade in, fade out, refresh the page or restart the video, video sound on or off</td><td>The source's name; orange while it's on, however it was turned on</td></tr>
     <tr><td><strong>Scene</strong></td><td>Stacked layers and a frame in its colour</td><td>Go to a scene, next or previous scene, or back to the current scene as saved</td><td>Orange while its scene is on, with a yellow dot when sources have changed since</td></tr>
     <tr><td><strong>Sequence</strong></td><td>A play button and a strip in four steps</td><td>Play or stop a sequence, play from the first step, or Next, Next when waiting, Pause and Stop for whatever is playing</td><td>Step and time left, like <em>3/5 0:12</em>, the whole sequence's time, both or none; <em>in 0:04</em> when one is about to start by itself</td></tr>
-  </table>
+  </table></div>
   <p>Keys follow their source, scene or sequence by id, so renaming on the Output page doesn't break them; a removed one says <em>gone</em>, and while Studio is off air they say <em>off air</em>. Colour groups keys by the part of the stream: green pre-game, blue live, purple quarter time, grey post-game, yellow ads, or the scene's or sequence's own colour.</p>
 
   <h3 id="s9-2">Links for everything else</h3>
@@ -630,9 +648,10 @@
 </section>
 
 <section class="ch" id="ch10">
-  <div class="chno">Chapter 10</div>
+  <div class="chno">Chapter 10 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i></span></div>
   <h2>Settings and care</h2>
   <p class="lead">Where Studio keeps its settings, how to carry them between Macs and back them up, how updates arrive, and what to do when something isn't right.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s10-1"><b>1</b>The 1P menu</a></li><li><a href="#s10-2"><b>2</b>The data folder</a></li><li><a href="#s10-3"><b>3</b>Settings in iCloud Drive</a></li><li><a href="#s10-4"><b>4</b>Backup and restore</a></li><li><a href="#s10-5"><b>5</b>Updates</a></li><li><a href="#s10-6"><b>6</b>Links and other devices</a></li><li><a href="#s10-7"><b>7</b>When something isn't right</a></li><li><a href="#s10-8"><b>8</b>Data and bandwidth</a></li></ol></div>
 
   <h3 id="s10-1">The 1P menu</h3>
   <p>The menu bar icon is Studio's home. From top to bottom: the version and whether Studio is on air; <strong>Stop Studio</strong> (while on air); <strong>Open Studio</strong>, Scoreboard control, Competition setup and <strong>Copy the Studio link</strong>; <strong>Install the Stream Deck plugin</strong>; <strong>Open the settings folder</strong>, <strong>Settings folder</strong> (iCloud), <strong>Back up…</strong> and <strong>Restore…</strong>; <strong>Open the debug log</strong>, <strong>Restart Studio</strong>, <strong>Check for updates</strong>; <strong>Open at login</strong>, <strong>Let other devices change things</strong>, <strong>What's new…</strong> and Quit.</p>
@@ -670,15 +689,16 @@
 </section>
 
 <section class="ch" id="ch11">
-  <div class="chno">Chapter 11</div>
+  <div class="chno">Chapter 11 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
   <h2>Quick reference</h2>
-  <h3>Keyboard</h3>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s11-1"><b>1</b>Keyboard</a></li><li><a href="#s11-2"><b>2</b>Stream night in nine lines</a></li><li><a href="#s11-3"><b>3</b>Where things are set</a></li></ol></div>
+  <h3 id="s11-1">Keyboard</h3>
   <table>
     <tr><th>Where</th><th>Keys</th></tr>
     <tr><td>Scoreboard control</td><td>A / Z home +1 / −1, K / M away +1 / −1, Shift for +2 / −2, Space starts or stops the clock.</td></tr>
     <tr><td>Any Studio window</td><td>⌘1 to ⌘7 go to Output, Scoreboard control, Competitions setup, Sponsors, Athletes, Stream Deck, Docs. ⌘N new window, ⇧⌘O open in the browser, ⇧⌘C copy the page link, ⌘[ back, ⌥⌘W close every Studio window.</td></tr>
   </table>
-  <h3>Stream night in nine lines</h3>
+  <h3 id="s11-2">Stream night in nine lines</h3>
   <ol class="steps">
     <li>Open Studio from the 1P menu and keep the Output page open all night.</li>
     <li>Check the competition in use and the court on Competitions setup.</li>
@@ -690,7 +710,7 @@
     <li>Pick finals winners as they happen; turn on lower thirds when people appear.</li>
     <li>Press Stream close, turn the output off, and send the sponsor report.</li>
   </ol>
-  <h3>Where things are set</h3>
+  <h3 id="s11-3">Where things are set</h3>
   <table>
     <tr><th>To change</th><th>Go to</th></tr>
     <tr><td>Colours, font, logos, rules, finals format, court</td><td>Competitions setup</td></tr>
