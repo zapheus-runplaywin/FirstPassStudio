@@ -129,7 +129,7 @@ function renderSequences() {
   $('seqNote').innerHTML = first
     ? 'A sequence plays its steps one after another: <b>Play</b> starts it, <b>Next</b> ends the step now, '
       + 'and <b>Stop</b> ends it and does its "then". Going to a scene, or playing another sequence, stops it without its "then". Turning the step\'s source off by hand moves to the next step. '
-      + 'A sequence can start by itself before the game, at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '
+      + 'A sequence can start by itself before the game (if Studio was running at that moment), at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '
       + 'while it waits to start, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
       + 'A sequence with <b>Hide</b> ticked (in its editor) stays off this list unless <b>Show hidden</b> is ticked; it plays as before. Sequences belong to the competition in use. '
       + `Stream Deck: <code>${base}/deck/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
