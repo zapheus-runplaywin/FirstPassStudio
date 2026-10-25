@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stinger</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<script src="log.js"></script>
+<script src="chroma.js"></script>
+<script src="done.js"></script>
+<script src="sfx.js"></script>
+<script src="pagesound.js"></script>
+<script src="fit.js"></script>
+<style>
+  /* A stinger: slanted bands in the competition's colours sweep across and cover the whole frame for a moment, the
+     competition logo punches in on the last band, then the bands carry on off the other side. It lasts 1 second
+     (?length= in seconds), so a cut can be hidden underneath it.
+     Times are in seconds at ?length=1:
+       0.00 to 0.22  the accent band crosses in, the highlight, main and dark bands just behind it
+       0.22 to 0.72  the whole frame is covered (cut anywhere in here; 0.45 is the middle)
+       0.60 to 0.98  the bands leave, the dark one with the logo first, so each colour shows on its way out
+     It uses the whole frame on purpose, so it isn't fitted between the title and the scoreboard like other graphics.
+     Colours and font come from the competition setup (theme.css). Transparent before and after. */
+  :root { --size: 560px; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: var(--font); }
+  .stage { position: absolute; inset: 0; visibility: hidden; }
+  .stage.go { visibility: visible; }
+  /* Everything drifts a little to the left the whole time, so the frame never sits still while it's covered. */
+  .drift { position: absolute; inset: 0; }
+  .go .drift { animation: drift 1s linear both; }
+  @keyframes drift { from { transform: translateX(70px); } to { transform: translateX(-70px); } }
+
+  /* Each band is wider than the frame and slanted. At rest it covers the whole frame (its slant reaches 197px
+     past each side), and it starts and ends 2500px away, fully off screen. */
+  .band { position: absolute; top: 0; left: -340px; width: 2600px; height: 1080px; transform: translateX(2500px) skewX(-20deg); }
+  .band--1 { background: var(--pink);   --in: 0s;   --out: .72s; }
+  .band--2 { background: var(--yellow); --in: .04s; --out: .68s; }
+  .band--3 { background: var(--purple); --in: .08s; --out: .64s; }
+  .band--4 { background: rgb(var(--deep-rgb)); --in: .12s; --out: .6s;
+    box-shadow: inset 16px 0 0 var(--yellow), inset -16px 0 0 var(--pink); }
+  .go .band { animation: bandIn .22s cubic-bezier(.15,.75,.25,1) var(--in) both, bandOut .26s cubic-bezier(.75,0,.85,.3) var(--out) forwards; }
+  @keyframes bandIn { from { transform: translateX(2500px) skewX(-20deg); } to { transform: translateX(0) skewX(-20deg); } }
+  @keyframes bandOut { from { transform: translateX(0) skewX(-20deg); } to { transform: translateX(-2500px) skewX(-20deg); } }
+
+  /* The logo rides on the dark band, straightened up, in the middle of the frame while the band is at rest. */
+  .ride { position: absolute; left: 1300px; top: 540px; width: 0; height: 0; transform: skewX(20deg); }
+  .ride > * { position: absolute; left: 0; top: 0; translate: -50% -50%; translate: round(-50%, 1px) round(-50%, 1px); }
+  .glow { width: calc(var(--size) * 2.2); height: calc(var(--size) * 1.5); border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(var(--purple-rgb), .6), rgba(var(--purple-rgb), .2) 60%, transparent); }
+  html.chroma-safe .glow { display: none; }
+  .logo { display: block; height: var(--size); max-width: calc(var(--size) * 1.9); object-fit: contain; scale: .7;
+    filter: drop-shadow(0 10px 28px rgba(0,0,0,.5)); }
+  .go .logo { animation: punch .3s cubic-bezier(.3,1.7,.5,1) .16s both, grow .5s ease-out .46s forwards; }
+  @keyframes punch { from { scale: .55; } to { scale: 1; } }
+  @keyframes grow { from { scale: 1; } to { scale: 1.06; } }
+  .logo[hidden] { display: none; }
+</style>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page:
+       http://localhost:8080/stinger.html  bands in the competition's colours with its logo, covering the whole frame for a moment
+       Plays once when the page loads (1 second) and leaves the frame transparent, so it plays each time it comes on.
+       The whole frame is covered from 0.22 to 0.72 of the way through, so a cut can happen underneath.
+       Options: ?length=1 is how long it lasts in seconds (0.5 to 3);
+                ?logo=0 leaves the logo out (only the colours);
+                ?mode=light (the default) or ?mode=dark picks the setup's light or dark mode competition logo;
+                ?size=560 is the logo's height in pixels;
+                ?sfx=80 is the whoosh's volume in % (0 for none). -->
+  <div class="stage" id="stage">
+    <div class="drift">
+      <div class="band band--1"></div>
+      <div class="band band--2"></div>
+      <div class="band band--3"></div>
+      <div class="band band--4"><div class="ride"><div class="glow" id="glow"></div><img class="logo" id="logo" alt="" hidden></div></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const $ = id => document.getElementById(id);
+      const stage = $('stage');
+      const LABEL = 'Stinger';
+      const num = k => { const v = parseFloat(params.get(k)); return Number.isFinite(v) && v >= 0 ? v : null; };
+      const length = Math.min(3, Math.max(.5, num('length') || 1));
+      const withLogo = params.get('logo') !== '0';
+      const dark = (params.get('mode') || 'light').toLowerCase() === 'dark';
+      if (num('size')) document.documentElement.style.setProperty('--size', num('size') + 'px');
+      // When the whole frame is covered, in seconds from the start, for anyone timing a cut to it.
+      window.stingerCover = [.22 * length, .72 * length];
+
+      function play() {
+        stage.classList.add('go');
+        // Timed in CSS for 1 second; another length plays the whole thing faster or slower.
+        if (length !== 1) stage.getAnimations({ subtree: true }).forEach(a => { a.playbackRate = 1 / length; });
+        const sfx = (num('sfx') ?? 80) / 100;
+        if (sfx > 0) studioSound({ sfx, cues: [[0, 'whoosh', 1], [.58 * length, 'out', .7]] });
+        console.info(`${LABEL}: ${length} s, frame covered ${window.stingerCover.map(s => s.toFixed(2)).join(' to ')} s`);
+        studioDone.afterAnimations();
+      }
+
+      async function load() {
+        if (!withLogo) { $('glow').hidden = true; play(); return; }
+        let logo = null;
+        try {
+          const res = await fetch('/api/scoreboard', { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const rules = (await res.json()).rules || {};
+          logo = (dark ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;
+          if (!logo) console.warn(`${LABEL}: the competition setup has no competition logo, so it plays with the colours only`);
+        } catch (err) { console.warn(`${LABEL}: competition logo unavailable, so it plays with the colours only:`, err.message); }
+        if (!logo) { $('glow').hidden = true; play(); return; }
+        // Starts once the logo has loaded (or couldn't), so it never sweeps in with an empty box.
+        const img = $('logo');
+        img.onerror = () => { console.warn(`${LABEL}: could not load the competition logo`, logo); };
+        img.src = logo;
+        try { await img.decode(); img.hidden = false; } catch { $('glow').hidden = true; }
+        if (document.fonts) await document.fonts.ready;
+        play();
+      }
+      load();
+    })();
+  </script>
+</body>
+</html>
