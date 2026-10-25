@@ -1,0 +1,146 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FirstPass Studio poster (game night)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;0,900;1,800;1,900&amp;display=swap">
+<style>
+:root { --navy:#0F172A; --soft:#1E293B; --blue:#2274A5; --orange:#F75C03; --gold:#F1C40F; --white:#FFFFFF; --muted:#CBD5E1; --faint:#94A3B8; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--navy); }
+.p { position: relative; width: 3179px; height: 4494px; overflow: hidden; background: var(--navy); color: var(--white); font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+.abs { position: absolute; }
+.k { font-weight: 800; letter-spacing: .3em; text-transform: uppercase; }
+img { display: block; }
+
+/* header */
+.head { left: 160px; right: 160px; top: 110px; display: flex; justify-content: space-between; align-items: center; }
+.head .brand { display: flex; align-items: center; gap: 44px; }
+.head .tag { font-size: 38px; color: var(--muted); }
+
+/* hero: gold slab, navy type, screens breaking out */
+.slab { left: 0; top: 420px; width: 3179px; height: 1340px; background: var(--gold); clip-path: polygon(0 0, 100% 9%, 100% 100%, 0 91%); }
+.hero { left: 160px; top: 640px; width: 1640px; color: var(--navy); }
+.hero .k { font-size: 44px; color: var(--navy); opacity: .75; }
+.hero h1 { margin: 34px 0 0; font-size: 232px; line-height: .88; font-weight: 900; font-style: italic; letter-spacing: -.04em; }
+.hero p { margin: 54px 0 0; font-size: 58px; line-height: 1.38; font-weight: 600; max-width: 1500px; }
+.screen { border-radius: 28px; overflow: hidden; border: 6px solid var(--navy); box-shadow: 0 60px 120px rgba(15,23,42,.55); }
+.screen img { width: 100%; height: 100%; object-fit: cover; }
+.s1 { left: 1780px; top: 540px; width: 1260px; height: 709px; transform: rotate(-5deg); }
+.s2 { left: 2020px; top: 1180px; width: 1000px; height: 563px; transform: rotate(5deg); }
+.live { left: 1720px; top: 470px; transform: rotate(-5deg); background: #E11D48; color: #fff; font-weight: 800; font-size: 40px; letter-spacing: .18em; padding: 20px 34px; border-radius: 14px; display: flex; align-items: center; gap: 20px; box-shadow: 0 20px 40px rgba(0,0,0,.4); }
+.live i { width: 22px; height: 22px; border-radius: 50%; background: #fff; display: block; }
+
+/* game night */
+.night { left: 160px; right: 160px; top: 1900px; }
+.night .top { display: flex; flex-direction: column; gap: 0; }
+.night h2 { margin: 18px 0 0; font-size: 120px; line-height: .95; font-weight: 900; font-style: italic; letter-spacing: -.03em; }
+.night h2 em { color: var(--gold); }
+.night .top .k { font-size: 40px; color: var(--gold); }
+.night .note { margin-top: 26px; font-size: 44px; line-height: 1.4; color: var(--muted); }
+.steps { margin-top: 64px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 64px 56px; position: relative; }
+.step { display: flex; flex-direction: column; gap: 26px; }
+.step .pic { height: 380px; border-radius: 24px; overflow: hidden; background: #0d1b3d; border: 2px solid rgba(255,255,255,.14); }
+.step .pic img { width: 100%; height: 100%; object-fit: cover; }
+.step .when { display: flex; align-items: center; gap: 26px; }
+.step .n { flex: none; width: 92px; height: 92px; border-radius: 50%; background: var(--gold); color: var(--navy); font-weight: 900; font-style: italic; font-size: 46px; display: flex; align-items: center; justify-content: center; }
+.step .t { font-size: 60px; font-weight: 900; font-style: italic; letter-spacing: -.01em; line-height: 1; }
+.step .t span { display: block; font-size: 30px; font-style: normal; font-weight: 800; letter-spacing: .24em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
+.step p { margin: 0; font-size: 36px; line-height: 1.42; color: var(--muted); }
+
+/* who */
+.who { left: 0; right: 0; top: 3660px; height: 540px; background: var(--soft); }
+.who .in { position: absolute; left: 160px; right: 160px; top: 76px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+.who .c { padding: 0 64px; border-left: 4px solid rgba(255,255,255,.12); display: flex; flex-direction: column; gap: 22px; }
+.who .c:first-child { padding-left: 0; border-left: 0; }
+.who .k { font-size: 32px; }
+.who h3 { margin: 0; font-size: 76px; line-height: 1; font-weight: 900; font-style: italic; letter-spacing: -.02em; }
+.who p { margin: 0; font-size: 36px; line-height: 1.45; color: #E2E8F0; }
+
+/* foot */
+.foot { left: 160px; right: 160px; top: 4240px; height: 200px; display: flex; justify-content: space-between; align-items: center; gap: 60px; }
+.foot .ask { display: flex; flex-direction: column; gap: 10px; }
+.foot .ask .k { font-size: 32px; color: var(--faint); }
+.foot .mail { font-size: 104px; font-weight: 900; font-style: italic; color: var(--gold); letter-spacing: -.02em; line-height: 1; }
+.foot .made { display: flex; flex-direction: column; align-items: flex-end; gap: 18px; }
+.foot .made .row { display: flex; align-items: center; gap: 26px; font-size: 34px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.foot .made small { font-size: 24px; color: var(--faint); }
+</style>
+</head><body>
+<div class="p">
+
+  <div class="abs head">
+    <div class="brand"><img src="assets/1p-studio.svg" alt="1P Studio" style="height: 200px;"><img src="assets/firstpass-studio.svg" alt="FirstPass Studio" style="height: 96px;"></div>
+    <div class="tag k">Broadcast graphics for netball</div>
+  </div>
+
+  <div class="abs slab"></div>
+  <div class="abs screen s2"><img src="assets/f-g-winner.jpg" alt="Victory animation"></div>
+  <div class="abs screen s1"><img src="assets/g-scene.jpg" alt="Live scoreboard, ticker and title over the court"></div>
+  <div class="abs live"><i></i>LIVE FROM PLAYHQ</div>
+
+  <div class="abs hero">
+    <div class="k">FirstPass Studio</div>
+    <h1>First centre pass to final siren.</h1>
+    <p>Every moment of game night on screen, fed live from PlayHQ and run from one Mac by one operator.</p>
+  </div>
+
+  <div class="abs night">
+    <div class="top">
+      <div><div class="k">One game night</div><h2>Your stream, <em>start to finish.</em></h2></div>
+      <div class="note">Sequences run each stage for you. The scoreboard follows the PlayHQ scorer, read as often as every second.</div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="pic"><img src="assets/c-g-countdown.jpg" alt="Starting soon countdown"></div>
+        <div class="when"><div class="n">1</div><div class="t"><span>Before the game</span>Starting soon</div></div>
+        <p>A countdown with both teams, the court and the time, then a welcome with every club's logo.</p>
+      </div>
+      <div class="step">
+        <div class="pic"><img src="assets/g-clash.jpg" alt="The Clash match up animation"></div>
+        <div class="when"><div class="n">2</div><div class="t"><span>Lead-in</span>The Clash</div></div>
+        <p>An animated match up, then form, head to head, line-ups and athlete photos.</p>
+      </div>
+      <div class="step">
+        <div class="pic"><img src="assets/g-scene.jpg" alt="Live scoreboard over the court" style="object-position: center 100%;"></div>
+        <div class="when"><div class="n">3</div><div class="t"><span>Every quarter</span>Live scoreboard</div></div>
+        <p>Score, quarter and clock from the scorer, scores from other courts on the ticker.</p>
+      </div>
+      <div class="step">
+        <div class="pic" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0;"><img src="assets/g-supershot-close.jpg" alt="Super shot" style="object-fit: contain; background: #0d1b3d;"><img src="assets/g-streak-fire-close.jpg" alt="On fire streak" style="object-fit: contain; background: #0d1b3d;"></div>
+        <div class="when"><div class="n">4</div><div class="t"><span>As it happens</span>Big moments</div></div>
+        <p>Super shots, hot streaks, hits the front and on the siren play by themselves from the goal order.</p>
+      </div>
+      <div class="step">
+        <div class="pic"><img src="assets/c-g-ladder.jpg" alt="Ladder with finals markers" style="object-position: center top;"></div>
+        <div class="when"><div class="n">5</div><div class="t"><span>The breaks</span>Ladder and sponsors</div></div>
+        <p>Ladder, fixtures and results, with sponsor ads taking turns and music under them.</p>
+      </div>
+      <div class="step">
+        <div class="pic"><img src="assets/c-g-fulltime.jpg" alt="Full time card with top shooters"></div>
+        <div class="when"><div class="n">6</div><div class="t"><span>Full time</span>Result and stats</div></div>
+        <p>Full time, top shooters, game stats and the score worm, then a thank-you card after the last game.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="abs who"><div class="in">
+    <div class="c">
+      <div class="k" style="color: var(--gold);">Premier competitions</div>
+      <h3>Look like a pro league.</h3>
+      <p>Every club in its own logo and colour, and sponsorship you can sell, show and prove with a proof-of-play report.</p>
+    </div>
+    <div class="c">
+      <div class="k" style="color: #6FB3DD;">Netball WA · state leagues</div>
+      <h3>Every league, its own look.</h3>
+      <p>One setup per competition, rules by division, and a template file that carries a whole competition to another Mac.</p>
+    </div>
+    <div class="c">
+      <div class="k" style="color: #FB8A4A;">AMMNA · nationals</div>
+      <h3>Carnival days, handled.</h3>
+      <p>Studio picks each game on your court as its scoring opens and moves "this round" on through the day.</p>
+    </div>
+  </div></div>
+
+  <div class="abs foot">
+    <div class="ask"><div class="k">See it on your court</div><div class="mail">pivtmedia@gmail.com</div></div>
+    <div class="made"><div class="row">Made by <img src="assets/pivt.png" alt="PIVT" style="height: 84px;"></div><small>Graphics shown use the fictional Elite Netball League.</small></div>
+  </div>
+</div>
+</body></html>

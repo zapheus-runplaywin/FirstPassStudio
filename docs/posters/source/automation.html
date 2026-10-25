@@ -1,0 +1,124 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FirstPass Studio poster (automation)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;0,900;1,800;1,900&amp;display=swap">
+<style>
+:root { --navy:#0F172A; --soft:#1E293B; --soft2:#162033; --blue:#2274A5; --orange:#F75C03; --gold:#F1C40F; --white:#FFFFFF; --muted:#CBD5E1; --faint:#94A3B8; --line:rgba(255,255,255,.1); }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--navy); }
+.p { position: relative; width: 3179px; height: 4494px; overflow: hidden; background: var(--navy); color: var(--white); font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+.abs { position: absolute; }
+.k { font-weight: 800; letter-spacing: .3em; text-transform: uppercase; }
+img { display: block; }
+
+/* orange energy behind the hero */
+.glow { left: 1500px; top: -300px; width: 2400px; height: 2200px; background: radial-gradient(closest-side, rgba(247,92,3,.38), rgba(247,92,3,0) 70%); }
+.rays { left: 0; top: 0; width: 3179px; height: 1700px; background: repeating-linear-gradient(-62deg, rgba(255,255,255,.035) 0 40px, transparent 40px 120px); -webkit-mask: linear-gradient(90deg, transparent 30%, #000 70%); mask: linear-gradient(90deg, transparent 30%, #000 70%); }
+
+.head { left: 160px; right: 160px; top: 110px; display: flex; justify-content: space-between; align-items: center; }
+.head .brand { display: flex; align-items: center; gap: 44px; }
+.auto { display: inline-flex; align-items: center; gap: 18px; background: var(--orange); color: #fff; font-weight: 800; letter-spacing: .2em; border-radius: 12px; }
+.auto i { display: block; border-radius: 50%; background: #fff; }
+.head .auto { font-size: 38px; padding: 20px 34px; }
+.head .auto i { width: 22px; height: 22px; }
+
+.hero { left: 160px; top: 470px; width: 1600px; display: flex; flex-direction: column; gap: 44px; }
+.hero .k { font-size: 44px; color: var(--orange); }
+.hero h1 { margin: 0; font-size: 250px; line-height: .86; font-weight: 900; font-style: italic; letter-spacing: -.045em; }
+.hero h1 em { color: var(--gold); }
+.hero p { margin: 0; font-size: 56px; line-height: 1.4; color: var(--muted); max-width: 1500px; }
+
+.shot { border-radius: 24px; overflow: hidden; box-shadow: 0 60px 130px rgba(0,0,0,.6); border: 3px solid rgba(255,255,255,.2); background: #fff; }
+.shot img { width: 100%; height: auto; }
+.ed { left: 1900px; top: 420px; width: 1080px; transform: rotate(3deg); }
+.ed img { height: 1180px; object-fit: cover; object-position: top; }
+.pl { left: 1640px; top: 1180px; width: 1380px; transform: rotate(-3deg); border: 6px solid var(--orange); }
+.pl img { height: 520px; object-fit: cover; object-position: left top; }
+
+/* rundown */
+.run { left: 160px; right: 160px; top: 1740px; }
+.run .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 60px; margin-bottom: 36px; }
+.run h2 { margin: 14px 0 0; font-size: 130px; line-height: .95; font-weight: 900; font-style: italic; letter-spacing: -.03em; }
+.run h2 em { color: var(--orange); }
+.run .top .k { font-size: 38px; color: var(--gold); }
+.score { display: flex; gap: 30px; }
+.score div { background: var(--soft); border-radius: 24px; padding: 26px 40px; text-align: center; min-width: 330px; }
+.score b { display: block; font-size: 120px; line-height: 1; font-weight: 900; font-style: italic; }
+.score span { display: block; font-size: 30px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--faint); margin-top: 8px; }
+.score .s b { color: var(--orange); }
+.rows { border-top: 4px solid var(--orange); }
+.row { display: grid; grid-template-columns: 330px minmax(0, 1fr) 236px 220px; gap: 44px; align-items: center; padding: 12px 0; border-bottom: 2px solid var(--line); }
+.row .t { font-size: 44px; font-weight: 900; font-style: italic; color: var(--gold); }
+.row .w { font-size: 35px; line-height: 1.34; color: var(--muted); }
+.row .w b { color: var(--white); font-weight: 800; }
+.row .th { height: 132px; border-radius: 14px; overflow: hidden; background: #0d1b3d; border: 2px solid rgba(255,255,255,.12); }
+.row .th img { width: 100%; height: 100%; object-fit: cover; }
+.row .who { justify-self: end; }
+.row .auto { font-size: 28px; padding: 14px 24px; }
+.row .auto i { width: 16px; height: 16px; }
+.row .you { font-size: 28px; font-weight: 800; letter-spacing: .2em; padding: 14px 24px; border-radius: 12px; border: 3px solid var(--white); }
+
+/* what runs itself */
+.tiles { left: 160px; right: 160px; top: 3510px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; }
+.tile { background: var(--soft); border-radius: 28px; padding: 36px 46px; display: flex; flex-direction: column; gap: 16px; border-left: 10px solid var(--orange); }
+.tile h3 { margin: 0; font-size: 56px; line-height: 1.02; font-weight: 900; font-style: italic; letter-spacing: -.01em; }
+.tile p { margin: 0; font-size: 34px; line-height: 1.42; color: var(--muted); }
+
+.foot { left: 0; right: 0; top: 4214px; height: 280px; background: var(--orange); }
+.foot .in { position: absolute; left: 160px; right: 160px; top: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 60px; }
+.foot .k { font-size: 30px; color: rgba(255,255,255,.85); }
+.foot .mail { font-size: 104px; font-weight: 900; font-style: italic; color: #fff; letter-spacing: -.02em; line-height: 1; margin-top: 12px; }
+.foot .r { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; text-align: right; }
+.foot .r .made { display: flex; align-items: center; gap: 24px; font-size: 32px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.foot small { font-size: 26px; color: rgba(255,255,255,.9); max-width: 1100px; line-height: 1.4; }
+</style>
+</head><body>
+<div class="p">
+  <div class="abs glow"></div>
+  <div class="abs rays"></div>
+
+  <div class="abs head">
+    <div class="brand"><img src="assets/1p-studio.svg" alt="1P Studio" style="height: 200px;"><img src="assets/firstpass-studio.svg" alt="FirstPass Studio" style="height: 96px;"></div>
+    <div class="auto"><i></i>AUTOMATIC SEQUENCES ON</div>
+  </div>
+
+  <div class="abs shot ed"><img src="assets/s-sequence-editor-halftime.jpg" alt="Sequence editor: Half time starts 5 s after the siren, repeats until play resumes, then goes to Live game"></div>
+  <div class="abs shot pl"><img src="assets/s-output-sequence-playing.jpg" alt="Sequences on the Output page with Half time playing"></div>
+
+  <div class="abs hero">
+    <div class="k">Sequences and automation</div>
+    <h1>Set it once.<br>The show<br><em>runs itself.</em></h1>
+    <p>Sequences play the run-up, the breaks and full time from the PlayHQ game clock, with the music, the sponsors and the stats lined up. One operator, and nothing to call.</p>
+  </div>
+
+  <div class="abs run">
+    <div class="top">
+      <div><div class="k">A night with the sample league</div><h2>Who presses <em>the button?</em></h2></div>
+      <div class="score"><div><b>2</b><span>You</span></div><div class="s"><b>All</b><span>The rest: Studio</span></div></div>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="t">Arrive</div><div class="w"><b>Open the app.</b> Studio goes on air, picks tonight's first game on your court and follows PlayHQ. Turn the video output on.</div><div class="th"><img src="assets/g-intro.jpg" alt="Welcome graphic"></div><div class="who"><span class="you">YOU</span></div></div>
+      <div class="row"><div class="t">15 min out</div><div class="w"><b>Run-up starts by itself:</b> sponsor wall, match up and ladder in turn over the warm-up playlist, until 2 minutes before the start.</div><div class="th"><img src="assets/g-sponsorwall-close.jpg" alt="Sponsor wall"></div><div class="who"><span class="auto"><i></i>AUTO</span></div></div>
+      <div class="row"><div class="t">2 min out</div><div class="w"><b>Walk out takes over:</b> The Clash smashes the logos together, the position match ups run GS to GK, the countdown holds for the first centre pass.</div><div class="th"><img src="assets/g-clash.jpg" alt="The Clash"></div><div class="who"><span class="auto"><i></i>AUTO</span></div></div>
+      <div class="row"><div class="t">Q1 to Q4</div><div class="w"><b>The scoreboard follows the scorer.</b> Super shots, hot streaks and big moments play by themselves; the super shot tab and song mark the last minutes.</div><div class="th"><img src="assets/g-supershot-close.jpg" alt="Super shot" style="object-fit: contain;"></div><div class="who"><span class="auto"><i></i>AUTO</span></div></div>
+      <div class="row"><div class="t">Quarter time</div><div class="w"><b>A few seconds after the siren:</b> shooting stats, the last 10 goals, the ladder and two sponsor ads over break music, round and round until play resumes.</div><div class="th"><img src="assets/c-g-topshooters.jpg" alt="Top shooters"></div><div class="who"><span class="auto"><i></i>AUTO</span></div></div>
+      <div class="row"><div class="t">Half time</div><div class="w"><b>The same, plus Up next</b> and the ladder lower third, and the house ad when no sponsor has one due. Then back to Live game.</div><div class="th"><img src="assets/c-g-ladder.jpg" alt="Ladder" style="object-position: center top;"></div><div class="who"><span class="auto"><i></i>AUTO</span></div></div>
+      <div class="row"><div class="t">Full time</div><div class="w"><b>After the final siren:</b> the winner celebration, the full time card, game stats, the score worm, a sponsor break and Up next.</div><div class="th"><img src="assets/f-g-winner.jpg" alt="Victory animation"></div><div class="who"><span class="auto"><i></i>AUTO</span></div></div>
+      <div class="row"><div class="t">Next game</div><div class="w"><b>The board moves to the next game</b> on your court as its electronic scoring opens, back to Q1 with a full clock. Run-up starts again 15 minutes out.</div><div class="th"><img src="assets/c-g-countdown.jpg" alt="Starting soon"></div><div class="who"><span class="auto"><i></i>AUTO</span></div></div>
+      <div class="row"><div class="t">Close</div><div class="w"><b>Press Stream close.</b> The outro with the night's teams, and the sponsor report has the night's exposure ready to send.</div><div class="th"><img src="assets/c-g-endofnight.jpg" alt="End of night card" style="object-position: center top;"></div><div class="who"><span class="you">YOU</span></div></div>
+    </div>
+  </div>
+
+  <div class="abs tiles">
+    <div class="tile"><h3>Starts from the clock</h3><p>Minutes before the game, at quarter, half or three quarter time, or after the final siren, from the PlayHQ scorer or your own.</p></div>
+    <div class="tile"><h3>You stay in charge</h3><p>Hold a break back for a shot after the siren, or come back from a break early. One press, from the card or the Stream Deck.</p></div>
+    <div class="tile"><h3>Fills the break</h3><p>Repeats until play resumes, finishing the graphic on screen, then hands back to Live game or to the next sequence.</p></div>
+    <div class="tile"><h3>Brings its own music</h3><p>Playlists with fades and a start mark, levelled loudness, and music that ducks under a video or an interview on court.</p></div>
+    <div class="tile"><h3>Sells the sponsors</h3><p>A Sponsor ads step plays the next ads due, taking turns fairly by tier, and its time on screen goes into the proof-of-play report.</p></div>
+    <div class="tile"><h3>One press to take over</h3><p>A Stream Deck key for every sequence, scene and source, with Next, Pause and Stop. Untick one switch to call every break by hand.</p></div>
+  </div>
+
+  <div class="abs foot"><div class="in">
+    <div><div class="k">Put your production on autopilot</div><div class="mail">pivtmedia@gmail.com</div></div>
+    <div class="r"><div class="made">Made by <img src="assets/pivt.png" alt="PIVT" style="height: 80px;"></div><small>FirstPass Studio for premier competitions, state leagues and nationals. Graphics shown use the fictional Elite Netball League.</small></div>
+  </div></div>
+</div>
+</body></html>
