@@ -1,0 +1,307 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studio SaaS Migration Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Migration plan for taking FirstPass Studio from a single-Mac app to a licensed cloud service, 24 October 2026. Companion to architecture-review-2026-10-24.html and security-review-2026-10-24.html. Also published at https://claude.ai/artifact/Uagsc3nsGpkbTHkTFUQ577. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column, the same shape as the two reviews. Where Studio is today, the three product shapes, the recommended shape as a diagram, then the phases as cards, the decisions table, the prep work, risks and order. */
+:root {
+  --bg: #F8FAFC; --fg: #0F172A; --muted: #475569; --line: #E2E8F0; --panel: #FFFFFF; --soft: #E8F1F7;
+  --accent: #F75C03; --blue: #2274A5; --gold: #B7900A;
+  --high: #B42318; --high-bg: #FEF3F2; --med: #B54708; --med-bg: #FFFAEB; --low: #0E7A4E; --low-bg: #ECFDF3; --keep: #2274A5; --keep-bg: #E8F1F7; --later: #5B5BD6; --later-bg: #EEEEFC;
+  --body: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; --later: #B4B4FF; --later-bg: #1E1E3F; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; --later: #B4B4FF; --later-bg: #1E1E3F; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.55; font-size: 15px; margin: 0;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+main { max-width: 940px; margin: 0 auto; display: grid; gap: 44px; }
+header.top { display: grid; gap: 10px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font-weight: 900; font-style: italic; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 em { color: var(--accent); font-style: inherit; }
+h2 { font-weight: 800; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-weight: 800; font-size: 1.02rem; margin: 0; }
+p, li { max-width: 70ch; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+section { display: grid; gap: 14px; }
+.lede { font-size: 1.08rem; }
+.muted { color: var(--muted); }
+code { font-family: var(--mono); font-size: .88em; background: var(--soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { font-family: var(--mono); font-size: 12.5px; background: var(--soft); padding: 10px 12px; border-radius: 8px; overflow-x: auto; margin: 0; max-width: 100%; line-height: 1.45; }
+a { color: var(--blue); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+td.n { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+td a { color: inherit; text-decoration: none; font-weight: 600; }
+td a:hover { color: var(--blue); }
+.pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.high { color: var(--high); background: var(--high-bg); }
+.pill.med { color: var(--med); background: var(--med-bg); }
+.pill.low { color: var(--low); background: var(--low-bg); }
+.pill.keep { color: var(--keep); background: var(--keep-bg); }
+.pill.later { color: var(--later); background: var(--later-bg); }
+
+.card { border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; background: var(--panel); padding: 18px 20px; display: grid; gap: 12px; }
+.card.p0 { border-left-color: var(--low); }
+.card.p1, .card.p2 { border-left-color: var(--blue); }
+.card.p3, .card.p4 { border-left-color: var(--later); }
+.card.p5 { border-left-color: var(--gold); }
+.card .head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.card .head .id { font-family: var(--mono); font-weight: 600; color: var(--muted); font-size: 13px; }
+.card dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+.card dt { font-weight: 700; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+.card dd { margin: 0; min-width: 0; }
+.card dd ul { gap: 4px; }
+@media (max-width: 520px) { .card dl { grid-template-columns: 1fr; } .card dt { padding-top: 6px; } }
+.evidence { font-size: 13.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+
+.keep-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.keep-grid div { background: var(--keep-bg); border-radius: 10px; padding: 12px 14px; font-size: 14px; min-width: 0; }
+.keep-grid strong { display: block; margin-bottom: 4px; }
+.scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.scope div { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 14px; background: var(--panel); min-width: 0; }
+.scope strong { display: block; margin-bottom: 4px; }
+.scope div.pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.num { font-variant-numeric: tabular-nums; }
+</style>
+</head><body>
+
+<main>
+<header class="top">
+  <div class="eyebrow">FirstPass Studio · SaaS migration plan · 24 October 2026</div>
+  <h1>From one Mac in the venue to a <em>licensed cloud service</em></h1>
+  <p class="lede">Studio today is a Mac menu bar app that runs a local Node helper, serves 42 graphics pages from <code>public/</code>, follows PlayHQ with a guest session, and keeps everything it knows in files under <code>~/Library/Application Support/FirstPass Studio</code>. This plan says what has to change for other associations to pay for it and run it without Matt's Mac, in what order, and which choices only Matt can make. It builds on the <a href="architecture-review-2026-10-24.html">architecture review</a> (D1 to D14, all merged) and the <a href="security-review-2026-10-24.html">security review</a> (S1 to S7 merged; S8 and S9 were parked until licensing is real, and this plan is where they land).</p>
+  <p class="muted">Effort figures are weeks of focused work by one person with Claude, and they are estimates. Anything marked "to confirm" has not been tested against the real service.</p>
+</header>
+
+<section>
+  <h2>Where Studio is today, in the terms that matter for a move</h2>
+  <div class="keep-grid">
+    <div><strong>One tenant, no accounts</strong>Nothing in the helper knows who is asking. <code>access.js</code> decides by network address and the "Let other devices change things" switch; the Stream Deck links <code>/deck/*</code> carry no token. Every setting is global to the one data folder.</div>
+    <div><strong>State is files</strong><code>active.json</code>, <code>competitions/&lt;id&gt;/settings.json</code>, <code>scene.json</code>, <code>sequences.json</code>, <code>sponsors</code>, <code>athletes.json</code>, <code>scoreboard-state.json</code>, <code>control.json</code>, plus folders of logos, photos, fonts, music and media. All writes go through <code>savefile.js</code>; <code>datalocation.js</code> already abstracts "where the folder is" (local or iCloud Drive) with a <code>PROVIDERS</code> table.</div>
+    <div><strong>PlayHQ is read as a guest</strong><code>playhq.js</code> fetches a guest cookie from the public site, then uses <code>api.playhq.com/graphql</code> and <code>spectator.playhq.com/graphql</code> (the live score feed, found from Matt's own browser traffic). No partner key. One poller per competition, 5 s while a game is followed.</div>
+    <div><strong>The Mac does the output</strong>Full-screen displays, NDI, Blackmagic DeckLink and the loudness-levelled music all run in Electron on the Mac (<code>desktop/scenewindow.js</code> renders the scene off screen and hands frames to the outputs). OBS or vMix can also load any page as a browser source.</div>
+    <div><strong>Real time is one WebSocket</strong><code>scene.js</code> pushes the whole scene and the board to every page on <code>/api/scene/socket</code>, and an SSE feed to the Stream Deck plugin. Sequences, game triggers and music timing all run inside that one process.</div>
+    <div><strong>Already modular</strong>D6 split the helper into <code>playhq.js</code>, <code>board.js</code>, <code>games.js</code>, <code>athletes.js</code>, each built by <code>create(deps)</code>; D7 gave the pages one registry; 300 tests run against a real helper with a stand-in PlayHQ. The code is public under MIT.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Three shapes the product could take</h2>
+  <p>The decision that drives everything else is where the graphics are rendered and where the state lives. The venue's encoder (OBS, vMix, a hardware switcher) must get the overlay from somewhere, and that somewhere decides whether a customer needs a Mac at all.</p>
+  <div class="scope">
+    <div><strong>A. Licensed Mac app</strong>Studio stays as it is. Add sign-in, a licence check and payment; sell it like any desktop product. Cloud only holds accounts and licences. Cheapest to reach, no change to how stream night works, but every customer needs a Mac at the venue and Matt supports a fleet of installs.</div>
+    <div class="pick"><strong>B. Cloud control plane, local render agent</strong> <span class="pill low">Recommended</span><br>Settings, competitions, sponsors, athletes, the scene and its sequences live in the cloud and are edited in a browser. The graphics pages are served from the cloud, so OBS or vMix anywhere can load them. The Mac app shrinks to an optional "render agent" that signs in and provides displays, NDI, DeckLink and music. Customers without those outputs need no Mac.</div>
+    <div><strong>C. Browser only</strong>Like B, but with no agent at all. Displays, NDI and DeckLink are dropped or replaced by a cloud-rendered video stream (expensive, adds latency, and NDI over the public internet is not a thing). Music would play in the browser. Loses the outputs Matt built this year.</div>
+  </div>
+  <p>B is the recommendation because it is C with Matt's existing outputs kept, and A is its first phase anyway. The phases below are written for B; stopping after Phase 0 gives A, and Phase 4 can be left out for customers who only use browser sources.</p>
+</section>
+
+<section>
+  <h2>The target shape</h2>
+<pre>
+ Browser (any device)                 Cloud (one region, Sydney)                    PlayHQ
+ ─────────────────────                ────────────────────────────                 ──────
+ Studio pages: Output,   ──HTTPS──▶   API + scene service (Node, same modules)   ──▶ api.playhq.com
+ Scoreboard control,     ◀─WS────     one process per tenant-competition          ──▶ spectator.playhq.com
+ Competitions setup,                  Postgres (settings, scene, sequences,          (one poller per competition,
+ Sponsors, Athletes                   athletes, sponsors, exposure)                   shared by every tenant on it)
+                                      Object storage (logos, photos, media, music)
+ Encoder in the venue                 Auth + billing (Supabase Auth or Clerk, Stripe)
+ (OBS / vMix browser source) ◀─────── graphics pages at https://&lt;tenant&gt;.firstpass.studio/… (token in the link)
+                                              ▲
+ Stream Deck plugin  ──HTTPS + token──────────┘
+                                              │
+ Render agent (Mac app, optional) ◀──WS───────┘   displays, NDI, DeckLink, music; renders the scene locally
+</pre>
+  <p>Everything the helper does today still runs, as the same modules, but once per tenant in the cloud instead of once on a Mac. The pages do not change much: they already talk to "the helper" by relative URL and follow the scene over a WebSocket. What changes is who is allowed to talk, where the files are, and where the frame comes from.</p>
+</section>
+
+<section>
+  <h2>The phases</h2>
+  <p>Each phase ships on its own and leaves Studio working for Thunder League as before. Phase 0 is worth doing even if nothing else happens.</p>
+
+  <article class="card p0" id="p0">
+    <div class="head"><span class="id">Phase 0</span><h3>Make the Mac app licensable</h3><span class="pill low">3 to 4 weeks</span></div>
+    <p>Studio keeps running exactly as now, but a copy can be sold to another association and supported from a distance. This is shape A, and it is the first step of shape B.</p>
+    <dl>
+      <dt>Build</dt><dd><ul>
+        <li>Sign-in in the app (Apple, Google or email) and a licence record per organisation; the app checks it on start and once a day, and keeps working for 14 days offline. A tiny licence service (one table, one endpoint) is the first cloud component.</li>
+        <li>S8 from the security review: stream keys and the PlayHQ Client ID into the Keychain via Electron <code>safeStorage</code>; <code>apiKey</code> out of competition settings so a template never carries one.</li>
+        <li>Opt-in diagnostics: the existing debug log and a crash report uploaded with the customer's consent, because support can no longer mean "send me the log file".</li>
+        <li>A first-run experience for someone who is not Matt: pick a template, paste the PlayHQ link, see the Output page working. Every "Matt knows this" step on the Docs page becomes a prompt in the app.</li>
+        <li>Branding and legal: the binary ships under an end-user licence, not MIT (see M8); a privacy notice for the athlete register and photos.</li>
+      </ul></dd>
+      <dt>Matt does</dt><dd>Chooses the identity provider (M3), writes the licence terms, sets up the Apple developer account for an App Store or notarised-only distribution, picks a price (M11).</dd>
+      <dt>Done when</dt><dd>A second Mac, signed in as a different organisation, runs its own competition from a template with no help from Matt, and the stream night checklist in the README holds for it.</dd>
+    </dl>
+    <div class="evidence">Touches: <code>desktop/main.js</code>, <code>desktop/windows.js</code>, <code>viewers.js</code> (keys), <code>competitions.js</code> (apiKey), a new <code>desktop/licence.js</code>; a new small cloud repo for the licence service.</div>
+  </article>
+
+  <article class="card p1" id="p1">
+    <div class="head"><span class="id">Phase 1</span><h3>Accounts and settings in the cloud</h3><span class="pill keep">4 to 6 weeks</span></div>
+    <p>The data folder becomes a tenant's row set in Postgres plus a bucket of files. The Mac app still runs the helper, but it reads and writes its settings through a storage interface that can point at the local folder or at the cloud.</p>
+    <dl>
+      <dt>Build</dt><dd><ul>
+        <li>A <code>store</code> interface behind <code>datadir.js</code> and <code>savefile.js</code>: <code>readJson</code>, <code>writeJson</code>, <code>list</code>, <code>readFile</code>, <code>writeFile</code>, <code>remove</code>, with the local folder as the first implementation and Postgres plus object storage as the second. <code>datalocation.js</code>'s <code>PROVIDERS</code> idea is the seed of this.</li>
+        <li>The tenancy model: organisation → members (owner, operator, viewer) → competitions. A competition setup, its sponsors, athletes, scene and sequences belong to the organisation; <code>control.json</code> and <code>scoreboard-state.json</code> stay per running instance.</li>
+        <li>Import of a backup zip (the Settings backup from PR #205) as the migration path for Thunder League and for any Phase 0 customer: the zip format is already the whole data folder.</li>
+        <li>Uploads get quotas and a virus scan (S9); the image signature checks from S3 already run.</li>
+        <li>Row-level security so one organisation can never read another's rows, tested the way <code>test/access.test.js</code> tests the switch today.</li>
+      </ul></dd>
+      <dt>Matt does</dt><dd>Picks the stack (M4): Supabase is the recommendation because FirstPass HQ and the planned Vantage Phase 3 already use it, so one Auth and one Postgres can serve the family. Confirms the region (M5).</dd>
+      <dt>Done when</dt><dd>Thunder League's settings live in the cloud, the Mac app runs from them, and a second organisation's settings are invisible to it.</dd>
+    </dl>
+    <div class="evidence">Touches: <code>datadir.js</code>, <code>datalocation.js</code>, <code>savefile.js</code>, every module that reads or writes a settings file (about 17 write sites after D2), <code>migrations.js</code> (data version 3: "in the cloud").</div>
+  </article>
+
+  <article class="card p2" id="p2">
+    <div class="head"><span class="id">Phase 2</span><h3>Graphics served from the cloud</h3><span class="pill keep">4 to 6 weeks</span></div>
+    <p>The helper runs in the cloud, one instance per organisation (or per live competition), and the graphics pages come from a tenant address with an unguessable token in the link. OBS or vMix anywhere loads them. This is the phase that lets AMMNA or Netball WA stream without a Mac.</p>
+    <dl>
+      <dt>Build</dt><dd><ul>
+        <li>Run <code>server.js</code> as a container with the cloud store; a small supervisor starts one per organisation on demand and stops it an hour after the last page or agent disconnects (a competition is live about 4 hours a week, so always-on would waste most of the bill).</li>
+        <li>Authentication (S9): browser sessions for Studio pages; a long random token in each graphics link, revocable from the Output page, because an encoder cannot sign in; per-user API tokens for the Stream Deck plugin.</li>
+        <li><code>access.js</code> becomes the auth middleware: who the request is for (tenant), who it is from (member or token), what it may do (the <code>changes()</code> and <code>privateRead()</code> split already drawn in S1 and S2).</li>
+        <li>PlayHQ polling moves into one shared worker: a competition followed by two organisations (Thunder League on the association's account and on a club's) is polled once and fanned out, which also keeps Studio's load on PlayHQ flat as customers grow.</li>
+        <li>Rate limits and body size limits on every write route; a WebSocket fan-out that survives a few hundred pages per tenant (today's one-process design is fine for this size).</li>
+        <li>Observability: structured logs per tenant, an uptime check on the live feed, an alert when PlayHQ answers start failing (stream night is the only time that matters).</li>
+      </ul></dd>
+      <dt>Matt does</dt><dd>Settles the PlayHQ question (M2) before this phase starts. Buys the domain and sets up DNS per tenant.</dd>
+      <dt>Done when</dt><dd>A Thunder League game is streamed with OBS loading every graphic from the cloud address, scoreboard latency under 2 s behind PlayHQ, and Matt's Mac closed.</dd>
+    </dl>
+    <div class="evidence">Touches: <code>server.js</code> (start-up, routing), <code>access.js</code>, <code>scene.js</code> (socket, SSE), <code>playhq.js</code> (becomes a client of the shared poller), <code>linkhost.js</code> (tenant host), a new <code>cloud/</code> folder or repo for the supervisor and worker. The pages change only where they build absolute links.</div>
+  </article>
+
+  <article class="card p3" id="p3">
+    <div class="head"><span class="id">Phase 3</span><h3>Operate from any browser</h3><span class="pill later">3 to 4 weeks</span></div>
+    <p>The Output page, Scoreboard control, Competitions setup, Sponsors and Athletes work as a signed-in web app. The Stream Deck plugin points at the cloud with a token. Studio is usable from a laptop, a tablet at the scorer's bench, or a phone.</p>
+    <dl>
+      <dt>Build</dt><dd><ul>
+        <li>Sign-in and organisation switcher in <code>studiobar.js</code>; the Electron-only bits (Go menu, will-prevent-unload, the off-air page) behind feature checks that the pages already half have.</li>
+        <li>Music and sound in the browser: the Output page's preview sound exists; the on-air music player moves to whichever client is "the audio output" (the render agent in Phase 4, or the operator's browser until then).</li>
+        <li>The plugin's <code>host</code> setting becomes a tenant address plus token; the SSE feed gains the same token check.</li>
+        <li>Roles: operator can score and run scenes, owner can change setups and sponsors, viewer sees the Output page only. The sponsor report becomes a shareable read-only link for the sponsor.</li>
+      </ul></dd>
+      <dt>Matt does</dt><dd>Decides which roles exist and what a club-level customer (not an association) can see.</dd>
+      <dt>Done when</dt><dd>A whole stream night is run from a browser and a Stream Deck with no Studio app installed.</dd>
+    </dl>
+    <div class="evidence">Touches: <code>public/studiobar.js</code>, <code>output.html</code>, <code>control.html</code>, <code>setup.html</code>, <code>music.js</code>, <code>plugins/studio-deck</code>.</div>
+  </article>
+
+  <article class="card p4" id="p4">
+    <div class="head"><span class="id">Phase 4</span><h3>The Mac app becomes the render agent</h3><span class="pill later">3 to 4 weeks</span></div>
+    <p>The app stops running a helper. It signs in, picks an organisation and competition, connects to the cloud scene over the WebSocket, renders the scene locally in the existing off-screen window, and drives displays, NDI and DeckLink from that frame. Music plays here when the agent is present.</p>
+    <dl>
+      <dt>Build</dt><dd><ul>
+        <li><code>desktop/scenewindow.js</code> loads the cloud scene page instead of <code>localhost:8080</code>; <code>desktop/outputs.js</code>, <code>ndi.js</code>, <code>decklink.js</code> unchanged.</li>
+        <li>Offline grace: if the venue's internet drops, the agent keeps the last scene and the board keeps counting from the last PlayHQ reading; the Output page shows the health strip (D5) in red.</li>
+        <li>Updates stay on the existing release chain (electron-updater, signed, FirstPassStudio-releases).</li>
+      </ul></dd>
+      <dt>Matt does</dt><dd>Keeps a local-only mode? See M10: the recommendation is to keep "run everything on this Mac" as a supported mode for one more year, because venue internet is the weakest link on stream night.</dd>
+      <dt>Done when</dt><dd>Thunder League goes out over NDI from the agent with the scene edited on another device.</dd>
+    </dl>
+    <div class="evidence">Touches: <code>desktop/main.js</code> (no utilityProcess helper when signed in to the cloud), <code>desktop/scenewindow.js</code>, <code>desktop/offair.html</code>, <code>outputs.js</code>.</div>
+  </article>
+
+  <article class="card p5" id="p5">
+    <div class="head"><span class="id">Phase 5</span><h3>Billing, plans and running it as a business</h3><span class="pill later">2 to 3 weeks, then ongoing</span></div>
+    <dl>
+      <dt>Build</dt><dd><ul>
+        <li>Stripe subscriptions per organisation; plans by number of competitions and outputs (M11). Usage caps on storage and viewer-count API calls.</li>
+        <li>A status page and an incident playbook for stream night; backups of Postgres and the bucket with a tested restore; a deletion flow for an organisation that leaves (and its athletes' personal information).</li>
+        <li>Terms of service, privacy policy (Australian Privacy Act; some players in 21&amp;Under divisions are minors), a data processing note for associations.</li>
+        <li>Self-serve onboarding: template, PlayHQ link, first graphic, in under 15 minutes, measured.</li>
+      </ul></dd>
+      <dt>Done when</dt><dd>Someone Matt has never met pays, sets up and streams without a support message.</dd>
+    </dl>
+  </article>
+</section>
+
+<section>
+  <h2>Decisions for Matt</h2>
+  <p>These are the choices the phases depend on. Each has a recommendation; none has been decided.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Decision</th><th>Recommendation</th><th>Needed by</th></tr></thead>
+    <tbody>
+      <tr><td class="n">M1</td><td>Product shape</td><td>B: cloud control plane with an optional Mac render agent. A is Phase 0 alone; C drops the outputs.</td><td>Now</td></tr>
+      <tr><td class="n">M2</td><td>PlayHQ terms and the live feed</td><td>Ask PlayHQ (Genius Sports) for a partner or commercial API agreement before Phase 2. Today Studio reads the public GraphQL as a guest and the <code>spectator</code> live feed found from browser traffic. That is fine for one association's own stream; for a paid service it is the single biggest risk: PlayHQ can rate-limit or block a cloud IP range, change the undocumented feed, or object on terms. A written agreement also opens the webhooks and the REST Game Summary that need a Client ID. To confirm: whether their terms allow commercial re-display at all.</td><td>Before Phase 2</td></tr>
+      <tr><td class="n">M3</td><td>Identity provider</td><td>Supabase Auth (Apple, Google, email). Clerk if a polished hosted sign-in matters more than one fewer vendor.</td><td>Phase 0</td></tr>
+      <tr><td class="n">M4</td><td>Backend stack</td><td>Supabase (Postgres, Auth, Storage, row-level security) for state, and the existing Node helper in containers (Fly.io or Railway, Sydney) for the live process. The helper is plain Node with two dependencies, so it ports with no framework change. One Supabase project for Studio; share Auth with FirstPass HQ and Vantage only when a user really needs to be the same person across them.</td><td>Phase 1</td></tr>
+      <tr><td class="n">M5</td><td>Region and latency</td><td>Sydney only. Every customer is in Australia; PlayHQ is served from Australia; a scoreboard must trail PlayHQ by under 2 s. Multi-region is not worth it until there is a customer overseas.</td><td>Phase 1</td></tr>
+      <tr><td class="n">M6</td><td>Tenancy unit</td><td>Organisation (an association or a club), with members and roles; a competition belongs to one organisation. Two organisations streaming the same PlayHQ competition each have their own setup; only the PlayHQ polling is shared.</td><td>Phase 1</td></tr>
+      <tr><td class="n">M7</td><td>Live process model</td><td>One helper process per organisation, started on demand, stopped when idle. Simplest port of today's code; a multi-tenant single process can come later if the bill says so.</td><td>Phase 2</td></tr>
+      <tr><td class="n">M8</td><td>Open source and licence</td><td>Keep the public repo MIT (the graphics, the helper, the plugin), and keep the cloud supervisor, billing and auth glue in a private repo. The brand (FirstPass Studio, 1P) is the thing to protect, with a trademark, not the code. Switching the public repo to a source-available licence later is possible but loses goodwill and gains little, because the value is the hosted service and the PlayHQ agreement.</td><td>Phase 0</td></tr>
+      <tr><td class="n">M9</td><td>Personal information</td><td>Treat the athlete register and photos as personal information under the Australian Privacy Act from Phase 1: a privacy notice, deletion on request, no photo leaves the organisation that uploaded it, and no athlete data is used across tenants. Minors play in 21&amp;Under divisions.</td><td>Phase 1</td></tr>
+      <tr><td class="n">M10</td><td>Keep a local-only mode?</td><td>Yes, through Phase 4 and for at least a season after: "Run Studio on this Mac" stays a supported mode, because venue internet failing mid-game is the most likely outage, and it is what Thunder League runs on now. Drop it only when the agent's offline grace has been proven over a season.</td><td>Phase 4</td></tr>
+      <tr><td class="n">M11</td><td>Pricing model</td><td>Per organisation per season, tiered by competitions and whether NDI/DeckLink outputs are included; sponsors module as the premium tier because the exposure report is what an association can resell. A free tier for a single club with browser sources only, to seed adoption.</td><td>Phase 0 (price), Phase 5 (billing)</td></tr>
+      <tr><td class="n">M12</td><td>Repos</td><td>Studio stays its own repo (as agreed on 14 October). Add <code>cloud/</code> inside it for the supervisor and worker while they are small; split to a private repo when billing arrives (M8).</td><td>Phase 2</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Work that pays off whichever shape wins</h2>
+  <p>These are code changes that make the move possible and make today's Studio better at the same time. They can start now, each as its own pull request, with no cloud account involved.</p>
+  <ol>
+    <li><strong>A storage interface.</strong> Put every read and write of the data folder behind one module with a local implementation (Phase 1's first step). Today the modules call <code>fs</code> and <code>savefile</code> directly; <code>test/packaging.test.js</code>'s file list is a ready-made map of what to cover.</li>
+    <li><strong>Tenant and actor on every request.</strong> <code>server.js</code> builds one <code>req.studio = { tenant, actor }</code> object and passes it to the modules' route functions. Today that is always <code>{ tenant: 'local', actor: 'this computer' }</code>, which keeps behaviour identical while making the seam visible.</li>
+    <li><strong>Tokens on the Stream Deck links.</strong> An optional <code>deckToken</code> in <code>config.json</code>; when set, <code>/deck/*</code> and the SSE feed need it. Off by default today (Matt's rule: never remove manual controls), on in the cloud. This is S9's Stream Deck item.</li>
+    <li><strong>Pages that know their base.</strong> Every absolute link the pages build goes through one helper (<code>linkhost.js</code> on the server, one function in <code>pageoptions.js</code> on the client) so a tenant host is a one-line change.</li>
+    <li><strong>A PlayHQ client that can be shared.</strong> <code>playhq.js</code> already caches per query; give it an injectable transport so the Phase 2 worker can sit in front of it, and record every call's count and latency in the health strip.</li>
+    <li><strong>Run the helper without Electron in CI.</strong> It already does (the Tests workflow); add a Dockerfile and a container test so Phase 2 starts from a known-good image.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Risks</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Risk</th><th>Likelihood</th><th>What it would do</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>PlayHQ blocks or changes the guest feed</td><td><span class="pill high">High</span></td><td>Live scores stop for every customer at once</td><td>M2 agreement before Phase 2; manual scoring already works; keep the REST Game Summary fallback; alert on feed failure</td></tr>
+      <tr><td>Venue internet drops during a game</td><td><span class="pill high">High</span></td><td>Cloud-served graphics freeze in the encoder</td><td>M10 local mode; Phase 4 agent keeps the last scene; pages cache their last data</td></tr>
+      <tr><td>Stream night is the only time it matters</td><td><span class="pill med">Medium</span></td><td>An outage on Saturday evening is the whole product failing</td><td>Deploy only midweek; a status page; on-call plan; the health strip in the Output page</td></tr>
+      <tr><td>Cost of always-on processes</td><td><span class="pill med">Medium</span></td><td>Bill grows with customers, not with use</td><td>M7 start on demand; a competition is live about 4 hours a week</td></tr>
+      <tr><td>Personal information of athletes, some minors</td><td><span class="pill med">Medium</span></td><td>A breach or a complaint under the Privacy Act</td><td>M9; row-level security; S2 and S3 already limit reads and uploads</td></tr>
+      <tr><td>Supporting many Macs (shape A) consumes Matt</td><td><span class="pill med">Medium</span></td><td>Each customer needs hands-on help</td><td>Phase 0 first-run experience and diagnostics; move to B</td></tr>
+      <tr><td>Open code lets someone self-host for free</td><td><span class="pill low">Low</span></td><td>A technical association runs it without paying</td><td>They need a Mac and a PlayHQ relationship anyway; the hosted service and the brand are the product (M8)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Suggested order</h2>
+  <ol>
+    <li><strong>Decide M1, M8 and M11</strong> (shape, licence, price) so Phase 0 has a product to point at.</li>
+    <li><strong>Start the "pays off either way" list</strong> as pull requests now: storage interface, tenant seam, deck tokens, link base, PlayHQ transport, Dockerfile.</li>
+    <li><strong>Open the PlayHQ conversation (M2)</strong> early; it will take longer than any code.</li>
+    <li><strong>Phase 0</strong> and sell one copy to a second association, which proves the first-run experience.</li>
+    <li><strong>Phases 1 and 2</strong> once M2 is answered, with Thunder League as the first cloud tenant and Matt's Mac as the fallback.</li>
+    <li><strong>Phases 3, 4 and 5</strong> as customers ask for them.</li>
+  </ol>
+  <p class="muted">Rough total for shapes B through Phase 5: about 20 to 27 weeks of focused work, spread across a season. Phase 0 alone is 3 to 4 weeks. These are estimates, and the PlayHQ answer can move the whole plan.</p>
+</section>
+
+<section>
+  <h2>What this plan does not do</h2>
+  <ul>
+    <li>It does not change any code. Each item becomes its own pull request once Matt approves it, as the two reviews did.</li>
+    <li>It does not pick vendors beyond a recommendation; Supabase and Fly.io are named because the FirstPass family already leans on Supabase and because the helper is plain Node.</li>
+    <li>It does not settle the PlayHQ question. That is a conversation with PlayHQ, and it is the thing to start first.</li>
+  </ul>
+</section>
+</main>
+</body></html>
