@@ -231,7 +231,8 @@ const PAGE_OPTIONS = (() => {
       ...background,
     ],
     'stinger.html': [
-      { key: 'length', label: 'Length', type: 'number', min: 0.5, max: 3, step: 0.1, unit: 's', placeholder: '1', help: 'The whole picture is covered from 22% to 72% of the way through.' },
+      { key: 'hold', label: 'Holds the full frame for', type: 'number', min: 0, max: 10, step: 0.1, unit: 's', placeholder: '1', help: '0 for a quick 1 second stinger.' },
+      { key: 'length', label: 'Bands in and out', type: 'number', min: 0.5, max: 3, step: 0.1, unit: 's', placeholder: '1', help: 'How long the bands take to sweep in and out, around the hold.' },
       { key: 'logo', label: 'Competition logo', type: 'select', choices: [['', 'On the last band'], ['0', 'Left out (colours only)']] },
       { key: 'size', label: 'Logo height', type: 'number', min: 50, max: 1080, unit: 'px', placeholder: '560' },
       mode(),
