@@ -263,7 +263,7 @@
   <h3 id="s3-1">How it fits together</h3>
   <p>Four things do the work, and each one is set up once:</p>
   <ul>
-    <li><strong>Follow PlayHQ.</strong> The scoreboard reads the live score, quarter and clock from the same feed the PlayHQ game page uses, every 5 seconds, while someone live-scores the game on PlayHQ. Automatic game selection moves the board to each next game on your court as its electronic scoring starts.</li>
+    <li><strong>Follow PlayHQ.</strong> The scoreboard reads the live score, quarter and clock from the same feed the PlayHQ game page uses, every 5 seconds by default (as often as every second), while someone live-scores the game on PlayHQ. Automatic game selection moves the board to each next game on your court as its electronic scoring starts.</li>
     <li><strong>The base scene.</strong> A saved scene with the sources that stay on through the game: the scoreboard, the title banner, the branding logos and the score ticker.</li>
     <li><strong>Automatic layers.</strong> Sources that stay on but only show when something happens: the super shot celebration, the hot streaks and game moments, the super shot tab on the scoreboard, the naming-rights sponsor's tab. They watch the board and play by themselves.</li>
     <li><strong>Sequences.</strong> Steps played in order for the parts of the night that aren't live play: the run-up, the walk out, quarter and half time, full time and the close. A sequence can start by itself from the game's clock, carry music, and hand over to another sequence.</li>
@@ -695,7 +695,7 @@
   </table>
 
   <h3 id="s10-8">Data and bandwidth</h3>
-  <p>The graphics only ever talk to Studio on the Mac. Studio alone contacts PlayHQ: one small request every 5 seconds for the followed game, the ticker's other courts every 30 seconds, the fixture about once a minute for automatic selection, and the rest once when a graphic loads. Finished games are read once and kept. It all comes to well under a megabyte an hour, so a phone hotspot is enough for Studio; the stream itself is the bandwidth.</p>
+  <p>The graphics only ever talk to Studio on the Mac. Studio alone contacts PlayHQ: one small request every 5 seconds for the followed game (or as set, down to one a second), the ticker's other courts every 30 seconds, the fixture about once a minute for automatic selection, and the rest once when a graphic loads. Finished games are read once and kept. It all comes to well under a megabyte an hour, so a phone hotspot is enough for Studio; the stream itself is the bandwidth.</p>
 </section>
 
 <section class="ch" id="ch11">
