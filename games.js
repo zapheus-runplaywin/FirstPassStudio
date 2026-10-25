@@ -265,6 +265,8 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // defaultCourt in config.json): the first game of the day until the next one is due,
   // then each game from autoSelectMinutesBefore (default 10) minutes before its start, when
   // electronic scoring starts (the live feed isn't asked before then, see scoringNotYet).
+  // With a round picked by hand, that round's games on the court by their date and time: the
+  // one due now, else the next to come, else (a round played already) its last.
   // A finals game is kept until PlayHQ says it is finished, because of extra time.
   // Picking a game by hand turns autoSelect off.
   let AUTO_LEAD_MS = 10 * 60 * 1000;
@@ -278,20 +280,17 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const word = w.replace(/\s*\d+$/, '');
     return /^\d+$/.test(w) ? num(a) === w : !!num(a) && num(a) === num(w) && (word === 'court' || a.includes(word));
   }
+  // The games to follow on a court, in date and time order: today's, or with a round picked by hand
+  // on the control page, that round's games on the court on their own dates (a round can span days).
   async function todaysGames(court) {
     const st = await getStructure();
     const today = localDate();
-    // With a round picked by hand on the control page (for testing), use that round's games
-    // on this court as if they were on today, so the timed switching can be tried out.
-    if (roundChoice) {
-      const games = (await getCurrentGames()).filter(g => sameCourt(g.court, court)).map(g => ({ ...g, date: today }));
-      return games.filter(g => startOf(g) !== null).sort((a, b) => startOf(a) - startOf(b));
+    const games = [];
+    if (roundChoice) games.push(...(await getCurrentGames()).filter(g => sameCourt(g.court, court)));
+    else for (const grade of st.grades) {
+      for (const g of await getSeasonGames(grade)) if (g.date === today && sameCourt(g.court, court)) games.push(g);
     }
-    const out = [];
-    for (const grade of st.grades) {
-      for (const g of await getSeasonGames(grade)) if (g.date === today && sameCourt(g.court, court)) out.push(g);
-    }
-    return out.filter(g => startOf(g) !== null).sort((a, b) => startOf(a) - startOf(b));
+    return games.filter(g => startOf(g) !== null).sort((a, b) => startOf(a) - startOf(b));
   }
   const isFinalsRound = g => /final/i.test(g.round || '');
   let autoBusy = false;
@@ -320,7 +319,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         const pool = (onCourt.length ? onCourt : round).slice().sort(byStart);
         if (!pool.length) { b.autoNote = 'PlayHQ has no games in this round yet.'; return; }
         if (b.autoSelect) b.autoNote = !court ? `Set a court to follow its games through the night. Showing this round's first game.`
-          : `No games on ${court} today. Showing this round's first game${onCourt.length ? ` on ${court}` : ''}.`;
+          : `No games on ${court} ${roundChoice ? 'this round' : 'today'}. Showing this round's first game${onCourt.length ? ` on ${court}` : ''}.`;
         if (!b.gameId || (b.autoSelect && !pool.some(g => g.id === b.gameId))) {
           switchTo(b, pool[0], !court ? 'no court set, so starting with this round\'s first game:'
             : onCourt.length ? `no games on ${court} today, so starting with its first game this round:` : `no games on ${court} this round, so starting with this round's first game:`);
@@ -331,8 +330,11 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       const due = games.filter(g => startOf(g) - AUTO_LEAD_MS <= now);
       const pick = due.length ? due[due.length - 1] : games[0];
       const next = games[games.indexOf(pick) + 1];
+      const today = localDate();
+      const day = g => g.date === today ? '' : ` ${new Date(`${g.date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`;
       const at = g => new Date(startOf(g) - AUTO_LEAD_MS).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-      b.autoNote = next ? `Next: ${next.home.name} v ${next.away.name} (${next.time.slice(0, 5)}), switches at ${at(next)}.` : 'Last game on this court today.';
+      b.autoNote = next ? `Next: ${next.home.name} v ${next.away.name} (${next.time.slice(0, 5)}${day(next)}), switches at ${at(next)}${day(next)}.`
+        : `Last game on this court ${roundChoice ? 'this round' : 'today'}.`;
       if (pick.id === b.gameId) { b.autoHold = ''; return; }
       // Keep a final on until PlayHQ says it is over (it may go to extra time).
       const current = games.find(g => g.id === b.gameId);

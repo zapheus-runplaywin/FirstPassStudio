@@ -263,7 +263,8 @@
         setup page, e.g. <code>Indoor 01</code> or just <code>1</code>). It shows the first game of the day on that court,
         then switches to each next game when its electronic scoring starts (10 minutes before by default, set on the setup page), with the quarter back to Q1 and a full clock. A final
         (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a round picked
-        by hand, its games are treated as if they were today, so the switching can be tested any time.</li>
+        by hand, it follows that round's games on the court by their own date and time: the game due now, otherwise the next one
+        to come, otherwise (a round already played) its last game.</li>
       <li><b>Overrides:</b> picking a game from the list turns automatic selection off until you tick it again or change the court. Pressing a score
         button switches scores to manual, and any clock button switches the clock to manual.</li>
       <li><b>Follow PlayHQ:</b> the score and quarter come from PlayHQ's live scoring every 5 seconds, and

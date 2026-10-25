@@ -887,7 +887,7 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
     if (url.pathname === '/api/rounds') {
-      if (req.method === 'POST') setRoundChoice((await readBody(req)).round);
+      if (req.method === 'POST') { setRoundChoice((await readBody(req)).round); await autoPick(); }
       return send(res, 200, await getRoundInfo());
     }
     if (url.pathname === '/api/countdown') return send(res, 200, getCountdown());
