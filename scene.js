@@ -59,17 +59,21 @@ const kindOf = f => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPE
 // Ads play in their own sources, made the first time they're needed and kept on top of the scene: Sponsor
 // ad (video), Sponsor ad (still) and House ad (ad.html, when no sponsor has an ad and the step allows it).
 // Each ad sets the source's file; a new file reloads it. Returns what a sequence step needs, or null.
+// Another output plays its ads in its own three (ad<v|i|h><output id>), so two outputs' ads never fight over one
+// file; they go when the output does.
 const AD_SOURCES = {
   video: { id: 'sponsoradvideo', type: 'video', name: 'Sponsor ad (video)', sound: true, hideWhenDone: true, restartOnShow: true },
   image: { id: 'sponsoradimage', type: 'image', name: 'Sponsor ad (still)' },
   house: { id: 'sponsoradhouse', type: 'browser', name: 'House ad', url: 'ad.html' },
 };
-function adSource(kind, file) {
+const adSourceId = (kind, out) => out ? `ad${kind[0]}${out}` : AD_SOURCES[kind].id;
+function adSource(kind, file, out = null) {
   const spec = AD_SOURCES[kind];
-  let src = scene.sources.find(s => s.id === spec.id);
+  const id = adSourceId(kind, out);
+  let src = scene.sources.find(s => s.id === id);
   if (!src) {
-    change({ type: 'add', sources: [{ ...spec, ...(file ? { file } : {}) }] });
-    src = scene.sources.find(s => s.id === spec.id);
+    change({ type: 'add', sources: [{ ...spec, id, ...(out ? { name: `${spec.name}, ${outputName(out)}` } : {}), ...(file ? { file } : {}) }] });
+    src = scene.sources.find(s => s.id === id);
   } else if (file && src.file !== file) {
     src.file = file;
     src.loadSeq++;
@@ -78,15 +82,31 @@ function adSource(kind, file) {
 }
 // Which sponsor's ad each Sponsor ad source has in it, for the exposure report (exposure.js).
 const adSponsor = new Map();
-// The sources on now, for the exposure report: [{ id, name, url, sponsor }].
+// Whether what's on an output counts in the sponsors' exposure report: always the primary's; another output's
+// only with Counts for sponsors ticked (Studio can't tell whether it's on the stream: a camera's keyer, a
+// commentary monitor).
+const countsForSponsors = out => !out || !!outputsApi.summary?.().find(o => o.id === out)?.sponsors;
+// The sources on now, for the exposure report: [{ id, name, url, sponsor }], on the primary and on each output
+// that counts for sponsors (named "Ladder (Wide camera)" there).
 function showing() {
-  return scene.sources.filter(s => s.visible).map(s => ({ id: s.id, name: s.name, url: s.type === 'browser' ? s.url : '', sponsor: adSponsor.get(s.id) || null }));
+  const view = (s, where) => ({ id: s.id, name: where ? `${s.name} (${where})` : s.name, url: s.type === 'browser' ? s.url : '', sponsor: adSponsor.get(s.id) || null });
+  const list = scene.sources.filter(s => s.visible).map(s => view(s, ''));
+  for (const o of outputsApi.summary?.() || []) {
+    if (o.id !== PRIMARY && o.sponsors) list.push(...scene.sources.filter(s => s.out[o.id]).map(s => view(s, o.name)));
+  }
+  return list;
 }
-function sponsorAd(opts = {}) {
+// The next sponsor ad, in the ad sources of an output (null: the primary).
+function sponsorAd(opts = {}, out = null) {
   const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))) });
   if (!ad && !opts.house) return null;
-  const src = ad ? adSource(ad.kind, ad.file) : adSource('house');
-  if (ad) { log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})`); adSponsor.set(src.id, ad.sponsor.id); exposure.play(ad); }
+  const src = ad ? adSource(ad.kind, ad.file, out) : adSource('house', null, out);
+  if (ad) {
+    log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})${out ? ` on ${outputName(out)}` : ''}`);
+    adSponsor.set(src.id, ad.sponsor.id);
+    // A play counts where the time on screen does.
+    if (countsForSponsors(out)) exposure.play(ad);
+  }
   return { source: src.id, name: ad ? ad.sponsor.name : 'House ad', sponsor: ad ? ad.sponsor.id : null,
     length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };
 }
@@ -463,6 +483,8 @@ function dropOutput(id) {
   for (const s of scene.sources) if (s.out[id]) { delete s.out[id]; delete s.outSeq[id]; any = true; }
   if (scene.currentOut[id]) { delete scene.currentOut[id]; any = true; }
   endedOut.delete(id);
+  // Its own ad sources go with it.
+  for (const kind of Object.keys(AD_SOURCES)) if (find(adSourceId(kind, id))) { change({ type: 'remove', id: adSourceId(kind, id) }); any = true; }
   if (any) { noteShowings(); save(); }
 }
 function change(a) {
@@ -1230,7 +1252,7 @@ function init(logger, { ffmpeg, sequencesFile, outputs } = {}) {
     scene: id => scene.scenes.find(s => s.id === id) || null,
     goTo: (sc, step, out) => goTo(sc, true, step, out === PRIMARY ? null : out),
     duration,
-    sponsorAd,
+    sponsorAd: (opts, out) => sponsorAd(opts, out === PRIMARY ? null : out),
     // A step's time ran out: sources it turned on are new showings too.
     changed: () => { noteShowings(); save(); },
   }, sequencesFile);
