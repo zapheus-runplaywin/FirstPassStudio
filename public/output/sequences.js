@@ -129,7 +129,10 @@ function renderSequences() {
   heardAt = performance.now();
   tickSequence();
   const first = sequences()[0];
-  $('seqNote').innerHTML = first
+  // With no sequences yet the first steps show; once there are some, the how-to waits behind Expand for info.
+  $('seqInfo').hidden = !first;
+  $('seqEmpty').hidden = !!first;
+  $(first ? 'seqNote' : 'seqEmpty').innerHTML = first
     ? 'A sequence plays its steps one after another: <b>Play</b> starts it, <b>Next</b> ends the step now, '
       + 'and <b>Stop</b> ends it and does its "then". Going to a scene, or playing another sequence, stops it without its "then". Turning the step\'s source off by hand moves to the next step. '
       + 'A sequence can start by itself before the game (if Studio was running at that moment), at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '

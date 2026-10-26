@@ -51,9 +51,8 @@ async function removeMedia(name) {
   await loadMedia();
 }
 $('mediaKind').onchange = renderLibrary;
-$('mediaBox').ontoggle = () => { if ($('mediaBox').open) loadLibrary(); };
-// The Sponsors page links here to remove ads' files.
-if (location.hash === '#mediaSection') $('mediaBox').open = true;
+// Its list loads when the section opens (the Sponsors page links to #mediaSection, which opens it, to remove ads' files).
+$('mediaSection').addEventListener('fold', e => { if (e.detail.open) loadLibrary(); });
 // Adding a source: a dialog, so it's clear the choices are for the new source. It goes above the selected
 // source (or on top), and is selected once added, ready to set up.
 const usedPages = () => new Set(scene.sources.filter(x => x.type === 'browser').map(x => String(x.url).split('?')[0].replace(/^\/+/, '')));

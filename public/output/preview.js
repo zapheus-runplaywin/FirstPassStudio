@@ -88,6 +88,8 @@ function fitPreview() {
   $('previewFrame').style.transform = `scale(${w / 1920})`;
   drawBox();
 }
+// Folded, the Scene View has no width: fit it again as it opens.
+$('viewSection').addEventListener('fold', e => { if (e.detail.open) fitPreview(); });
 function setPreview(on) {
   try { localStorage.setItem('outputPreview', on ? '1' : '0'); } catch {}
   $('previewOn').checked = on;
