@@ -55,11 +55,13 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
   assert.equal(atem.state.program, 1, 'no cut from Output 1\'s report');
   const at = Date.now();
   await studio.post('/api/switcher', { type: 'stingerStarted', cover: [0.22, 1.22], output: two });
+  const answered = Date.now();
   await play;
-  const ms = atem.received.filter(c => c.name === 'DCut').at(-1).at - at;
+  const cut = atem.received.filter(c => c.name === 'DCut').at(-1).at;
   assert.equal(atem.state.program, 2);
-  // 720 ms plus 4 frames at 50 fps (80 ms).
-  assert.ok(ms > 700 && ms < 900, `cut ${ms} ms after Over all's report, wanted 800`);
+  // 720 ms plus 4 frames at 50 fps (80 ms), timed from when Studio got the report, which is
+  // somewhere between sending it and its answer (a slow runner can take a while to answer).
+  assert.ok(cut - at > 700 && cut - answered < 900, `cut ${cut - at} ms after sending Over all's report and ${cut - answered} ms after its answer, wanted 800`);
   assert.match(studio.log(), /stinger to Court \(on Over all, cut at 0\.80 s/);
   assert.match(studio.log(), /Stinger line-up 4 frames for Over all/);
 });
