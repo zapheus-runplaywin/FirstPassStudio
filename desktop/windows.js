@@ -37,15 +37,23 @@ const HEADER_CSS = `
 const APP_ROOT = path.join(__dirname, '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 protocol.registerSchemesAsPrivileged([{ scheme: 'studio', privileges: { standard: true, secure: true } }]);
-app.whenReady().then(() => protocol.handle('studio', async req => {
-  const rel = path.normalize(decodeURIComponent(new URL(req.url).pathname)).replace(/^[/\\]+/, '');
-  if (!/^(desktop|public)[/\\]/.test(rel)) return new Response('Not found', { status: 404 });
-  try {
-    return new Response(await fs.promises.readFile(path.join(APP_ROOT, rel)), { headers: { 'content-type': TYPES[path.extname(rel).toLowerCase()] || 'application/octet-stream' } });
-  } catch { return new Response('Not found', { status: 404 }); }
-}));
+// Answers studio:// from the first page loaded on. Set up then, not on app.whenReady: main.js's own
+// whenReady (start, which can open What's new straight away) runs first, and a page asked for
+// before this was set up never arrived, so What's new hung at launch.
+let serving = false;
+function serve() {
+  if (serving) return;
+  serving = true;
+  protocol.handle('studio', async req => {
+    const rel = path.normalize(decodeURIComponent(new URL(req.url).pathname)).replace(/^[/\\]+/, '');
+    if (!/^(desktop|public)[/\\]/.test(rel)) return new Response('Not found', { status: 404 });
+    try {
+      return new Response(await fs.promises.readFile(path.join(APP_ROOT, rel)), { headers: { 'content-type': TYPES[path.extname(rel).toLowerCase()] || 'application/octet-stream' } });
+    } catch { return new Response('Not found', { status: 404 }); }
+  });
+}
 // Loads one of the pages above in a window.
-const loadPage = (win, page, query = {}) => win.loadURL(`studio://app/desktop/${page}?${new URLSearchParams(query)}`);
+const loadPage = (win, page, query = {}) => { serve(); return win.loadURL(`studio://app/desktop/${page}?${new URLSearchParams(query)}`); };
 const isAppPage = u => u.startsWith('studio:');
 
 module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, onWindowOpened, onAllClosed }) {
