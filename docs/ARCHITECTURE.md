@@ -48,6 +48,7 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 | `sponsors.js`, `exposure.js` | Sponsors, spots on the graphics, ads in sequences; proof of play for the exposure report. |
 | `viewers.js` | Live viewer numbers from YouTube and Facebook while a video output is on. |
 | `outputs.js` | Up to four outputs, each with its own route (display, chroma, fill+key, NDI, Blackmagic) and on/off; the first is the primary and the only one with sound. Earlier outputs keep a display, the Blackmagic device or an NDI name. The app does the showing. |
+| `switcher.js` | The Blackmagic ATEM switcher, if one is set up: finding it (Bonjour via macOS's `dns-sd`), one connection through `atem-connection` (in-process, UDP 9910), its state for the Output page, and the cuts, previews and keys the Output page and `/deck/switcher/*` ask for; `switcher.json`. Sends nothing by itself. |
 | `finals.js`, `fonts.js` | Finals formats per competition and division; the fonts a competition can use. |
 | `datadir.js`, `datalocation.js`, `migrations.js`, `savefile.js` | Where settings live, moving them to iCloud Drive, bringing old settings up to date after an update, writing files atomically. |
 | `access.js` | Who on the network may change things (the "Let other devices change things" switch). |
@@ -75,7 +76,7 @@ debug log), `autoreload.js`.
    pushes the whole scene to every page holding the WebSocket at `/api/scene/socket` and to the plugin's SSE feed.
 7. The scoreboard travels the same socket as a second message type: a page that sends `{"subscribe":"board"}` gets
    what `GET /api/scoreboard` gives, at once and on every change (`scene.publishBoard`, called from `saveBoards` and
-   each second). `sceneevents.js` wraps both for the pages; the HTTP endpoints stay for the plugin and other tools.
+   each second). The ATEM switcher's state (`switcher.js`) travels it a third way, for a page that sends `{"subscribe":"switcher"}` (the Output page), on each change. `sceneevents.js` wraps them for the pages; the HTTP endpoints stay for the plugin and other tools.
 
 Every change to a saved file uses `savefile.js` (write to a temporary file, then rename), so a crash mid-write never
 leaves a half-written settings file.
@@ -89,6 +90,7 @@ leaves a half-written settings file.
 | `server.js` scene.game | 1 s | Hands the game snapshot to the scene for game triggers (quarter breaks, full time) and the super shot song. |
 | `viewers.js` | 30 s per stream | Live viewer counts, only while a video output is on. |
 | `outputs.js` listenChanged | 5 s | Notices a preview that stopped checking in. |
+| `switcher.js` (atem-connection) | about 2 per second each way | The switcher's own heartbeat while connected; after about 5 s of silence it counts as lost and the library reconnects every second. A switcher found by name is looked for again every 15 s while lost, in case its address changed. |
 | `scene.js` SSE ping | 25 s | Keeps the plugin's event stream open. |
 | `server.js` pushBoard | on each save, and 1 s | Pushes the scoreboard to the pages following it over the scene socket (scoreboard, control page, goals, countdown) when it has changed. |
 | Pages | 1-30 s | Ticker, super shot and streak pages poll the helper only (see "Data and bandwidth" on the Docs page). |

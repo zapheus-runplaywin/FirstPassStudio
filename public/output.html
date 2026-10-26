@@ -204,6 +204,24 @@
   .health b { color: var(--fp-navy); font-weight: 600; }
   .health .warnText { color: #8A3B00; font-weight: 600; }
   .health .badText { color: var(--fp-danger); font-weight: 600; }
+  /* The ATEM switcher: inputs in tally colours (red on program, green on preview), keys red while on air. */
+  .swStatus { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--fp-muted); }
+  .swStatus .hdot { width: 10px; height: 10px; border-radius: 50%; background: var(--fp-line-strong); flex: none; }
+  .swStatus .hdot.ok { background: var(--fp-ok); }
+  .swStatus .hdot.warn { background: var(--fp-orange); }
+  .swStatus .hdot.bad { background: var(--fp-danger); }
+  .swStatus b { color: var(--fp-navy); }
+  .swStatus .badText { color: var(--fp-danger); font-weight: 600; }
+  .swInputs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .swInputs button, .swKeys button { background: var(--fp-line); color: var(--fp-navy); min-width: 64px; }
+  .swInputs button:hover, .swKeys button:hover { background: var(--fp-line-strong); }
+  .swInputs button.pvw, .swInputs button.pvw:hover { background: #16A34A; color: #fff; }
+  .swInputs button.prg, .swInputs button.prg:hover, .swKeys button.on, .swKeys button.on:hover, #swFtb.on { background: #DC2626; color: #fff; }
+  .swKeys .swLabel { font-size: 13px; font-weight: 600; color: var(--fp-muted); margin-left: 6px; }
+  .swKeys .swLabel:first-child { margin-left: 0; }
+  .swFound { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
+  .swFound li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 6px 10px; border: 1px solid var(--fp-line); border-radius: 8px; }
+  .swFound li.sel { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
 </style>
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
@@ -316,6 +334,42 @@
         Stream Deck: <code id="outDeck">/deck/output/toggle</code> (also <code>on</code> and <code>off</code>) shows or blanks the output without changing this setup.</p>
       <p class="note" style="font-size:12px">NDI® is a registered trademark of Vizrt NDI AB.</p>
     </div>
+  </section>
+
+  <section id="swSection">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">Switcher</h2>
+      <div class="row"><span class="swStatus"><i class="hdot" id="swDot"></i><span id="swText">Not set up</span></span>
+        <button class="alt hidden" id="swRetry">Try again</button>
+        <button class="alt" id="swSetup">Set up</button></div>
+    </div>
+    <div id="swLive" class="hidden">
+      <p class="note" id="swHas" style="margin:0 0 10px"></p>
+      <div class="swInputs" id="swInputs"></div>
+      <div class="row" style="margin-top:8px"><button id="swCut" title="Take the preview input to program, straight away">Cut</button>
+        <button id="swAuto" title="Take the preview input to program with the switcher's transition">Auto</button>
+        <button class="alt" id="swFtb" title="Fade to black, or back from it">Fade to black</button></div>
+      <div class="row swKeys" style="margin-top:10px"><span class="swLabel" id="swUskLabel">Upstream keys</span><span id="swUsk" class="row"></span>
+        <span class="swLabel" id="swDskLabel">Downstream keys</span><span id="swDsk" class="row"></span></div>
+    </div>
+    <div id="swForm" class="hidden" style="margin-top:12px">
+      <div class="row"><button class="alt" id="swFind">Look for switchers</button><span class="note" id="swFindNote" style="margin:0"></span></div>
+      <ul class="swFound" id="swFound"></ul>
+      <div class="row"><label for="swAddress" style="font-weight:600">Or type its address</label>
+        <input id="swAddress" placeholder="192.168.10.240" maxlength="100" style="width:200px">
+        <button class="alt" id="swUseAddress">Use this address</button>
+        <button class="danger hidden" id="swForget">Forget this switcher</button></div>
+    </div>
+    <p class="note error" id="swErr"></p>
+    <p class="note" id="swNote">Studio controls a Blackmagic ATEM switcher over the network: the Mac and the switcher need to be on the same network,
+      ideally a wired one. <b>Look for switchers</b> finds them the way ATEM Software Control does (the first time, macOS asks to let Studio use the
+      local network: say Allow), and Studio remembers the one you pick by its name, so it finds it again if its address changes. Click an input to put it on
+      preview, then <b>Cut</b> or <b>Auto</b> to take it. Studio shows only what your switcher has (an ATEM Mini Pro has 4 inputs, one upstream key and
+      one downstream key; a Mini Extreme has 8, four and two). The switcher's own buttons, ATEM Software Control and other controllers keep working
+      alongside Studio, and Studio shows what they do. It sends nothing to the switcher by itself, not even when it connects or reconnects, and if the
+      switcher stops answering nothing is saved up for later. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code>, <code>ftb</code>,
+      <code>preview/2</code> or <code>preview/Camera%202</code>, <code>program/2</code>, <code>usk/1/toggle</code> (<code>on</code>, <code>off</code>),
+      <code>dsk/1/toggle</code> (<code>on</code>, <code>off</code>, <code>auto</code>) and <code>macro/1</code>.</p>
   </section>
 
   <section id="musicSection">
@@ -601,6 +655,7 @@
 <script src="output/scenes.js"></script>
 <script src="output/sequences.js"></script>
 <script src="output/music.js"></script>
+<script src="output/switcher.js"></script>
 <script src="output/settings.js"></script>
 <script src="output/exportimport.js"></script>
 <script src="output/add.js"></script>

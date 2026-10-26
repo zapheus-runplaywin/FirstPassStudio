@@ -224,6 +224,23 @@ Each source in the scene gets these links, using its name in lower case with das
 
 Renaming a source on the Output page changes its links (the plugin's keys carry on).
 
+## Switcher (a Blackmagic ATEM, set up on the Output page)
+
+With a switcher picked on the Output page's Switcher card, these links press its buttons. Nothing is saved up while it isn't
+answering: the link says so and does nothing. Inputs go by number or by their name in ATEM Software Control; keys and macros
+count from 1. A key the switcher doesn't have (a second downstream key on an ATEM Mini Pro) is refused with what it does have.
+
+| Button | URL to open |
+| --- | --- |
+| Cut (preview to program, straight away) | http://localhost:8080/deck/switcher/cut |
+| Auto (with the switcher's transition) | http://localhost:8080/deck/switcher/auto |
+| Fade to black, or back | http://localhost:8080/deck/switcher/ftb |
+| Put Camera 2 on preview | http://localhost:8080/deck/switcher/preview/2, http://localhost:8080/deck/switcher/preview/Camera%202 |
+| Cut Camera 2 straight to program | http://localhost:8080/deck/switcher/program/2 |
+| Upstream key 1 on / off | http://localhost:8080/deck/switcher/usk/1/toggle (also on, off) |
+| Downstream key 1 on / off | http://localhost:8080/deck/switcher/dsk/1/toggle (also on, off; auto at its own rate) |
+| Run the switcher's macro 1 | http://localhost:8080/deck/switcher/macro/1 |
+
 ## Scenes (Output page)
 
 A scene is a saved look for the scene's sources: which are on, which are off, and which it leaves as they are. Make them on the

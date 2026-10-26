@@ -18,6 +18,7 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
+    "atem-connection": "3.10.3",
     "electron-updater": "6.8.11",
     "qrcode-generator": "2.0.4"
   },
@@ -34,7 +35,8 @@
     "asarUnpack": [
       "vendor/ffmpeg/**",
       "native/**/*.node",
-      "plugins/studio-deck/dist/**"
+      "plugins/studio-deck/dist/**",
+      "node_modules/@julusian/freetype2/prebuilds/**"
     ],
     "electronFuses": {
       "runAsNode": false,
@@ -62,6 +64,7 @@
       "scene.js",
       "zip.js",
       "outputs.js",
+      "switcher.js",
       "datadir.js",
       "savefile.js",
       "datalocation.js",

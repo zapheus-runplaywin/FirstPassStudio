@@ -264,6 +264,25 @@
         saved setting: pick another output, or untick it, and everything is back as it was. The Scene View shows the scene chroma key safe while it's on.
         The Output page also lists any competition or club colour close to the key colour (a keyer would cut holes in it); logos can't be checked, so look at those.
         For a page on its own (such as an OBS browser source keyed on a colour) add <code>?chromaKey=true</code> to its link.</li>
+      <li id="switcher"><b>Switcher (a Blackmagic ATEM):</b> the <b>Switcher</b> card under Video output controls an ATEM over the network: the Mac and the
+        switcher on the same network, ideally wired. <b>Set up</b>, then <b>Look for switchers</b>, finds every ATEM on the network the way ATEM Software Control
+        does (the first time, macOS asks to let Studio use the local network: say Allow); pick one and Studio connects and remembers it by name, so it finds it again
+        if the venue's router gives it another address. <b>Or type its address</b> (as set in ATEM Setup; an ATEM ships as 192.168.10.240) works too.
+        The card shows the switcher's inputs by the names set in ATEM Software Control, red on program and green on preview: click one to put it on preview,
+        then <b>Cut</b> or <b>Auto</b> (the switcher's own transition) to take it. <b>Fade to black</b>, and each upstream and downstream key on and off (red while on air;
+        a downstream key's <b>Auto</b> takes it at its own rate), are there too. Studio reads what the switcher has and offers only that:
+        <ul>
+          <li><b>ATEM Mini and Mini Pro:</b> 4 inputs, one upstream key, one downstream key. Fill and key into the downstream key takes two inputs and leaves two cameras; a chroma key needs the upstream key (one input, three cameras left).</li>
+          <li><b>ATEM Mini Extreme:</b> 8 inputs, four upstream keys, two downstream keys.</li>
+        </ul>
+        A link or button for something the switcher doesn't have (a second downstream key on a Mini Pro, say) is refused with what it does have.
+        The switcher's own buttons, ATEM Software Control and other controllers keep working alongside Studio, and the card follows what they do.
+        Studio sends nothing to the switcher by itself: not when it connects, and not when it reconnects. If the switcher stops answering (a pulled cable, a power
+        cut), the card turns red within about five seconds and Studio keeps trying; anything pressed meanwhile is refused, not saved up for later, and the log says so.
+        Studio connects when it goes on air and lets go when it goes off air. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code> and <code>ftb</code>;
+        <code>/deck/switcher/preview/&lt;input&gt;</code> and <code>program/&lt;input&gt;</code> (its number, or its name such as <code>Camera%202</code>);
+        <code>/deck/switcher/usk/&lt;n&gt;/on</code>, <code>off</code> or <code>toggle</code>; <code>/deck/switcher/dsk/&lt;n&gt;/on</code>, <code>off</code>, <code>toggle</code> or
+        <code>auto</code>; and <code>/deck/switcher/macro/&lt;n&gt;</code> (a macro saved on the switcher, numbered from 1 as in ATEM Software Control).</li>
     </ul>
     <p class="page__help">The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>
@@ -430,6 +449,7 @@
         backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
         Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
         coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too.</li>
+      <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed), one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
@@ -504,6 +524,7 @@
         scoreboard is hidden and the control page is closed; the pages share that reading rather than adding to it.</li>
       <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to Studio, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
       <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen, and each extra output runs the pages turned on for it once more. NDI's video goes over your local network only, never the internet.</li>
+      <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
       <li>Stream Deck plugin's Source keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen, and Studio only sends when the scene changes.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>

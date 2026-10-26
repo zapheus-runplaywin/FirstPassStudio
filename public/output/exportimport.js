@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 8 of 11: Export and import of the scene, scenes and sequences.
+// FirstPass Studio - the Output page, part 9 of 12: Export and import of the scene, scenes and sequences.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
