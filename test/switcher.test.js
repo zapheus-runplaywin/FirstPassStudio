@@ -257,6 +257,27 @@ test('Stop calls off switcher actions still to come, a scene step\'s scene\'s to
   assert.deepEqual(atem.state.usk, [false, false, false, false]);
 });
 
+test('Stop part way through a group: the stinger already playing still cuts, the key after it doesn\'t come on', async t => {
+  const atem = await startAtem({ model: 'MiniExtreme' });
+  t.after(() => atem.close());
+  const studio = await startStudio(t);
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
+  await connected(studio);
+  await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html' }] });
+  const id = (await studio.get('/api/scene')).sources[0].id;
+  // Nothing reports the stinger starting here, so its cut waits the full 3 s before landing plainly.
+  await studio.post('/api/scene', { type: 'seqAdd', changes: { name: 'Walk out', steps: [
+    { sources: [id], length: { type: 'time', sec: 20 }, switcher: [{ type: 'stinger', input: 2 }, { type: 'dsk', key: 1, on: 'on' }] },
+  ] } });
+  await studio.post('/api/scene', { type: 'seqPlay', sequence: 'Walk out' });
+  await wait(500);
+  await studio.post('/api/scene', { type: 'seqStop' });
+  await studio.until(() => atem.state.program === 2, 5000, 20);
+  await wait(500);
+  assert.deepEqual(atem.received.map(c => c.name), ['DCut'], 'the cut that goes with the stinger on air, and no key');
+  assert.deepEqual(atem.state.dsk, [false, false]);
+});
+
 test('a stinger cut: the stinger plays on Output 1 and the cut lands in the middle of its cover, moved by the line-up', async t => {
   const atem = await startAtem({ model: 'MiniExtreme', names: ['Wide', 'Court', 'Bench'] });
   t.after(() => atem.close());
