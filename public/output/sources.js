@@ -13,6 +13,7 @@ $('outFilter').onchange = () => {
 };
 // Whether a source is on for an output: the primary's is the source's own visible.
 const onFor = (s, o) => o.primary ? s.visible : !!(s.out && s.out[o.id]);
+let hideAllOn = 'main'; // the output Hide all clears (set as the list is drawn)
 function renderList() {
   const ul = $('sources');
   ul.innerHTML = '';
@@ -27,6 +28,13 @@ function renderList() {
     $('outFilter').value = outFilter;
   }
   const shown = all ? all.filter(o => outFilter === 'all' || o.id === outFilter) : null;
+  // Hide all acts on one output and says which: the one the list shows when Show is set to one, else the one picked
+  // over the Scene View (where scene and sequence clicks go). Never every output at once.
+  const filtered = all && outFilter !== 'all' && all.find(o => o.id === outFilter);
+  const target = all && (filtered || all.find(o => o.id === scene.viewOutput) || all[0]);
+  hideAllOn = target ? target.id : 'main';
+  $('hideAll').textContent = target ? `Hide all on ${target.name}` : 'Hide all';
+  $('hideAll').title = target ? `Every source off on ${target.name} only (${filtered ? 'the output the list shows' : 'the output picked over the Scene View'})` : 'Every source off';
   if (!scene.sources.length) { ul.innerHTML = '<li class="empty">No sources yet. Add a page, an image or a video.</li>'; return; }
   for (const s of scene.sources) {
     const li = document.createElement('li');
