@@ -72,7 +72,28 @@ test('an ad on an output that doesn\'t count isn\'t a play in the report; on one
   assert.equal(plays(), before + 1);
 });
 
+test('an ads step on an output that doesn\'t count leaves the rotation where it was', () => {
+  fs.writeFileSync(path.join(scene.MEDIA_DIR, 'corner.png'), 'x');
+  fs.writeFileSync(path.join(scene.MEDIA_DIR, 'golds2.png'), 'x');
+  sponsors.save({ name: 'Corner Cafe', ads: [{ file: 'corner.png', seconds: 5 }], competitions: { [comp]: { tier: 'major' } } });
+  const golds = sponsors.all().find(s => s.name === 'Golds Bakery');
+  sponsors.save({ ...golds, ads: [{ file: 'golds.png', seconds: 5 }, { file: 'golds2.png', seconds: 5 }] });
+  assert.equal(outputs.apply({ output: two(), sponsors: false }), null);
+  const peek = () => sponsors.nextAd(comp, { count: false });
+  const upNext = () => `${peek().sponsor.name} ${peek().file}`;
+  const before = upNext(), whose = peek().sponsor.name;
+  for (let i = 0; i < 3; i++) {
+    ok({ type: 'seqPlay', sequence: 'Ads', output: two() });
+    assert.equal(st().playingOut[two()].ad, whose, 'the monitor shows whose turn it is');
+    wait(5);
+  }
+  assert.equal(upNext(), before, 'Output 1 plays the same ad next as it would have');
+  ok({ type: 'seqPlay', sequence: 'Ads' });
+  wait(5);
+  assert.notEqual(upNext(), before, 'an ad on Output 1 takes its turn');
+});
+
 test('a removed output\'s ad sources go with it', () => {
   outputs.apply({ remove: two() });
-  assert.deepEqual(st().sources.filter(s => /Sponsor ad|House ad/.test(s.name)).map(s => s.name), []);
+  assert.deepEqual(st().sources.filter(s => /Sponsor ad|House ad/.test(s.name) && s.name.includes('Wide camera')).map(s => s.name), []);
 });

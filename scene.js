@@ -99,14 +99,17 @@ function showing() {
 }
 // The next sponsor ad, in the ad sources of an output (null: the primary).
 function sponsorAd(opts = {}, out = null) {
-  const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))) });
+  // An output that doesn't count for sponsors (a commentary monitor) shows whose turn it is without taking it, so the
+  // rotation on air stays in order.
+  const counts = countsForSponsors(out);
+  const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))), count: counts });
   if (!ad && !opts.house) return null;
   const src = ad ? adSource(ad.kind, ad.file, out) : adSource('house', null, out);
   if (ad) {
     log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})${out ? ` on ${outputName(out)}` : ''}`);
     adSponsor.set(src.id, ad.sponsor.id);
     // A play counts where the time on screen does.
-    if (countsForSponsors(out)) exposure.play(ad);
+    if (counts) exposure.play(ad);
   }
   return { source: src.id, name: ad ? ad.sponsor.name : 'House ad', sponsor: ad ? ad.sponsor.id : null,
     length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };
