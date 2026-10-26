@@ -197,3 +197,17 @@ test('scene.html draws another output\'s sources, silently; the pop-out and Outp
   const win = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'scenewindow.js'), 'utf8');
   assert.match(win, /&output=\$\{encodeURIComponent\(output\)\}&mute=1/);
 });
+
+test('sponsors are on air while Output 1 or an output that counts for them is sending', () => {
+  const two = st().outputs[1].id;
+  assert.equal(outputs.apply({ output: 'main', on: false }), null);
+  assert.equal(outputs.apply({ output: two, mode: 'ndi', ndiName: 'Wide', on: true }), null);
+  assert.ok(outputs.windows().some(w => w.output === two));
+  assert.equal(outputs.sponsorsOnAir(), false, 'Output 2 doesn\'t count');
+  assert.equal(outputs.apply({ output: two, sponsors: true }), null);
+  assert.equal(outputs.sponsorsOnAir(), true, 'ticked, it does, with Output 1 off');
+  assert.equal(outputs.apply({ output: two, on: false }), null);
+  assert.equal(outputs.sponsorsOnAir(), false, 'nothing sending');
+  assert.equal(outputs.apply({ output: 'main', on: true }), null);
+  assert.equal(outputs.sponsorsOnAir(), true, 'Output 1 always counts');
+});

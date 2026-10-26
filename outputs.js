@@ -510,4 +510,11 @@ function init(logger, { colours, removed } = {}) {
 const summary = () => list.map(o => ({ id: o.id, slot: o.slot, name: o.name, link: slug(o.name), colour: COLOURS[o.slot], primary: o.id === PRIMARY,
   sponsors: o.id === PRIMARY || o.sponsors }));
 
-module.exports = { init, route, deck, state, apply, windows, listen, message, summary, find, PRIMARY, MAX, COLOURS };
+// Sponsors are on air (for the exposure report) while an output that counts for them is sending: Output 1, or one
+// with Counts for sponsors ticked. Output 1 can be off on a night another output goes to the switcher.
+function sponsorsOnAir() {
+  const counting = new Set(summary().filter(o => o.sponsors).map(o => o.id));
+  return windows().some(w => counting.has(w.output));
+}
+
+module.exports = { init, route, deck, state, apply, windows, listen, message, summary, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };
