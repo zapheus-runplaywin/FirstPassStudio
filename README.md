@@ -204,8 +204,9 @@ shows `desktop/offair.html` and opens the page again once Studio answers. The ma
 
 Settings live in the data folder (see **Saved settings**). Updates download in the background and install when the app quits, so they never
 interrupt a stream; once one has downloaded, **Restart to update** in the menu installs it straight away. Either way it's the
-newest version: a newer one that comes out after the first has downloaded replaces it, and **Restart to update** checks once
-more first (the menu shows "Downloading 0.3.12…" while it fetches it), so the app never has to restart twice to catch up.
+newest version downloaded: a newer one that comes out after the first has downloaded replaces it in the background (the
+menu then names it). **Restart to update** checks once more first, and if a newer version is out than the one the menu
+named it asks: **Get 0.3.12** (the menu shows "Downloading 0.3.12…", then Studio restarts on it) or **Install 0.3.11 now**.
 macOS's updater only takes one update per restart, so `desktop/updates.js` hands it the update only when it's installed.
 macOS's updater closes every window before the app hears it's quitting, so **Restart to update** first does what Quit
 does (stops the helper and the outputs, and tells the windows not to ask), keeps the outputs on for the new version, and

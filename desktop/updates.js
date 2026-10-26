@@ -6,8 +6,8 @@
 // app that had downloaded 0.3.11 still installed 0.3.11 after 0.3.12 had come out (the menu even
 // said 0.3.12), and then had to restart a second time for 0.3.12. So here downloads stay with
 // electron-updater, each newer one replacing the last, and Squirrel is handed the newest only when
-// it's installed: "Restart to update" checks once more for anything newer first, and quitting
-// installs the newest one downloaded.
+// it's installed: "Restart to update" checks once more for anything newer first (and asks before
+// getting it instead of the version the menu named), and quitting installs the newest one downloaded.
 
 'use strict';
 
@@ -29,22 +29,27 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
 
   function check() { return updater.checkForUpdates(); }
 
-  // Waits for a version newer than the one downloaded, if one has come out since. A check that
+  // A version newer than the one downloaded, if one has come out since; askNewer(ready, newer)
+  // says whether to get it first (it downloads, then installs) or install the one downloaded. The
+  // check itself downloads nothing, so the downloaded version stays there to install. A check that
   // fails (offline, GitHub busy) installs what's already downloaded.
-  async function fetchNewest() {
+  async function fetchNewest(askNewer) {
+    const auto = updater.autoDownload;
     try {
+      updater.autoDownload = false;
       const r = await updater.checkForUpdates();
-      if (r && r.isUpdateAvailable && r.downloadPromise) {
-        if (r.updateInfo.version !== ready) {
-          fetching = r.updateInfo.version;
-          onChange();
-          log(`[update] ${fetching} came out since ${ready} downloaded: downloading it first`);
-        }
-        await r.downloadPromise;
-      }
+      updater.autoDownload = auto;
+      const newer = r && r.isUpdateAvailable && r.updateInfo.version !== ready ? r.updateInfo.version : null;
+      if (!newer) return;
+      if (!await askNewer(ready, newer)) { log(`[update] ${newer} is out, installing ${ready} as chosen`); return; }
+      fetching = newer;
+      onChange();
+      log(`[update] ${newer} came out since ${ready} downloaded: downloading it first, as chosen`);
+      await updater.downloadUpdate();
     } catch (err) {
       log(`[update] Couldn't check for a newer version, installing ${ready}: ${String(err && err.message).split('\n')[0]}`);
     } finally {
+      updater.autoDownload = auto;
       fetching = null;
     }
   }
@@ -74,10 +79,10 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
     });
   }
 
-  // "Restart to update": the newest version there is, then restart.
-  async function restartToUpdate() {
+  // "Restart to update": the version downloaded, or a newer one if askNewer says so, then restart.
+  async function restartToUpdate({ askNewer = async () => false } = {}) {
     if (!pending()) return false;
-    await fetchNewest();
+    await fetchNewest(askNewer);
     if (!ready || installing) return false;
     return hand(true);
   }

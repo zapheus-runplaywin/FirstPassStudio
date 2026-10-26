@@ -657,8 +657,18 @@ function updateMenuItem() {
   return { label: 'Check for updates', enabled: app.isPackaged, click: () => checkForUpdates(true) };
 }
 
+// A newer version than the one the menu named has come out: get it first, or install the named one?
+async function askNewer(ready, newer) {
+  const { response } = await dialog.showMessageBox({
+    type: 'question', buttons: [`Get ${newer}`, `Install ${ready} now`], defaultId: 0, cancelId: 1,
+    message: `Version ${newer} is out`,
+    detail: `${ready} has downloaded and is ready to install. Get ${newer} first (it downloads, then Studio restarts), or install ${ready} now and get ${newer} next time.`,
+  });
+  return response === 0;
+}
+
 function restartToUpdate() {
-  appUpdates().restartToUpdate().then(ok => {
+  appUpdates().restartToUpdate({ askNewer }).then(ok => {
     if (ok === false) installFailed();
     if (ok === false) dialog.showMessageBox({ type: 'warning', message: 'Couldn\'t install the update', detail: 'Try again, or quit FirstPass Studio to install it. The details are in the debug log.' });
   });
