@@ -50,11 +50,14 @@ let found = [];               // the last search's switchers
 let finding = null;           // the search in progress (a promise)
 let lastKey = '';
 const listeners = new Set(); // server-sent events (/api/switcher/events): the Stream Deck plugin's Switcher keys
-// Stinger cuts: Studio plays the scene's stinger (stinger.html) on Output 1 and cuts while it covers the frame.
+// Stinger cuts: Studio plays the scene's stinger (stinger.html) on the output on a downstream key (Output 1 unless
+// another is, as only a downstream key covers the whole picture) and cuts while it covers the frame.
 let follow = true;            // Keys follow the camera: after a cut made elsewhere, paired outputs' keys follow the program camera
 let lastProgram = null;       // the program input Keys follow the camera last saw
 let followTimer = null;
-let lineup = 0;               // frames to cut later (or earlier, below 0) than the middle of the cover, for the picture's delay into the switcher
+// Each output's line-up: frames to cut later (or earlier, below 0) than the middle of the cover, for that output's
+// delay into the switcher (NDI is later than HDMI): { outputId: frames }. The stinger's output's is used.
+let lineups = {};
 let stingerApi = null;        // { find(ref), play(id) } from scene.js
 let outputsPlan = () => [];   // what each output gives the switcher (outputs.js switcherPlan), for the key settings check
 let stingerWait = null;       // a stinger cut waiting to hear the stinger has started: { resolve }
@@ -93,12 +96,15 @@ function load() {
   try {
     const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
     pick = cleanPick(saved.pick);
-    lineup = cleanLineup(saved.lineup);
+    lineups = {};
+    for (const [id, v] of Object.entries(saved.lineups || {})) if (/^[a-z0-9]{1,20}$/i.test(id)) lineups[id] = cleanLineup(v);
+    if (saved.lineup !== undefined && saved.lineups === undefined) lineups.main = cleanLineup(saved.lineup); // from before each output had one
+    for (const id of Object.keys(lineups)) if (!lineups[id]) delete lineups[id];
     follow = saved.follow !== false;
-  } catch (err) { if (err.code !== 'ENOENT') log('warn', 'switcher', `Could not read switcher.json: ${err.message}`); pick = null; lineup = 0; follow = true; }
+  } catch (err) { if (err.code !== 'ENOENT') log('warn', 'switcher', `Could not read switcher.json: ${err.message}`); pick = null; lineups = {}; follow = true; }
 }
 function save() {
-  try { savefile.writeJsonSync(FILE, { pick, lineup, follow }); }
+  try { savefile.writeJsonSync(FILE, { pick, lineups, follow }); }
   catch (err) { log('error', 'switcher', `Could not save switcher.json: ${err.message}`); }
 }
 
@@ -298,7 +304,10 @@ function status() {
     canFind: canFind(),
     finding: !!finding,
     found,
-    lineup,
+    // The output the stinger plays on, its line-up, and every output's.
+    stingerOutput: stingerOutput(),
+    lineup: lineups[stingerOutput().id] || 0,
+    lineups,
     follow,
     stinger: (stingerApi && stingerApi.find()) ? stingerApi.find().name : '',
     keys: s ? keyChecks(s) : [],
@@ -327,7 +336,14 @@ const settled = () => new Promise(resolve => {
 const noInput = (s, v) => `No input "${v}" on the ${s.model}. Use its number or its name: ${s.inputs.map(x => `${x.id} ${x.name}`).join(', ')}.`;
 const nameOf = (s, id) => (s.inputs.find(i => i.id === id) || {}).name || `input ${id}`;
 
-// A stinger to an input (or what's on preview): the input goes on preview, the stinger plays on Output 1, and
+// The output the stinger plays on: the first on a downstream key, else Output 1 (the primary): { id, name }.
+function stingerOutput() {
+  let plan;
+  try { plan = outputsPlan() || []; } catch { plan = []; }
+  const o = plan.find(x => x.keyer.startsWith('dsk')) || plan.find(x => x.id === 'main');
+  return o ? { id: o.id, name: o.name } : { id: 'main', name: 'Output 1' };
+}
+// A stinger to an input (or what's on preview): the input goes on preview, the stinger plays on its output, and
 // once its page says it has started (with when it covers the frame, from its own settings) the cut lands in
 // the middle of the cover, moved by the line-up in frames. test cuts 2 frames after the cover starts instead,
 // so a line-up that's out shows as the old picture flashing before the bands. With no stinger in the scene
@@ -361,11 +377,13 @@ async function stingerPlay(s, a, why, test) {
     const keys = await take(s, 'auto', to);
     return `auto to ${name}${keys} (no stinger in the scene)`;
   }
+  const where = stingerOutput();
+  const lineup = lineups[where.id] || 0;
   const heard = new Promise(resolve => {
     const timer = setTimeout(() => { stingerWait = null; resolve(null); }, STINGER_WAIT_MS);
-    stingerWait = { resolve: c => { clearTimeout(timer); stingerWait = null; resolve(c); } };
+    stingerWait = { output: where.id, resolve: c => { clearTimeout(timer); stingerWait = null; resolve(c); } };
   });
-  if (!stingerApi.play(src.id)) { stingerWait.resolve(null); }
+  if (!stingerApi.play(src.id, where.id)) { stingerWait.resolve(null); }
   const cover = await heard;
   if (!atem || atem.status !== 2) throw new Error('the switcher stopped answering during the stinger');
   if (onProgram) return `stinger only (${name} is already on program)`;
@@ -380,12 +398,13 @@ async function stingerPlay(s, a, why, test) {
   if (!atem || atem.status !== 2) throw new Error('the switcher stopped answering during the stinger');
   const keys = await take(s, 'cut', to);
   const secs = (at / 1000).toFixed(2);
-  return `stinger to ${name}${keys} (cut at ${secs} s, covered ${cover.from.toFixed(2)} to ${cover.to.toFixed(2)} s${lineup ? `, line-up ${lineup > 0 ? '+' : ''}${lineup} frames` : ''})`;
+  return `stinger to ${name}${keys} (on ${where.name}, cut at ${secs} s, covered ${cover.from.toFixed(2)} to ${cover.to.toFixed(2)} s${lineup ? `, line-up ${lineup > 0 ? '+' : ''}${lineup} frames` : ''})`;
 }
-// The stinger page (through scene.html on Output 1) says it has started: [from, to] seconds it covers the frame.
-function stingerStarted(cover) {
+// The stinger page (through scene.html on an output's own window) says it has started: [from, to] seconds it covers
+// the frame. Only the output it's playing on for the cut counts (it may be on others too).
+function stingerStarted(cover, output) {
   const c = Array.isArray(cover) ? cover.map(Number) : [];
-  if (!stingerWait || c.length !== 2 || !c.every(x => Number.isFinite(x) && x >= 0 && x < 10) || c[1] <= c[0]) return;
+  if (!stingerWait || String(output || 'main') !== stingerWait.output || c.length !== 2 || !c.every(x => Number.isFinite(x) && x >= 0 && x < 10) || c[1] <= c[0]) return;
   stingerWait.resolve({ from: c[0], to: c[1], at: now() });
 }
 
@@ -741,10 +760,14 @@ async function settings(a) {
     return { ok: true };
   }
   if (a.type === 'reconnect') { await connect(); return { ok: true }; }
-  if (a.type === 'stingerStarted') { stingerStarted(a.cover); return { ok: true }; }
+  if (a.type === 'stingerStarted') { stingerStarted(a.cover, a.output); return { ok: true }; }
   if (a.type === 'lineup') {
-    lineup = cleanLineup(a.frames);
-    log('info', 'switcher', `Stinger line-up ${lineup} frames`);
+    // { frames, output }: that output's line-up (the stinger's output when left out).
+    const where = a.output ? String(a.output).replace(/[^a-z0-9]/gi, '').slice(0, 20) : stingerOutput().id;
+    if (!where) return { error: 'Which output\'s line-up?', status: 400 };
+    const frames = cleanLineup(a.frames);
+    if (frames) lineups[where] = frames; else delete lineups[where];
+    log('info', 'switcher', `Stinger line-up ${frames} frames for ${where === stingerOutput().id ? stingerOutput().name : where}`);
     save();
     changed();
     return { ok: true };

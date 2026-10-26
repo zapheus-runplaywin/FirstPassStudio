@@ -52,11 +52,14 @@ function showSwitcher(s) {
       const cls = i.id === s.program ? 'prg' : i.id === s.preview ? 'pvw' : '';
       box.appendChild(swButton(i.name, cls, i.id === s.program ? `${i.name} is on program` : `Put ${i.name} on preview`, () => swDo({ type: 'preview', input: i.id })));
     }
-    // The stinger: the scene's Stinger page, played on Output 1 with the cut underneath, and its line-up.
+    // The stinger: the scene's Stinger page, played on the output on a downstream key (Output 1 unless another is) with
+    // the cut underneath, and that output's line-up.
+    const on = (s.stingerOutput || {}).name || 'Output 1';
     $('swStinger').disabled = !s.stinger;
-    $('swStinger').title = s.stinger ? `Play "${s.stinger}" on Output 1 and cut to the preview input underneath it` : 'Add the Stinger page as a source first (+ Add, Studio pages)';
+    $('swStinger').title = s.stinger ? `Play "${s.stinger}" on ${on} and cut to the preview input underneath it` : 'Add the Stinger page as a source first (+ Add, Studio pages)';
     $('swLineupTest').disabled = !s.stinger;
-    $('swStingerName').textContent = s.stinger ? `"${s.stinger}", cut in the middle of its cover (from its own settings), at ${s.fps} frames a second`
+    $('swLineupLabel').textContent = `line-up for ${on}`;
+    $('swStingerName').textContent = s.stinger ? `"${s.stinger}" on ${on}, cut in the middle of its cover (from its own settings), at ${s.fps} frames a second`
       : 'Add the Stinger page as a source to cut under it; without one, a stinger is an auto.';
     if (document.activeElement !== $('swLineup')) $('swLineup').value = s.lineup || 0;
     $('swFtb').classList.toggle('on', s.ftb);
@@ -120,7 +123,8 @@ $('swAuto').onclick = () => swDo({ type: 'auto' });
 $('swStinger').onclick = () => swDo({ type: 'stinger' });
 $('swLineup').onchange = () => swDo({ type: 'lineup', frames: Number($('swLineup').value) || 0 });
 $('swLineupTest').onclick = () => {
-  if (confirm('Test the line-up? This plays the stinger on Output 1 and cuts program to the preview input, 2 frames after the stinger covers the frame. Do it before you\'re live. If you see the old picture before the bands cover it, add frames; if the bands are late on screen, take frames off.')) swDo({ type: 'lineupTest' });
+  const on = (sw && sw.stingerOutput || {}).name || 'Output 1';
+  if (confirm(`Test the line-up? This plays the stinger on ${on} and cuts program to the preview input, 2 frames after the stinger covers the frame. Do it before you\'re live. If you see the old picture before the bands cover it, add frames; if the bands are late on screen, take frames off.`)) swDo({ type: 'lineupTest' });
 };
 $('swFtb').onclick = () => swDo({ type: 'ftb' });
 

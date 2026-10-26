@@ -123,12 +123,13 @@
   }
   // Pages that animate away say so with done.js (postMessage { studio: 'done' }); pages with sound (the intro and
   // outro) send their plan with pagesound.js (postMessage { studio: 'sound', plan }).
-  // The stinger says when it covers the frame (stinger.html): Output 1's own video output windows (the app opens them
-  // with ?fit=1: the display, its key, NDI) pass it to the switcher, which cuts underneath; the first word wins. A
+  // The stinger says when it covers the frame (stinger.html): each output's own video output windows (the app opens
+  // them with ?fit=1: the display, its key, NDI) pass it to the switcher with their output, and the switcher listens
+  // to the output the stinger plays on and cuts underneath; the first word wins. A
   // preview (the Output page's, the Scene View) runs somewhere else and may start a little earlier or later, so it doesn't.
   addEventListener('message', e => {
-    if (!e.data || e.data.studio !== 'stinger' || outputId || params.get('fit') !== '1') return;
-    fetch('/api/switcher', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'stingerStarted', cover: e.data.cover }) }).catch(() => {});
+    if (!e.data || e.data.studio !== 'stinger' || params.get('fit') !== '1') return;
+    fetch('/api/switcher', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'stingerStarted', cover: e.data.cover, output: outputId || 'main' }) }).catch(() => {});
   });
   addEventListener('message', e => {
     if (!e.data || (e.data.studio !== 'done' && e.data.studio !== 'sound')) return;
