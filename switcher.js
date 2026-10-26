@@ -11,6 +11,10 @@
 // than assuming a model, so an ATEM Mini Pro (1 upstream key, 1 downstream key, 4 inputs) works the same
 // way as a Mini Extreme (4, 2 and 8), offering only what it has.
 //
+// Outputs on an upstream key can name the cameras their graphics go with: Studio's own cuts, autos and stingers take
+// those keys in the same transition as the camera (the switcher's next transition selection), and with Keys follow
+// the camera on, a cut made anywhere else (the switcher's panel, ATEM Software Control) brings them straight after.
+//
 // Saved as switcher.json in the data folder: one switcher for the Mac, not per competition. The helper only
 // runs while Studio is on air, so the connection opens when Studio goes on air and closes with it.
 // Stream Deck: /deck/switcher/cut, auto, stinger, stinger/<input>, ftb, preview/<input>, program/<input>, usk/<n>/on|off|toggle,
@@ -47,6 +51,9 @@ let finding = null;           // the search in progress (a promise)
 let lastKey = '';
 const listeners = new Set(); // server-sent events (/api/switcher/events): the Stream Deck plugin's Switcher keys
 // Stinger cuts: Studio plays the scene's stinger (stinger.html) on Output 1 and cuts while it covers the frame.
+let follow = true;            // Keys follow the camera: after a cut made elsewhere, paired outputs' keys follow the program camera
+let lastProgram = null;       // the program input Keys follow the camera last saw
+let followTimer = null;
 let lineup = 0;               // frames to cut later (or earlier, below 0) than the middle of the cover, for the picture's delay into the switcher
 let stingerApi = null;        // { find(ref), play(id) } from scene.js
 let outputsPlan = () => [];   // what each output gives the switcher (outputs.js switcherPlan), for the key settings check
@@ -87,10 +94,11 @@ function load() {
     const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
     pick = cleanPick(saved.pick);
     lineup = cleanLineup(saved.lineup);
-  } catch (err) { if (err.code !== 'ENOENT') log('warn', 'switcher', `Could not read switcher.json: ${err.message}`); pick = null; lineup = 0; }
+    follow = saved.follow !== false;
+  } catch (err) { if (err.code !== 'ENOENT') log('warn', 'switcher', `Could not read switcher.json: ${err.message}`); pick = null; lineup = 0; follow = true; }
 }
 function save() {
-  try { savefile.writeJsonSync(FILE, { pick, lineup }); }
+  try { savefile.writeJsonSync(FILE, { pick, lineup, follow }); }
   catch (err) { log('error', 'switcher', `Could not save switcher.json: ${err.message}`); }
 }
 
@@ -218,6 +226,7 @@ async function connect() {
     refindTimer = null;
     const s = summary();
     log('info', 'switcher', `Connected to ${s.model} at ${target} (${s.inputs.length} inputs, ${s.usk.length} upstream keys, ${s.dsk.length} downstream keys)`);
+    lastProgram = s.program; // what's on now isn't a cut to follow: nothing is sent on connecting
     setConn('connected');
   });
   a.on('disconnected', () => {
@@ -226,7 +235,7 @@ async function connect() {
     setConn('lost', 'Not answering');
     startRefind();
   });
-  a.on('stateChanged', () => { if (atem === a) changed(); });
+  a.on('stateChanged', () => { if (atem === a) { changed(); followSoon(); } });
   try { await a.connect(target, pick.port); }
   catch (err) { if (atem === a) setConn('error', err.message); }
 }
@@ -290,6 +299,7 @@ function status() {
     finding: !!finding,
     found,
     lineup,
+    follow,
     stinger: (stingerApi && stingerApi.find()) ? stingerApi.find().name : '',
     keys: s ? keyChecks(s) : [],
     ...(s || { model: '', inputs: [], program: null, preview: null, inTransition: false, usk: [], dsk: [], ftb: false }),
@@ -348,8 +358,8 @@ async function stingerPlay(s, a, why, test) {
   if (!src) {
     if (onProgram) return `${name} is already on program`;
     log('warn', 'switcher', `${why}: there's no stinger in the scene (add the Stinger page as a source), so an auto instead`);
-    await atem.autoTransition(0);
-    return `auto to ${name} (no stinger in the scene)`;
+    const keys = await take(s, 'auto', to);
+    return `auto to ${name}${keys} (no stinger in the scene)`;
   }
   const heard = new Promise(resolve => {
     const timer = setTimeout(() => { stingerWait = null; resolve(null); }, STINGER_WAIT_MS);
@@ -361,16 +371,16 @@ async function stingerPlay(s, a, why, test) {
   if (onProgram) return `stinger only (${name} is already on program)`;
   if (!cover) {
     log('warn', 'switcher', `${why}: the stinger "${src.name}" didn't start within ${STINGER_WAIT_MS / 1000} s, so a plain cut`);
-    await atem.cut(0);
-    return `cut to ${name} (the stinger didn't start)`;
+    const keys = await take(s, 'cut', to);
+    return `cut to ${name}${keys} (the stinger didn't start)`;
   }
   const frame = 1000 / s.fps;
   const at = (test ? cover.from * 1000 + 2 * frame : (cover.from + cover.to) / 2 * 1000) + lineup * frame;
   await sleep(at - (now() - cover.at));
   if (!atem || atem.status !== 2) throw new Error('the switcher stopped answering during the stinger');
-  await atem.cut(0);
+  const keys = await take(s, 'cut', to);
   const secs = (at / 1000).toFixed(2);
-  return `stinger to ${name} (cut at ${secs} s, covered ${cover.from.toFixed(2)} to ${cover.to.toFixed(2)} s${lineup ? `, line-up ${lineup > 0 ? '+' : ''}${lineup} frames` : ''})`;
+  return `stinger to ${name}${keys} (cut at ${secs} s, covered ${cover.from.toFixed(2)} to ${cover.to.toFixed(2)} s${lineup ? `, line-up ${lineup > 0 ? '+' : ''}${lineup} frames` : ''})`;
 }
 // The stinger page (through scene.html on Output 1) says it has started: [from, to] seconds it covers the frame.
 function stingerStarted(cover) {
@@ -405,8 +415,7 @@ async function act(a, why = 'Output page') {
         if (i.id !== s.preview) await atem.changePreviewInput(i.id, 0);
         to = i.id;
       }
-      if (what === 'cut') await atem.cut(0); else await atem.autoTransition(0);
-      done = `${what} to ${nameOf(s, to)}`;
+      done = `${what} to ${nameOf(s, to)}${await take(s, what, to)}`;
     } else if (what === 'stinger') {
       done = await stingerCut(s, a, why, !!a.test);
       if (done.error) return done;
@@ -420,8 +429,16 @@ async function act(a, why = 'Output page') {
     else if (what === 'preview' || what === 'program') {
       const i = inputOf(s, a.input);
       if (!i) return { error: noInput(s, a.input), status: 404 };
-      if (what === 'preview') await atem.changePreviewInput(i.id, 0); else await atem.changeProgramInput(i.id, 0);
-      done = `${what === 'preview' ? 'preview' : 'cut'} to ${i.name}`;
+      if (what === 'preview') await atem.changePreviewInput(i.id, 0);
+      else {
+        // Straight to program (the program bus, preview stays): the paired keys follow straight after.
+        const changes = pairedChanges(s, i.id);
+        await atem.changeProgramInput(i.id, 0);
+        for (const c of changes) await atem.setUpstreamKeyerOnAir(c.on, 0, c.k);
+        lastProgram = i.id;
+        done = `cut to ${i.name}${keysText(changes)}`;
+      }
+      if (what === 'preview') done = `preview to ${i.name}`;
     } else if (what === 'usk' || what === 'dsk') {
       const list = what === 'usk' ? s.usk : s.dsk;
       const k = key(list.length, a.key);
@@ -532,6 +549,86 @@ function run(actions, why, owner) {
   if (timers.length) waiting.set(owner, timers);
 }
 
+// ─── Cameras and their outputs' keys ──────────────────────────────────────
+// An output on an upstream key with cameras named goes on air with them: its key should be on while one of its
+// cameras is on program and off otherwise. Outputs whose key check has a problem (two on one key, a key the switcher
+// hasn't got) are left alone, as are downstream keys (over every camera) and outputs with no cameras.
+const KEY_BIT = k => 2 << k;  // the switcher's next transition selection: bit 0 the background, bits 1 to 4 upstream keys 1 to 4
+function pairedChanges(s, to) {
+  const out = [];
+  for (const c of keyChecks(s)) {
+    if (!c.cameras.length || c.problems.length || !c.keyer.startsWith('usk')) continue;
+    const k = Number(c.keyer.slice(3)) - 1;
+    const on = c.cameras.includes(to);
+    if (s.usk[k] !== on) out.push({ k, on, name: c.name });
+  }
+  return out;
+}
+const keysText = changes => changes.length ? `, with ${changes.map(c => `${c.name}'s key ${c.on ? 'on' : 'off'}`).join(' and ')}` : '';
+// Cuts or autos to input to (already on preview), taking the paired keys that need to change in the same
+// transition, so the camera and its graphics change on the same frame. The switcher's next transition selection is
+// put back as it was afterwards, so the panel's BKGD and KEY buttons are as the operator left them. Gives the keys in words.
+// The operator's own next transition selection while Studio's takes have it changed (null otherwise), and how many
+// takes are still to put it back: a second take during an auto (a double tap, a sequence with two transitions) puts
+// back the operator's, not the first take's, and only once the last one is over.
+let heldSelection = null;
+let takesOpen = 0;
+async function take(s, kind, to) {
+  const changes = pairedChanges(summary() || s, to); // as the keys are now (a stinger may have played meanwhile)
+  const go = () => (kind === 'auto' ? atem.autoTransition(0) : atem.cut(0));
+  if (!changes.length) { await go(); return ''; }
+  const { Enums } = loadLibrary();
+  const a = atem;
+  const me = () => (a.state.video.mixEffects || [])[0] || {};
+  if (!takesOpen) heldSelection = ((me().transitionProperties || {}).nextSelection || [Enums.TransitionSelection.Background]).slice();
+  takesOpen++;
+  const mask = changes.reduce((m, c) => m | KEY_BIT(c.k), 1);
+  const sel = Object.values(Enums.TransitionSelection).filter(v => typeof v === 'number' && (mask & v));
+  const inMix = () => !!(me().transitionPosition && me().transitionPosition.inTransition);
+  // A cut is over once the switcher has answered. An auto takes its rate: the switcher answers before it says the
+  // mix has started, so wait for it to start (up to a second) and then to end (up to 10 s) before putting the
+  // selection back, so it's never changed part way through the mix.
+  const restore = async () => {
+    if (kind === 'auto') {
+      for (let n = 0; n < 20 && a === atem && !inMix(); n++) await sleep(50);
+      for (let n = 0; n < 200 && a === atem && inMix(); n++) await sleep(50);
+    } else await settled();
+    if (--takesOpen > 0) return; // another take is still under way: the last one puts it back
+    const back = heldSelection;
+    heldSelection = null;
+    if (a === atem && a.status === 2 && back) await a.setTransitionStyle({ nextSelection: back }, 0).catch(() => {});
+  };
+  try {
+    await atem.setTransitionStyle({ nextSelection: sel }, 0);
+    await go();
+  } catch (err) { restore(); throw err; }
+  if (kind === 'auto') restore(); else await restore();
+  return keysText(changes);
+}
+// Keys follow the camera: a cut made anywhere else changes program, and the paired outputs' keys follow a moment
+// later (one or two frames). Only on a change of program camera, so a key turned on or off by hand stays as it is;
+// never while connecting. Studio's own cuts already took the keys, so there's nothing left to send then.
+function followSoon() {
+  const st = atem && atem.status === 2 && atem.state;
+  const program = st ? ((st.video.mixEffects || [])[0] || {}).programInput : null;
+  if (program === undefined || program === null || program === lastProgram) return;
+  lastProgram = program;
+  if (!follow) return;
+  clearTimeout(followTimer);
+  followTimer = setTimeout(followNow, 40);
+}
+async function followNow() {
+  const s = conn === 'connected' ? summary() : null;
+  if (!s || !follow) return;
+  if (s.inTransition) { followTimer = setTimeout(followNow, 40); return; } // an auto on the panel: once it's done
+  const changes = pairedChanges(s, s.program);
+  if (!changes.length) return;
+  try {
+    for (const c of changes) await atem.setUpstreamKeyerOnAir(c.on, 0, c.k);
+    log('info', 'switcher', `Keys follow the camera: ${nameOf(s, s.program)} on program${keysText(changes)}`);
+  } catch (err) { log('warn', 'switcher', `Keys follow the camera: ${err && err.message || 'the switcher stopped answering'}`); }
+}
+
 // ─── The outputs' keys: a check of their settings, and setting them up ───────
 // Each output comes into one of the switcher's keys (its Into the switcher as on the Output page). Studio reads how
 // that key is set up in ATEM Software Control and says what doesn't suit the output's signal: the key's fill and
@@ -549,7 +646,7 @@ function keyChecks(s) {
   const yes = b => (b ? 'on' : 'off');
   return plan.map(o => {
     const c = { output: o.id, name: o.name, colour: o.colour, keyer: o.keyer, label: o.keyer === 'none' ? '' : ucFirst(KEYER_LABEL(o.keyer)),
-      onAir: false, problems: [], fixes: [] };
+      onAir: false, problems: [], fixes: [], cameras: o.keyer.startsWith('usk') ? o.cameras || [] : [], withCamera: '' };
     if (o.keyer === 'none') return c;
     const usk = o.keyer.startsWith('usk');
     const k = Number(o.keyer.slice(3)) - 1;
@@ -560,6 +657,11 @@ function keyChecks(s) {
       return c;
     }
     c.onAir = usk ? s.usk[k] : s.dsk[k];
+    // With its cameras: "On air with Court", or "Waiting for Court or Bench" while another camera is on program.
+    if (c.cameras.length) {
+      c.withCamera = c.cameras.includes(s.program) ? `${c.onAir ? 'On air' : 'Off air'} with ${src(s.program)}`
+        : `Waiting for ${c.cameras.map(src).join(' or ')}`;
+    }
     // Shown on both outputs, so whichever one the operator looks at says so.
     const others = plan.filter(x => x !== o && x.keyer === o.keyer).map(x => x.name);
     if (others.length) c.problems.push(`${others.join(' and ')} ${others.length === 1 ? 'comes' : 'come'} into ${label} too: pick another key for one of them.`);
@@ -624,6 +726,13 @@ async function keySetup(a) {
 // { type: 'reconnect' }, { type: 'keySetup', output } (an output's key, as its key settings check says).
 async function settings(a) {
   if (a.type === 'keySetup') return keySetup(a);
+  if (a.type === 'follow') {
+    follow = a.on !== false;
+    log('info', 'switcher', `Keys follow the camera ${follow ? 'on' : 'off'}`);
+    save();
+    changed();
+    return { ok: true };
+  }
   if (a.type === 'forget') {
     if (pick) log('info', 'switcher', `Forgot the switcher (${pick.name || pick.address})`);
     pick = null;

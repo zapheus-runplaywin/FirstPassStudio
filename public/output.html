@@ -234,6 +234,10 @@
   .swFound li.sel { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
   /* An output's key settings check: what suits it (green tick), what Set up this key for me would change, what it can't. */
   .swKeyCheck ul { margin: 4px 0 0; padding-left: 18px; }
+  /* Cameras an output goes with; and a key used by an output, underlined in that output's colour. */
+  .swCams { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; }
+  .swCams label { font-weight: 400; }
+  .swKeys button.outKey { box-shadow: inset 0 -4px 0 var(--c); }
   .swKeyCheck .okText { color: var(--fp-ok); font-weight: 600; }
   .swKeyCheck .badText { color: var(--fp-danger); font-weight: 600; }
 </style>
@@ -334,6 +338,8 @@
             <label class="inline forSwKey" style="font-weight:400">key on <select id="outSwKey" title="The switcher input this output's key is plugged into"></select></label></div>
           <div class="note swKeyCheck" id="outKeyCheck" style="margin:6px 0 0"></div>
           <button class="alt hidden" id="outKeySetup" style="margin-top:6px">Set up this key for me</button>
+          <div class="forSwCams" style="margin-top:8px"><span class="note" style="margin:0">Goes with</span> <span id="outSwCams" class="swCams"></span>
+            <p class="note" id="outSwCamsNote" style="margin:4px 0 0"></p></div>
         </div>
       </div>
       <p class="note" id="outStatus"></p>
@@ -374,6 +380,8 @@
         <button class="alt" id="swFtb" title="Fade to black, or back from it">Fade to black</button></div>
       <div class="row swKeys" style="margin-top:10px"><span class="swLabel" id="swUskLabel">Upstream keys</span><span id="swUsk" class="row"></span>
         <span class="swLabel" id="swDskLabel">Downstream keys</span><span id="swDsk" class="row"></span></div>
+      <div class="row swKeys" style="margin-top:10px"><label class="inline" style="font-weight:400" title="After a cut made on the switcher itself (or in ATEM Software Control), the keys of outputs that go with a camera follow it, a frame or two later. Studio's own cuts take them in the same transition either way.">
+        <input type="checkbox" id="swFollow"> Keys follow the camera</label> <span class="note" id="swFollowNote" style="margin:0"></span></div>
       <div class="row swKeys swStingerRow" style="margin-top:10px"><span class="swLabel">Stinger</span><span class="note" id="swStingerName" style="margin:0"></span>
         <label class="inline" style="font-weight:400" title="Frames to cut later (or earlier, below 0) than the middle of the stinger, for the delay of Output 1's picture into the switcher">line-up
           <input type="number" id="swLineup" min="-25" max="25" step="1" style="width:64px"> frames</label>
@@ -396,7 +404,9 @@
       little late, set the <b>line-up</b> in frames and check it with <b>Test the line-up</b> before you're live. Studio shows only what your switcher has (an ATEM Mini Pro has 4 inputs, one upstream key and
       one downstream key; a Mini Extreme has 8, four and two). The switcher's own buttons, ATEM Software Control and other controllers keep working
       alongside Studio, and Studio shows what they do. Each output's <b>Into the switcher as</b> (under Video output) checks the key it comes into, and
-      <b>Set up this key for me</b> sets that key's inputs, type and Pre Multiplied Key when you press it. It sends nothing to the switcher by itself, not even when it connects or reconnects, and if the
+      <b>Set up this key for me</b> sets that key's inputs, type and Pre Multiplied Key when you press it. An output on an upstream key can
+      tick the cameras it <b>goes with</b>: Studio's cuts take its key on and off with them on the same frame, and with <b>Keys follow the camera</b>
+      a cut on the switcher's panel brings it a frame or two later. It sends nothing to the switcher by itself, not even when it connects or reconnects, and if the
       switcher stops answering nothing is saved up for later. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code>, <code>stinger</code> (or <code>stinger/2</code>), <code>ftb</code>,
       <code>preview/2</code> or <code>preview/Camera%202</code>, <code>program/2</code>, <code>usk/1/toggle</code> (<code>on</code>, <code>off</code>),
       <code>dsk/1/toggle</code> (<code>on</code>, <code>off</code>, <code>auto</code>) and <code>macro/1</code>. The Stream Deck plugin's <b>Switcher</b> key presses these

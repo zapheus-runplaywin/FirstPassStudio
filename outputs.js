@@ -17,7 +17,8 @@
 // what to show, over the utility process's message port. Run without the app (npm start) there are none, and the Output page says so.
 //
 // Each output also says how it comes into the ATEM switcher (keyer, swFill, swKey: the key and the switcher inputs it's
-// plugged into), for switcher.js's key settings check; switcherPlan() gives it that, with the signal it sends.
+// plugged into; swCameras: the cameras its graphics go with), for switcher.js's key settings check and its cuts;
+// switcherPlan() gives it that, with the signal it sends.
 //
 // An output's way out can't be one another output already uses: the same display, the Blackmagic device
 // (one output at a time) or the same NDI source name. The earlier output keeps it and the later one shows
@@ -59,7 +60,7 @@ const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
   ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
-  keyer: '', swFill: 0, swKey: 0,
+  keyer: '', swFill: 0, swKey: 0, swCameras: [],
 };
 
 let log = () => {};
@@ -131,6 +132,9 @@ function clean(s, old = DEFAULTS) {
     keyer: KEYERS.includes(pick('keyer')) ? pick('keyer') : '',
     swFill: swInput(pick('swFill', 0)),
     swKey: swInput(pick('swKey', 0)),
+    // The cameras this output's graphics go with (switcher inputs), for an output on an upstream key: Studio's cuts
+    // take its key on with them and off with any other camera (switcher.js). None: Studio leaves its key alone.
+    swCameras: [...new Set((Array.isArray(pick('swCameras')) ? pick('swCameras') : []).map(swInput).filter(Boolean))].sort((a, b) => a - b).slice(0, 20),
   };
 }
 const swInput = v => { const n = Math.round(Number(v)); return n >= 1 && n <= 40 ? n : 0; };
@@ -530,7 +534,7 @@ const summary = () => list.map(o => ({ id: o.id, slot: o.slot, name: o.name, lin
   sponsors: o.id === PRIMARY || o.sponsors }));
 
 // What each output sending something gives the switcher, for its key settings check (switcher.js):
-// [{ id, name, slot, colour, keyer: 'dsk1' | 'usk2' | ... | 'none', fill, key, signal, premultiplied }]. signal is
+// [{ id, name, slot, colour, keyer: 'dsk1' | 'usk2' | ... | 'none', fill, key, cameras, signal, premultiplied }]. signal is
 // chroma (over a colour), fillkey (a fill and a key), fill (fill only) or alpha (one NDI source with transparency);
 // premultiplied: the fill is premultiplied (Studio's always is, unless the Blackmagic device's Straight is ticked).
 const signalOf = o => o.mode === 'chroma' ? 'chroma' : o.mode === 'fillkey' ? 'fillkey'
@@ -538,7 +542,7 @@ const signalOf = o => o.mode === 'chroma' ? 'chroma' : o.mode === 'fillkey' ? 'f
 const keyerOf = o => o.keyer || (signalOf(o) === 'chroma' || o.slot !== 1 ? `usk${o.slot}` : 'dsk1');
 function switcherPlan() {
   return list.filter(o => o.mode !== 'off').map(o => ({ id: o.id, name: o.name, slot: o.slot, colour: COLOURS[o.slot], keyer: keyerOf(o),
-    fill: o.swFill, key: o.swKey, signal: signalOf(o), premultiplied: !(o.mode === 'decklink' && o.decklinkStraight) }));
+    fill: o.swFill, key: o.swKey, cameras: o.swCameras, signal: signalOf(o), premultiplied: !(o.mode === 'decklink' && o.decklinkStraight) }));
 }
 
 // Sponsors are on air (for the exposure report) while an output that counts for them is sending: Output 1, or one

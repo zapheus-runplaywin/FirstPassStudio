@@ -490,7 +490,9 @@ function renderOutputs(o, so) {
     card.innerHTML = '<span class="dot"></span><span class="what"><b></b> <small></small></span><button></button>';
     card.querySelector('b').textContent = `${x.slot} · ${x.name}`;
     const small = card.querySelector('small');
-    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.primary ? ' · primary, with sound' : '');
+    // With the switcher: "On air with Court" or "Waiting for Court" (output/switcher.js).
+    const withCam = ((sw && sw.state === 'connected' && sw.keys) || []).find(k => k.output === x.id)?.withCamera;
+    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.primary ? ' · primary, with sound' : '') + (withCam ? ` · ${withCam}` : '');
     if (x.perf) {
       const p = document.createElement('span');
       p.textContent = ' · ' + perfText(x.perf);

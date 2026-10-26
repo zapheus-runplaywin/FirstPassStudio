@@ -285,6 +285,14 @@
         two outputs on the same key, or a key the switcher hasn't got. <b>Set up this key for me</b> changes just those settings on the switcher, after asking;
         it leaves the key's clip, gain, mask, position and whether it's on air alone, and the log says what it changed. For a chroma key, pick the key colour
         in ATEM Software Control with its sample picker. Nothing is sent to the switcher until it's pressed.
+        <br><b>Cameras per output:</b> an output on an upstream key can say which cameras its graphics <b>go with</b> (ticked under Into the switcher as; the
+        outputs' own fill and key inputs aren't offered). Studio's cuts, autos and stingers, from the Switcher card, a Stream Deck key or a sequence or scene,
+        then take that key on with those cameras and off with the others in the same transition, so the camera and its graphics change on the same frame
+        (Studio picks the keys in the switcher's next transition and puts the BKGD and KEY buttons back as they were afterwards). A straight-to-program press
+        brings the key straight after. With <b>Keys follow the camera</b> on (the Switcher card, on unless turned off), a cut made on the switcher itself or in
+        ATEM Software Control brings the keys a frame or two later. It only acts on a change of camera, so a key turned on or off by hand stays as it is, and it
+        sends nothing on connecting. An output with no cameras ticked, on a downstream key (over every camera), or whose key check shows a problem is left
+        alone. The output's card says <i>On air with Bench</i> or <i>Waiting for Bench</i>, and the Switcher card underlines each key in its output's colour.
         The switcher's own buttons, ATEM Software Control and other controllers keep working alongside Studio, and the card follows what they do.
         Studio sends nothing to the switcher by itself: not when it connects, and not when it reconnects. If the switcher stops answering (a pulled cable, a power
         cut), the card turns red within about five seconds and Studio keeps trying; anything pressed meanwhile is refused, not saved up for later, and the log says so.
