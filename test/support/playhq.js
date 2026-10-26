@@ -225,4 +225,4 @@ async function startPlayhq(world = createWorld()) {
     close: () => new Promise(r => server.close(r)) };
 }
 
-module.exports = { createWorld, startPlayhq, localZone, POSITIONS };
+module.exports = { createWorld, startPlayhq, localZone, POSITIONS, discoverGame };
