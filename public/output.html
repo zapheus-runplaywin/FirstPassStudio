@@ -48,6 +48,24 @@
   .eye { background: var(--fp-line); color: var(--fp-muted); min-width: 46px; }
   .eye:hover { background: var(--fp-line-strong); }
   .eye.on, .eye.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
+  /* More than one output: each output's colour (--c) on its card, tab and on/off buttons; --oc is the picked one's. */
+  .pills { display: inline-flex; gap: 4px; }
+  .pill { min-width: 34px; padding: 6px 8px; background: var(--fp-line); color: var(--fp-muted); box-shadow: inset 0 -3px 0 var(--c); }
+  .pill:hover { background: var(--fp-line-strong); }
+  .pill.on, .pill.on:hover { background: var(--c); color: #0F172A; box-shadow: none; }
+  .outList { display: grid; gap: 8px; margin-bottom: 14px; }
+  .outCard { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px;
+             border: 2px solid var(--fp-line); border-left: 8px solid var(--c); border-radius: 10px; cursor: pointer; }
+  .outCard:hover { background: var(--fp-gray); }
+  .outCard.sel { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--fp-white)); }
+  .outCard .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c); }
+  .outCard small { color: var(--fp-muted); }
+  .outCard .onBtn { background: var(--c); color: #0F172A; }
+  .outTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .outTab { background: var(--fp-white); color: var(--fp-navy); border: 2px solid var(--fp-line); box-shadow: inset 0 -4px 0 var(--c); }
+  .outTab:hover { background: var(--fp-gray); }
+  .outTab.sel { border-color: var(--c); background: color-mix(in srgb, var(--c) 22%, var(--fp-white)); }
+  #outSection.picked, .preview.picked { box-shadow: 0 -4px 0 var(--oc); }
   .sources li .pvw { font-size: 11px; padding: 4px 6px; }
   .sources li.dragging { opacity: .4; }
   .sources li.dropBefore { box-shadow: inset 0 3px 0 var(--fp-blue); }
@@ -204,11 +222,16 @@
   <section id="outSection">
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h2 style="margin:0">Video output</h2>
-      <button id="outOn" class="alt">Output on</button>
+      <div class="row"><button id="outAdd" class="alt hidden" title="Send different graphics to another output at the same time (up to four)">Add an output</button>
+      <button id="outOn" class="alt">Output on</button></div>
     </div>
+    <div class="outList hidden" id="outList"></div>
     <p class="note hidden" id="outNoApp" style="margin-top:0">Sending the scene to a display, a Blackmagic device or NDI needs the FirstPass Studio Mac app (this copy of Studio was started another way).</p>
     <div id="outForm">
       <div class="form">
+        <label for="outName" class="forMulti hidden">Name</label>
+        <div class="row forMulti hidden"><input id="outName" maxlength="40" style="flex:1" title="Shown on its card and tab, and used in its Stream Deck links">
+          <button class="danger hidden" id="outRemove">Remove this output</button></div>
         <label>Send the scene</label>
         <div style="display:grid;gap:6px">
           <label><input type="radio" name="outMode" value="off"> Off</label>
@@ -263,6 +286,9 @@
           clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key.</p>
       </div>
       <p class="note" id="outStatus"></p>
+      <p class="note hidden" id="outExtraNote"><b>This output shows its own graphics:</b> turn sources on and off for it with its
+      coloured buttons in the Sources list (they start off), or its own Stream Deck links. It's always silent: only Output 1, the primary,
+      plays sound and music. Scenes and sequences act on Output 1.</p>
       <p class="note" id="viewersNow" hidden></p>
       <p class="note hidden" id="outLocked">Turn the output off to change these settings.</p>
       <p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
@@ -421,12 +447,14 @@
       <h2 style="margin:0">Scene View</h2>
       <div class="row"><label><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></div>
     </div>
+    <div class="outTabs hidden" id="outTabs"></div>
     <div class="preview" id="preview">
       <iframe id="previewFrame" title="Scene View"></iframe>
       <div class="box" id="selBox"></div>
       <div class="off hidden" id="previewOff"><div style="text-align:center"><span id="previewOffText">Live View is off</span><br><button id="popIn" class="alt hidden" style="margin-top:8px">Bring it back here</button></div></div>
     </div>
     <p class="note">Sound plays in the Scene View only while <b>Video output</b> is off, for testing. With a video output on, the output carries the sound and the Scene View is silent.</p>
+    <p class="note" id="previewWhich"></p>
     <p class="note" id="previewSoundNote" style="font-weight:600"></p>
     <p class="note">The Scene View shows the scene as it is right now, whether or not your switcher has it on air. It runs every page in the scene a second time, so turn
       <b>Live View</b> off on stream nights if the Mac is busy. The dashed box is the selected source.
@@ -437,7 +465,10 @@
 
   <div class="cols">
     <section>
-      <h2>Sources (top layer first)</h2>
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <h2 style="margin:0">Sources (top layer first)</h2>
+        <label class="row hidden" id="outFilterRow" style="gap:6px;font-weight:400">Show <select id="outFilter" title="Which outputs' on and off buttons to show"></select></label>
+      </div>
       <ul class="sources" id="sources"></ul>
       <div class="row">
         <button id="addBrowser">Add page</button>

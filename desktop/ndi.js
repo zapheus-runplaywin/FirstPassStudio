@@ -1,7 +1,8 @@
 // FirstPass Studio Mac app - the scene as NDI® sources on the network (outputs.js decides when; the
 // Output page sets it up).
 //
-// The scene renders off screen (desktop/scenewindow.js) at the chosen format's size and frame rate, and
+// Each output set to NDI gets its own sender: its own sources (named after the output's source name),
+// format and off-screen scene window. The scene renders off screen (desktop/scenewindow.js) at the chosen format's size and frame rate, and
 // native/ndi sends it as fill and key (two sources), chroma (over a colour) or one source with
 // transparency, repeating the latest picture between changes. It loads the NDI runtime that NDI's
 // runtime installer puts in /usr/local/lib, or the copy inside one of NDI Tools' apps, and only a
@@ -62,11 +63,8 @@ function foundCopies() {
 }
 
 module.exports = function ndi({ port, log, onStatus }) {
-  let win = null;
-  let running = null; // { key, sources, format } while sending
-  let error = '';
-  let watch = null;
-  let late = 0;
+  // One sender for each output that sends NDI, by output id: { win, running: { key, id, sources, format }, error, watch, late }.
+  const senders = new Map();
   let loadedFrom = '';
   let lastWhy = '';
 
@@ -85,60 +83,68 @@ module.exports = function ndi({ port, log, onStatus }) {
     } catch (err) { return { ok: false, error: err.message }; }
   }
 
-  function status() {
-    const s = addon ? addon.status() : { running: false };
-    return { running: !!s.running, format: running?.format || '', sources: s.sources || [], late: s.late || 0, error };
+  function status(output) {
+    const x = senders.get(output);
+    const s = addon && x?.running ? addon.status(x.running.id) : { running: false };
+    return { running: !!s.running, format: x?.running?.format || '', sources: s.sources || [], late: s.late || 0, error: x?.error || '' };
   }
 
-  const report = () => onStatus(status());
+  const report = output => onStatus(status(output), output);
 
-  function stop() {
-    if (watch) { clearInterval(watch); watch = null; }
-    if (win) { win.destroy(); win = null; }
-    if (running) log(`NDI output stopped (${running.sources.map(s => s.name).join(', ')})`);
-    running = null;
-    if (addon) addon.stop();
+  function stop(output) {
+    if (output === undefined) { for (const o of [...senders.keys()]) stop(o); return; }
+    const x = senders.get(output);
+    if (!x) return;
+    if (x.watch) clearInterval(x.watch);
+    if (x.win) x.win.destroy();
+    if (x.running) { log(`NDI output stopped (${x.running.sources.map(s => s.name).join(', ')})`); if (addon) addon.stop(x.running.id); }
+    senders.delete(output);
   }
 
-  // w: { signal, name, format: { id, width, height, rateN, rateD }, color, safe } from outputs.js, or
-  // null to stop.
-  function show(w) {
-    const key = w && JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '', !!w.safe]);
-    if (key && running?.key === key) return;
-    stop();
-    error = '';
-    if (!w) return report();
-    if (!addon) { error = 'NDI output isn\'t in this copy of Studio.'; return report(); }
+  // list: [{ signal, name, format: { id, width, height, rateN, rateD }, color, safe, output }] from outputs.js,
+  // one for each output sending NDI (an empty list stops them all).
+  function show(list) {
+    const wanted = new Map(list.map(w => [w.output || 'main', w]));
+    for (const output of [...senders.keys()]) if (!wanted.has(output)) { stop(output); report(output); }
+    for (const [output, w] of wanted) start(output, w);
+  }
+
+  function start(output, w) {
+    const key = JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '', !!w.safe]);
+    if (senders.get(output)?.key === key) return;
+    stop(output);
+    const x = { key, win: null, running: null, error: '', watch: null, late: 0 };
+    senders.set(output, x);
+    if (!addon) { x.error = 'NDI output isn\'t in this copy of Studio.'; return report(output); }
 
     const sources = (SOURCES[w.signal] || SOURCES.fillkey)(w.name);
     const { width, height, rateN, rateD } = w.format;
     const r = addon.start({ sources, color: w.color, width, height, rateN, rateD });
     if (!r.ok) {
-      error = r.error;
+      x.error = r.error;
       log(`NDI output failed: ${r.error}`);
-      return report();
+      return report(output);
     }
-    running = { key, sources, format: w.format.id };
-    late = 0;
+    x.running = { id: r.id, sources, format: w.format.id };
     log(`NDI output on: ${sources.map(s => s.name).join(', ')} (${w.format.id}, ${width} x ${height})`);
 
-    win = sceneWindow({
-      port, width, height, frameRate: rateN / rateD, log, label: 'NDI output', chromaKey: !!w.safe,
-      onFrame: (bitmap, bw, bh) => addon.frame(bitmap, bw, bh),
+    x.win = sceneWindow({
+      port, width, height, frameRate: rateN / rateD, log, label: `NDI output ${w.name}`, chromaKey: !!w.safe, output,
+      onFrame: (bitmap, bw, bh) => addon.frame(r.id, bitmap, bw, bh),
     });
 
     // Who's watching (receivers come and go), for the Output page; and log when the Mac falls behind.
     let ticks = 0;
-    watch = setInterval(() => {
-      const s = status();
+    x.watch = setInterval(() => {
+      const s = status(output);
       if (++ticks % 30 === 0) {
-        if (s.late > late) log(`NDI output fell behind ${s.late - late} times in the last minute`);
-        late = s.late;
+        if (s.late > x.late) log(`NDI output ${w.name} fell behind ${s.late - x.late} times in the last minute`);
+        x.late = s.late;
       }
-      report();
+      report(output);
     }, 2000);
-    report();
+    report(output);
   }
 
-  return { available, show, stop, status };
+  return { available, show, stop: () => stop(), status };
 };

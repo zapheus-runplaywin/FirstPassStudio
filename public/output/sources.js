@@ -4,9 +4,29 @@
 
 // ─── Sources list ──────────────────────────────────────────────────────
 let dragId = null; // the source being dragged in the list
+// With more than one output, which outputs' on and off buttons the list shows: 'all', or one output's id.
+let outFilter = (() => { try { return localStorage.getItem('outputFilter') || 'all'; } catch { return 'all'; } })();
+$('outFilter').onchange = () => {
+  outFilter = $('outFilter').value;
+  try { localStorage.setItem('outputFilter', outFilter); } catch {}
+  renderList();
+};
+// Whether a source is on for an output: the primary's is the source's own visible.
+const onFor = (s, o) => o.primary ? s.visible : !!(s.out && s.out[o.id]);
 function renderList() {
   const ul = $('sources');
   ul.innerHTML = '';
+  // More than one output: one on and off button per output, in its colour, instead of the one On button.
+  const all = out && out.outputs && out.outputs.length > 1 ? out.outputs : null;
+  $('outFilterRow').classList.toggle('hidden', !all);
+  if (all) {
+    if (!all.some(o => o.id === outFilter)) outFilter = 'all';
+    $('outFilter').innerHTML = '';
+    $('outFilter').add(new Option('All outputs', 'all'));
+    for (const o of all) $('outFilter').add(new Option(`${o.slot} · ${o.name}`, o.id));
+    $('outFilter').value = outFilter;
+  }
+  const shown = all ? all.filter(o => outFilter === 'all' || o.id === outFilter) : null;
   if (!scene.sources.length) { ul.innerHTML = '<li class="empty">No sources yet. Add a page, an image or a video.</li>'; return; }
   for (const s of scene.sources) {
     const li = document.createElement('li');
@@ -17,6 +37,21 @@ function renderList() {
     eye.classList.toggle('on', s.visible);
     eye.title = s.visible ? 'Showing: click to fade it out' : 'Hidden: click to fade it in';
     eye.onclick = e => { e.stopPropagation(); act({ type: 'toggle', id: s.id }); };
+    if (shown) {
+      const pills = document.createElement('span');
+      pills.className = 'pills';
+      for (const o of shown) {
+        const on = onFor(s, o);
+        const b = document.createElement('button');
+        b.className = 'pill' + (on ? ' on' : '');
+        b.style.setProperty('--c', o.colour);
+        b.textContent = shown.length === 1 ? (on ? 'On' : 'Off') : String(o.slot);
+        b.title = `${o.name}: ${on ? 'showing, click to fade it out' : 'hidden, click to fade it in'}`;
+        b.onclick = e => { e.stopPropagation(); act({ type: 'toggle', id: s.id, ...(o.primary ? {} : { output: o.id }) }); };
+        pills.appendChild(b);
+      }
+      eye.replaceWith(pills);
+    }
     li.querySelector('.pvw').onclick = e => { e.stopPropagation(); previewSource(s); };
     li.querySelector('.name').textContent = s.name;
     const tag = document.createElement('small');

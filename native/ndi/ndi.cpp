@@ -8,10 +8,14 @@
 //
 //   available([paths]) -> { ok, version, path } or { ok: false, error, url }
 //   start({ sources: [{ kind: 'fill' | 'key' | 'chroma' | 'alpha', name }], color: '#rrggbb', width, height, rateN, rateD })
-//                      -> { ok } or { ok: false, error }
-//   frame(buffer, width, height) -> true when taken: the latest picture, BGRA with premultiplied alpha
-//   stop()
-//   status()           -> { running, sent, late, sources: [{ kind, name, connections }] }
+//                      -> { ok, id } or { ok: false, error }
+//   frame(id, buffer, width, height) -> true when taken: the latest picture, BGRA with premultiplied alpha
+//   stop(id)           (stop() stops every one)
+//   status(id)         -> { running, sent, late, sources: [{ kind, name, connections }] }
+//                         (status() -> { running }: whether any is)
+//
+// Several can run at once, one for each of Studio's outputs that sends NDI, each with its own sources,
+// format and thread; id names one.
 //
 // A thread sends every source at the frame rate, repeating the latest picture when nothing has
 // changed, so receivers see a steady source. Each kind is made from the one picture:
@@ -32,6 +36,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -212,15 +217,30 @@ struct Output {
   }
 };
 
-static Output *running = nullptr;
+static std::map<int32_t, Output *> running; // by id
+static int32_t nextId = 1;
 
-static void stopOutput() {
-  if (!running) return;
-  Output *o = running;
-  running = nullptr;
+static void stopOutput(int32_t id) {
+  auto it = running.find(id);
+  if (it == running.end()) return;
+  Output *o = it->second;
+  running.erase(it);
   o->stopping = true;
   if (o->thread.joinable()) o->thread.join();
   delete o;
+}
+static void stopAll() {
+  while (!running.empty()) stopOutput(running.begin()->first);
+}
+// The id in a call's first argument, or 0.
+static int32_t idArg(napi_env env, size_t argc, napi_value *args) {
+  int32_t id = 0;
+  if (argc >= 1) napi_get_value_int32(env, args[0], &id);
+  return id;
+}
+static Output *byId(int32_t id) {
+  auto it = running.find(id);
+  return it == running.end() ? nullptr : it->second;
 }
 
 // ---- Exported functions ----
@@ -260,7 +280,6 @@ static napi_value Start(napi_env env, napi_callback_info cb) {
   size_t argc = 1; napi_value opts;
   napi_get_cb_info(env, cb, &argc, &opts, nullptr, nullptr);
   if (argc < 1) return failure(env, "start() needs { sources, width, height }");
-  stopOutput();
   if (!loadRuntime()) return failure(env, loadError);
 
   Output *o = new Output();
@@ -306,22 +325,24 @@ static napi_value Start(napi_env env, napi_callback_info cb) {
   if (o->sources.empty()) { delete o; return failure(env, "No NDI sources to send."); }
 
   o->thread = std::thread([o] { o->run(); });
-  running = o;
+  const int32_t id = nextId++;
+  running[id] = o;
   napi_value r = object(env);
   set(env, r, "ok", boolean(env, true));
+  set(env, r, "id", num(env, id));
   return r;
 }
 
 static napi_value Frame(napi_env env, napi_callback_info cb) {
-  size_t argc = 3; napi_value args[3];
+  size_t argc = 4; napi_value args[4];
   napi_get_cb_info(env, cb, &argc, args, nullptr, nullptr);
-  if (!running || argc < 3) return boolean(env, false);
+  Output *o = byId(idArg(env, argc, args));
+  if (!o || argc < 4) return boolean(env, false);
   void *data = nullptr; size_t length = 0;
-  if (napi_get_buffer_info(env, args[0], &data, &length) != napi_ok) return boolean(env, false);
+  if (napi_get_buffer_info(env, args[1], &data, &length) != napi_ok) return boolean(env, false);
   int32_t w = 0, h = 0;
-  napi_get_value_int32(env, args[1], &w);
-  napi_get_value_int32(env, args[2], &h);
-  Output *o = running;
+  napi_get_value_int32(env, args[2], &w);
+  napi_get_value_int32(env, args[3], &h);
   size_t size = (size_t)o->width * o->height * 4;
   if (w != o->width || h != o->height || length < size) return boolean(env, false);
   std::lock_guard<std::mutex> hold(o->lock);
@@ -330,22 +351,29 @@ static napi_value Frame(napi_env env, napi_callback_info cb) {
   return boolean(env, true);
 }
 
-static napi_value Stop(napi_env env, napi_callback_info) {
-  stopOutput();
+static napi_value Stop(napi_env env, napi_callback_info cb) {
+  size_t argc = 1; napi_value args[1];
+  napi_get_cb_info(env, cb, &argc, args, nullptr, nullptr);
+  if (argc >= 1) stopOutput(idArg(env, argc, args));
+  else stopAll();
   napi_value u; napi_get_undefined(env, &u);
   return u;
 }
 
-static napi_value Status(napi_env env, napi_callback_info) {
+static napi_value Status(napi_env env, napi_callback_info cb) {
+  size_t argc = 1; napi_value args[1];
+  napi_get_cb_info(env, cb, &argc, args, nullptr, nullptr);
   napi_value r = object(env);
-  set(env, r, "running", boolean(env, running != nullptr));
-  if (running) {
-    set(env, r, "sent", num(env, (double)running->sent));
-    set(env, r, "late", num(env, (double)running->late));
+  if (argc < 1) { set(env, r, "running", boolean(env, !running.empty())); return r; }
+  Output *o = byId(idArg(env, argc, args));
+  set(env, r, "running", boolean(env, o != nullptr));
+  if (o) {
+    set(env, r, "sent", num(env, (double)o->sent));
+    set(env, r, "late", num(env, (double)o->late));
     napi_value list;
     napi_create_array(env, &list);
     uint32_t i = 0;
-    for (auto *s : running->sources) {
+    for (auto *s : o->sources) {
       napi_value so = object(env);
       set(env, so, "kind", str(env, s->kind == KEY ? "key" : s->kind == CHROMA ? "chroma" : s->kind == ALPHA ? "alpha" : "fill"));
       set(env, so, "name", str(env, s->name));
@@ -367,7 +395,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   };
   napi_define_properties(env, exports, sizeof props / sizeof props[0], props);
   // Take the sources off the network if the process exits with them running.
-  napi_add_env_cleanup_hook(env, [](void *) { stopOutput(); if (lib) lib->destroy(); }, nullptr);
+  napi_add_env_cleanup_hook(env, [](void *) { stopAll(); if (lib) lib->destroy(); }, nullptr);
   return exports;
 }
 

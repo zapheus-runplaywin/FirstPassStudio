@@ -14,6 +14,8 @@
   and ?key=1 (the key signal: white wherever the scene isn't see-through, grey where it's partly
   see-through, on black). The chroma outputs add ?chromaKey=true (chroma.js): every source drawn
   chroma key safe, with nothing half see-through, and sources cut instead of fading.
+  ?output=<id> draws one of the outputs besides the primary (outputs.js): the sources turned on for that
+  output, always silent (only the primary output plays sound, and it has the music).
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -42,13 +44,19 @@
   const LOAD_WAIT_MS = 2500; // longest a page waits to finish loading before it fades in anyway
   let first = true;
   const params = new URLSearchParams(location.search);
-  let silent = params.get('mute') === '1'; // the Output page's preview and the key output play no sound
+  // An output other than the primary (?output=<id>): its own sources on and off, and never any sound.
+  const outputId = /^[a-z0-9]{1,20}$/i.test(params.get('output') || '') && params.get('output') !== 'main' ? params.get('output') : '';
+  const alwaysSilent = !!outputId;
+  let silent = params.get('mute') === '1' || alwaysSilent; // the Output page's preview and the key output play no sound
+  // A source as this window sees it: on the primary output its own visible and showSeq; on another output
+  // whether it's on for that output, and that output's showSeq.
+  const forOutput = s => !outputId ? s : { ...s, visible: !!(s.out && s.out[outputId]), showSeq: (s.outSeq && s.outSeq[outputId]) || 0 };
   // The Output page turns its preview's sound on and off with this (it plays only while no video output is on), without a reload.
   // A browser that won't play sound until the page is clicked pauses a video as it's unmuted (or
   // refuses to play it): it then plays muted, and soundState() says so.
   let blocked = false;
   window.setSilent = on => {
-    silent = !!on;
+    silent = !!on || alwaysSilent;
     for (const L of layers.values()) {
       const v = L.el.querySelector('video');
       if (!v || !L.src) continue;
@@ -111,7 +119,7 @@
   // A video finished, or a page animated away: the helper switches the source off (once, however many
   // scene windows say so). showSeq names the time it came on, so a late word can't turn off a new showing.
   function tellDone(src, showSeq) {
-    fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'ended', id: src.id, loadSeq: src.loadSeq, showSeq }) }).catch(() => {});
+    fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'ended', id: src.id, loadSeq: src.loadSeq, showSeq, ...(outputId ? { output: outputId } : {}) }) }).catch(() => {});
   }
   // Pages that animate away say so with done.js (postMessage { studio: 'done' }); pages with sound (the intro and
   // outro) send their plan with pagesound.js (postMessage { studio: 'sound', plan }).
@@ -326,10 +334,10 @@
       let L = layers.get(s.id);
       if (L && L.src.type !== s.type) { L.el.remove(); L = null; }
       if (!L) { L = create(s); layers.set(s.id, L); }
-      update(L, s, scene.sources.length - i);
+      update(L, forOutput(s), scene.sources.length - i);
     });
     for (const [id, L] of layers) if (!seen.has(id)) { stopPageSound(L, .1); L.el.remove(); layers.delete(id); }
-    renderMusic(scene.music);
+    renderMusic(outputId ? null : scene.music);
     first = false;
   }
 

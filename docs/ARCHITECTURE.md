@@ -41,12 +41,12 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 | `games.js` | The games: which round is "this round", the fixture, up next and the end of night card, intro and outro, the countdown, automatic game selection, the season graphics (ladder bar, head to head, form, ticker, top shooters) and the finals. |
 | `board.js` | The board: scores, clock and period by hand or following PlayHQ's live feed, the goal order, super shots, hot streaks and moments, the game stats card and the score worm; `scoreboard-state.json` and the lasting settings in `control.json`. |
 | `competitions.js` | Saved competition setups in `competitions/`, `active.json`, templates import, per-club logos and colours. |
-| `scene.js` | The scene: sources as layers on one frame, scenes (saved sets of sources), the Output page's state, the WebSocket and SSE feeds that push it to pages and the plugin, game triggers. |
+| `scene.js` | The scene: sources as layers on one frame, each on or off per output (`visible` for the primary, `out` for the others), scenes (saved sets of sources), the Output page's state, the WebSocket and SSE feeds that push it to pages and the plugin, game triggers. |
 | `sequences.js` | Sequences: steps played in order, waits, repeats, Stream Deck key, time left. |
 | `music.js` | The stream's music: one player, playlists, fades and ducking, the super shot song. |
 | `sponsors.js`, `exposure.js` | Sponsors, spots on the graphics, ads in sequences; proof of play for the exposure report. |
 | `viewers.js` | Live viewer numbers from YouTube and Facebook while a video output is on. |
-| `outputs.js` | Which output (display, chroma, fill+key, NDI, Blackmagic) is on and what it shows; the app does the showing. |
+| `outputs.js` | Up to four outputs, each with its own route (display, chroma, fill+key, NDI, Blackmagic) and on/off; the first is the primary and the only one with sound. Earlier outputs keep a display, the Blackmagic device or an NDI name. The app does the showing. |
 | `finals.js`, `fonts.js` | Finals formats per competition and division; the fonts a competition can use. |
 | `datadir.js`, `datalocation.js`, `migrations.js`, `savefile.js` | Where settings live, moving them to iCloud Drive, bringing old settings up to date after an update, writing files atomically. |
 | `access.js` | Who on the network may change things (the "Let other devices change things" switch). |

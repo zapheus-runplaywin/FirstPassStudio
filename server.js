@@ -90,7 +90,7 @@ process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(er
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
 // Sequences belong to the competition in use, in its folder.
-scene.init(log, { ffmpeg: MACHINE.ffmpegPath,
+scene.init(log, { ffmpeg: MACHINE.ffmpegPath, outputs: { find: outputs.find, summary: outputs.summary },
   sequencesFile: () => { const id = competitions.activeId(); return id ? path.join(competitions.DIR, id, 'sequences.json') : null; } });
 // The colours the Output page checks against the chroma key colour.
 const COLOUR_NAMES = { main: 'Main colour', dark: 'Dark colour', panel: 'Panels', panelAlt: 'Every second row', highlight: 'Highlight', accent: 'Accent', text: 'Text', textOnHighlight: 'Text on highlight', muted: 'Small print' };
@@ -99,10 +99,12 @@ outputs.init(log, {
     ...Object.entries(CONFIG.colours || {}).map(([k, hex]) => ({ name: COLOUR_NAMES[k] || k, hex })),
     ...Object.entries(CONFIG.clubs || {}).filter(([, c]) => c && c.colour).map(([club, c]) => ({ name: `${club}'s colour`, hex: c.colour })),
   ],
+  removed: id => scene.dropOutput(id),
 });
 sponsors.init(log);
 // Proof of play for the sponsors: what's on screen, and whether a video output is on.
-exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().length > 0 });
+// (Sponsor ads play on the primary output, so that's the one that counts.)
+exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().some(w => w.output === outputs.PRIMARY) });
 // Live viewer numbers from the competition's streams, read only while on air.
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
@@ -924,7 +926,7 @@ http.createServer(async (req, res) => {
       // The scene's links: /deck/layer/<name>/on|off|toggle|restart and /deck/layers/off.
       const layer = scene.deck(parts, q);
       if (layer) return send(res, layer.status, layer.body);
-      // The display outputs: /deck/output/on|off|toggle.
+      // The video outputs: /deck/output/on|off|toggle, /deck/output/<output>/on|off|toggle, /deck/output/all/....
       const output = outputs.deck(parts);
       if (output) return send(res, output.status, output.body);
       const action = deckAction(parts, q);
