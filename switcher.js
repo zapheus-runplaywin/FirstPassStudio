@@ -311,23 +311,34 @@ const nameOf = (s, id) => (s.inputs.find(i => i.id === id) || {}).name || `input
 // so a line-up that's out shows as the old picture flashing before the bands. With no stinger in the scene
 // it's an auto; if the stinger doesn't start within 3 s, a plain cut.
 const sleep = ms => new Promise(r => setTimeout(r, Math.max(0, ms)));
+// One at a time: a second press while one plays (a nervous double tap) is left out, so there's only ever one cut.
+let stingerBusy = false;
 async function stingerCut(s, a, why, test = false) {
+  if (stingerBusy) {
+    log('warn', 'switcher', `${why}: a stinger is already playing, so this one was left out`);
+    return { error: 'A stinger is already playing, so this one was left out.', status: 409 };
+  }
+  stingerBusy = true;
+  try { return await stingerPlay(s, a, why, test); } finally { stingerBusy = false; }
+}
+async function stingerPlay(s, a, why, test) {
   let to = s.preview;
+  let onProgram = false; // the input is on program already: the stinger plays (over the graphics changing), with no cut
   if (a.input !== undefined && a.input !== null && a.input !== '') {
     const i = inputOf(s, a.input);
     if (!i) return { error: noInput(s, a.input), status: 404 };
-    if (i.id === s.program && !test) return `${i.name} is already on program`;
-    if (i.id !== s.preview) await atem.changePreviewInput(i.id, 0);
+    onProgram = i.id === s.program && !test;
+    if (!onProgram && i.id !== s.preview) await atem.changePreviewInput(i.id, 0);
     to = i.id;
   }
   const name = nameOf(s, to);
   const src = stingerApi && stingerApi.find(a.source);
   if (!src) {
+    if (onProgram) return `${name} is already on program`;
     log('warn', 'switcher', `${why}: there's no stinger in the scene (add the Stinger page as a source), so an auto instead`);
     await atem.autoTransition(0);
     return `auto to ${name} (no stinger in the scene)`;
   }
-  if (stingerWait) stingerWait.resolve(null);
   const heard = new Promise(resolve => {
     const timer = setTimeout(() => { stingerWait = null; resolve(null); }, STINGER_WAIT_MS);
     stingerWait = { resolve: c => { clearTimeout(timer); stingerWait = null; resolve(c); } };
@@ -335,6 +346,7 @@ async function stingerCut(s, a, why, test = false) {
   if (!stingerApi.play(src.id)) { stingerWait.resolve(null); }
   const cover = await heard;
   if (!atem || atem.status !== 2) throw new Error('the switcher stopped answering during the stinger');
+  if (onProgram) return `stinger only (${name} is already on program)`;
   if (!cover) {
     log('warn', 'switcher', `${why}: the stinger "${src.name}" didn't start within ${STINGER_WAIT_MS / 1000} s, so a plain cut`);
     await atem.cut(0);
