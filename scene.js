@@ -321,9 +321,10 @@ function goTo(sc, fromSequence, step, out = null) {
   setCurrent(out, sc.id);
   log('info', 'scene', `Went to scene "${sc.name}"${out ? ` on ${outputName(out)}` : ''}: ${on} on, ${off} off`);
   // The music is the primary's, and so is the switcher: its actions fire only for the primary, and any
-  // still to come from the scene before are called off.
+  // still to come from the scene before are called off. A sequence's scene step's belong to the sequence
+  // (sequences.js calls them off as it moves on or stops).
   if (!out && (!step || sc.quiet)) music.quiet(sc.quiet);
-  if (!out) switcher.run(sc.switcher, `Scene "${sc.name}"`, 'scene');
+  if (!out) switcher.run(sc.switcher, `Scene "${sc.name}"`, fromSequence && step ? 'sequenceScene' : 'scene');
 }
 
 function load() {
