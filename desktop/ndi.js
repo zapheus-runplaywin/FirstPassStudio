@@ -121,6 +121,9 @@ module.exports = function ndi({ port, log, onStatus }) {
     const { width, height, rateN, rateD } = w.format;
     const r = addon.start({ sources, color: w.color, width, height, rateN, rateD });
     if (!r.ok) {
+      // Kept for the Output page, but not as running: the next change tries again (a runtime that wasn't
+      // ready, a name another app had for a moment) rather than leaving the output dead until it's turned off and on.
+      x.key = '';
       x.error = r.error;
       log(`NDI output failed: ${r.error}`);
       return report(output);
