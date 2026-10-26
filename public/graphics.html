@@ -135,7 +135,9 @@
     <code id="sceneUrl"></code>
     <div class="row"><button id="sceneCopy">Copy link</button><a class="btn" href="/output.html" target="_blank">Open the Output page</a><a class="btn pvw" href="/pvw.html?src=%2Fscene.html&amp;name=Scene" target="_blank">Preview</a></div>
     <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
-      top layer first, and sends it to a display, a Blackmagic device or NDI® for your switcher.</p>
+      top layer first, and sends it to a display, a Blackmagic device or NDI® for your switcher.
+      Each section folds away with the arrow by its title (or a click on the title), and stays folded on that Mac until it's opened again; buttons in a folded section's
+      title row, like <b>Output on</b>, still work. Longer explanations wait behind <b>Expand for info</b>.</p>
     <ul class="page__help">
       <li><b>Sources:</b> <b>Add page</b> adds any Studio graphic or web address; <b>Add image</b> adds a PNG, JPG, GIF, WebP or SVG, and <b>Add video</b>
         an MP4, WebM or MOV (saved in the data folder's <b>media</b> folder). Each opens a box to pick it. A new source goes above the selected one (on top if none is selected), hidden, and is selected
@@ -163,7 +165,7 @@
         <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output. <b>Restart video</b> starts it again.</li>
       <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency; the Output page warns when a .mov has none to keep, such as H.264),
         and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>
-      <li><b>Media folder:</b> the Output page's <b>Media folder</b> (at the bottom; click to open it) lists every song, video and image added (under Music, Add image or video, or on the Sponsors page),
+      <li><b>Media folder:</b> the Output page's <b>Media folder</b> (at the bottom, folded until you open it) lists every song, video and image added (under Music, Add image or video, or on the Sponsors page),
         with its length, size and where it's used: sources, page themes (<code>?theme=</code>), sequence music (in any competition), playlists, the super shot song, the music player and sponsors' ads.
         <b>Remove</b> deletes a file for good (with a levelled song's original) after asking, and says where it's used first. A file on air (a source showing it, or the song playing) can't be removed until it's off.
         Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file.

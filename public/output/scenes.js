@@ -56,7 +56,10 @@ function renderScenes() {
     drift.querySelector('.over').onclick = () => act({ type: 'sceneCapture', scene: cur.id });
     drift.querySelector('.asNew').onclick = saveNewScene;
   }
-  $('scenesNote').innerHTML = scenes.length
+  // With no scenes yet the first steps show; once there are some, the how-to waits behind Expand for info.
+  $('scenesInfo').hidden = !scenes.length;
+  $('scenesEmpty').hidden = !!scenes.length;
+  $(scenes.length ? 'scenesNote' : 'scenesEmpty').innerHTML = scenes.length
     ? 'Click a scene to go to it: it turns sources on and off to match, and a source that\'s already on stays on (it isn\'t reloaded). '
       + 'Turning sources on and off by hand changes them everywhere and shows them as <b>changed</b>; click the scene again or <b>Back to saved</b> to put them back. '
       + 'Scenes are listed by colour (pre-game, live stream, quarter time, post-game, ads), then name, and the Stream Deck\'s Next and Previous go in that order (they stop at the ends). A source you add later is off in every scene. '

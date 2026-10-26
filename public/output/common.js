@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 1 of 12: Shared state and helpers for every section: $, the scene as last seen, the selected source, act() sending a change to Studio.
+// FirstPass Studio - the Output page, part 1 of 12: Shared state and helpers for every section: $, the scene as last seen, the selected source, act() sending a change to Studio, and folding sections.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -103,3 +103,36 @@ async function health() {
   $('health').hidden = false;
 }
 health(); setInterval(health, 2000);
+
+// ─── Folding sections ──────────────────────────────────────────────────
+// Every section folds down to its header row, with its arrow or a click on its title, and stays folded on this Mac
+// (localStorage) until it's opened again. Buttons in a header row (Output on, the switcher's status) stay in reach
+// while folded, and a section's dialogs sit outside the fold, so its editor still opens. The Media folder starts
+// folded. A link to a section (output.html#mediaSection) opens it. A section sends itself a 'fold' event as it
+// folds or opens, so it can catch up on what it skipped while hidden.
+const FOLD_KEY = 'studio.outputFolded';
+let foldedNow = (() => { try { const v = JSON.parse(localStorage.getItem(FOLD_KEY)); return Array.isArray(v) ? v : ['media']; } catch { return ['media']; } })();
+const isFolded = sec => sec.classList.contains('folded');
+function setFolded(sec, on, save = true) {
+  sec.classList.toggle('folded', on);
+  const b = sec.querySelector(':scope > .secHead .fold');
+  b.setAttribute('aria-expanded', String(!on));
+  b.title = on ? 'Show this section' : 'Fold this section away';
+  if (save) {
+    foldedNow = [...document.querySelectorAll('section[data-fold].folded')].map(s => s.dataset.fold);
+    try { localStorage.setItem(FOLD_KEY, JSON.stringify(foldedNow)); } catch { /* no storage */ }
+  }
+  sec.dispatchEvent(new CustomEvent('fold', { detail: { open: !on } }));
+}
+for (const sec of document.querySelectorAll('section[data-fold]')) {
+  const h2 = sec.querySelector(':scope > .secHead h2');
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'fold'; b.textContent = '▾';
+  b.setAttribute('aria-label', `Show or fold ${h2.textContent}`);
+  const title = document.createElement('span');
+  title.className = 'foldTitle';
+  h2.before(title);
+  title.append(b, h2);
+  b.onclick = h2.onclick = () => setFolded(sec, !isFolded(sec));
+  setFolded(sec, foldedNow.includes(sec.dataset.fold) && location.hash !== `#${sec.id}`, false);
+}

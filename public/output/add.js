@@ -35,6 +35,6 @@ async function loadMedia(value) {
   if (scene.music) renderMusic();
   // Studio measures a song's or video's length the first time it's asked: ask again shortly for the ones it hadn't yet.
   if (!mediaRetried && media.some(m => (m.kind === 'audio' || m.kind === 'video') && !m.converting && !m.duration)) { mediaRetried = true; setTimeout(() => loadMedia(), 1500); }
-  if ($('mediaBox').open) loadLibrary();
+  if (!isFolded($('mediaSection'))) loadLibrary();
 }
 let mediaRetried = false;

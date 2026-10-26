@@ -83,7 +83,20 @@
   .mediaList li:hover { background: none; }
   .mediaList .uses { font-size: 13px; color: var(--fp-muted); margin-top: 2px; overflow-wrap: anywhere; }
   .mediaList .uses b { color: var(--fp-danger); }
-  #mediaBox summary { cursor: pointer; list-style-position: outside; }
+  /* Folding sections: each folds down to its header row (output/common.js remembers which); its dialogs stay outside the fold. */
+  .secHead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  section.folded > :not(.secHead):not(dialog) { display: none !important; }
+  section.folded > .secHead { margin-bottom: 0; }
+  .foldTitle { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+  .foldTitle h2 { margin: 0; cursor: pointer; user-select: none; }
+  button.fold { background: transparent; color: var(--fp-blue); padding: 0 4px; font-size: 16px; line-height: 20px; transition: transform .15s; }
+  button.fold:hover { background: var(--fp-blue-soft); }
+  section.folded button.fold { transform: rotate(-90deg); }
+  /* Long explanations wait behind Expand for info. */
+  details.info { margin-top: 8px; }
+  details.info > summary { cursor: pointer; width: max-content; max-width: 100%; font-size: 13px; font-weight: 600; color: var(--fp-blue); }
+  details.info > summary:hover { color: var(--fp-blue-dark); }
+  details.info > .note { margin-top: 4px; }
   .form { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
   .form > label { font-weight: 600; font-size: 14px; }
   .form .wide { grid-column: 1 / -1; }
@@ -259,9 +272,9 @@
   <p class="sub">Studio's scene: add sources, order the layers, and show or hide them here or from the Stream Deck.
     The Mac app sends the scene to extra displays, a Blackmagic UltraStudio or DeckLink, or NDI® (below) for your switcher.</p>
 
-  <section id="outSection">
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0">Video output</h2>
+  <section id="outSection" data-fold="output">
+    <div class="secHead">
+      <h2>Video output</h2>
       <div class="row"><button id="outAdd" class="alt hidden" title="Send different graphics to another output at the same time (up to four)">Add an output</button>
       <button id="outOn" class="alt">Output on</button></div>
     </div>
@@ -275,9 +288,9 @@
         <label for="outSponsors" class="forExtra hidden">Sponsors</label>
         <div class="forExtra hidden">
           <label style="font-weight:400"><input type="checkbox" id="outSponsors"> Counts for sponsors</label>
-          <p class="note" style="margin:4px 0 0">Tick it when everything on this output is seen on the stream, like a second downstream key: then its sponsors
+          <details class="info"><summary>Expand for info</summary><p class="note">Tick it when everything on this output is seen on the stream, like a second downstream key: then its sponsors
           and Sponsor ads count in the exposure report. Leave it off for a camera's upstream key or a commentary monitor, as Studio can't tell when
-          they're on air and counting them would overclaim; its Sponsor ads then don't take a sponsor's turn. Output 1 always counts.</p>
+          they're on air and counting them would overclaim; its Sponsor ads then don't take a sponsor's turn. Output 1 always counts.</p></details>
         </div>
         <label>Send the scene</label>
         <div style="display:grid;gap:6px">
@@ -349,7 +362,7 @@
       plays sound and music. Scenes and sequences are shared by every output: pick its tab over the Scene View and a click plays them on this output.</p>
       <p class="note" id="viewersNow" hidden></p>
       <p class="note hidden" id="outLocked">Turn the output off to change these settings.</p>
-      <p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
+      <details class="info"><summary>Expand for info</summary><p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
         shows and black where it's see-through (grey where it's partly see-through). Sound plays from the fill or chroma display's window
         through the Mac's audio output. Each output opens full screen in its own window: leave full screen (the green button or ⌃⌘F) to move it to another display or get at
         other apps. To turn it off from the display itself, click it and press Esc, or close its window.
@@ -360,13 +373,13 @@
         or just <i>(Source name)</i> with transparency; pick them on the switcher or in its NDI converter. Each sends at the video format's frame rate only while
         something is receiving it. The sound plays through the Mac's audio output, not over NDI.
         Stream Deck: <code id="outDeck">/deck/output/toggle</code> (also <code>on</code> and <code>off</code>) shows or blanks the output without changing this setup.</p>
-      <p class="note" style="font-size:12px">NDI® is a registered trademark of Vizrt NDI AB.</p>
+      <p class="note" style="font-size:12px">NDI® is a registered trademark of Vizrt NDI AB.</p></details>
     </div>
   </section>
 
-  <section id="swSection">
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0">Switcher</h2>
+  <section id="swSection" data-fold="switcher">
+    <div class="secHead">
+      <h2>Switcher</h2>
       <div class="row"><span class="swStatus"><i class="hdot" id="swDot"></i><span id="swText">Not set up</span></span>
         <button class="alt hidden" id="swRetry">Try again</button>
         <button class="alt" id="swSetup">Set up</button></div>
@@ -396,7 +409,7 @@
         <button class="danger hidden" id="swForget">Forget this switcher</button></div>
     </div>
     <p class="note error" id="swErr"></p>
-    <p class="note" id="swNote">Studio controls a Blackmagic ATEM switcher over the network: the Mac and the switcher need to be on the same network,
+    <details class="info"><summary>Expand for info</summary><p class="note" id="swNote">Studio controls a Blackmagic ATEM switcher over the network: the Mac and the switcher need to be on the same network,
       ideally a wired one. <b>Look for switchers</b> finds them the way ATEM Software Control does (the first time, macOS asks to let Studio use the
       local network: say Allow), and Studio remembers the one you pick by its name, so it finds it again if its address changes. Click an input to put it on
       preview, then <b>Cut</b> or <b>Auto</b> to take it, or <b>Stinger</b>: Studio plays the scene's Stinger page on the output on a downstream key (Output 1 unless another one that's on is; the card says if that output is off) and cuts in the middle of it,
@@ -410,12 +423,12 @@
       switcher stops answering nothing is saved up for later. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code>, <code>stinger</code> (or <code>stinger/2</code>), <code>ftb</code>,
       <code>preview/2</code> or <code>preview/Camera%202</code>, <code>program/2</code>, <code>usk/1/toggle</code> (<code>on</code>, <code>off</code>),
       <code>dsk/1/toggle</code> (<code>on</code>, <code>off</code>, <code>auto</code>) and <code>macro/1</code>. The Stream Deck plugin's <b>Switcher</b> key presses these
-      and lights like the switcher's buttons: red on program, green on preview.</p>
+      and lights like the switcher's buttons: red on program, green on preview.</p></details>
   </section>
 
-  <section id="musicSection">
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0">Music</h2>
+  <section id="musicSection" data-fold="music">
+    <div class="secHead">
+      <h2>Music</h2>
     </div>
     <div class="player" id="player">
       <div class="np"><span><b id="mTrack">Nothing loaded</b> <small id="mWhere"></small></span><span class="t" id="mTime"></span></div>
@@ -454,7 +467,7 @@
       <div class="row"><select id="mSuperSong"></select> <label class="inline">at <input type="number" id="mSuperVolume" min="0" max="100" style="width:64px"> % volume</label>
         <span>(cuts in when the super shot period starts, fades out when it ends)</span></div>
     </div>
-    <p class="note" id="musicNote"></p>
+    <details class="info"><summary>Expand for info</summary><p class="note" id="musicNote"></p></details>
     <dialog id="plDialog">
       <h2 id="plTitle">Playlist</h2>
       <div class="form">
@@ -472,13 +485,14 @@
     </dialog>
   </section>
 
-  <section id="seqSection">
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0" id="seqHead">Sequences</h2>
+  <section id="seqSection" data-fold="sequences">
+    <div class="secHead">
+      <h2 id="seqHead">Sequences</h2>
     </div>
     <div class="seqAuto"><label><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
     <div class="seqs" id="seqs"></div>
-    <p class="note" id="seqNote"></p>
+    <p class="note" id="seqEmpty"></p>
+    <details class="info" id="seqInfo"><summary>Expand for info</summary><p class="note" id="seqNote"></p></details>
     <dialog id="swSceneDialog">
       <h2 id="swSceneTitle">Switcher</h2>
       <div id="swSceneActs"></div>
@@ -528,7 +542,7 @@
       <h2 style="margin:16px 0 4px">Steps</h2>
       <div class="steps" id="sqSteps"></div>
       <div class="row" style="margin-top:8px"><button class="alt" id="sqAddStep">+ Add sources</button><button class="alt" id="sqAddScene" title="Go to a scene: a starting or reset point the next steps play over">+ Add scene</button><button class="alt" id="sqAddSeq" title="Play another sequence here, step by step: a mini sequence built once and used in many">+ Add sequence</button><button class="alt" id="sqAddAds" title="Play the next sponsor ads (from the Sponsors page), each as long as it is">+ Add sponsor ads</button><span class="note" id="sqLoop" style="margin:0"></span></div>
-      <p class="note" style="margin-top:10px">Each step turns its sources on together and keeps them on for its length; when it ends, sources the next step doesn't use go off with their own fades.
+      <details class="info"><summary>Expand for info</summary><p class="note">Each step turns its sources on together and keeps them on for its length; when it ends, sources the next step doesn't use go off with their own fades.
         <b>Until it finishes</b> waits for the step's videos to end (and pages that switch themselves off when done), and moves on after the video's length plus 3 s, or a minute for a page, if the end never comes.
         <b>Until the game moves on</b> holds until the clock starts, or the next break or full time.
         A sequence that starts by itself waits its few seconds after the siren first.
@@ -536,7 +550,7 @@
         A sequence only turns off sources it turned on itself; to keep sources on for the whole sequence, start it with a scene that turns them on.
         <b>+ Add scene</b> goes to a scene, as a starting point or a reset point: what the scene turns on stays on under the next steps, and after the sequence. It goes straight on, or holds like any step.
         <b>+ Add sponsor ads</b> plays the next ads from the <a href="/sponsors.html">Sponsors page</a>, taking turns fairly by tier: a video until it ends, a still for its seconds, in the Sponsor ad sources it adds to the scene (the House ad when no sponsor has an ad, unless unticked).
-        <b>+ Add sequence</b> plays another sequence's steps there (but not its repeat or Then; its music plays while it does, when this sequence has none of its own), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p>
+        <b>+ Add sequence</b> plays another sequence's steps there (but not its repeat or Then; its music plays while it does, when this sequence has none of its own), so a mini sequence can be built once and used in many; a sequence can't go inside itself.</p></details>
       <p class="error" id="sqErr"></p>
       <div class="row" style="margin-top:10px;justify-content:space-between">
         <div class="row"><button class="danger" id="sqDelete">Delete</button><button class="alt" id="sqCopy">Copy</button></div>
@@ -545,20 +559,21 @@
     </dialog>
   </section>
 
-  <section id="scenesSection">
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0" id="scenesHead">Scenes</h2>
+  <section id="scenesSection" data-fold="scenes">
+    <div class="secHead">
+      <h2 id="scenesHead">Scenes</h2>
       <button class="alt" id="editScenes">Edit scenes</button>
     </div>
     <div class="scenes" id="scenes"></div>
     <div class="drift hidden" id="drift"></div>
     <div class="sceneGrid hidden" id="sceneGrid"></div>
-    <p class="note" id="scenesNote"></p>
+    <p class="note" id="scenesEmpty"></p>
+    <details class="info" id="scenesInfo"><summary>Expand for info</summary><p class="note" id="scenesNote"></p></details>
   </section>
 
-  <section>
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0">Scene View</h2>
+  <section id="viewSection" data-fold="view">
+    <div class="secHead">
+      <h2>Scene View</h2>
       <div class="row"><label><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></div>
     </div>
     <div class="outTabs hidden" id="outTabs"></div>
@@ -567,20 +582,20 @@
       <div class="box" id="selBox"></div>
       <div class="off hidden" id="previewOff"><div style="text-align:center"><span id="previewOffText">Live View is off</span><br><button id="popIn" class="alt hidden" style="margin-top:8px">Bring it back here</button></div></div>
     </div>
-    <p class="note">Sound plays in the Scene View only while <b>Video output</b> is off, for testing. With a video output on, the output carries the sound and the Scene View is silent.</p>
     <p class="note" id="previewWhich"></p>
     <p class="note" id="previewSoundNote" style="font-weight:600"></p>
+    <details class="info"><summary>Expand for info</summary><p class="note">Sound plays in the Scene View only while <b>Video output</b> is off, for testing. With a video output on, the output carries the sound and the Scene View is silent.</p>
     <p class="note">The Scene View shows the scene as it is right now, whether or not your switcher has it on air. It runs every page in the scene a second time, so turn
       <b>Live View</b> off on stream nights if the Mac is busy. The dashed box is the selected source.
       <b>Pop out</b> shows the Scene View in its own window that you can resize, move to another screen or make full screen, with On/Off buttons for the sources floating in it; the one here
       turns off while it's open, and closing it brings it back. The Scene View's sound needs Live View on, and only one Output page plays it at a time:
-      click a Scene View to bring the sound to it. The line above says why it's silent, if it is.</p>
+      click a Scene View to bring the sound to it. The line above says why it's silent, if it is.</p></details>
   </section>
 
   <div class="cols">
-    <section>
-      <div class="row" style="justify-content:space-between;margin-bottom:12px">
-        <h2 style="margin:0">Sources (top layer first)</h2>
+    <section id="sourcesSection" data-fold="sources">
+      <div class="secHead">
+        <h2>Sources (top layer first)</h2>
         <label class="row hidden" id="outFilterRow" style="gap:6px;font-weight:400">Show <select id="outFilter" title="Which outputs' on and off buttons to show"></select></label>
       </div>
       <ul class="sources" id="sources"></ul>
@@ -626,8 +641,8 @@
       </dialog>
     </section>
 
-    <section id="settings">
-      <h2>Source settings</h2>
+    <section id="settings" data-fold="settings">
+      <div class="secHead"><h2>Source settings</h2></div>
       <p class="note" id="noSel">Select a source to change it.</p>
       <div id="selForm" class="hidden">
         <div class="form">
@@ -671,28 +686,26 @@
         </div>
         <h2 style="margin-top:18px">Stream Deck links</h2>
         <div class="links" id="links"></div>
-        <p class="note">The FirstPass Studio plugin's <b>Source</b> key is the easiest way: pick this source in its settings and it lights up while
+        <details class="info"><summary>Expand for info</summary><p class="note">The FirstPass Studio plugin's <b>Source</b> key is the easiest way: pick this source in its settings and it lights up while
           the source is on, and keeps working if you rename it. These links work in a Stream Deck <b>Website</b> action (tick
-          <b>GET request in background</b>) or the Timed Sequence plugin. Renaming the source changes its links.</p>
+          <b>GET request in background</b>) or the Timed Sequence plugin. Renaming the source changes its links.</p></details>
       </div>
     </section>
   </div>
 
-  <section id="mediaSection">
-    <details id="mediaBox">
-      <summary><h2 style="display:inline;margin:0">Media folder</h2> <span class="note" id="mediaCount" style="margin:0 0 0 6px"></span></summary>
-      <div class="row" style="margin:12px 0 10px">
+  <section id="mediaSection" data-fold="media">
+    <div class="secHead" style="justify-content:flex-start"><h2>Media folder</h2> <span class="note" id="mediaCount" style="margin:0"></span></div>
+      <div class="row" style="margin:0 0 10px">
         <select id="mediaKind" aria-label="Show">
           <option value="">Everything</option><option value="audio">Songs and sounds</option><option value="video">Videos</option><option value="image">Images and stills</option>
         </select>
       </div>
       <ul class="sources mediaList" id="mediaList"></ul>
       <p class="error" id="mediaErr"></p>
-      <p class="note">Every song, video and image added here, under Music or on the Sponsors page. <b>Remove</b> deletes the file from the media folder for good
+      <details class="info"><summary>Expand for info</summary><p class="note">Every song, video and image added here, under Music or on the Sponsors page. <b>Remove</b> deletes the file from the media folder for good
         (with a levelled song's original, kept in <i>originals</i>), and asks first, listing where it's used. Something on air (a source showing it, or the song playing)
         can't be removed until it's off. Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as
-        <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file. A .mov and the WebM converted from it are separate files: remove each one you don't want.</p>
-    </details>
+        <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file. A .mov and the WebM converted from it are separate files: remove each one you don't want.</p></details>
   </section>
 </main>
 <script src="output/common.js"></script>
