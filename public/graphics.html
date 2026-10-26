@@ -303,12 +303,13 @@
         The Stream Deck plugin's <b>Switcher</b> key presses any of these and shows the tally: a camera's key lights red while it's on program and green on preview,
         a key or Fade to black red while on air, and every key goes dark with a yellow dot while the switcher isn't answering.
         <br><b>Stinger:</b> with the <a href="#stingerPages">Stinger page</a> as a source in the scene, the card's <b>Stinger</b> button (and <code>/deck/switcher/stinger</code>,
-        <code>/deck/switcher/stinger/&lt;input&gt;</code>) plays it on Output 1 and cuts to the preview input underneath it. The stinger tells Studio when it starts
+        <code>/deck/switcher/stinger/&lt;input&gt;</code>) plays it on the output on a downstream key (Output 1, unless another output that's switched on is <a href="#switcher">Into the switcher as</a> a downstream key,
+        as only a downstream key covers the whole picture) and cuts to the preview input underneath it. The stinger tells Studio when it starts
         and when it covers the frame, from its own settings, and the cut lands in the middle of the cover (0.72 s in with the usual half second hold), so the cut
-        comes about a second and a half after the press, once the page has loaded. Output 1's picture reaches the switcher a few frames late (more over NDI than HDMI):
-        set the <b>line-up</b> in frames (−25 to 25, at the switcher's own frame rate) to move the cut, and press <b>Test the line-up</b> before you're live: it cuts
+        comes about a second and a half after the press, once the page has loaded. That output's picture reaches the switcher a few frames late (more over NDI than HDMI):
+        set its <b>line-up</b> in frames (each output keeps its own, so moving the stinger to another output keeps both) (−25 to 25, at the switcher's own frame rate) to move the cut, and press <b>Test the line-up</b> before you're live: it cuts
         just 2 frames after the bands cover the frame, so if the old picture flashes before them, add frames (run it two or three times and go by what you see
-        each time: one run can be a frame out either way). Only Output 1's own video output starts the timing, not a preview, so a stinger needs Output 1 on.
+        each time: one run can be a frame out either way). Only that output's own video output starts the timing, not a preview or another output, so a stinger needs that output on.
         With no stinger in the scene, a stinger is an auto; if the page doesn't start within 3 s, it's a plain cut, and the log says which. A second stinger while
         one plays is left out (a press, a Stream Deck key, or a sequence or scene's own Stinger to), so a double tap never makes two cuts. <b>Stinger to</b> a camera that's already on program plays the stinger with no cut
         (for a change of graphics under it). In a sequence or scene, actions at the same moment as a stinger wait for its cut, so a key change lands under the bands too.
@@ -774,7 +775,7 @@ document.getElementById('stingerPages').appendChild(pageRow('Stinger', '/stinger
   'The music carries on under it unless you say: <code>?music=quiet</code> brings the music down quickly, so it\'s down by the time the picture is covered, and keeps it down for the scene you cut to, as a scene with <b>Quiet the music</b> does, until a scene, sequence or step without it; ' +
   '<code>?music=dip</code> brings it down the same way and back up in half a second as the stinger leaves. ' +
   'It reads the competition logo once when it loads. ' +
-  'With an ATEM switcher set up (under Video output), <b>Stinger</b> on its card, <code>/deck/switcher/stinger</code> and a sequence or scene\'s <b>Stinger to</b> play it on Output 1 and cut the switcher underneath, in the middle of the cover as this stinger\'s own settings make it (so <code>?hold=</code> and <code>?length=</code> still line up).'));
+  'With an ATEM switcher set up (under Video output), <b>Stinger</b> on its card, <code>/deck/switcher/stinger</code> and a sequence or scene\'s <b>Stinger to</b> play it on the output on a downstream key (Output 1 unless another one that\'s on is) and cut the switcher underneath, in the middle of the cover as this stinger\'s own settings make it (so <code>?hold=</code> and <code>?length=</code> still line up).'));
 document.getElementById('stingerPages').appendChild(pageRow('Stinger: colours only', '/stinger.html?logo=0'));
 const INTRO_HELP = 'The competition logo and name, the organisation, and the logos of every team in a division, for the start and the end of the stream. ' +
   '<b>Intro:</b> Welcome to the competition, with this round, the division, the venue and the date. ' +

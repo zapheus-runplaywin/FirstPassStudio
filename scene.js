@@ -475,16 +475,20 @@ function noteShowings() {
 let wasOnOut = new Set();
 
 // For switcher.js's stinger cuts: the scene's stinger (a stinger.html source; ref is its id or name, else the
-// first), and playing it from the top on the primary (reloaded if it's on already).
+// first), and playing it from the top on an output (the primary unless output names another; reloaded if it's on there already).
 function stingerSource(ref) {
   const list = scene.sources.filter(isStinger);
   const r = String(ref || '');
   return (r && (list.find(s => s.id === r) || list.find(s => slug(s.name) === slug(r)))) || (r ? null : list[0]) || null;
 }
-function playStinger(id) {
+// The stinger on an output (the primary when left out). Already on there, it's restarted: that reloads it in every window, so a copy left on Output 1 replays too (its
+// report is no cue to cut, as the switcher only listens to the stinger's own output).
+function playStinger(id, output) {
   const s = scene.sources.find(x => x.id === id);
   if (!s) return false;
-  const error = apply(s.visible ? { type: 'restart', id } : { type: 'show', id });
+  const out = output && output !== PRIMARY ? output : null;
+  const on = out ? !!s.out[out] : s.visible;
+  const error = apply(on ? { type: 'restart', id } : { type: 'show', id, ...(out ? { output: out } : {}) });
   if (!error) save();
   return !error;
 }

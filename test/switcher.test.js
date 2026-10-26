@@ -346,18 +346,18 @@ test('a stinger cut: the stinger plays on Output 1 and the cut lands in the midd
   assert.equal(res.status, 200);
   assert.equal(atem.state.program, 3);
   assert.ok(ms > 650 && ms < 850, `cut ${ms} ms after the stinger started, its cover's middle is 720 ms`);
-  assert.match(res.json.done, /stinger to Bench \(cut at 0\.72 s, covered 0\.22 to 1\.22 s\)/);
+  assert.match(res.json.done, /stinger to Bench \(on Output 1, cut at 0\.72 s, covered 0\.22 to 1\.22 s\)/);
 
   // Line-up +5 frames at 50 frames a second: 100 ms later. The stinger is still on, so it plays again from the top.
   await studio.post('/api/switcher', { type: 'lineup', frames: 5 });
-  assert.equal(JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'switcher.json'), 'utf8')).lineup, 5);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'switcher.json'), 'utf8')).lineups, { main: 5 });
   ({ res, ms } = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'stinger', input: 1 })));
   assert.equal(atem.state.program, 1);
   assert.ok(ms > 750 && ms < 950, `cut ${ms} ms after, wanted 820`);
   // The line-up test cuts 2 frames after the cover starts: 220 + 40 + 100 ms.
   ({ ms } = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'lineupTest', input: 2 })));
   assert.ok(ms > 290 && ms < 470, `test cut ${ms} ms after, wanted 360`);
-  assert.match(studio.log(), /Line-up test: stinger to Court \(cut at 0\.36 s/);
+  assert.match(studio.log(), /Line-up test: stinger to Court \(on Output 1, cut at 0\.36 s/);
 
   // A double tap: the second press is left out while the first plays, so there's one cut, in the cover.
   const cuts = atem.received.filter(c => c.name === 'DCut').length;

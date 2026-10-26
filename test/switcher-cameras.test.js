@@ -74,7 +74,8 @@ test('Keys follow the camera: a cut on the switcher itself brings the keys, a ke
   // Someone presses Court on the panel.
   atem.set({ program: 2 });
   await studio.until(() => atem.state.usk[1] === true, 3000, 20);
-  assert.match(studio.log(), /Keys follow the camera: Court on program, with Output 2's key on/);
+  // Logged once the switcher has answered the key, which can be just after the stand-in shows it on.
+  await studio.until(() => /Keys follow the camera: Court on program, with Output 2's key on/.test(studio.log()), 3000, 20);
   // The operator takes the key off by hand: Studio leaves it off (it only follows a change of camera).
   atem.set({ usk: [false, false, false, false] });
   await wait(400);
