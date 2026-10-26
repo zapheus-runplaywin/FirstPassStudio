@@ -352,8 +352,12 @@ function save() {
   notify();
 }
 // Sends the scene to every open scene.html and Output page.
+let stingerName = '';
 function notify() {
   videoSound();
+  // The Switcher card names the scene's stinger: tell it when that changes.
+  const sting = stingerSource();
+  if ((sting ? sting.name : '') !== stingerName) { stingerName = sting ? sting.name : ''; publishSwitcher(); }
   rev++;
   const json = JSON.stringify(state());
   const body = `data: ${json}\n\n`;
@@ -447,8 +451,9 @@ function apply(a) {
 const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
 // A stinger with ?music=quiet or dip ducks the music as it comes on, by the time it covers the frame (0.22 of its length);
 // dip brings it back up when it goes off.
+const isStinger = s => s.type === 'browser' && /^\/?stinger\.html(\?|$)/.test(String(s.url || ''));
 function stingerMusic(s, on) {
-  if (s.type !== 'browser' || !/^\/?stinger\.html(\?|$)/.test(String(s.url || ''))) return;
+  if (!isStinger(s)) return;
   const q = new URLSearchParams(String(s.url).split('?')[1] || '');
   const mode = q.get('music');
   if (mode !== 'quiet' && mode !== 'dip') return;
@@ -465,6 +470,21 @@ function noteShowings() {
   wasOnOut = new Set(scene.sources.flatMap(s => Object.keys(s.out).map(o => `${s.id}|${o}`)));
 }
 let wasOnOut = new Set();
+
+// For switcher.js's stinger cuts: the scene's stinger (a stinger.html source; ref is its id or name, else the
+// first), and playing it from the top on the primary (reloaded if it's on already).
+function stingerSource(ref) {
+  const list = scene.sources.filter(isStinger);
+  const r = String(ref || '');
+  return (r && (list.find(s => s.id === r) || list.find(s => slug(s.name) === slug(r)))) || (r ? null : list[0]) || null;
+}
+function playStinger(id) {
+  const s = scene.sources.find(x => x.id === id);
+  if (!s) return false;
+  const error = apply(s.visible ? { type: 'restart', id } : { type: 'show', id });
+  if (!error) save();
+  return !error;
+}
 
 // The output a change is for: null for the primary (the source's own visible), an output's id for one of
 // the others, or undefined if there's no such output.
@@ -1291,4 +1311,4 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };
+module.exports = { stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };

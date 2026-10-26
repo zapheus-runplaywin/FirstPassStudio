@@ -256,3 +256,61 @@ test('Stop calls off switcher actions still to come, a scene step\'s scene\'s to
   assert.deepEqual(atem.state.dsk, [false, false]);
   assert.deepEqual(atem.state.usk, [false, false, false, false]);
 });
+
+test('a stinger cut: the stinger plays on Output 1 and the cut lands in the middle of its cover, moved by the line-up', async t => {
+  const atem = await startAtem({ model: 'MiniExtreme', names: ['Wide', 'Court', 'Bench'] });
+  t.after(() => atem.close());
+  const studio = await startStudio(t);
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
+  await connected(studio);
+  // With no stinger in the scene, a stinger is an auto.
+  let r = await link(studio, 'stinger/2');
+  assert.equal(r.status, 200);
+  assert.match(r.json.done, /auto to Court \(no stinger in the scene\)/);
+  assert.match(studio.log(), /there's no stinger in the scene/);
+
+  await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html?hold=0.5' }] });
+  assert.equal((await studio.get('/api/switcher')).stinger, 'Stinger');
+  assert.equal((await studio.get('/api/switcher')).fps, 50);
+  const stinger = async () => (await studio.get('/api/scene')).sources.find(s => s.name === 'Stinger');
+  // What the stinger page says through Output 1's scene window as it starts (once it's on, or played again from
+  // the top): covered 0.22 to 1.22 s.
+  const stingerStarts = async was => {
+    await studio.until(async () => { const s = await stinger(); return s.visible && (!was.visible || s.loadSeq !== was.loadSeq); }, 3000, 10);
+    const at = Date.now();
+    await studio.post('/api/switcher', { type: 'stingerStarted', cover: [0.22, 1.22] });
+    return at;
+  };
+  const cutAfter = async press => {
+    const was = await stinger();
+    const [res, at] = await Promise.all([press(), stingerStarts(was)]);
+    const cut = atem.received.filter(c => c.name === 'DCut').at(-1);
+    return { res, ms: cut.at - at };
+  };
+  let { res, ms } = await cutAfter(() => link(studio, 'stinger/Bench'));
+  assert.equal(res.status, 200);
+  assert.equal(atem.state.program, 3);
+  assert.ok(ms > 650 && ms < 850, `cut ${ms} ms after the stinger started, its cover's middle is 720 ms`);
+  assert.match(res.json.done, /stinger to Bench \(cut at 0\.72 s, covered 0\.22 to 1\.22 s\)/);
+
+  // Line-up +5 frames at 50 frames a second: 100 ms later. The stinger is still on, so it plays again from the top.
+  await studio.post('/api/switcher', { type: 'lineup', frames: 5 });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'switcher.json'), 'utf8')).lineup, 5);
+  ({ res, ms } = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'stinger', input: 1 })));
+  assert.equal(atem.state.program, 1);
+  assert.ok(ms > 750 && ms < 950, `cut ${ms} ms after, wanted 820`);
+  // The line-up test cuts 2 frames after the cover starts: 220 + 40 + 100 ms.
+  ({ ms } = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'lineupTest', input: 2 })));
+  assert.ok(ms > 290 && ms < 470, `test cut ${ms} ms after, wanted 360`);
+  assert.match(studio.log(), /Line-up test: stinger to Court \(cut at 0\.36 s/);
+
+  // A stinger that never starts (its page didn't load): a plain cut after 3 s, said in the log.
+  await studio.post('/api/scene', { type: 'hide', name: 'Stinger' });
+  r = await link(studio, 'stinger/3');
+  assert.match(r.json.done, /cut to Bench \(the stinger didn't start\)/);
+  assert.equal(atem.state.program, 3);
+  // In a sequence, Stinger to is saved like the other actions.
+  await studio.post('/api/scene', { type: 'sceneSave', name: 'Live' });
+  await studio.post('/api/scene', { type: 'sceneUpdate', scene: 'Live', changes: { switcher: [{ type: 'stinger', input: 2, name: 'Court' }] } });
+  assert.deepEqual((await studio.get('/api/scene')).scenes[0].switcher, [{ type: 'stinger', input: 2, name: 'Court', atSec: 0 }]);
+});

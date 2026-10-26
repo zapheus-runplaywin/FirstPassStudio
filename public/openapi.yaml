@@ -765,14 +765,34 @@ paths:
   /deck/switcher/{action}:
     get:
       tags: [Switcher]
-      summary: Cut, auto or fade to black
-      description: "`cut` takes the preview input to program at once, `auto` with the switcher's transition, `ftb` fades to black (or back from it)."
+      summary: Cut, auto, stinger or fade to black
+      description: "`cut` takes the preview input to program at once, `auto` with the switcher's transition, `stinger` plays the scene's Stinger page on Output 1 and cuts underneath it (in the middle of its cover, moved by the line-up; an auto when the scene has no stinger), `ftb` fades to black (or back from it). A stinger answers once the cut is done, about 1.5 s later."
       operationId: switcherTake
       parameters:
         - name: action
           in: path
           required: true
-          schema: { type: string, enum: [cut, auto, ftb] }
+          schema: { type: string, enum: [cut, auto, stinger, ftb] }
+      responses:
+        '200':
+          description: Done. Returns the switcher's program and preview inputs and its keys after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SwitcherDone' }
+        '404': { description: No such input or key on this switcher, or not one of the links listed here }
+        '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
+  /deck/switcher/stinger/{input}:
+    get:
+      tags: [Switcher]
+      summary: Stinger to an input
+      description: Puts the input on preview, then plays the stinger and cuts to it underneath, as `/deck/switcher/stinger`. The input by its number or its name.
+      operationId: switcherStinger
+      parameters:
+        - name: input
+          in: path
+          required: true
+          schema: { type: string }
       responses:
         '200':
           description: Done. Returns the switcher's program and preview inputs and its keys after the change.

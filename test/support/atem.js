@@ -1,7 +1,7 @@
 // A stand-in Blackmagic ATEM switcher for the tests: speaks just enough of the ATEM control protocol (UDP,
 // the same packets the real switcher sends) for atem-connection to connect, read its state and send it
 // cuts, autos, inputs and keyers. One mix effect; it does a cut or an auto at once.
-//   const atem = await startAtem({ model: 'MiniPro' });   // atem.port, atem.state, atem.received
+//   const atem = await startAtem({ model: 'MiniPro' });   // atem.port, atem.state, atem.received; videoMode (atem-connection's Enums.VideoMode, 1080p50)
 //   atem.drop(); atem.resume();                             // stops answering (as when its cable is pulled)
 //   atem.set({ program: 3 });                               // as if someone pressed a button on the switcher
 //   await atem.close();
@@ -36,7 +36,7 @@ async function startAtem(opts = {}) {
     ftb: false,
     names: Array.from({ length: inputCount }, (_, i) => (opts.names || [])[i] || `Camera ${i + 1}`),
   };
-  const received = []; // { name, data } for every command a client sent, oldest first
+  const received = []; // { name, data, at } for every command a client sent, oldest first
   const socket = dgram.createSocket('udp4');
   const clients = new Map(); // "address:port" -> { address, port, session, nextId }
   let answering = true;
@@ -67,6 +67,7 @@ async function startAtem(opts = {}) {
     command('_pin', bytes(44, b => { b.write(productName, 0); b.writeUInt8(modelNo, 40); })),
     command('_top', bytes(28, b => { b.writeUInt8(1, 0); b.writeUInt8(inputCount + 3, 1); b.writeUInt8(dskCount, 2); b.writeUInt8(1, 6); b.writeUInt8(1, 9); })),
     command('_MeC', bytes(4, b => b.writeUInt8(uskCount, 1))),
+    command('VidM', bytes(4, b => b.writeUInt8(opts.videoMode ?? 12, 0))), // 12: 1080p50
     input(0, 'Black', 'BLK', 1),
     ...state.names.map((n, i) => input(i + 1, n, `CAM${i + 1}`, 0)),
     input(1000, 'Color Bars', 'BARS', 2),
@@ -80,7 +81,7 @@ async function startAtem(opts = {}) {
   // What a client asked for: the switcher does it and tells every client, as the real one does.
   const take = () => { [state.program, state.preview] = [state.preview, state.program]; return [prg(), prv()]; };
   const handle = (name, d) => {
-    received.push({ name, data: d });
+    received.push({ name, data: d, at: Date.now() });
     if (name === 'DCut' || name === 'DAut') return take();
     if (name === 'CPgI') { state.program = d.readUInt16BE(2); return [prg()]; }
     if (name === 'CPvI') { state.preview = d.readUInt16BE(2); return [prv()]; }

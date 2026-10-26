@@ -103,6 +103,8 @@
         const sfx = (num('sfx') ?? 80) / 100;
         if (sfx > 0) studioSound({ sfx, cues: [[0, 'whoosh', 1], [.58 * length + hold, 'out', .7]] });
         console.info(`${LABEL}: ${length + hold} s, frame covered ${window.stingerCover.map(s => s.toFixed(2)).join(' to ')} s`);
+        // In the scene, it tells it when it started and when it covers the frame, so a switcher cut can land underneath.
+        if (window.parent !== window) window.parent.postMessage({ studio: 'stinger', cover: window.stingerCover }, '*');
         studioDone.afterAnimations();
       }
 

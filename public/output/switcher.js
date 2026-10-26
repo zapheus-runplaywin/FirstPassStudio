@@ -51,6 +51,13 @@ function showSwitcher(s) {
       const cls = i.id === s.program ? 'prg' : i.id === s.preview ? 'pvw' : '';
       box.appendChild(swButton(i.name, cls, i.id === s.program ? `${i.name} is on program` : `Put ${i.name} on preview`, () => swDo({ type: 'preview', input: i.id })));
     }
+    // The stinger: the scene's Stinger page, played on Output 1 with the cut underneath, and its line-up.
+    $('swStinger').disabled = !s.stinger;
+    $('swStinger').title = s.stinger ? `Play "${s.stinger}" on Output 1 and cut to the preview input underneath it` : 'Add the Stinger page as a source first (+ Add, Studio pages)';
+    $('swLineupTest').disabled = !s.stinger;
+    $('swStingerName').textContent = s.stinger ? `"${s.stinger}", cut in the middle of its cover (from its own settings), at ${s.fps} frames a second`
+      : 'Add the Stinger page as a source to cut under it; without one, a stinger is an auto.';
+    if (document.activeElement !== $('swLineup')) $('swLineup').value = s.lineup || 0;
     $('swFtb').classList.toggle('on', s.ftb);
     $('swFtb').textContent = s.ftb ? 'Faded to black' : 'Fade to black';
     $('swUskLabel').classList.toggle('hidden', !s.usk.length);
@@ -95,13 +102,18 @@ $('swForget').onclick = () => { if (confirm('Forget this switcher? Studio stops 
 $('swRetry').onclick = () => swDo({ type: 'reconnect' });
 $('swCut').onclick = () => swDo({ type: 'cut' });
 $('swAuto').onclick = () => swDo({ type: 'auto' });
+$('swStinger').onclick = () => swDo({ type: 'stinger' });
+$('swLineup').onchange = () => swDo({ type: 'lineup', frames: Number($('swLineup').value) || 0 });
+$('swLineupTest').onclick = () => {
+  if (confirm('Test the line-up? This plays the stinger on Output 1 and cuts program to the preview input, 2 frames after the stinger covers the frame. Do it before you\'re live. If you see the old picture before the bands cover it, add frames; if the bands are late on screen, take frames off.')) swDo({ type: 'lineupTest' });
+};
 $('swFtb').onclick = () => swDo({ type: 'ftb' });
 
 // ─── Switcher actions on sequence steps and scenes ───────────────────────
 // A step or a scene can carry up to 8 (switcher.js cleanActions): cut or auto to an input, an input on
 // preview, a key on or off, fade to black, a macro, each as it starts or some seconds in. The editor offers
 // what the connected switcher has; what it hasn't is greyed with the reason, and skipped if it's saved.
-const SW_TYPES = [['cut', 'Cut to'], ['auto', 'Auto to'], ['preview', 'Put on preview'], ['usk', 'Upstream key'], ['dsk', 'Downstream key'], ['ftb', 'Fade to black'], ['macro', 'Run macro']];
+const SW_TYPES = [['cut', 'Cut to'], ['auto', 'Auto to'], ['stinger', 'Stinger to'], ['preview', 'Put on preview'], ['usk', 'Upstream key'], ['dsk', 'Downstream key'], ['ftb', 'Fade to black'], ['macro', 'Run macro']];
 const SW_MAX = 8;
 const swLive = () => !!sw && sw.state === 'connected';
 const swCount = (n, one) => `${n === 1 ? 'one' : n || 'no'} ${one}${n === 1 ? '' : 's'}`;
@@ -109,7 +121,7 @@ const swInputName = a => { const i = swLive() && sw.inputs.find(x => x.id === a.
 // One action in words ("Cut to Court", "DSK 1 on (auto) at 2 s").
 function swActText(a) {
   const to = a.input ? swInputName(a) : 'preview';
-  const what = a.type === 'cut' ? `Cut to ${to}` : a.type === 'auto' ? `Auto to ${to}` : a.type === 'preview' ? `${swInputName(a)} on preview`
+  const what = a.type === 'cut' ? `Cut to ${to}` : a.type === 'auto' ? `Auto to ${to}` : a.type === 'stinger' ? `Stinger to ${to}` : a.type === 'preview' ? `${swInputName(a)} on preview`
     : a.type === 'usk' ? `Key ${a.key} ${a.on}` : a.type === 'dsk' ? `DSK ${a.key} ${a.on}${a.mix ? ' (auto)' : ''}`
     : a.type === 'ftb' ? (a.on === 'off' ? 'Back from black' : 'Fade to black') : `Macro ${a.macro}`;
   return a.atSec ? `${what} at ${a.atSec} s` : what;
@@ -165,7 +177,7 @@ function switcherEditor(list, redraw) {
       if (v === 'macro') a.macro = 1;
       redraw();
     }));
-    if (a.type === 'cut' || a.type === 'auto' || a.type === 'preview') {
+    if (['cut', 'auto', 'stinger', 'preview'].includes(a.type)) {
       const opts = inputs.map(([id, name]) => [id, name]);
       if (a.input && !opts.some(([id]) => id === a.input)) opts.push([a.input, `${a.name || `Input ${a.input}`} (not on this switcher)`]);
       if (a.type !== 'preview') opts.unshift(['', "what's on preview"]);

@@ -358,9 +358,14 @@
       <div class="swInputs" id="swInputs"></div>
       <div class="row" style="margin-top:8px"><button id="swCut" title="Take the preview input to program, straight away">Cut</button>
         <button id="swAuto" title="Take the preview input to program with the switcher's transition">Auto</button>
+        <button id="swStinger" title="Play the stinger on Output 1 and cut to the preview input underneath it">Stinger</button>
         <button class="alt" id="swFtb" title="Fade to black, or back from it">Fade to black</button></div>
       <div class="row swKeys" style="margin-top:10px"><span class="swLabel" id="swUskLabel">Upstream keys</span><span id="swUsk" class="row"></span>
         <span class="swLabel" id="swDskLabel">Downstream keys</span><span id="swDsk" class="row"></span></div>
+      <div class="row swKeys swStingerRow" style="margin-top:10px"><span class="swLabel">Stinger</span><span class="note" id="swStingerName" style="margin:0"></span>
+        <label class="inline" style="font-weight:400" title="Frames to cut later (or earlier, below 0) than the middle of the stinger, for the delay of Output 1's picture into the switcher">line-up
+          <input type="number" id="swLineup" min="-25" max="25" step="1" style="width:64px"> frames</label>
+        <button class="alt" id="swLineupTest" title="Cuts to the preview input just 2 frames after the stinger covers the frame: if the old picture flashes before the bands, add frames">Test the line-up</button></div>
     </div>
     <div id="swForm" class="hidden" style="margin-top:12px">
       <div class="row"><button class="alt" id="swFind">Look for switchers</button><span class="note" id="swFindNote" style="margin:0"></span></div>
@@ -374,10 +379,12 @@
     <p class="note" id="swNote">Studio controls a Blackmagic ATEM switcher over the network: the Mac and the switcher need to be on the same network,
       ideally a wired one. <b>Look for switchers</b> finds them the way ATEM Software Control does (the first time, macOS asks to let Studio use the
       local network: say Allow), and Studio remembers the one you pick by its name, so it finds it again if its address changes. Click an input to put it on
-      preview, then <b>Cut</b> or <b>Auto</b> to take it. Studio shows only what your switcher has (an ATEM Mini Pro has 4 inputs, one upstream key and
+      preview, then <b>Cut</b> or <b>Auto</b> to take it, or <b>Stinger</b>: Studio plays the scene's Stinger page on Output 1 and cuts in the middle of it,
+      where the bands cover the frame (read from the stinger's own settings, so a longer hold still lines up). If Output 1's picture reaches the switcher a
+      little late, set the <b>line-up</b> in frames and check it with <b>Test the line-up</b> before you're live. Studio shows only what your switcher has (an ATEM Mini Pro has 4 inputs, one upstream key and
       one downstream key; a Mini Extreme has 8, four and two). The switcher's own buttons, ATEM Software Control and other controllers keep working
       alongside Studio, and Studio shows what they do. It sends nothing to the switcher by itself, not even when it connects or reconnects, and if the
-      switcher stops answering nothing is saved up for later. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code>, <code>ftb</code>,
+      switcher stops answering nothing is saved up for later. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code>, <code>stinger</code> (or <code>stinger/2</code>), <code>ftb</code>,
       <code>preview/2</code> or <code>preview/Camera%202</code>, <code>program/2</code>, <code>usk/1/toggle</code> (<code>on</code>, <code>off</code>),
       <code>dsk/1/toggle</code> (<code>on</code>, <code>off</code>, <code>auto</code>) and <code>macro/1</code>.</p>
   </section>

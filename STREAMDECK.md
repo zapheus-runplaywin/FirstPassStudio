@@ -234,6 +234,8 @@ count from 1. A key the switcher doesn't have (a second downstream key on an ATE
 | --- | --- |
 | Cut (preview to program, straight away) | http://localhost:8080/deck/switcher/cut |
 | Auto (with the switcher's transition) | http://localhost:8080/deck/switcher/auto |
+| Stinger (the scene's Stinger page on Output 1, cut underneath it) | http://localhost:8080/deck/switcher/stinger |
+| Stinger to Camera 2 | http://localhost:8080/deck/switcher/stinger/2, http://localhost:8080/deck/switcher/stinger/Camera%202 |
 | Fade to black, or back | http://localhost:8080/deck/switcher/ftb |
 | Put Camera 2 on preview | http://localhost:8080/deck/switcher/preview/2, http://localhost:8080/deck/switcher/preview/Camera%202 |
 | Cut Camera 2 straight to program | http://localhost:8080/deck/switcher/program/2 |
