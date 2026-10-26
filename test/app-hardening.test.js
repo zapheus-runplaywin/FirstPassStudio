@@ -92,4 +92,7 @@ test("the app's own pages come from the archive by studio://, not file://", () =
     }
   }
   assert.equal(build.electronFuses.grantFileProtocolExtraPrivileges, false);
+  // studio:// answers from the first page loaded, not from a whenReady that main.js's start() beats.
+  assert.doesNotMatch(src, /whenReady\(\)\.then\(\(\) => protocol\.handle/);
+  assert.match(src, /const loadPage = [^\n]*serve\(\)/);
 });
