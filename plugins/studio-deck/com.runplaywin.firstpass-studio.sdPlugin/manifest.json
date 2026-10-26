@@ -3,7 +3,7 @@
 	"Name": "FirstPass Studio",
 	"Version": "1.0.0.0",
 	"Author": "PIVT",
-	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, play sequences, and see which are on.",
+	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, play sequences, and see which are on. Also presses the ATEM switcher Studio controls, with its tally.",
 	"Icon": "imgs/plugin/icon",
 	"Category": "FirstPass Studio",
 	"CategoryIcon": "imgs/plugin/category",
@@ -105,6 +105,34 @@
 				{
 					"Image": "imgs/actions/sequence/on",
 					"Name": "Playing",
+					"TitleAlignment": "middle",
+					"TitleColor": "#000000",
+					"FontSize": 12
+				}
+			]
+		},
+		{
+			"Name": "Switcher",
+			"UUID": "com.runplaywin.firstpass-studio.switcher",
+			"Icon": "imgs/actions/switcher/icon",
+			"Tooltip": "Presses the ATEM switcher picked on Studio's Output page: a camera to preview or program, a stinger, Cut, Auto, a key, Fade to black or a macro. Lights red on program and green on preview.",
+			"PropertyInspectorPath": "ui/switcher.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": true,
+			"DisableAutomaticStates": true,
+			"States": [
+				{
+					"Image": "imgs/actions/switcher/off",
+					"Name": "Off",
+					"TitleAlignment": "middle",
+					"TitleColor": "#ffffff",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/switcher/on",
+					"Name": "On air",
 					"TitleAlignment": "middle",
 					"TitleColor": "#000000",
 					"FontSize": 12

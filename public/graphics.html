@@ -283,6 +283,8 @@
         <code>/deck/switcher/preview/&lt;input&gt;</code> and <code>program/&lt;input&gt;</code> (its number, or its name such as <code>Camera%202</code>);
         <code>/deck/switcher/usk/&lt;n&gt;/on</code>, <code>off</code> or <code>toggle</code>; <code>/deck/switcher/dsk/&lt;n&gt;/on</code>, <code>off</code>, <code>toggle</code> or
         <code>auto</code>; and <code>/deck/switcher/macro/&lt;n&gt;</code> (a macro saved on the switcher, numbered from 1 as in ATEM Software Control).
+        The Stream Deck plugin's <b>Switcher</b> key presses any of these and shows the tally: a camera's key lights red while it's on program and green on preview,
+        a key or Fade to black red while on air, and every key goes dark with a yellow dot while the switcher isn't answering.
         <br><b>Stinger:</b> with the <a href="#stingerPages">Stinger page</a> as a source in the scene, the card's <b>Stinger</b> button (and <code>/deck/switcher/stinger</code>,
         <code>/deck/switcher/stinger/&lt;input&gt;</code>) plays it on Output 1 and cuts to the preview input underneath it. The stinger tells Studio when it starts
         and when it covers the frame, from its own settings, and the cut lands in the middle of the cover (0.72 s in with the usual half second hold), so the cut
@@ -543,7 +545,7 @@
       <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to Studio, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
       <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen, and each extra output runs the pages turned on for it once more. NDI's video goes over your local network only, never the internet.</li>
       <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
-      <li>Stream Deck plugin's Source keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen, and Studio only sends when the scene changes.</li>
+      <li>Stream Deck plugin's keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen (and one more while a Switcher key is), and Studio only sends when the scene or the switcher changes.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>

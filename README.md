@@ -351,7 +351,9 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   **Source** key shows or hides a source picked in its settings (or fades it in or out, restarts it, or turns a video's sound on or off), shows
   the source's name, and lights up while the source is on, however it was turned on. It follows the source's id, so renaming it doesn't break
   the key, and it shows **off air** while Studio isn't running. Its **Scene** key goes to a scene (or the next, the previous, or back to the
-  current one as saved), lights while its scene is on and shows a yellow dot when sources have changed since.
+  current one as saved), lights while its scene is on and shows a yellow dot when sources have changed since. Its **Sequence** key plays a
+  sequence and counts down its step. Its **Switcher** key presses the ATEM switcher picked on the Output page (a camera to preview or program,
+  a stinger, Cut, Auto, a key, Fade to black or a macro) and lights like the switcher's own buttons: red on program, green on preview.
 - **Stream Deck links:** each source has `/deck/layer/<name>/on`, `off`, `toggle` and `restart` links, videos also `/deck/layer/<name>/sound/on`,
   `off` and `toggle`, and `/deck/layers/off` hides everything (see `STREAMDECK.md`). The Output page copies them.
 - **Scenes:** saved looks for the same sources. Each scene sets every source on or off, or leaves it as it is. **Save what's on now**

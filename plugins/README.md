@@ -6,7 +6,7 @@ to run.
 
 | Plugin | Folder | What it does |
 |---|---|---|
-| FirstPass Studio (Stream Deck) | [`studio-deck/`](studio-deck/) | A **Source** key that shows or hides a source in Studio's scene and lights up while it's on. Ships inside the Mac app |
+| FirstPass Studio (Stream Deck) | [`studio-deck/`](studio-deck/) | **Source**, **Scene**, **Sequence** and **Switcher** keys for Studio's scene and its ATEM switcher, lit while they're on (the Switcher key with the tally). Ships inside the Mac app |
 | Characters icon pack (Stream Deck) | [`characters-iconpack/`](characters-iconpack/) | Key images for every letter, digit and US keyboard symbol, for labelling keys |
 | Timed Sequence (Stream Deck) | [`streamdeck/`](streamdeck/) | A Stream Deck key that waits until a set time of day, then runs a list of steps with delays in between |
 
@@ -14,7 +14,8 @@ to run.
 
 Keys for Studio's own scene (the Output page). Its **Source** key shows or hides a source, or fades it in or out, restarts it, or turns
 a video's sound on or off, and lights up while the source is on. It follows the scene live, so the key changes the moment the source does,
-wherever the change came from. The Mac app's build packs it and the app installs it (menu bar icon > **Install the Stream Deck plugin**),
+wherever the change came from. Its **Scene** and **Sequence** keys go to scenes and play sequences, and its **Switcher** key presses the ATEM
+switcher picked on the Output page and lights red on program and green on preview. The Mac app's build packs it and the app installs it (menu bar icon > **Install the Stream Deck plugin**),
 so there's nothing to build by hand. To work on it, see [`studio-deck/README.md`](studio-deck/README.md).
 
 ## Characters icon pack (Stream Deck)

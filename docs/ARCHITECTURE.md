@@ -30,7 +30,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   on this computer and keep the competition's own look.
 
 Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-deck`, TypeScript, talks to the helper's
-`/deck/*` links and the scene WebSocket) and the native addons for NDI and DeckLink (`native/`).
+`/deck/*` links and follows the scene's and the switcher's SSE feeds, `/api/scene/events` and `/api/switcher/events`) and the native addons for NDI and DeckLink (`native/`).
 
 ## Module map (helper)
 
@@ -48,7 +48,7 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 | `sponsors.js`, `exposure.js` | Sponsors, spots on the graphics, ads in sequences; proof of play for the exposure report. |
 | `viewers.js` | Live viewer numbers from YouTube and Facebook while a video output is on. |
 | `outputs.js` | Up to four outputs, each with its own route (display, chroma, fill+key, NDI, Blackmagic) and on/off; the first is the primary and the only one with sound. Earlier outputs keep a display, the Blackmagic device or an NDI name. The app does the showing. |
-| `switcher.js` | The Blackmagic ATEM switcher, if one is set up: finding it (Bonjour via macOS's `dns-sd`), one connection through `atem-connection` (in-process, UDP 9910), its state for the Output page, and the cuts, previews and keys the Output page and `/deck/switcher/*` ask for; `switcher.json`. Sends nothing by itself. Also cleans and runs the switcher actions saved on sequence steps and scenes (`run(actions, why, owner)`, `cancel(owner)`): `sequences.js` and `scene.js` call it for the primary output only. Stinger cuts: it plays the scene's stinger through `scene.js` (`stingerSource`, `playStinger`), and `stinger.html` says when it covers the frame (postMessage to `scene.html`, which posts `stingerStarted` to `/api/switcher`), so the cut is timed from the page's own settings plus the line-up. |
+| `switcher.js` | The Blackmagic ATEM switcher, if one is set up: finding it (Bonjour via macOS's `dns-sd`), one connection through `atem-connection` (in-process, UDP 9910), its state for the Output page and the plugin's Switcher keys (`/api/switcher/events`, sent on each change), and the cuts, previews and keys the Output page and `/deck/switcher/*` ask for; `switcher.json`. Sends nothing by itself. Also cleans and runs the switcher actions saved on sequence steps and scenes (`run(actions, why, owner)`, `cancel(owner)`): `sequences.js` and `scene.js` call it for the primary output only. Stinger cuts: it plays the scene's stinger through `scene.js` (`stingerSource`, `playStinger`), and `stinger.html` says when it covers the frame (postMessage to `scene.html`, which posts `stingerStarted` to `/api/switcher`), so the cut is timed from the page's own settings plus the line-up. |
 | `finals.js`, `fonts.js` | Finals formats per competition and division; the fonts a competition can use. |
 | `datadir.js`, `datalocation.js`, `migrations.js`, `savefile.js` | Where settings live, moving them to iCloud Drive, bringing old settings up to date after an update, writing files atomically. |
 | `access.js` | Who on the network may change things (the "Let other devices change things" switch). |
@@ -76,7 +76,7 @@ debug log), `autoreload.js`.
    pushes the whole scene to every page holding the WebSocket at `/api/scene/socket` and to the plugin's SSE feed.
 7. The scoreboard travels the same socket as a second message type: a page that sends `{"subscribe":"board"}` gets
    what `GET /api/scoreboard` gives, at once and on every change (`scene.publishBoard`, called from `saveBoards` and
-   each second). The ATEM switcher's state (`switcher.js`) travels it a third way, for a page that sends `{"subscribe":"switcher"}` (the Output page), on each change. `sceneevents.js` wraps them for the pages; the HTTP endpoints stay for the plugin and other tools.
+   each second). The ATEM switcher's state (`switcher.js`) travels it a third way, for a page that sends `{"subscribe":"switcher"}` (the Output page), on each change, and to the plugin's Switcher keys over its own SSE feed (`/api/switcher/events`). `sceneevents.js` wraps them for the pages; the HTTP endpoints stay for the plugin and other tools.
 
 Every change to a saved file uses `savefile.js` (write to a temporary file, then rename), so a crash mid-write never
 leaves a half-written settings file.

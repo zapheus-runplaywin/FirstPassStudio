@@ -45,6 +45,7 @@ let refindTimer = null;
 let found = [];               // the last search's switchers
 let finding = null;           // the search in progress (a promise)
 let lastKey = '';
+const listeners = new Set(); // server-sent events (/api/switcher/events): the Stream Deck plugin's Switcher keys
 // Stinger cuts: Studio plays the scene's stinger (stinger.html) on Output 1 and cuts while it covers the frame.
 let lineup = 0;               // frames to cut later (or earlier, below 0) than the middle of the cover, for the picture's delay into the switcher
 let stingerApi = null;        // { find(ref), play(id) } from scene.js
@@ -64,6 +65,7 @@ function changed() {
   const key = JSON.stringify(status());
   if (key === lastKey) return;
   lastKey = key;
+  for (const res of listeners) res.write(`data: ${key}\n\n`);
   try { onChange(); } catch { /* a page update failing doesn't matter here */ }
 }
 
@@ -571,6 +573,16 @@ async function route(req, res, url, { send, readBody }) {
   if (url.pathname === '/api/switcher/find') {
     if (req.method === 'POST') await find();
     send(res, 200, status());
+    return true;
+  }
+  if (url.pathname === '/api/switcher/events') {
+    // Server-sent events: the switcher now, then again on every change (tally, keys, losing it), for the
+    // Stream Deck plugin. The Output page has it over the scene socket instead.
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+    res.write(`retry: 1000\ndata: ${JSON.stringify(status())}\n\n`);
+    listeners.add(res);
+    const ping = setInterval(() => res.write(': ping\n\n'), 25000);
+    req.on('close', () => { clearInterval(ping); listeners.delete(res); });
     return true;
   }
   if (url.pathname !== '/api/switcher') return false;
