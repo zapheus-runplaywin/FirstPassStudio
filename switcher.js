@@ -560,8 +560,9 @@ function keyChecks(s) {
       return c;
     }
     c.onAir = usk ? s.usk[k] : s.dsk[k];
-    const other = plan.find(x => x !== o && x.keyer === o.keyer && plan.indexOf(x) < plan.indexOf(o));
-    if (other) c.problems.push(`${other.name} comes into ${label} too: pick another key for one of them.`);
+    // Shown on both outputs, so whichever one the operator looks at says so.
+    const others = plan.filter(x => x !== o && x.keyer === o.keyer).map(x => x.name);
+    if (others.length) c.problems.push(`${others.join(' and ')} ${others.length === 1 ? 'comes' : 'come'} into ${label} too: pick another key for one of them.`);
     if (o.signal === 'alpha') c.problems.push('An ATEM can\'t key NDI with transparency: send it as Fill and key (two NDI sources) or Chroma.');
     if (o.signal === 'fill') c.problems.push('Fill only has no key for the switcher to key with: send Fill and key.');
     if (o.signal === 'chroma' && !usk) c.problems.push('A chroma key needs an upstream key (a downstream key only keys fill and key): pick an upstream key.');

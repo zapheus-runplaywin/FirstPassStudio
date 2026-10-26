@@ -81,6 +81,7 @@ test('a chroma output on an upstream key, a Straight fill, and what the switcher
   await studio.post('/api/outputs', { output: two, keyer: 'dsk1', ndiSignal: 'fillkey', swKey: 8 });
   c = await keyFor(studio, two, x => x.problems.length && x.keyer === 'dsk1');
   assert.match(c.problems[0], /Output 1 comes into downstream key 1 too/);
+  assert.match((await keyFor(studio, 'main', x => x.problems.length)).problems[0], /Output 2 comes into downstream key 1 too/, 'and Output 1 says so too');
   // NDI with transparency, and a Blackmagic device sending fill only, can't be keyed.
   await studio.post('/api/outputs', { output: two, keyer: '', ndiSignal: 'alpha' });
   c = await keyFor(studio, two, x => x.problems.length && x.keyer === 'usk2');
