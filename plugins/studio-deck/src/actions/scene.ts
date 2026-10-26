@@ -11,7 +11,7 @@ import streamDeck, {
 
 import { keyImageUrl } from "../lib/colours";
 import { sceneLinkFor, type SceneSettings, sceneViewOf } from "../lib/scene-key";
-import { cleanHost, feedFor, listScenes, press, type Scene } from "../lib/studio";
+import { cleanHost, feedFor, fetchScene, outputColour, outputsOf, press, type Scene } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("Scene");
 const log = (message: string) => logger.info(message);
@@ -55,12 +55,14 @@ class SceneKey {
 
 	private draw(): void {
 		const view = sceneViewOf(this.settings, this.scene);
-		// Both states' images in the colour group, with or without the changed dot; only sent again when those change.
-		const paint = `${view.colour}|${view.dot}`;
+		// Both states' images in the colour group, with or without the changed dot, lit in the output's colour; only
+		// sent again when those change.
+		const lit = outputColour(this.scene, this.settings.output);
+		const paint = `${view.colour}|${view.dot}|${lit}`;
 		if (paint !== this.painted) {
 			this.painted = paint;
 			void this.key.setImage(keyImageUrl("scene", view.colour, 0, view.dot), { state: 0 });
-			void this.key.setImage(keyImageUrl("scene", view.colour, 1, view.dot), { state: 1 });
+			void this.key.setImage(keyImageUrl("scene", view.colour, 1, view.dot, lit), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;
@@ -119,13 +121,14 @@ export class SceneAction extends SingletonAction<SceneSettings> {
 	override async onSendToPlugin(ev: SendToPluginEvent<PiCommand, SceneSettings>): Promise<void> {
 		if (ev.payload?.cmd !== "scenes") return;
 		const host = cleanHost(ev.payload.host);
-		const scenes = await listScenes(host);
+		const scene = await fetchScene(host);
 		if (streamDeck.ui.action?.id !== ev.action.id) return;
 		void streamDeck.ui.sendToPropertyInspector({
 			type: "scenes",
 			host,
-			ok: scenes !== null,
-			scenes: (scenes ?? []).map((s) => ({ id: s.id, name: s.name, colour: s.colour ?? "blue" })),
+			ok: scene !== null,
+			scenes: (scene?.scenes ?? []).map((s) => ({ id: s.id, name: s.name, colour: s.colour ?? "blue" })),
+			outputs: outputsOf(scene).map((o) => ({ id: o.id, name: o.name })),
 		} as unknown as PiPayload);
 	}
 }

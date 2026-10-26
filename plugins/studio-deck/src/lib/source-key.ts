@@ -1,7 +1,7 @@
 /**
  * What a Source key shows and does, worked out from its settings and the scene (no SDK here).
  */
-import type { Scene, SceneSource } from "./studio";
+import { deckBase, forOutput, outputGone, type Scene, type SceneSource } from "./studio";
 
 export type PressAction = "toggle" | "on" | "off" | "restart" | "sound";
 
@@ -14,6 +14,8 @@ export type SourceSettings = {
 	sourceName?: string;
 	/** What a press does; toggle when not set. */
 	press?: PressAction;
+	/** The output it shows and hides the source on (an output's id); Output 1 when not set. */
+	output?: string;
 	/** Colour group (blue, green, grey, yellow or purple); blue when not set. */
 	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
@@ -54,10 +56,12 @@ export function wrapTitle(name: string, width = 9): string {
  * The key lights while its source is on (for a sound key, while the video's sound is on).
  * The title is the source's name; it says so when Studio is off air or the source has gone.
  */
-export function viewOf(settings: SourceSettings, scene: Scene | null): KeyView {
+export function viewOf(settings: SourceSettings, all: Scene | null): KeyView {
 	if (!settings.source) return { state: 0, title: "Pick a\nsource" };
 	const name = settings.sourceName || "Source";
-	if (!scene) return { state: 0, title: `${wrapTitle(name)}\n(off air)` };
+	if (!all) return { state: 0, title: `${wrapTitle(name)}\n(off air)` };
+	if (outputGone(all, settings.output)) return { state: 0, title: `${wrapTitle(name)}\n(no output)` };
+	const scene = forOutput(all, settings.output)!;
 	const src = findSource(scene, settings.source);
 	if (!src) return { state: 0, title: `${wrapTitle(name)}\n(gone)` };
 	if (pressOf(settings) === "sound") {
@@ -71,5 +75,6 @@ export function linkFor(settings: SourceSettings): string | null {
 	if (!settings.source) return null;
 	const ref = encodeURIComponent(settings.source);
 	const action = pressOf(settings);
-	return action === "sound" ? `/deck/layer/${ref}/sound/toggle` : `/deck/layer/${ref}/${action}`;
+	// Sound is Output 1's, so its link is too.
+	return action === "sound" ? `/deck/layer/${ref}/sound/toggle` : `${deckBase(settings.output)}/layer/${ref}/${action}`;
 }

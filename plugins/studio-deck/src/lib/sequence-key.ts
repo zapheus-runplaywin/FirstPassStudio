@@ -2,7 +2,7 @@
  * What a Sequence key shows and does, worked out from its settings and the scene (no SDK here).
  */
 import { wrapTitle } from "./source-key";
-import type { Playing, Scene, Sequence } from "./studio";
+import { deckBase, forOutput, outputGone, type Playing, type Scene, type Sequence } from "./studio";
 
 /** play = play it, or stop it while it plays (one key); start = always play it from the first step. */
 export type SequencePress = "play" | "start" | "next" | "advance" | "pause" | "stop";
@@ -16,6 +16,8 @@ export type SequenceSettings = {
 	sequenceName?: string;
 	/** What a press does; play when not set. */
 	press?: SequencePress;
+	/** The output it plays on (an output's id); Output 1 when not set. */
+	output?: string;
 	/** Colour group; empty means the sequence's own colour from the Output page. */
 	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
@@ -28,7 +30,7 @@ export type SequenceSettings = {
 export type SequenceTime = "step" | "total" | "both" | "none";
 
 export type SequenceView = {
-	/** 0 = dark, 1 = lit (orange): its sequence is playing (or, for the playing keys, any is). */
+	/** 0 = dark, 1 = lit (in its output's colour): its sequence is playing (or, for the playing keys, any is). */
 	state: 0 | 1;
 	title: string;
 	colour: string;
@@ -94,8 +96,9 @@ export function progress(scene: Scene, sinceMs: number, time: SequenceTime = "st
  * only while the step on now waits for Next. Every key says so when
  * Studio is off air.
  */
-export function sequenceViewOf(settings: SequenceSettings, scene: Scene | null, sinceMs = 0): SequenceView {
+export function sequenceViewOf(settings: SequenceSettings, all: Scene | null, sinceMs = 0): SequenceView {
 	const press = pressOf(settings);
+	const scene = forOutput(all, settings.output);
 	const own = settings.colour || "";
 	const view = (title: string, target?: Sequence, state: 0 | 1 = 0, ticking = false): SequenceView => ({
 		state,
@@ -107,6 +110,7 @@ export function sequenceViewOf(settings: SequenceSettings, scene: Scene | null, 
 		if (!settings.sequence) return view("Pick a\nsequence");
 		const name = settings.sequenceName || "Sequence";
 		if (!scene) return view(`${wrapTitle(name)}\n(off air)`);
+		if (outputGone(all, settings.output)) return view(`${wrapTitle(name)}\n(no output)`);
 		const sq = sequencesOf(scene).find((s) => s.id === settings.sequence);
 		if (!sq) return view(`${wrapTitle(name)}\n(gone)`);
 	const pend = scene.pending;
@@ -121,6 +125,7 @@ export function sequenceViewOf(settings: SequenceSettings, scene: Scene | null, 
 	}
 	const label = { next: "Next ⏭", advance: "Next ⏭", pause: "Pause", stop: "Stop" }[press];
 	if (!scene) return view(`${label}\n(off air)`);
+	if (outputGone(all, settings.output)) return view(`${label}\n(no output)`);
 	const sq = playingOf(scene);
 	if (!sq) return view(`${label}\n(none on)`);
 	const { text, ticking } = progress(scene, sinceMs, timeOf(settings));
@@ -134,7 +139,7 @@ export function sequenceLinkFor(settings: SequenceSettings): string | null {
 	const press = pressOf(settings);
 	if (press === "play" || press === "start") {
 		if (!settings.sequence) return null;
-		return `/deck/sequence/${encodeURIComponent(settings.sequence)}/${press === "play" ? "toggle" : "play"}`;
+		return `${deckBase(settings.output)}/sequence/${encodeURIComponent(settings.sequence)}/${press === "play" ? "toggle" : "play"}`;
 	}
-	return `/deck/sequence/${press}`;
+	return `${deckBase(settings.output)}/sequence/${press}`;
 }

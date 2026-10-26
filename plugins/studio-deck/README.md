@@ -47,7 +47,7 @@ com.runplaywin.firstpass-studio.sdPlugin/
   ui/source.html       Source key settings panel (plain HTML/JS)
   ui/scene.html        Scene key settings panel
   ui/sequence.html     Sequence key settings panel
-  imgs/                plugin, category, action and key images per kind (the default blue group: off navy, on orange)
+  imgs/                plugin, category, action and key images per kind (the default blue group: off navy, on Output 1's orange)
 test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
   scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot, settings panel list
@@ -55,6 +55,10 @@ test/
   colours.test.ts      colour groups, key images and contrast (on vs off in every colour), settings panel list
   plugin.e2e.test.ts   real SDK + real Studio + fake Stream Deck app
 ```
+
+Each key has an Output setting (an output's id; Output 1 when empty): it follows that output's view of the scene
+(`forOutput` in `lib/studio.ts`), presses that output's `/deck/output/<id>/...` links, and lights in its colour from the
+scene feed's `outputs`. The manifest sets the titles white on the dark off state and black on the lit one.
 
 A key follows its source by id, so renaming the source on the Output page keeps the key working. Keys off screen
 (another page or profile) stop following, so a page nobody can see keeps no connection open.

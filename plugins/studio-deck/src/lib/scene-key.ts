@@ -2,7 +2,7 @@
  * What a Scene key shows and does, worked out from its settings and the scene (no SDK here).
  */
 import { wrapTitle } from "./source-key";
-import type { SavedScene, Scene } from "./studio";
+import { deckBase, forOutput, outputGone, type SavedScene, type Scene } from "./studio";
 
 export type ScenePress = "go" | "next" | "prev" | "again";
 
@@ -15,6 +15,8 @@ export type SceneSettings = {
 	sceneName?: string;
 	/** What a press does; go when not set. */
 	press?: ScenePress;
+	/** The output it plays the scene on (an output's id); Output 1 when not set. */
+	output?: string;
 	/** Colour group; empty means the scene's own colour from the Output page. */
 	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
@@ -22,7 +24,7 @@ export type SceneSettings = {
 };
 
 export type SceneView = {
-	/** 0 = dark, 1 = lit (orange): the key's scene is the current one. */
+	/** 0 = dark, 1 = lit (in its output's colour): the key's scene is the current one. */
 	state: 0 | 1;
 	title: string;
 	/** Draw the changed dot: sources differ from the current scene as saved. */
@@ -54,8 +56,9 @@ export function stepTarget(scene: Scene | null, press: "next" | "prev"): SavedSc
  * Next and Previous show where they'll go; Back to saved shows the scene it puts back, with the dot when there's
  * something to put back. Every key says so when Studio is off air.
  */
-export function sceneViewOf(settings: SceneSettings, scene: Scene | null): SceneView {
+export function sceneViewOf(settings: SceneSettings, all: Scene | null): SceneView {
 	const press = pressOf(settings);
+	const scene = forOutput(all, settings.output);
 	const own = settings.colour || "";
 	const view = (title: string, target?: SavedScene, state: 0 | 1 = 0, dot = false): SceneView => ({
 		state,
@@ -67,6 +70,7 @@ export function sceneViewOf(settings: SceneSettings, scene: Scene | null): Scene
 		if (!settings.scene) return view("Pick a\nscene");
 		const name = settings.sceneName || "Scene";
 		if (!scene) return view(`${wrapTitle(name)}\n(off air)`);
+		if (outputGone(all, settings.output)) return view(`${wrapTitle(name)}\n(no output)`);
 		const sc = scenesOf(scene).find((s) => s.id === settings.scene);
 		if (!sc) return view(`${wrapTitle(name)}\n(gone)`);
 		const current = scene.current === sc.id;
@@ -74,6 +78,7 @@ export function sceneViewOf(settings: SceneSettings, scene: Scene | null): Scene
 	}
 	const label = { next: "Next", prev: "Previous", again: "Back to saved" }[press];
 	if (!scene) return view(`${label}\n(off air)`);
+	if (outputGone(all, settings.output)) return view(`${label}\n(no output)`);
 	if (press === "again") {
 		const cur = currentOf(scene);
 		return cur ? view(`Back to\n${wrapTitle(cur.name)}`, cur, 0, isChanged(scene)) : view("Back to\nsaved\n(no scene)");
@@ -87,6 +92,7 @@ export function sceneViewOf(settings: SceneSettings, scene: Scene | null): Scene
 /** The Studio link a press opens. */
 export function sceneLinkFor(settings: SceneSettings): string | null {
 	const press = pressOf(settings);
-	if (press !== "go") return `/deck/scene/${press}`;
-	return settings.scene ? `/deck/scene/${encodeURIComponent(settings.scene)}` : null;
+	const base = deckBase(settings.output);
+	if (press !== "go") return `${base}/scene/${press}`;
+	return settings.scene ? `${base}/scene/${encodeURIComponent(settings.scene)}` : null;
 }
