@@ -4,6 +4,7 @@
 //   const atem = await startAtem({ model: 'MiniPro' });   // atem.port, atem.state, atem.received; videoMode (atem-connection's Enums.VideoMode, 1080p50)
 //   atem.drop(); atem.resume();                             // stops answering (as when its cable is pulled)
 //   atem.set({ program: 3 });                               // as if someone pressed a button on the switcher
+//   atem.state.dskKeys[0], atem.state.uskKeys[1]            // how each key is set up ({ fill, cut, preMultiply } / { type, fill, cut, preMultiplied })
 //   await atem.close();
 
 'use strict';
@@ -34,6 +35,11 @@ async function startAtem(opts = {}) {
     usk: Array(uskCount).fill(false),
     dsk: Array(dskCount).fill(false),
     ftb: false,
+    // How each key is set up (as in ATEM Software Control): its fill and key (cut) inputs, pre multiplied, and an
+    // upstream key's type (0 luma, 1 chroma). Fresh from the box: every key on Black, luma, not pre multiplied.
+    dskKeys: Array.from({ length: dskCount }, () => ({ fill: 0, cut: 0, preMultiply: false })),
+    uskKeys: Array.from({ length: uskCount }, () => ({ type: 0, fill: 0, cut: 0, preMultiplied: false })),
+    ...(opts.keys || {}),
     names: Array.from({ length: inputCount }, (_, i) => (opts.names || [])[i] || `Camera ${i + 1}`),
   };
   const received = []; // { name, data, at } for every command a client sent, oldest first
@@ -62,6 +68,13 @@ async function startAtem(opts = {}) {
   const keOn = k => command('KeOn', bytes(4, b => { b.writeUInt8(k, 1); b.writeUInt8(state.usk[k] ? 1 : 0, 2); }));
   const dskS = k => command('DskS', bytes(8, b => { b.writeUInt8(k, 0); b.writeUInt8(state.dsk[k] ? 1 : 0, 1); }));
   const ftbS = () => command('FtbS', bytes(4, b => b.writeUInt8(state.ftb ? 1 : 0, 1)));
+  const dskB = k => command('DskB', bytes(8, b => { b.writeUInt8(k, 0); b.writeUInt16BE(state.dskKeys[k].fill, 2); b.writeUInt16BE(state.dskKeys[k].cut, 4); }));
+  const dskP = k => command('DskP', bytes(20, b => { b.writeUInt8(k, 0); b.writeUInt8(30, 2); b.writeUInt8(state.dskKeys[k].preMultiply ? 1 : 0, 3); }));
+  const keBP = k => command('KeBP', bytes(20, b => {
+    b.writeUInt8(k, 1); b.writeUInt8(state.uskKeys[k].type, 2); b.writeUInt8(1, 4);
+    b.writeUInt16BE(state.uskKeys[k].fill, 6); b.writeUInt16BE(state.uskKeys[k].cut, 8);
+  }));
+  const keLm = k => command('KeLm', bytes(12, b => { b.writeUInt8(k, 1); b.writeUInt8(state.uskKeys[k].preMultiplied ? 1 : 0, 2); }));
   const dump = () => Buffer.concat([
     command('_ver', bytes(4, b => b.writeUInt32BE(VERSION, 0))),
     command('_pin', bytes(44, b => { b.write(productName, 0); b.writeUInt8(modelNo, 40); })),
@@ -74,6 +87,8 @@ async function startAtem(opts = {}) {
     prg(), prv(),
     ...state.usk.map((_, k) => keOn(k)),
     ...state.dsk.map((_, k) => dskS(k)),
+    ...state.uskKeys.flatMap((_, k) => [keBP(k), keLm(k)]),
+    ...state.dskKeys.flatMap((_, k) => [dskB(k), dskP(k)]),
     ftbS(),
     command('InCm', Buffer.alloc(4)),
   ]);
@@ -89,6 +104,14 @@ async function startAtem(opts = {}) {
     if (name === 'CDsL') { state.dsk[d[0]] = d[1] === 1; return [dskS(d[0])]; }
     if (name === 'DDsA') { const k = d[1]; state.dsk[k] = !state.dsk[k]; return [dskS(k)]; }
     if (name === 'FtbA') { state.ftb = !state.ftb; return [ftbS()]; }
+    // Setting a key up: its fill and key inputs, pre multiplied, an upstream key's type.
+    if (name === 'CDsF') { state.dskKeys[d[0]].fill = d.readUInt16BE(2); return [dskB(d[0])]; }
+    if (name === 'CDsC') { state.dskKeys[d[0]].cut = d.readUInt16BE(2); return [dskB(d[0])]; }
+    if (name === 'CDsG') { if (d[0] & 1) state.dskKeys[d[1]].preMultiply = d[2] === 1; return [dskP(d[1])]; }
+    if (name === 'CKTp') { if (d[0] & 1) state.uskKeys[d[2]].type = d[3]; return [keBP(d[2])]; }
+    if (name === 'CKeF') { state.uskKeys[d[1]].fill = d.readUInt16BE(2); return [keBP(d[1])]; }
+    if (name === 'CKeC') { state.uskKeys[d[1]].cut = d.readUInt16BE(2); return [keBP(d[1])]; }
+    if (name === 'CKLm') { if (d[0] & 1) state.uskKeys[d[2]].preMultiplied = d[3] === 1; return [keLm(d[2])]; }
     return [];
   };
 
@@ -133,7 +156,8 @@ async function startAtem(opts = {}) {
     // As if someone pressed buttons on the switcher itself.
     set(change) {
       Object.assign(state, change);
-      toAll(Buffer.concat([prg(), prv(), ...state.usk.map((_, k) => keOn(k)), ...state.dsk.map((_, k) => dskS(k))]));
+      toAll(Buffer.concat([prg(), prv(), ...state.usk.map((_, k) => keOn(k)), ...state.dsk.map((_, k) => dskS(k)),
+        ...state.uskKeys.flatMap((_, k) => [keBP(k), keLm(k)]), ...state.dskKeys.flatMap((_, k) => [dskB(k), dskP(k)])]));
     },
     close: () => new Promise(r => { clearInterval(beat); socket.close(r); }),
   };

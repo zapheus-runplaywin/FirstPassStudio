@@ -232,6 +232,10 @@
   .swFound { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
   .swFound li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 6px 10px; border: 1px solid var(--fp-line); border-radius: 8px; }
   .swFound li.sel { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
+  /* An output's key settings check: what suits it (green tick), what Set up this key for me would change, what it can't. */
+  .swKeyCheck ul { margin: 4px 0 0; padding-left: 18px; }
+  .swKeyCheck .okText { color: var(--fp-ok); font-weight: 600; }
+  .swKeyCheck .badText { color: var(--fp-danger); font-weight: 600; }
 </style>
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
@@ -323,6 +327,14 @@
         <p class="note forDecklink" style="grid-column:1/-1"><b>Switcher key settings:</b> leave Straight off and turn the switcher's
           <i>Pre Multiplied Key</i> (shaped) on; clip and gain are then not used, and soft edges and shadows key cleanly. With Pre Multiplied Key off,
           clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key.</p>
+        <label for="outKeyer" class="forSw">Into the switcher as</label>
+        <div class="forSw">
+          <div class="row"><select id="outKeyer" title="The switcher key this output's graphics come into"></select>
+            <label class="inline forSwIn" style="font-weight:400"><span id="outSwFillLabel">fill on</span> <select id="outSwFill" title="The switcher input this output's fill (or its chroma picture) is plugged into"></select></label>
+            <label class="inline forSwKey" style="font-weight:400">key on <select id="outSwKey" title="The switcher input this output's key is plugged into"></select></label></div>
+          <div class="note swKeyCheck" id="outKeyCheck" style="margin:6px 0 0"></div>
+          <button class="alt hidden" id="outKeySetup" style="margin-top:6px">Set up this key for me</button>
+        </div>
       </div>
       <p class="note" id="outStatus"></p>
       <p class="note perf hidden" id="outPerf" title="Checked every 5 seconds while an output is on. CPU is a percentage of one processor core. Studio writes these to its log once a minute."></p>
@@ -383,7 +395,8 @@
       where the bands cover the frame (read from the stinger's own settings, so a longer hold still lines up). If Output 1's picture reaches the switcher a
       little late, set the <b>line-up</b> in frames and check it with <b>Test the line-up</b> before you're live. Studio shows only what your switcher has (an ATEM Mini Pro has 4 inputs, one upstream key and
       one downstream key; a Mini Extreme has 8, four and two). The switcher's own buttons, ATEM Software Control and other controllers keep working
-      alongside Studio, and Studio shows what they do. It sends nothing to the switcher by itself, not even when it connects or reconnects, and if the
+      alongside Studio, and Studio shows what they do. Each output's <b>Into the switcher as</b> (under Video output) checks the key it comes into, and
+      <b>Set up this key for me</b> sets that key's inputs, type and Pre Multiplied Key when you press it. It sends nothing to the switcher by itself, not even when it connects or reconnects, and if the
       switcher stops answering nothing is saved up for later. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code>, <code>stinger</code> (or <code>stinger/2</code>), <code>ftb</code>,
       <code>preview/2</code> or <code>preview/Camera%202</code>, <code>program/2</code>, <code>usk/1/toggle</code> (<code>on</code>, <code>off</code>),
       <code>dsk/1/toggle</code> (<code>on</code>, <code>off</code>, <code>auto</code>) and <code>macro/1</code>. The Stream Deck plugin's <b>Switcher</b> key presses these

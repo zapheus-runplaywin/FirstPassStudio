@@ -405,6 +405,7 @@ const showOut = o => {
   }
   // Counts for sponsors changes nothing being sent, so it stays free while the output is on.
   $('outSponsors').disabled = false;
+  swOutKey(); // Into the switcher as (output/switcher.js)
   $('outLocked').classList.toggle('hidden', !live);
 };
 // Changes the output being set up here (changes.output), or adds or removes one ({ add }, { remove }).
