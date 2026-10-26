@@ -148,7 +148,14 @@ async function copy(text, btn) {
 
 let wasConverting = '';
 function show(s) {
-  scene = s;
+  sceneAll = s;
+  scene = viewFor(s, previewOutput);
+  // Which output clicks play them on, once there's more than one.
+  for (const [h, word] of [['scenesHead', 'Scenes'], ['seqHead', 'Sequences']]) {
+    $(h).textContent = scene.viewMany ? `${word}: playing on ${scene.viewName}` : word;
+    $(h).style.setProperty('--c', scene.viewMany ? scene.viewColour : 'transparent');
+    $(h).classList.toggle('forOutput', !!scene.viewMany);
+  }
   // A conversion started or finished: refresh the media lists.
   const now = (s.converting || []).join('|');
   if (now !== wasConverting) { wasConverting = now; loadMedia(); }

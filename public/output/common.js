@@ -7,6 +7,53 @@ const $ = id => document.getElementById(id);
 // The graphics Add a page offers, from the one list in pages.js.
 const PAGES = STUDIO_GRAPHICS.map(p => [p.name, p.file]);
 let scene = { sources: [] };
+// The scene as Studio last sent it; scene above is what the Scenes and Sequences sections see (viewFor): every
+// scene and sequence, which every output shares, with the current scene and playing sequence of the output picked
+// over the Scene View, and (onOut) the outputs where each scene is current and each sequence is playing.
+let sceneAll = { sources: [] };
+function viewFor(s, o = 'main') {
+  if (!s.scenes) return s;
+  const main = o === 'main';
+  const list = typeof out !== 'undefined' && out && out.outputs || [];
+  const o2 = list.find(x => x.id === o);
+  const onOut = { scenes: {}, sequences: {} };
+  for (const x of list) {
+    const m = x.id === 'main';
+    const cur = m ? s.current : (s.currentOut || {})[x.id];
+    const play = m ? s.playing : (s.playingOut || {})[x.id];
+    if (cur) (onOut.scenes[cur] ||= []).push(x);
+    if (play) (onOut.sequences[play.id] ||= []).push(x);
+  }
+  return {
+    ...s,
+    current: main ? s.current : (s.currentOut || {})[o] || null,
+    changed: main ? s.changed : (s.changedOut || {})[o] || [],
+    playing: main ? s.playing : (s.playingOut || {})[o] || null,
+    pending: main ? s.pending : (s.pendingOut || {})[o] || null,
+    // Automatic starts happen on the output each sequence starts by itself on.
+    nextAuto: s.nextAuto && (s.sequences || []).some(x => x.id === s.nextAuto.id && (x.startOn || 'main') === o) ? s.nextAuto : null,
+    onOut,
+    viewOutput: o,
+    viewName: o2 ? o2.name : '',
+    // Where its Stream Deck links for what's playing and Next and Previous start: /deck, or /deck/output/<output>.
+    viewDeck: main || !o2 ? '/deck' : `/deck/output/${o2.link}`,
+    viewColour: o2 ? o2.colour : '',
+    viewMany: list.length > 1,
+  };
+}
+// Coloured dots for the outputs where a scene is current or a sequence is playing, once there's more than one output.
+function outDots(outs) {
+  const box = document.createElement('span');
+  box.className = 'outDots';
+  if (!scene.viewMany) return box;
+  for (const x of outs || []) {
+    const i = document.createElement('i');
+    i.style.background = x.colour;
+    i.title = `On ${x.name}`;
+    box.appendChild(i);
+  }
+  return box;
+}
 let selected = null;
 let base = location.origin;
 let media = [], mediaLoaded = false;
@@ -20,6 +67,8 @@ const current = () => scene.sources.find(s => s.id === selected) || null;
 
 async function act(action) {
   $('err').textContent = '';
+  // Scenes and sequences are played on the output picked over the Scene View.
+  if (/^(scene|seq)/.test(action.type) && scene.viewOutput && scene.viewOutput !== 'main' && action.output === undefined) action = { ...action, output: scene.viewOutput };
   try {
     const res = await fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) });
     const body = await res.json();

@@ -284,6 +284,7 @@ $('hideAll').onclick = async () => {
 };
 // The video output state (`out`), the Scene View's sound and listen() are in preview.js, which runs first.
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+let viewWas = '';
 const showOut = o => {
   const relisten = !out || out.previewSound !== o.previewSound;
   const hadExtras = extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join();
@@ -368,6 +369,9 @@ const showOut = o => {
     const s = current();
     if (s) renderOptions(s, true);
   }
+  // The Scenes and Sequences sections follow the picked output, and the outputs' names and colours.
+  const view = [so.id, ...(out.outputs || []).map(o => `${o.id}:${o.name}:${o.colour}`)].join('|');
+  if (view !== viewWas) { viewWas = view; if (sceneAll.scenes) show(sceneAll); }
   for (const el of document.querySelectorAll('.forNdi')) el.classList.toggle('hidden', so.mode !== 'ndi');
   for (const el of document.querySelectorAll('.forNdiChroma')) el.classList.toggle('hidden', so.mode !== 'chroma' && !(so.mode === 'ndi' && so.ndiSignal === 'chroma'));
   for (const el of document.querySelectorAll('.forChroma:not(.forNdiChroma)')) el.classList.toggle('hidden', so.mode !== 'chroma');

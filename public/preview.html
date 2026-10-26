@@ -140,20 +140,23 @@
   function showScenes(scn) {
     const box = $('scenes');
     box.innerHTML = '';
-    if (outputId !== 'main') return; // scenes are the primary output's
+    // Every scene (the outputs share them), with this output's current one; a click plays it on this output.
+    const main = outputId === 'main';
+    const current = main ? scn.current : (scn.currentOut || {})[outputId];
+    const changedNow = main ? scn.changed : (scn.changedOut || {})[outputId];
     for (const sc of scn.scenes || []) {
       const b = document.createElement('button');
       b.textContent = sc.name;
       b.style.setProperty('--band', BANDS[sc.colour] || BANDS.blue);
-      const cur = sc.id === scn.current, changed = cur && (scn.changed || []).length > 0;
+      const cur = sc.id === current, changed = cur && (changedNow || []).length > 0;
       b.className = (cur ? 'cur' : '') + (changed ? ' changed' : '');
       b.title = cur ? (changed ? `Back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
-      b.onclick = () => act({ type: 'sceneGo', scene: sc.id });
+      b.onclick = () => act({ type: 'sceneGo', scene: sc.id, ...(main ? {} : { output: outputId }) });
       box.append(b);
     }
   }
   sceneEvents(scn => { showScenes(scn); showSources(scn); });
-  $('hideAll').onclick = () => act({ type: 'hideAll' });
+  $('hideAll').onclick = () => act({ type: 'hideAll', ...(outputId !== 'main' ? { output: outputId } : {}) });
   const fold = min => {
     $('panel').classList.toggle('min', min);
     $('fold').textContent = min ? 'Show' : '–';

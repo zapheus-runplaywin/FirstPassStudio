@@ -67,6 +67,7 @@ function renderSequences() {
     card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
     card.querySelector('b').textContent = sq.name;
     if (sq.quiet) card.querySelector('b').append(quietMark());
+    card.querySelector('b').append(outDots(scene.onOut?.sequences[sq.id]));
     if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
     card.querySelector('.band').classList.add(sq.colour);
     if (run) {
@@ -132,9 +133,10 @@ function renderSequences() {
       + 'A sequence can start by itself before the game (if Studio was running at that moment), at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '
       + 'while it waits to start, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
       + 'A sequence with <b>Hide</b> ticked (in its editor) stays off this list unless <b>Show hidden</b> is ticked; it plays as before. Sequences belong to the competition in use. '
-      + `Stream Deck: <code>${base}/deck/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
-      + '<code>/deck/sequence/next</code> (or <code>/deck/sequence/advance</code>, only for a step waiting on Next), <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>; for one about to start '
-      + '<code>/deck/sequence/now</code> and <code>/deck/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.'
+      + `Stream Deck: <code>${base}${scene.viewDeck}/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
+      + `<code>${scene.viewDeck}/sequence/next</code> (or <code>${scene.viewDeck}/sequence/advance</code>, only for a step waiting on Next), <code>${scene.viewDeck}/sequence/pause</code> and <code>${scene.viewDeck}/sequence/stop</code>; for one about to start `
+      + `<code>${scene.viewDeck}/sequence/now</code> and <code>${scene.viewDeck}/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.`
+      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (the coloured dots), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent and a Sponsor ads step plays nothing.` : '')
     : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
       + 'Add your sources below first, then <b>+ New sequence</b>.';
 }
@@ -193,6 +195,13 @@ function lengthsChanged() {
 }
 function openSequence(sq) {
   draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, steps: [] };
+  // With more than one output: where it starts by itself, and what plays only on Output 1.
+  const outs = scene.viewMany ? out.outputs : [];
+  $('sqOutNote').classList.toggle('hidden', !outs.length);
+  $('sqStartOn').innerHTML = '';
+  for (const o of outs) $('sqStartOn').append(new Option(o.name, o.id));
+  $('sqStartOn').value = outs.some(o => o.id === draft.startOn) ? draft.startOn : 'main';
+  $('sqOutNote').textContent = 'Played by hand, it plays on the output picked over the Scene View. Music and Sponsor ads steps play only on Output 1; on other outputs it is silent.';
   const start = draft.start || { type: 'hand' };
   $('sqStart').value = start.type;
   $('sqStartMin').value = start.min || 10;
@@ -351,6 +360,8 @@ function playsInside(sq, id, seen = new Set()) {
 // Only the start and repeat settings that fit what's picked.
 function showStartFields() {
   const type = $('sqStart').value;
+  // Where it starts by itself, with more than one output.
+  document.querySelectorAll('.sqStartOn').forEach(e => e.classList.toggle('hidden', !scene.viewMany || type === 'hand'));
   const hasMusic = !!$('sqMusic').value;
   document.querySelector('.sqMusicOn').classList.toggle('hidden', !hasMusic);
   $('sqListen').classList.toggle('hidden', !$('sqMusic').value.startsWith('track:'));
@@ -410,6 +421,7 @@ function draftChanges() {
     musicEnd: endType === 'fade' ? { type: 'fade', sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
     ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
     then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : then.startsWith('sequence:') ? { type: 'sequence', sequence: then.slice(9) } : { type: then },
+    ...(scene.viewMany ? { startOn: $('sqStartOn').value } : {}),
     steps: draft.steps };
 }
 async function saveSequence(andPlay) {
