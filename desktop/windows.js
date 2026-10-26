@@ -12,7 +12,8 @@
 
 'use strict';
 
-const { app, BrowserWindow, Menu, shell, clipboard, screen, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, clipboard, screen, dialog, protocol } = require('electron');
+const fs = require('fs');
 const path = require('path');
 // The Studio pages, in tab order, shared with the tab bar on every page (public/studiobar.js).
 const { STUDIO_PAGES: TABS } = require('../public/studiobar.js');
@@ -27,6 +28,25 @@ const HEADER_CSS = `
   .fp-bar { padding-left: 92px !important; -webkit-app-region: drag; -webkit-user-select: none; user-select: none; }
   .fp-bar a, .fp-bar button, .fp-bar input, .fp-bar select { -webkit-app-region: no-drag; }
 `;
+
+// The app's own pages (the splash, What's new, Back up settings, off air) and the logo and font
+// they use, from inside the app's archive. They're served as studio://app/desktop/... rather than
+// file://, since the shipped app's fuses (package.json) leave file:// as a browser has it, which
+// can't read inside app.asar: the pages failed to load, so the splash had no logo and What's new
+// never opened. Only files in desktop/ and public/ are served.
+const APP_ROOT = path.join(__dirname, '..');
+const TYPES = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+protocol.registerSchemesAsPrivileged([{ scheme: 'studio', privileges: { standard: true, secure: true } }]);
+app.whenReady().then(() => protocol.handle('studio', async req => {
+  const rel = path.normalize(decodeURIComponent(new URL(req.url).pathname)).replace(/^[/\\]+/, '');
+  if (!/^(desktop|public)[/\\]/.test(rel)) return new Response('Not found', { status: 404 });
+  try {
+    return new Response(await fs.promises.readFile(path.join(APP_ROOT, rel)), { headers: { 'content-type': TYPES[path.extname(rel).toLowerCase()] || 'application/octet-stream' } });
+  } catch { return new Response('Not found', { status: 404 }); }
+}));
+// Loads one of the pages above in a window.
+const loadPage = (win, page, query = {}) => win.loadURL(`studio://app/desktop/${page}?${new URLSearchParams(query)}`);
+const isAppPage = u => u.startsWith('studio:');
 
 module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, onWindowOpened, onAllClosed }) {
   const local = p => `http://localhost:${port}${p}`;
@@ -43,10 +63,14 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
 
   let main = null; // the window "Open Studio" reuses
   let quitting = false; // quitting closes every window without asking again
-  app.on('before-quit', () => {
-    quitting = true;
-    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.confirmedClose = true;
-  });
+  // Quitting, or installing an update (main.js calls it then, since macOS's updater closes the
+  // windows before the app is told it's quitting): no window asks before it closes. false: the
+  // install failed and the app carries on.
+  function setQuitting(on = true) {
+    quitting = on;
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.confirmedClose = on;
+  }
+  app.on('before-quit', () => setQuitting());
 
   // Closing the last window takes Studio off air, so on air it asks first: mid-stream that
   // would stop the graphics and the Stream Deck.
@@ -89,7 +113,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
     win.on('closed', () => { if (splash === win) splash = null; finish(); });
     setTimeout(() => closeSplash(true), SPLASH_MAX);
-    win.loadFile(path.join(__dirname, 'splash.html'), { query: { version: app.getVersion() } });
+    loadPage(win, 'splash.html', { version: app.getVersion() });
   }
 
   // Closes the splash: once it has been up for SPLASH_MIN, or straight away (before a dialog).
@@ -116,7 +140,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     });
     win.isPanel = true;
     win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
-    win.loadFile(path.join(__dirname, 'export.html'), { query: { media: mediaLabel } });
+    loadPage(win, 'export.html', { media: mediaLabel });
     return new Promise(resolve => {
       win.on('closed', () => resolve(null));
       win.webContents.once('did-finish-load', () => {
@@ -144,7 +168,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', e => e.preventDefault());
     win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
-    win.loadFile(path.join(__dirname, 'whatsnew.html'));
+    loadPage(win, 'whatsnew.html');
     return new Promise(resolve => {
       win.on('closed', () => { if (whatsNew === win) whatsNew = null; resolve(null); });
       win.webContents.once('did-finish-load', () => {
@@ -214,7 +238,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     });
     // Following a link to somewhere other than Studio (PlayHQ, GitHub) opens the browser.
     wc.on('will-navigate', (e, to) => {
-      if (isStudio(to) || to.startsWith('file:')) return;
+      if (isStudio(to) || isAppPage(to)) return;
       e.preventDefault();
       if (/^https?:|^mailto:/.test(to)) shell.openExternal(to);
     });
@@ -227,6 +251,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
         detail: 'Stay to save them, or leave and lose them.',
       });
       if (choice === 0) e.preventDefault();
+      // Staying while an update installs: the install waits, and gives up (main.js says so).
+      else if (quitting) setQuitting(false);
     });
     wc.on('did-navigate', (e, to) => { if (isStudio(to)) win.studioUrl = to; });
     wc.on('did-navigate-in-page', (e, to) => { if (isStudio(to)) win.studioUrl = to; });
@@ -234,7 +260,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     wc.on('did-fail-load', (e, code, desc, failed, isMainFrame) => {
       if (!isMainFrame || code === -3 /* aborted: a new page took over */ || !isStudio(failed)) return;
       log(`Couldn't load ${failed}: ${desc}`);
-      win.loadFile(path.join(__dirname, 'offair.html'), { query: { to: failed, on: isOnAir() ? '1' : '' } });
+      loadPage(win, 'offair.html', { to: failed, on: isOnAir() ? '1' : '' });
     });
     wc.on('page-title-updated', () => refreshMenu());
     win.on('focus', () => refreshMenu());
@@ -287,7 +313,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // Once Studio is on air: pages showing "off air" load their page again.
   function reloadOffAir() {
     for (const w of pageWindows()) {
-      if (w.studioUrl && w.webContents.getURL().startsWith('file:')) w.loadURL(w.studioUrl);
+      if (w.studioUrl && isAppPage(w.webContents.getURL())) w.loadURL(w.studioUrl);
     }
   }
 
@@ -315,7 +341,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // After Stop Studio: open pages say Studio is off air rather than failing quietly.
   function showOffAir() {
     for (const w of pageWindows()) {
-      if (isStudio(w.webContents.getURL())) w.loadFile(path.join(__dirname, 'offair.html'), { query: { to: w.studioUrl, on: '' } });
+      if (isStudio(w.webContents.getURL())) loadPage(w, 'offair.html', { to: w.studioUrl, on: '' });
     }
   }
 
@@ -385,5 +411,5 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       { role: 'windowMenu' },
     ]));
   }
-  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport, showWhatsNew };
+  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport, showWhatsNew, setQuitting, isQuitting: () => quitting };
 };

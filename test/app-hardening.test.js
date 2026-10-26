@@ -72,3 +72,24 @@ test('unpacked() turns an archive path into the copy beside it, and leaves every
   // The helper can't have the archive as its working directory.
   assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'desktop/main.js'), 'utf8'), /cwd: APP_DIR/);
 });
+
+// With grantFileProtocolExtraPrivileges off, file:// can't read inside app.asar: the app's own pages
+// failed to load in the shipped app (the splash had no logo, What's new never opened). They're served
+// as studio://app/... (desktop/windows.js) instead, and every file they use must be in desktop/ or public/.
+test("the app's own pages come from the archive by studio://, not file://", () => {
+  const src = fs.readFileSync(path.join(ROOT, 'desktop/windows.js'), 'utf8');
+  assert.doesNotMatch(src, /loadFile\(/, 'loadFile is file://, which the fuses keep out of the archive');
+  const pages = [...src.matchAll(/loadPage\(\w+, '([^']+)'/g)].map(m => m[1]);
+  assert.deepEqual([...new Set(pages)].sort(), ['export.html', 'offair.html', 'splash.html', 'whatsnew.html']);
+  for (const page of pages) {
+    const html = fs.readFileSync(path.join(ROOT, 'desktop', page), 'utf8');
+    assert.doesNotMatch(html, /file:/, `${page} mustn't ask for file://`);
+    for (const [, ref] of html.matchAll(/(?:src="|url\()(\.\.\/[^")]+)/g)) {
+      const rel = path.posix.normalize(path.posix.join('desktop', ref));
+      assert.match(rel, /^(desktop|public)\//, `${page}: ${ref} is outside what studio:// serves`);
+      assert.ok(fs.existsSync(path.join(ROOT, rel)), `${page}: ${ref} is missing`);
+      assert.ok(build.files.includes('public/**/*') || build.files.includes(rel), `${rel} is packed`);
+    }
+  }
+  assert.equal(build.electronFuses.grantFileProtocolExtraPrivileges, false);
+});

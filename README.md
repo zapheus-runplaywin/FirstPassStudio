@@ -207,6 +207,10 @@ interrupt a stream; once one has downloaded, **Restart to update** in the menu i
 newest version: a newer one that comes out after the first has downloaded replaces it, and **Restart to update** checks once
 more first (the menu shows "Downloading 0.3.12…" while it fetches it), so the app never has to restart twice to catch up.
 macOS's updater only takes one update per restart, so `desktop/updates.js` hands it the update only when it's installed.
+macOS's updater closes every window before the app hears it's quitting, so **Restart to update** first does what Quit
+does (stops the helper and the outputs, and tells the windows not to ask), keeps the outputs on for the new version, and
+closes any window still open after 5 seconds, unless a page with unsaved changes asked and you chose Stay. Each step is
+in `logs/app.log` (`[update]` lines).
 Settings are brought up to date and backed up on the first start of the new version.
 
 ### Building and releasing it
@@ -274,6 +278,9 @@ Electron's fuses set so the app can't be run as a plain Node or handed code by a
 three entitlements it needs (`build/entitlements.mac.plist`). ffmpeg, the native modules and the Stream Deck plugin are
 unpacked beside the archive (`asarUnpack`) and the code reaches them through `unpacked.js`. A new file the app runs,
 loads as a native module or hands to another program goes in `asarUnpack` too (`test/app-hardening.test.js` checks).
+The fuses leave `file://` as a browser has it, which can't read inside the archive, so the app's own pages (the splash,
+What's new, Back up settings, off air) are served as `studio://app/desktop/...` by `desktop/windows.js`, from `desktop/`
+and `public/` only.
 
 To build on your own Mac instead: `npm install`, then `npm run dist` (signs with the Developer ID certificate in your
 keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to notarise). The app is in `dist/`.

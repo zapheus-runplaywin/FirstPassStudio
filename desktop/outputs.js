@@ -137,5 +137,8 @@ module.exports = function outputs({ port, log }) {
       closeAll();
     },
     closeAll,
+    // Installing an update (main.js): the windows are about to close, and the outputs stay on for
+    // when the new version opens. false: the install failed and the app carries on.
+    setQuitting(on = true) { quitting = on; },
   };
 };

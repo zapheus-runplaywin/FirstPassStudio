@@ -13,7 +13,7 @@
 
 'use strict';
 
-const { app, Tray, Menu, shell, dialog, nativeImage, utilityProcess, clipboard } = require('electron');
+const { app, Tray, Menu, shell, dialog, nativeImage, utilityProcess, clipboard, BrowserWindow } = require('electron');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -606,8 +606,42 @@ function appUpdates() {
     // Logs a failed check or download in full; the dialog below keeps it short.
     autoUpdater.on('error', (err, detail) => log(`[update] ${detail || err.message}`));
     updates = require('./updates').createUpdates({ updater: autoUpdater, log, onChange: refreshMenu, onInstall: () => { quitting = true; } });
+    // macOS's updater (Squirrel), underneath: each step in the log, to show where an install stops.
+    const squirrel = require('electron').autoUpdater;
+    squirrel.on('checking-for-update', () => log('[update] Handing the update to macOS'));
+    squirrel.on('update-downloaded', () => log('[update] macOS has the update'));
+    squirrel.on('before-quit-for-update', beforeInstall);
   }
   return updates;
+}
+
+// "Restart to update": macOS's updater closes every window before the app hears it's quitting,
+// so this does first what quitting does (below). Otherwise the Studio window stopped to ask about
+// going off air, the outputs turned themselves off for next time, the helper kept Studio on air,
+// and the install timed out with the app still running. A window still open after a few seconds
+// is closed outright so the install goes ahead, unless a page with unsaved changes asked and
+// Stay was chosen.
+function beforeInstall() {
+  log('[update] Closing the windows to install');
+  quitting = true;
+  windows.setQuitting();
+  outputs?.setQuitting();
+  if (helper) { helper.stopping = true; helper.kill(); }
+  outputs?.closeAll();
+  setTimeout(() => {
+    if (!windows.isQuitting()) return;
+    const left = BrowserWindow.getAllWindows().filter(w => !w.isDestroyed());
+    if (!left.length) return;
+    log(`[update] ${left.length} window${left.length === 1 ? '' : 's'} still open: closing ${left.length === 1 ? 'it' : 'them'}`);
+    for (const w of left) w.destroy();
+  }, 5000).unref();
+}
+
+// The install failed: the app carries on as it was.
+function installFailed() {
+  quitting = false;
+  windows.setQuitting(false);
+  outputs?.setQuitting(false);
 }
 
 function updateMenuItem() {
@@ -620,6 +654,7 @@ function updateMenuItem() {
 
 function restartToUpdate() {
   appUpdates().restartToUpdate().then(ok => {
+    if (ok === false) installFailed();
     if (ok === false) dialog.showMessageBox({ type: 'warning', message: 'Couldn\'t install the update', detail: 'Try again, or quit FirstPass Studio to install it. The details are in the debug log.' });
   });
 }
