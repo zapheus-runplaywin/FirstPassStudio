@@ -33,7 +33,7 @@ test('an older outputs.json becomes Output 1, the primary, with its settings', (
   assert.equal(o.primary, true);
   assert.equal(o.name, 'Output 1');
   assert.equal(o.slot, 1);
-  assert.equal(o.colour, '#ff9b3d');
+  assert.equal(o.colour, '#ea9a38');
   assert.equal(o.mode, 'ndi');
   assert.equal(o.ndiSignal, 'alpha');
   assert.equal(o.ndiName, 'Studio');
@@ -48,7 +48,7 @@ test('an older outputs.json becomes Output 1, the primary, with its settings', (
 test('outputs are added up to four, each off, with its own number, colour and NDI name; Output 1 stays', () => {
   for (let i = 0; i < 3; i++) assert.equal(outputs.apply({ add: true }), null);
   assert.deepEqual(st().outputs.map(o => o.name), ['Output 1', 'Output 2', 'Output 3', 'Output 4']);
-  assert.deepEqual(st().outputs.map(o => o.colour), ['#ff9b3d', '#ff7ac6', '#2ae7e7', '#facc15']);
+  assert.deepEqual(st().outputs.map(o => o.colour), ['#ea9a38', '#f24f91', '#4ec1e6', '#95ba45']);
   assert.ok(st().outputs.slice(1).every(o => !o.on && o.mode === 'off'), 'added outputs start off');
   assert.ok(st().outputs.slice(1).every(o => o.ndiName !== 'Studio'), 'and with their own NDI name');
   assert.match(outputs.apply({ add: true }), /4 outputs at most/);
@@ -181,7 +181,7 @@ test('what\'s on for an output isn\'t saved run by run, and goes when the output
   // A new output takes the free number (and its colour).
   outputs.apply({ add: true });
   assert.deepEqual(st().outputs.map(o => o.slot), [1, 3, 4, 2]);
-  assert.equal(st().outputs[3].colour, '#ff7ac6');
+  assert.equal(st().outputs[3].colour, '#f24f91');
 });
 
 test('scene.html draws another output\'s sources, silently; the pop-out and Output page know outputs', () => {
