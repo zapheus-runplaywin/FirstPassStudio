@@ -236,6 +236,13 @@
         <label for="outName" class="forMulti hidden">Name</label>
         <div class="row forMulti hidden"><input id="outName" maxlength="40" style="flex:1" title="Shown on its card and tab, and used in its Stream Deck links">
           <button class="danger hidden" id="outRemove">Remove this output</button></div>
+        <label for="outSponsors" class="forExtra hidden">Sponsors</label>
+        <div class="forExtra hidden">
+          <label style="font-weight:400"><input type="checkbox" id="outSponsors"> Counts for sponsors</label>
+          <p class="note" style="margin:4px 0 0">Tick it when everything on this output is seen on the stream, like a second downstream key: then its sponsors
+          and Sponsor ads count in the exposure report. Leave it off for a camera's upstream key or a commentary monitor, as Studio can't tell when
+          they're on air and counting them would overclaim. Output 1 always counts.</p>
+        </div>
         <label>Send the scene</label>
         <div style="display:grid;gap:6px">
           <label><input type="radio" name="outMode" value="off"> Off</label>

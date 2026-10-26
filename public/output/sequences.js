@@ -136,7 +136,7 @@ function renderSequences() {
       + `Stream Deck: <code>${base}${scene.viewDeck}/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
       + `<code>${scene.viewDeck}/sequence/next</code> (or <code>${scene.viewDeck}/sequence/advance</code>, only for a step waiting on Next), <code>${scene.viewDeck}/sequence/pause</code> and <code>${scene.viewDeck}/sequence/stop</code>; for one about to start `
       + `<code>${scene.viewDeck}/sequence/now</code> and <code>${scene.viewDeck}/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.`
-      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (the coloured dots), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent and a Sponsor ads step plays nothing.` : '')
+      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (the coloured dots), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
     : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
       + 'Add your sources below first, then <b>+ New sequence</b>.';
 }
@@ -201,7 +201,7 @@ function openSequence(sq) {
   $('sqStartOn').innerHTML = '';
   for (const o of outs) $('sqStartOn').append(new Option(o.name, o.id));
   $('sqStartOn').value = outs.some(o => o.id === draft.startOn) ? draft.startOn : 'main';
-  $('sqOutNote').textContent = 'Played by hand, it plays on the output picked over the Scene View. Music and Sponsor ads steps play only on Output 1; on other outputs it is silent.';
+  $('sqOutNote').textContent = "Played by hand, it plays on the output picked over the Scene View. Music plays only on Output 1; on other outputs it is silent, and Sponsor ads play in that output's own ad sources (counted for sponsors only if its card says so).";
   const start = draft.start || { type: 'hand' };
   $('sqStart').value = start.type;
   $('sqStartMin').value = start.min || 10;

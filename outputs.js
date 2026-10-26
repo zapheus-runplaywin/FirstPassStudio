@@ -52,7 +52,7 @@ const COLOURS = { 1: '#ea9a38', 2: '#f24f91', 3: '#4ec1e6', 4: '#95ba45' };
 const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
-  ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT,
+  ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
 };
 
 let log = () => {};
@@ -114,6 +114,9 @@ function clean(s, old = DEFAULTS) {
     // NDI shows sources as "MAC NAME (this name)", so brackets in it would confuse things.
     ndiName: String(pick('ndiName', '')).replace(/[()\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) || DEFAULT_NDI_NAME,
     ndiFormat: NDI_FORMATS.some(f => f.id === pick('ndiFormat')) ? pick('ndiFormat') : DEFAULT_NDI_FORMAT,
+    // What's on it counts in the sponsors' exposure report (Output 1's always does). Off unless ticked, as Studio
+    // can't tell whether another output is on the stream.
+    sponsors: pick('sponsors', false) === true,
   };
 }
 
@@ -504,6 +507,7 @@ function init(logger, { colours, removed } = {}) {
 }
 
 // The outputs' ids, names, numbers and colours, for the scene and the Output page: [{ id, slot, name, link, colour, primary }].
-const summary = () => list.map(o => ({ id: o.id, slot: o.slot, name: o.name, link: slug(o.name), colour: COLOURS[o.slot], primary: o.id === PRIMARY }));
+const summary = () => list.map(o => ({ id: o.id, slot: o.slot, name: o.name, link: slug(o.name), colour: COLOURS[o.slot], primary: o.id === PRIMARY,
+  sponsors: o.id === PRIMARY || o.sponsors }));
 
 module.exports = { init, route, deck, state, apply, windows, listen, message, summary, find, PRIMARY, MAX, COLOURS };

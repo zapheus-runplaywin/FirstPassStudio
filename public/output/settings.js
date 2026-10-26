@@ -403,6 +403,8 @@ const showOut = o => {
     if (live) el.disabled = true;
     else if (el.name !== 'outMode') el.disabled = false;
   }
+  // Counts for sponsors changes nothing being sent, so it stays free while the output is on.
+  $('outSponsors').disabled = false;
   $('outLocked').classList.toggle('hidden', !live);
 };
 // Changes the output being set up here (changes.output), or adds or removes one ({ add }, { remove }).
@@ -440,6 +442,7 @@ $('outFillDisplay').onchange = () => setOut({ fillDisplay: $('outFillDisplay').v
 $('outKeyDisplay').onchange = () => setOut({ keyDisplay: $('outKeyDisplay').value });
 $('outColor').onchange = () => setOut({ chromaColor: $('outColor').value });
 $('outChromaSafe').onchange = () => setOut({ chromaSafe: $('outChromaSafe').checked });
+$('outSponsors').onchange = () => setOut({ sponsors: $('outSponsors').checked });
 $('outDlDevice').onchange = () => setOut({ decklinkDevice: $('outDlDevice').value, decklinkMode: 0 }).then(() => setOut({ decklinkMode: Number($('outDlMode').value) || 0 }));
 $('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').value) || 0 });
 $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
@@ -473,6 +476,8 @@ function renderOutputs(o, so) {
   for (const el of document.querySelectorAll('.forMulti')) el.classList.toggle('hidden', !many);
   $('outRemove').classList.toggle('hidden', so.primary);
   $('outExtraNote').classList.toggle('hidden', so.primary);
+  for (const el of document.querySelectorAll('.forExtra')) el.classList.toggle('hidden', so.primary);
+  $('outSponsors').checked = !!so.sponsors;
   if (document.activeElement !== $('outName')) $('outName').value = so.name;
   document.documentElement.style.setProperty('--oc', many ? so.colour : 'transparent');
   $('outSection').classList.toggle('picked', many);

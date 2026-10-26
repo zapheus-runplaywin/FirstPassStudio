@@ -385,8 +385,8 @@ function tick() {
 // sponsorAd), as long as the ad: a video until it finishes, a still for its seconds. With no ad to play
 // (and no house ad), it goes straight on.
 function fillAd(step) {
-  // Sponsor ads play on the primary output only (their source and exposure are the primary's).
-  const ad = api.sponsorAd && here === PRIMARY ? api.sponsorAd({ house: step.house }) : null;
+  // On another output, in that output's own ad sources (silent there, like everything off the primary).
+  const ad = api.sponsorAd ? api.sponsorAd({ house: step.house }, here) : null;
   step.sources = ad ? [ad.source] : [];
   step.length = ad ? ad.length : { type: 'now' };
   step.ad = ad ? ad.name : null;
