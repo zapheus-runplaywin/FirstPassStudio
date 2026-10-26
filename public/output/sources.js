@@ -27,6 +27,10 @@ function renderList() {
     $('outFilter').value = outFilter;
   }
   const shown = all ? all.filter(o => outFilter === 'all' || o.id === outFilter) : null;
+  // Hide all acts on the output picked over the Scene View, like scene and sequence clicks, and says which.
+  const picked = all && (all.find(o => o.id === scene.viewOutput) || all[0]);
+  $('hideAll').textContent = picked ? `Hide all on ${picked.name}` : 'Hide all';
+  $('hideAll').title = picked ? `Every source off on ${picked.name} only (the output picked over the Scene View)` : 'Every source off';
   if (!scene.sources.length) { ul.innerHTML = '<li class="empty">No sources yet. Add a page, an image or a video.</li>'; return; }
   for (const s of scene.sources) {
     const li = document.createElement('li');

@@ -277,11 +277,9 @@ $('fRemove').onclick = () => {
   const s = current();
   if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
 };
-// Hide all: every source off on the outputs the Sources list shows (all of them, or the one picked in Show).
-$('hideAll').onclick = async () => {
-  const outs = out && out.outputs && out.outputs.length > 1 ? out.outputs.filter(o => outFilter === 'all' || o.id === outFilter) : [{ primary: true }];
-  for (const o of outs) await act({ type: 'hideAll', ...(o.primary ? {} : { output: o.id }) });
-};
+// Hide all: every source off on the output picked over the Scene View (where scene and sequence clicks go), never
+// on every output at once: clearing a monitor mustn't blank the one on air.
+$('hideAll').onclick = () => act({ type: 'hideAll', ...(scene.viewOutput && scene.viewOutput !== 'main' ? { output: scene.viewOutput } : {}) });
 // The video output state (`out`), the Scene View's sound and listen() are in preview.js, which runs first.
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 let viewWas = '';
