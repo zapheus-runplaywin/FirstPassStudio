@@ -230,6 +230,13 @@ const PAGE_OPTIONS = (() => {
       mode(),
       ...background,
     ],
+    'stinger.html': [
+      { key: 'length', label: 'Length', type: 'number', min: 0.5, max: 3, step: 0.1, unit: 's', placeholder: '1', help: 'The whole picture is covered from 22% to 72% of the way through.' },
+      { key: 'logo', label: 'Competition logo', type: 'select', choices: [['', 'On the last band'], ['0', 'Left out (colours only)']] },
+      { key: 'size', label: 'Logo height', type: 'number', min: 50, max: 1080, unit: 'px', placeholder: '560' },
+      mode(),
+      { key: 'sfx', label: 'Whoosh volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '80', help: '0 turns it off.' },
+    ],
     'ad.html': [
       { key: 'tagline', label: 'Tagline', type: 'text', placeholder: 'none' },
       { key: 'out', label: 'At the end', type: 'select', choices: [['', 'Animates away'], ['0', 'Stays on screen']] },

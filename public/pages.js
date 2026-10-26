@@ -49,6 +49,7 @@
     { file: 'introoutro.html', name: 'Intro and outro', docs: 'introPages', examples: [
       ...['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => [`Intro: ${st}`, `/introoutro.html?style=${st}&out=0&bg=gradient`, 8000]),
       ['Outro', '/introoutro.html?type=outro&out=0&bg=gradient', 8000]] },
+    { file: 'stinger.html', name: 'Stinger (1 second transition)', docs: 'stingerPages', examples: [['Stinger (mid transition)', '/stinger.html?sfx=0', 600]] },
     { file: 'ad.html', name: 'PIVT and FirstPass Studio ad', docs: 'adPages', examples: [['PIVT and FirstPass Studio ad (mid animation)', '/ad.html', 6000]] },
     { file: 'sponsor.html', name: 'Sponsor card', docs: 'gamePages', examples: [['Sponsor card', '/sponsor.html', 2500]] },
     { file: 'sponsorwall.html', name: 'Sponsor wall', docs: 'gamePages', examples: [['Sponsor wall', '/sponsorwall.html', 2500]] },

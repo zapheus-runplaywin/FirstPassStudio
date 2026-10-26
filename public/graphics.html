@@ -302,6 +302,10 @@
     <div id="introPages"></div>
   </div>
   <div class="card">
+    <h2>Stinger (a 1 second transition in the competition's colours)</h2>
+    <div id="stingerPages"></div>
+  </div>
+  <div class="card">
     <h2>PIVT and FirstPass Studio ad (10 seconds, for the breaks)</h2>
     <div id="adPages"></div>
   </div>
@@ -682,6 +686,14 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   'Combine them with &amp;, e.g. <code>/logo.html?template=badge&amp;mode=dark&amp;bg=7f4092</code>. The templates after fun and pro use flat, hard edged shapes only, so nothing leaves a halo over key and fill. ' +
   'With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
+document.getElementById('stingerPages').appendChild(pageRow('Stinger', '/stinger.html',
+  'Slanted bands in the competition\'s colours (accent, highlight, main and the dark panel colour, from the competition setup) sweep across and cover the whole picture, the competition logo punches in on the last one, then the bands carry on off the other side. ' +
+  'It lasts 1 second and the whole picture is covered from 0.22 to 0.72 seconds, so a cut to another camera or scene can happen underneath it. It plays once each time it\'s turned on on the Output page, then turns itself off. ' +
+  'It covers the whole frame on purpose, so it isn\'t fitted between the title and the scoreboard. ' +
+  'Options: <code>?length=1.5</code> makes it last longer (0.5 to 3 seconds; the covered part stretches with it), <code>?logo=0</code> plays it with the colours only, ' +
+  '<code>?mode=dark</code> uses the setup\'s dark mode competition logo, <code>?size=560</code> sets the logo\'s height in pixels, and <code>?sfx=80</code> is the whoosh\'s volume in % (<code>0</code> for none). ' +
+  'It reads the competition logo once when it loads.'));
+document.getElementById('stingerPages').appendChild(pageRow('Stinger: colours only', '/stinger.html?logo=0'));
 const INTRO_HELP = 'The competition logo and name, the organisation, and the logos of every team in a division, for the start and the end of the stream. ' +
   '<b>Intro:</b> Welcome to the competition, with this round, the division, the venue and the date. ' +
   '<b>Outro</b> (<code>?type=outro</code>): the last game of the night (or season) and when to join again, the same words as Up next\'s end of night card: next week with the next round, the finals round\'s name, Finals are next, or a thank you for the season. ' +
