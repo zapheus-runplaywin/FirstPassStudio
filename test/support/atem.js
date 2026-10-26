@@ -5,6 +5,7 @@
 //   atem.drop(); atem.resume();                             // stops answering (as when its cable is pulled)
 //   atem.set({ program: 3 });                               // as if someone pressed a button on the switcher
 //   atem.state.dskKeys[0], atem.state.uskKeys[1]            // how each key is set up ({ fill, cut, preMultiply } / { type, fill, cut, preMultiplied })
+//   atem.state.nextSelection                                // the next transition's selection (bit 0 background, bits 1-4 upstream keys 1-4)
 //   await atem.close();
 
 'use strict';
@@ -39,6 +40,9 @@ async function startAtem(opts = {}) {
     // upstream key's type (0 luma, 1 chroma). Fresh from the box: every key on Black, luma, not pre multiplied.
     dskKeys: Array.from({ length: dskCount }, () => ({ fill: 0, cut: 0, preMultiply: false })),
     uskKeys: Array.from({ length: uskCount }, () => ({ type: 0, fill: 0, cut: 0, preMultiplied: false })),
+    // The next transition (as the panel's BKGD and KEY buttons): a cut or auto takes these, the background and the
+    // upstream keys picked (each key picked goes on if it was off, off if it was on). Background only, from the box.
+    nextSelection: 1, selection: 1,
     ...(opts.keys || {}),
     names: Array.from({ length: inputCount }, (_, i) => (opts.names || [])[i] || `Camera ${i + 1}`),
   };
@@ -75,6 +79,7 @@ async function startAtem(opts = {}) {
     b.writeUInt16BE(state.uskKeys[k].fill, 6); b.writeUInt16BE(state.uskKeys[k].cut, 8);
   }));
   const keLm = k => command('KeLm', bytes(12, b => { b.writeUInt8(k, 1); b.writeUInt8(state.uskKeys[k].preMultiplied ? 1 : 0, 2); }));
+  const trSS = () => command('TrSS', bytes(8, b => { b.writeUInt8(state.selection, 2); b.writeUInt8(state.nextSelection, 4); }));
   const dump = () => Buffer.concat([
     command('_ver', bytes(4, b => b.writeUInt32BE(VERSION, 0))),
     command('_pin', bytes(44, b => { b.write(productName, 0); b.writeUInt8(modelNo, 40); })),
@@ -84,7 +89,7 @@ async function startAtem(opts = {}) {
     input(0, 'Black', 'BLK', 1),
     ...state.names.map((n, i) => input(i + 1, n, `CAM${i + 1}`, 0)),
     input(1000, 'Color Bars', 'BARS', 2),
-    prg(), prv(),
+    prg(), prv(), trSS(),
     ...state.usk.map((_, k) => keOn(k)),
     ...state.dsk.map((_, k) => dskS(k)),
     ...state.uskKeys.flatMap((_, k) => [keBP(k), keLm(k)]),
@@ -94,7 +99,15 @@ async function startAtem(opts = {}) {
   ]);
 
   // What a client asked for: the switcher does it and tells every client, as the real one does.
-  const take = () => { [state.program, state.preview] = [state.preview, state.program]; return [prg(), prv()]; };
+  // A cut or auto: the background and the keys in the next transition's selection change together.
+  const take = () => {
+    const sel = state.nextSelection;
+    state.selection = sel;
+    const out = [trSS()];
+    if (sel & 1) { [state.program, state.preview] = [state.preview, state.program]; out.push(prg(), prv()); }
+    state.usk.forEach((on, k) => { if (sel & (2 << k)) { state.usk[k] = !on; out.push(keOn(k)); } });
+    return out;
+  };
   const handle = (name, d) => {
     received.push({ name, data: d, at: Date.now() });
     if (name === 'DCut' || name === 'DAut') return take();
@@ -104,6 +117,7 @@ async function startAtem(opts = {}) {
     if (name === 'CDsL') { state.dsk[d[0]] = d[1] === 1; return [dskS(d[0])]; }
     if (name === 'DDsA') { const k = d[1]; state.dsk[k] = !state.dsk[k]; return [dskS(k)]; }
     if (name === 'FtbA') { state.ftb = !state.ftb; return [ftbS()]; }
+    if (name === 'CTTp') { if (d[0] & 2) state.nextSelection = d[3] || 1; return [trSS()]; }
     // Setting a key up: its fill and key inputs, pre multiplied, an upstream key's type.
     if (name === 'CDsF') { state.dskKeys[d[0]].fill = d.readUInt16BE(2); return [dskB(d[0])]; }
     if (name === 'CDsC') { state.dskKeys[d[0]].cut = d.readUInt16BE(2); return [dskB(d[0])]; }

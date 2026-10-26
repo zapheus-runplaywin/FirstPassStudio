@@ -65,12 +65,22 @@ function showSwitcher(s) {
     const usk = $('swUsk'), dsk = $('swDsk');
     usk.innerHTML = '';
     dsk.innerHTML = '';
-    s.usk.forEach((on, k) => usk.appendChild(swButton(`Key ${k + 1}`, on ? 'on' : '', `Upstream key ${k + 1} ${on ? 'off' : 'on'} (a cut)`, () => swDo({ type: 'usk', key: k + 1, on: 'toggle' }))));
+    // A key an output comes into is underlined in its colour, and says whose it is.
+    const keyButton = (b, keyer) => {
+      const o = (s.keys || []).find(x => x.keyer === keyer);
+      if (o) { b.classList.add('outKey'); b.style.setProperty('--c', o.colour); b.title = `${o.name}'s key. ${b.title}${o.withCamera ? ` · ${o.withCamera}` : ''}`; }
+      return b;
+    };
+    s.usk.forEach((on, k) => usk.appendChild(keyButton(swButton(`Key ${k + 1}`, on ? 'on' : '', `Upstream key ${k + 1} ${on ? 'off' : 'on'} (a cut)`, () => swDo({ type: 'usk', key: k + 1, on: 'toggle' })), `usk${k + 1}`)));
     s.dsk.forEach((on, k) => {
-      dsk.appendChild(swButton(`DSK ${k + 1}`, on ? 'on' : '', `Downstream key ${k + 1} ${on ? 'off' : 'on'} (a cut)`, () => swDo({ type: 'dsk', key: k + 1, on: 'toggle' })));
+      dsk.appendChild(keyButton(swButton(`DSK ${k + 1}`, on ? 'on' : '', `Downstream key ${k + 1} ${on ? 'off' : 'on'} (a cut)`, () => swDo({ type: 'dsk', key: k + 1, on: 'toggle' })), `dsk${k + 1}`));
       dsk.appendChild(swButton('Auto', 'alt', `Downstream key ${k + 1} ${on ? 'off' : 'on'} at its own rate`, () => swDo({ type: 'dsk', key: k + 1, on: 'auto' })));
     });
   }
+  $('swFollow').checked = s.follow !== false;
+  const paired = (s.keys || []).filter(k => k.cameras && k.cameras.length);
+  $('swFollowNote').textContent = paired.length ? paired.map(k => `${k.name}: ${k.withCamera}`).join(' · ')
+    : 'Pick the cameras an output goes with (under Video output, Into the switcher as) and its key comes on with them.';
   // Picking the switcher: what was found on the network, or a typed address.
   $('swForm').classList.toggle('hidden', !swFormOpen);
   $('swForget').classList.toggle('hidden', !s.setUp);
@@ -90,6 +100,7 @@ function showSwitcher(s) {
   }
   if (document.activeElement !== $('swAddress') && s.pick && s.pick.kind === 'address') $('swAddress').value = s.pick.port === 9910 ? s.pick.address : `${s.pick.address}:${s.pick.port}`;
   swOutKey();
+  if (out && out.outputs) renderOutputs(out, selectedOutput()); // the output cards say On air with Court
 }
 $('swSetup').onclick = () => {
   swFormOpen = !swFormOpen;
@@ -160,10 +171,29 @@ function swOutKey() {
   box.innerHTML = html;
   $('outKeySetup').classList.toggle('hidden', !c || !c.fixes.length || !!c.problems.length);
   $('outKeySetup').title = c && c.fixes.length ? `Changes ${c.label} on the switcher: ${c.fixes.join('; ')}` : '';
+  // The cameras it goes with, for an output on an upstream key (a downstream key is over every camera).
+  const usk = !none && so.keyerNow.startsWith('usk');
+  for (const el of document.querySelectorAll('.forSwCams')) el.classList.toggle('hidden', !usk);
+  if (usk) {
+    // Every input but the outputs' own fills and keys.
+    const taken = new Set(out.outputs.flatMap(x => [x.swFill, x.swKey]).filter(Boolean));
+    const cams = inputs.filter(([id]) => !taken.has(id));
+    for (const id of so.swCameras || []) if (!cams.some(([v]) => v === id)) cams.push([id, `Input ${id} (not on this switcher)`]);
+    const html = cams.map(([id, t]) => `<label><input type="checkbox" value="${id}"${(so.swCameras || []).includes(id) ? ' checked' : ''}> ${hEsc(t)}</label>`).join('');
+    const box = $('outSwCams');
+    if (box.dataset.k !== html) {
+      box.innerHTML = html;
+      box.dataset.k = html;
+      for (const cb of box.querySelectorAll('input')) cb.onchange = () => setOut({ swCameras: [...box.querySelectorAll('input:checked')].map(x => Number(x.value)) });
+    }
+    $('outSwCamsNote').textContent = !(so.swCameras || []).length ? 'No cameras picked: Studio leaves this key alone. Pick some and Studio\'s cuts take the key on with them and off with the others.'
+      : `${c && c.withCamera ? `${c.withCamera}. ` : ''}Studio's cuts, autos and stingers take the key on with these cameras and off with the others, on the same frame${sw && sw.follow === false ? '' : ', and it follows cuts made on the switcher a frame or two later (Keys follow the camera)'}.`;
+  }
   // These change nothing being sent, so they stay free while the output is on.
-  for (const id of ['outKeyer', 'outSwFill', 'outSwKey', 'outKeySetup']) $(id).disabled = false;
+  for (const el of document.querySelectorAll('#outKeyer, #outSwFill, #outSwKey, #outKeySetup, #outSwCams input')) el.disabled = false;
 }
 $('outKeyer').onchange = () => setOut({ keyer: $('outKeyer').value });
+$('swFollow').onchange = () => swDo({ type: 'follow', on: $('swFollow').checked });
 $('outSwFill').onchange = () => setOut({ swFill: Number($('outSwFill').value) || 0 });
 $('outSwKey').onchange = () => setOut({ swKey: Number($('outSwKey').value) || 0 });
 $('outKeySetup').onclick = () => {
