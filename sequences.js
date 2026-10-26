@@ -398,6 +398,8 @@ function fillAd(step) {
 
 function enter(i) {
   const sq = playing();
+  // A scene step before's switcher actions still to come are called off (this step's own are run below).
+  if (here === PRIMARY) switcher.cancel('sequenceScene');
   const before = run.steps[run.step];
   const step = run.steps[i];
   if (step.kind === 'ad') fillAd(step);
@@ -472,7 +474,7 @@ function finish(why) {
   clearTimeout(fadeTimer);
   timer = fadeTimer = null;
   const ended = run;
-  if (here === PRIMARY) switcher.cancel('sequence');
+  if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   const then = sq ? sq.then : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
   const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
@@ -507,7 +509,7 @@ function interrupt(keep, why) {
   clearTimeout(fadeTimer);
   timer = fadeTimer = null;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
-  if (here === PRIMARY) switcher.cancel('sequence');
+  if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
   const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
   sound().stopFor(run.id, end.type === 'cut' ? 0 : fadeLeft(run, end.type === 'fade' ? end.sec : music.STOP_FADE_SEC));

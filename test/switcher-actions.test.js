@@ -107,8 +107,10 @@ test('a sequence step\'s switcher actions fire as the step starts, on the primar
   assert.deepEqual(fired(), ['Sequence "Walk out" step 1: Bench on preview, cut to what\'s on preview at 1.5 s']);
   wait(5);
   assert.deepEqual(fired().slice(1), ['Scene "Live": cut to Wide', 'Sequence "Walk out" step 2: upstream key 1 off']);
+  assert.equal(runs.find(r => r[0] === 'Scene "Live"')[1], 'sequenceScene', 'a scene step\'s scene actions belong to the sequence');
   wait(5);
   assert.deepEqual(runs.at(-1).slice(0, 2), ['Sequence "Walk out" step 3', 'sequence'], 'a step without any calls off the step before\'s');
+  cancels.length = 0;
   ok({ type: 'seqStop' });
-  assert.equal(cancels.at(-1), 'sequence', 'stopping calls off what was still to come');
+  assert.deepEqual(cancels, ['sequence', 'sequenceScene'], 'stopping calls off what was still to come, its scene steps\' too');
 });

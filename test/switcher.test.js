@@ -234,3 +234,25 @@ test('a sequence and a scene drive the switcher: in order, on time, and what a M
   assert.equal(atem.received.length, sent);
   assert.match(studio.log(), /Scene "Live": The switcher isn't answering, so nothing was sent \(auto\)/);
 });
+
+test('Stop calls off switcher actions still to come, a scene step\'s scene\'s too: nothing lands over a hand cut', async t => {
+  const atem = await startAtem({ model: 'MiniExtreme' });
+  t.after(() => atem.close());
+  const studio = await startStudio(t);
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
+  await connected(studio);
+  await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }] });
+  await studio.post('/api/scene', { type: 'sceneSave', name: 'Live' });
+  await studio.post('/api/scene', { type: 'sceneUpdate', scene: 'Live', changes: { switcher: [{ type: 'dsk', key: 1, on: 'on', atSec: 0.8 }] } });
+  const live = (await studio.get('/api/scene')).scenes[0].id;
+  await studio.post('/api/scene', { type: 'seqAdd', changes: { name: 'Walk out', steps: [
+    { kind: 'scene', scene: live, length: { type: 'time', sec: 20 }, switcher: [{ type: 'usk', key: 1, on: 'on', atSec: 0.8 }] },
+  ] } });
+  await studio.post('/api/scene', { type: 'seqPlay', sequence: 'Walk out' });
+  await wait(200);
+  await studio.post('/api/scene', { type: 'seqStop' });
+  await wait(1200);
+  assert.deepEqual(atem.received.map(c => c.name), [], 'neither the step\'s key nor its scene\'s');
+  assert.deepEqual(atem.state.dsk, [false, false]);
+  assert.deepEqual(atem.state.usk, [false, false, false, false]);
+});
