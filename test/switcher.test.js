@@ -335,3 +335,38 @@ test('a stinger cut: the stinger plays on Output 1 and the cut lands in the midd
   await studio.post('/api/scene', { type: 'sceneUpdate', scene: 'Live', changes: { switcher: [{ type: 'stinger', input: 2, name: 'Court' }] } });
   assert.deepEqual((await studio.get('/api/scene')).scenes[0].switcher, [{ type: 'stinger', input: 2, name: 'Court', atSec: 0 }]);
 });
+
+test('a reconnect still looking for its switcher gives way to one picked meanwhile: only the newest connection is kept', async t => {
+  const first = await startAtem({ model: 'MiniPro' });
+  const second = await startAtem({ model: 'MiniExtreme' });
+  t.after(() => Promise.all([first.close(), second.close()]));
+  // Remembered by name at an address that no longer answers to its name, so Studio starts by looking for it
+  // on the network (a stand-in dns-sd that takes its time).
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dnssd-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const fake = path.join(dir, 'dns-sd');
+  fs.writeFileSync(fake, `#!/bin/sh
+if [ "$1" = "-B" ]; then
+  echo " 8:20:01.456  Add        3  12 local.               _blackmagic._tcp.    Court ATEM"
+else
+  echo " 8:20:02.001  Court\\\\032ATEM._blackmagic._tcp.local. can be reached at localhost.:${first.port} (interface 1)"
+  echo " txtvers=1 class=AtemSwitcher"
+fi
+exec sleep 5
+`);
+  fs.chmodSync(fake, 0o755);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dataDir, 'switcher.json'), JSON.stringify({ pick: { kind: 'found', name: 'Court ATEM', host: 'gone.invalid', port: first.port, address: '' } }));
+  const studio = await startStudio(t, { dataDir, env: { FIRSTPASS_DNS_SD: fake } });
+  // While it's still looking, another switcher is picked by its address.
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${second.port}` });
+  const s = await connected(studio);
+  assert.equal(s.pick.port, second.port);
+  await wait(5500); // the first look finishes (2.5 s browsing, up to 1.5 s for each switcher), and must not connect again
+  assert.equal(second.talking(), 1, 'one connection to the switcher picked');
+  assert.equal(first.talking(), 0);
+  const now = await studio.get('/api/switcher');
+  assert.equal(now.state, 'connected');
+  assert.equal(now.model, 'ATEM Mini Extreme');
+});

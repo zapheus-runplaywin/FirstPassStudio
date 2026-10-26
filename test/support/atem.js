@@ -108,6 +108,7 @@ async function startAtem(opts = {}) {
       return;
     }
     const c = clients.get(key);
+    if (c) c.heard = Date.now();
     if (!c || !(flags & FLAG.ackRequest)) return;
     send(c, FLAG.ackReply, Buffer.alloc(0), p.readUInt16BE(10));
     const out = [];
@@ -126,6 +127,8 @@ async function startAtem(opts = {}) {
   return {
     port: socket.address().port, address: '127.0.0.1', productName, state, received,
     drop() { answering = false; },
+    // How many clients it has heard from in the last 1.5 s (a connected one replies to its heartbeat every half second).
+    talking: () => [...clients.values()].filter(c => Date.now() - (c.heard || 0) < 1500).length,
     resume() { answering = true; clients.clear(); },
     // As if someone pressed buttons on the switcher itself.
     set(change) {
