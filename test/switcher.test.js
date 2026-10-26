@@ -304,6 +304,27 @@ test('a stinger cut: the stinger plays on Output 1 and the cut lands in the midd
   assert.ok(ms > 290 && ms < 470, `test cut ${ms} ms after, wanted 360`);
   assert.match(studio.log(), /Line-up test: stinger to Court \(cut at 0\.36 s/);
 
+  // A double tap: the second press is left out while the first plays, so there's one cut, in the cover.
+  const cuts = atem.received.filter(c => c.name === 'DCut').length;
+  let second;
+  ({ ms } = await cutAfter(async () => {
+    const one = link(studio, 'stinger/Wide');
+    await wait(50);
+    second = await link(studio, 'stinger/Wide');
+    return one;
+  }));
+  assert.equal(second.status, 409);
+  assert.match(second.json.error, /already playing/);
+  assert.equal(atem.received.filter(c => c.name === 'DCut').length, cuts + 1, 'one cut');
+  assert.ok(ms > 750 && ms < 950, `the one cut lands in the cover (${ms} ms)`);
+  assert.equal(atem.state.program, 1);
+  // To the camera already on program: the stinger plays, with no cut.
+  const was = await stinger();
+  const [only] = await Promise.all([link(studio, 'stinger/Wide'), stingerStarts(was)]);
+  assert.match(only.json.done, /stinger only \(Wide is already on program\)/);
+  assert.equal(atem.received.filter(c => c.name === 'DCut').length, cuts + 1, 'no cut to what is already on program');
+  assert.equal(atem.state.program, 1);
+
   // A stinger that never starts (its page didn't load): a plain cut after 3 s, said in the log.
   await studio.post('/api/scene', { type: 'hide', name: 'Stinger' });
   r = await link(studio, 'stinger/3');

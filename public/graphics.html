@@ -288,8 +288,11 @@
         and when it covers the frame, from its own settings, and the cut lands in the middle of the cover (0.72 s in with the usual half second hold), so the cut
         comes about a second and a half after the press, once the page has loaded. Output 1's picture reaches the switcher a few frames late (more over NDI than HDMI):
         set the <b>line-up</b> in frames (−25 to 25, at the switcher's own frame rate) to move the cut, and press <b>Test the line-up</b> before you're live: it cuts
-        just 2 frames after the bands cover the frame, so if the old picture flashes before them, add frames. With no stinger in the scene, a stinger is an auto;
-        if the page doesn't start within 3 s, it's a plain cut, and the log says which.
+        just 2 frames after the bands cover the frame, so if the old picture flashes before them, add frames (run it two or three times and go by what you see
+        each time: one run can be a frame out either way). Only Output 1's own video output starts the timing, not a preview, so a stinger needs Output 1 on.
+        With no stinger in the scene, a stinger is an auto; if the page doesn't start within 3 s, it's a plain cut, and the log says which. A second stinger while
+        one plays is left out (a press, a Stream Deck key, or a sequence or scene's own Stinger to), so a double tap never makes two cuts. <b>Stinger to</b> a camera that's already on program plays the stinger with no cut
+        (for a change of graphics under it). In a sequence or scene, actions at the same moment as a stinger wait for its cut, so a key change lands under the bands too.
         <br><b>Switcher actions in sequences and scenes:</b> once a switcher is set up, a sequence's sources or scene step has a 🎥 button, and each scene has
         <b>🎥 Switcher</b> under Edit scenes. Each adds up to eight actions: <b>Cut to</b>, <b>Auto to</b> or <b>Stinger to</b> an input (or what's on preview), <b>Put on preview</b>,
         an <b>Upstream key</b> or <b>Downstream key</b> on, off or toggled (a downstream key can go <b>at its rate</b>), <b>Fade to black</b> or back, and <b>Run macro</b>,
