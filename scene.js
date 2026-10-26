@@ -992,7 +992,11 @@ function saveUpload(req, name, max) {
   });
 }
 
-// Sends a media file, with byte ranges so videos can seek and loop.
+// Sends a media file, with byte ranges so videos can seek and loop. A range runs to at most MEDIA_CHUNK, and the
+// browser asks for the next piece when it wants it: a video given the rest of the file reads it until its buffer is
+// full and then holds the connection open, and a browser has only six to Studio. With three outputs and the Scene
+// View each holding a few videos, every Studio page's requests waited (Next and Play took 15 s or more).
+const MEDIA_CHUNK = 2 * 1024 * 1024;
 function sendMedia(req, res, file, type, send) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return send(res, 404, 'Not found', 'text/plain');
@@ -1003,6 +1007,7 @@ function sendMedia(req, res, file, type, send) {
       end = m[1] && m[2] ? Math.min(Number(m[2]), st.size - 1) : st.size - 1;
       if (start > end || start >= st.size) { res.writeHead(416, { 'content-range': `bytes */${st.size}` }); return res.end(); }
       status = 206;
+      end = Math.min(end, start + MEDIA_CHUNK - 1);
     }
     res.writeHead(status, { 'content-type': type, 'content-length': end - start + 1, 'accept-ranges': 'bytes', 'cache-control': 'no-store',
       ...uploads.SERVE_HEADERS, ...(status === 206 ? { 'content-range': `bytes ${start}-${end}/${st.size}` } : {}) });
