@@ -216,8 +216,19 @@ function create(deps) {
   }
 
   let structure = null, structureAt = 0;
+  // The season's divisions (kept for 30 minutes). If PlayHQ fails when they're due to be read again, the last ones
+  // read are kept (and read again on the next ask), so every graphic doesn't fail with it.
   async function getStructure() {
     if (structure && Date.now() - structureAt < 30 * 60 * 1000) return structure;
+    if (!structure) return readStructure();
+    const kept = structure;
+    try { return await readStructure(); }
+    catch (err) {
+      log('warn', 'playhq', `Keeping the divisions read ${Math.round((Date.now() - structureAt) / 60000)} minutes ago: ${err.message}`);
+      return kept;
+    }
+  }
+  async function readStructure() {
     let seasonId = config().seasonId || null;
     let orgName = config().organisationName, compName = config().competitionName, allCompetitions = [];
     if (!seasonId) {
@@ -305,13 +316,21 @@ function create(deps) {
 
   const roundGamesCache = new Map();
   const roundGamesInFlight = new Map();
+  // A round's games, read again once older than maxAgeMs. If PlayHQ fails then, the last ones read are given, with
+  // .stale saying why (the fixtures, countdown, up next and the game list keep showing), and PlayHQ is asked again
+  // next time.
   async function getRoundGames(roundId, maxAgeMs) {
     const hit = roundGamesCache.get(roundId);
     if (hit && Date.now() - hit.at < maxAgeMs) return hit.games;
     if (!roundGamesInFlight.has(roundId)) {
       roundGamesInFlight.set(roundId, fetchRoundGames(roundId).finally(() => roundGamesInFlight.delete(roundId)));
     }
-    return roundGamesInFlight.get(roundId);
+    if (!hit) return roundGamesInFlight.get(roundId);
+    try { return await roundGamesInFlight.get(roundId); }
+    catch (err) {
+      log('warn', 'playhq', `Keeping round ${roundId}'s games as last read: ${err.message}`);
+      return Object.assign([...hit.games], { stale: err.message }); // .stale: why they aren't fresh
+    }
   }
   async function fetchRoundGames(roundId) {
     const data = await gql('discoverFixtureByRound', Q_ROUND_GAMES, { roundID: roundId });
@@ -611,12 +630,18 @@ function create(deps) {
     return null;
   }
 
-  // A division's rounds (kept for 5 minutes).
+  // A division's rounds (kept for 5 minutes; the last ones read while PlayHQ is failing).
   const roundsCache = new Map();
   async function getRounds(gradeId) {
     const hit = roundsCache.get(gradeId);
     if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.rounds;
-    const g = (await gql('gradeRounds', Q_ROUNDS, { gradeID: gradeId })).discoverGrade;
+    let g;
+    try { g = (await gql('gradeRounds', Q_ROUNDS, { gradeID: gradeId })).discoverGrade; }
+    catch (err) {
+      if (!hit) throw err;
+      log('warn', 'playhq', `Keeping the rounds as last read: ${err.message}`);
+      return hit.rounds; // and asked again next time
+    }
     const rounds = (g && g.rounds) || [];
     roundsCache.set(gradeId, { at: Date.now(), rounds });
     return rounds;

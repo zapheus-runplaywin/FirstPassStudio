@@ -279,8 +279,11 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         }
         if (s.live && s.live.clock) followClock(b, s.live);
       } else {
-        // Last resort: the round fixture, which only has scores once a game is final.
-        game = (await getRoundGames(b.roundId, maxAge)).find(g => g.id === b.gameId);
+        // Last resort: the round fixture, which only has scores once a game is final. One kept from before PlayHQ
+        // failed isn't a reading: the board keeps its score and says why.
+        const games = await getRoundGames(b.roundId, maxAge);
+        if (games.stale) throw new Error(games.stale);
+        game = games.find(g => g.id === b.gameId);
       }
       if (!game) return;
       watchSuperShots(b, game, s && s.live, s ? (s.live ? 'live' : 'game') : 'fixture');
