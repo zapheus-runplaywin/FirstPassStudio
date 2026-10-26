@@ -18,6 +18,9 @@
 //     sequence it hands over to. Going to a scene or another sequence fades it out.
 //   - "Quiet the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
 //     or a sequence's) ducks low and keeps playing until the next scene, sequence or step without it.
+//   - A stinger with ?music=quiet or ?music=dip (stinger.html): the music ducks quickly as it sweeps in, so it's down
+//     by the time the frame is covered. quiet leaves it down for the scene cut to under it (as Quiet the music does,
+//     until the next scene, sequence or step without it); dip brings it back up as the stinger leaves.
 //   - The super shot song (a setting, with its own volume): when the scoreboard's super shot period starts
 //     (the last minutes of a quarter, in a division with super shots) it cuts in over whatever is playing,
 //     round and round, and fades out over the fade out time when the period ends.
@@ -37,6 +40,8 @@ const UNDER_VIDEO = ['pause', 'lower', 'leave'];
 const VIDEO_FADE_SEC = 1;
 // A sequence's music fades out this long when something else stops the sequence.
 const STOP_FADE_SEC = 3;
+// A stinger with ?music=dip brings the music back up this fast as it leaves.
+const STINGER_UP_SEC = 0.5;
 // A track whose length isn't known yet is checked again after this.
 const UNKNOWN_MS = 5000;
 
@@ -286,9 +291,25 @@ function videoSound(on) {
   return true;
 }
 
+// A stinger with ?music=quiet or dip came on (on true, sec: how long it takes to cover the frame) or went off.
+function stinger(mode, on, sec) {
+  if (on) {
+    if (p.status === 'stopped' || p.ducked) return false;
+    setDuck(mode === 'dip' ? 'stinger' : 'quiet', sec);
+    log('info', 'music', `Stinger: music ducked${mode === 'dip' ? ' until it ends' : ' for the next scene'}`);
+    return true;
+  }
+  if (p.ducked !== 'stinger') return false;
+  setDuck(null, STINGER_UP_SEC);
+  log('info', 'music', 'Stinger ended: music back up');
+  return true;
+}
+
 // A scene or sequence with "Quiet the music" ticked started (quiet true), or one without it (false).
 function quiet(on) {
   if (on) {
+    // A stinger's dip becomes this scene's quiet, so the music stays down when the stinger ends.
+    if (p.ducked === 'stinger') { p.ducked = 'quiet'; return true; }
     if (p.status !== 'stopped' && !p.ducked) { setDuck('quiet'); log('info', 'music', 'Quiet the music: ducked'); return true; }
     return false;
   }
@@ -475,4 +496,4 @@ function init(logger, hooks) {
   load();
 }
 
-module.exports = { init, apply, uses, forget, deck, state, videoSound, quiet, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };
+module.exports = { init, apply, uses, forget, deck, state, videoSound, quiet, stinger, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };

@@ -231,11 +231,14 @@ const PAGE_OPTIONS = (() => {
       ...background,
     ],
     'stinger.html': [
-      { key: 'length', label: 'Length', type: 'number', min: 0.5, max: 3, step: 0.1, unit: 's', placeholder: '1', help: 'The whole picture is covered from 22% to 72% of the way through.' },
+      { key: 'hold', label: 'Holds the full frame for', type: 'number', min: 0, max: 1, step: 0.1, unit: 's', placeholder: '0.5', help: '0 to 1 second in steps of 0.1. 0 for a quick 1 second stinger.' },
+      { key: 'length', label: 'Bands in and out', type: 'number', min: 0.5, max: 3, step: 0.1, unit: 's', placeholder: '1', help: 'How long the bands take to sweep in and out, around the hold.' },
       { key: 'logo', label: 'Competition logo', type: 'select', choices: [['', 'On the last band'], ['0', 'Left out (colours only)']] },
       { key: 'size', label: 'Logo height', type: 'number', min: 50, max: 1080, unit: 'px', placeholder: '560' },
       mode(),
       { key: 'sfx', label: 'Whoosh volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '80', help: '0 turns it off.' },
+      { key: 'music', label: 'Music', type: 'select', choices: [['', 'Carries on as it is'], ['quiet', 'Quieted for the next scene'], ['dip', 'Dips while it plays']],
+        help: 'Quieted: down by the time the frame is covered and kept down, as a scene with Quiet the music does, until a scene, sequence or step without it. Dips: back up as the stinger leaves.' },
     ],
     'ad.html': [
       { key: 'tagline', label: 'Tagline', type: 'text', placeholder: 'none' },
