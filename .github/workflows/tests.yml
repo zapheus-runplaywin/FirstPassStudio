@@ -60,7 +60,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: plugins/studio-deck/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            plugins/studio-deck/package-lock.json
+      # The end-to-end test starts a real Studio (server.js), which needs Studio's own packages: the
+      # Switcher key's test drives Studio's ATEM connection (atem-connection) against the stand-in switcher.
+      - run: npm ci --omit=dev --ignore-scripts
+        working-directory: .
       - run: npm ci --ignore-scripts
       # The plugin's shipped packages (@elgato/streamdeck and what it pulls in), as above. A warning rather
       # than a failure for now: @elgato/streamdeck 3.0.3 (the latest) pulls in a zod with a known
