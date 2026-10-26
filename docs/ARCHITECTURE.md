@@ -20,7 +20,8 @@ kept current: a new module, timer or data flow gets its line here in the same pu
 - **The Mac app** (`desktop/main.js`) is an Electron menu bar app. It starts `server.js` as a child process when a
   Studio window opens ("on air"), stops it when the last window closes, and owns the outputs that need the Mac:
   full-screen displays (`desktop/outputs.js`), NDI (`desktop/ndi.js`), Blackmagic (`desktop/decklink.js`), both fed
-  by an off-screen render of the scene (`desktop/scenewindow.js`). `desktop/windows.js` makes the app's own windows
+  by an off-screen render of the scene (`desktop/scenewindow.js`). `desktop/perf.js` measures each output's CPU, memory and frame
+  rate every 5 s while one is showing; `outputs.js` shows it on the Output page and logs it once a minute. `desktop/windows.js` makes the app's own windows
   and menus from the tab list in `public/studiobar.js`; `desktop/updates.js` and `desktop/whatsnew.js` handle updates.
 - **The helper** is plain Node, no framework: `server.js` routes every request by hand and the modules beside it each
   own one subject. Everything it saves goes in the data folder (`datadir.js`), never inside the app.

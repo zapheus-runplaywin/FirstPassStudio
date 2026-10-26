@@ -125,7 +125,7 @@ module.exports = function ndi({ port, log, onStatus }) {
       log(`NDI output failed: ${r.error}`);
       return report(output);
     }
-    x.running = { id: r.id, sources, format: w.format.id };
+    x.running = { id: r.id, sources, format: w.format.id, frameRate: rateN / rateD };
     log(`NDI output on: ${sources.map(s => s.name).join(', ')} (${w.format.id}, ${width} x ${height})`);
 
     x.win = sceneWindow({
@@ -146,5 +146,9 @@ module.exports = function ndi({ port, log, onStatus }) {
     report(output);
   }
 
-  return { available, show, stop: () => stop(), status };
+  // The scene windows sending now, for desktop/perf.js.
+  const windows = () => [...senders].filter(([, x]) => x.win && x.running)
+    .map(([output, x]) => ({ output, contents: x.win.contents(), target: x.running.frameRate }));
+
+  return { available, show, stop: () => stop(), status, windows };
 };

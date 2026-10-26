@@ -21,6 +21,14 @@ module.exports = function outputs({ port, log }) {
   let helper = null;
   const decklink = require('./decklink')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }) });
   const ndi = require('./ndi')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'ndiStatus', status, output }) });
+  // How hard each output is working (desktop/perf.js), while any output is showing.
+  const perf = require('./perf')({
+    windows: () => [
+      ...[...open.values()].map(o => ({ output: o.output || 'main', contents: o.win.isDestroyed() ? null : o.win.webContents, target: o.hz })),
+      ...decklink.windows(), ...ndi.windows(),
+    ],
+    send: p => helper?.postMessage({ type: 'perf', ...p }),
+  });
 
   // The Blackmagic devices (and their video formats) for the Output page.
   function sendDecklink() {
@@ -61,6 +69,7 @@ module.exports = function outputs({ port, log }) {
   function show(list) {
     decklink.show(list.find(w => w.kind === 'decklink') || null);
     ndi.show(list.filter(w => w.kind === 'ndi'));
+    if (list.length) perf.start(); // it stops itself once nothing is showing
     const wanted = new Map(list.filter(w => w.display).map(w => [w.display, w]));
     for (const [id, o] of open) {
       if (!wanted.has(id)) { o.win.destroy(); open.delete(id); }
@@ -89,7 +98,7 @@ module.exports = function outputs({ port, log }) {
       win.on('close', () => { if (!quitting && open.get(id)?.win === win && helper) helper.postMessage({ type: 'escape', output: open.get(id).output }); });
       win.on('closed', () => { if (open.get(id)?.win === win) open.delete(id); });
       win.loadURL(url);
-      open.set(id, { win, url, output: w.output });
+      open.set(id, { win, url, output: w.output, hz: d.displayFrequency || 60 });
       log(`Output ${w.kind} on ${d.label || id} (${d.size.width} x ${d.size.height}${d.scaleFactor !== 1 ? ` at ${d.scaleFactor}x` : ''}, ${d.displayFrequency} Hz)`);
     }
   }

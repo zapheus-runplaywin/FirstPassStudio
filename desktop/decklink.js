@@ -69,6 +69,7 @@ module.exports = function decklink({ port, log, onStatus }) {
     counts = { late: 0, dropped: 0 };
     log(`DeckLink output on ${r.name}: ${running.mode} (${r.width} x ${r.height}, ${r.frameRate} fps), ${w.keying === 'external' ? 'fill and key' : 'fill only'}${w.straight ? ', straight alpha' : ''}`);
 
+    running.frameRate = r.frameRate;
     win = sceneWindow({
       port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output', output,
       onFrame: (bitmap, width, height) => addon.frame(bitmap, width, height),
@@ -84,5 +85,8 @@ module.exports = function decklink({ port, log, onStatus }) {
     report();
   }
 
-  return { devices, show, stop, status };
+  // The scene window sending now, for desktop/perf.js.
+  const windows = () => win && running ? [{ output, contents: win.contents(), target: running.frameRate }] : [];
+
+  return { devices, show, stop, status, windows };
 };

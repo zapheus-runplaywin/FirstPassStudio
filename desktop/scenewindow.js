@@ -82,5 +82,6 @@ module.exports = function sceneWindow({ port, width, height, frameRate, log, lab
 
   return {
     destroy() { if (win) { win.destroy(); win = null; } },
+    contents: () => win?.webContents || null, // for desktop/perf.js
   };
 };
