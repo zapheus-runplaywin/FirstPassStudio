@@ -16,12 +16,17 @@ function fakeUpdater() {
     if (u.offline) throw new Error('getaddrinfo ENOTFOUND github.com');
     if (!u.latest || u.latest === u.current) return { isUpdateAvailable: false, updateInfo: { version: u.current } };
     const version = u.latest;
+    if (!u.autoDownload) return { isUpdateAvailable: true, updateInfo: { version }, downloadPromise: null };
     const downloadPromise = new Promise(resolve => setTimeout(() => {
       u.emit('update-downloaded', { version });
       resolve([`/cache/FirstPass-Studio-${version}-arm64-mac.zip`]);
     }, u.slow ? 20 : 0));
     return { isUpdateAvailable: true, updateInfo: { version }, downloadPromise };
   };
+  u.downloadUpdate = () => new Promise(resolve => setTimeout(() => {
+    u.emit('update-downloaded', { version: u.latest });
+    resolve([`/cache/FirstPass-Studio-${u.latest}-arm64-mac.zip`]);
+  }, u.slow ? 20 : 0));
   // What Squirrel would install: the newest download at the moment it's handed over.
   u.downloaded = null;
   u.on('update-downloaded', info => { u.downloaded = info.version; });
@@ -44,20 +49,36 @@ test('downloads are not handed to Squirrel as they arrive, so a newer one can re
   assert.deepEqual(updates.state(), { ready: '0.3.12', fetching: null, installing: false });
 });
 
-test('Restart to update installs a version that came out after the last download, in one restart', async () => {
+test('Restart to update asks first, and gets a version that came out after the last download if told to, in one restart', async () => {
   const u = fakeUpdater();
   u.slow = true;
-  const changes = [];
+  const changes = [], asked = [];
   const updates = createUpdates({ updater: u, onChange: () => changes.push(updates.state()) });
   u.publish('0.3.11');
   await (await updates.check()).downloadPromise;
   u.publish('0.3.12'); // out since, not downloaded yet
-  updates.restartToUpdate();
+  updates.restartToUpdate({ askNewer: async (ready, newer) => { asked.push([ready, newer]); return true; } });
   await settle();
   assert.equal(u.installs.length, 1);
   assert.deepEqual(u.installs[0], { version: '0.3.12', relaunch: true, autoInstallOnAppQuit: false });
   assert.ok(changes.some(s => s.fetching === '0.3.12'), 'the menu shows the newer version downloading');
   assert.deepEqual(updates.state(), { ready: '0.3.12', fetching: null, installing: true });
+  assert.deepEqual(asked, [['0.3.11', '0.3.12']]);
+  assert.equal(u.autoDownload, true, 'background downloads carry on as before');
+});
+
+test('Restart to update installs the version the menu named when told to, without downloading the newer one', async () => {
+  const u = fakeUpdater();
+  const logs = [];
+  const updates = createUpdates({ updater: u, log: m => logs.push(m) });
+  u.publish('0.3.11');
+  await (await updates.check()).downloadPromise;
+  u.publish('0.3.12');
+  updates.restartToUpdate({ askNewer: async () => false });
+  await settle();
+  assert.deepEqual(u.installs.map(i => i.version), ['0.3.11']);
+  assert.ok(logs.includes('[update] 0.3.12 is out, installing 0.3.11 as chosen'));
+  assert.equal(u.autoDownload, true);
 });
 
 test('Restart to update with nothing newer installs the downloaded version straight away', async () => {
