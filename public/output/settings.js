@@ -383,7 +383,7 @@ const showOut = o => {
   const ns = so.ndiStatus || {};
   const watching = s => s.connections ? `${s.name} (${s.connections} receiving)` : `${s.name} (nothing receiving yet)`;
   $('outStatus').textContent = so.clash ? `${so.name} can't send: ${so.clash} is already using that ${so.mode === 'ndi' ? 'NDI source name' : so.mode === 'decklink' ? 'Blackmagic device' : 'display'}. Pick another, or change ${so.clash}.`
-    : so.mode === 'off' ? 'Not sending the scene anywhere.'
+    : so.mode === 'off' ? 'Web links only: nothing is sent from this Mac, so there\'s nothing to turn on. The scene is at its web link.'
     : !so.on ? 'Output is off: nothing is sent until it\'s turned on.'
     : so.mode === 'decklink' ? (st.error ? `Couldn't start the Blackmagic output: ${st.error}`
       : st.running ? `Sending to ${st.name} (${st.mode}${so.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
@@ -394,9 +394,12 @@ const showOut = o => {
     : so.showing.length ? 'Showing ' + so.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
     : 'Pick the display to use.';
   $('outDeck').textContent = so.primary ? `${base}/deck/output/toggle` : `${base}/deck/output/${so.link}/toggle`;
-  // Off has nothing to turn on; and while the output is on its setup is locked, so it's turned off before changing.
+  // Web links only has nothing to turn on; and while the output is on its setup is locked, so it's turned off before changing.
   const live = sending;
   $('outOn').disabled = so.mode === 'off';
+  $('outOn').title = so.mode === 'off' ? 'Web links only: nothing is sent from this Mac, so there\'s nothing to turn on' : '';
+  // The scene's web link for this output (the primary's is plain scene.html).
+  $('outWebLink').textContent = `${base}/scene.html${so.primary ? '' : `?output=${so.id}`}`;
   for (const el of document.querySelectorAll('#outForm .form input, #outForm .form select, #outForm .form button')) {
     if (live) el.disabled = true;
     else if (el.name !== 'outMode') el.disabled = false;
@@ -504,7 +507,7 @@ function renderOutputs(o, so) {
     b.textContent = live ? 'On' : 'Off';
     b.className = live ? 'onBtn' : 'alt';
     b.disabled = x.mode === 'off';
-    b.title = live ? `${x.name} is sending: click to turn it off` : `Turn ${x.name} on`;
+    b.title = x.mode === 'off' ? `${x.name} is web links only: nothing to turn on` : live ? `${x.name} is sending: click to turn it off` : `Turn ${x.name} on`;
     b.onclick = e => { e.stopPropagation(); setOut({ output: x.id, on: !x.on }); };
     card.onclick = () => pickOutput(x.id);
     list.appendChild(card);
@@ -527,7 +530,7 @@ function renderPerf(o, so) {
 // What an output sends to, in a few words.
 function outWhere(o, x) {
   const disp = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
-  return x.mode === 'off' ? 'not set up'
+  return x.mode === 'off' ? 'web links only'
     : x.mode === 'chroma' ? `chroma on ${disp(x.chromaDisplay)}`
     : x.mode === 'fillkey' ? `fill and key on ${disp(x.fillDisplay)} and ${disp(x.keyDisplay)}`
     : x.mode === 'decklink' ? 'Blackmagic, ' + (x.decklinkKeying === 'external' ? 'fill and key' : 'fill only')

@@ -89,7 +89,7 @@ const adSponsor = new Map();
 const countsForSponsors = out => !out || !!outputsApi.summary?.().find(o => o.id === out)?.sponsors;
 // The sources on now, for the exposure report: [{ id, name, url, sponsor, air }], on the primary and on each output
 // that counts for sponsors (named "Ladder (Wide camera)" there). air: its output is sending, so it's on air (an
-// output that's off, or set to Off, isn't, even while another one is); left out without outputs to ask.
+// output that's off, or set to Web links only, isn't, even while another one is); left out without outputs to ask.
 function showing() {
   const outs = outputsApi.summary?.() || [];
   const sending = id => { const o = outs.find(x => x.id === id); return o ? { air: !!o.sending } : {}; };
