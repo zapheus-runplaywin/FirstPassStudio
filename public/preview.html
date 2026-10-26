@@ -140,12 +140,15 @@
   function showScenes(scn) {
     const box = $('scenes');
     box.innerHTML = '';
-    if (outputId !== 'main') return; // scenes are the primary output's
-    for (const sc of scn.scenes || []) {
+    // This output's own scenes, and its current one.
+    const main = outputId === 'main';
+    const current = main ? scn.current : (scn.currentOut || {})[outputId];
+    const changedNow = main ? scn.changed : (scn.changedOut || {})[outputId];
+    for (const sc of (scn.scenes || []).filter(x => (x.output || 'main') === outputId)) {
       const b = document.createElement('button');
       b.textContent = sc.name;
       b.style.setProperty('--band', BANDS[sc.colour] || BANDS.blue);
-      const cur = sc.id === scn.current, changed = cur && (scn.changed || []).length > 0;
+      const cur = sc.id === current, changed = cur && (changedNow || []).length > 0;
       b.className = (cur ? 'cur' : '') + (changed ? ' changed' : '');
       b.title = cur ? (changed ? `Back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
       b.onclick = () => act({ type: 'sceneGo', scene: sc.id });

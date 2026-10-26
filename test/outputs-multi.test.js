@@ -152,7 +152,7 @@ test('sources have an on and off per output; the primary\'s is visible, and old 
   assert.equal(src('Scoreboard').visible, true, 'hiding Big screen\'s leaves the primary\'s');
 });
 
-test('a video ending on another output turns it off there only; scenes stay the primary\'s', () => {
+test('a video ending on another output turns it off there only; a scene saved for the primary is the primary\'s', () => {
   const big = byName('Big screen');
   ok({ type: 'show', name: 'Clip', output: big.id });
   const c = src('Clip');
@@ -163,7 +163,8 @@ test('a video ending on another output turns it off there only; scenes stay the 
   ok({ type: 'show', name: 'Ladder', output: big.id });
   ok({ type: 'sceneSave', name: 'Live' });
   assert.equal(scene.state().scenes.find(s => s.name === 'Live').states[src('Ladder').id], 'off', 'a scene saves the primary\'s');
-  assert.match(scene.apply({ type: 'sceneGo', scene: 'Live', output: big.id }), /primary output only/);
+  assert.equal(scene.state().scenes.find(s => s.name === 'Live').output, 'main');
+  ok({ type: 'sceneRemove', scene: 'Live' });
 });
 
 test('what\'s on for an output isn\'t saved run by run, and goes when the output is removed', () => {

@@ -133,8 +133,9 @@ function renderSequences() {
       + 'while it waits to start, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
       + 'A sequence with <b>Hide</b> ticked (in its editor) stays off this list unless <b>Show hidden</b> is ticked; it plays as before. Sequences belong to the competition in use. '
       + `Stream Deck: <code>${base}/deck/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
-      + '<code>/deck/sequence/next</code> (or <code>/deck/sequence/advance</code>, only for a step waiting on Next), <code>/deck/sequence/pause</code> and <code>/deck/sequence/stop</code>; for one about to start '
-      + '<code>/deck/sequence/now</code> and <code>/deck/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.'
+      + `<code>${scene.viewDeck}/sequence/next</code> (or <code>${scene.viewDeck}/sequence/advance</code>, only for a step waiting on Next), <code>${scene.viewDeck}/sequence/pause</code> and <code>${scene.viewDeck}/sequence/stop</code>; for one about to start `
+      + `<code>${scene.viewDeck}/sequence/now</code> and <code>${scene.viewDeck}/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.`
+      + (scene.viewDeck !== '/deck' ? ` These sequences play on ${esc(scene.viewName)}, one at a time there, while Output 1 plays its own; each output has its own sequences and its own Next, Pause and Stop links.` : '')
     : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
       + 'Add your sources below first, then <b>+ New sequence</b>.';
 }
@@ -193,6 +194,10 @@ function lengthsChanged() {
 }
 function openSequence(sq) {
   draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, steps: [] };
+  // A sequence for another output plays its steps there, silently.
+  const forOut = draft.output && draft.output !== 'main' ? draft.output : scene.viewOutput && scene.viewOutput !== 'main' ? scene.viewOutput : null;
+  $('sqOutNote').classList.toggle('hidden', !forOut);
+  if (forOut) $('sqOutNote').innerHTML = `Plays on <b>${esc(scene.viewName || 'another output')}</b>, silently: only Output 1, the primary, plays music, and a Sponsor ads step plays nothing there.`;
   const start = draft.start || { type: 'hand' };
   $('sqStart').value = start.type;
   $('sqStartMin').value = start.min || 10;

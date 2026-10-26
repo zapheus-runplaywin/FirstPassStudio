@@ -60,6 +60,7 @@
   .outCard.sel { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--fp-white)); }
   .outCard .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c); }
   .outCard small { color: var(--fp-muted); }
+  h2.forOutput::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--c); margin-right: 8px; vertical-align: 1px; }
   .perf.slow, .outCard small .slow { color: #8A3B00; font-weight: 600; }
   .outCard .onBtn { background: var(--c); color: #0F172A; }
   .outTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
@@ -290,7 +291,7 @@
       <p class="note perf hidden" id="outPerf" title="Checked every 5 seconds while an output is on. CPU is a percentage of one processor core. Studio writes these to its log once a minute."></p>
       <p class="note hidden" id="outExtraNote"><b>This output shows its own graphics:</b> turn sources on and off for it with its
       coloured buttons in the Sources list (they start off), or its own Stream Deck links. It's always silent: only Output 1, the primary,
-      plays sound and music. Scenes and sequences act on Output 1.</p>
+      plays sound and music. Pick its tab over the Scene View for its own scenes and sequences.</p>
       <p class="note" id="viewersNow" hidden></p>
       <p class="note hidden" id="outLocked">Turn the output off to change these settings.</p>
       <p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
@@ -369,13 +370,14 @@
 
   <section id="seqSection">
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0">Sequences</h2>
+      <h2 style="margin:0" id="seqHead">Sequences</h2>
     </div>
     <div class="seqAuto"><label><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
     <div class="seqs" id="seqs"></div>
     <p class="note" id="seqNote"></p>
     <dialog id="seqDialog">
       <h2 id="sqTitle">Edit sequence</h2>
+      <p class="note hidden" id="sqOutNote"></p>
       <div class="form">
         <label for="sqName">Name</label><input id="sqName" maxlength="60" placeholder="Quarter break">
         <label for="sqColour">Stream Deck colour</label><select id="sqColour"></select>
@@ -435,7 +437,7 @@
 
   <section id="scenesSection">
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h2 style="margin:0">Scenes</h2>
+      <h2 style="margin:0" id="scenesHead">Scenes</h2>
       <button class="alt" id="editScenes">Edit scenes</button>
     </div>
     <div class="scenes" id="scenes"></div>

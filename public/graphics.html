@@ -239,8 +239,14 @@
         like the first (a chroma display, fill and key displays, the Blackmagic device or NDI) and has a name, a number and a colour: 1 orange, 2 pink, 3 aqua, 4 yellow.
         Two outputs can't share a display, the Blackmagic device (one output) or an NDI source name: the earlier output keeps it and the Output page says so.
         Several outputs can each send NDI, each under its own source name, and two chroma outputs can go to two displays over HDMI, each with its own key colour.
-        <b>Output 1 is the primary</b>: it plays all the sound and music, and scenes, sequences, sponsor ads and the plain <code>/deck/layer</code> links act on it.
-        The other outputs are always silent. Sources are built once and shared; each output has its own on and off for every source, as coloured
+        <b>Output 1 is the primary</b>: it plays all the sound and music and the sponsor ads, and the plain <code>/deck/layer</code> links act on it.
+        The other outputs are always silent. <b>Scenes and sequences belong to one output</b>: the Scenes and Sequences sections show those of the output
+        picked over the Scene View, and a new one is made for it. Going to a scene sets its sources on its own output, each output has its own current scene,
+        and one sequence can play on each output at once (a sequence on another output plays silently, and its Sponsor ads steps play nothing).
+        <code>/deck/scene/&lt;name&gt;</code> and <code>/deck/sequence/&lt;name&gt;</code> act on the scene's or sequence's own output;
+        <code>/deck/output/&lt;output&gt;/scene/next</code>, <code>prev</code> and <code>again</code>, and <code>/deck/output/&lt;output&gt;/sequence/next</code>,
+        <code>advance</code>, <code>pause</code>, <code>stop</code>, <code>now</code> and <code>cancel</code> act on one output's (the plain ones on Output 1's).
+        A removed output's scenes and sequences act on Output 1 from then on. Sources are built once and shared; each output has its own on and off for every source, as coloured
         numbered buttons in the Sources list (a new output starts with everything off). <b>Show</b> above the list narrows it to one output, the tabs over the Scene View
         show each output, and <b>Pop out</b> opens the one picked. Stream Deck: <code>/deck/output/&lt;output&gt;/on</code>, <code>off</code> and <code>toggle</code>
         for one output (its name as a link, or its number), <code>/deck/output/all/…</code> for every one, and <code>/deck/output/&lt;output&gt;/layer/&lt;source&gt;/on</code>,

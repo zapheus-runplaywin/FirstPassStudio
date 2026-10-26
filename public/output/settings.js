@@ -365,6 +365,7 @@ const showOut = o => {
     chromaWas = so.chromaSafeNow;
     previewOutput = so.id;
     showPreview();
+    if (sceneAll.scenes) show(sceneAll); // the Scenes and Sequences sections follow the picked output
     const s = current();
     if (s) renderOptions(s, true);
   }

@@ -14,10 +14,15 @@
 // differ from the current scene's saved state.
 //
 // With more than one output (outputs.js), each source also has an on and off for each output besides the
-// primary (out: { <output id>: true }), and scene.html?output=<id> draws that output's sources. Scenes,
-// sequences, sponsor ads and the music stay with the primary output, and only the primary plays sound.
-// /deck/output/<output>/layer/<name>/on|off|toggle|restart and /deck/output/<output>/layers/off act on
-// one output (the primary's are the links above).
+// primary (out: { <output id>: true }), and scene.html?output=<id> draws that output's sources. Each scene
+// and sequence belongs to one output (output, the primary 'main' unless set): going to a scene sets its
+// sources on that output, and each output has its own current scene (current for the primary, currentOut
+// for the others) and its own playing sequence. A scene or sequence whose output has gone acts on the
+// primary. Sponsor ads and the music stay with the primary, and only the primary plays sound.
+// /deck/output/<output>/layer/<name>/on|off|toggle|restart, /deck/output/<output>/layers/off,
+// /deck/output/<output>/scene/next|prev|again and /deck/output/<output>/sequence/next|stop|pause|… act on
+// one output (the primary's are the links above); /deck/scene/<name> and /deck/sequence/<name> act on the
+// scene's or sequence's own output.
 //
 // Saved as scene.json in the data folder; images and videos are kept in its media/ folder.
 // Chromium can't play ProRes, so a .mov added to the media folder is converted to a WebM
@@ -93,10 +98,26 @@ let log = () => {};
 // the primary output.
 const PRIMARY = 'main';
 let outputsApi = { find: ref => (ref === PRIMARY || ref === '1' ? { id: PRIMARY } : null) };
-let scene = { sources: [], scenes: [], current: null };
+let scene = { sources: [], scenes: [], current: null, currentOut: {} };
 // Sources set on in the current scene that went off by themselves (a video that hides when it's
-// done): not a change from the scene.
+// done): not a change from the scene. The primary's (kept with the scene), and the other outputs' by id.
 let ended = new Set();
+const endedOut = new Map();
+const endedOf = out => out ? (endedOut.get(out) || endedOut.set(out, new Set()).get(out)) : ended;
+function clearEnded(out) { if (out) endedOut.delete(out); else ended = new Set(); }
+// A source on (or off) on an output: null for the primary, else an output's id.
+const isOn = (s, out) => out ? !!s.out[out] : s.visible;
+function setOn(s, on, out) {
+  if (!out) s.visible = on;
+  else if (on) s.out[out] = true;
+  else delete s.out[out];
+}
+// The output a scene acts on: null for the primary, or the id of another output that's still there.
+function sceneOut(sc) {
+  if (!sc || !sc.output || sc.output === PRIMARY) return null;
+  const o = outputsApi.find(sc.output);
+  return o && o.id === sc.output ? o.id : null;
+}
 // Videos that finished but stay on screen (not set to switch off when done): their sound has stopped.
 const soundDone = new Set();
 // Sources on after the last change, so each time one comes on its showSeq goes up: a page or video that
@@ -226,28 +247,34 @@ function cleanScene(sc, existing = {}) {
     colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
     states,
     quiet: !!s.quiet,  // Quiet the music when this scene is picked (an interview on court)
+    output: String(s.output || PRIMARY).replace(/[^a-z0-9]/gi, '').slice(0, 20) || PRIMARY, // the output it sets
   };
   out.name = uniqueSceneName(s.name, out.id);
   return out;
 }
 
 // What's on and off now, for every source.
-const liveStates = () => Object.fromEntries(scene.sources.map(s => [s.id, s.visible ? 'on' : 'off']));
+const liveStates = out => Object.fromEntries(scene.sources.map(s => [s.id, isOn(s, out) ? 'on' : 'off']));
 
 function findScene(ref) {
   const r = String(ref || '');
   return scene.scenes.find(s => s.id === r) || scene.scenes.find(s => slug(s.name) === slug(r)) || null;
 }
-const currentScene = () => scene.scenes.find(s => s.id === scene.current) || null;
+// The current scene on an output (null: the primary).
+const currentScene = (out = null) => scene.scenes.find(s => s.id === (out ? scene.currentOut[out] : scene.current) && sceneOut(s) === out) || null;
+function setCurrent(out, id) {
+  if (out) { if (id) scene.currentOut[out] = id; else delete scene.currentOut[out]; } else scene.current = id;
+}
 
-// The sources that differ from the current scene's saved state.
-function changed() {
-  const cur = currentScene();
+// The sources that differ from the current scene's saved state, on an output (null: the primary).
+function changed(out = null) {
+  const cur = currentScene(out);
   if (!cur) return [];
+  const done = endedOf(out);
   return scene.sources.filter(s => {
     const want = cur.states[s.id];
-    if (!want || (want === 'on') === s.visible) return false;
-    return !(want === 'on' && ended.has(s.id));
+    if (!want || (want === 'on') === isOn(s, out)) return false;
+    return !(want === 'on' && done.has(s.id));
   }).map(s => s.id);
 }
 
@@ -256,38 +283,43 @@ function changed() {
 // Picking a scene stops a playing sequence, unless it's the sequence's own Then going there.
 // A sequence's scene step (step) leaves the music alone unless the scene quiets it.
 function goTo(sc, fromSequence, step) {
-  if (!fromSequence) sequences.beforeScene(sc);
+  const out = sceneOut(sc);
+  if (!fromSequence) sequences.beforeScene(sc, out || PRIMARY);
   let on = 0, off = 0;
   for (const s of scene.sources) {
     const want = sc.states[s.id];
     if (!want) continue;
-    if (want === 'on' && !s.visible) { s.visible = true; on++; }
-    if (want === 'off' && s.visible) { s.visible = false; off++; }
+    if (want === 'on' && !isOn(s, out)) { setOn(s, true, out); on++; }
+    if (want === 'off' && isOn(s, out)) { setOn(s, false, out); off++; }
   }
-  ended = new Set();
-  scene.current = sc.id;
-  log('info', 'scene', `Went to scene "${sc.name}": ${on} on, ${off} off`);
-  if (!step || sc.quiet) music.quiet(sc.quiet);
+  clearEnded(out);
+  setCurrent(out, sc.id);
+  log('info', 'scene', `Went to scene "${sc.name}"${out ? ` on ${outputName(out)}` : ''}: ${on} on, ${off} off`);
+  // The music is the primary's.
+  if (!out && (!step || sc.quiet)) music.quiet(sc.quiet);
 }
 
 function load() {
   try {
     const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    scene = { sources: [], scenes: [], current: null };
+    scene = { sources: [], scenes: [], current: null, currentOut: {} };
     for (const s of Array.isArray(saved.sources) ? saved.sources : []) scene.sources.push(clean(s));
     for (const sc of Array.isArray(saved.scenes) ? saved.scenes : []) if (sc && typeof sc === 'object') scene.scenes.push(cleanScene(sc));
     scene.current = scene.scenes.some(sc => sc.id === saved.current) ? saved.current : null;
+    for (const [o, id] of Object.entries(saved.currentOut && typeof saved.currentOut === 'object' ? saved.currentOut : {})) {
+      if (OUTPUT_ID.test(o) && o !== PRIMARY && scene.scenes.some(sc => sc.id === id)) scene.currentOut[o] = id;
+    }
     ended = new Set((Array.isArray(saved.ended) ? saved.ended : []).filter(id => scene.sources.some(s => s.id === id)));
     wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
   } catch (err) {
     if (err.code !== 'ENOENT') log('warn', 'scene', `Could not read scene.json, starting with an empty scene: ${err.message}`);
-    scene = { sources: [], scenes: [], current: null };
+    scene = { sources: [], scenes: [], current: null, currentOut: {} };
     ended = new Set();
   }
 }
 
 function save() {
-  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, ended: [...ended] }); }
+  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, currentOut: scene.currentOut, ended: [...ended] }); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }
@@ -356,8 +388,17 @@ function upgrade(req, socket) {
 }
 
 function state() {
-  return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: orderedScenes(), current: currentScene() ? scene.current : null,
-    changed: changed(), converting: [...converting.keys()], ...sequences.state(), ...music.state() };
+  // Each scene with the output it acts on now (the primary if its own has gone); the other outputs'
+  // current scenes and changes by output id.
+  const currentOut = {}, changedOut = {};
+  for (const o of outputsApi.summary?.() || []) {
+    if (o.id === PRIMARY) continue;
+    const cur = currentScene(o.id);
+    if (cur) { currentOut[o.id] = cur.id; changedOut[o.id] = changed(o.id); }
+  }
+  return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: orderedScenes().map(sc => ({ ...sc, output: sceneOut(sc) || PRIMARY })),
+    current: currentScene() ? scene.current : null, currentOut, changed: changed(), changedOut,
+    converting: [...converting.keys()], ...sequences.state(), ...music.state() };
 }
 
 function find(ref) {
@@ -409,20 +450,27 @@ function changeOnOutput(a, src, out) {
     if (!src.out[out] || Number(a.loadSeq) !== src.loadSeq || (a.showSeq !== undefined && Number(a.showSeq) !== seq)) return null;
     if (src.type === 'video' ? src.hideWhenDone && !src.loop : src.type === 'browser') {
       delete src.out[out];
+      if (currentScene(out)?.states[src.id] === 'on') endedOf(out).add(src.id);
       log('info', 'scene', `"${src.name}" ${src.type === 'video' ? 'finished' : 'animated away'}, off on ${outputName(out)}`);
     }
+    sequences.ended(src, out);
     return null;
   }
   const on = a.type === 'toggle' ? !src.out[out] : a.type === 'show';
   if (on) src.out[out] = true; else delete src.out[out];
+  endedOf(out).delete(src.id);
   log('info', 'scene', `"${src.name}" ${on ? 'on' : 'off'} on ${outputName(out)}`);
+  if (!on) sequences.turnedOff(src, out);
   return null;
 }
 const outputName = id => outputsApi.summary?.().find(o => o.id === id)?.name || 'another output';
 // An output was removed: nothing is on for it any more.
 function dropOutput(id) {
   let any = false;
+  sequences.dropOutput(id);
   for (const s of scene.sources) if (s.out[id]) { delete s.out[id]; delete s.outSeq[id]; any = true; }
+  if (scene.currentOut[id]) { delete scene.currentOut[id]; any = true; }
+  endedOut.delete(id);
   if (any) { noteShowings(); save(); }
 }
 function change(a) {
@@ -432,10 +480,14 @@ function change(a) {
   if (out === undefined) return `No output "${a.output}".`;
   if (out && ['show', 'hide', 'toggle', 'ended'].includes(a.type)) return need() || changeOnOutput(a, src, out);
   if (out && a.type === 'hideAll') {
+    sequences.allOff(out);
     for (const s of scene.sources) delete s.out[out];
+    clearEnded(out);
     log('info', 'scene', `Every source off on ${outputName(out)}`);
     return null;
   }
+  // Scenes and sequences: a.output says which output's (a new one's, or Next, Stop and the like).
+  if (/^(scene|seq)/.test(a.type)) return applyScene({ ...a, output: out });
   if (out) return `"${a.type}" is for the primary output only.`;
   switch (a.type) {
     case 'add': {
@@ -525,15 +577,17 @@ function change(a) {
 const orderedScenes = () => [...scene.scenes].sort(sequences.byColour);
 
 // Changes to the scenes, and going to one. a.scene names the scene by id or name.
+// a.output: the output (null for the primary) for a new scene and for Again, Next and Previous.
 function applyScene(a) {
   const sc = a.scene ? findScene(a.scene) : null;
   const need = () => sc ? null : `No scene "${a.scene || ''}".`;
+  const out = a.output || null;
   switch (a.type) {
     case 'sceneSave': {
       // A new scene from what's on now (it becomes the current scene), or from the states given, at the end of the list.
-      const made = cleanScene({ name: a.name, colour: a.colour, states: a.states || liveStates() }, { id: newId() });
+      const made = cleanScene({ name: a.name, colour: a.colour, states: a.states || liveStates(out), output: out || PRIMARY }, { id: newId() });
       scene.scenes.push(made);
-      if (!a.states) { scene.current = made.id; ended = new Set(); }
+      if (!a.states) { setCurrent(out, made.id); clearEnded(out); }
       log('info', 'scene', `Saved scene "${made.name}"`);
       return null;
     }
@@ -549,14 +603,15 @@ function applyScene(a) {
     case 'sceneCapture': {
       // Saves what's on now over the scene. Sources it leaves as they are stay that way.
       if (need()) return need();
-      for (const s of scene.sources) if (sc.states[s.id]) sc.states[s.id] = s.visible ? 'on' : 'off';
-      if (scene.current === sc.id) ended = new Set();
+      const at = sceneOut(sc);
+      for (const s of scene.sources) if (sc.states[s.id]) sc.states[s.id] = isOn(s, at) ? 'on' : 'off';
+      if (currentScene(at) === sc) clearEnded(at);
       log('info', 'scene', `Saved what's on now over scene "${sc.name}"`);
       return null;
     }
     case 'sceneCopy': {
       if (need()) return need();
-      const copy = cleanScene({ name: `${sc.name} copy`, colour: sc.colour, states: { ...sc.states } }, { id: newId() });
+      const copy = cleanScene({ name: `${sc.name} copy`, colour: sc.colour, states: { ...sc.states }, output: sc.output }, { id: newId() });
       scene.scenes.splice(scene.scenes.indexOf(sc) + 1, 0, copy);
       return null;
     }
@@ -564,6 +619,7 @@ function applyScene(a) {
       if (need()) return need();
       scene.scenes.splice(scene.scenes.indexOf(sc), 1);
       if (scene.current === sc.id) { scene.current = null; ended = new Set(); }
+      for (const [o, id] of Object.entries(scene.currentOut)) if (id === sc.id) { delete scene.currentOut[o]; endedOut.delete(o); }
       log('info', 'scene', `Deleted scene "${sc.name}"`);
       return null;
     case 'sceneMove': {
@@ -581,16 +637,16 @@ function applyScene(a) {
       goTo(sc);
       return null;
     case 'sceneAgain': {
-      const cur = currentScene();
+      const cur = currentScene(out);
       if (!cur) return 'There is no current scene to go back to.';
       goTo(cur);
       return null;
     }
     case 'sceneNext': case 'scenePrev': {
-      // Stops at the ends. With no current scene, Next goes to the first and Previous to the last.
-      const list = orderedScenes();
+      // Stops at the ends, among the output's own scenes. With no current scene, Next goes to the first and Previous to the last.
+      const list = orderedScenes().filter(x => sceneOut(x) === out);
       if (!list.length) return 'There are no scenes.';
-      const i = list.indexOf(currentScene());
+      const i = list.indexOf(currentScene(out));
       const to = i < 0 ? (a.type === 'sceneNext' ? 0 : list.length - 1) : i + (a.type === 'sceneNext' ? 1 : -1);
       if (to >= 0 && to < list.length) goTo(list[to]);
       return null;
@@ -609,10 +665,27 @@ function applyScene(a) {
 function deck(parts, q = {}) {
   // /deck/output/<output>/layer/... and /deck/output/<output>/layers/off: one output's sources. The
   // primary's are the plain /deck/layer/... links.
-  if (parts[0] === 'output' && (parts[2] === 'layer' || parts[2] === 'layers')) {
+  if (parts[0] === 'output' && ['layer', 'layers', 'scene', 'sequence'].includes(parts[2])) {
     const o = outputsApi.find(parts[1]);
     if (!o) return { status: 404, body: { error: `No output "${parts[1]}". Use its name or number, as on the Output page.` } };
     if (o.id === PRIMARY) return deck(parts.slice(2), q);
+    // /deck/output/<output>/scene/next|prev|again and /deck/output/<output>/sequence/next|stop|pause|…
+    if (parts[2] === 'scene') {
+      const type = { next: 'sceneNext', prev: 'scenePrev', previous: 'scenePrev', again: 'sceneAgain' }[parts[3]];
+      if (!type || parts.length !== 4) return { status: 404, body: { error: `Use /deck/output/${parts[1]}/scene/next, prev or again, or /deck/scene/<name> (a scene acts on its own output).` } };
+      const error = apply({ type, output: o.id });
+      if (error) return { status: 404, body: { error } };
+      save();
+      const cur = currentScene(o.id);
+      return { status: 200, body: { ok: true, output: outputName(o.id), scene: cur ? cur.name : null, changed: changed(o.id).length } };
+    }
+    if (parts[2] === 'sequence') {
+      const r = sequences.deck(parts.slice(2), o.id);
+      if (!r) return null;
+      if (r.error) return { status: r.status, body: { error: r.error } };
+      save();
+      return { status: 200, body: { ...r.body, output: outputName(o.id) } };
+    }
     const [, , w, n, v] = parts;
     let action = null;
     if (w === 'layers' && n === 'off' && parts.length === 4) action = { type: 'hideAll', output: o.id };
@@ -673,8 +746,10 @@ function deck(parts, q = {}) {
   if (error) return { status: 404, body: { error } };
   save();
   if (what === 'scene') {
-    const cur = currentScene();
-    return { status: 200, body: { ok: true, scene: cur ? cur.name : null, changed: changed().length } };
+    // A scene by name acts on its own output: say how that output stands.
+    const at = action.type === 'sceneGo' ? sceneOut(findScene(name)) : null;
+    const cur = currentScene(at);
+    return { status: 200, body: { ok: true, scene: cur ? cur.name : null, changed: changed(at).length, ...(at ? { output: outputName(at) } : {}) } };
   }
   const src = action.name ? find(action.name) : null;
   return { status: 200, body: { ok: true, ...(src ? { name: src.name, visible: src.visible, ...(src.type === 'video' ? { sound: src.sound } : {}) } : {}) } };
@@ -1023,7 +1098,9 @@ async function importFile(file) {
     });
   }
   scene.current = null;
+  scene.currentOut = {};
   ended = new Set();
+  endedOut.clear();
   const missing = [...new Set(sources.filter(s => s.file && !fs.existsSync(path.join(MEDIA_DIR, s.file))).map(s => s.file))];
   // A .mov the sources play that hasn't been converted yet starts converting now.
   for (const f of new Set(sources.filter(s => s.type === 'video' && /\.mov$/i.test(s.file)).map(s => s.file))) {
@@ -1158,7 +1235,9 @@ function init(logger, { ffmpeg, sequencesFile, outputs } = {}) {
   });
   sequences.init(log, {
     source: id => scene.sources.find(s => s.id === id) || null,
-    setVisible: (s, on) => { s.visible = on; ended.delete(s.id); },
+    isOn: (s, out) => isOn(s, out === PRIMARY ? null : out),
+    setOn: (s, on, out) => { const o = out === PRIMARY ? null : out; setOn(s, on, o); endedOf(o).delete(s.id); },
+    hasOutput: id => outputsApi.find(id)?.id === id,
     scene: id => scene.scenes.find(s => s.id === id) || null,
     goTo: (sc, step) => goTo(sc, true, step),
     duration,

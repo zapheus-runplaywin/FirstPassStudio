@@ -7,6 +7,32 @@ const $ = id => document.getElementById(id);
 // The graphics Add a page offers, from the one list in pages.js.
 const PAGES = STUDIO_GRAPHICS.map(p => [p.name, p.file]);
 let scene = { sources: [] };
+// The scene as Studio last sent it; scene above is what the Scenes and Sequences sections see: the scenes and
+// sequences of the output picked over the Scene View (viewFor), with that output's current scene and playing sequence.
+let sceneAll = { sources: [] };
+function viewFor(s, o = 'main') {
+  if (!s.scenes) return s;
+  const mine = x => (x.output || 'main') === o;
+  const main = o === 'main';
+  const sequences = (s.sequences || []).filter(mine);
+  const o2 = (typeof out !== 'undefined' && out && out.outputs || []).find(x => x.id === o);
+  return {
+    ...s,
+    scenes: s.scenes.filter(mine),
+    sequences,
+    current: main ? s.current : (s.currentOut || {})[o] || null,
+    changed: main ? s.changed : (s.changedOut || {})[o] || [],
+    playing: main ? s.playing : (s.playingOut || {})[o] || null,
+    pending: main ? s.pending : (s.pendingOut || {})[o] || null,
+    nextAuto: s.nextAuto && sequences.some(x => x.id === s.nextAuto.id) ? s.nextAuto : null,
+    viewOutput: o,
+    viewName: o2 ? o2.name : '',
+    // Where its Stream Deck links for what's playing and Next and Previous start: /deck, or /deck/output/<output>.
+    viewDeck: main || !o2 ? '/deck' : `/deck/output/${o2.link}`,
+    viewColour: o2 ? o2.colour : '',
+    viewMany: !!(typeof out !== 'undefined' && out && out.outputs && out.outputs.length > 1),
+  };
+}
 let selected = null;
 let base = location.origin;
 let media = [], mediaLoaded = false;
@@ -20,6 +46,8 @@ const current = () => scene.sources.find(s => s.id === selected) || null;
 
 async function act(action) {
   $('err').textContent = '';
+  // Scenes and sequences act on the output picked over the Scene View (a new one is made for it).
+  if (/^(scene|seq)/.test(action.type) && scene.viewOutput && scene.viewOutput !== 'main' && action.output === undefined) action = { ...action, output: scene.viewOutput };
   try {
     const res = await fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) });
     const body = await res.json();

@@ -58,7 +58,8 @@ function renderScenes() {
     ? 'Click a scene to go to it: it turns sources on and off to match, and a source that\'s already on stays on (it isn\'t reloaded). '
       + 'Turning sources on and off by hand changes them everywhere and shows them as <b>changed</b>; click the scene again or <b>Back to saved</b> to put them back. '
       + 'Scenes are listed by colour (pre-game, live stream, quarter time, post-game, ads), then name, and the Stream Deck\'s Next and Previous go in that order (they stop at the ends). A source you add later is off in every scene. '
-      + `Stream Deck: <code>${base}/deck/scene/${encodeURIComponent(slug(scenes[0].name))}</code>, <code>/deck/scene/next</code>, <code>/deck/scene/prev</code> and <code>/deck/scene/again</code> (back to saved).`
+      + `Stream Deck: <code>${base}/deck/scene/${encodeURIComponent(slug(scenes[0].name))}</code>, <code>${scene.viewDeck || '/deck'}/scene/next</code>, <code>${scene.viewDeck || '/deck'}/scene/prev</code> and <code>${scene.viewDeck || '/deck'}/scene/again</code> (back to saved).`
+      + (scene.viewDeck && scene.viewDeck !== '/deck' ? ` These scenes set the sources on ${esc(scene.viewName)} only.` : '')
     : 'A scene is a saved look: which sources are on and which are off. Set the sources up below, then <b>Save what\'s on now</b> and name it '
       + '(Pre-game, Live, Quarter time, Full time…). Going to a scene, here or from the Stream Deck, puts the graphics back to that look.';
   $('editScenes').classList.toggle('hidden', !scenes.length);
