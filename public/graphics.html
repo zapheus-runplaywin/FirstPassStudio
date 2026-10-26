@@ -302,7 +302,7 @@
     <div id="introPages"></div>
   </div>
   <div class="card">
-    <h2>Stinger (a transition in the competition's colours, 2 seconds)</h2>
+    <h2>Stinger (a transition in the competition's colours, 1.5 seconds)</h2>
     <div id="stingerPages"></div>
   </div>
   <div class="card">
@@ -687,10 +687,10 @@ document.getElementById('fixturePages').appendChild(pageRow('Round results (fini
   'With no competition logo in the setup the page stays empty.']]
   .forEach(([n, p, h]) => document.getElementById('logoPages').appendChild(pageRow(n, p, h)));
 document.getElementById('stingerPages').appendChild(pageRow('Stinger', '/stinger.html',
-  'Slanted bands in the competition\'s colours (accent, highlight, main and the dark panel colour, from the competition setup) sweep across and cover the whole picture, the competition logo punches in on the last one and holds for a second, then the bands carry on off the other side. ' +
-  'It lasts 2 seconds and the whole picture is covered from 0.22 to 1.72 seconds, so a cut to another camera or scene can happen underneath it. It plays once each time it\'s turned on on the Output page, then turns itself off. ' +
+  'Slanted bands in the competition\'s colours (accent, highlight, main and the dark panel colour, from the competition setup) sweep across and cover the whole picture, the competition logo punches in on the last one and holds for half a second, then the bands carry on off the other side. ' +
+  'It lasts 1.5 seconds and the whole picture is covered from 0.22 to 1.22 seconds, so a cut to another camera or scene can happen underneath it. It plays once each time it\'s turned on on the Output page, then turns itself off. ' +
   'It covers the whole frame on purpose, so it isn\'t fitted between the title and the scoreboard. ' +
-  'Options: <code>?hold=2</code> holds the full frame for 2 seconds (0 to 10; <code>?hold=0</code> is a quick 1 second stinger), <code>?length=1.5</code> makes the bands sweep in and out more slowly (0.5 to 3 seconds), <code>?logo=0</code> plays it with the colours only, ' +
+  'Options: <code>?hold=1</code> holds the full frame for a whole second (0 to 1 second in steps of 0.1; <code>?hold=0</code> is a quick 1 second stinger), <code>?length=1.5</code> makes the bands sweep in and out more slowly (0.5 to 3 seconds), <code>?logo=0</code> plays it with the colours only, ' +
   '<code>?mode=dark</code> uses the setup\'s dark mode competition logo, <code>?size=560</code> sets the logo\'s height in pixels, and <code>?sfx=80</code> is the whoosh\'s volume in % (<code>0</code> for none). ' +
   'It reads the competition logo once when it loads.'));
 document.getElementById('stingerPages').appendChild(pageRow('Stinger: colours only', '/stinger.html?logo=0'));
