@@ -481,6 +481,8 @@ function stingerSource(ref) {
   const r = String(ref || '');
   return (r && (list.find(s => s.id === r) || list.find(s => slug(s.name) === slug(r)))) || (r ? null : list[0]) || null;
 }
+// The stinger on an output (the primary when left out). Already on there, it's restarted: that reloads it in every window, so a copy left on Output 1 replays too (its
+// report is no cue to cut, as the switcher only listens to the stinger's own output).
 function playStinger(id, output) {
   const s = scene.sources.find(x => x.id === id);
   if (!s) return false;

@@ -1,5 +1,5 @@
-// Where the stinger plays (switcher.js stingerOutput): on the output on a downstream key, Output 1 unless another is,
-// as only a downstream key covers the whole picture; each output keeps its own line-up (NDI reaches the switcher later
+// Where the stinger plays (switcher.js stingerOutput): on the output on a downstream key, Output 1 unless another is
+// (and switched on), as only a downstream key covers the whole picture; each output keeps its own line-up (NDI reaches the switcher later
 // than HDMI), and only the stinger's own output's report times the cut. An older switcher.json's one line-up becomes
 // Output 1's.
 const test = require('node:test');
@@ -18,7 +18,7 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
   await studio.until(async () => (await studio.get('/api/switcher')).state === 'connected', 8000, 100);
   await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html' }] });
   let s = await studio.get('/api/switcher');
-  assert.deepEqual(s.stingerOutput, { id: 'main', name: 'Output 1' }, 'Output 1 with nothing set up');
+  assert.deepEqual(s.stingerOutput, { id: 'main', name: 'Output 1', on: true }, 'Output 1 with nothing set up');
 
   // Output 1 goes on upstream key 1 (a chroma screen, say) and a second output, NDI, takes downstream key 1.
   await studio.post('/api/outputs', { mode: 'chroma', keyer: 'usk1' });
@@ -26,7 +26,16 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
   const two = added.outputs.find(o => o.slot === 2).id;
   await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'fillkey', keyer: 'dsk1' });
   s = await studio.get('/api/switcher');
-  assert.deepEqual(s.stingerOutput, { id: two, name: 'Over all' });
+  // A new output starts switched off: the stinger stays on Output 1, which is on, until it's turned on.
+  assert.deepEqual(s.stingerOutput, { id: 'main', name: 'Output 1', on: true }, 'not an output that\'s off');
+  // With Output 1 off too, it's the downstream key's output, and the card says to turn it on.
+  await studio.post('/api/outputs', { on: false });
+  s = await studio.get('/api/switcher');
+  assert.deepEqual(s.stingerOutput, { id: two, name: 'Over all', on: false });
+  await studio.post('/api/outputs', { on: true });
+  await studio.post('/api/outputs', { output: two, on: true });
+  s = await studio.get('/api/switcher');
+  assert.deepEqual(s.stingerOutput, { id: two, name: 'Over all', on: true });
   assert.equal(s.lineup, 0);
 
   // Each output's line-up is its own; the Switcher card's is the stinger's output's.

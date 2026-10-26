@@ -303,7 +303,7 @@
         The Stream Deck plugin's <b>Switcher</b> key presses any of these and shows the tally: a camera's key lights red while it's on program and green on preview,
         a key or Fade to black red while on air, and every key goes dark with a yellow dot while the switcher isn't answering.
         <br><b>Stinger:</b> with the <a href="#stingerPages">Stinger page</a> as a source in the scene, the card's <b>Stinger</b> button (and <code>/deck/switcher/stinger</code>,
-        <code>/deck/switcher/stinger/&lt;input&gt;</code>) plays it on the output on a downstream key (Output 1, unless another output is <a href="#switcher">Into the switcher as</a> a downstream key,
+        <code>/deck/switcher/stinger/&lt;input&gt;</code>) plays it on the output on a downstream key (Output 1, unless another output that's switched on is <a href="#switcher">Into the switcher as</a> a downstream key,
         as only a downstream key covers the whole picture) and cuts to the preview input underneath it. The stinger tells Studio when it starts
         and when it covers the frame, from its own settings, and the cut lands in the middle of the cover (0.72 s in with the usual half second hold), so the cut
         comes about a second and a half after the press, once the page has loaded. That output's picture reaches the switcher a few frames late (more over NDI than HDMI):
@@ -775,7 +775,7 @@ document.getElementById('stingerPages').appendChild(pageRow('Stinger', '/stinger
   'The music carries on under it unless you say: <code>?music=quiet</code> brings the music down quickly, so it\'s down by the time the picture is covered, and keeps it down for the scene you cut to, as a scene with <b>Quiet the music</b> does, until a scene, sequence or step without it; ' +
   '<code>?music=dip</code> brings it down the same way and back up in half a second as the stinger leaves. ' +
   'It reads the competition logo once when it loads. ' +
-  'With an ATEM switcher set up (under Video output), <b>Stinger</b> on its card, <code>/deck/switcher/stinger</code> and a sequence or scene\'s <b>Stinger to</b> play it on the output on a downstream key (Output 1 unless another is) and cut the switcher underneath, in the middle of the cover as this stinger\'s own settings make it (so <code>?hold=</code> and <code>?length=</code> still line up).'));
+  'With an ATEM switcher set up (under Video output), <b>Stinger</b> on its card, <code>/deck/switcher/stinger</code> and a sequence or scene\'s <b>Stinger to</b> play it on the output on a downstream key (Output 1 unless another one that\'s on is) and cut the switcher underneath, in the middle of the cover as this stinger\'s own settings make it (so <code>?hold=</code> and <code>?length=</code> still line up).'));
 document.getElementById('stingerPages').appendChild(pageRow('Stinger: colours only', '/stinger.html?logo=0'));
 const INTRO_HELP = 'The competition logo and name, the organisation, and the logos of every team in a division, for the start and the end of the stream. ' +
   '<b>Intro:</b> Welcome to the competition, with this round, the division, the venue and the date. ' +

@@ -541,7 +541,7 @@ const signalOf = o => o.mode === 'chroma' ? 'chroma' : o.mode === 'fillkey' ? 'f
   : o.mode === 'decklink' ? (o.decklinkKeying === 'external' ? 'fillkey' : 'fill') : o.mode === 'ndi' ? o.ndiSignal : 'off';
 const keyerOf = o => o.keyer || (signalOf(o) === 'chroma' || o.slot !== 1 ? `usk${o.slot}` : 'dsk1');
 function switcherPlan() {
-  return list.filter(o => o.mode !== 'off').map(o => ({ id: o.id, name: o.name, slot: o.slot, colour: COLOURS[o.slot], keyer: keyerOf(o),
+  return list.filter(o => o.mode !== 'off').map(o => ({ id: o.id, name: o.name, on: !!o.on, slot: o.slot, colour: COLOURS[o.slot], keyer: keyerOf(o),
     fill: o.swFill, key: o.swKey, cameras: o.swCameras, signal: signalOf(o), premultiplied: !(o.mode === 'decklink' && o.decklinkStraight) }));
 }
 

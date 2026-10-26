@@ -52,14 +52,16 @@ function showSwitcher(s) {
       const cls = i.id === s.program ? 'prg' : i.id === s.preview ? 'pvw' : '';
       box.appendChild(swButton(i.name, cls, i.id === s.program ? `${i.name} is on program` : `Put ${i.name} on preview`, () => swDo({ type: 'preview', input: i.id })));
     }
-    // The stinger: the scene's Stinger page, played on the output on a downstream key (Output 1 unless another is) with
+    // The stinger: the scene's Stinger page, played on the output on a downstream key (Output 1 unless another one that's on is) with
     // the cut underneath, and that output's line-up.
     const on = (s.stingerOutput || {}).name || 'Output 1';
+    const off = s.stingerOutput && s.stingerOutput.on === false;
     $('swStinger').disabled = !s.stinger;
     $('swStinger').title = s.stinger ? `Play "${s.stinger}" on ${on} and cut to the preview input underneath it` : 'Add the Stinger page as a source first (+ Add, Studio pages)';
     $('swLineupTest').disabled = !s.stinger;
     $('swLineupLabel').textContent = `line-up for ${on}`;
-    $('swStingerName').textContent = s.stinger ? `"${s.stinger}" on ${on}, cut in the middle of its cover (from its own settings), at ${s.fps} frames a second`
+    $('swStingerName').textContent = off ? `${on} is off: turn it on for stinger cuts. Until then a stinger is a plain cut, 3 s late.`
+      : s.stinger ? `"${s.stinger}" on ${on}, cut in the middle of its cover (from its own settings), at ${s.fps} frames a second`
       : 'Add the Stinger page as a source to cut under it; without one, a stinger is an auto.';
     if (document.activeElement !== $('swLineup')) $('swLineup').value = s.lineup || 0;
     $('swFtb').classList.toggle('on', s.ftb);

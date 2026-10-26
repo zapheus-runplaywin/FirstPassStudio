@@ -51,7 +51,7 @@ let finding = null;           // the search in progress (a promise)
 let lastKey = '';
 const listeners = new Set(); // server-sent events (/api/switcher/events): the Stream Deck plugin's Switcher keys
 // Stinger cuts: Studio plays the scene's stinger (stinger.html) on the output on a downstream key (Output 1 unless
-// another is, as only a downstream key covers the whole picture) and cuts while it covers the frame.
+// another one that's switched on is, as only a downstream key covers the whole picture) and cuts while it covers the frame.
 let follow = true;            // Keys follow the camera: after a cut made elsewhere, paired outputs' keys follow the program camera
 let lastProgram = null;       // the program input Keys follow the camera last saw
 let followTimer = null;
@@ -294,6 +294,7 @@ function summary() {
 }
 function status() {
   const s = conn === 'connected' ? summary() : null;
+  const where = stingerOutput();
   return {
     setUp: !!pick,
     pick,
@@ -305,8 +306,8 @@ function status() {
     finding: !!finding,
     found,
     // The output the stinger plays on, its line-up, and every output's.
-    stingerOutput: stingerOutput(),
-    lineup: lineups[stingerOutput().id] || 0,
+    stingerOutput: where,
+    lineup: lineups[where.id] || 0,
     lineups,
     follow,
     stinger: (stingerApi && stingerApi.find()) ? stingerApi.find().name : '',
@@ -336,12 +337,16 @@ const settled = () => new Promise(resolve => {
 const noInput = (s, v) => `No input "${v}" on the ${s.model}. Use its number or its name: ${s.inputs.map(x => `${x.id} ${x.name}`).join(', ')}.`;
 const nameOf = (s, id) => (s.inputs.find(i => i.id === id) || {}).name || `input ${id}`;
 
-// The output the stinger plays on: the first on a downstream key, else Output 1 (the primary): { id, name }.
+// The output the stinger plays on: the first on a downstream key that's switched on, else Output 1 (the primary)
+// if it's on, else the first on a downstream key even though it's off (the card says to turn it on). Output 1 when
+// no output is set up, as before: { id, name, on }.
 function stingerOutput() {
   let plan;
   try { plan = outputsPlan() || []; } catch { plan = []; }
-  const o = plan.find(x => x.keyer.startsWith('dsk')) || plan.find(x => x.id === 'main');
-  return o ? { id: o.id, name: o.name } : { id: 'main', name: 'Output 1' };
+  const dsk = plan.filter(x => x.keyer.startsWith('dsk'));
+  const main = plan.find(x => x.id === 'main');
+  const o = dsk.find(x => x.on) || (main && main.on ? main : null) || dsk[0] || main;
+  return o ? { id: o.id, name: o.name, on: o.on } : { id: 'main', name: 'Output 1', on: true };
 }
 // A stinger to an input (or what's on preview): the input goes on preview, the stinger plays on its output, and
 // once its page says it has started (with when it covers the frame, from its own settings) the cut lands in
@@ -763,11 +768,12 @@ async function settings(a) {
   if (a.type === 'stingerStarted') { stingerStarted(a.cover, a.output); return { ok: true }; }
   if (a.type === 'lineup') {
     // { frames, output }: that output's line-up (the stinger's output when left out).
-    const where = a.output ? String(a.output).replace(/[^a-z0-9]/gi, '').slice(0, 20) : stingerOutput().id;
+    const stinger = stingerOutput();
+    const where = a.output ? String(a.output).replace(/[^a-z0-9]/gi, '').slice(0, 20) : stinger.id;
     if (!where) return { error: 'Which output\'s line-up?', status: 400 };
     const frames = cleanLineup(a.frames);
     if (frames) lineups[where] = frames; else delete lineups[where];
-    log('info', 'switcher', `Stinger line-up ${frames} frames for ${where === stingerOutput().id ? stingerOutput().name : where}`);
+    log('info', 'switcher', `Stinger line-up ${frames} frames for ${where === stinger.id ? stinger.name : where}`);
     save();
     changed();
     return { ok: true };
