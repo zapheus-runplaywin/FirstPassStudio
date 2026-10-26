@@ -93,7 +93,7 @@ In it:
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`, `remoteChanges`); a `config.json` here changes only the settings it names.
-- `logs/`: the debug log.
+- `logs/`: the debug log (`playhq-graphics.log`) and the app log (`app.log`: updates, What's new, outputs and windows).
 - `app-settings.json`: the Mac app's own choices (the window's size and position, the version What's new was last shown for).
 - `data-version.json` and `backups/`: see **Updates and migrations**.
 
@@ -182,7 +182,7 @@ Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the M
 `linkHost` are fine), gets a 403 that says so. Studio also sends no CORS header, so another site can't read its answers.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
-Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Restart Studio, Open at
+Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
 login, Let other devices change things, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". The app always starts in the

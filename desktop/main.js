@@ -271,6 +271,8 @@ function refreshMenu() {
     { label: exporting ? 'Backing up…' : 'Back up…', icon: menuIcon('backup'), enabled: !moving && !exporting, click: exportSettings },
     { label: moving === 'backup' ? 'Restoring…' : 'Restore…', icon: menuIcon('restore'), enabled: !moving && !exporting, click: restoreFromBackup },
     { label: 'Open the debug log', click: () => shell.openPath(path.join(LOCAL_DIR, 'logs', 'playhq-graphics.log')) },
+    // The app's own log: updates, What's new, the outputs and windows.
+    { label: 'Open the app log', click: () => shell.openPath(LOG_FILE) },
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
@@ -621,7 +623,10 @@ function appUpdates() {
 // and the install timed out with the app still running. A window still open after a few seconds
 // is closed outright so the install goes ahead, unless a page with unsaved changes asked and
 // Stay was chosen.
+let installStarted = false;
 function beforeInstall() {
+  if (installStarted) return; // Electron sends it again once the windows have closed
+  installStarted = true;
   log('[update] Closing the windows to install');
   quitting = true;
   windows.setQuitting();
@@ -639,7 +644,7 @@ function beforeInstall() {
 
 // The install failed: the app carries on as it was.
 function installFailed() {
-  quitting = false;
+  quitting = installStarted = false;
   windows.setQuitting(false);
   outputs?.setQuitting(false);
 }

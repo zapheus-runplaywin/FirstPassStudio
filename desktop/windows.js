@@ -156,8 +156,15 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // The changes since the version last opened (whatsnew.js), shown once after an update. A panel,
   // so it doesn't put Studio on air. recent: the latest releases, from the menu bar. Resolves 'open' (Open Studio) or null (Close, or closed).
   let whatsNew = null;
+  // Each step is logged (app.log): on the Mac it opened neither at launch nor from the menu.
   function showWhatsNew(releases, { recent = false } = {}) {
-    if (whatsNew && !whatsNew.isDestroyed()) { whatsNew.focus(); return Promise.resolve(null); }
+    if (whatsNew && !whatsNew.isDestroyed()) {
+      log(`What's new: already open (${whatsNew.isVisible() ? 'showing' : 'not showing yet'}), bringing it to the front`);
+      whatsNew.show();
+      whatsNew.focus();
+      app.focus({ steal: true });
+      return Promise.resolve(null);
+    }
     const win = whatsNew = new BrowserWindow({
       width: 560, height: 560, center: true, resizable: true, minWidth: 420, minHeight: 320, minimizable: false,
       maximizable: false, fullscreenable: false, show: false, backgroundColor: '#0F172A', title: "What's new",
@@ -167,14 +174,26 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     // Links in a change's title (there shouldn't be any) never open in the panel.
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', e => e.preventDefault());
-    win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
+    const showIt = why => {
+      if (win.isDestroyed() || win.isVisible()) return;
+      log(`What's new: showing (${why})`);
+      win.show();
+      app.focus({ steal: true });
+    };
+    win.once('ready-to-show', () => showIt('ready'));
+    // In case the page never says it's ready to show, show it anyway.
+    setTimeout(() => showIt('not ready after 3 s'), 3000);
+    win.webContents.on('did-fail-load', (e, code, desc, url, isMainFrame) => { if (isMainFrame) log(`What's new couldn't load ${url}: ${desc}`); });
+    win.webContents.on('render-process-gone', (e, d) => log(`What's new page stopped (${d.reason})`));
+    win.webContents.on('console-message', e => { if (e.level === 'error') log(`What's new page: ${e.message}`); });
+    log(`What's new: opening, ${releases.length} version${releases.length === 1 ? '' : 's'}`);
     loadPage(win, 'whatsnew.html');
     return new Promise(resolve => {
-      win.on('closed', () => { if (whatsNew === win) whatsNew = null; resolve(null); });
+      win.on('closed', () => { if (whatsNew === win) whatsNew = null; log("What's new closed"); resolve(null); });
       win.webContents.once('did-finish-load', () => {
         win.webContents.executeJavaScript(`show(${JSON.stringify(releases)}, ${JSON.stringify(app.getVersion())}, ${recent}); window.choice`, true)
-          .then(choice => resolve(choice === 'open' ? 'open' : null))
-          .catch(() => resolve(null))
+          .then(choice => { log(`What's new: ${choice === 'open' ? 'Open Studio' : 'Close'}`); resolve(choice === 'open' ? 'open' : null); })
+          .catch(err => { log(`What's new couldn't list the changes: ${String(err && err.message).split('\n')[0]}`); resolve(null); })
           .finally(() => { if (!win.isDestroyed()) win.close(); });
       });
     });
