@@ -148,6 +148,16 @@ const sockets = new Set();   // WebSockets (/api/scene/socket): Studio's own pag
 // gives boardSource (the scoreboard's JSON) and calls publishBoard when the board may have changed.
 const boardSockets = new Set();
 let boardSource = null;
+// The switcher (switcher.js) the same way, for the pages that asked ({"subscribe":"switcher"}): the Output page.
+const switcherSockets = new Set();
+let switcherSource = null;
+function switcherFrame(json) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'switcher', switcher: json }))); }
+function setSwitcherSource(fn) { switcherSource = fn; }
+function publishSwitcher() {
+  if (!switcherSource || !switcherSockets.size) return;
+  const frame = switcherFrame(switcherSource());
+  for (const s of switcherSockets) s.write(frame);
+}
 let lastBoardKey = '';
 function boardFrame(json) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'board', board: json }))); }
 function setBoardSource(fn) { boardSource = fn; }
@@ -366,7 +376,7 @@ function upgrade(req, socket) {
   socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
   socket.setNoDelay(true);
   sockets.add(socket);
-  const drop = () => { sockets.delete(socket); boardSockets.delete(socket); socket.destroy(); };
+  const drop = () => { sockets.delete(socket); boardSockets.delete(socket); switcherSockets.delete(socket); socket.destroy(); };
   socket.on('close', drop);
   socket.on('error', drop);
   // Frames from the page (always masked): pings get a pong, a close is answered and ends it.
@@ -391,6 +401,7 @@ function upgrade(req, socket) {
         let msg = null;
         try { msg = JSON.parse(payload.toString()); } catch { /* not for us */ }
         if (msg && msg.subscribe === 'board' && boardSource) { boardSockets.add(socket); socket.write(boardFrame(boardSource())); }
+        if (msg && msg.subscribe === 'switcher' && switcherSource) { switcherSockets.add(socket); socket.write(switcherFrame(switcherSource())); }
       }
     }
   });
@@ -1273,4 +1284,4 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, FILE, MEDIA_DIR };
+module.exports = { STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };

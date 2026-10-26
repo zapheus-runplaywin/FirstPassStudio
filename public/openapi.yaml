@@ -24,6 +24,8 @@ tags:
   - name: Status
   - name: Scene
     description: Studio's scene, built on the Output page. Sources are named by the name given on the Output page, lower case with dashes for spaces ("Up Next" is `up-next`).
+  - name: Switcher
+    description: The Blackmagic ATEM switcher set up on the Output page (Switcher card). Studio sends a link's command straight away, or refuses it with 409 when no switcher is set up or it isn't answering (nothing is saved up for later). Keys and macros count from 1, as on the switcher; a link for a key the switcher doesn't have (a second downstream key on an ATEM Mini Pro) answers 404 with what it does have.
 
 paths:
   /deck/{side}/{change}:
@@ -760,6 +762,134 @@ paths:
                   mode: { type: string, enum: [off, chroma, fillkey, decklink, ndi] }
         '404': { $ref: '#/components/responses/UnknownLink' }
 
+  /deck/switcher/{action}:
+    get:
+      tags: [Switcher]
+      summary: Cut, auto or fade to black
+      description: "`cut` takes the preview input to program at once, `auto` with the switcher's transition, `ftb` fades to black (or back from it)."
+      operationId: switcherTake
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [cut, auto, ftb] }
+      responses:
+        '200':
+          description: Done. Returns the switcher's program and preview inputs and its keys after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SwitcherDone' }
+        '404': { description: No such input or key on this switcher, or not one of the links listed here }
+        '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
+  /deck/switcher/preview/{input}:
+    get:
+      tags: [Switcher]
+      summary: Put an input on preview
+      description: The input by its number on the switcher, or its name as set in ATEM Software Control (`Camera%202`, or `camera-2`).
+      operationId: switcherPreview
+      parameters:
+        - name: input
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Done. Returns the switcher's program and preview inputs and its keys after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SwitcherDone' }
+        '404': { description: No such input or key on this switcher, or not one of the links listed here }
+        '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
+  /deck/switcher/program/{input}:
+    get:
+      tags: [Switcher]
+      summary: Cut an input straight to program
+      description: The input by its number or name, as for preview.
+      operationId: switcherProgram
+      parameters:
+        - name: input
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Done. Returns the switcher's program and preview inputs and its keys after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SwitcherDone' }
+        '404': { description: No such input or key on this switcher, or not one of the links listed here }
+        '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
+  /deck/switcher/usk/{key}/{action}:
+    get:
+      tags: [Switcher]
+      summary: An upstream key on or off
+      description: Upstream key 1 to 4 on an ATEM Mini Extreme, 1 on an ATEM Mini or Mini Pro. On and off are cuts.
+      operationId: switcherUpstreamKey
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+      responses:
+        '200':
+          description: Done. Returns the switcher's program and preview inputs and its keys after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SwitcherDone' }
+        '404': { description: No such input or key on this switcher, or not one of the links listed here }
+        '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
+  /deck/switcher/dsk/{key}/{action}:
+    get:
+      tags: [Switcher]
+      summary: A downstream key on or off
+      description: Downstream key 1 or 2 on an ATEM Mini Extreme, 1 on an ATEM Mini or Mini Pro. On, off and toggle are cuts; auto takes it on or off at the key's own rate.
+      operationId: switcherDownstreamKey
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle, auto] }
+      responses:
+        '200':
+          description: Done. Returns the switcher's program and preview inputs and its keys after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SwitcherDone' }
+        '404': { description: No such input or key on this switcher, or not one of the links listed here }
+        '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
+  /deck/switcher/macro/{macro}:
+    get:
+      tags: [Switcher]
+      summary: Run a macro saved on the switcher
+      description: Numbered from 1, as in ATEM Software Control. For anything Studio has no link for.
+      operationId: switcherMacro
+      parameters:
+        - name: macro
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Done. Returns the switcher's program and preview inputs and its keys after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SwitcherDone' }
+        '404': { description: No such input or key on this switcher, or not one of the links listed here }
+        '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
   /api/scene/media:
     get:
       tags: [Scene]
@@ -837,6 +967,15 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
+    SwitcherDone:
+      type: object
+      properties:
+        ok: { type: boolean }
+        done: { type: string, description: 'What was done, as the log says it ("cut to Camera 2")' }
+        program: { type: integer, description: The input on program }
+        preview: { type: integer, description: The input on preview }
+        usk: { type: array, items: { type: boolean }, description: Each upstream key, on air or not }
+        dsk: { type: array, items: { type: boolean }, description: Each downstream key, on air or not }
     MediaFile:
       type: object
       properties:

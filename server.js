@@ -27,6 +27,7 @@ const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
 const outputs = require('./outputs');
+const switcher = require('./switcher');
 const { linkHost, bonjourName } = require('./linkhost');
 const access = require('./access');
 const uploads = require('./uploads');
@@ -107,6 +108,9 @@ sponsors.init(log);
 exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().some(w => w.output === outputs.PRIMARY) });
 // Live viewer numbers from the competition's streams, read only while on air.
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
+// The ATEM switcher, if one is set up: its state goes to the Output page over the scene's socket.
+scene.setSwitcherSource(switcher.status);
+switcher.init(log, { changed: scene.publishSwitcher });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
 const playhq = require('./playhq').create({
@@ -910,6 +914,9 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/outputs' || url.pathname.startsWith('/api/outputs/')) {
       if (await outputs.route(req, res, url, { send, readBody })) return;
     }
+    if (url.pathname === '/api/switcher' || url.pathname.startsWith('/api/switcher/')) {
+      if (await switcher.route(req, res, url, { send, readBody })) return;
+    }
     if (url.pathname.startsWith('/api/scene') || url.pathname.startsWith('/media/')) {
       if (await scene.route(req, res, url, { send, readBody })) return;
     }
@@ -929,6 +936,9 @@ http.createServer(async (req, res) => {
       // The video outputs: /deck/output/on|off|toggle, /deck/output/<output>/on|off|toggle, /deck/output/all/....
       const output = outputs.deck(parts);
       if (output) return send(res, output.status, output.body);
+      // The ATEM switcher: /deck/switcher/cut, auto, preview/<input>, usk/<n>/on ... (switcher.js).
+      const sw = await switcher.deck(parts);
+      if (sw) return send(res, sw.status, sw.body);
       const action = deckAction(parts, q);
       if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See the Stream Deck page, /api.html.` });
       const b = board();
