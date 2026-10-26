@@ -118,7 +118,7 @@ test('Next and Stop act on the output they name; a scene on Commentary stops onl
   assert.equal(st().playing, null);
 });
 
-test('a sequence set to start by itself on another output keeps that, and falls back when it goes', () => {
+test('a sequence set to start by itself on another output keeps that, and stays off once that output has gone', () => {
   const sq = st().sequences.find(s => s.name === 'commentaryLoop');
   ok({ type: 'seqUpdate', sequence: sq.id, changes: { startOn: two() } });
   assert.equal(st().sequences.find(s => s.name === 'commentaryLoop').startOn, two());
@@ -129,7 +129,21 @@ test('a sequence set to start by itself on another output keeps that, and falls 
   assert.equal(outputs.apply({ remove: was }), null);
   assert.equal(st().playingOut[was], undefined, 'what played there stops');
   assert.equal(st().currentOut[was], undefined);
-  assert.equal(st().sequences.find(s => s.name === 'commentaryLoop').startOn, 'main');
+  const after = st().sequences.find(s => s.name === 'commentaryLoop');
+  assert.equal(after.startOn, was, 'kept, for the editor to show');
+  assert.equal(after.startGone, true);
+  // Its moment comes: it doesn't start on Output 1 instead (where it would be on air).
+  scene.apply({ type: 'seqStop' });
+  ok({ type: 'seqUpdate', sequence: sq.id, changes: { start: { type: 'before', min: 10 } } });
+  const game = { id: 'g-gone', label: 'Stormz v Titans', startAt: Date.now() + 30 * 60000, period: 1, last: 4, left: 600, running: false, onBreak: false, finished: false };
+  scene.game(game);
+  assert.notEqual(st().nextAuto?.id, sq.id, 'not shown as starting next');
+  wait(21 * 60);
+  scene.game(game);
+  assert.equal(st().playing, null, 'nothing started on Output 1');
+  assert.equal(st().pending, null);
+  ok({ type: 'seqUpdate', sequence: sq.id, changes: { start: { type: 'hand' }, startOn: 'main' } });
+  assert.equal(st().sequences.find(s => s.name === 'commentaryLoop').startGone, undefined, 'picking another output clears it');
   ok({ type: 'sceneGo', scene: 'Ladder up' });
   assert.ok(onMain().includes('Ladder'));
 });
