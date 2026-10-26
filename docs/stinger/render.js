@@ -1,7 +1,7 @@
 // FirstPass Studio - renders the stinger (public/stinger.html) to a 1080p ProRes 4444 file with alpha, for a switcher
 // or player that plays stingers from a file.
 //
-// Run from the repository:  node docs/stinger/render.js "Thunder League" [out.mov] [--fps 50] [--length 1] [--hold 1] [--logo 0]
+// Run from the repository:  node docs/stinger/render.js "Thunder League" [out.mov] [--fps 50] [--length 1] [--hold 0.5] [--logo 0]
 // The competition is a template in templates/. Studio is started in a folder of its own for the run (against the
 // stand-in PlayHQ the tests use), the page is opened in Chromium and each frame is drawn by seeking its animations,
 // so every frame is exact whatever the machine's speed. Needs ffmpeg with the prores_ks encoder on the PATH (or
@@ -19,10 +19,10 @@ const args = process.argv.slice(2);
 const flag = (name, dflt) => { const i = args.indexOf('--' + name); if (i < 0) return dflt; const v = args[i + 1]; args.splice(i, 2); return v; };
 const fps = Number(flag('fps', 50));
 const length = Number(flag('length', 1));
-const hold = Number(flag('hold', 1));
+const hold = Number(flag('hold', 0.5));
 const logo = flag('logo', '1');
 const [competition, outArg] = args;
-if (!competition) { console.error('Usage: node docs/stinger/render.js "<template name>" [out.mov] [--fps 50] [--length 1] [--hold 1] [--logo 0]'); process.exit(1); }
+if (!competition) { console.error('Usage: node docs/stinger/render.js "<template name>" [out.mov] [--fps 50] [--length 1] [--hold 0.5] [--logo 0]'); process.exit(1); }
 const out = path.resolve(outArg || path.join(__dirname, `${competition} stinger.mov`));
 const ffmpeg = process.env.FFMPEG || 'ffmpeg';
 

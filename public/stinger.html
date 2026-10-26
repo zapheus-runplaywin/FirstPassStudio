@@ -13,7 +13,7 @@
 <script src="fit.js"></script>
 <style>
   /* A stinger: slanted bands in the competition's colours sweep across and cover the whole frame for a moment, the
-     competition logo punches in on the last band, holds there for a second (?hold=), then the bands carry on off the
+     competition logo punches in on the last band, holds there for half a second (?hold=), then the bands carry on off the
      other side, so a cut can be hidden underneath it.
      Times are in seconds at ?length=1, with the hold (--hold) added to everything after it:
        0.00 to 0.22         the accent band crosses in, the highlight, main and dark bands just behind it
@@ -21,7 +21,7 @@
        0.60 + hold to 0.98 + hold  the bands leave, the dark one with the logo first, so each colour shows on its way out
      It uses the whole frame on purpose, so it isn't fitted between the title and the scoreboard like other graphics.
      Colours and font come from the competition setup (theme.css). Transparent before and after. */
-  :root { --size: 560px; --hold: 1s; }
+  :root { --size: 560px; --hold: .5s; }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: var(--font); }
   .stage { position: absolute; inset: 0; visibility: hidden; }
   .stage.go { visibility: visible; }
@@ -59,9 +59,9 @@
 <body>
   <!-- A 1920 x 1080 page for the Output page:
        http://localhost:8080/stinger.html  bands in the competition's colours with its logo, covering the whole frame for a moment
-       Plays once when the page loads (2 seconds) and leaves the frame transparent, so it plays each time it comes on.
-       The whole frame is covered from 0.22 s to 1.72 s, so a cut can happen underneath.
-       Options: ?hold=1 is how long it holds on the full frame in seconds (0 to 10; 0 for a quick 1 second stinger);
+       Plays once when the page loads (1.5 seconds) and leaves the frame transparent, so it plays each time it comes on.
+       The whole frame is covered from 0.22 s to 1.22 s, so a cut can happen underneath.
+       Options: ?hold=0.5 is how long it holds on the full frame in seconds (0 to 1 in steps of 0.1; 0 for a quick 1 second stinger);
                 ?length=1 is how long the bands take to come in and go out, in seconds (0.5 to 3);
                 ?logo=0 leaves the logo out (only the colours);
                 ?mode=light (the default) or ?mode=dark picks the setup's light or dark mode competition logo;
@@ -83,7 +83,8 @@
       const LABEL = 'Stinger';
       const num = k => { const v = parseFloat(params.get(k)); return Number.isFinite(v) && v >= 0 ? v : null; };
       const length = Math.min(3, Math.max(.5, num('length') || 1));
-      const hold = Math.min(10, num('hold') ?? 1);
+      // 0 to 1 second in tenths (100 ms steps).
+      const hold = Math.round(Math.min(1, num('hold') ?? .5) * 10) / 10;
       // The hold is in real seconds, so it's set on the slowed or sped up CSS clock as hold / length.
       document.documentElement.style.setProperty('--hold', hold / length + 's');
       const withLogo = params.get('logo') !== '0';

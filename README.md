@@ -526,9 +526,9 @@ These follow the game picked on the scoreboard control page:
   round, the finals round's name when the next round is a final, "Finals are next" after the last round when a finals format
   is set, or a thank you for the season after that. `?wrap=1` shows the card now, `?wrap=0` never shows it, `?message=`
   changes the invite line and `?mode=dark` uses the dark mode competition logo.
-- http://localhost:8080/stinger.html: a 2 second transition. Slanted bands in the competition's colours sweep across and
-  cover the whole frame from 0.22 to 1.72 seconds, with the competition logo on the last band, so a cut can happen underneath,
-  then carry on off the other side. `?hold=` (seconds on the full frame, 1 by default, 0 for a quick 1 second stinger),
+- http://localhost:8080/stinger.html: a 1.5 second transition. Slanted bands in the competition's colours sweep across and
+  cover the whole frame from 0.22 to 1.22 seconds, with the competition logo on the last band, so a cut can happen underneath,
+  then carry on off the other side. `?hold=` (seconds on the full frame, 0 to 1 in steps of 0.1, 0.5 by default; 0 is a quick 1 second stinger),
   `?length=` (how long the bands take, 0.5 to 3 seconds), `?logo=0` (colours only), `?mode=dark`, `?size=`
   (logo height) and `?sfx=` (whoosh volume in %, 80 by default). For a switcher or player that plays stingers from a file,
   `node docs/stinger/render.js "Thunder League"` renders it from a competition template to a 1080p50 ProRes 4444 `.mov`
