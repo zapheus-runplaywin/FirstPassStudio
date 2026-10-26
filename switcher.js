@@ -4,7 +4,7 @@
 // browsed with macOS's own dns-sd), or takes a typed address, and keeps one connection to the one picked,
 // using atem-connection (Blackmagic's control protocol over UDP port 9910). The switcher's own buttons,
 // ATEM Software Control and other controllers keep working alongside it: Studio follows what they do and
-// only sends something when a button, a Stream Deck key or (later) a sequence asks for it. On connecting
+// only sends something when a button, a Stream Deck key, a sequence step or a scene asks for it. On connecting
 // or reconnecting it sends nothing, so a cut is never replayed late.
 //
 // It reads what the switcher has (its model, inputs and their names, upstream and downstream keys) rather
@@ -278,6 +278,7 @@ const settled = () => new Promise(resolve => {
   const timer = setTimeout(done, 150);
   a.on('stateChanged', done);
 });
+const noInput = (s, v) => `No input "${v}" on the ${s.model}. Use its number or its name: ${s.inputs.map(x => `${x.id} ${x.name}`).join(', ')}.`;
 const nameOf = (s, id) => (s.inputs.find(i => i.id === id) || {}).name || `input ${id}`;
 
 // Does one thing on the switcher: { type: 'cut' | 'auto' | 'ftb' | 'preview' | 'program' (input) |
@@ -295,12 +296,28 @@ async function act(a, why = 'Output page') {
   const key = (count, n) => { const k = Math.round(Number(n)); return k >= 1 && k <= count ? k : null; };
   let done;
   try {
-    if (what === 'cut') { await atem.cut(0); done = `cut to ${nameOf(s, s.preview)}`; }
-    else if (what === 'auto') { await atem.autoTransition(0); done = `auto to ${nameOf(s, s.preview)}`; }
-    else if (what === 'ftb') { await atem.fadeToBlack(0); done = s.ftb ? 'fade back from black' : 'fade to black'; }
+    if (what === 'cut' || what === 'auto') {
+      // To an input: it goes on preview first, then the cut or auto takes it (and what was on goes to preview).
+      let to = s.preview;
+      if (a.input !== undefined && a.input !== null && a.input !== '') {
+        const i = inputOf(s, a.input);
+        if (!i) return { error: noInput(s, a.input), status: 404 };
+        if (i.id === s.program) return { ok: true, done: `${i.name} is already on program` };
+        if (i.id !== s.preview) await atem.changePreviewInput(i.id, 0);
+        to = i.id;
+      }
+      if (what === 'cut') await atem.cut(0); else await atem.autoTransition(0);
+      done = `${what} to ${nameOf(s, to)}`;
+    } else if (what === 'ftb') {
+      // on: 'on' fades to black, 'off' fades back; left out, it goes whichever way it isn't.
+      if ((a.on === 'on' || a.on === true) && s.ftb) return { ok: true, done: 'already faded to black' };
+      if ((a.on === 'off' || a.on === false) && !s.ftb) return { ok: true, done: 'not faded to black' };
+      await atem.fadeToBlack(0);
+      done = s.ftb ? 'fade back from black' : 'fade to black';
+    }
     else if (what === 'preview' || what === 'program') {
       const i = inputOf(s, a.input);
-      if (!i) return { error: `No input "${a.input}" on the ${s.model}. Use its number or its name: ${s.inputs.map(x => `${x.id} ${x.name}`).join(', ')}.`, status: 404 };
+      if (!i) return { error: noInput(s, a.input), status: 404 };
       if (what === 'preview') await atem.changePreviewInput(i.id, 0); else await atem.changeProgramInput(i.id, 0);
       done = `${what === 'preview' ? 'preview' : 'cut'} to ${i.name}`;
     } else if (what === 'usk' || what === 'dsk') {
@@ -308,8 +325,13 @@ async function act(a, why = 'Output page') {
       const k = key(list.length, a.key);
       const label = what === 'usk' ? 'upstream key' : 'downstream key';
       if (!k) return { error: `The ${s.model} has ${list.length === 1 ? `one ${label}` : `${list.length} ${label}s`}${list.length > 1 ? ` (1 to ${list.length})` : ''}, so there's no ${label} ${a.key}.`, status: 404 };
-      if (what === 'dsk' && a.on === 'auto') { await atem.autoDownstreamKey(k - 1, !list[k - 1]); done = `downstream key ${k} ${list[k - 1] ? 'off' : 'on'} (auto)`; }
-      else {
+      if (what === 'dsk' && (a.on === 'auto' || a.mix)) {
+        // At the key's own rate: 'auto' goes whichever way it isn't; with mix, on or off as asked.
+        const on = a.on === 'auto' || a.on === 'toggle' ? !list[k - 1] : a.on === true || a.on === 'on';
+        if (on === list[k - 1]) return { ok: true, done: `downstream key ${k} is already ${on ? 'on' : 'off'}` };
+        await atem.autoDownstreamKey(k - 1, on);
+        done = `downstream key ${k} ${on ? 'on' : 'off'} (auto)`;
+      } else {
         const on = a.on === 'toggle' ? !list[k - 1] : a.on === true || a.on === 'on';
         if (what === 'usk') await atem.setUpstreamKeyerOnAir(on, 0, k - 1); else await atem.setDownstreamKeyOnAir(on, k - 1);
         done = `${label} ${k} ${on ? 'on' : 'off'}`;
@@ -327,6 +349,79 @@ async function act(a, why = 'Output page') {
   log('info', 'switcher', `${why}: ${done}`);
   await settled();
   return { ok: true, done };
+}
+
+// ─── Switcher actions on sequence steps and scenes ─────────────────────────
+// Saved on a sequence's source or scene step (step.switcher) and on a scene (scene.switcher): up to 8, each
+// { type, input?, name?, key?, on?, mix?, macro?, atSec } done atSec seconds after the step starts or the
+// scene is picked. input is the switcher's input number (name is its name when saved, to show while the
+// switcher isn't answering). They fire only for what plays on the primary output.
+const ACTION_TYPES = ['cut', 'auto', 'preview', 'usk', 'dsk', 'ftb', 'macro'];
+const MAX_ACTIONS = 8;
+function cleanActions(list) {
+  const out = [];
+  for (const a of Array.isArray(list) ? list : []) {
+    if (!a || typeof a !== 'object' || !ACTION_TYPES.includes(a.type)) continue;
+    const n = (v, lo, hi) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : lo; };
+    const atSec = Math.round(Math.min(60, Math.max(0, Number(a.atSec) || 0)) * 10) / 10;
+    const c = { type: a.type };
+    if (['cut', 'auto', 'preview'].includes(a.type)) {
+      const input = Math.round(Number(a.input));
+      if (Number.isFinite(input) && input >= 1 && input <= 9999) {
+        c.input = input;
+        const name = String(a.name || '').trim().slice(0, 40);
+        if (name) c.name = name;
+      } else if (a.type === 'preview') continue; // preview needs an input; cut and auto take what's on preview
+    } else if (a.type === 'usk' || a.type === 'dsk') {
+      c.key = n(a.key, 1, 4);
+      c.on = ['on', 'off', 'toggle'].includes(a.on) ? a.on : 'on';
+      if (a.type === 'dsk' && a.mix) c.mix = true;
+    } else if (a.type === 'ftb') c.on = a.on === 'off' ? 'off' : 'on';
+    else if (a.type === 'macro') c.macro = n(a.macro, 1, 100);
+    c.atSec = atSec;
+    out.push(c);
+    if (out.length >= MAX_ACTIONS) break;
+  }
+  return out;
+}
+// One action in words, for the log and the Output page ("cut to Court", "downstream key 1 on (auto)").
+function describe(a) {
+  const to = a.input ? ` to ${a.name || `input ${a.input}`}` : ' to what\'s on preview';
+  const what = a.type === 'cut' ? `cut${to}` : a.type === 'auto' ? `auto${to}`
+    : a.type === 'preview' ? `${a.name || `input ${a.input}`} on preview`
+    : a.type === 'usk' ? `upstream key ${a.key} ${a.on}`
+    : a.type === 'dsk' ? `downstream key ${a.key} ${a.on}${a.mix ? ' (auto)' : ''}`
+    : a.type === 'ftb' ? (a.on === 'off' ? 'fade back from black' : 'fade to black')
+    : `macro ${a.macro}`;
+  return a.atSec ? `${what} at ${a.atSec} s` : what;
+}
+// Does actions (cleaned) for owner ('sequence' or 'scene'): those at 0 s now, the rest on timers, each
+// time's in order (a preview before the cut). Anything still waiting for that owner is called off first.
+// When the switcher isn't answering, or hasn't what an action needs, it's skipped and logged, never queued.
+const waiting = new Map(); // owner -> [timer]
+function cancel(owner) {
+  for (const t of waiting.get(owner) || []) clearTimeout(t);
+  waiting.delete(owner);
+}
+function run(actions, why, owner) {
+  cancel(owner);
+  if (!actions || !actions.length) return;
+  const at = new Map();
+  for (const a of actions) at.set(a.atSec || 0, [...(at.get(a.atSec || 0) || []), a]);
+  const go = async group => {
+    for (const a of group) {
+      const r = await act(a, why);
+      // act logs a switcher that isn't there or didn't take it; what it hasn't got is logged here.
+      if (r.error && r.status !== 409 && r.status !== 502) log('warn', 'switcher', `${why}: skipped ${describe({ ...a, atSec: 0 })}: ${r.error}`);
+      if (r.status === 409) return; // nothing more to send it
+    }
+  };
+  const timers = [];
+  for (const [sec, group] of [...at].sort((x, y) => x[0] - y[0])) {
+    if (!sec) go(group);
+    else timers.push(setTimeout(() => go(group), sec * 1000));
+  }
+  if (timers.length) waiting.set(owner, timers);
 }
 
 // ─── Settings from the Output page ────────────────────────────────────────
@@ -400,4 +495,4 @@ function init(logger, { changed: onChanged } = {}) {
   if (pick) connect();
 }
 
-module.exports = { init, route, deck, act, status, find, FILE, parseBrowse, parseLookup, parseAddress };
+module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, FILE, parseBrowse, parseLookup, parseAddress };

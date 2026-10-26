@@ -40,6 +40,7 @@ const path = require('path');
 const datadir = require('./datadir');
 const savefile = require('./savefile');
 const music = require('./music');
+const switcher = require('./switcher');
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 // Scenes and sequences are listed by their colour group, in the order of a stream (pre-game, live stream,
@@ -133,8 +134,11 @@ function cleanStep(st) {
   let type = LENGTHS.includes(l.type) ? l.type : kind === 'scene' ? 'now' : 'time';
   if (type === 'now' && kind !== 'scene') type = 'time';
   const length = type === 'time' ? { type, sec: Math.round(clamp(l.sec, 1, 3600, 20)) } : { type };
-  if (kind === 'scene') return { id, kind, scene: cleanId(s.scene, ''), sources: [], length };
-  return { id, sources: ids(s.sources), length };
+  // Switcher actions (switcher.js) done as the step starts, or a few seconds in.
+  const sw = switcher.cleanActions(s.switcher);
+  const extra = sw.length ? { switcher: sw } : {};
+  if (kind === 'scene') return { id, kind, scene: cleanId(s.scene, ''), sources: [], length, ...extra };
+  return { id, sources: ids(s.sources), length, ...extra };
 }
 function cleanStart(v) {
   const s = v && typeof v === 'object' ? v : {};
@@ -418,6 +422,9 @@ function enter(i) {
   }
   const what = step.kind === 'scene' ? `scene "${sc ? sc.name : 'gone'}"` : step.kind === 'ad' ? (step.ad ? `ad: ${step.ad}` : 'no ad to play') : step.sources.map(id => source(id)?.name).filter(Boolean).join(', ');
   log('info', 'sequence', `"${sq.name}" step ${i + 1} of ${run.steps.length}${step.via ? ` (in ${step.via.join(' › ')})` : ''}${what ? `: ${what}` : ''}`);
+  // The step's switcher actions, on the primary only (the switcher's program is the primary's picture).
+  // The step before's still to come are called off.
+  if (here === PRIMARY) switcher.run(step.switcher, `Sequence "${sq.name}" step ${i + 1}`, 'sequence');
   // Music: the sequence's own, or with none, that of a sequence inside it while that one plays.
   const m = musicOf(step), was = before ? musicOf(before) : null;
   // Out of a sequence inside whose music was on: it ends as that sequence's music ends (fade or cut).
@@ -465,6 +472,7 @@ function finish(why) {
   clearTimeout(fadeTimer);
   timer = fadeTimer = null;
   const ended = run;
+  if (here === PRIMARY) switcher.cancel('sequence');
   const then = sq ? sq.then : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
   const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
@@ -499,6 +507,7 @@ function interrupt(keep, why) {
   clearTimeout(fadeTimer);
   timer = fadeTimer = null;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
+  if (here === PRIMARY) switcher.cancel('sequence');
   // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
   const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
   sound().stopFor(run.id, end.type === 'cut' ? 0 : fadeLeft(run, end.type === 'fade' ? end.sec : music.STOP_FADE_SEC));

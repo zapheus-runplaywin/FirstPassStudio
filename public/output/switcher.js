@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 7 of 12: Switcher: the ATEM switcher Studio controls, its inputs and keys in tally colours, and picking it.
+// FirstPass Studio - the Output page, part 7 of 12: Switcher: the ATEM switcher Studio controls, its inputs and keys in tally colours, picking it, and the switcher actions on steps and scenes.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -96,3 +96,137 @@ $('swRetry').onclick = () => swDo({ type: 'reconnect' });
 $('swCut').onclick = () => swDo({ type: 'cut' });
 $('swAuto').onclick = () => swDo({ type: 'auto' });
 $('swFtb').onclick = () => swDo({ type: 'ftb' });
+
+// ─── Switcher actions on sequence steps and scenes ───────────────────────
+// A step or a scene can carry up to 8 (switcher.js cleanActions): cut or auto to an input, an input on
+// preview, a key on or off, fade to black, a macro, each as it starts or some seconds in. The editor offers
+// what the connected switcher has; what it hasn't is greyed with the reason, and skipped if it's saved.
+const SW_TYPES = [['cut', 'Cut to'], ['auto', 'Auto to'], ['preview', 'Put on preview'], ['usk', 'Upstream key'], ['dsk', 'Downstream key'], ['ftb', 'Fade to black'], ['macro', 'Run macro']];
+const SW_MAX = 8;
+const swLive = () => !!sw && sw.state === 'connected';
+const swCount = (n, one) => `${n === 1 ? 'one' : n || 'no'} ${one}${n === 1 ? '' : 's'}`;
+const swInputName = a => { const i = swLive() && sw.inputs.find(x => x.id === a.input); return i ? i.name : a.name || `Input ${a.input}`; };
+// One action in words ("Cut to Court", "DSK 1 on (auto) at 2 s").
+function swActText(a) {
+  const to = a.input ? swInputName(a) : 'preview';
+  const what = a.type === 'cut' ? `Cut to ${to}` : a.type === 'auto' ? `Auto to ${to}` : a.type === 'preview' ? `${swInputName(a)} on preview`
+    : a.type === 'usk' ? `Key ${a.key} ${a.on}` : a.type === 'dsk' ? `DSK ${a.key} ${a.on}${a.mix ? ' (auto)' : ''}`
+    : a.type === 'ftb' ? (a.on === 'off' ? 'Back from black' : 'Fade to black') : `Macro ${a.macro}`;
+  return a.atSec ? `${what} at ${a.atSec} s` : what;
+}
+// Why the connected switcher can't do an action (so it's skipped), or ''.
+function swProblem(a) {
+  if (!swLive()) return '';
+  if (a.input && !sw.inputs.some(i => i.id === a.input)) return `The ${sw.model} has no input ${a.input}, so this is skipped.`;
+  const keys = a.type === 'usk' ? sw.usk.length : a.type === 'dsk' ? sw.dsk.length : null;
+  const label = a.type === 'usk' ? 'upstream key' : 'downstream key';
+  if (keys !== null && a.key > keys) return `The ${sw.model} has ${swCount(keys, label)}, so ${label} ${a.key} is skipped.`;
+  return '';
+}
+// 🎥 beside a scene's name, or on a step, with what it does to the switcher.
+function switcherMark(list) {
+  const m = Object.assign(document.createElement('span'), { textContent: ' 🎥', className: 'swMark' + (list.some(swProblem) ? ' bad' : '') });
+  const text = `Switcher: ${list.map(swActText).join(', ')}`;
+  m.title = text;
+  m.setAttribute('role', 'img'); m.setAttribute('aria-label', text);
+  return m;
+}
+function swSelect(label, options, value, onchange) {
+  const sel = document.createElement('select');
+  sel.setAttribute('aria-label', label);
+  for (const [v, text, disabled, title] of options) {
+    const o = new Option(text, v);
+    if (disabled) { o.disabled = true; o.title = title || ''; }
+    sel.add(o);
+  }
+  sel.value = String(value ?? '');
+  sel.onchange = () => onchange(sel.value);
+  return sel;
+}
+// The editor for a list of actions, changed in place; redraw() after a change that alters its rows.
+function switcherEditor(list, redraw) {
+  const box = document.createElement('div');
+  box.className = 'swActs';
+  const live = swLive();
+  const inputs = live ? sw.inputs.map(i => [i.id, i.name]) : Array.from({ length: 8 }, (_, k) => [k + 1, `Input ${k + 1}`]);
+  list.forEach((a, n) => {
+    const row = document.createElement('div');
+    row.className = 'swAct';
+    const types = SW_TYPES.map(([v, text]) => {
+      const none = live && ((v === 'usk' && !sw.usk.length) || (v === 'dsk' && !sw.dsk.length));
+      return [v, text, none, none ? `The ${sw.model} has no ${v === 'usk' ? 'upstream' : 'downstream'} keys` : ''];
+    });
+    row.appendChild(swSelect('Switcher action', types, a.type, v => {
+      for (const k of ['input', 'name', 'key', 'on', 'mix', 'macro']) delete a[k];
+      a.type = v;
+      if (v === 'preview') { a.input = inputs[0][0]; a.name = inputs[0][1]; }
+      if (v === 'usk' || v === 'dsk') { a.key = 1; a.on = 'on'; }
+      if (v === 'ftb') a.on = 'on';
+      if (v === 'macro') a.macro = 1;
+      redraw();
+    }));
+    if (a.type === 'cut' || a.type === 'auto' || a.type === 'preview') {
+      const opts = inputs.map(([id, name]) => [id, name]);
+      if (a.input && !opts.some(([id]) => id === a.input)) opts.push([a.input, `${a.name || `Input ${a.input}`} (not on this switcher)`]);
+      if (a.type !== 'preview') opts.unshift(['', "what's on preview"]);
+      row.appendChild(swSelect('Input', opts, a.input || '', v => {
+        if (!v) { delete a.input; delete a.name; } else { a.input = Number(v); a.name = (opts.find(([id]) => String(id) === v) || [])[1] || ''; }
+        redraw();
+      }));
+    } else if (a.type === 'usk' || a.type === 'dsk') {
+      const have = live ? (a.type === 'usk' ? sw.usk.length : sw.dsk.length) : (a.type === 'usk' ? 4 : 2);
+      const keys = Array.from({ length: Math.max(have, a.key || 1) }, (_, k) => [k + 1, `${a.type === 'usk' ? 'Key' : 'DSK'} ${k + 1}`, k >= have, live ? `The ${sw.model} hasn't this key` : '']);
+      row.appendChild(swSelect('Key', keys, a.key, v => { a.key = Number(v); redraw(); }));
+      row.appendChild(swSelect('On or off', [['on', 'on'], ['off', 'off'], ['toggle', 'toggle']], a.on, v => { a.on = v; }));
+      if (a.type === 'dsk') {
+        const mix = Object.assign(document.createElement('label'), { className: 'note', title: 'Fade the key in or out at its own rate, rather than a cut' });
+        const tick = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!a.mix });
+        tick.onchange = () => { if (tick.checked) a.mix = true; else delete a.mix; };
+        mix.append(tick, ' at its rate');
+        row.appendChild(mix);
+      }
+    } else if (a.type === 'ftb') {
+      row.appendChild(swSelect('Fade', [['on', 'Fade to black'], ['off', 'Fade back from black']], a.on, v => { a.on = v; }));
+    } else if (a.type === 'macro') {
+      const num = Object.assign(document.createElement('input'), { type: 'number', min: 1, max: 100, value: a.macro || 1 });
+      num.setAttribute('aria-label', 'Macro number');
+      num.onchange = () => { a.macro = Math.max(1, Math.min(100, Math.round(Number(num.value) || 1))); num.value = a.macro; };
+      row.appendChild(num);
+    }
+    const at = Object.assign(document.createElement('label'), { className: 'note', title: 'Seconds after the step starts or the scene is picked (0: straight away)' });
+    const sec = Object.assign(document.createElement('input'), { type: 'number', min: 0, max: 60, step: 0.1, value: a.atSec || 0 });
+    sec.onchange = () => { a.atSec = Math.round(Math.max(0, Math.min(60, Number(sec.value) || 0)) * 10) / 10; sec.value = a.atSec; };
+    at.append('at ', sec, ' s');
+    row.appendChild(at);
+    row.appendChild(Object.assign(document.createElement('button'), { className: 'alt', textContent: '✕', title: 'Take this switcher action out', onclick: () => { list.splice(n, 1); redraw(); } }));
+    const problem = swProblem(a);
+    if (problem) row.appendChild(Object.assign(document.createElement('span'), { className: 'error swProblem', textContent: problem }));
+    box.appendChild(row);
+  });
+  const foot = document.createElement('div');
+  foot.className = 'row';
+  if (list.length < SW_MAX) foot.appendChild(Object.assign(document.createElement('button'), { className: 'alt', textContent: '+ Switcher action', onclick: () => { list.push({ type: 'cut', atSec: 0 }); redraw(); } }));
+  foot.appendChild(Object.assign(document.createElement('span'), { className: 'note', textContent: (live ? '' : 'Connect the switcher (under Switcher) to pick from its own inputs and keys. ')
+    + 'Done in order as it starts, or at the seconds set; only when it plays on Output 1. If the switcher isn\'t answering, they\'re skipped and logged, never done late.' }));
+  box.appendChild(foot);
+  return box;
+}
+
+// A scene's switcher actions, from the Edit scenes grid.
+let swScene = null; // { id, list } being edited
+function editSceneSwitcher(sc) {
+  swScene = { id: sc.id, list: JSON.parse(JSON.stringify(sc.switcher || [])) };
+  if (!swScene.list.length) swScene.list.push({ type: 'cut', atSec: 0 });
+  $('swSceneTitle').textContent = `Switcher when ${sc.name} is picked`;
+  drawSceneSwitcher();
+  $('swSceneDialog').showModal();
+}
+function drawSceneSwitcher() {
+  const box = $('swSceneActs');
+  box.innerHTML = '';
+  box.appendChild(switcherEditor(swScene.list, drawSceneSwitcher));
+}
+$('swSceneSave').onclick = async () => {
+  if (await act({ type: 'sceneUpdate', scene: swScene.id, changes: { switcher: swScene.list } })) $('swSceneDialog').close();
+};
+$('swSceneCancel').onclick = () => $('swSceneDialog').close();

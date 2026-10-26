@@ -67,6 +67,8 @@ function renderSequences() {
     card.innerHTML = '<div class="t"><b></b></div><span class="band"></span>';
     card.querySelector('b').textContent = sq.name;
     if (sq.quiet) card.querySelector('b').append(quietMark());
+    const swActs = sq.steps.flatMap(st => st.switcher || []);
+    if (swActs.length) card.querySelector('b').append(switcherMark(swActs));
     card.querySelector('b').append(outDots(scene.onOut?.sequences[sq.id]));
     if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
     card.querySelector('.band').classList.add(sq.colour);
@@ -341,6 +343,14 @@ function renderSteps() {
     row.querySelector('.hint').textContent = st.length.type === 'time' ? 's' : st.kind === 'scene' ? '' : stepHint(st);
     type.onchange = () => { st.length = type.value === 'time' ? { type: 'time', sec: Number(sec.value) || 20 } : { type: type.value }; renderSteps(); };
     sec.oninput = sec.onchange = () => { st.length = { type: 'time', sec: Math.max(1, Math.min(3600, Math.round(Number(sec.value) || 20))) }; };
+    }
+    // Switcher actions on a source or scene step (shown once a switcher is set up, or the step has some).
+    if (st.kind !== 'sequence' && st.kind !== 'ads' && (sw?.setUp || st.switcher?.length)) {
+      const add = Object.assign(document.createElement('button'), { className: 'alt swAdd', textContent: '🎥', title: 'Add a switcher action: cut or auto to a camera, a key on or off, fade to black, a macro' });
+      add.disabled = (st.switcher || []).length >= SW_MAX;
+      add.onclick = () => { st.switcher = [...(st.switcher || []), { type: 'cut', atSec: 0 }]; renderSteps(); };
+      row.querySelector('.len').insertBefore(add, row.querySelector('.up'));
+      if (st.switcher?.length) row.appendChild(switcherEditor(st.switcher, renderSteps));
     }
     row.querySelector('.up').disabled = i === 0;
     row.querySelector('.down').disabled = i === draft.steps.length - 1;
