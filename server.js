@@ -105,7 +105,7 @@ outputs.init(log, {
 sponsors.init(log);
 // Proof of play for the sponsors: what's on screen, and whether a video output is on.
 // (Sponsor ads play on the primary output, so that's the one that counts.)
-exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().some(w => w.output === outputs.PRIMARY) });
+exposure.init(log, { showing: scene.showing, onAir: outputs.sponsorsOnAir });
 // Live viewer numbers from the competition's streams, read only while on air.
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
 // The ATEM switcher, if one is set up: its state goes to the Output page over the scene's socket.
