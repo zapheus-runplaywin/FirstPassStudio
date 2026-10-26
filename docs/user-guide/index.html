@@ -370,6 +370,17 @@
     <li><strong>Stream Deck.</strong> <code>/deck/output/2/toggle</code> (or the output's name) turns Output 2 on or off, <code>/deck/output/all/off</code> turns them all off, and <code>/deck/output/2/layer/&lt;source&gt;/toggle</code> shows or hides a source on Output 2. Source settings lists these links for each output.</li>
   </ul>
   <div class="tip"><div class="eyebrow">Each output costs</div><p>Every extra output runs its pages once more on the Mac. Try the number of outputs you plan to use on your own Mac before a stream night.</p></div>
+  <h4>A commentary monitor</h4>
+  <p>Commentators can have graphics of their own: a monitor at the commentary desk with the live stats they talk to, never seen on the stream. Game stats, shooting stats, the score worm, the last 10 goals, line-ups and the ladder all follow the game live, so they make a commentary feed by themselves.</p>
+  <ul>
+    <li><strong>On the same Mac.</strong> Add an output for the commentary monitor (a display, or NDI to a screen on the network) and turn sources on for it with its pills or its Stream Deck keys, such as <code>/deck/output/commentary/layer/ladder/toggle</code>. Scenes and sequences act on Output 1 for now, so a looping commentary sequence needs the second way.</li>
+    <li><strong>On a second Mac.</strong> Run Studio on another Mac with the same competition and game, and Follow PlayHQ on. It reads PlayHQ's live scoring for itself, so it needs nothing from the stream Mac. Its Output 1 goes to the commentary monitor, and everything on it is for the commentators.</li>
+  </ul>
+  <p>On the second Mac, make a <strong>commentaryLoop</strong> sequence that steps through what commentators find useful (game stats, shooting stats, the last 10 goals, the ladder) with <strong>Repeat</strong> set to until stopped, and give the commentators a Stream Deck of their own:</p>
+  <ul>
+    <li>A key per graphic they want on demand, each going to a scene with that graphic. Going to a scene stops the loop, so their pick stays up.</li>
+    <li>A <strong>Loop</strong> key, <code>/deck/sequence/commentaryloop</code>, to go back to looping when they're done.</li>
+  </ul>
   <p>Sound plays through the Mac's audio output on every route, from Output 1 only. The <strong>Scene View</strong> on the Output page shows the scene as it is right now, on a checkerboard so see-through parts show; <strong>Pop out</strong> opens it in its own window to move to another screen, with a floating list of On/Off buttons. The Scene View plays sound only while Video output is off, so it never plays twice.</p>
   <figure><img src="img/s-output-sceneview.webp" alt="The Scene View on the Output page"><figcaption>The Scene View: the scene right now. Untick Live View on a busy night, since it runs the scene's pages a second time.</figcaption></figure>
   <figure class="graphic"><img src="img/g-testpattern.webp" alt="The test pattern"><figcaption>The <b>test pattern</b> (Add page) checks an output and the switcher's key end to end: a 1-pixel border, fine lines that shimmer if anything is resizing the picture, ramps for banding and soft shapes for the key. Not for air.</figcaption></figure>
