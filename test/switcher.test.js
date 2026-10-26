@@ -192,6 +192,40 @@ sleep 5
   assert.equal(f.state, 'off');
 });
 
+test('the switcher over server-sent events, for the Stream Deck plugin: now, then on each change, once each', async t => {
+  const atem = await startAtem({ model: 'MiniExtreme' });
+  t.after(() => atem.close());
+  const studio = await startStudio(t);
+  const ctl = new AbortController();
+  t.after(() => ctl.abort());
+  const res = await fetch(`${studio.base}/api/switcher/events`, { signal: ctl.signal });
+  assert.match(res.headers.get('content-type'), /text\/event-stream/);
+  const events = [];
+  (async () => {
+    let buf = '';
+    try {
+      for await (const chunk of res.body) {
+        buf += Buffer.from(chunk).toString();
+        let at;
+        while ((at = buf.indexOf('\n\n')) >= 0) {
+          const data = buf.slice(0, at).split('\n').filter(l => l.startsWith('data: ')).map(l => l.slice(6)).join('\n');
+          buf = buf.slice(at + 2);
+          if (data) events.push(JSON.parse(data));
+        }
+      }
+    } catch { /* aborted at the end */ }
+  })();
+  await studio.until(() => events.length >= 1, 3000, 20);
+  assert.equal(events[0].setUp, false, 'the switcher as it is now, straight away');
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
+  await studio.until(() => events.some(e => e.state === 'connected'), 8000, 50);
+  const n = events.length;
+  atem.set({ program: 4 });
+  await studio.until(() => events.at(-1).program === 4, 3000, 20);
+  await wait(300);
+  assert.equal(events.length, n + 1, 'one event for one change');
+});
+
 test('a sequence and a scene drive the switcher: in order, on time, and what a Mini Pro hasn\'t got is skipped and logged', async t => {
   const atem = await startAtem({ model: 'MiniPro', names: ['Wide', 'Court', 'Bench', 'Coach'] });
   t.after(() => atem.close());

@@ -3,7 +3,8 @@
  * Every key keeps the same two looks: a dark body while it's off, and its output's colour while it's on (Output 1
  * orange, 2 pink, 3 blue, 4 green, as on Studio's Output page; the manifest makes the title black on it). The band
  * along the bottom carries the group's colour in both, so a lit key still shows which group it's in.
- * Source, Scene and Sequence keys each add their own faint picture and band shape on top (see keyImage).
+ * Source, Scene, Sequence and Switcher keys each add their own faint picture and band shape on top (see keyImage).
+ * Switcher keys light in the switcher's tally colours instead: red on program (or on air), green on preview.
  */
 
 export type ColourGroup = "blue" | "green" | "grey" | "yellow" | "purple";
@@ -36,15 +37,18 @@ export function groupOf(colour?: string): ColourGroup {
 	return colour && Object.hasOwn(GROUPS, colour) ? (colour as ColourGroup) : "blue";
 }
 
-/** The dot a Scene key shows in its top corner while sources differ from the scene as saved. */
+/** A Switcher key's lit body: red for program and anything on air, green for preview, as on the switcher's own panel. */
+export const TALLY = { program: "#ff4d4d", preview: "#22c55e" } as const;
+
+/** The dot a Scene key shows in its top corner while sources differ from the scene as saved (a Switcher key: while the switcher isn't answering). */
 export const DOT = "#facc15";
 
-/** The three kinds of key. Each draws its own picture and band, so they can be told apart across a page. */
-export type KeyKind = "source" | "scene" | "sequence";
+/** The four kinds of key. Each draws its own picture and band, so they can be told apart across a page. */
+export type KeyKind = "source" | "scene" | "sequence" | "switcher";
 
 /**
  * The big faint picture behind a key's title: an eye for a Source (shows or hides one thing), stacked layers for
- * a Scene (a set of sources), a play button for a Sequence (plays in order). White at low opacity so the title
+ * a Scene (a set of sources), a play button for a Sequence (plays in order), a camera for a Switcher key. White at low opacity so the title
  * still reads over it, on every dark body and every lit colour.
  */
 const PICTURE: Record<KeyKind, string> = {
@@ -55,13 +59,20 @@ const PICTURE: Record<KeyKind, string> = {
 		`<path d="M72 14L124 40L72 66L20 40Z" fill="#fff"/>` +
 		`<path d="M20 62L72 88L124 62M20 82L72 108L124 82" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>`,
 	sequence: `<path d="M44 16L112 60L44 104Z" fill="#fff" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>`,
+	switcher: `<rect x="14" y="34" width="84" height="56" rx="10" fill="#fff"/>` + `<path d="M104 52L130 36V88L104 72Z" fill="#fff"/>`,
 };
 
 /**
  * The band along the bottom in the group's colour: one solid strip for a Source, the same with a frame up the
- * sides and over the top for a Scene (a whole screen), and four steps with gaps for a Sequence.
+ * sides and over the top for a Scene (a whole screen), four steps with gaps for a Sequence, and two halves for a
+ * Switcher key (program and preview).
  */
 function band(kind: KeyKind, colour: string): string {
+	if (kind === "switcher")
+		return (
+			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +
+			`<rect y="124" width="69" height="20" fill="${colour}"/><rect x="75" y="124" width="69" height="20" fill="${colour}"/>`
+		);
 	if (kind === "sequence")
 		return (
 			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +

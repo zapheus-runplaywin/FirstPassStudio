@@ -159,9 +159,9 @@ For Studio's scene, built on the Output page (http://localhost:8080/output.html)
 (**Install the Stream Deck plugin**) or the button on the Output page; the Stream Deck app opens it and installs it (do the same after an
 app update to update the plugin). Then drag **FirstPass Studio > Source** onto a key and pick the source in its settings.
 
-The three kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
-**Scene** key has stacked layers and a frame in its colour round the whole key, and a **Sequence** key has a play button and its strip
-split into four steps. For a Source key:
+The four kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
+**Scene** key has stacked layers and a frame in its colour round the whole key, a **Sequence** key has a play button and its strip
+split into four steps, and a **Switcher** key (see **Switcher** below) has a camera and its strip in two halves. For a Source key:
 
 
 - **Press:** show or hide (default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.
@@ -205,6 +205,20 @@ split into four steps. For a Source key:
 - When a sequence is about to start by itself after the siren, its key counts down to it (**in 0:04**).
 - It follows the sequence by id, so renaming it doesn't break the key; a deleted sequence's key says **gone**.
 
+**Switcher key.** Drag **FirstPass Studio > Switcher** onto a key for the ATEM switcher picked on the Output page (see **Switcher** below):
+
+- **Press:** put a camera on preview (default), cut a camera straight to program, stinger to a camera (or to what's on preview), **Cut**,
+  **Auto**, an **upstream** or **downstream key** (on / off, on, off, or a downstream key at its own rate), **Fade to black** or back, or
+  **run a macro** saved on the switcher. The settings list the cameras by their names in ATEM Software Control, and only the keys this
+  switcher has.
+- A camera's key lights **red** while it's on program and **green** while it's on preview, whatever it presses, like the switcher's own
+  buttons; it follows cuts from anywhere (the switcher's panel, ATEM Software Control, the Output page, a sequence). A key or Fade to
+  black lights red while it's on air, and Auto while the switcher is in a transition.
+- While the switcher isn't answering, every Switcher key goes dark with a yellow dot and says **offline**; a press is refused (nothing
+  is saved up for later) and the key shows a warning. With no switcher picked it says **not set up**; a camera or key this switcher
+  hasn't got says **not on it**.
+- **Colour:** one of the five groups, for the dark body and the strip.
+
 **Links.** The plugin isn't needed: these links work in a **Website** action (tick **GET request in background**), but the key
 doesn't light up.
 Each source in the scene gets these links, using its name in lower case with dashes for spaces
@@ -229,6 +243,7 @@ Renaming a source on the Output page changes its links (the plugin's keys carry 
 With a switcher picked on the Output page's Switcher card, these links press its buttons. Nothing is saved up while it isn't
 answering: the link says so and does nothing. Inputs go by number or by their name in ATEM Software Control; keys and macros
 count from 1. A key the switcher doesn't have (a second downstream key on an ATEM Mini Pro) is refused with what it does have.
+The plugin's **Switcher** key (above) presses these and lights with the switcher's tally.
 
 | Button | URL to open |
 | --- | --- |

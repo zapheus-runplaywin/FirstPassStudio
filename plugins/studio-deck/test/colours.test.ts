@@ -4,11 +4,11 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { contrast, GROUPS, groupOf, keyImage, keyImageUrl, type KeyKind, ON } from "../src/lib/colours";
+import { contrast, GROUPS, groupOf, keyImage, keyImageUrl, type KeyKind, ON, TALLY } from "../src/lib/colours";
 
 const PANEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "com.runplaywin.firstpass-studio.sdPlugin", "ui", "source.html");
 const groups = Object.keys(GROUPS) as (keyof typeof GROUPS)[];
-const kinds: KeyKind[] = ["source", "scene", "sequence"];
+const kinds: KeyKind[] = ["source", "scene", "sequence", "switcher"];
 
 test("colour groups: the five phases, blue when not set or unknown", () => {
 	assert.deepEqual(groups, ["blue", "green", "grey", "yellow", "purple"]);
@@ -37,18 +37,19 @@ test("key images: group body while off, orange while on, group band in both, for
 	}
 });
 
-test("key images: Source, Scene and Sequence keys each have their own picture and band", () => {
+test("key images: Source, Scene, Sequence and Switcher keys each have their own picture and band", () => {
 	for (const g of groups) {
 		for (const state of [0, 1] as const) {
 			const images = kinds.map((kind) => keyImage(kind, g, state));
 			assert.equal(new Set(images).size, kinds.length, `${g} ${state}`);
 		}
 	}
-	// Source: one solid band. Scene: a frame over the top and sides too. Sequence: the band in four steps.
+	// Source: one solid band. Scene: a frame over the top and sides too. Sequence: the band in four steps. Switcher: two halves.
 	const bands = (svg: string) => (svg.match(new RegExp(`fill="${GROUPS.blue.band}"`, "g")) ?? []).length;
 	assert.equal(bands(keyImage("source", "blue", 0)), 1);
 	assert.equal(bands(keyImage("scene", "blue", 0)), 2);
 	assert.equal(bands(keyImage("sequence", "blue", 0)), 4);
+	assert.equal(bands(keyImage("switcher", "blue", 0)), 2);
 });
 
 test("key images go to Stream Deck as SVG data URLs", () => {
@@ -75,6 +76,11 @@ test("contrast: on stands out from off in every colour, titles and bands read", 
 		assert.ok(contrast(off, "#ffffff") >= 7, `${g}: title ${contrast(off, "#ffffff").toFixed(2)}`);
 		// The group's band stands out from the body it sits under.
 		assert.ok(contrast(off, band) >= 3, `${g}: band ${contrast(off, band).toFixed(2)}`);
+		// A Switcher key's tally colours stand out from every dark body, and its black title reads on them.
+		for (const [name, lit] of Object.entries(TALLY)) {
+			assert.ok(contrast(off, lit) >= 3, `${g}: off vs ${name} ${contrast(off, lit).toFixed(2)}`);
+			assert.ok(contrast(lit, "#000000") >= 4.5, `${name}: black title ${contrast(lit, "#000000").toFixed(2)}`);
+		}
 	}
 });
 

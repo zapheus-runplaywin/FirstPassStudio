@@ -12,9 +12,10 @@ import type { Socket } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { DOT, GROUPS, ON } from "../src/lib/colours";
+import { DOT, GROUPS, ON, TALLY } from "../src/lib/colours";
 
 /** The SVG inside a setImage data URL; fails if the image isn't one. */
 const svgOf = (m: { payload?: { image?: string } }): string => {
@@ -29,6 +30,9 @@ const SD_PLUGIN = path.join(ROOT, "com.runplaywin.firstpass-studio.sdPlugin");
 const ACTION = "com.runplaywin.firstpass-studio.source";
 const SCENE_ACTION = "com.runplaywin.firstpass-studio.scene";
 const SEQUENCE_ACTION = "com.runplaywin.firstpass-studio.sequence";
+const SWITCHER_ACTION = "com.runplaywin.firstpass-studio.switcher";
+// Studio's stand-in ATEM switcher (CommonJS, shared with Studio's own tests).
+const { startAtem } = createRequire(import.meta.url)(path.join(REPO, "test", "support", "atem.js"));
 
 type Msg = { event: string; context?: string; payload?: any; _at: number }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -343,6 +347,95 @@ test("real SDK and real Studio: Sequence keys play and stop a sequence and show 
 		plugin.kill();
 		studio.kill();
 		deck.close();
+		fs.rmSync(dataDir, { recursive: true, force: true });
+	}
+});
+
+test("real SDK and real Studio: Switcher keys show the tally and press the switcher", { timeout: 60000 }, async () => {
+	const atem = await startAtem({ model: "MiniExtreme", names: ["Wide", "Court", "Bench"] });
+	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-deck-"));
+	const studioPort = 20000 + Math.floor(Math.random() * 20000);
+	const studio = await startStudio(studioPort, dataDir);
+	const host = `http://127.0.0.1:${studioPort}`;
+	const deck = await startDeck();
+	const plugin = launchPlugin(deck.port);
+	const after = (mark: number) => (m: Msg) => deck.received.indexOf(m) >= mark;
+	const title = (context: string, t: string | RegExp, mark = 0) => (m: Msg) =>
+		after(mark)(m) && m.event === "setTitle" && m.context === context && (typeof t === "string" ? m.payload?.title === t : t.test(m.payload?.title));
+	const stateOf = (context: string, state: number, mark: number) => (m: Msg) => after(mark)(m) && m.event === "setState" && m.context === context && m.payload?.state === state;
+	const court = { host, press: "preview", input: "2", inputName: "Court" };
+	const bench = { host, press: "program", input: "3", inputName: "Bench" };
+	const dsk = { host, press: "dsk", key: "1" };
+
+	try {
+		await deck.waitFor((m) => m.event === "registerPlugin", "registration", 15000);
+		// No switcher picked yet: the keys say so.
+		deck.send(keyEvent("willAppear", "W1", court, SWITCHER_ACTION));
+		await deck.waitFor(title("W1", "Court\n(not set up)"), "no switcher");
+
+		// Picked on the Output page: the keys follow the switcher's own tally (Wide on program and preview).
+		atem.set({ program: 1, preview: 1 });
+		await fetch(`${host}/api/switcher`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "use", address: `127.0.0.1:${atem.port}` }) });
+		await deck.waitFor(title("W1", "Court"), "connected", 15000);
+		deck.send(keyEvent("willAppear", "W2", bench, SWITCHER_ACTION));
+		deck.send(keyEvent("willAppear", "W3", dsk, SWITCHER_ACTION));
+		await deck.waitFor(title("W3", "Down key\n1"), "downstream key");
+		const off = await deck.waitFor((m) => m.event === "setImage" && m.context === "W2" && m.payload?.state === 0, "dark image");
+		assert.ok(svgOf(off).includes(GROUPS.blue.off));
+
+		// Court to preview from the key: it lights green.
+		let mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "W1", court, SWITCHER_ACTION));
+		await deck.waitFor(stateOf("W1", 1, mark), "lit on preview");
+		const green = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "W1" && m.payload?.state === 1, "green image");
+		assert.ok(svgOf(green).includes(TALLY.preview));
+		assert.equal(atem.state.preview, 2);
+
+		// Bench cut straight to program: it lights red; Court stays green on preview.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "W2", bench, SWITCHER_ACTION));
+		await deck.waitFor(stateOf("W2", 1, mark), "lit on program");
+		// Its lit image was red from the start (red is a camera key's lit colour unless it's on preview).
+		const red = await deck.waitFor((m) => m.event === "setImage" && m.context === "W2" && m.payload?.state === 1, "red image");
+		assert.ok(svgOf(red).includes(TALLY.program));
+		assert.equal(atem.state.program, 3);
+
+		// A cut on the switcher's own panel: the keys follow it (Court red now, Bench dark).
+		mark = deck.received.length;
+		atem.set({ program: 2, preview: 1 });
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "W1" && m.payload?.state === 1 && svgOf(m).includes(TALLY.program), "Court red after a panel cut");
+		await deck.waitFor(stateOf("W2", 0, mark), "Bench dark after a panel cut");
+
+		// The downstream key on from its key, lit while on air.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "W3", dsk, SWITCHER_ACTION));
+		await deck.waitFor(stateOf("W3", 1, mark), "downstream key on air");
+		assert.equal(atem.state.dsk[0], true);
+
+		// The settings panel asks what the switcher has.
+		deck.send({ event: "propertyInspectorDidAppear", action: SWITCHER_ACTION, context: "W1", device: "DEV" });
+		deck.send({ event: "sendToPlugin", action: SWITCHER_ACTION, context: "W1", payload: { cmd: "switcher", host } });
+		const list = await deck.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "switcher", "switcher list");
+		assert.equal(list.payload.connected, true);
+		assert.equal(list.payload.model, "ATEM Mini Extreme");
+		assert.deepEqual(list.payload.inputs.slice(0, 3), [{ id: 1, name: "Wide" }, { id: 2, name: "Court" }, { id: 3, name: "Bench" }]);
+		assert.equal(list.payload.usk, 4);
+		assert.equal(list.payload.dsk, 2);
+
+		// The switcher stops answering: the keys go dark with the warning dot, and a press is refused with an alert.
+		mark = deck.received.length;
+		atem.drop();
+		await deck.waitFor(title("W1", "Court\n(offline)", mark), "not answering", 15000);
+		const warned = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "W1" && m.payload?.state === 0, "warning dot");
+		assert.ok(svgOf(warned).includes(`fill="${DOT}"`));
+		deck.send(keyEvent("keyDown", "W2", bench, SWITCHER_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "showAlert" && m.context === "W2", "alert while not answering");
+		assert.equal(atem.state.program, 2, "nothing saved up");
+	} finally {
+		plugin.kill();
+		studio.kill();
+		deck.close();
+		await atem.close();
 		fs.rmSync(dataDir, { recursive: true, force: true });
 	}
 });
