@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 7 of 12: Switcher: the ATEM switcher Studio controls, its inputs and keys in tally colours, picking it, and the switcher actions on steps and scenes.
+// FirstPass Studio - the Output page, part 7 of 12: Switcher: the ATEM switcher Studio controls, its inputs and keys in tally colours, picking it, each output's key on it (Into the switcher as, with its settings check), and the switcher actions on steps and scenes.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -89,6 +89,7 @@ function showSwitcher(s) {
     list.appendChild(li);
   }
   if (document.activeElement !== $('swAddress') && s.pick && s.pick.kind === 'address') $('swAddress').value = s.pick.port === 9910 ? s.pick.address : `${s.pick.address}:${s.pick.port}`;
+  swOutKey();
 }
 $('swSetup').onclick = () => {
   swFormOpen = !swFormOpen;
@@ -108,6 +109,70 @@ $('swLineupTest').onclick = () => {
   if (confirm('Test the line-up? This plays the stinger on Output 1 and cuts program to the preview input, 2 frames after the stinger covers the frame. Do it before you\'re live. If you see the old picture before the bands cover it, add frames; if the bands are late on screen, take frames off.')) swDo({ type: 'lineupTest' });
 };
 $('swFtb').onclick = () => swDo({ type: 'ftb' });
+
+// ─── Into the switcher as: the output's key on the switcher ──────────────
+// In the Video output setup (drawn here, as it needs the switcher): the key the picked output comes into (the usual
+// one: Output 1 on downstream key 1, the others on upstream keys 2 to 4, a chroma output on an upstream key) and
+// the inputs its fill and key are plugged into. switcher.js checks that key's settings in the switcher against what
+// the output sends; Set up this key for me changes them (only when pressed). Called when the switcher or the outputs change.
+const SW_KEYERS = [['dsk1', 'Downstream key 1'], ['dsk2', 'Downstream key 2'], ['usk1', 'Upstream key 1'], ['usk2', 'Upstream key 2'], ['usk3', 'Upstream key 3'], ['usk4', 'Upstream key 4']];
+function swOutKey() {
+  const so = selectedOutput();
+  const show = !!so && so.mode !== 'off';
+  for (const el of document.querySelectorAll('.forSw')) el.classList.toggle('hidden', !show);
+  if (!show) return;
+  const live = swLive();
+  const chroma = so.signal === 'chroma';
+  const none = so.keyerNow === 'none';
+  const has = k => !live || (k.startsWith('usk') ? sw.usk.length : sw.dsk.length) >= Number(k.slice(3));
+  const usual = SW_KEYERS.find(([k]) => k === (chroma || !so.primary ? `usk${so.slot}` : 'dsk1'));
+  const keyers = [['', `The usual (${usual ? usual[1] : 'Upstream key'})`], ...SW_KEYERS.map(([k, t]) => [k, has(k) ? t : `${t} (not on the ${sw.model})`]),
+    ['none', 'Not keyed by the switcher']];
+  const sel = $('outKeyer');
+  const keyersKey = keyers.map(x => x.join(':')).join('|');
+  if (sel.dataset.k !== keyersKey) { sel.innerHTML = keyers.map(([v, t]) => `<option value="${v}">${hEsc(t)}</option>`).join(''); sel.dataset.k = keyersKey; }
+  sel.value = so.keyer || '';
+  // The switcher's inputs (cameras and other things plugged in), or Input 1 to 8 until it's connected.
+  const inputs = live ? sw.inputs.map(i => [i.id, `${i.id} · ${i.name}`]) : Array.from({ length: 8 }, (_, k) => [k + 1, `Input ${k + 1}`]);
+  const fillIn = (id, value) => {
+    const opts = [[0, 'Pick an input'], ...inputs];
+    if (value && !opts.some(([v]) => v === value)) opts.push([value, `Input ${value} (not on this switcher)`]);
+    const html = opts.map(([v, t]) => `<option value="${v}">${hEsc(t)}</option>`).join('');
+    if ($(id).dataset.k !== html) { $(id).innerHTML = html; $(id).dataset.k = html; }
+    $(id).value = String(value || 0);
+  };
+  fillIn('outSwFill', so.swFill);
+  fillIn('outSwKey', so.swKey);
+  $('outSwFillLabel').textContent = chroma ? 'on' : 'fill on';
+  for (const el of document.querySelectorAll('.forSwIn')) el.classList.toggle('hidden', none);
+  for (const el of document.querySelectorAll('.forSwKey')) el.classList.toggle('hidden', none || chroma);
+  // The check, from switcher.js.
+  const c = live ? (sw.keys || []).find(k => k.output === so.id) : null;
+  const box = $('outKeyCheck');
+  let html;
+  if (none) html = 'Studio leaves the switcher\'s keys alone for this output.';
+  else if (!sw || !sw.setUp) html = 'Set up the switcher (under Switcher, below) and Studio checks the key\'s settings for this output.';
+  else if (!live) html = 'Studio checks the key\'s settings once the switcher is answering.';
+  else if (!c) html = '';
+  else if (c.problems.length) html = `<span class="badText">${hEsc(c.label)} won't key ${hEsc(so.name)} yet:</span><ul>${c.problems.map(p => `<li>${hEsc(p)}</li>`).join('')}</ul>`;
+  else if (c.fixes.length) html = `<span class="badText">${hEsc(c.label)} isn't set up for ${hEsc(so.name)}:</span><ul>${c.fixes.map(f => `<li>${hEsc(f)}</li>`).join('')}</ul>`;
+  else html = `<span class="okText">✓ ${hEsc(c.label)} is set up for ${hEsc(so.name)}</span>${chroma ? ': pick the key colour with ATEM Software Control\'s sample picker' : ''}.`;
+  box.innerHTML = html;
+  $('outKeySetup').classList.toggle('hidden', !c || !c.fixes.length || !!c.problems.length);
+  $('outKeySetup').title = c && c.fixes.length ? `Changes ${c.label} on the switcher: ${c.fixes.join('; ')}` : '';
+  // These change nothing being sent, so they stay free while the output is on.
+  for (const id of ['outKeyer', 'outSwFill', 'outSwKey', 'outKeySetup']) $(id).disabled = false;
+}
+$('outKeyer').onchange = () => setOut({ keyer: $('outKeyer').value });
+$('outSwFill').onchange = () => setOut({ swFill: Number($('outSwFill').value) || 0 });
+$('outSwKey').onchange = () => setOut({ swKey: Number($('outSwKey').value) || 0 });
+$('outKeySetup').onclick = () => {
+  const so = selectedOutput();
+  const c = so && sw && (sw.keys || []).find(k => k.output === so.id);
+  if (!c) return;
+  const air = c.onAir ? `\n\n${c.label} is on air now, so the change shows on the programme straight away.` : '';
+  if (confirm(`Set up ${c.label} on the ${sw.model} for ${so.name}?\n\n${c.fixes.join('\n')}\n\nIts clip, gain, mask and position are left as they are, and so is whether it's on air.${air}`)) swDo({ type: 'keySetup', output: so.id });
+};
 
 // ─── Switcher actions on sequence steps and scenes ───────────────────────
 // A step or a scene can carry up to 8 (switcher.js cleanActions): cut or auto to an input, an input on

@@ -16,6 +16,9 @@
 // helper which displays and Blackmagic devices it has and whether NDI is there, and the helper tells it
 // what to show, over the utility process's message port. Run without the app (npm start) there are none, and the Output page says so.
 //
+// Each output also says how it comes into the ATEM switcher (keyer, swFill, swKey: the key and the switcher inputs it's
+// plugged into), for switcher.js's key settings check; switcherPlan() gives it that, with the signal it sends.
+//
 // An output's way out can't be one another output already uses: the same display, the Blackmagic device
 // (one output at a time) or the same NDI source name. The earlier output keeps it and the later one shows
 // nothing until it's changed, and the Output page says why.
@@ -33,6 +36,9 @@ const savefile = require('./savefile');
 const FILE = datadir.file('outputs.json');
 const MODES = ['off', 'chroma', 'fillkey', 'decklink', 'ndi'];
 const KEYING = ['external', 'off'];
+// Which of the switcher's keys an output comes into ('' for the usual one: Output 1 on downstream key 1, the others
+// on upstream keys 2 to 4, and a chroma output on an upstream key, as only those key on a colour), or none.
+const KEYERS = ['', 'none', 'dsk1', 'dsk2', 'usk1', 'usk2', 'usk3', 'usk4'];
 const DEFAULT_CHROMA = '#00b140';
 const NDI_SIGNALS = ['fillkey', 'chroma', 'alpha'];
 const DEFAULT_NDI_NAME = 'FirstPass Studio';
@@ -53,6 +59,7 @@ const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
   ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
+  keyer: '', swFill: 0, swKey: 0,
 };
 
 let log = () => {};
@@ -60,6 +67,8 @@ let list = [{ id: PRIMARY, slot: 1, name: 'Output 1', ...DEFAULTS }];
 const primary = () => list[0];
 // Called with an output's id when it's removed, so the scene forgets what was on for it.
 let onRemove = () => {};
+// Called after any change to the outputs' settings (the switcher's key settings check follows them).
+let onChange = () => {};
 // The Mac app's displays: [{ id, label, width, height, scale, primary }]; null when not run by the app.
 // width x height is the size macOS draws at; scale 2 means it draws each point as 2 x 2 pixels (HiDPI).
 let displays = null;
@@ -117,8 +126,14 @@ function clean(s, old = DEFAULTS) {
     // What's on it counts in the sponsors' exposure report (Output 1's always does). Off unless ticked, as Studio
     // can't tell whether another output is on the stream.
     sponsors: pick('sponsors', false) === true,
+    // Into the switcher as: the key it comes into and the switcher inputs its fill and key are plugged into (0: not
+    // picked). Only read by the key settings check (switcher.js); nothing is sent to the switcher until asked.
+    keyer: KEYERS.includes(pick('keyer')) ? pick('keyer') : '',
+    swFill: swInput(pick('swFill', 0)),
+    swKey: swInput(pick('swKey', 0)),
   };
 }
+const swInput = v => { const n = Math.round(Number(v)); return n >= 1 && n <= 40 ? n : 0; };
 
 const slug = t => String(t || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 // Words a name can't take in a link, as /deck/output/<name>/... would mean something else.
@@ -278,6 +293,8 @@ function outputState(o, clash, showing) {
   return {
     ...o, colour: COLOURS[o.slot], primary: o.id === PRIMARY, link: slug(o.name),
     chromaSafeNow: chromaSafe(o), showing: mine,
+    // Into the switcher as: the key it comes into now (the usual one when not picked), and what it sends.
+    keyerNow: keyerOf(o), signal: signalOf(o),
     clash: clash.get(o.id) ? clash.get(o.id).name : '',
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
@@ -349,6 +366,7 @@ function apply(changes) {
       log('info', 'outputs', `${o.name} ${o.on ? o.mode : 'off'}${mine.length ? `: ${mine.map(describe).join(', ')}` : ''}`);
     }
     save();
+    try { onChange(); } catch (err) { log('warn', 'outputs', `After a change: ${err.message}`); }
   }
   return error;
 }
@@ -492,9 +510,10 @@ function logPerf() {
 }
 
 // colours(): the active competition's colours and club colours, [{ name, hex }].
-// removed(id): an output was removed (the scene drops what was on for it).
-function init(logger, { colours, removed } = {}) {
+// removed(id): an output was removed (the scene drops what was on for it). changed(): any setting changed.
+function init(logger, { colours, removed, changed } = {}) {
   log = logger;
+  if (changed) onChange = changed;
   if (colours) competitionColours = () => { try { return colours() || []; } catch { return []; } };
   if (removed) onRemove = id => { try { removed(id); } catch (err) { log('warn', 'outputs', `Removing an output: ${err.message}`); } };
   load();
@@ -510,6 +529,18 @@ function init(logger, { colours, removed } = {}) {
 const summary = () => list.map(o => ({ id: o.id, slot: o.slot, name: o.name, link: slug(o.name), colour: COLOURS[o.slot], primary: o.id === PRIMARY,
   sponsors: o.id === PRIMARY || o.sponsors }));
 
+// What each output sending something gives the switcher, for its key settings check (switcher.js):
+// [{ id, name, slot, colour, keyer: 'dsk1' | 'usk2' | ... | 'none', fill, key, signal, premultiplied }]. signal is
+// chroma (over a colour), fillkey (a fill and a key), fill (fill only) or alpha (one NDI source with transparency);
+// premultiplied: the fill is premultiplied (Studio's always is, unless the Blackmagic device's Straight is ticked).
+const signalOf = o => o.mode === 'chroma' ? 'chroma' : o.mode === 'fillkey' ? 'fillkey'
+  : o.mode === 'decklink' ? (o.decklinkKeying === 'external' ? 'fillkey' : 'fill') : o.mode === 'ndi' ? o.ndiSignal : 'off';
+const keyerOf = o => o.keyer || (signalOf(o) === 'chroma' || o.slot !== 1 ? `usk${o.slot}` : 'dsk1');
+function switcherPlan() {
+  return list.filter(o => o.mode !== 'off').map(o => ({ id: o.id, name: o.name, slot: o.slot, colour: COLOURS[o.slot], keyer: keyerOf(o),
+    fill: o.swFill, key: o.swKey, signal: signalOf(o), premultiplied: !(o.mode === 'decklink' && o.decklinkStraight) }));
+}
+
 // Sponsors are on air (for the exposure report) while an output that counts for them is sending: Output 1, or one
 // with Counts for sponsors ticked. Output 1 can be off on a night another output goes to the switcher.
 function sponsorsOnAir() {
@@ -517,4 +548,4 @@ function sponsorsOnAir() {
   return windows().some(w => counting.has(w.output));
 }
 
-module.exports = { init, route, deck, state, apply, windows, listen, message, summary, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };
+module.exports = { init, route, deck, state, apply, windows, listen, message, summary, switcherPlan, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };

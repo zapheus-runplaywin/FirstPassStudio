@@ -49,6 +49,7 @@ const listeners = new Set(); // server-sent events (/api/switcher/events): the S
 // Stinger cuts: Studio plays the scene's stinger (stinger.html) on Output 1 and cuts while it covers the frame.
 let lineup = 0;               // frames to cut later (or earlier, below 0) than the middle of the cover, for the picture's delay into the switcher
 let stingerApi = null;        // { find(ref), play(id) } from scene.js
+let outputsPlan = () => [];   // what each output gives the switcher (outputs.js switcherPlan), for the key settings check
 let stingerWait = null;       // a stinger cut waiting to hear the stinger has started: { resolve }
 const STINGER_WAIT_MS = 3000; // how long a stinger has to start (its page loads its logo first)
 const LINEUP = [-25, 25];
@@ -290,6 +291,7 @@ function status() {
     found,
     lineup,
     stinger: (stingerApi && stingerApi.find()) ? stingerApi.find().name : '',
+    keys: s ? keyChecks(s) : [],
     ...(s || { model: '', inputs: [], program: null, preview: null, inTransition: false, usk: [], dsk: [], ftb: false }),
   };
 }
@@ -530,10 +532,98 @@ function run(actions, why, owner) {
   if (timers.length) waiting.set(owner, timers);
 }
 
+// ─── The outputs' keys: a check of their settings, and setting them up ───────
+// Each output comes into one of the switcher's keys (its Into the switcher as on the Output page). Studio reads how
+// that key is set up in ATEM Software Control and says what doesn't suit the output's signal: the key's fill and
+// key inputs, its type (a chroma output needs an upstream key on Chroma), and Pre Multiplied Key (on for Studio's
+// premultiplied fill, off only for a Blackmagic device sending Straight). It only reads: the key is changed only when
+// Set up this key for me is pressed (keySetup), and never its on air, colour, clip, gain or position.
+const KEYER_LABEL = k => `${k.startsWith('dsk') ? 'downstream' : 'upstream'} key ${k.slice(3)}`;
+const ucFirst = t => t.charAt(0).toUpperCase() + t.slice(1);
+function keyChecks(s) {
+  let plan;
+  try { plan = outputsPlan() || []; } catch { plan = []; }
+  const st = atem.state;
+  const me = (st.video.mixEffects || [])[0] || {};
+  const src = id => { const i = (st.inputs || {})[id]; return i ? i.longName || `input ${id}` : `input ${id}`; };
+  const yes = b => (b ? 'on' : 'off');
+  return plan.map(o => {
+    const c = { output: o.id, name: o.name, colour: o.colour, keyer: o.keyer, label: o.keyer === 'none' ? '' : ucFirst(KEYER_LABEL(o.keyer)),
+      onAir: false, problems: [], fixes: [] };
+    if (o.keyer === 'none') return c;
+    const usk = o.keyer.startsWith('usk');
+    const k = Number(o.keyer.slice(3)) - 1;
+    const count = usk ? s.usk.length : s.dsk.length;
+    const label = KEYER_LABEL(o.keyer);
+    if (k >= count) {
+      c.problems.push(`The ${s.model} has ${count === 1 ? 'one' : count || 'no'} ${usk ? 'upstream' : 'downstream'} key${count === 1 ? '' : 's'}, so there's no ${label}: pick another.`);
+      return c;
+    }
+    c.onAir = usk ? s.usk[k] : s.dsk[k];
+    // Shown on both outputs, so whichever one the operator looks at says so.
+    const others = plan.filter(x => x !== o && x.keyer === o.keyer).map(x => x.name);
+    if (others.length) c.problems.push(`${others.join(' and ')} ${others.length === 1 ? 'comes' : 'come'} into ${label} too: pick another key for one of them.`);
+    if (o.signal === 'alpha') c.problems.push('An ATEM can\'t key NDI with transparency: send it as Fill and key (two NDI sources) or Chroma.');
+    if (o.signal === 'fill') c.problems.push('Fill only has no key for the switcher to key with: send Fill and key.');
+    if (o.signal === 'chroma' && !usk) c.problems.push('A chroma key needs an upstream key (a downstream key only keys fill and key): pick an upstream key.');
+    const chroma = o.signal === 'chroma';
+    if (!o.fill) c.problems.push(`Pick the switcher input ${chroma ? 'it' : 'its fill'} comes into.`);
+    if (!chroma && o.signal === 'fillkey' && !o.key) c.problems.push('Pick the switcher input its key comes into.');
+    if (!chroma && o.fill && o.fill === o.key) c.problems.push('Its fill and key come into different inputs: pick each one.');
+    for (const id of [o.fill, chroma ? 0 : o.key]) if (id && !s.inputs.some(i => i.id === id)) c.problems.push(`The ${s.model} has no input ${id}.`);
+    if (c.problems.length) return c;
+    // What the key has, against what the output needs.
+    const want = { fill: o.fill, cut: chroma ? null : o.key, pre: chroma ? null : o.premultiplied, type: usk ? (chroma ? 1 : 0) : null };
+    const has = usk ? (() => { const u = (me.upstreamKeyers || [])[k] || {};
+      return { fill: u.fillSource, cut: u.cutSource, pre: !!(u.lumaSettings && u.lumaSettings.preMultiplied), type: u.mixEffectKeyType }; })()
+      : (() => { const d = (st.video.downstreamKeyers || [])[k] || {};
+        return { fill: (d.sources || {}).fillSource, cut: (d.sources || {}).cutSource, pre: !!(d.properties && d.properties.preMultiply), type: null }; })();
+    const TYPES = ['Luma', 'Chroma', 'Pattern', 'DVE'];
+    if (want.type !== null && has.type !== want.type) c.fixes.push(`Key type is ${TYPES[has.type] || 'something else'}, should be ${TYPES[want.type]}`);
+    if (has.fill !== want.fill) c.fixes.push(`Fill source is ${src(has.fill)}, should be ${src(want.fill)}`);
+    if (want.cut !== null && has.cut !== want.cut) c.fixes.push(`Key source is ${src(has.cut)}, should be ${src(want.cut)}`);
+    if (want.pre !== null && has.pre !== want.pre) c.fixes.push(`Pre Multiplied Key is ${yes(has.pre)}, should be ${yes(want.pre)}`);
+    c.want = want;
+    return c;
+  });
+}
+// Set up this key for me: changes only what the check found different, on the key the output comes into.
+async function keySetup(a) {
+  const s = conn === 'connected' ? summary() : null;
+  if (!s) return { error: !pick ? 'No switcher is set up: pick one on the Output page, under Switcher.' : 'The switcher isn\'t answering, so nothing was changed.', status: 409 };
+  const c = keyChecks(s).find(x => x.output === String(a.output));
+  if (!c) return { error: `No output "${a.output}" sending to the switcher.`, status: 404 };
+  if (c.keyer === 'none') return { error: `${c.name} isn't keyed by the switcher.`, status: 400 };
+  if (c.problems.length) return { error: c.problems[0], status: 409 };
+  if (!c.fixes.length) return { ok: true, done: `${c.label} is already set up for ${c.name}` };
+  const k = Number(c.keyer.slice(3)) - 1;
+  const w = c.want;
+  try {
+    if (c.keyer.startsWith('usk')) {
+      await atem.setUpstreamKeyerType({ mixEffectKeyType: w.type }, 0, k);
+      await atem.setUpstreamKeyerFillSource(w.fill, 0, k);
+      if (w.cut !== null) await atem.setUpstreamKeyerCutSource(w.cut, 0, k);
+      if (w.pre !== null) await atem.setUpstreamKeyerLumaSettings({ preMultiplied: w.pre }, 0, k);
+    } else {
+      await atem.setDownstreamKeyFillSource(w.fill, k);
+      await atem.setDownstreamKeyCutSource(w.cut, k);
+      await atem.setDownstreamKeyGeneralProperties({ preMultiply: w.pre }, k);
+    }
+  } catch (err) {
+    log('warn', 'switcher', `Setting up ${KEYER_LABEL(c.keyer)} for ${c.name} failed: ${err && err.message || 'the switcher stopped answering'}`);
+    return { error: `The switcher didn't take it (${err && err.message || 'it stopped answering'}).`, status: 502 };
+  }
+  const done = `set up ${KEYER_LABEL(c.keyer)} for ${c.name}: ${c.fixes.map(f => f.replace(/ is .*, should be /, ' ')).join(', ')}`;
+  log('info', 'switcher', `Output page: ${done}`);
+  await settled();
+  return { ok: true, done };
+}
+
 // ─── Settings from the Output page ────────────────────────────────────────
 // { type: 'use', name } a found switcher, { type: 'use', address } a typed one, { type: 'forget' },
-// { type: 'reconnect' }.
+// { type: 'reconnect' }, { type: 'keySetup', output } (an output's key, as its key settings check says).
 async function settings(a) {
+  if (a.type === 'keySetup') return keySetup(a);
   if (a.type === 'forget') {
     if (pick) log('info', 'switcher', `Forgot the switcher (${pick.name || pick.address})`);
     pick = null;
@@ -614,12 +704,17 @@ async function deck(parts) {
   return { status: 200, body: { ok: true, done: r.done, program: s.program, preview: s.preview, usk: s.usk, dsk: s.dsk } };
 }
 
-function init(logger, { changed: onChanged, stinger } = {}) {
+// changed(): the switcher's state changed; stinger: { find, play } (scene.js); outputs(): outputs.js switcherPlan.
+function init(logger, { changed: onChanged, stinger, outputs } = {}) {
   log = logger;
+  if (outputs) outputsPlan = outputs;
   if (onChanged) onChange = onChanged;
   if (stinger) stingerApi = stinger;
   load();
   if (pick) connect();
 }
 
-module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, FILE, parseBrowse, parseLookup, parseAddress };
+// The outputs changed: their key settings check may say something else now.
+const refresh = () => changed();
+
+module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, FILE, parseBrowse, parseLookup, parseAddress };
