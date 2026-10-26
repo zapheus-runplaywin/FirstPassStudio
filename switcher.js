@@ -568,24 +568,41 @@ const keysText = changes => changes.length ? `, with ${changes.map(c => `${c.nam
 // Cuts or autos to input to (already on preview), taking the paired keys that need to change in the same
 // transition, so the camera and its graphics change on the same frame. The switcher's next transition selection is
 // put back as it was afterwards, so the panel's BKGD and KEY buttons are as the operator left them. Gives the keys in words.
+// The operator's own next transition selection while Studio's takes have it changed (null otherwise), and how many
+// takes are still to put it back: a second take during an auto (a double tap, a sequence with two transitions) puts
+// back the operator's, not the first take's, and only once the last one is over.
+let heldSelection = null;
+let takesOpen = 0;
 async function take(s, kind, to) {
   const changes = pairedChanges(summary() || s, to); // as the keys are now (a stinger may have played meanwhile)
   const go = () => (kind === 'auto' ? atem.autoTransition(0) : atem.cut(0));
   if (!changes.length) { await go(); return ''; }
   const { Enums } = loadLibrary();
-  const me = (atem.state.video.mixEffects || [])[0] || {};
-  const before = ((me.transitionProperties || {}).nextSelection || [Enums.TransitionSelection.Background]).slice();
+  const a = atem;
+  const me = () => (a.state.video.mixEffects || [])[0] || {};
+  if (!takesOpen) heldSelection = ((me().transitionProperties || {}).nextSelection || [Enums.TransitionSelection.Background]).slice();
+  takesOpen++;
   const mask = changes.reduce((m, c) => m | KEY_BIT(c.k), 1);
   const sel = Object.values(Enums.TransitionSelection).filter(v => typeof v === 'number' && (mask & v));
-  await atem.setTransitionStyle({ nextSelection: sel }, 0);
-  await go();
-  const a = atem;
-  // A cut has happened by the time the switcher answers; an auto takes its rate, and the selection is put back once it's over.
+  const inMix = () => !!(me().transitionPosition && me().transitionPosition.inTransition);
+  // A cut is over once the switcher has answered. An auto takes its rate: the switcher answers before it says the
+  // mix has started, so wait for it to start (up to a second) and then to end (up to 10 s) before putting the
+  // selection back, so it's never changed part way through the mix.
   const restore = async () => {
-    for (let n = 0; kind === 'auto' && n < 100 && a === atem && a.state.video.mixEffects[0].transitionPosition?.inTransition; n++) await sleep(50);
-    if (a === atem && a.status === 2) await a.setTransitionStyle({ nextSelection: before }, 0).catch(() => {});
+    if (kind === 'auto') {
+      for (let n = 0; n < 20 && a === atem && !inMix(); n++) await sleep(50);
+      for (let n = 0; n < 200 && a === atem && inMix(); n++) await sleep(50);
+    } else await settled();
+    if (--takesOpen > 0) return; // another take is still under way: the last one puts it back
+    const back = heldSelection;
+    heldSelection = null;
+    if (a === atem && a.status === 2 && back) await a.setTransitionStyle({ nextSelection: back }, 0).catch(() => {});
   };
-  if (kind === 'auto') restore(); else { await settled(); await restore(); }
+  try {
+    await atem.setTransitionStyle({ nextSelection: sel }, 0);
+    await go();
+  } catch (err) { restore(); throw err; }
+  if (kind === 'auto') restore(); else await restore();
   return keysText(changes);
 }
 // Keys follow the camera: a cut made anywhere else changes program, and the paired outputs' keys follow a moment

@@ -6,6 +6,7 @@
 //   atem.set({ program: 3 });                               // as if someone pressed a button on the switcher
 //   atem.state.dskKeys[0], atem.state.uskKeys[1]            // how each key is set up ({ fill, cut, preMultiply } / { type, fill, cut, preMultiplied })
 //   atem.state.nextSelection                                // the next transition's selection (bit 0 background, bits 1-4 upstream keys 1-4)
+//   startAtem({ autoMs: 400 })                              // an auto that mixes for that long (it's at once otherwise; another auto meanwhile is ignored)
 //   await atem.close();
 
 'use strict';
@@ -79,6 +80,8 @@ async function startAtem(opts = {}) {
     b.writeUInt16BE(state.uskKeys[k].fill, 6); b.writeUInt16BE(state.uskKeys[k].cut, 8);
   }));
   const keLm = k => command('KeLm', bytes(12, b => { b.writeUInt8(k, 1); b.writeUInt8(state.uskKeys[k].preMultiplied ? 1 : 0, 2); }));
+  let mixing = false;
+  const trPs = () => command('TrPs', bytes(8, b => b.writeUInt8(mixing ? 1 : 0, 1)));
   const trSS = () => command('TrSS', bytes(8, b => { b.writeUInt8(state.selection, 2); b.writeUInt8(state.nextSelection, 4); }));
   const dump = () => Buffer.concat([
     command('_ver', bytes(4, b => b.writeUInt32BE(VERSION, 0))),
@@ -110,6 +113,14 @@ async function startAtem(opts = {}) {
   };
   const handle = (name, d) => {
     received.push({ name, data: d, at: Date.now() });
+    if (name === 'DAut' && opts.autoMs) {
+      // A mix: the switcher says it has started (after answering the command), then takes it at the end.
+      if (mixing) return [];
+      mixing = true;
+      setTimeout(() => { if (answering) toAll(trPs()); }, 20);
+      setTimeout(() => { mixing = false; toAll(Buffer.concat([...take(), trPs()])); }, opts.autoMs);
+      return [];
+    }
     if (name === 'DCut' || name === 'DAut') return take();
     if (name === 'CPgI') { state.program = d.readUInt16BE(2); return [prg()]; }
     if (name === 'CPvI') { state.preview = d.readUInt16BE(2); return [prv()]; }

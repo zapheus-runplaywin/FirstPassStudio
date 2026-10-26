@@ -7,6 +7,7 @@
 // inputs (red on program, green on preview) and its upstream and downstream keys (red while on air).
 let sw = null;
 let swFormOpen = false;
+let swWithCams = ''; // the output cards' On air with ... as last drawn
 const swTime = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 async function swPost(path, body) {
   $('swErr').textContent = '';
@@ -100,7 +101,9 @@ function showSwitcher(s) {
   }
   if (document.activeElement !== $('swAddress') && s.pick && s.pick.kind === 'address') $('swAddress').value = s.pick.port === 9910 ? s.pick.address : `${s.pick.address}:${s.pick.port}`;
   swOutKey();
-  if (out && out.outputs) renderOutputs(out, selectedOutput()); // the output cards say On air with Court
+  // The output cards say On air with Court: redrawn only when that changes, not on every cut.
+  const withCams = (s.keys || []).map(k => `${k.output}:${k.withCamera}`).join('|');
+  if (withCams !== swWithCams && out && out.outputs) { swWithCams = withCams; renderOutputs(out, selectedOutput()); }
 }
 $('swSetup').onclick = () => {
   swFormOpen = !swFormOpen;

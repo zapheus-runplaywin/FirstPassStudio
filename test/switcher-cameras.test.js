@@ -138,3 +138,29 @@ test('the usual keys never clash: Output 1 on downstream key 1 (upstream key 1 f
     assert.equal(new Set(keys).size, 4);
   }
 });
+
+test('an auto that takes its time: the selection is put back once the mix is over, and a second take meanwhile puts back the operator\'s', async t => {
+  const atem = await startAtem({ model: 'MiniExtreme', names: NAMES, autoMs: 600 });
+  t.after(() => atem.close());
+  const studio = await startStudio(t);
+  const added = await studio.post('/api/outputs', { add: true });
+  const two = added.outputs.find(o => o.slot === 2).id;
+  await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'fillkey', swFill: 7, swKey: 8, swCameras: [2] });
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
+  await studio.until(async () => (await studio.get('/api/switcher')).state === 'connected', 8000, 100);
+  const from = atem.received.length;
+  const started = Date.now();
+  await studio.post('/api/switcher', { type: 'auto', input: 2 });
+  // A double tap while it mixes: the switcher ignores the second auto, and Studio sets the selection again.
+  await wait(150);
+  await studio.post('/api/switcher', { type: 'auto', input: 2 });
+  await studio.until(() => atem.state.usk[1] === true && sent(atem, 'CTTp', from).length >= 3, 4000, 20);
+  await wait(300);
+  const ctt = sent(atem, 'CTTp', from);
+  const last = ctt.at(-1);
+  assert.equal(last.data[3], 1, 'the operator\'s selection (background only) is what\'s put back');
+  assert.ok(last.at - started >= 600, `put back after the mix (${last.at - started} ms), not during it`);
+  assert.equal(ctt.filter(x => x.data[3] === 1).length, 1, 'put back once, by the last take');
+  assert.equal(atem.state.nextSelection, 1);
+  assert.equal(atem.state.program, 2);
+});
