@@ -108,7 +108,8 @@ function clean(s, old = DEFAULTS) {
     // The name shown on the Output page and used in its Stream Deck links (/deck/output/big-screen/on).
     name: String(pick('name', '')).replace(/\s+/g, ' ').trim().slice(0, 40),
     mode: MODES.includes(pick('mode')) ? pick('mode') : 'off',
-    on: pick('on', true) !== false,
+    // Switched on (Output on). An output set to Off is always off: there's nothing to turn on until it's set up.
+    on: MODES.includes(pick('mode')) && pick('mode') !== 'off' && pick('on', true) !== false,
     chromaDisplay: String(pick('chromaDisplay', '')),
     chromaColor: hex(pick('chromaColor')),
     // Chroma key safe graphics (public/chroma.js): solid panels, no soft shadows, nothing half see-through.
@@ -439,7 +440,7 @@ function deck(parts) {
     const on = { on: true, off: false, toggle: !any }[parts[2]];
     if (on === undefined || parts.length > 3) return { status: 404, body: { error: 'Use /deck/output/all/on, off or toggle.' } };
     const before = JSON.stringify(list);
-    for (const o of list) o.on = on;
+    for (const o of list) o.on = on && o.mode !== 'off'; // one set to Off stays off
     if (JSON.stringify(list) !== before) { listenChanged(); log('info', 'outputs', `Every output ${on ? 'on' : 'off'}`); save(); }
     return { status: 200, body: { ok: true, on } };
   }
@@ -529,9 +530,13 @@ function init(logger, { colours, removed, changed } = {}) {
   }
 }
 
-// The outputs' ids, names, numbers and colours, for the scene and the Output page: [{ id, slot, name, link, colour, primary }].
-const summary = () => list.map(o => ({ id: o.id, slot: o.slot, name: o.name, link: slug(o.name), colour: COLOURS[o.slot], primary: o.id === PRIMARY,
-  sponsors: o.id === PRIMARY || o.sponsors }));
+// The outputs' ids, names, numbers and colours, for the scene and the Output page:
+// [{ id, slot, name, link, colour, primary, sponsors, sending }]. sending: it's sending the scene now (on, and not set to Off).
+function summary() {
+  const sending = new Set(windows().map(w => w.output));
+  return list.map(o => ({ id: o.id, slot: o.slot, name: o.name, link: slug(o.name), colour: COLOURS[o.slot], primary: o.id === PRIMARY,
+    sponsors: o.id === PRIMARY || o.sponsors, sending: sending.has(o.id) }));
+}
 
 // What each output sending something gives the switcher, for its key settings check (switcher.js):
 // [{ id, name, slot, colour, keyer: 'dsk1' | 'usk2' | ... | 'none', fill, key, cameras, signal, premultiplied }]. signal is

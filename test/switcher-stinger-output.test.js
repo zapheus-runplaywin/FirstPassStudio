@@ -18,10 +18,11 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
   await studio.until(async () => (await studio.get('/api/switcher')).state === 'connected', 8000, 100);
   await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html' }] });
   let s = await studio.get('/api/switcher');
-  assert.deepEqual(s.stingerOutput, { id: 'main', name: 'Output 1', on: true }, 'Output 1 with nothing set up');
+  // Output 1 set to Off is off, so the card says to turn it on (a stinger without an output is a late plain cut).
+  assert.deepEqual(s.stingerOutput, { id: 'main', name: 'Output 1', on: false }, 'Output 1 with nothing set up');
 
   // Output 1 goes on upstream key 1 (a chroma screen, say) and a second output, NDI, takes downstream key 1.
-  await studio.post('/api/outputs', { mode: 'chroma', keyer: 'usk1' });
+  await studio.post('/api/outputs', { mode: 'chroma', keyer: 'usk1', on: true });
   const added = await studio.post('/api/outputs', { add: true, name: 'Over all' });
   const two = added.outputs.find(o => o.slot === 2).id;
   await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'fillkey', keyer: 'dsk1' });

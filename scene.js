@@ -87,13 +87,16 @@ const adSponsor = new Map();
 // only with Counts for sponsors ticked (Studio can't tell whether it's on the stream: a camera's keyer, a
 // commentary monitor).
 const countsForSponsors = out => !out || !!outputsApi.summary?.().find(o => o.id === out)?.sponsors;
-// The sources on now, for the exposure report: [{ id, name, url, sponsor }], on the primary and on each output
-// that counts for sponsors (named "Ladder (Wide camera)" there).
+// The sources on now, for the exposure report: [{ id, name, url, sponsor, air }], on the primary and on each output
+// that counts for sponsors (named "Ladder (Wide camera)" there). air: its output is sending, so it's on air (an
+// output that's off, or set to Off, isn't, even while another one is); left out without outputs to ask.
 function showing() {
-  const view = (s, where) => ({ id: s.id, name: where ? `${s.name} (${where})` : s.name, url: s.type === 'browser' ? s.url : '', sponsor: adSponsor.get(s.id) || null });
-  const list = scene.sources.filter(s => s.visible).map(s => view(s, ''));
-  for (const o of outputsApi.summary?.() || []) {
-    if (o.id !== PRIMARY && o.sponsors) list.push(...scene.sources.filter(s => s.out[o.id]).map(s => view(s, o.name)));
+  const outs = outputsApi.summary?.() || [];
+  const sending = id => { const o = outs.find(x => x.id === id); return o ? { air: !!o.sending } : {}; };
+  const view = (s, where, air) => ({ id: s.id, name: where ? `${s.name} (${where})` : s.name, url: s.type === 'browser' ? s.url : '', sponsor: adSponsor.get(s.id) || null, ...air });
+  const list = scene.sources.filter(s => s.visible).map(s => view(s, '', sending(PRIMARY)));
+  for (const o of outs) {
+    if (o.id !== PRIMARY && o.sponsors) list.push(...scene.sources.filter(s => s.out[o.id]).map(s => view(s, o.name, { air: !!o.sending })));
   }
   return list;
 }
@@ -108,8 +111,8 @@ function sponsorAd(opts = {}, out = null) {
   if (ad) {
     log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})${out ? ` on ${outputName(out)}` : ''}`);
     adSponsor.set(src.id, ad.sponsor.id);
-    // A play counts where the time on screen does.
-    if (counts) exposure.play(ad);
+    // A play counts where the time on screen does, on air only while its output is sending.
+    if (counts) exposure.play(ad, { air: outputsApi.summary?.().find(o => o.id === (out || PRIMARY))?.sending });
   }
   return { source: src.id, name: ad ? ad.sponsor.name : 'House ad', sponsor: ad ? ad.sponsor.id : null,
     length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };

@@ -27,7 +27,7 @@ const JOIN_GAP = 3000; // stretches this close together are one showing in the l
 const SAVE_EVERY = 60 * 1000;
 
 let log = () => {};
-let showing = () => [];   // the scene's sources that are on: [{ id, name, url, sponsor }]
+let showing = () => [];   // the scene's sources that are on: [{ id, name, url, sponsor, air }] (air false: its output is off)
 let onAir = () => false;  // a video output is on
 const given = new Map();  // page link -> { ids, place, qr, comp }
 const open = new Map();   // sponsor|place|source -> segment
@@ -68,11 +68,13 @@ function close(key, seg, now) {
 function tick(now = Date.now()) {
   const air = !!onAir();
   const want = new Map();
-  const add = (s, place, src, qr, comp) => want.set(`${s}|${place}|${src}`, { s, c: comp, p: place, src, air, qr: !!qr });
+  const add = (s, place, src, qr, comp, on) => want.set(`${s}|${place}|${src}`, { s, c: comp, p: place, src, air: on, qr: !!qr });
   for (const src of showing()) {
-    if (src.sponsor) { add(src.sponsor, 'ad', src.name, false, competitions.activeId()); continue; }
+    // On air only while its own output is sending (an output that's off isn't, though another one is).
+    const on = air && src.air !== false;
+    if (src.sponsor) { add(src.sponsor, 'ad', src.name, false, competitions.activeId(), on); continue; }
     const g = src.url && given.get(linkOf(src.url));
-    if (g) for (const id of g.ids) add(id, g.place, src.name, g.qr && id === g.ids[0], g.comp);
+    if (g) for (const id of g.ids) add(id, g.place, src.name, g.qr && id === g.ids[0], g.comp, on);
   }
   for (const [key, seg] of open) {
     const w = want.get(key);
@@ -89,10 +91,12 @@ function flash(req, sponsor, place, seconds, opts = {}) {
   const ref = req && req.headers && req.headers.referer;
   if (!ref || !sponsor) return;
   const link = linkOf(ref);
-  const src = showing().find(x => x.url && linkOf(x.url) === link);
+  // The page on an output that's sending, if it's on more than one.
+  const mine = showing().filter(x => x.url && linkOf(x.url) === link);
+  const src = mine.find(x => x.air !== false) || mine[0];
   if (!src) return;
   const now = Date.now();
-  append({ t: 'seen', s: sponsor.id || sponsor, c: opts.competition || competitions.activeId(), p: place, src: src.name, air: !!onAir(), qr: false, from: now, to: now + Math.round(seconds * 1000) });
+  append({ t: 'seen', s: sponsor.id || sponsor, c: opts.competition || competitions.activeId(), p: place, src: src.name, air: !!onAir() && src.air !== false, qr: false, from: now, to: now + Math.round(seconds * 1000) });
 }
 
 // A live viewer reading (viewers.js), taken while on air: { total, streams }.
@@ -102,10 +106,10 @@ function viewers(st, now = Date.now()) {
     by: st.streams.filter(x => x.live).map(x => ({ id: x.id, n: x.count })) });
 }
 
-// One sponsor ad starting to play.
-function play(ad) {
+// One sponsor ad starting to play. air: false when the output it plays on isn't sending.
+function play(ad, opts = {}) {
   if (!ad || !ad.sponsor) return;
-  append({ t: 'play', s: ad.sponsor.id, c: competitions.activeId(), file: ad.file, kind: ad.kind, at: Date.now(), air: !!onAir() });
+  append({ t: 'play', s: ad.sponsor.id, c: competitions.activeId(), file: ad.file, kind: ad.kind, at: Date.now(), air: !!onAir() && opts.air !== false });
 }
 
 // Saves what's on screen now.
