@@ -15,7 +15,7 @@
 // With more than one output (outputs.js), sequences are shared: any sequence plays on any output, picked
 // when it's played (a.output), turning its sources on and off there. Each output has its own runner, so one
 // sequence can play on each at once (the same one on two, even). A sequence that starts by itself starts
-// on its startOn output (the primary unless set, and the primary when that output has gone). Only the
+// on its startOn output (the primary unless set; not at all once that output has gone). Only the
 // primary plays music: on another output a sequence plays its steps silently, and its Sponsor ads steps
 // play nothing (go straight on).
 //
@@ -107,8 +107,11 @@ function within(out, fn) {
 function each(fn) { for (const out of new Set([here, ...runners.keys()])) within(out, fn); }
 // A timer's callback, run with the runner that set it.
 const bound = fn => { const out = here; return () => within(out, fn); };
-// The output a sequence starts by itself on: its startOn, or the primary when that output has gone.
-const outOf = sq => sq && sq.startOn && sq.startOn !== PRIMARY && api?.hasOutput?.(sq.startOn) ? sq.startOn : PRIMARY;
+// The output a sequence starts by itself on: its startOn (the primary unless set), or null when that output has been
+// removed. It doesn't start then: falling back to Output 1 would put a commentary monitor's loop on air.
+const gone = sq => !!(sq && sq.startOn && sq.startOn !== PRIMARY && api?.hasOutput && !api.hasOutput(sq.startOn));
+const outOf = sq => !sq || !sq.startOn || sq.startOn === PRIMARY || !api?.hasOutput ? PRIMARY : gone(sq) ? null : sq.startOn;
+const goneNote = (sq, when) => log('info', 'sequence', `"${sq.name}" won't start by itself ${when}: the output it starts on has been removed (pick another in the sequence)`);
 // Music is the primary's alone: another output's sequences play theirs silently.
 const SILENT = { stopFor() {}, quiet() {}, playFor() {}, handOver() {} };
 const sound = () => here === PRIMARY ? music : SILENT;
@@ -622,10 +625,13 @@ function gameTick(g) {
       continue;
     }
     // The first sequence for the moment on each output starts there.
+    const forMoment = s => m.kind === 'break' ? s.start.type === 'break' && s.start.breaks.includes(m.which) : s.start.type === 'fulltime';
     for (const out of new Set(list.map(outOf))) {
-      const next = list.find(s => outOf(s) === out && (m.kind === 'break' ? s.start.type === 'break' && s.start.breaks.includes(m.which) : s.start.type === 'fulltime'));
+      if (!out) continue;
+      const next = list.find(s => outOf(s) === out && forMoment(s));
       if (next) within(out, () => trigger(next, m.kind === 'break' ? `It's ${BREAK_NAMES[m.which]}` : `It's full time`, next.start.afterSec));
     }
+    for (const sq of list) if (gone(sq) && forMoment(sq)) goneNote(sq, m.kind === 'break' ? `at ${BREAK_NAMES[m.which]}` : 'at full time');
   }
   // Before the start: N minutes before the scheduled start, while the game hasn't begun.
   if (game.startAt && !watch.everRan && t < game.startAt) {
@@ -645,6 +651,7 @@ function gameTick(g) {
         log('info', 'sequence', `"${sq.name}" won't start by itself: Studio wasn't running ${sq.start.min} min before ${game.label || 'the game'}`);
         continue;
       }
+      if (gone(sq)) { goneNote(sq, `${sq.start.min} min before ${game.label || 'the game'}`); continue; }
       within(outOf(sq), () => trigger(sq, `${sq.start.min} min before ${game.label || 'the game'}`, 0));
       changed = true;
     }
@@ -657,7 +664,7 @@ function nextAuto() {
   if (!auto || !game || !game.startAt || (watch && watch.everRan)) return null;
   let best = null;
   for (const sq of list) {
-    if (sq.start.type !== 'before' || (watch && watch.fired.has(`before:${sq.id}`))) continue;
+    if (sq.start.type !== 'before' || gone(sq) || (watch && watch.fired.has(`before:${sq.id}`))) continue;
     const at = game.startAt - sq.start.min * 60000;
     if (at > now() && (!best || at < best.at)) best = { id: sq.id, at };
   }
@@ -931,7 +938,7 @@ function state() {
     if (w) pendingOut[here] = w;
   });
   return {
-    sequences: [...list].sort(byColour).map(sq => ({ ...sq, startOn: outOf(sq) })),
+    sequences: [...list].sort(byColour).map(sq => ({ ...sq, startOn: outOf(sq) || sq.startOn, ...(gone(sq) ? { startGone: true } : {}) })),
     playing: within(PRIMARY, playingHere),
     playingOut,
     auto,

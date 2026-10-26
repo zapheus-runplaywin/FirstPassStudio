@@ -202,7 +202,9 @@ function openSequence(sq) {
   $('sqOutNote').classList.toggle('hidden', !outs.length);
   $('sqStartOn').innerHTML = '';
   for (const o of outs) $('sqStartOn').append(new Option(o.name, o.id));
-  $('sqStartOn').value = outs.some(o => o.id === draft.startOn) ? draft.startOn : 'main';
+  // Set to start on an output that has since been removed: it won't start by itself until another is picked.
+  if (draft.startGone && outs.length) $('sqStartOn').append(new Option("A removed output (won't start by itself)", draft.startOn));
+  $('sqStartOn').value = outs.some(o => o.id === draft.startOn) || draft.startGone ? draft.startOn : 'main';
   $('sqOutNote').textContent = "Played by hand, it plays on the output picked over the Scene View. Music plays only on Output 1; on other outputs it is silent, and Sponsor ads play in that output's own ad sources (counted for sponsors only if its card says so).";
   const start = draft.start || { type: 'hand' };
   $('sqStart').value = start.type;
