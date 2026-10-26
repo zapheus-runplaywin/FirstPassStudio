@@ -48,7 +48,7 @@ const DEFAULT_NDI_FORMAT = '1080p50';
 const MAX = 4;
 const PRIMARY = 'main';
 // Each output's colour, by its number (slot): the same colours light its Stream Deck keys.
-const COLOURS = { 1: '#ff9b3d', 2: '#ff7ac6', 3: '#2ae7e7', 4: '#facc15' };
+const COLOURS = { 1: '#ea9a38', 2: '#f24f91', 3: '#4ec1e6', 4: '#95ba45' };
 const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,

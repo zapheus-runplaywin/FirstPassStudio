@@ -288,7 +288,7 @@ const showOut = o => {
   const relisten = !out || out.previewSound !== o.previewSound;
   const hadExtras = extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join();
   out = o;
-  if (!o.outputs) o.outputs = [{ ...o, id: 'main', slot: 1, name: 'Output 1', primary: true, colour: '#ff9b3d', link: 'output-1' }];
+  if (!o.outputs) o.outputs = [{ ...o, id: 'main', slot: 1, name: 'Output 1', primary: true, colour: '#ea9a38', link: 'output-1' }];
   // The output being set up here (and shown in the Scene View): picked on its card or tab.
   const so = o.outputs.find(x => x.id === outSel) || o.outputs[0];
   outSel = so.id;
