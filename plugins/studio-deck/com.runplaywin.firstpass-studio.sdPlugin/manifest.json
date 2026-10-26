@@ -43,12 +43,14 @@
 					"Image": "imgs/actions/source/off",
 					"Name": "Off",
 					"TitleAlignment": "middle",
+					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/source/on",
 					"Name": "On",
 					"TitleAlignment": "middle",
+					"TitleColor": "#000000",
 					"FontSize": 12
 				}
 			]
@@ -69,12 +71,14 @@
 					"Image": "imgs/actions/scene/off",
 					"Name": "Off",
 					"TitleAlignment": "middle",
+					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/scene/on",
 					"Name": "On now",
 					"TitleAlignment": "middle",
+					"TitleColor": "#000000",
 					"FontSize": 12
 				}
 			]
@@ -95,12 +99,14 @@
 					"Image": "imgs/actions/sequence/off",
 					"Name": "Off",
 					"TitleAlignment": "middle",
+					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/sequence/on",
 					"Name": "Playing",
 					"TitleAlignment": "middle",
+					"TitleColor": "#000000",
 					"FontSize": 12
 				}
 			]

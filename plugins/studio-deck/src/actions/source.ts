@@ -11,7 +11,7 @@ import streamDeck, {
 
 import { keyImageUrl } from "../lib/colours";
 import { linkFor, type SourceSettings, viewOf } from "../lib/source-key";
-import { cleanHost, feedFor, listSources, press, type Scene } from "../lib/studio";
+import { cleanHost, feedFor, fetchScene, outputColour, outputsOf, press, type Scene } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("Source");
 const log = (message: string) => logger.info(message);
@@ -65,13 +65,14 @@ class SourceKey {
 		void this.key.setTitle(title as string);
 	}
 
-	/** Both states' images in the key's colour group; only sent again when the group changes. */
+	/** Both states' images in the key's colour group, lit in its output's colour; only sent again when those change. */
 	private paint(): void {
 		const colour = this.settings.colour ?? "";
-		if (colour === this.painted) return;
-		this.painted = colour;
+		const lit = outputColour(this.scene, this.settings.output);
+		if (`${colour}|${lit}` === this.painted) return;
+		this.painted = `${colour}|${lit}`;
 		void this.key.setImage(keyImageUrl("source", colour, 0), { state: 0 });
-		void this.key.setImage(keyImageUrl("source", colour, 1), { state: 1 });
+		void this.key.setImage(keyImageUrl("source", colour, 1, false, lit), { state: 1 });
 	}
 
 	async press(): Promise<void> {
@@ -125,13 +126,14 @@ export class SourceAction extends SingletonAction<SourceSettings> {
 	override async onSendToPlugin(ev: SendToPluginEvent<PiCommand, SourceSettings>): Promise<void> {
 		if (ev.payload?.cmd !== "sources") return;
 		const host = cleanHost(ev.payload.host);
-		const sources = await listSources(host);
+		const scene = await fetchScene(host);
 		if (streamDeck.ui.action?.id !== ev.action.id) return;
 		void streamDeck.ui.sendToPropertyInspector({
 			type: "sources",
 			host,
-			ok: sources !== null,
-			sources: (sources ?? []).map((s) => ({ id: s.id, name: s.name, type: s.type })),
+			ok: scene !== null,
+			sources: (scene?.sources ?? []).map((s) => ({ id: s.id, name: s.name, type: s.type })),
+			outputs: outputsOf(scene).map((o) => ({ id: o.id, name: o.name })),
 		} as unknown as PiPayload);
 	}
 }

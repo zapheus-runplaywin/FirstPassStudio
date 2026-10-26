@@ -133,3 +133,10 @@ test('a sequence set to start by itself on another output keeps that, and falls 
   ok({ type: 'sceneGo', scene: 'Ladder up' });
   assert.ok(onMain().includes('Ladder'));
 });
+
+test('the scene feed lists the outputs for the Stream Deck plugin', () => {
+  const o = st().outputs;
+  assert.ok(o.length >= 1);
+  assert.deepEqual(Object.keys(o[0]).sort(), ['colour', 'id', 'link', 'name', 'slot']);
+  assert.equal(o[0].id, 'main');
+});

@@ -11,7 +11,7 @@ import streamDeck, {
 
 import { keyImageUrl } from "../lib/colours";
 import { sequenceLinkFor, type SequenceSettings, sequenceViewOf } from "../lib/sequence-key";
-import { cleanHost, feedFor, listSequences, press, type Scene } from "../lib/studio";
+import { cleanHost, feedFor, fetchScene, outputColour, outputsOf, press, type Scene } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("Sequence");
 const log = (message: string) => logger.info(message);
@@ -67,10 +67,11 @@ class SequenceKey {
 			this.ticker = null;
 		}
 		// Both states' images in the colour group; only sent again when it changes.
-		if (view.colour !== this.painted) {
-			this.painted = view.colour;
+		const lit = outputColour(this.scene, this.settings.output);
+		if (`${view.colour}|${lit}` !== this.painted) {
+			this.painted = `${view.colour}|${lit}`;
 			void this.key.setImage(keyImageUrl("sequence", view.colour, 0), { state: 0 });
-			void this.key.setImage(keyImageUrl("sequence", view.colour, 1), { state: 1 });
+			void this.key.setImage(keyImageUrl("sequence", view.colour, 1, false, lit), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;
@@ -131,13 +132,14 @@ export class SequenceAction extends SingletonAction<SequenceSettings> {
 	override async onSendToPlugin(ev: SendToPluginEvent<PiCommand, SequenceSettings>): Promise<void> {
 		if (ev.payload?.cmd !== "sequences") return;
 		const host = cleanHost(ev.payload.host);
-		const sequences = await listSequences(host);
+		const scene = await fetchScene(host);
 		if (streamDeck.ui.action?.id !== ev.action.id) return;
 		void streamDeck.ui.sendToPropertyInspector({
 			type: "sequences",
 			host,
-			ok: sequences !== null,
-			sequences: (sequences ?? []).map((s) => ({ id: s.id, name: s.name, colour: s.colour ?? "blue" })),
+			ok: scene !== null,
+			sequences: (scene?.sequences ?? []).map((s) => ({ id: s.id, name: s.name, colour: s.colour ?? "blue" })),
+			outputs: outputsOf(scene).map((o) => ({ id: o.id, name: o.name })),
 		} as unknown as PiPayload);
 	}
 }

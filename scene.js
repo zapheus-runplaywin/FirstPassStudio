@@ -388,6 +388,8 @@ function state() {
   }
   return { rev, width: WIDTH, height: HEIGHT, sources: scene.sources, scenes: orderedScenes(),
     current: currentScene() ? scene.current : null, currentOut, changed: changed(), changedOut,
+    // The outputs, for the Stream Deck plugin's keys (each key acts on one, and lights in its colour).
+    outputs: (outputsApi.summary?.() || []).map(({ id, slot, name, link, colour }) => ({ id, slot, name, link, colour })),
     converting: [...converting.keys()], ...sequences.state(), ...music.state() };
 }
 

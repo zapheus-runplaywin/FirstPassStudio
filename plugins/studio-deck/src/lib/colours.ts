@@ -1,6 +1,7 @@
 /**
  * Colour groups for keys, so a page of keys can be sorted by the part of the stream they belong to.
- * Every key keeps the same two looks: a dark body while it's off, and orange while it's on. The band
+ * Every key keeps the same two looks: a dark body while it's off, and its output's colour while it's on (Output 1
+ * orange, 2 pink, 3 blue, 4 green, as on Studio's Output page; the manifest makes the title black on it). The band
  * along the bottom carries the group's colour in both, so a lit key still shows which group it's in.
  * Source, Scene and Sequence keys each add their own faint picture and band shape on top (see keyImage).
  */
@@ -10,14 +11,17 @@ export type ColourGroup = "blue" | "green" | "grey" | "yellow" | "purple";
 export type Colours = {
 	/** Shown in the settings panel. */
 	label: string;
-	/** The key's body while its source is off: dark, so the white title reads and the orange "on" stands out. */
+	/** The key's body while its source is off: dark, so the white title reads and the lit colour stands out. */
 	off: string;
 	/** The band along the bottom, off and on. */
 	band: string;
 };
 
-/** Orange body of a lit key, the same for every group. */
-export const ON = "#f75c03";
+/** Body of a lit key for Output 1 (orange), and for any key when Studio doesn't say its output's colour. */
+export const ON = "#ea9a38";
+
+/** Each output's colour by its number (Studio's outputs.js COLOURS): the body of a lit key for that output. */
+export const OUTPUT_COLOURS = ["#ea9a38", "#f24f91", "#4ec1e6", "#95ba45"];
 
 /** In the order the settings panel lists them; blue first as the default. */
 export const GROUPS: Record<ColourGroup, Colours> = {
@@ -41,7 +45,7 @@ export type KeyKind = "source" | "scene" | "sequence";
 /**
  * The big faint picture behind a key's title: an eye for a Source (shows or hides one thing), stacked layers for
  * a Scene (a set of sources), a play button for a Sequence (plays in order). White at low opacity so the title
- * still reads over it, on every dark body and on orange.
+ * still reads over it, on every dark body and every lit colour.
  */
 const PICTURE: Record<KeyKind, string> = {
 	source:
@@ -70,12 +74,13 @@ function band(kind: KeyKind, colour: string): string {
 
 /**
  * The key image for a kind, group and state, as an SVG Stream Deck draws at the key's own size. A thin dark line
- * sits between the body and the band so the band keeps its edge against the orange. dot adds the
- * changed dot, ringed in navy so it shows on orange and on every dark body.
+ * sits between the body and the band so the band keeps its edge against the lit colour. dot adds the
+ * changed dot, ringed in navy so it shows on every lit colour and every dark body. lit: the body while on, the
+ * key's output's colour.
  */
-export function keyImage(kind: KeyKind, colour: string | undefined, state: 0 | 1, dot = false): string {
+export function keyImage(kind: KeyKind, colour: string | undefined, state: 0 | 1, dot = false, lit = ON): string {
 	const g = GROUPS[groupOf(colour)];
-	const body = state ? ON : g.off;
+	const body = state ? (/^#[0-9a-f]{6}$/i.test(lit) ? lit : ON) : g.off;
 	return (
 		`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">` +
 		`<rect width="144" height="144" fill="${body}"/>` +
@@ -91,8 +96,8 @@ export function keyImage(kind: KeyKind, colour: string | undefined, state: 0 | 1
  * The key image as Stream Deck's setImage takes an SVG: a data URL. Sent as a bare SVG string, the app ignores it
  * and the key keeps the manifest's blue image.
  */
-export function keyImageUrl(kind: KeyKind, colour: string | undefined, state: 0 | 1, dot = false): string {
-	return `data:image/svg+xml,${encodeURIComponent(keyImage(kind, colour, state, dot))}`;
+export function keyImageUrl(kind: KeyKind, colour: string | undefined, state: 0 | 1, dot = false, lit = ON): string {
+	return `data:image/svg+xml,${encodeURIComponent(keyImage(kind, colour, state, dot, lit))}`;
 }
 
 /** WCAG contrast ratio between two #rrggbb colours (1 to 21). */

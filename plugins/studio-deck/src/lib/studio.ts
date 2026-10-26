@@ -8,7 +8,18 @@
 export const DEFAULT_HOST = "http://localhost:8080";
 
 /** One source in the scene, as /api/scene sends it (only the fields the keys use). */
-export type SceneSource = { id: string; name: string; type: string; visible: boolean; sound?: boolean };
+export type SceneSource = {
+	id: string;
+	name: string;
+	type: string;
+	/** On for Output 1. */
+	visible: boolean;
+	sound?: boolean;
+	/** On for each of the other outputs, by output id (from a Studio with more than one output). */
+	out?: Record<string, boolean>;
+};
+/** One of Studio's outputs (up to four): its id, name, number and colour, and its name as it goes in a link. */
+export type Output = { id: string; name: string; slot?: number; colour?: string; link?: string };
 /** A saved look: on or off for each source it sets, by source id (only the fields the keys use). */
 export type SavedScene = { id: string; name: string; colour?: string; states: Record<string, "on" | "off"> };
 /** A sequence: sources played one after another (only the fields the keys use). */
@@ -42,7 +53,50 @@ export type Scene = {
 	playing?: Playing | null;
 	/** A sequence about to start by itself (a few seconds after the siren): its time left (null while it waits for the one playing). */
 	pending?: Pending | null;
+	/**
+	 * Studio's outputs (missing from a Studio older than them). The fields above are Output 1's; the other outputs'
+	 * current scene, changes, playing and pending sequence are kept by output id.
+	 */
+	outputs?: Output[];
+	currentOut?: Record<string, string>;
+	changedOut?: Record<string, string[]>;
+	playingOut?: Record<string, Playing>;
+	pendingOut?: Record<string, Pending>;
 };
+
+/** Output 1's id. A key with no output set acts on it, as keys did before Studio had more than one. */
+export const PRIMARY = "main";
+
+const isPrimary = (output?: string) => !output || output === PRIMARY;
+
+/** The scene as one output sees it: its sources on and off, current scene, changes and sequences, in Output 1's fields. */
+export function forOutput(scene: Scene | null, output?: string): Scene | null {
+	if (!scene || isPrimary(output)) return scene;
+	const id = output!;
+	return {
+		...scene,
+		sources: scene.sources.map((s) => ({ ...s, visible: !!s.out?.[id] })),
+		current: scene.currentOut?.[id] ?? null,
+		changed: scene.changedOut?.[id] ?? [],
+		playing: scene.playingOut?.[id] ?? null,
+		pending: scene.pendingOut?.[id] ?? null,
+	};
+}
+
+/** A key's output has been removed in Studio (Output 1 never is). */
+export function outputGone(scene: Scene | null, output?: string): boolean {
+	return !!scene && !isPrimary(output) && !(scene.outputs ?? []).some((o) => o.id === output);
+}
+
+/** The colour a key for an output lights in: the output's colour from Studio, or undefined to use the default. */
+export function outputColour(scene: Scene | null, output?: string): string | undefined {
+	return scene?.outputs?.find((o) => o.id === (output || PRIMARY))?.colour;
+}
+
+/** Where an output's Stream Deck links start: /deck for Output 1, /deck/output/<id> for the others. */
+export function deckBase(output?: string): string {
+	return isPrimary(output) ? "/deck" : `/deck/output/${encodeURIComponent(output!)}`;
+}
 
 /** The scene, or null while Studio can't be reached. */
 export type Listener = (scene: Scene | null) => void;
@@ -182,35 +236,35 @@ export async function press(host: string, path: string): Promise<boolean> {
 	}
 }
 
-/** The scene's sources, for the key settings' list; null if Studio can't be reached. */
-export async function listSources(host: string): Promise<SceneSource[] | null> {
+/** The whole scene, for the key settings' lists; null if Studio can't be reached. */
+export async function fetchScene(host: string): Promise<Scene | null> {
 	try {
 		const res = await fetch(`${host}/api/scene`, { signal: AbortSignal.timeout(5000) });
 		if (!res.ok) return null;
-		return ((await res.json()) as Scene).sources;
+		return (await res.json()) as Scene;
 	} catch {
 		return null;
 	}
+}
+
+/** The scene's sources, for the key settings' list; null if Studio can't be reached. */
+export async function listSources(host: string): Promise<SceneSource[] | null> {
+	return (await fetchScene(host))?.sources ?? null;
 }
 
 /** The saved scenes, for the Scene key settings' list; null if Studio can't be reached. */
 export async function listScenes(host: string): Promise<SavedScene[] | null> {
-	try {
-		const res = await fetch(`${host}/api/scene`, { signal: AbortSignal.timeout(5000) });
-		if (!res.ok) return null;
-		return ((await res.json()) as Scene).scenes ?? [];
-	} catch {
-		return null;
-	}
+	const scene = await fetchScene(host);
+	return scene ? (scene.scenes ?? []) : null;
 }
 
 /** The competition's sequences, for the Sequence key settings' list; null if Studio can't be reached. */
 export async function listSequences(host: string): Promise<Sequence[] | null> {
-	try {
-		const res = await fetch(`${host}/api/scene`, { signal: AbortSignal.timeout(5000) });
-		if (!res.ok) return null;
-		return ((await res.json()) as Scene).sequences ?? [];
-	} catch {
-		return null;
-	}
+	const scene = await fetchScene(host);
+	return scene ? (scene.sequences ?? []) : null;
+}
+
+/** The outputs for the key settings' Output list: Output 1 alone from a Studio older than outputs. */
+export function outputsOf(scene: Scene | null): Output[] {
+	return scene?.outputs?.length ? scene.outputs : [{ id: PRIMARY, name: "Output 1", slot: 1 }];
 }
