@@ -497,17 +497,23 @@ function describe(a) {
 // time's in order (a preview before the cut). Anything still waiting for that owner is called off first.
 // When the switcher isn't answering, or hasn't what an action needs, it's skipped and logged, never queued.
 const waiting = new Map(); // owner -> [timer]
+// owner -> a number that goes up each time its actions are called off, so a group part way through (waiting
+// for a stinger, say) stops before its next action too.
+const runs = new Map();
 function cancel(owner) {
   for (const t of waiting.get(owner) || []) clearTimeout(t);
   waiting.delete(owner);
+  runs.set(owner, (runs.get(owner) || 0) + 1);
 }
 function run(actions, why, owner) {
   cancel(owner);
   if (!actions || !actions.length) return;
+  const mine = runs.get(owner);
   const at = new Map();
   for (const a of actions) at.set(a.atSec || 0, [...(at.get(a.atSec || 0) || []), a]);
   const go = async group => {
     for (const a of group) {
+      if (runs.get(owner) !== mine) return; // called off
       const r = await act(a, why);
       // act logs a switcher that isn't there or didn't take it; what it hasn't got is logged here.
       if (r.error && r.status !== 409 && r.status !== 502) log('warn', 'switcher', `${why}: skipped ${describe({ ...a, atSec: 0 })}: ${r.error}`);
