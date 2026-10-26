@@ -110,7 +110,7 @@ exposure.init(log, { showing: scene.showing, onAir: () => outputs.windows().some
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
 // The ATEM switcher, if one is set up: its state goes to the Output page over the scene's socket.
 scene.setSwitcherSource(switcher.status);
-switcher.init(log, { changed: scene.publishSwitcher });
+switcher.init(log, { changed: scene.publishSwitcher, stinger: { find: scene.stingerSource, play: scene.playStinger } });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
 const playhq = require('./playhq').create({

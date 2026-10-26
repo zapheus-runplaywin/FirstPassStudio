@@ -123,6 +123,12 @@
   }
   // Pages that animate away say so with done.js (postMessage { studio: 'done' }); pages with sound (the intro and
   // outro) send their plan with pagesound.js (postMessage { studio: 'sound', plan }).
+  // The stinger says when it covers the frame (stinger.html): Output 1's windows pass it to the switcher, which cuts
+  // underneath (the first word wins, from whichever of its windows: the video output, its key, the Output page's preview).
+  addEventListener('message', e => {
+    if (!e.data || e.data.studio !== 'stinger' || outputId) return;
+    fetch('/api/switcher', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'stingerStarted', cover: e.data.cover }) }).catch(() => {});
+  });
   addEventListener('message', e => {
     if (!e.data || (e.data.studio !== 'done' && e.data.studio !== 'sound')) return;
     for (const L of layers.values()) {

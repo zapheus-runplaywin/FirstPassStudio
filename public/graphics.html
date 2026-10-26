@@ -283,8 +283,15 @@
         <code>/deck/switcher/preview/&lt;input&gt;</code> and <code>program/&lt;input&gt;</code> (its number, or its name such as <code>Camera%202</code>);
         <code>/deck/switcher/usk/&lt;n&gt;/on</code>, <code>off</code> or <code>toggle</code>; <code>/deck/switcher/dsk/&lt;n&gt;/on</code>, <code>off</code>, <code>toggle</code> or
         <code>auto</code>; and <code>/deck/switcher/macro/&lt;n&gt;</code> (a macro saved on the switcher, numbered from 1 as in ATEM Software Control).
+        <br><b>Stinger:</b> with the <a href="#stingerPages">Stinger page</a> as a source in the scene, the card's <b>Stinger</b> button (and <code>/deck/switcher/stinger</code>,
+        <code>/deck/switcher/stinger/&lt;input&gt;</code>) plays it on Output 1 and cuts to the preview input underneath it. The stinger tells Studio when it starts
+        and when it covers the frame, from its own settings, and the cut lands in the middle of the cover (0.72 s in with the usual half second hold), so the cut
+        comes about a second and a half after the press, once the page has loaded. Output 1's picture reaches the switcher a few frames late (more over NDI than HDMI):
+        set the <b>line-up</b> in frames (−25 to 25, at the switcher's own frame rate) to move the cut, and press <b>Test the line-up</b> before you're live: it cuts
+        just 2 frames after the bands cover the frame, so if the old picture flashes before them, add frames. With no stinger in the scene, a stinger is an auto;
+        if the page doesn't start within 3 s, it's a plain cut, and the log says which.
         <br><b>Switcher actions in sequences and scenes:</b> once a switcher is set up, a sequence's sources or scene step has a 🎥 button, and each scene has
-        <b>🎥 Switcher</b> under Edit scenes. Each adds up to eight actions: <b>Cut to</b> or <b>Auto to</b> an input (or what's on preview), <b>Put on preview</b>,
+        <b>🎥 Switcher</b> under Edit scenes. Each adds up to eight actions: <b>Cut to</b>, <b>Auto to</b> or <b>Stinger to</b> an input (or what's on preview), <b>Put on preview</b>,
         an <b>Upstream key</b> or <b>Downstream key</b> on, off or toggled (a downstream key can go <b>at its rate</b>), <b>Fade to black</b> or back, and <b>Run macro</b>,
         each as the step starts or the scene is picked, or up to 60 s in (in tenths of a second). Actions at the same moment go in order, so a preview then a cut works.
         A step's actions still to come are called off when the step ends or the sequence stops; a scene's when another scene is picked. A scene step does the scene's actions too.
@@ -457,7 +464,7 @@
         backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
         Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
         coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too.</li>
-      <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed), one for the Mac whichever competition is in use.</li>
+      <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
@@ -744,7 +751,8 @@ document.getElementById('stingerPages').appendChild(pageRow('Stinger', '/stinger
   '<code>?mode=dark</code> uses the setup\'s dark mode competition logo, <code>?size=560</code> sets the logo\'s height in pixels, and <code>?sfx=80</code> is the whoosh\'s volume in % (<code>0</code> for none). ' +
   'The music carries on under it unless you say: <code>?music=quiet</code> brings the music down quickly, so it\'s down by the time the picture is covered, and keeps it down for the scene you cut to, as a scene with <b>Quiet the music</b> does, until a scene, sequence or step without it; ' +
   '<code>?music=dip</code> brings it down the same way and back up in half a second as the stinger leaves. ' +
-  'It reads the competition logo once when it loads.'));
+  'It reads the competition logo once when it loads. ' +
+  'With an ATEM switcher set up (under Video output), <b>Stinger</b> on its card, <code>/deck/switcher/stinger</code> and a sequence or scene\'s <b>Stinger to</b> play it on Output 1 and cut the switcher underneath, in the middle of the cover as this stinger\'s own settings make it (so <code>?hold=</code> and <code>?length=</code> still line up).'));
 document.getElementById('stingerPages').appendChild(pageRow('Stinger: colours only', '/stinger.html?logo=0'));
 const INTRO_HELP = 'The competition logo and name, the organisation, and the logos of every team in a division, for the start and the end of the stream. ' +
   '<b>Intro:</b> Welcome to the competition, with this round, the division, the venue and the date. ' +
