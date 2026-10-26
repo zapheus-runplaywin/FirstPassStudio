@@ -120,7 +120,8 @@ test('Stream Deck: each output on and off by name or number, all at once, and th
   outputs.deck(['output', 'all', 'off']);
   assert.ok(st().outputs.every(o => !o.on));
   outputs.deck(['output', 'all', 'toggle']);
-  assert.ok(st().outputs.every(o => o.on));
+  assert.ok(st().outputs.every(o => o.on === (o.mode !== 'off')), 'all on, but one set to Off stays off');
+  assert.ok(st().outputs.some(o => o.mode === 'off'), 'one is set to Off');
   assert.equal(outputs.deck(['output', 'nowhere', 'on']).status, 404);
   assert.equal(outputs.deck(['output', 'big-screen', 'layer', 'x', 'on']), null, 'a layer link is the scene\'s');
   void big;

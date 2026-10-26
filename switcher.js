@@ -339,14 +339,14 @@ const nameOf = (s, id) => (s.inputs.find(i => i.id === id) || {}).name || `input
 
 // The output the stinger plays on: the first on a downstream key that's switched on, else Output 1 (the primary)
 // if it's on, else the first on a downstream key even though it's off (the card says to turn it on). Output 1 when
-// no output is set up, as before: { id, name, on }.
+// no output is set up, off (set to Off is off), so the card says so: { id, name, on }.
 function stingerOutput() {
   let plan;
   try { plan = outputsPlan() || []; } catch { plan = []; }
   const dsk = plan.filter(x => x.keyer.startsWith('dsk'));
   const main = plan.find(x => x.id === 'main');
   const o = dsk.find(x => x.on) || (main && main.on ? main : null) || dsk[0] || main;
-  return o ? { id: o.id, name: o.name, on: o.on } : { id: 'main', name: 'Output 1', on: true };
+  return o ? { id: o.id, name: o.name, on: o.on } : { id: 'main', name: 'Output 1', on: false };
 }
 // A stinger to an input (or what's on preview): the input goes on preview, the stinger plays on its output, and
 // once its page says it has started (with when it covers the frame, from its own settings) the cut lands in
