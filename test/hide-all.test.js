@@ -1,6 +1,6 @@
-// The Output page's Hide all with more than one output: it clears the output picked over the Scene View (where
-// scene and sequence clicks go) and says which on the button, never every output at once, so clearing a
-// commentary monitor can't blank the output on air.
+// The Output page's Hide all with more than one output: it clears one output and says which on the button: the one
+// the Sources list shows when Show is set to one, else the one picked over the Scene View (where scene and sequence
+// clicks go). Never every output at once, so clearing a commentary monitor can't blank the output on air.
 // The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -24,7 +24,7 @@ async function launch(t) {
   return browser;
 }
 
-test('Hide all clears only the output picked over the Scene View, and says which', async t => {
+test('Hide all clears only the output the list shows, or else the one picked over the Scene View, and says which', async t => {
   const browser = await launch(t);
   if (!browser) return;
   const studio = await startStudio(t);
@@ -52,7 +52,17 @@ test('Hide all clears only the output picked over the Scene View, and says which
   await studio.until(async () => !(await where()).two);
   assert.deepEqual(await where(), { one: true, two: false }, 'Output 1 is still showing it');
 
+  // Show set to one output: Hide all clears the output the list shows, even with another tab picked.
+  await act({ type: 'show', name: 'Scoreboard', output: two.id });
   await page.click('.outTab:has-text("Output 1")');
+  await page.waitForFunction(() => document.getElementById('hideAll').textContent === 'Hide all on Output 1');
+  await page.selectOption('#outFilter', two.id);
+  await page.waitForFunction(n => document.getElementById('hideAll').textContent === `Hide all on ${n}`, two.name);
+  await page.click('#hideAll');
+  await studio.until(async () => !(await where()).two);
+  assert.deepEqual(await where(), { one: true, two: false }, 'the list showed Output 2, so Output 1 keeps it');
+
+  await page.selectOption('#outFilter', 'all');
   await page.waitForFunction(() => document.getElementById('hideAll').textContent === 'Hide all on Output 1');
   await page.click('#hideAll');
   await studio.until(async () => !(await where()).one);
