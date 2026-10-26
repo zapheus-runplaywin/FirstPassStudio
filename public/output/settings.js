@@ -293,6 +293,7 @@ const showOut = o => {
   const so = o.outputs.find(x => x.id === outSel) || o.outputs[0];
   outSel = so.id;
   renderOutputs(o, so);
+  renderPerf(o, so);
   if (hadExtras !== extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join()) { renderList(); renderForm(); renderTabs(); }
   if (relisten) { listen(); if (popped) popChannel.postMessage('ask'); }
   $('outNoApp').classList.toggle('hidden', o.app);
@@ -480,7 +481,14 @@ function renderOutputs(o, so) {
     card.style.setProperty('--c', x.colour);
     card.innerHTML = '<span class="dot"></span><span class="what"><b></b> <small></small></span><button></button>';
     card.querySelector('b').textContent = `${x.slot} · ${x.name}`;
-    card.querySelector('small').textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.primary ? ' · primary, with sound' : '');
+    const small = card.querySelector('small');
+    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.primary ? ' · primary, with sound' : '');
+    if (x.perf) {
+      const p = document.createElement('span');
+      p.textContent = ' · ' + perfText(x.perf);
+      p.classList.toggle('slow', perfSlow(x.perf));
+      small.appendChild(p);
+    }
     const live = x.on && x.mode !== 'off';
     const b = card.querySelector('button');
     b.textContent = live ? 'On' : 'Off';
@@ -491,6 +499,20 @@ function renderOutputs(o, so) {
     card.onclick = () => pickOutput(x.id);
     list.appendChild(card);
   }
+}
+// How hard an output is working (the app checks every 5 seconds while it's on).
+const perfText = p => `${p.cpu}% CPU, ${p.memMB} MB, ${p.fps} of ${p.target} fps`;
+// Drawing well under its frame rate: the Mac isn't keeping up.
+const perfSlow = p => p.target > 0 && p.fps < p.target * 0.9;
+function renderPerf(o, so) {
+  const el = $('outPerf');
+  const t = o.perfTotal;
+  el.classList.toggle('hidden', !so.perf && !t);
+  if (!so.perf && !t) return;
+  const mine = so.perf ? `${o.outputs.length > 1 ? so.name : 'This output'}: ${perfText(so.perf)}${perfSlow(so.perf) ? ', so the Mac isn\'t keeping up' : ''}.` : '';
+  const all = t ? ` Studio in all: ${t.cpu}% CPU, ${t.memMB >= 1024 ? `${(t.memMB / 1024).toFixed(1)} GB` : `${t.memMB} MB`}, graphics processor ${t.gpu}%.` : '';
+  el.textContent = (mine + all).trim();
+  el.classList.toggle('slow', !!so.perf && perfSlow(so.perf));
 }
 // What an output sends to, in a few words.
 function outWhere(o, x) {

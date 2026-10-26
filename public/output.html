@@ -60,6 +60,7 @@
   .outCard.sel { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--fp-white)); }
   .outCard .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c); }
   .outCard small { color: var(--fp-muted); }
+  .perf.slow, .outCard small .slow { color: #8A3B00; font-weight: 600; }
   .outCard .onBtn { background: var(--c); color: #0F172A; }
   .outTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .outTab { background: var(--fp-white); color: var(--fp-navy); border: 2px solid var(--fp-line); box-shadow: inset 0 -4px 0 var(--c); }
@@ -286,6 +287,7 @@
           clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key.</p>
       </div>
       <p class="note" id="outStatus"></p>
+      <p class="note perf hidden" id="outPerf" title="Checked every 5 seconds while an output is on. CPU is a percentage of one processor core. Studio writes these to its log once a minute."></p>
       <p class="note hidden" id="outExtraNote"><b>This output shows its own graphics:</b> turn sources on and off for it with its
       coloured buttons in the Sources list (they start off), or its own Stream Deck links. It's always silent: only Output 1, the primary,
       plays sound and music. Scenes and sequences act on Output 1.</p>

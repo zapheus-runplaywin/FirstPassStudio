@@ -72,6 +72,14 @@ let decklinkOutput = ''; // the output whose picture the Blackmagic device is se
 // { running, format, sources: [{ kind, name, connections }], late, error }.
 let ndi = null;
 const ndiStatus = new Map(); // output id -> its NDI sources' status
+// How hard each output is working, from the app (desktop/perf.js) every few seconds while one is showing:
+// { at, outputs: { id: { cpu, memMB, fps, target } }, total: { cpu, memMB, gpu } }; and the samples
+// since the last minute's log line.
+let perf = null;
+let perfSamples = [];
+let perfLoggedAt = 0;
+const PERF_STALE_MS = 15000;
+const PERF_LOG_MS = 60000;
 const port = process.parentPort || null;
 // The Output page (or Scene View window) whose Scene View plays the sound: { id, until }. Only while no
 // video output is on (an output on carries the sound itself, so the Scene View is silent and the same sound
@@ -270,6 +278,7 @@ function outputState(o, clash, showing) {
     clash: clash.get(o.id) ? clash.get(o.id).name : '',
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
+    perf: perfNow()?.outputs[o.id] || null,
     // Colours in the graphics a chroma key on chromaColor would cut into.
     nearKey: nearKey(competitionColours(), o.chromaColor),
   };
@@ -284,6 +293,7 @@ function state() {
     ndi: ndi || { ok: false, error: '' }, ndiFormats: NDI_FORMATS, showing,
     // previewSound: the primary output isn't on, so the Scene View plays the sound (listening: one does now).
     previewSound: sceneViewSound(), listening: listening(),
+    perfTotal: perfNow()?.total || null,
   };
 }
 
@@ -436,9 +446,46 @@ function message(msg) {
     if (JSON.stringify(windows()) !== before) send();
   }
   if (msg.type === 'ndiStatus') ndiStatus.set(String(msg.output || PRIMARY), msg.status || { running: false });
+  if (msg.type === 'perf') notePerf(msg);
   // Esc on an output window turns that output off, in case it covers the screen you work on.
   if (msg.type === 'escape') apply({ output: msg.output || PRIMARY, on: false });
   listenChanged(); // an output may have come or gone
+}
+
+const num = n => Number.isFinite(Number(n)) ? Math.max(0, Math.round(Number(n))) : 0;
+const perfNow = () => perf && Date.now() - perf.at < PERF_STALE_MS ? perf : null;
+
+function notePerf(msg) {
+  const outputs = {};
+  for (const [id, p] of Object.entries(msg.outputs || {})) {
+    outputs[String(id)] = { cpu: num(p?.cpu), memMB: num(p?.memMB), fps: num(p?.fps), target: num(p?.target) };
+  }
+  const t = msg.total;
+  perf = { at: Date.now(), outputs, total: t ? { cpu: num(t.cpu), memMB: num(t.memMB), gpu: num(t.gpu) } : null };
+  if (!Object.keys(outputs).length) { perfSamples = []; return; }
+  perfSamples.push(perf);
+  if (!perfLoggedAt) perfLoggedAt = perf.at;
+  if (perf.at - perfLoggedAt >= PERF_LOG_MS) logPerf();
+}
+
+// One line a minute while outputs are showing: each output's average CPU and memory and its frame rate
+// (the lowest seen, against what it should draw at), and Studio as a whole.
+function logPerf() {
+  const samples = perfSamples;
+  perfSamples = [];
+  perfLoggedAt = Date.now();
+  if (!samples.length) return;
+  const avg = xs => Math.round(xs.reduce((n, x) => n + x, 0) / xs.length);
+  const parts = list.map(o => {
+    const mine = samples.map(s => s.outputs[o.id]).filter(Boolean);
+    if (!mine.length) return '';
+    const low = Math.min(...mine.map(p => p.fps));
+    const target = mine.at(-1).target;
+    return `${o.name} ${avg(mine.map(p => p.cpu))}% CPU, ${avg(mine.map(p => p.memMB))} MB, ${avg(mine.map(p => p.fps))} of ${target} fps (lowest ${low})`;
+  }).filter(Boolean);
+  const totals = samples.map(s => s.total).filter(Boolean);
+  if (totals.length) parts.push(`Studio in all ${avg(totals.map(t => t.cpu))}% CPU, ${avg(totals.map(t => t.memMB))} MB, graphics processor ${avg(totals.map(t => t.gpu))}% CPU`);
+  log('info', 'outputs', `Performance over the last minute: ${parts.join('; ')}`);
 }
 
 // colours(): the active competition's colours and club colours, [{ name, hex }].
