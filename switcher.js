@@ -339,7 +339,7 @@ const nameOf = (s, id) => (s.inputs.find(i => i.id === id) || {}).name || `input
 
 // The output the stinger plays on: the first on a downstream key that's switched on, else Output 1 (the primary)
 // if it's on, else the first on a downstream key even though it's off (the card says to turn it on). Output 1 when
-// no output is set up, off (set to Off is off), so the card says so: { id, name, on }.
+// no output is set up, off (Web links only is off), so the card says so: { id, name, on }.
 function stingerOutput() {
   let plan;
   try { plan = outputsPlan() || []; } catch { plan = []; }

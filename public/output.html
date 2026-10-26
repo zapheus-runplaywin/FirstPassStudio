@@ -290,11 +290,11 @@
           <label style="font-weight:400"><input type="checkbox" id="outSponsors"> Counts for sponsors</label>
           <details class="info"><summary>Expand for info</summary><p class="note">Tick it when everything on this output is seen on the stream, like a second downstream key: then its sponsors
           and Sponsor ads count in the exposure report. Leave it off for a camera's upstream key or a commentary monitor, as Studio can't tell when
-          they're on air and counting them would overclaim; its Sponsor ads then don't take a sponsor's turn. Output 1 always counts. An output counts as on air only while it's on: turned off or set to Off, it isn't.</p></details>
+          they're on air and counting them would overclaim; its Sponsor ads then don't take a sponsor's turn. Output 1 always counts. An output counts as on air only while it's on: turned off or set to Web links only, it isn't.</p></details>
         </div>
         <label>Send the scene</label>
         <div style="display:grid;gap:6px">
-          <label><input type="radio" name="outMode" value="off"> Off</label>
+          <label><input type="radio" name="outMode" value="off" id="outWebOnly"> Web links only: nothing is actively sent from this Mac</label>
           <label><input type="radio" name="outMode" value="chroma"> Chroma: over a solid colour on one display (one HDMI into the switcher)</label>
           <label><input type="radio" name="outMode" value="fillkey" id="outFillKey"> Fill and key: on two displays (two HDMI into the switcher's fill and key inputs)</label>
           <label><input type="radio" name="outMode" value="decklink" id="outDecklink"> Blackmagic UltraStudio or DeckLink: fill and key over SDI <span style="color:var(--fp-muted)" id="outDlNote"></span></label>
@@ -412,7 +412,7 @@
     <details class="info"><summary>Expand for info</summary><p class="note" id="swNote">Studio controls a Blackmagic ATEM switcher over the network: the Mac and the switcher need to be on the same network,
       ideally a wired one. <b>Look for switchers</b> finds them the way ATEM Software Control does (the first time, macOS asks to let Studio use the
       local network: say Allow), and Studio remembers the one you pick by its name, so it finds it again if its address changes. Click an input to put it on
-      preview, then <b>Cut</b> or <b>Auto</b> to take it, or <b>Stinger</b>: Studio plays the scene's Stinger page on the output on a downstream key (Output 1 unless another one that's on is; the card says if that output is off, as it is when set to Off) and cuts in the middle of it,
+      preview, then <b>Cut</b> or <b>Auto</b> to take it, or <b>Stinger</b>: Studio plays the scene's Stinger page on the output on a downstream key (Output 1 unless another one that's on is; the card says if that output is off, as it is when set to Web links only) and cuts in the middle of it,
       where the bands cover the frame (read from the stinger's own settings, so a longer hold still lines up). If that output's picture reaches the switcher a
       little late, set its <b>line-up</b> in frames (each output keeps its own) and check it with <b>Test the line-up</b> before you're live. Studio shows only what your switcher has (an ATEM Mini Pro has 4 inputs, one upstream key and
       one downstream key; a Mini Extreme has 8, four and two). The switcher's own buttons, ATEM Software Control and other controllers keep working

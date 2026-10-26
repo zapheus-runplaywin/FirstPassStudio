@@ -1,4 +1,4 @@
-// An output set to Off is off (outputs.js clean): never switched on, by the Output page, a Stream Deck link or an
+// An output set to Web links only is off (outputs.js clean): never switched on, by the Output page, a Stream Deck link or an
 // older outputs.json; and what's on an output that isn't sending isn't on air in the sponsors' exposure report
 // (scene.js showing, exposure.js), even while another output is.
 const test = require('node:test');
@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-outputs-off-'));
-// Saved before Off counted as off: Output 1 set to Off but switched on.
+// Saved before Web links only counted as off: Output 1 set to Web links only but switched on.
 fs.writeFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'outputs.json'), JSON.stringify({ mode: 'off', on: true }));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: new Date(2026, 9, 24, 19, 0, 0).getTime() });
 const competitions = require('../competitions');
@@ -28,7 +28,7 @@ exposure.init(() => {}, { showing: scene.showing, onAir: outputs.sponsorsOnAir, 
 const main = () => outputs.state().outputs[0];
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));
 
-test('an output set to Off is off, whatever turns it on', () => {
+test('an output set to Web links only is off, whatever turns it on', () => {
   assert.equal(main().on, false, 'an older outputs.json');
   outputs.apply({ on: true });
   assert.equal(main().on, false, 'Output on');
@@ -41,7 +41,7 @@ test('an output set to Off is off, whatever turns it on', () => {
   assert.equal(outputs.find('wide-camera').on, true);
   assert.deepEqual(outputs.summary().map(o => o.sending), [false, true]);
   assert.equal(outputs.state().previewSound, true, 'Output 1 isn\'t sending, so the Scene View has the sound');
-  // Set up, it can be switched on; set to Off again, it's off.
+  // Set up, it can be switched on; set to Web links only again, it's off.
   outputs.apply({ mode: 'ndi', on: true });
   assert.equal(main().on, true);
   outputs.apply({ mode: 'off' });
@@ -57,10 +57,10 @@ test('what\'s on an output that isn\'t sending isn\'t on air for sponsors, while
   const seconds = offAir => (exposure.report({ competition: comp, offAir }).sponsors.find(s => s.name === 'Golds Bakery') || { seconds: 0 }).seconds;
   const pass = n => { for (let i = 0; i < n; i++) { mock.timers.tick(1000); exposure.tick(); } };
 
-  // Wide camera counts for sponsors but has nothing of Golds on it until it's ticked; Output 1 is set to Off.
+  // Wide camera counts for sponsors but has nothing of Golds on it until it's ticked; Output 1 is set to Web links only.
   assert.deepEqual(scene.showing().map(s => [s.name, s.air]), [['Scoreboard', false]]);
   pass(10);
-  assert.equal(seconds(false), 0, 'not on air: Output 1 is set to Off');
+  assert.equal(seconds(false), 0, 'not on air: Output 1 is set to Web links only');
   assert.ok(seconds(true) >= 9, 'off air it\'s still counted');
 
   outputs.apply({ output: 'wide-camera', sponsors: true });

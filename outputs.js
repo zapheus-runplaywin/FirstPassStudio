@@ -35,6 +35,7 @@ const datadir = require('./datadir');
 const savefile = require('./savefile');
 
 const FILE = datadir.file('outputs.json');
+// 'off' is Web links only on the Output page: nothing sent from this Mac (the scene's web links work whatever the mode).
 const MODES = ['off', 'chroma', 'fillkey', 'decklink', 'ndi'];
 const KEYING = ['external', 'off'];
 // Which of the switcher's keys an output comes into ('' for the usual one: Output 1 on downstream key 1, the others
@@ -108,7 +109,7 @@ function clean(s, old = DEFAULTS) {
     // The name shown on the Output page and used in its Stream Deck links (/deck/output/big-screen/on).
     name: String(pick('name', '')).replace(/\s+/g, ' ').trim().slice(0, 40),
     mode: MODES.includes(pick('mode')) ? pick('mode') : 'off',
-    // Switched on (Output on). An output set to Off is always off: there's nothing to turn on until it's set up.
+    // Switched on (Output on). An output set to Web links only is always off: there's nothing to turn on until it's set up.
     on: MODES.includes(pick('mode')) && pick('mode') !== 'off' && pick('on', true) !== false,
     chromaDisplay: String(pick('chromaDisplay', '')),
     chromaColor: hex(pick('chromaColor')),
@@ -440,7 +441,7 @@ function deck(parts) {
     const on = { on: true, off: false, toggle: !any }[parts[2]];
     if (on === undefined || parts.length > 3) return { status: 404, body: { error: 'Use /deck/output/all/on, off or toggle.' } };
     const before = JSON.stringify(list);
-    for (const o of list) o.on = on && o.mode !== 'off'; // one set to Off stays off
+    for (const o of list) o.on = on && o.mode !== 'off'; // one set to Web links only stays off
     if (JSON.stringify(list) !== before) { listenChanged(); log('info', 'outputs', `Every output ${on ? 'on' : 'off'}`); save(); }
     return { status: 200, body: { ok: true, on } };
   }
@@ -531,7 +532,7 @@ function init(logger, { colours, removed, changed } = {}) {
 }
 
 // The outputs' ids, names, numbers and colours, for the scene and the Output page:
-// [{ id, slot, name, link, colour, primary, sponsors, sending }]. sending: it's sending the scene now (on, and not set to Off).
+// [{ id, slot, name, link, colour, primary, sponsors, sending }]. sending: it's sending the scene now (on, and not set to Web links only).
 function summary() {
   const sending = new Set(windows().map(w => w.output));
   return list.map(o => ({ id: o.id, slot: o.slot, name: o.name, link: slug(o.name), colour: COLOURS[o.slot], primary: o.id === PRIMARY,
