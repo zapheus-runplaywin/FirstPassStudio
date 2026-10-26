@@ -59,8 +59,8 @@ test('the Scene View pops out, comes back and pops out again', async t => {
 
   // Pop out, then Bring it back here: the window closes and the Scene View is back.
   let win = await popOut();
-  await output.click('#popIn');
-  await win.waitForEvent('close', { timeout: 5000 });
+  // Listening before the click: the window can close before a slow runner's click returns.
+  await Promise.all([win.waitForEvent('close', { timeout: 5000 }), output.click('#popIn')]);
   await becomes(here);
 
   // Pop out works again afterwards.
