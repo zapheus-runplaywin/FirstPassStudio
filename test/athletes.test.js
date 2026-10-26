@@ -1,6 +1,6 @@
 // The athletes page (athletes.js): the register of every athlete PlayHQ's line-ups have named, their photos (on
-// the team lists, positions and lower thirds), and games and positions typed in. Against the stand-in PlayHQ,
-// with the Thunder League's game on court 1 being scored.
+// the team lists, positions and lower thirds), a gender set by hand for the silhouette, and games and positions
+// typed in. Against the stand-in PlayHQ, with the Thunder League's game on court 1 being scored.
 
 'use strict';
 
@@ -71,6 +71,16 @@ test('a photo that isn\'t one is refused, and an empty file or no name says what
   const nameless = await upload('athlete=%20%20&ext=png');
   assert.match(nameless.json.error, /A photo needs an athlete name/);
   assert.equal((await studio.request('POST', '/api/athletes/rename', { file: 'x.png', athlete: '' })).json.error, 'Pick an athlete for this photo.');
+});
+
+test('a gender set by hand changes the silhouette, and clearing it goes back to PlayHQ\'s', async () => {
+  let r = await studio.post('/api/athletes/gender', { athlete: 'Blizzardz WA', gender: 'female' });
+  assert.equal(r.silhouette, '/silhouettes/female.svg');
+  assert.equal(r.genderSetByHand, true);
+  assert.equal((await player('Blizzardz WA')).silhouette, '/silhouettes/female.svg');
+  r = await studio.post('/api/athletes/gender', { athlete: 'Blizzardz WA', gender: '' });
+  assert.equal(r.genderSetByHand, false);
+  assert.equal((await player('Blizzardz WA')).silhouette, '/silhouettes/male.svg');
 });
 
 test('games and positions typed in are kept and tidied, and a line without a division is refused', async () => {
