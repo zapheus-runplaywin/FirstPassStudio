@@ -301,6 +301,48 @@ test('Quiet the music: a scene ducks the player, the next scene brings it back; 
   assert.equal(m().status, 'playing');  wait(4); // let the duck come all the way back up
 });
 
+test('a stinger with ?music=quiet ducks the music quickly and leaves it down for the scene cut to; ?music=dip brings it back up', () => {
+  reset();
+  ok({ type: 'add', sources: [{ type: 'browser', name: 'Quiet stinger', url: 'stinger.html?music=quiet' }, { type: 'browser', name: 'Dip stinger', url: 'stinger.html?music=dip&length=2' },
+    { type: 'browser', name: 'Plain stinger', url: 'stinger.html' }] });
+  ok({ type: 'show', name: 'Interview' });
+  ok({ type: 'sceneSave', name: 'Interview' });
+  ok({ type: 'sceneUpdate', scene: 'Interview', changes: { quiet: true } });
+  ok({ type: 'hide', name: 'Interview' });
+  ok({ type: 'sceneSave', name: 'Game' });
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  const end = name => ok({ type: 'ended', id: id(name), loadSeq: st().sources.find(s => s.name === name).loadSeq });
+  ok({ type: 'show', name: 'Plain stinger' });
+  assert.equal(m().ducked, false, 'without ?music= it leaves the music alone');
+  end('Plain stinger');
+  // quiet: down by the time the frame is covered (0.22 s), and still down after it ends and the quiet scene comes up.
+  ok({ type: 'show', name: 'Quiet stinger' });
+  assert.equal(m().ducked, true);
+  assert.equal(m().duck.ms, 220);
+  ok({ type: 'sceneGo', scene: 'Interview' });
+  end('Quiet stinger');
+  assert.equal(m().ducked, true);
+  ok({ type: 'sceneGo', scene: 'Game' });
+  assert.equal(m().ducked, false, 'the next scene without Quiet the music brings it back');
+  wait(4);
+  // dip: down while it plays (0.44 s at twice the length), back up in half a second when it ends.
+  ok({ type: 'show', name: 'Dip stinger' });
+  assert.equal(m().ducked, true);
+  assert.equal(m().duck.ms, 440);
+  end('Dip stinger');
+  assert.equal(m().ducked, false);
+  assert.equal(m().duck.ms, 500);
+  wait(1);
+  // A dip that a quiet scene comes up under stays down.
+  ok({ type: 'show', name: 'Dip stinger' });
+  ok({ type: 'sceneGo', scene: 'Interview' });
+  end('Dip stinger');
+  assert.equal(m().ducked, true);
+  ok({ type: 'sceneGo', scene: 'Game' });
+  assert.equal(m().ducked, false);
+  wait(4);
+});
+
 test('the music links: toggle, fade, mute and duck, and ?fade=0 cuts', () => {
   reset();
   assert.equal(link('music/load/break').status, 200);

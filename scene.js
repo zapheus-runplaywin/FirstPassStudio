@@ -354,9 +354,20 @@ function apply(a) {
 // Music gets out of the way while a video with its sound on plays, or a page playing a theme song (the intro and outro's
 // ?theme=; its effects alone don't count).
 const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
+// A stinger with ?music=quiet or dip ducks the music as it comes on, by the time it covers the frame (0.22 of its length);
+// dip brings it back up when it goes off.
+function stingerMusic(s, on) {
+  if (s.type !== 'browser' || !/^\/?stinger\.html(\?|$)/.test(String(s.url || ''))) return;
+  const q = new URLSearchParams(String(s.url).split('?')[1] || '');
+  const mode = q.get('music');
+  if (mode !== 'quiet' && mode !== 'dip') return;
+  const length = Math.min(3, Math.max(.5, parseFloat(q.get('length')) || 1));
+  music.stinger(mode, on, Math.max(.2, .22 * length));
+}
 function videoSound() { music.videoSound(scene.sources.some(s => s.visible && ((s.type === 'video' && s.sound && !soundDone.has(s.id)) || playsTheme(s)))); }
 function noteShowings() {
   videoSound();
+  for (const s of scene.sources) if (s.visible !== wasOn.has(s.id)) stingerMusic(s, s.visible);
   for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;
   wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
 }
