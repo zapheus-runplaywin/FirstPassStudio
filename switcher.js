@@ -182,8 +182,14 @@ async function disconnect() {
   address = '';
   if (a) { a.removeAllListeners(); await a.destroy().catch(() => {}); }
 }
+// Each connect() supersedes any still under way (the refind timer, Use this one, Try again can overlap): one
+// that finds a newer one started while it waited stops there, so only the newest connection is kept.
+let connectGen = 0;
 async function connect() {
+  const gen = ++connectGen;
+  const current = () => gen === connectGen;
   await disconnect();
+  if (!current()) return;
   if (!pick) { setConn('off'); return; }
   let lib;
   try { lib = loadLibrary(); }
@@ -192,7 +198,9 @@ async function connect() {
   let target = pick.address;
   if (pick.kind === 'found') {
     // Remembered by name: ask the network where it is now, in case its address changed.
-    const fresh = (await lookupHost(pick.host)) || ((await find()).find(f => f.name === pick.name) || {}).address;
+    const name = pick.name;
+    const fresh = (await lookupHost(pick.host)) || ((await find()).find(f => f.name === name) || {}).address;
+    if (!current()) return;
     if (fresh && fresh !== pick.address) { pick = { ...pick, address: fresh }; save(); }
     target = pick.address;
   }
@@ -217,7 +225,7 @@ async function connect() {
   });
   a.on('stateChanged', () => { if (atem === a) changed(); });
   try { await a.connect(target, pick.port); }
-  catch (err) { setConn('error', err.message); }
+  catch (err) { if (atem === a) setConn('error', err.message); }
 }
 // A found switcher that isn't answering may have a new address (the venue's router handed out another):
 // look for it by name every so often and reconnect if it has moved. The library keeps retrying the old one.
