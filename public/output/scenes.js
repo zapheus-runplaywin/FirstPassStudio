@@ -26,6 +26,7 @@ function renderScenes() {
     b.innerHTML = '<b></b><small></small><span class="band"></span>';
     b.querySelector('b').textContent = sc.name;
     if (sc.quiet) b.querySelector('b').append(quietMark());
+    if (sc.switcher?.length) b.querySelector('b').append(switcherMark(sc.switcher));
     b.querySelector('b').append(outDots(scene.onOut?.scenes[sc.id]));
     b.querySelector('small').textContent = sceneCounts(sc);
     b.querySelector('.band').classList.add(sc.colour);
@@ -95,7 +96,7 @@ function renderGrid() {
   head.appendChild(Object.assign(document.createElement('th'), { textContent: 'Source' }));
   scenes.forEach((sc, i) => {
     const th = document.createElement('th');
-    th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt copy">Copy</button><button class="danger del">Delete</button></div><label class="quietMusic" style="font-weight:400;font-size:12px"><input type="checkbox"> Quiet the music</label>';
+    th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt copy">Copy</button><button class="danger del">Delete</button></div><label class="quietMusic" style="font-weight:400;font-size:12px"><input type="checkbox"> Quiet the music</label><button class="alt swEdit hidden"></button>';
     const input = th.querySelector('input');
     input.value = sc.name; input.dataset.scene = sc.id; input.setAttribute('aria-label', 'Scene name');
     input.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { name: input.value } });
@@ -108,6 +109,12 @@ function renderGrid() {
     quiet.checked = !!sc.quiet;
     quiet.title = 'Going to this scene ducks the music (or fades out a sequence\'s music), for an interview on court';
     quiet.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { quiet: quiet.checked } });
+    // Its switcher actions (once a switcher is set up, or it has some), in a dialog of their own.
+    const swb = th.querySelector('.swEdit');
+    swb.classList.toggle('hidden', !(sw?.setUp || sc.switcher?.length));
+    swb.textContent = sc.switcher?.length ? `🎥 Switcher (${sc.switcher.length})` : '🎥 Switcher';
+    swb.title = sc.switcher?.length ? `Switcher: ${sc.switcher.map(swActText).join(', ')}` : 'Cut to a camera, a key on or off, fade to black or a macro when this scene is picked';
+    swb.onclick = () => editSceneSwitcher(sc);
     th.querySelector('.copy').onclick = () => act({ type: 'sceneCopy', scene: sc.id });
     th.querySelector('.del').onclick = () => {
       if (confirm(`Delete the scene "${sc.name}"? Its Stream Deck keys will say gone. The sources stay as they are.`)) act({ type: 'sceneRemove', scene: sc.id });

@@ -191,3 +191,46 @@ sleep 5
   assert.equal(f.setUp, false);
   assert.equal(f.state, 'off');
 });
+
+test('a sequence and a scene drive the switcher: in order, on time, and what a Mini Pro hasn\'t got is skipped and logged', async t => {
+  const atem = await startAtem({ model: 'MiniPro', names: ['Wide', 'Court', 'Bench', 'Coach'] });
+  t.after(() => atem.close());
+  const studio = await startStudio(t);
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
+  await connected(studio);
+  await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }] });
+  const ladder = (await studio.get('/api/scene')).sources[0].id;
+  await studio.post('/api/scene', { type: 'sceneSave', name: 'Live' });
+  await studio.post('/api/scene', { type: 'sceneUpdate', scene: 'Live', changes: { switcher: [{ type: 'auto', input: 2, name: 'Court' }] } });
+  await studio.post('/api/scene', { type: 'seqAdd', changes: { name: 'Walk out', steps: [
+    { sources: [ladder], length: { type: 'time', sec: 2 }, switcher: [
+      { type: 'preview', input: 3, name: 'Bench' }, { type: 'cut' },
+      { type: 'usk', key: 2, on: 'on' },                       // the Mini Pro has one upstream key
+      { type: 'dsk', key: 1, on: 'on', mix: true, atSec: 0.5 },
+    ] },
+  ] } });
+  await studio.post('/api/scene', { type: 'seqPlay', sequence: 'Walk out' });
+  await studio.until(() => atem.state.program === 3, 3000, 20);
+  assert.deepEqual(atem.received.map(c => c.name), ['CPvI', 'DCut'], 'the preview, then the cut; the key it hasn\'t got isn\'t sent');
+  assert.equal(atem.state.dsk[0], false, 'the key waits its half second');
+  await studio.until(() => atem.state.dsk[0] === true, 3000, 20);
+  assert.equal(atem.received.at(-1).name, 'DDsA');
+  assert.match(studio.log(), /Sequence "Walk out" step 1: skipped upstream key 2 on: The ATEM Mini Pro has one upstream key/);
+  assert.match(studio.log(), /Sequence "Walk out" step 1: downstream key 1 on \(auto\)/);
+
+  // A scene picked on the Output page: its auto goes to Court.
+  await studio.post('/api/scene', { type: 'sceneGo', scene: 'Live' });
+  await studio.until(() => atem.state.program === 2, 3000, 20);
+  assert.deepEqual(atem.received.slice(-2).map(c => c.name), ['CPvI', 'DAut']);
+
+  // With the switcher not answering, a scene's actions are skipped, logged, and never sent once it's back.
+  atem.drop();
+  await studio.until(async () => (await studio.get('/api/switcher')).state === 'lost', 10000, 200);
+  const sent = atem.received.length;
+  await studio.post('/api/scene', { type: 'sceneGo', scene: 'Live' });
+  atem.resume();
+  await connected(studio, 10000);
+  await wait(300);
+  assert.equal(atem.received.length, sent);
+  assert.match(studio.log(), /Scene "Live": The switcher isn't answering, so nothing was sent \(auto\)/);
+});

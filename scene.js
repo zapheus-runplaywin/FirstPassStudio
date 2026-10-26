@@ -36,6 +36,7 @@ const datadir = require('./datadir');
 const savefile = require('./savefile');
 const sequences = require('./sequences');
 const music = require('./music');
+const switcher = require('./switcher');
 const sponsors = require('./sponsors');
 const competitions = require('./competitions');
 const exposure = require('./exposure');
@@ -270,6 +271,9 @@ function cleanScene(sc, existing = {}) {
     states,
     quiet: !!s.quiet,  // Quiet the music when this scene is picked (an interview on court)
   };
+  // Switcher actions (switcher.js) done as the scene is picked on the primary.
+  const sw = switcher.cleanActions(s.switcher);
+  if (sw.length) out.switcher = sw;
   out.name = uniqueSceneName(s.name, out.id);
   return out;
 }
@@ -316,8 +320,10 @@ function goTo(sc, fromSequence, step, out = null) {
   clearEnded(out);
   setCurrent(out, sc.id);
   log('info', 'scene', `Went to scene "${sc.name}"${out ? ` on ${outputName(out)}` : ''}: ${on} on, ${off} off`);
-  // The music is the primary's.
+  // The music is the primary's, and so is the switcher: its actions fire only for the primary, and any
+  // still to come from the scene before are called off.
   if (!out && (!step || sc.quiet)) music.quiet(sc.quiet);
+  if (!out) switcher.run(sc.switcher, `Scene "${sc.name}"`, 'scene');
 }
 
 function load() {

@@ -282,7 +282,15 @@
         Studio connects when it goes on air and lets go when it goes off air. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code> and <code>ftb</code>;
         <code>/deck/switcher/preview/&lt;input&gt;</code> and <code>program/&lt;input&gt;</code> (its number, or its name such as <code>Camera%202</code>);
         <code>/deck/switcher/usk/&lt;n&gt;/on</code>, <code>off</code> or <code>toggle</code>; <code>/deck/switcher/dsk/&lt;n&gt;/on</code>, <code>off</code>, <code>toggle</code> or
-        <code>auto</code>; and <code>/deck/switcher/macro/&lt;n&gt;</code> (a macro saved on the switcher, numbered from 1 as in ATEM Software Control).</li>
+        <code>auto</code>; and <code>/deck/switcher/macro/&lt;n&gt;</code> (a macro saved on the switcher, numbered from 1 as in ATEM Software Control).
+        <br><b>Switcher actions in sequences and scenes:</b> once a switcher is set up, a sequence's sources or scene step has a 🎥 button, and each scene has
+        <b>🎥 Switcher</b> under Edit scenes. Each adds up to eight actions: <b>Cut to</b> or <b>Auto to</b> an input (or what's on preview), <b>Put on preview</b>,
+        an <b>Upstream key</b> or <b>Downstream key</b> on, off or toggled (a downstream key can go <b>at its rate</b>), <b>Fade to black</b> or back, and <b>Run macro</b>,
+        each as the step starts or the scene is picked, or up to 60 s in (in tenths of a second). Actions at the same moment go in order, so a preview then a cut works.
+        A step's actions still to come are called off when the step ends or the sequence stops; a scene's when another scene is picked. A scene step does the scene's actions too.
+        They happen only when the scene or sequence plays on Output 1 (its picture is the one going into the switcher); on another output it plays without touching the switcher.
+        The editor offers the inputs and keys the connected switcher has; one it hasn't got (upstream key 2 on a Mini Pro, say) is shown in red and skipped, with a line in the log.
+        If the switcher isn't answering when an action's moment comes, it's skipped and logged, never done late. Scenes and sequences with switcher actions show 🎥 by their name.</li>
     </ul>
     <p class="page__help">The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>
