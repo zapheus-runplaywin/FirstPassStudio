@@ -105,5 +105,6 @@ through `/api/log`. The log file keeps its old name on purpose.
 `npm test` runs the `node:test` suites in `test/`. `test/support/studio.js` starts a real `server.js` on a free port
 with its own data folder; `test/support/playhq.js` is a stand-in PlayHQ with a made-up season around today's date
 (`world.fail` and `world.answers` make one request fail or answer oddly, for the PlayHQ outage tests). A
-Chromium page-load test runs when a browser is available. The Tests workflow runs them on every pull request and
-before each Mac app build; `test/packaging.test.js` checks that every root module is in the app's file list.
+Chromium page-load test runs when a browser is available, and `test/app.test.js` runs the Mac app itself (Electron, on
+Linux under `xvfb-run`, with Electron's binary from `node node_modules/electron/install.js`). The Tests workflow runs
+them on every pull request and before each Mac app build; `test/packaging.test.js` checks that every root module is in the app's file list.
