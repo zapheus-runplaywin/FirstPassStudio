@@ -692,6 +692,8 @@ document.getElementById('stingerPages').appendChild(pageRow('Stinger', '/stinger
   'It covers the whole frame on purpose, so it isn\'t fitted between the title and the scoreboard. ' +
   'Options: <code>?hold=1</code> holds the full frame for a whole second (0 to 1 second in steps of 0.1; <code>?hold=0</code> is a quick 1 second stinger), <code>?length=1.5</code> makes the bands sweep in and out more slowly (0.5 to 3 seconds), <code>?logo=0</code> plays it with the colours only, ' +
   '<code>?mode=dark</code> uses the setup\'s dark mode competition logo, <code>?size=560</code> sets the logo\'s height in pixels, and <code>?sfx=80</code> is the whoosh\'s volume in % (<code>0</code> for none). ' +
+  'The music carries on under it unless you say: <code>?music=quiet</code> brings the music down quickly, so it\'s down by the time the picture is covered, and keeps it down for the scene you cut to, as a scene with <b>Quiet the music</b> does, until a scene, sequence or step without it; ' +
+  '<code>?music=dip</code> brings it down the same way and back up in half a second as the stinger leaves. ' +
   'It reads the competition logo once when it loads.'));
 document.getElementById('stingerPages').appendChild(pageRow('Stinger: colours only', '/stinger.html?logo=0'));
 const INTRO_HELP = 'The competition logo and name, the organisation, and the logos of every team in a division, for the start and the end of the stream. ' +

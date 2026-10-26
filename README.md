@@ -530,7 +530,8 @@ These follow the game picked on the scoreboard control page:
   cover the whole frame from 0.22 to 1.22 seconds, with the competition logo on the last band, so a cut can happen underneath,
   then carry on off the other side. `?hold=` (seconds on the full frame, 0 to 1 in steps of 0.1, 0.5 by default; 0 is a quick 1 second stinger),
   `?length=` (how long the bands take, 0.5 to 3 seconds), `?logo=0` (colours only), `?mode=dark`, `?size=`
-  (logo height) and `?sfx=` (whoosh volume in %, 80 by default). For a switcher or player that plays stingers from a file,
+  (logo height) and `?sfx=` (whoosh volume in %, 80 by default). `?music=quiet` ducks the music by the time the frame is covered and
+  keeps it down for the scene cut to (until one without Quiet the music); `?music=dip` brings it back up as it leaves. For a switcher or player that plays stingers from a file,
   `node docs/stinger/render.js "Thunder League"` renders it from a competition template to a 1080p50 ProRes 4444 `.mov`
   with alpha (`--fps`, `--length`, `--hold`, `--logo 0`; needs ffmpeg with ProRes). `docs/stinger/` has Thunder League's.
 - http://localhost:8080/introoutro.html: the intro (or `?type=outro`, the outro) for the start and end of the stream, full screen,
