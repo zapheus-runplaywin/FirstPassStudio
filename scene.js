@@ -32,6 +32,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { pipeline } = require('stream');
 const datadir = require('./datadir');
 const savefile = require('./savefile');
 const sequences = require('./sequences');
@@ -1070,7 +1071,9 @@ function sendMedia(req, res, file, type, send) {
     res.writeHead(status, { 'content-type': type, 'content-length': end - start + 1, 'accept-ranges': 'bytes', 'cache-control': 'no-store',
       ...uploads.SERVE_HEADERS, ...(status === 206 ? { 'content-range': `bytes ${start}-${end}/${st.size}` } : {}) });
     if (req.method === 'HEAD') return res.end();
-    fs.createReadStream(file, { start, end }).pipe(res);
+    // pipeline, not pipe: a player that seeks or a window that closes drops its request part way, and the file must
+    // be closed then too, or every dropped request keeps one open until Studio runs out and stops.
+    pipeline(fs.createReadStream(file, { start, end }), res, () => {});
   });
 }
 
