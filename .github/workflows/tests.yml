@@ -15,10 +15,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# A newer push to the same pull request replaces a run still going.
+# A newer push to the same pull request replaces a run still going. On main every merge gets
+# its own run that finishes, so merges close together don't send "Run cancelled" emails and
+# each merge's result is known.
 concurrency:
-  group: tests-${{ github.ref }}
-  cancel-in-progress: true
+  group: tests-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
