@@ -10,6 +10,10 @@
 //
 // world.live[gameId] is the live feed for a game being scored (score, goals, clock); tests
 // change it to play a game. world.calls lists every request, to check what Studio asked for.
+// world.fail[operationName] (or .live) answers that request with an HTTP error status instead, and
+// world.answers[operationName] (or .live) answers it with whatever the function gives:
+//   world.answers.gradeLadder = ({ query }) => /byes/.test(query) && { status: 400, body: { errors: [...] } };
+// (a falsy result answers as usual).
 
 'use strict';
 
@@ -40,7 +44,7 @@ function createWorld({ now = Date.now() } = {}) {
   const today = dateAt(now);
   const dayOf = days => dateAt(now + days * 86400000);
 
-  const world = { now, today, orgId: ORG_ID, orgUrl: ORG_URL, divisions: DIVISIONS, calls: [], live: {}, games: {}, rounds: {}, fail: {} };
+  const world = { now, today, orgId: ORG_ID, orgUrl: ORG_URL, divisions: DIVISIONS, calls: [], live: {}, games: {}, rounds: {}, fail: {}, answers: {} };
 
   for (const [d, div] of DIVISIONS.entries()) {
     const rounds = [];
@@ -141,7 +145,7 @@ function ladder(world, div) {
 }
 
 // One GraphQL answer for api.playhq.com.
-function answer(world, operationName, variables) {
+function answer(world, operationName, variables, query = '') {
   switch (operationName) {
     case 'ProfileSearch': return { data: { profileSearch: { result: [] } } };
     case 'TenantConfig': case 'tenantLabel': return { data: { tenantConfiguration: { label: 'na' } } };
@@ -158,10 +162,15 @@ function answer(world, operationName, variables) {
     case 'gradeListDiscoverSeason':
       return { data: { discoverSeason: { id: variables.id, name: 'Spring 2026',
         competition: { id: 'comp-tl', name: 'Thunder League', organisation: { id: world.orgId, name: 'West Coast Mens and Mixed Netball Association' } },
-        grades: world.divisions.map(d => ({ id: d.id, name: d.name, gender: { value: d.gender } })) } } };
+        grades: world.divisions.map(d => ({ id: d.id, name: d.name, ...(/\bgender\b/.test(query) && { gender: { value: d.gender } }) })) } } };
     case 'gradeLadder': {
       const div = world.divisions.find(d => d.id === variables.gradeID);
-      return { data: { discoverGrade: div ? ladder(world, div) : null } };
+      if (!div) return { data: { discoverGrade: null } };
+      // Only the columns asked for, as PlayHQ answers.
+      const l = ladder(world, div);
+      const asked = k => k === 'team' || new RegExp(`\\b${k}\\b`).test(query);
+      l.ladder = l.ladder.map(p => ({ standings: p.standings.map(r => Object.fromEntries(Object.entries(r).filter(([k]) => asked(k)))) }));
+      return { data: { discoverGrade: l } };
     }
     case 'gradeRounds': {
       const div = world.divisions.find(d => d.id === variables.gradeID);
@@ -200,11 +209,14 @@ async function startPlayhq(world = createWorld()) {
       try { parsed = JSON.parse(body || '{}'); } catch { /* answered below */ }
       const spectator = req.url.startsWith('/spectator');
       const { operationName = '', variables = {} } = parsed;
-      world.calls.push({ spectator, operationName, variables, tenant: req.headers.tenant || req.headers['x-phq-tenant'] || '' });
+      world.calls.push({ spectator, operationName, variables, tenant: req.headers.tenant || req.headers['x-phq-tenant'] || '', cookie: req.headers.cookie || '', query: parsed.query || '' });
       const failing = world.fail[spectator ? 'live' : operationName];
       if (failing) { res.writeHead(failing, { 'content-type': 'text/plain' }); return res.end('Request blocked'); }
+      const custom = (world.answers || {})[spectator ? 'live' : operationName];
+      const own = custom && custom({ variables, query: parsed.query || '', calls: world.calls });
+      if (own) { res.writeHead(own.status || 200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(own.body)); }
       res.writeHead(200, { 'content-type': 'application/json', 'set-cookie': 'phq_session=test; Path=/' });
-      res.end(JSON.stringify(spectator ? liveAnswer(world, variables.id) : answer(world, operationName, variables)));
+      res.end(JSON.stringify(spectator ? liveAnswer(world, variables.id) : answer(world, operationName, variables, parsed.query)));
     });
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
