@@ -28,6 +28,11 @@ async function listShows(page, want, timeout = 5000) {
   while (Date.now() < end) { got = await sourceList(page); if (JSON.stringify(got) === JSON.stringify(want)) return; await wait(100); }
   assert.deepEqual(got, want, 'the Sources list');
 }
+// Waits for the "changes from saved" note to say this (it's redrawn as each change by hand arrives).
+async function driftSays(page, re, timeout = 5000) {
+  try { await page.waitForFunction(([src, flags]) => new RegExp(src, flags).test(document.querySelector('#drift').textContent), [re.source, re.flags], { timeout }); }
+  catch { assert.match(await page.textContent('#drift'), re); }
+}
 const source = (page, name) => page.locator('#sources li', { has: page.locator('.name', { hasText: name }) });
 
 async function addPage(page, file) {
@@ -112,8 +117,7 @@ test('scenes: save the looks, go between them, see what changed by hand, and go 
   // Quarter time: the ladder on its own.
   await source(control, 'Scoreboard').locator('.eye').click();
   await source(control, 'Ladder').locator('.eye').click();
-  await control.waitForSelector('#drift:not(.hidden)');
-  assert.match(await control.textContent('#drift'), /2 changes from saved Live: Ladder on, Scoreboard off\./);
+  await driftSays(control, /2 changes from saved Live: Ladder on, Scoreboard off\./);
   await control.click('#drift .asNew');
   await control.fill('dialog.fp-ask input', 'Quarter time');
   await control.click('dialog.fp-ask button[type=submit]');
@@ -128,7 +132,7 @@ test('scenes: save the looks, go between them, see what changed by hand, and go 
   await source(control, 'Ladder').locator('.eye').click();
   await outputShows(output, ['Scoreboard on', 'Ladder on']);
   await control.waitForSelector('#scenes button.scene.cur.changed:has-text("Live")');
-  assert.match(await control.textContent('#drift'), /1 change from saved Live: Ladder on\./);
+  await driftSays(control, /1 change from saved Live: Ladder on\./);
   await control.click('#drift .back');
   await outputShows(output, ['Scoreboard on', 'Ladder']);
   // Save over: Live now has both on.
