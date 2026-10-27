@@ -146,3 +146,21 @@ test('Studio refuses changes from another site over HTTP and WebSocket, and stil
     assert.equal(await upgrade({}), 101, 'a program with no Origin');
   } finally { await studio.stop(); }
 });
+
+test('a refused socket that hangs up straight away closes just that connection, and Studio keeps running', async t => {
+  const net = require('node:net');
+  const studio = await startStudio(t);
+  const request = 'GET /api/scene/socket HTTP/1.1\r\nhost: 127.0.0.1\r\nconnection: Upgrade\r\nupgrade: websocket\r\n'
+    + 'sec-websocket-version: 13\r\nsec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==\r\norigin: https://evil.example\r\n\r\n';
+  // Each one sends the request and resets the connection at once, so Studio's refusal is written to a socket already gone.
+  for (let i = 0; i < 50; i++) {
+    await new Promise(resolve => {
+      const s = net.connect(studio.port, '127.0.0.1', () => { s.write(request); s.resetAndDestroy(); });
+      s.on('close', resolve);
+      s.on('error', () => {});
+    });
+  }
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal(studio.exited(), null, `Studio stopped:\n${studio.output.join('')}`);
+  assert.equal((await studio.request('GET', '/api/health')).status, 200);
+});

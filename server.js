@@ -999,6 +999,9 @@ http.createServer(async (req, res) => {
   if (refused) {
     const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
     if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
+    // Node leaves an upgraded socket with no error handler, so one that has already hung up would otherwise throw
+    // here and end the helper, taking every graphic off air.
+    socket.on('error', () => socket.destroy());
     socket.end(`HTTP/1.1 403 Forbidden\r\ncontent-type: text/plain\r\nconnection: close\r\n\r\n${refused}`);
     return;
   }
