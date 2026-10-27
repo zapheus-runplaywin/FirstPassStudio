@@ -82,6 +82,56 @@ test('a playlist plays its songs in order, next and previous, and starts again a
   assert.equal(link('music/playlist/nothing').status, 404);
 });
 
+test('a playlist that doesn\'t go round stops after its last song; Jump picks a song from the queue', () => {
+  reset();
+  ok({ type: 'playlistAdd', changes: { name: 'Walk out', tracks: ['Walk out.m4a', 'Break.mp3'], loop: false } });
+  const pl = st().playlists[0];
+  ok({ type: 'musicPlaylist', playlist: pl.id, play: true, fade: 0 });
+  ok({ type: 'musicEnded', playId: m().playId });
+  assert.equal(m().track, 'Break.mp3');
+  ok({ type: 'musicEnded', playId: m().playId });
+  assert.equal(m().status, 'stopped', 'not round again');
+  // Next at the end of a playlist that doesn't go round does nothing; Jump plays the one picked.
+  ok({ type: 'musicNext' });
+  assert.equal(m().index, 1);
+  ok({ type: 'musicJump', index: 0, fade: 0 });
+  assert.equal(m().track, 'Walk out.m4a');
+  assert.equal(m().status, 'playing');
+  assert.equal(scene.apply({ type: 'musicJump', index: 5 }), 'No such track in the queue.');
+  assert.equal(scene.apply({ type: 'musicPlay' }), null);
+});
+
+test('a shuffled playlist plays every song once a round, in a new order each round', () => {
+  reset();
+  const tracks = Array.from({ length: 12 }, (_, i) => `Song ${i + 1}.mp3`);
+  for (const f of tracks) fs.writeFileSync(path.join(MEDIA, f), '');
+  ok({ type: 'playlistAdd', changes: { name: 'Shuffle', tracks, shuffle: true, loop: true } });
+  ok({ type: 'musicPlaylist', playlist: st().playlists[0].id, play: true, fade: 0 });
+  const round = () => { const heard = []; for (let i = 0; i < tracks.length; i++) { heard.push(m().track); ok({ type: 'musicEnded', playId: m().playId }); } return heard; };
+  const first = round(), second = round();
+  assert.deepEqual([...first].sort(), [...tracks].sort(), 'each song once');
+  assert.deepEqual([...second].sort(), [...tracks].sort());
+  assert.notDeepEqual([first, second], [tracks, tracks], 'shuffled (12! orders: never the list order twice by chance)');
+});
+
+test('a playlist edited or deleted while it plays: the song playing carries on', () => {
+  reset();
+  ok({ type: 'playlistAdd', changes: { name: 'Pre-game', tracks: ['Pre-game bed.mp3', 'Walk out.m4a'] } });
+  const pl = st().playlists[0];
+  ok({ type: 'musicPlaylist', playlist: pl.id, play: true, fade: 0 });
+  ok({ type: 'playlistUpdate', playlist: pl.id, changes: { name: 'Warm up', tracks: ['Break.mp3'], id: 'sneaky' } });
+  assert.equal(st().playlists[0].name, 'Warm up');
+  assert.equal(st().playlists[0].id, pl.id, 'its id can\'t be changed');
+  assert.equal(m().track, 'Pre-game bed.mp3');
+  ok({ type: 'playlistRemove', playlist: pl.id });
+  assert.equal(m().status, 'playing');
+  assert.equal(m().playlist, null);
+  assert.equal(scene.apply({ type: 'playlistUpdate', playlist: 'gone' }), 'No playlist "gone".');
+  assert.equal(scene.apply({ type: 'musicPlaylist', playlist: 'gone' }), 'No playlist "gone".');
+  ok({ type: 'playlistAdd', changes: { name: 'Empty', tracks: [] } });
+  assert.equal(scene.apply({ type: 'musicPlaylist', playlist: st().playlists[0].id }), 'The playlist "Empty" has no tracks.');
+});
+
 test('a video with its sound on fades the music out and pauses it, then it fades back in where it was', () => {
   reset();
   ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
