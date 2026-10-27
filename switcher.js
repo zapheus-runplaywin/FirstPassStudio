@@ -52,6 +52,7 @@ let connectTimer = null;      // CONNECT_MS after connecting starts, if it hasn'
 let found = [];               // the last search's switchers
 let finding = null;           // the search in progress (a promise)
 let lastKey = '';
+let rev = 0;                  // counts each change sent out, so a page can tell an older status from a newer one
 const listeners = new Set(); // server-sent events (/api/switcher/events): the Stream Deck plugin's Switcher keys
 // Stinger cuts: Studio plays the scene's stinger (stinger.html) on the output on a downstream key (Output 1 unless
 // another one that's switched on is, as only a downstream key covers the whole picture) and cuts while it covers the frame.
@@ -76,10 +77,13 @@ function setConn(c, why = '') {
   changed();
 }
 function changed() {
-  const key = JSON.stringify(status());
+  const { rev: _, ...now } = status();
+  const key = JSON.stringify(now);
   if (key === lastKey) return;
   lastKey = key;
-  for (const res of listeners) res.write(`data: ${key}\n\n`);
+  rev++;
+  const json = JSON.stringify(status());
+  for (const res of listeners) res.write(`data: ${json}\n\n`);
   try { onChange(); } catch { /* a page update failing doesn't matter here */ }
 }
 
@@ -318,6 +322,7 @@ function status() {
   const s = conn === 'connected' ? summary() : null;
   const where = stingerOutput();
   return {
+    rev,
     setUp: !!pick,
     pick,
     state: conn,
