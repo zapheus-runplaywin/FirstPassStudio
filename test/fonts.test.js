@@ -22,6 +22,57 @@ test('fonts: a font file\'s cap height, line box and capitals\' width are read f
   assert.equal(fonts.fileMetrics(Buffer.from('wOF2 not a font')), null, 'not a font: left as it is');
 });
 
+test('fonts: a font that unpacks to far more than any real font is left unmeasured, quickly', t => {
+  const zlib = require('node:zlib');
+  // 256 MB of nothing packs into a few hundred bytes, as a WOFF2 whose one table claims to be small...
+  const huge = 256 * 1024 * 1024;
+  const packed = zlib.brotliCompressSync(Buffer.alloc(huge), { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 1 } });
+  const woff2 = (sfntSize, length) => {
+    const head = Buffer.alloc(48);
+    head.write('wOF2', 0, 'latin1');
+    head.writeUInt32BE(0x00010000, 4);
+    head.writeUInt16BE(3, 12);              // three tables
+    head.writeUInt32BE(sfntSize, 16);       // what it says it unpacks to
+    head.writeUInt32BE(packed.length, 20);
+    // The tables measuring needs: head, hhea and OS/2 (flags 1, 2 and 6, untransformed), each its length in base 128.
+    const b128 = [];
+    for (let v = length; ; v = Math.floor(v / 128)) { b128.unshift(v % 128); if (v < 128) break; }
+    const len = b128.map((b, i) => (i < b128.length - 1 ? b | 0x80 : b));
+    const dir = Buffer.from([1, ...len, 2, ...len, 6, ...len]);
+    return Buffer.concat([head, dir, packed]);
+  };
+  // Every unpacking is watched: how much it was let unpack to.
+  const calls = [];
+  for (const name of ['brotliDecompressSync', 'inflateSync']) {
+    const real = zlib[name];
+    zlib[name] = (data, opts) => { calls.push([name, opts && opts.maxOutputLength]); return real(data, opts); };
+    t.after(() => { zlib[name] = real; });
+  }
+  for (const [what, buf, unpacked] of [['saying how big it is', woff2(huge, 54), 0], ['saying it is small', woff2(1000, 54), 1]]) {
+    calls.length = 0;
+    const t0 = Date.now();
+    assert.equal(fonts.fileMetrics(buf), null, what);
+    assert.ok(Date.now() - t0 < 1000, `${what}: took ${Date.now() - t0} ms`);
+    assert.equal(calls.length, unpacked, `${what}: unpacked ${calls.length} times`);
+    for (const [, max] of calls) assert.ok(max > 0 && max <= 64 * 1024 * 1024, `${what}: let unpack to ${max}`);
+  }
+  calls.length = 0;
+  // A WOFF table that says it unpacks to 256 MB.
+  const table = zlib.deflateSync(Buffer.alloc(huge, 0), { level: 1 });
+  const woff = Buffer.alloc(44 + 3 * 20);
+  woff.write('wOFF', 0, 'latin1');
+  woff.writeUInt16BE(3, 12);
+  ['head', 'hhea', 'OS/2'].forEach((tag, i) => {
+    const at = 44 + i * 20;
+    woff.write(tag, at, 'latin1');
+    woff.writeUInt32BE(woff.length, at + 4); woff.writeUInt32BE(table.length, at + 8); woff.writeUInt32BE(huge, at + 12);
+  });
+  const t0 = Date.now();
+  assert.equal(fonts.fileMetrics(Buffer.concat([woff, table])), null, 'WOFF');
+  assert.ok(Date.now() - t0 < 1000, `WOFF: took ${Date.now() - t0} ms`);
+  assert.equal(calls.length, 0, 'the WOFF table is never unpacked');
+});
+
 test('fonts: normalising sizes capitals to Montserrat\'s and centres them in Montserrat\'s line box', () => {
   const ref = { capHeight: 0.7, ascent: 0.968, descent: 0.251, lineGap: 0 };
   // A font with small capitals and a deep descent, like Teko.

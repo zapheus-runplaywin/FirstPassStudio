@@ -40,13 +40,21 @@ const WOFF2_TAGS = ['cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'pos
   'EBDT', 'EBLC', 'gasp', 'hdmx', 'kern', 'LTSH', 'PCLT', 'VDMX', 'vhea', 'vmtx', 'BASE', 'GDEF', 'GPOS', 'GSUB', 'EBSC', 'JSTF', 'MATH',
   'CBDT', 'CBLC', 'COLR', 'CPAL', 'SVG ', 'sbix', 'acnt', 'avar', 'bdat', 'bloc', 'bsln', 'cvar', 'fdsc', 'feat', 'fmtx', 'fvar', 'gvar',
   'hsty', 'just', 'lcar', 'mort', 'morx', 'opbd', 'prop', 'trak', 'Zapf', 'Silf', 'Glat', 'Gloc', 'Feat', 'Sill'];
+// Fonts are added from anyone allowed to change things and measured on the helper's one thread, so a table that
+// unpacks to more than this (far past any real font) is refused rather than unpacked: a small file could otherwise
+// unpack to gigabytes and stall every graphic while it did.
+const MAX_UNPACKED = 64 * 1024 * 1024;
 function fontTables(buf) {
   const sig = buf.toString('latin1', 0, 4), out = {};
   if (sig === 'wOFF') {
     for (let i = 0, n = buf.readUInt16BE(12); i < n; i++) {
       const at = 44 + i * 20, off = buf.readUInt32BE(at + 4), comp = buf.readUInt32BE(at + 8), orig = buf.readUInt32BE(at + 12);
       const data = buf.subarray(off, off + comp);
-      out[buf.toString('latin1', at, at + 4)] = () => comp < orig ? zlib.inflateSync(data) : data;
+      out[buf.toString('latin1', at, at + 4)] = () => {
+        if (comp >= orig) return data;
+        if (orig > MAX_UNPACKED) throw new Error('Font table too big');
+        return zlib.inflateSync(data, { maxOutputLength: MAX_UNPACKED });
+      };
     }
   } else if (sig === 'wOF2') {
     if (buf.toString('latin1', 4, 8) === 'ttcf') return out;
@@ -61,9 +69,10 @@ function fontTables(buf) {
       dir.push({ tag, transformed, length: transformed ? base128() : length });
     }
     const data = buf.subarray(at, at + buf.readUInt32BE(20));
+    if (buf.readUInt32BE(16) > MAX_UNPACKED) throw new Error('Font too big');   // totalSfntSize: what it says it unpacks to
     for (const { tag, length, transformed } of dir) {
       const from = off; off += length;
-      out[tag] = () => (all = all || zlib.brotliDecompressSync(data)).subarray(from, from + length);
+      out[tag] = () => (all = all || zlib.brotliDecompressSync(data, { maxOutputLength: MAX_UNPACKED })).subarray(from, from + length);
       if (transformed) out[tag].transformed = true;
     }
   } else {
