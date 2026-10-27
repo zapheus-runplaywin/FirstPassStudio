@@ -84,6 +84,32 @@ test('the sponsor card counts its QR time, and a new sponsor on reload takes ove
   assert.equal(row(r, 'Wave Physio').qrSeconds, 0);
 });
 
+test('a place named like a built-in (__proto__) neither breaks the report nor is kept as given', () => {
+  // Saved in an older night's file before this was checked, as anyone on the network could ask for it.
+  fs.mkdirSync(exposure.DIR, { recursive: true });
+  const at = Date.parse('2026-10-20T20:00:00');
+  fs.appendFileSync(path.join(exposure.DIR, '2026-10-20.jsonl'), [
+    { t: 'seen', s: golds.id, c: comp, p: '__proto__', src: 'Scoreboard', air: true, qr: false, from: at, to: at + 5000 },
+    { t: 'seen', s: golds.id, c: comp, p: 'constructor', src: 'Scoreboard', air: true, qr: false, from: at + 5000, to: at + 8000 },
+    { t: 'play', s: golds.id, c: comp, file: '__proto__', air: true, from: at, to: at + 1000 },
+  ].map(r => JSON.stringify(r)).join('\n') + '\n');
+  const g = row(exposure.report({ nights: ['2026-10-20'] }), 'Golds Bakery');
+  assert.equal(g.seconds, 8);
+  assert.equal(g.places.__proto__, 5);
+  assert.equal(g.places.constructor, 3);
+  assert.equal(g.adFiles.__proto__, 1);
+  // Given now, it is kept as a plain 'graphic'.
+  exposure.gave(page('gamestats.html'), [wave], '__proto__');
+  ok({ type: 'show', id: src('Game stats').id });
+  pass(4);
+  ok({ type: 'hide', id: src('Game stats').id });
+  pass(1);
+  const places = row(exposure.report(), 'Wave Physio').places;
+  assert.ok(Object.keys(places).includes('graphic'), JSON.stringify(places));
+  assert.ok(!Object.keys(places).includes('__proto__'), JSON.stringify(places));
+  fs.rmSync(path.join(exposure.DIR, '2026-10-20.jsonl'));
+});
+
 test('sponsor ads count as plays and as time on screen', () => {
   fs.mkdirSync(scene.MEDIA_DIR, { recursive: true });
   fs.writeFileSync(path.join(scene.MEDIA_DIR, 'golds.png'), 'x');

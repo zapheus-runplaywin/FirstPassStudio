@@ -39,6 +39,9 @@ function nightOf(ms) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 const linkOf = address => String(address || '').replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '');
+// A place as a page named it (?place=, from anyone on the network): a short plain label that isn't a built-in name
+// such as __proto__, else 'graphic'.
+const placeOf = place => /^[\w -]{1,40}$/.test(String(place || '')) && !(String(place) in Object.prototype) ? String(place) : 'graphic';
 
 // A page was given these sponsors. req is the page's request (its Referer is the page's own link).
 function gave(req, list, place, opts = {}) {
@@ -48,7 +51,7 @@ function gave(req, list, place, opts = {}) {
   const ids = (list || []).filter(Boolean).map(s => s.id || s);
   if (!ids.length) { given.delete(link); return; }
   const q = new URL(ref, 'http://studio').searchParams;
-  given.set(link, { ids, place: place || 'graphic', qr: !!opts.qr && q.get('qr') !== '0', comp: opts.competition || competitions.activeId() });
+  given.set(link, { ids, place: placeOf(place), qr: !!opts.qr && q.get('qr') !== '0', comp: opts.competition || competitions.activeId() });
 }
 
 function append(rec) {
@@ -96,7 +99,7 @@ function flash(req, sponsor, place, seconds, opts = {}) {
   const src = mine.find(x => x.air !== false) || mine[0];
   if (!src) return;
   const now = Date.now();
-  append({ t: 'seen', s: sponsor.id || sponsor, c: opts.competition || competitions.activeId(), p: place, src: src.name, air: !!onAir() && src.air !== false, qr: false, from: now, to: now + Math.round(seconds * 1000) });
+  append({ t: 'seen', s: sponsor.id || sponsor, c: opts.competition || competitions.activeId(), p: placeOf(place), src: src.name, air: !!onAir() && src.air !== false, qr: false, from: now, to: now + Math.round(seconds * 1000) });
 }
 
 // A live viewer reading (viewers.js), taken while on air: { total, streams }.
@@ -174,7 +177,8 @@ function report({ nights: want, competition, offAir = false, now = Date.now() } 
     if (!rows.has(id)) {
       const s = sponsors.byId(id);
       rows.set(id, { id, name: s ? s.name : id, tier: s && compId && s.competitions[compId] ? s.competitions[compId].tier : '',
-        gone: !s, stretches: [], qr: [], places: {}, plays: 0, adFiles: {}, showings: [],
+        // Keyed by what the night's file says (a place, an ad's file name): no prototype, so a key like __proto__ is just a key.
+        gone: !s, stretches: [], qr: [], places: Object.create(null), plays: 0, adFiles: Object.create(null), showings: [],
         target: { seconds: s ? s.targetSeconds * list.length : 0, plays: s ? s.targetPlays * list.length : 0 } });
     }
     return rows.get(id);
@@ -194,7 +198,7 @@ function report({ nights: want, competition, offAir = false, now = Date.now() } 
   const tierOrder = competitions.SPONSOR_TIERS;
   const out = [...rows.values()].map(x => ({
     id: x.id, name: x.name, tier: x.tier, gone: x.gone,
-    seconds: covered(x.stretches), qrSeconds: covered(x.qr), plays: x.plays, adFiles: x.adFiles,
+    seconds: covered(x.stretches), qrSeconds: covered(x.qr), plays: x.plays, adFiles: Object.fromEntries(Object.entries(x.adFiles)),
     viewerMinutes: viewerMinutes(x.stretches, samples),
     places: Object.fromEntries(Object.entries(x.places).map(([p, l]) => [p, covered(l)])),
     target: x.target,
