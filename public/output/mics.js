@@ -16,7 +16,7 @@ const channelName = c => ({ both: 'both channels', left: 'left', right: 'right' 
 const onAtem = m => m.on === 'atem';
 const atemInputName = id => ((micLive.switcher?.inputs || []).find(i => i.id === id) || {}).name || (id > 1300 && id < 1400 ? `Mic ${id - 1300}` : `input ${id}`);
 const micWhere = m => [`#${micsOf().indexOf(m) + 1}`, onAtem(m) ? `switcher: ${m.input ? atemInputName(m.input) : 'no input picked'}` : deviceName(m.device), channelName(m.channel),
-  !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'doesn\'t dip'].filter(Boolean).join(' · ');
+  !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'external mixer, doesn\'t dip'].filter(Boolean).join(' · ');
 const fmtDb = d => d <= -100 ? 'all the way down' : `${d > 0 ? '+' : ''}${d.toFixed(1)} dB`;
 
 function renderMics() {
@@ -48,7 +48,7 @@ function renderMics() {
     + 'Two receivers on one stereo input are two mics: pick Left for one and Right for the other. '
     + 'A mic plugged into the <b>switcher</b> (an ATEM Mini\'s Mic 1 or Mic 2) is mixed by the switcher: Studio moves its fader to the mic\'s level, mutes and dips, and changes nothing else on it (its On, Off or AFV, EQ and dynamics are set in ATEM Software Control, and the input must be On). '
     + 'Move its fader on the switcher or in ATEM Software Control and that becomes the mic\'s level; when Studio connects it takes the faders as they are. For Left and Right, split the input into two mono channels in ATEM Software Control. '
-    + 'Like the music\'s duck, the mics <b>dip</b> while music plays, while a video with its sound on plays, and while a scene or sequence with <b>Quiet the music</b> ticked is on (each a tick box), and by hand with <b>Dip</b>. A mic with <b>Follows the dips</b> off stays at its level. '
+    + 'Like the music\'s duck, the mics <b>dip</b> while music plays, while a video with its sound on plays, and while a scene or sequence with <b>Quiet the music</b> ticked is on (each a tick box), and by hand with <b>Dip</b>. A mic marked <b>Has an external mixer</b> never dips (the mixer does the fading) and stays at its level. '
     + `Stream Deck: <code>${typeof base === 'string' ? base : ''}/deck/mics/mute/toggle</code> (or <code>/on</code>, <code>/off</code>), <code>/deck/mics/dip/toggle</code>, <code>/deck/mics/up</code> and <code>/down</code> (10% a press, or <code>?by=5</code>), <code>/deck/mics/level/80</code>, `
     + 'and one mic by its name or its # on its card: <code>/deck/mic/court-mic/mute/toggle</code>, <code>/deck/mic/1/up</code>, <code>/deck/mic/1/down</code>.';
 }
@@ -133,7 +133,7 @@ function openMic(m) {
   $('mxName').value = mxDraft.name;
   $('mxChannel').value = mxDraft.channel;
   $('mxLowCut').checked = mxDraft.lowCut;
-  $('mxFollow').checked = mxDraft.follow;
+  $('mxMixer').checked = !mxDraft.follow; // an external mixer does the fading
   $('mxDelete').classList.toggle('hidden', !m);
   $('mxErr').textContent = '';
   routeFields();
@@ -199,7 +199,7 @@ $('mxFind').onclick = () => findInputs(true);
 const mxChanges = () => {
   const atem = $('mxOn').value === 'atem';
   return { name: $('mxName').value.trim(), on: atem ? 'atem' : 'mac', ...(atem ? { input: Number($('mxDevice').value) || 0 } : { device: $('mxDevice').value }),
-    channel: $('mxChannel').value, lowCut: $('mxLowCut').checked, follow: $('mxFollow').checked };
+    channel: $('mxChannel').value, lowCut: $('mxLowCut').checked, follow: !$('mxMixer').checked };
 };
 $('mxCancel').onclick = () => { $('mxDialog').close(); };
 $('mxDialog').addEventListener('close', () => { mxDraft = null; $('mxDevice').innerHTML = ''; delete $('mxDevice').dataset.list; });
