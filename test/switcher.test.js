@@ -51,6 +51,20 @@ test('with no switcher set up, Studio says so and the links send nothing', async
   assert.doesNotMatch(r.json.error, /Unknown Stream Deck link/);
 });
 
+test('a refused request from the Output page answers why, with the switcher as it is now', async t => {
+  const studio = await startStudio(t);
+  for (const [body, status, why] of [
+    [{ type: 'cut' }, 409, /No switcher is set up/],
+    [{ type: 'use', address: 'court atem please' }, 400, /Type the switcher's IP address/],
+    [{ type: 'use', name: 'Court ATEM' }, 404, /wasn't found on the network/],
+  ]) {
+    const r = await studio.request('POST', '/api/switcher', body);
+    assert.equal(r.status, status, body.type);
+    assert.match(r.json.error, why, 'the reason, not the connection\'s (empty) error');
+    assert.equal(r.json.state, 'off');
+  }
+});
+
 test('an ATEM Mini Extreme by its address: inputs, keys, cuts and previews from the page and the Stream Deck', async t => {
   const atem = await startAtem({ model: 'MiniExtreme', names: ['Wide', 'Court', 'Bench'] });
   t.after(() => atem.close());
@@ -141,6 +155,25 @@ test('a switcher that stops answering: shown within seconds, links refused, noth
   await wait(300);
   assert.equal(atem.received.length, sent, 'the refused cut is not sent once the switcher is back');
   assert.match(studio.log(), /stopped answering/);
+});
+
+test('a switcher that is off when Studio connects: not answering within seconds, then connected once it is on', async t => {
+  // A UDP port nothing answers on, where the switcher will be once it's turned on.
+  const port = await new Promise(r => { const s = require('node:dgram').createSocket('udp4'); s.bind(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
+  const studio = await startStudio(t);
+  await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${port}` });
+  assert.equal((await studio.get('/api/switcher')).state, 'connecting');
+  const lost = await studio.until(async () => { const s = await studio.get('/api/switcher'); return s.state === 'lost' && s; }, 9000, 200);
+  assert.equal(lost.error, 'Not answering');
+  assert.match(studio.log(), /isn't answering; trying again/);
+  // Try again while it's still off: not answering again, not Connecting… for ever.
+  await studio.post('/api/switcher', { type: 'reconnect' });
+  await studio.until(async () => (await studio.get('/api/switcher')).state === 'lost', 9000, 200);
+  // Turned on: connected without a click.
+  const atem = await startAtem({ model: 'MiniExtreme', port });
+  t.after(() => atem.close());
+  const c = await connected(studio, 15000);
+  assert.equal(c.model, 'ATEM Mini Extreme');
 });
 
 test('found on the network by name, remembered by name, and pushed to the Output page over the scene socket', async t => {

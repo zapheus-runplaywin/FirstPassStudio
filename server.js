@@ -315,8 +315,15 @@ function pageVersion() {
     }
   };
   try { walk(PUBLIC_DIR); latest = Math.max(latest, fs.statSync(path.join(ROOT, 'config.json')).mtimeMs); } catch {}
-  // The competition setup too: switching competition, or saving its colours or logos, reloads every page.
-  try { latest = Math.max(latest, fs.statSync(competitions.ACTIVE_FILE).mtimeMs); walk(path.join(competitions.DIR, competitions.activeId())); } catch {}
+  // The competition setup too: switching competition, or saving its settings, logos, photos or fonts, reloads every
+  // page. Not the other files Studio keeps beside them (its sequences, the athlete register, which grows as PlayHQ's
+  // line-ups are read mid-game): saving those mustn't reload the graphics on air.
+  try {
+    latest = Math.max(latest, fs.statSync(competitions.ACTIVE_FILE).mtimeMs);
+    const dir = path.join(competitions.DIR, competitions.activeId());
+    latest = Math.max(latest, fs.statSync(path.join(dir, 'settings.json')).mtimeMs);
+    for (const kind of competitions.KINDS) if (fs.existsSync(path.join(dir, kind))) walk(path.join(dir, kind));
+  } catch {}
   return String(Math.round(latest));
 }
 

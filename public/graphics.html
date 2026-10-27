@@ -305,7 +305,7 @@
         alone. The output's card says <i>On air with Bench</i> or <i>Waiting for Bench</i>, and the Switcher card underlines each key in its output's colour.
         The switcher's own buttons, ATEM Software Control and other controllers keep working alongside Studio, and the card follows what they do.
         Studio sends nothing to the switcher by itself: not when it connects, and not when it reconnects. If the switcher stops answering (a pulled cable, a power
-        cut), the card turns red within about five seconds and Studio keeps trying; anything pressed meanwhile is refused, not saved up for later, and the log says so.
+        cut), or is off when Studio connects, the card turns red within about five seconds and Studio keeps trying; anything pressed meanwhile is refused, not saved up for later, and the log says so.
         Studio connects when it goes on air and lets go when it goes off air. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code> and <code>ftb</code>;
         <code>/deck/switcher/preview/&lt;input&gt;</code> and <code>program/&lt;input&gt;</code> (its number, or its name such as <code>Camera%202</code>);
         <code>/deck/switcher/usk/&lt;n&gt;/on</code>, <code>off</code> or <code>toggle</code>; <code>/deck/switcher/dsk/&lt;n&gt;/on</code>, <code>off</code>, <code>toggle</code> or

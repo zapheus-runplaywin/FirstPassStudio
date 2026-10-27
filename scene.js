@@ -977,7 +977,9 @@ function convert(name) {
   const finish = ok => {
     converting.delete(name);
     if (ok) {
-      fs.renameSync(part, path.join(MEDIA_DIR, out));
+      try { fs.renameSync(part, path.join(MEDIA_DIR, out)); } catch (err) { errors = err.message; ok = false; }
+    }
+    if (ok) {
       const src = source();
       log('info', 'scene', `Converted ${name} (${src ? `${src.codec}, ${src.pixels}` : 'unknown video'}) to ${out} in ${Math.round((Date.now() - started) / 1000)}s`);
       if (src && !HAS_ALPHA.test(src.pixels)) {
@@ -1021,7 +1023,9 @@ function level(name) {
     if (!converting.has(out)) return;
     converting.delete(out);
     if (ok) {
-      fs.renameSync(part, path.join(MEDIA_DIR, out));
+      try { fs.renameSync(part, path.join(MEDIA_DIR, out)); } catch (err) { errors = err.message; ok = false; }
+    }
+    if (ok) {
       log('info', 'scene', `Evened out ${name} into ${out} in ${Math.round((Date.now() - started) / 1000)}s (the original is in media/originals)`);
     } else {
       fs.rm(part, { force: true }, () => {});
@@ -1036,16 +1040,22 @@ function level(name) {
   return out;
 }
 
-// Saves an upload straight to disk (videos can be gigabytes), then converts a .mov.
+// Saves an upload straight to disk (videos can be gigabytes), then converts a .mov. Each upload writes its own
+// part file, so two uploads of the same name at once can't trip over each other, and a failed rename fails only
+// that upload: an error thrown here would otherwise end the helper and take every graphic off air.
 function saveUpload(req, name, max) {
   return new Promise((resolve, reject) => {
     fs.mkdirSync(MEDIA_DIR, { recursive: true });
-    const part = path.join(MEDIA_DIR, `.${name}.part`);
+    const part = path.join(MEDIA_DIR, `.${name}.${crypto.randomBytes(6).toString('hex')}.part`);
     const out = fs.createWriteStream(part);
     let size = 0;
     req.on('data', d => { size += d.length; if (size > max) { req.destroy(); out.destroy(); fs.rm(part, { force: true }, () => {}); reject(new Error(`That file is over ${Math.round(max / 1048576)} MB.`)); } });
     req.pipe(out);
-    out.on('finish', () => { if (size <= max) { fs.renameSync(part, path.join(MEDIA_DIR, name)); resolve(size); } });
+    out.on('finish', () => {
+      if (size > max) return;
+      try { fs.renameSync(part, path.join(MEDIA_DIR, name)); resolve(size); }
+      catch (err) { fs.rm(part, { force: true }, () => {}); reject(err); }
+    });
     out.on('error', reject);
     req.on('error', reject);
   });
