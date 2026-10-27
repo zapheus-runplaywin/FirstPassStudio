@@ -17,7 +17,8 @@
 // the Mac's own address, which the setting above would let through. crossSite() refuses those:
 // a request whose Origin or Sec-Fetch-Site header says it came from another site, and a request
 // whose Host header names something Studio doesn't answer to (a DNS rebinding page, which makes
-// the browser think another site's name is this Mac).
+// the browser think another site's name is this Mac). That Host check covers reads of private data
+// too (foreignHost()), since a rebinding page counts as Studio's own and could otherwise read them.
 
 'use strict';
 
@@ -90,15 +91,23 @@ function ownHosts(extra = [], own = ownAddresses()) {
 // this network, so one can't be pointed at this Mac from elsewhere).
 const isOwnHost = (host, hosts) => !!host && (hosts.has(host) || host.endsWith('.local'));
 
+// The 403 message when the Host header names something Studio doesn't answer to (a DNS rebinding page), or null.
+// Changes and private reads (PRIVATE) are checked; graphics answer to any name, so a browser source still works
+// by whatever name it was given.
+function foreignHost(method, pathname, headers, hosts) {
+  const h = headers || {};
+  const host = hostOf(h.host);
+  if (!h.host || isOwnHost(host, hosts)) return null;
+  return `Studio refused ${method} ${pathname} because it was asked for as "${host}", a name this computer doesn't answer to. Open Studio by its own link (localhost or its .local name), or add "linkHost": "${host}" to config.json if that name really is this computer.`;
+}
+
 // The 403 message when a changing request came from another web page, or null when it may go
 // ahead. headers are the request's; port is Studio's; hosts from ownHosts(). A request with no
 // browser headers at all (the Stream Deck plugin, a Website key, curl) always passes.
 function crossSite(method, pathname, headers, port, hosts) {
   const h = headers || {};
-  const host = hostOf(h.host);
-  if (h.host && !isOwnHost(host, hosts)) {
-    return `Studio refused ${method} ${pathname} because it was asked for as "${hostOf(h.host)}", a name this computer doesn't answer to. Open Studio by its own link (localhost or its .local name), or add "linkHost": "${host}" to config.json if that name really is this computer.`;
-  }
+  const foreign = foreignHost(method, pathname, h, hosts);
+  if (foreign) return foreign;
   const site = String(h['sec-fetch-site'] || '').toLowerCase();
   if (site === 'cross-site') {
     return `Studio refused ${method} ${pathname}: it came from a web page on another site${h.origin ? ` (${h.origin})` : ''}, not from Studio's own pages. Only Studio's pages, the Stream Deck and other programs may change things.`;
@@ -111,4 +120,4 @@ function crossSite(method, pathname, headers, port, hosts) {
   return null;
 }
 
-module.exports = { changes, privateRead, PRIVATE, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, crossSite };
+module.exports = { changes, privateRead, PRIVATE, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite };

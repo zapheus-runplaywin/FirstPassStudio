@@ -179,7 +179,9 @@ answer only this Mac while it is unticked. Untick it on open venue Wi-Fi. Whatev
 come from Studio's own pages or from a program (the Stream Deck plugin, a Website key, `curl`): a request that a
 browser marks as coming from a web page on another site (its `Origin` or `Sec-Fetch-Site` header), or that asks for
 Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the Mac's addresses, its `.local` name and
-`linkHost` are fine), gets a 403 that says so. Studio also sends no CORS header, so another site can't read its answers.
+`linkHost` are fine), gets a 403 that says so. Reads of private data get the same `Host` check, so a page that has
+pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
+CORS header, so another site can't read its answers.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
 Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at

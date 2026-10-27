@@ -498,7 +498,8 @@
         still open every graphic but can't change scores, the scene, sequences, settings or media, or read private data (the settings and scene
         backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
         Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
-        coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too.</li>
+        coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too, and so does a
+        read of private data asked for by such a name.</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
