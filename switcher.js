@@ -35,6 +35,7 @@ const DNS_SD = process.env.FIRSTPASS_DNS_SD || '/usr/bin/dns-sd';
 const SERVICE = '_blackmagic._tcp';
 const FIND_MS = 2500;         // how long a search for switchers listens
 const REFIND_MS = 15000;      // while a found switcher isn't answering, look for it again this often (its address may have changed)
+const CONNECT_MS = 5000;      // a switcher that hasn't answered this long after connecting starts (it's off, or unplugged) is shown as not answering
 
 let log = () => {};
 let onChange = () => {};
@@ -46,6 +47,7 @@ let since = Date.now();
 let error = '';
 let address = '';             // the address it's connected (or connecting) to
 let refindTimer = null;
+let connectTimer = null;      // CONNECT_MS after connecting starts, if it hasn't connected by then
 let found = [];               // the last search's switchers
 let finding = null;           // the search in progress (a promise)
 let lastKey = '';
@@ -194,6 +196,8 @@ function loadLibrary() {
 async function disconnect() {
   clearInterval(refindTimer);
   refindTimer = null;
+  clearTimeout(connectTimer);
+  connectTimer = null;
   const a = atem;
   atem = null;
   address = '';
@@ -226,10 +230,22 @@ async function connect() {
   atem = a;
   address = target;
   a.on('error', e => log('warn', 'switcher', `Switcher: ${e}`));
+  // A switcher that's off or unplugged never answers, so the library never says it has gone: say so after a few
+  // seconds (it carries on trying, and connected still comes when it's back), and look for a found one by name.
+  connectTimer = setTimeout(() => {
+    connectTimer = null;
+    if (atem !== a || conn !== 'connecting') return;
+    log('warn', 'switcher', `The switcher at ${target} isn't answering; trying again`);
+    setConn('lost', 'Not answering');
+    startRefind();
+  }, CONNECT_MS);
+  connectTimer.unref?.();
   a.on('connected', () => {
     if (atem !== a) return;
     clearInterval(refindTimer);
     refindTimer = null;
+    clearTimeout(connectTimer);
+    connectTimer = null;
     const s = summary();
     log('info', 'switcher', `Connected to ${s.model} at ${target} (${s.inputs.length} inputs, ${s.usk.length} upstream keys, ${s.dsk.length} downstream keys)`);
     lastProgram = s.program; // what's on now isn't a cut to follow: nothing is sent on connecting
