@@ -86,3 +86,33 @@ test('a media file comes in pieces of at most 2 MB, and asked-for ranges still c
   assert.deepEqual(await get('bytes=-10'), { status: 206, range: `bytes ${size - 10}-${size - 1}/${size}`, bytes: 10 });
   assert.equal((await get(`bytes=${size}-`)).status, 416);
 });
+
+// How many files in dir Studio has open (Linux /proc, or lsof on the Mac).
+function openMedia(pid, dir) {
+  try {
+    const fdDir = `/proc/${pid}/fd`;
+    return fs.readdirSync(fdDir).map(fd => { try { return fs.readlinkSync(path.join(fdDir, fd)); } catch { return ''; } }).filter(f => f.startsWith(dir)).length;
+  } catch {
+    const out = require('node:child_process').execFileSync('lsof', ['-p', String(pid), '-Fn'], { encoding: 'utf8' });
+    return out.split('\n').filter(l => l.startsWith(`n${dir}`)).length;
+  }
+}
+
+test('videos dropped part way (a seek, a closed window) leave no file open behind them', async t => {
+  const studio = await startStudio(t);
+  const dir = path.join(studio.dataDir, 'media');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'Clip.mp4'), Buffer.alloc(20 * 1024 * 1024, 7));
+  for (let i = 0; i < 20; i++) {
+    const ac = new AbortController();
+    const r = await fetch(`${studio.base}/media/Clip.mp4`, { signal: ac.signal });
+    const reader = r.body.getReader();
+    await reader.read();
+    ac.abort();
+    await reader.read().catch(() => {});
+  }
+  const real = fs.realpathSync(dir);
+  const left = await studio.until(() => openMedia(studio.child.pid, real) === 0, 3000).then(() => 0, () => openMedia(studio.child.pid, real));
+  assert.equal(left, 0, `${left} media files still open after 20 dropped requests`);
+  assert.equal((await studio.request('GET', '/api/health')).status, 200);
+});
