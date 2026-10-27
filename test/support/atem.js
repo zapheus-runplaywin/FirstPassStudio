@@ -7,6 +7,10 @@
 //   atem.state.dskKeys[0], atem.state.uskKeys[1]            // how each key is set up ({ fill, cut, preMultiply } / { type, fill, cut, preMultiplied })
 //   atem.state.nextSelection                                // the next transition's selection (bit 0 background, bits 1-4 upstream keys 1-4)
 //   startAtem({ autoMs: 400 })                              // an auto that mixes for that long (it's at once otherwise; another auto meanwhile is ignored)
+//   atem.state.faders['1301:-65280']                        // a Fairlight audio source's fader, in hundredths of a dB (the mics: Mic 1 1301 and
+//                                                           // Mic 2 1302, beside camera 1's embedded sound); startAtem({ split: [1302] }) splits
+//                                                           // Mic 2 into two mono channels (-256 left, -255 right); { micOff: [1301] } sets Mic 1 Off
+//   atem.setFader('1301:-65280', -1000)                     // as if someone moved that fader on the switcher
 //   await atem.close();
 
 'use strict';
@@ -46,7 +50,12 @@ async function startAtem(opts = {}) {
     nextSelection: 1, selection: 1,
     ...(opts.keys || {}),
     names: Array.from({ length: inputCount }, (_, i) => (opts.names || [])[i] || `Camera ${i + 1}`),
+    faders: {},
   };
+  // Fairlight audio: camera 1's embedded sound (not a mic) and the two mic jacks, each one stereo source, or two mono.
+  const audioInputs = [[1, 0, 2], [1301, 2, 2048], [1302, 2, 2048]]; // input, type (0 embedded, 2 audio in), port (2 HDMI, 2048 TRS jack)
+  const sourcesOf = id => (opts.split || []).includes(id) ? ['-256', '-255'] : ['-65280'];
+  for (const [id] of audioInputs) for (const src of sourcesOf(id)) state.faders[`${id}:${src}`] = 0;
   const received = []; // { name, data, at } for every command a client sent, oldest first
   const socket = dgram.createSocket('udp4');
   const clients = new Map(); // "address:port" -> { address, port, session, nextId }
@@ -83,6 +92,12 @@ async function startAtem(opts = {}) {
   let mixing = false;
   const trPs = () => command('TrPs', bytes(8, b => b.writeUInt8(mixing ? 1 : 0, 1)));
   const trSS = () => command('TrSS', bytes(8, b => { b.writeUInt8(state.selection, 2); b.writeUInt8(state.nextSelection, 4); }));
+  const faip = ([id, type, port]) => command('FAIP', bytes(16, b => { b.writeUInt16BE(id, 0); b.writeUInt8(type, 2); b.writeUInt16BE(port, 6); b.writeUInt8(3, 9); b.writeUInt8(1, 10); }));
+  const fasp = key => command('FASP', bytes(56, b => {
+    const [id, src] = key.split(':');
+    b.writeUInt16BE(Number(id), 0); b.writeBigInt64BE(BigInt(src), 8); b.writeUInt8(1, 16);
+    b.writeInt32BE(state.faders[key], 44); b.writeUInt8(7, 48); b.writeUInt8((opts.micOff || []).includes(Number(id)) ? 1 : 2, 49);
+  }));
   const dump = () => Buffer.concat([
     command('_ver', bytes(4, b => b.writeUInt32BE(VERSION, 0))),
     command('_pin', bytes(44, b => { b.write(productName, 0); b.writeUInt8(modelNo, 40); })),
@@ -98,6 +113,9 @@ async function startAtem(opts = {}) {
     ...state.uskKeys.flatMap((_, k) => [keBP(k), keLm(k)]),
     ...state.dskKeys.flatMap((_, k) => [dskB(k), dskP(k)]),
     ftbS(),
+    command('_FAC', bytes(4, b => { b.writeUInt8(audioInputs.length, 0); b.writeUInt8(1, 1); })),
+    ...audioInputs.map(faip),
+    ...Object.keys(state.faders).map(fasp),
     command('InCm', Buffer.alloc(4)),
   ]);
 
@@ -136,6 +154,12 @@ async function startAtem(opts = {}) {
     if (name === 'CKTp') { if (d[0] & 1) state.uskKeys[d[2]].type = d[3]; return [keBP(d[2])]; }
     if (name === 'CKeF') { state.uskKeys[d[1]].fill = d.readUInt16BE(2); return [keBP(d[1])]; }
     if (name === 'CKeC') { state.uskKeys[d[1]].cut = d.readUInt16BE(2); return [keBP(d[1])]; }
+    // A fader moved (CFSP, its fader gain flag 1 << 7).
+    if (name === 'CFSP') {
+      const key = `${d.readUInt16BE(2)}:${d.readBigInt64BE(8)}`;
+      if ((d.readUInt16BE(0) & 128) && key in state.faders) { state.faders[key] = d.readInt32BE(40); return [fasp(key)]; }
+      return [];
+    }
     if (name === 'CKLm') { if (d[0] & 1) state.uskKeys[d[2]].preMultiplied = d[3] === 1; return [keLm(d[2])]; }
     return [];
   };
@@ -184,6 +208,7 @@ async function startAtem(opts = {}) {
       toAll(Buffer.concat([prg(), prv(), ...state.usk.map((_, k) => keOn(k)), ...state.dsk.map((_, k) => dskS(k)),
         ...state.uskKeys.flatMap((_, k) => [keBP(k), keLm(k)]), ...state.dskKeys.flatMap((_, k) => [dskB(k), dskP(k)])]));
     },
+    setFader(key, gain) { state.faders[key] = gain; toAll(fasp(key)); },
     close: () => new Promise(r => { clearInterval(beat); socket.close(r); }),
   };
 }

@@ -337,7 +337,7 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
 ## Mics (Output page)
 
 The Output page's **Mics** are live mics plugged into the Mac (wireless effects mics, crowd mics), mixed into Output 1's sound
-while it's on. They dip while music or a video with sound plays, or a scene quiets the music (each a setting), and by hand.
+while it's on, or plugged into the ATEM switcher, whose faders Studio moves. They dip while music or a video with sound plays, or a scene quiets the music (each a setting), and by hand.
 
 | Button | Link |
 |---|---|

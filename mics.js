@@ -24,6 +24,14 @@
 // level as it comes in, and any trouble (no permission, device not plugged in). The Output page shows it from live().
 // The Output page opened in the Mac app can also list the Mac's devices itself, before any output is on.
 //
+// A mic can be plugged into the ATEM switcher instead (on: 'atem'): one of its mic or line inputs (input, as the
+// switcher numbers them: 1301 for an ATEM Mini's Mic 1), both its channels or, when the input is split into two mono
+// channels in ATEM Software Control, the left or the right one. The switcher mixes it; Studio moves its fader to the
+// same level, mute and dips (fading them in steps), through switcher.js. Studio never fights the operator: a fader
+// moved on the switcher or in ATEM Software Control becomes that mic's level, and on connecting Studio sends nothing,
+// it takes the fader as it finds it. Everything else on the input (On, Off or AFV, EQ, dynamics) stays the
+// switcher's. These mics are heard whatever Studio's outputs are doing, since the switcher carries them.
+//
 // Saved as mics.json in the data folder: one set of mics for the Mac (the devices are this Mac's), not per competition.
 
 'use strict';
@@ -35,6 +43,11 @@ const savefile = require('./savefile');
 const FILE = datadir.file('mics.json');
 const MAX_MICS = 8;
 const CHANNELS = ['both', 'left', 'right'];
+const ROUTES = ['mac', 'atem'];
+// The switcher's fader: Studio's level as dB, from all the way down to +6 (200 % is about +6 dB).
+const FLOOR_DB = -100, LOW_DB = -60, TOP_DB = 6;
+const STEP_MS = 50;            // fades on the switcher's faders move in steps this often
+const OWN_ECHO_MS = 1000;      // a fader reading this soon after Studio moved it is Studio's own move coming back
 // A report older than this means no window is mixing the mics (the primary output is off, or its window stopped).
 const REPORT_STALE_MS = 3000;
 
@@ -46,6 +59,10 @@ let down = false;
 let dip = { from: 0, to: 0, at: 0, ms: 0 };
 let seen = { at: 0, devices: [], levels: {}, problems: {}, status: '' };
 let listed = { at: 0, devices: [] }; // the devices the Output page in the Mac app listed
+let changedHook = () => {};    // scene.js: publish the scene (a fader moved on the switcher changed a mic's level)
+let sw = null;                 // switcher.js: { inputs(), set(input, source, dB) }
+const sent = new Map();        // mic id -> { dB, at }: where Studio last put (or first found) its fader
+let stepTimer = null;
 
 function defaults() {
   return { level: 100, muted: false, dipTo: 30, dipMusic: true, dipVideo: true, dipQuiet: true, dipDownSec: 1, dipUpSec: 2, mics: [] };
@@ -64,7 +81,9 @@ function cleanMic(m, existing = {}) {
   const out = {
     id: String(existing.id || s.id || newId()).replace(/[^a-z0-9]/gi, '').slice(0, 20) || newId(),
     name: '',
+    on: ROUTES.includes(s.on) ? s.on : 'mac', // plugged into the Mac or the switcher
     device: text(s.device, 200), // the device's name as macOS gives it; '' is the Mac's default input
+    input: Math.round(clamp(s.input, 0, 65535, 0)), // the switcher's audio input (on 'atem')
     channel: CHANNELS.includes(s.channel) ? s.channel : 'both',
     level: Math.round(clamp(s.level, 0, 200, 100)),
     muted: flag(s.muted, false),
@@ -134,7 +153,83 @@ function settle() {
   const sec = want ? settings.dipDownSec : settings.dipUpSec;
   dip = { from: along(dip), to: want ? 1 : 0, at: now(), ms: Math.round(sec * 1000) };
   if (settings.mics.length) log('info', 'mics', want ? `Mics dip to ${settings.dipTo}% (${reasons().join(', ')})` : 'Mics back up');
+  drive();
   return true;
+}
+// How much of a mic is heard now, 0 to 2: its level, the master level, the mutes and the dip (as scene.html works it out).
+function dipNow(m) {
+  if (!m.follow) return 1;
+  const d = along(dip), low = Math.max(settings.dipTo / 100, 0.01);
+  return d >= 1 ? settings.dipTo / 100 : Math.pow(low, d);
+}
+const gainOf = m => settings.muted || m.muted ? 0 : (m.level / 100) * (settings.level / 100) * dipNow(m);
+
+// ─── Mics on the switcher ────────────────────────────────────────────────
+const toDb = g => g <= 0.001 ? FLOOR_DB : Math.round(Math.max(LOW_DB, Math.min(TOP_DB, 20 * Math.log10(g))) * 10) / 10;
+const onSwitcher = () => settings.mics.filter(m => m.on === 'atem');
+// The sources of the switcher's input a mic moves: both channels, or the left or right of an input split in two.
+function sourcesOf(m, inputs) {
+  const inp = inputs.find(i => i.id === m.input);
+  if (!inp) return [];
+  if (m.channel === 'left') return inp.sources.slice(0, 1);
+  if (m.channel === 'right') return inp.sources.length > 1 ? inp.sources.slice(1, 2) : [];
+  return inp.sources;
+}
+// Moves the faders of the mics on the switcher to where Studio has them, stepping while the dip fades.
+function drive() {
+  if (!sw) return;
+  const inputs = sw.inputs();
+  if (inputs.length) {
+    for (const m of onSwitcher()) {
+      const srcs = sourcesOf(m, inputs), last = sent.get(m.id);
+      if (!srcs.length || !last) continue; // not found yet: switcherChanged() takes it as it is first
+      const want = toDb(gainOf(m));
+      if (Math.abs(want - last.dB) < 0.05) continue;
+      sent.set(m.id, { dB: want, at: now() });
+      for (const x of srcs) sw.set(m.input, x.id, want);
+    }
+  }
+  const fading = dip.ms && now() < dip.at + dip.ms && onSwitcher().length;
+  if (fading && !stepTimer) { stepTimer = setInterval(drive, STEP_MS); stepTimer.unref?.(); }
+  if (!fading && stepTimer) { clearInterval(stepTimer); stepTimer = null; drive(); }
+}
+// The switcher's state changed (switcher.js): a mic's fader Studio hasn't seen yet is taken as it is, and one moved
+// by hand on the switcher (not Studio's own move coming back) becomes that mic's level.
+function switcherChanged() {
+  if (!sw) return;
+  const inputs = sw.inputs();
+  if (!inputs.length) { sent.clear(); return; }
+  let moved = false;
+  for (const m of onSwitcher()) {
+    const srcs = sourcesOf(m, inputs);
+    if (!srcs.length) continue;
+    const at = srcs[0].fader, last = sent.get(m.id);
+    if (last && (Math.abs(at - last.dB) <= 0.5 || now() - last.at < OWN_ECHO_MS)) continue;
+    sent.set(m.id, { dB: at, at: now() });
+    if (!last && (settings.muted || m.muted)) continue; // muted here: left as it is until something changes
+    const k = (settings.level / 100) * dipNow(m);
+    const level = at <= LOW_DB ? 0 : Math.round(clamp(100 * Math.pow(10, at / 20) / Math.max(k, 0.01), 0, 200, m.level));
+    if (level === m.level && !(last && m.muted)) continue;
+    m.level = level;
+    if (last) m.muted = false; // brought up by hand on the switcher: it's on
+    moved = true;
+    log('info', 'mics', `${m.name}'s fader ${last ? 'moved on the switcher' : 'is'} at ${at <= FLOOR_DB ? 'all the way down' : `${at} dB`}: its level is ${level}%`);
+  }
+  if (moved) { save(); changedHook(); }
+}
+// What the Output page shows about the mics on the switcher: each one's fader and any trouble.
+function onSwitcherLive() {
+  const inputs = sw ? sw.inputs() : [];
+  const faders = {}, problems = {};
+  for (const m of onSwitcher()) {
+    const inp = inputs.find(i => i.id === m.input), srcs = sourcesOf(m, inputs);
+    if (!inputs.length) problems[m.id] = 'The switcher isn\'t connected (or has no mic inputs)';
+    else if (!inp) problems[m.id] = m.input ? `The switcher has no audio input ${m.input}` : 'Pick the switcher\'s input';
+    else if (!srcs.length) problems[m.id] = `${inp.name} isn't split into two mono channels on the switcher: pick Both, or split it in ATEM Software Control`;
+    else if (srcs.some(x => x.off)) problems[m.id] = `${inp.name} is Off on the switcher: turn it On in ATEM Software Control`;
+    if (srcs.length) faders[m.id] = srcs[0].fader;
+  }
+  return { inputs: inputs.map(i => ({ id: i.id, name: i.name, split: i.sources.length > 1 })), connected: inputs.length > 0, faders, problems };
 }
 
 // scene.js, each time the scene changes: whether music is being heard and whether a video plays its sound.
@@ -153,21 +248,31 @@ function quiet(on) {
 // ─── Changes ─────────────────────────────────────────────────────────────
 const onOff = (v, was) => v === 'toggle' ? !was : !!v && v !== 'off';
 function apply(a) {
+  const r = change(a);
+  if (r === null) drive();
+  return r;
+}
+function change(a) {
   switch (a.type) {
     case 'micAdd': {
       if (settings.mics.length >= MAX_MICS) return `Studio mixes up to ${MAX_MICS} mics.`;
       const m = cleanMic({ ...(a.changes || {}), id: undefined }, { id: newId() });
       settings.mics.push(m);
       save();
-      log('info', 'mics', `Added the mic "${m.name}" (${m.device || 'the Mac\'s default input'}, ${m.channel})`);
+      log('info', 'mics', `Added the mic "${m.name}" (${m.on === 'atem' ? `the switcher's input ${m.input}` : m.device || 'the Mac\'s default input'}, ${m.channel})`);
+      switcherChanged();
       return null;
     }
     case 'micUpdate': {
       const m = find(a.mic);
       if (!m) return `No mic "${a.mic || ''}".`;
       const { id, ...changes } = a.changes || {};
-      settings.mics[settings.mics.indexOf(m)] = cleanMic(changes, m);
+      const next = cleanMic(changes, m);
+      // Moved to another input: its fader there is taken as it is first.
+      if (next.on !== m.on || next.input !== m.input || next.channel !== m.channel) sent.delete(m.id);
+      settings.mics[settings.mics.indexOf(m)] = next;
       save();
+      switcherChanged();
       return null;
     }
     case 'micRemove': {
@@ -259,16 +364,26 @@ function devicesListed(list) { listed = { at: now(), devices: cleanDevices(list)
 function live() {
   const fresh = now() - seen.at < REPORT_STALE_MS;
   const devices = [...new Set([...(fresh ? seen.devices : []), ...listed.devices])];
-  return { mixing: fresh, devices, levels: fresh ? seen.levels : {}, problems: fresh ? seen.problems : {}, status: fresh ? seen.status : '' };
+  const atem = onSwitcherLive();
+  const mac = new Set(settings.mics.filter(m => m.on !== 'atem').map(m => m.id));
+  const keep = o => Object.fromEntries(Object.entries(o).filter(([id]) => mac.has(id)));
+  return { mixing: fresh, devices, levels: fresh ? keep(seen.levels) : {}, problems: { ...(fresh ? keep(seen.problems) : {}), ...atem.problems }, status: fresh ? seen.status : '',
+    switcher: { connected: atem.connected, inputs: atem.inputs }, faders: atem.faders };
 }
 
 function state() {
   return { mics: { ...settings, dipped: down, why: reasons(), hand, dip } };
 }
 
-function init(logger) {
+// switcher: switcher.js's { inputs: micInputs, set: setMicFader }, from server.js.
+function useSwitcher(api) { sw = api; switcherChanged(); }
+
+// changed(): publish the scene (scene.js).
+function init(logger, { changed } = {}) {
   log = logger || log;
+  if (changed) changedHook = changed;
+  sent.clear();
   load();
 }
 
-module.exports = { init, apply, deck, state, follow, quiet, report, devicesListed, live, MAX_MICS };
+module.exports = { init, apply, deck, state, follow, quiet, report, devicesListed, live, useSwitcher, switcherChanged, MAX_MICS };
