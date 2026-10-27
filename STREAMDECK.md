@@ -334,6 +334,22 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
   ticked (an interview on court) ducks whatever music is playing (over the fade time) until the next scene, sequence or sequence step without it.
 - The super shot song (a music setting, with its own volume) cuts in when the super shot period starts and fades out when it ends.
 
+## Mics (Output page)
+
+The Output page's **Mics** are live mics plugged into the Mac (wireless effects mics, crowd mics), mixed into Output 1's sound
+while it's on. They dip while music or a video with sound plays, or a scene quiets the music (each a setting), and by hand.
+
+| Button | Link |
+|---|---|
+| Mute every mic | http://localhost:8080/deck/mics/mute/toggle (or `/on`, `/off`) |
+| Dip them by hand | http://localhost:8080/deck/mics/dip/toggle (or `/on`, `/off`) |
+| Every mic up or down 10% | http://localhost:8080/deck/mics/up, http://localhost:8080/deck/mics/down (`?by=5` for another step) |
+| Every mic to a level | http://localhost:8080/deck/mics/level/80 |
+| Mute one mic | http://localhost:8080/deck/mic/court-mic/mute/toggle (or `/on`, `/off`) |
+| One mic up or down 10% | http://localhost:8080/deck/mic/court-mic/up, http://localhost:8080/deck/mic/court-mic/down |
+
+- A mic is named like a source (**Court mic** is `court-mic`), or by its number on the Output page (`/deck/mic/1/up`).
+
 ## Timed buttons (Timed Sequence plugin)
 
 `plugins/streamdeck` is a Stream Deck plugin that waits until a set time of day, then presses a list of links

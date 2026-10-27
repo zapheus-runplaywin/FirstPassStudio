@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 11 of 12: The media folder: every file, where it is used, and Remove.
+// FirstPass Studio - the Output page, part 12 of 13: The media folder: every file, where it is used, and Remove.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -159,7 +159,7 @@ function show(s) {
   const now = (s.converting || []).join('|');
   if (now !== wasConverting) { wasConverting = now; loadMedia(); }
   if (selected && !current()) selected = null;
-  renderList(); renderForm(); drawBox(); renderScenes(); renderSequences(); renderMusic();
+  renderList(); renderForm(); drawBox(); renderScenes(); renderSequences(); renderMusic(); renderMics();
   // A source added, renamed or removed while the editor is open.
   if (draft && $('seqDialog').open && !$('sqSteps').contains(document.activeElement)) renderSteps();
 }

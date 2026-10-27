@@ -37,7 +37,7 @@ const COMPUTER_FILE = 'studio-computer.json';
 // datadir.file() must be added here (test/datalocation.test.js checks).
 const SETTINGS = new Set([
   'competitions', 'config.json', 'control.json', 'round-choice.json', 'data-version.json',
-  'scene.json', 'media', 'outputs.json', 'music.json', 'sequences.json', 'sequence-settings.json', 'sponsors', 'switcher.json',
+  'scene.json', 'media', 'outputs.json', 'music.json', 'mics.json', 'sequences.json', 'sequence-settings.json', 'sponsors', 'switcher.json',
 ]);
 // Kept in the local folder whichever folder holds the settings (saved with datadir.local()).
 const LOCAL_ONLY = new Set([
@@ -331,6 +331,7 @@ function exportSummary(dir, { name = exportName(), about = {}, files = 0, bytes 
   if (loose.length) seqs.push(['No competition', loose]);
   section('Sequences', seqs.flatMap(([c, list]) => list.map(q => `${q} (${c})`)));
   section('Playlists', arr(json('music.json').playlists).map(pl => `${pl.name || 'Playlist'} (${(pl.tracks || []).length} songs)`));
+  section('Mics', arr(json('mics.json').mics).map(m => `${m.name || 'Mic'}${m.device ? ` (${m.device})` : ''}`));
   const scene = json('scene.json');
   section('Sources', arr(scene.sources).map(src => `${src.name || src.id || 'Source'}${src.type ? ` (${src.type})` : ''}`));
   section('Scenes', arr(scene.scenes).map(sc => sc.name || 'Untitled scene'));

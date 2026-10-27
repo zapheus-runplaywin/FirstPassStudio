@@ -36,6 +36,7 @@ const datadir = require('./datadir');
 const savefile = require('./savefile');
 const sequences = require('./sequences');
 const music = require('./music');
+const mics = require('./mics');
 const switcher = require('./switcher');
 const sponsors = require('./sponsors');
 const competitions = require('./competitions');
@@ -427,6 +428,8 @@ function upgrade(req, socket) {
 }
 
 function state() {
+  // The mics dip under the music and a video's sound (mics.js): brought up to date whenever the scene is read.
+  mics.follow(music.state().music, videoOn());
   // The other outputs' current scenes and changes by output id.
   const currentOut = {}, changedOut = {};
   for (const o of outputsApi.summary?.() || []) {
@@ -438,7 +441,7 @@ function state() {
     current: currentScene() ? scene.current : null, currentOut, changed: changed(), changedOut,
     // The outputs, for the Stream Deck plugin's keys (each key acts on one, and lights in its colour).
     outputs: (outputsApi.summary?.() || []).map(({ id, slot, name, link, colour }) => ({ id, slot, name, link, colour })),
-    converting: [...converting.keys()], ...sequences.state(), ...music.state() };
+    converting: [...converting.keys()], ...sequences.state(), ...music.state(), ...mics.state() };
 }
 
 function find(ref) {
@@ -466,7 +469,8 @@ function stingerMusic(s, on) {
   const length = Math.min(3, Math.max(.5, parseFloat(q.get('length')) || 1));
   music.stinger(mode, on, Math.max(.2, .22 * length));
 }
-function videoSound() { music.videoSound(scene.sources.some(s => s.visible && ((s.type === 'video' && s.sound && !soundDone.has(s.id)) || playsTheme(s)))); }
+const videoOn = () => scene.sources.some(s => s.visible && ((s.type === 'video' && s.sound && !soundDone.has(s.id)) || playsTheme(s)));
+function videoSound() { music.videoSound(videoOn()); }
 function noteShowings() {
   videoSound();
   for (const s of scene.sources) if (s.visible !== wasOn.has(s.id)) stingerMusic(s, s.visible);
@@ -715,6 +719,7 @@ function applyScene(a) {
     default: {
       let error = sequences.apply(a);
       if (error === undefined) error = music.apply(a);
+      if (error === undefined) error = mics.apply(a);
       return error === undefined ? `Unknown scene change "${a.type}".` : error;
     }
   }
@@ -761,6 +766,12 @@ function deck(parts, q = {}) {
     return { status: 200, body: { ok: true, output: outputName(o.id), ...(src ? { name: src.name, visible: !!src.out[o.id] } : {}) } };
   }
   const [what, name, verb] = parts;
+  if (what === 'mics' || what === 'mic') {
+    const r = mics.deck(parts, q);
+    if (r.error) return { status: r.status, body: { error: r.error } };
+    notify();
+    return { status: 200, body: r.body };
+  }
   if (what === 'music') {
     const r = music.deck(parts, q);
     if (!r) return null;
@@ -1197,6 +1208,11 @@ async function route(req, res, url, { send, readBody }) {
     save();
     return send(res, 200, state()), true;
   }
+  // The mics (mics.js): the output window mixing them says what it hears, the Output page in the Mac app lists the
+  // Mac's audio inputs, and the Output page asks for both every half second while its Mics section is open.
+  if (p === '/api/scene/mics/report' && req.method === 'POST') return mics.report(await readBody(req)), send(res, 200, { ok: true }), true;
+  if (p === '/api/scene/mics/devices' && req.method === 'POST') return mics.devicesListed((await readBody(req)).devices), send(res, 200, mics.live()), true;
+  if (p === '/api/scene/mics/live' && req.method === 'GET') return send(res, 200, mics.live()), true;
   if (p === '/api/scene/events') {
     // Server-sent events: the whole scene now, then again on every change, for the Stream Deck
     // plugin (Studio's own pages use the WebSocket below instead).
@@ -1306,7 +1322,9 @@ function init(logger, { ffmpeg, sequencesFile, outputs } = {}) {
     duration: file => duration(file),
     files: () => mediaList().filter(m => m.kind === 'audio' && !m.converting).map(m => m.name),
     changed: () => save(),
+    quiet: on => mics.quiet(on),
   });
+  mics.init(log);
   sequences.init(log, {
     source: id => scene.sources.find(s => s.id === id) || null,
     isOn: (s, out) => isOn(s, out === PRIMARY ? null : out),

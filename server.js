@@ -831,7 +831,7 @@ function send(res, status, body, type, headers) {
 // Addresses already logged as refused a change (one line each, not one per press).
 const refusedFrom = new Set();
 // Requests that pages repeat every second or two are only logged when they fail.
-const QUIET = new Set(['/api/version', '/api/log', '/api/scene/events', '/api/switcher/events']);
+const QUIET = new Set(['/api/version', '/api/log', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live']);
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const q = Object.fromEntries(url.searchParams);

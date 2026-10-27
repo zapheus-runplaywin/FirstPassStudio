@@ -738,6 +738,111 @@ paths:
         '200': { description: Done. }
         '404': { description: No song or playlist by that name }
 
+  /deck/mics/{action}:
+    get:
+      tags: [Scene]
+      summary: Turn every mic up or down
+      description: |
+        The Output page's Mics: `up` and `down` move the level over all the mics by 10% (or `?by=`), between 0 and 100%.
+      operationId: micsLevel
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [up, down] }
+        - name: by
+          in: query
+          description: How far to move the level, in % (10 without it)
+          schema: { type: number }
+      responses:
+        '200':
+          description: Done. Returns the level, the mute and whether the mics are dipped.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  level: { type: integer }
+                  muted: { type: boolean }
+                  dipped: { type: boolean }
+                  why: { type: array, items: { type: string } }
+
+  /deck/mics/{what}/{state}:
+    get:
+      tags: [Scene]
+      summary: Mute every mic, or dip them by hand
+      description: |
+        `mute/on|off|toggle` mutes every mic; `dip/on|off|toggle` dips them to the Dip to level by hand, as music playing does.
+      operationId: micsMute
+      parameters:
+        - name: what
+          in: path
+          required: true
+          schema: { type: string, enum: [mute, dip] }
+        - name: state
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+      responses:
+        '200': { description: Done. }
+
+  /deck/mics/level/{level}:
+    get:
+      tags: [Scene]
+      summary: Set the level over every mic
+      operationId: micsLevelSet
+      parameters:
+        - name: level
+          in: path
+          required: true
+          description: 0 to 100 (%)
+          schema: { type: integer }
+      responses:
+        '200': { description: Done. }
+
+  /deck/mic/{name}/{action}:
+    get:
+      tags: [Scene]
+      summary: Turn one mic up or down
+      description: |
+        One mic by its name (lower case with dashes for spaces) or its number on the Output page: `up` and `down` move its level by 10% (or `?by=`), between 0 and 200%.
+      operationId: micLevel
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [up, down] }
+        - name: by
+          in: query
+          description: How far to move the level, in % (10 without it)
+          schema: { type: number }
+      responses:
+        '200': { description: Done. }
+        '404': { description: No mic by that name }
+
+  /deck/mic/{name}/mute/{state}:
+    get:
+      tags: [Scene]
+      summary: Mute one mic
+      operationId: micMute
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+        - name: state
+          in: path
+          required: true
+          schema: { type: string, enum: [on, off, toggle] }
+      responses:
+        '200': { description: Done. }
+        '404': { description: No mic by that name }
+
   /deck/output/{action}:
     get:
       tags: [Scene]

@@ -175,6 +175,16 @@
   .player .row button { padding: 4px 10px; font-size: 13px; }
   .player button.lit { background: var(--fp-orange); color: var(--fp-navy); }
   .player small { color: var(--fp-muted); }
+  /* Mics: each mic's level as it comes in (green, amber near the top, red at the top), and a lit Mute or Dip. */
+  .mxMeter { height: 6px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
+  .mxMeter i { display: block; height: 100%; width: 0; background: #22c55e; transition: width .12s linear; }
+  .mxMeter i.warm { background: #f59e0b; }
+  .mxMeter i.hot { background: #ff4d4d; }
+  .seq[data-mic] { grid-template-columns: minmax(0, 1fr); }
+  .seq[data-mic] .t button { padding: 4px 10px; font-size: 13px; }
+  .seq[data-mic] .where { overflow-wrap: anywhere; }
+  .seq button.lit { background: var(--fp-orange); color: var(--fp-navy); }
+  .seq.off { opacity: .7; }
   #plDialog { border: 0; border-radius: var(--fp-radius); padding: 18px 20px; width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 40px); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
   #plDialog::backdrop { background: rgba(15, 23, 42, .45); }
   .seqAuto { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; margin-bottom: 4px; }
@@ -485,6 +495,55 @@
     </dialog>
   </section>
 
+  <section id="micsSection" data-fold="mics">
+    <div class="secHead">
+      <h2>Mics</h2>
+    </div>
+    <div class="player" id="mxBar">
+      <div class="np"><span><b id="mxHeard">No mics yet</b> <small id="mxWhy"></small></span></div>
+      <div class="row">
+        <button class="alt" id="mxMute" title="Mute every mic">Mute all</button>
+        <button class="alt" id="mxDip" title="Dip the mics to the Dip to level, by hand">Dip</button>
+        <label class="inline" style="font-weight:400">Level <input type="range" id="mxLevel" min="0" max="100" style="width:120px"></label>
+      </div>
+      <p class="error" id="mxProblem" style="margin:0"></p>
+    </div>
+    <div class="seqs" id="mxList"></div>
+    <div class="form" style="margin-top:12px">
+      <label for="mxDipTo">Dip to</label>
+      <div class="row"><input type="number" id="mxDipTo" min="0" max="100" style="width:70px"> <span>% while</span>
+        <label class="inline"><input type="checkbox" id="mxDipMusic"> music plays</label>
+        <label class="inline"><input type="checkbox" id="mxDipVideo"> a video with sound plays</label>
+        <label class="inline"><input type="checkbox" id="mxDipQuiet"> a scene or sequence quiets the music</label></div>
+      <label for="mxDown">Dip down over</label>
+      <div class="row"><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, and back up over</span>
+        <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:70px" aria-label="Back up over"> <span>seconds</span></div>
+    </div>
+    <details class="info"><summary>Expand for info</summary><p class="note" id="micsNote"></p></details>
+    <dialog id="mxDialog">
+      <h2 id="mxTitle">Mic</h2>
+      <div class="form">
+        <label for="mxName">Name</label><input id="mxName" maxlength="40" placeholder="Court mic">
+        <label for="mxDevice">Input</label>
+        <div class="row"><select id="mxDevice"></select> <button class="alt" id="mxFind" type="button">Find inputs</button></div>
+        <label for="mxChannel">Channel</label>
+        <div class="row"><select id="mxChannel"><option value="both">Both (mixed to one)</option><option value="left">Left (1)</option><option value="right">Right (2)</option></select>
+          <small>two receivers on one stereo input are two mics, left and right</small></div>
+        <label>Sound</label>
+        <div class="row" style="gap:12px">
+          <label class="inline"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>
+          <label class="inline"><input type="checkbox" id="mxFollow"> Follows the dips</label>
+        </div>
+      </div>
+      <p class="note" id="mxFindNote"></p>
+      <p class="error" id="mxErr"></p>
+      <div class="row" style="justify-content:space-between;margin-top:12px">
+        <button class="danger" id="mxDelete">Delete</button>
+        <span class="row"><button class="alt" id="mxCancel">Cancel</button><button id="mxSave">Save</button></span>
+      </div>
+    </dialog>
+  </section>
+
   <section id="seqSection" data-fold="sequences">
     <div class="secHead">
       <h2 id="seqHead">Sequences</h2>
@@ -714,6 +773,7 @@
 <script src="output/scenes.js"></script>
 <script src="output/sequences.js"></script>
 <script src="output/music.js"></script>
+<script src="output/mics.js"></script>
 <script src="output/switcher.js"></script>
 <script src="output/settings.js"></script>
 <script src="output/exportimport.js"></script>

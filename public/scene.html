@@ -16,6 +16,8 @@
   chroma key safe, with nothing half see-through, and sources cut instead of fading.
   ?output=<id> draws one of the outputs besides the primary (outputs.js): the sources turned on for that
   output, always silent (only the primary output plays sound, and it has the music).
+  The primary output's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into
+  the Mac (mics.js), so they go out with the rest of the sound; a Scene View never plays them.
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -335,6 +337,161 @@
     if (music && music.status === 'playing') fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'musicEnded', playId: music.playId }) }).catch(() => {});
   });
 
+  // ─── Mics (mics.js) ─────────────────────────────────────────────────────
+  // Live mics plugged into the Mac, mixed into the sound here. Only the primary output's own window in the app
+  // (?fit=1, not silent, not the key) opens them: never a Scene View, where a speaker near a mic would feed back, and
+  // never twice. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
+  // the master level, mutes and the dip on top); then all of them through a limiter. The browser's call
+  // processing (echo cancelling, noise suppression, automatic level) is off: it would pump the crowd noise.
+  const micsHere = params.get('fit') === '1' && !alwaysSilent && params.get('mute') !== '1' && params.get('key') !== '1';
+  let micCtx = null, micBus = null, micSet = null;
+  const micDevices = new Map(); // device name -> { stream, source, splitter, error, opening }
+  const micChains = new Map(); // mic id -> { device, channel, from, out, input, filter, gain, meter, data }
+  const micProblem = {};
+  let micStatus = '';
+  function micContext() {
+    if (micCtx) return micCtx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    micCtx = new Ctx({ latencyHint: 'interactive' });
+    micBus = micCtx.createGain();
+    const limiter = micCtx.createDynamicsCompressor();
+    limiter.threshold.value = -6; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = .002; limiter.release.value = .15;
+    micBus.connect(limiter);
+    limiter.connect(micCtx.destination);
+    return micCtx;
+  }
+  async function audioInputs() {
+    const list = await navigator.mediaDevices.enumerateDevices();
+    return list.filter(d => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
+  }
+  // Opens a device by the name macOS gives it ('' is the Mac's default input). Names show only once the Mac has let
+  // Studio use the mics, so the first time asks for any input, then looks again.
+  async function openDevice(name) {
+    const d = { stream: null, source: null, splitter: null, error: '', opening: true };
+    micDevices.set(name, d);
+    try {
+      let id = '';
+      if (name) {
+        let found = (await audioInputs()).find(x => x.label === name);
+        if (!found && (await audioInputs()).every(x => !x.label)) {
+          (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach(t => t.stop());
+          found = (await audioInputs()).find(x => x.label === name);
+        }
+        if (!found) throw Object.assign(new Error(`${name} isn't plugged in`), { name: 'NotFoundError' });
+        id = found.deviceId;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        ...(id ? { deviceId: { exact: id } } : {}), echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+        channelCount: { ideal: 2 }, latency: { ideal: .01 } } });
+      if (micDevices.get(name) !== d) { stream.getTracks().forEach(t => t.stop()); return; }
+      const ctx = micContext();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      d.stream = stream;
+      d.source = ctx.createMediaStreamSource(stream);
+      d.splitter = ctx.createChannelSplitter(2);
+      d.source.connect(d.splitter);
+      stream.getAudioTracks().forEach(t => t.addEventListener('ended', () => { if (micDevices.get(name) === d) { closeDevice(name); renderMics(micSet); } }));
+    } catch (err) {
+      d.error = err.name === 'NotAllowedError' ? 'The Mac hasn\'t let Studio use the mics: allow FirstPass Studio in System Settings, Privacy & Security, Microphone'
+        : err.name === 'NotFoundError' || err.name === 'OverconstrainedError' ? `${name || 'The Mac\'s input'} isn't plugged in` : `Couldn't open ${name || 'the Mac\'s input'}: ${err.message}`;
+      console.warn('Mics:', d.error);
+    }
+    d.opening = false;
+    renderMics(micSet);
+  }
+  function closeDevice(name) {
+    const d = micDevices.get(name);
+    if (!d) return;
+    micDevices.delete(name);
+    if (d.stream) d.stream.getTracks().forEach(t => t.stop());
+    if (d.source) d.source.disconnect();
+  }
+  function dropChain(id) {
+    const c = micChains.get(id);
+    if (!c) return;
+    micChains.delete(id);
+    try { c.from.disconnect(c.input, c.out); } catch {}
+    try { c.input.disconnect(); c.gain.disconnect(); } catch {}
+  }
+  function micChain(m, d) {
+    const ctx = micContext();
+    // Both channels mixed down to one; or one channel of the device.
+    const input = ctx.createGain();
+    const from = m.channel === 'both' ? d.source : d.splitter, out = m.channel === 'right' ? 1 : 0;
+    if (m.channel === 'both') { input.channelCount = 1; input.channelCountMode = 'explicit'; input.channelInterpretation = 'speakers'; }
+    from.connect(input, out);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    const meter = ctx.createAnalyser();
+    meter.fftSize = 1024;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    input.connect(filter); filter.connect(meter); filter.connect(gain); gain.connect(micBus);
+    return { device: m.device, channel: m.channel, from, out, input, filter, gain, meter, data: new Float32Array(meter.fftSize) };
+  }
+  // How far down the dip is now, 0 (up) to 1 (down at dipTo), easing as the music's duck does.
+  function micGain(set, m) {
+    if (set.muted || m.muted) return 0;
+    let g = (m.level / 100) * (set.level / 100);
+    if (m.follow && set.dip) {
+      const down = along(set.dip, Date.now());
+      const low = Math.max(set.dipTo / 100, 0.01);
+      g *= down >= 1 ? set.dipTo / 100 : Math.pow(low, down);
+    }
+    return g;
+  }
+  function renderMics(set) {
+    micSet = set || null;
+    const want = micsHere && micSet ? micSet.mics : [];
+    const names = new Set(want.map(m => m.device));
+    for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
+    for (const [id, c] of micChains) {
+      const m = want.find(x => x.id === id);
+      if (!m || m.device !== c.device || m.channel !== c.channel || !micDevices.get(m.device)?.source) dropChain(id);
+    }
+    for (const k of Object.keys(micProblem)) delete micProblem[k];
+    for (const m of want) {
+      const d = micDevices.get(m.device);
+      if (!d) { openDevice(m.device); continue; }
+      if (d.error) { micProblem[m.id] = d.error; continue; }
+      if (!d.source) continue;
+      if (!micChains.has(m.id)) micChains.set(m.id, micChain(m, d));
+      micChains.get(m.id).filter.frequency.value = m.lowCut ? 100 : 10;
+    }
+    micStatus = Object.values(micProblem)[0] || '';
+  }
+  if (micsHere) {
+    // The levels follow the settings and the dip.
+    setInterval(() => {
+      if (!micCtx || !micSet) return;
+      const t = micCtx.currentTime;
+      for (const [id, c] of micChains) {
+        const m = micSet.mics.find(x => x.id === id);
+        if (m) c.gain.gain.setTargetAtTime(micGain(micSet, m), t, .03);
+        // The loudest moment since the last report, as it comes in (before the level).
+        c.meter.getFloatTimeDomainData(c.data);
+        for (const v of c.data) c.peak = Math.max(c.peak || 0, Math.abs(v));
+      }
+    }, 25);
+    // Tell Studio what this window hears, for the Output page: each mic's loudest moment (dBFS) in the last half second.
+    setInterval(async () => {
+      if (!micSet || !micSet.mics.length) return;
+      const levels = {};
+      for (const [id, c] of micChains) {
+        levels[id] = c.peak > 0 ? 20 * Math.log10(c.peak) : -100;
+        c.peak = 0;
+      }
+      let devices = [];
+      try { devices = (await audioInputs()).map(d => d.label).filter(Boolean); } catch {}
+      fetch('/api/scene/mics/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ devices, levels, problems: micProblem, status: micStatus }) }).catch(() => {});
+    }, 500);
+    // A device plugged in or out: try the mics again.
+    navigator.mediaDevices?.addEventListener('devicechange', () => {
+      for (const [name, d] of [...micDevices]) if (d.error && !d.opening) micDevices.delete(name);
+      renderMics(micSet);
+    });
+  }
+
   function render(scene) {
     const seen = new Set();
     scene.sources.forEach((s, i) => {
@@ -346,6 +503,7 @@
     });
     for (const [id, L] of layers) if (!seen.has(id)) { stopPageSound(L, .1); L.el.remove(); layers.delete(id); }
     renderMusic(outputId ? null : scene.music);
+    renderMics(scene.mics);
     first = false;
   }
 
