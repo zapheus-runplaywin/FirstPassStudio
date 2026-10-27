@@ -9,6 +9,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const net = require('node:net');
 
 // playhq.js keeps finished games in the data folder (datadir.js reads this when it's loaded).
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-playhq-'));
@@ -96,6 +97,33 @@ test('an answer that isn\'t JSON (a maintenance page) says so', async () => {
     const c = client({ apiUrl: `http://127.0.0.1:${html.address().port}/graphql` });
     await assert.rejects(c.getRounds('grade-div1'), /PlayHQ sent something that was not JSON/);
   } finally { await new Promise(r => html.close(r)); }
+});
+
+// A port nothing listens on, for a PlayHQ that can't be reached at all (the internet down).
+function closedPort() {
+  return new Promise(r => { const s = net.createServer().listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => r(port)); }); });
+}
+
+test('with the internet down, PlayHQ can\'t be reached: said in words, not as "fetch failed", and logged', async () => {
+  const c = client({ apiUrl: `http://127.0.0.1:${await closedPort()}/graphql` });
+  await assert.rejects(c.getRounds('grade-div1'), err => {
+    assert.match(err.message, /^Can't reach PlayHQ \(ECONNREFUSED\)\. Is this Mac connected to the internet\?$/);
+    assert.equal(err.unreachable, true);
+    return true;
+  });
+  assert.ok(logged.some(l => /^error playhq Guest session: Can't reach PlayHQ/.test(l)), logged.join('\n'));
+});
+
+test('PlayHQ\'s live scoring that can\'t be reached says so in words too, and health hears it', async () => {
+  const dead = `http://127.0.0.1:${await closedPort()}/spectator`;
+  process.env.PLAYHQ_SPECTATOR_URL = dead;
+  try {
+    const c = client();
+    const game = playhq.world.gameNow(0);
+    await c.getRoundGames(game.roundId, 0);
+    await assert.rejects(c.getLive(game.id, 0), err => /^Can't reach PlayHQ's live scoring \(ECONNREFUSED\)\./.test(err.message));
+    assert.match(c.lastLive.error, /^Can't reach PlayHQ's live scoring/);
+  } finally { process.env.PLAYHQ_SPECTATOR_URL = playhq.spectatorUrl; }
 });
 
 test('a refused session (HTTP 401) gets a new guest session and asks once more', async () => {

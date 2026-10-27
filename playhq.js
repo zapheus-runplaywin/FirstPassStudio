@@ -51,6 +51,13 @@ function startOf(g, date = g.date) {
   return new Date(`${date}T${m[1].padStart(2, '0')}:${m[2]}:00`).getTime();
 }
 
+// A request that never reached PlayHQ (no internet, the name not found, the connection cut): fetch only says
+// "fetch failed", so say what that means, with the reason underneath (ENOTFOUND, ECONNREFUSED...).
+function unreachable(err, what = 'PlayHQ') {
+  const why = err.cause ? err.cause.code || err.cause.message : err.message;
+  return Object.assign(new Error(`Can't reach ${what}${why ? ` (${why})` : ''}. Is this Mac connected to the internet?`), { unreachable: true, cause: err });
+}
+
 function create(deps) {
   const { log, apiUrl, cacheMs, linkBase, config, leadMs, logoFor, positionOf } = deps;
 
@@ -84,7 +91,9 @@ function create(deps) {
     cookiePromise = (async () => {
       try {
         for (const body of SESSION_QUERIES) {
-          const res = await fetch(apiUrl, { method: 'POST', headers: { ...HEADERS, tenant: TENANT, 'request-id': crypto.randomUUID() }, body: JSON.stringify(body) });
+          let res;
+          try { res = await fetch(apiUrl, { method: 'POST', headers: { ...HEADERS, tenant: TENANT, 'request-id': crypto.randomUUID() }, body: JSON.stringify(body) }); }
+          catch (err) { const e = unreachable(err); log('error', 'playhq', `Guest session: ${e.message}`); throw e; }
           const c = readCookies(res);
           if (c) { cookie = c; cookieAt = Date.now(); return cookie; }
         }
@@ -103,7 +112,7 @@ function create(deps) {
     const started = Date.now();
     let res;
     try { res = await fetch(apiUrl, { method: 'POST', headers, body: JSON.stringify({ operationName, query, variables }) }); }
-    catch (err) { log('error', 'playhq', `${operationName} could not reach PlayHQ: ${err.cause ? err.cause.message || err.cause.code : err.message}`, variables); throw err; }
+    catch (err) { const e = unreachable(err); log('error', 'playhq', `${operationName}: ${e.message}`, variables); throw e; }
     const text = await res.text();
     log(res.ok ? 'info' : 'warn', 'playhq', `${operationName} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`, variables);
     if (!res.ok) log('warn', 'playhq', `${operationName} answer`, text.slice(0, 500));
@@ -516,7 +525,9 @@ function create(deps) {
     const c = await getSession();
     if (c) headers.cookie = c;
     const started = Date.now();
-    const res = await fetch(SPECTATOR_URL, { method: 'POST', headers, body: JSON.stringify({ operationName: 'game', query: Q_LIVE, variables: { id: gameId } }) });
+    let res;
+    try { res = await fetch(SPECTATOR_URL, { method: 'POST', headers, body: JSON.stringify({ operationName: 'game', query: Q_LIVE, variables: { id: gameId } }) }); }
+    catch (err) { throw unreachable(err, 'PlayHQ\'s live scoring'); }
     const text = await res.text();
     log(res.ok ? 'info' : 'warn', 'live', `game ${gameId} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`);
     if (!res.ok) { log('warn', 'live', 'answer', text.slice(0, 500)); throw new Error(`PlayHQ live feed answered HTTP ${res.status}`); }
