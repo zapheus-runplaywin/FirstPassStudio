@@ -147,6 +147,28 @@ test('Try again while the switcher is still gone keeps saying it isn\'t answerin
   await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 15000 });
 });
 
+test('an answer that arrives after the switcher has connected doesn\'t put the page back to Connecting', async t => {
+  const { atem, studio, page } = await setUp(t);
+  if (!page) return;
+  // Studio's answer to Use is held back until it has connected (as on a busy Mac): the connected news, over the
+  // scene's socket, gets to the page first.
+  await page.route('**/api/switcher', async route => {
+    const answer = await route.fetch();
+    await studio.until(async () => (await studio.get('/api/switcher')).state === 'connected');
+    await wait(500);
+    await route.fulfill({ response: answer });
+  });
+  await page.click('#swSetup');
+  await page.fill('#swAddress', `127.0.0.1:${atem.port}`);
+  await page.click('#swUseAddress');
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 10000 });
+  await page.waitForResponse('**/api/switcher');
+  await wait(300);
+  assert.match(await text(page, '#swText'), /ATEM Mini Extreme connected/);
+  await shows(page, 'Court', 'Bench');
+  assert.deepEqual(page.errors, []);
+});
+
 test('a mistyped address is refused with what to type, and Forget lets the switcher go', async t => {
   const { atem, page } = await setUp(t);
   if (!page) return;
