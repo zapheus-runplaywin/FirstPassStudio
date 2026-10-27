@@ -61,8 +61,9 @@ module.exports = function decklink({ port, log, onStatus }) {
     const mode = device && device.modes.find(m => m.mode === w.mode);
     const r = addon.start({ device: w.device, mode: w.mode, keying: w.keying, straight: !!w.straight });
     if (!r.ok) {
-      error = r.error;
-      log(`DeckLink output failed on ${device?.name || w.device}: ${r.error}`);
+      // A format the device said it can't send: say that rather than guess at another app holding it.
+      error = mode && mode.supported === false ? `${device.name} says it can't send ${mode.name}. Pick another video format.` : r.error;
+      log(`DeckLink output failed on ${device?.name || w.device}: ${error}`);
       return report();
     }
     running = { key, name: r.name, mode: mode?.name || '' };

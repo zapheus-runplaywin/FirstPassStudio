@@ -318,7 +318,8 @@ const showOut = o => {
   $('outDisplaySize').innerHTML = off.map(d => `<b>${esc(d.label)}</b> is set to ${d.width} × ${d.height}${(d.scale || 1) !== 1 ? ` (HiDPI, ${d.scale}x)` : ''}, not 1920 × 1080, so the scene is scaled and looks softer. `
     + 'In System Settings, Displays, pick it, turn on Show all resolutions and choose 1920 × 1080 (not the HiDPI one).').join('<br>');
   $('outDisplaySize').classList.toggle('hidden', !off.length);
-  // Blackmagic devices, and the 1080p formats each can send (interlaced and 720p look soft, so they aren't offered).
+  // Blackmagic devices, and the 1080p formats each names (interlaced and 720p look soft, so they aren't offered).
+  // A format the device says it can't send is still listed, marked, so it's clear why it isn't working.
   const dl = o.decklink || {};
   const devices = dl.ok ? dl.devices : [];
   $('outDecklink').disabled = !devices.length && so.mode !== 'decklink';
@@ -326,8 +327,8 @@ const showOut = o => {
   $('outDlDevice').innerHTML = devices.length ? devices.map(d => `<option value="${d.id}">${d.name}${d.externalKeying ? '' : ' (no fill and key)'}</option>`).join('') : '<option value="">No device connected</option>';
   const device = devices.find(d => d.id === so.decklinkDevice) || devices[0];
   $('outDlDevice').value = device ? device.id : '';
-  const modes = device ? device.modes.filter(m => m.supported && m.height === 1080 && !m.interlaced) : [];
-  $('outDlMode').innerHTML = modes.map(m => `<option value="${m.mode}">${m.name}${so.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`).join('');
+  const modes = device ? device.modes.filter(m => m.height === 1080 && !m.interlaced) : [];
+  $('outDlMode').innerHTML = modes.map(m => `<option value="${m.mode}">${m.name}${!m.supported ? ' (device says it can\'t)' : so.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`).join('');
   const pickedMode = modes.find(m => m.mode === so.decklinkMode) || defaultMode(modes);
   $('outDlMode').value = String((pickedMode || {}).mode || '');
   $('outDlKeying').value = so.decklinkKeying;
@@ -421,9 +422,9 @@ const setOut = async changes => {
 // ?scan=1 has the app look for Blackmagic devices again (plugged in or out).
 const loadOut = () => fetch('/api/outputs?scan=1').then(r => r.json()).then(showOut).catch(() => {});
 // The format to start with (the same as outputs.js uses): 1080p50 if the device can key it (Australian
-// switchers mostly run at 50), else the first 1080p format that can, else the first.
-const defaultMode = modes => ['1080p50', '1080p25'].map(n => modes.find(m => m.keying && m.name.replace(/\s/g, '').includes(n))).find(Boolean)
-  || modes.find(m => m.keying) || modes[0];
+// switchers mostly run at 50), else the first 1080p format that can, else the first it can send.
+const defaultMode = modes => ['1080p50', '1080p25'].map(n => modes.find(m => m.supported && m.keying && m.name.replace(/\s/g, '').includes(n))).find(Boolean)
+  || modes.find(m => m.supported && m.keying) || modes.find(m => m.supported) || modes[0];
 loadOut();
 // Displays come and go (plugged in, the app starting up): check again now and then.
 setInterval(() => { if (!document.hidden) loadOut(); }, 5000);
