@@ -185,7 +185,7 @@
     <li><a href="#s3-5">Automatic layers</a></li>
     <li><a href="#s3-6">Scenes</a></li>
     <li><a href="#s3-7">Sequences</a></li>
-    <li><a href="#s3-8">Music and playlists</a></li>
+    <li><a href="#s3-8">Music, playlists and mics</a></li>
     <li><a href="#s3-9">Video output</a></li>
     <li><a href="#s3-10">A night, start to finish</a></li>
     <li><a class="top" href="#ch4">4 · Running it by hand</a></li>
@@ -258,7 +258,7 @@
   <div class="chno">Chapter 3 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Game night, the automated way</h2>
   <p class="lead">This is how most nights run: one operator, PlayHQ scoring the game, a base scene that stays on, automatic layers that fire by themselves, and sequences that handle the run-up, the breaks and full time.</p>
-  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s3-1"><b>1</b>How it fits together</a></li><li><a href="#s3-2"><b>2</b>Scoreboard control</a></li><li><a href="#s3-3"><b>3</b>The Output page</a></li><li><a href="#s3-4"><b>4</b>The base scene</a></li><li><a href="#s3-5"><b>5</b>Automatic layers</a></li><li><a href="#s3-6"><b>6</b>Scenes</a></li><li><a href="#s3-7"><b>7</b>Sequences</a></li><li><a href="#s3-8"><b>8</b>Music and playlists</a></li><li><a href="#s3-9"><b>9</b>Video output</a></li><li><a href="#s3-10"><b>10</b>A night, start to finish</a></li></ol></div>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s3-1"><b>1</b>How it fits together</a></li><li><a href="#s3-2"><b>2</b>Scoreboard control</a></li><li><a href="#s3-3"><b>3</b>The Output page</a></li><li><a href="#s3-4"><b>4</b>The base scene</a></li><li><a href="#s3-5"><b>5</b>Automatic layers</a></li><li><a href="#s3-6"><b>6</b>Scenes</a></li><li><a href="#s3-7"><b>7</b>Sequences</a></li><li><a href="#s3-8"><b>8</b>Music, playlists and mics</a></li><li><a href="#s3-9"><b>9</b>Video output</a></li><li><a href="#s3-10"><b>10</b>A night, start to finish</a></li></ol></div>
 
   <h3 id="s3-1">How it fits together</h3>
   <p>Four things do the work, and each one is set up once:</p>
@@ -342,7 +342,7 @@
   <figure><img src="img/s-output-sequence-playing.webp" alt="A sequence playing on the Output page"><figcaption>While a sequence plays its card shows a dot per step, the time left on the step and for the whole sequence, with Next, Pause and Stop.</figcaption></figure>
   <p>Sequences belong to the competition in use and change with <strong>Use this one</strong>; the sources and scenes are shared. The break lengths on the setup page (quarter time, half time, three quarter time) let the editor say how many times a break sequence fits in each break.</p>
 
-  <h3 id="s3-8">Music and playlists</h3>
+  <h3 id="s3-8">Music, playlists and mics</h3>
   <figure><img src="img/s-output-music.webp" alt="The Music player and playlists"><figcaption>The Music player, two playlists, and the settings for fades, ducking and what happens under a video with sound.</figcaption></figure>
   <p>The Music player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF; use music you're licensed to stream), one song or a playlist, shuffled or not. Add a song with <strong>Even out its loudness</strong> ticked and it is levelled to match the others. Music plays wherever the video sound plays: through the output, or in the Scene View while Video output is off, never twice.</p>
   <ul>
@@ -352,6 +352,12 @@
     <li>The <strong>super shot song</strong> cuts in when the super shot period starts in a super shot division, loops, and fades out when the period ends.</li>
   </ul>
   <figure><img src="img/s-playlist-editor.webp" alt="The playlist editor"><figcaption>A playlist: songs in order, shuffle, and whether it starts again after the last.</figcaption></figure>
+  <p><strong>Mics.</strong> Wireless effects mics on court and crowd mics go out with the music: plug their receivers into the Mac (directly or through an audio interface) and add each one under <strong>Mics</strong>, with its input and channel (two receivers on one stereo input are two mics, left and right). Studio mixes them into Output 1's sound while it's on, never into the Scene View, so a speaker near a mic can't feed back. The first time, the Mac asks whether FirstPass Studio may use the microphone.</p>
+  <ul>
+    <li>Each mic has a level, a mute, a <strong>Low cut</strong> for wind and rumble and a meter; <strong>Level</strong> and <strong>Mute all</strong> cover every mic, and a limiter stops a shout clipping the stream.</li>
+    <li>The mics <strong>dip</strong> while music plays, while a video with its sound plays and during a scene that quiets the music (each a tick box), and by hand with <strong>Dip</strong>. A mic with <strong>Follows the dips</strong> off stays put.</li>
+    <li>Stream Deck: <code>/deck/mics/mute/toggle</code>, <code>/deck/mics/dip/toggle</code>, <code>/deck/mics/up</code>, <code>/deck/mics/down</code>, and one mic with <code>/deck/mic/court-mic/mute/toggle</code>.</li>
+  </ul>
 
   <h3 id="s3-9">Video output</h3>
   <p>The <strong>Video output</strong> section at the top of the Output page sends the scene to your switcher. Pick one of three routes, then press <strong>Output on</strong>. While the output is on its settings are locked; turn it off to change them. <code>/deck/output/on</code>, <code>off</code> and <code>toggle</code> do the same from a Stream Deck, and the outputs go dark when Studio goes off air.</p>
@@ -766,7 +772,7 @@
     <tr><th>To change</th><th>Go to</th></tr>
     <tr><td>Colours, font, logos, rules, finals format, court</td><td>Competitions setup</td></tr>
     <tr><td>Which game, scoring mode, score, clock, finals winners</td><td>Scoreboard control</td></tr>
-    <tr><td>What's on screen, scenes, sequences, playlists, music, outputs</td><td>Output</td></tr>
+    <tr><td>What's on screen, scenes, sequences, playlists, music, mics, outputs</td><td>Output</td></tr>
     <tr><td>A graphic's options (heading, position, division, animate away)</td><td>Output, under the source's address</td></tr>
     <tr><td>Sponsors, tiers, ads, moments, the report</td><td>Sponsors</td></tr>
     <tr><td>Photos, positions, games played</td><td>Athletes</td></tr>

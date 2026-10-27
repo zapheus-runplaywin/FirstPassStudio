@@ -45,6 +45,7 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 | `scene.js` | The scene: sources as layers on one frame, each on or off per output (`visible` for the primary, `out` for the others), scenes (saved sets of sources, shared by the outputs, with a current scene per output), the Output page's state, the WebSocket and SSE feeds that push it to pages and the plugin, game triggers. |
 | `sequences.js` | Sequences: steps played in order, waits, repeats, Stream Deck key, time left. Sequences are shared by the outputs and play on the one picked (`startOn` for automatic starts), with one runner per output (`within()` switches between them); only the primary's play music. |
 | `music.js` | The stream's music: one player, playlists, fades and ducking, the super shot song. |
+| `mics.js` | Live mics plugged into the Mac (`mics.json`, one set per Mac): each mic's input, channel, level, mute and low cut, the master level and mute, and the dips under music, a video's sound, quiet scenes and by hand (worked out in `state()`, which `scene.js` calls). The primary output's own window (`scene.html?fit=1`) opens the devices with Web Audio, mixes them in through a limiter and reports what it hears twice a second (`/api/scene/mics/report`); the Output page reads it from `/api/scene/mics/live`. A Scene View never opens them. |
 | `sponsors.js`, `exposure.js` | Sponsors, spots on the graphics, ads in sequences; proof of play for the exposure report. |
 | `viewers.js` | Live viewer numbers from YouTube and Facebook while a video output is on. |
 | `outputs.js` | Up to four outputs, each with its own route (display, chroma, fill+key, NDI, Blackmagic) and on/off; the first is the primary and the only one with sound. Earlier outputs keep a display, the Blackmagic device or an NDI name. The app does the showing. Each output also keeps how it comes into the ATEM (its key and switcher inputs), given to `switcher.js` by `switcherPlan()`. |
@@ -92,6 +93,7 @@ leaves a half-written settings file.
 | `outputs.js` listenChanged | 5 s | Notices a preview that stopped checking in. |
 | `switcher.js` (atem-connection) | about 2 per second each way | The switcher's own heartbeat while connected; after about 5 s of silence it counts as lost and the library reconnects every second. A switcher found by name is looked for again every 15 s while lost, in case its address changed. |
 | `scene.js` SSE ping | 25 s | Keeps the plugin's event stream open. |
+| `scene.html` mics | 25 ms, 500 ms | In the primary output's window, while mics are set up: the mics' levels follow the settings and the dip; twice a second it reports their levels and trouble to the helper. The Output page reads that twice a second while its Mics section is open. |
 | `server.js` pushBoard | on each save, and 1 s | Pushes the scoreboard to the pages following it over the scene socket (scoreboard, control page, goals, countdown) when it has changed. |
 | Pages | 1-30 s | Ticker, super shot and streak pages poll the helper only (see "Data and bandwidth" on the Docs page). |
 

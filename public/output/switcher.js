@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 7 of 12: Switcher: the ATEM switcher Studio controls, its inputs and keys in tally colours, picking it, each output's key on it (Into the switcher as, with its settings check), and the switcher actions on steps and scenes.
+// FirstPass Studio - the Output page, part 8 of 13: Switcher: the ATEM switcher Studio controls, its inputs and keys in tally colours, picking it, each output's key on it (Into the switcher as, with its settings check), and the switcher actions on steps and scenes.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 

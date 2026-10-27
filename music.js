@@ -46,7 +46,7 @@ const STINGER_UP_SEC = 0.5;
 const UNKNOWN_MS = 5000;
 
 let log = () => {};
-let api = null; // { duration(file), changed(), exists(file) }
+let api = null; // { duration(file), files(), changed(), quiet(on) }
 let playlists = [];
 let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false, superShotSong: '', superShotVolume: 80 };
 // The super shot song plays as this owner; superFired is the game and quarter it last started for.
@@ -307,6 +307,7 @@ function stinger(mode, on, sec) {
 
 // A scene or sequence with "Quiet the music" ticked started (quiet true), or one without it (false).
 function quiet(on) {
+  api?.quiet?.(!!on); // the mics dip with it (mics.js)
   if (on) {
     // A stinger's dip becomes this scene's quiet, so the music stays down when the stinger ends.
     if (p.ducked === 'stinger') { p.ducked = 'quiet'; return true; }

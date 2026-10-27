@@ -48,12 +48,14 @@ test('the fuses stop the app running as a plain Node or taking code by environme
   });
 });
 
-test('the entitlements are the three the app needs, with no dyld environment variables', () => {
+test('the entitlements are the four the app needs, with no dyld environment variables', () => {
   assert.equal(build.mac.entitlements, 'build/entitlements.mac.plist');
   assert.equal(build.mac.entitlementsInherit, 'build/entitlements.mac.plist');
   const plist = fs.readFileSync(path.join(ROOT, build.mac.entitlements), 'utf8');
   const keys = [...plist.matchAll(/<key>([^<]+)<\/key>/g)].map(m => m[1]).sort();
-  assert.deepEqual(keys, ['com.apple.security.cs.allow-jit', 'com.apple.security.cs.allow-unsigned-executable-memory', 'com.apple.security.cs.disable-library-validation']);
+  assert.deepEqual(keys, ['com.apple.security.cs.allow-jit', 'com.apple.security.cs.allow-unsigned-executable-memory', 'com.apple.security.cs.disable-library-validation', 'com.apple.security.device.audio-input']);
+  // macOS asks before the mics are heard, and says why with this.
+  assert.match(build.mac.extendInfo.NSMicrophoneUsageDescription, /mics/);
   assert.ok(build.files.includes('unpacked.js'));
 });
 

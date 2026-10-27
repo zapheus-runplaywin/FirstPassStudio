@@ -75,6 +75,7 @@
       "uploads.js",
       "sequences.js",
       "music.js",
+      "mics.js",
       "fonts.js",
       "sponsors.js",
       "exposure.js",
@@ -110,7 +111,8 @@
       "hardenedRuntime": true,
       "notarize": true,
       "extendInfo": {
-        "LSUIElement": true
+        "LSUIElement": true,
+        "NSMicrophoneUsageDescription": "FirstPass Studio mixes the mics you add on the Output page into the stream's sound."
       },
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
