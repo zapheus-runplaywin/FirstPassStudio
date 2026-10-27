@@ -16,9 +16,9 @@
 //   - a video with its sound on is showing (or a page playing a theme song),
 //   - a scene or sequence with "Quiet the music" ticked is on (an interview on court),
 //   - the Dip button or /deck/mics/dip is on, by hand.
-// Each of the first three is a tick box; the Dip by hand always works. A mic with "Follows the dips" off stays at
-// its level whatever happens (a commentator's mic, say). The dip goes down over dipDownSec and back up over
-// dipUpSec: dip { from, to, at, ms } goes from 0 (up) to 1 (down at dipTo), as the music's duck does.
+// Each of the first three is a tick box; the Dip by hand always works. A mic marked "Has an external mixer"
+// (follow false) stays at its level whatever happens: the mixer does the fading. The dip goes down over dipDownSec
+// and back up over dipUpSec: dip { from, to, at, ms } goes from 0 (up) to 1 (down at dipTo), as the music's duck does.
 //
 // The window mixing the mics reports what it hears every half second (report()): the devices it can see, each mic's
 // level as it comes in, and any trouble (no permission, device not plugged in). The Output page shows it from live().
@@ -88,7 +88,7 @@ function cleanMic(m, existing = {}) {
     level: Math.round(clamp(s.level, 0, 200, 100)),
     muted: flag(s.muted, false),
     lowCut: flag(s.lowCut, true),
-    follow: flag(s.follow, true), // follows the dips
+    follow: flag(s.follow, true), // follows the dips; false when an external mixer does the fading
   };
   const base = text(s.name, 40) || 'Mic';
   const taken = new Set(settings.mics.filter(x => x.id !== out.id).map(x => slug(x.name)));
