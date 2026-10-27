@@ -442,7 +442,7 @@
   }
   function renderMics(set) {
     micSet = set || null;
-    const want = micsHere && micSet ? micSet.mics : [];
+    const want = micsHere && micSet ? micSet.mics.filter(m => m.on !== 'atem') : []; // the switcher mixes its own
     const names = new Set(want.map(m => m.device));
     for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
     for (const [id, c] of micChains) {

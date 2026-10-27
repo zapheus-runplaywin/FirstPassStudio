@@ -28,6 +28,7 @@ const exposure = require('./exposure');
 const viewers = require('./viewers');
 const outputs = require('./outputs');
 const switcher = require('./switcher');
+const mics = require('./mics');
 const { linkHost, bonjourName } = require('./linkhost');
 const access = require('./access');
 const uploads = require('./uploads');
@@ -111,7 +112,10 @@ exposure.init(log, { showing: scene.showing, onAir: outputs.sponsorsOnAir });
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
 // The ATEM switcher, if one is set up: its state goes to the Output page over the scene's socket.
 scene.setSwitcherSource(switcher.status);
-switcher.init(log, { changed: scene.publishSwitcher, stinger: { find: scene.stingerSource, play: scene.playStinger }, outputs: outputs.switcherPlan });
+// Mics plugged into the switcher (mics.js): Studio moves their faders, and follows a fader moved on the switcher.
+switcher.init(log, { changed: () => { scene.publishSwitcher(); mics.switcherChanged(); }, stinger: { find: scene.stingerSource, play: scene.playStinger }, outputs: outputs.switcherPlan,
+  mics: () => mics.switcherChanged() });
+mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
 const playhq = require('./playhq').create({

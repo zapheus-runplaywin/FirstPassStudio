@@ -1,28 +1,37 @@
-// FirstPass Studio - the Output page, part 7 of 13: Mics: live mics plugged into the Mac, their levels, mutes and dips.
+// FirstPass Studio - the Output page, part 7 of 13: Mics: live mics plugged into the Mac or the switcher, their levels, mutes and dips.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 // ─── Mics ──────────────────────────────────────────────────────────────
 // The mics Studio keeps (mics.js) and what the primary output's window hears from them (/api/scene/mics/live, asked
 // every half second while this section is open). The Mac's inputs are listed by that window, or by this page when
-// it's open in the Mac app (Find inputs), since a page on another computer would list its own.
+// it's open in the Mac app (Find inputs), since a page on another computer would list its own. A mic plugged into
+// the switcher picks one of the switcher's audio inputs instead, and its card shows where Studio has its fader.
 const onThisMac = ['localhost', '127.0.0.1'].includes(location.hostname);
-let micLive = { mixing: false, devices: [], levels: {}, problems: {}, status: '' };
+let micLive = { mixing: false, devices: [], levels: {}, problems: {}, status: '', switcher: { connected: false, inputs: [] }, faders: {} };
 const micsOf = () => (scene.mics && scene.mics.mics) || [];
 const primaryOn = () => { const o = out && out.outputs && out.outputs.find(x => x.id === 'main'); return !!(o && o.on && o.mode !== 'off'); };
 const deviceName = d => d || 'The Mac\'s own input';
 const channelName = c => ({ both: 'both channels', left: 'left', right: 'right' })[c] || c;
+const onAtem = m => m.on === 'atem';
+const atemInputName = id => ((micLive.switcher?.inputs || []).find(i => i.id === id) || {}).name || (id > 1300 && id < 1400 ? `Mic ${id - 1300}` : `input ${id}`);
+const micWhere = m => [`#${micsOf().indexOf(m) + 1}`, onAtem(m) ? `switcher: ${m.input ? atemInputName(m.input) : 'no input picked'}` : deviceName(m.device), channelName(m.channel),
+  !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'doesn\'t dip'].filter(Boolean).join(' · ');
+const fmtDb = d => d <= -100 ? 'all the way down' : `${d > 0 ? '+' : ''}${d.toFixed(1)} dB`;
 
 function renderMics() {
   const set = scene.mics;
   if (!set) return;
-  const mics = set.mics;
+  const mics = set.mics, mac = mics.filter(m => !onAtem(m)), atem = mics.filter(onAtem);
+  // The Mac's mics are heard on Output 1 while it's on; the switcher's wherever the switcher sends them.
+  const macHeard = !mac.length ? '' : !primaryOn() ? 'Mac mics not heard: Output 1 is off'
+    : micLive.mixing ? 'Mac mics heard on Output 1' : 'Waiting for Output 1 to open the Mac mics…';
+  const atemHeard = !atem.length ? '' : micLive.switcher?.connected ? 'switcher mics on its faders' : 'Switcher not connected';
   $('mxHeard').textContent = !mics.length ? 'No mics yet'
     : set.muted ? 'All mics muted'
-    : !primaryOn() ? 'Not heard: Output 1 is off'
-    : micLive.mixing ? `Heard on Output 1${set.level !== 100 ? ` at ${set.level}%` : ''}` : 'Waiting for Output 1 to open the mics…';
+    : [macHeard, atemHeard].filter(Boolean).join(' · ').replace(/^./, c => c.toUpperCase()) + (set.level !== 100 ? ` (level ${set.level}%)` : '');
   $('mxWhy').textContent = set.dipped && mics.length ? `dipped to ${set.dipTo}%: ${set.why.join(', ')}` : '';
-  $('mxBar').classList.toggle('on', !!mics.length && !set.muted && primaryOn() && micLive.mixing);
+  $('mxBar').classList.toggle('on', !!mics.length && !set.muted && ((mac.length && primaryOn() && micLive.mixing) || (atem.length && micLive.switcher?.connected)));
   $('mxMute').classList.toggle('lit', set.muted);
   $('mxMute').textContent = set.muted ? 'Muted' : 'Mute all';
   $('mxDip').classList.toggle('lit', set.hand);
@@ -37,9 +46,11 @@ function renderMics() {
     + 'The first time, the Mac asks whether FirstPass Studio may use the microphone: allow it (or later in System Settings, Privacy &amp; Security, Microphone). '
     + 'Each mic has its own level (100% is as it comes in, up to 200%), a mute and a <b>Low cut</b> for wind and rumble; <b>Level</b> and <b>Mute all</b> are over all of them, and a limiter stops a shout clipping the stream. '
     + 'Two receivers on one stereo input are two mics: pick Left for one and Right for the other. '
+    + 'A mic plugged into the <b>switcher</b> (an ATEM Mini\'s Mic 1 or Mic 2) is mixed by the switcher: Studio moves its fader to the mic\'s level, mutes and dips, and changes nothing else on it (its On, Off or AFV, EQ and dynamics are set in ATEM Software Control, and the input must be On). '
+    + 'Move its fader on the switcher or in ATEM Software Control and that becomes the mic\'s level; when Studio connects it takes the faders as they are. For Left and Right, split the input into two mono channels in ATEM Software Control. '
     + 'Like the music\'s duck, the mics <b>dip</b> while music plays, while a video with its sound on plays, and while a scene or sequence with <b>Quiet the music</b> ticked is on (each a tick box), and by hand with <b>Dip</b>. A mic with <b>Follows the dips</b> off stays at its level. '
     + `Stream Deck: <code>${typeof base === 'string' ? base : ''}/deck/mics/mute/toggle</code> (or <code>/on</code>, <code>/off</code>), <code>/deck/mics/dip/toggle</code>, <code>/deck/mics/up</code> and <code>/down</code> (10% a press, or <code>?by=5</code>), <code>/deck/mics/level/80</code>, `
-    + 'and one mic by its name or number: <code>/deck/mic/court-mic/mute/toggle</code>, <code>/deck/mic/1/up</code>, <code>/deck/mic/1/down</code>.';
+    + 'and one mic by its name or its # on its card: <code>/deck/mic/court-mic/mute/toggle</code>, <code>/deck/mic/1/up</code>, <code>/deck/mic/1/down</code>.';
 }
 
 function renderMicList() {
@@ -71,7 +82,7 @@ function renderMicList() {
     });
     const add = document.createElement('button');
     add.className = 'seq addSeq';
-    add.innerHTML = '+ Add mic<small>an input plugged into the Mac</small>';
+    add.innerHTML = '+ Add mic<small>an input on the Mac or the switcher</small>';
     add.onclick = () => openMic(null);
     add.disabled = micsOf().length >= 8;
     box.appendChild(add);
@@ -79,19 +90,21 @@ function renderMicList() {
   meters();
 }
 // What the cards show, so a change made elsewhere (a Stream Deck press) redraws them.
-const micsLook = () => JSON.stringify(micsOf().map(m => [m.name, m.device, m.channel, m.level, m.muted, m.lowCut, m.follow]));
+const micsLook = () => JSON.stringify(micsOf().map(m => [m.name, m.on, m.device, m.input, m.channel, m.level, m.muted, m.lowCut, m.follow]));
 function meters() {
   for (const card of $('mxList').querySelectorAll('[data-mic]')) {
-    const id = card.dataset.mic, db = micLive.levels[id], problem = micLive.problems[id];
-    const bar = card.querySelector('.mxMeter i');
-    // -60 dBFS to 0 across the bar.
-    const pct = db === undefined ? 0 : Math.max(0, Math.min(100, (db + 60) / 60 * 100));
+    const id = card.dataset.mic, problem = micLive.problems[id];
+    const m = micsOf().find(x => x.id === id);
+    if (!m) continue;
+    const bar = card.querySelector('.mxMeter i'), fader = micLive.faders?.[id];
+    // The Mac's mics: what comes in, -60 dBFS to 0 across the bar. The switcher's: where its fader is, -60 to +6 dB.
+    const db = onAtem(m) ? fader : micLive.levels[id];
+    const pct = db === undefined ? 0 : Math.max(0, Math.min(100, onAtem(m) ? (db + 60) / 66 * 100 : (db + 60) / 60 * 100));
     bar.style.width = pct + '%';
-    bar.className = db >= -3 ? 'hot' : db >= -12 ? 'warm' : '';
+    bar.className = onAtem(m) ? '' : db >= -3 ? 'hot' : db >= -12 ? 'warm' : '';
     const where = card.querySelector('.where');
     where.classList.toggle('badText', !!problem);
-    const m = micsOf().find(x => x.id === id);
-    if (m) where.textContent = problem || [`Mic ${micsOf().indexOf(m) + 1}`, deviceName(m.device), channelName(m.channel), m.lowCut ? 'low cut' : '', m.follow ? '' : 'doesn\'t dip'].filter(Boolean).join(' · ');
+    where.textContent = problem || micWhere(m) + (onAtem(m) && fader !== undefined ? ` · fader ${fmtDb(fader)}` : '');
   }
 }
 
@@ -114,7 +127,8 @@ for (const id of ['mxDipTo', 'mxDown', 'mxUp', 'mxDipMusic', 'mxDipVideo', 'mxDi
 // ─── The mic editor ─────────────────────────────────────────────────────
 let mxDraft = null;
 function openMic(m) {
-  mxDraft = m ? { ...m } : { name: '', device: micLive.devices[0] || '', channel: 'both', lowCut: true, follow: true };
+  mxDraft = m ? { ...m } : { name: '', on: 'mac', device: micLive.devices[0] || '', input: 0, channel: 'both', lowCut: true, follow: true };
+  $('mxOn').value = mxDraft.on || 'mac';
   $('mxTitle').textContent = m ? 'Edit mic' : 'Add a mic';
   $('mxName').value = mxDraft.name;
   $('mxChannel').value = mxDraft.channel;
@@ -122,21 +136,41 @@ function openMic(m) {
   $('mxFollow').checked = mxDraft.follow;
   $('mxDelete').classList.toggle('hidden', !m);
   $('mxErr').textContent = '';
-  $('mxFind').classList.toggle('hidden', !onThisMac);
-  $('mxFindNote').textContent = onThisMac ? '' : 'The inputs listed are the ones Output 1 can see. To list them before Output 1 is on, open this page in the Studio app and press Find inputs.';
+  routeFields();
   fillDevices();
   if (!$('mxDialog').open) $('mxDialog').showModal();
   mxGuard.opened();
   // In the Mac app, list the inputs straight away if the Mac has already let Studio use them.
-  if (onThisMac && !micLive.devices.length) findInputs(false);
+  if (onThisMac && !micLive.devices.length && mxDraft.on !== 'atem') findInputs(false);
 }
+// The fields for where the mic is plugged in: the Mac (its devices, Find inputs, low cut) or the switcher (its inputs).
+function routeFields() {
+  const atem = $('mxOn').value === 'atem';
+  $('mxFind').classList.toggle('hidden', atem || !onThisMac);
+  $('mxLowCutRow').classList.toggle('hidden', atem);
+  $('mxFindNote').textContent = atem ? (micLive.switcher?.connected ? 'Studio moves this input\'s fader on the switcher; set its On, EQ and dynamics in ATEM Software Control. For Left or Right, split the input into two mono channels there.' : 'The switcher isn\'t connected: connect it in the Switcher section to list its inputs.')
+    : onThisMac ? '' : 'The inputs listed are the ones Output 1 can see. To list them before Output 1 is on, open this page in the Studio app and press Find inputs.';
+}
+$('mxOn').onchange = () => { $('mxDevice').innerHTML = ''; delete $('mxDevice').dataset.list; routeFields(); fillDevices(); };
 function fillDevices() {
   const sel = $('mxDevice');
-  const want = sel.options.length ? sel.value : mxDraft ? mxDraft.device : '';
+  if ($('mxOn').value === 'atem') {
+    const want = sel.options.length && sel.dataset.kind === 'atem' ? sel.value : String(mxDraft?.input || '');
+    const list = (micLive.switcher?.inputs || []).map(i => [String(i.id), i.name + (i.split ? ' (split in two)' : '')]);
+    if (want && want !== '0' && !list.some(([v]) => v === want)) list.push([want, `${atemInputName(Number(want))} (not on the switcher)`]);
+    const now = 'atem|' + list.map(x => x.join(':')).join('|');
+    if (sel.dataset.list === now) return;
+    sel.dataset.list = now; sel.dataset.kind = 'atem';
+    sel.innerHTML = '';
+    if (!list.length) sel.add(new Option('No switcher inputs yet', ''));
+    for (const [v, label] of list) sel.add(new Option(label, v, false, v === want));
+    return;
+  }
+  const want = sel.options.length && sel.dataset.kind === 'mac' ? sel.value : mxDraft ? mxDraft.device : '';
   const names = [...new Set(['', ...micLive.devices, ...(want ? [want] : [])])];
   const now = names.join('|');
   if (sel.dataset.list === now) return;
-  sel.dataset.list = now;
+  sel.dataset.list = now; sel.dataset.kind = 'mac';
   sel.innerHTML = '';
   for (const n of names) sel.add(new Option(n === '' ? 'The Mac\'s own input (as set in Sound settings)' : n + (micLive.devices.includes(n) ? '' : ' (not plugged in)'), n, false, n === want));
 }
@@ -162,7 +196,11 @@ async function findInputs(ask = true) {
   }
 }
 $('mxFind').onclick = () => findInputs(true);
-const mxChanges = () => ({ name: $('mxName').value.trim(), device: $('mxDevice').value, channel: $('mxChannel').value, lowCut: $('mxLowCut').checked, follow: $('mxFollow').checked });
+const mxChanges = () => {
+  const atem = $('mxOn').value === 'atem';
+  return { name: $('mxName').value.trim(), on: atem ? 'atem' : 'mac', ...(atem ? { input: Number($('mxDevice').value) || 0 } : { device: $('mxDevice').value }),
+    channel: $('mxChannel').value, lowCut: $('mxLowCut').checked, follow: $('mxFollow').checked };
+};
 $('mxCancel').onclick = () => { $('mxDialog').close(); };
 $('mxDialog').addEventListener('close', () => { mxDraft = null; $('mxDevice').innerHTML = ''; delete $('mxDevice').dataset.list; });
 const mxGuard = unsavedDialog($('mxDialog'), {
@@ -173,6 +211,7 @@ const mxGuard = unsavedDialog($('mxDialog'), {
 $('mxSave').onclick = async () => {
   const changes = mxChanges();
   if (!changes.name) { $('mxErr').textContent = 'Give the mic a name, such as Court mic.'; return; }
+  if (changes.on === 'atem' && !changes.input) { $('mxErr').textContent = 'Pick the switcher\'s input the mic is plugged into (connect the switcher first).'; return; }
   const body = mxDraft.id ? await act({ type: 'micUpdate', mic: mxDraft.id, changes }) : await act({ type: 'micAdd', changes });
   if (!body) { $('mxErr').textContent = $('err').textContent; return; }
   $('mxDialog').close();

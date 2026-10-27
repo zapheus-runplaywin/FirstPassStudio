@@ -1324,7 +1324,7 @@ function init(logger, { ffmpeg, sequencesFile, outputs } = {}) {
     changed: () => save(),
     quiet: on => mics.quiet(on),
   });
-  mics.init(log);
+  mics.init(log, { changed: () => notify() });
   sequences.init(log, {
     source: id => scene.sources.find(s => s.id === id) || null,
     isOn: (s, out) => isOn(s, out === PRIMARY ? null : out),

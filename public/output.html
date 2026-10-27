@@ -524,6 +524,8 @@
       <h2 id="mxTitle">Mic</h2>
       <div class="form">
         <label for="mxName">Name</label><input id="mxName" maxlength="40" placeholder="Court mic">
+        <label for="mxOn">Plugged into</label>
+        <div class="row"><select id="mxOn"><option value="mac">The Mac (Studio mixes it into Output 1)</option><option value="atem">The switcher (Studio moves its fader)</option></select></div>
         <label for="mxDevice">Input</label>
         <div class="row"><select id="mxDevice"></select> <button class="alt" id="mxFind" type="button">Find inputs</button></div>
         <label for="mxChannel">Channel</label>
@@ -531,7 +533,7 @@
           <small>two receivers on one stereo input are two mics, left and right</small></div>
         <label>Sound</label>
         <div class="row" style="gap:12px">
-          <label class="inline"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>
+          <label class="inline" id="mxLowCutRow"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>
           <label class="inline"><input type="checkbox" id="mxFollow"> Follows the dips</label>
         </div>
       </div>

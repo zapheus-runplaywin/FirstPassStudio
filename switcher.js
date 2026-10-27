@@ -39,6 +39,7 @@ const CONNECT_MS = 5000;      // a switcher that hasn't answered this long after
 
 let log = () => {};
 let onChange = () => {};
+let micsChanged = () => {};   // mics.js: the switcher's Fairlight audio changed (a fader moved)
 // What's picked: null (not set up), { kind: 'found', name, host, port, address } or { kind: 'address', address, port }.
 let pick = null;
 let atem = null;              // the atem-connection client
@@ -257,7 +258,12 @@ async function connect() {
     setConn('lost', 'Not answering');
     startRefind();
   });
-  a.on('stateChanged', () => { if (atem === a) { changed(); followSoon(); } });
+  a.on('stateChanged', (st, paths) => {
+    if (atem !== a) return;
+    changed();
+    followSoon();
+    if ((paths || []).some(p => String(p).startsWith('fairlight'))) micsChanged(); // a fader moved (mics.js)
+  });
   try { await a.connect(target, pick.port); }
   catch (err) { if (atem === a) setConn('error', err.message); }
 }
@@ -859,9 +865,41 @@ async function deck(parts) {
   return { status: 200, body: { ok: true, done: r.done, program: s.program, preview: s.preview, usk: s.usk, dsk: s.dsk } };
 }
 
-// changed(): the switcher's state changed; stinger: { find, play } (scene.js); outputs(): outputs.js switcherPlan.
-function init(logger, { changed: onChanged, stinger, outputs } = {}) {
+// ─── Mics on the switcher (mics.js) ─────────────────────────────────────
+// The switcher's own mic and line inputs (an ATEM Mini's 3.5 mm mic jacks, a bigger one's XLR or RCA): the audio
+// inputs that aren't a camera's embedded sound or a media player. Each has one source (stereo or mono), or two when
+// it's split into two mono channels in ATEM Software Control (left, then right). mics.js moves their faders; Studio
+// changes nothing else on them (the input's On / Off / AFV, its EQ and dynamics stay as set on the switcher).
+// [{ id, name, sources: [{ id, fader (dB), mix }] }], sorted by input; [] when not connected or without Fairlight audio.
+const AUDIO_IN = 2;           // atem-connection's Enums.FairlightInputType.AudioIn
+const MIX_OFF = 1;            // Enums.FairlightAudioMixOption.Off
+function micInputs() {
+  const st = atem && atem.state;
+  if (!st || atem.status !== 2 || !st.fairlight) return [];
+  return Object.entries(st.fairlight.inputs || {})
+    .filter(([, i]) => i && i.properties && i.properties.inputType === AUDIO_IN)
+    .map(([id, i]) => {
+      const n = Number(id);
+      const named = st.inputs && st.inputs[n] && st.inputs[n].longName;
+      const sources = Object.entries(i.sources || {}).filter(([, x]) => x && x.properties)
+        .sort(([a], [b]) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0))
+        .map(([sid, x]) => ({ id: sid, fader: x.properties.faderGain / 100, off: x.properties.mixOption === MIX_OFF }));
+      return { id: n, name: named || (n > 1300 && n < 1400 ? `Mic ${n - 1300}` : `Audio in ${n}`), sources };
+    })
+    .sort((a, b) => a.id - b.id);
+}
+// Moves one source's fader to dB (-100 is all the way down). Resolves false when the switcher isn't connected.
+async function setMicFader(input, source, dB) {
+  if (!atem || conn !== 'connected') return false;
+  try { await atem.setFairlightAudioMixerSourceProps(Number(input), String(source), { faderGain: Math.round(dB * 100) }); return true; }
+  catch (err) { log('warn', 'switcher', `Couldn't move the fader of input ${input}: ${err.message}`); return false; }
+}
+
+// changed(): the switcher's state changed; stinger: { find, play } (scene.js); outputs(): outputs.js switcherPlan;
+// mics(): its audio changed (mics.js).
+function init(logger, { changed: onChanged, stinger, outputs, mics } = {}) {
   log = logger;
+  if (mics) micsChanged = mics;
   if (outputs) outputsPlan = outputs;
   if (onChanged) onChange = onChanged;
   if (stinger) stingerApi = stinger;
@@ -872,4 +910,4 @@ function init(logger, { changed: onChanged, stinger, outputs } = {}) {
 // The outputs changed: their key settings check may say something else now.
 const refresh = () => changed();
 
-module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, FILE, parseBrowse, parseLookup, parseAddress };
+module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, micInputs, setMicFader, FILE, parseBrowse, parseLookup, parseAddress };
