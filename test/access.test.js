@@ -57,7 +57,7 @@ test('refusal: only when the setting is off, the request changes something, and 
   const why = access.refusal(false, 'POST', '/api/scoreboard', '::ffff:10.0.0.5', own);
   assert.match(why, /only from this computer/);
   assert.match(why, /POST \/api\/scoreboard from 10\.0\.0\.5/);
-  assert.match(why, /Let other devices change things/);
+  assert.match(why, /Only this Mac can change things/);
   assert.match(access.refusal(false, 'GET', '/deck/home/add1', '10.0.0.5', own), /GET \/deck\/home\/add1/);
   const priv = access.refusal(false, 'GET', '/api/settings/export', '10.0.0.5', own);
   assert.match(priv, /private data/);

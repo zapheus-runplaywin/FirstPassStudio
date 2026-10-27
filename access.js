@@ -62,7 +62,7 @@ function refusal(setting, method, pathname, remoteAddress, own) {
   if (!change && !privateRead(method, pathname)) return null;
   if (isLocal(remoteAddress, own)) return null;
   const what = change ? 'take changes' : 'keep its private data (settings, backups, the athlete register, the log and sponsor reports)';
-  return `Studio is set to ${what} only ${change ? 'from' : 'on'} this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let other devices on this network change things and read them, tick "Let other devices change things" in the menu bar icon (or set "remoteChanges": true in config.json).`;
+  return `Studio is set to ${what} only ${change ? 'from' : 'on'} this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let other devices on this network change things and read them, untick "Only this Mac can change things" in the menu bar icon (it is ticked again each time Studio opens).`;
 }
 
 // The host part of a Host or Origin header value, lower case, without the port or IPv6 brackets.
