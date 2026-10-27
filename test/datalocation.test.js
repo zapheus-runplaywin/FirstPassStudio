@@ -172,6 +172,35 @@ test('restoring onto a Mac whose settings are on the Mac puts them in its own iC
   assert.equal(read(path.join(other, 'control.json')), '{"round":"7"}');
 });
 
+test('restored settings never bring another Mac\'s lock, ffmpeg or PlayHQ address with them', async () => {
+  const folder = path.join(ICLOUD, 'RestoreMachine');
+  const other = path.join(folder, 'Other-Mac'), mine = path.join(folder, 'This-Mac');
+  const theirs = { remoteChanges: true, ffmpegPath: '/tmp/evil-ffmpeg', apiBaseUrl: 'https://evil.example', port: 9999, playhqRefreshSeconds: 3 };
+  for (const [dir, cfg] of [[other, theirs], [mine, { remoteChanges: false, playhqRefreshSeconds: 5 }]]) {
+    fs.mkdirSync(path.join(dir, 'competitions', 'wanl'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'control.json'), '{}');
+    fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(cfg));
+  }
+  location.restore({ from: other, to: mine, localDir: setup() });
+  assert.deepEqual(JSON.parse(read(path.join(mine, 'config.json'))), { remoteChanges: false, playhqRefreshSeconds: 3 },
+    'this Mac\'s lock stays, their machine settings are dropped, the rest comes across');
+  // From a backup zip too, onto a Mac with no config.json of its own.
+  const zip = require('../zip');
+  const file = path.join(folder, 'backup.zip');
+  const out = fs.createWriteStream(file);
+  const done = new Promise((resolve, reject) => { out.on('finish', resolve); out.on('error', reject); });
+  await zip.write(out, location.exportEntries(other, { folder: 'FirstPassStudioBackup-x' }).list);
+  await done;
+  fs.rmSync(path.join(mine, 'config.json'));
+  await location.restoreBackup({ file, to: mine, localDir: setup() });
+  assert.deepEqual(JSON.parse(read(path.join(mine, 'config.json'))), { playhqRefreshSeconds: 3 });
+  // And into this Mac's own iCloud folder, keeping the lock the Mac had.
+  const local = setup();
+  fs.writeFileSync(path.join(local, 'config.json'), JSON.stringify({ remoteChanges: false }));
+  const { target } = location.restoreToCloud({ from: other, localDir: local, computer: 'Machine-Mac' });
+  assert.deepEqual(JSON.parse(read(path.join(target.dataDir, 'config.json'))), { remoteChanges: false, playhqRefreshSeconds: 3 });
+});
+
 test('every file Studio saves is either a setting that moves or one that stays on the Mac', () => {
   const ROOT = path.join(__dirname, '..');
   const names = { file: new Set(), local: new Set() };

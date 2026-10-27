@@ -204,12 +204,13 @@ function move({ from, to, localDir, existing, log = () => {} }) {
 // beside them and is checked file by file before it takes their place, so a failed copy
 // leaves this Mac's settings untouched. Returns { backup, files }.
 //   keep: names this Mac keeps when `from` has none of its own (a backup made without the media folder).
-function restore({ from, to, localDir, keep = [], log = () => {} }) {
+function restore({ from, to, localDir, keep = [], machineFrom = to, log = () => {} }) {
   from = path.resolve(from); to = path.resolve(to);
   if (from === to) throw new Error('That is this Mac\'s own settings folder.');
   const names = movable(from);
   if (!names.length) throw new Error('That folder has no FirstPass Studio settings in it.');
   const mine = movable(to);
+  const ownConfig = readJson(path.join(machineFrom, 'config.json')) || {};
   const backup = backupTo(to, mine, path.join(localDir, 'backups', `${stamp()}-before-restore`));
   if (backup) log(`Backed up this Mac's settings to ${backup}`);
   const staging = path.join(to, `.restoring-${stamp()}`);
@@ -230,8 +231,22 @@ function restore({ from, to, localDir, keep = [], log = () => {} }) {
   for (const n of mine) if (names.includes(n) || !keep.includes(n)) fs.rmSync(path.join(to, n), { recursive: true, force: true });
   for (const n of names) fs.renameSync(path.join(staging, n), path.join(to, n));
   fs.rmSync(staging, { recursive: true, force: true });
+  keepMachineKeys(to, ownConfig);
   log(`Restored ${Object.keys(want).length} files from ${from} to ${to}`);
   return { backup, files: Object.keys(want).length };
+}
+
+// config.json settings that belong to this Mac and never come with restored settings: who on the network may change
+// things, which program runs as ffmpeg, where Studio sends the PlayHQ Client ID, and this Mac's own port and name.
+// A backup or another Mac's folder could otherwise turn the lock off, or point them somewhere else.
+const MACHINE_ONLY = ['remoteChanges', 'deckKeyRequired', 'ffmpegPath', 'apiBaseUrl', 'gameSummaryPath', 'port', 'linkHost'];
+function keepMachineKeys(dir, own) {
+  const file = path.join(dir, 'config.json');
+  const cfg = readJson(file);
+  if (!cfg && !MACHINE_ONLY.some(k => k in own)) return;
+  const out = { ...(cfg || {}) };
+  for (const k of MACHINE_ONLY) { if (k in own) out[k] = own[k]; else delete out[k]; }
+  writeJson(file, out);
 }
 
 function backupTo(dir, names, backup) {
@@ -258,7 +273,7 @@ function restoreToCloud({ from, localDir, provider = 'icloud', computer = comput
   const backup = backupTo(localDir, mine, path.join(localDir, 'backups', `${stamp()}-before-restore`));
   if (backup) log(`Backed up this Mac's settings to ${backup}`);
   fs.mkdirSync(target.dataDir, { recursive: true });
-  const { files, backup: replaced } = restore({ from, to: target.dataDir, localDir, log });
+  const { files, backup: replaced } = restore({ from, to: target.dataDir, localDir, machineFrom: localDir, log });
   save(localDir, target);
   for (const n of mine) fs.rmSync(path.join(localDir, n), { recursive: true, force: true });
   log(`Settings now in ${target.dataDir}`);
