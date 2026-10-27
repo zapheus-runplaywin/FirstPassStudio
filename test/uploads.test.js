@@ -55,6 +55,15 @@ test('added files are served as plain files, and a wrong image is refused', asyn
   assert.equal(h.csp, "sandbox; default-src 'none'");
   assert.equal(h.sniff, 'nosniff');
   assert.equal(h.type, 'image/svg+xml');
+  // The same file through the setup page's own link, which works for any competition, not just the one in use.
+  for (const kind of ['logos', 'brand', 'fonts']) {
+    const name = kind === 'fonts' ? 'Club.woff2' : 'Knights.svg';
+    if (kind !== 'logos') await studio.request('POST', `/api/setup/${id}/image?kind=${kind}&name=${name}`, kind === 'fonts' ? Buffer.from('wOF2 font') : SVG, { 'content-type': 'application/octet-stream' });
+    h = await headers(`/api/setup/${id}/image?kind=${kind}&name=${name}`);
+    assert.equal(h.status, 200, kind);
+    assert.equal(h.csp, "sandbox; default-src 'none'", kind);
+    assert.equal(h.sniff, 'nosniff', kind);
+  }
   fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
   fs.writeFileSync(path.join(studio.dataDir, 'media', 'Clip.png'), PNG);
   h = await headers('/media/Clip.png');

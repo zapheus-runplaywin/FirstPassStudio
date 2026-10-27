@@ -480,8 +480,9 @@ async function setupRoute(req, res, url, q) {
       log('info', 'setup', `${id}: removed ${kind} ${q.name}`);
       return send(res, 200, setupInfo(id));
     }
+    // Added files are served as plain files, never as pages of Studio's (uploads.js), as /logos/ and the rest are.
     const file = competitions.imageFile(id, kind, q.name || '');
-    return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
+    return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
   }
   if (req.method === 'POST') {
     competitions.save(id, await readBody(req));
