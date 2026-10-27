@@ -30,7 +30,8 @@ const teams = check => studio.until(async () => { const t = await studio.get('/a
 const shooters = side => side.players.filter(p => p.shooting.goals || p.shooting.superGoals).map(p => p.name);
 
 test('the line-ups as PlayHQ gives them: each team\'s own players, its shooters\' goals adding up to the team\'s', async () => {
-  const t = await teams(x => shooters(x.home).length);
+  // The team totals come from the live feed, read on its own schedule, so they can lag the line-ups by a reading.
+  const t = await teams(x => shooters(x.home).length && x.home.totals && x.home.totals.goals);
   assert.equal(t.home.name, game.home);
   assert.equal(t.away.name, game.away);
   assert.ok(t.home.players.every(p => p.name.startsWith('Blizzardz')), t.home.players.map(p => p.name).join(', '));

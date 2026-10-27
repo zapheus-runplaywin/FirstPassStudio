@@ -362,49 +362,54 @@ test('a stinger cut: the stinger plays on Output 1 and the cut lands in the midd
   assert.equal((await studio.get('/api/switcher')).fps, 50);
   const stinger = async () => (await studio.get('/api/scene')).sources.find(s => s.name === 'Stinger');
   // What the stinger page says through Output 1's scene window as it starts (once it's on, or played again from
-  // the top): covered 0.22 to 1.22 s.
+  // the top): covered 0.22 to 1.22 s. Studio times the cut from when it got the report, somewhere between sending
+  // it and its answer (a slow runner can take a while to answer).
   const stingerStarts = async was => {
     await studio.until(async () => { const s = await stinger(); return s.visible && (!was.visible || s.loadSeq !== was.loadSeq); }, 3000, 10);
     const at = Date.now();
     await studio.post('/api/switcher', { type: 'stingerStarted', cover: [0.22, 1.22] });
-    return at;
+    return [at, Date.now()];
   };
+  // ms: from sending the report to the cut; after: from its answer.
   const cutAfter = async press => {
     const was = await stinger();
-    const [res, at] = await Promise.all([press(), stingerStarts(was)]);
+    const [res, [at, answered]] = await Promise.all([press(), stingerStarts(was)]);
     const cut = atem.received.filter(c => c.name === 'DCut').at(-1);
-    return { res, ms: cut.at - at };
+    return { res, ms: cut.at - at, after: cut.at - answered };
   };
-  let { res, ms } = await cutAfter(() => link(studio, 'stinger/Bench'));
+  // On time: more than target - 70 ms after sending the report and under target + 130 ms after its answer.
+  const onTime = (r, target, what) => assert.ok(r.ms > target - 70 && r.after < target + 130, `${what}: cut ${r.ms} ms after sending the report and ${r.after} ms after its answer, wanted ${target}`);
+  r = await cutAfter(() => link(studio, 'stinger/Bench'));
+  const res = r.res;
   assert.equal(res.status, 200);
   assert.equal(atem.state.program, 3);
-  assert.ok(ms > 650 && ms < 850, `cut ${ms} ms after the stinger started, its cover's middle is 720 ms`);
+  onTime(r, 720, 'the cover\'s middle');
   assert.match(res.json.done, /stinger to Bench \(on Output 1, cut at 0\.72 s, covered 0\.22 to 1\.22 s\)/);
 
   // Line-up +5 frames at 50 frames a second: 100 ms later. The stinger is still on, so it plays again from the top.
   await studio.post('/api/switcher', { type: 'lineup', frames: 5 });
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'switcher.json'), 'utf8')).lineups, { main: 5 });
-  ({ res, ms } = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'stinger', input: 1 })));
+  r = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'stinger', input: 1 }));
   assert.equal(atem.state.program, 1);
-  assert.ok(ms > 750 && ms < 950, `cut ${ms} ms after, wanted 820`);
+  onTime(r, 820, 'line-up +5 frames');
   // The line-up test cuts 2 frames after the cover starts: 220 + 40 + 100 ms.
-  ({ ms } = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'lineupTest', input: 2 })));
-  assert.ok(ms > 290 && ms < 470, `test cut ${ms} ms after, wanted 360`);
+  r = await cutAfter(() => studio.request('POST', '/api/switcher', { type: 'lineupTest', input: 2 }));
+  onTime(r, 360, 'the line-up test');
   assert.match(studio.log(), /Line-up test: stinger to Court \(on Output 1, cut at 0\.36 s/);
 
   // A double tap: the second press is left out while the first plays, so there's one cut, in the cover.
   const cuts = atem.received.filter(c => c.name === 'DCut').length;
   let second;
-  ({ ms } = await cutAfter(async () => {
+  r = await cutAfter(async () => {
     const one = link(studio, 'stinger/Wide');
     await wait(50);
     second = await link(studio, 'stinger/Wide');
     return one;
-  }));
+  });
   assert.equal(second.status, 409);
   assert.match(second.json.error, /already playing/);
   assert.equal(atem.received.filter(c => c.name === 'DCut').length, cuts + 1, 'one cut');
-  assert.ok(ms > 750 && ms < 950, `the one cut lands in the cover (${ms} ms)`);
+  onTime(r, 820, 'the one cut lands in the cover');
   assert.equal(atem.state.program, 1);
   // To the camera already on program: the stinger plays, with no cut.
   const was = await stinger();
