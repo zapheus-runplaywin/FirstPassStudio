@@ -25,10 +25,10 @@
 const os = require('os');
 
 // Reads of private data rather than graphics: the settings and scene backups (every photo, logo and
-// media file), the athlete register, the debug log, the sponsor exposure report and the competition
-// setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
+// media file), the athlete register, the debug log, the sponsor exposure report, the Stream Deck key
+// and the competition setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
 // the scene and the media files stay open so the Output page, OBS and the Stream Deck work from anywhere.
-const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights'];
+const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key'];
 function privateRead(method, pathname) {
   if (method !== 'GET' && method !== 'HEAD') return false;
   return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup');
@@ -120,4 +120,22 @@ function crossSite(method, pathname, headers, port, hosts) {
   return null;
 }
 
-module.exports = { changes, privateRead, PRIVATE, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite };
+// Whether a Stream Deck link press is known to come from someone allowed to press it: null for anything that isn't a
+// Stream Deck link, true or false for one. A web page on another site can make the browser fetch a /deck/ link (an
+// image tag sends no Origin, and plain http sends no Sec-Fetch-Site), so crossSite() can't tell it from a Website key.
+// What it can't do: know this Mac's key (/k/<key>/deck/..., keyGiven), add a custom header (x-studio-deck, which
+// the Studio Stream Deck plugin sends; a browser asks Studio first, and Studio never says yes), or send a Referer
+// naming one of Studio's own pages (the Output page and the API page press links from there).
+function deckPress(pathname, keyGiven, key, headers, port, hosts) {
+  if (pathname !== '/deck' && !pathname.startsWith('/deck/')) return null;
+  const h = headers || {};
+  if (keyGiven && key && keyGiven === key) return true;
+  if (h['x-studio-deck']) return true;
+  try {
+    const ref = new URL(String(h.referer || ''));
+    if (ref.protocol === 'http:' && isOwnHost(hostOf(ref.host), hosts) && Number(ref.port || 80) === Number(port)) return true;
+  } catch { /* no Referer, or not a URL */ }
+  return false;
+}
+
+module.exports = { changes, privateRead, PRIVATE, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };

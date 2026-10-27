@@ -6,6 +6,10 @@ info:
     Every Stream Deck link Studio answers, plus the status reads behind them. Each control is a plain GET request,
     made for a Stream Deck "Website" action with "GET request in background" ticked. Studio must be on air.
     Score links switch the scoreboard to Manual; clock links stop the clock following the PlayHQ scorer.
+    Every /deck link also answers with this Mac's Stream Deck key in front (/k/<key>/deck/...), as Studio copies them;
+    GET /api/deck-key gives the key. With "Stream Deck links need the key" ticked in the menu bar icon, a /deck link
+    without it is refused (403) unless it carries the x-studio-deck header (the Studio Stream Deck plugin) or comes
+    from Studio's own pages, such as Try it out below.
 servers:
   - url: /
     description: The Studio this page was opened from

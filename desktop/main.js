@@ -280,6 +280,10 @@ function refreshMenu() {
     // devices can still open every page. The helper reads config.json when it starts, so it restarts on a change.
     { label: 'Let other devices change things', type: 'checkbox', checked: machineConfig().remoteChanges !== false, toolTip: 'Phones, other computers and Stream Decks on this network can change scores, the scene and settings. Untick to keep changes, backups, the athlete register, the log and sponsor reports to this Mac; they can still see every graphic.',
       click: item => { setMachineConfig('remoteChanges', item.checked); if (helper) restartHelper(); refreshMenu(); } },
+    // config.json deckKeyRequired (access.js deckPress()): on, a Stream Deck link must carry this Mac's key (links copied
+    // from the Output page do, and the Studio plugin sends it), so a web page can't press one.
+    { label: 'Stream Deck links need the key', type: 'checkbox', checked: machineConfig().deckKeyRequired === true, toolTip: 'Only Stream Deck links copied from the Output page (they carry this Mac\'s key) and the Studio Stream Deck plugin can press keys, so a web page can\'t. Copy Website keys\' links again before ticking it.',
+      click: item => { setMachineConfig('deckKeyRequired', item.checked); if (helper) restartHelper(); refreshMenu(); } },
     updateMenuItem(),
     { label: 'What\'s new…', enabled: !!whatsnew.since(whatsnew.load(), null, app.getVersion()).length, click: () => showWhatsNew(whatsnew.since(whatsnew.load(), null, app.getVersion()).slice(0, 10), { recent: true }) },
     { type: 'separator' },

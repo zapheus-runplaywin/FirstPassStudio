@@ -7,6 +7,12 @@ every link in its API reference, where **Try it out** sends any link to the scor
 
 **Setup for each button:** drag a **System → Website** action onto a key, paste a link from below,
 and tick **GET request in background** so no browser window opens.
+
+**The Stream Deck key.** Links copied from Studio (the Stream Deck page, the Output page) have this Mac's key after the
+port, like `http://localhost:8080/k/3f9aQ2cB7xLd/deck/home/add1`, so a web page that doesn't know the key can't press them.
+The links below are shown without it and work as they are until **Stream Deck links need the key** is ticked in the
+menu bar icon; after that, copy them from the Stream Deck page instead, or put `/k/<your key>` after `:8080` yourself.
+The FirstPass Studio plugin needs no key (install it again from the Output page if it came with an older Studio).
 The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running Studio.
 The Docs page (http://localhost:8080/graphics.html) shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
 which also works from a Stream Deck on another computer on the same network.
@@ -220,7 +226,7 @@ split into four steps, and a **Switcher** key (see **Switcher** below) has a cam
 - **Colour:** one of the five groups, for the dark body and the strip.
 
 **Links.** The plugin isn't needed: these links work in a **Website** action (tick **GET request in background**), but the key
-doesn't light up.
+doesn't light up. Copied from the Output page they carry the Stream Deck key (see the top of this page).
 Each source in the scene gets these links, using its name in lower case with dashes for spaces
 (a source named **Up Next** is `up-next`). The Output page shows and copies every source's links.
 

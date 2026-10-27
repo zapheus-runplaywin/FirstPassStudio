@@ -49,7 +49,7 @@ function renderMics() {
     + 'A mic plugged into the <b>switcher</b> (an ATEM Mini\'s Mic 1 or Mic 2) is mixed by the switcher: Studio moves its fader to the mic\'s level, mutes and dips, and changes nothing else on it (its On, Off or AFV, EQ and dynamics are set in ATEM Software Control, and the input must be On). '
     + 'Move its fader on the switcher or in ATEM Software Control and that becomes the mic\'s level; when Studio connects it takes the faders as they are. For Left and Right, split the input into two mono channels in ATEM Software Control. '
     + 'Like the music\'s duck, the mics <b>dip</b> while music plays, while a video with its sound on plays, and while a scene or sequence with <b>Quiet the music</b> ticked is on (each a tick box), and by hand with <b>Dip</b>. A mic marked <b>Has an external mixer</b> never dips (the mixer does the fading) and stays at its level. '
-    + `Stream Deck: <code>${typeof base === 'string' ? base : ''}/deck/mics/mute/toggle</code> (or <code>/on</code>, <code>/off</code>), <code>/deck/mics/dip/toggle</code>, <code>/deck/mics/up</code> and <code>/down</code> (10% a press, or <code>?by=5</code>), <code>/deck/mics/level/80</code>, `
+    + `Stream Deck: <code>${typeof deckBase === 'string' ? deckBase : ''}/deck/mics/mute/toggle</code> (or <code>/on</code>, <code>/off</code>), <code>/deck/mics/dip/toggle</code>, <code>/deck/mics/up</code> and <code>/down</code> (10% a press, or <code>?by=5</code>), <code>/deck/mics/level/80</code>, `
     + 'and one mic by its name or its # on its card: <code>/deck/mic/court-mic/mute/toggle</code>, <code>/deck/mic/1/up</code>, <code>/deck/mic/1/down</code>.';
 }
 

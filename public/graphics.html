@@ -177,7 +177,8 @@
         and follows (a removed output's key says <b>no output</b>). It shows the source's name, keeps working when you rename it, and says <b>off air</b> while Studio isn't running.
         Its <b>Scene</b> key goes to a saved scene, and its <b>Sequence</b> key plays a sequence (or presses Next, Pause or Stop),
         lights up while it plays and counts down the step on screen.</li>
-      <li><b>Stream Deck links:</b> <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
+      <li><b>Stream Deck links:</b> copied from Studio, they carry this Mac's key after the port (<code>/k/&lt;key&gt;/deck/…</code>), which <b>Stream Deck links need the key</b>
+        in the menu bar icon requires. <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
         <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
       <li><b>Sequences:</b> play the scene's sources one after another, for the run-up to a game, a quarter break or full time. <b>+ New sequence</b> on the Output page opens
@@ -499,7 +500,9 @@
         backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
         Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
         coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too, and so does a
-        read of private data asked for by such a name.</li>
+        read of private data asked for by such a name. <code style="display:inline">deckKeyRequired</code>: <b>Stream Deck links need the key</b> in the menu bar icon;
+        ticked, a Stream Deck link must carry this Mac's key (<code style="display:inline">/k/&lt;key&gt;/deck/…</code>, as Studio copies them; kept in
+        <code style="display:inline">deck-key.txt</code>, never backed up) or come from the Studio plugin or Studio's own pages, so a web page can't press one.</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>

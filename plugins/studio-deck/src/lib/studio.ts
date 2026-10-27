@@ -276,10 +276,13 @@ export async function fetchSwitcher(host: string): Promise<Switcher | null> {
 	}
 }
 
-/** Presses a Studio link; resolves to whether Studio accepted it. */
+/**
+ * Presses a Studio link; resolves to whether Studio accepted it. The x-studio-deck header tells Studio the press comes
+ * from this plugin rather than a web page (no page on another site can add it), so it needs no key in the link.
+ */
 export async function press(host: string, path: string): Promise<boolean> {
 	try {
-		const res = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(5000) });
+		const res = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(5000), headers: { "x-studio-deck": "1" } });
 		return res.ok;
 	} catch {
 		return false;
