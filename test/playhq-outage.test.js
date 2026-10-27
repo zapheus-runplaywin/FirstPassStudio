@@ -51,6 +51,50 @@ test('the ladder keeps showing the last good one while PlayHQ is down, marked st
   assert.equal(back.stale, undefined, 'fresh again once PlayHQ answers');
 });
 
+test('a round\'s games (the fixtures, up next, the game list) keep the last ones read while PlayHQ is down', async () => {
+  const c = client();
+  const good = await c.getRoundGames('grade-div1-r3', 0);
+  assert.equal(good.length, 2);
+  playhq.world.fail.discoverFixtureByRound = 503;
+  const kept = await c.getRoundGames('grade-div1-r3', 0);
+  assert.deepEqual([...kept], good);
+  assert.match(kept.stale, /HTTP 503/, 'says why they aren\'t fresh');
+  assert.ok(logged.some(l => /Keeping round grade-div1-r3's games as last read: PlayHQ answered HTTP 503/.test(l)), logged.join('\n'));
+  assert.equal(asked('discoverFixtureByRound').length, 2, 'PlayHQ is still asked each time, so it\'s fresh once it\'s back');
+  // A round never read fails as before.
+  await assert.rejects(c.getRoundGames('grade-div1-r4', 0), /HTTP 503/);
+});
+
+test('a division\'s rounds keep the last ones read while PlayHQ is down', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const c = client();
+  const good = await c.getRounds('grade-div1');
+  t.mock.timers.tick(6 * 60 * 1000); // past the 5 minutes they're kept
+  playhq.world.fail.gradeRounds = 503;
+  await assert.rejects(c.getRounds('grade-div2'), /HTTP 503/, 'never read: fails');
+  assert.deepEqual(await c.getRounds('grade-div1'), good);
+});
+
+test('the season\'s divisions keep the last ones read when PlayHQ fails as they\'re due to be read again', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const c = client();
+  const good = await c.getStructure();
+  t.mock.timers.tick(31 * 60 * 1000); // past the 30 minutes they're kept
+  playhq.world.fail.discoverCompetitions = 503;
+  assert.deepEqual(await c.getStructure(), good);
+  assert.ok(logged.some(l => /Keeping the divisions read 31 minutes ago: PlayHQ answered HTTP 503/.test(l)), logged.join('\n'));
+  // Back: read again.
+  playhq.world.fail = {};
+  playhq.world.calls.length = 0;
+  await c.getStructure();
+  assert.equal(asked('discoverCompetitions').length, 1);
+});
+
+test('the divisions never read fail with PlayHQ\'s reason', async () => {
+  playhq.world.fail.discoverCompetitions = 503;
+  await assert.rejects(client().getStructure(), /HTTP 503/);
+});
+
 test('a ladder never read before fails with PlayHQ\'s reason rather than showing an empty ladder', async () => {
   const c = client();
   playhq.world.fail.gradeLadder = 502;
