@@ -18,7 +18,11 @@ async function viewersNow() {
 viewersNow();
 setInterval(viewersNow, 15000);
 
-fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base; renderForm(); }).catch(() => {});
+// The link base, then the Stream Deck key (only this Mac gets it while other devices can't change things: their links
+// stay plain), then everything showing links is drawn again.
+fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base; deckBase = base; })
+  .then(() => fetch('/api/deck-key')).then(r => r.ok ? r.json() : null).then(k => { if (k && k.base) deckBase = k.base; })
+  .catch(() => {}).finally(() => { renderForm(); if (sceneAll.scenes) show(sceneAll); });
 let pref = '1'; try { pref = localStorage.getItem('outputPreview') ?? '1'; } catch {}
 $('previewOn').onchange = () => setPreview($('previewOn').checked);
 setPreview(pref !== '0');

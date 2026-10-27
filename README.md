@@ -179,13 +179,18 @@ answer only this Mac while it is unticked. Untick it on open venue Wi-Fi. Whatev
 come from Studio's own pages or from a program (the Stream Deck plugin, a Website key, `curl`): a request that a
 browser marks as coming from a web page on another site (its `Origin` or `Sec-Fetch-Site` header), or that asks for
 Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the Mac's addresses, its `.local` name and
-`linkHost` are fine), gets a 403 that says so. Reads of private data get the same `Host` check, so a page that has
+`linkHost` are fine), gets a 403 that says so. Stream Deck links (`/deck/...`) are plain GETs, which a hidden image on
+another site can also fire, so links copied from Studio carry this Mac's key after the port (`/k/<key>/deck/...`,
+kept in `deck-key.txt` in the local data folder, never in a backup or iCloud); the Studio Stream Deck plugin sends an
+`x-studio-deck` header instead, and Studio's own pages are known by their `Referer`. A link without any of those still
+works, logged once per address, until **Stream Deck links need the key** is ticked in the menu bar icon
+(`"deckKeyRequired": true` in `config.json`). Reads of private data get the same `Host` check, so a page that has
 pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
 CORS header, so another site can't read its answers.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
 Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
-login, Let other devices change things, Check for updates and Quit.
+login, Let other devices change things, Stream Deck links need the key, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". The app always starts in the
 menu bar off air, at login or opened by hand; **Open Studio** (or any page in the menu) shows the splash, puts Studio

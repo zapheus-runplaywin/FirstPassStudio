@@ -35,7 +35,7 @@ function renderForm(force) {
   for (const verb of ['toggle', 'on', 'off', ...(s.type === 'image' ? [] : ['restart']), ...(s.type === 'video' ? ['sound/toggle', 'sound/on', 'sound/off'] : [])]) {
     const row = document.createElement('div');
     row.innerHTML = '<code></code><button class="alt">Copy</button>';
-    const link = `${base}/deck/layer/${name}/${verb}`;
+    const link = `${deckBase}/deck/layer/${name}/${verb}`;
     row.querySelector('code').textContent = link;
     row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
     $('links').appendChild(row);
@@ -45,7 +45,7 @@ function renderForm(force) {
     for (const verb of ['toggle', 'on', 'off']) {
       const row = document.createElement('div');
       row.innerHTML = '<code></code><button class="alt">Copy</button>';
-      const link = `${base}/deck/output/${encodeURIComponent(o.link)}/layer/${name}/${verb}`;
+      const link = `${deckBase}/deck/output/${encodeURIComponent(o.link)}/layer/${name}/${verb}`;
       row.querySelector('code').textContent = link;
       row.querySelector('code').style.borderLeft = `4px solid ${o.colour}`;
       row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
@@ -393,7 +393,7 @@ const showOut = o => {
       : so.showing.length ? 'Starting NDI…' : nd.ok ? 'Pick the signal and video format.' : nd.error || 'Checking for NDI…')
     : so.showing.length ? 'Showing ' + so.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
     : 'Pick the display to use.';
-  $('outDeck').textContent = so.primary ? `${base}/deck/output/toggle` : `${base}/deck/output/${so.link}/toggle`;
+  $('outDeck').textContent = so.primary ? `${deckBase}/deck/output/toggle` : `${deckBase}/deck/output/${so.link}/toggle`;
   // Web links only has nothing to turn on; and while the output is on its setup is locked, so it's turned off before changing.
   const live = sending;
   $('outOn').disabled = so.mode === 'off';

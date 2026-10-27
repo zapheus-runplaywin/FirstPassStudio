@@ -83,7 +83,9 @@
       </ul>
       <p class="note">No plugin? Every source also has links for a <b>Website</b> action (the Output page copies them), but those keys don't light up.
         The links below for the whole scene and the video output work the same way. A sequence plays from <code>/deck/sequence/&lt;name&gt;</code>
-        (<code>/deck/sequence/&lt;name&gt;/toggle</code> stops it on a second press); the Output page shows each one's link.</p>
+        (<code>/deck/sequence/&lt;name&gt;/toggle</code> stops it on a second press); the Output page shows each one's link.
+        Links copied here carry this Mac's Stream Deck key after the port (<code>/k/…</code>), so a web page can't press them; the plugin needs none.
+        Links without the key stop working once <b>Stream Deck links need the key</b> is ticked in the menu bar icon.</p>
       <table id="sceneLinks"></table>
     </section>
 
@@ -187,7 +189,10 @@
       }
     }
     drawLinks(location.origin);
-    fetch('/api/version').then(r => r.json()).then(v => { if (v.base) drawLinks(v.base); }).catch(() => {});
+    // With this Mac's Stream Deck key in front when Studio gives it (access.js deckPress()); plain otherwise.
+    fetch('/api/deck-key').then(r => r.ok ? r.json() : Promise.reject())
+      .then(k => drawLinks(k.base))
+      .catch(() => fetch('/api/version').then(r => r.json()).then(v => { if (v.base) drawLinks(v.base); }).catch(() => {}));
     // The plugin comes with the Mac app; opening it hands it to the Stream Deck app to install.
     fetch('/api/scene/streamdeck').then(r => r.json()).then(b => { document.getElementById('deckRow').hidden = !b.available; }).catch(() => {});
     document.getElementById('deckInstall').onclick = async () => {

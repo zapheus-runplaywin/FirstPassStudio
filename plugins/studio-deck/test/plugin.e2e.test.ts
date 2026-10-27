@@ -103,6 +103,8 @@ async function startDeck() {
 }
 
 async function startStudio(port: number, dataDir: string): Promise<ChildProcess> {
+	// Stream Deck links need the key, so every press below also proves the plugin's x-studio-deck header gets through.
+	fs.writeFileSync(path.join(dataDir, "config.json"), JSON.stringify({ deckKeyRequired: true }));
 	const child = spawn(process.execPath, [path.join(REPO, "server.js")], {
 		cwd: REPO,
 		env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir },
@@ -118,6 +120,12 @@ async function startStudio(port: number, dataDir: string): Promise<ChildProcess>
 	}
 	child.kill();
 	throw new Error("Studio didn't start");
+}
+
+/** Where a link pressed by hand (a Website key, say) starts: Studio's address with its Stream Deck key. */
+async function deckBase(host: string): Promise<string> {
+	const { key } = (await (await fetch(`${host}/api/deck-key`)).json()) as { key: string };
+	return `${host}/k/${key}`;
 }
 
 function launchPlugin(port: number): ChildProcess {
@@ -180,7 +188,7 @@ test("real SDK and real Studio: key follows its source and toggles it", { timeou
 
 		// Shown from somewhere else (the Output page, a link): the key lights.
 		mark = deck.received.length;
-		await fetch(`${host}/deck/layer/up-next/on`);
+		await fetch(`${await deckBase(host)}/deck/layer/up-next/on`);
 		await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setState" && m.payload?.state === 1, "lit after a link");
 
 		// Pressed: Studio hides it, and the key goes dark.
@@ -256,7 +264,7 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 
 		// A source changed from the Output page: the key gets the changed dot.
 		mark = deck.received.length;
-		await fetch(`${host}/deck/layer/scoreboard/on`);
+		await fetch(`${await deckBase(host)}/deck/layer/scoreboard/on`);
 		const dotted = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "S1" && m.payload?.state === 1, "changed dot");
 		assert.ok(svgOf(dotted).includes(`fill="${DOT}"`) && svgOf(dotted).includes("<circle"));
 

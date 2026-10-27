@@ -56,6 +56,8 @@ function outDots(outs) {
 }
 let selected = null;
 let base = location.origin;
+// Where Stream Deck links start: base with this Mac's key, /k/<key> (access.js deckPress()), once Studio has said it.
+let deckBase = base;
 let media = [], mediaLoaded = false;
 let adding = null;
 const naturalSize = new Map(); // image or video file -> [w, h], for the preview box and Full frame
