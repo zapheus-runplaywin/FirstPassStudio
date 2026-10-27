@@ -97,3 +97,24 @@ test('/api/settings/export downloads every setting as a zip named with the date 
   fs.writeFileSync(small, Buffer.from(await (await fetch(`${studio.base}/api/settings/export?media=0`)).arrayBuffer()));
   assert.ok(!zip.entries(small).some(e => e.name.includes('/media/')));
 });
+
+// One deflated entry, as Finder writes them (Studio's own zips are stored): a local header with no name, then the data.
+function deflated(text) {
+  const data = require('node:zlib').deflateRawSync(Buffer.from(text));
+  const head = Buffer.alloc(30);
+  head.writeUInt32LE(0x04034b50, 0);
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'studio-zip-')), 'finder.zip');
+  fs.writeFileSync(file, Buffer.concat([head, data]));
+  return { file, ent: { name: 'notes.txt', at: 0, method: 8, packed: data.length } };
+}
+
+test('a deflated entry reads back, and one whose zip goes missing part way fails just that read', async t => {
+  const { file, ent } = deflated('hello '.repeat(1000));
+  t.after(() => fs.rmSync(path.dirname(file), { recursive: true, force: true }));
+  const chunks = []; for await (const c of zip.open(file, ent)) chunks.push(c);
+  assert.equal(Buffer.concat(chunks).toString(), 'hello '.repeat(1000));
+  // The file is opened as the stream starts, so taking it away now makes the read fail.
+  const stream = zip.open(file, ent);
+  fs.rmSync(file);
+  await assert.rejects(async () => { for await (const c of stream) chunks.push(c); }, { code: 'ENOENT' });
+});

@@ -124,7 +124,9 @@ function open(file, ent) {
   if (ent.method !== 0 && ent.method !== 8) throw new Error(`${ent.name} is compressed in a way Studio can't read.`);
   if (!ent.packed) return require('stream').Readable.from([]);
   const raw = fs.createReadStream(file, { start, end: start + ent.packed - 1 });
-  return ent.method === 8 ? raw.pipe(zlib.createInflateRaw()) : raw;
+  // pipeline, not pipe, so a file that can't be read fails the stream handed back (which has a listener) and
+  // isn't left as an error on raw that nothing listens to, which would end the helper.
+  return ent.method === 8 ? require('stream').pipeline(raw, zlib.createInflateRaw(), () => {}) : raw;
 }
 
 module.exports = { write, entries, open };
