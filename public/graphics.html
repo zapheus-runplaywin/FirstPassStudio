@@ -236,7 +236,8 @@
         <b>Output on/off</b>, Esc on an output window, closing it, or <code>/deck/output/on</code>, <code>off</code> and <code>toggle</code> show or blank the displays without changing the setup.</li>
       <li><b>Blackmagic output (Mac app):</b> sends the scene out of a Blackmagic UltraStudio or DeckLink:
         <b>fill and key</b> with the device's external keyer (fill on one SDI out, key on the other) or <b>fill only</b>, in the video format you pick
-        (1080p only; pick the one the switcher runs at, usually 1080p50). The fill is premultiplied: turn the switcher's
+        (1080p only; pick the one the switcher runs at, usually 1080p50). A format marked <i>(device says it can't)</i> is one the device
+        reports it can't send (older UltraStudios with HD-SDI rather than 3G-SDI stop at 1080p30); you can still try it, and the Output page says if it fails. The fill is premultiplied: turn the switcher's
         <b>Pre Multiplied Key</b> on for clean edges (clip and gain aren't used then), and tick <b>Straight</b> only if the switcher can't do that.
         It needs Blackmagic Desktop Video installed (the Output page says if it isn't, with where to get it; quit and reopen Studio after installing) and the device free, so quit any other app using it first. Output on/off and the
         <code>/deck/output</code> links work the same.</li>

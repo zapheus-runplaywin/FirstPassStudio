@@ -199,14 +199,16 @@ const listening = () => !!(sceneViewSound() && listener && listener.until > Date
 // [{ kind: 'ndi', signal, name, format, color, safe }] for NDI. safe: the scene drawn chroma key safe.
 const windows = () => outputWindows();
 
-// The Blackmagic format to send: the one picked if it's 1080p, else (nothing picked yet, or an interlaced or
-// 720p format saved before they were taken off the Output page, as they look soft) the one the Output page
-// starts with: 1080p50 if the device can key it, else the first 1080p format that can, else the first.
+// The Blackmagic format to send: the one picked if it's 1080p (even one the device says it can't send: it
+// may be wrong, and if not the output says so), else (nothing picked yet, or an interlaced or 720p format
+// saved before they were taken off the Output page, as they look soft) the one the Output page starts with:
+// 1080p50 if the device can key it, else the first 1080p format that can, else the first it can send.
 function decklinkMode(device, o) {
-  const modes = device.modes.filter(m => m.supported && m.height === 1080 && !m.interlaced);
+  const modes = device.modes.filter(m => m.height === 1080 && !m.interlaced);
+  const sends = modes.filter(m => m.supported);
   return modes.find(m => m.mode === o.decklinkMode)
-    || ['1080p50', '1080p25'].map(n => modes.find(m => m.keying && String(m.name).replace(/\s/g, '').includes(n))).find(Boolean)
-    || modes.find(m => m.keying) || modes[0];
+    || ['1080p50', '1080p25'].map(n => sends.find(m => m.keying && String(m.name).replace(/\s/g, '').includes(n))).find(Boolean)
+    || sends.find(m => m.keying) || sends[0] || modes[0];
 }
 
 // One output's windows, as if it were the only one.
