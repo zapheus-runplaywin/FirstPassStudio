@@ -461,4 +461,4 @@ function sponsorTiers(s) {
   return SPONSOR_TIERS.map(key => ({ key, name: own[key] || set[key], empty: ((s && s.sponsorEmpty) || {})[key] || SPONSOR_EMPTY_DEFAULTS[key] }));
 }
 
-module.exports = { SPONSOR_TIERS, SPONSOR_NAME_SETS, SPONSOR_EMPTY, SPONSOR_EMPTY_DEFAULTS, SPONSOR_MOMENTS, sponsorTiers, DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };
+module.exports = { KINDS, SPONSOR_TIERS, SPONSOR_NAME_SETS, SPONSOR_EMPTY, SPONSOR_EMPTY_DEFAULTS, SPONSOR_MOMENTS, sponsorTiers, DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };
