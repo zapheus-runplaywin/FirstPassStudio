@@ -99,6 +99,13 @@ td a:hover { color: var(--blue); }
 </header>
 
 <section>
+  <h2>Decision: staying at 1080p</h2>
+  <div class="answer">
+    <p><strong>Matt, 27 October 2026:</strong> 4K switching costs too much for what it gives. The 4K encoder and the RØDECaster Video's 4K iso recording don't need 4K graphics from Studio, so Studio stays at 1080p at 24, 30, 50 and 60 frames a second. None of the PRs below are planned. This page stays as the reference if a 4K switcher or receiver ever arrives.</p>
+  </div>
+</section>
+
+<section>
   <h2>The short answer</h2>
   <div class="answer">
     <p><strong>No, don't draw at 4K and scale down.</strong> Each output already has its own off-screen scene window drawing its own graphics, so a single 4K picture would never be shared, and every 1080p output would pay four times the work to end up with the same picture it gets today. Instead, <strong>each output draws at its own format</strong>: a 1080p output stays exactly as it is, and a 2160p output draws the same 1920 x 1080 layout at twice the pixel density.</p>
