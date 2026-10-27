@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node-gyp rebuild",
-    "test": "node test.js"
+    "test": "node test.js && node timing-test.js"
   },
   "devDependencies": {
     "node-gyp": "13.1.0"
