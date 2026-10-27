@@ -58,3 +58,49 @@ test('a change is pushed once, not every second while nothing moves', async () =
   assert.ok(f.got.boards.length - n <= 1, `got ${f.got.boards.length - n} unchanged board pushes in 2.5 s`);
   f.ws.close();
 });
+
+// Asks for the scene socket on a plain TCP socket and waits for Studio's yes, so what's sent next arrives as frames.
+function upgraded(sock) {
+  sock.write('GET /api/scene/socket HTTP/1.1\r\nhost: 127.0.0.1\r\nconnection: Upgrade\r\nupgrade: websocket\r\n'
+    + 'sec-websocket-version: 13\r\nsec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n');
+  return new Promise(resolve => { let got = ''; const on = d => { got += d; if (got.includes('\r\n\r\n')) { sock.off('data', on); resolve(); } }; sock.on('data', on); });
+}
+
+test('a socket sending more than a page ever would is closed, and Studio carries on', async () => {
+  const net = require('node:net');
+  const sock = net.connect(studio.port, '127.0.0.1');
+  sock.on('error', () => {});
+  const closed = new Promise(r => sock.on('close', r));
+  await new Promise(r => sock.on('connect', r));
+  await upgraded(sock);
+  // A masked text frame that says it's 1 GB long, then 1 MB of it.
+  const head = Buffer.alloc(14);
+  head[0] = 0x81; head[1] = 0x80 | 127; head.writeBigUInt64BE(BigInt(1024 ** 3), 2);
+  sock.write(head);
+  for (let i = 0; i < 16 && !sock.destroyed; i++) { sock.write(Buffer.alloc(64 * 1024, 7)); await wait(10); }
+  const shut = await Promise.race([closed.then(() => true), wait(3000).then(() => false)]);
+  sock.destroy();
+  assert.ok(shut, 'Studio closed the socket');
+  assert.equal(studio.exited(), null);
+  assert.equal((await studio.request('GET', '/api/health')).status, 200);
+});
+
+test('a frame that never finishes but keeps coming is closed too', async () => {
+  const net = require('node:net');
+  const sock = net.connect(studio.port, '127.0.0.1');
+  sock.on('error', () => {});
+  const closed = new Promise(r => sock.on('close', r));
+  await new Promise(r => sock.on('connect', r));
+  await upgraded(sock);
+  // Many small whole frames are fine: pings, answered with pongs.
+  const ping = Buffer.from([0x89, 0x80, 1, 2, 3, 4]);
+  for (let i = 0; i < 50; i++) sock.write(ping);
+  await wait(200);
+  assert.equal(sock.destroyed, false, 'pings are fine');
+  // One frame header with a 2-byte length, never finished... then more than a page would send.
+  sock.write(Buffer.from([0x81, 0x80 | 126, 0xff, 0xff]));
+  for (let i = 0; i < 4 && !sock.destroyed; i++) { sock.write(Buffer.alloc(32 * 1024, 7)); await wait(10); }
+  const shut = await Promise.race([closed.then(() => true), wait(3000).then(() => false)]);
+  sock.destroy();
+  assert.ok(shut, 'Studio closed the socket');
+});

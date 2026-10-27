@@ -387,6 +387,9 @@ function wsFrame(opcode, payload) {
   return Buffer.concat([head, payload]);
 }
 
+// The most a page's frame may hold (scene.js upgrade()).
+const WS_MAX_IN = 64 * 1024;
+
 // The http server's 'upgrade' event for /api/scene/socket: true when taken.
 function upgrade(req, socket) {
   const key = req.headers['sec-websocket-key'];
@@ -398,15 +401,20 @@ function upgrade(req, socket) {
   const drop = () => { sockets.delete(socket); boardSockets.delete(socket); switcherSockets.delete(socket); socket.destroy(); };
   socket.on('close', drop);
   socket.on('error', drop);
-  // Frames from the page (always masked): pings get a pong, a close is answered and ends it.
+  // Frames from the page (always masked): pings get a pong, a close is answered and ends it. A page only ever sends
+  // a few words (what it subscribes to), so a frame bigger than WS_MAX_IN, or that much waiting without a whole
+  // frame, isn't one of Studio's pages: it's closed (1009, too big) rather than held in memory.
   let pending = Buffer.alloc(0);
+  const tooBig = () => { const code = Buffer.alloc(2); code.writeUInt16BE(1009); socket.end(wsFrame(8, code)); drop(); };
   socket.on('data', chunk => {
     pending = Buffer.concat([pending, chunk]);
+    if (pending.length > WS_MAX_IN + 14) return tooBig();
     while (pending.length >= 2) {
       const opcode = pending[0] & 15;
       let len = pending[1] & 127, at = 2;
       if (len === 126) { if (pending.length < 4) return; len = pending.readUInt16BE(2); at = 4; }
       else if (len === 127) { if (pending.length < 10) return; len = Number(pending.readBigUInt64BE(2)); at = 10; }
+      if (len > WS_MAX_IN) return tooBig();
       const masked = pending[1] & 128;
       const end = at + (masked ? 4 : 0) + len;
       if (pending.length < end) return;
