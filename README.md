@@ -110,7 +110,9 @@ the Mac using it, and a different Mac with the same name is refused. The move ba
 `datalocation.js` is where other cloud drives (Dropbox, Google Drive, OneDrive in `~/Library/CloudStorage`) would go.
 **Move back to this Mac…** reverses it. **Restore from another Mac…** copies another Mac's subfolder over this
 Mac's (`restore()`: back up to `backups/<date>-before-restore`, copy into a hidden `.restoring-<date>` folder, check
-sizes, then swap); the other Mac's folder is only read. On a Mac whose settings are local, `restoreToCloud()` puts them
+sizes, then swap); the other Mac's folder is only read. This Mac's own `config.json` settings stay as they were
+(`MACHINE_ONLY`: `remoteChanges`, `deckKeyRequired`, `ffmpegPath`, `apiBaseUrl`, `gameSummaryPath`, `port`, `linkHost`), here and in
+Restore… from a backup, so restored settings can't turn the lock off or pick the program run as ffmpeg. On a Mac whose settings are local, `restoreToCloud()` puts them
 in a new subfolder for this Mac beside the other Mac's and points this Mac there. `npm start` follows `data-location.json` too.
 
 ### Template files
