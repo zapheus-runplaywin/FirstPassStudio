@@ -818,7 +818,8 @@ async function route(req, res, url, { send, readBody }) {
     const a = await readBody(req).catch(() => ({}));
     const r = ACTIONS.includes(a.type) ? await act(a) : await settings(a);
     if (!r) { send(res, 400, { error: `Unknown switcher request "${a.type}".` }); return true; }
-    if (r.error) { send(res, r.status || 400, { error: r.error, ...status() }); return true; }
+    // The switcher as it is now, with why the request was refused as error (status() has its own error, the connection's).
+    if (r.error) { send(res, r.status || 400, { ...status(), error: r.error }); return true; }
   }
   send(res, 200, status());
   return true;

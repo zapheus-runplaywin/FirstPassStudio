@@ -15,7 +15,8 @@ async function swPost(path, body) {
     const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) });
     const json = await res.json();
     if (!res.ok) $('swErr').textContent = json.error || res.statusText;
-    if (json && json.state) showSwitcher(json);
+    // A refusal's error is why it was refused, not the connection's, so it isn't drawn as the switcher's state.
+    else if (json && json.state) showSwitcher(json);
     return json;
   } catch (err) { $('swErr').textContent = `Studio isn't answering: ${err.message}`; }
 }

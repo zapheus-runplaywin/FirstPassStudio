@@ -51,6 +51,20 @@ test('with no switcher set up, Studio says so and the links send nothing', async
   assert.doesNotMatch(r.json.error, /Unknown Stream Deck link/);
 });
 
+test('a refused request from the Output page answers why, with the switcher as it is now', async t => {
+  const studio = await startStudio(t);
+  for (const [body, status, why] of [
+    [{ type: 'cut' }, 409, /No switcher is set up/],
+    [{ type: 'use', address: 'court atem please' }, 400, /Type the switcher's IP address/],
+    [{ type: 'use', name: 'Court ATEM' }, 404, /wasn't found on the network/],
+  ]) {
+    const r = await studio.request('POST', '/api/switcher', body);
+    assert.equal(r.status, status, body.type);
+    assert.match(r.json.error, why, 'the reason, not the connection\'s (empty) error');
+    assert.equal(r.json.state, 'off');
+  }
+});
+
 test('an ATEM Mini Extreme by its address: inputs, keys, cuts and previews from the page and the Stream Deck', async t => {
   const atem = await startAtem({ model: 'MiniExtreme', names: ['Wide', 'Court', 'Bench'] });
   t.after(() => atem.close());
