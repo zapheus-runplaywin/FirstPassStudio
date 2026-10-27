@@ -130,6 +130,9 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
     for (const side of ['home', 'away']) {
       if (!data[side] || !data[side].players) continue;
       if (!data.stale) recordPlayers(data[side].name, data.division, data[side].players);
+      // A new side, not the old one changed: the line-ups are PlayHQ's readings, kept and shared (a finished game's
+      // for good), and a gender or photo put on them here would read back as PlayHQ's next time.
+      data[side] = { ...data[side] };
       data[side].players = data[side].players.map(p => {
         const gender = genderFor(p.name, p.gender, data.division);
         return { ...p, gender, photo: photoFor(p.name, files), silhouette: silhouette(gender) };
