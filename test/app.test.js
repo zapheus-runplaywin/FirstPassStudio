@@ -1,0 +1,170 @@
+// The Mac app itself (desktop/main.js and windows.js), run for real with Playwright's Electron driver: it starts
+// in the menu bar off air, Open Studio puts it on air with the Output page, a helper that crashes mid-stream is
+// started again with the scores it had, and closing the last Studio window asks, then takes Studio off air.
+// The app runs in a settings folder of its own (XDG_CONFIG_HOME on Linux, where CI runs it under xvfb-run; on a
+// Mac it would use the real one, so it only runs on Linux). It needs Electron's own binary (npm ci without
+// --ignore-scripts, or node node_modules/electron/install.js): without it the test is skipped, or fails when
+// STUDIO_TEST_REQUIRE_APP is set (as in CI). Its dialogs are answered by the test.
+
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const net = require('node:net');
+const { ROOT, wait } = require('./support/studio');
+
+let electron = null, executablePath = null, why = '';
+try {
+  ({ _electron: electron } = require('playwright'));
+  executablePath = require('electron'); // the binary's path, once it's downloaded
+  if (!fs.existsSync(executablePath)) throw new Error(`no Electron binary at ${executablePath}`);
+} catch (err) { why = err.message.split('\n')[0]; electron = null; }
+if (process.platform !== 'linux') { electron = null; why = 'the app test runs on Linux only (it would use this Mac\'s own settings folder)'; }
+else if (electron && !process.env.DISPLAY) { electron = null; why = 'no display: run it under xvfb-run'; }
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const s = net.createServer();
+    s.on('error', reject);
+    s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); });
+  });
+}
+
+// Starts the app in a settings folder of its own, on a free port. Gives { app, port, log(), answering(), answer(n), asked() }.
+async function launch(t) {
+  if (!electron) {
+    if (process.env.STUDIO_TEST_REQUIRE_APP) assert.fail(`can't run the app: ${why}`);
+    t.skip(`can't run the app (${why})`);
+    return null;
+  }
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-app-'));
+  const local = path.join(home, 'FirstPass Studio');
+  fs.mkdirSync(local, { recursive: true });
+  const port = await freePort();
+  fs.writeFileSync(path.join(local, 'config.json'), JSON.stringify({ port, linkHost: 'localhost' }));
+  const app = await electron.launch({ executablePath, args: [ROOT, '--no-sandbox'], cwd: ROOT, env: { ...process.env, XDG_CONFIG_HOME: home } });
+  t.after(async () => {
+    // Quit without asking, then make sure nothing is left on the port.
+    await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {});
+    await app.close().catch(() => {});
+    fs.rmSync(home, { recursive: true, force: true });
+  });
+  const studio = {
+    app, port, local,
+    log: () => { try { return fs.readFileSync(path.join(local, 'logs', 'app.log'), 'utf8'); } catch { return ''; } },
+    answering: async () => { try { return (await fetch(`http://127.0.0.1:${port}/api/version`)).ok; } catch { return false; } },
+    get: async p => (await fetch(`http://127.0.0.1:${port}${p}`)).json(),
+    post: async (p, body) => (await fetch(`http://127.0.0.1:${port}${p}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json(),
+    // The app's message boxes are answered with button n from now on, and their messages kept for asked().
+    async answer(n) {
+      await app.evaluate(({ dialog }, n) => {
+        globalThis.asked = globalThis.asked || [];
+        dialog.showMessageBox = async (win, opts) => { globalThis.asked.push((opts || win).message); return { response: n }; };
+      }, n);
+    },
+    asked: () => app.evaluate(() => globalThis.asked || []),
+    async until(fn, ms = 15000) {
+      const end = Date.now() + ms;
+      let last;
+      while (Date.now() < end) { last = await fn(); if (last) return last; await wait(200); }
+      throw new Error(`Gave up waiting after ${ms}ms. The app's log:\n${studio.log().slice(-2000)}`);
+    },
+    // Open Studio, as from the menu bar icon (or the Dock).
+    open: () => app.evaluate(({ app }) => app.emit('activate', {}, false)),
+    // The window showing a Studio page (not the splash).
+    studioWindow: () => app.windows().find(w => w.url().startsWith(`http://localhost:${port}`)),
+  };
+  return studio;
+}
+
+// The helper's process id, from what's listening on its port (Linux's /proc: the socket's inode, then the process
+// holding it).
+function helperPid(port) {
+  const hex = port.toString(16).toUpperCase().padStart(4, '0');
+  const inodes = new Set();
+  for (const f of ['/proc/net/tcp', '/proc/net/tcp6']) {
+    let text = '';
+    try { text = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    for (const line of text.split('\n').slice(1)) {
+      const c = line.trim().split(/\s+/);
+      if (c.length > 9 && c[1].endsWith(`:${hex}`) && c[3] === '0A') inodes.add(c[9]); // 0A: listening
+    }
+  }
+  for (const pid of fs.readdirSync('/proc').filter(d => /^\d+$/.test(d))) {
+    let fds = [];
+    try { fds = fs.readdirSync(`/proc/${pid}/fd`); } catch { continue; }
+    for (const fd of fds) {
+      try { const m = /^socket:\[(\d+)\]$/.exec(fs.readlinkSync(`/proc/${pid}/fd/${fd}`)); if (m && inodes.has(m[1])) return Number(pid); } catch { /* gone */ }
+    }
+  }
+  return null;
+}
+
+test('the app starts off air in the menu bar, and Open Studio puts it on air with the Output page', async t => {
+  const studio = await launch(t);
+  if (!studio) return;
+  await studio.until(() => /Off air until Studio is opened/.test(studio.log()));
+  assert.equal(await studio.answering(), false, 'nothing talks to PlayHQ until Studio is opened');
+  assert.equal(studio.studioWindow(), undefined);
+  await studio.open();
+  await studio.until(() => studio.answering());
+  const win = await studio.until(() => studio.studioWindow());
+  await win.waitForLoadState('load');
+  assert.equal(new URL(win.url()).pathname, '/');
+  await win.waitForSelector('#sources');
+  assert.match(studio.log(), /Helper running/);
+});
+
+test('a helper that crashes mid-stream is started again by itself, with the score and clock it had', async t => {
+  const studio = await launch(t);
+  if (!studio) return;
+  await studio.open();
+  await studio.until(() => studio.answering());
+  await studio.post('/api/scoreboard', { type: 'score', side: 'home', delta: 2 });
+  await studio.post('/api/scoreboard', { type: 'score', side: 'away', delta: 1 });
+  await studio.post('/api/scoreboard', { type: 'clockStart' });
+  await wait(1500); // the board is saved a moment after a change
+  const pid = helperPid(studio.port);
+  assert.ok(pid, 'the helper is listening');
+  process.kill(pid, 'SIGKILL');
+  await studio.until(async () => !(await studio.answering()), 5000);
+  // Back within a few seconds, a new process, with the same score and the clock still running.
+  await studio.until(() => studio.answering(), 15000);
+  assert.notEqual(helperPid(studio.port), pid);
+  const b = await studio.get('/api/scoreboard');
+  assert.deepEqual([b.home.score, b.away.score], [2, 1]);
+  assert.equal(b.clock.running, true);
+  assert.match(studio.log(), /Helper stopped \(code /);
+  // The Output page comes back by itself.
+  const win = studio.studioWindow();
+  await win.waitForSelector('#sources', { timeout: 15000 });
+});
+
+test('closing the last Studio window asks first: Cancel stays on air, Take Off Air stops Studio', async t => {
+  const studio = await launch(t);
+  if (!studio) return;
+  await studio.open();
+  await studio.until(() => studio.answering());
+  const win = await studio.until(() => studio.studioWindow());
+  await win.waitForSelector('#sources');
+  // Cancel: the window stays and Studio stays on air.
+  await studio.answer(1);
+  await studio.app.evaluate(({ BrowserWindow }, port) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes(`:${port}`)).close(), studio.port);
+  await studio.until(async () => (await studio.asked()).length === 1);
+  assert.deepEqual(await studio.asked(), ['Take Studio off air?']);
+  await wait(500);
+  assert.equal(await studio.answering(), true);
+  assert.ok(studio.studioWindow(), 'the window is still open');
+  // Take Off Air: the window closes and nothing answers on the port.
+  await studio.answer(0);
+  await studio.app.evaluate(({ BrowserWindow }, port) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes(`:${port}`)).close(), studio.port);
+  await studio.until(async () => !(await studio.answering()));
+  assert.match(studio.log(), /Last Studio window closed/);
+  assert.match(studio.log(), /Helper stopped$/m);
+  // Open Studio again: back on air.
+  await studio.open();
+  await studio.until(() => studio.answering());
+});

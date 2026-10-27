@@ -1,6 +1,7 @@
 # Runs the tests on every pull request (and on main after a merge), so a change that breaks
 # something shows as a red check on the pull request before it's merged.
-#   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, and every page in a browser.
+#   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, every page in a browser, and the
+#   Mac app itself (Electron, on a virtual display).
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
 #   Packages: npm audit on the packages that ship (not the build tools), so a known vulnerability in
 #   one turns the pull request red the day it is published rather than waiting for Dependabot's month.
@@ -36,17 +37,19 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      # Electron itself isn't needed to test Studio, only its packages.
-      # No install scripts (as in mac-app.yml); Electron's binary isn't needed here at all.
+      # No install scripts (as in mac-app.yml); Electron's binary is fetched on its own below, for the app's test.
       - run: npm ci --ignore-scripts
       # Known vulnerabilities in the packages Studio ships (electron-updater, qrcode-generator and what they
       # pull in). Build-time packages are left out: they never run on anyone's Mac.
       - run: npm audit --omit=dev --audit-level=high
       # Chromium for the page test (test/pages.test.js), which fails here rather than skipping without it.
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:ci
+      # Electron's own binary, for the Mac app's test (test/app.test.js), which runs the app on a virtual display.
+      - run: node node_modules/electron/install.js
+      - run: xvfb-run -a npm run test:ci
         env:
           STUDIO_TEST_REQUIRE_BROWSER: '1'
+          STUDIO_TEST_REQUIRE_APP: '1'
           TEST_REPORT_TITLE: Studio tests
 
   stream-deck:
