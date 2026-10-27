@@ -276,10 +276,11 @@ function refreshMenu() {
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
-    // config.json remoteChanges (access.js): off, only this Mac can change scores, the scene, settings and media; other
-    // devices can still open every page. The helper reads config.json when it starts, so it restarts on a change.
-    { label: 'Let other devices change things', type: 'checkbox', checked: machineConfig().remoteChanges !== false, toolTip: 'Phones, other computers and Stream Decks on this network can change scores, the scene and settings. Untick to keep changes, backups, the athlete register, the log and sponsor reports to this Mac; they can still see every graphic.',
-      click: item => { setMachineConfig('remoteChanges', item.checked); if (helper) restartHelper(); refreshMenu(); } },
+    // config.json remoteChanges (access.js): off (ticked), only this Mac can change scores, the scene, settings and media;
+    // other devices can still open every page. Ticked again at every launch (start()); unticking lasts until Quit. The
+    // helper reads config.json when it starts, so it restarts on a change.
+    { label: 'Only this Mac can change things', type: 'checkbox', checked: machineConfig().remoteChanges === false, toolTip: 'Phones and other computers on this network can see every graphic but not change scores, the scene or settings, or read backups, the athlete register, the log and sponsor reports. Untick to let them until Studio quits; it is ticked again each time Studio opens.',
+      click: item => { setMachineConfig('remoteChanges', !item.checked); if (helper) restartHelper(); refreshMenu(); } },
     // config.json deckKeyRequired (access.js deckPress()): on, a Stream Deck link must carry this Mac's key (links copied
     // from the Output page do, and the Studio plugin sends it), so a web page can't press one.
     { label: 'Stream Deck links need the key', type: 'checkbox', checked: machineConfig().deckKeyRequired === true, toolTip: 'Only Stream Deck links copied from the Output page (they carry this Mac\'s key) and the Studio Stream Deck plugin can press keys, so a web page can\'t. Copy Website keys\' links again before ticking it.',
@@ -723,6 +724,9 @@ async function start() {
   icon.setTemplateImage(true);
   tray = new Tray(icon);
   outputs = require('./outputs')({ port: PORT, log });
+  // Every launch starts with only this Mac able to change things; "Only this Mac can change things" is unticked by
+  // hand to let other devices in, until Quit.
+  if (machineConfig().remoteChanges !== false) setMachineConfig('remoteChanges', false);
   refreshMenu();
   windows.refreshMenu();
   log(`Starting ${app.getVersion()}, settings in ${dataDir()}`);

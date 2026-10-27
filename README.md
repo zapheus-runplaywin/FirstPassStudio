@@ -170,14 +170,15 @@ another computer or a Stream Deck on the same network, without looking up an IP 
 To go back to `localhost` links (or use a fixed name or IP address), set `"linkHost": "localhost"` (or that name) in
 `config.json` in the data folder; `"bonjour"` is the default.
 
-Studio listens on every network connection, not just this Mac, so anything on the same network can open the pages
-and, unless you say otherwise, change things: press the Stream Deck links (scores, clock, game), switch scenes, run
-sequences and save settings. **Let other devices change things** in the menu bar icon (ticked by default; `"remoteChanges"`
-in `config.json`) is the switch: unticked, Studio takes changes only from this Mac (by any of its own addresses, so the
+Studio listens on every network connection, not just this Mac, so anything on the same network can open the pages.
+Changing things (pressing the Stream Deck links for scores, clock and game, switching scenes, running sequences, saving
+settings) is the job of **Only this Mac can change things** in the menu bar icon (`"remoteChanges": false` in
+`config.json`). The app ticks it every time it opens; untick it to let phones and other computers change things until
+Studio quits. A plain `node server.js` with no `config.json` setting lets them. Ticked, Studio takes changes only from this Mac (by any of its own addresses, so the
 Stream Deck plugin on it and links by its `.local` name still work) and answers other devices' changes with a 403 that
 says so, while they can still open every graphic, the scoreboard and the scene. Private data follows the same switch:
 the settings and scene backups, the athlete register, the debug log, the sponsor reports and the competition setup
-answer only this Mac while it is unticked. Untick it on open venue Wi-Fi. Whatever the switch says, a change must
+answer only this Mac while it is ticked. Leave it ticked on open venue Wi-Fi. Whatever the switch says, a change must
 come from Studio's own pages or from a program (the Stream Deck plugin, a Website key, `curl`): a request that a
 browser marks as coming from a web page on another site (its `Origin` or `Sec-Fetch-Site` header), or that asks for
 Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the Mac's addresses, its `.local` name and
@@ -192,7 +193,7 @@ CORS header, so another site can't read its answers.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
 Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
-login, Let other devices change things, Stream Deck links need the key, Check for updates and Quit.
+login, Only this Mac can change things, Stream Deck links need the key, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". The app always starts in the
 menu bar off air, at login or opened by hand; **Open Studio** (or any page in the menu) shows the splash, puts Studio

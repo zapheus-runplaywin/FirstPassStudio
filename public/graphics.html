@@ -495,7 +495,7 @@
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ, <code style="display:inline">remoteChanges</code>) from the app's defaults.
-        <b>Let other devices change things</b> in the menu bar icon sets <code style="display:inline">remoteChanges</code>: unticked, phones, other computers and Stream Decks on the network can
+        <b>Only this Mac can change things</b> in the menu bar icon sets <code style="display:inline">remoteChanges</code>, and is ticked again every time the app opens: ticked, phones, other computers and Stream Decks on the network can
         still open every graphic but can't change scores, the scene, sequences, settings or media, or read private data (the settings and scene
         backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
         Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
@@ -543,7 +543,7 @@
       and Studio shows when and on which Mac it was made, its notes and how many competitions, sequences, playlists, sources, scenes and sponsors it holds,
       then asks before replacing this Mac's settings with it (on the Mac or in iCloud Drive, wherever they are kept now). This Mac's settings are first
       copied to <b>backups/</b> in the folder on this Mac, and only replaced once the whole backup has unpacked and checked out, so a damaged zip changes nothing.
-      Either way this Mac keeps its own <b>Let other devices change things</b> and <b>Stream Deck links need the key</b>, port and link name, and the ffmpeg and PlayHQ addresses in its config.json.
+      Either way this Mac keeps its own <b>Only this Mac can change things</b> and <b>Stream Deck links need the key</b>, port and link name, and the ffmpeg and PlayHQ addresses in its config.json.
       A backup made without the media folder keeps this Mac's media. The debug log, scores and clock aren't touched. Studio goes off air while the settings
       swap and comes straight back. A backup from an older Studio is brought up to date as Studio starts; one from a newer Studio opens with competitions read-only
       until this Mac's Studio is updated.</p>
