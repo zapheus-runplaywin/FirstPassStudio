@@ -87,3 +87,24 @@ test('added files are served as plain files, and a wrong image is refused', asyn
   const sc = await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Bad', url: 'javascript:alert(1)' }] });
   assert.equal(sc.sources.find(s => s.name === 'Bad').url, 'scoreboard.html');
 });
+
+test('two uploads of the same media name at once both finish, and the helper keeps running', async t => {
+  const studio = await startStudio(t);
+  const http = require('node:http');
+  // Each upload sends its bytes in pieces, so both are still writing when the first one finishes.
+  const upload = () => new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port: studio.port, method: 'POST', path: '/api/scene/media?name=Race.png',
+      headers: { 'content-type': 'application/octet-stream' } }, res => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+    req.on('error', reject);
+    req.write(PNG);
+    let n = 0;
+    const more = () => { if (n++ < 5) { req.write(Buffer.alloc(256 * 1024)); setTimeout(more, 60); } else req.end(); };
+    more();
+  });
+  const codes = await Promise.all([upload(), upload()]);
+  assert.deepEqual(codes, [200, 200]);
+  assert.equal(studio.exited(), null, 'the helper is still running');
+  assert.equal((await studio.request('GET', '/api/health')).status, 200);
+  const left = fs.readdirSync(path.join(studio.dataDir, 'media')).filter(f => f.endsWith('.part'));
+  assert.deepEqual(left, [], 'no part files left behind');
+});
