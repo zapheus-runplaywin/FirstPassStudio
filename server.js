@@ -851,9 +851,11 @@ http.createServer(async (req, res) => {
   });
   try {
     // A change (anything but reading, and the Stream Deck links) must come from Studio's own pages or a program, never
-    // from a web page on another site; and config.json "remoteChanges": false keeps changes, and reads of private data
-    // (access.PRIVATE: backups, the athlete register, the log, sponsor reports, the setup), to this computer.
+    // from a web page on another site; a read of private data (access.PRIVATE: backups, the athlete register, the log,
+    // sponsor reports, the setup) must be asked for by one of Studio's own names, not a DNS rebinding page's; and
+    // config.json "remoteChanges": false keeps changes, and those reads, to this computer.
     const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts()))
+      || (access.privateRead(req.method, url.pathname) && access.foreignHost(req.method, url.pathname, req.headers, ownHosts()))
       || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress);
     if (refused) {
       const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;

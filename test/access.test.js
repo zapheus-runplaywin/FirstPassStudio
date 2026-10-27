@@ -124,6 +124,11 @@ test('Studio refuses changes from another site over HTTP and WebSocket, and stil
     const http = require('node:http');
     const rebound = await new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: '/deck/home/add1', headers: { host: 'evil.example' } }, r => { r.resume(); resolve(r.statusCode); }));
     assert.equal(rebound, 403, 'DNS rebinding');
+    // A rebinding page can't read private data either, but graphics answer to any name.
+    const getAs = (p, host) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p, headers: { host } }, r => { r.resume(); resolve(r.statusCode); }));
+    for (const p of ['/api/log', '/api/settings/export', '/api/athletes', '/api/setup']) assert.equal(await getAs(p, 'evil.example:8080'), 403, `${p} by a rebinding page`);
+    assert.equal(await getAs('/api/log', `localhost:${studio.port}`), 200, 'the log by Studio\'s own name');
+    assert.equal(await getAs('/api/scoreboard', 'evil.example:8080'), 200, 'a graphic by any name');
     assert.equal((await studio.get('/api/scoreboard')).home.score, 0, 'nothing changed');
     // Reads from another site still answer (they can't be read there: no CORS header).
     res = await fetch(`${studio.base}/api/scoreboard`, { headers: { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' } });
