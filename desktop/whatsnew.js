@@ -75,9 +75,13 @@ function lastStarted(log) {
 // new to tell). Returns { show: releases to list, or null; seen: the version to save, or null }.
 function onLaunch({ data, current, lastSeen, usedBefore }) {
   if (!parse(current) || lastSeen === current) return { show: null, seen: null };
-  // A fresh install, or a downgrade: just remember this version.
+  // A fresh install: just remember this version.
   if (!usedBefore && !lastSeen) return { show: null, seen: current };
-  if (parse(lastSeen) && compare(current, lastSeen) < 0) return { show: null, seen: current };
+  // An older version than the one last seen (an older copy of the app, one run from the
+  // repository, or one opened before an update finished installing): nothing to show, and the
+  // newer version stays the one remembered. Saving the older one here made What's new show
+  // again for the newer version the next time it opened.
+  if (parse(lastSeen) && compare(current, lastSeen) < 0) return { show: null, seen: null };
   const list = since(data, lastSeen, current);
   // No record of the last version at all: show only this one's changes.
   return { show: list.length ? (parse(lastSeen) ? list : list.slice(0, 1)) : null, seen: current };

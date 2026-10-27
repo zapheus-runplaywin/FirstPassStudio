@@ -59,8 +59,24 @@ test('with no record of the last version at all, it shows its own changes only',
 
 test('nothing to show: an update with no changes, a downgrade, or no bundled notes (run from the repository)', () => {
   assert.equal(whatsnew.onLaunch({ data, current: '0.4.9', lastSeen: '0.4.8', usedBefore: true }).show, null);
-  assert.deepEqual(whatsnew.onLaunch({ data, current: '0.4.10', lastSeen: '0.4.11', usedBefore: true }), { show: null, seen: '0.4.10' });
+  assert.deepEqual(whatsnew.onLaunch({ data, current: '0.4.10', lastSeen: '0.4.11', usedBefore: true }), { show: null, seen: null });
   assert.equal(whatsnew.onLaunch({ data: null, current: '0.4.11', lastSeen: '0.4.8', usedBefore: true }).show, null);
+});
+
+test('opening an older copy in between doesn\'t make it show again for the newer version', () => {
+  // The newer version shows its changes once and is remembered.
+  let seen = '0.4.8';
+  const open = current => { const r = whatsnew.onLaunch({ data, current, lastSeen: seen, usedBefore: true }); if (r.seen) seen = r.seen; return r.show; };
+  assert.deepEqual(open('0.4.11').map(x => x.version), ['0.4.11', '0.4.10']);
+  // An older copy (or the app run from the repository) opens: nothing shows, 0.4.11 stays remembered.
+  assert.equal(open('0.4.10'), null);
+  assert.equal(open('0.1.0'), null);
+  assert.equal(seen, '0.4.11');
+  // The newer version opens again: still nothing.
+  assert.equal(open('0.4.11'), null);
+  // The next update shows only its own changes.
+  const next = whatsnew.build([release('0.4.10', ['Ten']), release('0.4.11', ['Eleven'])], notes('0.4.12', ['Twelve']), '0.4.12');
+  assert.deepEqual(whatsnew.onLaunch({ data: next, current: '0.4.12', lastSeen: seen, usedBefore: true }).show.map(x => x.version), ['0.4.12']);
 });
 
 test('the workflow command writes whatsnew.json from the releases and this build\'s notes', () => {
