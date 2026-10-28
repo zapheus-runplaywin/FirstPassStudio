@@ -901,6 +901,20 @@ http.createServer(async (req, res) => {
     }
     // The Devices… window (devices.html), on this Mac only (access.notThisMac()).
     if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
+    // Named link sets (Output page and Stream Deck page, on this Mac): make one, read its key for copying links, give it a new key.
+    if (url.pathname === '/api/devices/links' && req.method === 'POST') {
+      const made = devices.addLinks((await readBody(req)).name);
+      if (!made) return send(res, 400, { error: 'Give the link set a name, such as "Office Stream Deck".' });
+      return send(res, 200, { ...made, base: `${LINK_BASE}/k/${devices.linkKey(made.id)}` });
+    }
+    const setKey = /^\/api\/devices\/([^/]+)\/(key|renew)$/.exec(url.pathname);
+    if (setKey && (setKey[2] === 'key' ? req.method === 'GET' : req.method === 'POST')) {
+      const id = decodeURIComponent(setKey[1]);
+      if (setKey[2] === 'renew' && !devices.renew(id)) return send(res, 404, { error: 'That link set isn\'t in the list.' });
+      const key = devices.linkKey(id);
+      if (!key) return send(res, 404, { error: 'That link set isn\'t in the list.' });
+      return send(res, 200, { key, base: `${LINK_BASE}/k/${key}`, devices: devices.list() });
+    }
     const answer = /^\/api\/devices\/requests\/([^/]+)\/(allow|deny)$/.exec(url.pathname);
     if (answer && req.method === 'POST') {
       if (!devices.answer(decodeURIComponent(answer[1]), answer[2] === 'allow')) return send(res, 404, { error: 'That request was already answered or has run out.' });

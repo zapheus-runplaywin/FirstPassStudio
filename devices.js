@@ -1,11 +1,13 @@
 // FirstPass Studio - the devices allowed to change things from another device, listed in the Devices… window.
 //
 // The list starts with "This Mac's links", the key in every Stream Deck link copied from Studio (/k/<key>/deck/...,
-// access.deckPress()). A program on another device (a script, curl, later the Stream Deck plugin, phones and browsers)
+// access.deckPress()). More named link sets ("Office Stream Deck") can be made on the Mac (addLinks()), each with its
+// own key, so the Website keys on one Stream Deck can be given a new key, or removed, without touching the others. A program on another device (a script, curl, later the Stream Deck plugin, phones and browsers)
 // asks to be added (ask()): the Mac shows a dialog naming it and its address (desktop/main.js), or the Devices page
 // shows the request, and nothing is added until someone there presses Allow. One request at a time, for five minutes.
 // An allowed program collects its own key once (collect()) and uses it like This Mac's key, in /k/<key>/deck/ links;
-// it can be taken away alone. One unused for 90 days drops off the list and has to ask again.
+// it can be taken away alone. One unused for 90 days drops off the list and has to ask again (link sets never do:
+// Website keys sit unpressed through an off-season).
 //
 // The Studio Stream Deck plugin asks with its Ed25519 public key instead, and gets no key: it signs each press
 // (signed()) over "GET\n<path and query>\n<time in ms>", sent with x-studio-device, x-studio-time and x-studio-sign.
@@ -63,7 +65,7 @@ function publicKeyOf(text) {
     return key.asymmetricKeyType === 'ed25519' ? key : null;
   } catch { return null; }
 }
-const unused = d => d.id !== LINKS && Date.now() - Date.parse(d.lastSeen || d.created) > UNUSED_MS;
+const unused = d => d.kind !== 'links' && Date.now() - Date.parse(d.lastSeen || d.created) > UNUSED_MS;
 
 function oldKey() {
   try { const k = fs.readFileSync(OLD_KEY_FILE, 'utf8').trim(); if (validKey(k)) return k; } catch { /* never made */ }
@@ -96,8 +98,34 @@ function load(logger) {
 }
 const all = () => devices || load();
 
-// This Mac's key, for the links the Output page copies.
-const linkKey = () => all().find(d => d.id === LINKS).secret;
+// The key of a link set (This Mac's links unless another is named), for the links the Output page copies; null for
+// anything that isn't a link set.
+const linkKey = (id = LINKS) => { const d = all().find(x => x.id === id && x.kind === 'links'); return d ? d.secret : null; };
+
+// Makes a named link set, with its own key. Returns it without its key, or null without a name.
+function addLinks(name) {
+  const clean = String(name || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (!clean) return null;
+  const d = { id: crypto.randomBytes(6).toString('base64url'), name: clean, kind: 'links', level: 'full', secret: newSecret(), created: new Date().toISOString(), lastSeen: null };
+  all().push(d);
+  save();
+  log('info', 'devices', `New Stream Deck link set: ${clean}`);
+  const { secret, ...shown } = d;
+  return shown;
+}
+
+// Gives a link set a new key: every link made with the old one stops working. false for anything else.
+function renew(id) {
+  const d = all().find(x => x.id === id && x.kind === 'links');
+  if (!d) return false;
+  d.secret = newSecret();
+  d.created = new Date().toISOString();
+  d.lastSeen = null;
+  if (d.id === LINKS) saveOldKey(d.secret);
+  save();
+  log('info', 'devices', `${d.name} have a new key; links copied before no longer work`);
+  return true;
+}
 
 // The device whose secret this is, or null. Compared in constant time; a match counts as the device being used.
 function match(given) {
@@ -137,22 +165,16 @@ function signed(method, url, headers) {
 // Whether a Studio Stream Deck plugin has paired: from then on a plugin must sign, and the old header doesn't count.
 const pluginPaired = () => all().some(d => d.kind === 'plugin' && !unused(d));
 
-// Takes a device's access away. This Mac's links stay in the list with a new key, so every link made before stops
-// working and the links copied from now on work. Returns false for a device that isn't in the list.
+// Takes a device's access away. This Mac's links can't be removed: they get a new key instead (renew()), so every link
+// made before stops working and the links copied from now on work. Returns false for a device that isn't in the list.
 function revoke(id) {
+  if (id === LINKS) return renew(id);
   const d = all().find(x => x.id === id);
   if (!d) return false;
-  if (d.id === LINKS) {
-    d.secret = newSecret();
-    d.created = new Date().toISOString();
-    d.lastSeen = null;
-    saveOldKey(d.secret);
-  } else {
-    devices = devices.filter(x => x !== d);
-    publicKeys.delete(d.id);
-  }
+  devices = devices.filter(x => x !== d);
+  publicKeys.delete(d.id);
   save();
-  log('info', 'devices', d.id === LINKS ? 'This Mac\'s links have a new key; links copied before no longer work' : `${d.name} can no longer change things`);
+  log('info', 'devices', `${d.name} can no longer change things`);
   return true;
 }
 
@@ -220,4 +242,4 @@ const pending = () => asking && !asking.answer
   ? { id: asking.id, name: asking.name, address: asking.address, at: new Date(asking.at).toISOString(), expires: new Date(asking.at + ASK_MS).toISOString() }
   : null;
 
-module.exports = { load, linkKey, match, list, revoke, signed, pluginPaired, ask, answer, collect, pending, FILE, LINKS };
+module.exports = { load, linkKey, addLinks, renew, match, list, revoke, signed, pluginPaired, ask, answer, collect, pending, FILE, LINKS };

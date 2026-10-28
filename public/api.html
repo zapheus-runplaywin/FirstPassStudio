@@ -51,14 +51,19 @@
   .guide .ref h2 { margin: 0; }
   @media (max-width: 640px) { .guide td:first-child { width: auto; } .guide tr { display: grid; grid-template-columns: 1fr auto; } .guide td:nth-child(2) { grid-column: 1 / -1; order: 3; border-top: 0; } }
   #fallback { font-family: var(--fp-font); max-width: 760px; margin: 24px auto; padding: 0 16px; }
+  #linkSet { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
 </style>
 <script src="log.js"></script>
+<script src="asktext.js"></script>
+<script src="linksets.js"></script>
 </head>
 <body class="fp">
   <header class="fp-bar"></header><script src="studiobar.js"></script>
   <div class="guide">
     <h1>Stream Deck</h1>
     <p class="sub">Run the scene and the scoreboard from a Stream Deck. Studio has to be on air: keep a Studio window open.</p>
+    <p id="linkSetRow" hidden><label>Copy links for <select id="linkSet"></select></label>
+      <span class="note">Each link set has its own key: make one per Stream Deck, and <a href="/devices.html">Devices…</a> can give one a new key or remove it without touching the others.</span></p>
 
     <section>
       <h2>Scene and sources: the FirstPass Studio plugin</h2>
@@ -190,10 +195,15 @@
       }
     }
     drawLinks(location.origin);
-    // With this Mac's Stream Deck key in front when Studio gives it (access.js deckPress()); plain otherwise.
-    fetch('/api/deck-key').then(r => r.ok ? r.json() : Promise.reject())
-      .then(k => drawLinks(k.base))
-      .catch(() => fetch('/api/version').then(r => r.json()).then(v => { if (v.base) drawLinks(v.base); }).catch(() => {}));
+    // With the chosen link set's key in front on the Mac (linksets.js); elsewhere with this Mac's Stream Deck key when
+    // Studio gives it (access.js deckPress()), plain otherwise.
+    linkSets(document.getElementById('linkSet'), drawLinks).then(onMac => {
+      document.getElementById('linkSetRow').hidden = !onMac;
+      if (onMac) return;
+      fetch('/api/deck-key').then(r => r.ok ? r.json() : Promise.reject())
+        .then(k => drawLinks(k.base))
+        .catch(() => fetch('/api/version').then(r => r.json()).then(v => { if (v.base) drawLinks(v.base); }).catch(() => {}));
+    });
     // The plugin comes with the Mac app; opening it hands it to the Stream Deck app to install.
     fetch('/api/scene/streamdeck').then(r => r.json()).then(b => { document.getElementById('deckRow').hidden = !b.available; }).catch(() => {});
     document.getElementById('deckInstall').onclick = async () => {
