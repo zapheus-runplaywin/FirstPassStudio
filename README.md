@@ -673,6 +673,11 @@ These follow the game picked on the scoreboard control page:
   narrowed by the Team option or the "Only athletes in the picked game" tick box.
   The bar has one fixed width (900px, 660px for the half-width positions) and the name one font size: a long name is
   squeezed narrower (down to 70%) before it gets smaller; the half-width bars use 44px names instead of 50px for everyone, and `?display=` shows a shorter name in its place.
+- http://localhost:8080/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter: the
+  commentators' names in one thin line above the scoreboard (a pink tab, then "Honey Harrington and Will Linter"). `?style=box`
+  is an upper third instead: a box just under the title with the competition logo, the tab and a line per name. `?name=` to
+  `?name4=`, `?label=` (Commentators by default, Commentator for one name, `0` for none), `?position=center|bottom|bottom-center`
+  for the line and `right|center` for the box, `?logo=0`, `?mode=light`, `?out=8`. Long names are squeezed before they shrink.
 
 The cards (match up, up next, countdown, position match ups, team lists, shooting stats, full time, fixtures, ladders,
 top shooters, finals and last 10 goals) sit in the space between the title at the top and the scoreboard at the bottom,

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Commentators</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<style>
+  /* Laid out for 1920 x 1080 at 1x, on whole pixels. Two looks for the people on the mic:
+     the line (default): a thin single-line lower third, the label in a pink tab and the names beside it on one line.
+       Its left edge lines up with the scoreboard's (293px, like the person lower third) and its bottom sits 8px above
+       the scoreboard's PlayHQ Live tab (top 930px).
+     the box (?style=box): an upper third, a box with the competition logo, the label and each name on a line of
+       its own. Its left edge lines up with the scoreboard's too, and its top sits just under the title banner and the
+       logos beside it (their bottom edges are at about 162px), so it covers neither. */
+  :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; }
+  html, body { margin: 0; background: transparent; }
+  body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
+  [hidden] { display: none !important; }
+  body.bottom, body.bottom-center { --bottom: 80px; }
+
+  /* The line. */
+  .line { position: absolute; left: var(--left); bottom: var(--bottom); display: flex; align-items: stretch; height: 56px; max-width: 1335px;
+    border-radius: 10px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  body.center .line, body.bottom-center .line { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
+  .line__label { flex: none; display: flex; align-items: center; background: var(--pink); color: var(--text); padding: 0 22px;
+    font-size: 22px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+  .line__label:empty { display: none; }
+  .line__names { display: flex; align-items: center; min-width: 0; background: var(--purple-deep); padding: 0 28px;
+    font-size: 30px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; overflow: hidden; }
+  .line__names span, .box__name span { display: inline-block; transform-origin: left center; flex: none; }
+  .and { color: var(--yellow); font-weight: 600; }
+
+  /* The box. */
+  .box { position: absolute; top: var(--top); left: var(--left); width: 560px; display: flex; flex-direction: column;
+    border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45); background: var(--purple-deep); border-bottom: 5px solid var(--pink); }
+  body.right .box { left: auto; right: var(--right); }
+  body.center .box { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
+  .box__label { background: var(--pink); padding: 10px 24px; font-size: 22px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+  .box__label:empty { display: none; }
+  .box__body { display: flex; align-items: center; gap: 22px; padding: 20px 26px 22px; }
+  .box__badge { flex: none; width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 45%, var(--purple) 0%, var(--purple-dark) 80%); }
+  .box__badge:empty { display: none; }
+  .box__logo { width: 76px; height: 76px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
+  .box__logo.logo-fallback { box-sizing: border-box; font-size: 22px; }
+  .box__names { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+  /* Long names keep one size and are squeezed narrower to fit (fitText below), like the person lower third. */
+  .box__name { font-size: 36px; line-height: 44px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; }
+
+  /* In: the line opens out from its label and the names come up; the box drops in and its names follow.
+     Out (?out=) fades it away. */
+  .go .line { animation: open .5s cubic-bezier(.2,.9,.2,1) both; }
+  .go .line__names > span { animation: up .4s ease-out .35s both; }
+  .go .box { animation: drop .5s cubic-bezier(.2,.9,.2,1) both; }
+  .go .box__badge { animation: pop .45s cubic-bezier(.3,1.5,.5,1) .25s both; }
+  .go .box__name { animation: up .4s ease-out both; }
+  .go .box__name:nth-child(1) { animation-delay: .35s; } .go .box__name:nth-child(2) { animation-delay: .47s; }
+  .go .box__name:nth-child(3) { animation-delay: .59s; } .go .box__name:nth-child(4) { animation-delay: .71s; }
+  .away .line, .away .box { animation: leave .5s ease-in both; }
+  body.box-style.right .away .box { animation-name: leave-right; }
+  @keyframes open { from { clip-path: inset(0 100% 0 0 round 10px); } to { clip-path: inset(0 0 0 0 round 10px); } }
+  @keyframes drop { from { opacity: 0; translate: 0 -40px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes pop { from { scale: .4; opacity: 0; } to { scale: 1; opacity: 1; } }
+  @keyframes up { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes leave { to { opacity: 0; translate: -60px 0; } }
+  @keyframes leave-right { to { opacity: 0; translate: 60px 0; } }
+  .message { position: absolute; left: var(--left); bottom: var(--bottom); color: var(--text); background: var(--purple-deep); padding: 16px 24px; border-radius: 8px; font-size: 22px; }
+</style>
+<script src="log.js"></script>
+<script src="chroma.js"></script>
+<script src="done.js"></script>
+</head>
+<body>
+  <!-- A 1920 x 1080 page for the Output page, naming the commentators:
+       http://localhost:8080/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter
+         a thin single-line lower third: SPECIAL GUEST COMMENTATORS  Honey Harrington and Will Linter
+       http://localhost:8080/commentators.html?style=box&name=Honey%20Harrington&name2=Will%20Linter
+         an upper third: a box under the title with the competition logo, the label and a line per name
+       Options: &name= &name2= &name3= &name4=  up to four people (empty ones are left out)
+                &label=Commentators   the words in the pink tab (default Commentators, Commentator for one name; 0 leaves it off)
+                &position=center | bottom | bottom-center   for the line (default: left, lined up with the scoreboard, just above it)
+                &position=right | center   for the box (default: left, lined up with the scoreboard, just under the title)
+                &logo=0         the box without the competition logo
+                &mode=light     the light mode competition logo (default dark, for the dark box)
+                &out=8          animates away after 8 seconds
+       Loads once, each time it comes on. -->
+  <div id="stage">
+    <div class="line" id="line" hidden>
+      <div class="line__label" id="lineLabel"></div>
+      <div class="line__names" id="lineNames"></div>
+    </div>
+    <div class="box" id="box" hidden>
+      <div class="box__label" id="boxLabel"></div>
+      <div class="box__body">
+        <div class="box__badge" id="badge"></div>
+        <div class="box__names" id="boxNames"></div>
+      </div>
+    </div>
+  </div>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+    const style = params.get('style') === 'box' ? 'box' : 'line';
+    document.body.classList.add(style + '-style');
+    const names = ['name', 'name2', 'name3', 'name4'].map(k => (params.get(k) || '').trim()).filter(Boolean);
+    const rawLabel = params.get('label');
+    const label = rawLabel === '0' ? '' : (rawLabel || '').trim() || (names.length === 1 ? 'Commentator' : 'Commentators');
+    const position = params.get('position');
+    const places = style === 'box' ? ['right', 'center'] : ['center', 'bottom', 'bottom-center'];
+    if (places.includes(position)) document.body.classList.add(position);
+
+    // Squeezes the words in el narrower to fit its width (down to `squeeze`, 0.7 is 70% of their width), and only
+    // then makes their font smaller, never below `smallest` px. el holds one span (the words).
+    function fitText(el, squeeze, smallest) {
+      const span = el.firstElementChild;
+      const room = el.clientWidth - parseFloat(getComputedStyle(el).paddingLeft) - parseFloat(getComputedStyle(el).paddingRight);
+      let size = parseInt(getComputedStyle(el).fontSize, 10);
+      while (span.offsetWidth * squeeze > room && size > smallest) { size -= 2; el.style.fontSize = size + 'px'; }
+      const fit = Math.min(1, room / span.offsetWidth);
+      if (fit < 1) span.style.scale = `${Math.floor(fit * 1000) / 1000} 1`;
+      if (fit < 1 || size < smallest + 1) window.pageLog && window.pageLog('info', `Commentators: "${span.textContent}" squeezed to ${Math.round(fit * 100)}% width at ${size}px to fit`);
+    }
+
+    // "Honey Harrington and Will Linter", "A, B and C", with the "and" in yellow.
+    function joined(list) {
+      const span = document.createElement('span');
+      list.forEach((n, i) => {
+        if (i) {
+          const and = span.appendChild(document.createElement('span'));
+          and.className = 'and';
+          and.textContent = i === list.length - 1 ? ' and ' : ', ';
+          and.style.whiteSpace = 'pre';
+        }
+        span.append(n);
+      });
+      return span;
+    }
+
+    function show(d) {
+      if (style === 'line') {
+        $('lineLabel').textContent = label;
+        $('lineNames').append(joined(names));
+        $('line').hidden = false;
+      } else {
+        $('boxLabel').textContent = label;
+        if (params.get('logo') !== '0') {
+          const comp = params.get('mode') === 'light' ? d.competitionLogoLight || d.competitionLogoDark : d.competitionLogoDark || d.competitionLogoLight;
+          if (comp || d.competition) $('badge').append(logoEl({ name: d.competition, logo: comp }, 'box__logo'));
+        }
+        for (const n of names) {
+          const row = $('boxNames').appendChild(document.createElement('div'));
+          row.className = 'box__name';
+          row.appendChild(document.createElement('span')).textContent = n;
+        }
+        $('box').hidden = false;
+      }
+      document.fonts.ready.then(() => {
+        if (style === 'line') fitText($('lineNames'), 0.75, 24);
+        else document.querySelectorAll('.box__name').forEach(el => fitText(el, 0.7, 26));
+        $('stage').classList.add('go');
+        window.pageLog && window.pageLog('info', `Commentators (${style}): ${label ? label + ': ' : ''}${names.join(', ')}`);
+      });
+      const out = Number(params.get('out'));
+      if (out > 0) setTimeout(() => { $('stage').classList.replace('go', 'away'); studioDone(600); }, out * 1000);
+    }
+
+    (async () => {
+      if (!names.length) {
+        $('message').textContent = 'Commentators: type the commentators\' names (name=, name2=)';
+        $('message').hidden = false;
+        console.warn('Commentators: no names given');
+        return;
+      }
+      if (style === 'line') return show({});
+      try {
+        const res = await fetch('/api/lowerthird?type=guest', { cache: 'no-store' });
+        const d = await res.json();
+        if (d.error && res.status >= 400) throw new Error(d.error);
+        show(d);
+      } catch (err) {
+        console.warn('Commentators: competition logo unavailable:', err.message);
+        show({ competition: '' });
+      }
+    })();
+  </script>
+</body>
+</html>
