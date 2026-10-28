@@ -12,10 +12,11 @@
        the scoreboard's PlayHQ Live tab (top 930px).
      the box (?style=box): an upper third, a box with the label and each name on a line of its own. By default it sits
        in the top right corner beside the competition logo (branding.html puts it 1280px from the left, centred 95px from
-       the top), lined up with the logos, ending 40px from the right edge. ?position=under-left and under-right line it up
+       the top), smaller than under the title and centred on the logo's height, with clear space between the two (it
+       starts 60px past the widest the logo usually is, about 1400px) and 80px to spare on the right. ?position=under-left and under-right line it up
        with the scoreboard's edges just under the title banner and the logos (their bottom edges are at about 162px), and
        center centres it there; away from the competition logo the box shows it in a badge of its own. */
-  :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; --corner: 40px; --corner-top: 30px; }
+  :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; --corner: 80px; --corner-top: 36px; }
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
   [hidden] { display: none !important; }
@@ -34,12 +35,18 @@
   .and { color: var(--yellow); font-weight: 600; }
 
   /* The box. */
-  .box { position: absolute; top: var(--corner-top); right: var(--corner); width: 460px; display: flex; flex-direction: column;
+  .box { position: absolute; top: var(--corner-top); right: var(--corner); width: 380px; display: flex; flex-direction: column;
     border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45); background: var(--purple-deep); border-bottom: 5px solid var(--pink); }
   body.under-left .box, body.under-right .box, body.center .box { top: var(--top); width: 560px; }
   body.under-left .box { right: auto; left: var(--left); }
   body.under-right .box { right: var(--right); }
   body.center .box { right: auto; left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
+  /* In the corner it is smaller, so it sits beside the logo rather than outweighing it. */
+  body.corner .box { border-radius: 12px; border-bottom-width: 4px; }
+  body.corner .box__label { padding: 7px 18px; font-size: 15px; }
+  body.corner .box__body { padding: 12px 18px 14px; }
+  body.corner .box__names { gap: 2px; }
+  body.corner .box__name { font-size: 26px; line-height: 32px; }
   .box__label span { display: inline-block; transform-origin: left center; }
   .box__label { background: var(--pink); padding: 10px 24px; font-size: 20px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
   .box__label:empty { display: none; }
@@ -117,6 +124,7 @@
     const position = params.get('position');
     const places = style === 'box' ? ['under-left', 'under-right', 'center'] : ['center', 'bottom', 'bottom-center'];
     if (places.includes(position)) document.body.classList.add(position);
+    else if (style === 'box') document.body.classList.add('corner');
 
     // Squeezes the words in el narrower to fit its width (down to `squeeze`, 0.7 is 70% of their width), and only
     // then makes their font smaller, never below `smallest` px. el holds one span (the words).
@@ -167,7 +175,7 @@
       }
       document.fonts.ready.then(() => {
         if (style === 'line') fitText($('lineNames'), 0.75, 24);
-        else document.querySelectorAll('.box__name, .box__label:not(:empty)').forEach(el => fitText(el, 0.7, el.classList.contains('box__label') ? 16 : 26));
+        else document.querySelectorAll('.box__name, .box__label:not(:empty)').forEach(el => fitText(el, 0.7, el.classList.contains('box__label') ? 12 : 20));
         $('stage').classList.add('go');
         window.pageLog && window.pageLog('info', `Commentators (${style}): ${label ? label + ': ' : ''}${names.join(', ')}`);
       });
