@@ -66,10 +66,10 @@ test('hot streaks from score presses', async t => {
 
   // The Stream Deck test links play one without changing the score.
   const before = await (await fetch(`${base}/api/scoreboard`)).json();
-  await fetch(`${base}/deck/streak/fire/away`);
+  await fetch(`${base}/deck/streak/fire/away`, { headers: { 'x-studio-deck': '1' } });
   s = await streak();
   assert.deepEqual([s.n, s.kind, s.side, s.how], [5, 'fire', 'away', 'test']);
-  await fetch(`${base}/deck/streak/goalforgoal`);
+  await fetch(`${base}/deck/streak/goalforgoal`, { headers: { 'x-studio-deck': '1' } });
   s = await streak();
   assert.deepEqual([s.n, s.kind, s.side], [6, 'goalForGoal', '']);
   const after = await (await fetch(`${base}/api/scoreboard`)).json();

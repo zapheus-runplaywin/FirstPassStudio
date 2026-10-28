@@ -239,7 +239,7 @@ function restore({ from, to, localDir, keep = [], machineFrom = to, log = () => 
 // config.json settings that belong to this Mac and never come with restored settings: who on the network may change
 // things, which program runs as ffmpeg, where Studio sends the PlayHQ Client ID, and this Mac's own port and name.
 // A backup or another Mac's folder could otherwise turn the lock off, or point them somewhere else.
-const MACHINE_ONLY = ['remoteChanges', 'deckKeyRequired', 'ffmpegPath', 'apiBaseUrl', 'gameSummaryPath', 'port', 'linkHost'];
+const MACHINE_ONLY = ['remoteChanges', 'ffmpegPath', 'apiBaseUrl', 'gameSummaryPath', 'port', 'linkHost'];
 function keepMachineKeys(dir, own) {
   const file = path.join(dir, 'config.json');
   const cfg = readJson(file);

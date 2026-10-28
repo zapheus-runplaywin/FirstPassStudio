@@ -54,7 +54,7 @@ const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
 // since the Mac's addresses come and go.
 const ownHosts = () => access.ownHosts([linkHost(MACHINE.linkHost), bonjourName()]);
 // This Mac's Stream Deck key (access.js deckPress()): made once and kept on this Mac only, never in a backup or iCloud.
-// Links copied from Studio carry it as /k/<key>/deck/...; config.json "deckKeyRequired": true refuses a link without it.
+// Links copied from Studio carry it as /k/<key>/deck/...; a link without it is refused.
 const DECK_KEY = (() => {
   const file = datadir.local('deck-key.txt');
   try { const k = fs.readFileSync(file, 'utf8').trim(); if (/^[\w-]{8,}$/.test(k)) return k; } catch { /* not made yet */ }
@@ -845,8 +845,6 @@ function send(res, status, body, type, headers) {
 
 // Addresses already logged as refused a change (one line each, not one per press).
 const refusedFrom = new Set();
-// Addresses already logged as pressing a Stream Deck link without the key while it isn't required.
-const keylessFrom = new Set();
 // Requests that pages repeat every second or two are only logged when they fail.
 const QUIET = new Set(['/api/version', '/api/log', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live']);
 http.createServer(async (req, res) => {
@@ -877,20 +875,16 @@ http.createServer(async (req, res) => {
       if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
       return send(res, 403, { error: refused });
     }
-    // Stream Deck links: with the key, from the Studio plugin, or from Studio's own pages (access.deckPress()). Without
-    // it they still work unless config.json "deckKeyRequired" is true (the menu bar icon's "Stream Deck links need
-    // the key"); each address pressing one is logged once, so the links still to copy again can be found.
+    // Stream Deck links: only with the key, from the Studio plugin, or from Studio's own pages (access.deckPress()), so
+    // a web page can't press one. A refused link is logged once per address, with how to fix it.
     const deck = access.deckPress(url.pathname, keyed && keyed[1], DECK_KEY, req.headers, PORT, ownHosts());
     if (deck === false) {
       const from = access.strip(req.socket.remoteAddress);
-      if (MACHINE.deckKeyRequired === true) {
-        const why = `Studio refused ${url.pathname} because the link has no Stream Deck key. Copy the link again from the Output page (it starts ${LINK_BASE}/k/…), or install the Stream Deck plugin again from the Output page.`;
-        if (!refusedFrom.has(`deck ${from}`)) { refusedFrom.add(`deck ${from}`); log('warn', 'access', why); }
-        return send(res, 403, { error: why });
-      }
-      if (!keylessFrom.has(from)) { keylessFrom.add(from); log('info', 'access', `A Stream Deck link without its key came from ${from} (${url.pathname}). It works while keys aren't required; links copied from the Output page now carry the key.`); }
+      const why = `Studio refused ${url.pathname} because the link has no Stream Deck key. Copy the link again from the Output page (it starts ${LINK_BASE}/k/…), or install the Stream Deck plugin again from the Output page.`;
+      if (!refusedFrom.has(`deck ${from}`)) { refusedFrom.add(`deck ${from}`); log('warn', 'access', why); }
+      return send(res, 403, { error: why });
     }
-    if (url.pathname === '/api/deck-key') return send(res, 200, { key: DECK_KEY, base: DECK_BASE, required: MACHINE.deckKeyRequired === true });
+    if (url.pathname === '/api/deck-key') return send(res, 200, { key: DECK_KEY, base: DECK_BASE });
     if (url.pathname === '/api/log') {
       if (req.method === 'POST') {
         const e = await readBody(req);
