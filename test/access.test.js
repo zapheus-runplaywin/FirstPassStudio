@@ -330,9 +330,11 @@ test('Pairing: a device unused for 90 days drops off the list', async t => {
     { id: 'mac-links', name: 'This Mac\'s links', kind: 'links', level: 'full', secret: 'maclinkskey1', created: old, lastSeen: old },
     { id: 'gone1', name: 'Old laptop', kind: 'program', level: 'full', secret: 'oldlaptopkey', created: old, lastSeen: old },
     { id: 'kept1', name: 'Office', kind: 'program', level: 'full', secret: 'officekey123', created: old, lastSeen: recent },
+    { id: 'set1', name: 'Bench Stream Deck', kind: 'links', level: 'full', secret: 'benchkey1234', created: old, lastSeen: old },
   ]));
   const studio = await startStudio(t, { competition: 'Thunder League', dataDir });
-  assert.deepEqual((await studio.get('/api/devices')).devices.map(d => d.id), ['mac-links', 'kept1'], 'This Mac\'s links never run out');
+  assert.deepEqual((await studio.get('/api/devices')).devices.map(d => d.id), ['mac-links', 'kept1', 'set1'], 'link sets never run out');
+  assert.equal(await press(studio, '/k/benchkey1234/deck/home/add1'), 200);
   assert.equal(await press(studio, '/k/oldlaptopkey/deck/home/add1'), 403);
   assert.equal(await press(studio, '/k/officekey123/deck/home/add1'), 200);
   assert.equal(await press(studio, '/k/maclinkskey1/deck/home/add1'), 200);
@@ -393,4 +395,37 @@ test('Pairing the plugin: it signs each press, a signature counts once and for a
   assert.equal(gone.body.pair, true);
   assert.match(gone.body.error, /removed in Devices/);
   assert.equal((await press(studio, p, { 'x-studio-deck': '1' })).status, 200, 'no plugin paired any more: the header counts again');
+});
+
+test('Link sets: each has its own key, given a new one or removed without touching the others', async t => {
+  const http = require('node:http');
+  const press = (studio, p) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p }, r => { r.resume(); r.on('end', () => resolve(r.statusCode)); }));
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const mac = (await studio.get('/api/deck-key')).key;
+  assert.equal((await studio.request('POST', '/api/devices/links', { name: ' ' })).status, 400);
+  const office = await studio.post('/api/devices/links', { name: 'Office Stream Deck' });
+  const bench = await studio.post('/api/devices/links', { name: 'Bench Stream Deck' });
+  assert.equal(office.kind, 'links');
+  assert.ok(!('secret' in office));
+  const officeKey = (await studio.get(`/api/devices/${office.id}/key`)).key;
+  const benchKey = bench.base.split('/k/')[1];
+  assert.ok(office.base.endsWith(`/k/${officeKey}`));
+  assert.ok(new Set([mac, officeKey, benchKey]).size === 3, 'a key each');
+  for (const k of [mac, officeKey, benchKey]) assert.equal(await press(studio, `/k/${k}/deck/home/add1`), 200);
+  assert.ok((await studio.get('/api/devices')).devices.find(d => d.id === office.id).lastSeen, 'used');
+
+  const renewed = await studio.post(`/api/devices/${office.id}/renew`);
+  assert.notEqual(renewed.key, officeKey);
+  assert.equal(await press(studio, `/k/${officeKey}/deck/home/add1`), 403, 'the office set\'s old links stop');
+  assert.equal(await press(studio, `/k/${renewed.key}/deck/home/add1`), 200);
+  assert.equal(await press(studio, `/k/${benchKey}/deck/home/add1`), 200, 'the bench set is untouched');
+  assert.equal(await press(studio, `/k/${mac}/deck/home/add1`), 200, 'and so are This Mac\'s links');
+
+  await studio.post(`/api/devices/${bench.id}/revoke`);
+  assert.equal(await press(studio, `/k/${benchKey}/deck/home/add1`), 403);
+  assert.equal((await studio.request('GET', `/api/devices/${bench.id}/key`)).status, 404);
+  await studio.post('/api/devices/mac-links/revoke');
+  assert.ok((await studio.get('/api/devices')).devices.some(d => d.id === 'mac-links'), 'This Mac\'s links get a new key rather than go');
+  assert.equal(await press(studio, `/k/${mac}/deck/home/add1`), 403);
+  assert.equal((await studio.request('POST', '/api/devices/nope/renew')).status, 404);
 });

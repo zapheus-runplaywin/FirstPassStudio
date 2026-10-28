@@ -51,7 +51,10 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <p class="help">The Studio Stream Deck plugin asks to be added on its first key press and then signs every press with its own key pair;
+    <p style="margin:12px 0 0"><button class="alt" id="newSet">New link set…</button></p>
+    <p class="help">A link set is a key for a Stream Deck's Website keys: make one per Stream Deck, pick it on the Output page or the Stream Deck page,
+      and its links carry its own key, so one can be given a new key or removed without the others. Link sets never run out.
+      The Studio Stream Deck plugin asks to be added on its first key press and then signs every press with its own key pair;
       once one has been allowed, plugins that haven't can't press anything. Studio's own pages on this Mac always can change things,
       and while "Only this Mac can change things" is ticked in the menu bar icon (it is each time Studio opens), nothing else can.
       A program on another device can ask to be added (the Docs page says how): the Mac asks you to Allow or Deny it, and
@@ -63,7 +66,7 @@
   'use strict';
   const rows = document.getElementById('rows');
   const msg = document.getElementById('msg');
-  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page)', program: 'A program that asked to be added', plugin: 'Studio Stream Deck plugin (signs each press)' };
+  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page or the Stream Deck page)', program: 'A program that asked to be added', plugin: 'Studio Stream Deck plugin (signs each press)' };
   const LEVELS = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
   const when = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
   const say = text => { msg.textContent = text; msg.hidden = !text; };
@@ -77,10 +80,10 @@
       name.append(b, what);
       const cells = [LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
       const act = document.createElement('td'); act.className = 'act';
-      const btn = document.createElement('button'); btn.className = 'alt';
-      btn.textContent = d.kind === 'links' ? 'Make a new key' : 'Remove';
-      btn.onclick = () => revoke(d);
-      act.append(btn);
+      const button = (label, onclick) => { const btn = document.createElement('button'); btn.className = 'alt'; btn.textContent = label; btn.onclick = onclick; return btn; };
+      if (d.kind === 'links') act.append(button('Make a new key', () => renew(d)));
+      // This Mac's links can't be removed, only given a new key.
+      if (d.id !== 'mac-links') act.append(' ', button('Remove', () => revoke(d)));
       tr.append(name, ...cells, act);
       return tr;
     }));
@@ -115,19 +118,30 @@
   // Checks for a new request every few seconds while the page is showing.
   setInterval(() => { if (!document.hidden) load().catch(() => {}); }, 3000);
 
-  async function revoke(d) {
-    const links = d.kind === 'links';
-    const ok = await askChoice(links ? 'Make a new Stream Deck key?' : `Remove ${d.name}?`,
-      links ? 'Every Website key and copied link made before stops working straight away. Copy them again from the Output page and paste them into the Stream Deck. The Studio plugin keeps working.'
-        : `${d.name} can no longer change anything until it is allowed again.`,
-      [{ label: 'Cancel', value: 'cancel', alt: true }, { label: links ? 'Make a new key' : 'Remove', value: 'go' }]);
+  async function act(path, question, detail, label, done) {
+    const ok = await askChoice(question, detail, [{ label: 'Cancel', value: 'cancel', alt: true }, { label, value: 'go' }]);
     if (ok !== 'go') return;
-    const r = await fetch(`/api/devices/${encodeURIComponent(d.id)}/revoke`, { method: 'POST' });
+    const r = await fetch(path, { method: 'POST' });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
-    say(links ? 'New key made. Links copied before no longer work: copy them again from the Output page (reload it first if it was already open).' : `${d.name} removed.`);
+    say(done);
     draw(j.devices);
   }
+  const renew = d => act(`/api/devices/${encodeURIComponent(d.id)}/renew`, `Make a new key for ${d.name}?`,
+    `Every Website key and copied link made for ${d.name} stops working straight away. Copy them again from the Output page or the Stream Deck page (with ${d.name} picked) and paste them into the Stream Deck. Other link sets and the Studio plugin keep working.`,
+    'Make a new key', `New key made for ${d.name}. Links copied before no longer work: copy them again (reload the Output page first if it was already open).`);
+  const revoke = d => act(`/api/devices/${encodeURIComponent(d.id)}/revoke`, `Remove ${d.name}?`,
+    d.kind === 'links' ? `Every link made for ${d.name} stops working, and the set goes from the list.` : `${d.name} can no longer change anything until it is allowed again.`,
+    'Remove', `${d.name} removed.`);
+  document.getElementById('newSet').onclick = async () => {
+    const name = await askText('Name the new link set, after the Stream Deck it is for (such as "Office Stream Deck")');
+    if (!name) return;
+    const r = await fetch('/api/devices/links', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
+    say(`${j.name} made. Pick it on the Output page or the Stream Deck page to copy its links.`);
+    load();
+  };
 
   load().catch(err => say(`Couldn't load the devices: ${err.message}`));
 </script>

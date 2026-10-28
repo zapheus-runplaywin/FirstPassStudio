@@ -18,11 +18,18 @@ async function viewersNow() {
 viewersNow();
 setInterval(viewersNow, 15000);
 
-// The link base, then the Stream Deck key (only this Mac gets it while other devices can't change things: their links
-// stay plain), then everything showing links is drawn again.
+// The link base, then the Stream Deck key, then everything showing links is drawn again. On the Mac the key is the
+// chosen link set's (linksets.js), drawn again when another is picked; elsewhere it's This Mac's (only while other
+// devices can change things: otherwise their links stay plain).
+const redrawLinks = () => { renderForm(); if (sceneAll.scenes) show(sceneAll); };
 fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base; deckBase = base; })
-  .then(() => fetch('/api/deck-key')).then(r => r.ok ? r.json() : null).then(k => { if (k && k.base) deckBase = k.base; })
-  .catch(() => {}).finally(() => { renderForm(); if (sceneAll.scenes) show(sceneAll); });
+  .then(() => linkSets($('linkSet'), b => { deckBase = b; redrawLinks(); }))
+  .then(onMac => {
+    $('linkSetRow').classList.toggle('hidden', !onMac);
+    if (onMac) return;
+    return fetch('/api/deck-key').then(r => r.ok ? r.json() : null).then(k => { if (k && k.base) deckBase = k.base; });
+  })
+  .catch(() => {}).finally(redrawLinks);
 let pref = '1'; try { pref = localStorage.getItem('outputPreview') ?? '1'; } catch {}
 $('previewOn').onchange = () => setPreview($('previewOn').checked);
 setPreview(pref !== '0');

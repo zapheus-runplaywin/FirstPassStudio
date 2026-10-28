@@ -191,9 +191,12 @@ takes a signature within a minute of its time and only once (`devices.signed()`)
 Stream Deck's global settings, so it survives restarts and plugin updates. Until any plugin has paired, the plugin's
 old `x-studio-deck` header still counts, so plugins installed before pairing keep working; after that it doesn't. Studio's own pages are known by their `Referer`. A link without any of those is
 refused with a 403 saying to copy it again from the Output page (logged once per address). **Devices…** in the menu bar icon
-lists what may change things from another device, for now This Mac's links, with when the key was made and last used;
-**Make a new key** there gives up the old key, so every link copied before stops working (`devices.js`; the list and
-its button answer only the Mac itself, whether or not the lock is ticked). A program on another device can ask for a
+lists what may change things from another device, starting with This Mac's links, with when each key was made and last used;
+**Make a new key** there gives up a set's old key, so every link copied with it stops working (`devices.js`; the list and
+its buttons answer only the Mac itself, whether or not the lock is ticked). **New link set…** (there, or in the picker on
+the Output page and the Stream Deck page) makes a named set such as "Office Stream Deck" with its own key; on the Mac
+those pages copy links for the set picked (`public/linksets.js`, remembered in the browser), so one Stream Deck's
+Website keys can be given a new key or removed without touching the others. Link sets never run out. A program on another device can ask for a
 key of its own: `POST /api/pair` with `{"name": "Office Stream Deck"}` (allowed while the lock is ticked) opens an
 Allow / Deny dialog on the Mac, Deny the default, naming the device and its address; the request also shows on the
 Devices page. One request at a time, for five minutes, and a denied address waits a minute to ask again. The program

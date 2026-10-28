@@ -13,8 +13,10 @@ port, like `http://localhost:8080/k/3f9aQ2cB7xLd/deck/home/add1`, so a web page 
 The links below are shown without it, and Studio refuses a link without its key, so copy them from the Stream Deck page
 instead, or put `/k/<your key>` after `:8080` yourself. The FirstPass Studio plugin needs no key: the first time you press
 one of its keys, the Mac asks you to **Allow** "Stream Deck on *computer*", and from then on the plugin signs every press
-with its own key pair. Install it again from the Output page if it came with an older Studio (it never asks). If a link gets out, choose **Devices…** in the menu bar icon on the Mac
-and press **Make a new key**: every link made before stops working, so copy your Website keys' links again.
+with its own key pair. Install it again from the Output page if it came with an older Studio (it never asks). With more than one Stream Deck, give each its own link set: on the Mac, pick **New link set…** in **Copy links for**
+on the Stream Deck page (or the Output page), name it after the Stream Deck, and copy its links from there. If a link gets
+out, choose **Devices…** in the menu bar icon on the Mac and press **Make a new key** on that set: every link made for it
+stops working, so copy that Stream Deck's links again, and the other sets keep working.
 A program on another computer can ask for a key of its own instead (`POST /api/pair`, in the Stream Deck page's reference): the Mac asks
 you to Allow it, and Devices… can take that one key away without touching the others.
 The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running Studio.
