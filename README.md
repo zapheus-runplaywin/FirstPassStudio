@@ -430,8 +430,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. Sound
   plays through the Mac's audio output. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
   in the app log.
-- **NDI® output (Mac app):** sends the scene over the network as NDI sources at the video format picked (1080p or 720p at 25, 29.97, 30,
-  50, 59.94 or 60). **Fill and key** makes two sources, *Source name Fill* (the scene over black) and *Source name Key* (white where it shows);
+- **NDI® output (Mac app):** sends the scene over the network as NDI sources at the video format picked (1080p at the same rates a Blackmagic
+  device offers, 23.98 to 120, or 720p at 25, 29.97, 30, 50, 59.94 or 60). **Fill and key** makes two sources, *Source name Fill* (the scene over black) and *Source name Key* (white where it shows);
   **chroma** makes one, *Source name Chroma*, over the chroma colour; **with transparency** makes one, *Source name*, carrying alpha for
   receivers that key on NDI's transparency. They appear as "MAC NAME (Source name …)"; the source name is FirstPass Studio unless changed.
   The runtime comes from `/usr/local/lib` (NDI's installer) or from inside an NDI Tools app; a copy inside an app is loaded only when its

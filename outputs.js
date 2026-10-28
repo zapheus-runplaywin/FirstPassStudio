@@ -44,10 +44,12 @@ const KEYERS = ['', 'none', 'dsk1', 'dsk2', 'usk1', 'usk2', 'usk3', 'usk4'];
 const DEFAULT_CHROMA = '#00b140';
 const NDI_SIGNALS = ['fillkey', 'chroma', 'alpha'];
 const DEFAULT_NDI_NAME = 'FirstPass Studio';
-// The video formats NDI can send at (receivers take any; pick what the switcher runs at).
+// The video formats NDI can send at (receivers take any; pick what the switcher runs at): 1080p at the
+// same rates a Blackmagic device can name, and 720p.
 const NDI_FORMATS = [
-  ['1080p25', 1920, 1080, 25, 1], ['1080p29.97', 1920, 1080, 30000, 1001], ['1080p30', 1920, 1080, 30, 1],
-  ['1080p50', 1920, 1080, 50, 1], ['1080p59.94', 1920, 1080, 60000, 1001], ['1080p60', 1920, 1080, 60, 1],
+  ...[['23.98', 24000, 1001], ['24', 24, 1], ['25', 25, 1], ['29.97', 30000, 1001], ['30', 30, 1], ['47.95', 48000, 1001], ['48', 48, 1],
+    ['50', 50, 1], ['59.94', 60000, 1001], ['60', 60, 1], ['95.9', 96000, 1001], ['96', 96, 1], ['100', 100, 1], ['119.88', 120000, 1001], ['120', 120, 1]]
+    .map(([rate, n, d]) => [`1080p${rate}`, 1920, 1080, n, d]),
   ['720p25', 1280, 720, 25, 1], ['720p29.97', 1280, 720, 30000, 1001], ['720p30', 1280, 720, 30, 1],
   ['720p50', 1280, 720, 50, 1], ['720p59.94', 1280, 720, 60000, 1001], ['720p60', 1280, 720, 60, 1],
 ].map(([id, width, height, rateN, rateD]) => ({ id, width, height, rateN, rateD }));
