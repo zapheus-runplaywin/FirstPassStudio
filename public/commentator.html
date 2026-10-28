@@ -21,17 +21,17 @@
 
   /* ── Left: team lists, home above away ─────────────────────────────────── */
   .teams .box { flex: 1; }
-  .team__head { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 18px 10px; }
+  .team__head { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 14px; padding: 14px 18px 10px; }
   .team__logo { width: 64px; height: 64px; object-fit: contain; }
   .team__logo.logo-fallback { font-size: 22px; box-sizing: border-box; border-width: 3px; }
   .team__name { font-size: 28px; font-weight: 800; line-height: 1.05; text-transform: uppercase; color: var(--yellow); overflow-wrap: anywhere; }
-  .team__score { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .team__list { list-style: none; margin: 0; padding: 0 18px 14px; }
-  .player { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 12px; padding: 6px 0;
+  .player { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 0;
     border-bottom: 1px solid rgba(255, 255, 255, .1); font-size: 23px; }
   .player .pos { background: var(--yellow); color: var(--text-on-yellow); border-radius: 5px; text-align: center; font-weight: 800; padding: 2px 0; font-size: 20px; }
   .player .pos:empty { background: transparent; }
   .player .pname { font-weight: 700; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player .games { color: var(--muted); font-size: 18px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .team__bench { color: var(--pink); font-size: 15px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; padding: 8px 0 2px; }
   .team__empty { color: var(--muted); font-size: 20px; padding: 0 18px 16px; margin: 0; }
 
@@ -79,6 +79,18 @@
   .gs__bar .away { background: var(--yellow); }
   .gs__bar.is-empty span { background: var(--purple); }
   .gs__updated { text-align: right; }
+  /* The score worm under the stats: the margin through the game, home above the line and away below */
+  .worm { flex: none; height: 250px; padding: 10px 20px 8px; display: flex; flex-direction: column; }
+  .worm__head { display: flex; align-items: center; gap: 14px; }
+  .worm__head .tab { font-size: 16px; padding: 4px 12px; }
+  .worm__facts { color: var(--muted); font-size: 16px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .worm svg { flex: 1; min-height: 0; width: 100%; display: block; overflow: visible; }
+  .worm .zero { stroke: rgba(255, 255, 255, .35); stroke-width: 2; stroke-dasharray: 6 6; }
+  .worm .brk { stroke: rgba(255, 255, 255, .14); stroke-width: 2; }
+  .worm .q { fill: var(--muted); font-size: 15px; font-weight: 800; letter-spacing: .1em; }
+  .worm .line { fill: none; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+  .worm .gap { fill: rgba(255, 255, 255, .06); }
+  .worm .tip { stroke: #fff; stroke-width: 3; }
 
   /* ── Right: clock, moments, last 10 goals, current run ─────────────────── */
   .clock { padding: 14px 20px 16px; text-align: center; }
@@ -115,16 +127,16 @@
 <body>
   <!-- A 1920 x 1080 page for the Output page, for a commentary monitor (not the stream): fills the whole frame.
        http://localhost:8080/commentator.html
-       Left: both team lists, home above away.
+       Left: both team lists, home above away, with each athlete's games played this season (?games=0 leaves them out).
        Middle: the Game stats graphic's score by quarter and team against team rows, with shooting % (when following
-       PlayHQ and its scorer records shots), biggest lead and lead changes.
+       PlayHQ and its scorer records shots), biggest lead and lead changes, then a compact score worm (?worm=0 leaves it out).
        Right: the game clock with the super shot window, a moments box (lead changes, coming back, super shots, on fire
        and so on, 5 seconds each, in turn), the last 10 goals (goals.html, vertical) and the current run.
        The clock, moments, goals and run follow the board live. The stats update in place every 15 seconds and when the
        score changes: ?refresh=5, 10, 30 or 60 seconds, ?refresh=0 loads them once each time the page comes on. The team
        lists (a PlayHQ request each) load at the start and at each quarter break.
        Options: ?title=Game%20stats  ?bg=0 (see-through, no background)  and =0 leaves a part out: ?quarters=0 ?shooting=0
-       ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0 ?leads=0 ?moments=0 ?goals=0 ?run=0 -->
+       ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0 ?leads=0 ?worm=0 ?games=0 ?moments=0 ?goals=0 ?run=0 -->
   <section class="col teams" id="teams">
     <div class="box"><div class="card" id="home"></div></div>
     <div class="box"><div class="card" id="away"></div></div>
@@ -144,6 +156,10 @@
       <div class="gs__rows" id="rows"></div>
       <footer class="card__footer gs__updated" id="footer"></footer>
     </main></div>
+    <div class="card worm" id="worm">
+      <div class="worm__head"><span class="tab">Score worm</span><span class="worm__facts" id="wormFacts"></span></div>
+      <svg id="wormChart" viewBox="0 0 860 190" preserveAspectRatio="none" aria-label="Score worm"></svg>
+    </div>
   </section>
   <section class="col side">
     <div class="card clock" id="clockBox">
@@ -168,6 +184,7 @@
     if (off('moments')) $('moments').hidden = true;
     if (off('goals')) $('goals').hidden = true;
     if (off('run')) $('run').hidden = true;
+    if (off('worm')) $('worm').hidden = true;
     // Auto-refresh (on by default here, unlike the other graphics: commentators keep this page up the whole game).
     // The stats come from Studio (what it has worked out from the board), so refreshing them costs PlayHQ nothing.
     // The team lists are a PlayHQ request each, so they aren't refreshed on a timer: they load when the page comes on
@@ -188,9 +205,27 @@
 
     // ─── Team lists ──────────────────────────────────────────────────────────
     const COURT = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
-    function teamList(box, team, score) {
+    // Games played this season in the division (the Athletes page records and PlayHQ, as on the position match ups):
+    // asked for when the page comes on and for each new game. The first time can take a while (a division's line ups),
+    // so the lists show without it and it's added when it comes.
+    let gamesPlayed = null;
+    async function loadGamesPlayed() {
+      if (off('games')) return;
+      try {
+        const d = await (await fetch('/api/athletes/games', { cache: 'no-store' })).json();
+        if (d.error) throw new Error(d.error);
+        gamesPlayed = d;
+        if (lastTeamsData) for (const side of ['home', 'away']) teamList($(side), lastTeamsData[side], side);
+        fitAll();
+      } catch (err) { console.warn('Games played unavailable:', err.message); }
+    }
+    function gamesText(side, p) {
+      const g = gamesPlayed && gamesPlayed[side] && gamesPlayed[side][p.name] && gamesPlayed[side][p.name].games;
+      return g ? `${g} game${g === 1 ? '' : 's'}` : '';
+    }
+    function teamList(box, team, side) {
       const head = el('div', 'team__head');
-      head.append(logoEl(team, 'team__logo'), el('div', 'team__name', team.name), Object.assign(el('div', 'team__score', score ?? ''), { id: `${box.id}ListScore` }));
+      head.append(logoEl(team, 'team__logo'), el('div', 'team__name', team.name));
       const list = el('ol', 'team__list');
       let benchShown = false;
       (team.players || []).forEach((p, i) => {
@@ -199,13 +234,13 @@
           list.appendChild(el('li', 'team__bench', p.fromSquad ? 'Squad' : 'Bench')); benchShown = true;
         }
         const li = el('li', 'player');
-        li.append(el('span', 'pos', onCourt ? p.position : ''), el('span', 'pname', p.name));
+        li.append(el('span', 'pos', onCourt ? p.position : ''), el('span', 'pname', p.name), el('span', 'games', gamesText(side, p)));
         list.appendChild(li);
       });
       box.replaceChildren(head, list);
       if (!(team.players || []).length) box.appendChild(el('p', 'team__empty', 'Team list not available from PlayHQ yet.'));
     }
-    let lastTeams = '';
+    let lastTeams = '', lastTeamsData = null;
     async function loadTeamLists() {
       try {
         const data = await (await fetch('/api/teams', { cache: 'no-store' })).json();
@@ -213,7 +248,8 @@
         if (json === lastTeams) return;
         lastTeams = json;
         if (data.error) console.warn('Team lists:', data.error);
-        for (const side of ['home', 'away']) teamList($(side), data[side], state ? state[side].score : data.score && data.score[side]);
+        lastTeamsData = data;
+        for (const side of ['home', 'away']) teamList($(side), data[side], side);
         fitAll();
       } catch (err) { console.warn('Team lists unavailable:', err.message); }
     }
@@ -327,7 +363,46 @@
       }
       quarterTable(d);
       statRows(d);
+      if (!off('worm')) drawWorm(d.worm, d);
       fitAll();
+    }
+
+    // The score worm (as worm.html, compact and without the drawing-in): /api/worm's segments, t in periods
+    // (1.5 is half way through the second), margin = home minus away. Redrawn in place with the stats.
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+    function drawWorm(w, d) {
+      const chart = $('wormChart');
+      chart.replaceChildren();
+      const W = 860, H = 190, X0 = 4, X1 = W - 14, Y0 = 6, Y1 = H - 26, mid = (Y0 + Y1) / 2;
+      const all = w.segments.flat();
+      const span = Math.max(w.regularPeriods || 4, Math.ceil(w.end || 0), 1);
+      const max = Math.max(4, ...all.map(p => Math.abs(p.margin)));
+      const x = t => X0 + (t / span) * (X1 - X0), y = m => mid - (m / max) * (mid - Y0);
+      const colours = { home: w.home.colour || 'var(--pink)', away: w.away.colour || 'var(--yellow)' };
+      const defs = svg('defs', {}, chart);
+      const clip = (id, top, bottom) => { const c = svg('clipPath', { id }, defs); svg('rect', { x: 0, y: top, width: W, height: bottom - top }, c); };
+      clip('wHome', 0, mid); clip('wAway', mid, H);
+      for (const g of w.gaps || []) svg('rect', { x: x(g.from), y: Y0, width: Math.max(0, x(g.to) - x(g.from)), height: Y1 - Y0, class: 'gap' }, chart);
+      for (let n = 1; n <= span; n++) {
+        if (n < span) svg('line', { x1: x(n), x2: x(n), y1: Y0, y2: Y1, class: 'brk' }, chart);
+        const t = svg('text', { x: (x(n - 1) + x(n)) / 2, y: H - 4, class: 'q', 'text-anchor': 'middle' }, chart);
+        t.textContent = n > (w.regularPeriods || 4) ? 'ET' : `${w.periodLabel}${n}`;
+      }
+      svg('line', { x1: X0, x2: X1, y1: mid, y2: mid, class: 'zero' }, chart);
+      const path = seg => seg.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.margin).toFixed(1)}`).join(' ');
+      const area = seg => `${path(seg)} L${x(seg[seg.length - 1].t).toFixed(1)},${mid} L${x(seg[0].t).toFixed(1)},${mid} Z`;
+      for (const [half, side] of [['wHome', 'home'], ['wAway', 'away']]) {
+        const g = svg('g', { 'clip-path': `url(#${half})` }, chart);
+        for (const seg of w.segments.filter(sg => sg.length > 1)) {
+          svg('path', { d: area(seg), fill: colours[side], opacity: .25 }, g);
+          svg('path', { d: path(seg), class: 'line', stroke: colours[side] }, g);
+        }
+      }
+      const last = all[all.length - 1];
+      if (last && all.length > 1) svg('circle', { cx: x(last.t), cy: y(last.margin), r: 7, class: 'tip', fill: last.margin < 0 ? colours.away : colours.home }, chart);
+      const lead = last ? (last.margin > 0 ? `${d.home.name} by ${last.margin}` : last.margin < 0 ? `${d.away.name} by ${-last.margin}` : 'Level') : '';
+      $('wormFacts').textContent = [lead, `${w.leadChanges} lead change${w.leadChanges === 1 ? '' : 's'}`].filter(Boolean).join('  ·  ');
     }
 
     // ─── Clock, super shot window, moments and the current run: live from the board ─────
@@ -430,7 +505,6 @@
       const newGame = state && state.gameId !== b.gameId, newPeriod = state && state.period !== b.period;
       const scoreChanged = !state || state.home.score !== b.home.score || state.away.score !== b.away.score || newGame || newPeriod;
       state = b;
-      for (const side of ['home', 'away']) if ($(`${side}ListScore`)) $(`${side}ListScore`).textContent = b[side].score ?? '';
       clockOffset = b.serverNow - Date.now();
       drawClock();
       if (!off('moments')) moments();
@@ -438,11 +512,13 @@
       // A new game or a score change: the stats and team score catch up straight away when auto-refresh is on.
       if (scoreChanged && refresh > 0 && lastStats) loadStats();
       if (newGame || newPeriod) loadTeamLists();
+      if (newGame) loadGamesPlayed();
     }
 
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
       loadStats();
       loadTeamLists();
+      loadGamesPlayed();
       if (refresh > 0) setInterval(loadStats, every);
       sceneEvents(null, { board: take });
       setInterval(drawClock, 250);

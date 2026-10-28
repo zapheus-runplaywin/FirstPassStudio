@@ -115,8 +115,8 @@ const PAGE_OPTIONS = (() => {
         help: 'Updates the stats in place, and straight away when the score changes; they come from Studio, so this asks PlayHQ for nothing. Unticked, they load once each time the page comes on. The team lists load at the start and at each quarter break; the clock, moments, last 10 goals and run always follow the game live.' },
       title('Game stats'),
       show('quarters', 'Score by quarter'), show('shooting', 'Shooting %'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
-      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'), show('leads', 'Biggest lead and lead changes'),
-      show('moments', 'Moments box'), show('goals', 'Last 10 goals'), show('run', 'Current run'),
+      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'), show('leads', 'Biggest lead and lead changes'), show('worm', 'Score worm'),
+      show('games', 'Games played this season (team lists)'), show('moments', 'Moments box'), show('goals', 'Last 10 goals'), show('run', 'Current run'),
       { key: 'bg', label: 'Background', type: 'select', choices: [['', 'Solid (for a monitor)'], ['0', 'See-through']] },
     ],
     'sponsor.html': [

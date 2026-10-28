@@ -34,7 +34,7 @@ const SHOWS = {
   'teamlist.html': ['Blizzardz GS'],
   'control.html': ['Blizzardz'],
   'gamestats.html': ['Blizzardz', 'Game stats'],
-  'commentator.html?refresh=0': ['Blizzardz', 'Game stats', 'Shooting', 'Lead changes', 'Blizzardz GS'],
+  'commentator.html?refresh=0': ['Blizzardz', 'Game stats', 'Shooting', 'Lead changes', 'Blizzardz GS', 'games'],
   'worm.html': ['Blizzardz', 'Score worm', 'Lead changes'],
 };
 // How long each page gets to load its data and draw.

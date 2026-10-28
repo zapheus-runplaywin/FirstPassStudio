@@ -625,8 +625,8 @@ These follow the game picked on the scoreboard control page:
   (/api/stats), so keep it on air for the whole game; `?quarters=0`, `?won=0`, `?best=0`, `?supershots=0`, `?runs3=0`,
   `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. Lines starting `[stats]` in the log say when a quarter isn't sure.
 - http://localhost:8080/commentator.html: the whole screen, for a commentary desk monitor rather than the stream. Team lists
-  on the left (loaded at the start and each quarter break), the game stats in the middle with shooting %
-  (from PlayHQ's live counts, /api/stats `stats.shooting`), biggest lead and lead changes, and on the right the clock with the
+  on the left with games played this season (loaded at the start and each quarter break), the game stats in the middle with shooting %
+  (from PlayHQ's live counts, /api/stats `stats.shooting`), biggest lead, lead changes and a compact score worm, and on the right the clock with the
   super shot window, a moments box (each streak, lead change and super shot for 5 seconds, queued), the last 10 goals
   (goals.html `?layout=vertical&fill=1&run=0` in a frame) and the current run. The stats refresh in place every 15 seconds
   and on a score change (`?refresh=5|10|30|60`, `?refresh=0` loads once; Studio only, no PlayHQ); the rest follows the board live.
