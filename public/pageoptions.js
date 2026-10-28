@@ -116,7 +116,7 @@ const PAGE_OPTIONS = (() => {
       title('Game stats'),
       show('quarters', 'Score by quarter'), show('shooting', 'Shooting %'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
       show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'), show('leads', 'Biggest lead and lead changes'), show('worm', 'Score worm'),
-      show('games', 'Games played this season (team lists)'), show('moments', 'Moments box'), show('goals', 'Last 10 goals'), show('run', 'Current run'),
+      show('games', 'Games played this season (team lists)'), show('drought', 'Time since each team\'s last goal'), show('h2h', 'Head to head this season'), show('next', 'Up next on this court'), show('moments', 'Moments box'), show('goals', 'Last 10 goals'), show('run', 'Current run'),
       { key: 'bg', label: 'Background', type: 'select', choices: [['', 'Solid (for a monitor)'], ['0', 'See-through']] },
     ],
     'sponsor.html': [

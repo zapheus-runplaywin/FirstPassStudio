@@ -20,7 +20,21 @@
   .card { animation: none; box-sizing: border-box; width: auto; }
 
   /* ── Left: team lists, home above away ─────────────────────────────────── */
-  .teams .box { flex: 1; }
+  .teams .box { flex: 0 1 auto; }
+  .team__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; color: var(--muted); font-size: 17px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .team__meta:empty { display: none; }
+  .team__pos { color: var(--text); }
+  .team__form { display: inline-flex; gap: 4px; }
+  .team__form span { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; background: var(--purple); }
+  .team__form .W { background: #16a34a; } .team__form .L { background: #b91c1c; }
+  .team__drought { flex-basis: 100%; }
+  .team__drought.is-long { color: var(--yellow); }
+  /* Head to head this season and the next game on this court, under the team lists */
+  .season { flex: none; margin-top: auto; padding: 12px 18px 14px; display: grid; gap: 8px; }
+  .season__row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+  .season__label { color: var(--pink); font-size: 15px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+  .season__text { font-size: 20px; font-weight: 800; text-transform: uppercase; line-height: 1.2; overflow-wrap: anywhere; }
+  .season__text small { display: block; color: var(--muted); font-size: 15px; letter-spacing: .06em; margin-top: 2px; }
   .team__head { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 14px; padding: 14px 18px 10px; }
   .team__logo { width: 64px; height: 64px; object-fit: contain; }
   .team__logo.logo-fallback { font-size: 22px; box-sizing: border-box; border-width: 3px; }
@@ -112,7 +126,7 @@
   .moments__say .icon { font-size: 44px; flex: none; }
   .moments__say .logo { width: 56px; height: 56px; object-fit: contain; flex: none; }
   .moments__say .logo.logo-fallback { font-size: 18px; box-sizing: border-box; border-width: 3px; }
-  .moments__queue { position: absolute; right: 14px; top: 10px; color: var(--muted); font-size: 15px; font-weight: 800; }
+  .moments__ago { position: absolute; right: 16px; top: 10px; color: var(--muted); font-size: 15px; font-weight: 800; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
   .goals { flex: 1; min-height: 0; }
   .goals iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
   .run { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 14px 22px; }
@@ -128,11 +142,13 @@
 <body>
   <!-- A 1920 x 1080 page for the Output page, for a commentary monitor (not the stream): fills the whole frame.
        http://localhost:8080/commentator.html
-       Left: both team lists, home above away, with each athlete's games played this season (?games=0 leaves them out).
+       Left: both team lists, home above away, each with its ladder position, record, form and scoring drought (game time
+       since its last goal), and each athlete's games played this season; under them, head to head this season and up next
+       on this court. ?games=0 ?drought=0 ?h2h=0 ?next=0 leave those out.
        Middle: the Game stats graphic's score by quarter and team against team rows, with shooting % (when following
        PlayHQ and its scorer records shots), biggest lead and lead changes, then a compact score worm (?worm=0 leaves it out).
        Right: the game clock with the super shot window, a moments box (lead changes, coming back, super shots, on fire
-       and so on, 5 seconds each, in turn), the last 10 goals (goals.html, vertical) and the current run.
+       and so on, 5 seconds each, in turn, with how long ago each happened), the last 10 goals (goals.html, vertical) and the current run.
        The clock, moments, goals and run follow the board live. The stats update in place every 15 seconds and when the
        score changes: ?refresh=5, 10, 30 or 60 seconds, ?refresh=0 loads them once each time the page comes on. The team
        lists (a PlayHQ request each) load at the start and at each quarter break.
@@ -141,6 +157,10 @@
   <section class="col teams" id="teams">
     <div class="box"><div class="card" id="home"></div></div>
     <div class="box"><div class="card" id="away"></div></div>
+    <div class="card season" id="season" hidden>
+      <div class="season__row" id="h2hRow" hidden><div class="season__label">Head to head</div><div class="season__text" id="h2h"></div></div>
+      <div class="season__row" id="nextRow" hidden><div class="season__label">Up next</div><div class="season__text" id="next"></div></div>
+    </div>
   </section>
   <section class="col stats">
     <div class="box"><main class="card" id="card">
@@ -170,12 +190,13 @@
     <div class="card moments box" id="moments">
       <div class="moments__label">Moments</div>
       <div class="moments__say" id="say"></div>
-      <div class="moments__queue" id="queued"></div>
+      <div class="moments__ago" id="ago"></div>
     </div>
     <div class="goals" id="goals"><iframe id="goalsFrame" title="Last 10 goals" src="goals.html?layout=vertical&amp;fill=1&amp;run=0"></iframe></div>
     <div class="card run" id="run"><div class="run__num" id="runNum">–</div><div><div class="run__what" id="runWhat">Current run</div><div class="run__team" id="runTeam"></div></div></div>
   </section>
   <script src="teams.js"></script>
+  <script src="season.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const off = key => params.get(key) === '0';
@@ -224,9 +245,72 @@
       const g = gamesPlayed && gamesPlayed[side] && gamesPlayed[side][p.name] && gamesPlayed[side][p.name].games;
       return g ? `${g} game${g === 1 ? '' : 's'}` : '';
     }
+    // Ladder position, record and form under each team's name, and head to head and up next under the lists: read once
+    // when the page comes on and for each new game (the season's games are kept by Studio, so this is a few requests at most).
+    let season = { ladder: null, form: null };
+    const getJson = async path => { const d = await (await fetch(path, { cache: 'no-store' })).json(); if (d.error) throw new Error(d.error); return d; };
+    function teamMeta(side) {
+      const meta = el('div', 'team__meta');
+      const l = season.ladder && season.ladder[side] && season.ladder[side].ladder;
+      if (l) meta.append(el('span', 'team__pos', ordinal(l.position)), el('span', '', record(l)));
+      const form = season.form && season.form[side] && season.form[side].form;
+      if (form && form.length) {
+        const dots = el('span', 'team__form');
+        dots.append(...form.map(f => el('span', f.result, f.result)));
+        meta.append(dots);
+      }
+      if (!off('drought')) meta.append(Object.assign(el('span', 'team__drought'), { id: `${side}Drought` }));
+      return meta;
+    }
+    async function loadSeason() {
+      const [ladder, form, h2h, next] = await Promise.all(['/api/ladderbar', '/api/form', '/api/headtohead', '/api/upnext'].map(u => getJson(u).catch(err => { console.warn(`${u} unavailable:`, err.message); return null; })));
+      season = { ladder, form };
+      if (lastTeamsData) for (const side of ['home', 'away']) teamList($(side), lastTeamsData[side], side);
+      if (h2h && !off('h2h')) {
+        const t = h2h.tally;
+        $('h2h').replaceChildren(...(h2h.games.length
+          ? [`${h2h.home.name} ${t.home} – ${t.away} ${h2h.away.name}${t.draws ? ` (${t.draws} drawn)` : ''}`,
+            el('small', '', h2h.games.slice(-2).map(g => `${g.round ? (/^\d+$/.test(g.round) ? `R${g.round}` : g.round) + ' ' : ''}${g.home.name} ${g.home.score ?? '–'}–${g.away.score ?? '–'} ${g.away.name}`).join('  ·  '))]
+          : ['First meeting this season']));
+        $('h2hRow').hidden = false;
+      } else $('h2hRow').hidden = true;
+      if (next && next.home && !off('next')) {
+        const [h, m] = String(next.time || '').split(':').map(Number);
+        const at = Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : next.time; // as upnext.html
+        $('next').replaceChildren(`${next.home.name} v ${next.away.name}`, el('small', '', [next.court, at].filter(Boolean).join('  ·  ')));
+        $('nextRow').hidden = false;
+      } else $('nextRow').hidden = true;
+      $('season').hidden = $('h2hRow').hidden && $('nextRow').hidden;
+      drawDroughts();
+      fitAll();
+    }
+    // Scoring drought: game time since each team's last goal (the clock's time, so breaks don't count), from the board's goals.
+    function drawDroughts() {
+      if (!state || off('drought')) return;
+      const goals = Array.isArray(state.goals) && state.goalsGameId === state.gameId ? state.goals : [];
+      const nowLeft = state.clock ? msLeft() / 1000 : null;
+      const len = state.clock ? state.clock.lengthSec : 0;
+      for (const side of ['home', 'away']) {
+        const box = $(`${side}Drought`);
+        if (!box) continue;
+        const g = [...goals].reverse().find(x => !x.gap && x.side === side);
+        const after = goals.length && [...goals].reverse().find(x => x.gap); // a gap after it: Studio wasn't watching
+        let text = '', long = false;
+        if (!g) text = goals.some(x => !x.gap) || (Number(state[side].score) || 0) === 0 ? 'No goal yet' : '';
+        else if (g.clockLeft != null && nowLeft != null && !(after && after.id > g.id)) {
+          const periods = (Number(state.period) || 1) - (Number(g.period) || 1);
+          const sec = periods <= 0 ? g.clockLeft - nowLeft : g.clockLeft + (periods - 1) * len + (len - nowLeft);
+          if (sec >= 0) { text = `Last goal ${mmss(sec * 1000)} ago`; long = sec >= 120; }
+        }
+        box.textContent = text;
+        box.classList.toggle('is-long', long);
+      }
+    }
     function teamList(box, team, side) {
       const head = el('div', 'team__head');
-      head.append(logoEl(team, 'team__logo'), el('div', 'team__name', team.name));
+      const who = el('div', '');
+      who.append(el('div', 'team__name', team.name), teamMeta(side));
+      head.append(logoEl(team, 'team__logo'), who);
       const list = el('ol', 'team__list');
       let benchShown = false;
       (team.players || []).forEach((p, i) => {
@@ -436,17 +520,20 @@
       superWas = w.on;
     }
 
-    // Moments: each shows for 5 seconds; ones that come while another is showing wait their turn.
+    // Moments: each shows for 5 seconds, then it's gone; ones that come while another is showing wait their turn
+    // (Matt, 2026-10-28). Each says how long ago it happened, counting up while it shows, as a queued one can be late.
     const MOMENT_MS = 5000;
     const queue = [];
-    let showingUntil = 0;
-    function say(m) { queue.push(m); nextMoment(); }
+    let showingUntil = 0, showing = null;
+    function say(m) { queue.push({ at: Date.now(), ...m }); nextMoment(); }
+    function drawAgo() {
+      $('ago').textContent = showing ? `${Math.max(0, Math.round((Date.now() - showing.at) / 1000))}s ago` : '';
+    }
     function nextMoment() {
       const box = $('say');
-      $('queued').textContent = queue.length ? `+${queue.length} more` : '';
       if (Date.now() < showingUntil) return;
-      const m = queue.shift();
-      $('queued').textContent = queue.length ? `+${queue.length} more` : '';
+      const m = showing = queue.shift() || null;
+      drawAgo();
       if (!m) { box.replaceChildren(); box.classList.remove('is-on'); return; }
       const parts = [];
       if (m.team) parts.push(logoEl(m.team, 'logo')); else if (m.icon) parts.push(el('span', 'icon', m.icon));
@@ -477,12 +564,13 @@
       if (seenStreak === null || latest.n < seenStreak) seenStreak = latest.n; // first look: nothing old
       for (const ev of (state.streakLog || []).filter(e => e.n > seenStreak)) {
         const text = momentText(ev);
-        if (text) say({ team: team(ev.side), icon: '🔥', text });
+        // ev.at is Studio's clock: moved onto this one's.
+        if (text) say({ team: team(ev.side), icon: '🔥', text, ...(ev.at ? { at: ev.at - clockOffset } : {}) });
       }
       seenStreak = latest.n;
       const sup = state.superShot || { n: 0 };
       if (seenSuper === null || sup.n < seenSuper) seenSuper = sup.n;
-      if (sup.n > seenSuper && sup.side) say({ team: team(sup.side), text: `Super shot: ${state[sup.side].name}` });
+      if (sup.n > seenSuper && sup.side) say({ team: team(sup.side), text: `Super shot: ${state[sup.side].name}`, ...(sup.at ? { at: sup.at - clockOffset } : {}) });
       seenSuper = sup.n;
     }
     // The run going now, from the board's goal list: goals by one team in a row since the other last scored.
@@ -513,16 +601,19 @@
       // A new game or a score change: the stats and team score catch up straight away when auto-refresh is on.
       if (scoreChanged && refresh > 0 && lastStats) loadStats();
       if (newGame || newPeriod) loadTeamLists();
-      if (newGame) loadGamesPlayed();
+      if (newGame) { loadGamesPlayed(); loadSeason(); }
     }
 
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
       loadStats();
       loadTeamLists();
       loadGamesPlayed();
+      loadSeason();
       if (refresh > 0) setInterval(loadStats, every);
       sceneEvents(null, { board: take });
       setInterval(drawClock, 250);
+      setInterval(drawAgo, 1000);
+      setInterval(drawDroughts, 1000);
       window.pageLog && window.pageLog('info', refresh > 0 ? `Commentator stats: updating every ${every / 1000} seconds` : 'Commentator stats: loaded once (auto-refresh off)');
     });
   </script>
