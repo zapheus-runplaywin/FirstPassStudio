@@ -1,0 +1,297 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studio 4K Output Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Design for taking FirstPass Studio's outputs to 4K (2160p), 27 October 2026. Plan only, no code yet. Also published as a claude.ai artifact. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column, the same shape as the other plans in docs/. The answer first, how Studio draws today, the three options side by side, the recommended render path as a diagram, what 4K costs the Mac, compatibility, the PRs as cards, then decisions. */
+:root {
+  --bg: #F8FAFC; --fg: #0F172A; --muted: #475569; --line: #E2E8F0; --panel: #FFFFFF; --soft: #E8F1F7;
+  --accent: #F75C03; --blue: #2274A5; --gold: #B7900A;
+  --high: #B42318; --high-bg: #FEF3F2; --med: #B54708; --med-bg: #FFFAEB; --low: #0E7A4E; --low-bg: #ECFDF3; --keep: #2274A5; --keep-bg: #E8F1F7; --later: #5B5BD6; --later-bg: #EEEEFC;
+  --body: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; --later: #B4B4FF; --later-bg: #1E1E3F; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0B1120; --fg: #F1F5F9; --muted: #CBD5E1; --line: #1E293B; --panel: #111A2E; --soft: #13263A;
+  --accent: #FF7A2E; --blue: #6CB4E4; --gold: #F1C40F;
+  --high: #FDA29B; --high-bg: #3A1512; --med: #FEC84B; --med-bg: #3A2410; --low: #6CE9A6; --low-bg: #0F2E1E; --keep: #6CB4E4; --keep-bg: #13263A; --later: #B4B4FF; --later-bg: #1E1E3F; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.55; font-size: 15px; margin: 0;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+main { max-width: 940px; margin: 0 auto; display: grid; gap: 44px; }
+header.top { display: grid; gap: 10px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font-weight: 900; font-style: italic; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 em { color: var(--accent); font-style: inherit; }
+h2 { font-weight: 800; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-weight: 800; font-size: 1.02rem; margin: 0; }
+p, li { max-width: 70ch; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+section { display: grid; gap: 14px; }
+.lede { font-size: 1.08rem; }
+.muted { color: var(--muted); }
+code { font-family: var(--mono); font-size: .88em; background: var(--soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { font-family: var(--mono); font-size: 12.5px; background: var(--soft); padding: 10px 12px; border-radius: 8px; overflow-x: auto; margin: 0; max-width: 100%; line-height: 1.45; }
+a { color: var(--blue); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+td.n { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+td a { color: inherit; text-decoration: none; font-weight: 600; }
+td a:hover { color: var(--blue); }
+.pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.high { color: var(--high); background: var(--high-bg); }
+.pill.med { color: var(--med); background: var(--med-bg); }
+.pill.low { color: var(--low); background: var(--low-bg); }
+.pill.keep { color: var(--keep); background: var(--keep-bg); }
+.pill.later { color: var(--later); background: var(--later-bg); }
+
+.card { border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; background: var(--panel); padding: 18px 20px; display: grid; gap: 12px; }
+.card.p0 { border-left-color: var(--low); }
+.card.p1, .card.p2 { border-left-color: var(--blue); }
+.card.p3, .card.p4 { border-left-color: var(--later); }
+.card.p5 { border-left-color: var(--gold); }
+.card .head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.card .head .id { font-family: var(--mono); font-weight: 600; color: var(--muted); font-size: 13px; }
+.card dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+.card dt { font-weight: 700; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+.card dd { margin: 0; min-width: 0; }
+.card dd ul { gap: 4px; }
+@media (max-width: 520px) { .card dl { grid-template-columns: 1fr; } .card dt { padding-top: 6px; } }
+.evidence { font-size: 13.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+
+.keep-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.keep-grid div { background: var(--keep-bg); border-radius: 10px; padding: 12px 14px; font-size: 14px; min-width: 0; }
+.keep-grid strong { display: block; margin-bottom: 4px; }
+.scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.scope div { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 14px; background: var(--panel); min-width: 0; }
+.scope strong { display: block; margin-bottom: 4px; }
+.scope div.pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.num { font-variant-numeric: tabular-nums; }
+
+.diagram { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px; }
+.diagram svg { display: block; min-width: 680px; width: 100%; height: auto; }
+.diagram text { font-family: var(--body); fill: var(--fg); font-size: 13px; }
+.diagram .sub { fill: var(--muted); font-size: 11.5px; }
+.diagram .box { fill: var(--soft); stroke: var(--line); }
+.diagram .box.hot { fill: var(--med-bg); stroke: var(--med); }
+.diagram .box.new { fill: var(--low-bg); stroke: var(--low); }
+.diagram .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+.diagram #ah path { fill: var(--muted); }
+.answer { border: 1px solid var(--accent); border-radius: 10px; padding: 16px 18px; background: var(--panel); display: grid; gap: 10px; }
+</style>
+</head><body>
+
+<main>
+<header class="top">
+  <div class="eyebrow">FirstPass Studio · 4K output plan · 27 October 2026</div>
+  <h1>Taking Studio's outputs to <em>2160p</em></h1>
+  <p class="lede">Matt asked what going to 4K would take: whether Studio should draw everything at 4K and scale it down for 1080p outputs, how much work it is, how hard, and what it does to the app as it is now. This is a plan only. Nothing here is built yet.</p>
+  <p class="muted">"4K" here means UHD, 3840 x 2160, the size broadcast gear and NDI call 2160p. Effort figures are days of focused work by one person with Claude and are estimates. Performance figures are worked out from frame sizes, not measured; the first PR exists to measure them on the M1 and the M3 Pro.</p>
+</header>
+
+<section>
+  <h2>Decision: staying at 1080p</h2>
+  <div class="answer">
+    <p><strong>Matt, 27 October 2026:</strong> 4K switching costs too much for what it gives. The 4K encoder and the RØDECaster Video's 4K iso recording don't need 4K graphics from Studio, so Studio stays at 1080p at 24, 30, 50 and 60 frames a second. None of the PRs below are planned. This page stays as the reference if a 4K switcher or receiver ever arrives.</p>
+  </div>
+</section>
+
+<section>
+  <h2>The short answer</h2>
+  <div class="answer">
+    <p><strong>No, don't draw at 4K and scale down.</strong> Each output already has its own off-screen scene window drawing its own graphics, so a single 4K picture would never be shared, and every 1080p output would pay four times the work to end up with the same picture it gets today. Instead, <strong>each output draws at its own format</strong>: a 1080p output stays exactly as it is, and a 2160p output draws the same 1920 x 1080 layout at twice the pixel density.</p>
+    <p><strong>Effort:</strong> medium overall, in five small PRs (about 4 to 5 days) plus one large optional performance PR (1 to 2 weeks) that only happens if the measurements say so. <strong>Complexity:</strong> low in the pages, moderate in the render path, high only in that optional PR. <strong>Backwards compatibility:</strong> full. No setting, scene, sequence, Stream Deck key or page link changes meaning, and 1080p stays the default.</p>
+    <p><strong>One thing to weigh first:</strong> the gear on stream night is HD. The ATEM Mini Extreme takes 1080p at most, and the UltraStudio that's there now is an HD-SDI model. 4K out of Studio only pays off with a 4K destination: a 4K switcher, a 4K NDI receiver, or a 4K display. PR 1 is cheap and useful for testing either way; the rest can wait until there's a 4K destination.</p>
+  </div>
+</section>
+
+<section>
+  <h2>How Studio draws today</h2>
+  <p>Every graphics page (43 in <code>public/</code>) is laid out on a fixed 1920 x 1080 frame. <code>scene.html</code> stacks the scene's sources as iframes on that frame, and <code>fit.js</code>, the scene's placements and the whole-pixel centring rule all work in those 1920 x 1080 units.</p>
+  <ul>
+    <li><strong>Display outputs</strong> (<code>desktop/outputs.js</code>) open <code>scene.html?fit=1</code> full screen; it scales the 1920 x 1080 stage to the window. On a 4K TV that macOS runs as "looks like 1920 x 1080", the window is 1920 x 1080 points at 2x, so the scene is already drawn with 3840 x 2160 real pixels today.</li>
+    <li><strong>NDI and Blackmagic</strong> share <code>desktop/scenewindow.js</code>: an off-screen, transparent Electron window at the format's size and frame rate. Each paint is copied out as a BGRA bitmap (<code>image.toBitmap()</code>) and handed to <code>native/ndi</code> or <code>native/decklink</code>, which convert it on the CPU (fill, key, chroma, straight alpha) and send the latest picture every frame.</li>
+    <li><strong>720p NDI already works by scaling:</strong> the window is 1280 x 720 and <code>scene.html?fit=1</code> scales the 1920 stage by 0.667. 2160p is the same idea at 2x.</li>
+    <li>NDI formats are a fixed list in <code>outputs.js</code> (1080p and 720p, 25 to 60). Blackmagic modes come from the device but are filtered to 1080 progressive. The NDI module already accepts frames up to 7680 x 4320.</li>
+    <li>Off screen, the window is first made at 1 pixel per point. If macOS won't make it that big, it falls back to half size at twice the density. That fallback once looked soft at 1080p, which is the main thing PR 1 has to settle at 2160p.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>The three options</h2>
+  <div class="scope">
+    <div>
+      <strong>A. Draw everything at 4K, scale down for 1080p</strong>
+      <p>One 3840 x 2160 picture per output, shrunk for any output that runs at 1080p.</p>
+      <p class="muted">Four times the drawing, copying and converting for every 1080p output, plus a scale step on the CPU or GPU, for the same 1080p picture as today. Downscaling also smears the whole-pixel sharpness work from PR #119. Outputs don't share pictures (each has its own graphics), so there's nothing to save by drawing once. <span class="pill high">Not recommended</span></p>
+    </div>
+    <div class="pick">
+      <strong>B. Each output draws at its own format</strong>
+      <p>Pages stay laid out at 1920 x 1080. A 2160p output draws that layout at 2x density in its own window; 1080p and 720p outputs don't change.</p>
+      <p class="muted">Only the output that's set to 4K pays for 4K. Pages, fit.js, scene placements and links keep their units. Text, SVG and CSS come out sharp at 2x for free; only bitmaps (canvases, small logos, 1080p videos) need attention. <span class="pill low">Recommended</span></p>
+    </div>
+    <div>
+      <strong>C. Re-lay every page out at 3840 x 2160</strong>
+      <p>Change the design frame itself to 4K.</p>
+      <p class="muted">Every page, every scene placement, fit.js's zone, the Output page preview and every page link changes, and 1080p becomes the scaled-down case of option A. Weeks of work and a break with every saved scene, for nothing B doesn't give. <span class="pill high">Not recommended</span></p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The render path under option B</h2>
+  <p>The page's layout is unchanged; only the window's pixel density changes with the format. Green is new or changed.</p>
+  <div class="diagram" role="img" aria-label="Diagram: scene.html at 1920 by 1080 layout units is drawn by one off-screen window per output. A 1080p output draws at 1x, a 2160p output at 2x. Each window's bitmap goes to the NDI or Blackmagic module for that output.">
+    <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z"/></marker></defs>
+      <rect class="box" x="10" y="90" width="170" height="70" rx="8"/>
+      <text x="22" y="117">scene.html + pages</text>
+      <text class="sub" x="22" y="137">laid out at 1920 x 1080</text>
+      <text class="sub" x="22" y="152">(unchanged)</text>
+
+      <rect class="box" x="250" y="20" width="210" height="70" rx="8"/>
+      <text x="262" y="47">Output 1 window, 1080p50</text>
+      <text class="sub" x="262" y="67">1920 x 1080 at 1x, as today</text>
+      <rect class="box new" x="250" y="160" width="210" height="70" rx="8"/>
+      <text x="262" y="187">Output 2 window, 2160p50</text>
+      <text class="sub" x="262" y="207">1920 x 1080 layout at 2x</text>
+      <text class="sub" x="262" y="222">= 3840 x 2160 pixels</text>
+
+      <rect class="box" x="540" y="20" width="210" height="70" rx="8"/>
+      <text x="552" y="47">NDI or Blackmagic</text>
+      <text class="sub" x="552" y="67">8.3 MB a frame, as today</text>
+      <rect class="box hot" x="540" y="160" width="210" height="70" rx="8"/>
+      <text x="552" y="187">NDI or Blackmagic</text>
+      <text class="sub" x="552" y="207">33 MB a frame: 4x the CPU</text>
+      <text class="sub" x="552" y="222">copy and convert work</text>
+
+      <path class="arrow" d="M180 115 C 215 115, 215 55, 248 55"/>
+      <path class="arrow" d="M180 135 C 215 135, 215 195, 248 195"/>
+      <path class="arrow" d="M460 55 L 538 55"/>
+      <path class="arrow" d="M460 195 L 538 195"/>
+    </svg>
+  </div>
+  <p>Two ways to get the 2x, and PR 1 tries both on the Mac and keeps the sharper one:</p>
+  <ul>
+    <li><strong>2x density</strong> (preferred): the off-screen window is 1920 x 1080 with <code>deviceScaleFactor: 2</code>. Pages see a 1920 x 1080 window with <code>devicePixelRatio</code> 2, so canvases and images can ask for 2x pictures. This is the path that looked soft at 1080p once, so it has to be checked by eye and in the log ("scene drawn at ... at 2x").</li>
+    <li><strong>2x scale</strong>: a 3840 x 2160 window at 1x, with <code>scene.html?fit=1</code> scaling the stage by 2, which is what 720p does at 0.667 today. Chromium redraws scaled text and vectors at full sharpness, but pages can't tell they're being drawn at 2x, so canvases stay soft, and macOS may refuse a window that big.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>What 4K costs the Mac</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Part</th><th>At 1080p50 today</th><th>At 2160p50</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>Drawing (GPU)</td><td>Light</td><td>About 4x the pixels to fill and composite. Apple Silicon GPUs handle this well.</td><td>Measure with the perf meter.</td></tr>
+      <tr><td>Copying each picture out of Chromium</td><td class="n">8.3 MB, ~415 MB/s</td><td class="n">33 MB, ~1.7 GB/s</td><td>The main cost. Chromium only paints on change, but animations and video paint every frame.</td></tr>
+      <tr><td>Fill and key, chroma, straight alpha (C++ loops)</td><td>One pass a frame per signal</td><td>4x, and NDI fill and key does two</td><td>Move the conversion off the frame callback (PR 6) if late frames show up.</td></tr>
+      <tr><td>NDI encoding and network</td><td>~125 to 150 Mbit/s a source</td><td>Roughly 250 to 400 Mbit/s a source; fill and key is two sources</td><td>On gigabit, prefer one source "with transparency" at 4K. Say so on the Output page.</td></tr>
+      <tr><td>Blackmagic over Thunderbolt</td><td>Fine</td><td>Needs a 4K device (6G or 12G-SDI, such as an UltraStudio 4K model). The HD UltraStudio can't.</td><td>Studio already reads which modes a device can send and key.</td></tr>
+      <tr><td>Videos in scenes (VP9 with alpha)</td><td>Decoded in software (hardware VP9 is switched off in <code>desktop/main.js</code>)</td><td>A 4K transparent video in software is heavy, roughly a few CPU cores at 50 fps</td><td>Keep videos at 1080p; they're scaled up. Warn when a 4K video goes on a 4K output.</td></tr>
+      <tr><td>Memory</td><td>Each window holds a few 8 MB pictures</td><td>A few 33 MB pictures each</td><td>Fine on 16 GB; watch with four outputs.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Working guess, to be replaced by measurements: one 2160p output alongside 1080p ones should be fine on the M3 Pro and probably on the M1. Four 2160p outputs at once is unlikely to hold 50 fps on either without PR 6. The perf meter from PR #260 (<code>desktop/perf.js</code>) already logs CPU, memory and frame rate per output every minute, so PR 1 can answer this on Matt's two Macs.</p>
+</section>
+
+<section>
+  <h2>Pages and assets at 2x</h2>
+  <ul>
+    <li><strong>Text, SVG, CSS shapes and gradients:</strong> sharp at 2x with no changes. Fonts are vector.</li>
+    <li><strong>fit.js and placements:</strong> unchanged. They work in layout pixels, and a whole layout pixel is two whole device pixels, so the PR #119 sharpness rule still holds.</li>
+    <li><strong>Canvases:</strong> three pages draw on air with canvases that have a fixed 1920 x 1080 backing (The Clash sparks and embers, the winner confetti, streaks). At 2x they'd be upscaled and soft. Each needs its backing sized by <code>devicePixelRatio</code> and its drawing scaled once, which is a small change per page.</li>
+    <li><strong>Logos and photos:</strong> a picture is sharp at 4K if it has at least twice as many pixels as the layout size it's shown at. Team logos at 512 px are fine at most sizes; the 540 px winner crest needs about 1080 px; small sponsor logos will look soft. Studio can say so where pictures are added, as it already does for videos without transparency (PR #73).</li>
+    <li><strong>Videos:</strong> 1080p videos are scaled up on a 4K output and look like 1080p video. The conversion to WebM keeps the original size, so a 4K ProRes becomes a 4K WebM, with the decoding cost above.</li>
+    <li><strong>Stinger file:</strong> <code>docs/stinger/render.js</code> can render a 2160p ProRes 4444 by setting the browser's scale factor to 2. Expect files about four times as big (around 150 MB for the 0.5 s hold).</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Backwards compatibility</h2>
+  <div class="keep-grid">
+    <div><strong>Settings</strong> No new fields. A 2160p output just stores a new format name (<code>ndiFormat: "2160p50"</code>, or a Blackmagic 2160p mode). An older Studio that reads it falls back to 1080p50, which <code>outputs.js</code> already does for any format it doesn't know.</div>
+    <div><strong>Scenes and sequences</strong> Placements and scales stay in 1920 x 1080 units, so a scene looks the same on a 4K output, only sharper.</div>
+    <div><strong>Page links</strong> Every page keeps its link and stays 1920 x 1080 when opened on its own. PR 4 adds an opt-in <code>?fit=1</code> to any page, so another app can open it at 3840 x 2160 and get it drawn at full size.</div>
+    <div><strong>Stream Deck and /deck links</strong> Unchanged. They pick outputs, not formats.</div>
+    <div><strong>Default</strong> 1080p50 stays the default for new outputs, and nothing moves to 4K by itself.</div>
+    <div><strong>Manual controls</strong> None removed. The format picker gains entries; nothing else on the Output page moves.</div>
+  </div>
+</section>
+
+<section>
+  <h2>The PRs</h2>
+  <p>One change per PR, in this order. PR 1 to 5 together are a build-minor feature.</p>
+
+  <div class="card p0">
+    <div class="head"><span class="id">PR 1</span><h3>NDI at 2160p, and the 4K render path</h3><span class="pill low">1 to 1.5 days</span></div>
+    <dl>
+      <dt>Change</dt><dd><code>outputs.js</code> adds 2160p25 to 2160p60 to the NDI formats. <code>scenewindow.js</code> draws formats wider than 1920 at 2x density (or 2x scale, whichever PR 1 shows is sharper on the Mac). The Output page labels them "2160p (4K, about four times the Mac's work)".</dd>
+      <dt>Proves</dt><dd>Sharpness, and per-output CPU, memory and frame rate on the M1 and M3 Pro with one, two and four 4K outputs, from the perf meter's log lines.</dd>
+      <dt>Tests</dt><dd>Format list and settings round trip; an older settings file still loads as 1080p50; scene window size and density per format with the NDI stand-in.</dd>
+    </dl>
+  </div>
+
+  <div class="card p1">
+    <div class="head"><span class="id">PR 2</span><h3>Blackmagic 2160p modes</h3><span class="pill low">0.5 day</span></div>
+    <dl>
+      <dt>Change</dt><dd>List 2160p progressive modes the device names, with the same "(device says it can't)" marking as PR #326. Default stays 1080p.</dd>
+      <dt>Risk</dt><dd>Can't be tested on hardware until there's a 4K Blackmagic device; only the stand-in library. Whether the device keys at 2160p comes from its own mode list.</dd>
+    </dl>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="id">PR 3</span><h3>Sharp canvases and picture size warnings</h3><span class="pill low">1 day</span></div>
+    <dl>
+      <dt>Change</dt><dd>The three canvas pages size their backing by <code>devicePixelRatio</code>. Where logos, sponsor pictures and videos are added, say when a picture will look soft at 4K. Animations keep running by elapsed time.</dd>
+      <dt>Tests</dt><dd>Playwright screenshots of each canvas page at scale factor 2, checked for full-size backing.</dd>
+    </dl>
+  </div>
+
+  <div class="card p3">
+    <div class="head"><span class="id">PR 4</span><h3>Any page at any size, and the docs</h3><span class="pill low">1 day</span></div>
+    <dl>
+      <dt>Change</dt><dd>A shared <code>?fit=1</code> for every page (scaling the 1920 x 1080 frame to the window, as <code>scene.html</code> does), listed in <code>pageoptions.js</code>. Docs page, "Data and bandwidth" (NDI at 4K), the user guide and its PDFs updated in the same PR.</dd>
+    </dl>
+  </div>
+
+  <div class="card p4">
+    <div class="head"><span class="id">PR 5</span><h3>2160p stinger file</h3><span class="pill low">0.5 day</span></div>
+    <dl>
+      <dt>Change</dt><dd><code>docs/stinger/render.js</code> takes a size option and renders 2160p ProRes 4444 at scale factor 2. Committed alongside the 1080p file only if Matt wants one.</dd>
+    </dl>
+  </div>
+
+  <div class="card p5">
+    <div class="head"><span class="id">PR 6, only if PR 1's numbers need it</span><h3>Faster pictures off the GPU</h3><span class="pill high">1 to 2 weeks</span></div>
+    <dl>
+      <dt>Change</dt><dd>Electron 45's off-screen shared textures (<code>useSharedTexture</code>, an IOSurface on the Mac) instead of copying each bitmap through JavaScript, with fill, key and alpha worked out on the GPU or on the native module's own thread, and NDI given UYVA rather than BGRA.</dd>
+      <dt>Why it's big</dt><dd>New native code against IOSurface and Metal in both modules, a new failure mode (texture released too early), and it's the hardest part to test without the hardware.</dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <h2>Decisions for Matt</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Question</th><th>Suggested answer</th></tr></thead>
+    <tbody>
+      <tr><td>Build now, or wait for a 4K switcher or receiver?</td><td>Build PR 1 now (cheap, measures the Macs, works with any NDI receiver), hold PR 2 to 6 until there's a 4K destination.</td></tr>
+      <tr><td>Draw once at 4K and scale down?</td><td>No. Each output draws at its own format.</td></tr>
+      <tr><td>Limit how many outputs can be 4K at once?</td><td>No hard limit. Show the perf meter's numbers on the output's card and warn when frames are late, as now.</td></tr>
+      <tr><td>Which 4K frame rates?</td><td>2160p25, 29.97, 30, 50, 59.94, 60, matching the 1080p list.</td></tr>
+      <tr><td>4K stinger file in the repo?</td><td>Only on request; it's about 150 MB.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</main>
+</body></html>
