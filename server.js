@@ -882,8 +882,23 @@ http.createServer(async (req, res) => {
       return send(res, 403, { error: why });
     }
     if (url.pathname === '/api/deck-key') return send(res, 200, { key: devices.linkKey(), base: deckBase() });
+    // Another device asks to control Studio (devices.js ask()); it learns the answer from GET /api/pair/<id> with its token.
+    if (url.pathname === '/api/pair' && req.method === 'POST') {
+      const asked = devices.ask((await readBody(req)).name, access.strip(req.socket.remoteAddress));
+      return send(res, asked.error ? 409 : 202, asked);
+    }
+    const pair = /^\/api\/pair\/([^/]+)$/.exec(url.pathname);
+    if (pair && req.method === 'GET') {
+      const got = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair']);
+      return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${got.key}` } : got);
+    }
     // The Devices… window (devices.html), on this Mac only (access.notThisMac()).
-    if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list() });
+    if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
+    const answer = /^\/api\/devices\/requests\/([^/]+)\/(allow|deny)$/.exec(url.pathname);
+    if (answer && req.method === 'POST') {
+      if (!devices.answer(decodeURIComponent(answer[1]), answer[2] === 'allow')) return send(res, 404, { error: 'That request was already answered or has run out.' });
+      return send(res, 200, { devices: devices.list(), asking: devices.pending() });
+    }
     const revoke = /^\/api\/devices\/([^/]+)\/revoke$/.exec(url.pathname);
     if (revoke && req.method === 'POST') {
       if (!devices.revoke(decodeURIComponent(revoke[1]))) return send(res, 404, { error: 'That device isn\'t in the list.' });

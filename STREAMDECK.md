@@ -14,6 +14,8 @@ The links below are shown without it, and Studio refuses a link without its key,
 instead, or put `/k/<your key>` after `:8080` yourself. The FirstPass Studio plugin needs no key (install it again from
 the Output page if it came with an older Studio). If a link gets out, choose **Devices…** in the menu bar icon on the Mac
 and press **Make a new key**: every link made before stops working, so copy your Website keys' links again.
+A program on another computer can ask for a key of its own instead (`POST /api/pair`, in the Stream Deck page's reference): the Mac asks
+you to Allow it, and Devices… can take that one key away without touching the others.
 The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running Studio.
 The Docs page (http://localhost:8080/graphics.html) shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
 which also works from a Stream Deck on another computer on the same network.

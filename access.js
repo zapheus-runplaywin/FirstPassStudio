@@ -65,9 +65,14 @@ function isLocal(remoteAddress, own = ownAddresses()) {
   return !a || own.has(a);
 }
 
+// Asking to be added to the devices list (devices.js ask()) works while the lock is on: that is how a device gets in
+// without it, and nothing is added until someone at the Mac presses Allow.
+const ASK = ['/api/pair'];
+const asking = pathname => ASK.some(p => pathname === p || pathname.startsWith(p + '/'));
+
 // The 403 message, or null when the request may go ahead.
 function refusal(setting, method, pathname, remoteAddress, own) {
-  if (setting !== false) return null;
+  if (setting !== false || asking(pathname)) return null;
   const change = changes(method, pathname);
   if (!change && !privateRead(method, pathname)) return null;
   if (isLocal(remoteAddress, own)) return null;
@@ -149,4 +154,4 @@ function deckPress(pathname, keyGiven, known, headers, port, hosts) {
   return false;
 }
 
-module.exports = { changes, privateRead, PRIVATE, MAC_ONLY, notThisMac, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };
+module.exports = { changes, privateRead, PRIVATE, MAC_ONLY, ASK, notThisMac, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };

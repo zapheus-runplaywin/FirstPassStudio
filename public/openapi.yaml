@@ -9,7 +9,8 @@ info:
     Every /deck link also answers with this Mac's Stream Deck key in front (/k/<key>/deck/...), as Studio copies them;
     GET /api/deck-key gives the key. A /deck link
     without it is refused (403) unless it carries the x-studio-deck header (the Studio Stream Deck plugin) or comes
-    from Studio's own pages, such as Try it out below.
+    from Studio's own pages, such as Try it out below. A program on another device can ask for a key of its own
+    (Pairing below): someone at the Mac presses Allow, and the program uses its key the same way.
 servers:
   - url: /
     description: The Studio this page was opened from
@@ -25,6 +26,8 @@ tags:
     description: Start, stop, toggle, reset, set and adjust stop the clock following the PlayHQ scorer's clock. The score keeps following PlayHQ.
   - name: Quarter
   - name: Ticker
+  - name: Pairing
+    description: A program on another device asks for its own Stream Deck key. Nothing is given until someone at the Mac presses Allow (a dialog, or the Devices page from the menu bar icon). One request at a time, for five minutes; a denied device waits a minute to ask again. Devices… lists the key and can take it away alone, and one unused for 90 days has to ask again.
   - name: Status
   - name: Scene
     description: Studio's scene, built on the Output page. Sources are named by the name given on the Output page, lower case with dashes for spaces ("Up Next" is `up-next`).
@@ -316,6 +319,62 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /api/pair:
+    post:
+      tags: [Pairing]
+      summary: Ask for a key of this device's own
+      description: Works while "Only this Mac can change things" is ticked. Keep the token; it collects the answer.
+      operationId: askToPair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 40, example: Office Stream Deck, description: Shown in the Mac's dialog and in Devices… }
+      responses:
+        '202':
+          description: Waiting for the Mac
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  token: { type: string }
+                  expires: { type: string, format: date-time }
+        '409':
+          description: Another device is asking already, this one was just denied, or no name was given
+          content:
+            application/json:
+              schema: { type: object, properties: { error: { type: string } } }
+
+  /api/pair/{id}:
+    get:
+      tags: [Pairing]
+      summary: Collect the answer
+      description: Ask every few seconds. Once allowed the key is given once, with the start of every link (base); put base in front of any /deck link.
+      operationId: collectPairing
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: x-studio-pair, in: header, required: true, description: The token from POST /api/pair, schema: { type: string } }
+      responses:
+        '200':
+          description: The answer so far
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [waiting, allowed, denied] }
+                  key: { type: string, description: Only when allowed }
+                  base: { type: string, example: 'http://studio-mac.local:8080/k/3f9aQ2cB7xLd' }
+                  device: { type: string, description: Its id in Devices… }
+        '404':
+          description: No such request (a wrong token, already collected, or run out after five minutes)
 
   /api/scoreboard:
     get:

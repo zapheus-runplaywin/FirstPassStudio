@@ -189,7 +189,14 @@ kept with the devices list in `devices.json` in the local data folder, never in 
 refused with a 403 saying to copy it again from the Output page (logged once per address). **Devices…** in the menu bar icon
 lists what may change things from another device, for now This Mac's links, with when the key was made and last used;
 **Make a new key** there gives up the old key, so every link copied before stops working (`devices.js`; the list and
-its button answer only the Mac itself, whether or not the lock is ticked). Reads of private data get the same `Host` check, so a page that has
+its button answer only the Mac itself, whether or not the lock is ticked). A program on another device can ask for a
+key of its own: `POST /api/pair` with `{"name": "Office Stream Deck"}` (allowed while the lock is ticked) opens an
+Allow / Deny dialog on the Mac, Deny the default, naming the device and its address; the request also shows on the
+Devices page. One request at a time, for five minutes, and a denied address waits a minute to ask again. The program
+asks `GET /api/pair/<id>` with its token in an `x-studio-pair` header until the answer comes; once allowed it gets
+its key once, with the start of its links (`base`), and Devices… lists it and can take it away alone. A device
+unused for 90 days drops off the list and has to ask again (This Mac's links never do). Paired keys press links like
+This Mac's key, so they too need the lock unticked from another device for now. Reads of private data get the same `Host` check, so a page that has
 pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
 CORS header, so another site can't read its answers.
 
