@@ -89,12 +89,17 @@ test('a chroma output on an upstream key, a Straight fill, and what the switcher
   await studio.post('/api/outputs', { output: two, mode: 'decklink', decklinkKeying: 'off' });
   c = await keyFor(studio, two, x => /Fill only/.test(x.problems.join(' ')));
   // Now fill and key from a Blackmagic device sending Straight: the key it set up for chroma goes back to luma, and
-  // Pre Multiplied Key stays off.
+  // Straight is asked to be off with Pre Multiplied Key on (straight fill into a Pre Multiplied Key leaves a light
+  // fringe round logos), and Set up this key for me unticks it.
   await studio.post('/api/outputs', { output: two, decklinkKeying: 'external', decklinkStraight: true });
   c = await keyFor(studio, two, x => !x.problems.length);
-  assert.deepEqual(c.fixes, ['Key type is Chroma, should be Luma', 'Key source is Black, should be Camera 8']);
+  assert.deepEqual(c.fixes, ['Key type is Chroma, should be Luma', 'Key source is Black, should be Camera 8', 'Pre Multiplied Key is off, should be on',
+    'Studio\'s Straight fill is on, should be off (it leaves a light edge round logos and text)']);
   await studio.post('/api/switcher', { type: 'keySetup', output: two });
-  assert.deepEqual(atem.state.uskKeys[1], { type: 0, fill: 7, cut: 8, preMultiplied: false });
+  assert.deepEqual(atem.state.uskKeys[1], { type: 0, fill: 7, cut: 8, preMultiplied: true });
+  assert.equal((await studio.get('/api/outputs')).outputs.find(o => o.id === two).decklinkStraight, false, 'Straight unticked');
+  await keyFor(studio, two, x => !x.fixes.length);
+  assert.match(studio.log(), /set up upstream key 2 for Output 2: .*Pre Multiplied Key on, Studio's Straight fill off/);
   // Not keyed by the switcher: nothing to check.
   await studio.post('/api/outputs', { output: two, keyer: 'none' });
   c = await keyFor(studio, two, x => x.keyer === 'none');

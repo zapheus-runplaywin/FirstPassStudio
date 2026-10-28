@@ -238,7 +238,8 @@
         <b>fill and key</b> with the device's external keyer (fill on one SDI out, key on the other) or <b>fill only</b>, in the video format you pick
         (1080p only; pick the one the switcher runs at, usually 1080p50). A format marked <i>(device says it can't)</i> is one the device
         reports it can't send (older UltraStudios with HD-SDI rather than 3G-SDI stop at 1080p30); you can still try it, and the Output page says if it fails. The fill is premultiplied: turn the switcher's
-        <b>Pre Multiplied Key</b> on for clean edges (clip and gain aren't used then), and tick <b>Straight</b> only if the switcher can't do that.
+        <b>Pre Multiplied Key</b> on for clean edges (clip and gain aren't used then), and leave <b>Straight</b> off: straight fill into a Pre Multiplied Key
+        leaves a light fringe round logos and text. Tick Straight only for a switcher that can't do a premultiplied key (every ATEM can); ticking it asks if you're sure.
         It needs Blackmagic Desktop Video installed (the Output page says if it isn't, with where to get it; quit and reopen Studio after installing) and the device free, so quit any other app using it first. Output on/off and the
         <code>/deck/output</code> links work the same.</li>
       <li><b>NDI® output (Mac app):</b> sends the scene over the network as NDI sources, in the video format you pick (1080p at 23.98 to 120 fps, the same rates as a Blackmagic device, or 720p at 25 to 60 fps):
@@ -294,9 +295,9 @@
         its fill and key are plugged into (a chroma output needs just one). The usual key is downstream key 1 for Output 1 and upstream keys 2 to 4 for
         Outputs 2 to 4; a chroma output goes on an upstream key, as only those key on a colour. Pick another key, or <i>Not keyed by the switcher</i>.
         Studio then checks that key's settings in the switcher, read only, and lists what doesn't suit the output: its fill and key sources, its type
-        (Chroma for a chroma output, Luma for fill and key) and <b>Pre Multiplied Key</b> (on, unless a Blackmagic device sends Straight). It also says when
+        (Chroma for a chroma output, Luma for fill and key) and <b>Pre Multiplied Key</b> (on), and asks for a Blackmagic device's <b>Straight</b> to be off. It also says when
         the output can't be keyed as it is: a chroma output on a downstream key, NDI with transparency or fill only (an ATEM needs a key signal or a colour),
-        two outputs on the same key, or a key the switcher hasn't got. <b>Set up this key for me</b> changes just those settings on the switcher, after asking;
+        two outputs on the same key, or a key the switcher hasn't got. <b>Set up this key for me</b> changes just those settings on the switcher (and unticks Straight, which restarts the Blackmagic output for a moment), after asking;
         it leaves the key's clip, gain, mask, position and whether it's on air alone, and the log says what it changed. For a chroma key, pick the key colour
         in ATEM Software Control with its sample picker. Nothing is sent to the switcher until it's pressed.
         <br><b>Cameras per output:</b> an output on an upstream key can say which cameras its graphics <b>go with</b> (ticked under Into the switcher as; the
