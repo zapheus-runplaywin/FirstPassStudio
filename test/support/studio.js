@@ -54,7 +54,12 @@ async function runServer(env, tries = 3) {
 }
 
 // Starts Studio. Options: competition (a template in templates/ to import, by its file name),
-// dataDir (an existing data folder to use), world (the stand-in PlayHQ's season), env.
+// dataDir (an existing data folder to use), removeDataDir (remove that folder too when Studio has
+// stopped), world (the stand-in PlayHQ's season), env.
+// A test that makes its own data folder passes removeDataDir rather than removing it in a t.after of
+// its own: t.after hooks run in the order they were added, so that one would run while Studio is still
+// writing to the folder (ENOTEMPTY on the Mac), and its error skips the stop, leaving Studio running
+// and the test file never finishing (the Mac app build's 10-minute timeouts on 28 Oct).
 async function startStudio(t, opts = {}) {
   const playhq = await startPlayhq(opts.world || createWorld());
   const dataDir = opts.dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
@@ -62,7 +67,7 @@ async function startStudio(t, opts = {}) {
   const stop = async () => {
     if (server && server.exited() === null) { server.child.kill(); await server.exit; }
     await playhq.close();
-    if (!opts.dataDir && !opts.keepDataDir) fs.rmSync(dataDir, { recursive: true, force: true });
+    if ((!opts.dataDir || opts.removeDataDir) && !opts.keepDataDir) fs.rmSync(dataDir, { recursive: true, force: true });
   };
   if (t) t.after(stop);
   server = await runServer({ FIRSTPASS_DATA_DIR: dataDir, TZ: localZone(playhq.world.now).tz,
