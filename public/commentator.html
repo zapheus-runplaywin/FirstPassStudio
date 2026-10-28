@@ -80,15 +80,16 @@
   .gs__bar.is-empty span { background: var(--purple); }
   .gs__updated { text-align: right; }
   /* The score worm under the stats: the margin through the game, home above the line and away below */
-  .worm { flex: none; height: 250px; padding: 10px 20px 8px; display: flex; flex-direction: column; }
-  .worm__head { display: flex; align-items: center; gap: 14px; }
-  .worm__head .tab { font-size: 16px; padding: 4px 12px; }
-  .worm__facts { color: var(--muted); font-size: 16px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  .worm svg { flex: 1; min-height: 0; width: 100%; display: block; overflow: visible; }
+  /* Kept short (Matt, 2026-10-28) so the stats above still have the room they had before it: about 100px of the column. */
+  .worm { flex: none; height: 96px; padding: 6px 16px 4px; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: center; }
+  .worm__head { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .worm__head .tab { font-size: 14px; padding: 3px 10px; }
+  .worm__facts { color: var(--muted); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.2; }
+  .worm svg { height: 84px; min-width: 0; width: 100%; display: block; overflow: visible; }
   .worm .zero { stroke: rgba(255, 255, 255, .35); stroke-width: 2; stroke-dasharray: 6 6; }
   .worm .brk { stroke: rgba(255, 255, 255, .14); stroke-width: 2; }
-  .worm .q { fill: var(--muted); font-size: 15px; font-weight: 800; letter-spacing: .1em; }
-  .worm .line { fill: none; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+  .worm .q { fill: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .1em; }
+  .worm .line { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
   .worm .gap { fill: rgba(255, 255, 255, .06); }
   .worm .tip { stroke: #fff; stroke-width: 3; }
 
@@ -158,7 +159,7 @@
     </main></div>
     <div class="card worm" id="worm">
       <div class="worm__head"><span class="tab">Score worm</span><span class="worm__facts" id="wormFacts"></span></div>
-      <svg id="wormChart" viewBox="0 0 860 190" preserveAspectRatio="none" aria-label="Score worm"></svg>
+      <svg id="wormChart" viewBox="0 0 680 84" preserveAspectRatio="none" aria-label="Score worm"></svg>
     </div>
   </section>
   <section class="col side">
@@ -374,7 +375,7 @@
     function drawWorm(w, d) {
       const chart = $('wormChart');
       chart.replaceChildren();
-      const W = 860, H = 190, X0 = 4, X1 = W - 14, Y0 = 6, Y1 = H - 26, mid = (Y0 + Y1) / 2;
+      const W = 680, H = 84, X0 = 2, X1 = W - 8, Y0 = 4, Y1 = H - 16, mid = (Y0 + Y1) / 2;
       const all = w.segments.flat();
       const span = Math.max(w.regularPeriods || 4, Math.ceil(w.end || 0), 1);
       const max = Math.max(4, ...all.map(p => Math.abs(p.margin)));
@@ -400,9 +401,9 @@
         }
       }
       const last = all[all.length - 1];
-      if (last && all.length > 1) svg('circle', { cx: x(last.t), cy: y(last.margin), r: 7, class: 'tip', fill: last.margin < 0 ? colours.away : colours.home }, chart);
+      if (last && all.length > 1) svg('circle', { cx: x(last.t), cy: y(last.margin), r: 5, class: 'tip', fill: last.margin < 0 ? colours.away : colours.home }, chart);
       const lead = last ? (last.margin > 0 ? `${d.home.name} by ${last.margin}` : last.margin < 0 ? `${d.away.name} by ${-last.margin}` : 'Level') : '';
-      $('wormFacts').textContent = [lead, `${w.leadChanges} lead change${w.leadChanges === 1 ? '' : 's'}`].filter(Boolean).join('  ·  ');
+      $('wormFacts').textContent = lead;
     }
 
     // ─── Clock, super shot window, moments and the current run: live from the board ─────
