@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Devices · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<link rel="stylesheet" href="studio.css">
+<style>
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 18px 22px; margin-bottom: 14px; }
+  button { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; }
+  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  button.alt { background: var(--fp-white); color: var(--fp-blue); }
+  button.alt:hover { background: var(--fp-blue-soft); }
+  .tblwrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--fp-muted); padding: 6px 10px; border-bottom: 1px solid var(--fp-line-strong); white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid var(--fp-line); vertical-align: top; }
+  td.act { text-align: right; white-space: nowrap; }
+  .what { font-size: 13px; color: var(--fp-muted); margin-top: 3px; line-height: 1.45; }
+  .help { font-size: 13px; color: var(--fp-muted); margin: 12px 0 0; line-height: 1.5; }
+  .msg { padding: 10px 14px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); margin: 0 0 14px; line-height: 1.5; }
+</style>
+</head>
+<body class="fp">
+<script src="log.js"></script>
+<header class="fp-bar"></header><script src="studiobar.js"></script>
+<main>
+  <h1>Devices</h1>
+  <p class="sub">What may change scores, the scene and sequences from somewhere other than this Mac's own windows. Opened from
+    <b>Devices…</b> in the menu bar icon, and only on the Mac running Studio: another device can't see or change this list.
+    <a href="/api.html">Back to Stream Deck</a></p>
+  <p class="msg" id="msg" hidden></p>
+  <section>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Device</th><th>Allowed</th><th>Key made</th><th>Last used</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="help">The Studio Stream Deck plugin needs no key. Studio's own pages on this Mac always can change things,
+      and while "Only this Mac can change things" is ticked in the menu bar icon (it is each time Studio opens), nothing else can.</p>
+  </section>
+</main>
+<script src="asktext.js"></script>
+<script>
+  'use strict';
+  const rows = document.getElementById('rows');
+  const msg = document.getElementById('msg');
+  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page)' };
+  const LEVELS = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
+  const when = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
+  const say = text => { msg.textContent = text; msg.hidden = !text; };
+
+  function draw(list) {
+    rows.replaceChildren(...list.map(d => {
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
+      const b = document.createElement('b'); b.textContent = d.name;
+      const what = document.createElement('div'); what.className = 'what'; what.textContent = KINDS[d.kind] || d.kind;
+      name.append(b, what);
+      const cells = [LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
+      const act = document.createElement('td'); act.className = 'act';
+      const btn = document.createElement('button'); btn.className = 'alt';
+      btn.textContent = d.kind === 'links' ? 'Make a new key' : 'Remove';
+      btn.onclick = () => revoke(d);
+      act.append(btn);
+      tr.append(name, ...cells, act);
+      return tr;
+    }));
+  }
+
+  async function load() {
+    const r = await fetch('/api/devices');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
+    draw(j.devices);
+  }
+
+  async function revoke(d) {
+    const links = d.kind === 'links';
+    const ok = await askChoice(links ? 'Make a new Stream Deck key?' : `Remove ${d.name}?`,
+      links ? 'Every Website key and copied link made before stops working straight away. Copy them again from the Output page and paste them into the Stream Deck. The Studio plugin keeps working.'
+        : `${d.name} can no longer change anything until it is allowed again.`,
+      [{ label: 'Cancel', value: 'cancel', alt: true }, { label: links ? 'Make a new key' : 'Remove', value: 'go' }]);
+    if (ok !== 'go') return;
+    const r = await fetch(`/api/devices/${encodeURIComponent(d.id)}/revoke`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
+    say(links ? 'New key made. Links copied before no longer work: copy them again from the Output page (reload it first if it was already open).' : `${d.name} removed.`);
+    draw(j.devices);
+  }
+
+  load().catch(err => say(`Couldn't load the devices: ${err.message}`));
+</script>
+</body>
+</html>

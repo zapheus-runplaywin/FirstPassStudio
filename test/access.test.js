@@ -195,7 +195,7 @@ test('Stream Deck links: only the key, the plugin\'s header or Studio\'s own pag
   assert.equal((await locked.get('/api/deck-key')).key, k.key);
   const refused = await press(locked, '/deck/home/add1');
   assert.equal(refused.status, 403);
-  assert.match(refused.body, /no Stream Deck key\. Copy the link again from the Output page/);
+  assert.match(refused.body, /no Stream Deck key, or one this Mac has given up .*Copy the link again from the Output page/);
   assert.equal((await press(locked, '/deck/home/add1', { referer: 'http://evil.example/' })).status, 403, 'an image on another site');
   assert.equal((await press(locked, '/k/wrongwrongwr/deck/home/add1')).status, 403, 'a wrong key');
   assert.equal((await press(locked, `/k/${k.key}/deck/home/add1`)).status, 200, 'the key');
@@ -211,10 +211,52 @@ test('Stream Deck links: only the key, the plugin\'s header or Studio\'s own pag
 
 test('deckPress: only Stream Deck links are checked', () => {
   const hosts = access.ownHosts(['studio.local']);
-  assert.equal(access.deckPress('/api/scoreboard', null, 'k', {}, 8080, hosts), null);
-  assert.equal(access.deckPress('/deck/home/add1', 'k', 'k', {}, 8080, hosts), true);
-  assert.equal(access.deckPress('/deck/home/add1', 'x', 'k', {}, 8080, hosts), false);
-  assert.equal(access.deckPress('/deck/home/add1', null, 'k', { referer: 'http://studio.local:8080/' }, 8080, hosts), true);
-  assert.equal(access.deckPress('/deck/home/add1', null, 'k', { referer: 'https://studio.local:8080/' }, 8080, hosts), false);
-  assert.equal(access.deckPress('/deck/home/add1', null, 'k', { referer: 'not a url' }, 8080, hosts), false);
+  const known = k => k === 'k';
+  assert.equal(access.deckPress('/api/scoreboard', null, known, {}, 8080, hosts), null);
+  assert.equal(access.deckPress('/deck/home/add1', 'k', known, {}, 8080, hosts), true);
+  assert.equal(access.deckPress('/deck/home/add1', 'x', known, {}, 8080, hosts), false);
+  assert.equal(access.deckPress('/deck/home/add1', null, known, { referer: 'http://studio.local:8080/' }, 8080, hosts), true);
+  assert.equal(access.deckPress('/deck/home/add1', null, known, { referer: 'https://studio.local:8080/' }, 8080, hosts), false);
+  assert.equal(access.deckPress('/deck/home/add1', null, known, { referer: 'not a url' }, 8080, hosts), false);
+});
+
+test('notThisMac: the devices list answers only this Mac, ticked or not', () => {
+  const own = new Set(['127.0.0.1', '::1', '192.168.1.20']);
+  assert.equal(access.notThisMac('GET', '/api/devices', '127.0.0.1', own), null);
+  assert.equal(access.notThisMac('POST', '/api/devices/mac-links/revoke', '::ffff:192.168.1.20', own), null, 'the Mac by its LAN address');
+  assert.match(access.notThisMac('GET', '/api/devices', '192.168.1.50', own), /only be seen and changed on the Mac running Studio.*192\.168\.1\.50/);
+  assert.match(access.notThisMac('POST', '/api/devices/mac-links/revoke', '192.168.1.50', own), /Devices…/);
+  assert.equal(access.notThisMac('GET', '/api/scoreboard', '192.168.1.50', own), null, 'everything else is up to the lock');
+  assert.equal(access.privateRead('GET', '/api/devices'), true, 'a rebinding page can\'t read it either (foreignHost)');
+});
+
+test('Devices: This Mac\'s links keep the old key, the list has no secrets, and a new key retires the old links', async t => {
+  const http = require('node:http');
+  const press = (studio, p) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p }, r => { r.resume(); r.on('end', () => resolve(r.statusCode)); }));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-devices-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dataDir, 'deck-key.txt'), 'oldkeyoldkey\n');
+  const studio = await startStudio(t, { competition: 'Thunder League', dataDir });
+  assert.equal((await studio.get('/api/deck-key')).key, 'oldkeyoldkey', 'links already on a Stream Deck keep working');
+  const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'devices.json'), 'utf8'));
+  assert.equal(saved[0].secret, 'oldkeyoldkey');
+
+  const { devices } = await studio.get('/api/devices');
+  assert.equal(devices.length, 1);
+  assert.equal(devices[0].name, 'This Mac\'s links');
+  assert.equal(devices[0].level, 'full');
+  assert.equal(devices[0].lastSeen, null);
+  assert.ok(!JSON.stringify(devices).includes('oldkeyoldkey') && !('secret' in devices[0]), 'no secrets in the list');
+
+  assert.equal(await press(studio, '/k/oldkeyoldkey/deck/home/add1'), 200);
+  assert.ok((await studio.get('/api/devices')).devices[0].lastSeen, 'a press counts as used');
+
+  const renewed = await studio.request('POST', '/api/devices/mac-links/revoke');
+  assert.equal(renewed.status, 200);
+  const k = await studio.get('/api/deck-key');
+  assert.notEqual(k.key, 'oldkeyoldkey');
+  assert.equal(await press(studio, '/k/oldkeyoldkey/deck/home/add1'), 403, 'the old links stop working');
+  assert.equal(await press(studio, `/k/${k.key}/deck/home/add1`), 200, 'the new ones work');
+  assert.equal(fs.readFileSync(path.join(dataDir, 'deck-key.txt'), 'utf8').trim(), k.key, 'an older Studio would use the new key too');
+  assert.equal((await studio.request('POST', '/api/devices/nothing/revoke')).status, 404);
 });

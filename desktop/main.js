@@ -263,6 +263,8 @@ function refreshMenu() {
     { label: 'Scoreboard control', click: () => openPage('/control.html') },
     { label: 'Competition setup', click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
+    // What may change things from another device (devices.js); the page answers on this Mac only.
+    { label: 'Devices…', click: () => openPage('/devices.html') },
     // Opening the file hands it to the Stream Deck app, which installs or updates the plugin.
     { label: 'Install the Stream Deck plugin', enabled: fs.existsSync(STREAMDECK_PLUGIN), click: () => shell.openPath(STREAMDECK_PLUGIN) },
     { type: 'separator' },
