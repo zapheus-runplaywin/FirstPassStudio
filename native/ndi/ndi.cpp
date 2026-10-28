@@ -11,14 +11,18 @@
 //                      -> { ok, id } or { ok: false, error }
 //   frame(id, buffer, width, height) -> true when taken: the latest picture, BGRA with premultiplied alpha
 //   stop(id)           (stop() stops every one)
-//   status(id)         -> { running, sent, late, sources: [{ kind, name, connections }] }
+//   status(id)         -> { running, sent, pictures, late, sources: [{ kind, name, connections }] }
+//                         (sent: frames sent; pictures: new pictures the scene handed over)
 //                         (status() -> { running }: whether any is)
 //
 // Several can run at once, one for each of Studio's outputs that sends NDI, each with its own sources,
 // format and thread; id names one.
 //
 // A thread sends every source at the frame rate, repeating the latest picture when nothing has
-// changed, so receivers see a steady source. Each kind is made from the one picture:
+// changed, so receivers see a steady source. It hands each frame to NDI without waiting for it
+// (send_send_video_async_v2): NDI's own threads convert, compress and send it, the fill and key at
+// the same time, while this thread gets the next one ready. (Waiting for each, fill then key, left
+// too little of each frame's time on a busy Mac, and frames went out late or not at all.) Each kind is made from the one picture:
 //   fill   - the scene over black;
 //   key    - its alpha as white on black (grey where it's partly see-through);
 //   chroma - the scene over a solid colour;
@@ -116,8 +120,11 @@ struct Source {
   Kind kind;
   std::string name;
   NDIlib_send_instance_t send = nullptr;
-  std::vector<uint8_t> pixels; // the latest picture converted for this source
-  uint64_t made = 0;           // which picture that was
+  // The picture converted for this source, twice over: NDI may still be reading the one sent last
+  // (pixels[shown]) until the next is handed over, so the next is made in the other.
+  std::vector<uint8_t> pixels[2];
+  int shown = 0;
+  uint64_t made = 0;           // which picture pixels[shown] is
   std::atomic<int> connections{0};
 };
 
@@ -127,29 +134,33 @@ struct Output {
   uint8_t color[3] = { 0, 0, 0 }; // chroma colour, B G R
   std::thread thread;
   std::atomic<bool> stopping{false};
-  std::atomic<uint64_t> sent{0}, late{0};
+  std::atomic<uint64_t> sent{0}, late{0}, pictures{0};
 
   std::mutex lock;
-  std::vector<uint8_t> latest; // the newest picture as it came, premultiplied BGRA
+  std::vector<uint8_t> latest; // the newest picture as it came, premultiplied BGRA (frame() fills it)
   uint64_t picture = 1;
 
   ~Output() {
     for (auto *s : sources) {
-      if (s->send) lib->send_destroy(s->send);
+      if (s->send) lib->send_destroy(s->send); // waits for a frame NDI is still reading
       delete s;
     }
   }
 
-  void convert(Source *s, const std::vector<uint8_t> &pic) {
+  // A pixel at a time as 32 bits (B G R A in memory, so alpha is the top byte): a fill or key is a
+  // couple of instructions a pixel, which the compiler turns into vector code.
+  void convert(Source *s, const std::vector<uint8_t> &pic, uint8_t *dst) {
     const uint8_t *src = pic.data();
-    uint8_t *dst = s->pixels.data();
     const size_t size = pic.size();
+    const uint32_t *src32 = (const uint32_t *)src;
+    uint32_t *dst32 = (uint32_t *)dst;
+    const size_t pixels = size / 4;
     switch (s->kind) {
       case FILL: // premultiplied colour is already the scene over black
-        for (size_t i = 0; i < size; i += 4) { memcpy(dst + i, src + i, 3); dst[i + 3] = 255; }
+        for (size_t i = 0; i < pixels; i++) dst32[i] = src32[i] | 0xFF000000u;
         break;
       case KEY:
-        for (size_t i = 0; i < size; i += 4) { uint8_t a = src[i + 3]; dst[i] = dst[i + 1] = dst[i + 2] = a; dst[i + 3] = 255; }
+        for (size_t i = 0; i < pixels; i++) dst32[i] = 0xFF000000u | (src32[i] >> 24) * 0x010101u;
         break;
       case CHROMA:
         for (size_t i = 0; i < size; i += 4) {
@@ -193,12 +204,14 @@ struct Output {
       if (!anyone) continue;
 
       {
+        // Take the new picture by swapping buffers rather than copying it; frame() writes the next
+        // into the one given back (it writes every byte, so what was in it doesn't matter).
         std::lock_guard<std::mutex> hold(lock);
-        if (picture != have) { pic = latest; have = picture; }
+        if (picture != have) { pic.swap(latest); have = picture; }
       }
       for (auto *s : sources) {
         if (s->connections <= 0) continue;
-        if (s->made != have) { convert(s, pic); s->made = have; }
+        if (s->made != have) { convert(s, pic, s->pixels[s->shown ^ 1].data()); s->shown ^= 1; s->made = have; }
         NDIlib_video_frame_v2_t frame;
         frame.xres = width;
         frame.yres = height;
@@ -208,12 +221,16 @@ struct Output {
         frame.picture_aspect_ratio = (float)width / height;
         frame.frame_format_type = NDIlib_frame_format_type_progressive;
         frame.timecode = NDIlib_send_timecode_synthesize;
-        frame.p_data = s->pixels.data();
+        frame.p_data = s->pixels[s->shown].data();
         frame.line_stride_in_bytes = width * 4;
-        lib->send_send_video_v2(s->send, &frame);
+        // Returns at once; NDI is done with the frame before it was handed over (pixels[shown ^ 1]), so
+        // that buffer is free for the next picture. A repeat hands over the same buffer, unchanged.
+        lib->send_send_video_async_v2(s->send, &frame);
       }
       sent++;
     }
+    // Wait for NDI to finish with the last frames before their buffers can go.
+    for (auto *s : sources) if (s->send) lib->send_send_video_async_v2(s->send, nullptr);
   }
 };
 
@@ -308,7 +325,8 @@ static napi_value Start(napi_env env, napi_callback_info cb) {
     Source *s = new Source();
     s->kind = kind == "key" ? KEY : kind == "chroma" ? CHROMA : kind == "alpha" ? ALPHA : FILL;
     s->name = getString(env, item, "name");
-    s->pixels.assign(size, 0);
+    s->pixels[0].assign(size, 0);
+    s->pixels[1].assign(size, 0);
     o->sources.push_back(s);
     NDIlib_send_create_t create;
     create.p_ndi_name = s->name.c_str();
@@ -346,8 +364,10 @@ static napi_value Frame(napi_env env, napi_callback_info cb) {
   size_t size = (size_t)o->width * o->height * 4;
   if (w != o->width || h != o->height || length < size) return boolean(env, false);
   std::lock_guard<std::mutex> hold(o->lock);
+  if (o->latest.size() != size) o->latest.resize(size);
   memcpy(o->latest.data(), data, size);
   o->picture++;
+  o->pictures++;
   return boolean(env, true);
 }
 
@@ -370,6 +390,7 @@ static napi_value Status(napi_env env, napi_callback_info cb) {
   if (o) {
     set(env, r, "sent", num(env, (double)o->sent));
     set(env, r, "late", num(env, (double)o->late));
+    set(env, r, "pictures", num(env, (double)o->pictures));
     napi_value list;
     napi_create_array(env, &list);
     uint32_t i = 0;

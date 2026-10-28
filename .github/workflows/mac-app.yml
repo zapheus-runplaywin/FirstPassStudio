@@ -102,7 +102,8 @@ jobs:
       - name: Build the DeckLink module
         working-directory: native/decklink
         run: npm ci && npm run build && npm test
-      # NDI output (native/ndi): built the same way. It needs no NDI software to build; the test checks it loads.
+      # NDI output (native/ndi): built the same way. It needs no NDI software to build; the tests check it loads
+      # and keeps the frame rate against a stand-in NDI runtime.
       - name: Build the NDI module
         working-directory: native/ndi
         run: npm ci && npm run build && npm test

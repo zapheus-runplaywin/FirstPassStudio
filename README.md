@@ -440,7 +440,11 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   failing that, Studio uses the copy inside an NDI Tools app if it finds one (`desktop/ndi.js` looks in /Applications). Studio doesn't ship the runtime.
   The scene renders off screen as for Blackmagic (`desktop/scenewindow.js`, `desktop/ndi.js`) and `native/ndi`, a Node-API module built
   against the NDI SDK's header files in `native/ndi/sdk` (MIT licence), loads the runtime and sends each source at the frame rate, repeating
-  the latest picture, only while something is receiving it. Each 1080p source is roughly 100 to 150 Mbit/s, so use a wired network. Sound
+  the latest picture, only while something is receiving it. Frames are handed to NDI without waiting (NDI compresses the fill and key
+  on its own threads, at the same time), and once a minute the app log gives the frames a second sent and the new pictures a second the
+  scene drew, to tell a busy Mac from a lossy network. Each 1080p source is roughly 100 to 150 Mbit/s, so use a wired network (over
+  Wi-Fi moving graphics stutter), at the frame rate the switcher or stream runs at. `npm test` in `native/ndi` also checks the timing
+  against a stand-in runtime that is slow to compress. Sound
   plays through the Mac's audio output, not over NDI. Output on/off and `/deck/output/on|off|toggle` work the same.
   NDI® is a registered trademark of Vizrt NDI AB.
 

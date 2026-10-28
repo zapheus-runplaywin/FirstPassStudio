@@ -3,6 +3,7 @@
 #   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, every page in a browser, and the
 #   Mac app itself (Electron, on a virtual display).
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
+#   NDI output module: native/ndi built, and its send timing against a stand-in NDI runtime.
 #   Packages: npm audit on the packages that ship (not the build tools), so a known vulnerability in
 #   one turns the pull request red the day it is published rather than waiting for Dependabot's month.
 # PlayHQ is never called: the tests that need it run against recorded answers.
@@ -51,6 +52,24 @@ jobs:
           STUDIO_TEST_REQUIRE_BROWSER: '1'
           STUDIO_TEST_REQUIRE_APP: '1'
           TEST_REPORT_TITLE: Studio tests
+
+  ndi:
+    name: NDI output module
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: native/ndi
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: native/ndi/package-lock.json
+      # Builds native/ndi and checks it loads, then that it keeps the frame rate against a stand-in NDI
+      # runtime that is slow to compress (timing-test.js). The Mac build runs the same tests on macOS.
+      - run: npm ci && npm run build && npm test
 
   stream-deck:
     name: Stream Deck plugin
