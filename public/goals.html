@@ -133,6 +133,10 @@
   .card--v .qlabel { left: 0; top: -12px; }
   .card--v .worm { position: absolute; left: calc(50% - 32px); width: 64px; top: 2px; display: block; }
   .card--v .row .empty { margin: 0 auto; grid-column: 1 / -1; width: 36px; height: 36px; }
+  /* ?fill=1: the vertical card fills its window instead of a 1920 x 1080 frame, scaled to fit, for a page that shows it in
+     a box of its own (commentator.html). */
+  html.fill, html.fill body { width: 100%; height: 100%; }
+  html.fill .card--v { right: auto; left: 50%; top: 0; transform: translateX(-50%) scale(var(--fill, 1)); transform-origin: top center; }
   .gap { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 </style>
 </head>
@@ -142,14 +146,18 @@
        http://localhost:8080/goals.html?layout=vertical  (down the right-hand side)
        The last 10 goals of the game on the scoreboard, oldest to newest, with a momentum line and the current run.
        Like the scoreboard it updates itself (every 2 seconds), so it can stay on screen.
-       Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)
-                ?position=top|middle|bottom (horizontal)  ?position=left|right (vertical)  ?title=Momentum -->
+       Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)  ?run=0 (no current run line)
+                ?position=top|middle|bottom (horizontal)  ?position=left|right (vertical)  ?title=Momentum
+       &fill=1 (vertical) fills the window it's in rather than a 1920 x 1080 frame: commentator.html shows it that way. -->
   <main class="card" id="card" data-fit="var" hidden></main>
   <script>
     const params = new URLSearchParams(location.search);
     const vertical = /^v/i.test(params.get('layout') || '');
     const showTimes = params.get('times') !== '0';
     const count = Math.max(3, Math.min(30, Number(params.get('count')) || 10));
+    const showRun = params.get('run') !== '0';
+    const fill = vertical && params.get('fill') === '1';
+    if (fill) document.documentElement.classList.add('fill');
     if (params.get('position')) document.body.classList.add(params.get('position'));
     const card = document.getElementById('card');
     card.classList.add(vertical ? 'card--v' : 'card--h');
@@ -281,7 +289,7 @@
       }
       track.append(lanes.home, worm(goals, slotW * count, 50, slotW, 0), lanes.away);
       grid.append(teams, track);
-      card.replaceChildren(head(), grid, runBar());
+      card.replaceChildren(head(), grid, ...(showRun ? [runBar()] : []));
       fit(homeName); fit(awayName);
     }
 
@@ -313,11 +321,18 @@
       const svg = worm(goals, 64, rowH * count, rowH, 0);
       svg.style.height = `${rowH * count}px`;
       rows.append(svg);
-      card.replaceChildren(head(), teams, rows, runBar());
+      card.replaceChildren(head(), teams, rows, ...(showRun ? [runBar()] : []));
       names.forEach(n => fit(n, 11));
       const says = card.querySelector('.run .says');
       if (says) fit(says, 12);
+      if (fill) fillWindow();
     }
+    // ?fill=1: as big as the window allows, keeping its shape (offsetWidth/Height are the unscaled size).
+    function fillWindow() {
+      const w = card.offsetWidth, h = card.offsetHeight;
+      if (w && h) card.style.setProperty('--fill', String(Math.floor(Math.min(innerWidth / w, innerHeight / h) * 1000) / 1000));
+    }
+    if (fill) addEventListener('resize', fillWindow);
 
     // Slide the goals that were already showing from where they were to where they are now.
     function render() {

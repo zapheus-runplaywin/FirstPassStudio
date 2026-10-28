@@ -17,7 +17,7 @@ try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
 const VARIANTS = ['fixtures.html?round=prev', 'results.html?round=prev', 'ladder.html?division=2', 'title.html?logo=show&emoji=%E2%9A%A1',
   'branding.html?mode=light', 'clash.html?word=Battle', 'winner.html?winner=home', 'lowerthird.html?name=Blizzardz%20GS',
   'lowerthird.html?type=guest&name=Pat&title=Commentator', 'scoreboard.html?position=top-center', 'matchup.html?form=0&h2h=0',
-  'topshooters.html?division=2', 'finals.html?division=2', 'streak.html', 'supershot.html', 'gamestats.html?quarters=0&runs5=0', 'worm.html?leads=0&colours=0&draw=0', 'pvw.html?src=%2Fladder.html&name=Ladder', 'pvw.html?src=%2Fscene.html', 'upnext.html?wrap=1&mode=dark', ...['parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => `introoutro.html?style=${st}&division=all`), 'introoutro.html?type=outro&fit=1&bg=gradient', 'introoutro.html?style=court&sfx=0&sound=0', 'introoutro.html?style=spotlight&theme=Theme.wav&themefit=stretch&sound=0'];
+  'topshooters.html?division=2', 'finals.html?division=2', 'streak.html', 'supershot.html', 'gamestats.html?quarters=0&runs5=0', 'commentator.html?refresh=0', 'goals.html?layout=vertical&fill=1&run=0', 'worm.html?leads=0&colours=0&draw=0', 'pvw.html?src=%2Fladder.html&name=Ladder', 'pvw.html?src=%2Fscene.html', 'upnext.html?wrap=1&mode=dark', ...['parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => `introoutro.html?style=${st}&division=all`), 'introoutro.html?type=outro&fit=1&bg=gradient', 'introoutro.html?style=court&sfx=0&sound=0', 'introoutro.html?style=spotlight&theme=Theme.wav&themefit=stretch&sound=0'];
 // What a few pages show once they've read their data from PlayHQ (the stand-in's season).
 const SHOWS = {
   'scoreboard.html': ['Blizzardz', "Travis' Disciples"],
@@ -34,6 +34,7 @@ const SHOWS = {
   'teamlist.html': ['Blizzardz GS'],
   'control.html': ['Blizzardz'],
   'gamestats.html': ['Blizzardz', 'Game stats'],
+  'commentator.html?refresh=0': ['Blizzardz', 'Game stats', 'Shooting', 'Lead changes', 'Blizzardz GS', 'games'],
   'worm.html': ['Blizzardz', 'Score worm', 'Lead changes'],
 };
 // How long each page gets to load its data and draw.

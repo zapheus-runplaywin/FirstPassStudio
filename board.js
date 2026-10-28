@@ -354,7 +354,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // Called with each PlayHQ reading before it is put on the board. Returns true if goals changed.
   function goalsFromPlayhq(b, game, live) {
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
-    const counts = live ? { home: { goals: live.home.goals, superGoals: live.home.superGoals }, away: { goals: live.away.goals, superGoals: live.away.superGoals } } : null;
+    const counts = live ? { home: { goals: live.home.goals, superGoals: live.home.superGoals, shots: live.home.shots }, away: { goals: live.away.goals, superGoals: live.away.superGoals, shots: live.away.shots } } : null;
     const before = b.goals.length, seq = b.goalsSeq;
     const deltas = { home: (game.home.score ?? b.home.score) - (Number(b.home.score) || 0), away: (game.away.score ?? b.away.score) - (Number(b.away.score) || 0) };
     if (!b.goalsBaseline) {
@@ -600,6 +600,14 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     const runsOf = (side, n) => runs.filter(x => x.side === side && x.goals >= n).length;
     const longest = side => runs.filter(x => x.side === side).reduce((m, x) => Math.max(m, x.goals), 0);
     const both = f => ({ home: f('home'), away: f('away') });
+    // Shooting from PlayHQ's live counts (goals and super shots made, from every shot: GOAL_ATTEMPT), when following
+    // PlayHQ and its scorer records shots; null otherwise (presses on the control page don't say how many were missed).
+    const shooting = side => {
+      const c = counts[side];
+      if (!c || c.shots == null) return null;
+      const made = (Number(c.goals) || 0) + (Number(c.superGoals) || 0), shots = Number(c.shots) || 0;
+      return { made, shots, percent: shots ? Math.round((made / shots) * 100) : null };
+    };
     return {
       gameId: b.gameId, division: b.division, court: b.court, round: b.round, period: b.period, competition: competitionName(),
       periodType: r.periodType, periodLabel: r.periodLabel, periods: r.periods, superShots: r.superShots,
@@ -611,6 +619,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         bestQuarter: both(best),
         superShots: both(supers),
         runs3: both(side => runsOf(side, 3)), runs5: both(side => runsOf(side, 5)), longestRun: both(longest),
+        shooting: both(shooting),
       },
       totalGoals: goals.length, gapInHistory: b.goals.some(g => g.gap),
     };
