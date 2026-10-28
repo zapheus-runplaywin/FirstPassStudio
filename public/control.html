@@ -55,6 +55,7 @@
 <main>
   <h1>Scoreboard control</h1>
   <p class="sub" id="compLine"></p>
+  <p class="sub" id="locked" hidden style="color:var(--fp-danger, #b91c1c)"></p>
   <p class="sub" id="sub">The scoreboard is <b>http://localhost:8080/scoreboard.html</b>: add it on the <a href="/output.html">Output page</a>.</p>
 
   <section>
@@ -192,7 +193,17 @@
 
   async function act(action) {
     const res = await fetch(api, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) });
-    apply(await res.json());
+    const body = await res.json();
+    // Refused from a phone or another computer that isn't paired (or allowed to score only): say why, and how to pair.
+    if (res.status === 403) {
+      $('locked').textContent = `${body.error || 'Studio refused that.'} `;
+      const a = document.createElement('a'); a.href = '/pair.html'; a.textContent = 'Pair this device';
+      $('locked').append(a);
+      $('locked').hidden = false;
+      return;
+    }
+    $('locked').hidden = true;
+    apply(body);
   }
 
   function apply(s) {

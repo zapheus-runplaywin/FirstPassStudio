@@ -503,13 +503,14 @@
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ, <code style="display:inline">remoteChanges</code>) from the app's defaults.
-        <b>Only this Mac can change things</b> in the menu bar icon sets <code style="display:inline">remoteChanges</code>, and is ticked again every time the app opens: ticked, phones, other computers and Stream Decks on the network can
-        still open every graphic but can't change scores, the scene, sequences, settings or media, or read private data (the settings and scene
+        <b>Only this Mac can change things</b> in the menu bar icon sets <code style="display:inline">remoteChanges</code>, and is ticked again every time the app opens: ticked, phones, other computers and Stream Decks on the network that aren't
+        in <b>Devices…</b> can still open every graphic but can't change scores, the scene, sequences, settings or media, or read private data (the settings and scene
         backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
         Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
         coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too, and so does a
         read of private data asked for by such a name. A Stream Deck link must carry this Mac's key (<code style="display:inline">/k/&lt;key&gt;/deck/…</code>, as Studio copies them; kept in
-        <code style="display:inline">devices.json</code>, never backed up) or be signed by a paired Studio plugin, or come from Studio's own pages, so a web page can't press one. (Until a plugin has paired, the plugin's older
+        <code style="display:inline">devices.json</code>, never backed up) or be signed by a paired Studio plugin, or come from Studio's own pages, so a web page can't press one. A phone, iPad or another computer pairs from <code style="display:inline">/pair.html</code>: the Mac offers
+        <b>Allow scoring only</b> (the scores, clock, quarter and game) or <b>Allow everything</b>, and the device then works while the box is ticked; Devices… can change its level or remove it. (Until a plugin has paired, the plugin's older
         <code style="display:inline">x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>

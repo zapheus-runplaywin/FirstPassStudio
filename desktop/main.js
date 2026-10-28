@@ -180,24 +180,32 @@ function startHelper() {
 }
 
 // A device on the network asking to control Studio (devices.js ask()): Allow or Deny on the Mac, Deny the default so a
-// stray Return can't let anything in. The dialog closes by itself when the request is answered on the Devices page or
-// runs out (five minutes); the helper says so with pairDone.
+// stray Return can't let anything in. A phone or browser (pair.html) is allowed to score only, or to change everything.
+// The dialog closes by itself when the request is answered on the Devices page or runs out (five minutes); the helper
+// says so with pairDone.
 const pairDialogs = new Map();
 function askToPair(child, msg) {
   if (msg?.type === 'pairDone') { pairDialogs.get(msg.id)?.abort(); pairDialogs.delete(msg.id); return; }
   if (msg?.type !== 'pair' || !msg.request) return;
-  const { id, name, address } = msg.request;
+  const { id, name, address, browser } = msg.request;
   const stop = new AbortController();
   pairDialogs.set(id, stop);
   app.focus({ steal: true });
+  const choices = browser
+    ? [{ label: 'Allow scoring only', allow: true, level: 'scoring' }, { label: 'Allow everything', allow: true, level: 'full' }, { label: 'Deny', allow: false }]
+    : [{ label: 'Allow', allow: true }, { label: 'Deny', allow: false }];
+  const deny = choices.length - 1;
   dialog.showMessageBox({
-    type: 'question', buttons: ['Allow', 'Deny'], defaultId: 1, cancelId: 1, signal: stop.signal,
+    type: 'question', buttons: choices.map(c => c.label), defaultId: deny, cancelId: deny, signal: stop.signal,
     message: `Allow "${name}" at ${address} to control Studio?`,
-    detail: 'It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. Devices… in the menu bar icon lists it, and can take it away again.',
+    detail: browser
+      ? 'Scoring only: the scores, clock, quarter and game, as on Scoreboard control. Everything: the scene, sequences and settings too. Only allow a device you know is yours. Devices… in the menu bar icon lists it, and can change or take it away.'
+      : 'It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. Devices… in the menu bar icon lists it, and can take it away again.',
   }).then(({ response }) => {
     if (stop.signal.aborted) return;
     pairDialogs.delete(id);
-    if (helper === child) child.postMessage({ type: 'pairAnswer', id, allow: response === 0 });
+    const c = choices[response] || choices[deny];
+    if (helper === child) child.postMessage({ type: 'pairAnswer', id, allow: c.allow, level: c.level });
   });
 }
 
@@ -304,7 +312,7 @@ function refreshMenu() {
     // config.json remoteChanges (access.js): off (ticked), only this Mac can change scores, the scene, settings and media;
     // other devices can still open every page. Ticked again at every launch (start()); unticking lasts until Quit. The
     // helper reads config.json when it starts, so it restarts on a change.
-    { label: 'Only this Mac can change things', type: 'checkbox', checked: machineConfig().remoteChanges === false, toolTip: 'Phones and other computers on this network can see every graphic but not change scores, the scene or settings, or read backups, the athlete register, the log and sponsor reports. Untick to let them until Studio quits; it is ticked again each time Studio opens.',
+    { label: 'Only this Mac can change things', type: 'checkbox', checked: machineConfig().remoteChanges === false, toolTip: 'Phones and other computers on this network can see every graphic but not change scores, the scene or settings, or read backups, the athlete register, the log and sponsor reports, unless they are paired (Devices…). Untick to let every device until Studio quits; it is ticked again each time Studio opens.',
       click: item => { setMachineConfig('remoteChanges', !item.checked); if (helper) restartHelper(); refreshMenu(); } },
     updateMenuItem(),
     { label: 'What\'s new…', enabled: !!whatsnew.since(whatsnew.load(), null, app.getVersion()).length, click: () => showWhatsNew(whatsnew.since(whatsnew.load(), null, app.getVersion()).slice(0, 10), { recent: true }) },

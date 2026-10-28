@@ -18,6 +18,7 @@
   button.alt { background: var(--fp-white); color: var(--fp-blue); }
   button.alt:hover { background: var(--fp-blue-soft); }
   .tblwrap { overflow-x: auto; }
+  select { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
   table { border-collapse: collapse; width: 100%; font-size: 14px; }
   th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--fp-muted); padding: 6px 10px; border-bottom: 1px solid var(--fp-line-strong); white-space: nowrap; }
   td { padding: 10px; border-bottom: 1px solid var(--fp-line); vertical-align: top; }
@@ -42,7 +43,7 @@
   <section class="asking" id="asking" hidden>
     <h2 id="askWho"></h2>
     <div class="what" id="askWhat"></div>
-    <div class="row"><button id="allow">Allow</button><button class="alt" id="deny">Deny</button></div>
+    <div class="row"><button id="allow">Allow</button><button id="allowFull" hidden>Allow everything</button><button class="alt" id="deny">Deny</button></div>
   </section>
   <section>
     <div class="tblwrap">
@@ -55,10 +56,11 @@
     <p class="help">A link set is a key for a Stream Deck's Website keys: make one per Stream Deck, pick it on the Output page or the Stream Deck page,
       and its links carry its own key, so one can be given a new key or removed without the others. Link sets never run out.
       The Studio Stream Deck plugin asks to be added on its first key press and then signs every press with its own key pair;
-      once one has been allowed, plugins that haven't can't press anything. Studio's own pages on this Mac always can change things,
-      and while "Only this Mac can change things" is ticked in the menu bar icon (it is each time Studio opens), nothing else can.
-      A program on another device can ask to be added (the Docs page says how): the Mac asks you to Allow or Deny it, and
-      it shows here too. A device unused for 90 days drops off the list and has to ask again.</p>
+      once one has been allowed, plugins that haven't can't press anything. A phone, iPad or another computer pairs from
+      Studio's <b>/pair.html</b> page, allowed to score only or to change everything; a program on another device can ask too
+      (the Docs page says how). The Mac asks you to Allow or Deny each one, and it shows here too.
+      Studio's own pages on this Mac always can change things. While "Only this Mac can change things" is ticked in the menu bar icon
+      (it is each time Studio opens), only the devices in this list can as well. A device unused for 90 days drops off the list and has to ask again.</p>
   </section>
 </main>
 <script src="asktext.js"></script>
@@ -66,7 +68,7 @@
   'use strict';
   const rows = document.getElementById('rows');
   const msg = document.getElementById('msg');
-  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page or the Stream Deck page)', program: 'A program that asked to be added', plugin: 'Studio Stream Deck plugin (signs each press)' };
+  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page or the Stream Deck page)', program: 'A program that asked to be added', browser: 'A phone or browser, paired from its pair page', plugin: 'Studio Stream Deck plugin (signs each press)' };
   const LEVELS = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
   const when = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
   const say = text => { msg.textContent = text; msg.hidden = !text; };
@@ -79,6 +81,17 @@
       const what = document.createElement('div'); what.className = 'what'; what.textContent = (KINDS[d.kind] || d.kind) + (d.address ? `, at ${d.address}` : '');
       name.append(b, what);
       const cells = [LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
+      // A paired browser's level can be changed here.
+      if (d.kind === 'browser') {
+        const pick = document.createElement('select');
+        pick.append(new Option(LEVELS.scoring, 'scoring'), new Option(LEVELS.full, 'full'));
+        pick.value = d.level;
+        pick.onchange = async () => {
+          const r = await fetch(`/api/devices/${encodeURIComponent(d.id)}/level`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ level: pick.value }) });
+          say(r.ok ? `${d.name} can now ${pick.value === 'scoring' ? 'only score' : 'change everything'}.` : 'Studio didn\'t answer.');
+        };
+        cells[0].replaceChildren(pick);
+      }
       const act = document.createElement('td'); act.className = 'act';
       const button = (label, onclick) => { const btn = document.createElement('button'); btn.className = 'alt'; btn.textContent = label; btn.onclick = onclick; return btn; };
       if (d.kind === 'links') act.append(button('Make a new key', () => renew(d)));
@@ -96,24 +109,33 @@
     document.getElementById('asking').hidden = !asking;
     if (!asking) return;
     document.getElementById('askWho').textContent = `"${asking.name}" at ${asking.address} asks to control Studio`;
-    document.getElementById('askWhat').textContent = `It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. The request runs out at ${new Date(asking.expires).toLocaleTimeString([], { timeStyle: 'short' })}.`;
+    const until = `The request runs out at ${new Date(asking.expires).toLocaleTimeString([], { timeStyle: 'short' })}.`;
+    document.getElementById('askWhat').textContent = asking.browser
+      ? `Scoring only: the scores, clock, quarter and game, as on Scoreboard control. Everything: the scene, sequences and settings too. Only allow a device you know is yours. ${until}`
+      : `It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. ${until}`;
+    document.getElementById('allow').textContent = asking.browser ? 'Allow scoring only' : 'Allow';
+    document.getElementById('allowFull').hidden = !asking.browser;
   }
-  async function answer(allow) {
+  async function answer(allow, level) {
     if (!asking) return;
-    const r = await fetch(`/api/devices/requests/${encodeURIComponent(asking.id)}/${allow ? 'allow' : 'deny'}`, { method: 'POST' });
+    const r = await fetch(`/api/devices/requests/${encodeURIComponent(asking.id)}/${allow ? 'allow' : 'deny'}`,
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ level }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return load(); }
     say(allow ? `${asking.name} can now control Studio.` : `${asking.name} was denied.`);
     draw(j.devices); drawAsking(j.asking);
   }
-  document.getElementById('allow').onclick = () => answer(true);
+  document.getElementById('allow').onclick = () => answer(true, 'scoring');
+  document.getElementById('allowFull').onclick = () => answer(true, 'full');
   document.getElementById('deny').onclick = () => answer(false);
 
   async function load() {
     const r = await fetch('/api/devices');
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
-    draw(j.devices); drawAsking(j.asking);
+    // Not while a level is being picked: drawing again would close the list.
+    if (!rows.contains(document.activeElement)) draw(j.devices);
+    drawAsking(j.asking);
   }
   // Checks for a new request every few seconds while the page is showing.
   setInterval(() => { if (!document.hidden) load().catch(() => {}); }, 3000);

@@ -862,11 +862,15 @@ http.createServer(async (req, res) => {
     // A change (anything but reading, and the Stream Deck links) must come from Studio's own pages or a program, never
     // from a web page on another site; a read of private data (access.PRIVATE: backups, the athlete register, the log,
     // sponsor reports, the setup) must be asked for by one of Studio's own names, not a DNS rebinding page's; and
-    // config.json "remoteChanges": false keeps changes, and those reads, to this computer.
+    // config.json "remoteChanges": false keeps changes, and those reads, to this computer and the devices allowed in
+    // Devices… (devices.js: a link set's key, a signed plugin press, a paired browser's cookie), within their level.
+    const signed = devices.signed(req.method, req.url, req.headers);
+    const keyDevice = keyed ? devices.match(keyed[1]) : null;
+    const device = keyDevice || (signed === 'ok' && devices.byId(req.headers['x-studio-device'])) || devices.fromCookie(req.headers.cookie);
     const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts()))
       || (access.privateRead(req.method, url.pathname) && access.foreignHost(req.method, url.pathname, req.headers, ownHosts()))
       || access.notThisMac(req.method, url.pathname, req.socket.remoteAddress)
-      || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress);
+      || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress, undefined, device ? device.level : null);
     if (refused) {
       const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
       if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
@@ -874,8 +878,7 @@ http.createServer(async (req, res) => {
     }
     // Stream Deck links: only with the key, from the Studio plugin, or from Studio's own pages (access.deckPress()), so
     // a web page can't press one. A refused link is logged once per address, with how to fix it.
-    const signed = devices.signed(req.method, req.url, req.headers);
-    const deck = access.deckPress(url.pathname, { keyOk: !!(keyed && devices.match(keyed[1])), signed: signed === 'ok', headerOk: !devices.pluginPaired() }, req.headers, PORT, ownHosts());
+    const deck = access.deckPress(url.pathname, { keyOk: !!keyDevice, signed: signed === 'ok', headerOk: !devices.pluginPaired() }, req.headers, PORT, ownHosts());
     if (deck === false) {
       const from = access.strip(req.socket.remoteAddress);
       // pair: the Studio plugin should ask to be allowed (again).
@@ -891,13 +894,21 @@ http.createServer(async (req, res) => {
     // Another device asks to control Studio (devices.js ask()); it learns the answer from GET /api/pair/<id> with its token.
     if (url.pathname === '/api/pair' && req.method === 'POST') {
       const body = await readBody(req);
-      const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), body.publicKey);
+      const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), body.publicKey, body.browser === true);
       return send(res, asked.error ? 409 : 202, asked);
+    }
+    // The pair page asks whether this browser is paired already (its cookie), and as what.
+    if (url.pathname === '/api/pair/me') {
+      const me = devices.fromCookie(req.headers.cookie);
+      return send(res, 200, me ? { paired: true, name: me.name, level: me.level } : { paired: false });
     }
     const pair = /^\/api\/pair\/([^/]+)$/.exec(url.pathname);
     if (pair && req.method === 'GET') {
-      const got = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair']);
-      return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${got.key}` } : got);
+      const { cookie, ...got } = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair']);
+      // A browser's key goes only in its cookie: HttpOnly, so no page script can read it, and SameSite=Strict, so no
+      // other site's page can send it. 400 days is as long as browsers keep one; unused for 90 days it stops counting.
+      const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000` } : {};
+      return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${got.key}` } : got, undefined, headers);
     }
     // The Devices… window (devices.html), on this Mac only (access.notThisMac()).
     if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
@@ -906,6 +917,12 @@ http.createServer(async (req, res) => {
       const made = devices.addLinks((await readBody(req)).name);
       if (!made) return send(res, 400, { error: 'Give the link set a name, such as "Office Stream Deck".' });
       return send(res, 200, { ...made, base: `${LINK_BASE}/k/${devices.linkKey(made.id)}` });
+    }
+    // A paired browser's level: scoring only, or everything.
+    const level = /^\/api\/devices\/([^/]+)\/level$/.exec(url.pathname);
+    if (level && req.method === 'POST') {
+      if (!devices.setLevel(decodeURIComponent(level[1]), (await readBody(req)).level)) return send(res, 404, { error: 'Only a paired browser has a level, scoring or everything.' });
+      return send(res, 200, { devices: devices.list() });
     }
     const setKey = /^\/api\/devices\/([^/]+)\/(key|renew)$/.exec(url.pathname);
     if (setKey && (setKey[2] === 'key' ? req.method === 'GET' : req.method === 'POST')) {
@@ -917,7 +934,7 @@ http.createServer(async (req, res) => {
     }
     const answer = /^\/api\/devices\/requests\/([^/]+)\/(allow|deny)$/.exec(url.pathname);
     if (answer && req.method === 'POST') {
-      if (!devices.answer(decodeURIComponent(answer[1]), answer[2] === 'allow')) return send(res, 404, { error: 'That request was already answered or has run out.' });
+      if (!devices.answer(decodeURIComponent(answer[1]), answer[2] === 'allow', (await readBody(req)).level)) return send(res, 404, { error: 'That request was already answered or has run out.' });
       return send(res, 200, { devices: devices.list(), asking: devices.pending() });
     }
     const revoke = /^\/api\/devices\/([^/]+)\/revoke$/.exec(url.pathname);

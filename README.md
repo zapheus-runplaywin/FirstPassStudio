@@ -173,8 +173,12 @@ To go back to `localhost` links (or use a fixed name or IP address), set `"linkH
 Studio listens on every network connection, not just this Mac, so anything on the same network can open the pages.
 Changing things (pressing the Stream Deck links for scores, clock and game, switching scenes, running sequences, saving
 settings) is the job of **Only this Mac can change things** in the menu bar icon (`"remoteChanges": false` in
-`config.json`). The app ticks it every time it opens; untick it to let phones and other computers change things until
-Studio quits. A plain `node server.js` with no `config.json` setting lets them. Ticked, Studio takes changes only from this Mac (by any of its own addresses, so the
+`config.json`). The app ticks it every time it opens. Ticked, the devices in **Devices…** still can, within their
+level: a phone or another computer pairs from `/pair.html` (`POST /api/pair` with `"browser": true`; the Mac's dialog
+offers **Allow scoring only**, **Allow everything** or Deny) and gets a device cookie (`studio_device`, HttpOnly,
+SameSite=Strict, set when it collects the answer); scoring only covers `POST /api/scoreboard`, `POST /api/rounds` and
+the score, clock, quarter and game `/deck` links (`access.scoring()`); link sets and plugins can do everything.
+Untick it to let every phone and computer change things until Studio quits. A plain `node server.js` with no `config.json` setting lets them. Ticked, Studio takes changes only from this Mac (by any of its own addresses, so the
 Stream Deck plugin on it and links by its `.local` name still work) and answers other devices' changes with a 403 that
 says so, while they can still open every graphic, the scoreboard and the scene. Private data follows the same switch:
 the settings and scene backups, the athlete register, the debug log, the sponsor reports and the competition setup
