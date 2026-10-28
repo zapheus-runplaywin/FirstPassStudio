@@ -24,6 +24,9 @@
   td.act { text-align: right; white-space: nowrap; }
   .what { font-size: 13px; color: var(--fp-muted); margin-top: 3px; line-height: 1.45; }
   .help { font-size: 13px; color: var(--fp-muted); margin: 12px 0 0; line-height: 1.5; }
+  .asking { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
+  .asking h2 { margin: 0 0 6px; font-size: 18px; }
+  .asking .row { display: flex; gap: 8px; margin-top: 12px; }
   .msg { padding: 10px 14px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); margin: 0 0 14px; line-height: 1.5; }
 </style>
 </head>
@@ -36,15 +39,22 @@
     <b>Devices…</b> in the menu bar icon, and only on the Mac running Studio: another device can't see or change this list.
     <a href="/api.html">Back to Stream Deck</a></p>
   <p class="msg" id="msg" hidden></p>
+  <section class="asking" id="asking" hidden>
+    <h2 id="askWho"></h2>
+    <div class="what" id="askWhat"></div>
+    <div class="row"><button id="allow">Allow</button><button class="alt" id="deny">Deny</button></div>
+  </section>
   <section>
     <div class="tblwrap">
       <table>
-        <thead><tr><th>Device</th><th>Allowed</th><th>Key made</th><th>Last used</th><th></th></tr></thead>
+        <thead><tr><th>Device</th><th>Allowed</th><th>Made</th><th>Last used</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
     <p class="help">The Studio Stream Deck plugin needs no key. Studio's own pages on this Mac always can change things,
-      and while "Only this Mac can change things" is ticked in the menu bar icon (it is each time Studio opens), nothing else can.</p>
+      and while "Only this Mac can change things" is ticked in the menu bar icon (it is each time Studio opens), nothing else can.
+      A program on another device can ask to be added (the Docs page says how): the Mac asks you to Allow or Deny it, and
+      it shows here too. A device unused for 90 days drops off the list and has to ask again.</p>
   </section>
 </main>
 <script src="asktext.js"></script>
@@ -52,7 +62,7 @@
   'use strict';
   const rows = document.getElementById('rows');
   const msg = document.getElementById('msg');
-  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page)' };
+  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page)', program: 'A program that asked to be added' };
   const LEVELS = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
   const when = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
   const say = text => { msg.textContent = text; msg.hidden = !text; };
@@ -62,7 +72,7 @@
       const tr = document.createElement('tr');
       const name = document.createElement('td');
       const b = document.createElement('b'); b.textContent = d.name;
-      const what = document.createElement('div'); what.className = 'what'; what.textContent = KINDS[d.kind] || d.kind;
+      const what = document.createElement('div'); what.className = 'what'; what.textContent = (KINDS[d.kind] || d.kind) + (d.address ? `, at ${d.address}` : '');
       name.append(b, what);
       const cells = [LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
       const act = document.createElement('td'); act.className = 'act';
@@ -75,12 +85,34 @@
     }));
   }
 
+  // A device asking to be added: shown until it is answered here or in the Mac's dialog, or runs out.
+  let asking = null;
+  function drawAsking(a) {
+    asking = a || null;
+    document.getElementById('asking').hidden = !asking;
+    if (!asking) return;
+    document.getElementById('askWho').textContent = `"${asking.name}" at ${asking.address} asks to control Studio`;
+    document.getElementById('askWhat').textContent = `It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. The request runs out at ${new Date(asking.expires).toLocaleTimeString([], { timeStyle: 'short' })}.`;
+  }
+  async function answer(allow) {
+    if (!asking) return;
+    const r = await fetch(`/api/devices/requests/${encodeURIComponent(asking.id)}/${allow ? 'allow' : 'deny'}`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return load(); }
+    say(allow ? `${asking.name} can now control Studio.` : `${asking.name} was denied.`);
+    draw(j.devices); drawAsking(j.asking);
+  }
+  document.getElementById('allow').onclick = () => answer(true);
+  document.getElementById('deny').onclick = () => answer(false);
+
   async function load() {
     const r = await fetch('/api/devices');
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
-    draw(j.devices);
+    draw(j.devices); drawAsking(j.asking);
   }
+  // Checks for a new request every few seconds while the page is showing.
+  setInterval(() => { if (!document.hidden) load().catch(() => {}); }, 3000);
 
   async function revoke(d) {
     const links = d.kind === 'links';

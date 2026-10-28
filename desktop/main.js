@@ -146,6 +146,7 @@ function startHelper() {
     env: { ...process.env, FIRSTPASS_DATA_DIR: dataDir(), FIRSTPASS_LOCAL_DIR: LOCAL_DIR, FIRSTPASS_PACKAGED: app.isPackaged ? '1' : '' },
   });
   outputs?.attach(child);
+  child.on('message', msg => askToPair(child, msg));
   const started = Date.now();
   child.on('spawn', async () => {
     for (let i = 0; i < 40 && helper === child; i++) {
@@ -175,6 +176,28 @@ function startHelper() {
     if (++restarts <= 5) { status = 'Restarting…'; refreshMenu(); setTimeout(() => { if (wanted && !helper) startHelper(); }, 1000); return; }
     status = 'Studio stopped: see the debug log'; refreshMenu();
     dialog.showMessageBox({ type: 'error', message: 'FirstPass Studio stopped', detail: 'Studio stopped several times in a row. Open the debug log from the menu bar icon to see why, then choose Open Studio.' });
+  });
+}
+
+// A device on the network asking to control Studio (devices.js ask()): Allow or Deny on the Mac, Deny the default so a
+// stray Return can't let anything in. The dialog closes by itself when the request is answered on the Devices page or
+// runs out (five minutes); the helper says so with pairDone.
+const pairDialogs = new Map();
+function askToPair(child, msg) {
+  if (msg?.type === 'pairDone') { pairDialogs.get(msg.id)?.abort(); pairDialogs.delete(msg.id); return; }
+  if (msg?.type !== 'pair' || !msg.request) return;
+  const { id, name, address } = msg.request;
+  const stop = new AbortController();
+  pairDialogs.set(id, stop);
+  app.focus({ steal: true });
+  dialog.showMessageBox({
+    type: 'question', buttons: ['Allow', 'Deny'], defaultId: 1, cancelId: 1, signal: stop.signal,
+    message: `Allow "${name}" at ${address} to control Studio?`,
+    detail: 'It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. Devices… in the menu bar icon lists it, and can take it away again.',
+  }).then(({ response }) => {
+    if (stop.signal.aborted) return;
+    pairDialogs.delete(id);
+    if (helper === child) child.postMessage({ type: 'pairAnswer', id, allow: response === 0 });
   });
 }
 

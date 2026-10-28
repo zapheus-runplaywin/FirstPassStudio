@@ -260,3 +260,78 @@ test('Devices: This Mac\'s links keep the old key, the list has no secrets, and 
   assert.equal(fs.readFileSync(path.join(dataDir, 'deck-key.txt'), 'utf8').trim(), k.key, 'an older Studio would use the new key too');
   assert.equal((await studio.request('POST', '/api/devices/nothing/revoke')).status, 404);
 });
+
+test('refusal: asking to be added works while the lock is on', () => {
+  const own = new Set(['127.0.0.1']);
+  assert.equal(access.refusal(false, 'POST', '/api/pair', '192.168.1.50', own), null);
+  assert.equal(access.refusal(false, 'GET', '/api/pair/abc', '192.168.1.50', own), null);
+  assert.match(access.refusal(false, 'POST', '/api/scoreboard', '192.168.1.50', own), /only from this computer/);
+});
+
+test('Pairing: a device asks, the Mac allows or denies, and an allowed device gets its own key', async t => {
+  const http = require('node:http');
+  const press = (studio, p) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p }, r => { r.resume(); r.on('end', () => resolve(r.statusCode)); }));
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const collect = (id, token) => studio.request('GET', `/api/pair/${id}`, undefined, token ? { 'x-studio-pair': token } : {});
+
+  assert.equal((await studio.request('POST', '/api/pair', { name: '  ' })).status, 409, 'a name is needed');
+  const asked = await studio.request('POST', '/api/pair', { name: 'Office\u0007 Stream   Deck' });
+  assert.equal(asked.status, 202);
+  const { id, token } = asked.json;
+  assert.ok(id && token && asked.json.expires);
+  const busy = await studio.request('POST', '/api/pair', { name: 'Someone else' });
+  assert.equal(busy.status, 409);
+  assert.match(busy.json.error, /Another device is asking already/);
+
+  assert.equal((await collect(id)).status, 404, 'no token');
+  assert.equal((await collect(id, 'wrong')).status, 404, 'a wrong token');
+  assert.equal((await collect(id, token)).json.status, 'waiting');
+  const { asking } = await studio.get('/api/devices');
+  assert.equal(asking.name, 'Office Stream Deck', 'control characters and runs of spaces are cleaned');
+  assert.equal(asking.address, '127.0.0.1');
+  assert.ok(!('token' in asking), 'the page never sees the token');
+
+  assert.equal((await studio.request('POST', `/api/devices/requests/${id}/allow`)).status, 200);
+  assert.equal((await studio.request('POST', `/api/devices/requests/${id}/deny`)).status, 404, 'answered once');
+  const got = await collect(id, token);
+  assert.equal(got.json.status, 'allowed');
+  assert.ok(got.json.base.endsWith(`/k/${got.json.key}`));
+  assert.equal((await collect(id, token)).status, 404, 'the key is handed over once');
+  assert.equal(await press(studio, `/k/${got.json.key}/deck/home/add1`), 200, 'its own key presses links');
+  const listed = (await studio.get('/api/devices')).devices.find(d => d.id === got.json.device);
+  assert.equal(listed.name, 'Office Stream Deck');
+  assert.equal(listed.kind, 'program');
+  assert.ok(listed.lastSeen);
+  assert.equal((await studio.request('POST', `/api/devices/${got.json.device}/revoke`)).status, 200);
+  assert.ok(!(await studio.get('/api/devices')).devices.some(d => d.id === got.json.device), 'taken away alone');
+  assert.equal(await press(studio, `/k/${got.json.key}/deck/home/add1`), 403);
+  assert.equal(await press(studio, `/k/${(await studio.get('/api/deck-key')).key}/deck/home/add1`), 200, 'This Mac\'s links still work');
+
+  // Deny: the device hears so, and waits a minute before asking again.
+  const again = (await studio.request('POST', '/api/pair', { name: 'Stranger' })).json;
+  assert.equal((await studio.request('POST', `/api/devices/requests/${again.id}/deny`)).status, 200);
+  assert.equal((await collect(again.id, again.token)).json.status, 'denied');
+  const soon = await studio.request('POST', '/api/pair', { name: 'Stranger' });
+  assert.equal(soon.status, 409);
+  assert.match(soon.json.error, /just denied/);
+});
+
+test('Pairing: a device unused for 90 days drops off the list', async t => {
+  const http = require('node:http');
+  const press = (studio, p) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p }, r => { r.resume(); r.on('end', () => resolve(r.statusCode)); }));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-unused-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const day = 24 * 3600 * 1000;
+  const old = new Date(Date.now() - 100 * day).toISOString();
+  const recent = new Date(Date.now() - 10 * day).toISOString();
+  fs.writeFileSync(path.join(dataDir, 'devices.json'), JSON.stringify([
+    { id: 'mac-links', name: 'This Mac\'s links', kind: 'links', level: 'full', secret: 'maclinkskey1', created: old, lastSeen: old },
+    { id: 'gone1', name: 'Old laptop', kind: 'program', level: 'full', secret: 'oldlaptopkey', created: old, lastSeen: old },
+    { id: 'kept1', name: 'Office', kind: 'program', level: 'full', secret: 'officekey123', created: old, lastSeen: recent },
+  ]));
+  const studio = await startStudio(t, { competition: 'Thunder League', dataDir });
+  assert.deepEqual((await studio.get('/api/devices')).devices.map(d => d.id), ['mac-links', 'kept1'], 'This Mac\'s links never run out');
+  assert.equal(await press(studio, '/k/oldlaptopkey/deck/home/add1'), 403);
+  assert.equal(await press(studio, '/k/officekey123/deck/home/add1'), 200);
+  assert.equal(await press(studio, '/k/maclinkskey1/deck/home/add1'), 200);
+});

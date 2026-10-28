@@ -179,7 +179,9 @@
         lights up while it plays and counts down the step on screen.</li>
       <li><b>Stream Deck links:</b> copied from Studio, they carry this Mac's key after the port (<code>/k/&lt;key&gt;/deck/…</code>), and a link without
         it is refused, so a web page can't press one. <b>Devices…</b> in the menu bar icon shows when the key was made and last used, and
-        <b>Make a new key</b> there retires every link copied before. <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
+        <b>Make a new key</b> there retires every link copied before. A program on another device can ask for a key of its own
+        (<code>POST /api/pair</code>, in the Stream Deck page's reference): the Mac shows an Allow or Deny dialog naming it and its address, one request at a time
+        for five minutes, and Devices… lists it and can take it away alone. One unused for 90 days has to ask again. <code>/deck/layer/&lt;name&gt;/on</code>, <code>off</code>, <code>toggle</code> and <code>restart</code> for each source,
         <code>/deck/layer/&lt;name&gt;/sound/on</code>, <code>off</code> and <code>toggle</code> for a video, named in lower case with dashes
         for spaces (<b>Up Next</b> is <code>up-next</code>), and <code>/deck/layers/off</code> to hide everything. The Output page copies each source's links.</li>
       <li><b>Sequences:</b> play the scene's sources one after another, for the run-up to a game, a quarter break or full time. <b>+ New sequence</b> on the Output page opens
