@@ -448,7 +448,15 @@ $('outSponsors').onchange = () => setOut({ sponsors: $('outSponsors').checked })
 $('outDlDevice').onchange = () => setOut({ decklinkDevice: $('outDlDevice').value, decklinkMode: 0 }).then(() => setOut({ decklinkMode: Number($('outDlMode').value) || 0 }));
 $('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').value) || 0 });
 $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
-$('outDlStraight').onchange = () => setOut({ decklinkStraight: $('outDlStraight').checked });
+// Ticking Straight asks first: straight fill into a Pre Multiplied key leaves a light fringe round logos and text.
+$('outDlStraight').onchange = () => {
+  const on = $('outDlStraight').checked;
+  if (on && !confirm('Are you sure? Premultiplied keys are much better if the switcher supports it (every ATEM does).\n\nTick Straight only if the switcher can\'t do a Pre Multiplied key: into one, Straight leaves a light fringe round logos and text.')) {
+    $('outDlStraight').checked = false;
+    return;
+  }
+  setOut({ decklinkStraight: on });
+};
 $('outNdiSignal').onchange = () => setOut({ ndiSignal: $('outNdiSignal').value });
 $('outNdiFormat').onchange = () => setOut({ ndiFormat: $('outNdiFormat').value });
 $('outNdiName').onchange = () => setOut({ ndiName: $('outNdiName').value });
