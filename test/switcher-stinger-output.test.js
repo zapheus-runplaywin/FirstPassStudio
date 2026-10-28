@@ -69,9 +69,8 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
 
 test('an older switcher.json\'s one line-up becomes Output 1\'s', async t => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-stinger-lineup-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dataDir, 'switcher.json'), JSON.stringify({ pick: null, lineup: 3 }));
-  const studio = await startStudio(t, { dataDir });
+  const studio = await startStudio(t, { dataDir, removeDataDir: true });
   const s = await studio.get('/api/switcher');
   assert.equal(s.lineup, 3);
   assert.deepEqual(s.lineups, { main: 3 });

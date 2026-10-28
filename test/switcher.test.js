@@ -450,9 +450,8 @@ exec sleep 5
 `);
   fs.chmodSync(fake, 0o755);
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dataDir, 'switcher.json'), JSON.stringify({ pick: { kind: 'found', name: 'Court ATEM', host: 'gone.invalid', port: first.port, address: '' } }));
-  const studio = await startStudio(t, { dataDir, env: { FIRSTPASS_DNS_SD: fake } });
+  const studio = await startStudio(t, { dataDir, removeDataDir: true, env: { FIRSTPASS_DNS_SD: fake } });
   // While it's still looking, another switcher is picked by its address.
   await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${second.port}` });
   const s = await connected(studio);

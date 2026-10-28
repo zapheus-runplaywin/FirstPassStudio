@@ -187,11 +187,10 @@ test('Stream Deck links: only the key, the plugin\'s header or Studio\'s own pag
 
   // The same key comes back from the data folder, and only the key, the header or Studio's own pages press.
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-deck-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dataDir, 'deck-key.txt'), k.key + '\n');
   // A config.json from before keys were always required changes nothing.
   fs.writeFileSync(path.join(dataDir, 'config.json'), JSON.stringify({ deckKeyRequired: false }));
-  const locked = await startStudio(t, { competition: 'Thunder League', dataDir });
+  const locked = await startStudio(t, { competition: 'Thunder League', dataDir, removeDataDir: true });
   assert.equal((await locked.get('/api/deck-key')).key, k.key);
   const refused = await press(locked, '/deck/home/add1');
   assert.equal(refused.status, 403);
@@ -236,9 +235,8 @@ test('Devices: This Mac\'s links keep the old key, the list has no secrets, and 
   const http = require('node:http');
   const press = (studio, p) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p }, r => { r.resume(); r.on('end', () => resolve(r.statusCode)); }));
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-devices-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dataDir, 'deck-key.txt'), 'oldkeyoldkey\n');
-  const studio = await startStudio(t, { competition: 'Thunder League', dataDir });
+  const studio = await startStudio(t, { competition: 'Thunder League', dataDir, removeDataDir: true });
   assert.equal((await studio.get('/api/deck-key')).key, 'oldkeyoldkey', 'links already on a Stream Deck keep working');
   const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'devices.json'), 'utf8'));
   assert.equal(saved[0].secret, 'oldkeyoldkey');
@@ -322,7 +320,6 @@ test('Pairing: a device unused for 90 days drops off the list', async t => {
   const http = require('node:http');
   const press = (studio, p) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p }, r => { r.resume(); r.on('end', () => resolve(r.statusCode)); }));
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-unused-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const day = 24 * 3600 * 1000;
   const old = new Date(Date.now() - 100 * day).toISOString();
   const recent = new Date(Date.now() - 10 * day).toISOString();
@@ -332,7 +329,7 @@ test('Pairing: a device unused for 90 days drops off the list', async t => {
     { id: 'kept1', name: 'Office', kind: 'program', level: 'full', secret: 'officekey123', created: old, lastSeen: recent },
     { id: 'set1', name: 'Bench Stream Deck', kind: 'links', level: 'full', secret: 'benchkey1234', created: old, lastSeen: old },
   ]));
-  const studio = await startStudio(t, { competition: 'Thunder League', dataDir });
+  const studio = await startStudio(t, { competition: 'Thunder League', dataDir, removeDataDir: true });
   assert.deepEqual((await studio.get('/api/devices')).devices.map(d => d.id), ['mac-links', 'kept1', 'set1'], 'link sets never run out');
   assert.equal(await press(studio, '/k/benchkey1234/deck/home/add1'), 200);
   assert.equal(await press(studio, '/k/oldlaptopkey/deck/home/add1'), 403);
