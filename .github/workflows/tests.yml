@@ -67,7 +67,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: native/ndi/package-lock.json
-      # Builds native/ndi and checks it loads, then that it keeps the frame rate against a stand-in NDI
+      # Builds native/ndi and checks it loads, then that it sends fill and key without waiting against a stand-in NDI
       # runtime that is slow to compress (timing-test.js). The Mac build runs the same tests on macOS.
       - run: npm ci && npm run build && npm test
 
@@ -104,3 +104,17 @@ jobs:
       - run: npm run test:ci
         env:
           TEST_REPORT_TITLE: Stream Deck plugin tests
+
+  mac-ndi-debug:
+    name: NDI module on macOS (temporary)
+    runs-on: macos-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: native/ndi
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci && npm run build && npm test && npm test && npm test
