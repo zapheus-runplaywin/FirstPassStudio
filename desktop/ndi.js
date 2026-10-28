@@ -136,13 +136,24 @@ module.exports = function ndi({ port, log, onStatus }) {
       onFrame: (bitmap, bw, bh) => addon.frame(r.id, bitmap, bw, bh),
     });
 
-    // Who's watching (receivers come and go), for the Output page; and log when the Mac falls behind.
+    // Who's watching (receivers come and go), for the Output page; and once a minute while someone is,
+    // how many new pictures the scene drew and how many frames went out, against the format's rate. A
+    // choppy picture with both at the full rate was lost on the network, not on the Mac.
     let ticks = 0;
+    let counted = { at: Date.now(), sent: 0, pictures: 0 };
     x.watch = setInterval(() => {
       const s = status(output);
       if (++ticks % 30 === 0) {
         if (s.late > x.late) log(`NDI output ${w.name} fell behind ${s.late - x.late} times in the last minute`);
         x.late = s.late;
+        const raw = addon.status(r.id);
+        const now = { at: Date.now(), sent: raw.sent || 0, pictures: raw.pictures || 0 };
+        const secs = (now.at - counted.at) / 1000;
+        const rate = n => Math.round(n / secs);
+        if (now.sent > counted.sent) {
+          log(`NDI output ${w.name}: ${rate(now.sent - counted.sent)} frames a second sent of ${Math.round(rateN / rateD)}, the scene drew ${rate(now.pictures - counted.pictures)} new pictures a second (fewer is normal while nothing moves)`);
+        }
+        counted = now;
       }
       report(output);
     }, 2000);

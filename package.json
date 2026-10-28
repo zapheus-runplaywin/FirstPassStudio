@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/*.test.js",
-    "test:ci": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mjs --test-reporter-destination=stdout test/*.test.js",
+    "test:ci": "node --test --test-timeout=480000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mjs --test-reporter-destination=stdout test/*.test.js",
     "iconpack": "node plugins/characters-iconpack/build.js",
     "fonts": "node vendor/fonts/fetch.js",
     "app": "electron .",
