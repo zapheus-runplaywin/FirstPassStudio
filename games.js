@@ -7,7 +7,7 @@
 
 const { isFinished, startOf, localDate } = require('./playhq');
 
-function create({ log, config, competitions, finals, playhq, board: theBoard, control, logoFor, colourFor, norm, sameTeam }) {
+function create({ log, config, competitions, finals, playhq, board: theBoard, control, logoFor, colourFor, norm, sameTeam, courtPlan = async () => null }) {
   const { getStructure, getLadder, findGrade, getRounds, getRoundGames, readGame, eachLimited, PLAYHQ_AT_ONCE, getLive, liveScore } = playhq;
   const { board, applyAction, saveBoards, TICKER_SPEED } = theBoard;
 
@@ -331,6 +331,9 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // one due now, else the next to come, else (a night played already) its last.
   // A finals game is kept until PlayHQ says it is finished, because of extra time.
   // Picking a game by hand turns autoSelect off.
+  // When the Production Planner has a court for the night (planner.js courtFor), that court is set here once when the
+  // night arrives (and again if the plan's court changes), which also turns autoSelect on. A court or game picked by
+  // hand afterwards stays: the Planner flags it rather than undoing it.
   let AUTO_LEAD_MS = 10 * 60 * 1000;
   const courtKey = c => String(c || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b0+(\d)/g, '$1').trim();
   function sameCourt(court, wanted) {
@@ -365,12 +368,23 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     saveBoards();
   }
   const byStart = (x, y) => `${x.date || ''} ${String(x.time || '').padStart(8, '0')}`.localeCompare(`${y.date || ''} ${String(y.time || '').padStart(8, '0')}`);
+  // The Production Planner's court for tonight (the game night picked by hand, else today), set once.
+  async function followPlan(b) {
+    const planned = await courtPlan(nightChoice || localDate());
+    if (!planned || b.planCourt === planned.key) return;
+    b.planCourt = planned.key;
+    log('info', 'auto', `The Production Planner streams ${planned.court} tonight, so Scoreboard control follows it${b.autoCourt && !sameCourt(b.autoCourt, planned.court) ? ` (was ${b.autoCourt})` : ''}`);
+    applyAction(b, { type: 'autoCourt', value: planned.court });
+    saveBoards();
+  }
   async function autoPick() {
     const b = board();
-    // Runs while automatic selection is on, and whenever the board has no game at all.
-    if (autoBusy || (!b.autoSelect && b.gameId)) return;
+    if (autoBusy) return;
     autoBusy = true;
     try {
+      try { await followPlan(b); } catch (err) { log('warn', 'auto', `Couldn't read the Production Planner's court: ${err.message}`); }
+      // Runs while automatic selection is on, and whenever the board has no game at all.
+      if (!b.autoSelect && b.gameId) return;
       const court = b.autoCourt || config().defaultCourt || '';
       const games = court && b.autoSelect ? await todaysGames(court) : [];
       if (!games.length) {
@@ -637,7 +651,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
   function resetCaches() { roundDatesCache.clear(); }
 
-  return { nightChoice: () => nightChoice, setNightChoice, leadMs: () => AUTO_LEAD_MS, configure, resetCaches,
+  return { nightChoice: () => nightChoice, setNightChoice, leadMs: () => AUTO_LEAD_MS, configure, resetCaches, sameCourt,
     getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
     getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, getTopShooters };
 }

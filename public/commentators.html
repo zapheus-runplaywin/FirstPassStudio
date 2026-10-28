@@ -89,8 +89,10 @@
          a thin single-line lower third: SPECIAL GUEST COMMENTATORS  Honey Harrington and Will Linter
        http://localhost:8080/commentators.html?style=box&name=Honey%20Harrington&name2=Will%20Linter
          an upper third: a box in the top right corner beside the competition logo, with the label and a line per name
-       Options: &name= &name2= &name3= &name4=  up to four people (empty ones are left out)
-                &label=Commentators   the words in the pink tab (default Commentators, Commentator for one name; 0 leaves it off)
+       Options: &name= &name2= &name3= &name4=  up to four people (empty ones are left out). With none, the people the
+                                Production Planner (planner.html) has on the mic for the game on the scoreboard
+                &label=Commentators   the words in the pink tab (default Commentators, Commentator for one name, or Special
+                                guest commentators when every planned name is a special guest; 0 leaves it off)
                 &position=center | bottom | bottom-center   for the line (default: left, lined up with the scoreboard, just above it)
                 &position=under-left | under-right | center   for the box (default: the top right corner, beside the
                                 competition logo; these put it just under the title, with the competition logo in it)
@@ -118,9 +120,14 @@
     const $ = id => document.getElementById(id);
     const style = params.get('style') === 'box' ? 'box' : 'line';
     document.body.classList.add(style + '-style');
-    const names = ['name', 'name2', 'name3', 'name4'].map(k => (params.get(k) || '').trim()).filter(Boolean);
+    // The names typed in its options, else whoever the Production Planner has on the mic for the game on the
+    // scoreboard (see the start, below).
+    let names = ['name', 'name2', 'name3', 'name4'].map(k => (params.get(k) || '').trim()).filter(Boolean);
     const rawLabel = params.get('label');
-    const label = rawLabel === '0' ? '' : (rawLabel || '').trim() || (names.length === 1 ? 'Commentator' : 'Commentators');
+    let label = '';
+    // The label typed in, else Commentator(s), or Special guest commentator(s) when every planned name is a special guest.
+    const labelFor = guest => rawLabel === '0' ? '' : (rawLabel || '').trim()
+      || `${guest ? 'Special guest commentator' : 'Commentator'}${names.length === 1 ? '' : 's'}`;
     const position = params.get('position');
     const places = style === 'box' ? ['under-left', 'under-right', 'center'] : ['center', 'bottom', 'bottom-center'];
     if (places.includes(position)) document.body.classList.add(position);
@@ -184,8 +191,18 @@
     }
 
     (async () => {
+      let guest = false;
       if (!names.length) {
-        $('message').textContent = 'Commentators: type the commentators\' names (name=, name2=)';
+        try {
+          const on = await (await fetch('/api/planner/onair', { cache: 'no-store' })).json();
+          names = (on.names || []).slice(0, 4);
+          guest = !!on.guest;
+          if (names.length) window.pageLog && window.pageLog('info', `Commentators: from the Production Planner for ${on.game}`);
+        } catch (err) { console.warn('Commentators: the Production Planner is unavailable:', err.message); }
+      }
+      label = labelFor(guest);
+      if (!names.length) {
+        $('message').textContent = 'Commentators: nobody is planned on the mic for this game in the Production Planner. Plan them there, or type their names (name=, name2=)';
         $('message').hidden = false;
         console.warn('Commentators: no names given');
         return;

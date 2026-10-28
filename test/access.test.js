@@ -19,11 +19,13 @@ test('changes: anything but GET and HEAD, and the Stream Deck links', () => {
   assert.equal(access.changes('GET', '/deckchair.html'), false);
 });
 
-test('privateRead: backups, the athlete register, the log, sponsor reports and the setup, on GET only', () => {
+test('privateRead: backups, the athlete register, the Production Planner, the log, sponsor reports and the setup, on GET only', () => {
   assert.equal(access.privateRead('GET', '/api/settings/export'), true);
   assert.equal(access.privateRead('GET', '/api/scene/export'), true);
   assert.equal(access.privateRead('GET', '/api/athletes'), true);
   assert.equal(access.privateRead('GET', '/api/athletes/games'), false, 'the positions graphic');
+  assert.equal(access.privateRead('GET', '/api/planner'), true);
+  assert.equal(access.privateRead('GET', '/api/planner/onair'), false, 'the commentators graphics');
   assert.equal(access.privateRead('GET', '/api/log'), true);
   assert.equal(access.privateRead('GET', '/api/sponsors/report'), true);
   assert.equal(access.privateRead('GET', '/api/setup'), true);

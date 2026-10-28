@@ -1,0 +1,114 @@
+// The Production Planner (planner.js, planner.html): the commentator pool, a court and commentators per game night,
+// nights that take the plan of the night before, the plan setting Scoreboard control's court, flags when the
+// scoreboard is on something else, and the Commentators graphic reading who is on the mic.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { startStudio } = require('./support/studio');
+const { createWorld } = require('./support/playhq');
+
+let studio;
+test.before(async () => {
+  studio = await startStudio(null, { competition: 'Thunder League', world: createWorld() });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+});
+test.after(() => studio && studio.stop());
+
+const get = p => studio.get(p);
+const post = (p, body) => studio.post(p, body);
+
+test('the planner lists every game night of the season, with its courts and games', async () => {
+  const p = await get('/api/planner');
+  assert.equal(p.nights.length, 4);
+  assert.equal(p.next, studio.world.today, 'opens on the next game night (tonight)');
+  const tonight = p.nights.find(n => n.date === studio.world.today);
+  assert.deepEqual(tonight.courts, ['Court 1', 'Court 2']);
+  assert.equal(tonight.court, '', 'not planned yet');
+  assert.equal(tonight.games.length, 4);
+  assert.deepEqual(p.pool, []);
+  assert.deepEqual((await get('/api/planner/onair')).names, [], 'nobody on the mic without a plan');
+});
+
+test('a pool, a night\'s plan, nights after it, and the scoreboard\'s court', async () => {
+  let p = await post('/api/planner/pool', { pool: [{ name: 'Honey Harrington', guest: true }, { name: 'Will  Linter' }, { name: 'Sam Lee' }, { name: 'honey harrington' }] });
+  assert.deepEqual(p.pool.map(x => x.name), ['Honey Harrington', 'Will Linter', 'Sam Lee'], 'spaces tidied, the same name once');
+  const [honey, will, sam] = p.pool;
+
+  // Tonight on Court 2, so the plan has to move Scoreboard control off Court 1.
+  await post('/api/scoreboard', { type: 'autoCourt', value: 'Court 1' });
+  const before = p.nights.find(n => n.date === studio.world.today);
+  const times = before.games.filter(g => g.court === 'Court 2').map(g => g.time).sort();
+  p = await post('/api/planner/night', { date: studio.world.today, court: 'Court 2', slots: { [times[0]]: [will.id, honey.id, sam.id, 'nobody'], [times[1]]: [sam.id] } });
+  const tonight = p.nights.find(n => n.date === studio.world.today);
+  assert.equal(tonight.court, 'Court 2');
+  assert.ok(tonight.planned);
+  assert.deepEqual(tonight.slots.map(s => s.people.length), [3, 1], 'three at most, people not in the pool dropped');
+
+  const b = await studio.until(async () => { const s = await get('/api/scoreboard'); return s.autoCourt === 'Court 2' && s; });
+  assert.ok(b.autoSelect, 'following the planned court turns automatic selection on');
+  assert.match(b.planCourt, /\|Court 2$/);
+  const due = tonight.slots.find(s => s.game && s.game.id === b.gameId);
+  assert.ok(due, 'the scoreboard is on one of the planned games');
+  const on = await get('/api/planner/onair');
+  assert.deepEqual(on.names, due.people.map(id => p.pool.find(x => x.id === id).name));
+
+  // The nights after it take tonight's plan; next week can have its own.
+  const next = p.nights.find(n => n.date > studio.world.today);
+  assert.equal(next.court, 'Court 2');
+  assert.equal(next.from, studio.world.today);
+  // (The stand-in PlayHQ has both divisions' next week games on a court at one time, so it has one slot there.)
+  assert.deepEqual(next.slots[0].people, tonight.slots[0].people, 'slot by slot, first game to first game');
+
+  // A court picked by hand stays, and the planner flags it.
+  await post('/api/scoreboard', { type: 'autoCourt', value: 'Court 1' });
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal((await get('/api/scoreboard')).autoCourt, 'Court 1', 'the plan doesn\'t undo a court changed by hand');
+  p = await get('/api/planner');
+  assert.ok(p.tonight.flags.some(f => f.kind === 'court' && /Court 1/.test(f.text) && /Court 2/.test(f.text)));
+  assert.ok(p.tonight.flags.some(f => f.kind === 'game'), 'the game on the scoreboard isn\'t in tonight\'s plan');
+  assert.deepEqual((await get('/api/planner/onair')).names, [], 'nobody planned for the Court 1 game');
+
+  // Changing the plan's court for tonight sets it again.
+  p = await post('/api/planner/night', { date: studio.world.today, court: 'Court 1', slots: {} });
+  await studio.until(async () => (await get('/api/scoreboard')).autoCourt === 'Court 1');
+  const court1 = p.nights.find(n => n.date === studio.world.today);
+  assert.equal(court1.slots.length, 2);
+  assert.ok(court1.slots.every(s => s.game && !s.people.length));
+
+  // Taking someone out of the pool takes them out of every night.
+  p = await post('/api/planner/pool', { pool: p.pool.filter(x => x.id !== sam.id) });
+  assert.ok(p.nights.every(n => n.slots.every(s => !s.people.includes(sam.id))));
+  // Back to the night before: tonight has no earlier plan, so it has none.
+  p = await post('/api/planner/night', { date: studio.world.today, clear: true });
+  assert.equal(p.nights.find(n => n.date === studio.world.today).court, '');
+});
+
+test('a slot keeps its commentators when PlayHQ moves its game, and says so', async () => {
+  let p = await get('/api/planner');
+  const n = p.nights[3];
+  const court1 = n.games.filter(g => g.court === 'Court 1');
+  const id = p.pool[0].id;
+  p = await post('/api/planner/night', { date: n.date, court: 'Court 1', slots: { [court1[0].time]: [id] } });
+  assert.ok(!p.nights[3].slots[0].changed);
+  // As if PlayHQ had since moved that game away and put another in its place: the plan saved a different game.
+  const fs = require('node:fs'), path = require('node:path');
+  const dir = path.join(studio.dataDir, 'competitions');
+  const file = path.join(dir, fs.readdirSync(dir).find(d => fs.existsSync(path.join(dir, d, 'planner.json'))), 'planner.json');
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  saved.nights[n.date].slots[court1[0].time].game = { id: 'game-gone', home: 'Old Home', away: 'Old Away' };
+  saved.nights[n.date].slots['23:59'] = { people: [id], game: { id: 'game-moved', home: 'Moved Home', away: 'Moved Away' } };
+  fs.writeFileSync(file, JSON.stringify(saved));
+  const v = (await get('/api/planner')).nights[3];
+  const swapped = v.slots.find(s => s.time === court1[0].time);
+  assert.deepEqual(swapped.people, [id], 'the people stay in the slot');
+  assert.equal(swapped.changed.was, 'Old Home v Old Away');
+  const gone = v.slots.find(s => s.time === '23:59');
+  assert.equal(gone.game, null, 'a slot with no game now is still shown, so its people can be moved');
+  assert.equal(gone.changed.was, 'Moved Home v Moved Away');
+});
+
+test('the commentators graphics read who is on the mic', async () => {
+  const page = await fetch(`${studio.base}/commentators.html`).then(r => r.text());
+  assert.match(page, /\/api\/planner\/onair/, 'the Commentators graphic falls back to the plan');
+  const res = await fetch(`${studio.base}/api/planner/onair`);
+  assert.equal(res.status, 200);
+});
