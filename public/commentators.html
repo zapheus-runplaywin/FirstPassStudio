@@ -10,10 +10,12 @@
      the line (default): a thin single-line lower third, the label in a pink tab and the names beside it on one line.
        Its left edge lines up with the scoreboard's (293px, like the person lower third) and its bottom sits 8px above
        the scoreboard's PlayHQ Live tab (top 930px).
-     the box (?style=box): an upper third, a box with the competition logo, the label and each name on a line of
-       its own. Its left edge lines up with the scoreboard's too, and its top sits just under the title banner and the
-       logos beside it (their bottom edges are at about 162px), so it covers neither. */
-  :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; }
+     the box (?style=box): an upper third, a box with the label and each name on a line of its own. By default it sits
+       in the top right corner beside the competition logo (branding.html puts it 1280px from the left, centred 95px from
+       the top), lined up with the logos, ending 40px from the right edge. ?position=under-left and under-right line it up
+       with the scoreboard's edges just under the title banner and the logos (their bottom edges are at about 162px), and
+       center centres it there; away from the competition logo the box shows it in a badge of its own. */
+  :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; --corner: 40px; --corner-top: 30px; }
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
   [hidden] { display: none !important; }
@@ -32,11 +34,14 @@
   .and { color: var(--yellow); font-weight: 600; }
 
   /* The box. */
-  .box { position: absolute; top: var(--top); left: var(--left); width: 560px; display: flex; flex-direction: column;
+  .box { position: absolute; top: var(--corner-top); right: var(--corner); width: 460px; display: flex; flex-direction: column;
     border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45); background: var(--purple-deep); border-bottom: 5px solid var(--pink); }
-  body.right .box { left: auto; right: var(--right); }
-  body.center .box { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
-  .box__label { background: var(--pink); padding: 10px 24px; font-size: 22px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+  body.under-left .box, body.under-right .box, body.center .box { top: var(--top); width: 560px; }
+  body.under-left .box { right: auto; left: var(--left); }
+  body.under-right .box { right: var(--right); }
+  body.center .box { right: auto; left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); }
+  .box__label span { display: inline-block; transform-origin: left center; }
+  .box__label { background: var(--pink); padding: 10px 24px; font-size: 20px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
   .box__label:empty { display: none; }
   .box__body { display: flex; align-items: center; gap: 22px; padding: 20px 26px 22px; }
   .box__badge { flex: none; width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -58,7 +63,7 @@
   .go .box__name:nth-child(1) { animation-delay: .35s; } .go .box__name:nth-child(2) { animation-delay: .47s; }
   .go .box__name:nth-child(3) { animation-delay: .59s; } .go .box__name:nth-child(4) { animation-delay: .71s; }
   .away .line, .away .box { animation: leave .5s ease-in both; }
-  body.box-style.right .away .box { animation-name: leave-right; }
+  body.box-style:not(.under-left):not(.center) .away .box { animation-name: leave-right; }
   @keyframes open { from { clip-path: inset(0 100% 0 0 round 10px); } to { clip-path: inset(0 0 0 0 round 10px); } }
   @keyframes drop { from { opacity: 0; translate: 0 -40px; } to { opacity: 1; translate: 0 0; } }
   @keyframes pop { from { scale: .4; opacity: 0; } to { scale: 1; opacity: 1; } }
@@ -76,12 +81,13 @@
        http://localhost:8080/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter
          a thin single-line lower third: SPECIAL GUEST COMMENTATORS  Honey Harrington and Will Linter
        http://localhost:8080/commentators.html?style=box&name=Honey%20Harrington&name2=Will%20Linter
-         an upper third: a box under the title with the competition logo, the label and a line per name
+         an upper third: a box in the top right corner beside the competition logo, with the label and a line per name
        Options: &name= &name2= &name3= &name4=  up to four people (empty ones are left out)
                 &label=Commentators   the words in the pink tab (default Commentators, Commentator for one name; 0 leaves it off)
                 &position=center | bottom | bottom-center   for the line (default: left, lined up with the scoreboard, just above it)
-                &position=right | center   for the box (default: left, lined up with the scoreboard, just under the title)
-                &logo=0         the box without the competition logo
+                &position=under-left | under-right | center   for the box (default: the top right corner, beside the
+                                competition logo; these put it just under the title, with the competition logo in it)
+                &logo=1 | 0     the competition logo in the box, or not (default: only away from the corner)
                 &mode=light     the light mode competition logo (default dark, for the dark box)
                 &out=8          animates away after 8 seconds
        Loads once, each time it comes on. -->
@@ -109,7 +115,7 @@
     const rawLabel = params.get('label');
     const label = rawLabel === '0' ? '' : (rawLabel || '').trim() || (names.length === 1 ? 'Commentator' : 'Commentators');
     const position = params.get('position');
-    const places = style === 'box' ? ['right', 'center'] : ['center', 'bottom', 'bottom-center'];
+    const places = style === 'box' ? ['under-left', 'under-right', 'center'] : ['center', 'bottom', 'bottom-center'];
     if (places.includes(position)) document.body.classList.add(position);
 
     // Squeezes the words in el narrower to fit its width (down to `squeeze`, 0.7 is 70% of their width), and only
@@ -145,8 +151,10 @@
         $('lineNames').append(joined(names));
         $('line').hidden = false;
       } else {
-        $('boxLabel').textContent = label;
-        if (params.get('logo') !== '0') {
+        if (label) $('boxLabel').appendChild(document.createElement('span')).textContent = label;
+        // In the corner the competition logo is right beside the box, so the box doesn't repeat it unless asked to.
+        const withLogo = params.get('logo') ? params.get('logo') !== '0' : places.includes(position);
+        if (withLogo) {
           const comp = params.get('mode') === 'light' ? d.competitionLogoLight || d.competitionLogoDark : d.competitionLogoDark || d.competitionLogoLight;
           if (comp || d.competition) $('badge').append(logoEl({ name: d.competition, logo: comp }, 'box__logo'));
         }
@@ -159,7 +167,7 @@
       }
       document.fonts.ready.then(() => {
         if (style === 'line') fitText($('lineNames'), 0.75, 24);
-        else document.querySelectorAll('.box__name').forEach(el => fitText(el, 0.7, 26));
+        else document.querySelectorAll('.box__name, .box__label:not(:empty)').forEach(el => fitText(el, 0.7, el.classList.contains('box__label') ? 16 : 26));
         $('stage').classList.add('go');
         window.pageLog && window.pageLog('info', `Commentators (${style}): ${label ? label + ': ' : ''}${names.join(', ')}`);
       });
