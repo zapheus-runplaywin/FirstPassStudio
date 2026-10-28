@@ -76,6 +76,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: node node_modules/electron/install.js
       # The same tests as on pull requests (tests.yml), so a manual build of a broken commit stops here.
+      # A test file still going after 8 minutes fails with its name (--test-timeout in package.json's test:ci),
+      # inside this step's 10: a test that fails and leaves a connection open would otherwise hold the run for ever.
       - run: npm run test:ci
         timeout-minutes: 10
         env:
