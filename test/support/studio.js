@@ -47,7 +47,8 @@ async function runServer(env, tries = 3) {
     });
     if (running) return { child, port, output, exit, exited: () => exited };
     if (exited === null) { child.kill(); await exit; }
-    if (attempt < tries && /EADDRINUSE/.test(output.join(''))) continue;
+    // server.js exits 3 when its port is taken (EXIT_PORT_IN_USE), saying so in words rather than EADDRINUSE.
+    if (attempt < tries && exited === 3) continue;
     throw new Error(exited === null ? `server.js didn't start:\n${output.join('')}` : `server.js exited (${exited}):\n${output.join('')}`);
   }
 }
