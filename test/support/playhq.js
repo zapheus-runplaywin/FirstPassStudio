@@ -190,7 +190,8 @@ function liveAnswer(world, id) {
   const g = world.games[id], l = world.live[id];
   if (!g || (!l && !g.score)) return { errors: [{ message: 'The game could not be found or was not electronically scored' }] };
   const s = l || { home: g.score.home, away: g.score.away, homeGoals: g.score.home - 2, awayGoals: g.score.away - 2, homeSuper: 1, awaySuper: 1, period: 'FOURTH_QTR', clock: null };
-  const side = k => ({ statisticsV2: [stat('TOTAL_SCORE', s[k]), stat('1_POINT_SCORE', s[`${k}Goals`]), stat('2_POINT_SCORE', s[`${k}Super`])] });
+  const side = k => ({ statisticsV2: [stat('TOTAL_SCORE', s[k]), stat('1_POINT_SCORE', s[`${k}Goals`]), stat('2_POINT_SCORE', s[`${k}Super`]),
+    stat('GOAL_ATTEMPT', s[`${k}Shots`] ?? (Number(s[`${k}Goals`]) || 0) + (Number(s[`${k}Super`]) || 0) + 3)] });
   return { data: { game: {
     id, status: g.status, updatedAt: null, break: s.break || null,
     statistics: { home: side('home'), away: side('away') },

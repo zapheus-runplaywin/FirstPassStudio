@@ -5,6 +5,8 @@
 // Each option: { key, label, type: 'select' | 'text' | 'number', ... }. A select's first choice is the
 // page's default, with value '' (left out of the link). text and number boxes left empty are left out too.
 // picks: [[value, button text], ...] adds quick pick buttons under a text box.
+// tick: { text, off } on a select puts a tick box before it: unticked sets the option to off (and greys the select out),
+// ticked uses the select's choice.
 // list: 'athletes' suggests the active competition's athletes (from the Athletes page) as you type in a text box;
 // with gameOnly a tick box under it narrows them to the two teams in the picked game. list: 'teams' on a select
 // adds the teams those athletes play for as choices, and narrows the athlete suggestions to the one picked.
@@ -96,6 +98,7 @@ const PAGE_OPTIONS = (() => {
       { key: 'layout', label: 'Layout', type: 'select', choices: [['', 'Horizontal (above the scoreboard)'], ['vertical', 'Vertical']] },
       { key: 'count', label: 'Goals', type: 'number', min: 3, max: 30, placeholder: '10' },
       show('times', 'Quarter and time'),
+      show('run', 'Current run'),
       { key: 'position', label: 'Position', type: 'select', choices: [['', 'Default'], ['top', 'Top (horizontal)'], ['middle', 'Middle (horizontal)'], ['bottom', 'Bottom (horizontal)'], ['left', 'Left (vertical)'], ['right', 'Right (vertical)']] },
       title('Last 10 goals'),
     ],
@@ -105,6 +108,16 @@ const PAGE_OPTIONS = (() => {
       show('quarters', 'Score by quarter'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
       show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'),
       spot('next sponsor in rotation, Major and up, in the footer'),
+    ],
+    'commentator.html': [
+      { key: 'refresh', label: 'Auto-refresh', type: 'select', tick: { text: 'Auto-refresh the stats', off: '0' },
+        choices: [['', 'Every 15 seconds'], ['5', 'Every 5 seconds'], ['10', 'Every 10 seconds'], ['30', 'Every 30 seconds'], ['60', 'Every minute']],
+        help: 'Updates the stats in place, and straight away when the score changes; they come from Studio, so this asks PlayHQ for nothing. Unticked, they load once each time the page comes on. The team lists load at the start and at each quarter break; the clock, moments, last 10 goals and run always follow the game live.' },
+      title('Game stats'),
+      show('quarters', 'Score by quarter'), show('shooting', 'Shooting %'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
+      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'), show('leads', 'Biggest lead and lead changes'),
+      show('moments', 'Moments box'), show('goals', 'Last 10 goals'), show('run', 'Current run'),
+      { key: 'bg', label: 'Background', type: 'select', choices: [['', 'Solid (for a monitor)'], ['0', 'See-through']] },
     ],
     'sponsor.html': [
       { key: 'sponsor', label: 'Sponsor', type: 'text', placeholder: 'the next one in rotation', help: 'A sponsor\'s name as on the Sponsors page, to always show that one.' },

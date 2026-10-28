@@ -45,6 +45,16 @@ test('the score follows the live feed, goal by goal, into the goal order', async
   assert.deepEqual(goals.goals.filter(g => !g.gap).map(g => g.side).slice(-3), ['home', 'away', 'home']);
 });
 
+test('shooting % on the game stats comes from the feed\'s goal attempts', async () => {
+  Object.assign(live, { home: live.home + 1, homeGoals: live.homeGoals + 1 });
+  const made = live.homeGoals + live.homeSuper;
+  live.homeShots = made + 2; // two missed
+  await settle(b => b.home.score === live.home);
+  const s = await studio.get('/api/stats');
+  assert.deepEqual(s.stats.shooting.home, { made, shots: made + 2, percent: Math.round((made / (made + 2)) * 100) });
+  delete live.homeShots;
+});
+
 test('a super shot in the feed (super goals up one, score up two) plays the super shot', async () => {
   const before = (await board()).superShot?.n || 0;
   Object.assign(live, { away: live.away + 2, awaySuper: live.awaySuper + 1 });
