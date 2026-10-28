@@ -20,7 +20,9 @@
      edges, with dark ribbons only where text and the momentum line need them, so the court shows through. */
   .card { position: absolute; box-sizing: border-box; animation: rise .5s ease-out both;
     --size: .8; /* drawn at 80% of its layout size (on top of fit.js's scale), so it takes less of the frame */
-    --home: var(--yellow); --away: var(--pink); --home-text: var(--text-on-yellow); --away-text: #fff; }
+    /* Without club colours, home is the competition's pink and away its yellow, as on the game stats, score worm and
+       commentator stats (Matt, 2026-10-28: they were the other way round here). */
+    --home: var(--pink); --away: var(--yellow); --home-text: #fff; --away-text: var(--text-on-yellow); }
   .card::before { content: ""; position: absolute; inset: -50px; z-index: -1; pointer-events: none;
     background: radial-gradient(closest-side, rgba(var(--deep-rgb), .5), rgba(var(--deep-rgb), .3) 70%, rgba(var(--deep-rgb), 0)); }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
