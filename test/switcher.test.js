@@ -283,7 +283,8 @@ test('a sequence and a scene drive the switcher: in order, on time, and what a M
   await studio.until(() => atem.state.dsk[0] === true, 3000, 20);
   assert.equal(atem.received.at(-1).name, 'DDsA');
   assert.match(studio.log(), /Sequence "Walk out" step 1: skipped upstream key 2 on: The ATEM Mini Pro has one upstream key/);
-  assert.match(studio.log(), /Sequence "Walk out" step 1: downstream key 1 on \(auto\)/);
+  // The log line is written just after the command goes out, so on a fast machine it can lag the key.
+  await studio.until(() => /Sequence "Walk out" step 1: downstream key 1 on \(auto\)/.test(studio.log()), 3000, 20);
 
   // A scene picked on the Output page: its auto goes to Court.
   await studio.post('/api/scene', { type: 'sceneGo', scene: 'Live' });

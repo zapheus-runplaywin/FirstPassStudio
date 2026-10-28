@@ -35,6 +35,10 @@ function fakeUpdater() {
 }
 
 const settle = () => new Promise(r => setTimeout(r, 30));
+// Waits for something that takes a few timers to happen, such as a download then an install.
+async function until(check) {
+  for (let i = 0; i < 100 && !check(); i++) await new Promise(r => setTimeout(r, 10));
+}
 
 test('downloads are not handed to Squirrel as they arrive, so a newer one can replace them', async () => {
   const u = fakeUpdater();
@@ -58,7 +62,7 @@ test('Restart to update asks first, and gets a version that came out after the l
   await (await updates.check()).downloadPromise;
   u.publish('0.3.12'); // out since, not downloaded yet
   updates.restartToUpdate({ askNewer: async (ready, newer) => { asked.push([ready, newer]); return true; } });
-  await settle();
+  await until(() => u.installs.length); // asks, downloads 0.3.12 (20 ms), then installs
   assert.equal(u.installs.length, 1);
   assert.deepEqual(u.installs[0], { version: '0.3.12', relaunch: true, autoInstallOnAppQuit: false });
   assert.ok(changes.some(s => s.fetching === '0.3.12'), 'the menu shows the newer version downloading');
