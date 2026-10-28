@@ -273,7 +273,7 @@
   <h3 id="s3-2">Scoreboard control</h3>
   <figure><img src="img/s-control.webp" alt="The Scoreboard control page"><figcaption>Scoreboard control: the game, the scoring mode, the score, the quarter and clock, quick links to the game graphics, finals winners, and a preview of the board.</figcaption></figure>
   <h4>Always a game on</h4>
-  <p>When Studio starts, it puts a game on the board with Follow PlayHQ on: the game on now on your court, otherwise the first game of this round on that court. The round is picked by date (the round played in the next 5 days, counting today), so a Tuesday round is found from the Friday before. You can force a round from the <strong>Round</strong> list; its games on your court are then followed by their own date and time (the one due now, otherwise the next to come). Set it back to Automatic afterwards.</p>
+  <p>When Studio starts, it puts a game on the board with Follow PlayHQ on: the game on now on your court, otherwise the first game of tonight on that court. Games are picked by game night, not by round: the list holds every division's games that date, whatever round each is up to, so one division on Round 10 and another on Finals Round 1 sit side by side, each game showing its own round. Tonight is found by date (the first game night in the next 5 days, counting today), so a Tuesday night is found from the Friday before. You can pick another night from the <strong>Game night</strong> list, which names each night's rounds; its games on your court are then followed by their time (the one due now, otherwise the next to come). Set it back to Automatic afterwards.</p>
   <h4>Automatic game selection</h4>
   <p>With <strong>Pick the game automatically for court</strong> ticked, the board shows the first game of the night on that court, then switches to each next game when its electronic scoring starts (<em>Electronic scoring starts N minutes before the game</em> on the setup page, 10 by default, 15 in the sample league), with the quarter back to Q1 and a full clock. In finals it keeps the final on until PlayHQ marks it finished, in case of extra time. Picking a game from the list by hand turns automatic selection off; tick it again to go back.</p>
   <h4>Follow PlayHQ</h4>
@@ -298,7 +298,7 @@
     <li><strong>Scoreboard.</strong> Court in a pink box on the left, both teams in their club colours, the score at screen centre, quarter and clock on the right. "PlayHQ live" shows while scores follow PlayHQ; a "Presented by" tab carries the naming-rights sponsor.</li>
     <li><strong>Title.</strong> Round, competition and venue, with the naming-rights sponsor's pill under it.</li>
     <li><strong>Branding logos.</strong> PIVT and FirstPass Studio left of the title, the competition logo right of it, so other graphics can be turned on and off around them.</li>
-    <li><strong>Score ticker.</strong> Scrolling scores from the other games this round, led by a Partner-and-up sponsor's tagline. Its speed is set on the control page or from the Stream Deck.</li>
+    <li><strong>Score ticker.</strong> Scrolling scores from tonight's other games, led by a Partner-and-up sponsor's tagline. Its speed is set on the control page or from the Stream Deck.</li>
   </ul>
   <p>Build it once: turn those sources on, then press <strong>Save what's on now</strong> under Scenes and name it. From then on, one click (or one Stream Deck key) brings the show back to this look.</p>
 
@@ -495,12 +495,12 @@
   <h2>The graphics</h2>
   <p class="lead">Every graphic Studio draws, grouped by when it is used. Each one is added to the scene with <strong>Add page</strong> on the Output page, and its options appear as fields under its address; the options named here are the ones worth knowing.</p>
   <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s5-1"><b>1</b>Always on</a></li><li><a href="#s5-2"><b>2</b>Before the game</a></li><li><a href="#s5-3"><b>3</b>During play</a></li><li><a href="#s5-4"><b>4</b>After the game</a></li><li><a href="#s5-5"><b>5</b>The competition</a></li><li><a href="#s5-6"><b>6</b>The breaks</a></li><li><a href="#s5-7"><b>7</b>Checking the outputs</a></li></ol></div>
-  <p>All of them follow the game, round and court picked on Scoreboard control, take the competition's colours, font and logos from its setup, and fit long team names. Cards sit in the space between the title and the scoreboard and shrink to fit when they have more in them than fits. Every page, with its link and a Preview button, is also listed on the Docs tab.</p>
+  <p>All of them follow the game night, game and court picked on Scoreboard control, take the competition's colours, font and logos from its setup, and fit long team names. Cards sit in the space between the title and the scoreboard and shrink to fit when they have more in them than fits. Every page, with its link and a Preview button, is also listed on the Docs tab.</p>
 
   <h3 id="s5-1">Always on</h3>
   <div class="stack">
     <figure class="graphic"><img src="img/g-scoreboard.webp" alt="The scoreboard"><figcaption><b>Scoreboard.</b> Court, both teams with their logos and club colours, the score, the quarter and the clock, centred at the bottom above the ticker. Options: position (top centre, bottom left and so on), super shot tab on or off, and the naming-rights sponsor's tab.</figcaption></figure>
-    <figure class="graphic"><img src="img/g-ticker.webp" alt="The score ticker"><figcaption><b>Score ticker.</b> The scores from this round's other games scrolling along the bottom, leaving out the game on the board, updated every 30 seconds. Speed from the control page or a Stream Deck key; a Partner sponsor's logo takes a slot in the line.</figcaption></figure>
+    <figure class="graphic"><img src="img/g-ticker.webp" alt="The score ticker"><figcaption><b>Score ticker.</b> The scores from tonight's other games scrolling along the bottom, leaving out the game on the board, updated every 30 seconds. Speed from the control page or a Stream Deck key; a Partner sponsor's logo takes a slot in the line.</figcaption></figure>
     <figure class="graphic"><img src="img/g-title.webp" alt="The title banner"><figcaption><b>Title.</b> Competition, round and venue in a banner at the top. Options: an emoji either side, the competition logo above it, top or bottom, and the naming-rights sponsor under it.</figcaption></figure>
     <figure class="graphic"><img src="img/g-branding.webp" alt="The branding logos"><figcaption><b>Branding logos.</b> PIVT and FirstPass Studio left of the title, the competition logo right. Each can be hidden; gap, height and size adjust the placement.</figcaption></figure>
     <figure class="graphic"><img src="img/g-viewers.webp" alt="The viewers pill"><figcaption><b>Viewers.</b> "N watching" from the competition's YouTube and Facebook streams, top right, shown only once the count passes the competition's minimum. <em>Shows: peak</em> makes it a card for the end of the night.</figcaption></figure>
@@ -586,7 +586,7 @@
   <figure><img src="img/s-setup-finals.webp" alt="The Finals section"><figcaption>Finals formats, per division where they differ.</figcaption></figure>
 
   <h3 id="s6-5">Game day</h3>
-  <p>The court Studio follows, whether it picks the game automatically, when electronic scoring starts before each game (10 minutes by default; 20 or 30 when games are further apart) and how many days ahead "this round" is found. These are starting points: Scoreboard control can change the court, pick a game by hand or force a round on the night. On a carnival day with several rounds, this round moves on as each round's first game comes up.</p>
+  <p>The court Studio follows, whether it picks the game automatically, when electronic scoring starts before each game (10 minutes by default; 20 or 30 when games are further apart) and how many days ahead tonight's games are found. These are starting points: Scoreboard control can change the court, pick a game by hand or pick another game night. On a carnival day with several rounds, this round moves on as each round's first game comes up.</p>
   <figure><img src="img/s-setup-gameday.webp" alt="The Game day section"><figcaption>Game day.</figcaption></figure>
 
   <h3 id="s6-6">Colours and font</h3>
@@ -735,7 +735,7 @@
     <tr><th>What you see</th><th>What to do</th></tr>
     <tr><td>The board doesn't move before the game</td><td>Normal: nothing is read before the electronic scoring window opens. Scoreboard control says when it will start checking.</td></tr>
     <tr><td>The board stops mid-game</td><td>PlayHQ isn't answering. Switch to Manual and run it by hand; Follow PlayHQ picks it up again when PlayHQ is back.</td></tr>
-    <tr><td>The wrong round or game is on</td><td>Force the round on Scoreboard control and pick the game; tick automatic selection again afterwards.</td></tr>
+    <tr><td>The wrong night or game is on</td><td>Pick the game night on Scoreboard control and pick the game; tick automatic selection again afterwards.</td></tr>
     <tr><td>A key says off air</td><td>No Studio window is open. Open Studio from the 1P menu.</td></tr>
     <tr><td>A graphic looks stale</td><td>Press its Restart key or turn it off and on; with <em>Load the page fresh</em> on it reloads each time.</td></tr>
     <tr><td>Studio itself stops</td><td><strong>Restart Studio</strong> in the 1P menu brings it back with the scores and clock it had.</td></tr>

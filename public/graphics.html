@@ -82,7 +82,7 @@
         the ladder, with nobody knocked out (an odd team out has no game). The ladder marks the finals
         places by what each earns and the finals graphic follows it (see <b>Finals</b> below).</li>
       <li><b>Game day:</b> the court the scoreboard follows, whether it picks the game automatically, <b>Electronic scoring starts [x] minutes before the game</b>
-        (default 10; set 20 or 30 when games are further apart), and how many days ahead counts as "this round". Automatic selection switches
+        (default 10; set 20 or 30 when games are further apart), and how many days ahead counts as this game night. Automatic selection switches
         to the next game when its electronic scoring starts, and the scoreboard doesn't ask PlayHQ for a game's score before then, even for a game
         picked by hand: the control page says when it will start checking. That keeps PlayHQ's "game could not be found or was not electronically
         scored" error out of the debug log.</li>
@@ -112,7 +112,7 @@
         picker or paste it as HEX or RGB.</li>
       <li><b>More:</b> the PlayHQ Client ID most competitions don't need, and exporting, saving or deleting the competition. (The emoji either side of the title banner and The Clash's big word are options on those graphics on the Output page.)</li>
     </ul>
-    <p class="page__help"><b>Use this one</b> switches every graphic, the control page and the Stream Deck to that competition: the round goes back
+    <p class="page__help"><b>Use this one</b> switches every graphic, the control page and the Stream Deck to that competition: the game night goes back
       to automatic and the scoreboard starts on that competition's first game. Saving the competition in use reloads the graphics
       with the changes. Setups are kept in the <b>competitions</b> folder (see <b>Saved settings and git</b> below).</p>
     <p class="page__help"><b>Carnivals</b> (like the AMMNA nationals) play several rounds a day: on those days "this round" moves on to each round
@@ -341,23 +341,25 @@
   </div>
   <div class="card">
     <h2>Control page settings (every page follows these)</h2>
-    <p class="page__help">Every graphic uses the round, game and court set on the <a href="/control.html" target="_blank">scoreboard control page</a>.
+    <p class="page__help">Every graphic uses the game night, game and court set on the <a href="/control.html" target="_blank">scoreboard control page</a>.
       A setting added to a page's own link (like <code>?division=2</code> or <code>?round=6</code>) overrides it for that page only.</p>
     <ul class="page__help">
-      <li><b>Round:</b> <b>Automatic</b> picks the round played in the next 5 days, counting today, so a Tuesday round is picked from the
-        Friday before (the number of days is on the competition setup page). Otherwise it's the last round played. On a day with several
-        rounds, it moves on to each round as its first game comes up.
-        Pick a round from the list to test with it, then set it back to <b>Automatic</b>.</li>
+      <li><b>Game night:</b> the games list has every division's games on one date, whatever round each division is up to, so one
+        division on Round 10 and another on Finals Round 1 the same night are listed together, each game with its own round.
+        <b>Automatic</b> picks the first game night in the next 5 days, counting today, so a Tuesday night is picked from the
+        Friday before (the number of days is on the competition setup page). Otherwise it's the last night played. Each night in the
+        list names its rounds. Pick a night to use it, then set it back to <b>Automatic</b>. Pages that show one round (like the
+        fixture) use each division's round on that night. On a day with several rounds, it moves on to each round as its first game comes up.</li>
       <li><b>Always a game on:</b> when Studio starts, or the scoreboard is cleared, it puts a game on straight away with
-        <b>Follow PlayHQ</b> on: the game for now on the court, otherwise this round's first game on that court, otherwise this
-        round's first game. The board is only left empty if PlayHQ can't be reached or the competition isn't found (check the PlayHQ
+        <b>Follow PlayHQ</b> on: the game for now on the court, otherwise this game night's first game on that court, otherwise
+        its first game. The board is only left empty if PlayHQ can't be reached or the competition isn't found (check the PlayHQ
         link and competition on the <a href="/setup.html" target="_blank">competition setup page</a>).</li>
       <li><b>Game:</b> tick <b>Pick the game automatically for court</b> and set the court (it starts on the court set on the competition
         setup page, e.g. <code>Indoor 01</code> or just <code>1</code>). It shows the first game of the day on that court,
         then switches to each next game when its electronic scoring starts (10 minutes before by default, set on the setup page), with the quarter back to Q1 and a full clock. A final
-        (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a round picked
-        by hand, it follows that round's games on the court by their own date and time: the game due now, otherwise the next one
-        to come, otherwise (a round already played) its last game.</li>
+        (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a game night picked
+        by hand, it follows that night's games on the court by their time: the game due now, otherwise the next one
+        to come, otherwise (a night already played) its last game.</li>
       <li><b>Overrides:</b> picking a game from the list turns automatic selection off until you tick it again or change the court. Pressing a score
         button switches scores to manual, and any clock button switches the clock to manual.</li>
       <li><b>Follow PlayHQ:</b> the score and quarter come from PlayHQ's live scoring every 5 seconds, and
@@ -442,7 +444,7 @@
     <ol class="page__help">
       <li><b>Open the app.</b> The Output page opens and Studio goes on air. Keep a Studio window open all night; closing the last one takes it off air.</li>
       <li><b>Right competition.</b> Competitions setup shows the one in use at the top. Check its PlayHQ link, the court to follow and the scoring window (<b>Electronic scoring starts N minutes before the game</b>).</li>
-      <li><b>Right game.</b> On Scoreboard control, the picked game is tonight's first on your court and <b>Follow PlayHQ</b> is on. If the round is wrong, force this round there.</li>
+      <li><b>Right game.</b> On Scoreboard control, the picked game is tonight's first on your court and <b>Follow PlayHQ</b> is on. If the night is wrong, pick tonight under <b>Game night</b> there.</li>
       <li><b>Scores arrive.</b> Once the scorer has started on PlayHQ, the control page says the game is being live scored and the scoreboard moves. Nothing is read before the scoring window opens, so a quiet board before then is normal.</li>
       <li><b>Scene and output.</b> On the Output page turn on the display, NDI or Blackmagic output your switcher takes, check the fill and key or chroma setting, and show one graphic to see it land.</li>
       <li><b>Sound.</b> Play a few seconds of music and an animation with sound, and check the preview sound only comes out where you want it.</li>
@@ -493,7 +495,7 @@
     <ul class="page__help">
       <li><b>competitions/</b>: a folder per competition with its setup (<code style="display:inline">settings.json</code>), team logos, competition logo,
         athlete photos and athlete register, and <b>active.json</b>, the one in use.</li>
-      <li><b>control.json</b>: the control page's choices (the round picked by hand, automatic game selection and its court, following the
+      <li><b>control.json</b>: the control page's choices (the game night picked by hand, automatic game selection and its court, following the
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ, <code style="display:inline">remoteChanges</code>) from the app's defaults.

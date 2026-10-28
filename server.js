@@ -137,7 +137,7 @@ const { parsePlayhqUrl, startOf } = require('./playhq');
 
 // ─── control.json ───────────────────────────────────────────────────────────
 // control.json holds the control page's lasting settings on this computer (git ignores it):
-// the round picked by hand, and the scoreboard's automatic game selection, its court, following
+// the game night picked by hand (night), and the scoreboard's automatic game selection, its court, following
 // the PlayHQ clock, how often to check PlayHQ, showing the clock and the ticker's speed, and finals
 // winners entered by hand (for finals PlayHQ has no fixtures for). Without it the scoreboard
 // starts from the competition setup's defaults. The game itself, scores and the clock stay
@@ -172,7 +172,7 @@ const theGames = require('./games').create({
   control: { get: () => control, save: () => saveControl() },
   logoFor: n => logoFor(n), colourFor: n => colourFor(n), norm: s => norm(s), sameTeam: (a, b) => sameTeam(a, b),
 });
-const { setRoundChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
+const { setNightChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
   getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, getTopShooters } = theGames;
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
@@ -344,7 +344,7 @@ function pageVersion() {
 // ─── Competition setup (setup.html) ─────────────────────────────────────────
 // Puts the competition picked on the setup page to use. A different competition (or a
 // different PlayHQ link) clears everything cached from PlayHQ; switching competition also
-// sets the round back to automatic and puts that competition's first game on every board.
+// sets the game night back to automatic and puts that competition's first game on every board.
 const MACHINE_KEYS = ['port', 'cacheSeconds', 'playhqRefreshSeconds', 'logMaxMB', 'apiBaseUrl', 'gameSummaryPath', 'remoteChanges'];
 function applyCompetition(why) {
   const id = competitions.activeId();
@@ -366,7 +366,7 @@ function applyCompetition(why) {
   scene.competitionChanged();
   log('info', 'setup', !id ? `${why}: none yet` : `${why}: ${CONFIG.name} (${CONFIG.competitionName || 'no PlayHQ competition set'}, organisation ${playhq.organisation().orgId || 'not set'} on ${playhq.organisation().tenant})`);
   if (prev.id && sourceChanged) {
-    if (theGames.roundChoice()) setRoundChoice('');
+    if (theGames.nightChoice()) setNightChoice(''); // blank needs no PlayHQ, so it is set at once
     Object.assign(board(), newBoard()); autoPick();
     saveBoards();
   }
@@ -937,7 +937,11 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
     if (url.pathname === '/api/rounds') {
-      if (req.method === 'POST') { setRoundChoice((await readBody(req)).round); await autoPick(); }
+      if (req.method === 'POST') {
+        const body = await readBody(req);
+        try { await setNightChoice(body.night !== undefined ? body.night : body.round); } catch (err) { return send(res, 400, { error: err.message }); }
+        await autoPick();
+      }
       return send(res, 200, await getRoundInfo());
     }
     if (url.pathname === '/api/countdown') return send(res, 200, getCountdown());

@@ -48,20 +48,21 @@ test('ladder: sorted by points, with finals marks, for the game\'s division or ?
   assert.match(missing.json.error, /No division "Premier"\. This season has: Division 1, Division 2/);
 });
 
-test('rounds: this round is today\'s, and a round picked on the control page is used until set back to automatic', async () => {
+test('game nights: tonight is today\'s, and a night picked on the control page is used until set back to automatic', async () => {
   let r = await get('/api/rounds');
-  assert.equal(r.auto, 'Round 3');
+  assert.equal(r.auto, studio.world.today);
+  assert.equal(r.autoRounds, 'Round 3');
   assert.equal(r.choice, '');
-  assert.deepEqual(r.rounds.map(x => x.key), ['1', '2', '3', '4']);
-  assert.equal(r.rounds[2].date, studio.world.today);
+  assert.deepEqual(r.nights.map(x => x.summary), ['Round 1', 'Round 2', 'Round 3', 'Round 4']);
+  assert.equal(r.nights[2].date, studio.world.today);
   assert.deepEqual([...new Set((await get('/api/games')).map(g => g.round))], ['Round 3']);
 
-  r = await studio.post('/api/rounds', { round: '2' });
-  assert.equal(r.choice, '2');
+  r = await studio.post('/api/rounds', { night: r.nights[1].date });
+  assert.equal(r.choice, r.nights[1].date);
   assert.deepEqual([...new Set((await get('/api/games')).map(g => g.round))], ['Round 2']);
-  assert.equal((await get('/api/fixtures')).round, 'Round 2', 'every page follows the control page\'s round');
+  assert.equal((await get('/api/fixtures')).round, 'Round 2', 'every page follows the control page\'s night');
 
-  r = await studio.post('/api/rounds', { round: '' });
+  r = await studio.post('/api/rounds', { night: '' });
   assert.equal(r.choice, '');
   assert.deepEqual([...new Set((await get('/api/games')).map(g => g.round))], ['Round 3']);
 });
@@ -127,7 +128,7 @@ test('up next: after the last game of the night, the end of night card with next
   assert.match((await get('/api/upnext?wrap=0')).error, /No later game/, '?wrap=0 keeps the old message');
 
   // The last round: no round after it, and the setup has a finals format, so finals are next.
-  await studio.post('/api/rounds', { round: '4' });
+  await studio.post('/api/rounds', { night: studio.world.divisions[0].rounds[3].games[0].date });
   await pick(studio.world.games['game-d2-r4-2']);
   const last = (await get('/api/upnext')).wrap;
   assert.equal(last.next, null);
@@ -135,7 +136,7 @@ test('up next: after the last game of the night, the end of night card with next
   assert.equal(last.seasonOver, false);
 
   // ?wrap=1 shows it with a game still to come.
-  await studio.post('/api/rounds', { round: '' });
+  await studio.post('/api/rounds', { night: '' });
   await studio.post('/api/scoreboard', { type: 'autoSelect', value: true });
   const forced = await get('/api/upnext?wrap=1');
   assert.equal(forced.wrap.next.round, 'Round 4');
