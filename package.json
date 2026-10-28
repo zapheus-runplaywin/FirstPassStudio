@@ -60,6 +60,7 @@
       "athletes.js",
       "board.js",
       "games.js",
+      "planner.js",
       "finals.js",
       "scene.js",
       "zip.js",

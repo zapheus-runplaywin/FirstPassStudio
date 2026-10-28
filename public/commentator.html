@@ -118,6 +118,8 @@
   @keyframes blink { to { opacity: .25; } }
   .clock__super.is-soon { background: var(--purple); color: var(--text); }
   .clock__super.is-soon .dot { display: none; }
+  .clock__mic { margin-top: 10px; color: var(--muted); font-size: 18px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; overflow-wrap: anywhere; }
+  .clock__mic b { color: var(--text); }
   .moments { flex: none; height: 150px; display: flex; flex-direction: column; }
   .moments__label { padding: 10px 18px 0; color: var(--muted); font-size: 15px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
   .moments__say { flex: 1; display: flex; align-items: center; gap: 16px; padding: 4px 20px 12px; font-size: 26px; font-weight: 800; line-height: 1.15; text-transform: uppercase; min-width: 0; }
@@ -147,13 +149,14 @@
        on this court. ?games=0 ?drought=0 ?h2h=0 ?next=0 leave those out.
        Middle: the Game stats graphic's score by quarter and team against team rows, with shooting % (when following
        PlayHQ and its scorer records shots), biggest lead and lead changes, then a compact score worm (?worm=0 leaves it out).
-       Right: the game clock with the super shot window, a moments box (lead changes, coming back, super shots, on fire
+       Right: the game clock with the super shot window and who the Production Planner has on the mic for this game
+       (?mic=0 leaves it out; it looks again each new game and every minute), a moments box (lead changes, coming back, super shots, on fire
        and so on, 5 seconds each, in turn, with how long ago each happened), the last 10 goals (goals.html, vertical) and the current run.
        The clock, moments, goals and run follow the board live. The stats update in place every 15 seconds and when the
        score changes: ?refresh=5, 10, 30 or 60 seconds, ?refresh=0 loads them once each time the page comes on. The team
        lists (a PlayHQ request each) load at the start and at each quarter break.
        Options: ?title=Game%20stats  ?bg=0 (see-through, no background)  and =0 leaves a part out: ?quarters=0 ?shooting=0
-       ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0 ?leads=0 ?worm=0 ?games=0 ?moments=0 ?goals=0 ?run=0 -->
+       ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0 ?leads=0 ?worm=0 ?games=0 ?moments=0 ?goals=0 ?run=0 ?mic=0 -->
   <section class="col teams" id="teams">
     <div class="box"><div class="card" id="home"></div></div>
     <div class="box"><div class="card" id="away"></div></div>
@@ -186,6 +189,7 @@
     <div class="card clock" id="clockBox">
       <div class="clock__row"><span class="clock__period" id="period"></span><span class="clock__time" id="clock"></span></div>
       <div class="clock__super" id="super" hidden><span class="dot"></span><span id="superText">Super shot time</span></div>
+      <div class="clock__mic" id="mic" hidden></div>
     </div>
     <div class="card moments box" id="moments">
       <div class="moments__label">Moments</div>
@@ -590,6 +594,17 @@
       if (colour) box.style.setProperty('--c', colour); else box.style.removeProperty('--c');
       box.classList.toggle('is-hot', n >= 3);
     }
+    // Who is on the mic for this game, from the Production Planner (a Studio read, no PlayHQ request).
+    async function loadMic() {
+      if (off('mic')) return;
+      try {
+        const on = await (await fetch('/api/planner/onair', { cache: 'no-store' })).json();
+        const box = $('mic');
+        box.replaceChildren();
+        if ((on.names || []).length) box.append('On the mic: ', Object.assign(document.createElement('b'), { textContent: on.names.join(', ') }));
+        box.hidden = !(on.names || []).length;
+      } catch (err) { console.warn('Commentator stats: the Production Planner is unavailable:', err.message); }
+    }
     function take(b) {
       const newGame = state && state.gameId !== b.gameId, newPeriod = state && state.period !== b.period;
       const scoreChanged = !state || state.home.score !== b.home.score || state.away.score !== b.away.score || newGame || newPeriod;
@@ -601,7 +616,7 @@
       // A new game or a score change: the stats and team score catch up straight away when auto-refresh is on.
       if (scoreChanged && refresh > 0 && lastStats) loadStats();
       if (newGame || newPeriod) loadTeamLists();
-      if (newGame) { loadGamesPlayed(); loadSeason(); }
+      if (newGame) { loadGamesPlayed(); loadSeason(); loadMic(); }
     }
 
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
@@ -609,6 +624,8 @@
       loadTeamLists();
       loadGamesPlayed();
       loadSeason();
+      loadMic();
+      setInterval(loadMic, 60000);
       if (refresh > 0) setInterval(loadStats, every);
       sceneEvents(null, { board: take });
       setInterval(drawClock, 250);

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Production Planner · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<link rel="stylesheet" href="studio.css">
+<script src="sceneevents.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+  .sub b { color: var(--fp-navy); }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
+  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+  input[type=text], select { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); min-width: 0; }
+  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
+  button { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; }
+  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  button.alt { background: var(--fp-white); color: var(--fp-blue); }
+  button.alt:hover { background: var(--fp-blue-soft); }
+  button.small { font-size: 12px; padding: 3px 9px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
+  .error { color: var(--fp-danger); }
+  .alert { font-size: 14px; margin: 0 0 8px; padding: 8px 12px; border-radius: 8px; background: var(--fp-orange); color: var(--fp-navy); font-weight: 600; }
+  .alert a { color: inherit; }
+
+  /* The pool down the side, the nights beside it (one column on a phone). */
+  .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .pool { position: static; } }
+  .pool { position: sticky; top: 64px; }
+  .person { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--fp-line); }
+  .person:first-of-type { border-top: 0; }
+  .person__name { flex: 1; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+  .person label { font-size: 13px; color: var(--fp-muted); white-space: nowrap; }
+  .person button { padding: 2px 8px; }
+  .add { margin-top: 10px; }
+  .add input { flex: 1 1 140px; }
+
+  /* A night: a folding section, the next one open. */
+  details.night { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); margin-bottom: 10px; }
+  details.night > summary { cursor: pointer; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; list-style: none; }
+  details.night > summary::-webkit-details-marker { display: none; }
+  details.night > summary::before { content: '▸'; color: var(--fp-blue); }
+  details.night[open] > summary::before { content: '▾'; }
+  .night__date { font-weight: 800; color: var(--fp-navy); }
+  .night__what { color: var(--fp-muted); font-size: 14px; }
+  .night__badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
+  .night__badge.warn { background: var(--fp-orange); color: var(--fp-navy); }
+  .night.past > summary { opacity: .6; }
+  .night__body { padding: 0 16px 14px; }
+  .slot { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--fp-line); }
+  .slot__time { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--fp-navy); padding-top: 2px; }
+  .slot__game { font-weight: 600; }
+  .slot__game small { font-weight: 400; color: var(--fp-muted); }
+  .slot.onair { background: linear-gradient(90deg, var(--fp-blue-soft), transparent); }
+  .seats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .seat { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 6px 4px 12px; background: var(--fp-blue-soft); color: var(--fp-navy); font-weight: 600; font-size: 14px; }
+  .seat.guest { background: #FCE7F3; }
+  .seat button { border: 0; background: transparent; color: var(--fp-muted); padding: 0 6px; font-size: 16px; line-height: 1; }
+  .seat button:hover { background: transparent; color: var(--fp-danger); }
+  .seat select { border-style: dashed; border-radius: 999px; padding: 4px 10px; font-size: 14px; color: var(--fp-muted); }
+  .flag { font-size: 13px; color: var(--fp-navy); background: var(--fp-orange); border-radius: 6px; padding: 2px 8px; display: inline-block; margin-top: 6px; }
+  .flag.soft { background: var(--fp-gray); color: var(--fp-muted); }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<header class="fp-bar"></header><script src="studiobar.js"></script>
+<main>
+  <h1>Production Planner</h1>
+  <p class="sub">Plan the court Studio streams each game night and who is on the mic for each game. Tonight's court goes to
+    <a href="/control.html">Scoreboard control</a> when the night arrives, and the <b>Commentators</b> graphic and
+    <b>Commentator stats</b> show whoever is planned for the game on the scoreboard. A night you haven't planned takes the plan of the night before it.</p>
+  <div id="flags"></div>
+  <p class="sub" id="onair" hidden></p>
+  <p class="error" id="err" hidden></p>
+  <div class="layout">
+    <section class="pool">
+      <h2>Commentators</h2>
+      <div id="pool"></div>
+      <div class="row add">
+        <input type="text" id="newName" list="others" placeholder="Add a commentator" autocomplete="off">
+        <datalist id="others"></datalist>
+        <button id="addBtn">Add</button>
+      </div>
+      <p class="help">Tick <b>Guest</b> for a special guest: the Commentators graphic then says "Special guest commentators" when everyone on the mic is one. This list belongs to this competition; names from your other competitions are suggested as you type.</p>
+    </section>
+    <div id="nights"><section><p class="help">Loading the season's game nights from PlayHQ…</p></section></div>
+  </div>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  let data = null;
+  const opened = new Set();
+
+  const games = n => `${n} game${n === 1 ? '' : 's'}`;
+  const dayName = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  function showError(msg) { $('err').textContent = msg || ''; $('err').hidden = !msg; }
+
+  // Redrawing closes an open list, so a look again waits while one is being used.
+  const busy = () => ['SELECT', 'INPUT'].includes((document.activeElement || {}).tagName);
+  async function load({ quiet } = {}) {
+    if (quiet && busy()) return;
+    try {
+      const res = await fetch('/api/planner', { cache: 'no-store' });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      data = d; showError(''); draw();
+    } catch (err) { showError(`Couldn't load the plan: ${err.message}`); }
+  }
+  async function post(path, body) {
+    try {
+      const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      data = d; showError(''); draw();
+    } catch (err) { showError(err.message); load(); }
+  }
+  const person = id => data.pool.find(p => p.id === id);
+
+  function draw() {
+    // Tonight's flags: Scoreboard control on another court, or a game picked by hand that isn't in the plan.
+    $('flags').replaceChildren(...data.tonight.flags.map(f => {
+      const p = el('p', 'alert', f.text + ' ');
+      const a = p.appendChild(el('a', '', f.kind === 'court' ? 'Change it on Scoreboard control' : 'Move the commentators below'));
+      a.href = f.kind === 'court' ? '/control.html' : `#night-${data.tonight.date}`;
+      if (f.kind !== 'court') a.onclick = () => { opened.add(data.tonight.date); draw(); };
+      return p;
+    }));
+    const on = data.onAir;
+    $('onair').hidden = !on.game;
+    $('onair').innerHTML = '';
+    if (on.game) {
+      $('onair').append('On the scoreboard now: ', el('b', '', on.game), ' · ', on.names.length ? `on the mic ${on.names.join(', ')}` : 'nobody planned on the mic');
+    }
+
+    // The pool.
+    $('pool').replaceChildren(...(data.pool.length ? data.pool.map(p => {
+      const row = el('div', 'person');
+      row.append(el('span', 'person__name', p.name));
+      const lab = el('label');
+      const tick = lab.appendChild(el('input')); tick.type = 'checkbox'; tick.checked = !!p.guest;
+      tick.onchange = () => savePool(data.pool.map(x => x.id === p.id ? { ...x, guest: tick.checked } : x));
+      lab.append(' Guest');
+      const rm = el('button', 'alt small', '×'); rm.title = `Take ${p.name} out of the list (and every night)`;
+      rm.onclick = () => { if (confirm(`Take ${p.name} out of the commentators? They come out of every night they're planned for.`)) savePool(data.pool.filter(x => x.id !== p.id)); };
+      row.append(lab, rm);
+      return row;
+    }) : [el('p', 'help', 'No commentators yet. Add the people who call your games.')]));
+    $('others').replaceChildren(...data.others.filter(o => !data.pool.some(p => p.name.toLowerCase() === o.name.toLowerCase()))
+      .map(o => { const opt = el('option'); opt.value = o.name; opt.label = `from ${o.from}`; return opt; }));
+
+    // The nights.
+    if (!data.nights.length) {
+      const empty = el('section');
+      empty.append(el('p', 'help', 'PlayHQ has no game nights for this season yet.'));
+      $('nights').replaceChildren(empty);
+      return;
+    }
+    if (!opened.size && data.next) opened.add(data.next);
+    $('nights').replaceChildren(...data.nights.map(drawNight));
+  }
+
+  function drawNight(n) {
+    const d = el('details', `night${n.date < data.today ? ' past' : ''}`);
+    d.id = `night-${n.date}`;
+    d.open = opened.has(n.date);
+    d.ontoggle = () => { if (d.open) opened.add(n.date); else opened.delete(n.date); };
+    const s = d.appendChild(el('summary'));
+    s.append(el('span', 'night__date', dayName(n.date) + (n.date === data.today ? ' (today)' : '')));
+    const people = n.slots.reduce((t, x) => t + x.people.length, 0);
+    s.append(el('span', 'night__what', n.court ? `${n.court}, ${games(n.slots.filter(x => x.game).length)}` : `${games(n.games.length)}, no court picked`));
+    if (n.from) s.append(el('span', 'night__badge', `Same as ${dayName(n.from)}`));
+    const warn = n.slots.filter(x => x.changed).length + (n.court ? n.slots.filter(x => x.game && !x.people.length).length : 0);
+    if (warn && n.date >= data.today) s.append(el('span', 'night__badge warn', `${warn} to check`));
+    else if (n.court && !people) s.append(el('span', 'night__badge warn', 'Nobody on the mic'));
+
+    const body = d.appendChild(el('div', 'night__body'));
+    const row = body.appendChild(el('div', 'row'));
+    const lab = row.appendChild(el('label', '', 'Court Studio streams '));
+    const sel = lab.appendChild(el('select'));
+    sel.append(el('option', '', 'Pick a court'));
+    sel.firstChild.value = '';
+    for (const c of n.courts) { const o = sel.appendChild(el('option', '', `${c} (${games(n.games.filter(g => g.court === c).length)})`)); o.value = c; }
+    if (n.court && !n.courts.includes(n.court)) { const o = sel.appendChild(el('option', '', `${n.court} (no games now)`)); o.value = n.court; }
+    sel.value = n.court;
+    sel.onchange = () => saveNight(n, { court: sel.value });
+    if (n.planned && data.nights.some(x => x.date < n.date && x.planned)) {
+      const back = row.appendChild(el('button', 'alt small', 'Same as the night before'));
+      back.title = 'Forget this night\'s own plan, and take the plan of the last planned night before it';
+      back.onclick = () => post('/api/planner/night', { date: n.date, clear: true });
+    }
+    if (!n.court) { body.append(el('p', 'help', 'Pick the court to see its games and plan who is on the mic.')); return d; }
+    if (!n.slots.length) body.append(el('p', 'help', `No games on ${n.court} that night. Pick another court.`));
+    for (const slot of n.slots) body.append(drawSlot(n, slot));
+    if (n.from) body.append(el('p', 'help', `Planned the same as ${dayName(n.from)}, game by game. Change anything here and this night keeps a plan of its own.`));
+    return d;
+  }
+
+  function drawSlot(n, slot) {
+    const r = el('div', 'slot');
+    if (slot.game && slot.game.id === data.onAir.gameId) r.classList.add('onair');
+    r.append(el('div', 'slot__time', slot.time));
+    const right = r.appendChild(el('div'));
+    const g = right.appendChild(el('div', 'slot__game', slot.game ? `${slot.game.home} v ${slot.game.away} ` : 'No game at this time any more '));
+    if (slot.game) g.append(el('small', '', [slot.game.division, slot.game.round].filter(Boolean).join(', ')));
+    if (slot.changed) right.append(el('div', 'flag', slot.game ? `Fixture changed: this was ${slot.changed.was}. Check the commentators still suit.` : `${slot.changed.was} has moved off this court or night. Move its commentators to its new slot, or take them out.`));
+    else if (slot.game && !slot.people.length) right.append(el('div', 'flag soft', 'Nobody on the mic yet'));
+    const seats = right.appendChild(el('div', 'seats'));
+    for (const id of slot.people) {
+      const p = person(id); if (!p) continue;
+      const chip = seats.appendChild(el('span', `seat${p.guest ? ' guest' : ''}`, p.name + (p.guest ? ' (guest)' : '')));
+      const x = chip.appendChild(el('button', '', '×')); x.title = `Take ${p.name} off this game`;
+      x.onclick = () => saveNight(n, { slot: slot.time, people: slot.people.filter(i => i !== id) });
+    }
+    const free = data.pool.filter(p => !slot.people.includes(p.id));
+    if (slot.people.length < data.maxPeople && (data.pool.length ? free.length : true)) {
+      const wrap = seats.appendChild(el('span', 'seat', ''));
+      wrap.style.padding = '0'; wrap.style.background = 'transparent';
+      const pick = wrap.appendChild(el('select'));
+      pick.append(el('option', '', data.pool.length ? '+ Add' : 'Add commentators first'));
+      pick.firstChild.value = '';
+      for (const p of free) { const o = pick.appendChild(el('option', '', p.name + (p.guest ? ' (guest)' : ''))); o.value = p.id; }
+      pick.disabled = !data.pool.length;
+      pick.onchange = () => { if (pick.value) saveNight(n, { slot: slot.time, people: [...slot.people, pick.value] }); };
+    }
+    return r;
+  }
+
+  // Saves a night whole: its court, and every slot's people (a changed slot from change).
+  function saveNight(n, change) {
+    const court = change.court !== undefined ? change.court : n.court;
+    if (!court) return post('/api/planner/night', { date: n.date, clear: true });
+    const slots = {};
+    if (court === n.court) for (const s of n.slots) slots[s.time] = s.time === change.slot ? change.people : s.people;
+    opened.add(n.date);
+    post('/api/planner/night', { date: n.date, court, slots });
+  }
+  function savePool(pool) { post('/api/planner/pool', { pool }); }
+  function addPerson() {
+    const name = $('newName').value.trim();
+    if (!name) return;
+    if (data.pool.some(p => p.name.toLowerCase() === name.toLowerCase())) { showError(`${name} is already in the list.`); return; }
+    const other = data.others.find(o => o.name.toLowerCase() === name.toLowerCase());
+    $('newName').value = '';
+    savePool([...data.pool, { name: other ? other.name : name, guest: other ? other.guest : false }]);
+  }
+  $('addBtn').onclick = addPerson;
+  $('newName').onkeydown = e => { if (e.key === 'Enter') addPerson(); };
+
+  load();
+  // The game on the scoreboard changes through the night: look again (at most every few seconds) for the flags.
+  let lastGame;
+  sceneEvents(null, { board: b => { const k = `${b.gameId}|${b.autoCourt}|${b.autoSelect}`; if (lastGame !== undefined && k !== lastGame) load({ quiet: true }); lastGame = k; } });
+  setInterval(() => load({ quiet: true }), 60000); // PlayHQ's fixture changes too
+</script>
+</body>
+</html>

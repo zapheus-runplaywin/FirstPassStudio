@@ -26,10 +26,11 @@
 const os = require('os');
 
 // Reads of private data rather than graphics: the settings and scene backups (every photo, logo and
-// media file), the athlete register, the debug log, the sponsor exposure report, the Stream Deck key
-// and the competition setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
+// media file), the athlete register, the debug log, the sponsor exposure report, the Stream Deck key,
+// the Production Planner's commentators and nights (who is on the mic now, /api/planner/onair, stays open for the
+// graphics) and the competition setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
 // the scene and the media files stay open so the Output page, OBS and the Stream Deck work from anywhere.
-const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key'];
+const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key', '/api/planner'];
 function privateRead(method, pathname) {
   if (method !== 'GET' && method !== 'HEAD') return false;
   return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || macOnly(pathname);
@@ -91,7 +92,7 @@ function refusal(setting, method, pathname, remoteAddress, own, level = null) {
   if (isLocal(remoteAddress, own)) return null;
   if (level === 'full' || (level === 'scoring' && change && scoring(method, pathname))) return null;
   if (level === 'scoring') return `This device is allowed to score only, so ${method} ${pathname} was refused. To let it change everything, change it in Devices… in the menu bar icon on the Mac.`;
-  const what = change ? 'take changes' : 'keep its private data (settings, backups, the athlete register, the log and sponsor reports)';
+  const what = change ? 'take changes' : 'keep its private data (settings, backups, the athlete register, the Production Planner, the log and sponsor reports)';
   return `Studio is set to ${what} only ${change ? 'from' : 'on'} this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let this device in, open Studio's /pair.html on it and press Allow on the Mac; or, to let every device on this network change things and read them, untick "Only this Mac can change things" in the menu bar icon (it is ticked again each time Studio opens).`;
 }
 

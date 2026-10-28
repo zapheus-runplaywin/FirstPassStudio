@@ -188,6 +188,7 @@
     <li><a href="#s3-8">Music, playlists and mics</a></li>
     <li><a href="#s3-9">Video output</a></li>
     <li><a href="#s3-10">A night, start to finish</a></li>
+    <li><a href="#s3-11">The Production Planner</a></li>
     <li><a class="top" href="#ch4">4 · Running it by hand</a></li>
     <li><a class="top" href="#ch5">5 · The graphics</a></li>
     <li><a class="top" href="#ch6">6 · Competitions setup</a></li>
@@ -218,7 +219,7 @@
     <dt>The data folder</dt><dd>Where Studio saves everything, outside the app, so updates never touch it.</dd>
   </dl>
   <h3 id="s1-2">The pages you work in</h3>
-  <p>Every Studio window has the same tab bar: <strong>Output</strong>, <strong>Scoreboard control</strong>, <strong>Competitions setup</strong>, <strong>Sponsors</strong>, <strong>Athletes</strong>, <strong>Stream Deck</strong> and <strong>Docs</strong> (⌘1 to ⌘7 in the app). Output is where the show is built and sent out; Scoreboard control runs the board; the rest are set up before the night.</p>
+  <p>Every Studio window has the same tab bar: <strong>Output</strong>, <strong>Scoreboard control</strong>, <strong>Competitions setup</strong>, <strong>Sponsors</strong>, <strong>Athletes</strong>, <strong>Stream Deck</strong>, <strong>Docs</strong> and <strong>Production Planner</strong> (⌘1 to ⌘8 in the app). Output is where the show is built and sent out; Scoreboard control runs the board; the Production Planner plans the court and the commentators for each night; the rest are set up before the night.</p>
   <h3 id="s1-3">The sample competition in this guide</h3>
   <p>The screenshots use a fictional league, the <strong>Elite Netball League</strong>, with eight clubs named after animals (Falcons, Panthers, Stingrays, Cobras, Grizzlies, Hawks, Rhinos and Wolves) across Premier, Men's and Under 21 divisions, playing at the Metro Arena. Its sponsors are fictional too. Everything you see is what Studio draws for any competition once its setup is in.</p>
 </section>
@@ -258,7 +259,7 @@
   <div class="chno">Chapter 3 of 11 <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></span></div>
   <h2>Game night, the automated way</h2>
   <p class="lead">This is how most nights run: one operator, PlayHQ scoring the game, a base scene that stays on, automatic layers that fire by themselves, and sequences that handle the run-up, the breaks and full time.</p>
-  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s3-1"><b>1</b>How it fits together</a></li><li><a href="#s3-2"><b>2</b>Scoreboard control</a></li><li><a href="#s3-3"><b>3</b>The Output page</a></li><li><a href="#s3-4"><b>4</b>The base scene</a></li><li><a href="#s3-5"><b>5</b>Automatic layers</a></li><li><a href="#s3-6"><b>6</b>Scenes</a></li><li><a href="#s3-7"><b>7</b>Sequences</a></li><li><a href="#s3-8"><b>8</b>Music, playlists and mics</a></li><li><a href="#s3-9"><b>9</b>Video output</a></li><li><a href="#s3-10"><b>10</b>A night, start to finish</a></li></ol></div>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#s3-1"><b>1</b>How it fits together</a></li><li><a href="#s3-2"><b>2</b>Scoreboard control</a></li><li><a href="#s3-3"><b>3</b>The Output page</a></li><li><a href="#s3-4"><b>4</b>The base scene</a></li><li><a href="#s3-5"><b>5</b>Automatic layers</a></li><li><a href="#s3-6"><b>6</b>Scenes</a></li><li><a href="#s3-7"><b>7</b>Sequences</a></li><li><a href="#s3-8"><b>8</b>Music, playlists and mics</a></li><li><a href="#s3-9"><b>9</b>Video output</a></li><li><a href="#s3-10"><b>10</b>A night, start to finish</a></li><li><a href="#s3-11"><b>11</b>The Production Planner</a></li></ol></div>
 
   <h3 id="s3-1">How it fits together</h3>
   <p>Four things do the work, and each one is set up once:</p>
@@ -275,7 +276,7 @@
   <h4>Always a game on</h4>
   <p>When Studio starts, it puts a game on the board with Follow PlayHQ on: the game on now on your court, otherwise the first game of tonight on that court. Games are picked by game night, not by round: the list holds every division's games that date, whatever round each is up to, so one division on Round 10 and another on Finals Round 1 sit side by side, each game showing its own round. Tonight is found by date (the first game night in the next 5 days, counting today), so a Tuesday night is found from the Friday before. You can pick another night from the <strong>Game night</strong> list, which names each night's rounds; its games on your court are then followed by their time (the one due now, otherwise the next to come). Set it back to Automatic afterwards.</p>
   <h4>Automatic game selection</h4>
-  <p>With <strong>Pick the game automatically for court</strong> ticked, the board shows the first game of the night on that court, then switches to each next game when its electronic scoring starts (<em>Electronic scoring starts N minutes before the game</em> on the setup page, 10 by default, 15 in the sample league), with the quarter back to Q1 and a full clock. In finals it keeps the final on until PlayHQ marks it finished, in case of extra time. Picking a game from the list by hand turns automatic selection off; tick it again to go back.</p>
+  <p>With <strong>Pick the game automatically for court</strong> ticked, the board shows the first game of the night on that court, then switches to each next game when its electronic scoring starts (<em>Electronic scoring starts N minutes before the game</em> on the setup page, 10 by default, 15 in the sample league), with the quarter back to Q1 and a full clock. In finals it keeps the final on until PlayHQ marks it finished, in case of extra time. Picking a game from the list by hand turns automatic selection off; tick it again to go back. When the <a href="#s3-11">Production Planner</a> has a court for tonight, that court is set here when the night arrives, with <em>from the Production Planner</em> beside it. Changing it by hand still works, and the Planner flags it.</p>
   <h4>Follow PlayHQ</h4>
   <p>With <strong>Follow PlayHQ</strong> on, the score and quarter update every 5 seconds from PlayHQ's live scoring, and <strong>Follow the PlayHQ scorer's clock</strong> runs the clock from the scorer's clock. The clock matches the scores: switching to Manual, or pressing any score button, turns clock-following off as well, and the control page says so. Press a clock button to run the clock by hand while scores still follow PlayHQ. To line the clock up with the venue, type the venue's time in <strong>Match venue clock</strong>.</p>
   <div class="tip"><div class="eyebrow">Nothing before the window</div><p>Studio doesn't ask PlayHQ's live feed for a game until its electronic scoring window opens, whether the game was picked automatically or by hand. The control page says when it will start checking.</p></div>
@@ -381,7 +382,7 @@
   </ul>
   <div class="tip"><div class="eyebrow">Each output costs</div><p>Every extra output runs its pages once more on the Mac. Try the number of outputs you plan to use on your own Mac before a stream night: while an output is on, its card shows its CPU, memory and frame rate (amber when it can't keep up), with Studio's total under the status, and the log notes them once a minute.</p></div>
   <h4>A commentary monitor</h4>
-  <p>Commentators can have graphics of their own: a monitor at the commentary desk with the live stats they talk to, never seen on the stream. The <strong>Commentator stats</strong> page is made for it: one full screen with both team lists on the left (each team's ladder position, form and time since its last goal, and each athlete's games played this season, with head to head and up next under them), the game stats in the middle (shooting %, quarters won, best quarter, super shots, runs, biggest lead and lead changes, with a score worm under them), and down the right the game clock with the super shot window, a moments box (lead changes, comebacks, super shots, hot streaks, five seconds each and in turn, with how many seconds ago each happened), the last 10 goals and the current run in big numbers. Its stats refresh themselves every 15 seconds and when the score changes (untick <strong>Auto-refresh</strong> in its options, or pick another frequency), and the clock, moments and goals follow the game as it happens. Other graphics can go on the commentary feed too: the last 10 goals and the scoreboard follow the game live, and the rest show what they read each time they come on.</p>
+  <p>Commentators can have graphics of their own: a monitor at the commentary desk with the live stats they talk to, never seen on the stream. The <strong>Commentator stats</strong> page is made for it: one full screen with both team lists on the left (each team's ladder position, form and time since its last goal, and each athlete's games played this season, with head to head and up next under them), the game stats in the middle (shooting %, quarters won, best quarter, super shots, runs, biggest lead and lead changes, with a score worm under them), and down the right the game clock with the super shot window and who is on the mic (from the <a href="#s3-11">Production Planner</a>), a moments box (lead changes, comebacks, super shots, hot streaks, five seconds each and in turn, with how many seconds ago each happened), the last 10 goals and the current run in big numbers. Its stats refresh themselves every 15 seconds and when the score changes (untick <strong>Auto-refresh</strong> in its options, or pick another frequency), and the clock, moments and goals follow the game as it happens. Other graphics can go on the commentary feed too: the last 10 goals and the scoreboard follow the game live, and the rest show what they read each time they come on.</p>
   <ul>
     <li><strong>On the same Mac.</strong> Add an output for the commentary monitor (a display, or NDI to a screen on the network) and turn sources on for it with its pills or its Stream Deck keys, such as <code>/deck/output/commentary/layer/ladder/toggle</code>. Play scenes and sequences on it from its Scene View tab or its own Stream Deck links while the stream carries on as normal.</li>
     <li><strong>On a second Mac.</strong> Run Studio on another Mac with the same competition and game, and Follow PlayHQ on. It reads PlayHQ's live scoring for itself, so it needs nothing from the stream Mac. Its Output 1 goes to the commentary monitor, and everything on it is for the commentators.</li>
@@ -422,6 +423,18 @@
     <li><span class="t">Next game</span><span>Automatic selection moves the board to the next game on Court 1 as its electronic scoring opens, with the quarter back to Q1 and a full clock. Run-up starts again 15 minutes out.</span></li>
     <li><span class="t">Close</span><span>Press <strong>Stream close</strong>: the Clear scene, then the outro with the night's teams. Turn the output off. The sponsor report has the night's exposure ready to send.</span></li>
   </ul>
+
+  <h3 id="s3-11">The Production Planner</h3>
+  <p>The <strong>Production Planner</strong> tab plans the season ahead: which court Studio streams each game night, and who is on the mic for each game. Studio streams one court a night; a second court is a second Mac running its own Studio, with its own plan.</p>
+  <figure><img src="img/s-planner.webp" alt="The Production Planner page"><figcaption>The Production Planner: the commentators down the side, and the season's game nights from PlayHQ, the next one open, with each game on the night's court and who calls it.</figcaption></figure>
+  <h4>Commentators</h4>
+  <p>Add the people who call your games to the list on the left. Tick <strong>Guest</strong> for a special guest. The list belongs to the competition; as you type a name, people from your other competitions are suggested, so someone who calls in two leagues is added in a tap.</p>
+  <h4>A night</h4>
+  <p>Every game night in the season is listed, read from PlayHQ's fixture, by date rather than round. Open one, pick the <strong>Court Studio streams</strong>, and its games on that court appear in time order. Tap <strong>+ Add</strong> on a game to put up to three people on the mic; tap × to take someone off. Everything saves as you go. A night you haven't planned takes the plan of the night before it (the same court, and the same people game by game), marked <em>Same as</em> that night, so a season with a regular team is planned once and only the nights that differ need changing. <strong>Same as the night before</strong> drops a night's own plan again.</p>
+  <h4>When the fixture changes</h4>
+  <p>PlayHQ's fixture changes through a season: a game moves court for availability, or is refixtured to another date. The commentators belong to the time on the court, because that is where the desk and cameras are set up, so they stay put and the game is flagged <em>Fixture changed</em> with what was there before. A game that has gone from the court keeps its row, so its commentators can be moved to wherever it went.</p>
+  <h4>On the night</h4>
+  <p>When the night arrives, the plan's court goes to Scoreboard control, which follows it game by game as usual. The <strong>Commentators</strong> graphic, with no names typed in its options, names whoever is planned for the game on the scoreboard, and says <em>Special guest commentators</em> when everyone on the mic is a guest. <strong>Commentator stats</strong> shows them under the clock. Manual control always wins: if you change the court or pick a game by hand on Scoreboard control, the Planner says so at the top, so the commentary team can be moved to match. Swapping someone in the Planner takes effect the next time the graphic comes on.</p>
 </section>
 
 <section class="ch" id="ch4">
@@ -528,7 +541,7 @@
     <figure class="graphic"><img src="img/g-shooting.webp" alt="Shooting stats"><figcaption><b>Shooting stats.</b> Goals, super shots and attempts per shooter from PlayHQ's game page, for a break or a quarter-time sequence. Super columns are left off for a division without super shots.</figcaption></figure>
     <figure class="graphic"><img src="img/g-lowerthird-athlete.webp" alt="An athlete lower third"><figcaption><b>Person lower third, athlete.</b> Name, team and club logo from the athlete register, with their photo if there is one. The Output page suggests names as you type.</figcaption></figure>
     <figure class="graphic"><img src="img/g-lowerthird-guest.webp" alt="A guest lower third"><figcaption><b>Person lower third, guest.</b> Name, title and the competition logo, for a commentator, an official or a sponsor's guest. Options: a tab above, position left or right, animate away.</figcaption></figure>
-    <figure class="graphic"><img src="img/g-commentators-line.webp" alt="The commentators thin line"><figcaption><b>Commentators, thin line.</b> The commentary team in one slim strip above the scoreboard: a pink tab, like Special guest commentators, and up to four names joined with "and".</figcaption></figure>
+    <figure class="graphic"><img src="img/g-commentators-line.webp" alt="The commentators thin line"><figcaption><b>Commentators, thin line.</b> The commentary team in one slim strip above the scoreboard: a pink tab, like Special guest commentators, and up to four names joined with "and". With no names typed, whoever the Production Planner has on the mic.</figcaption></figure>
     <figure class="graphic"><img src="img/g-commentators-box.webp" alt="The commentators box"><figcaption><b>Commentators, box.</b> The same names as an upper third in the top right corner beside the competition logo, a line per name. Options: under the title instead, the tab's words, animate away.</figcaption></figure>
   </div>
 
@@ -745,7 +758,7 @@
   </table>
 
   <h3 id="s10-8">Data and bandwidth</h3>
-  <p>The graphics only ever talk to Studio on the Mac. Studio alone contacts PlayHQ: one small request every 5 seconds for the followed game (or as set, down to one a second), the ticker's other courts every 30 seconds, the fixture about once a minute for automatic selection, and the rest once when a graphic loads. Commentator stats' auto-refresh asks Studio only; its team lists are read at the start and at each quarter break. Finished games are read once and kept. Extra outputs read the same data from Studio, so they add nothing here. It all comes to well under a megabyte an hour, so a phone hotspot is enough for Studio; the stream itself is the bandwidth.</p>
+  <p>The graphics only ever talk to Studio on the Mac. Studio alone contacts PlayHQ: one small request every 5 seconds for the followed game (or as set, down to one a second), the ticker's other courts every 30 seconds, the fixture about once a minute for automatic selection, and the rest once when a graphic loads. The Production Planner reads the same fixture through the same cache, so it adds nothing. Commentator stats' auto-refresh asks Studio only; its team lists are read at the start and at each quarter break. Finished games are read once and kept. Extra outputs read the same data from Studio, so they add nothing here. It all comes to well under a megabyte an hour, so a phone hotspot is enough for Studio; the stream itself is the bandwidth.</p>
 </section>
 
 <section class="ch" id="ch11">
@@ -756,7 +769,7 @@
   <table>
     <tr><th>Where</th><th>Keys</th></tr>
     <tr><td>Scoreboard control</td><td>A / Z home +1 / −1, K / M away +1 / −1, Shift for +2 / −2, Space starts or stops the clock.</td></tr>
-    <tr><td>Any Studio window</td><td>⌘1 to ⌘7 go to Output, Scoreboard control, Competitions setup, Sponsors, Athletes, Stream Deck, Docs. ⌘N new window, ⇧⌘O open in the browser, ⇧⌘C copy the page link, ⌘[ back, ⌥⌘W close every Studio window.</td></tr>
+    <tr><td>Any Studio window</td><td>⌘1 to ⌘8 go to Output, Scoreboard control, Competitions setup, Sponsors, Athletes, Stream Deck, Docs, Production Planner. ⌘N new window, ⇧⌘O open in the browser, ⇧⌘C copy the page link, ⌘[ back, ⌥⌘W close every Studio window.</td></tr>
   </table>
   <h3 id="s11-2">Stream night in nine lines</h3>
   <ol class="steps">
@@ -779,6 +792,7 @@
     <tr><td>A graphic's options (heading, position, division, animate away)</td><td>Output, under the source's address</td></tr>
     <tr><td>Sponsors, tiers, ads, moments, the report</td><td>Sponsors</td></tr>
     <tr><td>Photos, positions, games played</td><td>Athletes</td></tr>
+    <tr><td>Each night's court, the commentators and who calls each game</td><td>Production Planner</td></tr>
     <tr><td>Keys and links</td><td>Stream Deck</td></tr>
     <tr><td>Backups, iCloud, updates, the debug log</td><td>The 1P menu</td></tr>
   </table>

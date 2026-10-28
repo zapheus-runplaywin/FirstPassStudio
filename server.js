@@ -167,9 +167,15 @@ const theGames = require('./games').create({
   log, config: () => CONFIG, competitions, finals, playhq, board: theBoard,
   control: { get: () => control, save: () => saveControl() },
   logoFor: n => logoFor(n), colourFor: n => colourFor(n), norm: s => norm(s), sameTeam: (a, b) => sameTeam(a, b),
+  courtPlan: date => planner.courtFor(date),
 });
 const { setNightChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
   getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, getTopShooters } = theGames;
+
+// ─── The Production Planner (planner.js): each night's court and commentators ──
+const planner = require('./planner').create({
+  log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt: theGames.sameCourt, night: theGames.nightChoice,
+});
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
 // per playhqRefreshSec), whatever windows are open. Before this the reading only happened inside
@@ -987,6 +993,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets()));
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
+    // A saved plan can change tonight's court, so automatic game selection looks again straight away.
+    if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, changed: () => autoPick() })) return;
     if (url.pathname === '/api/rounds') {
       if (req.method === 'POST') {
         const body = await readBody(req);

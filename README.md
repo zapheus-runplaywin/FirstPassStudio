@@ -86,7 +86,8 @@ installing an update never touches it:
 In it:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
-  `athletes.json` (the athlete register from the Athletes page), and `competitions/active.json`, the one in use.
+  `athletes.json` (the athlete register from the Athletes page), `planner.json` (the Production Planner's commentators and
+  nights), and `competitions/active.json`, the one in use.
 - `sponsors/`: the sponsors (`sponsors.json`) and their logos, shared by every competition (see **Sponsors** below).
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
@@ -228,7 +229,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
-⌘2 control, ⌘3 setup, ⌘4 sponsors, ⌘5 athletes, ⌘6 Stream Deck, ⌘7 docs) and Window. Closing the last window takes Studio off air (see
+⌘2 control, ⌘3 setup, ⌘4 sponsors, ⌘5 athletes, ⌘6 Stream Deck, ⌘7 docs, ⌘8 Production Planner) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.
 
@@ -874,6 +875,29 @@ athlete without a photo shows the generic silhouette for their gender.
 - `?waiting=0`: leaves the page empty until the line ups arrive, instead of saying live scoring is not active.
 
 Once the match ups have started it doesn't change, and it starts again each time it's turned on on the Output page.
+
+## Production Planner
+
+The **Production Planner** tab (`planner.html`, ⌘8) plans the season: the court Studio streams each game night and up to
+three commentators for each game on it. Studio streams one court a night; another court is another Mac running its own Studio.
+
+- **Commentators:** a list per competition (name, and a Guest tick for a special guest). Adding a name suggests people
+  from your other competitions' lists.
+- **Nights:** every date any division plays this season, from PlayHQ's fixture (by date, not round). Pick the court, then
+  add people to each game. A night with no plan of its own takes the plan of the last planned night before it (the court,
+  and the people game by game in time order), so a regular team is planned once.
+- **Fixture changes:** the people belong to the time on the court, not the game, because the desk is set up at the court.
+  When PlayHQ moves a game to another court or date, the slot keeps its people and says *Fixture changed*; a game that has
+  gone from the court keeps its row so its people can be moved.
+- **On the night:** tonight's planned court (the game night picked by hand on Scoreboard control, otherwise today) is set
+  as Scoreboard control's court once when the night arrives, which also turns on automatic game selection. Changing the
+  court or picking a game by hand there is never undone; the Planner flags it at the top instead.
+- **Graphics:** `commentators.html` with no `?name=` shows whoever is planned for the game on the scoreboard
+  (`/api/planner/onair`), with the tab *Special guest commentators* when everyone planned is a guest, and
+  `commentator.html` shows them under the clock (`?mic=0` leaves that out).
+
+Saved in `competitions/<name>/planner.json`. Reading `/api/planner` is private like the athlete register (this Mac and
+allowed devices when the lock is on); `/api/planner/onair` stays open for the graphics.
 
 ## Roadmap
 

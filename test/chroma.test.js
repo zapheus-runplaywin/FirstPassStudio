@@ -18,7 +18,7 @@ outputs.init(() => {}, { colours: () => colours });
 outputs.message({ type: 'displays', displays: [{ id: 1, label: 'Built-in', primary: true }, { id: 2, label: 'HDMI' }] });
 
 // The pages that are graphics (everything in public/ but Studio's own pages).
-const APP_PAGES = ['api', 'athletes', 'control', 'devices', 'graphics', 'output', 'pair', 'preview', 'pvw', 'setup', 'sponsorreport', 'sponsors'];
+const APP_PAGES = ['api', 'athletes', 'control', 'devices', 'graphics', 'output', 'pair', 'planner', 'preview', 'pvw', 'setup', 'sponsorreport', 'sponsors'];
 const graphicsPages = () => fs.readdirSync(path.join(ROOT, 'public')).filter(n => n.endsWith('.html') && !APP_PAGES.includes(n.replace('.html', '')));
 
 test('chroma key safe is on with Chroma picked, and only for the outputs keyed on a colour', () => {
