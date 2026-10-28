@@ -79,7 +79,9 @@
 
   // A sponsored moment's tag: "brought to you by [logo]" on a white pill in box (the animation's stage, which
   // fades it out with everything else). It comes in at --moment-at (1.1 s) once the stage has class "go",
-  // at --moment-top (800px). Asked each time the moment plays, so the Elite sponsors take turns; null hides it.
+  // at --moment-top (800px). Sized for the stage shrunk to 30% under the title: the logo comes out about 50px tall
+  // on air and the words about 17px, big enough to read on a stream. Asked each time the moment plays, so the Elite
+  // sponsors take turns; null hides it.
   const TAG_SECONDS = 2;
   async function moment(key, box) {
     let tag = box && box.querySelector(':scope > .sponsor-moment');
@@ -101,9 +103,11 @@
         css.id = 'sponsorMomentCss';
         css.textContent = `
           .sponsor-moment { position: absolute; left: 0; right: 0; top: var(--moment-top, 800px); display: flex; justify-content: center; opacity: 0; pointer-events: none; }
-          .sponsor-moment > span { background: #fff; color: #111; border-radius: 999px; padding: 10px 30px 10px 34px; font-size: 40px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+          .sponsor-moment > span { background: #fff; color: #111; border-radius: 999px; padding: 14px 40px 14px 48px; font-size: 56px; box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
             font-family: var(--font, "Montserrat"), "Montserrat", sans-serif; }
-          .sponsor-moment .sponsor-badge__plate { padding: 0; height: 1.6em; }
+          .sponsor-moment .sponsor-badge__plate { padding: 0; height: 3em; }
+          .sponsor-moment .sponsor-badge__plate img { max-width: 6em; }
+          .sponsor-moment .sponsor-badge__name { font-size: 1.4em; }
           .go .sponsor-moment { animation: sponsorMomentIn .4s cubic-bezier(.2,.9,.2,1) var(--moment-at, 1.1s) forwards; }
           @keyframes sponsorMomentIn { 0% { opacity: 0; transform: translateY(30px) scale(.9); } 100% { opacity: 1; transform: none; } }`;
         document.head.append(css);
