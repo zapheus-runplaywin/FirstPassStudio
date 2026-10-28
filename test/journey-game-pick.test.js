@@ -94,7 +94,7 @@ test('the operator follows another court, then picks a game by hand, then hands 
   await control.press('#autoCourt', 'Tab');
   await showsTeams(graphic, court2.home, court2.away);
   assert.equal((await studio.get('/api/scoreboard')).court, 'Court 2');
-  // The game list has this round's games in every division; picking one turns automatic off.
+  // The game list has this game night's games in every division; picking one turns automatic off.
   await control.waitForFunction(() => document.querySelectorAll('#games option').length === 4, null, { timeout: 10000 });
   const options = await control.$$eval('#games option', os => os.map(o => o.textContent));
   assert.ok(options.every(o => /Round 3/.test(o)), options.join('\n'));
@@ -122,12 +122,12 @@ test('a competition with no court to follow, or a court with no games today: a g
   if (!control) return;
   const world = studio.world;
   await control.check('#autoSelect');
-  await says(control, '#autoNote', /^Set a court to follow its games through the night\. Showing this round's first game\./);
+  await says(control, '#autoNote', /^Set a court to follow its games through the night\. Showing this game night's first game\./);
   const first = await studio.get('/api/scoreboard');
-  assert.ok([world.gameNow(0).id, world.games['game-d1-r3-2'].id].includes(first.gameId), 'one of this round\'s first games');
+  assert.ok([world.gameNow(0).id, world.games['game-d1-r3-2'].id].includes(first.gameId), 'one of this game night\'s first games');
   await control.fill('#autoCourt', 'Court 7');
   await control.press('#autoCourt', 'Tab');
-  await says(control, '#autoNote', /^No games on Court 7 today\. Showing this round's first game\./);
+  await says(control, '#autoNote', /^No games on Court 7 today\. Showing this game night's first game\./);
   assert.ok((await studio.get('/api/scoreboard')).gameId, 'the board still has a game');
   // Court 1 after all: its game.
   await control.fill('#autoCourt', '1');
@@ -137,19 +137,21 @@ test('a competition with no court to follow, or a court with no games today: a g
   assert.deepEqual(control.errors, []);
 });
 
-test('a round picked by hand changes the games list and every page\'s round, and Automatic puts it back', async t => {
+test('a game night picked by hand changes the games list and every page\'s round, and Automatic puts it back', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });
   const control = await openPage(t, studio, '/control.html');
   if (!control) return;
-  await control.waitForFunction(() => /^Automatic: Round 3$/.test(document.querySelector('#round option').textContent), null, { timeout: 10000 });
-  await control.selectOption('#round', '1');
+  await control.waitForFunction(() => /^Automatic: \w{3}, \d+ \w{3} \(Round 3\)$/.test(document.querySelector('#round option').textContent), null, { timeout: 10000 });
+  const night = studio.world.divisions[0].rounds[0].games[0].date;
+  assert.match(await control.textContent(`#round option[value="${night}"]`), / · Round 1$/);
+  await control.selectOption('#round', night);
   await says(control, '#roundNote', /^Picked by hand/);
   await control.waitForFunction(() => [...document.querySelectorAll('#games option')].every(o => / Round 1 /.test(o.textContent)), null, { timeout: 10000 });
-  assert.equal((await studio.get('/api/rounds')).choice, '1');
+  assert.equal((await studio.get('/api/rounds')).choice, night);
   const fixtures = await studio.get('/api/fixtures');
   assert.match(JSON.stringify(fixtures), /Round 1/);
   await control.selectOption('#round', '');
-  await says(control, '#roundNote', /^Automatic picks the round played in the next 5 days/);
+  await says(control, '#roundNote', /^Automatic picks the first game night in the next 5 days/);
   await control.waitForFunction(() => [...document.querySelectorAll('#games option')].every(o => / Round 3 /.test(o.textContent)), null, { timeout: 10000 });
   assert.equal((await studio.get('/api/rounds')).choice, '');
 });

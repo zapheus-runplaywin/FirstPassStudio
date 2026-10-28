@@ -1,4 +1,4 @@
-// FirstPass Studio - the games: which round is "this round", the fixture, up next and the
+// FirstPass Studio - the games: which game night and round are "this round", the fixture, up next and the
 // end of night card, the intro and outro, the countdown, automatic game selection, and the
 // season graphics (ladder bar, head to head, form, ticker, top shooters) and the finals.
 // Moved out of server.js unchanged (review decision D6); create(deps) takes what it needs from there.
@@ -11,16 +11,40 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   const { getStructure, getLadder, findGrade, getRounds, getRoundGames, readGame, eachLimited, PLAYHQ_AT_ONCE, getLive, liveScore } = playhq;
   const { board, applyAction, saveBoards, TICKER_SPEED } = theBoard;
 
-  // ─── Which round is "this round" ────────────────────────────────────────────
-  // By date: the round being played in the next roundLookaheadDays days (default 5,
-  // counting today, so a Tuesday round is picked from the Friday before), otherwise
-  // the last round played. The control page can pick a round by hand instead
-  // (kept in control.json; blank means automatic).
-  let roundChoice = String(control.get().round || '');
-  function setRoundChoice(value) {
-    roundChoice = control.get().round = String(value || '').trim();
+  // ─── Which game night, and which round is "this round" ──────────────────────
+  // The control page's game list is a game night: every division's games on one date, whatever
+  // round each division is up to (one can be on Round 10 while another plays Finals Round 1).
+  // Automatic is the first date any division plays in the next roundLookaheadDays days (default 5,
+  // counting today, so a Tuesday night is picked from the Friday before), otherwise the last date
+  // played. A night picked by hand on the control page is kept in control.json (blank means
+  // automatic); each division's "this round" is then its round on that night.
+  const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  let nightChoice = isDate(control.get().night) ? control.get().night : '';
+  if (control.get().round) {
+    // Studio used to keep a round picked by hand; a round can be a different night in each division.
+    log('info', 'round', `The round picked by hand (${control.get().round}) is now a game night: set back to automatic`);
+    control.get().round = '';
     control.save();
-    log('info', 'round', roundChoice ? `Round picked by hand: ${roundChoice}` : 'Round picked automatically by date');
+  }
+  // A night (a date), or for older callers a round's number or name, which means the date it is played
+  // in the first division that has it. Blank means automatic.
+  async function setNightChoice(value) {
+    let night = String(value || '').trim();
+    if (night && !isDate(night)) {
+      const st = await getStructure();
+      let found = '';
+      for (const grade of st.grades) {
+        const rounds = await getRounds(grade.id);
+        const key = roundKeys(rounds);
+        const hit = rounds.find(r => key(r) === night) || rounds.find(r => r.name.toLowerCase() === night.toLowerCase());
+        if (hit) { found = (await roundDates(grade)).get(hit.id) || ''; break; }
+      }
+      if (!found) throw new Error(`No game night for round "${night}"`);
+      night = found;
+    }
+    nightChoice = control.get().night = night;
+    control.save();
+    log('info', 'round', nightChoice ? `Game night picked by hand: ${nightChoice}` : 'Game night picked automatically by date');
   }
   let LOOKAHEAD_DAYS = 5;
   // A round's key in the round list: its number, or its name when the number isn't unique
@@ -48,13 +72,26 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     roundDatesCache.set(grade.id, { at: Date.now(), dates });
     return dates;
   }
-  async function pickRound(grade, choice = roundChoice) {
+  async function pickRound(grade, night = nightChoice) {
     const rounds = await getRounds(grade.id);
     if (!rounds.length) return null;
-    if (choice) {
-      const key = roundKeys(rounds);
-      const hit = rounds.find(r => key(r) === choice) || rounds.find(r => r.name.toLowerCase() === choice.toLowerCase());
-      if (hit) return hit;
+    if (night) {
+      // The division's round on that night (none when it doesn't play then). A carnival plays several
+      // rounds on one day: today, it's the last that has started (or is about to), else the first.
+      const on = [];
+      for (const g of await getSeasonGames(grade)) {
+        if (g.date !== night) continue;
+        const r = rounds.find(x => x.id === g.roundId);
+        const start = startOf(g);
+        const seen = on.find(x => x.r === r);
+        if (!r) continue;
+        if (!seen) on.push({ r, start });
+        else if (start !== null && (seen.start === null || start < seen.start)) seen.start = start;
+      }
+      on.sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity));
+      if (!on.length) return null;
+      const started = night === localDate() ? on.filter(x => x.start !== null && x.start - AUTO_LEAD_MS <= Date.now()) : [];
+      return (started.length ? started[started.length - 1] : on[0]).r;
     }
     try {
       const dates = await roundDates(grade);
@@ -76,27 +113,49 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     } catch (err) { log('warn', 'round', `Could not work out the round by date: ${err.message}`); }
     return rounds.find(r => r.current) || rounds[rounds.length - 1];
   }
-  // For the control page: the round list, what's picked, and what automatic would pick.
+  // Every date any division plays this season, with each division's round that night.
+  async function gameNights() {
+    const nights = new Map();
+    for (const grade of (await getStructure()).grades) {
+      for (const g of await getSeasonGames(grade)) {
+        if (!g.date) continue;
+        const night = nights.get(g.date) || nights.set(g.date, { date: g.date, rounds: [] }).get(g.date);
+        if (!night.rounds.some(x => x.division === grade.name && x.round === g.round)) night.rounds.push({ division: grade.name, round: g.round });
+      }
+    }
+    return [...nights.values()].sort((a, b) => a.date.localeCompare(b.date));
+  }
+  // The night automatic picks: the first played in the next LOOKAHEAD_DAYS days, else the last played, else the first to come.
+  function autoNight(nights) {
+    const today = localDate();
+    const dated = nights.map(n => ({ n, diff: dayDiff(n.date, today) }));
+    const pick = dated.find(x => x.diff >= 0 && x.diff < LOOKAHEAD_DAYS) || dated.filter(x => x.diff < 0).pop() || dated[0];
+    return pick ? pick.n.date : '';
+  }
+  // A night's rounds in a few words: "Round 10" when every division is on it, else each division's.
+  function nightRounds(night) {
+    const names = [...new Set(night.rounds.map(x => x.round))];
+    return names.length === 1 ? names[0] : night.rounds.map(x => `${x.division} ${x.round}`).join(', ');
+  }
+  async function currentNight() {
+    return nightChoice || autoNight(await gameNights());
+  }
+  // For the control page: the game nights, what's picked, and what automatic would pick.
   async function getRoundInfo() {
-    const st = await getStructure();
-    const grade = st.grades[0];
-    if (!grade) return { choice: roundChoice, auto: '', rounds: [] };
-    const auto = await pickRound(grade, '');
-    const dates = await roundDates(grade).catch(() => new Map());
-    return { choice: roundChoice, auto: auto ? auto.name : '', lookaheadDays: LOOKAHEAD_DAYS,
-      rounds: (await getRounds(grade.id)).map((r, i, all) => ({ key: roundKeys(all)(r), name: r.name, date: dates.get(r.id) || '' })) };
+    const nights = await gameNights();
+    const auto = autoNight(nights);
+    const autoAt = nights.find(n => n.date === auto);
+    return { choice: nightChoice, auto, autoRounds: autoAt ? nightRounds(autoAt) : '', lookaheadDays: LOOKAHEAD_DAYS,
+      nights: nights.map(n => ({ ...n, summary: nightRounds(n) })) };
   }
 
-  // This round in every division, for the control page's game picker.
+  // Every division's games on this game night (whatever round each is on), for the control page's game picker.
   async function getCurrentGames() {
-    const st = await getStructure();
+    const night = await currentNight();
     const out = [];
-    for (const grade of st.grades) {
-      const round = await pickRound(grade);
-      if (!round) continue;
-      for (const game of await getRoundGames(round.id, 60 * 1000)) {
-        out.push({ ...game, division: grade.name, round: round.name });
-      }
+    if (!night) return out;
+    for (const grade of (await getStructure()).grades) {
+      for (const g of await getSeasonGames(grade)) if (g.date === night) out.push(g);
     }
     return out;
   }
@@ -265,8 +324,8 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // defaultCourt in config.json): the first game of the day until the next one is due,
   // then each game from autoSelectMinutesBefore (default 10) minutes before its start, when
   // electronic scoring starts (the live feed isn't asked before then, see scoringNotYet).
-  // With a round picked by hand, that round's games on the court by their date and time: the
-  // one due now, else the next to come, else (a round played already) its last.
+  // With a game night picked by hand, that night's games on the court by their time: the
+  // one due now, else the next to come, else (a night played already) its last.
   // A finals game is kept until PlayHQ says it is finished, because of extra time.
   // Picking a game by hand turns autoSelect off.
   let AUTO_LEAD_MS = 10 * 60 * 1000;
@@ -280,13 +339,13 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const word = w.replace(/\s*\d+$/, '');
     return /^\d+$/.test(w) ? num(a) === w : !!num(a) && num(a) === num(w) && (word === 'court' || a.includes(word));
   }
-  // The games to follow on a court, in date and time order: today's, or with a round picked by hand
-  // on the control page, that round's games on the court on their own dates (a round can span days).
+  // The games to follow on a court, in date and time order: today's, or with a game night picked by hand
+  // on the control page, that night's games on the court.
   async function todaysGames(court) {
     const st = await getStructure();
     const today = localDate();
     const games = [];
-    if (roundChoice) games.push(...(await getCurrentGames()).filter(g => sameCourt(g.court, court)));
+    if (nightChoice) games.push(...(await getCurrentGames()).filter(g => sameCourt(g.court, court)));
     else for (const grade of st.grades) {
       for (const g of await getSeasonGames(grade)) if (g.date === today && sameCourt(g.court, court)) games.push(g);
     }
@@ -313,16 +372,16 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       const games = court && b.autoSelect ? await todaysGames(court) : [];
       if (!games.length) {
         // Not a game day on this court, no court set, or automatic selection is off with no game picked:
-        // start on this round's first game (on the court when it has games there), so a game is always on.
-        const round = await getCurrentGames();
-        const onCourt = court ? round.filter(g => sameCourt(g.court, court)) : [];
-        const pool = (onCourt.length ? onCourt : round).slice().sort(byStart);
-        if (!pool.length) { b.autoNote = 'PlayHQ has no games in this round yet.'; return; }
-        if (b.autoSelect) b.autoNote = !court ? `Set a court to follow its games through the night. Showing this round's first game.`
-          : `No games on ${court} ${roundChoice ? 'this round' : 'today'}. Showing this round's first game${onCourt.length ? ` on ${court}` : ''}.`;
+        // start on this game night's first game (on the court when it has games there), so a game is always on.
+        const night = await getCurrentGames();
+        const onCourt = court ? night.filter(g => sameCourt(g.court, court)) : [];
+        const pool = (onCourt.length ? onCourt : night).slice().sort(byStart);
+        if (!pool.length) { b.autoNote = 'PlayHQ has no games on this game night yet.'; return; }
+        if (b.autoSelect) b.autoNote = !court ? `Set a court to follow its games through the night. Showing this game night's first game.`
+          : `No games on ${court} ${nightChoice ? 'that night' : 'today'}. Showing this game night's first game${onCourt.length ? ` on ${court}` : ''}.`;
         if (!b.gameId || (b.autoSelect && !pool.some(g => g.id === b.gameId))) {
-          switchTo(b, pool[0], !court ? 'no court set, so starting with this round\'s first game:'
-            : onCourt.length ? `no games on ${court} today, so starting with its first game this round:` : `no games on ${court} this round, so starting with this round's first game:`);
+          switchTo(b, pool[0], !court ? 'no court set, so starting with this game night\'s first game:'
+            : onCourt.length ? `no games on ${court} today, so starting with its first game this game night:` : `no games on ${court} this game night, so starting with its first game:`);
         }
         return;
       }
@@ -334,7 +393,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       const day = g => g.date === today ? '' : ` ${new Date(`${g.date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`;
       const at = g => new Date(startOf(g) - AUTO_LEAD_MS).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
       b.autoNote = next ? `Next: ${next.home.name} v ${next.away.name} (${next.time.slice(0, 5)}${day(next)}), switches at ${at(next)}${day(next)}.`
-        : `Last game on this court ${roundChoice ? 'this round' : 'today'}.`;
+        : `Last game on this court ${nightChoice ? 'that night' : 'today'}.`;
       if (pick.id === b.gameId) { b.autoHold = ''; return; }
       // Keep a final on until PlayHQ says it is over (it may go to extra time).
       const current = games.find(g => g.id === b.gameId);
@@ -375,7 +434,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const out = [];
     for (const r of await getRounds(grade.id)) {
       for (const g of await getRoundGames(r.id, r.current ? 60 * 1000 : 10 * 60 * 1000)) {
-        out.push({ ...g, division: grade.name, round: r.name, roundNumber: r.number });
+        out.push({ ...g, roundId: g.roundId || r.id, division: grade.name, round: r.name, roundNumber: r.number });
       }
     }
     const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')}`;
@@ -575,7 +634,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
   function resetCaches() { roundDatesCache.clear(); }
 
-  return { roundChoice: () => roundChoice, setRoundChoice, leadMs: () => AUTO_LEAD_MS, configure, resetCaches,
+  return { nightChoice: () => nightChoice, setNightChoice, leadMs: () => AUTO_LEAD_MS, configure, resetCaches,
     getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
     getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, getTopShooters };
 }

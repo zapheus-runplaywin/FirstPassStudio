@@ -142,11 +142,11 @@ test('choosing a court follows that court\'s games', async () => {
   assert.equal((await board()).gameId, game.id);
 });
 
-test('with a round picked by hand, the court\'s games are followed on their own date and time, not as if today', async () => {
+test('with a game night picked by hand, the court\'s games are followed on their own date and time, not as if today', async () => {
   const later = studio.world.divisions[0].rounds[3].games[0]; // next week, Court 1
   const played = studio.world.divisions[0].rounds[0].games[0]; // two weeks ago, Court 1
   try {
-    await studio.post('/api/rounds', { round: '4' });
+    await studio.post('/api/rounds', { night: later.date });
     let b = await board();
     assert.equal(b.autoSelect, true);
     assert.equal(b.round, 'Round 4');
@@ -156,13 +156,13 @@ test('with a round picked by hand, the court\'s games are followed on their own 
     // Its countdown and the sequences' "before the game" start go by that date too.
     assert.equal((await studio.get('/api/countdown')).date, later.date);
     assert.match(b.autoNote, /switches at .+ \w{3}, \d+ \w{3}\.$/, 'the next game\'s day is named when it isn\'t today');
-    await studio.post('/api/rounds', { round: '1' });
+    await studio.post('/api/rounds', { night: played.date });
     b = await board();
     assert.equal(b.round, 'Round 1');
     assert.equal(b.date, played.date);
-    assert.match(b.autoNote, /^Last game on this court this round\.$/);
+    assert.match(b.autoNote, /^Last game on this court that night\.$/);
   } finally {
-    await studio.post('/api/rounds', { round: '' });
+    await studio.post('/api/rounds', { night: '' });
   }
   assert.equal((await board()).gameId, game.id, 'back to automatic: today\'s game on the court');
 });

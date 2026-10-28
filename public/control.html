@@ -60,7 +60,7 @@
   <section>
     <h2>Game</h2>
     <div class="row">
-      <label>Round <select id="round"><option value="">Automatic</option></select></label>
+      <label>Game night <select id="round"><option value="">Automatic</option></select></label>
     </div>
     <p class="note" id="roundNote"></p>
     <div class="row" style="margin-top:10px">
@@ -70,7 +70,7 @@
     </div>
     <p class="note" id="autoNote"></p>
     <div class="row" style="margin-top:10px">
-      <select id="games"><option>Loading this round's games from PlayHQ…</option></select>
+      <select id="games"><option>Loading this game night's games from PlayHQ…</option></select>
       <button id="useGame">Use this game</button>
       <button class="alt" id="reloadGames">Refresh list</button>
     </div>
@@ -277,31 +277,32 @@
   const firstBoard = new Promise(r => { boardReady = r; });
   sceneEvents(null, { board: s => { apply(s); boardReady(); } });
 
-  // The round every page uses: automatic by date, or one picked here (for testing).
+  // The game night every page uses: automatic by date, or one picked here. Each night lists every
+  // division's games on that date, whatever round each division is up to.
+  const nightName = date => new Date(date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
   async function loadRounds(post) {
     try {
       const res = await fetch('/api/rounds', post ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(post) } : { cache: 'no-store' });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
       const sel = $('round');
-      const nice = r => r.name + (r.date ? ` (${new Date(r.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })})` : '');
       sel.innerHTML = '';
       const auto = document.createElement('option');
-      auto.value = ''; auto.textContent = `Automatic: ${d.auto || '?'}`;
+      auto.value = ''; auto.textContent = d.auto ? `Automatic: ${nightName(d.auto)} (${d.autoRounds})` : 'Automatic';
       sel.appendChild(auto);
-      d.rounds.forEach(r => { const o = document.createElement('option'); o.value = r.key; o.textContent = nice(r); sel.appendChild(o); });
+      d.nights.forEach(n => { const o = document.createElement('option'); o.value = n.date; o.textContent = `${nightName(n.date)} · ${n.summary}`; sel.appendChild(o); });
       sel.value = d.choice || '';
       $('roundNote').textContent = d.choice
-        ? `Picked by hand: every page uses this round until you set it back to Automatic.`
-        : `Automatic picks the round played in the next ${d.lookaheadDays} days (counting today), otherwise the last round played.`;
-    } catch (err) { $('roundNote').textContent = `Couldn't load the rounds from PlayHQ (${err.message}).`; }
+        ? `Picked by hand: every page uses this game night until you set it back to Automatic.`
+        : `Automatic picks the first game night in the next ${d.lookaheadDays} days (counting today), otherwise the last one played. Every division's games that night are listed, whatever round each is on.`;
+    } catch (err) { $('roundNote').textContent = `Couldn't load the game nights from PlayHQ (${err.message}).`; }
   }
-  $('round').onchange = async () => { await loadRounds({ round: $('round').value }); loadGames(); };
+  $('round').onchange = async () => { await loadRounds({ night: $('round').value }); loadGames(); };
   loadRounds();
 
   async function loadGames() {
     const sel = $('games');
-    sel.innerHTML = '<option>Loading this round\'s games from PlayHQ…</option>';
+    sel.innerHTML = '<option>Loading this game night\'s games from PlayHQ…</option>';
     try {
       const res = await fetch('/api/games', { cache: 'no-store' });
       const data = await res.json();
@@ -310,7 +311,7 @@
       sel.innerHTML = '';
       $('courtList').innerHTML = [...new Set(games.map(g => g.court).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
         .map(c => `<option value="${c.replace(/"/g, '&quot;')}">`).join('');
-      if (!games.length) sel.innerHTML = '<option>No games in the current round. Type team names below instead.</option>';
+      if (!games.length) sel.innerHTML = '<option>No games on this game night. Type team names below instead.</option>';
       games.forEach((g, i) => {
         const o = document.createElement('option');
         o.value = i;

@@ -30,7 +30,7 @@ http://localhost:8080/setup.html keeps a saved setup for each competition and sw
 organisation's PlayHQ link and which competition and season to use (**Find its competitions** lists them), the names
 shown on the graphics (competition, organisation, venue), the game rules (quarters or halves and their length, super
 shots), the finals format for the competition and for any division with its own (see **Finals** below), game day settings (court to follow, automatic game selection, minutes before a game
-it switches, days ahead that count as this round), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
+it switches, days ahead that count as this game night), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
 in light and dark mode versions (one alone is used for both; beside the title, above it and in the ladder's corner), the team logos (drop files on the page; they match clubs by file
 name, and the PlayHQ team list lets you pick a different logo for any club), an optional colour for each club (behind its teams'
 names on the scoreboard and behind their logo and name on The Clash) and the PlayHQ Client ID most competitions don't need. The emoji either
@@ -58,7 +58,7 @@ font other than Montserrat on top. Bundled fonts and added font files are measur
 by the Mac (`macFaces`, AppKit) and loaded as "Studio <font>" faces by PostScript name, with the font itself next in
 case a face isn't found.
 
-**Use this one** switches every graphic, the control page and the Stream Deck to that competition (the round goes back to
+**Use this one** switches every graphic, the control page and the Stream Deck to that competition (the game night goes back to
 automatic and the scoreboard starts on its first game). Saving the competition in use reloads the graphics.
 
 Setups live in `competitions/<name>/` in the data folder (`settings.json`, `logos/`, `brand/`, `fonts/`); see **Saved settings** below.
@@ -88,7 +88,7 @@ In it:
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
   `athletes.json` (the athlete register from the Athletes page), and `competitions/active.json`, the one in use.
 - `sponsors/`: the sponsors (`sponsors.json`) and their logos, shared by every competition (see **Sponsors** below).
-- `control.json`: the control page's choices (the round picked by hand, and the scoreboard's automatic game selection,
+- `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
@@ -500,16 +500,21 @@ competition logo. A competition with only one logo uses it in both modes. The lo
 
 ## Live scoreboard
 
-**Which round.** Every page (game list, fixture, results, ticker, up next) uses the round played in the next 5 days,
-counting today, so a Tuesday round is picked from the Friday before. Otherwise it's the last round played. Change the 5 with
-the days setting on the competition setup page. For testing, pick any round from **Round** on the control page; set it back to
-**Automatic** afterwards (the choice is kept in `control.json`). Automatic game selection uses the picked round too, following its games
-on the court by their own date and time: the game due now, otherwise the next to come, otherwise (a round already played) its last.
+**Which game night.** The control page's game list, the ticker and up next use a game night: every division's games on one date,
+whatever round each division is up to (one division on Round 10 and another on Finals Round 1 the same night are listed together, each
+game with its own round). Automatic is the first night any division plays in the next 5 days, counting today, so a Tuesday night is
+picked from the Friday before. Otherwise it's the last night played. Change the 5 with the days setting on the competition setup page.
+Pick another night from **Game night** on the control page (each names its rounds); set it back to **Automatic** afterwards (the choice
+is kept in `control.json`). Pages that show one round (the fixture, results) use each division's round on that night, and a division
+with no games that night is left out. Automatic game selection uses the picked night too, following its games on the court by their
+time: the game due now, otherwise the next to come, otherwise (a night already played) its last. `POST /api/rounds` takes
+`{ "night": "2026-10-31" }` (blank for automatic); a round's number or name still works, meaning the night it is played in the first
+division that has it.
 `ladder.html` without `?division=` shows the division of the game picked on the control page. Its corner logo is the
 dark mode competition logo, since it sits on the coloured header; `?mode=light` uses the light mode one.
 
 **Always a game on.** When Studio starts, or the scoreboard is cleared, it puts a game on with Follow PlayHQ on: the
-game for now on the court, otherwise this round's first game on that court, otherwise this round's first game. It is only
+game for now on the court, otherwise this game night's first game on that court, otherwise its first game. It is only
 left empty if PlayHQ can't be reached or the competition isn't found (check `organisationUrl` and `competitionName`).
 
 **Automatic game selection.** Set the court to follow on the competition setup page the day before (e.g. `"Indoor 01"`, or just `"1"`).
@@ -523,7 +528,7 @@ Untick **Pick the game automatically** on the setup page to start with it off.
 Before a game's electronic scoring starts Studio doesn't ask PlayHQ's live feed for it at all (automatic or picked by hand),
 since PlayHQ only answers "not electronically scored"; the control page says when it will start checking.
 
-On the control page, pick the game from this round's PlayHQ fixtures and press **Use this game**.
+On the control page, pick the game from this game night's PlayHQ fixtures and press **Use this game**.
 With **Follow PlayHQ** on, the score updates every 5 seconds (change it on the control page, from 1 to 120 seconds) from the same live feed the
 playhq.com game page uses, so it needs no API key, but only if someone is live-scoring that game in PlayHQ. The quarter
 follows the PlayHQ scorer too (you can still change it in between). The clock matches the scores: switching between
