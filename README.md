@@ -184,14 +184,17 @@ browser marks as coming from a web page on another site (its `Origin` or `Sec-Fe
 Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the Mac's addresses, its `.local` name and
 `linkHost` are fine), gets a 403 that says so. Stream Deck links (`/deck/...`) are plain GETs, which a hidden image on
 another site can also fire, so links copied from Studio carry this Mac's key after the port (`/k/<key>/deck/...`,
-kept in `deck-key.txt` in the local data folder, never in a backup or iCloud); the Studio Stream Deck plugin sends an
+kept with the devices list in `devices.json` in the local data folder, never in a backup or iCloud); the Studio Stream Deck plugin sends an
 `x-studio-deck` header instead, and Studio's own pages are known by their `Referer`. A link without any of those is
-refused with a 403 saying to copy it again from the Output page (logged once per address). Reads of private data get the same `Host` check, so a page that has
+refused with a 403 saying to copy it again from the Output page (logged once per address). **Devices…** in the menu bar icon
+lists what may change things from another device, for now This Mac's links, with when the key was made and last used;
+**Make a new key** there gives up the old key, so every link copied before stops working (`devices.js`; the list and
+its button answer only the Mac itself, whether or not the lock is ticked). Reads of private data get the same `Host` check, so a page that has
 pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
 CORS header, so another site can't read its answers.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
-Studio link, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
+Studio link, Devices…, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
 login, Only this Mac can change things, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". The app always starts in the

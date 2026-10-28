@@ -80,6 +80,7 @@
       "sponsors.js",
       "exposure.js",
       "viewers.js",
+      "devices.js",
       "config.json",
       "public/**/*",
       "imports/**/*",

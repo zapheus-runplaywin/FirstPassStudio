@@ -13,7 +13,7 @@
     { href: '/setup.html', label: 'Competitions setup' },
     { href: '/sponsors.html', label: 'Sponsors', also: ['/sponsorreport.html'] },
     { href: '/athletes.html', label: 'Athletes' },
-    { href: '/api.html', label: 'Stream Deck' },
+    { href: '/api.html', label: 'Stream Deck', also: ['/devices.html'] },
     { href: '/graphics.html', label: 'Docs' },
   ];
 

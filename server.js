@@ -26,6 +26,7 @@ const scene = require('./scene');
 const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
+const devices = require('./devices');
 const outputs = require('./outputs');
 const switcher = require('./switcher');
 const mics = require('./mics');
@@ -53,16 +54,10 @@ const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
 // The names a browser may call Studio by when changing something (access.crossSite): read when asked,
 // since the Mac's addresses come and go.
 const ownHosts = () => access.ownHosts([linkHost(MACHINE.linkHost), bonjourName()]);
-// This Mac's Stream Deck key (access.js deckPress()): made once and kept on this Mac only, never in a backup or iCloud.
-// Links copied from Studio carry it as /k/<key>/deck/...; a link without it is refused.
-const DECK_KEY = (() => {
-  const file = datadir.local('deck-key.txt');
-  try { const k = fs.readFileSync(file, 'utf8').trim(); if (/^[\w-]{8,}$/.test(k)) return k; } catch { /* not made yet */ }
-  const k = crypto.randomBytes(9).toString('base64url');
-  try { fs.writeFileSync(file, k + '\n'); } catch (err) { console.error(`Couldn't save the Stream Deck key: ${err.message}`); }
-  return k;
-})();
-const DECK_BASE = `${LINK_BASE}/k/${DECK_KEY}`;
+// This Mac's Stream Deck key (access.js deckPress()): kept with the devices list on this Mac only (devices.js), never in
+// a backup or iCloud. Links copied from Studio carry it as /k/<key>/deck/...; a link without it is refused. Read when
+// asked, since the Devices… window can give it a new one.
+const deckBase = () => `${LINK_BASE}/k/${devices.linkKey()}`;
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
 const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
 // The exit code when the port is already taken, so the Mac app says so instead of restarting the helper.
@@ -119,6 +114,7 @@ sponsors.init(log);
 // one with Counts for sponsors ticked: outputs.sponsorsOnAir).
 exposure.init(log, { showing: scene.showing, onAir: outputs.sponsorsOnAir });
 // Live viewer numbers from the competition's streams, read only while on air.
+devices.load(log);
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
 // The ATEM switcher, if one is set up: its state goes to the Output page over the scene's socket.
 scene.setSwitcherSource(switcher.status);
@@ -869,6 +865,7 @@ http.createServer(async (req, res) => {
     // config.json "remoteChanges": false keeps changes, and those reads, to this computer.
     const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts()))
       || (access.privateRead(req.method, url.pathname) && access.foreignHost(req.method, url.pathname, req.headers, ownHosts()))
+      || access.notThisMac(req.method, url.pathname, req.socket.remoteAddress)
       || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress);
     if (refused) {
       const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
@@ -877,14 +874,21 @@ http.createServer(async (req, res) => {
     }
     // Stream Deck links: only with the key, from the Studio plugin, or from Studio's own pages (access.deckPress()), so
     // a web page can't press one. A refused link is logged once per address, with how to fix it.
-    const deck = access.deckPress(url.pathname, keyed && keyed[1], DECK_KEY, req.headers, PORT, ownHosts());
+    const deck = access.deckPress(url.pathname, keyed && keyed[1], k => !!devices.match(k), req.headers, PORT, ownHosts());
     if (deck === false) {
       const from = access.strip(req.socket.remoteAddress);
-      const why = `Studio refused ${url.pathname} because the link has no Stream Deck key. Copy the link again from the Output page (it starts ${LINK_BASE}/k/…), or install the Stream Deck plugin again from the Output page.`;
+      const why = `Studio refused ${url.pathname} because the link has no Stream Deck key, or one this Mac has given up (Devices…, Make a new key). Copy the link again from the Output page (it starts ${LINK_BASE}/k/…), or install the Stream Deck plugin again from the Output page.`;
       if (!refusedFrom.has(`deck ${from}`)) { refusedFrom.add(`deck ${from}`); log('warn', 'access', why); }
       return send(res, 403, { error: why });
     }
-    if (url.pathname === '/api/deck-key') return send(res, 200, { key: DECK_KEY, base: DECK_BASE });
+    if (url.pathname === '/api/deck-key') return send(res, 200, { key: devices.linkKey(), base: deckBase() });
+    // The Devices… window (devices.html), on this Mac only (access.notThisMac()).
+    if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list() });
+    const revoke = /^\/api\/devices\/([^/]+)\/revoke$/.exec(url.pathname);
+    if (revoke && req.method === 'POST') {
+      if (!devices.revoke(decodeURIComponent(revoke[1]))) return send(res, 404, { error: 'That device isn\'t in the list.' });
+      return send(res, 200, { devices: devices.list() });
+    }
     if (url.pathname === '/api/log') {
       if (req.method === 'POST') {
         const e = await readBody(req);

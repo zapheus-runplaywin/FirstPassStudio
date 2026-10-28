@@ -31,7 +31,17 @@ const os = require('os');
 const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key'];
 function privateRead(method, pathname) {
   if (method !== 'GET' && method !== 'HEAD') return false;
-  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup');
+  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || macOnly(pathname);
+}
+
+// Who may change things from another device (the Devices… window, devices.js): read and changed only on this Mac,
+// whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
+const MAC_ONLY = ['/api/devices'];
+const macOnly = pathname => MAC_ONLY.some(p => pathname === p || pathname.startsWith(p + '/'));
+// The 403 message for one of those asked for from another address, or null.
+function notThisMac(method, pathname, remoteAddress, own) {
+  if (!macOnly(pathname) || isLocal(remoteAddress, own)) return null;
+  return `The devices allowed to change Studio can only be seen and changed on the Mac running Studio, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. Choose Devices… in the menu bar icon on that Mac.`;
 }
 
 // Requests that change something: anything but GET and HEAD, plus the Stream Deck links, which
@@ -123,13 +133,14 @@ function crossSite(method, pathname, headers, port, hosts) {
 // Whether a Stream Deck link press is known to come from someone allowed to press it: null for anything that isn't a
 // Stream Deck link, true or false for one. A web page on another site can make the browser fetch a /deck/ link (an
 // image tag sends no Origin, and plain http sends no Sec-Fetch-Site), so crossSite() can't tell it from a Website key.
-// What it can't do: know this Mac's key (/k/<key>/deck/..., keyGiven), add a custom header (x-studio-deck, which
+// What it can't do: know a device's key (/k/<key>/deck/..., keyGiven; known(keyGiven) says whether it is one, see
+// devices.js), add a custom header (x-studio-deck, which
 // the Studio Stream Deck plugin sends; a browser asks Studio first, and Studio never says yes), or send a Referer
 // naming one of Studio's own pages (the Output page and the API page press links from there).
-function deckPress(pathname, keyGiven, key, headers, port, hosts) {
+function deckPress(pathname, keyGiven, known, headers, port, hosts) {
   if (pathname !== '/deck' && !pathname.startsWith('/deck/')) return null;
   const h = headers || {};
-  if (keyGiven && key && keyGiven === key) return true;
+  if (keyGiven && known && known(keyGiven)) return true;
   if (h['x-studio-deck']) return true;
   try {
     const ref = new URL(String(h.referer || ''));
@@ -138,4 +149,4 @@ function deckPress(pathname, keyGiven, key, headers, port, hosts) {
   return false;
 }
 
-module.exports = { changes, privateRead, PRIVATE, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };
+module.exports = { changes, privateRead, PRIVATE, MAC_ONLY, notThisMac, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };
