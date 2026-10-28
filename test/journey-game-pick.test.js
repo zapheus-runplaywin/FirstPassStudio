@@ -103,7 +103,8 @@ test('the operator follows another court, then picks a game by hand, then hands 
   await control.click('#useGame');
   const picked = world.divisions[1].rounds[2].games[1];
   await showsTeams(graphic, picked.home, picked.away);
-  assert.equal(await control.isChecked('#autoSelect'), false);
+  // The control page hears that automatic went off a moment after the graphic changes.
+  await control.waitForFunction(() => !document.querySelector('#autoSelect').checked, null, { timeout: 5000 });
   await says(control, '#autoNote', /^Off, so the game stays as picked from the list/);
   // Ticked again: back to the game on court 2.
   await control.check('#autoSelect');
