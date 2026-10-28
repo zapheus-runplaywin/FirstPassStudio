@@ -95,7 +95,7 @@ leaves a half-written settings file.
 | `scene.js` SSE ping | 25 s | Keeps the plugin's event stream open. |
 | `scene.html` mics | 25 ms, 500 ms | In the primary output's window, while mics are set up: the mics' levels follow the settings and the dip; twice a second it reports their levels and trouble to the helper. The Output page reads that twice a second while its Mics section is open. |
 | `server.js` pushBoard | on each save, and 1 s | Pushes the scoreboard to the pages following it over the scene socket (scoreboard, control page, goals, countdown) when it has changed. |
-| Pages | 1-30 s | Ticker, super shot and streak pages poll the helper only (see "Data and bandwidth" on the Docs page). |
+| Pages | 1-30 s | Ticker, super shot, streak and commentator stats pages poll the helper only (see "Data and bandwidth" on the Docs page). |
 
 Logging: one debug log, `logs/playhq-graphics.log` in the data folder (15 MB cap), written by the helper and by pages
 through `/api/log`. The log file keeps its old name on purpose.

@@ -78,7 +78,7 @@ function renderOptions(s, force) {
         input.dataset.list = 'audio';
         for (const f of tracks()) if (!o.choices.some(([v]) => v === f)) input.add(new Option(songName(f), f));
       }
-      if (![...input.options].some(opt => opt.value === value)) input.add(new Option(value, value));
+      if (![...input.options].some(opt => opt.value === value) && !(o.tick && value === o.tick.off)) input.add(new Option(value, value));
     } else {
       input = document.createElement('input');
       input.type = o.type === 'number' ? 'number' : 'text';
@@ -98,6 +98,26 @@ function renderOptions(s, force) {
     row.className = 'row';
     row.appendChild(input);
     if (o.type !== 'select') input.style.flex = '1';
+    // tick (pageoptions.js): a tick box before the select. Unticked sets the option to tick.off; ticked uses the select.
+    if (o.tick) {
+      const tick = document.createElement('label');
+      tick.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; font-weight: normal; white-space: nowrap';
+      tick.innerHTML = '<input type="checkbox">';
+      tick.append(' ' + o.tick.text);
+      const box = tick.querySelector('input');
+      box.id = 'opt-' + o.key + '-tick';
+      box.checked = value !== o.tick.off;
+      if (!box.checked) input.value = '';
+      input.disabled = !box.checked;
+      const set = v => {
+        const q = new URLSearchParams(String(current().url).split('?')[1] || '');
+        if (v === '') q.delete(o.key); else q.set(o.key, v);
+        const qs = q.toString();
+        change({ url: path + (qs ? '?' + qs : '') });
+      };
+      box.onchange = () => { input.disabled = !box.checked; set(box.checked ? input.value : o.tick.off); };
+      row.insertBefore(tick, input);
+    }
     // A song or sound added here goes into the media folder (as is, no loudness change) and is picked at once.
     if (o.list === 'audio') {
       const add = document.createElement('label');

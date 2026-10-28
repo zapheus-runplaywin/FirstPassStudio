@@ -67,7 +67,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: native/ndi/package-lock.json
-      # Builds native/ndi and checks it loads, then that it keeps the frame rate against a stand-in NDI
+      # Builds native/ndi and checks it loads, then that it sends fill and key without waiting against a stand-in NDI
       # runtime that is slow to compress (timing-test.js). The Mac build runs the same tests on macOS.
       - run: npm ci && npm run build && npm test
 
