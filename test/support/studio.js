@@ -70,7 +70,10 @@ async function startStudio(t, opts = {}) {
   const exited = server.exited;
 
   const base = `http://127.0.0.1:${port}`;
+  // Stream Deck links are pressed the way the Studio plugin presses them (its x-studio-deck header), since Studio
+  // refuses one without its key; access.test.js tests the key itself.
   const request = async (method, p, body, headers = {}) => {
+    if (/^\/deck(\/|\?|$)/.test(p)) headers = { 'x-studio-deck': '1', ...headers };
     const isRaw = Buffer.isBuffer(body) || typeof body === 'string';
     const res = await fetch(base + p, { method, headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
       body: body === undefined ? undefined : isRaw ? body : JSON.stringify(body) });

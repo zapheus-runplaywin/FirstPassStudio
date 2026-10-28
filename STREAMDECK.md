@@ -10,9 +10,9 @@ and tick **GET request in background** so no browser window opens.
 
 **The Stream Deck key.** Links copied from Studio (the Stream Deck page, the Output page) have this Mac's key after the
 port, like `http://localhost:8080/k/3f9aQ2cB7xLd/deck/home/add1`, so a web page that doesn't know the key can't press them.
-The links below are shown without it and work as they are until **Stream Deck links need the key** is ticked in the
-menu bar icon; after that, copy them from the Stream Deck page instead, or put `/k/<your key>` after `:8080` yourself.
-The FirstPass Studio plugin needs no key (install it again from the Output page if it came with an older Studio).
+The links below are shown without it, and Studio refuses a link without its key, so copy them from the Stream Deck page
+instead, or put `/k/<your key>` after `:8080` yourself. The FirstPass Studio plugin needs no key (install it again from
+the Output page if it came with an older Studio).
 The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running Studio.
 The Docs page (http://localhost:8080/graphics.html) shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
 which also works from a Stream Deck on another computer on the same network.

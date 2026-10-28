@@ -76,7 +76,8 @@ test('Studio sends no CORS header, and with remoteChanges off still takes change
     assert.equal(res.headers.get('access-control-allow-origin'), null);
     const r = await studio.post('/api/scoreboard', { type: 'score', side: 'home', delta: 1 });
     assert.equal(r.home.score, 1, 'a change from this computer goes through');
-    assert.equal((await fetch(`${studio.base}/deck/home/add1`)).status, 200);
+    const { key } = await studio.get('/api/deck-key');
+    assert.equal((await fetch(`${studio.base}/k/${key}/deck/home/add1`)).status, 200);
     assert.equal((await fetch(`${studio.base}/api/log`)).status, 200, 'private reads from this computer go through');
     assert.equal((await fetch(`${studio.base}/api/athletes`)).status, 200);
   } finally { await studio.stop(); fs.rmSync(dataDir, { recursive: true, force: true }); }
@@ -137,7 +138,8 @@ test('Studio refuses changes from another site over HTTP and WebSocket, and stil
     res = await fetch(`${studio.base}/api/scoreboard`, { method: 'POST', headers: { 'content-type': 'application/json', origin: own, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify({ type: 'score', side: 'home', delta: 1 }) });
     assert.equal(res.status, 200);
     assert.equal((await res.json()).home.score, 1);
-    assert.equal((await fetch(`${studio.base}/deck/home/add1`, { headers: { origin: own, 'sec-fetch-site': 'same-origin' } })).status, 200);
+    const { key } = await studio.get('/api/deck-key');
+    assert.equal((await fetch(`${studio.base}/k/${key}/deck/home/add1`, { headers: { origin: own, 'sec-fetch-site': 'same-origin' } })).status, 200);
     // The scene socket: refused from another site, opened for Studio's pages.
     const upgrade = headers => new Promise(resolve => {
       const req = http.request({ host: '127.0.0.1', port: studio.port, path: '/api/scene/socket', headers: { connection: 'Upgrade', upgrade: 'websocket', 'sec-websocket-version': '13', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==', ...headers } });
@@ -170,7 +172,7 @@ test('a refused socket that hangs up straight away closes just that connection, 
   assert.equal((await studio.request('GET', '/api/health')).status, 200);
 });
 
-test('Stream Deck links: the key, the plugin\'s header or Studio\'s own pages; without them only while keys aren\'t required', async t => {
+test('Stream Deck links: only the key, the plugin\'s header or Studio\'s own pages press them', async t => {
   const http = require('node:http');
   // fetch won't send a made-up Referer for another site, so plain http.
   const press = (studio, p, headers = {}) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p, headers }, r => {
@@ -180,23 +182,17 @@ test('Stream Deck links: the key, the plugin\'s header or Studio\'s own pages; w
   const k = await studio.get('/api/deck-key');
   assert.match(k.key, /^[\w-]{12}$/);
   assert.ok(k.base.endsWith(`/k/${k.key}`), k.base);
-  assert.equal(k.required, false);
   assert.equal(fs.readFileSync(path.join(studio.dataDir, 'deck-key.txt'), 'utf8').trim(), k.key, 'kept on this Mac');
-  // Not required yet: a plain link, and even one an image on another site fires, still work, and are logged once.
-  assert.equal((await press(studio, '/deck/home/add1')).status, 200);
-  assert.equal((await press(studio, '/deck/home/add1', { referer: 'http://evil.example/' })).status, 200);
-  assert.equal((await press(studio, `/k/${k.key}/deck/home/add1`)).status, 200, 'with the key');
-  assert.equal((await studio.get('/api/scoreboard')).home.score, 3);
-  assert.equal((studio.log().match(/without its key/g) || []).length, 1, 'logged once per address');
   await studio.stop();
 
-  // Required: the same key (kept in the data folder), and only the key, the header or Studio's own pages press.
+  // The same key comes back from the data folder, and only the key, the header or Studio's own pages press.
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-deck-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dataDir, 'deck-key.txt'), k.key + '\n');
-  fs.writeFileSync(path.join(dataDir, 'config.json'), JSON.stringify({ deckKeyRequired: true }));
+  // A config.json from before keys were always required changes nothing.
+  fs.writeFileSync(path.join(dataDir, 'config.json'), JSON.stringify({ deckKeyRequired: false }));
   const locked = await startStudio(t, { competition: 'Thunder League', dataDir });
-  assert.equal((await locked.get('/api/deck-key')).required, true);
+  assert.equal((await locked.get('/api/deck-key')).key, k.key);
   const refused = await press(locked, '/deck/home/add1');
   assert.equal(refused.status, 403);
   assert.match(refused.body, /no Stream Deck key\. Copy the link again from the Output page/);

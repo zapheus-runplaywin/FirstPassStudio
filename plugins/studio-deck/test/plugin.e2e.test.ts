@@ -104,7 +104,6 @@ async function startDeck() {
 
 async function startStudio(port: number, dataDir: string): Promise<ChildProcess> {
 	// Stream Deck links need the key, so every press below also proves the plugin's x-studio-deck header gets through.
-	fs.writeFileSync(path.join(dataDir, "config.json"), JSON.stringify({ deckKeyRequired: true }));
 	const child = spawn(process.execPath, [path.join(REPO, "server.js")], {
 		cwd: REPO,
 		env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir },
