@@ -12,13 +12,13 @@
 <style>
   /* Hot streaks, about 3.6 seconds each, then they fade out and leave the frame clear. Transparent outside the graphics.
      By default it stays on and plays by itself when the helper sees a streak in the goals on the scoreboard:
-       heating up    3 goals in a row by one team: "<team> is HEATING UP", embers rising, the words warming from the team's colour to fire
-       on fire       5 goals in a row: "<team> is ON FIRE", the words slam in and burn, flames roar up behind them
+       heating up    3 goals in a row by one team: "<team>" over HEATING UP, embers rising, the words warming from the team's colour to fire
+       on fire       5 goals in a row: "<team>" over ON FIRE, the words slam in and burn, flames roar up behind them
        goal for goal 10 goals going one each way: "GOAL FOR GOAL INTENSITY", both crests, the words crackle, a dot per goal
      and game moments:
        lead          "<team> HITS THE FRONT", gold chevrons rising, the score
        level         "ALL SQUARE" late in a quarter, both crests sliding in either side, the score on a levelling beam
-       comeback      "<team> is COMING BACK", chevrons sweeping forward, "from 6 down"
+       comeback      "<team>" over COMING BACK, chevrons sweeping forward, "from 6 down"
        siren         "<team> ON THE SIREN!", a spinning red beacon and a flash, the quarter and time left
        backToBack    "<team> BACK TO BACK SUPER SHOTS", two netballs dropping in
      ?play=heating|fire|goalforgoal|lead|level|comeback|siren|backtoback plays one once when the page loads instead (manual), with ?team=home|away.
@@ -55,8 +55,6 @@
     background: linear-gradient(180deg, rgb(var(--team-rgb)), rgb(var(--side-dark))); border-bottom: 6px solid var(--yellow);
     clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); }
   .plate h2 { margin: 0; color: var(--side-text); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 76px; line-height: 1.1; letter-spacing: 1px; }
-  .plate h2 i { font-weight: 800; font-size: .62em; text-transform: none; opacity: .9; margin-left: .3em; }
-  .plate h2 i:empty { display: none; }
 
   /* The big words, one span per letter so they can come in one after another */
   .big { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; font-style: italic; white-space: nowrap; line-height: 1; }
@@ -238,7 +236,7 @@
         <div class="big" id="momWords"></div>
         <div class="mrow" id="momRow"></div>
       </div>
-      <div class="team" id="team"><div class="crest" id="crest"></div><div class="plate"><h2><span id="name"></span><i id="nameAfter">is</i></h2></div></div>
+      <div class="team" id="team"><div class="crest" id="crest"></div><div class="plate"><h2><span id="name"></span></h2></div></div>
     </div>
   </div>
   <template id="ballSvg">
@@ -262,8 +260,8 @@
     const NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square', comeback: 'coming back',
       siren: 'on the siren', backToBack: 'back to back super shots' };
     const GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
-    // The big words for each moment, and the little word after the team's name on the plate.
-    const WORDS = { lead: ['HITS THE FRONT', ''], comeback: ['COMING BACK', 'is'], siren: ['ON THE SIREN!', ''], backToBack: ['BACK TO BACK', ''], level: ['ALL SQUARE', ''] };
+    // The big words for each moment.
+    const WORDS = { lead: 'HITS THE FRONT', comeback: 'COMING BACK', siren: 'ON THE SIREN!', backToBack: 'BACK TO BACK', level: 'ALL SQUARE' };
     const kindOf = v => ({ heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal', lead: 'lead', front: 'lead',
       level: 'level', square: 'level', allsquare: 'level', comeback: 'comeback', siren: 'siren', backtoback: 'backToBack' })[String(v || '').toLowerCase().replace(/[^a-z]/g, '')];
     const ALL_CLASSES = [...new Set(Object.values(KINDS).join(' ').split(' '))];
@@ -304,8 +302,7 @@
     // A moment's words, the line under them, and its touches (chevrons, netballs).
     const scoreOf = (ev, s) => ev.score || { home: s && s.home ? Number(s.home.score) || 0 : 0, away: s && s.away ? Number(s.away.score) || 0 : 0 };
     function momentWords(ev, s) {
-      const [words, after] = WORDS[ev.kind];
-      $('nameAfter').textContent = after;
+      const words = WORDS[ev.kind];
       letters($('momWords'), words, .04, .2);
       fitLetters($('momWords'), ev.kind === 'level' ? 1240 : 1560, 180, 90); // level: room for both crests either side
       const sc = scoreOf(ev, s), row = $('momRow');
@@ -345,7 +342,6 @@
       ['--team-rgb', '--side-dark', '--side-text', '--home-rgb', '--away-rgb'].forEach(v => stage.style.removeProperty(v));
       stage.classList.remove(...ALL_CLASSES);
       stage.classList.add(...KINDS[ev.kind].split(' '));
-      $('nameAfter').textContent = 'is';
       const waits = [];
       let who = '';
       if (ev.kind === 'goalForGoal') {

@@ -619,13 +619,13 @@ These follow the game picked on the scoreboard control page:
   Manual: `?team=home`, `?team=away` or `?team=none` plays it once when the source comes on instead (keep **Load the page
   fresh each time it's shown** ticked). Details in STREAMDECK.md.
 - http://localhost:8080/streak.html: hot streaks, about 3½ seconds each, small under the title like the super shot.
-  "<team> is HEATING UP" at 3 goals in a row, "<team> is ON FIRE" at 5 in a row, and "GOAL FOR GOAL INTENSITY" when
+  "<team> HEATING UP" at 3 goals in a row, "<team> ON FIRE" at 5 in a row, and "GOAL FOR GOAL INTENSITY" when
   10 goals in a row go one each way. Leave it on: it plays by itself from the goal order the Last 10 goals graphic uses
   (a super shot is one goal), once per run (a run reaching 5 plays on fire, not heating up again), never for scores
   catching up or after full time, and after any super shot graphic. `?heating=0`, `?fire=0`, `?goalforgoal=0` leave one
   out; `/deck/streak/heating/home`, `/deck/streak/fire/away`, `/deck/streak/goalforgoal` play one to test.
   Game moments on the same page: "<team> HITS THE FRONT" when the lead swaps, "ALL SQUARE" when it's level in the last
-  2 minutes of a quarter, "<team> is COMING BACK" when a team 5 or more down gets within 2, "<team> ON THE SIREN!" for a
+  2 minutes of a quarter, "<team> COMING BACK" when a team 5 or more down gets within 2, "<team> ON THE SIREN!" for a
   goal with 10 seconds or less left while the clock runs, and "<team> BACK TO BACK SUPER SHOTS". One goal plays one at
   most (siren, back to back, on fire, hits the front, coming back, all square, goal for goal, heating up, in that order).
   `?lead=0`, `?level=0`, `?comeback=0`, `?siren=0`, `?backtoback=0` leave one out; `/deck/streak/lead/home` etc. test them.
