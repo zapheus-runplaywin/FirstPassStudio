@@ -171,7 +171,7 @@
         Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file.
         A .mov and the WebM converted from it are separate files.</li>
       <li><b>Stream Deck plugin:</b> the Mac app includes a FirstPass Studio plugin for the Stream Deck app. Install it from the menu bar icon
-        (<b>Install the Stream Deck plugin</b>) or the Output page's button. Its <b>Source</b> key shows or hides the source you pick in its settings
+        (<b>Install the Stream Deck plugin</b>) or the Output page's button. The first time a key is pressed, the plugin asks Studio to pair: the Mac shows <b>Allow</b> or <b>Deny</b> for “Stream Deck on <i>computer</i>”, and once allowed the plugin signs every press with its own key pair, so nothing secret crosses the network and a press seen on the network can't be sent again. Devices… lists it and can remove it. Its <b>Source</b> key shows or hides the source you pick in its settings
         (or fades it in, fades it out, restarts it, or turns a video's sound on or off) and lights up in its output's colour while the source is on, whether it was
         turned on from the key, the Output page or a link. With more than one output, each key's <b>Output</b> setting picks the output it acts on
         and follows (a removed output's key says <b>no output</b>). It shows the source's name, keeps working when you rename it, and says <b>off air</b> while Studio isn't running.
@@ -508,7 +508,8 @@
         Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
         coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too, and so does a
         read of private data asked for by such a name. A Stream Deck link must carry this Mac's key (<code style="display:inline">/k/&lt;key&gt;/deck/…</code>, as Studio copies them; kept in
-        <code style="display:inline">devices.json</code>, never backed up) or come from the Studio plugin or Studio's own pages, so a web page can't press one.</li>
+        <code style="display:inline">devices.json</code>, never backed up) or be signed by a paired Studio plugin, or come from Studio's own pages, so a web page can't press one. (Until a plugin has paired, the plugin's older
+        <code style="display:inline">x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>

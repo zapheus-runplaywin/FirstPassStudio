@@ -184,8 +184,12 @@ browser marks as coming from a web page on another site (its `Origin` or `Sec-Fe
 Studio by a name this Mac doesn't answer to (its `Host` header: localhost, the Mac's addresses, its `.local` name and
 `linkHost` are fine), gets a 403 that says so. Stream Deck links (`/deck/...`) are plain GETs, which a hidden image on
 another site can also fire, so links copied from Studio carry this Mac's key after the port (`/k/<key>/deck/...`,
-kept with the devices list in `devices.json` in the local data folder, never in a backup or iCloud); the Studio Stream Deck plugin sends an
-`x-studio-deck` header instead, and Studio's own pages are known by their `Referer`. A link without any of those is
+kept with the devices list in `devices.json` in the local data folder, never in a backup or iCloud); the Studio Stream Deck plugin pairs once
+(it asks on its first press, sending its Ed25519 public key; the Mac shows Allow / Deny) and then signs every press
+over `GET\n<path and query>\n<time in ms>` with `x-studio-device`, `x-studio-time` and `x-studio-sign` headers; Studio
+takes a signature within a minute of its time and only once (`devices.signed()`). The plugin keeps its key pair in the
+Stream Deck's global settings, so it survives restarts and plugin updates. Until any plugin has paired, the plugin's
+old `x-studio-deck` header still counts, so plugins installed before pairing keep working; after that it doesn't. Studio's own pages are known by their `Referer`. A link without any of those is
 refused with a 403 saying to copy it again from the Output page (logged once per address). **Devices…** in the menu bar icon
 lists what may change things from another device, for now This Mac's links, with when the key was made and last used;
 **Make a new key** there gives up the old key, so every link copied before stops working (`devices.js`; the list and

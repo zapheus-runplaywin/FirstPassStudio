@@ -51,7 +51,8 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <p class="help">The Studio Stream Deck plugin needs no key. Studio's own pages on this Mac always can change things,
+    <p class="help">The Studio Stream Deck plugin asks to be added on its first key press and then signs every press with its own key pair;
+      once one has been allowed, plugins that haven't can't press anything. Studio's own pages on this Mac always can change things,
       and while "Only this Mac can change things" is ticked in the menu bar icon (it is each time Studio opens), nothing else can.
       A program on another device can ask to be added (the Docs page says how): the Mac asks you to Allow or Deny it, and
       it shows here too. A device unused for 90 days drops off the list and has to ask again.</p>
@@ -62,7 +63,7 @@
   'use strict';
   const rows = document.getElementById('rows');
   const msg = document.getElementById('msg');
-  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page)', program: 'A program that asked to be added' };
+  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page)', program: 'A program that asked to be added', plugin: 'Studio Stream Deck plugin (signs each press)' };
   const LEVELS = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
   const when = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
   const say = text => { msg.textContent = text; msg.hidden = !text; };

@@ -49,9 +49,10 @@ function frame(text: string): Buffer {
 	return Buffer.concat([h, p]);
 }
 
-/** A fake Stream Deck app: accepts the plugin's WebSocket and records what it sends. */
+/** A fake Stream Deck app: accepts the plugin's WebSocket, records what it sends and keeps its global settings. */
 async function startDeck() {
 	const received: Msg[] = [];
+	let globalSettings: object = {};
 	let sock: Socket | null = null;
 	let buf = Buffer.alloc(0);
 	const server = http.createServer();
@@ -77,7 +78,11 @@ async function startDeck() {
 				const payload = Buffer.from(buf.subarray(off + 4, off + 4 + len)).map((b, i) => b ^ mask[i & 3]);
 				const opcode = buf[0] & 0x0f;
 				buf = buf.subarray(off + 4 + len);
-				if (opcode === 1) received.push({ ...JSON.parse(Buffer.from(payload).toString()), _at: Date.now() });
+				if (opcode !== 1) continue;
+				const msg = { ...JSON.parse(Buffer.from(payload).toString()), _at: Date.now() };
+				received.push(msg);
+				if (msg.event === "setGlobalSettings") globalSettings = msg.payload;
+				if (msg.event === "getGlobalSettings") socket.write(frame(JSON.stringify({ event: "didReceiveGlobalSettings", payload: { settings: globalSettings } })));
 			}
 		});
 	});
@@ -85,6 +90,7 @@ async function startDeck() {
 	return {
 		port: (server.address() as { port: number }).port,
 		received,
+		globalSettings: () => globalSettings,
 		send: (obj: object) => sock!.write(frame(JSON.stringify(obj))),
 		async waitFor(pred: (m: Msg) => boolean, label: string, ms = 8000): Promise<Msg> {
 			const end = Date.now() + ms;
@@ -103,7 +109,8 @@ async function startDeck() {
 }
 
 async function startStudio(port: number, dataDir: string): Promise<ChildProcess> {
-	// Stream Deck links need the key, so every press below also proves the plugin's x-studio-deck header gets through.
+	// Stream Deck links need the key, so every press below also proves the plugin gets through: by its old x-studio-deck
+	// header while no plugin has paired, then signed (the pairing test at the end).
 	const child = spawn(process.execPath, [path.join(REPO, "server.js")], {
 		cwd: REPO,
 		env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir },
@@ -443,6 +450,68 @@ test("real SDK and real Studio: Switcher keys show the tally and press the switc
 		studio.kill();
 		deck.close();
 		await atem.close();
+		fs.rmSync(dataDir, { recursive: true, force: true });
+	}
+});
+
+test("real SDK and real Studio: the plugin asks to pair, then signs every press", { timeout: 60000 }, async () => {
+	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-deck-"));
+	const studioPort = 20000 + Math.floor(Math.random() * 20000);
+	const studio = await startStudio(studioPort, dataDir);
+	const host = `http://127.0.0.1:${studioPort}`;
+	const deck = await startDeck();
+	const plugin = launchPlugin(deck.port);
+	const post = (body: object) => fetch(`${host}/api/scene`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+	const scene = async () => (await (await fetch(`${host}/api/scene`)).json()) as { sources: { id: string; name: string; visible: boolean }[] };
+	type Devices = { devices: { id: string; kind: string; name: string; lastSeen: string | null }[]; asking: { id: string; name: string } | null };
+	const devices = async () => (await (await fetch(`${host}/api/devices`)).json()) as Devices;
+	const until = async <T>(get: () => Promise<T>, ok: (v: T) => boolean, label: string): Promise<T> => {
+		for (let i = 0; i < 100; i++) {
+			const v = await get();
+			if (ok(v)) return v;
+			await new Promise((r) => setTimeout(r, 100));
+		}
+		throw new Error(`timed out waiting for ${label}`);
+	};
+
+	try {
+		await deck.waitFor((m) => m.event === "registerPlugin", "registration", 15000);
+		assert.ok((await post({ type: "add", source: { type: "browser", name: "Up Next", url: "upnext.html" } })).ok);
+		const src = (await scene()).sources[0];
+		const settings = { host, source: src.id, sourceName: src.name };
+		deck.send(keyEvent("willAppear", "K1", settings));
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "K1" && m.payload?.title === "Up Next", "source title");
+
+		// First press: no plugin has paired yet, so the old header still presses it, and the plugin asks to pair.
+		deck.send(keyEvent("keyDown", "K1", settings));
+		await until(scene, (s) => s.sources[0].visible, "shown by the first press");
+		const { asking } = await until(devices, (d) => !!d.asking, "the pairing request");
+		assert.match(asking!.name, /^Stream Deck on /);
+		const saved = deck.globalSettings() as { identity?: { publicKey: string; privateKey: string } };
+		assert.ok(saved.identity?.publicKey && saved.identity.privateKey, "its key pair is kept in the global settings");
+
+		// Allowed on the Mac: the plugin saves the device id and signs from now on.
+		assert.ok((await fetch(`${host}/api/devices/requests/${asking!.id}/allow`, { method: "POST" })).ok);
+		await until(async () => deck.globalSettings() as { identity?: { studios: Record<string, string> } }, (g) => !!g.identity?.studios?.[host], "the device id saved");
+		const paired = (await devices()).devices.find((d) => d.kind === "plugin")!;
+		assert.ok(paired && paired.lastSeen === null);
+		deck.send(keyEvent("keyDown", "K1", settings));
+		await until(scene, (s) => !s.sources[0].visible, "hidden by a signed press");
+		assert.ok((await devices()).devices.find((d) => d.id === paired.id)!.lastSeen, "the press was signed by this device");
+
+		// The bare header no longer presses anything.
+		assert.equal((await fetch(`${host}/deck/layer/up-next/on`, { headers: { "x-studio-deck": "1" } })).status, 403);
+
+		// Removed in Devices…: the next press is refused and asks again.
+		assert.ok((await fetch(`${host}/api/devices/${paired.id}/revoke`, { method: "POST" })).ok);
+		const mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "K1", settings));
+		await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "showAlert", "alert when removed");
+		await until(devices, (d) => !!d.asking, "asking again");
+	} finally {
+		plugin.kill();
+		studio.kill();
+		deck.close();
 		fs.rmSync(dataDir, { recursive: true, force: true });
 	}
 });

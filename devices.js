@@ -7,8 +7,13 @@
 // An allowed program collects its own key once (collect()) and uses it like This Mac's key, in /k/<key>/deck/ links;
 // it can be taken away alone. One unused for 90 days drops off the list and has to ask again.
 //
+// The Studio Stream Deck plugin asks with its Ed25519 public key instead, and gets no key: it signs each press
+// (signed()) over "GET\n<path and query>\n<time in ms>", sent with x-studio-device, x-studio-time and x-studio-sign.
+// A signature counts only within a minute of its time and only once, so a press seen on the network can't be sent
+// again. Once any plugin has paired, the plugin's old x-studio-deck header stops counting (pluginPaired()).
+//
 // devices.json in the local data folder: never in iCloud, a backup or a template (datalocation.js LOCAL_ONLY).
-//   [{ id, name, kind: 'links' | 'program', level: 'full', secret, address, created, lastSeen }]
+//   [{ id, name, kind: 'links' | 'program' | 'plugin', level: 'full', secret | publicKey, address, created, lastSeen }]
 // The secrets never leave this module except as This Mac's key (linkKey(), which the Output page puts in the links
 // it copies); list() leaves them out.
 //
@@ -43,10 +48,21 @@ let seenSaved = 0;
 let asking = null;
 let askTimer = null;
 const deniedAt = new Map(); // address -> when it was last denied
+// Signatures already taken, until they are too old to count anyway: signature -> when it can be forgotten.
+const SIGNED_MS = 60 * 1000;
+const seenSigs = new Map();
+const publicKeys = new Map(); // device id -> KeyObject
 
 const newSecret = () => crypto.randomBytes(9).toString('base64url');
 const validKey = k => /^[\w-]{8,}$/.test(k);
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+// An Ed25519 public key as the plugin sends it (SPKI DER, base64url), or null.
+function publicKeyOf(text) {
+  try {
+    const key = crypto.createPublicKey({ key: Buffer.from(String(text), 'base64url'), format: 'der', type: 'spki' });
+    return key.asymmetricKeyType === 'ed25519' ? key : null;
+  } catch { return null; }
+}
 const unused = d => d.id !== LINKS && Date.now() - Date.parse(d.lastSeen || d.created) > UNUSED_MS;
 
 function oldKey() {
@@ -65,7 +81,7 @@ function saveOldKey(key) {
 function load(logger) {
   if (logger) log = logger;
   const read = savefile.readJson(FILE, null, (err, movedTo) => log('error', 'devices', `devices.json couldn't be read (${err.message})${movedTo ? `; moved aside as ${movedTo}` : ''}`));
-  devices = Array.isArray(read) ? read.filter(d => d && d.id && validKey(String(d.secret || ''))) : [];
+  devices = Array.isArray(read) ? read.filter(d => d && d.id && (validKey(String(d.secret || '')) || (d.publicKey && publicKeyOf(d.publicKey)))) : [];
   const before = devices.length;
   devices = devices.filter(d => !unused(d));
   if (devices.length < before) log('info', 'devices', `${before - devices.length} device(s) unused for 90 days dropped off the list`);
@@ -86,7 +102,7 @@ const linkKey = () => all().find(d => d.id === LINKS).secret;
 // The device whose secret this is, or null. Compared in constant time; a match counts as the device being used.
 function match(given) {
   if (!given) return null;
-  const found = all().find(d => same(d.secret, given) && !unused(d));
+  const found = all().find(d => d.secret && same(d.secret, given) && !unused(d));
   if (found) {
     found.lastSeen = new Date().toISOString();
     if (Date.now() - seenSaved > SEEN_EVERY) { seenSaved = Date.now(); save(); }
@@ -95,7 +111,31 @@ function match(given) {
 }
 
 // Every device, without its secret.
-const list = () => all().filter(d => !unused(d)).map(({ secret, ...d }) => d);
+const list = () => all().filter(d => !unused(d)).map(({ secret, publicKey, ...d }) => d);
+
+// Whether a press is signed by a paired plugin: null when it carries no signature, 'ok', 'unknown' (no such device,
+// removed in Devices… or unused for 90 days: the plugin should ask again) or 'bad' (wrong, too old, or sent before).
+function signed(method, url, headers) {
+  const h = headers || {};
+  const id = h['x-studio-device'], time = Number(h['x-studio-time']), sig = String(h['x-studio-sign'] || '');
+  if (!id && !sig) return null;
+  const d = all().find(x => x.id === id && x.publicKey);
+  if (!d || unused(d)) return 'unknown';
+  if (!Number.isFinite(time) || Math.abs(Date.now() - time) > SIGNED_MS || !sig || seenSigs.has(sig)) return 'bad';
+  if (!publicKeys.has(d.id)) publicKeys.set(d.id, publicKeyOf(d.publicKey));
+  let ok = false;
+  try { ok = crypto.verify(null, Buffer.from(`${method}\n${url}\n${h['x-studio-time']}`), publicKeys.get(d.id), Buffer.from(sig, 'base64url')); } catch { ok = false; }
+  if (!ok) return 'bad';
+  const now = Date.now();
+  for (const [s, until] of seenSigs) if (until < now) seenSigs.delete(s);
+  seenSigs.set(sig, now + SIGNED_MS);
+  d.lastSeen = new Date().toISOString();
+  if (now - seenSaved > SEEN_EVERY) { seenSaved = now; save(); }
+  return 'ok';
+}
+
+// Whether a Studio Stream Deck plugin has paired: from then on a plugin must sign, and the old header doesn't count.
+const pluginPaired = () => all().some(d => d.kind === 'plugin' && !unused(d));
 
 // Takes a device's access away. This Mac's links stay in the list with a new key, so every link made before stops
 // working and the links copied from now on work. Returns false for a device that isn't in the list.
@@ -109,6 +149,7 @@ function revoke(id) {
     saveOldKey(d.secret);
   } else {
     devices = devices.filter(x => x !== d);
+    publicKeys.delete(d.id);
   }
   save();
   log('info', 'devices', d.id === LINKS ? 'This Mac\'s links have a new key; links copied before no longer work' : `${d.name} can no longer change things`);
@@ -125,15 +166,17 @@ function endAsking() {
   asking = null;
 }
 
-// A device at address asks to be added under name. { id, token, expires } (token collects the answer), or
-// { error } when another request is open or this address was just denied.
-function ask(name, address) {
+// A device at address asks to be added under name, with its public key if it signs (the Studio plugin).
+// { id, token, expires } (token collects the answer), or { error } when another request is open or this address was
+// just denied.
+function ask(name, address, publicKey) {
+  if (publicKey !== undefined && !publicKeyOf(publicKey)) return { error: 'That public key isn\'t an Ed25519 key (SPKI DER, base64url).' };
   const clean = String(name || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
   if (!clean) return { error: 'Give the device a name, such as "Office Stream Deck", so whoever is at the Mac knows what is asking.' };
   if (Date.now() - (deniedAt.get(address) || 0) < DENIED_MS) return { error: 'This device was just denied. Wait a minute before asking again.' };
   if (asking && !asking.answer) return { error: 'Another device is asking already. Try again once it is answered, or in five minutes.' };
   endAsking();
-  asking = { id: crypto.randomBytes(6).toString('base64url'), token: crypto.randomBytes(16).toString('base64url'), name: clean, address, at: Date.now(), answer: null };
+  asking = { id: crypto.randomBytes(6).toString('base64url'), token: crypto.randomBytes(16).toString('base64url'), name: clean, address, publicKey, at: Date.now(), answer: null };
   askTimer = setTimeout(() => { log('info', 'devices', `${asking.name} at ${asking.address} wasn't answered in five minutes`); endAsking(); }, ASK_MS);
   askTimer.unref?.();
   log('info', 'devices', `${clean} at ${address} asks to control Studio`);
@@ -145,7 +188,10 @@ function ask(name, address) {
 function answer(id, allow) {
   if (!asking || asking.id !== id || asking.answer) return false;
   if (allow) {
-    const d = { id: crypto.randomBytes(6).toString('base64url'), name: asking.name, kind: 'program', level: 'full', secret: newSecret(), address: asking.address, created: new Date().toISOString(), lastSeen: null };
+    const base = { id: crypto.randomBytes(6).toString('base64url'), name: asking.name, level: 'full', address: asking.address, created: new Date().toISOString(), lastSeen: null };
+    const d = asking.publicKey ? { ...base, kind: 'plugin', publicKey: asking.publicKey } : { ...base, kind: 'program', secret: newSecret() };
+    // A plugin asking again with the same key (its settings were lost) replaces its old entry.
+    if (d.publicKey) devices = all().filter(x => x.publicKey !== d.publicKey);
     all().push(d);
     save();
     asking.secret = d.secret;
@@ -164,7 +210,7 @@ function answer(id, allow) {
 function collect(id, token) {
   if (!asking || asking.id !== id || !same(asking.token, token || '')) return { status: 'gone' };
   if (!asking.answer) return { status: 'waiting', expires: new Date(asking.at + ASK_MS).toISOString() };
-  const done = asking.answer === 'allow' ? { status: 'allowed', key: asking.secret, device: asking.deviceId } : { status: 'denied' };
+  const done = asking.answer === 'allow' ? { status: 'allowed', ...(asking.secret ? { key: asking.secret } : {}), device: asking.deviceId } : { status: 'denied' };
   endAsking();
   return done;
 }
@@ -174,4 +220,4 @@ const pending = () => asking && !asking.answer
   ? { id: asking.id, name: asking.name, address: asking.address, at: new Date(asking.at).toISOString(), expires: new Date(asking.at + ASK_MS).toISOString() }
   : null;
 
-module.exports = { load, linkKey, match, list, revoke, ask, answer, collect, pending, FILE, LINKS };
+module.exports = { load, linkKey, match, list, revoke, signed, pluginPaired, ask, answer, collect, pending, FILE, LINKS };

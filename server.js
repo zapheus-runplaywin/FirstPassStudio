@@ -874,17 +874,24 @@ http.createServer(async (req, res) => {
     }
     // Stream Deck links: only with the key, from the Studio plugin, or from Studio's own pages (access.deckPress()), so
     // a web page can't press one. A refused link is logged once per address, with how to fix it.
-    const deck = access.deckPress(url.pathname, keyed && keyed[1], k => !!devices.match(k), req.headers, PORT, ownHosts());
+    const signed = devices.signed(req.method, req.url, req.headers);
+    const deck = access.deckPress(url.pathname, { keyOk: !!(keyed && devices.match(keyed[1])), signed: signed === 'ok', headerOk: !devices.pluginPaired() }, req.headers, PORT, ownHosts());
     if (deck === false) {
       const from = access.strip(req.socket.remoteAddress);
-      const why = `Studio refused ${url.pathname} because the link has no Stream Deck key, or one this Mac has given up (Devices…, Make a new key). Copy the link again from the Output page (it starts ${LINK_BASE}/k/…), or install the Stream Deck plugin again from the Output page.`;
-      if (!refusedFrom.has(`deck ${from}`)) { refusedFrom.add(`deck ${from}`); log('warn', 'access', why); }
-      return send(res, 403, { error: why });
+      // pair: the Studio plugin should ask to be allowed (again).
+      const pair = signed === 'unknown' || (signed === null && !!req.headers['x-studio-deck']);
+      const why = signed === 'unknown' ? `Studio refused ${url.pathname}: this Stream Deck was removed in Devices… or went unused for 90 days. Its next press asks to pair again; Allow it on the Mac.`
+        : signed === 'bad' ? `Studio refused ${url.pathname}: the Stream Deck's signature didn't check out (its computer's clock may be more than a minute out from this Mac's, or the press was sent twice).`
+          : pair ? `Studio refused ${url.pathname}: this Stream Deck plugin hasn't been allowed yet. It asks on its first press; Allow it on the Mac. If no dialog comes, install the plugin again from the Output page.`
+            : `Studio refused ${url.pathname} because the link has no Stream Deck key, or one this Mac has given up (Devices…, Make a new key). Copy the link again from the Output page (it starts ${LINK_BASE}/k/…), or install the Stream Deck plugin again from the Output page.`;
+      if (!refusedFrom.has(`deck ${from} ${signed}`)) { refusedFrom.add(`deck ${from} ${signed}`); log('warn', 'access', why); }
+      return send(res, 403, { error: why, ...(pair ? { pair: true } : {}) });
     }
     if (url.pathname === '/api/deck-key') return send(res, 200, { key: devices.linkKey(), base: deckBase() });
     // Another device asks to control Studio (devices.js ask()); it learns the answer from GET /api/pair/<id> with its token.
     if (url.pathname === '/api/pair' && req.method === 'POST') {
-      const asked = devices.ask((await readBody(req)).name, access.strip(req.socket.remoteAddress));
+      const body = await readBody(req);
+      const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), body.publicKey);
       return send(res, asked.error ? 409 : 202, asked);
     }
     const pair = /^\/api\/pair\/([^/]+)$/.exec(url.pathname);
