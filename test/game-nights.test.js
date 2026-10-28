@@ -51,3 +51,11 @@ test('picking a night pulls in every division\'s games that date, and a round nu
   }
   assert.equal((await get('/api/rounds')).choice, '');
 });
+
+test('the fixture has no one round heading when divisions are on different rounds; each game keeps its own', async () => {
+  const f = await get('/api/fixtures');
+  assert.equal(f.round, '');
+  assert.deepEqual(f.rounds.slice().sort(), ['Finals Round 1', 'Round 3']);
+  assert.ok(f.games.every(g => g.round));
+  assert.equal((await get('/api/fixtures?division=2')).round, 'Finals Round 1', 'one division still has its round');
+});

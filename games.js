@@ -200,11 +200,14 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     }
     const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
     games.sort((a, b) => key(a).localeCompare(key(b), 'en', { numeric: true }));
-    const round = roundNames.sort((a, b) => roundNames.filter(n => n === b).length - roundNames.filter(n => n === a).length)[0] || '';
+    // One round name for the heading when every division is on it; divisions on different rounds the same
+    // night (one on Round 10, another on Finals Round 1) have no one name, so each game shows its own.
+    const names = [...new Set(roundNames)];
+    const round = names.length === 1 ? names[0] : '';
     if (q.round && !roundNames.length) return { error: `No round "${q.round}" in ${q.division ? 'that division' : 'any division'}` };
-    log('info', 'fixtures', `Fixture${q.results ? ' results' : ''} for ${round || 'no round'}${q.round ? ` (asked for round=${q.round})` : ''}: ${games.length} games`);
+    log('info', 'fixtures', `Fixture${q.results ? ' results' : ''} for ${names.join(', ') || 'no round'}${q.round ? ` (asked for round=${q.round})` : ''}: ${games.length} games`);
     return { competition: st.competition, rules: rules(q.division && grades[0] ? grades[0].name : undefined), venueName: config().venueName || (games[0] && games[0].venue) || '',
-      division: q.division ? (grades[0] && grades[0].name) || '' : '', round, games };
+      division: q.division ? (grades[0] && grades[0].name) || '' : '', round, rounds: names, games };
   }
 
   // The game after the one on the scoreboard: the next timeslot on the same court

@@ -760,7 +760,7 @@ document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/f
   'It shows this round (the one the control page has, picked by date unless set by hand) and loads once, getting the latest each time it\'s turned on on the Output page. ' +
   'Options: <code>?round=next</code> shows the round after this one (next week), <code>?round=prev</code> the one before, <code>?round=+2</code> or <code>?round=-1</code> counts from this round, ' +
   '<code>?round=6</code> shows round 6 (or a round by name, like <code>?round=Final</code>), and <code>?division=1</code> shows one division. Combine them with &amp;, e.g. <code>/fixtures.html?round=next&amp;division=1</code>. ' +
-  'A division without that round is left out.'));
+  'A division without that round is left out. When divisions are on different rounds (one on Round 10, another on Finals Round 1), the heading says Fixture and each game shows its round under its division.'));
 document.getElementById('fixturePages').appendChild(pageRow('Next round fixture (next week)', '/fixtures.html?round=next'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html', 'Only the finished games of this round, with their scores. Takes the same <code>?round=</code> and <code>?division=</code> options, e.g. <code>/results.html?round=prev</code> for last week.'));
 [['Logo animation: fun (swoops in, slams down, rockets out; the default)', '/logo.html?template=fun',
