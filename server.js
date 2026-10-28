@@ -786,7 +786,7 @@ const sameTeam = (a, b) => norm(a) && norm(a) === norm(b);
 // punctuation and word order don't matter, like the photos): their team, its club logo and their photo.
 // ?team= picks the team for an athlete in more than one; otherwise one of the game's two teams if they
 // play for it, else the first the register has. A guest or commentator needs nothing from here but the
-// competition's logos, which every answer carries.
+// competition's logos, which every answer carries (commentators.html's box reads them with ?type=guest).
 function getLowerThird(q) {
   const r = rules();
   const out = { competition: competitionName(), competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark };

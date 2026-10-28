@@ -41,6 +41,9 @@
     { file: 'ladder.html', name: 'Ladder', docs: 'list' }, // one example per division, taken by examples.js
     { file: 'ladderbar.html', name: 'Ladder lower third', docs: 'gamePages', examples: [['Ladder lower third', '/ladderbar.html', 3000]] },
     { file: 'lowerthird.html', name: 'Person lower third (athlete or guest)', docs: 'personPages', examples: [['Guest lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator', 2500]] },
+    { file: 'commentators.html', name: 'Commentators', docs: 'personPages', examples: [
+      ['Commentators: thin line', '/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000],
+      ['Commentators: box', '/commentators.html?style=box&label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000]] },
     { file: 'finals.html', name: 'Finals', docs: 'finalsPages' }, // one example per division
     { file: 'fixtures.html', name: 'Round fixture', docs: 'fixturePages', examples: [['Round fixture', '/fixtures.html', 3000], ['Next round fixture', '/fixtures.html?round=next', 3000]] },
     { file: 'results.html', name: 'Results', docs: 'fixturePages', examples: [['Round results', '/results.html', 3000]] },
