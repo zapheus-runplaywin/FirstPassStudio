@@ -337,6 +337,7 @@ paths:
               required: [name]
               properties:
                 name: { type: string, maxLength: 40, example: Office Stream Deck, description: Shown in the Mac's dialog and in Devices… }
+                browser: { type: boolean, description: 'A browser (the pair page): allowed to score only or for everything, and given a device cookie rather than a key.' }
                 publicKey: { type: string, description: 'A program that signs its presses (the Studio plugin): its Ed25519 public key, SPKI DER in base64url. It then gets no key.' }
       responses:
         '202':

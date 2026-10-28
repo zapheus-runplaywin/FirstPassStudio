@@ -429,3 +429,59 @@ test('Link sets: each has its own key, given a new one or removed without touchi
   assert.equal(await press(studio, `/k/${mac}/deck/home/add1`), 403);
   assert.equal((await studio.request('POST', '/api/devices/nope/renew')).status, 404);
 });
+
+test('refusal: while locked, allowed devices pass within their level', () => {
+  const own = new Set(['127.0.0.1']);
+  const lan = '192.168.1.50';
+  assert.match(access.refusal(false, 'POST', '/api/scoreboard', lan, own, null), /open Studio's \/pair\.html on it/);
+  assert.equal(access.refusal(false, 'POST', '/api/scene', lan, own, 'full'), null, 'everything');
+  assert.equal(access.refusal(false, 'GET', '/api/athletes', lan, own, 'full'), null, 'private reads too');
+  assert.equal(access.refusal(false, 'POST', '/api/scoreboard', lan, own, 'scoring'), null);
+  assert.equal(access.refusal(false, 'POST', '/api/rounds', lan, own, 'scoring'), null);
+  for (const p of ['/deck/home/add1', '/deck/clock/toggle', '/deck/quarter/next', '/deck/scores/reset', '/deck/source/manual', '/deck/auto/toggle', '/deck/court/2']) {
+    assert.equal(access.refusal(false, 'GET', p, lan, own, 'scoring'), null, p);
+  }
+  for (const [m, p] of [['POST', '/api/scene'], ['GET', '/deck/layer/up-next/on'], ['GET', '/deck/scene/next'], ['POST', '/api/settings/import'], ['GET', '/api/athletes']]) {
+    assert.match(access.refusal(false, m, p, lan, own, 'scoring'), /allowed to score only/, `${m} ${p}`);
+  }
+  assert.equal(access.scoring('GET', '/api/scoreboard'), false, 'reading is never a change');
+});
+
+test('Pairing a browser: allowed to score or for everything, with an HttpOnly SameSite=Strict cookie', async t => {
+  const http = require('node:http');
+  const get = (studio, p, headers = {}) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p, headers }, r => {
+    let body = ''; r.on('data', d => { body += d; }); r.on('end', () => resolve({ status: r.statusCode, headers: r.headers, json: body ? JSON.parse(body) : {} }));
+  }));
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  assert.deepEqual((await get(studio, '/api/pair/me')).json, { paired: false });
+
+  const asked = (await studio.request('POST', '/api/pair', { name: 'Helper iPhone', browser: true })).json;
+  assert.equal((await studio.get('/api/devices')).asking.browser, true);
+  await studio.post(`/api/devices/requests/${asked.id}/allow`, {});
+  const got = await get(studio, `/api/pair/${asked.id}`, { 'x-studio-pair': asked.token });
+  assert.equal(got.json.status, 'allowed');
+  assert.equal(got.json.level, 'scoring', 'scoring only unless said otherwise');
+  assert.ok(!got.json.key && !got.json.cookie, 'the key goes only in the cookie');
+  const cookie = got.headers['set-cookie'][0];
+  assert.match(cookie, /^studio_device=[\w-]+; Path=\/; HttpOnly; SameSite=Strict; Max-Age=\d+$/);
+  const jar = cookie.split(';')[0];
+
+  assert.deepEqual((await get(studio, '/api/pair/me', { cookie: jar })).json, { paired: true, name: 'Helper iPhone', level: 'scoring' });
+  const listed = (await studio.get('/api/devices')).devices.find(d => d.name === 'Helper iPhone');
+  assert.equal(listed.kind, 'browser');
+  assert.ok(listed.lastSeen, 'its cookie counts as used');
+  assert.equal((await get(studio, `/k/${jar.split('=')[1]}/deck/home/add1`)).status, 403, 'a browser\'s key is no Stream Deck key');
+
+  assert.equal((await studio.request('POST', `/api/devices/${listed.id}/level`, { level: 'full' })).status, 200);
+  assert.equal((await get(studio, '/api/pair/me', { cookie: jar })).json.level, 'full');
+  assert.equal((await studio.request('POST', `/api/devices/${listed.id}/level`, { level: 'root' })).status, 404);
+  assert.equal((await studio.request('POST', '/api/devices/mac-links/level', { level: 'scoring' })).status, 404, 'only browsers have a level to change');
+
+  // Allowed for everything from the start.
+  const second = (await studio.request('POST', '/api/pair', { name: 'Office laptop', browser: true })).json;
+  await studio.post(`/api/devices/requests/${second.id}/allow`, { level: 'full' });
+  assert.equal((await get(studio, `/api/pair/${second.id}`, { 'x-studio-pair': second.token })).json.level, 'full');
+
+  await studio.post(`/api/devices/${listed.id}/revoke`);
+  assert.deepEqual((await get(studio, '/api/pair/me', { cookie: jar })).json, { paired: false }, 'removed: the cookie counts for nothing');
+});

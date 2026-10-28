@@ -3,8 +3,9 @@
 // Studio listens on every network connection so a phone, another computer or a Stream Deck can
 // open its pages and press its links by the Mac's .local name. Reading is always open. Changing
 // things (scores, the scene, sequences, settings, media) is open too by default, and config.json
-// "remoteChanges": false limits it to this computer: a request from another address that would
-// change something gets a 403 with the reason. The Mac app's tray has a tick box for it.
+// "remoteChanges": false limits it to this computer and the devices allowed in Devices… (devices.js), each within its
+// level: a request from anywhere else that would change something gets a 403 with the reason. The Mac app's tray has a
+// tick box for it.
 //
 // "This computer" is any address the computer itself has: loopback, and every address of its
 // own network interfaces, because the Stream Deck plugin and the pages may reach Studio by the
@@ -70,14 +71,28 @@ function isLocal(remoteAddress, own = ownAddresses()) {
 const ASK = ['/api/pair'];
 const asking = pathname => ASK.some(p => pathname === p || pathname.startsWith(p + '/'));
 
-// The 403 message, or null when the request may go ahead.
-function refusal(setting, method, pathname, remoteAddress, own) {
+// What a device allowed to score only may change (devices.js level 'scoring'): the scoreboard control page (the score,
+// clock, quarter, game and round pick) and the Stream Deck's score, clock, quarter and game links.
+const SCORING_POSTS = ['/api/scoreboard', '/api/rounds'];
+const SCORING_LINKS = ['home', 'away', 'scores', 'clock', 'quarter', 'source', 'auto', 'court'];
+function scoring(method, pathname) {
+  if (method === 'POST' && SCORING_POSTS.includes(pathname)) return true;
+  const m = /^\/deck\/([^/]+)/.exec(pathname);
+  return !!m && method === 'GET' && SCORING_LINKS.includes(m[1]);
+}
+
+// The 403 message, or null when the request may go ahead. level is the allowed device the request comes from
+// (devices.js: a paired browser's cookie, a signed plugin press, a link set's key), or null: a 'full' device passes
+// while the lock is on, and a 'scoring' one passes for scoring().
+function refusal(setting, method, pathname, remoteAddress, own, level = null) {
   if (setting !== false || asking(pathname)) return null;
   const change = changes(method, pathname);
   if (!change && !privateRead(method, pathname)) return null;
   if (isLocal(remoteAddress, own)) return null;
+  if (level === 'full' || (level === 'scoring' && change && scoring(method, pathname))) return null;
+  if (level === 'scoring') return `This device is allowed to score only, so ${method} ${pathname} was refused. To let it change everything, change it in Devices… in the menu bar icon on the Mac.`;
   const what = change ? 'take changes' : 'keep its private data (settings, backups, the athlete register, the log and sponsor reports)';
-  return `Studio is set to ${what} only ${change ? 'from' : 'on'} this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let other devices on this network change things and read them, untick "Only this Mac can change things" in the menu bar icon (it is ticked again each time Studio opens).`;
+  return `Studio is set to ${what} only ${change ? 'from' : 'on'} this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let this device in, open Studio's /pair.html on it and press Allow on the Mac; or, to let every device on this network change things and read them, untick "Only this Mac can change things" in the menu bar icon (it is ticked again each time Studio opens).`;
 }
 
 // The host part of a Host or Origin header value, lower case, without the port or IPv6 brackets.
@@ -156,4 +171,4 @@ function deckPress(pathname, proof, headers, port, hosts) {
   return false;
 }
 
-module.exports = { changes, privateRead, PRIVATE, MAC_ONLY, ASK, notThisMac, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };
+module.exports = { changes, privateRead, PRIVATE, MAC_ONLY, ASK, notThisMac, scoring, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };

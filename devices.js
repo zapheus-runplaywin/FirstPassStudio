@@ -2,7 +2,8 @@
 //
 // The list starts with "This Mac's links", the key in every Stream Deck link copied from Studio (/k/<key>/deck/...,
 // access.deckPress()). More named link sets ("Office Stream Deck") can be made on the Mac (addLinks()), each with its
-// own key, so the Website keys on one Stream Deck can be given a new key, or removed, without touching the others. A program on another device (a script, curl, later the Stream Deck plugin, phones and browsers)
+// own key, so the Website keys on one Stream Deck can be given a new key, or removed, without touching the others.
+// A program on another device (a script, curl, the Stream Deck plugin, a phone or another computer's browser)
 // asks to be added (ask()): the Mac shows a dialog naming it and its address (desktop/main.js), or the Devices page
 // shows the request, and nothing is added until someone there presses Allow. One request at a time, for five minutes.
 // An allowed program collects its own key once (collect()) and uses it like This Mac's key, in /k/<key>/deck/ links;
@@ -14,8 +15,15 @@
 // A signature counts only within a minute of its time and only once, so a press seen on the network can't be sent
 // again. Once any plugin has paired, the plugin's old x-studio-deck header stops counting (pluginPaired()).
 //
+// A phone, iPad or another computer's browser asks from Studio's pair page (public/pair.html): browsers can't sign on
+// plain http, so it gets a device cookie instead (HttpOnly, SameSite=Strict; fromCookie()), set when it collects the
+// answer. Whoever allows it picks its level: 'scoring' (the scoreboard control page and the score and clock links,
+// access.scoring()) or 'full'; Devices… can change it later. Every allowed device, link set and plugin can change
+// things while "Only this Mac can change things" is ticked (access.refusal()), within its level.
+//
 // devices.json in the local data folder: never in iCloud, a backup or a template (datalocation.js LOCAL_ONLY).
-//   [{ id, name, kind: 'links' | 'program' | 'plugin', level: 'full', secret | publicKey, address, created, lastSeen }]
+//   [{ id, name, kind: 'links' | 'program' | 'plugin' | 'browser', level: 'full' | 'scoring', secret | publicKey, address,
+//      created, lastSeen }]
 // The secrets never leave this module except as This Mac's key (linkKey(), which the Output page puts in the links
 // it copies); list() leaves them out.
 //
@@ -33,6 +41,9 @@ const savefile = require('./savefile');
 const FILE = datadir.local('devices.json');
 const OLD_KEY_FILE = datadir.local('deck-key.txt');
 const LINKS = 'mac-links';
+const LEVELS = ['scoring', 'full'];
+// The device cookie a paired browser sends (server.js sets it).
+const COOKIE = 'studio_device';
 // lastSeen is saved at most this often, so a run of key presses doesn't write the file each time.
 const SEEN_EVERY = 60 * 1000;
 // How long a request waits for Allow, how long an address waits to ask again after Deny, and how long an allowed
@@ -93,7 +104,7 @@ function load(logger) {
     save();
     saveOldKey(key);
   } else if (devices.length < before) save();
-  if (app) app.on('message', e => { const m = e.data || {}; if (m.type === 'pairAnswer') answer(m.id, m.allow === true); });
+  if (app) app.on('message', e => { const m = e.data || {}; if (m.type === 'pairAnswer') answer(m.id, m.allow === true, m.level); });
   return devices;
 }
 const all = () => devices || load();
@@ -128,14 +139,34 @@ function renew(id) {
 }
 
 // The device whose secret this is, or null. Compared in constant time; a match counts as the device being used.
-function match(given) {
+// kinds: which devices' secrets count (link keys for /k/ links; a browser's goes only in its cookie).
+function match(given, kinds = ['links', 'program']) {
   if (!given) return null;
-  const found = all().find(d => d.secret && same(d.secret, given) && !unused(d));
+  const found = all().find(d => d.secret && kinds.includes(d.kind) && same(d.secret, given) && !unused(d));
   if (found) {
     found.lastSeen = new Date().toISOString();
     if (Date.now() - seenSaved > SEEN_EVERY) { seenSaved = Date.now(); save(); }
   }
   return found || null;
+}
+
+// The paired browser whose cookie is in this Cookie header, or null.
+function fromCookie(header) {
+  const m = String(header || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([\\w-]+)`));
+  return m ? match(m[1], ['browser']) : null;
+}
+
+// The device a signed press came from (after signed() said 'ok'), or null.
+const byId = id => all().find(d => d.id === id && !unused(d)) || null;
+
+// Changes an allowed browser's level ('scoring' or 'full'). false for anything else.
+function setLevel(id, level) {
+  const d = all().find(x => x.id === id && x.kind === 'browser');
+  if (!d || !LEVELS.includes(level)) return false;
+  d.level = level;
+  save();
+  log('info', 'devices', `${d.name} can now ${level === 'scoring' ? 'only score' : 'change everything'}`);
+  return true;
 }
 
 // Every device, without its secret.
@@ -191,27 +222,32 @@ function endAsking() {
 // A device at address asks to be added under name, with its public key if it signs (the Studio plugin).
 // { id, token, expires } (token collects the answer), or { error } when another request is open or this address was
 // just denied.
-function ask(name, address, publicKey) {
+function ask(name, address, publicKey, browser = false) {
   if (publicKey !== undefined && !publicKeyOf(publicKey)) return { error: 'That public key isn\'t an Ed25519 key (SPKI DER, base64url).' };
   const clean = String(name || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
   if (!clean) return { error: 'Give the device a name, such as "Office Stream Deck", so whoever is at the Mac knows what is asking.' };
   if (Date.now() - (deniedAt.get(address) || 0) < DENIED_MS) return { error: 'This device was just denied. Wait a minute before asking again.' };
   if (asking && !asking.answer) return { error: 'Another device is asking already. Try again once it is answered, or in five minutes.' };
   endAsking();
-  asking = { id: crypto.randomBytes(6).toString('base64url'), token: crypto.randomBytes(16).toString('base64url'), name: clean, address, publicKey, at: Date.now(), answer: null };
+  asking = { id: crypto.randomBytes(6).toString('base64url'), token: crypto.randomBytes(16).toString('base64url'), name: clean, address, publicKey, browser: !publicKey && browser === true, at: Date.now(), answer: null };
   askTimer = setTimeout(() => { log('info', 'devices', `${asking.name} at ${asking.address} wasn't answered in five minutes`); endAsking(); }, ASK_MS);
   askTimer.unref?.();
   log('info', 'devices', `${clean} at ${address} asks to control Studio`);
-  if (app) app.postMessage({ type: 'pair', request: { id: asking.id, name: clean, address } });
+  if (app) app.postMessage({ type: 'pair', request: { id: asking.id, name: clean, address, browser: asking.browser } });
   return { id: asking.id, token: asking.token, expires: new Date(asking.at + ASK_MS).toISOString() };
 }
 
-// Allow or Deny, from the dialog or the Devices page. false when there is no such open request.
-function answer(id, allow) {
+// Allow or Deny, from the dialog or the Devices page; level ('scoring' or 'full') for a browser, which is 'scoring'
+// unless said otherwise. false when there is no such open request.
+function answer(id, allow, level) {
   if (!asking || asking.id !== id || asking.answer) return false;
   if (allow) {
     const base = { id: crypto.randomBytes(6).toString('base64url'), name: asking.name, level: 'full', address: asking.address, created: new Date().toISOString(), lastSeen: null };
-    const d = asking.publicKey ? { ...base, kind: 'plugin', publicKey: asking.publicKey } : { ...base, kind: 'program', secret: newSecret() };
+    const d = asking.publicKey ? { ...base, kind: 'plugin', publicKey: asking.publicKey }
+      : asking.browser ? { ...base, kind: 'browser', level: LEVELS.includes(level) ? level : 'scoring', secret: newSecret() }
+        : { ...base, kind: 'program', secret: newSecret() };
+    asking.kind = d.kind;
+    asking.level = d.level;
     // A plugin asking again with the same key (its settings were lost) replaces its old entry.
     if (d.publicKey) devices = all().filter(x => x.publicKey !== d.publicKey);
     all().push(d);
@@ -223,23 +259,25 @@ function answer(id, allow) {
   }
   asking.answer = allow ? 'allow' : 'deny';
   if (app) app.postMessage({ type: 'pairDone', id });
-  log('info', 'devices', `${asking.name} at ${asking.address} was ${allow ? 'allowed to control Studio' : 'denied'}`);
+  log('info', 'devices', `${asking.name} at ${asking.address} was ${allow ? (asking.level === 'scoring' ? 'allowed to score' : 'allowed to control Studio') : 'denied'}`);
   return true;
 }
 
 // The asking device collects the answer with its token: { status: 'waiting' | 'allowed' | 'denied' | 'gone' }, and
-// once allowed its key and device id. The key is handed over once; the request ends with any answer.
+// once allowed its device id, level and its key (a program; a browser gets it as cookie, for server.js to set as a
+// cookie and never show). The key is handed over once; the request ends with any answer.
 function collect(id, token) {
   if (!asking || asking.id !== id || !same(asking.token, token || '')) return { status: 'gone' };
   if (!asking.answer) return { status: 'waiting', expires: new Date(asking.at + ASK_MS).toISOString() };
-  const done = asking.answer === 'allow' ? { status: 'allowed', ...(asking.secret ? { key: asking.secret } : {}), device: asking.deviceId } : { status: 'denied' };
+  const secret = asking.secret ? (asking.kind === 'browser' ? { cookie: asking.secret } : { key: asking.secret }) : {};
+  const done = asking.answer === 'allow' ? { status: 'allowed', ...secret, device: asking.deviceId, level: asking.level } : { status: 'denied' };
   endAsking();
   return done;
 }
 
 // The open request, for the Devices page: { id, name, address, at, expires }, or null.
 const pending = () => asking && !asking.answer
-  ? { id: asking.id, name: asking.name, address: asking.address, at: new Date(asking.at).toISOString(), expires: new Date(asking.at + ASK_MS).toISOString() }
+  ? { id: asking.id, name: asking.name, address: asking.address, browser: asking.browser, at: new Date(asking.at).toISOString(), expires: new Date(asking.at + ASK_MS).toISOString() }
   : null;
 
-module.exports = { load, linkKey, addLinks, renew, match, list, revoke, signed, pluginPaired, ask, answer, collect, pending, FILE, LINKS };
+module.exports = { load, linkKey, addLinks, renew, match, fromCookie, byId, setLevel, list, revoke, signed, pluginPaired, ask, answer, collect, pending, FILE, LINKS, COOKIE };
