@@ -44,7 +44,8 @@
 <body>
   <!-- A 1920 x 1080 page for the Output page:
        http://localhost:8080/fixtures.html
-       Shows the current round of every division, sorted by time. Loads once: it gets the latest each time it comes on.
+       Shows the current round of every division, sorted by time. When divisions are on different rounds
+       (one on Round 10, another on Finals Round 1), each game shows its round under its division. Loads once: it gets the latest each time it comes on.
        Options: ?division=1 (one division only)  ?round=6 (round 6, or a name like ?round=Final)
        ?round=next (the round after this one)  ?round=prev (the one before)  ?round=+2 / ?round=-1 (count from this round)
        http://localhost:8080/results.html is the same page showing only finished games with scores. -->
@@ -83,7 +84,9 @@
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         document.getElementById('comp').textContent = data.competition || '';
-        document.getElementById('round').textContent = [data.division, data.round].filter(Boolean).join('  ·  ') + (RESULTS ? ' results' : '') || 'Fixture';
+        // Divisions on different rounds the same night have no one round for the heading: each game says its own.
+        const mixed = !data.round && data.games.some(g => g.round);
+        document.getElementById('round').textContent = [data.division, data.round || (mixed ? 'Fixture' : '')].filter(Boolean).join('  ·  ') + (RESULTS ? ' results' : '') || 'Fixture';
         const day = data.games[0] && data.games[0].date ? new Date(`${data.games[0].date}T00:00:00`) : null;
         document.getElementById('venue').textContent = [day && !isNaN(day) ? day.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) : '', data.venueName].filter(Boolean).join('  ·  ');
         const list = document.getElementById('list');
@@ -98,6 +101,7 @@
           const where = el('div', 'fixture__where');
           where.append(el('span', 'fixture__court', g.court || ''));
           if (!oneDivision) where.append(el('span', 'fixture__division', g.division));
+          if (mixed) where.append(el('span', 'fixture__division', g.round));
           row.append(where, team(g.home, 'home'));
           const played = (RESULTS || DONE.test(g.status || '')) && g.home.score !== null && g.away.score !== null;
           row.append(el('div', 'fixture__vs' + (played ? ' fixture__vs--score' : ''), played ? `${g.home.score} – ${g.away.score}` : 'VS'));

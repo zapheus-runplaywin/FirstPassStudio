@@ -485,7 +485,8 @@ http://localhost:8080/fixtures.html shows every game in the current round of all
 with court, division, logos, and the score once a game is finished. `?division=1` shows one division.
 `?round=` picks another round: `?round=next` is the round after this one (next week), `?round=prev` the one before,
 `?round=+2` or `?round=-1` counts from this round, and `?round=6` (or a name like `?round=Final`) is that round.
-"This round" is the one the control page has. A division without the round asked for is left out.
+"This round" is the one the control page has. A division without the round asked for is left out. When divisions are on
+different rounds (one on Round 10, another on Finals Round 1), the heading says Fixture and each game shows its round under its division.
 http://localhost:8080/results.html is the same page showing only finished games with their scores.
 
 ## Logos beside the title
