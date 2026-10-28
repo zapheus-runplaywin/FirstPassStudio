@@ -229,7 +229,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
-⌘2 control, ⌘3 setup, ⌘4 sponsors, ⌘5 athletes, ⌘6 Stream Deck, ⌘7 docs, ⌘8 Production Planner) and Window. Closing the last window takes Studio off air (see
+⌘2 control, ⌘3 Production Planner, ⌘4 setup, ⌘5 sponsors, ⌘6 athletes, ⌘7 Stream Deck, ⌘8 docs) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.
 
@@ -329,7 +329,7 @@ data folder of their own, so they never touch PlayHQ or your settings.
    whole stream (closing the last one takes Studio off air).
 2. Open **Output** (⌘1) and add the graphics you need with **Add page** (the scoreboard, a ladder per division, and so
    on), then turn on the display or Blackmagic output that feeds your switcher (see **Output** below).
-3. Open **Scoreboard control** (⌘3 in the app, or from the 1P icon) to run the scoreboard.
+3. Open **Scoreboard control** (⌘2 in the app, or from the 1P icon) to run the scoreboard.
 4. Turn graphics on and off from the Output page or the Stream Deck.
 
 The Docs page has a **Before you go on air** checklist for the night, and `docs/ARCHITECTURE.md` says how Studio is put
@@ -878,7 +878,7 @@ Once the match ups have started it doesn't change, and it starts again each time
 
 ## Production Planner
 
-The **Production Planner** tab (`planner.html`, ⌘8) plans the season: the court Studio streams each game night and up to
+The **Production Planner** tab (`planner.html`, ⌘3, after Scoreboard control) plans the season: the court Studio streams each game night and up to
 three commentators for each game on it. Studio streams one court a night; another court is another Mac running its own Studio.
 
 - **Commentators:** a list per competition (name, and a Guest tick for a special guest). Adding a name suggests people
