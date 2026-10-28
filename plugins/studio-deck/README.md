@@ -12,6 +12,9 @@ The Mac app's release workflow packs this plugin into the app, and the app insta
 **Install the Stream Deck plugin**, or the button on the Output page). How to use the key is in
 [`STREAMDECK.md`](../../STREAMDECK.md#scene-output-page).
 
+The first press on a Studio asks it to pair (the Mac shows Allow or Deny); from then on every press is signed with
+the plugin's own key pair (`src/lib/identity.ts`), kept in the plugin's global settings so it survives updates.
+
 Built on Elgato's SDK (`@elgato/streamdeck` v3), TypeScript and Rollup, like the Timed Sequence plugin beside it.
 Needs the Stream Deck app 7.1 or later.
 
@@ -44,6 +47,7 @@ src/
   lib/sequence-key.ts  what a Sequence key shows (lit, step and time left, colour) and which link a press opens (no SDK)
   lib/switcher-key.ts  what a Switcher key shows (tally red or green, on air, not answering) and which link a press opens (no SDK)
   lib/colours.ts       colour groups (blue, green, grey, yellow, purple), tally colours, and the key images drawn for each
+  lib/identity.ts      the plugin's Ed25519 key pair (in the global settings), pairing with a Studio, and signing presses
   lib/studio.ts        one live scene (and switcher) connection per Studio address, shared by its keys; presses and the lists
 com.runplaywin.firstpass-studio.sdPlugin/
   manifest.json

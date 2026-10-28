@@ -211,13 +211,15 @@ test('Stream Deck links: only the key, the plugin\'s header or Studio\'s own pag
 
 test('deckPress: only Stream Deck links are checked', () => {
   const hosts = access.ownHosts(['studio.local']);
-  const known = k => k === 'k';
-  assert.equal(access.deckPress('/api/scoreboard', null, known, {}, 8080, hosts), null);
-  assert.equal(access.deckPress('/deck/home/add1', 'k', known, {}, 8080, hosts), true);
-  assert.equal(access.deckPress('/deck/home/add1', 'x', known, {}, 8080, hosts), false);
-  assert.equal(access.deckPress('/deck/home/add1', null, known, { referer: 'http://studio.local:8080/' }, 8080, hosts), true);
-  assert.equal(access.deckPress('/deck/home/add1', null, known, { referer: 'https://studio.local:8080/' }, 8080, hosts), false);
-  assert.equal(access.deckPress('/deck/home/add1', null, known, { referer: 'not a url' }, 8080, hosts), false);
+  assert.equal(access.deckPress('/api/scoreboard', {}, {}, 8080, hosts), null);
+  assert.equal(access.deckPress('/deck/home/add1', { keyOk: true }, {}, 8080, hosts), true);
+  assert.equal(access.deckPress('/deck/home/add1', { signed: true }, {}, 8080, hosts), true);
+  assert.equal(access.deckPress('/deck/home/add1', {}, {}, 8080, hosts), false);
+  assert.equal(access.deckPress('/deck/home/add1', { headerOk: true }, { 'x-studio-deck': '1' }, 8080, hosts), true, 'the old header, until a plugin pairs');
+  assert.equal(access.deckPress('/deck/home/add1', { headerOk: false }, { 'x-studio-deck': '1' }, 8080, hosts), false, 'and not after');
+  assert.equal(access.deckPress('/deck/home/add1', {}, { referer: 'http://studio.local:8080/' }, 8080, hosts), true);
+  assert.equal(access.deckPress('/deck/home/add1', {}, { referer: 'https://studio.local:8080/' }, 8080, hosts), false);
+  assert.equal(access.deckPress('/deck/home/add1', {}, { referer: 'not a url' }, 8080, hosts), false);
 });
 
 test('notThisMac: the devices list answers only this Mac, ticked or not', () => {
@@ -334,4 +336,61 @@ test('Pairing: a device unused for 90 days drops off the list', async t => {
   assert.equal(await press(studio, '/k/oldlaptopkey/deck/home/add1'), 403);
   assert.equal(await press(studio, '/k/officekey123/deck/home/add1'), 200);
   assert.equal(await press(studio, '/k/maclinkskey1/deck/home/add1'), 200);
+});
+
+test('Pairing the plugin: it signs each press, a signature counts once and for a minute, and the old header retires', async t => {
+  const crypto = require('node:crypto');
+  const http = require('node:http');
+  const press = (studio, p, headers = {}) => new Promise(resolve => http.get({ host: '127.0.0.1', port: studio.port, path: p, headers }, r => {
+    let body = ''; r.on('data', d => { body += d; }); r.on('end', () => resolve({ status: r.statusCode, body: body ? JSON.parse(body) : {} }));
+  }));
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
+  const pub = publicKey.export({ format: 'der', type: 'spki' }).toString('base64url');
+  const sign = (device, p, time = Date.now(), key = privateKey) => ({
+    'x-studio-device': device, 'x-studio-time': String(time),
+    'x-studio-sign': crypto.sign(null, Buffer.from(`GET\n${p}\n${time}`), key).toString('base64url'),
+  });
+
+  // Before any plugin pairs, the old header still presses (older plugins keep working until a new one is allowed).
+  assert.equal((await press(studio, '/deck/home/add1', { 'x-studio-deck': '1' })).status, 200);
+
+  assert.equal((await studio.request('POST', '/api/pair', { name: 'Stream Deck on Office', publicKey: 'not a key' })).status, 409);
+  const rsa = crypto.generateKeyPairSync('rsa', { modulusLength: 1024 }).publicKey.export({ format: 'der', type: 'spki' }).toString('base64url');
+  assert.match((await studio.request('POST', '/api/pair', { name: 'x', publicKey: rsa })).json.error, /Ed25519/);
+  const { id, token } = (await studio.request('POST', '/api/pair', { name: 'Stream Deck on Office', publicKey: pub })).json;
+  await studio.post(`/api/devices/requests/${id}/allow`);
+  const got = (await studio.request('GET', `/api/pair/${id}`, undefined, { 'x-studio-pair': token })).json;
+  assert.equal(got.status, 'allowed');
+  assert.ok(got.device && !got.key, 'a plugin gets no key: it signs');
+  const listed = (await studio.get('/api/devices')).devices.find(d => d.id === got.device);
+  assert.equal(listed.kind, 'plugin');
+  assert.ok(!('publicKey' in listed));
+
+  const p = '/deck/home/add1';
+  const headers = sign(got.device, p);
+  assert.equal((await press(studio, p, headers)).status, 200, 'signed');
+  const again = await press(studio, p, headers);
+  assert.equal(again.status, 403, 'the same signature twice');
+  assert.match(again.body.error, /signature didn't check out/);
+  assert.equal((await press(studio, '/deck/away/add1', sign(got.device, p))).status, 403, 'signed for another link');
+  assert.equal((await press(studio, p, sign(got.device, p, Date.now() - 2 * 60 * 1000))).status, 403, 'two minutes old');
+  assert.equal((await press(studio, p, sign(got.device, p, Date.now(), crypto.generateKeyPairSync('ed25519').privateKey))).status, 403, 'another key');
+  const q = '/deck/home/add1?n=2';
+  assert.equal((await press(studio, q, sign(got.device, q))).status, 200, 'the query is signed too');
+  assert.ok((await studio.get('/api/devices')).devices.find(d => d.id === got.device).lastSeen);
+
+  // Now a plugin has paired, the bare header is refused, and the plugin is told to ask.
+  const old = await press(studio, p, { 'x-studio-deck': '1' });
+  assert.equal(old.status, 403);
+  assert.equal(old.body.pair, true);
+  assert.match(old.body.error, /hasn't been allowed yet/);
+
+  // Removed in Devices…: the plugin hears it should ask again.
+  await studio.post(`/api/devices/${got.device}/revoke`);
+  const gone = await press(studio, p, sign(got.device, p));
+  assert.equal(gone.status, 403);
+  assert.equal(gone.body.pair, true);
+  assert.match(gone.body.error, /removed in Devices/);
+  assert.equal((await press(studio, p, { 'x-studio-deck': '1' })).status, 200, 'no plugin paired any more: the header counts again');
 });

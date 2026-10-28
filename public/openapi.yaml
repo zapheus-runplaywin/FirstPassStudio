@@ -8,8 +8,10 @@ info:
     Score links switch the scoreboard to Manual; clock links stop the clock following the PlayHQ scorer.
     Every /deck link also answers with this Mac's Stream Deck key in front (/k/<key>/deck/...), as Studio copies them;
     GET /api/deck-key gives the key. A /deck link
-    without it is refused (403) unless it carries the x-studio-deck header (the Studio Stream Deck plugin) or comes
-    from Studio's own pages, such as Try it out below. A program on another device can ask for a key of its own
+    without it is refused (403) unless it is signed by a paired Studio Stream Deck plugin (x-studio-device, x-studio-time
+    and x-studio-sign: Ed25519 over "GET", the path with its query and the time in ms, one per line; within a minute, once)
+    or comes from Studio's own pages, such as Try it out below. Until a plugin has paired, the older plugin's
+    x-studio-deck header still counts. A program on another device can ask for a key of its own
     (Pairing below): someone at the Mac presses Allow, and the program uses its key the same way.
 servers:
   - url: /
@@ -335,6 +337,7 @@ paths:
               required: [name]
               properties:
                 name: { type: string, maxLength: 40, example: Office Stream Deck, description: Shown in the Mac's dialog and in Devices… }
+                publicKey: { type: string, description: 'A program that signs its presses (the Studio plugin): its Ed25519 public key, SPKI DER in base64url. It then gets no key.' }
       responses:
         '202':
           description: Waiting for the Mac
@@ -370,7 +373,7 @@ paths:
                 type: object
                 properties:
                   status: { type: string, enum: [waiting, allowed, denied] }
-                  key: { type: string, description: Only when allowed }
+                  key: { type: string, description: Only when allowed, and only for a program that sent no publicKey }
                   base: { type: string, example: 'http://studio-mac.local:8080/k/3f9aQ2cB7xLd' }
                   device: { type: string, description: Its id in Devices… }
         '404':

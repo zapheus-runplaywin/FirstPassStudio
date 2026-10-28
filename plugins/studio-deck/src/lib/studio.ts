@@ -6,6 +6,8 @@
  * Deck SDK here, so it can be tested alone.
  */
 
+import { forget, getIdentity, pair, signedHeaders } from "./identity";
+
 export const DEFAULT_HOST = "http://localhost:8080";
 
 /** One source in the scene, as /api/scene sends it (only the fields the keys use). */
@@ -277,12 +279,26 @@ export async function fetchSwitcher(host: string): Promise<Switcher | null> {
 }
 
 /**
- * Presses a Studio link; resolves to whether Studio accepted it. The x-studio-deck header tells Studio the press comes
- * from this plugin rather than a web page (no page on another site can add it), so it needs no key in the link.
+ * Presses a Studio link; resolves to whether Studio accepted it. Once that Studio has allowed this plugin the press is
+ * signed with the plugin's own key (identity.ts), so it needs no key in the link. Until then it carries the
+ * x-studio-deck header, which a Studio without any paired plugin still takes, and asks Studio to allow it (a dialog on
+ * the Mac). A Studio that no longer knows the plugin (removed in Devices…) is asked again.
  */
 export async function press(host: string, path: string): Promise<boolean> {
 	try {
-		const res = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(5000), headers: { "x-studio-deck": "1" } });
+		const id = await getIdentity();
+		const device = id.studios[host];
+		// Signed over the path as it goes on the wire, which is what Studio sees.
+		const sent = new URL(`${host}${path}`);
+		const headers = device ? signedHeaders(id, device, sent.pathname + sent.search) : { "x-studio-deck": "1" };
+		const res = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(5000), headers });
+		if (res.status === 403) {
+			const body = (await res.json().catch(() => ({}))) as { pair?: boolean };
+			if (body.pair) {
+				if (device) await forget(host);
+				void pair(host);
+			}
+		} else if (!device) void pair(host);
 		return res.ok;
 	} catch {
 		return false;
