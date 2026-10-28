@@ -212,7 +212,8 @@ $('outKeySetup').onclick = () => {
   const c = so && sw && (sw.keys || []).find(k => k.output === so.id);
   if (!c) return;
   const air = c.onAir ? `\n\n${c.label} is on air now, so the change shows on the programme straight away.` : '';
-  if (confirm(`Set up ${c.label} on the ${sw.model} for ${so.name}?\n\n${c.fixes.join('\n')}\n\nIts clip, gain, mask and position are left as they are, and so is whether it's on air.${air}`)) swDo({ type: 'keySetup', output: so.id });
+  const restart = c.want && c.want.straightOff && so.on ? `\n\nUnticking Straight restarts ${so.name}'s Blackmagic output, so its picture drops for a moment.` : '';
+  if (confirm(`Set up ${c.label} on the ${sw.model} for ${so.name}?\n\n${c.fixes.join('\n')}\n\nIts clip, gain, mask and position are left as they are, and so is whether it's on air.${air}${restart}`)) swDo({ type: 'keySetup', output: so.id });
 };
 
 // ─── Switcher actions on sequence steps and scenes ───────────────────────

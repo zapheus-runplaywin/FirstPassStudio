@@ -353,7 +353,9 @@
         <label class="forDecklink" style="font-weight:400"><input type="checkbox" id="outDlStraight"> Straight (unpremultiplied)</label>
         <p class="note forDecklink" style="grid-column:1/-1"><b>Switcher key settings:</b> leave Straight off and turn the switcher's
           <i>Pre Multiplied Key</i> (shaped) on; clip and gain are then not used, and soft edges and shadows key cleanly. With Pre Multiplied Key off,
-          clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key.</p>
+          clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key (every ATEM can).</p>
+        <p class="note forDecklink hidden" id="outDlStraightWarn" style="grid-column:1/-1"><b style="color:var(--fp-danger)">Straight is ticked:</b> into a Pre Multiplied Key
+          it leaves a light fringe round logos and text. Untick it and turn the switcher's Pre Multiplied Key on.</p>
         <label for="outKeyer" class="forSw">Into the switcher as</label>
         <div class="forSw">
           <div class="row"><select id="outKeyer" title="The switcher key this output's graphics come into"></select>

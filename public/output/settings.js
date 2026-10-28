@@ -333,6 +333,7 @@ const showOut = o => {
   $('outDlMode').value = String((pickedMode || {}).mode || '');
   $('outDlKeying').value = so.decklinkKeying;
   $('outDlStraight').checked = so.decklinkStraight;
+  $('outDlStraightWarn').classList.toggle('hidden', !so.decklinkStraight);
   // NDI: whether the NDI runtime is installed, and the formats it can send.
   const nd = o.ndi || {};
   $('outNdi').disabled = !nd.ok && so.mode !== 'ndi';

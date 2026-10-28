@@ -422,7 +422,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   device and the video format the switcher runs at (only 1080p formats are offered, as interlaced and 720p look soft; 1080p50 is picked first
   when the device can key it, and a 1080i format saved earlier is replaced by it). Every 1080p format the device names is listed; one it
   reports it can't send is marked *(device says it can't)* (older UltraStudios with HD-SDI rather than 3G-SDI stop at 1080p30) and can
-  still be tried, and if it fails the Output page says the device can't send it. The fill is premultiplied, as Chromium draws it; tick **Straight** only if the switcher's key can't take premultiplied fill.
+  still be tried, and if it fails the Output page says the device can't send it. The fill is premultiplied, as Chromium draws it; leave **Straight** off (straight fill into a Pre Multiplied Key leaves a light fringe round logos and text) and tick it only if the switcher's key can't take premultiplied fill (every ATEM can, so the switcher's key check asks for it off).
   For the cleanest key, turn the switcher's **Pre Multiplied Key** on (clip and gain aren't used then); with it off, clip and gain cut into soft edges
   and the edges go dark. The log says the size of the pictures going out (`sending 1920 x 1080 pictures`). It needs Blackmagic Desktop Video installed, not the SDK,
   and the device free (quit any other app using it, such as Media Express, first). The scene renders off screen at the format's frame

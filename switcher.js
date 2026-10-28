@@ -64,6 +64,7 @@ let followTimer = null;
 let lineups = {};
 let stingerApi = null;        // { find(ref), play(id) } from scene.js
 let outputsPlan = () => [];   // what each output gives the switcher (outputs.js switcherPlan), for the key settings check
+let straightOff = () => {};   // unticks an output's Straight (Blackmagic fill), for Set up this key for me
 let stingerWait = null;       // a stinger cut waiting to hear the stinger has started: { resolve }
 const STINGER_WAIT_MS = 3000; // how long a stinger has to start (its page loads its logo first)
 const LINEUP = [-25, 25];
@@ -683,9 +684,12 @@ async function followNow() {
 // ─── The outputs' keys: a check of their settings, and setting them up ───────
 // Each output comes into one of the switcher's keys (its Into the switcher as on the Output page). Studio reads how
 // that key is set up in ATEM Software Control and says what doesn't suit the output's signal: the key's fill and
-// key inputs, its type (a chroma output needs an upstream key on Chroma), and Pre Multiplied Key (on for Studio's
-// premultiplied fill, off only for a Blackmagic device sending Straight). It only reads: the key is changed only when
-// Set up this key for me is pressed (keySetup), and never its on air, colour, clip, gain or position.
+// key inputs, its type (a chroma output needs an upstream key on Chroma), and Pre Multiplied Key (always on for fill
+// and key: every ATEM can key premultiplied fill, which gives the cleanest edges). A Blackmagic device sending Straight
+// is the one thing on Studio's side it asks to change: straight fill into a Pre Multiplied Key leaves a light fringe
+// round logos and text, and with Pre Multiplied Key off clip and gain cut into the soft edges instead. It only reads:
+// the key (and Straight) is changed only when Set up this key for me is pressed (keySetup), and never the key's on air,
+// colour, clip, gain or position.
 const KEYER_LABEL = k => `${k.startsWith('dsk') ? 'downstream' : 'upstream'} key ${k.slice(3)}`;
 const ucFirst = t => t.charAt(0).toUpperCase() + t.slice(1);
 function keyChecks(s) {
@@ -726,7 +730,7 @@ function keyChecks(s) {
     for (const id of [o.fill, chroma ? 0 : o.key]) if (id && !s.inputs.some(i => i.id === id)) c.problems.push(`The ${s.model} has no input ${id}.`);
     if (c.problems.length) return c;
     // What the key has, against what the output needs.
-    const want = { fill: o.fill, cut: chroma ? null : o.key, pre: chroma ? null : o.premultiplied, type: usk ? (chroma ? 1 : 0) : null };
+    const want = { fill: o.fill, cut: chroma ? null : o.key, pre: chroma ? null : true, type: usk ? (chroma ? 1 : 0) : null, straightOff: !chroma && !o.premultiplied };
     const has = usk ? (() => { const u = (me.upstreamKeyers || [])[k] || {};
       return { fill: u.fillSource, cut: u.cutSource, pre: !!(u.lumaSettings && u.lumaSettings.preMultiplied), type: u.mixEffectKeyType }; })()
       : (() => { const d = (st.video.downstreamKeyers || [])[k] || {};
@@ -736,6 +740,7 @@ function keyChecks(s) {
     if (has.fill !== want.fill) c.fixes.push(`Fill source is ${src(has.fill)}, should be ${src(want.fill)}`);
     if (want.cut !== null && has.cut !== want.cut) c.fixes.push(`Key source is ${src(has.cut)}, should be ${src(want.cut)}`);
     if (want.pre !== null && has.pre !== want.pre) c.fixes.push(`Pre Multiplied Key is ${yes(has.pre)}, should be ${yes(want.pre)}`);
+    if (want.straightOff) c.fixes.push('Studio\'s Straight fill is on, should be off (it leaves a light edge round logos and text)');
     c.want = want;
     return c;
   });
@@ -751,6 +756,8 @@ async function keySetup(a) {
   if (!c.fixes.length) return { ok: true, done: `${c.label} is already set up for ${c.name}` };
   const k = Number(c.keyer.slice(3)) - 1;
   const w = c.want;
+  // Straight off first, so the key never goes Pre Multiplied with straight fill coming in.
+  if (w.straightOff) straightOff(c.output);
   try {
     if (c.keyer.startsWith('usk')) {
       await atem.setUpstreamKeyerType({ mixEffectKeyType: w.type }, 0, k);
@@ -766,7 +773,7 @@ async function keySetup(a) {
     log('warn', 'switcher', `Setting up ${KEYER_LABEL(c.keyer)} for ${c.name} failed: ${err && err.message || 'the switcher stopped answering'}`);
     return { error: `The switcher didn't take it (${err && err.message || 'it stopped answering'}).`, status: 502 };
   }
-  const done = `set up ${KEYER_LABEL(c.keyer)} for ${c.name}: ${c.fixes.map(f => f.replace(/ is .*, should be /, ' ')).join(', ')}`;
+  const done = `set up ${KEYER_LABEL(c.keyer)} for ${c.name}: ${c.fixes.map(f => f.replace(/ is .*, should be /, ' ').replace(/ \(.*\)$/, '')).join(', ')}`;
   log('info', 'switcher', `Output page: ${done}`);
   await settled();
   return { ok: true, done };
@@ -901,9 +908,10 @@ async function setMicFader(input, source, dB) {
 }
 
 // changed(): the switcher's state changed; stinger: { find, play } (scene.js); outputs(): outputs.js switcherPlan;
-// mics(): its audio changed (mics.js).
-function init(logger, { changed: onChanged, stinger, outputs, mics } = {}) {
+// unstraight(id): untick that output's Straight; mics(): its audio changed (mics.js).
+function init(logger, { changed: onChanged, stinger, outputs, unstraight, mics } = {}) {
   log = logger;
+  if (unstraight) straightOff = unstraight;
   if (mics) micsChanged = mics;
   if (outputs) outputsPlan = outputs;
   if (onChanged) onChange = onChanged;
