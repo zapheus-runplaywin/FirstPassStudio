@@ -251,7 +251,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     return send(res, 200, await view()), true;
   }
 
-  return { route, view, onAir, roster, courtFor, setPool, setNight, MAX_PEOPLE };
+  return { route, view, onAir, roster, courtFor, setPool, setNight, byDate, MAX_PEOPLE };
 }
 
 module.exports = { create };

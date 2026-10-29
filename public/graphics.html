@@ -437,6 +437,26 @@
     <div id="shooterPages"></div>
   </div>
   <div id="list"></div>
+  <div class="card" id="socials">
+    <h2>Socials (pictures for social media)</h2>
+    <p class="page__help">The <a href="/socials.html" target="_blank">Socials</a> tab makes pictures of a game night for Instagram and other social media,
+      from the fixture Studio already has. Pick the <b>game night</b> (by date, so every division playing that night is in it) and the sizes:
+      <b>Square</b> 1080 x 1080, <b>Portrait</b> 1080 x 1350 and <b>Story</b> 1080 x 1920. Upcoming pictures:</p>
+    <ul class="page__help">
+      <li><b>Fixture board:</b> every game of the night on every court, by time, with the logos, division and court.</li>
+      <li><b>Match up:</b> one per game, the two logos big with the date, time, court and venue.</li>
+      <li><b>On the stream:</b> the court Studio streams that night and who is calling each game, from the <a href="/planner.html" target="_blank">Production Planner</a> (plan the night first).</li>
+      <li><b>Polaroid:</b> a tilted white print for a match photo. Drop a photo on it, drag the preview to frame it and set the zoom; with no photo its window is
+        see-through, so your social team can put a photo under it in Canva or a phone app.</li>
+    </ul>
+    <p class="page__help">Each picture has a <b>Sponsor strip</b> tick (your naming, elite and major sponsors along the bottom), remembered for next week, and
+      <b>FirstPass Studio mark in the corner</b> turns the small Studio logo on or off for every picture. <b>Save pictures</b> saves the ticked ones as PNGs in
+      <b>Pictures/FirstPass Studio/&lt;competition&gt; &lt;date&gt; Upcoming</b> and opens the folder; <b>Share…</b> saves them too and opens the Mac's Share menu
+      (AirDrop to your phone, Messages, Mail). Saving needs the Mac app. Each picture is also a page of its own,
+      <code style="display:inline">/social.html?kind=fixtures&amp;size=square</code> (kinds <code style="display:inline">fixtures</code>, <code style="display:inline">matchup</code>,
+      <code style="display:inline">onstream</code>, <code style="display:inline">polaroid</code>; <code style="display:inline">&amp;date=</code>, <code style="display:inline">&amp;sponsor=0|1</code>, <code style="display:inline">&amp;mark=0|1</code>, <code style="display:inline">&amp;title=</code>).
+      Photos dropped on a polaroid stay on this Mac (the newest 40), never in a backup or iCloud.</p>
+  </div>
   <div class="card">
     <h2>Example graphics</h2>
     <p class="page__help">From a copy of the FirstPassStudio repository, double-click <b>Make Examples (Mac).command</b>
@@ -479,7 +499,7 @@
     <p class="page__help">The app window is like any Mac app's: no address bar, tabs or bookmarks, the Studio header is the title bar
       (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
       open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
-      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘8), <b>View</b> for reload, back and zoom, <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
+      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘9), <b>View</b> for reload, back and zoom, <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
     <p class="page__help">Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
   </div>
   <div class="card">
@@ -601,6 +621,7 @@
       <li>Commentator stats: the stats, shooting % included, share the scoreboard's reading, so auto-refresh adds nothing. Its team lists ask for the game's line up when the page comes on and at each quarter break, about four small requests a game; games played, ladder, form, head to head and up next are read once when the page comes on and for each new game (from the season Studio already keeps); games played reads the division's finished games once (kept in <code style="display:inline">game-cache.json</code>, as for the Athletes page).</li>
       <li>Ticker: other courts' scores at most every 30 seconds.</li>
       <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
+      <li>Socials tab: nothing extra. Its previews and pictures read the season's fixture through the same cache, and the Production Planner, sponsors and logos from Studio.</li>
       <li>Production Planner: nothing extra. It reads the season's fixture through the same cache as automatic game selection (the current round about once a minute, the rest every 10 minutes), and the commentators graphics ask Studio only.</li>
       <li>Athletes page: when you open a team, the line up of each of its games this season, a few at a time. Finished games are only ever read once: Studio keeps their line ups in <code style="display:inline">game-cache.json</code> in the data folder, so they're kept through restarts too.</li>
       <li>Finals: the division's ladder and its season's rounds when the page loads (the rounds are kept for 10 minutes, the current one for a minute).</li>

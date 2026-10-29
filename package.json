@@ -61,6 +61,7 @@
       "board.js",
       "games.js",
       "planner.js",
+      "socials.js",
       "finals.js",
       "scene.js",
       "zip.js",

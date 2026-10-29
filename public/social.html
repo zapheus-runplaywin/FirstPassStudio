@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Social picture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<style>
+  /* One picture for social media, at Instagram's size: square 1080 x 1080, portrait 1080 x 1350 or a Story
+     1080 x 1920. Not a stream graphic: the Socials tab (socials.html) shows these as previews, and the Mac app
+     saves them as PNGs. The colours and font are the competition's (theme.css). */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; }
+  body { font-family: var(--font); color: var(--text); width: var(--w); height: var(--h); overflow: hidden; position: relative; }
+  [hidden] { display: none !important; }
+
+  /* The ground: the competition's dark colour lit from the top, a band of its main colour across it. A polaroid
+     with no photo cuts a see-through window out of it (mask, set by drawPolaroid). */
+  .ground { position: absolute; inset: 0; background:
+      linear-gradient(115deg, transparent 0 58%, rgba(var(--purple-rgb), .55) 58% 70%, transparent 70%),
+      radial-gradient(circle at 30% 0%, var(--purple-dark-light), var(--purple-dark) 70%); }
+  .ground::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 14px; background: var(--pink); }
+
+  .frame { position: absolute; inset: 0; padding: 64px 64px 0; display: flex; flex-direction: column; }
+  .head { display: flex; align-items: center; gap: 28px; }
+  .head__logo { width: 132px; height: 132px; object-fit: contain; flex: none; filter: drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
+  .head__text { min-width: 0; }
+  .tab { display: inline-block; background: var(--pink); color: var(--text); padding: 8px 18px; border-radius: 6px;
+    font-size: 24px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .title { margin: 14px 0 0; font-size: 84px; font-weight: 800; line-height: .95; text-transform: uppercase; color: var(--yellow); letter-spacing: .01em; }
+  .when { margin-top: 12px; font-size: 30px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .when small { color: var(--muted); font-size: 24px; letter-spacing: .1em; margin-left: 12px; }
+  .body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: 36px 0 60px; } /* the mark sits above the sponsor strip */
+  .fit { transform-origin: center center; }
+
+  /* The foot: the top sponsors on a light strip, and the FirstPass Studio mark. */
+  .foot { position: relative; min-height: 64px; margin: 0 -64px; }
+  .sponsors { display: flex; align-items: center; justify-content: center; gap: 44px; padding: 22px 64px; background: rgba(255,255,255,.94); }
+  .sponsors small { color: #444; font-size: 18px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+  .sponsors img { height: 74px; max-width: 220px; object-fit: contain; }
+  .sponsors span { color: #222; font-size: 28px; font-weight: 800; }
+  .mark { position: absolute; right: 40px; bottom: 22px; width: 230px; opacity: .85; }
+  .sponsors:not([hidden]) + .mark { bottom: auto; top: -46px; }
+
+  .logo { object-fit: contain; flex: none; }
+  .logo-fallback { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--purple);
+    color: var(--yellow); font-weight: 800; border: 4px solid var(--yellow); }
+  .message { font-size: 34px; font-weight: 700; background: var(--purple-deep); padding: 28px 32px; border-radius: 14px; text-align: center; }
+
+  /* Fixture board: the night's games by time, every court. */
+  .slot + .slot { margin-top: 26px; }
+  .slot__time { display: inline-block; font-size: 30px; font-weight: 800; color: var(--purple-dark); background: var(--yellow);
+    border-radius: 8px; padding: 4px 16px; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+  .game { display: grid; grid-template-columns: var(--logo) minmax(0, 1fr) 50px minmax(0, 1fr) var(--logo); align-items: center; gap: 16px;
+    background: var(--purple-deep); border-radius: 14px; padding: 14px 20px; border-left: 8px solid var(--pink); }
+  .game + .game { margin-top: 10px; }
+  .game .logo { width: var(--logo); height: var(--logo); }
+  body { --logo: 76px; }
+  /* A Story has the height for bigger rows. */
+  body.story { --logo: 100px; }
+  .story .game { padding: 20px 24px; }
+  .story .game__team { font-size: 38px; }
+  .story .slot + .slot { margin-top: 40px; }
+  .game .logo-fallback { font-size: 24px; border-width: 3px; }
+  .game__team { font-size: 32px; font-weight: 800; text-transform: uppercase; line-height: 1.05; min-width: 0; overflow-wrap: anywhere; }
+  .game__team.away { text-align: right; }
+  .game__v { text-align: center; color: var(--pink); font-size: 26px; font-weight: 800; }
+  .game__info { grid-column: 1 / -1; font-size: 19px; font-weight: 700; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-top: -4px; text-align: center; }
+
+  /* Match up: one game, big. */
+  .vs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 20px; text-align: center; }
+  .vs .logo { width: 360px; height: 360px; margin: 0 auto; display: flex; filter: drop-shadow(0 12px 26px rgba(0,0,0,.5)); }
+  .vs .logo-fallback { font-size: 110px; }
+  .vs h2 { margin: 22px 0 0; font-size: 50px; font-weight: 800; text-transform: uppercase; color: var(--yellow); line-height: 1.05; overflow-wrap: anywhere; }
+  .vs__v { width: 120px; height: 120px; border-radius: 50%; background: var(--pink); display: flex; align-items: center; justify-content: center;
+    font-size: 48px; font-weight: 800; box-shadow: 0 0 0 8px var(--purple), 0 8px 24px rgba(0,0,0,.4); }
+  .info { margin-top: 44px; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 40px; background: var(--purple);
+    border-radius: 14px; padding: 22px 28px; font-size: 32px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .info b { color: var(--yellow); }
+
+  /* On the stream: the streamed court's games and who calls them. */
+  .live { display: inline-flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--text); background: #d11; border-radius: 999px; padding: 8px 22px; margin-bottom: 26px; align-self: flex-start; }
+  .live::before { content: ''; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .call { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 22px; align-items: center; background: var(--purple-deep);
+    border-radius: 14px; padding: 18px 24px; }
+  .call + .call { margin-top: 12px; }
+  .call__time { grid-row: span 2; min-width: 150px; font-size: 40px; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .call__teams { display: flex; align-items: center; gap: 12px; font-size: 32px; font-weight: 800; text-transform: uppercase; min-width: 0; }
+  .call__teams .logo { width: 56px; height: 56px; }
+  .call__teams .logo-fallback { font-size: 18px; border-width: 3px; }
+  .call__teams span { line-height: 1.05; white-space: nowrap; } /* too long a line is shrunk to fit with the rest (fit()) */
+  .call__teams i { font-style: normal; color: var(--pink); font-size: 24px; }
+  .call__mic { font-size: 24px; font-weight: 700; color: var(--muted); }
+  .call__mic b { color: var(--text); }
+
+  /* Polaroid: a tilted white print with a match photo, or a see-through window to put one under. */
+  .polaroid { position: absolute; background: transparent; border: solid #fbfaf6; border-width: var(--edge) var(--edge) var(--chin);
+    box-shadow: 0 24px 50px rgba(0,0,0,.5); }
+  .polaroid__photo { position: absolute; inset: 0; overflow: hidden; background: #ddd; }
+  .polaroid__photo img { width: 100%; height: 100%; object-fit: cover; transform-origin: var(--px) var(--py); }
+  .polaroid__caption { position: absolute; left: 0; right: 0; bottom: calc(-1 * var(--chin)); height: var(--chin); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; color: #1d1d24; text-align: center; padding: 0 30px; }
+  .polaroid__caption b { font-size: var(--cap, 60px); font-weight: 800; font-style: italic; line-height: 1; text-transform: uppercase; color: var(--purple-dark); }
+  .polaroid__caption span { margin-top: 10px; font-size: calc(var(--cap, 60px) * .45); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #555; }
+  .tape { position: absolute; top: calc(-1 * var(--edge) - 26px); left: 50%; width: 220px; height: 56px; margin-left: -110px; transform: rotate(3deg);
+    background: rgba(var(--yellow-rgb), .75); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+</style>
+<script src="log.js"></script>
+</head>
+<body>
+  <!-- A picture of a game night for social media, drawn from Studio's own data (GET /api/socials/night), never PlayHQ
+       directly. The Socials tab (socials.html) builds these links and the Mac app saves them as PNGs.
+       http://localhost:8080/social.html?kind=fixtures&size=square
+       kind:  fixtures (every game of the night)  matchup (one game, &game=<id>)  onstream (the court Studio streams and
+              its commentators, from the Production Planner)  polaroid (a match photo in a white print)
+       size:  square (1080 x 1080)  portrait (1080 x 1350)  story (1080 x 1920)
+       Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
+                ?mark=0|1 (the FirstPass Studio mark; else as on the tab)  ?title= (the heading)
+                Polaroid: ?photo=<file from POST /api/socials/photo> &px=50&py=50 (the point of the photo kept in view, %)
+                &zoom=1.4 (1-3); with no photo the window is see-through, to put one under it in another app.
+                ?fit=1 (drawn smaller to fit a smaller window, for the Mac app)
+                &caption= &note= (the two lines under the photo)
+       When drawn it sets window.socialReady (a promise) to true, or to a message when there's nothing to draw. -->
+  <div class="ground" id="ground"></div>
+  <div class="frame" id="frame">
+    <header class="head" id="head">
+      <img class="head__logo" id="compLogo" alt="" hidden>
+      <div class="head__text">
+        <div class="tab" id="tab"></div>
+        <h1 class="title" id="title"></h1>
+        <div class="when" id="when"></div>
+      </div>
+    </header>
+    <div class="body" id="body"><div class="fit" id="fit"></div></div>
+    <footer class="foot" id="foot">
+      <div class="sponsors" id="sponsors" hidden></div>
+      <img class="mark" id="mark" src="studio/firstpass-studio.svg" alt="FirstPass Studio" hidden>
+    </footer>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+    const SIZES = { square: [1080, 1080], portrait: [1080, 1350], story: [1080, 1920] };
+    const size = SIZES[params.get('size')] ? params.get('size') : 'square';
+    const [W, H] = SIZES[size];
+    document.body.classList.add(size);
+    // ?fit=1: drawn smaller to fit a smaller window (the Mac app draws a picture taller than the screen in a window
+    // half its size at twice the density, so it still comes out at full size).
+    if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
+    document.documentElement.style.setProperty('--w', `${W}px`);
+    document.documentElement.style.setProperty('--h', `${H}px`);
+    const kind = ['fixtures', 'matchup', 'onstream', 'polaroid'].includes(params.get('kind')) ? params.get('kind') : 'fixtures';
+    const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
+
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = text; return e; };
+    function logoEl(team, cls) {
+      if (team.logo) { const img = el('img', `logo ${cls || ''}`); img.src = team.logo; img.alt = ''; return img; }
+      const initials = String(team.name || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
+      return el('div', `logo logo-fallback ${cls || ''}`, initials);
+    }
+    function clock(time) {
+      const [h, m] = String(time || '').split(':').map(Number);
+      return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}` : (time || 'TBC');
+    }
+    const dayLong = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+    const dayShort = d => { const x = new Date(`${d}T00:00:00`); return `${x.toLocaleDateString('en-AU', { weekday: 'short' })} ${x.getDate()} ${x.toLocaleDateString('en-AU', { month: 'short' })}`; };
+
+    // Shrinks what's in the middle to fit between the heading and the foot, never grows it.
+    function fit() {
+      const box = $('body'), inner = $('fit');
+      inner.style.scale = '';
+      const room = { w: box.clientWidth, h: box.clientHeight - 72 }, need = { w: inner.scrollWidth, h: inner.scrollHeight };
+      const s = Math.min(1, room.w / need.w, room.h / need.h);
+      if (s < 1) inner.style.scale = String(Math.floor(s * 1000) / 1000);
+    }
+
+    function head(d, title, when, tab) {
+      $('tab').textContent = tab || d.competition;
+      $('tab').hidden = !$('tab').textContent;
+      $('title').textContent = params.get('title') || title;
+      $('when').replaceChildren(...when);
+      if (d.competitionLogo) { $('compLogo').src = d.competitionLogo; $('compLogo').hidden = false; }
+    }
+
+    function drawFixtures(d) {
+      head(d, 'Game night', [dayLong(d.date), el('small', '', d.venue)]);
+      if (!d.games.length) return `No games on ${dayLong(d.date)}.`;
+      const times = [...new Set(d.games.map(g => g.time))];
+      for (const t of times) {
+        const slot = $('fit').appendChild(el('div', 'slot'));
+        slot.append(el('div', 'slot__time', clock(t)));
+        for (const g of d.games.filter(x => x.time === t)) {
+          const row = slot.appendChild(el('div', 'game'));
+          row.append(logoEl(g.home), el('div', 'game__team', g.home.name), el('div', 'game__v', 'v'), el('div', 'game__team away', g.away.name), logoEl(g.away),
+            el('div', 'game__info', [g.division, g.court].filter(Boolean).join('  ·  ')));
+        }
+      }
+    }
+
+    function drawMatchup(d) {
+      const g = d.games.find(x => x.id === params.get('game')) || d.games[0];
+      if (!g) { head(d, 'Match up', [dayLong(d.date)]); return `No games on ${dayLong(d.date)}.`; }
+      head(d, 'Match day', [[g.division, g.round].filter(Boolean).join('  ·  ')]);
+      const vs = $('fit').appendChild(el('div', 'vs'));
+      const side = t => { const s = el('div'); s.append(logoEl(t), el('h2', '', t.name)); return s; };
+      vs.append(side(g.home), el('div', 'vs__v', 'v'), side(g.away));
+      const info = $('fit').appendChild(el('div', 'info'));
+      const bit = (label, value) => { const s = el('span'); s.append(el('b', '', label), ` ${value}`); return s; };
+      info.append(el('span', '', dayShort(d.date)), bit('', clock(g.time)), ...(g.court ? [el('span', '', g.court)] : []), ...(g.venue || d.venue ? [el('span', '', g.venue || d.venue)] : []));
+    }
+
+    function drawOnStream(d) {
+      head(d, 'On the stream', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
+      if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
+      if (!d.stream.slots.length) return `No games on ${d.stream.court} that night.`;
+      const live = $('fit').appendChild(el('div', 'live', 'Live stream'));
+      live.hidden = false;
+      for (const s of d.stream.slots) {
+        const row = $('fit').appendChild(el('div', 'call'));
+        const teams = el('div', 'call__teams');
+        teams.append(logoEl(s.home), el('span', '', s.home.name), el('i', '', 'v'), el('span', '', s.away.name), logoEl(s.away));
+        const mic = el('div', 'call__mic');
+        if (s.people.length) mic.append('Calling it: ', ...s.people.flatMap((p, i) => [i ? ', ' : '', el('b', '', p.name)]));
+        else mic.textContent = s.division || '';
+        row.append(el('div', 'call__time', clock(s.time)), teams, mic);
+      }
+    }
+
+    // The print sits in the middle, tilted, as big as the picture allows. Its window is the photo, or see-through:
+    // then the ground gets a mask with the same tilted hole, so the PNG is clear right through.
+    function drawPolaroid(d) {
+      $('head').style.visibility = 'hidden'; // keeps its room, so the foot stays at the bottom
+      // offsetTop, not getBoundingClientRect: it stays in the picture's own pixels when drawn smaller (?fit=1).
+      const foot = $('foot');
+      const top = 70, bottom = foot.offsetHeight ? H - foot.offsetTop + 40 : 70;
+      const room = { w: W - 160, h: H - top - bottom };
+      const edge = 34, chin = size === 'square' ? 170 : 210;
+      // The photo window: square on a square picture, taller on the others.
+      const aspect = size === 'square' ? 1 : size === 'portrait' ? 1.12 : 1.3;
+      let pw = room.w - 2 * edge, ph = pw * aspect;
+      const need = ph + edge + chin;
+      if (need > room.h) { const s = (room.h - edge - chin) / ph; ph *= s; pw *= s; }
+      const cx = W / 2, cy = top + room.h / 2, angle = -3.5;
+      const frameH = ph + edge + chin, frameW = pw + 2 * edge;
+      const p = document.body.appendChild(el('div', 'polaroid'));
+      Object.assign(p.style, { '--edge': `${edge}px`, '--chin': `${chin}px`, width: `${frameW}px`, height: `${frameH}px`,
+        left: `${cx - frameW / 2}px`, top: `${cy - frameH / 2}px`, transform: `rotate(${angle}deg)` });
+      p.style.setProperty('--edge', `${edge}px`); p.style.setProperty('--chin', `${chin}px`);
+      // The caption scales with the print, so a smaller print (room for the sponsor strip) keeps it on two lines.
+      p.style.setProperty('--cap', `${Math.round(Math.min(60, pw / 13))}px`);
+      const photo = params.get('photo');
+      if (photo) {
+        const box = p.appendChild(el('div', 'polaroid__photo'));
+        const img = box.appendChild(el('img'));
+        const px = Math.max(0, Math.min(100, Number(params.get('px') ?? 50))), py = Math.max(0, Math.min(100, Number(params.get('py') ?? 50)));
+        const zoom = Math.max(1, Math.min(3, Number(params.get('zoom')) || 1));
+        img.style.objectPosition = `${px}% ${py}%`;
+        p.style.setProperty('--px', `${px}%`); p.style.setProperty('--py', `${py}%`);
+        img.style.transform = `scale(${zoom})`;
+        img.src = `/socials/photos/${encodeURIComponent(photo)}`;
+        img.alt = '';
+      } else {
+        // The window's corners, tilted round the print's centre, cut out of the ground.
+        const rad = angle * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+        const fx = cx - frameW / 2, fy = cy - frameH / 2;
+        const corners = [[fx + edge, fy + edge], [fx + edge + pw, fy + edge], [fx + edge + pw, fy + edge + ph], [fx + edge, fy + edge + ph]]
+          .map(([x, y]) => [cx + (x - cx) * cos - (y - cy) * sin, cy + (x - cx) * sin + (y - cy) * cos].map(n => n.toFixed(1)).join(','));
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}'><path fill='black' fill-rule='evenodd' d='M0,0H${W}V${H}H0Z M${corners.join(' L')} Z'/></svg>`;
+        const mask = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+        for (const k of ['maskImage', 'webkitMaskImage']) $('ground').style[k] = mask;
+        $('ground').style.maskSize = $('ground').style.webkitMaskSize = `${W}px ${H}px`;
+      }
+      p.append(el('div', 'tape'));
+      const cap = p.appendChild(el('div', 'polaroid__caption'));
+      cap.append(el('b', '', params.get('caption') || 'Game night'), el('span', '', params.get('note') || [dayShort(d.date), d.venue].filter(Boolean).join('  ·  ')));
+    }
+
+    function foot(d) {
+      const sponsor = flag('sponsor', d.settings.sponsor[kind]);
+      if (sponsor && d.sponsors.length) {
+        const s = $('sponsors');
+        s.append(el('small', '', 'Proudly supported by'));
+        for (const x of d.sponsors.slice(0, 4)) {
+          if (x.logo) { const img = el('img'); img.src = x.logo; img.alt = x.name; s.append(img); } else s.append(el('span', '', x.name));
+        }
+        s.hidden = false;
+      }
+      $('mark').hidden = !flag('mark', d.settings.mark);
+    }
+
+    // Resolves once every picture on the page has loaded and decoded (or failed), so a saved PNG never misses a logo.
+    const imagesLoaded = () => Promise.all([...document.images].filter(i => !i.hidden && i.src).map(i => i.decode().catch(() => null)));
+
+    window.socialReady = (async () => {
+      try {
+        if (document.fonts) await document.fonts.ready;
+        const q = new URLSearchParams();
+        if (params.get('date')) q.set('date', params.get('date'));
+        const d = await (await fetch(`/api/socials/night?${q}`, { cache: 'no-store' })).json();
+        if (d.error) throw new Error(d.error);
+        foot(d);
+        const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, polaroid: drawPolaroid }[kind](d);
+        if (missing) $('fit').append(el('p', 'message', missing));
+        await imagesLoaded();
+        if (kind !== 'polaroid') fit();
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        window.pageLog && window.pageLog('info', `Social picture: ${kind} ${size} for ${d.date}${missing ? ` (${missing})` : ''}`);
+        return missing || true;
+      } catch (err) {
+        console.warn('Social picture unavailable:', err.message);
+        $('fit').append(el('p', 'message', `Social picture: ${err.message}`));
+        return err.message;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -11,7 +11,7 @@ const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
 const read = f => fs.readFileSync(path.join(PUBLIC, f), 'utf8');
 // Pages that aren't graphics: the Studio pages you work in, and the scene's own pages.
-const NOT_GRAPHICS = new Set(['output.html', 'control.html', 'setup.html', 'sponsors.html', 'sponsorreport.html', 'athletes.html', 'planner.html', 'api.html', 'devices.html', 'pair.html', 'graphics.html', 'scene.html', 'preview.html', 'pvw.html']);
+const NOT_GRAPHICS = new Set(['output.html', 'control.html', 'setup.html', 'sponsors.html', 'sponsorreport.html', 'athletes.html', 'planner.html', 'socials.html', 'social.html', 'api.html', 'devices.html', 'pair.html', 'graphics.html', 'scene.html', 'preview.html', 'pvw.html']);
 // results.html is served from fixtures.html (ALIASES in server.js).
 const ALIASES = { 'results.html': 'fixtures.html' };
 const files = new Set(STUDIO_GRAPHICS.map(p => p.file));

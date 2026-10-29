@@ -25,8 +25,8 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   and menus from the tab list in `public/studiobar.js`; `desktop/updates.js` and `desktop/whatsnew.js` handle updates.
 - **The helper** is plain Node, no framework: `server.js` routes every request by hand and the modules beside it each
   own one subject. Everything it saves goes in the data folder (`datadir.js`), never inside the app.
-- **The pages** are static HTML in `public/`. The Studio pages (Output, Scoreboard control, Competitions setup,
-  Sponsors, Athletes, Stream Deck, Docs) share `studio.css` and `studiobar.js`. The graphics only talk to the helper
+- **The pages** are static HTML in `public/`. The Studio pages (Output, Production Planner, Scoreboard control, Competitions setup,
+  Sponsors, Athletes, Stream Deck, Socials, Docs) share `studio.css` and `studiobar.js`. The graphics only talk to the helper
   on this computer and keep the competition's own look.
 
 Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-deck`, TypeScript, talks to the helper's
@@ -41,6 +41,7 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 | `athletes.js` | Team logos, athlete photos, the athlete register (`athletes.json`), what the athletes page shows and edits, a team's season squad for short line ups. |
 | `games.js` | The games: which game night and round are "this round", the fixture, up next and the end of night card, intro and outro, the countdown, automatic game selection, the season graphics (ladder bar, head to head, form, ticker, top shooters) and the finals. |
 | `planner.js` | The Production Planner (`planner.html`): the commentator pool and each game night's court and commentators (`planner.json` in the competition's folder), nights that take the plan of the night before, the court it hands automatic game selection (`courtFor`), who is on the mic for the game on the scoreboard (`/api/planner/onair`, for the commentators graphics) and the night's roster (`/api/planner/roster`, for `roster.html`). |
+| `socials.js` | The Socials tab (`socials.html`): a game night's pictures for social media (`social.html` at Instagram's square, portrait and Story sizes) from the fixture, the Production Planner, the sponsors and logos; the sponsor strip and Studio mark choices (`socials.json` in the competition's folder); polaroid photos (`socials-photos/` in the local folder); and saving, which it asks the Mac app to do over the message port (`desktop/socials.js` draws each picture off screen and saves the PNGs in Pictures/FirstPass Studio, then opens the folder or the Share menu). |
 | `board.js` | The board: scores, clock and period by hand or following PlayHQ's live feed, the goal order, super shots, hot streaks and moments, the game stats card and the score worm; `scoreboard-state.json` and the lasting settings in `control.json`. |
 | `competitions.js` | Saved competition setups in `competitions/`, `active.json`, templates import, per-club logos and colours. |
 | `scene.js` | The scene: sources as layers on one frame, each on or off per output (`visible` for the primary, `out` for the others), scenes (saved sets of sources, shared by the outputs, with a current scene per output), the Output page's state, the WebSocket and SSE feeds that push it to pages and the plugin, game triggers. |

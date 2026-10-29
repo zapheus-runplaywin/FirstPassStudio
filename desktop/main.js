@@ -126,6 +126,9 @@ const windows = require('./windows')({
   onAllClosed: () => { log('Last Studio window closed'); stopHelper(); },
 });
 
+// The Socials tab's pictures, saved as PNGs when the helper asks (desktop/socials.js).
+const socials = require('./socials')({ log });
+
 // The scene full screen on the Mac's displays (chroma, or fill and key), set up on the Output page.
 // Made once the app is ready, since it needs the screen module.
 let outputs = null;
@@ -146,7 +149,7 @@ function startHelper() {
     env: { ...process.env, FIRSTPASS_DATA_DIR: dataDir(), FIRSTPASS_LOCAL_DIR: LOCAL_DIR, FIRSTPASS_PACKAGED: app.isPackaged ? '1' : '' },
   });
   outputs?.attach(child);
-  child.on('message', msg => askToPair(child, msg));
+  child.on('message', msg => socials.message(child, msg) || askToPair(child, msg));
   const started = Date.now();
   child.on('spawn', async () => {
     for (let i = 0; i < 40 && helper === child; i++) {
