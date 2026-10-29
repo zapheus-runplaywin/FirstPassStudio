@@ -42,23 +42,34 @@ function thenText(sq) {
 }
 // Where it plays, once there's more than one output: a tick per output, in its colour, changed from the card
 // itself (it takes effect the next time the sequence starts; what's playing carries on). The last tick stays.
-// A green ▶ marks each output it's playing on now (ticked or not).
+// Each output it plays on (ticked, or playing it now) says how it is there: playing, paused, starting or stopped, and
+// "output off" while that output isn't sending (it still plays there, for when it's turned on).
 function outTicks(sq) {
   const box = document.createElement('div');
   box.className = 'seqOuts';
   if (!scene.viewMany) return box;
   const on = sq.playsOn || ['main'];
-  const playingOn = new Set((scene.onOut?.sequences[sq.id] || []).map(x => x.id));
+  const all = sceneAll.scenes ? sceneAll : scene;
+  const playOf = o => o === 'main' ? all.playing : (all.playingOut || {})[o];
+  const pendOf = o => o === 'main' ? all.pending : (all.pendingOut || {})[o];
   box.title = 'The outputs it plays on together: started by itself, or played on any of them';
   for (const o of out.outputs) {
     const l = document.createElement('label');
     l.innerHTML = '<input type="checkbox"> <i></i> <span></span>';
     const c = l.querySelector('input');
-    if (playingOn.has(o.id)) l.append(Object.assign(document.createElement('b'), { className: 'playingOn', textContent: '▶', title: `Playing on ${o.name}` }));
+    const p = playOf(o.id), w = pendOf(o.id);
+    const st = p && p.id === sq.id ? (p.paused ? ['paused', '⏸ Paused'] : ['playing', '▶ Playing']) : w && w.id === sq.id ? ['starting', '⏳ Starting'] : on.includes(o.id) ? ['stopped', '■ Stopped'] : null;
+    if (st) l.append(Object.assign(document.createElement('b'), { className: `seqSt ${st[0]}`, textContent: st[1] }));
+    // An output that isn't sending: its dot hollow and "off" by its name (it still plays there, for when it's turned on).
+    if (!(o.showing || []).length) {
+      l.classList.add('notSending');
+      l.querySelector('span').after(Object.assign(document.createElement('small'), { textContent: 'off' }));
+      l.title = `${o.name} isn't sending: a sequence still plays there, for when it's turned on`;
+    }
     c.checked = on.includes(o.id);
     c.disabled = c.checked && on.length === 1;
     c.onchange = () => act({ type: 'seqUpdate', sequence: sq.id, changes: { playsOn: out.outputs.map(x => x.id).filter(id => id === o.id ? c.checked : on.includes(id)) } });
-    l.querySelector('i').style.background = o.colour;
+    l.querySelector('i').style.cssText = `background:${o.colour};border:2px solid ${o.colour}`;
     l.querySelector('span').textContent = o.name;
     box.append(l);
   }
@@ -167,7 +178,7 @@ function renderSequences() {
       + `Stream Deck: <code>${deckBase}${scene.viewDeck}/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
       + `<code>${scene.viewDeck}/sequence/next</code> (or <code>${scene.viewDeck}/sequence/advance</code>, only for a step waiting on Next), <code>${scene.viewDeck}/sequence/pause</code> and <code>${scene.viewDeck}/sequence/stop</code>; for one about to start `
       + `<code>${scene.viewDeck}/sequence/now</code> and <code>${scene.viewDeck}/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.`
-      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (a green ▶ by each output it's playing on), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
+      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (each output's tick on the card says Playing, Paused, Starting or Stopped), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
     : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
       + 'Add your sources below first, then <b>+ New sequence</b>.';
 }

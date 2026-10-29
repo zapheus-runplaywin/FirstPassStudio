@@ -306,6 +306,9 @@ let viewWas = '';
 const showOut = o => {
   const relisten = !out || out.previewSound !== o.previewSound;
   const hadExtras = extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join();
+  // Which outputs are sending, for the sequence cards' "output off".
+  const sendingOf = x => (x && x.outputs || []).filter(y => (y.showing || []).length).map(y => y.id).join();
+  const wasSending = sendingOf(out);
   out = o;
   if (!o.outputs) o.outputs = [{ ...o, id: 'main', slot: 1, name: 'Output 1', primary: true, colour: '#ea9a38', link: 'output-1' }];
   // The output being set up here (and shown in the Scene View): picked on its card or tab.
@@ -314,6 +317,7 @@ const showOut = o => {
   renderOutputs(o, so);
   renderPerf(o, so);
   if (hadExtras !== extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join()) { renderList(); renderForm(); renderTabs(); }
+  if (wasSending !== sendingOf(o) && typeof renderSequences === 'function') renderSequences();
   if (relisten) { listen(); if (popped) popChannel.postMessage('ask'); }
   $('outNoApp').classList.toggle('hidden', o.app);
   $('outForm').classList.toggle('hidden', !o.app);
