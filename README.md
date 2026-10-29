@@ -925,8 +925,8 @@ square 1080 x 1080, portrait 1080 x 1350 and Story 1080 x 1920. Pick the night b
 Upcoming or Results (a night with results opens on Results) and the sizes; untick what you don't want.
 
 - **Upcoming:** the game night fixture (every game on every court, by time), a match up for each game, *On the stream* (the
-  court Studio streams, each game's division and who calls it, from the Production Planner), *Commentary team* (everyone on
-  the mic that night with their headshot from the Production Planner, initials until one is added, and a Special guest
+  court Studio streams, each game's division and who calls it, from the Production Planner), *Commentary team* (who is on
+  the mic that night, two to a picture and a picture for each pair, with their headshot from the Production Planner, initials until one is added, and a Special guest
   pill for a guest) and a polaroid for a match photo.
 - **Results:** the night's final scores (each division, the winner highlighted), a full time card per game, the ladder of
   each division that played (as PlayHQ has it now, "after Round N" when it's the division's latest night with results,

@@ -181,22 +181,16 @@
   .story .shooter { padding: 22px 24px; }
 
   /* Commentary team: a headshot (or initials) per commentator, their name and the games they call. */
-  .crew { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px 48px; --ms: 300px; }
-  .crew--3 { --ms: 250px; }
-  .crew--4 { --ms: 210px; }
-  .story .crew { --ms: 340px; }
-  .story .crew--3, .story .crew--4 { --ms: 260px; }
-  /* Two or three on the mic, the usual nights: the biggest faces that fit, in one row (Story stacks two, and puts three
-     two over one). */
-  .crew--2, .crew--3 { --ms: 400px; gap: 32px; flex-wrap: nowrap; }
-  .crew--3 { --ms: 300px; }
-  .story .crew--2 { --ms: 500px; flex-direction: column; align-items: center; }
-  .story .crew--3 { --ms: 400px; flex-wrap: wrap; }
-  .crew--2 .mic, .crew--3 .mic { width: auto; flex: 0 1 calc(var(--ms) + 40px); min-width: 0; }
-  .story .crew--2 .mic { flex: none; width: calc(var(--ms) + 60px); }
-  .crew--2 .mic__face, .crew--3 .mic__face { width: min(var(--ms), 100%); height: auto; aspect-ratio: 1; }
-  .crew--2 .mic__name { font-size: calc(48px * var(--nf, 1)); }
-  .crew--2 .mic__games { font-size: 22px; }
+  .crew { display: flex; flex-wrap: nowrap; justify-content: center; gap: 32px; --ms: 400px; }
+  /* Two to a picture, the biggest faces that fit in one row (a Story stacks them); one alone is bigger still. */
+  .crew--1 { --ms: 460px; }
+  .story .crew { --ms: 500px; flex-direction: column; align-items: center; }
+  .story .crew--1 { --ms: 620px; }
+  .crew .mic { width: auto; flex: 0 1 calc(var(--ms) + 40px); min-width: 0; }
+  .story .crew .mic { flex: none; width: calc(var(--ms) + 60px); }
+  .crew .mic__face { width: min(var(--ms), 100%); height: auto; aspect-ratio: 1; }
+  .crew .mic__name { font-size: calc(48px * var(--nf, 1)); }
+  .crew .mic__games { font-size: 22px; }
   .mic { width: calc(var(--ms) + 60px); text-align: center; }
   .mic__face { width: var(--ms); height: var(--ms); margin: 0 auto; border-radius: 50%; overflow: hidden; border: 8px solid var(--yellow);
     background: var(--purple-deep); display: flex; align-items: center; justify-content: center; font-family: var(--dfont);
@@ -349,8 +343,8 @@
       return box;
     }
 
-    // Commentary team: everyone on the mic that night (Production Planner), each once, with their headshot (or initials),
-    // a Special guest tag and the games they call.
+    // Commentary team: who is on the mic that night (Production Planner), each once, with their headshot (or initials),
+    // a Special guest tag and the games they call. Two to a picture: ?part=2 is the third and fourth, and so on.
     function drawCommentators(d) {
       head(d, 'Commentary team', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
       if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
@@ -360,8 +354,11 @@
         c.games.push(`${clock(s.time)}  ${s.home.name} v ${s.away.name}`);
       }
       if (!crew.size) return `Nobody is on the mic for ${dayLong(d.date)} yet: add the commentators on the Production Planner tab.`;
-      const box = $('fit').appendChild(el('div', `crew crew--${Math.min(crew.size, 4)}`));
-      for (const c of crew.values()) {
+      const all = [...crew.values()];
+      const part = Math.min(Math.max(1, parseInt(params.get('part'), 10) || 1), Math.ceil(all.length / 2));
+      const pair = all.slice((part - 1) * 2, part * 2);
+      const box = $('fit').appendChild(el('div', `crew crew--${pair.length}`));
+      for (const c of pair) {
         const card = box.appendChild(el('div', 'mic'));
         const faceBox = card.appendChild(el('div', 'mic__face'));
         if (c.headshot) { const img = faceBox.appendChild(el('img')); img.src = c.headshot; img.alt = c.name; }
