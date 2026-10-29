@@ -498,3 +498,9 @@
 .t-final .shooter .logo { width: 92px; height: 92px; }
 .t-final .vs .athlete .logo { width: 160px; height: 160px; }
 .t-final.k-fulltime .vs .athlete .logo { width: 140px; height: 140px; }
+/* Hero and Final: the competition logo as big as the title beside it, two lines tall. */
+:is(.t-hero, .t-final) .head { align-items: stretch; }
+:is(.t-hero, .t-final) .head__logo { width: 250px; height: auto; min-height: 190px; align-self: stretch; } /* stretches with a two-line title */
+.t-hero .title { font-size: 124px; }
+.t-final .head__logo { width: 220px; }
+.t-final .title { font-size: 128px; }
