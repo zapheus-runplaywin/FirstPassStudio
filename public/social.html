@@ -45,7 +45,7 @@
   /* The foot: the top sponsors on a light strip, the FirstPass Studio mark and the PIVT logo. */
   .foot { position: relative; min-height: 64px; margin: 0 -64px; }
   .sponsors { display: flex; align-items: center; justify-content: center; gap: 44px; padding: 22px 64px; background: rgba(255,255,255,.94); }
-  .sponsors small { color: #444; font-size: 18px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+  .sponsors small { color: #444; font-size: 20px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
   .sponsors img { height: 74px; max-width: 220px; object-fit: contain; }
   .sponsors span { color: #222; font-size: 28px; font-weight: 800; }
   .mark { position: absolute; right: 40px; bottom: 22px; width: 230px; opacity: .85; }
@@ -76,7 +76,7 @@
   .game__team { font-size: calc(32px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; line-height: 1.05; min-width: 0; overflow-wrap: anywhere; }
   .game__team.away { text-align: right; }
   .game__v { text-align: center; color: var(--pink); font-size: 26px; font-weight: 800; }
-  .game__info { grid-column: 1 / -1; font-size: 19px; font-weight: 700; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-top: -4px; text-align: center; }
+  .game__info { grid-column: 1 / -1; font-size: 22px; font-weight: 700; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-top: -4px; text-align: center; }
 
   /* Match up: one game, big. */
   .vs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 20px; text-align: center; }
@@ -107,7 +107,7 @@
   .call__teams span.away { text-align: right; }
   .call__teams i { font-style: normal; color: var(--pink); font-size: 24px; text-align: center; }
   .call__mic { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 24px; font-weight: 700; color: var(--muted); }
-  .call__div { font-size: 20px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--purple-dark); background: var(--yellow);
+  .call__div { font-size: 22px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--purple-dark); background: var(--yellow);
     border-radius: 6px; padding: 2px 12px; }
   .call__mic b { color: var(--text); }
 
@@ -152,7 +152,7 @@
 
   /* Ladder: a division's standings; a line under the finals places. */
   .ladder { width: 100%; border-collapse: separate; border-spacing: 0 calc(8px + var(--spread, 0px)); font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .ladder th { font-size: 20px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 0 10px; }
+  .ladder th { font-size: 22px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 0 10px; }
   .ladder td { background: var(--purple-deep); padding: 12px 10px; text-align: center; }
   .ladder td:first-child { border-radius: 12px 0 0 12px; color: var(--yellow); width: 70px; }
   .ladder td:last-child { border-radius: 0 12px 12px 0; color: var(--purple-dark); background: var(--yellow); width: 100px; }
@@ -164,7 +164,7 @@
   .ladder tr.cut td { border-bottom: 4px dashed var(--pink); }
   .story .ladder { font-size: 36px; border-spacing: 0 calc(12px + var(--spread, 0px)); }
   .story .ladder td { padding: 18px 10px; }
-  .key { margin-top: 10px; font-size: 20px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  .key { margin-top: 10px; font-size: 22px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
   .key i { display: inline-block; width: 40px; border-top: 4px dashed var(--pink); vertical-align: middle; margin-right: 10px; }
 
   /* Top shooters: the night's best, from each finished game's line ups. */
@@ -180,7 +180,7 @@
   .shooter__stats { display: flex; gap: 12px; }
   .stat { min-width: 96px; text-align: center; border-radius: 10px; background: rgba(255,255,255,.08); padding: 6px 10px; }
   .stat b { display: block; font-size: 44px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-  .stat small { display: block; margin-top: 4px; font-size: 16px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .stat small { display: block; margin-top: 4px; font-size: 19px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .stat.main { background: var(--pink); }
   .stat.main small { color: var(--text); }
   .story .shooter { padding: 22px 24px; }
@@ -195,16 +195,16 @@
   .story .crew .mic { flex: none; width: calc(var(--ms) + 60px); }
   .crew .mic__face { width: min(var(--ms), 100%); height: auto; aspect-ratio: 1; }
   .crew .mic__name { font-size: calc(48px * var(--nf, 1)); }
-  .crew .mic__games { font-size: 22px; }
+  .crew .mic__games { font-size: 26px; }
   .mic { width: calc(var(--ms) + 60px); text-align: center; }
   .mic__face { width: var(--ms); height: var(--ms); margin: 0 auto; border-radius: 50%; overflow: hidden; border: 8px solid var(--yellow);
     background: var(--purple-deep); display: flex; align-items: center; justify-content: center; font-family: var(--dfont);
     font-size: calc(var(--ms) * .32); font-weight: 800; color: var(--yellow); box-shadow: 0 14px 30px rgba(0,0,0,.35); }
   .mic__face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
-  .mic__guest { display: inline-block; margin-top: -22px; position: relative; background: var(--pink); color: #fff; font-size: 20px; font-weight: 800;
+  .mic__guest { display: inline-block; margin-top: -22px; position: relative; background: var(--pink); color: #fff; font-size: 22px; font-weight: 800;
     letter-spacing: .1em; text-transform: uppercase; padding: 6px 16px; border-radius: 6px; }
   .mic__name { margin-top: 18px; font-family: var(--dfont); font-size: calc(40px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; line-height: 1.05; }
-  .mic__games { margin-top: 8px; font-size: 20px; font-weight: 700; color: var(--muted); letter-spacing: .04em; white-space: pre; }
+  .mic__games { margin-top: 8px; font-size: 24px; font-weight: 700; color: var(--muted); letter-spacing: .04em; white-space: pre; }
 
   /* Athletes' photos (only those who approved their use): a shooter's face in place of the logo, with the logo as a badge;
      an athlete picked for a match up or full time over their team's logo; a polaroid's print. Cut-out PNGs stand free. */
@@ -334,6 +334,19 @@
       if (fits(b)) a = b;
       else for (let i = 0; i < 6; i++) { const x = (a + b) / 2; if (fits(x)) a = x; else b = x; }
       inner.style.setProperty('--spread', `${Math.floor(a)}px`);
+    }
+
+    // A team or player name stays on one line in its row, shrinking (to 60%) rather than breaking onto a second line, so
+    // the rows keep one height; a name too long for that wraps between words at 85%.
+    function fitNames() {
+      for (const e of $('fit').querySelectorAll('.game__team, .call__teams span, .shooter__name, .vs h2')) {
+        const base = parseFloat(getComputedStyle(e).fontSize);
+        e.style.whiteSpace = 'nowrap';
+        if (!e.clientWidth || e.scrollWidth <= e.clientWidth) continue;
+        const px = Math.floor(base * e.clientWidth / e.scrollWidth);
+        if (px >= base * .6) { e.style.fontSize = `${px}px`; continue; }
+        e.style.whiteSpace = 'normal'; e.style.overflowWrap = 'normal'; e.style.fontSize = `${Math.round(base * .85)}px`;
+      }
     }
 
     function head(d, title, when, tab) {
@@ -669,7 +682,7 @@
         await imagesLoaded();
         await fontLoaded;
         if (document.fonts) await document.fonts.ready;
-        if (kind !== 'polaroid') { fitTitle(); fit(); }
+        if (kind !== 'polaroid') { fitTitle(); fitNames(); fit(); }
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         window.pageLog && window.pageLog('info', `Social picture: ${kind} ${size} for ${d.date}${missing ? ` (${missing})` : ''}`);
         return missing || true;
