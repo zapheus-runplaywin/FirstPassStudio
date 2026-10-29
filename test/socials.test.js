@@ -139,6 +139,28 @@ test('template sets: each has its own face, one is kept for every picture, and a
   assert.equal((await studio.post('/api/socials/settings', { template: 'default' })).settings.template, 'default');
 });
 
+test('athletes\' photos: only those who approved their use, matched to the top shooters by name or picked for a picture', async () => {
+  const s = await studio.get('/api/socials');
+  const date = s.nights[1].date;
+  const top = (await studio.get(`/api/socials/night?date=${date}&with=shooters`)).shooters.players[0];
+  assert.equal(top.photo, null, 'no photo yet');
+  const up = await studio.request('POST', `/api/athletes/photo?athlete=${encodeURIComponent(top.name)}&ext=png`, PNG, { 'content-type': 'application/octet-stream' });
+  assert.equal(up.status, 200);
+  assert.equal((await studio.get(`/api/socials/night?date=${date}&with=shooters`)).shooters.players[0].photo, null, 'a photo not approved stays off');
+  assert.deepEqual((await studio.get('/api/socials/athletes')).athletes, [], 'nobody to pick until approved');
+  assert.deepEqual((await studio.get(`/api/socials/night?date=${date}&home=${encodeURIComponent(top.name)}`)).picked, {}, 'picking one not approved draws without');
+  await studio.post('/api/athletes/approval', { athletes: [top.name], approved: true });
+  assert.match((await studio.get(`/api/socials/night?date=${date}&with=shooters`)).shooters.players[0].photo, /^\/photos\//);
+  const list = (await studio.get('/api/socials/athletes')).athletes;
+  assert.deepEqual(list.map(a => a.name), [top.name]);
+  assert.ok(list[0].teams.length && list[0].teams[0].division, 'with their teams and divisions to filter by');
+  const picked = await studio.get(`/api/socials/night?date=${date}&home=${encodeURIComponent(top.name)}&athlete=${encodeURIComponent(top.name)}`);
+  assert.deepEqual(Object.keys(picked.picked), ['home', 'athlete']);
+  assert.equal(picked.picked.home.name, top.name);
+  await studio.post('/api/athletes/approval', { athletes: [top.name], approved: false });
+  assert.deepEqual((await studio.get(`/api/socials/night?date=${date}&home=${encodeURIComponent(top.name)}`)).picked, {});
+});
+
 test('a polaroid photo is kept on this Mac and served as a plain file; anything but a photo is refused', async () => {
   const r = await studio.request('POST', '/api/socials/photo?name=match.png', PNG);
   assert.equal(r.status, 200);

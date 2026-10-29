@@ -18,7 +18,9 @@
 //   GET  /api/socials                    the game nights, the settings and whether pictures can be saved (the app)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
 //                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played, &with=shooters
-//                                        the night's top shooters
+//                                        the night's top shooters (each with their photo when approved); &home= &away= &athlete= the
+//                                        athletes picked for a picture (picked, with their approved photo)
+//   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id> }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
@@ -79,7 +81,7 @@ const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
-  theme, appPort = process.parentPort || null }) {
+  theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -218,6 +220,11 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const s = settings();
     const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null,
       venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: s, look: look(q.colours || s.colours, s.colourSets, templateOf(q.template) ? q.template : s.template) };
+    // Athletes picked on the tab (&home= &away= on a match up or full time, &athlete= on a polaroid), with their photo when
+    // they approved its use; a name without one draws as if none was picked.
+    const picked = {};
+    for (const k of ['home', 'away', 'athlete']) if (q[k]) { const photo = photoFor(String(q[k])); if (photo) picked[k] = { name: String(q[k]).trim(), photo }; }
+    out.picked = picked;
     if (want.has('ladders')) out.ladders = await ladders(dates, date, games);
     if (want.has('shooters')) out.shooters = await shooters(raw.filter((g, i) => games[i].finished));
     return out;
@@ -247,7 +254,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (!finished.length) return { players: [], gamesRead: 0, gamesFinished: 0, superShots: false };
     const t = await tallyShooters(finished);
     const players = [...t.players].sort((a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, SHOOTERS_SHOWN)
-      .map(p => ({ name: p.name, team: p.team, logo: p.logo, goals: p.goals, superGoals: p.superGoals, points: p.points }));
+      .map(p => ({ name: p.name, team: p.team, logo: p.logo, photo: photoFor(p.name), goals: p.goals, superGoals: p.superGoals, points: p.points }));
     return { players, gamesRead: t.read, gamesFinished: finished.length, superShots: finished.some(g => superShots(g.division)),
       error: !t.read && t.failed ? t.lastError : undefined };
   }
@@ -319,6 +326,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     try {
       if (p === '/api/socials' && req.method === 'GET') return send(res, 200, await list()), true;
       if (p === '/api/socials/night' && req.method === 'GET') return send(res, 200, await night(q)), true;
+      // The athletes to pick for a picture: those with a photo they approved, with their teams and divisions.
+      if (p === '/api/socials/athletes' && req.method === 'GET') return send(res, 200, { athletes: athletesWithPhotos() }), true;
       if (p === '/api/socials/settings' && req.method === 'POST') {
         const now = saveSettings(await readBody(req));
         return send(res, 200, { settings: now, colourSets: allSets(now.colourSets) }), true;

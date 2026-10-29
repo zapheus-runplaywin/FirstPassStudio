@@ -937,6 +937,10 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
   for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template
   takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one.
+- **Athletes' photos:** only athletes who approved their photo's use (Athletes tab). Top shooters shows each shooter's
+  photo, matched by name, with the team logo as a badge. A Match up or Full time card picks an athlete for each side
+  (division, team, then name; `&home=` `&away=`), drawn over the team's logo, and a polaroid can use an athlete's photo
+  (`&athlete=`). `GET /api/socials/athletes` lists who can be picked.
 - **Colours:** a colour set for every picture. *Competition colours* is the stream's own look; the others are made from
   the competition's main, highlight and accent colours (Accent first, Highlight ground, Accent ground, Night, Day, Two
   colours), so they follow the competition when its colours change. *New colour set* adds your own (up to 12). A set

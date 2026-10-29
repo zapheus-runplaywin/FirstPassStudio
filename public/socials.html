@@ -69,6 +69,8 @@
   #templates .set { padding: 5px 11px; }
   .set .rm { margin-left: 2px; color: var(--fp-muted); font-weight: 700; }
   .newset[hidden] { display: none; }
+  .picker { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-top: 10px; max-width: 240px; }
+  .picker select { font: inherit; padding: 3px 6px; }
   .newset { margin-top: 10px; padding: 10px; border: 1px dashed var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=text] { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=color] { width: 36px; height: 28px; padding: 0; border: 1px solid var(--fp-line-strong); border-radius: 6px; vertical-align: middle; }
@@ -131,6 +133,10 @@
   const off = new Set();
   const photos = {};
   const photoOf = key => (photos[key] = photos[key] || { file: '', px: 50, py: 50, zoom: 1 });
+  // Athletes picked for a picture, by its key: { home, away } on a match up or full time, { athlete } on a polaroid.
+  // Only athletes with a photo they approved the use of can be picked (GET /api/socials/athletes).
+  const picks = {};
+  let athletesList = [];
   const set = () => document.querySelector('[name=set]:checked').value;
 
   const dayName = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -172,6 +178,7 @@
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
     const photo = photos[p.key];
+    for (const [k, v] of Object.entries(picks[p.key] || {})) if (v) q.set(k, v);
     if (p.kind === 'polaroid' && photo && photo.file) { q.set('photo', photo.file); q.set('px', Math.round(photo.px)); q.set('py', Math.round(photo.py)); q.set('zoom', photo.zoom); }
     return `/social.html?${q}`;
   }
@@ -212,6 +219,38 @@
     c.onchange = () => saveSettings({ sponsor: { [kind]: c.checked } });
     l.append(c, ' Sponsor strip');
     return l;
+  }
+  // Pick an athlete by name, narrowed by division and team (to the side's own team to start with).
+  function athletePicker(key, slot, label, start) {
+    const box = el('div', 'picker');
+    box.append(el('b', '', label));
+    if (!athletesList.length) { box.append(el('p', 'help', 'No athletes with an approved photo yet: add photos and tick Approved for photo use on the Athletes tab.')); return box; }
+    const same = (a, b) => String(a || '').toLowerCase().trim() === String(b || '').toLowerCase().trim();
+    const divs = [...new Set(athletesList.flatMap(a => a.teams.map(t => t.division)))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    const div = el('select'), team = el('select'), who = el('select');
+    div.setAttribute('aria-label', 'Division'); team.setAttribute('aria-label', 'Team'); who.setAttribute('aria-label', 'Athlete');
+    const opt = (v, t) => { const o = el('option', '', t); o.value = v; return o; };
+    div.replaceChildren(opt('', 'Every division'), ...divs.map(d => opt(d, d)));
+    div.value = divs.find(d => same(d, start.division)) || '';
+    const fillTeams = () => {
+      const teams = [...new Set(athletesList.flatMap(a => a.teams.filter(t => !div.value || t.division === div.value).map(t => t.team)))].sort();
+      team.replaceChildren(opt('', 'Every team'), ...teams.map(t => opt(t, t)));
+    };
+    const fillNames = () => {
+      const list = athletesList.filter(a => a.teams.some(t => (!div.value || t.division === div.value) && (!team.value || t.team === team.value)));
+      const now = (picks[key] || {})[slot] || '';
+      who.replaceChildren(opt('', 'No athlete'), ...list.map(a => opt(a.name, a.name)));
+      if (now && !list.some(a => a.name === now)) who.append(opt(now, now));
+      who.value = now;
+    };
+    fillTeams();
+    team.value = [...team.options].map(o => o.value).find(v => v && same(v, start.team)) || '';
+    fillNames();
+    div.onchange = () => { fillTeams(); fillNames(); };
+    team.onchange = fillNames;
+    who.onchange = () => { picks[key] = { ...(picks[key] || {}), [slot]: who.value }; redraw(key); };
+    box.append(div, team, who);
+    return box;
   }
   function photoControls(key) {
     const photo = photoOf(key);
@@ -259,7 +298,12 @@
     ticks.append(l, sponsorTick(p.kind));
     if (p.help) left.append(el('p', 'help', p.help));
     if (p.missing) left.append(el('p', 'note warn', p.missing));
-    if (p.kind === 'polaroid') left.append(photoControls(p.key));
+    if (p.kind === 'polaroid') left.append(photoControls(p.key), athletePicker(p.key, 'athlete', 'Or an athlete\'s photo', {}));
+    if (p.kind === 'matchup' || p.kind === 'fulltime') {
+      const g = night.games.find(x => x.id === p.game);
+      if (g) left.append(athletePicker(p.key, 'home', g.home.name, { division: g.division, team: g.home.name }),
+        athletePicker(p.key, 'away', g.away.name, { division: g.division, team: g.away.name }));
+    }
     const previews = s.appendChild(el('div', 'previews'));
     for (const size of sizes()) previews.append(preview(p, size));
     if (!sizes().length) previews.append(el('p', 'help', 'Tick a size above.'));
@@ -300,6 +344,7 @@
       const d = await (await fetch('/api/socials', { cache: 'no-store' })).json();
       if (d.error) throw new Error(d.error);
       info = d;
+      try { athletesList = (await (await fetch('/api/socials/athletes', { cache: 'no-store' })).json()).athletes || []; } catch { athletesList = []; }
       $('noApp').hidden = d.app;
       $('save').disabled = $('share').disabled = !d.app;
       $('mark').checked = d.settings.mark;

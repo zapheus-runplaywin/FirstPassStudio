@@ -179,6 +179,20 @@
   .stat.main { background: var(--pink); }
   .stat.main small { color: var(--text); }
   .story .shooter { padding: 22px 24px; }
+
+  /* Athletes' photos (only those who approved their use): a shooter's face in place of the logo, with the logo as a badge;
+     an athlete picked for a match up or full time over their team's logo; a polaroid's print. Cut-out PNGs stand free. */
+  .face { position: relative; width: 76px; height: 76px; flex: none; }
+  .face img.face__photo { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; border-radius: 50%; background: rgba(255,255,255,.12); }
+  .face .logo { position: absolute; right: -8px; bottom: -6px; width: 36px; height: 36px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+  .shooter .face .logo { width: 36px; height: 36px; }
+  .athlete { position: relative; width: 360px; height: 400px; margin: 0 auto; }
+  .athlete__photo { width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 12px 26px rgba(0,0,0,.5)); }
+  .vs .athlete .logo { position: absolute; left: -10px; bottom: 0; width: 130px; height: 130px; margin: 0; }
+  .vs .athlete .logo-fallback { font-size: 40px; }
+  .athlete__name { margin-top: 6px; font-size: 28px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .k-fulltime .athlete { width: 300px; height: 320px; } /* the score and the verdict need the room */
+  .k-fulltime .vs .athlete .logo { width: 110px; height: 110px; }
 </style>
 <link rel="stylesheet" href="social-templates.css">
 <script src="log.js"></script>
@@ -199,7 +213,9 @@
                 ?template=<template set> (default, fun, dynamic, junior, retro, futuristic, professional, thunder,
                 geometric, gradient, striped, highcontrast, 3d, neon, poster or splash; else the one picked there)
                 ?mark=0|1 (the FirstPass Studio mark, bottom right; else as on the tab)  ?pivt=0|1 (the PIVT logo, bottom left)  ?title= (the heading)
-                Polaroid: ?photo=<file from POST /api/socials/photo> &px=50&py=50 (the point of the photo kept in view, %)
+                Match up, full time: &home=<athlete> &away=<athlete> (their photo over the team's logo, when they approved its use)
+                Top shooters: each shooter's photo, when they approved its use
+                Polaroid: ?athlete=<name> (their photo) or ?photo=<file from POST /api/socials/photo> &px=50&py=50 (the point of the photo kept in view, %)
                 &zoom=1.4 (1-3); with no photo the window is see-through, to put one under it in another app.
                 ?fit=1 (drawn smaller to fit a smaller window, for the Mac app)
                 &caption= &note= (the two lines under the photo)
@@ -235,6 +251,7 @@
     document.documentElement.style.setProperty('--h', `${H}px`);
     const KINDS = ['fixtures', 'matchup', 'onstream', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
+    document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
 
     const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = text; return e; };
@@ -284,13 +301,30 @@
       }
     }
 
+    // An athlete picked for a side: their photo over the team's logo (as a badge), else the logo alone.
+    function picture(t, who) {
+      if (!who) return [logoEl(t)];
+      const box = el('div', 'athlete');
+      const img = box.appendChild(el('img', 'athlete__photo')); img.src = who.photo; img.alt = who.name;
+      box.append(logoEl(t));
+      return [box];
+    }
+    const athleteName = who => (who ? [el('div', 'athlete__name', who.name)] : []);
+    // A shooter's face with their team's logo as a badge.
+    function face(p) {
+      const box = el('div', 'face');
+      const img = box.appendChild(el('img', 'face__photo')); img.src = p.photo; img.alt = p.name;
+      box.append(logoEl({ name: p.team, logo: p.logo }));
+      return box;
+    }
+
     function drawMatchup(d) {
       const g = d.games.find(x => x.id === params.get('game')) || d.games[0];
       if (!g) { head(d, 'Match up', [dayLong(d.date)]); return `No games on ${dayLong(d.date)}.`; }
       head(d, 'Match day', [[g.division, g.round].filter(Boolean).join('  ·  ')]);
       const vs = $('fit').appendChild(el('div', 'vs'));
-      const side = t => { const s = el('div'); s.append(logoEl(t), el('h2', '', t.name)); return s; };
-      vs.append(side(g.home), el('div', 'vs__v', 'v'), side(g.away));
+      const side = (t, which) => { const s = el('div'); s.append(...picture(t, d.picked[which]), el('h2', '', t.name), ...athleteName(d.picked[which])); return s; };
+      vs.append(side(g.home, 'home'), el('div', 'vs__v', 'v'), side(g.away, 'away'));
       const info = $('fit').appendChild(el('div', 'info'));
       const bit = (label, value) => { const s = el('span'); s.append(el('b', '', label), ` ${value}`); return s; };
       info.append(el('span', '', dayShort(d.date)), bit('', clock(g.time)), ...(g.court ? [el('span', '', g.court)] : []), ...(g.venue || d.venue ? [el('span', '', g.venue || d.venue)] : []));
@@ -337,7 +371,8 @@
       // The caption scales with the print, so a smaller print (room for the sponsor strip) keeps it on two lines.
       p.style.setProperty('--cap', `${Math.round(Math.min(60, pw / 13))}px`);
       const photo = params.get('photo');
-      if (photo) {
+      const athlete = !photo && d.picked.athlete;
+      if (photo || athlete) {
         const box = p.appendChild(el('div', 'polaroid__photo'));
         const img = box.appendChild(el('img'));
         const px = Math.max(0, Math.min(100, Number(params.get('px') ?? 50))), py = Math.max(0, Math.min(100, Number(params.get('py') ?? 50)));
@@ -345,7 +380,7 @@
         img.style.objectPosition = `${px}% ${py}%`;
         p.style.setProperty('--px', `${px}%`); p.style.setProperty('--py', `${py}%`);
         img.style.transform = `scale(${zoom})`;
-        img.src = `/socials/photos/${encodeURIComponent(photo)}`;
+        img.src = athlete ? athlete.photo : `/socials/photos/${encodeURIComponent(photo)}`;
         img.alt = '';
       } else {
         // The window's corners, tilted round the print's centre, cut out of the ground.
@@ -400,7 +435,7 @@
       const vs = $('fit').appendChild(el('div', 'vs'));
       const side = (t, which) => {
         const s = el('div', g.winner !== 'draw' && g.winner !== which ? 'lost' : '');
-        s.append(logoEl(t), el('h2', '', t.name), el('div', `vs__score${g.winner === which || g.winner === 'draw' ? ' won' : ''}`, String(t.score)));
+        s.append(...picture(t, d.picked[which]), el('h2', '', t.name), ...athleteName(d.picked[which]), el('div', `vs__score${g.winner === which || g.winner === 'draw' ? ' won' : ''}`, String(t.score)));
         return s;
       };
       vs.append(side(g.home, 'home'), el('div', 'vs__v', 'FT'), side(g.away, 'away'));
@@ -443,7 +478,7 @@
         const stat = (v, label, main) => { const x = el('div', `stat${main ? ' main' : ''}`); x.append(el('b', '', String(v)), el('small', '', label)); return x; };
         if (s.superShots) stats.append(stat(p.goals, 'Goals'), stat(p.superGoals, 'Super'), stat(p.points, 'Points', true));
         else stats.append(stat(p.goals, 'Goals', true));
-        row.append(el('div', 'shooter__rank', String(i + 1)), logoEl({ name: p.team, logo: p.logo }), who, stats);
+        row.append(el('div', 'shooter__rank', String(i + 1)), p.photo ? face(p) : logoEl({ name: p.team, logo: p.logo }), who, stats);
       }
     }
 
@@ -477,6 +512,7 @@
         if (params.get('date')) q.set('date', params.get('date'));
         if (params.get('colours')) q.set('colours', params.get('colours'));
         if (params.get('template')) q.set('template', params.get('template'));
+        for (const k of ['home', 'away', 'athlete']) if (params.get(k)) q.set(k, params.get(k));
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'topshooters') q.set('with', 'shooters');
