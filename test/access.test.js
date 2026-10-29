@@ -26,7 +26,7 @@ test('privateRead: backups, the athlete register, the Production Planner, the lo
   assert.equal(access.privateRead('GET', '/api/athletes/games'), false, 'the positions graphic');
   assert.equal(access.privateRead('GET', '/api/planner'), true);
   assert.equal(access.privateRead('GET', '/api/planner/onair'), false, 'the commentators graphics');
-  assert.equal(access.privateRead('GET', '/api/planner/roster'), false, 'the roster graphic');
+  assert.equal(access.privateRead('GET', '/api/planner/fixtureboard'), false, 'the fixture board');
   assert.equal(access.privateRead('GET', '/api/log'), true);
   assert.equal(access.privateRead('GET', '/api/sponsors/report'), true);
   assert.equal(access.privateRead('GET', '/api/setup'), true);

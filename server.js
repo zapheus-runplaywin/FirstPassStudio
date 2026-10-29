@@ -176,6 +176,7 @@ const { setNightChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, g
 const planner = require('./planner').create({
   log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt: theGames.sameCourt, night: theGames.nightChoice,
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '' }), logoFor: n => logoFor(n),
+  withLiveScores: theGames.withLiveScores, isLive: theGames.isLive,
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once

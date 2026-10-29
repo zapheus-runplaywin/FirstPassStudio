@@ -119,11 +119,11 @@ const PAGE_OPTIONS = (() => {
       show('games', 'Games played this season (team lists)'), show('drought', 'Time since each team\'s last goal'), show('h2h', 'Head to head this season'), show('next', 'Up next on this court'), show('moments', 'Moments list'), show('goals', 'Last 10 goals'), show('run', 'Current run'), show('mic', 'Who is on the mic (Production Planner)'),
       { key: 'bg', label: 'Background', type: 'select', choices: [['', 'Solid (for a monitor)'], ['0', 'See-through']] },
     ],
-    'roster.html': [
-      { key: 'date', label: 'Night', type: 'text', placeholder: 'tonight (or the next game night)', help: 'Another night\'s team, as YYYY-MM-DD.' },
-      title("Tonight's commentators"),
-      { key: 'refresh', label: 'Updates', type: 'select', choices: [['', 'Live: follows the scoreboard and the plan'], ['0', 'Load once']],
-        help: 'Live lights up the game on the scoreboard as it moves on, with its score as goals go in, and shows changes made in the Production Planner within a minute. It asks Studio only, never PlayHQ. Load once reads it each time it comes on.' },
+    'fixtureboard.html': [
+      { key: 'date', label: 'Night', type: 'text', placeholder: 'tonight (or the next game night)', help: 'Another night\'s fixture, as YYYY-MM-DD.' },
+      title("Tonight's Fixtures"),
+      { key: 'refresh', label: 'Updates', type: 'select', choices: [['', 'Live: follows the scoreboard and the fixture'], ['0', 'Load once']],
+        help: 'Live shows the scores as goals go in and results as games finish, and changes made in the Production Planner within a minute. Other courts\' live scores come through the ticker\'s reader, so it adds no PlayHQ requests while the ticker is on. Load once reads it each time it comes on.' },
       { key: 'bg', label: 'Background', type: 'select', choices: [['', 'Solid (for a monitor)'], ['0', 'See-through']] },
     ],
     'sponsor.html': [
