@@ -180,7 +180,13 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   const tpl = fs.readFileSync(path.join(ROOT, 'templates', 'Thunder League.json'));
   await fetch(`http://127.0.0.1:${studio.port}/api/setup-template`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: tpl });
   const pictures = path.join(studio.local, 'Pictures');
-  await studio.app.evaluate(({ app, shell }, dir) => { app.setPath('pictures', dir); shell.openPath = async p => { globalThis.opened = p; return ''; }; }, pictures);
+  // Finder is stubbed: on Linux, shell.showItemInFolder asks a file manager over D-Bus and can hold the app's main
+  // process while it waits.
+  await studio.app.evaluate(({ app, shell }, dir) => {
+    app.setPath('pictures', dir);
+    shell.openPath = async p => { globalThis.opened = p; return ''; };
+    shell.showItemInFolder = p => { globalThis.shown = p; };
+  }, pictures);
   const info = await studio.until(async () => { const s = await studio.get('/api/socials'); return s.nights && s.nights.length && s; });
   assert.equal(info.app, true, 'the helper knows the app is there to save them');
   const date = info.next;
@@ -218,6 +224,7 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   assert.ok(!zipped.error, zipped.error);
   assert.equal(zipped.zip, path.join('Pictures', 'FirstPass Studio', `Thunder League ${played} Results.zip`));
   const zipFile = path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results.zip`);
+  assert.equal(await studio.app.evaluate(() => globalThis.shown), zipFile, 'Finder shows the zip');
   const list = await require('../zip').entries(zipFile);
   assert.deepEqual(list.map(e => e.name), [`Thunder League ${played} Results/01 Results (square).png`]);
   // Only the Socials tab's own picture is drawn.
