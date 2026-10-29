@@ -949,6 +949,9 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
   for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template
   takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one.
+  The title stays on one line beside the competition logo (`fitTitle` in `social.html` shrinks it up to 30% before it
+  may wrap; Poster's stacked portrait and Story titles are left alone), and the date line under it likewise; a long
+  date line puts its court and venue on a second line. A template keeps its decoration clear with `--title-clear`.
 - **Athletes' photos:** only athletes who approved their photo's use (Athletes tab). Top shooters shows each shooter's
   photo, matched by PlayHQ id then name, with the team logo as a badge. A Match up or Full time card picks an athlete for each side
   (division, team, then name; `&home=` `&away=`), drawn over the team's logo, and a polaroid can use an athlete's photo
