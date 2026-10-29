@@ -233,8 +233,8 @@
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
                 ?colours=<colour set> (competition, accent-first, highlight-ground, accent-ground, night, day,
                 two-colours or one made on the tab; else the one picked there)
-                ?template=<template set> (default, fun, dynamic, junior, retro, futuristic, professional, thunder,
-                geometric, gradient, striped, highcontrast, 3d, neon, poster or splash; else the one picked there)
+                ?template=<template set> (default, dynamic, junior, retro, professional, thunder, gradient,
+                highcontrast, neon, poster, splash, gameday, hero, final, court, bib or goal; else the one picked there)
                 ?mark=0|1 (the FirstPass Studio mark, bottom right; else as on the tab)  ?pivt=0|1 (the PIVT logo, bottom left)  ?title= (the heading)
                 Match up, full time: &home=<athlete> &away=<athlete> (their photo over the team's logo, when they approved its use)
                 Top shooters: each shooter's photo, when they approved its use
@@ -307,7 +307,7 @@
       // A word a span, so a template can set one apart (Final puts the last word in its script face).
       const words = String(params.get('title') || title).split(/\s+/).filter(Boolean);
       $('title').replaceChildren(...words.flatMap((w, i) => [...(i ? [' '] : []), el('span', 'w', w)]));
-      $('title').dataset.text = $('title').textContent; // for a template that echoes the title (Arena's outlines)
+      $('title').dataset.text = $('title').textContent; // for a template that echoes the title (Final's faint echo)
       $('when').replaceChildren(...when);
       if (d.competitionLogo) { $('compLogo').src = d.competitionLogo; $('compLogo').hidden = false; }
     }
@@ -318,7 +318,7 @@
       const t = $('title'), head = $('head'), logo = $('compLogo');
       if (document.body.classList.contains('t-poster') && size !== 'square') return;
       const gap = parseFloat(getComputedStyle(head).columnGap) || 0;
-      // --title-clear: the room a template keeps free at the right for its decoration (Poster's bar, Geometric's circle).
+      // --title-clear: the room a template keeps free at the right for its decoration (Poster's bar).
       const clear = parseFloat(getComputedStyle(head).getPropertyValue('--title-clear')) || 0;
       const room = head.clientWidth - (logo.hidden ? 0 : logo.getBoundingClientRect().width + gap) - 8 - clear;
       fitWhen(room);
