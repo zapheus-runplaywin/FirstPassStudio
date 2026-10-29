@@ -51,11 +51,19 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
   const photoKey = s => String(s || '').toLowerCase().replace(/['’`]/g, '').split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
   const fileKey = f => photoKey(path.basename(f, path.extname(f)));
   function photoFiles() { return competitions.images(competitions.activeId(), 'photos'); }
-  function photoFor(name, files = photoFiles()) {
+  function photoFileFor(name, files = photoFiles()) {
     const want = photoKey(name);
     const hit = want && files.find(f => fileKey(f) === want);
     return hit ? '/photos/' + encodeURIComponent(hit) : null;
   }
+  // An athlete's photo goes on a graphic (the stream's and the Socials tab's) only once they have approved its use,
+  // ticked on the athletes page (photoOk in the register). Until then graphics show the silhouette.
+  const photoApproved = name => !!(athletes()[photoKey(name)] || {}).photoOk;
+  function photoFor(name, files = photoFiles()) {
+    return photoApproved(name) ? photoFileFor(name, files) : null;
+  }
+  // A photo file's athlete (its name is theirs) has approved its use.
+  const fileApproved = file => !!(athletes()[fileKey(file)] || {}).photoOk;
   // ─── Athlete register (competitions/<id>/athletes.json) ─────────────────────
   // One entry per athlete in the competition, keyed by their name like the photos, so an
   // athlete who plays in more than one division (or team) is one athlete with one photo.
@@ -201,7 +209,7 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
       const position = Object.entries(a.positions).sort((x, y) => y[1] - x[1])[0];
       const g = genderInfo(a.name, a.gender, division);
       return { name: a.name, number: a.number, position: position ? position[0] : '', positions: Object.keys(a.positions), games: a.games, captain: a.captain,
-        photo: photoFor(a.name, files), ...g, genderSetByHand: g.genderFrom === 'hand', silhouette: silhouette(g.gender), teams: athleteTeams(a.name),
+        photo: photoFileFor(a.name, files), photoOk: photoApproved(a.name), ...g, genderSetByHand: g.genderFrom === 'hand', silhouette: silhouette(g.gender), teams: athleteTeams(a.name),
         ...athleteStats(a.name, all[photoKey(a.name)]) };
     }).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
     return { team: teamName, logo: logoFor(teamName), division, divisions: st.grades.map(g => g.name), athletes: list, gamesRead: read, gamesFound: games.length,
@@ -338,6 +346,22 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
       const g = genderInfo(e.name);
       return send(res, 200, { name: e.name, ...g, genderSetByHand: g.genderFrom === 'hand', silhouette: silhouette(g.gender) });
     }
+    // Whether each athlete has approved the use of their photo: { athletes: [names], approved: bool }.
+    if (url.pathname === '/api/athletes/approval' && req.method === 'POST') {
+      const body = await readBody(req);
+      const names = (Array.isArray(body.athletes) ? body.athletes : [body.athlete]).map(n => String(n || '').trim()).filter(n => photoKey(n));
+      if (!names.length) return send(res, 400, { error: 'Which athlete?' });
+      if (typeof body.approved !== 'boolean') return send(res, 400, { error: 'Approved or not?' });
+      const data = athletes();
+      for (const name of names) {
+        const e = data[photoKey(name)] || (data[photoKey(name)] = { name });
+        if (body.approved) e.photoOk = true; else delete e.photoOk;
+      }
+      register.dirty = true;
+      saveRegister();
+      log('info', 'athletes', `${id}: photo use ${body.approved ? 'approved' : 'not approved'} for ${names.join(', ')}`);
+      return send(res, 200, { athletes: names.map(name => ({ name, photoOk: body.approved })) });
+    }
     // Games played and positions played, typed in on the athletes page.
     if (url.pathname === '/api/athletes/stats' && req.method === 'POST') {
       const body = await readBody(req);
@@ -377,7 +401,7 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
       const files = photoFiles();
       const list = Object.values(athletes()).map(e => {
         const g = genderInfo(e.name);
-        return { name: e.name, ...g, genderSetByHand: g.genderFrom === 'hand', photo: photoFor(e.name, files), silhouette: silhouette(g.gender), teams: athleteTeams(e.name),
+        return { name: e.name, ...g, genderSetByHand: g.genderFrom === 'hand', photo: photoFileFor(e.name, files), photoOk: !!e.photoOk, silhouette: silhouette(g.gender), teams: athleteTeams(e.name),
           ...athleteStats(e.name, all[photoKey(e.name)]) };
       }).sort((a, b) => a.name.localeCompare(b.name));
       return send(res, 200, { athletes: list });
@@ -435,7 +459,7 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
   // A competition switch: the season's line ups are read again.
   function resetCaches() { appearanceCache.clear(); }
 
-  return { logoFor, colourFor, photoFor, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, athletesRoute, resetCaches };
+  return { logoFor, colourFor, photoFor, photoFileFor, photoApproved, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, athletesRoute, resetCaches };
 }
 
 module.exports = { create };
