@@ -911,24 +911,31 @@ allowed devices when the lock is on); `/api/planner/onair` and `/api/planner/fix
 ## Socials
 
 The **Socials** tab (`socials.html`, ⌘8) makes pictures of a game night for social media, as PNGs at Instagram's sizes:
-square 1080 x 1080, portrait 1080 x 1350 and Story 1080 x 1920. Pick the night by date (every division playing that night)
-and the sizes; untick what you don't want.
+square 1080 x 1080, portrait 1080 x 1350 and Story 1080 x 1920. Pick the night by date (every division playing that night),
+Upcoming or Results (a night with results opens on Results) and the sizes; untick what you don't want.
 
 - **Upcoming:** the game night fixture (every game on every court, by time), a match up for each game, *On the stream* (the
-  court Studio streams and who calls each game, from the Production Planner) and a polaroid for a match photo.
+  court Studio streams, each game's division and who calls it, from the Production Planner) and a polaroid for a match photo.
+- **Results:** the night's final scores (each division, the winner highlighted), a full time card per game, the ladder of
+  each division that played (as PlayHQ has it now, "after Round N" when it's the division's latest night with results,
+  with the finals line), the night's top six shooters over every division (from each finished game's line ups, read once
+  and kept) and a polaroid per game with its score as the caption. A game shows once PlayHQ has its final score.
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
   (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.
-- **Sponsors and mark:** each picture has a sponsor strip tick (naming, elite and major sponsors), and one tick puts
-  the small FirstPass Studio mark in the corner; both are kept in `competitions/<name>/socials.json`.
-- **Saving:** *Save pictures* saves the ticked ones in `Pictures/FirstPass Studio/<competition> <date> Upcoming/` and
+- **Sponsors and logos:** each picture has a sponsor strip tick (naming, elite and major sponsors), and two ticks put
+  the FirstPass Studio mark (bottom right) and the PIVT logo (bottom left) on every picture; all are kept in
+  `competitions/<name>/socials.json`.
+- **Saving:** *Save pictures* saves the ticked ones in `Pictures/FirstPass Studio/<competition> <date> Upcoming/` (or
+  `Results/`), with *As a zip* also as `<competition> <date> Upcoming.zip` beside it (Share then sends the zip), and
   opens the folder; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
   picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.
 
-Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|polaroid&size=square|portrait|story`
-(`&date=`, `&game=`, `&sponsor=0|1`, `&mark=0|1`, `&title=`; the polaroid's `&photo=`, `&px=`, `&py=`, `&zoom=`,
-`&caption=`, `&note=`). Everything comes from Studio (`/api/socials/night`), which reads the fixture through the same
-cache as the other pages, so the tab asks PlayHQ for nothing more.
+Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|polaroid|results|fulltime|ladder|topshooters&size=square|portrait|story`
+(`&date=`, `&game=`, `&division=`, `&sponsor=0|1`, `&mark=0|1`, `&pivt=0|1`, `&title=`; the polaroid's `&photo=`, `&px=`,
+`&py=`, `&zoom=`, `&caption=`, `&note=`). Everything comes from Studio (`/api/socials/night`, `&with=ladders` or
+`&with=shooters` for the pictures that need them), which reads the fixture, results and ladders through the same cache
+as the other pages, and each finished game's line up once, so the tab asks PlayHQ for nothing more.
 
 ## Roadmap
 

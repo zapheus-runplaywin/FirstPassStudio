@@ -188,6 +188,14 @@ const socials = require('./socials').create({
     const id = competitions.activeId();
     return id ? sponsors.wall(id, { tiers: ['naming', 'elite', 'major'] }).flatMap(t => t.sponsors).map(x => ({ name: x.name, logo: x.logoWhiteUrl || x.logoUrl })) : [];
   },
+  // A division's ladder (its first pool) with its finals places, through the same cache as the Ladder page.
+  ladderFor: async division => {
+    const grade = (await getStructure()).grades.find(g => g.name === division);
+    if (!grade) throw new Error(`No division "${division}"`);
+    const rows = (await getLadder(grade.id)).pools[0] || [];
+    return { rows, finalsPlaces: finals.ladderMarks(finals.sized(finalsFor(grade.name), rows.length)).places };
+  },
+  tallyShooters: games => theGames.tallyShooters(games), superShots: division => !!rules(division).superShots,
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
