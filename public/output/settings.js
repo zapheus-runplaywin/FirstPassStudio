@@ -375,7 +375,9 @@ const showOut = o => {
   $('outNdiSignal').value = so.ndiSignal;
   if ($('outNdiFormat').options.length !== o.ndiFormats.length) $('outNdiFormat').innerHTML = o.ndiFormats.map(f => `<option value="${f.id}">${f.id}</option>`).join('');
   $('outNdiFormat').value = so.ndiFormat;
-  if (document.activeElement !== $('outNdiName')) $('outNdiName').value = so.ndiName;
+  // The output's name unless Use my own name is ticked (outputs.js ndiSource); then the name typed.
+  if (document.activeElement !== $('outNdiName')) $('outNdiName').value = so.ndiSource;
+  $('outNdiOwn').checked = so.ndiOwnName;
   $('outColor').value = so.chromaColor;
   $('outChromaSafe').checked = so.chromaSafe;
   $('outChromaWarn').classList.toggle('hidden', !so.chromaSafeNow);
@@ -430,6 +432,8 @@ const showOut = o => {
   }
   // Counts for sponsors changes nothing being sent, so it stays free while the output is on.
   $('outSponsors').disabled = false;
+  // The source name follows the output's name until Use my own name is ticked.
+  if (!live) $('outNdiName').disabled = !so.ndiOwnName;
   swOutKey(); // Into the switcher as (output/switcher.js)
   $('outLocked').classList.toggle('hidden', !live);
 };
@@ -483,7 +487,12 @@ $('outDlStraight').onchange = () => {
 };
 $('outNdiSignal').onchange = () => setOut({ ndiSignal: $('outNdiSignal').value });
 $('outNdiFormat').onchange = () => setOut({ ndiFormat: $('outNdiFormat').value });
-$('outNdiName').onchange = () => setOut({ ndiName: $('outNdiName').value });
+$('outNdiName').onchange = () => setOut({ ndiOwnName: true, ndiName: $('outNdiName').value });
+// Ticked: starts from the name the sources have now; unticked: they take the output's name again.
+$('outNdiOwn').onchange = () => {
+  const so = selectedOutput();
+  setOut($('outNdiOwn').checked ? { ndiOwnName: true, ndiName: so.ndiName || so.ndiSource } : { ndiOwnName: false });
+};
 for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
 $('outOn').onclick = () => setOut({ on: !(selectedOutput() && selectedOutput().on) });
 $('outName').onchange = () => setOut({ name: $('outName').value });
@@ -566,7 +575,7 @@ function outWhere(o, x) {
     : x.mode === 'chroma' ? `chroma on ${disp(x.chromaDisplay)}`
     : x.mode === 'fillkey' ? `fill and key on ${disp(x.fillDisplay)} and ${disp(x.keyDisplay)}`
     : x.mode === 'decklink' ? 'Blackmagic, ' + (x.decklinkKeying === 'external' ? 'fill and key' : 'fill only')
-    : `NDI "${x.ndiName}"` + { fillkey: ', fill and key', chroma: ', chroma', alpha: ', with transparency' }[x.ndiSignal];
+    : `NDI "${x.ndiSource}"` + { fillkey: ', fill and key', chroma: ', chroma', alpha: ', with transparency' }[x.ndiSignal];
 }
 
 // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.

@@ -23,6 +23,7 @@
   button.alt:hover { background: #D3E4EF; }
   button.danger { background: #FEF3F2; color: var(--fp-danger); }
   button:disabled { opacity: .4; cursor: default; }
+  #outNdiName:disabled { opacity: .6; cursor: default; } /* following the output's name */
   .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
   .note b { color: var(--fp-navy); }
   .error { color: var(--fp-danger); }
@@ -359,7 +360,8 @@
         <label for="outNdiFormat" class="forNdi">Video format</label>
         <select id="outNdiFormat" class="forNdi"></select>
         <label for="outNdiName" class="forNdi">Source name</label>
-        <input id="outNdiName" class="forNdi" maxlength="60" placeholder="FirstPass Studio">
+        <div class="row forNdi"><input id="outNdiName" maxlength="60" style="flex:1" title="The name the NDI sources go by: the output's name unless Use my own name is ticked">
+          <label class="inline" style="font-weight:400" title="Untick to name the sources after the output again (they follow it when it's renamed)"><input type="checkbox" id="outNdiOwn"> Use my own name</label></div>
         <label for="outDlStraight" class="forDecklink">Fill</label>
         <label class="forDecklink" style="font-weight:400"><input type="checkbox" id="outDlStraight"> Straight (unpremultiplied)</label>
         <p class="note forDecklink" style="grid-column:1/-1"><b>Switcher key settings:</b> leave Straight off and turn the switcher's
@@ -393,7 +395,8 @@
         at the video format's frame rate, its sound through the Mac's audio output. Pick the format the switcher runs at.
         <b>NDI:</b> needs NDI's runtime for Mac (free, <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>) installed on this Mac.
         The sources show up on the network as <i>this Mac's name (Source name Fill)</i> and <i>(Source name Key)</i>, or <i>(Source name Chroma)</i>,
-        or just <i>(Source name)</i> with transparency; pick them on the switcher or in its NDI converter. Each sends at the video format's frame rate only while
+        or just <i>(Source name)</i> with transparency. The source name is the output's name, and changes with it when the output is renamed,
+        unless <i>Use my own name</i> is ticked; a source that changes name has to be picked again on the receiver. pick them on the switcher or in its NDI converter. Each sends at the video format's frame rate only while
         something is receiving it. Use a wired network: over Wi-Fi frames get lost and moving graphics such as the ticker stutter.
         The sound plays through the Mac's audio output, not over NDI.
         Stream Deck: <code id="outDeck">/deck/output/toggle</code> (also <code>on</code> and <code>off</code>) shows or blanks the output without changing this setup.</p>

@@ -36,7 +36,10 @@ test('an older outputs.json becomes Output 1, the primary, with its settings', (
   assert.equal(o.colour, '#ea9a38');
   assert.equal(o.mode, 'ndi');
   assert.equal(o.ndiSignal, 'alpha');
-  assert.equal(o.ndiName, 'Studio');
+  // Its NDI sources take its name now: the source name saved before they did is dropped.
+  assert.equal(o.ndiOwnName, false);
+  assert.equal(o.ndiSource, 'Output 1');
+  assert.equal(outputs.windows()[0].name, 'Output 1');
   // The primary's settings are still at the top, as before.
   assert.equal(st().mode, 'ndi');
   assert.equal(outputs.windows()[0].output, 'main');
@@ -50,7 +53,7 @@ test('outputs are added up to four, each off, with its own number, colour and ND
   assert.deepEqual(st().outputs.map(o => o.name), ['Output 1', 'Output 2', 'Output 3', 'Output 4']);
   assert.deepEqual(st().outputs.map(o => o.colour), ['#ea9a38', '#f24f91', '#4ec1e6', '#95ba45']);
   assert.ok(st().outputs.slice(1).every(o => !o.on && o.mode === 'off'), 'added outputs start off');
-  assert.ok(st().outputs.slice(1).every(o => o.ndiName !== 'Studio'), 'and with their own NDI name');
+  assert.deepEqual(st().outputs.map(o => o.ndiSource), ['Output 1', 'Output 2', 'Output 3', 'Output 4'], 'and NDI sources named after them');
   assert.match(outputs.apply({ add: true }), /4 outputs at most/);
   assert.match(outputs.apply({ remove: 'main' }), /primary/);
   const saved = JSON.parse(fs.readFileSync(path.join(DIR, 'outputs.json'), 'utf8'));
@@ -101,7 +104,7 @@ test('two outputs can\'t use the same display, Blackmagic device or NDI name: th
   assert.equal(byName('Big Screen 2').clash, 'Output 1');
   assert.equal(outputs.windows().filter(x => x.kind === 'decklink').length, 1);
   assert.equal(outputs.windows().find(x => x.kind === 'decklink').output, 'main');
-  outputs.apply({ output: three.id, mode: 'ndi', ndiName: byName('Big screen').ndiName });
+  outputs.apply({ output: three.id, mode: 'ndi', ndiName: byName('Big screen').ndiSource });
   assert.equal(byName('Big Screen 2').clash, 'Big screen');
   outputs.apply({ output: three.id, ndiName: 'Close up' });
   assert.equal(byName('Big Screen 2').clash, '');
