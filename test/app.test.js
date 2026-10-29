@@ -15,6 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
 const { ROOT, wait } = require('./support/studio');
+const { createWorld, startPlayhq, localZone } = require('./support/playhq');
 
 let electron = null, executablePath = null, why = '';
 try {
@@ -34,7 +35,7 @@ function freePort() {
 }
 
 // Starts the app in a settings folder of its own, on a free port. Gives { app, port, log(), answering(), answer(n), asked() }.
-async function launch(t) {
+async function launch(t, env = {}) {
   if (!electron) {
     if (process.env.STUDIO_TEST_REQUIRE_APP) assert.fail(`can't run the app: ${why}`);
     t.skip(`can't run the app (${why})`);
@@ -45,7 +46,7 @@ async function launch(t) {
   fs.mkdirSync(local, { recursive: true });
   const port = await freePort();
   fs.writeFileSync(path.join(local, 'config.json'), JSON.stringify({ port, linkHost: 'localhost' }));
-  const app = await electron.launch({ executablePath, args: [ROOT, '--no-sandbox'], cwd: ROOT, env: { ...process.env, XDG_CONFIG_HOME: home } });
+  const app = await electron.launch({ executablePath, args: [ROOT, '--no-sandbox'], cwd: ROOT, env: { ...process.env, XDG_CONFIG_HOME: home, ...env } });
   t.after(async () => {
     // Quit without asking, then make sure nothing is left on the port.
     await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {});
@@ -167,4 +168,46 @@ test('closing the last Studio window asks first: Cancel stays on air, Take Off A
   // Open Studio again: back on air.
   await studio.open();
   await studio.until(() => studio.answering());
+});
+
+test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at their full size, see-through where they should be', async t => {
+  const playhq = await startPlayhq(createWorld());
+  t.after(() => playhq.close());
+  const studio = await launch(t, { PLAYHQ_API_URL: playhq.url, PLAYHQ_SPECTATOR_URL: playhq.spectatorUrl, TZ: localZone(playhq.world.now).tz });
+  if (!studio) return;
+  await studio.open();
+  await studio.until(() => studio.answering());
+  const tpl = fs.readFileSync(path.join(ROOT, 'templates', 'Thunder League.json'));
+  await fetch(`http://127.0.0.1:${studio.port}/api/setup-template`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: tpl });
+  const pictures = path.join(studio.local, 'Pictures');
+  await studio.app.evaluate(({ app, shell }, dir) => { app.setPath('pictures', dir); shell.openPath = async p => { globalThis.opened = p; return ''; }; }, pictures);
+  const info = await studio.until(async () => { const s = await studio.get('/api/socials'); return s.nights && s.nights.length && s; });
+  assert.equal(info.app, true, 'the helper knows the app is there to save them');
+  const date = info.next;
+  const saved = await studio.post('/api/socials/export', { date, set: 'upcoming', items: [
+    { name: 'Game night fixture', link: `/social.html?kind=fixtures&size=story&date=${date}`, size: 'story' },
+    { name: 'Polaroid', link: `/social.html?kind=polaroid&size=square&date=${date}`, size: 'square' },
+  ] });
+  assert.ok(!saved.error, saved.error);
+  assert.deepEqual(saved.files, ['01 Game night fixture (story).png', '02 Polaroid (square).png']);
+  const folder = path.join(pictures, 'FirstPass Studio', `Thunder League ${date} Upcoming`);
+  assert.equal(await studio.app.evaluate(() => globalThis.opened), folder, 'Finder shows the folder');
+  const png = f => fs.readFileSync(path.join(folder, f));
+  const size = buf => [buf.readUInt32BE(16), buf.readUInt32BE(20)];
+  assert.deepEqual(size(png(saved.files[0])), [1080, 1920]);
+  assert.deepEqual(size(png(saved.files[1])), [1080, 1080]);
+  // The polaroid has no photo, so its window is see-through: the middle of the picture is clear, its corner isn't.
+  const alpha = await studio.app.evaluate(({ nativeImage }, file) => {
+    const img = nativeImage.createFromPath(file);
+    const { width } = img.getSize();
+    const bmp = img.toBitmap();
+    const at = (x, y) => bmp[(y * width + x) * 4 + 3];
+    return { middle: at(540, 500), corner: at(10, 10) };
+  }, path.join(folder, saved.files[1]));
+  assert.equal(alpha.middle, 0);
+  assert.equal(alpha.corner, 255);
+  // Only the Socials tab's own picture is drawn.
+  const r = await fetch(`http://127.0.0.1:${studio.port}/api/socials/export`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ date, items: [{ name: 'x', link: '/output.html', size: 'square' }] }) });
+  assert.equal(r.status, 400);
 });

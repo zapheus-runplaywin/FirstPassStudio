@@ -87,7 +87,7 @@ In it:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
   `athletes.json` (the athlete register from the Athletes page), `planner.json` (the Production Planner's commentators and
-  nights), and `competitions/active.json`, the one in use.
+  nights), `socials.json` (the Socials tab's sponsor strip and Studio mark choices), and `competitions/active.json`, the one in use.
 - `sponsors/`: the sponsors (`sponsors.json`) and their logos, shared by every competition (see **Sponsors** below).
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
@@ -229,7 +229,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
-⌘2 Production Planner, ⌘3 control, ⌘4 setup, ⌘5 sponsors, ⌘6 athletes, ⌘7 Stream Deck, ⌘8 docs) and Window. Closing the last window takes Studio off air (see
+⌘2 Production Planner, ⌘3 control, ⌘4 setup, ⌘5 sponsors, ⌘6 athletes, ⌘7 Stream Deck, ⌘8 Socials, ⌘9 docs) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.
 
@@ -907,6 +907,28 @@ three commentators for each game on it. Studio streams one court a night; anothe
 
 Saved in `competitions/<name>/planner.json`. Reading `/api/planner` is private like the athlete register (this Mac and
 allowed devices when the lock is on); `/api/planner/onair` and `/api/planner/fixtureboard` stay open for the graphics.
+
+## Socials
+
+The **Socials** tab (`socials.html`, ⌘8) makes pictures of a game night for social media, as PNGs at Instagram's sizes:
+square 1080 x 1080, portrait 1080 x 1350 and Story 1080 x 1920. Pick the night by date (every division playing that night)
+and the sizes; untick what you don't want.
+
+- **Upcoming:** the game night fixture (every game on every court, by time), a match up for each game, *On the stream* (the
+  court Studio streams and who calls each game, from the Production Planner) and a polaroid for a match photo.
+- **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
+  see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
+  (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.
+- **Sponsors and mark:** each picture has a sponsor strip tick (naming, elite and major sponsors), and one tick puts
+  the small FirstPass Studio mark in the corner; both are kept in `competitions/<name>/socials.json`.
+- **Saving:** *Save pictures* saves the ticked ones in `Pictures/FirstPass Studio/<competition> <date> Upcoming/` and
+  opens the folder; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
+  picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.
+
+Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|polaroid&size=square|portrait|story`
+(`&date=`, `&game=`, `&sponsor=0|1`, `&mark=0|1`, `&title=`; the polaroid's `&photo=`, `&px=`, `&py=`, `&zoom=`,
+`&caption=`, `&note=`). Everything comes from Studio (`/api/socials/night`), which reads the fixture through the same
+cache as the other pages, so the tab asks PlayHQ for nothing more.
 
 ## Roadmap
 

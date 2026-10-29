@@ -179,6 +179,17 @@ const planner = require('./planner').create({
   withLiveScores: theGames.withLiveScores, isLive: theGames.isLive,
 });
 
+// The Socials tab: a game night's pictures for social media, saved by the Mac app (socials.js).
+const socials = require('./socials').create({
+  log, competitions, savefile, photosDir: datadir.local('socials-photos'), byDate: () => planner.byDate(), onStream: date => planner.onStream(date),
+  about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '', logo: rules().competitionLogoDark }), logoFor: n => logoFor(n),
+  // The top sponsors (naming, elite and major), for the sponsor strip.
+  sponsorsFor: () => {
+    const id = competitions.activeId();
+    return id ? sponsors.wall(id, { tiers: ['naming', 'elite', 'major'] }).flatMap(t => t.sponsors).map(x => ({ name: x.name, logo: x.logoWhiteUrl || x.logoUrl })) : [];
+  },
+});
+
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
 // per playhqRefreshSec), whatever windows are open. Before this the reading only happened inside
 // a page's request for the scoreboard, goals, stats or worm, so with the scoreboard source hidden
@@ -997,6 +1008,9 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
     // A saved plan can change tonight's court, so automatic game selection looks again straight away.
     if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, changed: () => autoPick() })) return;
+    if (url.pathname.startsWith('/api/socials') || url.pathname.startsWith('/socials/')) {
+      if (await socials.route(req, res, url, { send, readBody, readRaw, port: PORT })) return;
+    }
     if (url.pathname === '/api/rounds') {
       if (req.method === 'POST') {
         const body = await readBody(req);

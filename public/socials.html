@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Socials · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<link rel="stylesheet" href="studio.css">
+<style>
+  * { box-sizing: border-box; }
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
+  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+  select { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); min-width: 0; max-width: 100%; }
+  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
+  input[type=range] { accent-color: var(--fp-blue); width: 140px; vertical-align: middle; }
+  button { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; }
+  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.alt { background: var(--fp-white); color: var(--fp-blue); }
+  button.alt:hover { background: var(--fp-blue-soft); }
+  button.small { font-size: 12px; padding: 3px 9px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  .row label { white-space: nowrap; }
+  .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
+  .error { color: var(--fp-danger); }
+  .note { font-size: 14px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); }
+  .note.warn { background: var(--fp-orange); font-weight: 600; }
+
+  /* A graphic: its ticks, then a preview per size ticked at the top. */
+  .pic { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px 20px; align-items: start; }
+  @media (max-width: 700px) { .pic { grid-template-columns: 1fr; } }
+  .pic h3 { margin: 0 0 6px; font-size: 17px; color: var(--fp-navy); }
+  .pic .help { margin-top: 8px; }
+  .pic__ticks { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .pic.off .previews { opacity: .4; }
+  .previews { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .preview { position: relative; flex: none; overflow: hidden; border-radius: 6px; box-shadow: 0 2px 10px rgba(15,23,42,.18);
+    /* A chequer behind it, so a see-through window shows as one. */
+    background: repeating-conic-gradient(#d7dce3 0 25%, #f3f5f8 0 50%) 0 0 / 20px 20px; }
+  .preview iframe { border: 0; transform-origin: 0 0; pointer-events: none; display: block; }
+  .preview figcaption { position: absolute; right: 6px; top: 8px; font-size: 11px; font-weight: 700; background: rgba(15,23,42,.75); color: #fff; padding: 2px 7px; border-radius: 999px; }
+  .preview .drag { position: absolute; inset: 0; cursor: grab; }
+  .preview .drag:active { cursor: grabbing; }
+
+  /* The photo drop on the polaroid. */
+  .drop { border: 2px dashed var(--fp-line-strong); border-radius: 10px; padding: 12px; text-align: center; font-size: 13px; color: var(--fp-muted); cursor: pointer; }
+  .drop.over { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
+
+  /* Save and Share stay in view at the bottom. */
+  .bar { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--fp-white);
+    border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 12px 16px; box-shadow: 0 -4px 18px rgba(15,23,42,.08); }
+  .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<header class="fp-bar"></header><script src="studiobar.js"></script>
+<main>
+  <h1>Socials</h1>
+  <p class="sub">Pictures of a game night for Instagram and other social media, made from the fixture Studio already has (nothing more is asked of PlayHQ).
+    Pick the night and the sizes, untick what you don't want, then <b>Save</b> them as PNGs or <b>Share</b> them to your phone with AirDrop, Messages or Mail.</p>
+  <p class="note warn" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
+  <p class="error" id="err" hidden></p>
+  <section>
+    <div class="row">
+      <label>Game night <select id="night"></select></label>
+      <span>Sizes:
+        <label><input type="checkbox" data-size="square" checked> Square 1080 × 1080</label>
+        <label><input type="checkbox" data-size="portrait"> Portrait 1080 × 1350</label>
+        <label><input type="checkbox" data-size="story"> Story 1080 × 1920</label>
+      </span>
+      <label><input type="checkbox" id="mark"> FirstPass Studio mark in the corner</label>
+    </div>
+    <p class="help">Upcoming: the night's fixture, a match up for each game, who is on the stream (from the Production Planner) and a polaroid for a match photo.
+      Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
+  </section>
+  <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
+  <div class="bar">
+    <button id="save">Save pictures</button>
+    <button class="alt" id="share">Share…</button>
+    <span id="status"></span>
+  </div>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const SIZE_LABELS = { square: 'Square', portrait: 'Portrait', story: 'Story' };
+  const PREVIEW_W = 220;
+  let info = null, night = null;
+  // What's ticked, kept while the night or sizes change: { key: bool }. The polaroid's photo and framing.
+  const off = new Set();
+  const photo = { file: '', px: 50, py: 50, zoom: 1 };
+
+  const dayName = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  function showError(msg) { $('err').textContent = msg || ''; $('err').hidden = !msg; }
+  const sizes = () => [...document.querySelectorAll('[data-size]')].filter(c => c.checked).map(c => c.dataset.size);
+
+  // The pictures for this night, each { key, kind, name, help, game?, missing? }.
+  function pictures() {
+    const list = [{ key: 'fixtures', kind: 'fixtures', name: 'Game night fixture', help: 'Every game of the night, on every court, by time.' }];
+    for (const g of night.games) list.push({ key: `matchup:${g.id}`, kind: 'matchup', game: g.id, name: `Match up ${g.home.name} v ${g.away.name}`,
+      help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
+    list.push({ key: 'onstream', kind: 'onstream', name: 'On the stream', help: night.stream ? `${night.stream.court}'s games and who is calling them.` : '',
+      missing: night.stream ? '' : 'This night isn\'t planned yet: plan its court and commentators on the Production Planner tab first.' });
+    list.push({ key: 'polaroid', kind: 'polaroid', name: 'Polaroid', help: 'Drop a match photo on it, then drag the preview to frame it. With no photo the window is see-through, for your social team to put a photo under in Canva or on a phone.' });
+    return list;
+  }
+  function link(p, size) {
+    const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0' });
+    if (p.game) q.set('game', p.game);
+    if (p.kind === 'polaroid' && photo.file) { q.set('photo', photo.file); q.set('px', Math.round(photo.px)); q.set('py', Math.round(photo.py)); q.set('zoom', photo.zoom); }
+    return `/social.html?${q}`;
+  }
+
+  function preview(p, size) {
+    const [w, h] = { square: [1080, 1080], portrait: [1080, 1350], story: [1080, 1920] }[size];
+    const scale = PREVIEW_W / w;
+    const fig = el('figure', 'preview');
+    fig.style.margin = 0; fig.style.width = `${PREVIEW_W}px`; fig.style.height = `${Math.round(h * scale)}px`;
+    const frame = el('iframe');
+    frame.width = w; frame.height = h; frame.style.transform = `scale(${scale})`;
+    frame.loading = 'lazy'; frame.src = link(p, size); frame.title = `${p.name}, ${SIZE_LABELS[size]}`;
+    fig.append(frame, el('figcaption', '', SIZE_LABELS[size]));
+    if (p.kind === 'polaroid' && photo.file) fig.append(dragger(scale));
+    return fig;
+  }
+  // Dragging a polaroid preview moves the photo in its window; the previews redraw on letting go.
+  function dragger(scale) {
+    const d = el('div', 'drag');
+    d.title = 'Drag to move the photo';
+    d.onpointerdown = e => {
+      d.setPointerCapture(e.pointerId);
+      const start = { x: e.clientX, y: e.clientY, px: photo.px, py: photo.py };
+      d.onpointermove = m => {
+        // Dragging right shows more of the left of the photo; about a third of the preview moves it all the way.
+        photo.px = Math.max(0, Math.min(100, start.px - (m.clientX - start.x) / (PREVIEW_W / 3) * 100 / photo.zoom));
+        photo.py = Math.max(0, Math.min(100, start.py - (m.clientY - start.y) / (PREVIEW_W / 3) * 100 / photo.zoom));
+      };
+      d.onpointerup = () => { d.onpointermove = null; drawPolaroid(); };
+    };
+    return d;
+  }
+
+  function sponsorTick(kind) {
+    const l = el('label');
+    const c = el('input'); c.type = 'checkbox'; c.checked = info.settings.sponsor[kind];
+    c.onchange = () => saveSettings({ sponsor: { [kind]: c.checked } });
+    l.append(c, ' Sponsor strip');
+    return l;
+  }
+  function photoControls() {
+    const box = el('div', 'pic__ticks');
+    const drop = box.appendChild(el('label', 'drop', photo.file ? 'Drop another photo, or click to choose' : 'Drop a match photo here, or click to choose'));
+    const input = el('input'); input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp'; input.hidden = true;
+    drop.append(input);
+    input.onchange = () => input.files[0] && addPhoto(input.files[0]);
+    drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+    drop.ondragleave = () => drop.classList.remove('over');
+    drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) addPhoto(f); };
+    if (photo.file) {
+      const z = el('label', '', 'Zoom ');
+      const r = el('input'); r.type = 'range'; r.min = 1; r.max = 3; r.step = 0.05; r.value = photo.zoom;
+      r.onchange = () => { photo.zoom = Number(r.value); drawPolaroid(); };
+      z.append(r);
+      const rm = el('button', 'alt small', 'Remove the photo');
+      rm.onclick = () => { photo.file = ''; photo.px = photo.py = 50; photo.zoom = 1; drawPolaroid(); };
+      box.append(z, rm);
+    }
+    return box;
+  }
+  async function addPhoto(file) {
+    setStatus('Adding the photo…');
+    try {
+      const res = await fetch(`/api/socials/photo?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      Object.assign(photo, { file: d.photo, px: 50, py: 50, zoom: 1 });
+      setStatus('');
+      drawPolaroid();
+    } catch (err) { setStatus(`Couldn't add the photo: ${err.message}`, true); }
+  }
+
+  function card(p) {
+    const s = el('section', `pic${off.has(p.key) || p.missing ? ' off' : ''}`);
+    s.dataset.key = p.key;
+    const left = s.appendChild(el('div'));
+    left.append(el('h3', '', p.name));
+    const ticks = left.appendChild(el('div', 'pic__ticks'));
+    const l = el('label');
+    const c = el('input'); c.type = 'checkbox'; c.checked = !off.has(p.key) && !p.missing; c.disabled = !!p.missing;
+    c.onchange = () => { if (c.checked) off.delete(p.key); else off.add(p.key); s.classList.toggle('off', !c.checked); };
+    l.append(c, ' Save this one');
+    ticks.append(l, sponsorTick(p.kind));
+    if (p.help) left.append(el('p', 'help', p.help));
+    if (p.missing) left.append(el('p', 'note warn', p.missing));
+    if (p.kind === 'polaroid') left.append(photoControls());
+    const previews = s.appendChild(el('div', 'previews'));
+    for (const size of sizes()) previews.append(preview(p, size));
+    if (!sizes().length) previews.append(el('p', 'help', 'Tick a size above.'));
+    return s;
+  }
+  function draw() {
+    if (!night) return;
+    $('pics').replaceChildren(...pictures().map(card));
+  }
+  function drawPolaroid() {
+    const old = document.querySelector('[data-key="polaroid"]');
+    const p = pictures().find(x => x.key === 'polaroid');
+    if (old) old.replaceWith(card(p));
+  }
+
+  async function saveSettings(change) {
+    try {
+      const res = await fetch('/api/socials/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(change) });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      info.settings = d.settings; showError(''); draw();
+    } catch (err) { showError(`Couldn't save that: ${err.message}`); }
+  }
+
+  async function loadNight(date) {
+    try {
+      const d = await (await fetch(`/api/socials/night?date=${encodeURIComponent(date)}`, { cache: 'no-store' })).json();
+      if (d.error) throw new Error(d.error);
+      night = d; showError(''); draw();
+    } catch (err) { showError(`Couldn't load that night: ${err.message}`); }
+  }
+  async function load() {
+    try {
+      const d = await (await fetch('/api/socials', { cache: 'no-store' })).json();
+      if (d.error) throw new Error(d.error);
+      info = d;
+      $('noApp').hidden = d.app;
+      $('save').disabled = $('share').disabled = !d.app;
+      $('mark').checked = d.settings.mark;
+      $('night').replaceChildren(...d.nights.map(n => {
+        const o = el('option', '', `${dayName(n.date)} · ${n.rounds} · ${n.games} games${n.date === d.today ? ' (tonight)' : ''}`);
+        o.value = n.date;
+        return o;
+      }));
+      if (!d.nights.length) { $('pics').replaceChildren(el('section', 'help', 'No game nights in this season yet.')); return; }
+      $('night').value = d.next;
+      await loadNight(d.next);
+    } catch (err) { showError(`Couldn't load the game nights: ${err.message}`); }
+  }
+
+  function setStatus(text, bad) { $('status').textContent = text; $('status').classList.toggle('error', !!bad); }
+  async function save(share) {
+    const items = [];
+    for (const p of pictures()) {
+      if (off.has(p.key) || p.missing) continue;
+      for (const size of sizes()) items.push({ name: p.name, link: link(p, size), size });
+    }
+    if (!items.length) return setStatus('Tick a picture and a size first.', true);
+    $('save').disabled = $('share').disabled = true;
+    setStatus(`Saving ${items.length} picture${items.length === 1 ? '' : 's'}…`);
+    try {
+      const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: 'upcoming', share, items }) });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      setStatus(`Saved ${d.files.length} picture${d.files.length === 1 ? '' : 's'} in ${d.folder}${share ? '. Pick where to share them in the menu.' : ''}`);
+    } catch (err) { setStatus(`Couldn't save the pictures: ${err.message}`, true); }
+    $('save').disabled = $('share').disabled = !info.app;
+  }
+
+  $('night').onchange = () => loadNight($('night').value);
+  for (const c of document.querySelectorAll('[data-size]')) c.onchange = draw;
+  $('mark').onchange = () => saveSettings({ mark: $('mark').checked });
+  $('save').onclick = () => save(false);
+  $('share').onclick = () => save(true);
+  load();
+</script>
+</body>
+</html>

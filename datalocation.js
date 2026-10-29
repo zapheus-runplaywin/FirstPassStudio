@@ -13,7 +13,7 @@
 // Only the settings Studio saves move (SETTINGS); the Mac app's folder also holds Electron's
 // own files, which never do. Some files stay on this Mac whichever folder holds the settings (LOCAL_ONLY): the debug
 // logs (written all the time), the scores and clock (saved every few seconds while a game is
-// live), caches, the app's window positions and this file. Only settings sync.
+// live), caches, the Socials tab's polaroid photos, the app's window positions and this file. Only settings sync.
 //
 // Another Mac's settings can be restored onto this one (restore()): they are copied, never
 // moved, so the other Mac keeps its own.
@@ -42,7 +42,7 @@ const SETTINGS = new Set([
 // Kept in the local folder whichever folder holds the settings (saved with datadir.local()).
 const LOCAL_ONLY = new Set([
   LOCATION_FILE, 'app-settings.json', 'logs', 'backups',
-  'scoreboard-state.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json',
+  'scoreboard-state.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json', 'socials-photos',
 ]);
 
 const PROVIDERS = {
