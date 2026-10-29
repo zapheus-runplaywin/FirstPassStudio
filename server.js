@@ -184,7 +184,7 @@ const socials = require('./socials').create({
   log, competitions, savefile, photosDir: datadir.local('socials-photos'), byDate: () => planner.byDate(), onStream: date => planner.onStream(date),
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '', logo: rules().competitionLogoDark }), logoFor: n => logoFor(n),
   // Athletes' photos: only those who approved their use (athletes.js photoFor), and the list to pick from.
-  photoFor: n => photoFor(n),
+  photoFor: who => photoFor(who), // a name, or a shooter with their PlayHQ ids
   athletesWithPhotos: () => Object.values(athletes()).filter(e => e.photoOk).map(e => ({ name: e.name, photo: photoFor(e.name), teams: athleteTeams(e.name) }))
     .filter(a => a.photo).sort((a, b) => a.name.localeCompare(b.name)),
   // The top sponsors (naming, elite and major), for the sponsor strip.

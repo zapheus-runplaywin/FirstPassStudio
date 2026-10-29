@@ -834,7 +834,10 @@ their number, usual position and how many games they've played. Then:
 
 One athlete, one photo: photos go by the athlete's name across the whole competition, so an athlete who plays in more
 than one division (or for more than one team) needs only one photo. Each athlete card says which other teams and
-divisions they play for, and **All athletes** lists everyone seen so far, once each, with a search box.
+divisions they play for, and **All athletes** lists everyone seen so far, once each, with a search box. A player in a
+line up (the position match ups, Top shooters) is matched by their PlayHQ id first, then by name: the register keeps
+each athlete's PlayHQ ids, so a player whose name changes in PlayHQ during the season keeps the photo (and approval)
+kept under their old name.
 
 With no photo, the graphics show a generic silhouette: female, male, or plain when the gender isn't known. The gender
 comes from PlayHQ's profile when it sends one; under each athlete you can pick Female or Male instead.
@@ -942,7 +945,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template
   takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one.
 - **Athletes' photos:** only athletes who approved their photo's use (Athletes tab). Top shooters shows each shooter's
-  photo, matched by name, with the team logo as a badge. A Match up or Full time card picks an athlete for each side
+  photo, matched by PlayHQ id then name, with the team logo as a badge. A Match up or Full time card picks an athlete for each side
   (division, team, then name; `&home=` `&away=`), drawn over the team's logo, and a polaroid can use an athlete's photo
   (`&athlete=`). `GET /api/socials/athletes` lists who can be picked.
 - **Colours:** a colour set for every picture. *Competition colours* is the stream's own look; the others are made from

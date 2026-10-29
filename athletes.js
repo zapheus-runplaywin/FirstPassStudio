@@ -59,8 +59,18 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
   // An athlete's photo goes on a graphic (the stream's and the Socials tab's) only once they have approved its use,
   // ticked on the athletes page (photoOk in the register). Until then graphics show the silhouette.
   const photoApproved = name => !!(athletes()[photoKey(name)] || {}).photoOk;
-  function photoFor(name, files = photoFiles()) {
-    return photoApproved(name) ? photoFileFor(name, files) : null;
+  // A line-up player is matched by PlayHQ id first, then by name: an id the register has seen under another name
+  // (the player's name changed in PlayHQ during the season) finds the photo and approval kept under that name.
+  // who is a name, or a player ({ name, playhqId } from a line up, or { name, playhqIds }).
+  function namesFor(who) {
+    if (typeof who !== 'object' || !who) return [who];
+    const ids = new Set([who.playhqId, ...(who.playhqIds || [])].filter(Boolean).map(String));
+    const byId = ids.size ? Object.values(athletes()).filter(e => (e.playhqIds || []).some(id => ids.has(id))).map(e => e.name) : [];
+    return [...new Set([...byId, who.name])];
+  }
+  function photoFor(who, files = photoFiles()) {
+    for (const name of namesFor(who)) if (photoApproved(name)) { const photo = photoFileFor(name, files); if (photo) return photo; }
+    return null;
   }
   // A photo file's athlete (its name is theirs) has approved its use.
   const fileApproved = file => !!(athletes()[fileKey(file)] || {}).photoOk;
@@ -143,7 +153,7 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
       data[side] = { ...data[side] };
       data[side].players = data[side].players.map(p => {
         const gender = genderFor(p.name, p.gender, data.division);
-        return { ...p, gender, photo: photoFor(p.name, files), silhouette: silhouette(gender) };
+        return { ...p, gender, photo: photoFor(p, files), silhouette: silhouette(gender) };
       });
     }
     return data;

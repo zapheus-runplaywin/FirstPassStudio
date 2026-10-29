@@ -106,3 +106,29 @@ test('games and positions typed in are kept and tidied, and a line without a div
   const saved = JSON.parse(fs.readFileSync(register, 'utf8')).athletes;
   assert.deepEqual(Object.values(saved).find(x => x.name === 'Blizzardz C').positions, ['WA', 'C']);
 });
+
+test('a player PlayHQ has renamed keeps their approved photo: the line up is matched by PlayHQ id before name', async t => {
+  const dataDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'studio-test-'));
+  const first = await startStudio(null, { competition: 'Thunder League', dataDir, keepDataDir: true });
+  await first.until(async () => (await first.get('/api/teams')).home.players.length);
+  const dir = path.join(dataDir, 'competitions', first.competition.id || 'thunder-league');
+  await first.stop();
+  // Earlier in the season PlayHQ called Blizzardz GS "Bliz Shooter", whose photo was added and approved then.
+  const file = path.join(dir, 'athletes.json');
+  const reg = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const e = reg.athletes['blizzardz gs'];
+  assert.ok(e && e.playhqIds && e.playhqIds.length, 'the register keeps PlayHQ ids');
+  delete reg.athletes['blizzardz gs'];
+  reg.athletes['bliz shooter'] = { ...e, name: 'Bliz Shooter', photoOk: true };
+  fs.writeFileSync(file, JSON.stringify(reg));
+  fs.mkdirSync(path.join(dir, 'photos'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'photos', 'Bliz Shooter.png'), PNG);
+
+  const again = await startStudio(t, { dataDir, removeDataDir: true });
+  await again.until(async () => (await again.get('/api/teams')).home.players.length);
+  const t2 = await again.get('/api/teams');
+  const p = [...t2.home.players, ...t2.away.players].find(x => x.name === 'Blizzardz GS');
+  assert.match(p.photo || '', /Bliz%20Shooter\.png$/, 'found by their PlayHQ id');
+  const other = [...t2.home.players, ...t2.away.players].find(x => x.name === 'Blizzardz GA');
+  assert.equal(other.photo, null, 'nobody else');
+});
