@@ -22,7 +22,8 @@
 //
 // An output's way out can't be one another output already uses: the same display, the Blackmagic device
 // (one output at a time) or the same NDI source name. The earlier output keeps it and the later one shows
-// nothing until it's changed, and the Output page says why.
+// nothing until it's changed, and the Output page says why. An output's NDI sources are named after the
+// output (and follow it when it's renamed) unless "Use my own name" is ticked (ndiOwnName) with a name typed.
 //
 // Saved as outputs.json in the data folder: { outputs: [...] }, the primary first (an older file with one
 // output's settings becomes Output 1). Stream Deck: /deck/output/on|off|toggle (the primary),
@@ -43,7 +44,6 @@ const KEYING = ['external', 'off'];
 const KEYERS = ['', 'none', 'dsk1', 'dsk2', 'usk1', 'usk2', 'usk3', 'usk4'];
 const DEFAULT_CHROMA = '#00b140';
 const NDI_SIGNALS = ['fillkey', 'chroma', 'alpha'];
-const DEFAULT_NDI_NAME = 'FirstPass Studio';
 // The video formats NDI can send at (receivers take any; pick what the switcher runs at): 1080p at the
 // same rates a Blackmagic device can name, and 720p.
 const NDI_FORMATS = [
@@ -62,7 +62,7 @@ const COLOURS = { 1: '#ea9a38', 2: '#f24f91', 3: '#4ec1e6', 4: '#95ba45' };
 const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
-  ndiSignal: 'fillkey', ndiName: DEFAULT_NDI_NAME, ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
+  ndiSignal: 'fillkey', ndiOwnName: false, ndiName: '', ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
   keyer: '', swFill: 0, swKey: 0, swCameras: [],
 };
 
@@ -125,8 +125,9 @@ function clean(s, old = DEFAULTS) {
     decklinkKeying: KEYING.includes(pick('decklinkKeying')) ? pick('decklinkKeying') : 'external',
     decklinkStraight: pick('decklinkStraight', false) === true,
     ndiSignal: NDI_SIGNALS.includes(pick('ndiSignal')) ? pick('ndiSignal') : 'fillkey',
-    // NDI shows sources as "MAC NAME (this name)", so brackets in it would confuse things.
-    ndiName: String(pick('ndiName', '')).replace(/[()\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) || DEFAULT_NDI_NAME,
+    // The NDI sources take the output's name unless ndiOwnName is ticked: then ndiName, the name typed (see ndiSource).
+    ndiOwnName: pick('ndiOwnName', false) === true,
+    ndiName: ndiClean(pick('ndiName', '')),
     ndiFormat: NDI_FORMATS.some(f => f.id === pick('ndiFormat')) ? pick('ndiFormat') : DEFAULT_NDI_FORMAT,
     // What's on it counts in the sponsors' exposure report (Output 1's always does). Off unless ticked, as Studio
     // can't tell whether another output is on the stream.
@@ -141,6 +142,10 @@ function clean(s, old = DEFAULTS) {
     swCameras: [...new Set((Array.isArray(pick('swCameras')) ? pick('swCameras') : []).map(swInput).filter(Boolean))].sort((a, b) => a - b).slice(0, 20),
   };
 }
+// NDI shows sources as "MAC NAME (this name)", so brackets in it would confuse things.
+const ndiClean = t => String(t || '').replace(/[()\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+// The name an output's NDI sources go by: its own name typed when that's ticked, else the output's name.
+const ndiSource = o => (o.ndiOwnName && o.ndiName) || ndiClean(o.name) || `Output ${o.slot}`;
 const swInput = v => { const n = Math.round(Number(v)); return n >= 1 && n <= 40 ? n : 0; };
 
 const slug = t => String(t || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -173,7 +178,8 @@ function load() {
     list = [];
     for (const item of items.slice(0, MAX)) {
       if (!item || typeof item !== 'object') continue;
-      const o = clean(item, { ...DEFAULTS, id: list.length ? item.id : PRIMARY });
+      // Saved before NDI sources followed the output's name: the source name saved then is dropped, so they follow it now.
+      const o = clean(item.ndiOwnName === undefined ? { ...item, ndiName: '' } : item, { ...DEFAULTS, id: list.length ? item.id : PRIMARY });
       if (seen.has(o.id) || (list.length && o.id === PRIMARY)) continue;
       seen.add(o.id);
       list.push(o);
@@ -225,7 +231,7 @@ function windowsOf(o) {
   if (o.mode === 'ndi') {
     if (!ndi?.ok) return [];
     const format = NDI_FORMATS.find(f => f.id === o.ndiFormat);
-    return [{ kind: 'ndi', signal: o.ndiSignal, name: o.ndiName, format, color: o.chromaColor, safe: chromaSafe(o) }];
+    return [{ kind: 'ndi', signal: o.ndiSignal, name: ndiSource(o), format, color: o.chromaColor, safe: chromaSafe(o) }];
   }
   if (!displays) return [];
   const have = id => displays.some(d => d.id === id);
@@ -245,7 +251,7 @@ function uses(o) {
   if (o.mode === 'chroma') return [`display:${o.chromaDisplay}`];
   if (o.mode === 'fillkey') return [`display:${o.fillDisplay}`, `display:${o.keyDisplay}`];
   if (o.mode === 'decklink') return ['decklink'];
-  if (o.mode === 'ndi') return [`ndi:${slug(o.ndiName)}`];
+  if (o.mode === 'ndi') return [`ndi:${slug(ndiSource(o))}`];
   return [];
 }
 // For each output, the earlier output already using what it needs (or null): that one keeps it.
@@ -301,7 +307,7 @@ function send() {
 function outputState(o, clash, showing) {
   const mine = showing.filter(w => w.output === o.id);
   return {
-    ...o, colour: COLOURS[o.slot], primary: o.id === PRIMARY, link: slug(o.name),
+    ...o, colour: COLOURS[o.slot], primary: o.id === PRIMARY, link: slug(o.name), ndiSource: ndiSource(o),
     chromaSafeNow: chromaSafe(o), showing: mine,
     // Into the switcher as: the key it comes into now (the usual one when not picked), and what it sends.
     keyerNow: keyerOf(o), signal: signalOf(o),
@@ -340,8 +346,8 @@ function change(changes = {}) {
     if (list.length >= MAX) return `Studio can send to ${MAX} outputs at most.`;
     const slot = [1, 2, 3, 4].find(n => !list.some(o => o.slot === n));
     const id = Math.random().toString(36).slice(2, 10);
-    // A new NDI output gets a name of its own, so it doesn't take Output 1's NDI sources.
-    list.push(clean({ name: changes.name || `Output ${slot}`, slot, on: false, ndiName: `${DEFAULT_NDI_NAME} ${slot}` }, { ...DEFAULTS, id }));
+    // Its NDI sources take its name, which no other output has, so they never take Output 1's.
+    list.push(clean({ name: changes.name || `Output ${slot}`, slot, on: false }, { ...DEFAULTS, id }));
     tidy();
     log('info', 'outputs', `Added ${list.at(-1).name}`);
     return null;
@@ -358,6 +364,8 @@ function change(changes = {}) {
   const o = changes.output === undefined ? primary() : find(changes.output);
   if (!o) return `No output "${changes.output}".`;
   const { output, id, slot, ...rest } = changes;
+  // A source name sent on its own (a Stream Deck or an older page) is a name of the output's own; an empty one goes back to the output's.
+  if (rest.ndiName !== undefined && rest.ndiOwnName === undefined) rest.ndiOwnName = !!ndiClean(rest.ndiName);
   list[list.indexOf(o)] = clean(rest, o);
   tidy();
   return null;
