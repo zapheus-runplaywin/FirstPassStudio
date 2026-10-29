@@ -576,13 +576,13 @@
           <span class="sqBreaks row" style="gap:8px"><label class="inline"><input type="checkbox" value="qt"> Quarter time</label><label class="inline"><input type="checkbox" value="ht"> Half time</label><label class="inline"><input type="checkbox" value="3qt"> Three quarter time</label></span>
           <label class="inline sqAfter"><input type="number" id="sqAfter" min="0" max="120" style="width:64px"> s after the siren</label>
         </div>
-        <label for="sqStartOn" class="sqStartOn">Starts by itself on</label><select id="sqStartOn" class="sqStartOn" title="The output a sequence that starts before the game, at a break or at full time plays on"></select>
+        <label class="sqPlaysOn">Plays on</label><div id="sqPlaysOn" class="sqPlaysOn row" style="gap:8px" title="The outputs it plays on together: started by itself, or played on any of them"></div>
         <label for="sqRepeat">Repeat</label>
         <div class="row" style="gap:8px">
           <select id="sqRepeat"><option value="once">Play once</option><option value="loop">Repeat until stopped</option><option value="until:resume">Repeat until play resumes</option><option value="until:before">Repeat until before the start</option></select>
           <label class="inline sqUntilMin"><input type="number" id="sqUntilMin" min="0" max="120" style="width:64px"> min before the scheduled start</label>
         </div>
-        <label for="sqThen">Then</label><select id="sqThen"></select>
+        <label for="sqThen">Then</label><div id="sqThens" style="display:grid;gap:6px"><select id="sqThen"></select></div>
         <label for="sqMusic">Music</label>
         <div class="row" style="gap:8px">
           <select id="sqMusic"></select>

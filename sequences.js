@@ -14,10 +14,14 @@
 //
 // With more than one output (outputs.js), sequences are shared: any sequence plays on any output, picked
 // when it's played (a.output), turning its sources on and off there. Each output has its own runner, so one
-// sequence can play on each at once (the same one on two, even). A sequence that starts by itself starts
-// on its startOn output (the primary unless set; not at all once that output has gone). Only the
+// sequence can play on each at once (the same one on two, even). A sequence plays on its playsOn outputs
+// (the primary unless set): started by itself, or played on one of them by hand or from the Stream Deck,
+// it starts on all of them together (with "only", on the one picked alone). Played on another output it
+// plays there alone. An output in playsOn that has gone is left out; with all of them gone it doesn't
+// start by itself. Each output does its own Then when the sequence ends there (thenOn, else then), so one
+// sequence played on two outputs can go to a different scene or sequence on each. Only the
 // primary plays music: on another output a sequence plays its steps silently, and its Sponsor ads steps
-// play nothing (go straight on).
+// play in that output's own ad sources.
 //
 // Sequences belong to the competition in use (sequences.json in its folder) and refer to the scene's
 // shared sources and scenes by id. The runner lives here in Studio, not in a page, so it keeps time
@@ -107,11 +111,17 @@ function within(out, fn) {
 function each(fn) { for (const out of new Set([here, ...runners.keys()])) within(out, fn); }
 // A timer's callback, run with the runner that set it.
 const bound = fn => { const out = here; return () => within(out, fn); };
-// The output a sequence starts by itself on: its startOn (the primary unless set), or null when that output has been
-// removed. It doesn't start then: falling back to Output 1 would put a commentary monitor's loop on air.
-const gone = sq => !!(sq && sq.startOn && sq.startOn !== PRIMARY && api?.hasOutput && !api.hasOutput(sq.startOn));
-const outOf = sq => !sq || !sq.startOn || sq.startOn === PRIMARY || !api?.hasOutput ? PRIMARY : gone(sq) ? null : sq.startOn;
-const goneNote = (sq, when) => log('info', 'sequence', `"${sq.name}" won't start by itself ${when}: the output it starts on has been removed (pick another in the sequence)`);
+// The outputs a sequence plays on together: its playsOn (the primary unless set) that are still there. With
+// all of them removed it's none, and it doesn't start by itself: falling back to Output 1 would put a
+// commentary monitor's loop on air.
+const has = o => o === PRIMARY || !api?.hasOutput || api.hasOutput(o);
+const outsOf = sq => !api?.hasOutput ? [PRIMARY] : (sq?.playsOn?.length ? sq.playsOn : [PRIMARY]).filter(has);
+const gone = sq => !!sq && !outsOf(sq).length;
+const goneNote = (sq, when) => log('info', 'sequence', `"${sq.name}" won't start by itself ${when}: the outputs it plays on have been removed (pick another in the sequence)`);
+// The outputs a play or stop on output out reaches: all the sequence's own when out is one of them, else out alone.
+const groupOf = (sq, out, only) => !only && outsOf(sq).includes(out) ? outsOf(sq) : [out];
+// What output out does when the sequence ends there: its own Then, else the sequence's.
+const thenFor = (sq, out) => (sq.thenOn && sq.thenOn[out]) || sq.then;
 // Music is the primary's alone: another output's sequences play theirs silently.
 const SILENT = { stopFor() {}, quiet() {}, playFor() {}, handOver() {} };
 const sound = () => here === PRIMARY ? music : SILENT;
@@ -177,22 +187,36 @@ function cleanUntil(v) {
   return u.moment === 'before' ? { moment: 'before', min: Math.round(clamp(u.min, 0, 120, 2)) } : { moment: 'resume' };
 }
 
+// Then: go to a scene, play a sequence, turn off what it turned on, or leave it all.
+function cleanThen(v) {
+  const t = v && typeof v === 'object' ? v : {};
+  return THENS.includes(t.type) ? { type: t.type, ...(t.type === 'scene' ? { scene: cleanId(t.scene, '') } : t.type === 'sequence' ? { sequence: cleanId(t.sequence, '') } : {}) } : { type: 'off' };
+}
+
 // Fills in and tidies every setting, so a hand-edited or older sequences.json is always usable.
 function clean(input, existing = {}) {
   const s = { ...existing, ...input };
-  const then = s.then && typeof s.then === 'object' ? s.then : {};
+  // Older sequences.json (and callers) name one output, startOn; it's the first of playsOn now.
+  const on = Array.isArray(input.playsOn) ? input.playsOn : input.startOn ? [input.startOn] : Array.isArray(existing.playsOn) ? existing.playsOn : [existing.startOn || PRIMARY];
+  const playsOn = ids(on).slice(0, 4);
+  const thenOn = {};
+  for (const [o, t] of Object.entries(s.thenOn && typeof s.thenOn === 'object' ? s.thenOn : {})) {
+    const k = cleanId(o, '');
+    if (k && playsOn.includes(k) && t && THENS.includes(t.type)) thenOn[k] = cleanThen(t);
+  }
   const out = {
     id: cleanId(existing.id || s.id, newId()),
     name: '',
     colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
     repeat: REPEATS.includes(s.repeat) ? s.repeat : 'once',
     start: cleanStart(s.start),
-    then: THENS.includes(then.type) ? { type: then.type, ...(then.type === 'scene' ? { scene: cleanId(then.scene, '') } : then.type === 'sequence' ? { sequence: cleanId(then.sequence, '') } : {}) } : { type: 'off' },
+    then: cleanThen(s.then),
     music: cleanMusic(s.music),
     musicEnd: cleanMusicEnd(s.musicEnd),
     quiet: !!s.quiet,
     hidden: !!s.hidden,  // left off the Output page's list (a mini sequence used inside others)
-    startOn: cleanId(s.startOn, PRIMARY), // the output it starts by itself on (outputs.js), the primary unless set
+    playsOn: playsOn.length ? playsOn : [PRIMARY], // the outputs it plays on together (outputs.js), the primary unless set
+    thenOn,  // an output's own Then, by output id, where it differs from then
     steps: (Array.isArray(s.steps) ? s.steps : []).slice(0, 100).map(cleanStep),
   };
   // Sources once kept on for the whole sequence (a scene step does that now) join each of its source steps.
@@ -478,7 +502,8 @@ function finish(why) {
   timer = fadeTimer = null;
   const ended = run;
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
-  const then = sq ? sq.then : { type: 'off' };
+  // This output's own Then (a sequence played on two outputs can go somewhere different on each).
+  const then = sq ? thenFor(sq, here) : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
   const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
   const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.STOP_FADE_SEC };
@@ -626,9 +651,8 @@ function gameTick(g) {
     }
     // The first sequence for the moment on each output starts there.
     const forMoment = s => m.kind === 'break' ? s.start.type === 'break' && s.start.breaks.includes(m.which) : s.start.type === 'fulltime';
-    for (const out of new Set(list.map(outOf))) {
-      if (!out) continue;
-      const next = list.find(s => outOf(s) === out && forMoment(s));
+    for (const out of new Set(list.flatMap(outsOf))) {
+      const next = list.find(s => outsOf(s).includes(out) && forMoment(s));
       if (next) within(out, () => trigger(next, m.kind === 'break' ? `It's ${BREAK_NAMES[m.which]}` : `It's full time`, next.start.afterSec));
     }
     for (const sq of list) if (gone(sq) && forMoment(sq)) goneNote(sq, m.kind === 'break' ? `at ${BREAK_NAMES[m.which]}` : 'at full time');
@@ -652,7 +676,7 @@ function gameTick(g) {
         continue;
       }
       if (gone(sq)) { goneNote(sq, `${sq.start.min} min before ${game.label || 'the game'}`); continue; }
-      within(outOf(sq), () => trigger(sq, `${sq.start.min} min before ${game.label || 'the game'}`, 0));
+      for (const o of outsOf(sq)) within(o, () => trigger(sq, `${sq.start.min} min before ${game.label || 'the game'}`, 0));
       changed = true;
     }
   }
@@ -733,6 +757,10 @@ function refreshPlaying() {
     if (run.step >= run.steps.length) { if (run.steps.length) enter(run.steps.length - 1); else finish('its steps were removed'); }
   });
 }
+// Stops sq where it's playing on outs, each output doing its own Then.
+function stopOn(outs, sq) {
+  for (const o of outs) within(o, () => { if (run && run.id === sq.id) finish('Stop was pressed'); });
+}
 function applyHere(a, sq) {
   const need = () => sq ? null : `No sequence "${a.sequence || ''}".`;
   switch (a.type) {
@@ -784,16 +812,20 @@ function applyHere(a, sq) {
     }
     case 'seqPlay': case 'seqToggle': {
       if (need()) return need();
-      if (a.type === 'seqToggle' && run && run.id === sq.id) { finish('Stop was pressed'); return null; }
-      // Another sequence stops first, keeping what this one shows straight away so it doesn't flicker.
-      if (run) interrupt(new Set(firstOf(sq)), `"${sq.name}" started`);
-      start(sq);
+      // On every output it plays on together (when this is one of them), unless a.only.
+      const outs = groupOf(sq, here, a.only);
+      if (a.type === 'seqToggle' && run && run.id === sq.id) { stopOn(outs, sq); return null; }
+      for (const o of outs) within(o, () => {
+        // Another sequence stops first, keeping what this one shows straight away so it doesn't flicker.
+        if (run) interrupt(new Set(firstOf(sq)), `"${sq.name}" started`);
+        start(sq, outs.length > 1 ? `on ${outs.length} outputs together` : undefined);
+      });
       return null;
     }
     case 'seqStop':
-      if (!run) return null;
-      if (a.sequence && (!sq || run.id !== sq.id)) return null;
-      finish('Stop was pressed');
+      // Stop naming the sequence stops it on every output it plays on together; plain Stop, this output's.
+      if (a.sequence) { if (sq) stopOn(groupOf(sq, here, a.only), sq); return null; }
+      if (run) finish('Stop was pressed');
       return null;
     case 'seqNext':
       if (!run) return 'No sequence is playing.';
@@ -847,7 +879,7 @@ function applyHere(a, sq) {
   }
 }
 
-// /deck/sequence/<name> (play), /deck/sequence/<name>/play|toggle|stop, for whatever is playing
+// /deck/sequence/<name> (play), /deck/sequence/<name>/play|toggle|stop|only (play on this output alone), for whatever is playing
 // /deck/sequence/next|stop|pause|resume, for one about to start by itself /deck/sequence/now|cancel, and the Automatic sequences switch /deck/sequence/auto/on|off|toggle.
 // out: the output these act on (/deck/output/<output>/sequence/…), the primary by default.
 function deck(parts, out = PRIMARY) {
@@ -859,8 +891,9 @@ function deck(parts, out = PRIMARY) {
     return { body: { ok: true, auto } };
   }
   const PLAYING = { next: 'seqNext', advance: 'seqAdvance', stop: 'seqStop', pause: 'seqPauseToggle', resume: 'seqResume', now: 'seqStartNow', cancel: 'seqCancel' };
-  const ONE = { play: 'seqPlay', start: 'seqPlay', toggle: 'seqToggle', stop: 'seqStop' };
-  const action = !verb ? (PLAYING[name] ? { type: PLAYING[name], output: out } : { type: 'seqPlay', sequence: name, output: out }) : ONE[verb] ? { type: ONE[verb], sequence: name, output: out } : null;
+  // only: on this output alone, not every output the sequence plays on together.
+  const ONE = { play: 'seqPlay', start: 'seqPlay', toggle: 'seqToggle', stop: 'seqStop', only: 'seqPlay' };
+  const action = !verb ? (PLAYING[name] ? { type: PLAYING[name], output: out } : { type: 'seqPlay', sequence: name, output: out }) : ONE[verb] ? { type: ONE[verb], sequence: name, output: out, ...(verb === 'only' ? { only: true } : {}) } : null;
   if (!action) return null;
   if (action.sequence && !find(action.sequence)) return { error: `No sequence "${name}".`, status: 404 };
   const error = apply(action);
@@ -938,7 +971,11 @@ function state() {
     if (w) pendingOut[here] = w;
   });
   return {
-    sequences: [...list].sort(byColour).map(sq => ({ ...sq, startOn: outOf(sq) || sq.startOn, ...(gone(sq) ? { startGone: true } : {}) })),
+    // goneOn: outputs in its playsOn that have been removed (kept for the editor to show); startGone: all of them.
+    sequences: [...list].sort(byColour).map(sq => {
+      const goneOn = sq.playsOn.filter(o => !has(o));
+      return { ...sq, ...(goneOn.length ? { goneOn } : {}), ...(gone(sq) ? { startGone: true } : {}) };
+    }),
     playing: within(PRIMARY, playingHere),
     playingOut,
     auto,

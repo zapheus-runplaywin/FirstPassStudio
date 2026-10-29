@@ -30,8 +30,8 @@ function viewFor(s, o = 'main') {
     changed: main ? s.changed : (s.changedOut || {})[o] || [],
     playing: main ? s.playing : (s.playingOut || {})[o] || null,
     pending: main ? s.pending : (s.pendingOut || {})[o] || null,
-    // Automatic starts happen on the output each sequence starts by itself on.
-    nextAuto: s.nextAuto && (s.sequences || []).some(x => x.id === s.nextAuto.id && (x.startOn || 'main') === o) ? s.nextAuto : null,
+    // Automatic starts happen on the outputs each sequence plays on.
+    nextAuto: s.nextAuto && (s.sequences || []).some(x => x.id === s.nextAuto.id && (x.playsOn || ['main']).includes(o)) ? s.nextAuto : null,
     onOut,
     viewOutput: o,
     viewName: o2 ? o2.name : '',
