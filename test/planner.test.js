@@ -116,6 +116,30 @@ test('a slot keeps its commentators when PlayHQ moves its game, and says so', as
   assert.equal(gone.changed.was, 'Moved Home v Moved Away');
 });
 
+test('the roster says which games are done, on now and next, with the score and the winner', async () => {
+  let p = await get('/api/planner');
+  const id = p.pool[0].id;
+  const games = (await get('/api/games')).filter(g => g.court === 'Court 1' && g.date === studio.world.today).sort((a, b) => a.time.localeCompare(b.time));
+  p = await post('/api/planner/night', { date: studio.world.today, court: 'Court 1', slots: { [games[0].time.slice(0, 5)]: [id] } });
+  await post('/api/scoreboard', { type: 'selectGame', game: games[0] });
+  await post('/api/scoreboard', { type: 'score', side: 'home', delta: 3 });
+  let r = await get('/api/planner/roster');
+  assert.deepEqual(r.slots.map(s => s.state), ['now', 'next']);
+  assert.ok(r.slots[0].live, 'scored, so live');
+  assert.deepEqual(r.slots[0].score, { home: 3, away: 0 });
+  assert.match(r.slots[0].period, /^Q\d$/);
+  assert.equal(r.slots[1].score, null, 'not started');
+  // The scoreboard moves on: the first game is done, with the score it had (PlayHQ has no result yet) and its winner.
+  await post('/api/scoreboard', { type: 'selectGame', game: games[1] });
+  r = await get('/api/planner/roster');
+  assert.deepEqual(r.slots.map(s => s.state), ['done', 'now']);
+  assert.deepEqual(r.slots[0].score, { home: 3, away: 0 });
+  assert.equal(r.slots[0].winner, 'home');
+  assert.equal(r.slots[0].people[0].name, p.pool[0].name);
+  const page = await fetch(`${studio.base}/roster.html`).then(x => x.text());
+  assert.match(page, /const MAX = 8;/, 'eight tiles at most');
+});
+
 test('the commentators graphics read who is on the mic', async () => {
   const page = await fetch(`${studio.base}/commentators.html`).then(r => r.text());
   assert.match(page, /\/api\/planner\/onair/, 'the Commentators graphic falls back to the plan');

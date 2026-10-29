@@ -123,7 +123,7 @@ const PAGE_OPTIONS = (() => {
       { key: 'date', label: 'Night', type: 'text', placeholder: 'tonight (or the next game night)', help: 'Another night\'s team, as YYYY-MM-DD.' },
       title("Tonight's commentators"),
       { key: 'refresh', label: 'Updates', type: 'select', choices: [['', 'Live: follows the scoreboard and the plan'], ['0', 'Load once']],
-        help: 'Live lights up the game on the scoreboard as it moves on, and shows changes made in the Production Planner within a minute. It asks Studio only, never PlayHQ. Load once reads it each time it comes on.' },
+        help: 'Live lights up the game on the scoreboard as it moves on, with its score as goals go in, and shows changes made in the Production Planner within a minute. It asks Studio only, never PlayHQ. Load once reads it each time it comes on.' },
       { key: 'bg', label: 'Background', type: 'select', choices: [['', 'Solid (for a monitor)'], ['0', 'See-through']] },
     ],
     'sponsor.html': [
