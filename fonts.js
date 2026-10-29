@@ -33,7 +33,7 @@ const BUNDLED = {
 // competition's font.
 const TEMPLATE_FONTS = {
   'Fredoka': 'fredoka', 'Anton': 'anton', 'Bungee': 'bungee', 'Orbitron': 'orbitron', 'IBM Plex Sans': 'ibm-plex-sans',
-  'Teko': 'teko', 'Archivo Black': 'archivo-black', 'Sora': 'sora', 'Oswald': 'oswald', 'Rubik': 'rubik',
+  'Teko': 'teko', 'Archivo Black': 'archivo-black', 'Sora': 'sora', 'Oswald': 'oswald', 'Rubik': 'rubik', 'Yellowtail': 'yellowtail',
 };
 const FALLBACK = 'Montserrat';
 const VENDOR = path.join(__dirname, 'public', 'vendor', 'fonts');

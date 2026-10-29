@@ -50,6 +50,8 @@ const MAX_OWN_SETS = 12;
 // The template sets: the look of every picture (public/social-templates.css, a class t-<id> on social.html's body),
 // each with its display face (fonts.js TEMPLATE_FONTS) and, for the ones that keep their own ground whatever the
 // colours, which FirstPass Studio mark goes on it: light (the dark-ink one, on a pale ground) or white.
+// A template font's stylesheet; script is a second face some templates use for one word (--sfont).
+function fontCss(font) { return `vendor/fonts/${TEMPLATE_FONTS[font]}/${TEMPLATE_FONTS[font]}.css`; }
 const TEMPLATES = [
   { id: 'default', name: 'Default', blurb: 'The stream\'s own look', font: null },
   { id: 'fun', name: 'Fun', blurb: 'Stickers, confetti, a bouncy face', font: 'Fredoka' },
@@ -69,7 +71,9 @@ const TEMPLATES = [
   { id: 'splash', name: 'Splash', blurb: 'Paint shapes on white', font: 'Oswald', mark: 'light' },
   { id: 'gameday', name: 'Game Day', blurb: 'Charcoal slabs, the highlight and a tall bold face', font: 'Anton', mark: 'white' },
   { id: 'arena', name: 'Arena', blurb: 'A spotlight, hazard stripes and an echoed title', font: 'Archivo Black', mark: 'white' },
-].map(t => ({ ...t, fontCss: t.font ? `vendor/fonts/${TEMPLATE_FONTS[t.font]}/${TEMPLATE_FONTS[t.font]}.css` : null }));
+  { id: 'hero', name: 'Hero', blurb: 'A huge slanted title, athletes standing in front of it', font: 'Anton', mark: 'light' },
+  { id: 'final', name: 'Final', blurb: 'A bold colour, a tall title and a script word', font: 'Anton', script: 'Yellowtail', mark: 'white' },
+].map(t => ({ ...t, fontCss: t.font ? fontCss(t.font) : null, scriptCss: t.script ? fontCss(t.script) : null }));
 const templateOf = id => TEMPLATES.find(t => t.id === id) || null;
 const HEX = /^#[0-9a-f]{6}$/i;
 const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
@@ -159,7 +163,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   // light: a pale ground, which takes dark text and the dark-ink Studio mark, and the template set drawn with it.
   function look(id, own, templateId = 'default') {
     const t = templateOf(templateId) || TEMPLATES[0];
-    const template = { id: t.id, name: t.name, font: t.font, fontCss: t.fontCss, mark: t.mark || null };
+    const template = { id: t.id, name: t.name, font: t.font, fontCss: t.fontCss, script: t.script || null, scriptCss: t.scriptCss, mark: t.mark || null };
     return { ...colourLook(id, own), template };
   }
   function colourLook(id, own) {
