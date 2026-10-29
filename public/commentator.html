@@ -9,8 +9,9 @@
 <style>
   /* This page's own layout. What it shares with other graphics is in graphics.css. */
   /* Commentator stats: the whole 1920 x 1080 frame, for a monitor at the commentary desk rather than the stream.
-     Three columns: the team lists, the game stats, and the clock, moments, last 10 goals and current run. */
-  body { padding: 24px; display: grid; grid-template-columns: 470px minmax(0, 1fr) 460px; gap: 24px; align-items: stretch; justify-content: stretch;
+     Three columns: the team lists, the game stats (kept big: more stats will come, Matt, 2026-10-29), and the clock and
+     moments; across the bottom, the last 10 goals, the current run and the score worm. */
+  body { padding: 24px; display: grid; grid-template-columns: 400px minmax(0, 1fr) 450px; grid-template-rows: minmax(0, 1fr) 224px; gap: 20px 24px; align-items: stretch; justify-content: stretch;
     background: radial-gradient(circle at 50% 30%, var(--purple-dark-light, #3b1a52), var(--purple-dark, #1e0b2b) 75%); }
   body.see-through { background: transparent; }
   .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 20px; }
@@ -29,12 +30,6 @@
   .team__form .W { background: #16a34a; } .team__form .L { background: #b91c1c; }
   .team__drought { flex-basis: 100%; }
   .team__drought.is-long { color: var(--yellow); }
-  /* Head to head this season and the next game on this court, under the team lists */
-  .season { flex: none; margin-top: auto; padding: 12px 18px 14px; display: grid; gap: 8px; }
-  .season__row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: baseline; }
-  .season__label { color: var(--pink); font-size: 15px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-  .season__text { font-size: 20px; font-weight: 800; text-transform: uppercase; line-height: 1.2; overflow-wrap: anywhere; }
-  .season__text small { display: block; color: var(--muted); font-size: 15px; letter-spacing: .06em; margin-top: 2px; }
   .team__head { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 14px; padding: 14px 18px 10px; }
   .team__logo { width: 64px; height: 64px; object-fit: contain; }
   .team__logo.logo-fallback { font-size: 22px; box-sizing: border-box; border-width: 3px; }
@@ -51,23 +46,33 @@
 
   /* ── Middle: game stats (the Game stats graphic, narrower) ───────────────── */
   .stats .box { flex: 1; }
-  .gs__header { padding: 20px 28px 0; text-align: center; }
-  .gs__division { margin-top: 10px; color: var(--muted); font-size: 21px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .gs__header { padding: 14px 28px 0; text-align: center; }
+  .gs__division { margin-top: 6px; color: var(--muted); font-size: 21px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
   .gs__division:empty { display: none; }
-  .gs__score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 22px; padding: 16px 28px 4px; }
-  .gs__team { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 14px; min-width: 0; }
-  .gs__team--away { grid-template-columns: minmax(0, 1fr) 84px; }
-  .gs__team--away .gs__logo { order: 2; }
+  .gs__score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 12px 24px 4px; }
+  .gs__team { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 12px; min-width: 0; }
+  .gs__team--away { grid-template-columns: minmax(0, 1fr) 112px; }
+  .gs__badge { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .gs__team--away .gs__badge { order: 2; }
+  /* Logos larger and up into the header's corners, the row's height unchanged; the name may sit in front. */
+  .gs__badge .gs__logo { width: 150px; height: 150px; margin: -84px -12px 0; position: relative; z-index: 0; }
+  .gs__name { position: relative; z-index: 1; text-shadow: 0 2px 6px rgba(0, 0, 0, .7); }
+  .gs__badge .team__meta { justify-content: center; margin: 0; font-size: 15px; gap: 4px 8px; }
+  .gs__badge .team__form span { width: 18px; height: 18px; font-size: 10px; }
+  .gs__h2h { text-align: center; padding: 2px 28px 0; color: var(--muted); font-size: 17px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .gs__h2h b { color: var(--pink); letter-spacing: .12em; margin-right: 10px; }
+  .gs__h2h span { color: var(--text); }
+  .gs__h2h small { display: block; font-size: 14px; margin-top: 3px; }
   .gs__logo { width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
   .gs__logo.logo-fallback { font-size: 28px; box-sizing: border-box; }
-  .gs__name { font-size: 26px; font-weight: 800; line-height: 1.1; text-transform: uppercase; color: var(--yellow); text-align: right; overflow-wrap: anywhere; }
+  .gs__name { font-size: 24px; overflow-wrap: normal; word-break: keep-all; font-weight: 800; line-height: 1.1; text-transform: uppercase; color: var(--yellow); text-align: right; overflow-wrap: anywhere; }
   .gs__team--away .gs__name { text-align: left; }
-  .gs__nums { font-size: 80px; font-weight: 800; line-height: 1; display: flex; gap: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .gs__nums { font-size: 76px; font-weight: 800; line-height: 1; display: flex; gap: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .gs__nums .is-win { color: var(--text); }
   .gs__dash { color: var(--pink); }
-  .gs__quarters { margin: 12px 28px 2px; width: calc(100% - 56px); border-collapse: separate; border-spacing: 0 5px; font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; }
+  .gs__quarters { margin: 8px 28px 0; width: calc(100% - 56px); border-collapse: separate; border-spacing: 0 4px; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; }
   .gs__quarters th { color: var(--muted); font-size: 15px; letter-spacing: .12em; text-transform: uppercase; padding: 0 8px; }
-  .gs__quarters td { background: var(--purple-deep-alt); padding: 6px 8px; color: var(--muted); width: 80px; }
+  .gs__quarters td { background: var(--purple-deep-alt); padding: 3px 8px; color: var(--muted); width: 80px; }
   .gs__quarters td:first-child { border-radius: 8px 0 0 8px; }
   .gs__quarters td:last-child { border-radius: 0 8px 8px 0; }
   .gs__quarters td.who { width: auto; text-align: left; color: var(--text); font-size: 20px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
@@ -75,31 +80,33 @@
   .gs__quarters td.is-unsure { opacity: .45; }
   .gs__quarters td.total { color: var(--text); background: var(--purple); }
   .gs__quarters td.total.is-win { color: var(--yellow); }
-  .gs__rows { padding: 6px 28px 20px; display: grid; gap: 4px; }
-  .gs__row { display: grid; grid-template-columns: 170px minmax(0, 1fr) 170px; align-items: center; gap: 18px; padding: 4px 0; }
+  .gs__rows { padding: 4px 28px 12px; display: grid; gap: 0; }
+  .gs__row { display: grid; grid-template-columns: 200px minmax(0, 1fr) 200px; align-items: center; gap: 18px; padding: 2px 0; }
   .gs__row.is-new { animation: rise .45s ease-out both; }
   .gs__val { display: flex; align-items: baseline; gap: 10px; color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
   .gs__val--home { justify-content: flex-end; }
   .gs__val--away { flex-direction: row-reverse; justify-content: flex-end; }
-  .gs__val .num { font-size: 38px; line-height: 1; }
+  .gs__val .num { font-size: 34px; line-height: 1; }
   .gs__val .note { font-size: 17px; letter-spacing: .06em; }
   .gs__val.is-win { color: var(--text); }
   .gs__val.is-win .num { color: var(--yellow); }
   .gs__label { font-size: 19px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; text-align: center; }
-  .gs__label .shared { display: block; font-size: 38px; letter-spacing: 0; color: var(--yellow); margin-top: 2px; }
-  .gs__bar { display: flex; gap: 4px; height: 8px; margin-top: 8px; }
+  .gs__label .shared { display: block; font-size: 32px; letter-spacing: 0; color: var(--yellow); margin-top: 2px; }
+  .gs__bar { display: flex; gap: 4px; height: 8px; margin-top: 6px; }
   .gs__bar span { border-radius: 4px; min-width: 4px; }
   .gs__bar .home { background: var(--pink); }
   .gs__bar .away { background: var(--yellow); }
   .gs__bar.is-empty span { background: var(--purple); }
   .gs__updated { text-align: right; }
-  /* The score worm under the stats: the margin through the game, home above the line and away below */
-  /* Kept short (Matt, 2026-10-28) so the stats above still have the room they had before it: about 100px of the column. */
-  .worm { flex: none; height: 96px; padding: 6px 16px 4px; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: center; }
-  .worm__head { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  /* ── Bottom: last 10 goals, current run and score worm, as tiles of the same height ── */
+  .bottom { grid-column: 1 / -1; display: grid; grid-template-columns: 860px 250px minmax(0, 1fr); gap: 20px; min-height: 0; }
+  .bottom .goals { min-height: 0; padding: 8px 12px; box-sizing: border-box; } /* goals.html ?fill=1 spreads its goals to fill the tile */
+  /* The score worm: the margin through the game, home above the line and away below */
+  .worm { min-height: 0; padding: 12px 18px 8px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 6px; }
+  .worm__head { display: flex; align-items: center; gap: 14px; }
   .worm__head .tab { font-size: 14px; padding: 3px 10px; }
   .worm__facts { color: var(--muted); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.2; }
-  .worm svg { height: 84px; min-width: 0; width: 100%; display: block; overflow: visible; }
+  .worm svg { height: 100%; min-width: 0; width: 100%; display: block; overflow: visible; }
   .worm .zero { stroke: rgba(255, 255, 255, .35); stroke-width: 2; stroke-dasharray: 6 6; }
   .worm .brk { stroke: rgba(255, 255, 255, .14); stroke-width: 2; }
   .worm .q { fill: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .1em; }
@@ -107,32 +114,39 @@
   .worm .gap { fill: rgba(255, 255, 255, .06); }
   .worm .tip { stroke: #fff; stroke-width: 3; }
 
-  /* ── Right: clock, moments, last 10 goals, current run ─────────────────── */
+  /* ── Right: clock (with who is on the mic and up next) and the moments list ── */
   .clock { padding: 14px 20px 16px; text-align: center; }
   .clock__row { display: flex; align-items: center; justify-content: center; gap: 22px; }
   .clock__period { background: var(--pink); color: var(--text); border-radius: 8px; padding: 4px 14px; font-size: 40px; font-weight: 800; }
   .clock__time { font-size: 92px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
   .clock__super { margin-top: 10px; display: inline-flex; align-items: center; gap: 10px; background: var(--yellow); color: var(--text-on-yellow);
-    border-radius: 999px; padding: 6px 18px; font-size: 22px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    border-radius: 999px; padding: 6px 18px; font-size: 20px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
   .clock__super .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--pink); animation: blink 1s ease-in-out infinite alternate; }
   @keyframes blink { to { opacity: .25; } }
   .clock__super.is-soon { background: var(--purple); color: var(--text); }
   .clock__super.is-soon .dot { display: none; }
   .clock__mic { margin-top: 10px; color: var(--muted); font-size: 18px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; overflow-wrap: anywhere; }
   .clock__mic b { color: var(--text); }
-  .moments { flex: none; height: 150px; display: flex; flex-direction: column; }
-  .moments__label { padding: 10px 18px 0; color: var(--muted); font-size: 15px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-  .moments__say { flex: 1; display: flex; align-items: center; gap: 16px; padding: 4px 20px 12px; font-size: 26px; font-weight: 800; line-height: 1.15; text-transform: uppercase; min-width: 0; }
-  .moments__say .text { min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-  .moments__say.is-on { animation: rise .4s ease-out both; }
-  .moments__say .icon { font-size: 44px; flex: none; }
-  .moments__say .logo { width: 56px; height: 56px; object-fit: contain; flex: none; }
-  .moments__say .logo.logo-fallback { font-size: 18px; box-sizing: border-box; border-width: 3px; }
-  .moments__ago { position: absolute; right: 16px; top: 10px; color: var(--muted); font-size: 15px; font-weight: 800; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-  .goals { flex: 1; min-height: 0; }
+  .clock__next { margin-top: 6px; color: var(--muted); font-size: 16px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; }
+  .clock__next b { color: var(--pink); letter-spacing: .12em; margin-right: 8px; }
+  .clock__next span { color: var(--text); }
+  /* Moments: a list, newest at the top; older ones fade and drop off the bottom */
+  .moments { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .moments__label { padding: 12px 18px 4px; color: var(--muted); font-size: 15px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+  .moments__list { list-style: none; margin: 0; padding: 0 14px 10px; display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow: hidden; }
+  .moment { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 14px; padding: 9px 12px; border-radius: 10px;
+    background: var(--purple-deep-alt); font-size: 21px; font-weight: 800; line-height: 1.15; text-transform: uppercase; }
+  .moment.is-new { animation: rise .4s ease-out both; box-shadow: inset 4px 0 0 var(--yellow); }
+  .moment:nth-child(n+4) { opacity: .8; } .moment:nth-child(n+6) { opacity: .6; }
+  .moment .text { min-width: 0; overflow-wrap: anywhere; }
+  .moment .text .t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .moment .text small { display: block; color: var(--muted); font-size: 15px; letter-spacing: .04em; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+  .moment .icon { font-size: 34px; text-align: center; }
+  .moment .logo { width: 52px; height: 52px; object-fit: contain; }
+  .moment .logo.logo-fallback { font-size: 16px; box-sizing: border-box; border-width: 3px; }
   .goals iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
-  .run { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 14px 22px; }
-  .run__num { font-size: 84px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: var(--c, var(--yellow)); }
+  .run { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 6px; padding: 14px 18px; }
+  .run__num { font-size: 96px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: var(--c, var(--yellow)); }
   .run__what { font-size: 18px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .run__team { font-size: 28px; font-weight: 800; line-height: 1.1; text-transform: uppercase; overflow-wrap: anywhere; }
   .run.is-hot .run__what::after { content: " 🔥"; }
@@ -144,26 +158,25 @@
 <body>
   <!-- A 1920 x 1080 page for the Output page, for a commentary monitor (not the stream): fills the whole frame.
        http://localhost:8080/commentator.html
-       Left: both team lists, home above away, each with its ladder position, record, form and scoring drought (game time
-       since its last goal), and each athlete's games played this season; under them, head to head this season and up next
-       on this court. ?games=0 ?drought=0 ?h2h=0 ?next=0 leave those out.
-       Middle: the Game stats graphic's score by quarter and team against team rows, with shooting % (when following
-       PlayHQ and its scorer records shots), biggest lead and lead changes, then a compact score worm (?worm=0 leaves it out).
-       Right: the game clock with the super shot window and who the Production Planner has on the mic for this game
-       (?mic=0 leaves it out; it looks again each new game and every minute), a moments box (lead changes, coming back, super shots, on fire
-       and so on, 5 seconds each, in turn, with how long ago each happened), the last 10 goals (goals.html, vertical) and the current run.
+       Left: both team lists, home above away, each with its scoring drought (game time since its last goal) and each
+       athlete's games played this season. ?games=0 ?drought=0 leave those out.
+       Middle: the Game stats graphic's teams (each logo with its ladder position, record and last 5 results under it),
+       head to head this season under the names, the score by quarter and team against team rows, with shooting % (when
+       following PlayHQ and its scorer records shots), biggest lead and lead changes. ?h2h=0 leaves head to head out.
+       Right: the game clock with the super shot window, who the Production Planner has on the mic for this game (?mic=0
+       leaves it out; it looks again each new game and every minute) and up next on this court (?next=0), then the moments
+       list (lead changes, coming back, super shots, on fire and so on), newest at the top, each with its quarter and game
+       time and how long ago it happened; the last 6 show.
+       Bottom, across the screen: the last 10 goals (goals.html, horizontal, filling its tile), the current run and the
+       score worm (?worm=0 leaves it out).
        The clock, moments, goals and run follow the board live. The stats update in place every 15 seconds and when the
        score changes: ?refresh=5, 10, 30 or 60 seconds, ?refresh=0 loads them once each time the page comes on. The team
-       lists (a PlayHQ request each) load at the start and at each quarter break.
+       lists (a PlayHQ request each) load at the start and at each quarter break; ladder, form, head to head and up next once a game.
        Options: ?title=Game%20stats  ?bg=0 (see-through, no background)  and =0 leaves a part out: ?quarters=0 ?shooting=0
        ?won=0 ?best=0 ?supershots=0 ?runs3=0 ?runs5=0 ?longest=0 ?leads=0 ?worm=0 ?games=0 ?moments=0 ?goals=0 ?run=0 ?mic=0 -->
   <section class="col teams" id="teams">
     <div class="box"><div class="card" id="home"></div></div>
     <div class="box"><div class="card" id="away"></div></div>
-    <div class="card season" id="season" hidden>
-      <div class="season__row" id="h2hRow" hidden><div class="season__label">Head to head</div><div class="season__text" id="h2h"></div></div>
-      <div class="season__row" id="nextRow" hidden><div class="season__label">Up next</div><div class="season__text" id="next"></div></div>
-    </div>
   </section>
   <section class="col stats">
     <div class="box"><main class="card" id="card">
@@ -176,28 +189,31 @@
         <div class="gs__nums"><span id="homeScore"></span><span class="gs__dash">–</span><span id="awayScore"></span></div>
         <div class="gs__team gs__team--away" id="awayTeam"></div>
       </div>
+      <div class="gs__h2h" id="h2hRow" hidden><b>Head to head</b><span id="h2h"></span></div>
       <table class="gs__quarters" id="quarters" hidden></table>
       <div class="gs__rows" id="rows"></div>
       <footer class="card__footer gs__updated" id="footer"></footer>
     </main></div>
-    <div class="card worm" id="worm">
-      <div class="worm__head"><span class="tab">Score worm</span><span class="worm__facts" id="wormFacts"></span></div>
-      <svg id="wormChart" viewBox="0 0 680 84" preserveAspectRatio="none" aria-label="Score worm"></svg>
-    </div>
   </section>
   <section class="col side">
     <div class="card clock" id="clockBox">
       <div class="clock__row"><span class="clock__period" id="period"></span><span class="clock__time" id="clock"></span></div>
       <div class="clock__super" id="super" hidden><span class="dot"></span><span id="superText">Super shot time</span></div>
       <div class="clock__mic" id="mic" hidden></div>
+      <div class="clock__next" id="nextRow" hidden><b>Up next</b><span id="next"></span></div>
     </div>
-    <div class="card moments box" id="moments">
+    <div class="card moments" id="moments">
       <div class="moments__label">Moments</div>
-      <div class="moments__say" id="say"></div>
-      <div class="moments__ago" id="ago"></div>
+      <ol class="moments__list" id="momentList"></ol>
     </div>
-    <div class="goals" id="goals"><iframe id="goalsFrame" title="Last 10 goals" src="goals.html?layout=vertical&amp;fill=1&amp;run=0"></iframe></div>
-    <div class="card run" id="run"><div class="run__num" id="runNum">–</div><div><div class="run__what" id="runWhat">Current run</div><div class="run__team" id="runTeam"></div></div></div>
+  </section>
+  <section class="bottom">
+    <div class="card goals" id="goals"><iframe id="goalsFrame" title="Last 10 goals" src="goals.html?fill=1&amp;run=0"></iframe></div>
+    <div class="card run" id="run"><div class="run__what" id="runWhat">Current run</div><div class="run__num" id="runNum">–</div><div class="run__team" id="runTeam"></div></div>
+    <div class="card worm" id="worm">
+      <div class="worm__head"><span class="tab">Score worm</span><span class="worm__facts" id="wormFacts"></span></div>
+      <svg id="wormChart" viewBox="0 0 680 150" preserveAspectRatio="none" aria-label="Score worm"></svg>
+    </div>
   </section>
   <script src="teams.js"></script>
   <script src="season.js"></script>
@@ -249,11 +265,18 @@
       const g = gamesPlayed && gamesPlayed[side] && gamesPlayed[side][p.name] && gamesPlayed[side][p.name].games;
       return g ? `${g} game${g === 1 ? '' : 's'}` : '';
     }
-    // Ladder position, record and form under each team's name, and head to head and up next under the lists: read once
-    // when the page comes on and for each new game (the season's games are kept by Studio, so this is a few requests at most).
+    // Ladder position, record and form under each logo in the game stats, head to head under the team names and up next
+    // under the clock: read once when the page comes on and for each new game (the season's games are kept by Studio, so
+    // this is a few requests at most). The team lists keep each team's scoring drought.
     let season = { ladder: null, form: null };
     const getJson = async path => { const d = await (await fetch(path, { cache: 'no-store' })).json(); if (d.error) throw new Error(d.error); return d; };
     function teamMeta(side) {
+      const meta = el('div', 'team__meta');
+      if (!off('drought')) meta.append(Object.assign(el('span', 'team__drought'), { id: `${side}Drought` }));
+      return meta;
+    }
+    // Ladder position, record and the last 5 results, under each logo in the game stats.
+    function badgeMeta(side) {
       const meta = el('div', 'team__meta');
       const l = season.ladder && season.ladder[side] && season.ladder[side].ladder;
       if (l) meta.append(el('span', 'team__pos', ordinal(l.position)), el('span', '', record(l)));
@@ -263,28 +286,27 @@
         dots.append(...form.map(f => el('span', f.result, f.result)));
         meta.append(dots);
       }
-      if (!off('drought')) meta.append(Object.assign(el('span', 'team__drought'), { id: `${side}Drought` }));
       return meta;
     }
     async function loadSeason() {
       const [ladder, form, h2h, next] = await Promise.all(['/api/ladderbar', '/api/form', '/api/headtohead', '/api/upnext'].map(u => getJson(u).catch(err => { console.warn(`${u} unavailable:`, err.message); return null; })));
       season = { ladder, form };
       if (lastTeamsData) for (const side of ['home', 'away']) teamList($(side), lastTeamsData[side], side);
+      if (lastStatsData) drawTeams(lastStatsData);
       if (h2h && !off('h2h')) {
         const t = h2h.tally;
         $('h2h').replaceChildren(...(h2h.games.length
           ? [`${h2h.home.name} ${t.home} – ${t.away} ${h2h.away.name}${t.draws ? ` (${t.draws} drawn)` : ''}`,
-            el('small', '', h2h.games.slice(-2).map(g => `${g.round ? (/^\d+$/.test(g.round) ? `R${g.round}` : g.round) + ' ' : ''}${g.home.name} ${g.home.score ?? '–'}–${g.away.score ?? '–'} ${g.away.name}`).join('  ·  '))]
+            el('small', '', h2h.games.slice(-2).map(g => `${g.round ? (/^\d+$/.test(g.round) ? `R${g.round}` : g.round) + ' ' : ''}${g.home.score ?? '–'}–${g.away.score ?? '–'}`).join('  ·  '))]
           : ['First meeting this season']));
         $('h2hRow').hidden = false;
       } else $('h2hRow').hidden = true;
       if (next && next.home && !off('next')) {
         const [h, m] = String(next.time || '').split(':').map(Number);
         const at = Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : next.time; // as upnext.html
-        $('next').replaceChildren(`${next.home.name} v ${next.away.name}`, el('small', '', [next.court, at].filter(Boolean).join('  ·  ')));
+        $('next').textContent = [`${next.home.name} v ${next.away.name}`, at].filter(Boolean).join('  ·  ');
         $('nextRow').hidden = false;
       } else $('nextRow').hidden = true;
-      $('season').hidden = $('h2hRow').hidden && $('nextRow').hidden;
       drawDroughts();
       fitAll();
     }
@@ -430,7 +452,14 @@
       rows.hidden = !rows.children.length;
     }
 
-    let lastStats = '';
+    let lastStats = '', lastStatsData = null;
+    function drawTeams(d) {
+      for (const side of ['home', 'away']) {
+        const badge = el('div', 'gs__badge');
+        badge.append(logoEl(d[side], 'gs__logo'), badgeMeta(side));
+        $(side + 'Team').replaceChildren(badge, el('div', 'gs__name', d[side].name));
+      }
+    }
     async function loadStats() {
       let d;
       try {
@@ -443,9 +472,10 @@
       if (json === lastStats) return;
       lastStats = json;
       $('division').textContent = [d.division, d.round && /^\d+$/.test(d.round) ? `Round ${d.round}` : d.round, d.court].filter(Boolean).join('  ·  ');
+      lastStatsData = d;
+      drawTeams(d);
       for (const side of ['home', 'away']) {
         const t = d[side];
-        $(side + 'Team').replaceChildren(logoEl(t, 'gs__logo'), el('div', 'gs__name', t.name));
         const num = $(side + 'Score');
         num.textContent = t.score;
         num.className = t.score > d[side === 'home' ? 'away' : 'home'].score ? 'is-win' : '';
@@ -463,7 +493,7 @@
     function drawWorm(w, d) {
       const chart = $('wormChart');
       chart.replaceChildren();
-      const W = 680, H = 84, X0 = 2, X1 = W - 8, Y0 = 4, Y1 = H - 16, mid = (Y0 + Y1) / 2;
+      const W = 680, H = 150, X0 = 2, X1 = W - 8, Y0 = 4, Y1 = H - 16, mid = (Y0 + Y1) / 2;
       const all = w.segments.flat();
       const span = Math.max(w.regularPeriods || 4, Math.ceil(w.end || 0), 1);
       const max = Math.max(4, ...all.map(p => Math.abs(p.margin)));
@@ -524,29 +554,30 @@
       superWas = w.on;
     }
 
-    // Moments: each shows for 5 seconds, then it's gone; ones that come while another is showing wait their turn
-    // (Matt, 2026-10-28). Each says how long ago it happened, counting up while it shows, as a queued one can be late.
-    const MOMENT_MS = 5000;
-    const queue = [];
-    let showingUntil = 0, showing = null;
-    function say(m) { queue.push({ at: Date.now(), ...m }); nextMoment(); }
-    function drawAgo() {
-      $('ago').textContent = showing ? `${Math.max(0, Math.round((Date.now() - showing.at) / 1000))}s ago` : '';
+    // Moments: a list, newest at the top, each staying until newer ones push it off the bottom (Matt, 2026-10-29: room
+    // for at least 5 at once). Each says its quarter and game time, and how long ago it happened, counting up.
+    const KEEP = 6;
+    const shown = [];
+    const gameTime = () => (state && state.clock && state.showClock !== false ? `${state.period >= 5 ? 'ET' : `${state.periodLabel}${state.period}`} ${mmss(msLeft())}` : '');
+    function say(m) {
+      shown.push({ at: Date.now(), when: gameTime(), ...m, fresh: true });
+      shown.sort((x, y) => y.at - x.at);
+      shown.length = Math.min(shown.length, KEEP);
+      drawMoments();
     }
-    function nextMoment() {
-      const box = $('say');
-      if (Date.now() < showingUntil) return;
-      const m = showing = queue.shift() || null;
-      drawAgo();
-      if (!m) { box.replaceChildren(); box.classList.remove('is-on'); return; }
-      const parts = [];
-      if (m.team) parts.push(logoEl(m.team, 'logo')); else if (m.icon) parts.push(el('span', 'icon', m.icon));
-      parts.push(el('span', 'text', m.text));
-      box.classList.remove('is-on'); void box.offsetWidth; box.classList.add('is-on');
-      box.replaceChildren(...parts);
-      showingUntil = Date.now() + MOMENT_MS;
-      setTimeout(nextMoment, MOMENT_MS);
+    const ago = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`; };
+    const agoText = m => [m.when, ago(Date.now() - m.at)].filter(Boolean).join('  ·  ');
+    function drawMoments() {
+      $('momentList').replaceChildren(...shown.map(m => {
+        const li = el('li', 'moment' + (m.fresh ? ' is-new' : ''));
+        m.fresh = false;
+        const text = el('span', 'text');
+        text.append(el('span', 't', m.text), el('small', 'ago', agoText(m)));
+        li.append(m.team ? logoEl(m.team, 'logo') : el('span', 'icon', m.icon || ''), text);
+        return li;
+      }));
     }
+    function drawAgo() { document.querySelectorAll('#momentList .ago').forEach((e, i) => { if (shown[i]) e.textContent = agoText(shown[i]); }); }
     const team = side => (side && state ? { name: state[side].name, logo: (state.logos || {})[side] } : null);
     function momentText(ev) {
       const n = ev.side ? state[ev.side].name : '';
@@ -616,7 +647,7 @@
       // A new game or a score change: the stats and team score catch up straight away when auto-refresh is on.
       if (scoreChanged && refresh > 0 && lastStats) loadStats();
       if (newGame || newPeriod) loadTeamLists();
-      if (newGame) { loadGamesPlayed(); loadSeason(); loadMic(); }
+      if (newGame) { shown.length = 0; drawMoments(); loadGamesPlayed(); loadSeason(); loadMic(); }
     }
 
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
