@@ -50,6 +50,16 @@ test('a pool, a night\'s plan, nights after it, and the scoreboard\'s court', as
   assert.ok(due, 'the scoreboard is on one of the planned games');
   const on = await get('/api/planner/onair');
   assert.deepEqual(on.names, due.people.map(id => p.pool.find(x => x.id === id).name));
+  // The roster graphic: tonight's games on the planned court, who calls each, and which is on now.
+  const roster = await get('/api/planner/roster');
+  assert.equal(roster.date, studio.world.today);
+  assert.equal(roster.court, 'Court 2');
+  assert.equal(roster.slots.length, 2);
+  assert.deepEqual(roster.slots.find(s => s.onAir).people.map(x => x.name), on.names);
+  assert.deepEqual(roster.slots[0].people.find(x => x.name === 'Honey Harrington'), { name: 'Honey Harrington', guest: true });
+  const later = await get(`/api/planner/roster?date=${p.nights[3].date}`);
+  assert.equal(later.court, 'Court 2', 'another night, taking tonight\'s plan');
+  assert.ok(later.slots.every(s => !s.onAir));
 
   // The nights after it take tonight's plan; next week can have its own.
   const next = p.nights.find(n => n.date > studio.world.today);

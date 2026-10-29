@@ -44,6 +44,7 @@
     { file: 'commentators.html', name: 'Commentators', docs: 'personPages', examples: [
       ['Commentators: thin line', '/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000],
       ['Commentators: box', '/commentators.html?style=box&label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000]] },
+    { file: 'roster.html', name: 'Commentary roster (full screen)', docs: 'personPages', examples: [['Commentary roster', '/roster.html', 2500]] },
     { file: 'finals.html', name: 'Finals', docs: 'finalsPages' }, // one example per division
     { file: 'fixtures.html', name: 'Round fixture', docs: 'fixturePages', examples: [['Round fixture', '/fixtures.html', 3000], ['Next round fixture', '/fixtures.html?round=next', 3000]] },
     { file: 'results.html', name: 'Results', docs: 'fixturePages', examples: [['Round results', '/results.html', 3000]] },

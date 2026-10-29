@@ -4,6 +4,7 @@
 // A competition keeps its own plan in competitions/<id>/planner.json:
 //   pool    the commentators to choose from: { id, name, guest } (guest: a special guest commentator)
 //   nights  by date (YYYY-MM-DD): { court, slots: { "HH:MM": { people: [id, ...], game: { id, home, away } } } }
+// The roster graphic (roster.html, roster()) shows a night's team on a monitor backstage.
 // Studio streams one court a night (another court is another Mac running its own Studio), so a night's
 // timeslots are its games on that court, read from the PlayHQ fixture every time. The commentators belong to
 // the timeslot, not the game: the desk and cameras are set up at the court, so when PlayHQ moves a game to
@@ -26,6 +27,7 @@
 //   board()                          the scoreboard in use
 //   sameCourt(court, wanted)         court name matching, as automatic game selection does it (games.js)
 //   night()                          the game night picked by hand on Scoreboard control, or ''
+//   about()                          { competition, venue } for the roster graphic, and logoFor(teamName)
 
 'use strict';
 
@@ -39,7 +41,7 @@ const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
 const slotOf = g => String(g.time || '').slice(0, 5);
 const cleanName = s => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 80);
 
-function create({ log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt, night: pickedNight }) {
+function create({ log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt, night: pickedNight, about = () => ({}), logoFor = () => null }) {
   const fileOf = id => path.join(competitions.DIR, id, 'planner.json');
   function read(id) {
     let d = {};
@@ -149,6 +151,28 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     return { date, flags };
   }
 
+  // The night's commentary team for the roster graphic (roster.html, a backstage monitor): each game on the planned
+  // court in time order with who is on the mic, and which is on the scoreboard now. The night is ?date=, else the game
+  // night picked by hand on Scoreboard control, else today when it is a game night, else the next one.
+  async function roster(q = {}) {
+    const p = plan();
+    const dates = await byDate();
+    const all = Object.keys(dates).sort();
+    const today = localDate();
+    const date = isDate(q.date) ? q.date : pickedNight() || (dates[today] ? today : all.find(d => d >= today) || all[all.length - 1] || today);
+    const n = nightView(p, date, dates[date] || []);
+    const b = board();
+    const name = id => p.pool.find(x => x.id === id);
+    const slots = n.slots.filter(s => s.game).map(s => ({
+      time: s.time, division: s.game.division, round: s.game.round,
+      home: { name: s.game.home, logo: logoFor(s.game.home) }, away: { name: s.game.away, logo: logoFor(s.game.away) },
+      people: s.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest })),
+      onAir: !!b.gameId && s.game.id === b.gameId }));
+    const a = about();
+    return { competition: a.competition || '', venue: a.venue || '', date, today: date === today, court: n.court, from: n.from, slots,
+      ...(!n.court ? { error: `No plan for ${date} yet: plan it on the Production Planner tab` } : {}) };
+  }
+
   // Everything the Planner page shows.
   async function view() {
     const p = plan();
@@ -215,6 +239,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
 
   async function route(req, res, url, { send, readBody, changed }) {
     if (url.pathname === '/api/planner/onair') return send(res, 200, await onAir()), true;
+    if (url.pathname === '/api/planner/roster') return send(res, 200, await roster(Object.fromEntries(url.searchParams))), true;
     if (url.pathname === '/api/planner' && req.method === 'GET') return send(res, 200, await view()), true;
     if (req.method !== 'POST') return false;
     try {
@@ -226,7 +251,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     return send(res, 200, await view()), true;
   }
 
-  return { route, view, onAir, courtFor, setPool, setNight, MAX_PEOPLE };
+  return { route, view, onAir, roster, courtFor, setPool, setNight, MAX_PEOPLE };
 }
 
 module.exports = { create };

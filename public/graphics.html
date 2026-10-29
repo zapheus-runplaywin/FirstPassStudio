@@ -859,7 +859,11 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
  ['Commentators: box', '/commentators.html?style=box&label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter',
   'The same names as an upper third (<code>?style=box</code>): a box with the pink tab across its top and each name on a line of its own, in the top right corner beside the competition logo and lined up with it. ' +
   '<code>?position=under-left</code> and <code>under-right</code> put it just under the title banner and the logos, lined up with the scoreboard\'s left or right edge, and <code>?position=center</code> centres it there; away from the corner the box shows the competition logo itself. ' +
-  '<code>?logo=1</code> always shows it and <code>?logo=0</code> never does; <code>?mode=light</code> uses the light mode one. Takes the same names, <code>?label=</code> and <code>?out=</code>.']]
+  '<code>?logo=1</code> always shows it and <code>?logo=0</code> never does; <code>?mode=light</code> uses the light mode one. Takes the same names, <code>?label=</code> and <code>?out=</code>.'],
+ ['Commentary roster (full screen, for a monitor backstage)', '/roster.html',
+  'The night\'s commentary team from the <a href="/planner.html" target="_blank">Production Planner</a>, for a monitor backstage or at the commentary desk rather than the stream: a row per game on the night\'s planned court with its time, the teams and who is on the mic (special guests marked). ' +
+  'The game on the scoreboard is lit up <b>On now</b> and the games before it are dimmed. It follows the scoreboard live and reads the plan again every minute, so a swap in the Planner shows; both come from Studio, never PlayHQ (<code>?refresh=0</code> loads once). ' +
+  'The night is the game night picked on Scoreboard control, otherwise today, otherwise the next game night; <code>?date=2026-11-04</code> shows another. <code>?title=</code> changes the heading and <code>?bg=0</code> drops the background.']]
   .forEach(([n, p, h]) => document.getElementById('personPages').appendChild(pageRow(n, p, h)));
 [['PIVT and FirstPass Studio ad', '/ad.html',
   'The PIVT and FirstPass Studio logos animated together for 10 seconds: PIVT slams in, FirstPass Studio wipes in below it, they hold, then sweep away. ' +
