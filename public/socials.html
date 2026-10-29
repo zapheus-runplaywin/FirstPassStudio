@@ -66,6 +66,7 @@
   .dots i { display: block; width: 13px; height: 20px; }
   .dots i:first-child { width: 22px; }
   .low { font-size: 11px; font-weight: 700; color: var(--fp-danger); }
+  #templates .set { padding: 5px 11px; }
   .set .rm { margin-left: 2px; color: var(--fp-muted); font-weight: 700; }
   .newset[hidden] { display: none; }
   .newset { margin-top: 10px; padding: 10px; border: 1px dashed var(--fp-line-strong); border-radius: 8px; }
@@ -98,6 +99,7 @@
       <label><input type="checkbox" id="mark"> FirstPass Studio mark</label>
       <label><input type="checkbox" id="pivt"> PIVT logo</label>
     </div>
+    <div class="row colours" id="templates" role="group" aria-label="Template set"></div>
     <div class="row colours" id="colours" role="group" aria-label="Colour set"></div>
     <form class="row newset" id="newSet" hidden>
       <input type="text" id="newName" placeholder="Name, e.g. Finals night" aria-label="Colour set name" maxlength="30">
@@ -109,7 +111,7 @@
     </form>
     <p class="help"><b>Upcoming</b>: the night's fixture, a match up for each game, who is on the stream (from the Production Planner) and a polaroid for a match photo.
       <b>Results</b>: the night's final scores, a full time card and a polaroid with the score for each game, each division's ladder and the night's top shooters.
-      A night with results opens on Results. <b>Colours</b> change every picture: sets made from the competition's main, highlight and accent colours (Competition colours is the stream's own look), or your own with <b>New colour set</b>. The FirstPass Studio mark sits bottom right and the PIVT logo bottom left; untick either to leave it off. Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
+      A night with results opens on Results. <b>Template</b> is the look of every picture: Default is the stream's own, and the others each bring their own shapes and lettering. <b>Colours</b> change every picture in any template: sets made from the competition's main, highlight and accent colours (Competition colours is the stream's own look), or your own with <b>New colour set</b>. The FirstPass Studio mark sits bottom right and the PIVT logo bottom left; untick either to leave it off. Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
   <div class="bar">
@@ -166,7 +168,7 @@
     return list;
   }
   function link(p, size) {
-    const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours });
+    const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours, template: info.settings.template });
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
     const photo = photos[p.key];
@@ -279,7 +281,7 @@
       const res = await fetch('/api/socials/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(change) });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      info.settings = d.settings; info.colourSets = d.colourSets; showError(''); drawColours(); draw();
+      info.settings = d.settings; info.colourSets = d.colourSets; showError(''); drawTemplates(); drawColours(); draw();
     } catch (err) { showError(`Couldn't save that: ${err.message}`); }
   }
 
@@ -302,6 +304,7 @@
       $('save').disabled = $('share').disabled = !d.app;
       $('mark').checked = d.settings.mark;
       $('pivt').checked = d.settings.pivt;
+      drawTemplates();
       drawColours();
       $('night').replaceChildren(...d.nights.map(n => {
         const o = el('option', '', `${dayName(n.date)} · ${n.rounds} · ${n.games} games${n.date === d.today ? ' (tonight)' : ''}`);
@@ -335,6 +338,17 @@
 
   $('night').onchange = () => loadNight($('night').value);
   for (const c of document.querySelectorAll('[data-size], [name=set]')) c.onchange = draw;
+  // The template sets: the look of every picture, picked once for them all.
+  function drawTemplates() {
+    $('templates').replaceChildren(el('b', '', 'Template'), ...info.templates.map(t => {
+      const b = el('button', 'set small', t.name);
+      b.type = 'button';
+      b.title = t.blurb;
+      b.setAttribute('aria-pressed', String(t.id === info.settings.template));
+      b.onclick = () => saveSettings({ template: t.id });
+      return b;
+    }));
+  }
   // The colour sets: pick one for every picture, add your own, or remove one you made.
   function drawColours() {
     const row = $('colours');

@@ -22,7 +22,7 @@ test('the tab lists every game night, opens on the next, and knows saving needs 
   assert.equal(s.next, studio.world.today);
   assert.deepEqual(Object.keys(s.sizes), ['square', 'portrait', 'story']);
   assert.deepEqual(s.sizes.story, { width: 1080, height: 1920, label: 'Story' });
-  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [] });
+  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
   assert.deepEqual(s.nights.map(n => n.results), [4, 4, 0, 0], 'last two weeks played, tonight and next week to come');
   assert.equal(s.app, false, 'no Mac app around the helper here');
 });
@@ -82,7 +82,7 @@ test('a played night has each result and winner; the ladders and top shooters co
 
 test('the sponsor strip and the Studio mark are kept per competition', async () => {
   const r = await studio.post('/api/socials/settings', { mark: false, sponsor: { polaroid: true, fixtures: false, nonsense: true } });
-  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [] });
+  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
   assert.deepEqual((await studio.get('/api/socials')).settings, r.settings);
   assert.equal((await studio.post('/api/socials/settings', { pivt: false })).settings.pivt, false, 'the PIVT logo is optional too');
   await studio.post('/api/socials/settings', { mark: true, pivt: true });
@@ -118,6 +118,25 @@ test('colour sets are made from the competition\'s colours, your own are kept, a
   // Removing your set goes back to the competition's colours.
   const back = await studio.post('/api/socials/settings', { colourSets: [] });
   assert.equal(back.settings.colours, 'competition');
+});
+
+test('template sets: each has its own face, one is kept for every picture, and a picture can ask for another', async () => {
+  const s = await studio.get('/api/socials');
+  assert.deepEqual(s.templates.map(t => t.id), ['default', 'fun', 'dynamic', 'junior', 'retro', 'futuristic', 'professional', 'thunder', 'geometric', 'gradient', 'striped', 'highcontrast', '3d']);
+  for (const t of s.templates.filter(x => x.font)) {
+    const css = await studio.request('GET', `/${t.fontCss}`);
+    assert.equal(css.status, 200, `${t.name}'s face is bundled, so it draws with no internet`);
+    assert.match(css.text, new RegExp(`font-family: '${t.font}'`));
+  }
+  assert.equal((await studio.get('/api/socials/night')).look.template.id, 'default');
+  assert.equal((await studio.post('/api/socials/settings', { template: 'retro' })).settings.template, 'retro');
+  const retro = (await studio.get('/api/socials/night')).look.template;
+  assert.deepEqual([retro.id, retro.font, retro.mark], ['retro', 'Bungee', 'light'], 'a pale paper ground takes the dark-ink mark');
+  const asked = await studio.get('/api/socials/night?template=3d&colours=night');
+  assert.deepEqual([asked.look.template.id, asked.look.colours], ['3d', 'night'], 'template and colours mix freely');
+  assert.equal((await studio.get('/api/socials/night?template=nonsense')).look.template.id, 'retro', 'an unknown one keeps the picked one');
+  assert.equal((await studio.request('POST', '/api/socials/settings', { template: 'nonsense' })).status, 400);
+  assert.equal((await studio.post('/api/socials/settings', { template: 'default' })).settings.template, 'default');
 });
 
 test('a polaroid photo is kept on this Mac and served as a plain file; anything but a photo is refused', async () => {

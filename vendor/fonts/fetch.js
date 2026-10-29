@@ -1,10 +1,11 @@
-// Fetches the fonts Studio bundles (fonts.js BUNDLED) from Fontsource into public/vendor/fonts/<id>/:
-// the Latin woff2 files, the licence and <id>.css, which the graphics load through theme.css.
+// Fetches the fonts Studio bundles (fonts.js BUNDLED, and TEMPLATE_FONTS for the Socials template sets) from
+// Fontsource into public/vendor/fonts/<id>/: the Latin woff2 files, the licence and <id>.css, which the graphics load
+// through theme.css (social.html loads a template font's own <id>.css).
 //
 // Run:  npm run fonts                 (every bundled font)
 //       npm run fonts -- raleway      (one, by its Fontsource id)
 // Takes the newest version of each. A font with a variable version gets it (one file per style
-// covers every weight); one without gets its weights 400 to 900, upright and italic.
+// covers every weight); one without gets its weights 400 to 900, upright and italic. Template fonts are upright only.
 
 'use strict';
 
@@ -12,7 +13,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { BUNDLED, VENDOR } = require('../../fonts');
+const { BUNDLED, TEMPLATE_FONTS, VENDOR } = require('../../fonts');
 
 const SUBSETS = ['latin', 'latin-ext'];
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -37,13 +38,13 @@ function latinFaces(cssText, name, id) {
       .replace(/src:\s*url\(\.\/files\/([^)]+\.woff2)\)\s*format\('([\w-]+)'\)[^;]*;/, "src: url($1) format('$2');"));
 }
 
-function fetchFont(name, id, tmp) {
+function fetchFont(name, id, tmp, italic = true) {
   let pkg = pack(`@fontsource-variable/${id}`, tmp), sheets;
-  if (pkg) sheets = ['index.css', 'wght-italic.css'];
+  if (pkg) sheets = italic ? ['index.css', 'wght-italic.css'] : ['index.css'];
   else {
     pkg = pack(`@fontsource/${id}`, tmp);
     if (!pkg) throw new Error(`Fontsource has no ${id}`);
-    sheets = [400, 500, 600, 700, 800, 900].flatMap(w => [`${w}.css`, `${w}-italic.css`]);
+    sheets = [400, 500, 600, 700, 800, 900].flatMap(w => (italic ? [`${w}.css`, `${w}-italic.css`] : [`${w}.css`]));
   }
   const version = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json'), 'utf8')).version;
   const blocks = sheets.filter(s => fs.existsSync(path.join(pkg, s))).flatMap(s => latinFaces(fs.readFileSync(path.join(pkg, s), 'utf8'), name, id));
@@ -66,4 +67,5 @@ const only = process.argv.slice(2);
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-fonts-'));
 try {
   for (const [name, id] of Object.entries(BUNDLED)) if (!only.length || only.includes(id)) fetchFont(name, id, tmp);
+  for (const [name, id] of Object.entries(TEMPLATE_FONTS)) if (!only.length || only.includes(id)) fetchFont(name, id, tmp, false);
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
