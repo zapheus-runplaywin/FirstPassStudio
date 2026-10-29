@@ -2,7 +2,8 @@
 // commentates each game on it.
 //
 // A competition keeps its own plan in competitions/<id>/planner.json:
-//   pool    the commentators to choose from: { id, name, guest } (guest: a special guest commentator)
+//   pool    the commentators to choose from: { id, name, guest, headshot } (guest: a special guest commentator; headshot:
+//           their photo's file in competitions/<id>/headshots, served at /headshots/, for the Socials tab's Commentary team)
 //   nights  by date (YYYY-MM-DD): { court, slots: { "HH:MM": { people: [id, ...], game: { id, home, away } } } }
 // The fixture board (fixtureboard.html, fixtureBoard()) shows a night's whole fixture in the competition room or
 // backstage: the streamed court marked, who is on the mic for its games, and each game's state and score.
@@ -217,7 +218,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     const name = id => p.pool.find(x => x.id === id);
     return { court: n.court, slots: n.slots.filter(s => s.game).map(s => ({ time: s.time, division: s.game.division,
       home: { name: s.game.home, logo: logoFor(s.game.home) }, away: { name: s.game.away, logo: logoFor(s.game.away) },
-      people: s.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest })) })) };
+      people: s.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })) })) };
   }
 
   // Everything the Planner page shows.
@@ -232,7 +233,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
       if (c.id === active()) continue;
       for (const x of read(c.id).pool) if (!others.some(o => o.name.toLowerCase() === x.name.toLowerCase())) others.push({ name: x.name, guest: !!x.guest, from: c.name });
     }
-    return { pool: p.pool, others, nights, today, next, maxPeople: MAX_PEOPLE, tonight: await tonight(nights), onAir: await onAir() };
+    return { pool: p.pool.map(x => ({ ...x, headshotUrl: headshotUrl(x.headshot) })), others, nights, today, next, maxPeople: MAX_PEOPLE, tonight: await tonight(nights), onAir: await onAir() };
   }
 
   // The pool, as the page sends it: [{ id?, name, guest }]. A new person gets an id; someone taken out of the
@@ -244,15 +245,42 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
       const name = cleanName(x && x.name);
       if (!name || pool.some(o => o.name.toLowerCase() === name.toLowerCase())) continue;
       const id = x.id && p.pool.some(o => o.id === x.id) ? x.id : crypto.randomBytes(5).toString('hex');
-      pool.push({ id, name, guest: !!x.guest });
+      const had = p.pool.find(o => o.id === id);
+      pool.push({ id, name, guest: !!x.guest, ...(had && had.headshot ? { headshot: had.headshot } : {}) });
     }
     const ids = new Set(pool.map(x => x.id));
     for (const n of Object.values(p.nights)) for (const s of Object.values(n.slots || {})) s.people = (s.people || []).filter(id => ids.has(id));
     const gone = p.pool.filter(x => !ids.has(x.id)).map(x => x.name);
+    for (const x of p.pool) if (!ids.has(x.id) && x.headshot) dropHeadshot(x.headshot);
     p.pool = pool;
     write(p);
     log('info', 'planner', `Commentator pool saved: ${pool.length} ${pool.length === 1 ? 'person' : 'people'}${gone.length ? `, took out ${gone.join(', ')}` : ''}`);
     return p.pool;
+  }
+
+  // A commentator's headshot: saved as <their id>.<ext> in the competition's headshots folder (replacing any before).
+  const headshotUrl = f => (f ? '/headshots/' + encodeURIComponent(f) : null);
+  function dropHeadshot(file) { try { competitions.deleteImage(active(), 'headshots', file); } catch (err) { log('warn', 'planner', `Couldn't remove headshot ${file}: ${err.message}`); } }
+  function setHeadshot(id, ext, buf) {
+    const p = plan();
+    const x = p.pool.find(o => o.id === id);
+    if (!x) throw new Error('Add the commentator first.');
+    const type = String(ext || '').toLowerCase().replace(/^\./, '').replace('jpeg', 'jpg');
+    if (!['jpg', 'png', 'webp'].includes(type)) throw new Error('A headshot needs to be a JPEG, PNG or WebP photo.');
+    const file = competitions.saveImage(active(), 'headshots', `${id}.${type}`, buf);
+    if (x.headshot && x.headshot !== file) dropHeadshot(x.headshot);
+    x.headshot = file;
+    write(p);
+    log('info', 'planner', `Headshot saved for ${x.name}`);
+  }
+  function removeHeadshot(id) {
+    const p = plan();
+    const x = p.pool.find(o => o.id === id);
+    if (!x || !x.headshot) return;
+    dropHeadshot(x.headshot);
+    delete x.headshot;
+    write(p);
+    log('info', 'planner', `Headshot removed for ${x.name}`);
   }
 
   // A night, as the page sends it: { date, court, slots: { "HH:MM": [id, ...] } }, or { date, clear: true } to go back
@@ -284,12 +312,20 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     log('info', 'planner', `Plan for ${date} saved: ${court}; ${Object.entries(slots).map(([t, s]) => `${t} ${s.people.map(names).join(', ') || 'nobody'}`).join('; ') || 'no games'}`);
   }
 
-  async function route(req, res, url, { send, readBody, changed }) {
+  async function route(req, res, url, { send, readBody, readRaw, changed }) {
     if (url.pathname === '/api/planner/onair') return send(res, 200, await onAir()), true;
     if (url.pathname === '/api/planner/fixtureboard') return send(res, 200, await fixtureBoard(Object.fromEntries(url.searchParams))), true;
     if (url.pathname === '/api/planner' && req.method === 'GET') return send(res, 200, await view()), true;
+    if (url.pathname === '/api/planner/headshot' && req.method === 'DELETE') {
+      removeHeadshot(url.searchParams.get('id'));
+      return send(res, 200, await view()), true;
+    }
     if (req.method !== 'POST') return false;
     try {
+      if (url.pathname === '/api/planner/headshot') {
+        setHeadshot(url.searchParams.get('id'), url.searchParams.get('ext'), await readRaw(req, 15 * 1024 * 1024));
+        return send(res, 200, await view()), true;
+      }
       if (url.pathname === '/api/planner/pool') setPool((await readBody(req)).pool);
       else if (url.pathname === '/api/planner/night') await setNight(await readBody(req));
       else return false;

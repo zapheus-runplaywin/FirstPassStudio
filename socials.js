@@ -43,8 +43,8 @@ const SIZES = {
   story: { width: 1080, height: 1920, label: 'Story' },
 };
 // Each graphic and whether it carries the sponsor strip until that's changed on the tab. Upcoming: fixtures, matchup,
-// onstream and a polaroid; Results: results, fulltime, ladder, topshooters and a polaroid per game.
-const KINDS = { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true };
+// onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, fulltime, ladder, topshooters and a polaroid per game.
+const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true };
 const SHOOTERS_SHOWN = 6;
 const MAX_OWN_SETS = 12;
 // The template sets: the look of every picture (public/social-templates.css, a class t-<id> on social.html's body),

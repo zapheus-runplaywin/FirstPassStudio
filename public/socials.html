@@ -170,6 +170,12 @@
       help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
     list.push({ key: 'onstream', kind: 'onstream', name: 'On the stream', help: night.stream ? `${night.stream.court}'s games and who is calling them.` : '',
       missing: night.stream ? '' : 'This night isn\'t planned yet: plan its court and commentators on the Production Planner tab first.' });
+    const crew = night.stream ? [...new Set(night.stream.slots.flatMap(s => s.people.map(p => p.name)))] : [];
+    const noShot = night.stream ? night.stream.slots.flatMap(s => s.people).filter((p, i, a) => !p.headshot && a.findIndex(x => x.name === p.name) === i).map(p => p.name) : [];
+    list.push({ key: 'commentators', kind: 'commentators', name: 'Commentary team',
+      help: crew.length ? `${crew.join(', ')}, with their headshots.${noShot.length ? ` No headshot yet for ${noShot.join(', ')}: add one on the Production Planner (their initials show until then).` : ''}` : '',
+      missing: !night.stream ? 'This night isn\'t planned yet: plan its court and commentators on the Production Planner tab first.'
+        : !crew.length ? 'Nobody is on the mic this night yet: add the commentators on the Production Planner tab.' : '' });
     list.push({ key: 'polaroid', kind: 'polaroid', name: 'Polaroid', help: 'Drop a match photo on it, then drag the preview to frame it. With no photo the window is see-through, for your social team to put a photo under in Canva or on a phone.' });
     return list;
   }

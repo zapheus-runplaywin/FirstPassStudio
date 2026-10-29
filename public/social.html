@@ -180,6 +180,22 @@
   .stat.main small { color: var(--text); }
   .story .shooter { padding: 22px 24px; }
 
+  /* Commentary team: a headshot (or initials) per commentator, their name and the games they call. */
+  .crew { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px 48px; --ms: 300px; }
+  .crew--3 { --ms: 250px; }
+  .crew--4 { --ms: 210px; }
+  .story .crew { --ms: 340px; }
+  .story .crew--3, .story .crew--4 { --ms: 260px; }
+  .mic { width: calc(var(--ms) + 60px); text-align: center; }
+  .mic__face { width: var(--ms); height: var(--ms); margin: 0 auto; border-radius: 50%; overflow: hidden; border: 8px solid var(--yellow);
+    background: var(--purple-deep); display: flex; align-items: center; justify-content: center; font-family: var(--dfont);
+    font-size: calc(var(--ms) * .32); font-weight: 800; color: var(--yellow); box-shadow: 0 14px 30px rgba(0,0,0,.35); }
+  .mic__face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
+  .mic__guest { display: inline-block; margin-top: -22px; position: relative; background: var(--pink); color: #fff; font-size: 20px; font-weight: 800;
+    letter-spacing: .1em; text-transform: uppercase; padding: 6px 16px; border-radius: 6px; }
+  .mic__name { margin-top: 18px; font-family: var(--dfont); font-size: calc(40px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; line-height: 1.05; }
+  .mic__games { margin-top: 8px; font-size: 20px; font-weight: 700; color: var(--muted); letter-spacing: .04em; white-space: pre; }
+
   /* Athletes' photos (only those who approved their use): a shooter's face in place of the logo, with the logo as a badge;
      an athlete picked for a match up or full time over their team's logo; a polaroid's print. Cut-out PNGs stand free. */
   .face { position: relative; width: 76px; height: 76px; flex: none; }
@@ -202,7 +218,8 @@
        directly. The Socials tab (socials.html) builds these links and the Mac app saves them as PNGs.
        http://localhost:8080/social.html?kind=fixtures&size=square
        kind:  Upcoming: fixtures (every game of the night)  matchup (one game, &game=<id>)  onstream (the court Studio
-              streams and its commentators, from the Production Planner)  polaroid (a match photo in a white print)
+              streams and its commentators, from the Production Planner)  commentators (the commentary team's headshots,
+              from the Production Planner)  polaroid (a match photo in a white print)
               Results: results (the night's final scores)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as
               PlayHQ has it now)  topshooters (the night's, from each finished game's line ups)  polaroid&game=<id> (the
               game's score under the photo)
@@ -249,7 +266,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['fixtures', 'matchup', 'onstream', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters'];
+    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -316,6 +333,30 @@
       const img = box.appendChild(el('img', 'face__photo')); img.src = p.photo; img.alt = p.name;
       box.append(logoEl({ name: p.team, logo: p.logo }));
       return box;
+    }
+
+    // Commentary team: everyone on the mic that night (Production Planner), each once, with their headshot (or initials),
+    // a Special guest tag and the games they call.
+    function drawCommentators(d) {
+      head(d, 'Commentary team', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
+      if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
+      const crew = new Map();
+      for (const s of d.stream.slots) for (const p of s.people) {
+        const c = crew.get(p.name) || crew.set(p.name, { ...p, games: [] }).get(p.name);
+        c.games.push(`${clock(s.time)}  ${s.home.name} v ${s.away.name}`);
+      }
+      if (!crew.size) return `Nobody is on the mic for ${dayLong(d.date)} yet: add the commentators on the Production Planner tab.`;
+      const box = $('fit').appendChild(el('div', `crew crew--${Math.min(crew.size, 4)}`));
+      for (const c of crew.values()) {
+        const card = box.appendChild(el('div', 'mic'));
+        const faceBox = card.appendChild(el('div', 'mic__face'));
+        if (c.headshot) { const img = faceBox.appendChild(el('img')); img.src = c.headshot; img.alt = c.name; }
+        else faceBox.append(c.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
+        if (c.guest) card.append(el('div', 'mic__guest', 'Special guest'));
+        card.append(el('div', 'mic__name', c.name));
+        const games = card.appendChild(el('div', 'mic__games'));
+        for (const g of c.games) games.append(el('div', '', g));
+      }
     }
 
     function drawMatchup(d) {
@@ -529,7 +570,7 @@
         const markLight = t.mark ? t.mark === 'light' : d.look.light;
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
-        const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, polaroid: drawPolaroid,
+        const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
           results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));
         await imagesLoaded();

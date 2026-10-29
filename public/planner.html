@@ -37,6 +37,15 @@
   .person__name { flex: 1; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
   .person label { font-size: 13px; color: var(--fp-muted); white-space: nowrap; }
   .person button { padding: 2px 8px; }
+  /* A commentator's headshot (for the Socials tab's Commentary team): click it to add or change one, drop one on the row. */
+  .shot { position: relative; flex: none; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; cursor: pointer; background: var(--fp-line);
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--fp-muted); }
+  .shot img { width: 100%; height: 100%; object-fit: cover; }
+  .shot input { display: none; }
+  .shotwrap { position: relative; flex: none; }
+  .shot__off { position: absolute; top: -4px; right: -6px; width: 18px; height: 18px; padding: 0 !important; border-radius: 50%;
+    font-size: 12px; line-height: 16px; text-align: center; }
+  .person.over { background: var(--fp-blue-soft); }
   .add { margin-top: 10px; }
   .add input { flex: 1 1 140px; }
 
@@ -87,7 +96,8 @@
         <datalist id="others"></datalist>
         <button id="addBtn">Add</button>
       </div>
-      <p class="help">Tick <b>Guest</b> for a special guest: the Commentators graphic then says "Special guest commentators" when everyone on the mic is one. This list belongs to this competition; names from your other competitions are suggested as you type.</p>
+      <p class="help">Click the circle beside a name (or drop a photo on the row) to add their <b>headshot</b> (the small × on it takes it off again), for the Socials tab's
+        Commentary team picture. Tick <b>Guest</b> for a special guest: the Commentators graphic then says "Special guest commentators" when everyone on the mic is one. This list belongs to this competition; names from your other competitions are suggested as you type.</p>
     </section>
     <div id="nights"><section><p class="help">Loading the season's game nights from PlayHQ…</p></section></div>
   </div>
@@ -112,6 +122,28 @@
       if (d.error) throw new Error(d.error);
       data = d; showError(''); draw();
     } catch (err) { showError(`Couldn't load the plan: ${err.message}`); }
+  }
+  // A commentator's headshot, for the Socials tab's Commentary team picture.
+  function headshot(p) {
+    const box = el('label', 'shot');
+    box.title = p.headshotUrl ? `Change ${p.name}'s headshot` : `Add a headshot of ${p.name}`;
+    if (p.headshotUrl) { const img = box.appendChild(el('img')); img.src = `${p.headshotUrl}?v=${Date.now()}`; img.alt = ''; }
+    else box.append(p.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
+    const input = box.appendChild(el('input')); input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp';
+    input.onchange = () => input.files[0] && addHeadshot(p, input.files[0]);
+    return box;
+  }
+  async function addHeadshot(p, file) {
+    const ext = (file.name.match(/\.(jpe?g|png|webp)$/i) || [])[1] || (file.type.split('/')[1] || '');
+    await send('POST', `/api/planner/headshot?id=${encodeURIComponent(p.id)}&ext=${encodeURIComponent(ext)}`, file);
+  }
+  async function send(method, path, body) {
+    try {
+      const res = await fetch(path, { method, body });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      data = d; showError(''); draw();
+    } catch (err) { showError(`Couldn't save the headshot: ${err.message}`); }
   }
   async function post(path, body) {
     try {
@@ -142,7 +174,13 @@
     // The pool.
     $('pool').replaceChildren(...(data.pool.length ? data.pool.map(p => {
       const row = el('div', 'person');
-      row.append(el('span', 'person__name', p.name));
+      const shot = el('span', 'shotwrap'); shot.append(headshot(p));
+      if (p.headshotUrl) {
+        const off = el('button', 'alt small shot__off', '×'); off.title = `Remove ${p.name}'s headshot`;
+        off.onclick = () => send('DELETE', `/api/planner/headshot?id=${encodeURIComponent(p.id)}`);
+        shot.append(off);
+      }
+      row.append(shot, el('span', 'person__name', p.name));
       const lab = el('label');
       const tick = lab.appendChild(el('input')); tick.type = 'checkbox'; tick.checked = !!p.guest;
       tick.onchange = () => savePool(data.pool.map(x => x.id === p.id ? { ...x, guest: tick.checked } : x));
@@ -150,6 +188,9 @@
       const rm = el('button', 'alt small', '×'); rm.title = `Take ${p.name} out of the list (and every night)`;
       rm.onclick = () => { if (confirm(`Take ${p.name} out of the commentators? They come out of every night they're planned for.`)) savePool(data.pool.filter(x => x.id !== p.id)); };
       row.append(lab, rm);
+      row.ondragover = e => { e.preventDefault(); row.classList.add('over'); };
+      row.ondragleave = () => row.classList.remove('over');
+      row.ondrop = e => { e.preventDefault(); row.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) addHeadshot(p, f); };
       return row;
     }) : [el('p', 'help', 'No commentators yet. Add the people who call your games.')]));
     $('others').replaceChildren(...data.others.filter(o => !data.pool.some(p => p.name.toLowerCase() === o.name.toLowerCase()))
