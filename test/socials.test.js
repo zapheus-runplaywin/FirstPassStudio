@@ -1,5 +1,5 @@
 // The Socials tab (socials.js, socials.html, social.html): the season's game nights, one night's pictures made from
-// the fixture Studio already has (every court), the Production Planner's court and commentators, the sponsor strip
+// the fixture Studio already has (every court), its results, ladders and top shooters, the Production Planner's court and commentators, the sponsor strip
 // and Studio mark settings kept per competition, photos for the polaroid, and saving, which needs the Mac app
 // (app.test.js saves real PNGs).
 const test = require('node:test');
@@ -22,7 +22,8 @@ test('the tab lists every game night, opens on the next, and knows saving needs 
   assert.equal(s.next, studio.world.today);
   assert.deepEqual(Object.keys(s.sizes), ['square', 'portrait', 'story']);
   assert.deepEqual(s.sizes.story, { width: 1080, height: 1920, label: 'Story' });
-  assert.deepEqual(s.settings, { mark: true, sponsor: { fixtures: true, matchup: true, onstream: true, polaroid: false } });
+  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true } });
+  assert.deepEqual(s.nights.map(n => n.results), [4, 4, 0, 0], 'last two weeks played, tonight and next week to come');
   assert.equal(s.app, false, 'no Mac app around the helper here');
 });
 
@@ -50,11 +51,41 @@ test('On the stream comes from the Production Planner', async () => {
   assert.deepEqual(n.stream.slots.find(s => s.time === time).people, [{ name: 'Sam Lee', guest: false }]);
 });
 
+test('a played night has each result and winner; the ladders and top shooters come only when asked, then from the cache', async () => {
+  const date = (await studio.get('/api/socials')).nights[1].date;
+  const n = await studio.get(`/api/socials/night?date=${date}`);
+  assert.ok(n.games.every(g => g.finished));
+  const g = n.games.find(x => x.id === 'game-d1-r2-1');
+  assert.deepEqual([g.home.name, g.home.score, g.away.name, g.away.score, g.winner], ['Blizzardz', 31, 'Mavericks', 26, 'home']);
+  assert.equal(n.ladders, undefined);
+  assert.equal(n.shooters, undefined);
+  const tonight = await studio.get(`/api/socials/night?date=${studio.world.today}`);
+  assert.ok(tonight.games.every(x => !x.finished && x.winner === null), 'the game being scored has no result until PlayHQ finalises it');
+
+  const full = await studio.get(`/api/socials/night?date=${date}&with=ladders,shooters`);
+  assert.deepEqual(full.ladders.map(l => [l.division, l.after]), [['Division 1', 'Round 2'], ['Division 2', 'Round 2']], 'its latest night with results');
+  assert.deepEqual(full.ladders[1].rows.map(r => r.team), ['Stormz', 'Titans', 'Tsunamiz', 'Semi Pro']);
+  assert.ok(full.ladders[0].rows.every(r => r.logo && r.points !== undefined));
+  assert.equal(full.shooters.gamesRead, 4);
+  assert.equal(full.shooters.superShots, true);
+  assert.equal(full.shooters.players.length, 6);
+  assert.deepEqual(full.shooters.players.map(p => p.points), [...full.shooters.players.map(p => p.points)].sort((a, b) => b - a), 'most points first');
+  const before = studio.calls().length;
+  await studio.get(`/api/socials/night?date=${date}&with=ladders,shooters`);
+  assert.equal(studio.calls().length, before, 'finished games\' line ups are read once and kept');
+
+  const old = await studio.get(`/api/socials/night?date=${(await studio.get('/api/socials')).nights[0].date}&with=ladders,shooters`);
+  assert.deepEqual(old.ladders.map(l => l.after), ['', ''], 'an older night gets the ladder as it stands, not "after" its round');
+  const none = await studio.get(`/api/socials/night?date=${studio.world.today}&with=shooters`);
+  assert.deepEqual(none.shooters, { players: [], gamesRead: 0, gamesFinished: 0, superShots: false });
+});
+
 test('the sponsor strip and the Studio mark are kept per competition', async () => {
   const r = await studio.post('/api/socials/settings', { mark: false, sponsor: { polaroid: true, fixtures: false, nonsense: true } });
-  assert.deepEqual(r.settings, { mark: false, sponsor: { fixtures: false, matchup: true, onstream: true, polaroid: true } });
+  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true } });
   assert.deepEqual((await studio.get('/api/socials')).settings, r.settings);
-  await studio.post('/api/socials/settings', { mark: true });
+  assert.equal((await studio.post('/api/socials/settings', { pivt: false })).settings.pivt, false, 'the PIVT logo is optional too');
+  await studio.post('/api/socials/settings', { mark: true, pivt: true });
   assert.equal((await studio.get('/api/socials/night')).settings.mark, true);
 });
 

@@ -1,23 +1,27 @@
 // FirstPass Studio - the Socials tab (socials.html): pictures of a game night for social media, saved as PNGs.
 //
 // The pictures are drawn by social.html (one graphic per link, at Instagram's square, portrait or Stories size) from
-// what Studio already has: the season's fixture, read through the same cache as every other page (so the tab adds
-// nothing to what PlayHQ is asked), the Production Planner's court and commentators, the competition's sponsors and
-// logos. The Mac app takes the pictures (desktop/socials.js): the helper asks it over the app's message port, it
+// what Studio already has: the season's fixture and results, read through the same cache as every other page (so the
+// tab adds nothing to what PlayHQ is asked), the ladders, the night's shooting from each finished game's line ups (read
+// once and kept, as for Top shooters), the Production Planner's court and commentators, the competition's sponsors
+// and logos. Two sets: Upcoming (before the night) and Results (after it). The Mac app takes the pictures (desktop/socials.js): the helper asks it over the app's message port, it
 // draws each link off screen at its full size and saves the PNGs in Pictures/FirstPass Studio/, then opens the folder
 // or the Mac's Share menu. Without the Mac app (npm start) the previews work and Export says it needs the app.
 //
-// Saved per competition in competitions/<id>/socials.json: { mark, sponsor: { <kind>: true|false } }, the Studio
-// mark in the corner and which graphics carry the sponsor strip, kept week to week. Photos dropped on a polaroid stay
+// Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false } }, the
+// FirstPass Studio mark and the PIVT logo in the corners and which graphics carry the sponsor strip, kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
 // Routes (server.js hands every /api/socials and /socials/ request here):
 //   GET  /api/socials                    the game nights, the settings and whether pictures can be saved (the app)
-//   GET  /api/socials/night?date=        one night for social.html: its games, the streamed court, sponsors, look
-//   POST /api/socials/settings           { mark, sponsor: { kind: bool } }
+//   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
+//                                        look; &with=ladders adds the ladder of each division that played, &with=shooters
+//                                        the night's top shooters
+//   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool } }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
-//   POST /api/socials/export             { date, set, share, items: [{ name, link, size }] }: the app saves them
+//   POST /api/socials/export             { date, set: upcoming|results, share, zip, items: [{ name, link, size }] }: the
+//                                        app saves them (and a zip of them with zip: true)
 
 'use strict';
 
@@ -25,6 +29,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const uploads = require('./uploads');
+const { isFinished } = require('./playhq');
 
 // The sizes Instagram takes: a square post, a portrait post (the most room in the feed) and a Story.
 const SIZES = {
@@ -32,8 +37,10 @@ const SIZES = {
   portrait: { width: 1080, height: 1350, label: 'Portrait' },
   story: { width: 1080, height: 1920, label: 'Story' },
 };
-// Each graphic and whether it carries the sponsor strip until that's changed on the tab.
-const KINDS = { fixtures: true, matchup: true, onstream: true, polaroid: false };
+// Each graphic and whether it carries the sponsor strip until that's changed on the tab. Upcoming: fixtures, matchup,
+// onstream and a polaroid; Results: results, fulltime, ladder, topshooters and a polaroid per game.
+const KINDS = { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true };
+const SHOOTERS_SHOWN = 6;
 const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 const PHOTOS_KEPT = 40;
 const MAX_PHOTO = 40 * 1024 * 1024;
@@ -44,7 +51,8 @@ const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
 const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, appPort = process.parentPort || null }) {
+function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
+  appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -55,13 +63,14 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (id) try { d = JSON.parse(fs.readFileSync(fileOf(id), 'utf8')); } catch { /* not changed yet */ }
     const sponsor = {};
     for (const [k, on] of Object.entries(KINDS)) sponsor[k] = d.sponsor && typeof d.sponsor[k] === 'boolean' ? d.sponsor[k] : on;
-    return { mark: d.mark !== false, sponsor };
+    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor };
   }
   function saveSettings(body) {
     const id = competitions.activeId();
     if (!id) throw new Error('Set up a competition first, on the Competitions setup page.');
     const now = settings();
     if (typeof body.mark === 'boolean') now.mark = body.mark;
+    if (typeof body.pivt === 'boolean') now.pivt = body.pivt;
     for (const k of Object.keys(KINDS)) if (body.sponsor && typeof body.sponsor[k] === 'boolean') now.sponsor[k] = body.sponsor[k];
     savefile.writeJsonSync(fileOf(id), now);
     return now;
@@ -69,8 +78,13 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
 
   // ─── The nights ───────────────────────────────────────────────────────────
   const team = t => ({ name: t.name, logo: logoFor(t.name), score: t.score ?? null });
-  const brief = g => ({ id: g.id, time: slotOf(g), court: g.court || '', venue: g.venue || '', division: g.division || '', round: g.round || '',
-    home: team(g.home), away: team(g.away) });
+  // finished: PlayHQ has its result (the score is final); winner: home, away or draw.
+  function brief(g) {
+    const done = isFinished(g) && g.home.score !== null && g.home.score !== undefined && g.away.score !== null && g.away.score !== undefined;
+    return { id: g.id, time: slotOf(g), court: g.court || '', venue: g.venue || '', division: g.division || '', round: g.round || '',
+      home: team(g.home), away: team(g.away), finished: done,
+      winner: !done ? null : g.home.score > g.away.score ? 'home' : g.away.score > g.home.score ? 'away' : 'draw' };
+  }
 
   async function list() {
     const dates = await byDate();
@@ -78,28 +92,64 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const nights = Object.keys(dates).sort().map(date => {
       const games = dates[date];
       const rounds = [...new Set(games.map(g => g.round).filter(Boolean))];
-      return { date, games: games.length, rounds: rounds.length === 1 ? rounds[0] : [...new Set(games.map(g => `${g.division} ${g.round}`))].join(', '), past: date < today };
+      return { date, games: games.length, rounds: rounds.length === 1 ? rounds[0] : [...new Set(games.map(g => `${g.division} ${g.round}`))].join(', '), past: date < today,
+        results: games.filter(isFinished).length };
     });
     const next = (nights.find(n => n.date >= today) || nights[nights.length - 1] || {}).date || '';
     return { nights, next, today, sizes: SIZES, settings: settings(), app: !!appPort };
   }
 
-  // One night, for social.html: every game (all courts, in time order), the court Studio streams with who is on the
-  // mic (from the Production Planner, or null when the night isn't planned), the top sponsors and the competition.
+  // One night, for social.html: every game (all courts, in time order) with its result once finished, the court
+  // Studio streams with who is on the mic (from the Production Planner, or null when the night isn't planned), the top
+  // sponsors and the competition. with: 'ladders' and/or 'shooters', for the Results pictures that need them.
   async function night(q = {}) {
     const dates = await byDate();
     const all = Object.keys(dates).sort();
     const today = localDate();
     const date = isDate(q.date) ? q.date : (all.find(d => d >= today) || all[all.length - 1] || today);
-    const games = (dates[date] || []).map(brief);
+    const raw = dates[date] || [];
+    const games = raw.map(brief);
+    const want = new Set(String(q.with || '').split(','));
     let stream = null;
     try {
       stream = await onStream(date);
     } catch (err) { log('warn', 'socials', `No Production Planner for ${date}: ${err.message}`); }
     const a = about();
     const venues = [...new Set(games.map(g => g.venue).filter(Boolean))];
-    return { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null,
+    const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null,
       venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: settings() };
+    if (want.has('ladders')) out.ladders = await ladders(dates, date, games);
+    if (want.has('shooters')) out.shooters = await shooters(raw.filter((g, i) => games[i].finished));
+    return out;
+  }
+
+  // The ladder of each division that played that night, as PlayHQ has it now. after: the round, when this night is
+  // that division's latest with results (so "after Round 5" is true); else the ladder is simply today's.
+  async function ladders(dates, date, games) {
+    const out = [];
+    for (const division of [...new Set(games.map(g => g.division).filter(Boolean))]) {
+      const latest = Object.keys(dates).sort().filter(d => dates[d].some(g => g.division === division && isFinished(g))).pop();
+      const round = (games.find(g => g.division === division) || {}).round || '';
+      try {
+        const l = await ladderFor(division);
+        out.push({ division, after: latest === date ? round : '', rows: l.rows.map(r => ({ ...r, logo: logoFor(r.team) })), finalsPlaces: l.finalsPlaces || 0 });
+      } catch (err) {
+        log('warn', 'socials', `No ladder for ${division}: ${err.message}`);
+        out.push({ division, after: '', rows: [], error: err.message });
+      }
+    }
+    return out;
+  }
+
+  // The night's top shooters, over every division's finished games, most points first (goals where there are no super
+  // shots). superShots: whether any of those divisions has them, to show the super goals and points.
+  async function shooters(finished) {
+    if (!finished.length) return { players: [], gamesRead: 0, gamesFinished: 0, superShots: false };
+    const t = await tallyShooters(finished);
+    const players = [...t.players].sort((a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, SHOOTERS_SHOWN)
+      .map(p => ({ name: p.name, team: p.team, logo: p.logo, goals: p.goals, superGoals: p.superGoals, points: p.points }));
+    return { players, gamesRead: t.read, gamesFinished: finished.length, superShots: finished.some(g => superShots(g.division)),
+      error: !t.read && t.failed ? t.lastError : undefined };
   }
 
   // ─── Photos ───────────────────────────────────────────────────────────────
@@ -156,11 +206,11 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       setTimeout(() => { if (waiting.delete(id)) resolve({ error: 'The Mac app took too long to save the pictures.' }); }, EXPORT_TIMEOUT_MS).unref();
     });
     log('info', 'socials', `Saving ${pictures.length} pictures for ${date} (${set})${body.share ? ' to share' : ''}`);
-    appPort.postMessage({ type: 'socialsSave', id, folder, pictures, share: body.share === true });
+    appPort.postMessage({ type: 'socialsSave', id, folder, pictures, share: body.share === true, zip: body.zip === true });
     const m = await answer;
     if (m.error) { log('warn', 'socials', `Saving the pictures for ${date}: ${m.error}`); throw Object.assign(new Error(m.error), { status: 500 }); }
-    log('info', 'socials', `Saved ${m.files.length} pictures in ${m.folder}`);
-    return { folder: m.folder, files: m.files.map(f => path.basename(f)), shared: !!m.shared };
+    log('info', 'socials', `Saved ${m.files.length} pictures in ${m.folder}${m.zip ? `, and ${m.zip}` : ''}`);
+    return { folder: m.folder, files: m.files.map(f => path.basename(f)), zip: m.zip || null, shared: !!m.shared };
   }
 
   async function route(req, res, url, { send, readBody, readRaw, port }) {

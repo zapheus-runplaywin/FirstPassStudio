@@ -620,13 +620,9 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     return { competition: competitionName(), speed: b.tickerSpeed || TICKER_SPEED, games: games.map(g => ({ ...g, live: isLive(g), finished: isFinished(g) })) };
   }
 
-  // Season shooting totals from the Game Summary of every finished game in a division.
+  // Each shooter's goals, super goals, shots and points from the Game Summary of the given finished games.
   // Finished games don't change, so their line ups are kept (see game-cache.json).
-  async function getTopShooters(q) {
-    const st = await getStructure();
-    const grade = findGrade(st, q.division ? q : { division: board().division || '1' });
-    if (!grade) throw new Error(`No division "${q.division}"`);
-    const games = (await getSeasonGames(grade)).filter(isFinished);
+  async function tallyShooters(games) {
     const players = new Map();
     let read = 0, failed = 0, lastError = '';
     const lineups = await eachLimited(games, PLAYHQ_AT_ONCE, g => readGame(g, 60 * 60 * 1000));
@@ -646,10 +642,19 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         }
       }
     }
-    const limit = Math.min(20, Math.max(1, Number(q.limit) || 8));
-    const all = [...players.values()];
-    const by = f => [...all].sort((a, b) => f(b) - f(a) || a.name.localeCompare(b.name)).slice(0, limit);
     if (failed) log('warn', 'shooters', `${failed} of ${games.length} games could not be read: ${lastError}`);
+    return { players: [...players.values()], read, failed, lastError };
+  }
+
+  // Season shooting totals over every finished game in a division.
+  async function getTopShooters(q) {
+    const st = await getStructure();
+    const grade = findGrade(st, q.division ? q : { division: board().division || '1' });
+    if (!grade) throw new Error(`No division "${q.division}"`);
+    const games = (await getSeasonGames(grade)).filter(isFinished);
+    const { players: all, read, failed, lastError } = await tallyShooters(games);
+    const limit = Math.min(20, Math.max(1, Number(q.limit) || 8));
+    const by = f => [...all].sort((a, b) => f(b) - f(a) || a.name.localeCompare(b.name)).slice(0, limit);
     return { competition: competitionName(), rules: rules(grade.name), division: grade.name, gamesRead: read, gamesFinished: games.length,
       error: !read && failed ? lastError : undefined,
       points: by(p => p.points), goals: by(p => p.goals), superGoals: by(p => p.superGoals) };
@@ -665,7 +670,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
 
   return { nightChoice: () => nightChoice, setNightChoice, leadMs: () => AUTO_LEAD_MS, configure, resetCaches, sameCourt,
     getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
-    getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, withLiveScores, isLive, getTopShooters };
+    getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, withLiveScores, isLive, getTopShooters, tallyShooters };
 }
 
 module.exports = { create };

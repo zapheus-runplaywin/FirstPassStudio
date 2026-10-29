@@ -1,7 +1,8 @@
 // FirstPass Studio Mac app - saves the Socials tab's pictures (socials.js in the helper asks, over the app's message
 // port): each one is the helper's social.html drawn off screen at its full size (1080 wide, up to 1920 tall) and
-// saved as a PNG, see-through where the picture is, in Pictures/FirstPass Studio/<competition> <date> <set>/.
-// Then Finder shows the folder, or the Mac's Share menu (AirDrop, Messages, Mail...) opens with the pictures.
+// saved as a PNG, see-through where the picture is, in Pictures/FirstPass Studio/<competition> <date> <set>/, and
+// with zip ticked in <competition> <date> <set>.zip beside it as well. Then Finder shows the folder (or the zip), or
+// the Mac's Share menu (AirDrop, Messages, Mail...) opens with the pictures (or the one zip).
 
 'use strict';
 
@@ -49,8 +50,8 @@ async function take({ url, width, height }) {
 }
 
 module.exports = function socials({ log }) {
-  // msg: { type: 'socialsSave', id, folder, pictures: [{ file, url, width, height }], share }. Answers
-  // { type: 'socialsSaved', id, folder, files, shared } or { ..., error }.
+  // msg: { type: 'socialsSave', id, folder, pictures: [{ file, url, width, height }], share, zip }. Answers
+  // { type: 'socialsSaved', id, folder, files, zip, shared } or { ..., error }.
   async function save(child, msg) {
     const answer = m => child.postMessage({ type: 'socialsSaved', id: msg.id, ...m });
     try {
@@ -67,15 +68,31 @@ module.exports = function socials({ log }) {
         files.push(file);
       }
       log(`Socials: saved ${files.length} pictures in ${folder}`);
+      // The zip: the folder's pictures in a folder of the same name, beside it (written to .part first, so a zip that
+      // is there is whole).
+      let zip = null;
+      if (msg.zip) {
+        zip = `${folder}.zip`;
+        const part = `${zip}.part`;
+        const out = fs.createWriteStream(part);
+        const done = new Promise((resolve, reject) => { out.on('finish', resolve); out.on('error', reject); });
+        await require('../zip').write(out, files.map(f => ({ name: `${path.basename(folder)}/${path.basename(f)}`, file: f })));
+        await done;
+        fs.renameSync(part, zip);
+        log(`Socials: zipped them in ${zip}`);
+      }
       let shared = false;
       const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows().find(w => w.isVisible());
       if (msg.share && ShareMenu && process.platform === 'darwin' && win) {
-        new ShareMenu({ filePaths: files }).popup({ window: win });
+        new ShareMenu({ filePaths: zip ? [zip] : files }).popup({ window: win });
         shared = true;
+      } else if (zip) {
+        shell.showItemInFolder(zip);
       } else {
         shell.openPath(folder);
       }
-      answer({ folder: path.join('Pictures', 'FirstPass Studio', path.basename(folder)), files, shared });
+      const shown = f => path.join('Pictures', 'FirstPass Studio', path.basename(f));
+      answer({ folder: shown(folder), files, zip: zip && shown(zip), shared });
     } catch (err) {
       log(`Socials: ${err.message}`);
       answer({ error: err.message });
