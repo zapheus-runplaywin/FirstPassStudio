@@ -8,7 +8,7 @@
 const { isFinished, startOf, localDate } = require('./playhq');
 
 function create({ log, config, competitions, finals, playhq, board: theBoard, control, logoFor, colourFor, norm, sameTeam, courtPlan = async () => null }) {
-  const { getStructure, getLadder, findGrade, getRounds, getRoundGames, readGame, eachLimited, PLAYHQ_AT_ONCE, getLive, liveScore } = playhq;
+  const { getStructure, getLadder, findGrade, getRounds, getRoundGames, readGame, eachLimited, PLAYHQ_AT_ONCE, getLive, liveScore, PERIOD_NUMBER } = playhq;
   const { board, applyAction, saveBoards, TICKER_SPEED } = theBoard;
 
   // ─── Which game night, and which round is "this round" ──────────────────────
@@ -594,17 +594,29 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       home: { ...t.home, form: form(b.home.name) }, away: { ...t.away, form: form(b.away.name) } };
   }
 
+  // The round fixture has no scores until a game is final, so live games are read one by one, through the live
+  // feed's cache (playhq.js getLive): the ticker and the fixture board (planner.js) both read here, so a game read
+  // for one is not asked again for the other within maxAgeMs. Sets home.score, away.score and period ('Q2') on
+  // each live game in place.
+  const TICKER_LIVE_MS = 20 * 1000;
+  async function withLiveScores(games, maxAgeMs = TICKER_LIVE_MS) {
+    await Promise.all(games.filter(isLive).map(async g => {
+      try {
+        const d = await liveScore(g, maxAgeMs);
+        if (!d) return;
+        g.home = { ...g.home, score: d.home }; g.away = { ...g.away, score: d.away };
+        const p = d.live && d.live.period;
+        if (PERIOD_NUMBER[p]) g.period = `${/HALF/.test(p) ? 'H' : 'Q'}${PERIOD_NUMBER[p]}`;
+      } catch (err) { log('warn', 'ticker', `Live score for ${g.home.name} v ${g.away.name} failed: ${err.message}`); }
+    }));
+    return games;
+  }
+
   // Live and finished scores from the current round, leaving out the game on the scoreboard.
   async function getTicker() {
     const b = board();
     const games = (await getCurrentGames()).filter(g => g.id !== b.gameId && (isLive(g) || isFinished(g) || (g.home.score !== null && g.away.score !== null)));
-    // The round fixture has no scores until a game is final, so read live games one by one.
-    await Promise.all(games.filter(isLive).map(async g => {
-      try {
-        const d = await liveScore(g, 20 * 1000);
-        if (d) { g.home = { ...g.home, score: d.home }; g.away = { ...g.away, score: d.away }; }
-      } catch (err) { log('warn', 'ticker', `Live score for ${g.home.name} v ${g.away.name} failed: ${err.message}`); }
-    }));
+    await withLiveScores(games, TICKER_LIVE_MS);
     return { competition: competitionName(), speed: b.tickerSpeed || TICKER_SPEED, games: games.map(g => ({ ...g, live: isLive(g), finished: isFinished(g) })) };
   }
 
@@ -653,7 +665,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
 
   return { nightChoice: () => nightChoice, setNightChoice, leadMs: () => AUTO_LEAD_MS, configure, resetCaches, sameCourt,
     getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
-    getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, getTopShooters };
+    getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, withLiveScores, isLive, getTopShooters };
 }
 
 module.exports = { create };

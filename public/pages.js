@@ -44,10 +44,10 @@
     { file: 'commentators.html', name: 'Commentators', docs: 'personPages', examples: [
       ['Commentators: thin line', '/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000],
       ['Commentators: box', '/commentators.html?style=box&label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000]] },
-    { file: 'roster.html', name: 'Commentary roster (full screen)', docs: 'personPages', examples: [['Commentary roster', '/roster.html', 2500]] },
     { file: 'finals.html', name: 'Finals', docs: 'finalsPages' }, // one example per division
     { file: 'fixtures.html', name: 'Round fixture', docs: 'fixturePages', examples: [['Round fixture', '/fixtures.html', 3000], ['Next round fixture', '/fixtures.html?round=next', 3000]] },
     { file: 'results.html', name: 'Results', docs: 'fixturePages', examples: [['Round results', '/results.html', 3000]] },
+    { file: 'fixtureboard.html', name: 'Fixture board (Full Page)', docs: 'fixturePages', examples: [['Fixture board', '/fixtureboard.html', 3000]] },
     { file: 'topshooters.html', name: 'Top shooters', docs: 'shooterPages' }, // one example per division
     { file: 'logo.html', name: 'Competition logo animation', docs: 'logoPages', examples: [['Logo animation: fun (mid animation)', '/logo.html?template=fun', 2200], ['Logo animation: pro (mid animation)', '/logo.html?template=pro', 2600],
       ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net'].map(t => [`Logo animation: ${t} (mid animation)`, `/logo.html?template=${t}`, 2600])] },
