@@ -935,7 +935,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
   (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.
-- **Sponsors and logos:** each picture has a sponsor strip tick (naming, elite and major sponsors), and two ticks put
+- **Sponsors and logos:** each picture has a sponsor strip tick (naming, elite and major sponsors), and two ticks under Options put
   the FirstPass Studio mark (bottom right) and the PIVT logo (bottom left) on every picture; all are kept in
   `competitions/<name>/socials.json`.
 - **Template:** a template set for every picture: *Default* (the stream's own look), *Fun*, *Dynamic*, *Junior*, *Retro*,
