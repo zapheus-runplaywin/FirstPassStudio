@@ -27,13 +27,13 @@
 
   .frame { position: absolute; inset: 0; padding: 64px 64px 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 28px; }
-  .head__logo { width: 132px; height: 132px; object-fit: contain; flex: none; filter: drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
+  .head__logo { width: 180px; height: 180px; object-fit: contain; flex: none; filter: drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
   .head__text { min-width: 0; }
   .tab { display: inline-block; background: var(--pink); color: var(--text); padding: 8px 18px; border-radius: 6px;
     font-size: 24px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
   .title { margin: 14px 0 0; font-size: 84px; font-weight: 800; line-height: .95; text-transform: uppercase; color: var(--yellow); letter-spacing: .01em; }
   .when { margin-top: 12px; font-size: 30px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-  .when small { color: var(--muted); font-size: 24px; letter-spacing: .1em; margin-left: 12px; }
+  .when small { color: var(--muted); font-size: .8em; letter-spacing: .1em; margin-left: 12px; }
   .body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: 36px 0 60px; } /* the mark sits above the sponsor strip */
   .fit { transform-origin: center center; }
 
@@ -310,6 +310,47 @@
       $('title').dataset.text = $('title').textContent; // for a template that echoes the title (Arena's outlines)
       $('when').replaceChildren(...when);
       if (d.competitionLogo) { $('compLogo').src = d.competitionLogo; $('compLogo').hidden = false; }
+    }
+
+    // The title stays on one line, shrinking up to 30% to fit beside the logo at any size; only a title that would get
+    // smaller than that wraps (at the template's size, each word still fitting). Poster stacks its words on purpose.
+    function fitTitle() {
+      const t = $('title'), head = $('head'), logo = $('compLogo');
+      if (document.body.classList.contains('t-poster') && size !== 'square') return;
+      const gap = parseFloat(getComputedStyle(head).columnGap) || 0;
+      // --title-clear: the room a template keeps free at the right for its decoration (Poster's bar, Geometric's circle).
+      const clear = parseFloat(getComputedStyle(head).getPropertyValue('--title-clear')) || 0;
+      const room = head.clientWidth - (logo.hidden ? 0 : logo.getBoundingClientRect().width + gap) - 8 - clear;
+      fitWhen(room);
+      const base = parseFloat(getComputedStyle(t).fontSize);
+      t.style.whiteSpace = 'nowrap';
+      const wide = t.scrollWidth;
+      if (wide <= room) return;
+      if (wide * .7 <= room) {
+        let px = Math.floor(base * room / wide);
+        t.style.fontSize = `${px}px`;
+        while (t.scrollWidth > room && px > base * .7) t.style.fontSize = `${--px}px`;
+        return;
+      }
+      t.style.whiteSpace = '';
+      for (let px = base; t.scrollWidth > room && px > base * .5; px -= 2) t.style.fontSize = `${px}px`;
+    }
+    // The date line under the title stays on one line too, shrinking a little (to 75%); a longer one puts its small part
+    // (court, venue) on a second line.
+    function fitWhen(room) {
+      const w = $('when');
+      w.style.whiteSpace = 'nowrap';
+      if (w.scrollWidth <= room) return;
+      const base = parseFloat(getComputedStyle(w).fontSize);
+      if (w.scrollWidth * .75 > room) {
+        // Too long to shrink: the small part (court, venue) goes on a line of its own rather than breaking mid-phrase.
+        const small = w.querySelector('small');
+        if (small) { small.style.display = 'block'; small.style.marginLeft = '0'; small.style.marginTop = '4px'; }
+        for (let px = base; w.scrollWidth > room && px > base * .75; px--) w.style.fontSize = `${px}px`;
+        if (w.scrollWidth > room) w.style.whiteSpace = '';
+        return;
+      }
+      w.style.fontSize = `${base * room / w.scrollWidth}px`;
     }
 
     function drawFixtures(d) {
@@ -593,7 +634,7 @@
         await imagesLoaded();
         await fontLoaded;
         if (document.fonts) await document.fonts.ready;
-        if (kind !== 'polaroid') fit();
+        if (kind !== 'polaroid') { fitTitle(); fit(); }
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         window.pageLog && window.pageLog('info', `Social picture: ${kind} ${size} for ${d.date}${missing ? ` (${missing})` : ''}`);
         return missing || true;
