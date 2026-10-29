@@ -112,7 +112,7 @@
       <button type="button" class="alt" id="newCancel">Cancel</button>
     </form>
     <p class="help"><b>Upcoming</b>: the night's fixture, a match up for each game, who is on the stream (from the Production Planner) and a polaroid for a match photo.
-      <b>Results</b>: the night's final scores, a full time card and a polaroid with the score for each game, each division's ladder and the night's top shooters.
+      <b>Results</b>: the night's final scores, a full time card and a polaroid with the score for each game, each division's ladder and each division's top shooters.
       A night with results opens on Results. <b>Template</b> is the look of every picture: Default is the stream's own, and the others each bring their own shapes and lettering. <b>Colours</b> change every picture in any template: sets made from the competition's main, highlight and accent colours (Competition colours is the stream's own look), or your own with <b>New colour set</b>. The FirstPass Studio mark sits bottom right and the PIVT logo bottom left; untick either to leave it off. Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
@@ -160,8 +160,11 @@
     for (const div of [...new Set(night.games.map(g => g.division).filter(Boolean))]) {
       list.push({ key: `ladder:${div}`, kind: 'ladder', division: div, name: `Ladder ${div}`, help: 'The ladder as PlayHQ has it now: "after" the round when this is the division\'s latest night with results.' });
     }
-    list.push({ key: 'topshooters', kind: 'topshooters', name: 'Top shooters', missing: none,
-      help: 'The night\'s top shooters over every division, from each finished game\'s line ups (read once and kept).' });
+    // Top shooters: a picture per division that has a finished game, each division's best from its games' line ups.
+    const shot = [...new Set(done.map(g => g.division))];
+    for (const div of shot) list.push({ key: `topshooters:${div}`, kind: 'topshooters', division: div, name: div ? `Top shooters ${div}` : 'Top shooters',
+      help: `${div || 'The night'}'s top shooters, from each finished game's line ups (read once and kept).` });
+    if (!shot.length) list.push({ key: 'topshooters', kind: 'topshooters', name: 'Top shooters', missing: none, help: '' });
     for (const g of done) list.push({ key: `polaroid:${g.id}`, kind: 'polaroid', game: g.id, name: `Polaroid ${g.home.name} v ${g.away.name}`,
       help: 'The score goes under the photo. Drop a match photo on it, then drag the preview to frame it; with no photo the window is see-through.' });
     return list;

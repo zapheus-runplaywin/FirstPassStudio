@@ -91,6 +91,12 @@ test('a played night has each result and winner; the ladders and top shooters co
   const before = asked();
   await studio.get(`/api/socials/night?date=${date}&with=ladders,shooters`);
   assert.equal(asked(), before, 'finished games\' line ups are read once and kept');
+  // One division's top shooters, for the Socials tab's picture per division: only its games, from the same kept line ups.
+  const teams = new Set(full.games.filter(g => g.finished && g.division === 'Division 2').flatMap(g => [g.home.name, g.away.name]));
+  const div2 = (await studio.get(`/api/socials/night?date=${date}&with=shooters&division=Division%202`)).shooters;
+  assert.equal(div2.gamesFinished, 2);
+  assert.ok(div2.players.length && div2.players.every(p => teams.has(p.team)), 'only Division 2\'s shooters');
+  assert.equal(asked(), before, 'still from the kept line ups');
 
   const old = await studio.get(`/api/socials/night?date=${(await studio.get('/api/socials')).nights[0].date}&with=ladders,shooters`);
   assert.deepEqual(old.ladders.map(l => l.after), ['', ''], 'an older night gets the ladder as it stands, not "after" its round');
