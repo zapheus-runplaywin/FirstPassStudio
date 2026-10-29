@@ -310,6 +310,7 @@
       $('tab').textContent = tab || d.competition;
       $('tab').hidden = !$('tab').textContent;
       $('title').textContent = params.get('title') || title;
+      $('title').dataset.text = $('title').textContent; // for a template that echoes the title (Arena's outlines)
       $('when').replaceChildren(...when);
       if (d.competitionLogo) { $('compLogo').src = d.competitionLogo; $('compLogo').hidden = false; }
     }
