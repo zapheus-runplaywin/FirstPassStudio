@@ -40,11 +40,26 @@ function thenText(sq) {
   if (then.type === 'sequence') { const nx = sequences().find(x => x.id === then.sequence); return nx ? `then ${nx.name}` : 'then its next sequence (gone)'; }
   return then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';
 }
-// Where it plays, once there's more than one output: "on Output 1 + Commentary".
-function onText(sq) {
-  if (!scene.viewMany) return '';
-  const names = (sq.playsOn || ['main']).map(o => out.outputs.find(x => x.id === o)?.name).filter(Boolean);
-  return names.length ? ` · on ${names.join(' + ')}` : ' · on a removed output';
+// Where it plays, once there's more than one output: a tick per output, in its colour, changed from the card
+// itself (it takes effect the next time the sequence starts; what's playing carries on). The last tick stays.
+function outTicks(sq) {
+  const box = document.createElement('div');
+  box.className = 'seqOuts';
+  if (!scene.viewMany) return box;
+  const on = sq.playsOn || ['main'];
+  box.title = 'The outputs it plays on together: started by itself, or played on any of them';
+  for (const o of out.outputs) {
+    const l = document.createElement('label');
+    l.innerHTML = '<input type="checkbox"> <i></i> <span></span>';
+    const c = l.querySelector('input');
+    c.checked = on.includes(o.id);
+    c.disabled = c.checked && on.length === 1;
+    c.onchange = () => act({ type: 'seqUpdate', sequence: sq.id, changes: { playsOn: out.outputs.map(x => x.id).filter(id => id === o.id ? c.checked : on.includes(id)) } });
+    l.querySelector('i').style.background = o.colour;
+    l.querySelector('span').textContent = o.name;
+    box.append(l);
+  }
+  return box;
 }
 let showHidden = false;
 try { showHidden = localStorage.getItem('studio.seqShowHidden') === '1'; } catch { /* no storage */ }
@@ -80,6 +95,7 @@ function renderSequences() {
     card.querySelector('b').append(outDots(scene.onOut?.sequences[sq.id]));
     if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
     card.querySelector('.band').classList.add(sq.colour);
+    if (scene.viewMany) card.append(outTicks(sq));
     if (run) {
       const dots = document.createElement('div');
       dots.className = 'dots';
@@ -117,7 +133,7 @@ function renderSequences() {
       card.append(line, row);
     } else {
       const small = document.createElement('small');
-      small.textContent = `${startText(sq)}${onText(sq)} · ${sq.steps.length} step${sq.steps.length === 1 ? '' : 's'} · ${runText(sq)} · ${repeatText(sq)} · ${thenText(sq)}`;
+      small.textContent = `${startText(sq)} · ${sq.steps.length} step${sq.steps.length === 1 ? '' : 's'} · ${runText(sq)} · ${repeatText(sq)} · ${thenText(sq)}`;
       const row = document.createElement('div');
       row.className = 'row';
       row.innerHTML = '<button class="play">▶ Play</button><button class="alt edit">Edit</button>';
