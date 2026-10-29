@@ -954,7 +954,9 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   `competitions/<name>/socials.json`.
 - **Template:** a template set for every picture: *Default* (the stream's own look), *Dynamic*, *Junior*, *Retro*,
   *Professional*, *Thunder*, *Gradient*, *High contrast*, *Neon*, *Poster*, *Splash*, *Game Day*, *Hero*, *Final*, and three netball sets: *Court* (the court's lines,
-  thirds and circles), *Bib* (a bib with its position letters) and *Goal* (the ring, net and post, and a netball). Hero and Final stand a picked athlete's photo (best as a
+  thirds and circles), *Bib* (a bib with its position letters) and *Goal* (the ring, net and post, and a netball), and five sporting
+  sets: *Bottle* (a squeeze bottle and cool water), *Cones* (training cones and a drill line), *Sneakers* (laces, a tread and cards on a
+  thick sole), *Stadium* (floodlights over the stands) and *Locker room* (locker doors with name labels). Hero and Final stand a picked athlete's photo (best as a
   cut-out PNG from the Athletes tab) tall, in front of the title; Final sets the title's last word in a script face (`script`, `--sfont`).
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
   for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template

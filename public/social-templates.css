@@ -9,8 +9,8 @@
 /* Every template: the points stay on the highlight (the ladder's last column) and the accent (a shooter's points),
    whatever a template does to the cells around them. --nf scales the team and player names for a face that runs
    wider or narrower than most. */
-:is(.t-dynamic, .t-professional, .t-thunder, .t-highcontrast, .t-neon, .t-gameday, .t-court, .t-bib, .t-goal) .ladder td:last-child { background: var(--yellow); color: var(--text-on-yellow); }
-:is(.t-dynamic, .t-junior, .t-retro, .t-professional, .t-thunder, .t-gradient, .t-neon, .t-court, .t-bib, .t-goal) .stat.main { background: var(--pink); color: #fff; }
+:is(.t-dynamic, .t-professional, .t-thunder, .t-highcontrast, .t-neon, .t-gameday, .t-court, .t-bib, .t-goal, .t-bottle, .t-cones, .t-sneakers, .t-stadium, .t-locker) .ladder td:last-child { background: var(--yellow); color: var(--text-on-yellow); }
+:is(.t-dynamic, .t-junior, .t-retro, .t-professional, .t-thunder, .t-gradient, .t-neon, .t-court, .t-bib, .t-goal, .t-bottle, .t-cones, .t-sneakers, .t-stadium, .t-locker) .stat.main { background: var(--pink); color: #fff; }
 :is(.t-junior, .t-retro) .stat.main small { color: #fff; }
 
 /* ── Dynamic: speed lines, slanted panels and a heavy condensed face ───────────────────────────────────────────── */
@@ -463,3 +463,127 @@
 .t-goal .vs__score { font-family: var(--dfont); font-weight: 600; font-size: 210px; line-height: .85; }
 .t-goal .ladder td { background: rgba(255, 255, 255, .08); border-radius: 0 !important; }
 .t-goal .game__v { color: var(--yellow); }
+
+/* ── Sporting sets: the kit around the game. Each shape sits at an edge or in a corner the words leave free, and faint
+   where cards may cross it; the cards stay solid so the words over it read clearly. ─────────────────────────────────── */
+
+/* Bottle: a squeeze bottle, half full, in the top right corner beside the title, on cool water with a wave along the foot. */
+.t-bottle { --dfont: 'Sora', var(--font); color: #fff; }
+.t-bottle .head { --title-clear: 130px; }
+.t-bottle .ground { background: radial-gradient(circle at 18% 22%, rgba(255, 255, 255, .07) 0 6px, transparent 7px) 0 0 / 120px 140px,
+    radial-gradient(circle at 70% 64%, rgba(255, 255, 255, .05) 0 10px, transparent 11px) 0 0 / 180px 200px,
+    linear-gradient(180deg, color-mix(in srgb, var(--purple), #fff 6%), var(--purple-dark)); }
+.t-bottle .ground::before { content: ''; position: absolute; right: 50px; top: 34px; width: 76px; height: 190px; transform: rotate(10deg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .85) 0 46%, var(--yellow) 46%); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 400'%3E%3Crect x='66' y='0' width='28' height='34' rx='6' fill='white'/%3E%3Crect x='44' y='30' width='72' height='44' rx='10' fill='white'/%3E%3Cpath d='M30 78H130Q146 96 146 124V372Q146 396 122 396H38Q14 396 14 372V124Q14 96 30 78Z' fill='white'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 400'%3E%3Crect x='66' y='0' width='28' height='34' rx='6' fill='white'/%3E%3Crect x='44' y='30' width='72' height='44' rx='10' fill='white'/%3E%3Cpath d='M30 78H130Q146 96 146 124V372Q146 396 122 396H38Q14 396 14 372V124Q14 96 30 78Z' fill='white'/%3E%3C/svg%3E") center / contain no-repeat; }
+.story.t-bottle .ground::before { top: 186px; }
+.t-bottle .ground::after { top: auto; bottom: 0; height: 200px; background: rgba(255, 255, 255, .07); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100' preserveAspectRatio='none'%3E%3Cpath d='M0 40Q50 10 100 40T200 40T300 40T400 40V100H0Z' fill='white'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100' preserveAspectRatio='none'%3E%3Cpath d='M0 40Q50 10 100 40T200 40T300 40T400 40V100H0Z' fill='white'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+.t-bottle .tab { background: #fff; color: var(--purple-dark); border-radius: 999px; }
+.t-bottle .title { font-weight: 800; font-size: 96px; letter-spacing: -.02em; color: #fff; }
+.t-bottle :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--purple-dark); border: 0; border-radius: 30px; box-shadow: 0 12px 28px rgba(0, 0, 0, .25); }
+
+.t-bottle :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: var(--purple-dark); }
+.t-bottle :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: color-mix(in srgb, var(--purple-dark), #fff 40%); }
+.t-bottle .result .game__team { color: color-mix(in srgb, var(--purple-dark), #fff 45%); }
+.t-bottle .result .game__team.won { color: var(--purple-dark); }
+.t-bottle .score { background: rgba(0, 0, 0, .07); color: var(--purple-dark); }
+.t-bottle .stat { background: rgba(0, 0, 0, .07); }
+.t-bottle .stat :is(b, small) { color: var(--purple-dark); }
+.t-bottle .ladder td { background: #fff; color: var(--purple-dark); }
+.t-bottle .ladder td:first-child { color: var(--purple-dark); }
+.t-bottle .info, .t-bottle .info b { color: var(--purple-dark); }
+.t-bottle :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 999px; }
+.t-bottle .vs__v { background: #fff; color: var(--purple-dark); border-radius: 50%; box-shadow: 0 0 0 8px rgba(255, 255, 255, .25); }
+
+/* Cones: a row of training cones along the foot between the marks, a dashed drill line across a mown field. */
+.t-cones { --dfont: 'Fredoka', var(--font); color: #fff; }
+.t-cones .ground { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .035) 0 90px, transparent 90px 180px),
+    linear-gradient(170deg, var(--purple), color-mix(in srgb, var(--purple-dark), #000 15%)); }
+.t-cones .ground::before { content: ''; position: absolute; left: 50%; bottom: 20px; width: 420px; height: 42px; transform: translateX(-50%);
+  background: var(--yellow); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 50'%3E%3Cpath d='M24 4Q30 -1 36 4L48 40H12Z' fill='white'/%3E%3Crect x='4' y='40' width='52' height='9' rx='3' fill='white'/%3E%3C/svg%3E") 0 0 / 84px 42px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 50'%3E%3Cpath d='M24 4Q30 -1 36 4L48 40H12Z' fill='white'/%3E%3Crect x='4' y='40' width='52' height='9' rx='3' fill='white'/%3E%3C/svg%3E") 0 0 / 84px 42px repeat-x; }
+.t-cones .ground::after { top: 0; height: auto; bottom: 0; background: rgba(255, 255, 255, .12); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' fill='none' stroke='white' stroke-width='9' stroke-dasharray='34 26' stroke-linecap='round'%3E%3Cpath d='M-20 900C200 760 340 980 520 820S760 540 1020 620'/%3E%3C/svg%3E") center / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' fill='none' stroke='white' stroke-width='9' stroke-dasharray='34 26' stroke-linecap='round'%3E%3Cpath d='M-20 900C200 760 340 980 520 820S760 540 1020 620'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+.t-cones .tab { background: var(--yellow); color: var(--text-on-yellow); border-radius: 12px; }
+.t-cones .title { font-weight: 700; font-size: 100px; color: #fff; }
+.t-cones :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--purple-dark); border: 0; border-radius: 16px; border-left: 14px solid var(--yellow); box-shadow: 0 10px 24px rgba(0, 0, 0, .25); }
+
+.t-cones :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: var(--purple-dark); }
+.t-cones :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: color-mix(in srgb, var(--purple-dark), #fff 40%); }
+.t-cones .result .game__team { color: color-mix(in srgb, var(--purple-dark), #fff 45%); }
+.t-cones .result .game__team.won { color: var(--purple-dark); }
+.t-cones .score { background: rgba(0, 0, 0, .07); color: var(--purple-dark); }
+.t-cones .stat { background: rgba(0, 0, 0, .07); }
+.t-cones .stat :is(b, small) { color: var(--purple-dark); }
+.t-cones .ladder td { background: #fff; color: var(--purple-dark); }
+.t-cones .ladder td:first-child { color: var(--purple-dark); }
+.t-cones .info, .t-cones .info b { color: var(--purple-dark); }
+.t-cones :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 12px; }
+.t-cones .vs__v { background: var(--yellow); color: var(--text-on-yellow); border-radius: 50% 50% 12px 12px; }
+
+/* Sneakers: a shoe's laces down the right edge, its tread down the left, and cards on a thick sole. */
+.t-sneakers { --dfont: 'Archivo Black', var(--font); color: #fff; }
+.t-sneakers .ground { background: linear-gradient(155deg, color-mix(in srgb, var(--pink), var(--purple) 55%), var(--purple-dark) 70%); }
+.t-sneakers .ground::before { content: ''; position: absolute; right: 8px; top: 0; bottom: 0; width: 44px; background: rgba(255, 255, 255, .45); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 50' fill='none' stroke='white'%3E%3Cpath d='M8 8L36 58M36 8L8 58M8 -42L36 8M36 -42L8 8' stroke-width='5'/%3E%3Ccircle cx='8' cy='8' r='6' stroke-width='3'/%3E%3Ccircle cx='36' cy='8' r='6' stroke-width='3'/%3E%3C/svg%3E") 0 0 / 44px 50px repeat-y; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 50' fill='none' stroke='white'%3E%3Cpath d='M8 8L36 58M36 8L8 58M8 -42L36 8M36 -42L8 8' stroke-width='5'/%3E%3Ccircle cx='8' cy='8' r='6' stroke-width='3'/%3E%3Ccircle cx='36' cy='8' r='6' stroke-width='3'/%3E%3C/svg%3E") 0 0 / 44px 50px repeat-y; }
+.t-sneakers .ground::after { top: 0; bottom: 0; height: auto; width: 34px; background: rgba(var(--yellow-rgb), .5); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 40'%3E%3Cpath d='M0 0L34 20L0 40V30L17 20L0 10Z' fill='white'/%3E%3C/svg%3E") 0 0 / 34px 40px repeat-y; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 40'%3E%3Cpath d='M0 0L34 20L0 40V30L17 20L0 10Z' fill='white'/%3E%3C/svg%3E") 0 0 / 34px 40px repeat-y; }
+.t-sneakers .tab { background: #fff; color: var(--purple-dark); border-radius: 6px; }
+.t-sneakers .title { font-weight: 400; font-size: 92px; color: #fff; }
+.t-sneakers :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--purple-dark); border: 0; border-radius: 22px; border-bottom: 12px solid var(--yellow); box-shadow: 0 10px 24px rgba(0, 0, 0, .25); }
+
+.t-sneakers :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: var(--purple-dark); }
+.t-sneakers :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: color-mix(in srgb, var(--purple-dark), #fff 40%); }
+.t-sneakers .result .game__team { color: color-mix(in srgb, var(--purple-dark), #fff 45%); }
+.t-sneakers .result .game__team.won { color: var(--purple-dark); }
+.t-sneakers .score { background: rgba(0, 0, 0, .07); color: var(--purple-dark); }
+.t-sneakers .stat { background: rgba(0, 0, 0, .07); }
+.t-sneakers .stat :is(b, small) { color: var(--purple-dark); }
+.t-sneakers .ladder td { background: #fff; color: var(--purple-dark); }
+.t-sneakers .ladder td:first-child { color: var(--purple-dark); }
+.t-sneakers .info, .t-sneakers .info b { color: var(--purple-dark); }
+.t-sneakers :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 999px; }
+.t-sneakers .shooter__name { font-weight: 400; }
+.t-sneakers .vs__v { background: #fff; color: var(--purple-dark); border-radius: 50%; box-shadow: 0 8px 0 var(--yellow); }
+
+/* Stadium: floodlights in the top corners throwing beams across a night ground, and the stands along the foot. */
+.t-stadium { --dfont: 'Teko', var(--font); --nf: 1.1; color: #fff; }
+.t-stadium .ground { background:
+    conic-gradient(from 130deg at 0 0, transparent 0 10deg, rgba(255, 255, 255, .09) 10deg 34deg, transparent 34deg),
+    conic-gradient(from 186deg at 100% 0, transparent 0 10deg, rgba(255, 255, 255, .09) 10deg 34deg, transparent 34deg),
+    radial-gradient(circle at 50% 120%, rgba(var(--yellow-rgb), .18), transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--purple-dark), #000 45%), var(--purple-dark)); }
+.t-stadium .ground::before { content: ''; position: absolute; inset: 0; background: #fff; opacity: .55;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 80'%3E%3Ccircle cx='14' cy='14' r='9' fill='white'/%3E%3Ccircle cx='14' cy='39' r='9' fill='white'/%3E%3Ccircle cx='14' cy='64' r='9' fill='white'/%3E%3Ccircle cx='37' cy='14' r='9' fill='white'/%3E%3Ccircle cx='37' cy='39' r='9' fill='white'/%3E%3Ccircle cx='37' cy='64' r='9' fill='white'/%3E%3Ccircle cx='60' cy='14' r='9' fill='white'/%3E%3Ccircle cx='60' cy='39' r='9' fill='white'/%3E%3Ccircle cx='60' cy='64' r='9' fill='white'/%3E%3Ccircle cx='83' cy='14' r='9' fill='white'/%3E%3Ccircle cx='83' cy='39' r='9' fill='white'/%3E%3Ccircle cx='83' cy='64' r='9' fill='white'/%3E%3Ccircle cx='106' cy='14' r='9' fill='white'/%3E%3Ccircle cx='106' cy='39' r='9' fill='white'/%3E%3Ccircle cx='106' cy='64' r='9' fill='white'/%3E%3C/svg%3E") left 10px top 10px / 90px 60px no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 80'%3E%3Ccircle cx='14' cy='14' r='9' fill='white'/%3E%3Ccircle cx='14' cy='39' r='9' fill='white'/%3E%3Ccircle cx='14' cy='64' r='9' fill='white'/%3E%3Ccircle cx='37' cy='14' r='9' fill='white'/%3E%3Ccircle cx='37' cy='39' r='9' fill='white'/%3E%3Ccircle cx='37' cy='64' r='9' fill='white'/%3E%3Ccircle cx='60' cy='14' r='9' fill='white'/%3E%3Ccircle cx='60' cy='39' r='9' fill='white'/%3E%3Ccircle cx='60' cy='64' r='9' fill='white'/%3E%3Ccircle cx='83' cy='14' r='9' fill='white'/%3E%3Ccircle cx='83' cy='39' r='9' fill='white'/%3E%3Ccircle cx='83' cy='64' r='9' fill='white'/%3E%3Ccircle cx='106' cy='14' r='9' fill='white'/%3E%3Ccircle cx='106' cy='39' r='9' fill='white'/%3E%3Ccircle cx='106' cy='64' r='9' fill='white'/%3E%3C/svg%3E") right 10px top 10px / 90px 60px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 80'%3E%3Ccircle cx='14' cy='14' r='9' fill='white'/%3E%3Ccircle cx='14' cy='39' r='9' fill='white'/%3E%3Ccircle cx='14' cy='64' r='9' fill='white'/%3E%3Ccircle cx='37' cy='14' r='9' fill='white'/%3E%3Ccircle cx='37' cy='39' r='9' fill='white'/%3E%3Ccircle cx='37' cy='64' r='9' fill='white'/%3E%3Ccircle cx='60' cy='14' r='9' fill='white'/%3E%3Ccircle cx='60' cy='39' r='9' fill='white'/%3E%3Ccircle cx='60' cy='64' r='9' fill='white'/%3E%3Ccircle cx='83' cy='14' r='9' fill='white'/%3E%3Ccircle cx='83' cy='39' r='9' fill='white'/%3E%3Ccircle cx='83' cy='64' r='9' fill='white'/%3E%3Ccircle cx='106' cy='14' r='9' fill='white'/%3E%3Ccircle cx='106' cy='39' r='9' fill='white'/%3E%3Ccircle cx='106' cy='64' r='9' fill='white'/%3E%3C/svg%3E") left 10px top 10px / 90px 60px no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 80'%3E%3Ccircle cx='14' cy='14' r='9' fill='white'/%3E%3Ccircle cx='14' cy='39' r='9' fill='white'/%3E%3Ccircle cx='14' cy='64' r='9' fill='white'/%3E%3Ccircle cx='37' cy='14' r='9' fill='white'/%3E%3Ccircle cx='37' cy='39' r='9' fill='white'/%3E%3Ccircle cx='37' cy='64' r='9' fill='white'/%3E%3Ccircle cx='60' cy='14' r='9' fill='white'/%3E%3Ccircle cx='60' cy='39' r='9' fill='white'/%3E%3Ccircle cx='60' cy='64' r='9' fill='white'/%3E%3Ccircle cx='83' cy='14' r='9' fill='white'/%3E%3Ccircle cx='83' cy='39' r='9' fill='white'/%3E%3Ccircle cx='83' cy='64' r='9' fill='white'/%3E%3Ccircle cx='106' cy='14' r='9' fill='white'/%3E%3Ccircle cx='106' cy='39' r='9' fill='white'/%3E%3Ccircle cx='106' cy='64' r='9' fill='white'/%3E%3C/svg%3E") right 10px top 10px / 90px 60px no-repeat; }
+.t-stadium .ground::after { top: auto; bottom: 0; height: 170px;
+  background: radial-gradient(circle, rgba(255, 255, 255, .12) 0 5px, transparent 6px) 0 0 / 22px 22px,
+    repeating-linear-gradient(180deg, transparent 0 40px, rgba(0, 0, 0, .35) 40px 44px), color-mix(in srgb, var(--purple-dark), #000 30%); }
+.t-stadium .tab { background: transparent; padding: 0; color: var(--yellow); letter-spacing: .3em; }
+.t-stadium .title { font-weight: 600; font-size: 136px; line-height: .82; color: #fff; text-shadow: 0 0 40px rgba(255, 255, 255, .25); }
+.t-stadium :is(.game, .result, .call, .shooter, .message, .info) { background: rgba(0, 0, 0, .55); border: 0; border-top: 6px solid var(--yellow); border-radius: 6px; }
+.t-stadium .score { background: #000; color: var(--yellow); border-radius: 4px; }
+.t-stadium .score.won { background: var(--yellow); color: var(--text-on-yellow); }
+.t-stadium :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 4px; }
+.t-stadium .ladder td { background: rgba(0, 0, 0, .55); border-radius: 0 !important; }
+.t-stadium .vs__v { background: #000; color: var(--yellow); border-radius: 6px; box-shadow: 0 0 0 4px var(--yellow); }
+.t-stadium .vs__score { font-family: var(--dfont); font-weight: 600; font-size: 200px; line-height: .85; }
+
+/* Locker room: a row of locker doors with their vents and handles, the cards as white name labels on them. */
+.t-locker { --dfont: 'Oswald', var(--font); --door: color-mix(in srgb, var(--purple), #8a8f9c 40%); color: #fff; }
+.t-locker .ground { background: linear-gradient(180deg, rgba(0, 0, 0, .25), transparent 12%, transparent 88%, rgba(0, 0, 0, .35)),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--door), #000 45%) 0 6px, var(--door) 6px 180px, color-mix(in srgb, var(--door), #fff 6%) 180px 186px); }
+.t-locker .ground::before { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, .3); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 186 1000' preserveAspectRatio='none'%3E%3Crect x='40' y='90' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='112' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='134' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='156' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='178' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='830' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='852' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='874' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='896' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='150' y='420' width='14' height='60' rx='6' fill='white'/%3E%3C/svg%3E") 0 0 / 186px 100% repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 186 1000' preserveAspectRatio='none'%3E%3Crect x='40' y='90' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='112' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='134' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='156' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='178' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='830' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='852' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='874' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='40' y='896' width='106' height='9' rx='4' fill='white'/%3E%3Crect x='150' y='420' width='14' height='60' rx='6' fill='white'/%3E%3C/svg%3E") 0 0 / 186px 100% repeat-x; }
+.t-locker .ground::after { display: none; }
+.t-locker .tab { background: var(--yellow); color: var(--text-on-yellow); border-radius: 2px; }
+.t-locker .title { font-weight: 700; font-size: 108px; line-height: .9; color: #fff; text-shadow: 0 4px 0 rgba(0, 0, 0, .3); }
+.t-locker :is(.game, .result, .call, .shooter, .message, .info) { background: #f6f3ec; color: #1d1b22; border: 0; border-radius: 3px; box-shadow: 0 8px 18px rgba(0, 0, 0, .35); }
+
+.t-locker :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: #1d1b22; }
+.t-locker :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: color-mix(in srgb, #1d1b22, #fff 40%); }
+.t-locker .result .game__team { color: color-mix(in srgb, #1d1b22, #fff 45%); }
+.t-locker .result .game__team.won { color: #1d1b22; }
+.t-locker .score { background: rgba(0, 0, 0, .07); color: #1d1b22; }
+.t-locker .stat { background: rgba(0, 0, 0, .07); }
+.t-locker .stat :is(b, small) { color: #1d1b22; }
+.t-locker .ladder td { background: #f6f3ec; color: #1d1b22; }
+.t-locker .ladder td:first-child { color: #1d1b22; }
+.t-locker .info, .t-locker .info b { color: #1d1b22; }
+.t-locker :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 2px; }
+.t-locker .vs__v { background: #f6f3ec; color: #1d1b22; border-radius: 3px; }
+

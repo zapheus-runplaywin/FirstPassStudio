@@ -146,7 +146,7 @@ test('colour sets are made from the competition\'s colours, your own are kept, a
 
 test('template sets: each has its own face, one is kept for every picture, and a picture can ask for another', async () => {
   const s = await studio.get('/api/socials');
-  assert.deepEqual(s.templates.map(t => t.id), ['default', 'dynamic', 'junior', 'retro', 'professional', 'thunder', 'gradient', 'highcontrast', 'neon', 'poster', 'splash', 'gameday', 'hero', 'final', 'court', 'bib', 'goal']);
+  assert.deepEqual(s.templates.map(t => t.id), ['default', 'dynamic', 'junior', 'retro', 'professional', 'thunder', 'gradient', 'highcontrast', 'neon', 'poster', 'splash', 'gameday', 'hero', 'final', 'court', 'bib', 'goal', 'bottle', 'cones', 'sneakers', 'stadium', 'locker']);
   for (const t of s.templates.filter(x => x.font)) {
     const css = await studio.request('GET', `/${t.fontCss}`);
     assert.equal(css.status, 200, `${t.name}'s face is bundled, so it draws with no internet`);
