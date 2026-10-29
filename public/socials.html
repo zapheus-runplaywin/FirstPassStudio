@@ -56,6 +56,21 @@
   /* Save and Share stay in view at the bottom. */
   .bar { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--fp-white);
     border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 12px 16px; box-shadow: 0 -4px 18px rgba(15,23,42,.08); }
+  /* The colour sets: three dots (ground, highlight, accent) and the name. */
+  .colours { margin-top: 12px; }
+  .colours > b { font-size: 14px; }
+  .set { display: inline-flex; align-items: center; gap: 7px; background: var(--fp-white); color: var(--fp-navy); border: 1px solid var(--fp-line-strong); padding: 4px 10px 4px 5px; }
+  .set:hover { background: var(--fp-blue-soft); }
+  .set[aria-pressed="true"] { border-color: var(--fp-blue); box-shadow: 0 0 0 2px var(--fp-blue); background: var(--fp-white); }
+  .dots { display: inline-flex; border-radius: 5px; overflow: hidden; border: 1px solid var(--fp-line); }
+  .dots i { display: block; width: 13px; height: 20px; }
+  .dots i:first-child { width: 22px; }
+  .low { font-size: 11px; font-weight: 700; color: var(--fp-danger); }
+  .set .rm { margin-left: 2px; color: var(--fp-muted); font-weight: 700; }
+  .newset[hidden] { display: none; }
+  .newset { margin-top: 10px; padding: 10px; border: 1px dashed var(--fp-line-strong); border-radius: 8px; }
+  .newset input[type=text] { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; }
+  .newset input[type=color] { width: 36px; height: 28px; padding: 0; border: 1px solid var(--fp-line-strong); border-radius: 6px; vertical-align: middle; }
   .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
 </style>
 <script src="log.js"></script>
@@ -83,9 +98,18 @@
       <label><input type="checkbox" id="mark"> FirstPass Studio mark</label>
       <label><input type="checkbox" id="pivt"> PIVT logo</label>
     </div>
+    <div class="row colours" id="colours" role="group" aria-label="Colour set"></div>
+    <form class="row newset" id="newSet" hidden>
+      <input type="text" id="newName" placeholder="Name, e.g. Finals night" aria-label="Colour set name" maxlength="30">
+      <label>Ground <input type="color" id="newGround" value="#1b1b3a"></label>
+      <label>Highlight <input type="color" id="newHighlight" value="#ffcd00"></label>
+      <label>Accent <input type="color" id="newAccent" value="#e6007e"></label>
+      <button type="submit">Add colour set</button>
+      <button type="button" class="alt" id="newCancel">Cancel</button>
+    </form>
     <p class="help"><b>Upcoming</b>: the night's fixture, a match up for each game, who is on the stream (from the Production Planner) and a polaroid for a match photo.
       <b>Results</b>: the night's final scores, a full time card and a polaroid with the score for each game, each division's ladder and the night's top shooters.
-      A night with results opens on Results. The FirstPass Studio mark sits bottom right and the PIVT logo bottom left; untick either to leave it off. Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
+      A night with results opens on Results. <b>Colours</b> change every picture: sets made from the competition's main, highlight and accent colours (Competition colours is the stream's own look), or your own with <b>New colour set</b>. The FirstPass Studio mark sits bottom right and the PIVT logo bottom left; untick either to leave it off. Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
   <div class="bar">
@@ -142,7 +166,7 @@
     return list;
   }
   function link(p, size) {
-    const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0' });
+    const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours });
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
     const photo = photos[p.key];
@@ -255,7 +279,7 @@
       const res = await fetch('/api/socials/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(change) });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      info.settings = d.settings; showError(''); draw();
+      info.settings = d.settings; info.colourSets = d.colourSets; showError(''); drawColours(); draw();
     } catch (err) { showError(`Couldn't save that: ${err.message}`); }
   }
 
@@ -278,6 +302,7 @@
       $('save').disabled = $('share').disabled = !d.app;
       $('mark').checked = d.settings.mark;
       $('pivt').checked = d.settings.pivt;
+      drawColours();
       $('night').replaceChildren(...d.nights.map(n => {
         const o = el('option', '', `${dayName(n.date)} · ${n.rounds} · ${n.games} games${n.date === d.today ? ' (tonight)' : ''}`);
         o.value = n.date;
@@ -310,6 +335,43 @@
 
   $('night').onchange = () => loadNight($('night').value);
   for (const c of document.querySelectorAll('[data-size], [name=set]')) c.onchange = draw;
+  // The colour sets: pick one for every picture, add your own, or remove one you made.
+  function drawColours() {
+    const row = $('colours');
+    row.replaceChildren(el('b', '', 'Colours'), ...info.colourSets.map(c => {
+      const b = el('button', 'set small');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(c.id === info.settings.colours));
+      b.title = `${c.name}: ground ${c.ground}, highlight ${c.highlight}, accent ${c.accent}. The highlight is ${c.contrast}:1 against the ground.`;
+      const dots = el('span', 'dots');
+      for (const x of [c.ground, c.highlight, c.accent]) { const i = el('i'); i.style.background = x; dots.append(i); }
+      b.append(dots, c.name);
+      // Big titles need 3:1 to read easily.
+      if (c.contrast < 3) b.append(el('span', 'low', 'low contrast'));
+      b.onclick = () => saveSettings({ colours: c.id });
+      if (c.own) {
+        const rm = el('span', 'rm', '×');
+        rm.title = `Remove ${c.name}`;
+        rm.onclick = e => { e.stopPropagation(); saveSettings({ colourSets: info.settings.colourSets.filter(x => x.id !== c.id) }); };
+        b.append(rm);
+      }
+      return b;
+    }));
+    const add = el('button', 'alt small', 'New colour set');
+    add.type = 'button';
+    add.onclick = () => { $('newSet').hidden = false; $('newName').focus(); };
+    row.append(add);
+  }
+  $('newSet').onsubmit = e => {
+    e.preventDefault();
+    const set = { name: $('newName').value.trim() || 'My colours', ground: $('newGround').value, highlight: $('newHighlight').value, accent: $('newAccent').value };
+    $('newSet').hidden = true; $('newName').value = '';
+    saveSettings({ colourSets: [...info.settings.colourSets, set] }).then(() => {
+      const made = info.settings.colourSets[info.settings.colourSets.length - 1];
+      if (made) saveSettings({ colours: made.id });
+    });
+  };
+  $('newCancel').onclick = () => { $('newSet').hidden = true; };
   $('mark').onchange = () => saveSettings({ mark: $('mark').checked });
   $('pivt').onchange = () => saveSettings({ pivt: $('pivt').checked });
   $('save').onclick = () => save(false);

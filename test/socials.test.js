@@ -22,7 +22,7 @@ test('the tab lists every game night, opens on the next, and knows saving needs 
   assert.equal(s.next, studio.world.today);
   assert.deepEqual(Object.keys(s.sizes), ['square', 'portrait', 'story']);
   assert.deepEqual(s.sizes.story, { width: 1080, height: 1920, label: 'Story' });
-  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true } });
+  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [] });
   assert.deepEqual(s.nights.map(n => n.results), [4, 4, 0, 0], 'last two weeks played, tonight and next week to come');
   assert.equal(s.app, false, 'no Mac app around the helper here');
 });
@@ -82,11 +82,42 @@ test('a played night has each result and winner; the ladders and top shooters co
 
 test('the sponsor strip and the Studio mark are kept per competition', async () => {
   const r = await studio.post('/api/socials/settings', { mark: false, sponsor: { polaroid: true, fixtures: false, nonsense: true } });
-  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true } });
+  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [] });
   assert.deepEqual((await studio.get('/api/socials')).settings, r.settings);
   assert.equal((await studio.post('/api/socials/settings', { pivt: false })).settings.pivt, false, 'the PIVT logo is optional too');
   await studio.post('/api/socials/settings', { mark: true, pivt: true });
   assert.equal((await studio.get('/api/socials/night')).settings.mark, true);
+});
+
+test('colour sets are made from the competition\'s colours, your own are kept, and a picture takes either', async () => {
+  const s = await studio.get('/api/socials');
+  assert.deepEqual(s.colourSets.map(c => c.id), ['competition', 'accent-first', 'highlight-ground', 'accent-ground', 'night', 'day', 'two-colours']);
+  const thunder = { ground: '#7f4092', highlight: '#ffcd00', accent: '#e6007e' };
+  const pick = (c) => ({ ground: c.ground, highlight: c.highlight, accent: c.accent });
+  assert.deepEqual(pick(s.colourSets[0]), thunder, 'the competition\'s main, highlight and accent');
+  assert.deepEqual(pick(s.colourSets[2]), { ground: '#ffcd00', highlight: '#7f4092', accent: '#e6007e' });
+  assert.ok(s.colourSets.find(c => c.id === 'accent-first').contrast < 3, 'pink titles on purple are flagged');
+
+  const own = await studio.post('/api/socials/settings', { colourSets: [{ name: 'Finals night', ground: '#101820', highlight: '#f2aa4c', accent: '#2bae66' }] });
+  const finals = own.colourSets.find(c => c.own);
+  assert.match(finals.id, /^own-\d+$/);
+  assert.equal(finals.name, 'Finals night');
+  assert.equal((await studio.post('/api/socials/settings', { colours: finals.id })).settings.colours, finals.id);
+  assert.equal((await studio.request('POST', '/api/socials/settings', { colourSets: [{ name: 'x', ground: 'red', highlight: '#000000', accent: '#ffffff' }] })).status, 400);
+  assert.equal((await studio.request('POST', '/api/socials/settings', { colours: 'nonsense' })).status, 400);
+
+  const picked = await studio.get('/api/socials/night');
+  assert.equal(picked.look.colours, finals.id);
+  assert.equal(picked.look.vars['--yellow'], '#f2aa4c', 'its highlight takes the highlight\'s place');
+  assert.equal(picked.look.vars['--pink'], '#2bae66');
+  const day = await studio.get('/api/socials/night?colours=day');
+  assert.equal(day.look.light, true, 'a pale ground takes dark text and the dark-ink mark');
+  assert.notEqual(day.look.vars['--text'], '#ffffff');
+  assert.equal((await studio.get('/api/socials/night?colours=competition')).look.vars, null, 'the competition\'s own look, exactly as on the stream');
+
+  // Removing your set goes back to the competition's colours.
+  const back = await studio.post('/api/socials/settings', { colourSets: [] });
+  assert.equal(back.settings.colours, 'competition');
 });
 
 test('a polaroid photo is kept on this Mac and served as a plain file; anything but a photo is refused', async () => {

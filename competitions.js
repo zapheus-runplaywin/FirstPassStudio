@@ -437,9 +437,16 @@ const mix = (hex, other, t) => { const a = rgb(hex), b = rgb(other); return toHe
 // Mac font, from fonts.macFaces). The variable names are the original
 // Thunder League ones, so every page keeps working.
 function themeCss(s, fontFiles = [], macFaces = null) {
-  const c = s.colours, o = s.panelOpacity;
-  const vars = {
-    '--font': fonts.stack(s.font, macFaces),
+  const vars = { '--font': fonts.stack(s.font, macFaces), ...colourVars(s.colours, s.panelOpacity) };
+  return `/* ${s.name}: colours and font from the competition setup page (setup.html). */\n` +
+    fonts.css(s.font, fontFiles, undefined, { mac: macFaces, size: s.fontSize / 100 }) + '\n' +
+    `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
+}
+
+// theme.css's colour variables from a competition's colours (c: main, dark, panel, panelAlt, highlight, accent, text,
+// textOnHighlight, muted) and panel opacity (o). The Socials tab's colour sets use it too (socials.js).
+function colourVars(c, o) {
+  return {
     '--purple': c.main, '--purple-rgb': rgb(c.main).join(', '),
     '--purple-light': mix(c.main, '#ffffff', 0.25), '--purple-shade': mix(c.main, '#000000', 0.15),
     '--purple-dark': c.dark, '--purple-dark-light': mix(c.dark, '#ffffff', 0.15),
@@ -449,9 +456,6 @@ function themeCss(s, fontFiles = [], macFaces = null) {
     '--pink': c.accent, '--pink-rgb': rgb(c.accent).join(', '),
     '--text': c.text, '--text-on-yellow': c.textOnHighlight, '--muted': c.muted,
   };
-  return `/* ${s.name}: colours and font from the competition setup page (setup.html). */\n` +
-    fonts.css(s.font, fontFiles, undefined, { mac: macFaces, size: s.fontSize / 100 }) + '\n' +
-    `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
 }
 
 // What a competition calls each sponsor tier, and what each empty tier does.
@@ -461,4 +465,4 @@ function sponsorTiers(s) {
   return SPONSOR_TIERS.map(key => ({ key, name: own[key] || set[key], empty: ((s && s.sponsorEmpty) || {})[key] || SPONSOR_EMPTY_DEFAULTS[key] }));
 }
 
-module.exports = { KINDS, SPONSOR_TIERS, SPONSOR_NAME_SETS, SPONSOR_EMPTY, SPONSOR_EMPTY_DEFAULTS, SPONSOR_MOMENTS, sponsorTiers, DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, clean, clubOf, clubFor, clubEntry, superShotsFor };
+module.exports = { KINDS, SPONSOR_TIERS, SPONSOR_NAME_SETS, SPONSOR_EMPTY, SPONSOR_EMPTY_DEFAULTS, SPONSOR_MOMENTS, sponsorTiers, DEFAULTS, DIR, ACTIVE_FILE, init, list, imports, importConfig, saveAsImport, exportTemplate, importTemplate, isReadOnly: () => readOnly, get, save, activeId, setActive, create, remove, images, saveImage, deleteImage, renameImage, imageFile, themeCss, colourVars, mix, clean, clubOf, clubFor, clubEntry, superShotsFor };

@@ -87,7 +87,7 @@ In it:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
   `athletes.json` (the athlete register from the Athletes page), `planner.json` (the Production Planner's commentators and
-  nights), `socials.json` (the Socials tab's sponsor strip and Studio mark choices), and `competitions/active.json`, the one in use.
+  nights), `socials.json` (the Socials tab's sponsor strip, logo and colour set choices), and `competitions/active.json`, the one in use.
 - `sponsors/`: the sponsors (`sponsors.json`) and their logos, shared by every competition (see **Sponsors** below).
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
@@ -926,13 +926,17 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
 - **Sponsors and logos:** each picture has a sponsor strip tick (naming, elite and major sponsors), and two ticks put
   the FirstPass Studio mark (bottom right) and the PIVT logo (bottom left) on every picture; all are kept in
   `competitions/<name>/socials.json`.
+- **Colours:** a colour set for every picture. *Competition colours* is the stream's own look; the others are made from
+  the competition's main, highlight and accent colours (Accent first, Highlight ground, Accent ground, Night, Day, Two
+  colours), so they follow the competition when its colours change. *New colour set* adds your own (up to 12). A set
+  whose highlight is under 3:1 against its ground says *low contrast*. Kept in `socials.json` (`colours`, `colourSets`).
 - **Saving:** *Save pictures* saves the ticked ones in `Pictures/FirstPass Studio/<competition> <date> Upcoming/` (or
   `Results/`), with *As a zip* also as `<competition> <date> Upcoming.zip` beside it (Share then sends the zip), and
   opens the folder; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
   picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.
 
 Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|polaroid|results|fulltime|ladder|topshooters&size=square|portrait|story`
-(`&date=`, `&game=`, `&division=`, `&sponsor=0|1`, `&mark=0|1`, `&pivt=0|1`, `&title=`; the polaroid's `&photo=`, `&px=`,
+(`&date=`, `&game=`, `&division=`, `&sponsor=0|1`, `&mark=0|1`, `&pivt=0|1`, `&colours=`, `&title=`; the polaroid's `&photo=`, `&px=`,
 `&py=`, `&zoom=`, `&caption=`, `&note=`). Everything comes from Studio (`/api/socials/night`, `&with=ladders` or
 `&with=shooters` for the pictures that need them), which reads the fixture, results and ladders through the same cache
 as the other pages, and each finished game's line up once, so the tab asks PlayHQ for nothing more.

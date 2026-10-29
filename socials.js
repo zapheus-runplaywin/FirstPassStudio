@@ -8,16 +8,17 @@
 // draws each link off screen at its full size and saves the PNGs in Pictures/FirstPass Studio/, then opens the folder
 // or the Mac's Share menu. Without the Mac app (npm start) the previews work and Export says it needs the app.
 //
-// Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false } }, the
-// FirstPass Studio mark and the PIVT logo in the corners and which graphics carry the sponsor strip, kept week to week. Photos dropped on a polaroid stay
+// Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
+// colourSets: [{ id, name, ground, highlight, accent }] }: the FirstPass Studio mark and the PIVT logo in the corners,
+// which graphics carry the sponsor strip, the colour set in use and the ones made by hand, kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
 // Routes (server.js hands every /api/socials and /socials/ request here):
 //   GET  /api/socials                    the game nights, the settings and whether pictures can be saved (the app)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
-//                                        look; &with=ladders adds the ladder of each division that played, &with=shooters
+//                                        look (&colours= a colour set, else the one picked); &with=ladders adds the ladder of each division that played, &with=shooters
 //                                        the night's top shooters
-//   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool } }
+//   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...] }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
 //   POST /api/socials/export             { date, set: upcoming|results, share, zip, items: [{ name, link, size }] }: the
@@ -41,6 +42,8 @@ const SIZES = {
 // onstream and a polaroid; Results: results, fulltime, ladder, topshooters and a polaroid per game.
 const KINDS = { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true };
 const SHOOTERS_SHOWN = 6;
+const MAX_OWN_SETS = 12;
+const HEX = /^#[0-9a-f]{6}$/i;
 const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 const PHOTOS_KEPT = 40;
 const MAX_PHOTO = 40 * 1024 * 1024;
@@ -52,7 +55,7 @@ const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
-  appPort = process.parentPort || null }) {
+  theme, appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -63,8 +66,11 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (id) try { d = JSON.parse(fs.readFileSync(fileOf(id), 'utf8')); } catch { /* not changed yet */ }
     const sponsor = {};
     for (const [k, on] of Object.entries(KINDS)) sponsor[k] = d.sponsor && typeof d.sponsor[k] === 'boolean' ? d.sponsor[k] : on;
-    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor };
+    const colourSets = Array.isArray(d.colourSets) ? d.colourSets.filter(ownSet) : [];
+    const colours = typeof d.colours === 'string' && allSets(colourSets).some(x => x.id === d.colours) ? d.colours : 'competition';
+    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets };
   }
+  const ownSet = x => x && /^own-\d+$/.test(x.id) && typeof x.name === 'string' && [x.ground, x.highlight, x.accent].every(c => HEX.test(c));
   function saveSettings(body) {
     const id = competitions.activeId();
     if (!id) throw new Error('Set up a competition first, on the Competitions setup page.');
@@ -72,8 +78,66 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (typeof body.mark === 'boolean') now.mark = body.mark;
     if (typeof body.pivt === 'boolean') now.pivt = body.pivt;
     for (const k of Object.keys(KINDS)) if (body.sponsor && typeof body.sponsor[k] === 'boolean') now.sponsor[k] = body.sponsor[k];
+    if (Array.isArray(body.colourSets)) {
+      if (body.colourSets.length > MAX_OWN_SETS) throw new Error(`Keep it to ${MAX_OWN_SETS} colour sets of your own.`);
+      now.colourSets = body.colourSets.map((x, i) => ({ id: /^own-\d+$/.test(x && x.id) ? x.id : `own-${Date.now()}${i}`,
+        name: String((x && x.name) || '').trim().slice(0, 30) || 'My colours', ground: x && x.ground, highlight: x && x.highlight, accent: x && x.accent }));
+      if (!now.colourSets.every(ownSet)) throw new Error('A colour set needs three colours, each like #7f4092.');
+    }
+    if (typeof body.colours === 'string') {
+      if (!allSets(now.colourSets).some(x => x.id === body.colours)) throw new Error('There is no such colour set.');
+      now.colours = body.colours;
+    }
+    if (!allSets(now.colourSets).some(x => x.id === now.colours)) now.colours = 'competition';
     savefile.writeJsonSync(fileOf(id), now);
     return now;
+  }
+
+  // ─── Colour sets ──────────────────────────────────────────────────────────
+  // Made from the competition's main, highlight and accent colours (Competitions setup), so they follow it when its
+  // colours change: each swaps which colour is the ground (behind everything), the highlight (titles, times, points)
+  // and the accent (stripes, the v, pills). Then a Night and a Day version, and one with only two colours. Plus the
+  // ones made by hand on the tab. Competition colours is the competition's own look, exactly as on the stream.
+  const { mix } = competitions;
+  const lum = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round(((x + 0.05) / (y + 0.05)) * 10) / 10; };
+  const isLight = hex => lum(hex) > 0.4;
+  function madeSets() {
+    const c = theme().colours;
+    const { main: m, highlight: h, accent: a } = c;
+    return [
+      { id: 'competition', name: 'Competition colours', ground: m, highlight: h, accent: a },
+      { id: 'accent-first', name: 'Accent first', ground: m, highlight: a, accent: h },
+      { id: 'highlight-ground', name: 'Highlight ground', ground: h, highlight: m, accent: a },
+      { id: 'accent-ground', name: 'Accent ground', ground: a, highlight: h, accent: m },
+      { id: 'night', name: 'Night', ground: mix(m, '#05060c', 0.7), highlight: h, accent: a },
+      { id: 'day', name: 'Day', ground: mix(h, '#ffffff', 0.85), highlight: m, accent: a },
+      { id: 'two-colours', name: 'Two colours', ground: m, highlight: h, accent: h },
+    ];
+  }
+  // Every set, each with contrast: its highlight against its ground (3 is the least for big titles).
+  function allSets(own) {
+    return [...madeSets(), ...own.map(x => ({ ...x, own: true }))].map(x => ({ ...x, contrast: contrast(x.highlight, x.ground) }));
+  }
+  // The look of a set for social.html: theme.css's colour variables worked out for it (null for the competition's own),
+  // and light: a pale ground, which takes dark text and the dark-ink Studio mark.
+  function look(id, own) {
+    const set = allSets(own).find(x => x.id === id) || allSets(own)[0];
+    const { colours: c, panelOpacity } = theme();
+    if (set.id === 'competition') return { colours: set.id, name: set.name, light: !isLight(c.text), vars: null };
+    const g = set.ground, light = isLight(g);
+    const text = light ? mix(c.panel, '#000000', 0.35) : '#ffffff';
+    const vars = competitions.colourVars({
+      main: g, dark: light ? mix(g, '#000000', 0.1) : mix(g, '#000000', 0.42),
+      panel: light ? mix(g, '#ffffff', 0.6) : mix(g, '#000000', 0.68), panelAlt: light ? mix(g, '#ffffff', 0.45) : mix(g, '#000000', 0.55),
+      highlight: set.highlight, accent: set.accent, text, textOnHighlight: isLight(set.highlight) ? mix(c.panel, '#000000', 0.35) : '#ffffff',
+      muted: mix(text, g, 0.3),
+    }, panelOpacity);
+    vars['--ink-dark'] = light ? text : vars['--purple-dark'];
+    return { colours: set.id, name: set.name, light, vars };
   }
 
   // ─── The nights ───────────────────────────────────────────────────────────
@@ -96,7 +160,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
         results: games.filter(isFinished).length };
     });
     const next = (nights.find(n => n.date >= today) || nights[nights.length - 1] || {}).date || '';
-    return { nights, next, today, sizes: SIZES, settings: settings(), app: !!appPort };
+    const s = settings();
+    return { nights, next, today, sizes: SIZES, settings: s, colourSets: allSets(s.colourSets), app: !!appPort };
   }
 
   // One night, for social.html: every game (all courts, in time order) with its result once finished, the court
@@ -116,8 +181,9 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     } catch (err) { log('warn', 'socials', `No Production Planner for ${date}: ${err.message}`); }
     const a = about();
     const venues = [...new Set(games.map(g => g.venue).filter(Boolean))];
+    const s = settings();
     const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null,
-      venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: settings() };
+      venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: s, look: look(q.colours || s.colours, s.colourSets) };
     if (want.has('ladders')) out.ladders = await ladders(dates, date, games);
     if (want.has('shooters')) out.shooters = await shooters(raw.filter((g, i) => games[i].finished));
     return out;
@@ -219,7 +285,10 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     try {
       if (p === '/api/socials' && req.method === 'GET') return send(res, 200, await list()), true;
       if (p === '/api/socials/night' && req.method === 'GET') return send(res, 200, await night(q)), true;
-      if (p === '/api/socials/settings' && req.method === 'POST') return send(res, 200, { settings: saveSettings(await readBody(req)) }), true;
+      if (p === '/api/socials/settings' && req.method === 'POST') {
+        const now = saveSettings(await readBody(req));
+        return send(res, 200, { settings: now, colourSets: allSets(now.colourSets) }), true;
+      }
       if (p === '/api/socials/photo' && req.method === 'POST') return send(res, 200, { photo: savePhoto(q.name, await readRaw(req, MAX_PHOTO)) }), true;
       if (p === '/api/socials/export' && req.method === 'POST') return send(res, 200, await save(await readBody(req), port)), true;
       const photo = /^\/socials\/photos\/([^/]+)$/.exec(p);
@@ -234,7 +303,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return false;
   }
 
-  return { route, list, night, settings, saveSettings, savePhoto, SIZES, KINDS };
+  return { route, list, night, settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS };
 }
 
 module.exports = { create, SIZES, KINDS };
