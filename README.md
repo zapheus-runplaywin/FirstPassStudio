@@ -380,7 +380,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   **Refresh page** reloads it now.
 - **Preview** opens the selected source on its own in a new window, like the Docs page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
-  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output, and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
+  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (or in a Blackmagic output's SDI), and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
   without alpha) gives an opaque WebM: the Output page and the log say so. This needs
@@ -449,8 +449,11 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   and the edges go dark. The log says the size of the pictures going out (`sending 1920 x 1080 pictures`). It needs Blackmagic Desktop Video installed, not the SDK,
   and the device free (quit any other app using it, such as Media Express, first). The scene renders off screen at the format's frame
   rate (`desktop/decklink.js`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
-  `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. Sound
-  plays through the Mac's audio output. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
+  `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. **Sound**
+  goes in the SDI as 48 kHz stereo (with fill and key, on the fill), so turn on the sound of the switcher input the fill comes into (On, or AFV);
+  an SDI to HDMI converter passes it on. It can go on the Mac's audio output instead, or both. `desktop/soundtap.js` hears the output's
+  scene window (a hidden page captures its sound the way Chromium captures a tab's) and the module schedules each 20 ms piece on the device's
+  clock, as far ahead as the pictures queued, so they go out together; the log says if the sound runs dry or gets ahead. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
   in the app log.
 - **NDI® output (Mac app):** sends the scene over the network as NDI sources at the video format picked (1080p at the same rates a Blackmagic
   device offers, 23.98 to 120, or 720p at 25, 29.97, 30, 50, 59.94 or 60). **Fill and key** makes two sources, *Source name Fill* (the scene over black) and *Source name Key* (white where it shows);

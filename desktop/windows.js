@@ -440,3 +440,5 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   }
   return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport, showWhatsNew, setQuitting, isQuitting: () => quitting };
 };
+// For the app's hidden pages opened elsewhere (desktop/soundtap.js).
+module.exports.loadPage = loadPage;

@@ -1,5 +1,6 @@
 // The Blackmagic video format (outputs.js): every 1080p format the device names can be picked, even one it
 // says it can't send (an older UltraStudio stops at 1080p30), but one it can send is the one started with.
+// Its sound goes in the SDI by default.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -30,4 +31,15 @@ test('a 1080p format the device says it can\'t send can still be picked', () => 
 test('an interlaced format saved earlier is still replaced by a 1080p one', () => {
   assert.equal(outputs.apply({ decklinkMode: 1 }), null);
   assert.equal(sent(), 2);
+});
+
+test('the sound goes in the SDI unless picked otherwise, and anything else saved goes back to that', () => {
+  const sound = () => outputs.windows().find(w => w.kind === 'decklink')?.sound;
+  assert.equal(sound(), 'sdi');
+  for (const v of ['mac', 'both']) {
+    assert.equal(outputs.apply({ decklinkSound: v }), null);
+    assert.equal(sound(), v);
+  }
+  assert.equal(outputs.apply({ decklinkSound: 'speakers' }), null);
+  assert.equal(sound(), 'sdi');
 });

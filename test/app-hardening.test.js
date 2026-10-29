@@ -83,6 +83,11 @@ test("the app's own pages come from the archive by studio://, not file://", () =
   assert.doesNotMatch(src, /loadFile\(/, 'loadFile is file://, which the fuses keep out of the archive');
   const pages = [...src.matchAll(/loadPage\(\w+, '([^']+)'/g)].map(m => m[1]);
   assert.deepEqual([...new Set(pages)].sort(), ['export.html', 'offair.html', 'splash.html', 'whatsnew.html']);
+  // The hidden page that hears an output's sound (desktop/soundtap.js) loads the same way.
+  const tap = fs.readFileSync(path.join(ROOT, 'desktop/soundtap.js'), 'utf8');
+  assert.doesNotMatch(tap, /loadFile\(/);
+  assert.match(tap, /loadPage\(win, 'soundtap\.html'\)/);
+  pages.push('soundtap.html');
   for (const page of pages) {
     const html = fs.readFileSync(path.join(ROOT, 'desktop', page), 'utf8');
     assert.doesNotMatch(html, /file:/, `${page} mustn't ask for file://`);

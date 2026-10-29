@@ -5,20 +5,28 @@
 // loads it when first asked), so it builds without the driver and reports "not installed" without it.
 //
 //   devices()           -> { ok, version, devices: [{ id, name, externalKeying, internalKeying, modes }] } or { ok: false, error }
-//   start({ device, mode, keying: 'external' | 'off', straight })  -> { ok, width, height, frameRate } or { ok: false, error }
+//   start({ device, mode, keying: 'external' | 'off', straight, audio })  -> { ok, width, height, frameRate, audio } or { ok: false, error }
 //   frame(buffer, width, height) -> true when taken: the latest picture, BGRA with premultiplied alpha
+//   audio(buffer)       -> true when taken: the next sound, 48 kHz stereo, 16-bit interleaved
 //   stop()
-//   status()            -> { running, device, completed, late, dropped }
+//   status()            -> { running, device, completed, late, dropped, audio, gaps, skipped }
 //
 // Playback is scheduled: the driver hands back each frame as it's shown and we fill it again with
 // the latest picture, so the output keeps running (repeating the last picture) however often the
 // scene changes. With the external keyer on, the card sends the picture as fill and its alpha as key.
+//
+// With audio on, the sound is embedded in the SDI (with fill and key, the fill carries it). Each piece
+// is scheduled on the device's own clock, as far behind what it's showing now as the pictures queued
+// ahead (the preroll), so sound and picture go out together. If the sound runs dry it starts again that
+// far ahead (a gap); if it gets too far ahead (the Mac's sound clock running faster than the device's)
+// a piece is skipped.
 
 #define NAPI_VERSION 8
 #include <node_api.h>
 
 #include "DeckLinkAPI.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
@@ -107,6 +115,8 @@ static bool getBool(napi_env env, napi_value o, const char *k) {
 
 // ---- The running output ----
 
+static const BMDTimeScale AUDIO_RATE = 48000;
+
 class Output : public IDeckLinkVideoOutputCallback {
 public:
   std::string id, name;
@@ -119,6 +129,10 @@ public:
   bool straight = false;
   std::atomic<bool> stopping{false};
   std::atomic<uint64_t> completed{0}, late{0}, dropped{0};
+  bool audio = false;
+  BMDTimeValue audioNext = -1;   // where the next sound goes, in samples on the device's clock
+  BMDTimeValue audioLead = 0;    // how far ahead of what's showing now it goes
+  uint64_t gaps = 0, skipped = 0;
 
   std::mutex lock;
   std::vector<uint8_t> latest; // the newest picture, already converted for the card
@@ -174,6 +188,7 @@ static void stopOutput() {
   o->stopping = true;
   o->out->StopScheduledPlayback(0, nullptr, 0);
   o->out->SetScheduledFrameCompletionCallback(nullptr);
+  if (o->audio) o->out->DisableAudioOutput();
   o->out->DisableVideoOutput();
   if (o->keyer) o->keyer->Disable();
   o->Release();
@@ -288,7 +303,7 @@ static napi_value Start(napi_env env, napi_callback_info cb) {
   mode->GetFrameRate(&o->duration, &o->scale);
   o->out = out.take();
 
-  auto fail = [&](const std::string &why) { o->out->DisableVideoOutput(); o->stopping = true; o->Release(); return failure(env, why); };
+  auto fail = [&](const std::string &why) { if (o->audio) o->out->DisableAudioOutput(); o->out->DisableVideoOutput(); o->stopping = true; o->Release(); return failure(env, why); };
 
   if (o->out->EnableVideoOutput(wantedMode, bmdVideoOutputFlagDefault) != S_OK)
     return fail("Couldn't start the output. Is another app (such as Media Express) using it?");
@@ -320,6 +335,12 @@ static napi_value Start(napi_env env, napi_callback_info cb) {
       return fail("Couldn't queue video frames for the output.");
     o->scheduled++;
   }
+  // The sound, if asked for: without it (a device that can't) the pictures still go out.
+  if (getBool(env, opts, "audio") && o->out->EnableAudioOutput(bmdAudioSampleRate48kHz, bmdAudioSampleType16bitInteger, 2, bmdAudioOutputStreamTimestamped) == S_OK) {
+    o->audio = true;
+    // As far ahead as the pictures queued, plus a piece's worth (20 ms) for the sound arriving in pieces.
+    o->audioLead = (o->scale ? preroll * o->duration * AUDIO_RATE / o->scale : 0) + AUDIO_RATE / 50;
+  }
   o->out->SetScheduledFrameCompletionCallback(o);
   if (o->out->StartScheduledPlayback(0, o->scale, 1.0) != S_OK) {
     o->out->SetScheduledFrameCompletionCallback(nullptr);
@@ -333,7 +354,34 @@ static napi_value Start(napi_env env, napi_callback_info cb) {
   set(env, r, "width", num(env, o->width));
   set(env, r, "height", num(env, o->height));
   set(env, r, "frameRate", num(env, o->duration ? (double)o->scale / o->duration : 0));
+  set(env, r, "audio", boolean(env, o->audio));
   return r;
+}
+
+static napi_value Audio(napi_env env, napi_callback_info cb) {
+  size_t argc = 1; napi_value arg;
+  napi_get_cb_info(env, cb, &argc, &arg, nullptr, nullptr);
+  if (!running || !running->audio || argc < 1) return boolean(env, false);
+  void *data = nullptr; size_t length = 0;
+  if (napi_get_buffer_info(env, arg, &data, &length) != napi_ok) return boolean(env, false);
+  uint32_t frames = (uint32_t)(length / 4); // 2 channels of 16 bits
+  if (!frames) return boolean(env, false);
+  Output *o = running;
+  BMDTimeValue now = 0; double speed = 0;
+  if (o->out->GetScheduledStreamTime(AUDIO_RATE, &now, &speed) != S_OK) return boolean(env, false);
+  if (o->audioNext < 0 || o->audioNext < now + AUDIO_RATE / 100) {
+    // Starting, or the sound ran dry (under 10 ms left): start again the lead ahead.
+    if (o->audioNext >= 0) o->gaps++;
+    o->audioNext = now + o->audioLead;
+  } else if (o->audioNext > now + o->audioLead + AUDIO_RATE / 8) {
+    // More than 125 ms further ahead than it should be: leave this piece out to catch up.
+    o->skipped++;
+    return boolean(env, true);
+  }
+  uint32_t written = 0;
+  if (o->out->ScheduleAudioSamples(data, frames, o->audioNext, AUDIO_RATE, &written) != S_OK) return boolean(env, false);
+  o->audioNext += std::max(written, frames);
+  return boolean(env, true);
 }
 
 static napi_value Frame(napi_env env, napi_callback_info cb) {
@@ -381,6 +429,9 @@ static napi_value Status(napi_env env, napi_callback_info) {
     set(env, r, "completed", num(env, (double)running->completed));
     set(env, r, "late", num(env, (double)running->late));
     set(env, r, "dropped", num(env, (double)running->dropped));
+    set(env, r, "audio", boolean(env, running->audio));
+    set(env, r, "gaps", num(env, (double)running->gaps));
+    set(env, r, "skipped", num(env, (double)running->skipped));
   }
   return r;
 }
@@ -389,6 +440,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor props[] = {
     { "devices", nullptr, Devices, nullptr, nullptr, nullptr, napi_default, nullptr },
     { "start", nullptr, Start, nullptr, nullptr, nullptr, napi_default, nullptr },
+    { "audio", nullptr, Audio, nullptr, nullptr, nullptr, napi_default, nullptr },
     { "frame", nullptr, Frame, nullptr, nullptr, nullptr, napi_default, nullptr },
     { "stop", nullptr, Stop, nullptr, nullptr, nullptr, napi_default, nullptr },
     { "status", nullptr, Status, nullptr, nullptr, nullptr, napi_default, nullptr },

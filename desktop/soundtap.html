@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FirstPass Studio sound</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:">
+</head>
+<body>
+<script>
+  // Hidden page (desktop/soundtap.js): hears one output window's sound and hands it to the app as 48 kHz
+  // stereo, 16-bit interleaved, in 20 ms pieces. The app answers the capture with that window's sound
+  // (no picture is kept), and starts it with studioTapStart().
+  const PIECE = 960; // 20 ms at 48 kHz
+  const WORKLET = `
+    const pcm = v => v >= 1 ? 32767 : v <= -1 ? -32768 : Math.round(v < 0 ? v * 32768 : v * 32767);
+    registerProcessor('tap', class extends AudioWorkletProcessor {
+      constructor() { super(); this.buf = new Int16Array(${PIECE} * 2); this.n = 0; }
+      process(inputs) {
+        const [l, r = l] = inputs[0] || [];
+        if (!l) return true;
+        for (let i = 0; i < l.length; i++) {
+          this.buf[this.n++] = pcm(l[i]);
+          this.buf[this.n++] = pcm(r[i]);
+          if (this.n === this.buf.length) {
+            this.port.postMessage(this.buf.buffer, [this.buf.buffer]);
+            this.buf = new Int16Array(${PIECE} * 2);
+            this.n = 0;
+          }
+        }
+        return true;
+      }
+    });`;
+  async function studioTapStart() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      for (const t of stream.getVideoTracks()) t.stop();
+      const track = stream.getAudioTracks()[0];
+      if (!track) throw new Error('no sound came with it');
+      const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+      await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
+      const tap = new AudioWorkletNode(ctx, 'tap', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: 'explicit' });
+      tap.port.onmessage = e => studioTap.sound(e.data);
+      ctx.createMediaStreamSource(new MediaStream([track])).connect(tap);
+      // Kept running by a silent path to the speakers (a node that goes nowhere isn't run).
+      const hush = ctx.createGain();
+      hush.gain.value = 0;
+      tap.connect(hush).connect(ctx.destination);
+      if (ctx.state !== 'running') await ctx.resume();
+      track.onended = () => studioTap.said('ended');
+      studioTap.said('started');
+    } catch (err) {
+      studioTap.said(`failed: ${err.message}`);
+    }
+  }
+</script>
+</body>
+</html>
