@@ -464,7 +464,7 @@
       <li><b>Polaroid:</b> one per game, with the score under the photo ("Blizzardz win 31–26") and the opponent, division, round and date under that.</li>
     </ul>
     <p class="page__help">Each picture has a <b>Sponsor strip</b> tick (your naming, elite and major sponsors along the bottom), remembered for next week, and
-      <b>FirstPass Studio mark</b> (bottom right) and <b>PIVT logo</b> (bottom left) turn those on or off for every picture.
+      Under <b>Options</b>, <b>FirstPass Studio mark</b> (bottom right) and <b>PIVT logo</b> (bottom left) turn those on or off for every picture.
       <b>Template</b> picks the look of every picture: <b>Default</b> (the stream's own), Fun, Dynamic, Junior, Retro, Futuristic, Professional,
       Thunder, Geometric, Gradient, Striped, High contrast, 3D, Neon, Poster, Splash, Game Day, Arena, Hero or Final (these two stand a picked athlete in front of the title; cut-out PNGs look best), or the netball sets Court, Bib and Goal, each with its own shapes and lettering. Any template works with any colour set.
       Athletes' photos come from the Athletes tab, and only for athletes ticked <b>Approved for photo use</b>: Top shooters shows each shooter's photo,
@@ -817,11 +817,11 @@ document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/f
 document.getElementById('fixturePages').appendChild(pageRow('Next round fixture (next week)', '/fixtures.html?round=next'));
 document.getElementById('fixturePages').appendChild(pageRow('Round results (finished games)', '/results.html', 'Only the finished games of this round, with their scores. Takes the same <code>?round=</code> and <code>?division=</code> options, e.g. <code>/results.html?round=prev</code> for last week.'));
 document.getElementById('fixturePages').appendChild(pageRow('Fixture board (Full Page, for a screen in the competition room or backstage)', '/fixtureboard.html',
-  'The night\'s whole fixture, filling the frame, for a screen in the competition room or backstage rather than the stream, and a picture to share before the night: a row per time slot and a column per court, with the teams in each. ' +
+  'The night\'s whole fixture, filling the frame, for a screen in the competition room or backstage rather than the stream, and a picture to share before the night: a card per court (two courts side by side, four as a 2 × 2 grid, six as 3 × 2), each listing its games by time. ' +
   'The heading is <b>Tonight\'s Fixtures</b>, or the day (<b>Tuesday Night\'s Fixtures</b>) for another night. The court the <a href="/planner.html" target="_blank">Production Planner</a> streams that night has a camera, and its games name who is on the mic (special guests marked). ' +
   'Games being played show <b>Live</b> with their score and quarter: the streamed game\'s from the scoreboard, the others\' through the same live reader and cache as the ticker, so the board adds no PlayHQ requests while the ticker is on and at most one a minute per live game when it isn\'t. ' +
   'Finished games grey out with their final score and the winner in yellow (on the streamed court, the score the scoreboard had until PlayHQ has the result); once a time slot is all finished, the one before it drops off. ' +
-  'It follows the scoreboard live and reads the fixture again every minute (<code>?refresh=0</code> loads once). The night is the game night picked on Scoreboard control, otherwise today, otherwise the next game night; <code>?date=2026-11-04</code> shows another. <code>?title=</code> changes the heading and <code>?bg=0</code> drops the background. The old <code>/roster.html</code> link opens it.'));
+  'It follows the scoreboard live and reads the fixture again every minute (<code>?refresh=0</code> loads once). The night is the game night picked on Scoreboard control, otherwise today, otherwise the next game night; <code>?date=2026-11-04</code> shows another. <code>?title=</code> changes the heading and <code>?bg=0</code> drops the background.'));
 [['Logo animation: fun (swoops in, slams down, rockets out; the default)', '/logo.html?template=fun',
   'One big competition logo from the competition setup: it swoops in around the screen, slams down in the middle with a burst in the competition\'s colours, holds, then rockets out. ' +
   'Every template plays once when the page loads, about 5 seconds, then leaves the frame clear, and plays again each time it\'s turned on on the Output page. ' +
