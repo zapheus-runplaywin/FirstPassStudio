@@ -73,6 +73,9 @@ const TEMPLATES = [
   { id: 'arena', name: 'Arena', blurb: 'A spotlight, hazard stripes and an echoed title', font: 'Archivo Black', mark: 'white' },
   { id: 'hero', name: 'Hero', blurb: 'A huge slanted title, athletes standing in front of it', font: 'Anton', mark: 'light' },
   { id: 'final', name: 'Final', blurb: 'A bold colour, a tall title and a script word', font: 'Anton', script: 'Yellowtail', mark: 'white' },
+  { id: 'court', name: 'Court', blurb: 'A netball court: its lines, thirds and circles', font: 'Oswald', mark: 'white' },
+  { id: 'bib', name: 'Bib', blurb: 'A netball bib with its position letters', font: 'Archivo Black', mark: 'white' },
+  { id: 'goal', name: 'Goal', blurb: 'The goal ring, net and post, and a netball', font: 'Teko', mark: 'white' },
 ].map(t => ({ ...t, fontCss: t.font ? fontCss(t.font) : null, scriptCss: t.script ? fontCss(t.script) : null }));
 const templateOf = id => TEMPLATES.find(t => t.id === id) || null;
 const HEX = /^#[0-9a-f]{6}$/i;
