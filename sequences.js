@@ -81,9 +81,10 @@ let timer = null;
 let fadeTimer = null; // starts a music fade out early, so it's done as the step (and the music with it) ends
 let pending = null;   // a triggered start waiting its few seconds: { id, reason, at, afterEnd }
 let pendTimer = null;
+let cut = null;       // the sequence that last ended here (played out or cut short), until it plays again
 const PRIMARY = 'main';
 let here = PRIMARY;
-const runners = new Map(); // output id -> { run, timer, fadeTimer, pending, pendTimer }
+const runners = new Map(); // output id -> { run, timer, fadeTimer, pending, pendTimer, cut }
 let auto = true;      // the Automatic sequences switch
 let settingsFile = null;
 let game = null;      // the latest scoreboard reading, from game()
@@ -97,8 +98,8 @@ const cleanId = (id, fallback) => String(id || '').replace(/[^a-z0-9]/gi, '').sl
 const ids = v => [...new Set((Array.isArray(v) ? v : []).map(x => cleanId(x, '')).filter(Boolean))].slice(0, 50);
 
 // ─── One runner per output ───────────────────────────────────────────────
-function stash() { runners.set(here, { run, timer, fadeTimer, pending, pendTimer }); }
-function unstash() { ({ run = null, timer = null, fadeTimer = null, pending = null, pendTimer = null } = runners.get(here) || {}); }
+function stash() { runners.set(here, { run, timer, fadeTimer, pending, pendTimer, cut }); }
+function unstash() { ({ run = null, timer = null, fadeTimer = null, pending = null, pendTimer = null, cut = null } = runners.get(here) || {}); }
 // Runs fn with output out's runner in use.
 function within(out, fn) {
   out = out || PRIMARY;
@@ -488,6 +489,7 @@ function advance() {
 
 function start(sq, why) {
   if (pending && pending.id === sq.id) cancelPending(null);
+  if (cut === sq.id) cut = null;
   run = { id: sq.id, steps: flatten(sq), step: -1, loop: 0, startedAt: now(), loopAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, ready: false, waiting: null, finishing: null };
   log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
   sound().quiet(sq.quiet);
@@ -501,6 +503,8 @@ function finish(why) {
   clearTimeout(fadeTimer);
   timer = fadeTimer = null;
   const ended = run;
+  // The card says Stopped for it here until it plays again.
+  cut = sq ? sq.id : null;
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // This output's own Then (a sequence played on two outputs can go somewhere different on each).
   const then = sq ? thenFor(sq, here) : { type: 'off' };
@@ -537,6 +541,7 @@ function interrupt(keep, why) {
   clearTimeout(fadeTimer);
   timer = fadeTimer = null;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
+  cut = sq ? sq.id : null;
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
   const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
@@ -963,8 +968,10 @@ const pendingHere = () => pending && find(pending.id) ? { id: pending.id, reason
 function state() {
   // The primary's at the top (playing, pending), as before there could be more than one output; the
   // others' by output id (playingOut, pendingOut), only while there's something to say.
-  const playingOut = {}, pendingOut = {};
+  // stoppedOn: the sequence that last ended on each output (played out or cut short), until it plays again.
+  const playingOut = {}, pendingOut = {}, stoppedOn = {};
   each(() => {
+    if (cut && (!run || run.id !== cut)) stoppedOn[here] = cut;
     if (here === PRIMARY) return;
     const p = playingHere(), w = pendingHere();
     if (p) playingOut[here] = p;
@@ -981,6 +988,7 @@ function state() {
     auto,
     pending: within(PRIMARY, pendingHere),
     pendingOut,
+    stoppedOn,
     nextAuto: nextAuto(),
     game: game ? { label: game.label || '', startAt: game.startAt || null, breaks: game.breaks || null, last: game.last || 4 } : null,
   };

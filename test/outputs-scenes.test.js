@@ -236,3 +236,19 @@ test('a sequence that plays on two outputs starts by itself on both, and on what
   assert.equal(st().playing.id, sq.id);
   link('sequence/stop');
 });
+
+test('an output says which sequence last ended there, played out or cut short, until that one plays again', () => {
+  const main = () => st().sequences.find(s => s.name === 'Main run').id;
+  ok({ type: 'seqPlay', sequence: 'Main run' });
+  assert.notEqual(st().stoppedOn.main, main());
+  ok({ type: 'sceneGo', scene: 'Live' });
+  assert.equal(st().stoppedOn.main, st().sequences.find(s => s.name === 'Main run').id, 'a scene cut it short');
+  ok({ type: 'seqPlay', sequence: 'Main run' });
+  assert.equal(st().stoppedOn.main, undefined, 'playing again clears it');
+  wait(30);
+  assert.equal(st().playing, null);
+  assert.equal(st().stoppedOn.main, main(), 'played out is stopped too');
+  ok({ type: 'seqPlay', sequence: 'Main run' });
+  link('sequence/stop');
+  assert.equal(st().stoppedOn.main, st().sequences.find(s => s.name === 'Main run').id, 'Stop cut it short');
+});

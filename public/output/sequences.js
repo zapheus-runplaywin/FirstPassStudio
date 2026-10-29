@@ -42,7 +42,8 @@ function thenText(sq) {
 }
 // Where it plays, once there's more than one output: a tick per output, in its colour, changed from the card
 // itself (it takes effect the next time the sequence starts; what's playing carries on). The last tick stays.
-// Each output it plays on (ticked, or playing it now) says how it is there: playing, paused, starting or stopped, and
+// Each output it plays on (ticked, or playing it now) says how it is there: playing, paused, starting, or stopped (it
+// ended there, played out or cut short, and hasn't played again); nothing before it has played there; and
 // "output off" while that output isn't sending (it still plays there, for when it's turned on).
 function outTicks(sq) {
   const box = document.createElement('div');
@@ -58,7 +59,7 @@ function outTicks(sq) {
     l.innerHTML = '<input type="checkbox"> <i></i> <span></span>';
     const c = l.querySelector('input');
     const p = playOf(o.id), w = pendOf(o.id);
-    const st = p && p.id === sq.id ? (p.paused ? ['paused', '⏸ Paused'] : ['playing', '▶ Playing']) : w && w.id === sq.id ? ['starting', '⏳ Starting'] : on.includes(o.id) ? ['stopped', '■ Stopped'] : null;
+    const st = p && p.id === sq.id ? (p.paused ? ['paused', '⏸ Paused'] : ['playing', '▶ Playing']) : w && w.id === sq.id ? ['starting', '⏳ Starting'] : (all.stoppedOn || {})[o.id] === sq.id ? ['stopped', '■ Stopped'] : null;
     if (st) l.append(Object.assign(document.createElement('b'), { className: `seqSt ${st[0]}`, textContent: st[1] }));
     // An output that isn't sending: its dot hollow and "off" by its name (it still plays there, for when it's turned on).
     if (!(o.showing || []).length) {
