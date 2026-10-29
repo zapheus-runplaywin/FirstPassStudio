@@ -254,7 +254,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (!finished.length) return { players: [], gamesRead: 0, gamesFinished: 0, superShots: false };
     const t = await tallyShooters(finished);
     const players = [...t.players].sort((a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, SHOOTERS_SHOWN)
-      .map(p => ({ name: p.name, team: p.team, logo: p.logo, photo: photoFor(p.name), goals: p.goals, superGoals: p.superGoals, points: p.points }));
+      .map(p => ({ name: p.name, team: p.team, logo: p.logo, photo: photoFor(p), goals: p.goals, superGoals: p.superGoals, points: p.points }));
     return { players, gamesRead: t.read, gamesFinished: finished.length, superShots: finished.some(g => superShots(g.division)),
       error: !t.read && t.failed ? t.lastError : undefined };
   }

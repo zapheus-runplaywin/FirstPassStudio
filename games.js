@@ -636,7 +636,8 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
           if (p.private || (!sh.goals && !sh.superGoals)) continue; // "Private player" can't be told apart
           const team = parsed[side].name;
           const k = norm(p.name) + '|' + norm(team);
-          const t = players.get(k) || { name: p.name, team, logo: logoFor(team), games: 0, goals: 0, superGoals: 0, shots: 0, points: 0 };
+          const t = players.get(k) || { name: p.name, team, logo: logoFor(team), playhqIds: [], games: 0, goals: 0, superGoals: 0, shots: 0, points: 0 };
+          if (p.playhqId && !t.playhqIds.includes(String(p.playhqId))) t.playhqIds.push(String(p.playhqId));
           t.games++; t.goals += sh.goals; t.superGoals += sh.superGoals; t.shots += sh.shots || 0; t.points += sh.points;
           players.set(k, t);
         }
