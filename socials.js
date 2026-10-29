@@ -9,16 +9,17 @@
 // or the Mac's Share menu. Without the Mac app (npm start) the previews work and Export says it needs the app.
 //
 // Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
-// colourSets: [{ id, name, ground, highlight, accent }] }: the FirstPass Studio mark and the PIVT logo in the corners,
-// which graphics carry the sponsor strip, the colour set in use and the ones made by hand, kept week to week. Photos dropped on a polaroid stay
+// colourSets: [{ id, name, ground, highlight, accent }], template }: the FirstPass Studio mark and the PIVT logo in the
+// corners, which graphics carry the sponsor strip, the colour set in use and the ones made by hand, and the template
+// set, kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
 // Routes (server.js hands every /api/socials and /socials/ request here):
 //   GET  /api/socials                    the game nights, the settings and whether pictures can be saved (the app)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
-//                                        look (&colours= a colour set, else the one picked); &with=ladders adds the ladder of each division that played, &with=shooters
+//                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played, &with=shooters
 //                                        the night's top shooters
-//   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...] }
+//   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id> }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
 //   POST /api/socials/export             { date, set: upcoming|results, share, zip, items: [{ name, link, size }] }: the
@@ -31,6 +32,7 @@ const path = require('path');
 const crypto = require('crypto');
 const uploads = require('./uploads');
 const { isFinished } = require('./playhq');
+const { TEMPLATE_FONTS } = require('./fonts');
 
 // The sizes Instagram takes: a square post, a portrait post (the most room in the feed) and a Story.
 const SIZES = {
@@ -43,6 +45,25 @@ const SIZES = {
 const KINDS = { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true };
 const SHOOTERS_SHOWN = 6;
 const MAX_OWN_SETS = 12;
+// The template sets: the look of every picture (public/social-templates.css, a class t-<id> on social.html's body),
+// each with its display face (fonts.js TEMPLATE_FONTS) and, for the ones that keep their own ground whatever the
+// colours, which FirstPass Studio mark goes on it: light (the dark-ink one, on a pale ground) or white.
+const TEMPLATES = [
+  { id: 'default', name: 'Default', blurb: 'The stream\'s own look', font: null },
+  { id: 'fun', name: 'Fun', blurb: 'Stickers, confetti, a bouncy face', font: 'Fredoka' },
+  { id: 'dynamic', name: 'Dynamic', blurb: 'Speed lines and slanted panels', font: 'Anton' },
+  { id: 'junior', name: 'Junior', blurb: 'Bright paper and chunky cards', font: 'Fredoka', mark: 'light' },
+  { id: 'retro', name: 'Retro', blurb: 'Cream paper and sunset stripes', font: 'Bungee', mark: 'light' },
+  { id: 'futuristic', name: 'Futuristic', blurb: 'A neon HUD with a grid floor', font: 'Orbitron', mark: 'white' },
+  { id: 'professional', name: 'Professional', blurb: 'Broadcast clean and calm', font: 'IBM Plex Sans' },
+  { id: 'thunder', name: 'Thunder', blurb: 'A storm and a lightning bolt', font: 'Teko', mark: 'white' },
+  { id: 'geometric', name: 'Geometric', blurb: 'Circles, triangles and blocks', font: 'Archivo Black' },
+  { id: 'gradient', name: 'Gradient', blurb: 'A colour mesh under frosted glass', font: 'Sora', mark: 'white' },
+  { id: 'striped', name: 'Striped', blurb: 'Varsity stripes and an outlined title', font: 'Oswald' },
+  { id: 'highcontrast', name: 'High contrast', blurb: 'Black, white and the highlight', font: 'Archivo Black', mark: 'white' },
+  { id: '3d', name: '3D', blurb: 'Perspective: a floor and angled walls', font: 'Rubik' },
+].map(t => ({ ...t, fontCss: t.font ? `vendor/fonts/${TEMPLATE_FONTS[t.font]}/${TEMPLATE_FONTS[t.font]}.css` : null }));
+const templateOf = id => TEMPLATES.find(t => t.id === id) || null;
 const HEX = /^#[0-9a-f]{6}$/i;
 const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 const PHOTOS_KEPT = 40;
@@ -68,7 +89,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     for (const [k, on] of Object.entries(KINDS)) sponsor[k] = d.sponsor && typeof d.sponsor[k] === 'boolean' ? d.sponsor[k] : on;
     const colourSets = Array.isArray(d.colourSets) ? d.colourSets.filter(ownSet) : [];
     const colours = typeof d.colours === 'string' && allSets(colourSets).some(x => x.id === d.colours) ? d.colours : 'competition';
-    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets };
+    const template = templateOf(d.template) ? d.template : 'default';
+    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template };
   }
   const ownSet = x => x && /^own-\d+$/.test(x.id) && typeof x.name === 'string' && [x.ground, x.highlight, x.accent].every(c => HEX.test(c));
   function saveSettings(body) {
@@ -89,6 +111,10 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       now.colours = body.colours;
     }
     if (!allSets(now.colourSets).some(x => x.id === now.colours)) now.colours = 'competition';
+    if (typeof body.template === 'string') {
+      if (!templateOf(body.template)) throw new Error('There is no such template set.');
+      now.template = body.template;
+    }
     savefile.writeJsonSync(fileOf(id), now);
     return now;
   }
@@ -123,8 +149,13 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return [...madeSets(), ...own.map(x => ({ ...x, own: true }))].map(x => ({ ...x, contrast: contrast(x.highlight, x.ground) }));
   }
   // The look of a set for social.html: theme.css's colour variables worked out for it (null for the competition's own),
-  // and light: a pale ground, which takes dark text and the dark-ink Studio mark.
-  function look(id, own) {
+  // light: a pale ground, which takes dark text and the dark-ink Studio mark, and the template set drawn with it.
+  function look(id, own, templateId = 'default') {
+    const t = templateOf(templateId) || TEMPLATES[0];
+    const template = { id: t.id, name: t.name, font: t.font, fontCss: t.fontCss, mark: t.mark || null };
+    return { ...colourLook(id, own), template };
+  }
+  function colourLook(id, own) {
     const set = allSets(own).find(x => x.id === id) || allSets(own)[0];
     const { colours: c, panelOpacity } = theme();
     if (set.id === 'competition') return { colours: set.id, name: set.name, light: !isLight(c.text), vars: null };
@@ -161,7 +192,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     });
     const next = (nights.find(n => n.date >= today) || nights[nights.length - 1] || {}).date || '';
     const s = settings();
-    return { nights, next, today, sizes: SIZES, settings: s, colourSets: allSets(s.colourSets), app: !!appPort };
+    return { nights, next, today, sizes: SIZES, settings: s, colourSets: allSets(s.colourSets), templates: TEMPLATES, app: !!appPort };
   }
 
   // One night, for social.html: every game (all courts, in time order) with its result once finished, the court
@@ -183,7 +214,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const venues = [...new Set(games.map(g => g.venue).filter(Boolean))];
     const s = settings();
     const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null,
-      venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: s, look: look(q.colours || s.colours, s.colourSets) };
+      venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: s, look: look(q.colours || s.colours, s.colourSets, templateOf(q.template) ? q.template : s.template) };
     if (want.has('ladders')) out.ladders = await ladders(dates, date, games);
     if (want.has('shooters')) out.shooters = await shooters(raw.filter((g, i) => games[i].finished));
     return out;
@@ -303,7 +334,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return false;
   }
 
-  return { route, list, night, settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS };
+  return { route, list, night, settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS, TEMPLATES };
 }
 
 module.exports = { create, SIZES, KINDS };

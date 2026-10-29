@@ -28,6 +28,13 @@ const BUNDLED = {
   'Montserrat': 'montserrat',
   'Raleway': 'raleway',
 };
+// The faces the Socials tab's template sets draw their titles, names and numbers in (social.html), bundled the same way
+// (npm run fonts) so they work with no internet, but not offered in the Font box: everything else stays in the
+// competition's font.
+const TEMPLATE_FONTS = {
+  'Fredoka': 'fredoka', 'Anton': 'anton', 'Bungee': 'bungee', 'Orbitron': 'orbitron', 'IBM Plex Sans': 'ibm-plex-sans',
+  'Teko': 'teko', 'Archivo Black': 'archivo-black', 'Sora': 'sora', 'Oswald': 'oswald', 'Rubik': 'rubik',
+};
 const FALLBACK = 'Montserrat';
 const VENDOR = path.join(__dirname, 'public', 'vendor', 'fonts');
 const FILE = /\.(woff2|woff|ttf|otf)$/i;
@@ -300,4 +307,4 @@ function macFaces(font) {
   return asked;
 }
 
-module.exports = { BUNDLED, FALLBACK, VENDOR, FILE, bundled: () => Object.keys(BUNDLED), cleanName, fontFile, families, faces, css, stack, macFonts, macFaces, fileMetrics, normalise, narrowBoost };
+module.exports = { BUNDLED, TEMPLATE_FONTS, FALLBACK, VENDOR, FILE, bundled: () => Object.keys(BUNDLED), cleanName, fontFile, families, faces, css, stack, macFonts, macFaces, fileMetrics, normalise, narrowBoost };

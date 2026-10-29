@@ -13,6 +13,10 @@
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: var(--w); height: var(--h); overflow: hidden; position: relative; }
   [hidden] { display: none !important; }
+  /* The display face: the competition's font, or the template set's (social-templates.css sets --dfont). */
+  body { --dfont: var(--font); }
+  :is(.tab, .title, .when, .slot__time, .group__name, .verdict, .vs__v, .vs__score, .score, .game__v, .call__div, .call__time,
+    .shooter__rank, .shooter__name, .stat, .polaroid__caption) { font-family: var(--dfont); }
 
   /* The ground: the competition's dark colour lit from the top, a band of its main colour across it. A polaroid
      with no photo cuts a see-through window out of it (mask, set by drawPolaroid). */
@@ -61,10 +65,10 @@
   /* A Story has the height for bigger rows. */
   body.story { --logo: 100px; }
   .story .game { padding: 20px 24px; }
-  .story .game__team { font-size: 38px; }
+  .story .game__team { font-size: calc(38px * var(--nf, 1)); }
   .story .slot + .slot { margin-top: 40px; }
   .game .logo-fallback { font-size: 24px; border-width: 3px; }
-  .game__team { font-size: 32px; font-weight: 800; text-transform: uppercase; line-height: 1.05; min-width: 0; overflow-wrap: anywhere; }
+  .game__team { font-size: calc(32px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; line-height: 1.05; min-width: 0; overflow-wrap: anywhere; }
   .game__team.away { text-align: right; }
   .game__v { text-align: center; color: var(--pink); font-size: 26px; font-weight: 800; }
   .game__info { grid-column: 1 / -1; font-size: 19px; font-weight: 700; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-top: -4px; text-align: center; }
@@ -73,7 +77,7 @@
   .vs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 20px; text-align: center; }
   .vs .logo { width: 360px; height: 360px; margin: 0 auto; display: flex; filter: drop-shadow(0 12px 26px rgba(0,0,0,.5)); }
   .vs .logo-fallback { font-size: 110px; }
-  .vs h2 { margin: 22px 0 0; font-size: 50px; font-weight: 800; text-transform: uppercase; color: var(--yellow); line-height: 1.05; overflow-wrap: anywhere; }
+  .vs h2 { margin: 22px 0 0; font-size: calc(50px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; color: var(--yellow); line-height: 1.05; overflow-wrap: anywhere; }
   .vs__v { width: 120px; height: 120px; border-radius: 50%; background: var(--pink); display: flex; align-items: center; justify-content: center;
     font-size: 48px; font-weight: 800; box-shadow: 0 0 0 8px var(--purple), 0 8px 24px rgba(0,0,0,.4); }
   .info { margin-top: 44px; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 40px; background: var(--purple);
@@ -90,7 +94,7 @@
   .call__time { grid-row: span 2; min-width: 150px; font-size: 40px; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
   /* The logos either side of the names, which wrap between words (never mid-word) when long. */
   .call__teams { --cl: 100px; display: grid; grid-template-columns: var(--cl) minmax(0, 1fr) auto minmax(0, 1fr) var(--cl); align-items: center; gap: 14px;
-    font-size: 32px; font-weight: 800; text-transform: uppercase; min-width: 0; }
+    font-size: calc(32px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; min-width: 0; }
   .story .call__teams { --cl: 124px; }
   .call__teams .logo { width: var(--cl); height: var(--cl); filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
   .call__teams .logo-fallback { font-size: 28px; border-width: 3px; }
@@ -166,7 +170,7 @@
   .shooter__rank { font-size: 44px; font-weight: 800; color: var(--yellow); text-align: center; }
   .shooter .logo { width: 76px; height: 76px; }
   .shooter .logo-fallback { font-size: 22px; border-width: 3px; }
-  .shooter__name { font-size: 36px; font-weight: 800; text-transform: uppercase; line-height: 1.05; white-space: nowrap; }
+  .shooter__name { font-size: calc(36px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; line-height: 1.05; white-space: nowrap; }
   .shooter__team { font-size: 22px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; }
   .shooter__stats { display: flex; gap: 12px; }
   .stat { min-width: 96px; text-align: center; border-radius: 10px; background: rgba(255,255,255,.08); padding: 6px 10px; }
@@ -176,6 +180,7 @@
   .stat.main small { color: var(--text); }
   .story .shooter { padding: 22px 24px; }
 </style>
+<link rel="stylesheet" href="social-templates.css">
 <script src="log.js"></script>
 </head>
 <body>
@@ -191,6 +196,8 @@
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
                 ?colours=<colour set> (competition, accent-first, highlight-ground, accent-ground, night, day,
                 two-colours or one made on the tab; else the one picked there)
+                ?template=<template set> (default, fun, dynamic, junior, retro, futuristic, professional, thunder,
+                geometric, gradient, striped, highcontrast or 3d; else the one picked there)
                 ?mark=0|1 (the FirstPass Studio mark, bottom right; else as on the tab)  ?pivt=0|1 (the PIVT logo, bottom left)  ?title= (the heading)
                 Polaroid: ?photo=<file from POST /api/socials/photo> &px=50&py=50 (the point of the photo kept in view, %)
                 &zoom=1.4 (1-3); with no photo the window is see-through, to put one under it in another app.
@@ -247,7 +254,9 @@
     function fit() {
       const box = $('body'), inner = $('fit');
       inner.style.scale = '';
-      const room = { w: box.clientWidth, h: box.clientHeight - 72 }, need = { w: inner.scrollWidth, h: inner.scrollHeight };
+      // The body's own padding is 36 + 60; a template that pads it more (to clear its decoration) gets less room.
+      const cs = getComputedStyle(box), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) - 96;
+      const room = { w: box.clientWidth, h: box.clientHeight - 72 - pad }, need = { w: inner.scrollWidth, h: inner.scrollHeight };
       const s = Math.min(1, room.w / need.w, room.h / need.h);
       if (s < 1) inner.style.scale = String(Math.floor(s * 1000) / 1000);
     }
@@ -452,6 +461,12 @@
       $('pivt').hidden = !flag('pivt', d.settings.pivt);
     }
 
+    const loadCss = href => new Promise((ok, fail) => {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet'; l.href = href; l.onload = ok; l.onerror = () => fail(new Error(`${href} didn't load`));
+      document.head.append(l);
+    });
+
     // Resolves once every picture on the page has loaded and decoded (or failed), so a saved PNG never misses a logo.
     const imagesLoaded = () => Promise.all([...document.images].filter(i => !i.hidden && i.src).map(i => i.decode().catch(() => null)));
 
@@ -461,6 +476,7 @@
         const q = new URLSearchParams();
         if (params.get('date')) q.set('date', params.get('date'));
         if (params.get('colours')) q.set('colours', params.get('colours'));
+        if (params.get('template')) q.set('template', params.get('template'));
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'topshooters') q.set('with', 'shooters');
@@ -469,12 +485,20 @@
         // The colour set: theme.css's colours worked out for it (none for the competition's own). A pale ground takes
         // the dark-ink Studio mark.
         for (const [k, v] of Object.entries(d.look.vars || {})) document.documentElement.style.setProperty(k, v);
-        if (d.look.light) $('mark').src = 'studio/firstpass-studio-light.svg';
+        // The template set: a class on the body (social-templates.css) and its display face. A template with its own
+        // ground picks its own mark.
+        const t = d.look.template || {};
+        if (t.id && t.id !== 'default') document.body.classList.add(`t-${t.id}`);
+        const fontLoaded = t.fontCss ? loadCss(t.fontCss).then(() => document.fonts && document.fonts.load(`700 80px "${t.font}"`)).catch(() => null) : null;
+        const markLight = t.mark ? t.mark === 'light' : d.look.light;
+        if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, polaroid: drawPolaroid,
           results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));
         await imagesLoaded();
+        await fontLoaded;
+        if (document.fonts) await document.fonts.ready;
         if (kind !== 'polaroid') fit();
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         window.pageLog && window.pageLog('info', `Social picture: ${kind} ${size} for ${d.date}${missing ? ` (${missing})` : ''}`);

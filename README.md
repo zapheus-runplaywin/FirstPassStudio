@@ -44,7 +44,8 @@ clubs when loaded.
 **Fonts.** The Font box lists the fonts bundled with Studio first, then fonts added to the competition, then every font
 installed on the Mac (`/api/setup-fonts`, from AppKit). Bundled fonts are open licence (OFL) fonts in
 `public/vendor/fonts/<id>/`, fetched from Fontsource by `npm run fonts` (add one to `BUNDLED` in `fonts.js` first), so the
-graphics load no fonts from the internet. A Mac font is used by name and shows only on that Mac; elsewhere the graphics fall
+graphics load no fonts from the internet. The Socials tab's template sets have their own bundled faces (`TEMPLATE_FONTS`
+in `fonts.js`, fetched the same way), which are not offered in the Font box. A Mac font is used by name and shows only on that Mac; elsewhere the graphics fall
 back to Montserrat, as they do for any letter a font lacks. **Add a font file** saves TTF, OTF, WOFF or WOFF2 files in the
 competition's `fonts/` folder (served at `/fonts/`, and included in template files); the family, weight and style come from
 each file's name ("Gotham-BoldItalic.otf", "Club Sans Black.ttf", "Inter-VariableFont_wght.ttf").
@@ -87,7 +88,7 @@ In it:
 
 - `competitions/<name>/`: each competition's `settings.json`, `logos/`, `brand/`, `photos/` (athlete photos) and
   `athletes.json` (the athlete register from the Athletes page), `planner.json` (the Production Planner's commentators and
-  nights), `socials.json` (the Socials tab's sponsor strip, logo and colour set choices), and `competitions/active.json`, the one in use.
+  nights), `socials.json` (the Socials tab's sponsor strip, logo, colour set and template set choices), and `competitions/active.json`, the one in use.
 - `sponsors/`: the sponsors (`sponsors.json`) and their logos, shared by every competition (see **Sponsors** below).
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
@@ -926,6 +927,11 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
 - **Sponsors and logos:** each picture has a sponsor strip tick (naming, elite and major sponsors), and two ticks put
   the FirstPass Studio mark (bottom right) and the PIVT logo (bottom left) on every picture; all are kept in
   `competitions/<name>/socials.json`.
+- **Template:** a template set for every picture: *Default* (the stream's own look), *Fun*, *Dynamic*, *Junior*, *Retro*,
+  *Futuristic*, *Professional*, *Thunder*, *Geometric*, *Gradient*, *Striped*, *High contrast* and *3D* (real perspective).
+  Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
+  for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template
+  takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one.
 - **Colours:** a colour set for every picture. *Competition colours* is the stream's own look; the others are made from
   the competition's main, highlight and accent colours (Accent first, Highlight ground, Accent ground, Night, Day, Two
   colours), so they follow the competition when its colours change. *New colour set* adds your own (up to 12). A set
