@@ -406,3 +406,95 @@
 .t-arena .when { color: var(--yellow); }
 .t-arena :is(.game, .result, .call, .shooter, .message, .info) { border-top: 8px solid var(--yellow); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%); }
 .t-arena .vs__score { font-family: var(--dfont); font-weight: 400; }
+
+/* ── Hero: a light ground in the main colour, a white floor, a huge slanted title and athletes standing in front ── */
+.t-hero { --dfont: 'Anton', var(--font); --sky: color-mix(in srgb, var(--purple), #fff 42%); --ink: var(--ink-dark, var(--purple-dark));
+  color: #fff; --muted: rgba(255, 255, 255, .85); }
+.t-hero .ground { background: radial-gradient(ellipse 80% 55% at 50% 30%, color-mix(in srgb, var(--sky), #fff 22%), var(--sky) 75%); }
+.t-hero .ground::before { content: ''; position: absolute; left: -25%; right: -25%; bottom: -70%; height: 100%; border-radius: 50%; background: #fff; }
+.t-hero .ground::after { display: none; }
+.t-hero .body { position: relative; z-index: 2; }
+.t-hero .when { position: relative; z-index: 3; } /* athletes stand in front of the title, never the date and place */
+.t-hero .tab { background: transparent; padding: 0; color: #fff; font-size: 22px; letter-spacing: .55em; }
+.t-hero .title { font-weight: 400; font-size: 150px; line-height: .84; color: #fff; transform: skewX(-9deg); transform-origin: left bottom;
+  text-shadow: 0 10px 30px rgba(0, 0, 0, .18); }
+.t-hero .when { color: #fff; letter-spacing: .28em; font-size: 26px; }
+.t-hero .when small { color: rgba(255, 255, 255, .85); }
+.t-hero :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--ink); border: 0; border-radius: 4px; box-shadow: 0 14px 30px rgba(0, 0, 0, .16); }
+.t-hero :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: var(--ink); }
+.t-hero :is(.game__team, .call__teams, .shooter__name) { font-family: var(--dfont); font-weight: 400; letter-spacing: .01em; }
+.t-hero :is(.game__info, .call__mic, .shooter__team, .shooter__rank, .ladder th) { color: color-mix(in srgb, var(--ink), #fff 35%); }
+.t-hero .result .game__team { color: color-mix(in srgb, var(--ink), #fff 45%); }
+.t-hero .result .game__team.won { color: var(--ink); }
+.t-hero .score { background: color-mix(in srgb, var(--sky), #fff 60%); color: var(--ink); }
+.t-hero .score.won { background: var(--purple); color: #fff; }
+.t-hero .stat { background: color-mix(in srgb, var(--sky), #fff 65%); }
+.t-hero .stat :is(b, small) { color: var(--ink); }
+.t-hero .stat.main { background: var(--purple); }
+.t-hero .stat.main :is(b, small) { color: #fff; }
+.t-hero :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--ink); color: #fff; border-radius: 0; font-weight: 400; transform: skewX(-9deg); }
+.t-hero .ladder td { background: #fff; color: var(--ink); border-radius: 0 !important; }
+.t-hero .ladder td:first-child { color: var(--ink); }
+.t-hero .ladder td.team { font-family: var(--dfont); font-weight: 400; }
+.t-hero .ladder td:last-child { background: var(--purple); color: #fff; }
+.t-hero .vs h2 { font-family: var(--dfont); font-weight: 400; color: var(--ink); }
+.t-hero .vs__v { background: var(--ink); color: #fff; border-radius: 0; box-shadow: none; transform: skewX(-9deg); }
+.t-hero .vs__score { font-family: var(--dfont); font-weight: 400; font-size: 190px; line-height: .9; color: var(--ink); transform: skewX(-9deg); }
+.t-hero .athlete__name { color: color-mix(in srgb, var(--ink), #fff 30%); }
+/* An athlete picked for a side stands tall, up in front of the title. */
+.t-hero .vs .athlete { width: 420px; height: 600px; margin-top: -250px; }
+.t-hero.k-fulltime .vs .athlete { width: 340px; height: 470px; margin-top: -200px; }
+.t-hero .athlete__photo { filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .3)); }
+
+/* ── Final: a bold accent ground, a tall title, its last word in script and the title again, huge and faint ──── */
+.t-final { --dfont: 'Anton', var(--font); --sfont: 'Yellowtail', cursive; --char: #2a2a2e; color: #fff; --muted: rgba(255, 255, 255, .82); }
+.t-final .ground { background: radial-gradient(ellipse 90% 70% at 60% 40%, color-mix(in srgb, var(--pink), #fff 10%), var(--pink) 70%); }
+.t-final .ground::after { display: none; }
+.t-final .tab { background: transparent; padding: 0; color: #fff; font-size: 22px; letter-spacing: .5em; }
+.t-final .title { position: relative; isolation: isolate; font-weight: 400; font-size: 160px; line-height: .82; color: #fff; padding-bottom: .14em; }
+.t-final .title .w:last-child:not(:first-child) { display: inline-block; font-family: var(--sfont); text-transform: none; font-size: 1.12em; line-height: .8;
+  margin: -.12em 0 0 .1em; transform: rotate(-7deg); -webkit-text-stroke: 14px var(--pink); paint-order: stroke fill; letter-spacing: 0; }
+.t-final .title::before { content: attr(data-text); position: absolute; left: -60px; top: 1.1em; z-index: -1; white-space: nowrap; pointer-events: none;
+  font-family: var(--sfont); text-transform: none; font-size: 2.1em; color: rgba(255, 255, 255, .1); transform: rotate(-8deg); }
+.t-final .when { color: #fff; letter-spacing: .14em; }
+.t-final :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--char); border: 0; border-radius: 0; box-shadow: 0 12px 26px rgba(0, 0, 0, .22); }
+.t-final :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: var(--char); }
+.t-final :is(.game__team, .call__teams, .shooter__name) { font-family: var(--dfont); font-weight: 400; letter-spacing: .01em; }
+.t-final :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: #66666c; }
+.t-final .result .game__team { color: #8b8b90; }
+.t-final .result .game__team.won { color: var(--char); }
+.t-final .score { background: #ececee; color: #66666c; }
+.t-final .score.won { background: var(--char); color: #fff; }
+.t-final .stat { background: #ececee; }
+.t-final .stat :is(b, small) { color: var(--char); }
+.t-final .stat.main { background: var(--char); }
+.t-final .stat.main :is(b, small) { color: #fff; }
+.t-final :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--char); color: #fff; border-radius: 0; font-weight: 400; }
+.t-final .ladder th { color: #fff; }
+.t-final .ladder td { background: #fff; color: var(--char); border-radius: 0 !important; }
+.t-final .ladder td:first-child { color: var(--char); }
+.t-final .ladder td.team { font-family: var(--dfont); font-weight: 400; }
+.t-final .ladder td:last-child { background: var(--char); color: #fff; }
+.t-final .vs h2 { font-family: var(--dfont); font-weight: 400; color: #fff; }
+.t-final .vs__v { background: var(--char); color: #fff; border-radius: 0; box-shadow: none; }
+.t-final .vs__score { font-family: var(--dfont); font-weight: 400; font-size: 170px; line-height: 1; color: #fff; background: var(--char); padding: 6px 30px; display: inline-block; }
+.t-final .athlete__name { color: #fff; }
+.t-final .vs .athlete { width: 400px; height: 520px; margin-top: -170px; }
+.t-final.k-fulltime .vs .athlete { width: 320px; height: 400px; margin-top: -130px; }
+.t-final .body { position: relative; z-index: 2; }
+.t-final .when { position: relative; z-index: 3; }
+.t-hero :is(.mic__name, .mic__games) { color: var(--ink); }
+.t-hero .mic__face { border-color: #fff; }
+/* On a Story there's the height for athletes twice the size. */
+.story:is(.t-hero, .t-final) .vs .athlete { width: 480px; height: 820px; margin-top: -120px; }
+.story:is(.t-hero, .t-final).k-fulltime .vs .athlete { width: 440px; height: 640px; margin-top: -80px; }
+/* Final's logos run big, like the club crests on its score blocks. */
+.t-final { --logo: 96px; }
+.story.t-final { --logo: 124px; }
+.t-final .call__teams { --cl: 120px; }
+.story.t-final .call__teams { --cl: 140px; }
+.t-final .vs .logo { width: 430px; height: 430px; }
+.t-final .ladder .logo { width: 72px; height: 72px; }
+.t-final .shooter .logo { width: 92px; height: 92px; }
+.t-final .vs .athlete .logo { width: 160px; height: 160px; }
+.t-final.k-fulltime .vs .athlete .logo { width: 140px; height: 140px; }
