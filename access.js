@@ -27,8 +27,8 @@ const os = require('os');
 
 // Reads of private data rather than graphics: the settings and scene backups (every photo, logo and
 // media file), the athlete register, the debug log, the sponsor exposure report, the Stream Deck key,
-// the Production Planner's commentators and nights (who is on the mic now, /api/planner/onair, stays open for the
-// graphics) and the competition setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
+// the Production Planner's commentators and nights (who is on the mic now and tonight's roster, /api/planner/onair and
+// /api/planner/roster, stay open for the graphics) and the competition setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
 // the scene and the media files stay open so the Output page, OBS and the Stream Deck work from anywhere.
 const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key', '/api/planner'];
 function privateRead(method, pathname) {
