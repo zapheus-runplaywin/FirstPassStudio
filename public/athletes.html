@@ -44,6 +44,9 @@
   .ath.missing .ath__photo { background: #3a3550; }
   .ath__teams { font-size: 12px; color: var(--fp-blue-dark); }
   .ath__gender { font-size: 12px; padding: 3px 4px; width: auto; }
+  .ath__ok { font-size: 12px; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+  .ath.unapproved .ath__photo img { opacity: .45; }
+  .approveall { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 12px; }
   .search { width: 100%; margin-bottom: 10px; }
   .ath__stats { font-size: 12px; color: var(--fp-navy); line-height: 1.4; }
   .ath__stats b { font-weight: 700; }
@@ -94,7 +97,9 @@
     (<code id="folder">competitions/…/photos</code>), so it matches that athlete in every game, team and division: an athlete who
     plays in more than one division needs only one photo. Without a photo, graphics show a generic silhouette for the athlete's gender
     (from PlayHQ, or picked under the athlete). Photos are made smaller before they're saved;
-    cut-out PNGs with a transparent background look best. <a href="/graphics.html">Back to the Docs</a></p>
+    cut-out PNGs with a transparent background look best. A photo goes on the stream and the Socials pictures only once
+    <b>Approved for photo use</b> is ticked: tick it when the athlete (or their parent or guardian) has agreed to their
+    image being used. Until then graphics show the silhouette. <a href="/graphics.html">Back to the Docs</a></p>
 
   <section>
     <h2>Team</h2>
@@ -104,6 +109,8 @@
 
   <section id="teamBox" hidden>
     <div class="teamhead"><div id="teamLogo"></div><div><h2 id="teamName"></h2><div class="help" id="teamInfo"></div></div></div>
+    <div class="approveall"><button type="button" class="small alt" id="approveAll">Approve all for photo use</button>
+      <button type="button" class="small alt" id="unapproveAll">Approve none</button><span class="help">Every athlete listed here.</span></div>
     <input type="text" class="search" id="search" placeholder="Find an athlete" hidden>
     <div class="athletes" id="athletes"></div>
     <h3>Several photos at once</h3>
@@ -293,6 +300,7 @@ function renderAthletes() {
     // No photo: the generic silhouette for the athlete's gender.
     const i = el('img'); i.src = src || a.silhouette; i.alt = src ? a.name : ''; ph.appendChild(i);
     if (!src) card.classList.add('missing');
+    if (src && !a.photoOk) card.classList.add('unapproved');
     if (a.position) ph.appendChild(el('span', 'ath__pos', a.position));
     card.appendChild(ph);
     const body = el('div', 'ath__body');
@@ -303,6 +311,7 @@ function renderAthletes() {
     if (others.length) body.appendChild(el('div', 'ath__teams', (team.all ? '' : 'Also plays for ') + others.map(t => `${t.team} (${t.division})`).join(', ')));
     body.appendChild(statsLine(a));
     body.appendChild(genderPicker(a));
+    body.appendChild(approvalTick(a));
     const buttons = el('div', 'ath__buttons');
     const edit = el('button', 'small alt', 'Games');
     edit.title = 'Games and positions played';
@@ -327,6 +336,23 @@ function renderAthletes() {
     box.appendChild(card);
   }
   if (!team.athletes.length) box.appendChild(el('p', 'help', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
+}
+
+// Whether the athlete has approved their photo's use: without it graphics show the silhouette.
+function approvalTick(a) {
+  const l = el('label', 'ath__ok');
+  const c = el('input'); c.type = 'checkbox'; c.checked = !!a.photoOk;
+  c.onchange = () => approve([a.name], c.checked);
+  l.append(c, 'Approved for photo use');
+  l.title = 'Tick once the athlete (or their parent or guardian) has agreed to their photo being used on the stream and social media.';
+  return l;
+}
+async function approve(names, approved) {
+  try {
+    await api('/api/athletes/approval', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ athletes: names, approved }) });
+    for (const a of team.athletes) if (names.includes(a.name)) a.photoOk = approved;
+  } catch (err) { alert(`Couldn't save that: ${err.message}`); }
+  renderAthletes();
 }
 
 // Games played per division and positions played, as on the graphics.
@@ -528,6 +554,10 @@ $('otherFile').onchange = e => {
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => e.preventDefault());
 $('search').oninput = () => team && renderAthletes();
+$('approveAll').onclick = () => team && approve(team.athletes.map(a => a.name), true);
+$('unapproveAll').onclick = async () => team && await askChoice(`Take approval away from every athlete listed?`,
+  'Their photos come off the stream and the Socials pictures until approved again.', [{ label: 'Cancel', value: false, alt: true }, { label: 'Approve none', value: true }])
+  && approve(team.athletes.map(a => a.name), false);
 loadTeams();
 </script>
 </body>

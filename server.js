@@ -687,7 +687,7 @@ const athleteRegister = require('./athletes').create({
   getSeasonGames: g => getSeasonGames(g), getTeamSheets: () => getTeamSheets(), setupTeams: o => setupTeams(o),
   norm: s => norm(s), sameTeam: (a, b) => sameTeam(a, b), send, readBody, readRaw,
 });
-const { logoFor, colourFor, photoFor, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, athletesRoute } = athleteRegister;
+const { logoFor, colourFor, photoFor, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, athletesRoute } = athleteRegister;
 // ─── Team list warm up ──────────────────────────────────────────────────────
 // A team list needs the game's line up and, while that's incomplete, both teams' season
 // squads, which means reading each of their games this season. That is done ahead, so
@@ -985,7 +985,14 @@ http.createServer(async (req, res) => {
     // The competition in use: its colours and font, team logos, competition logo, athlete photos and added fonts.
     if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG, fontPaths(competitions.activeId()), await fonts.macFaces(CONFIG.font)), 'text/css; charset=utf-8');
     if (/^\/(logos|brand|photos|fonts)\//.test(url.pathname)) {
-      const file = competitions.imageFile(competitions.activeId(), url.pathname.split('/')[1], url.pathname.split('/')[2] || '');
+      const [, kind, name = ''] = url.pathname.split('/');
+      // A photo the athlete hasn't approved goes only to someone who may change the athletes (the athletes page), never
+      // to a graphic or a device that only watches.
+      if (kind === 'photos' && !fileApproved(decodeURIComponent(name))
+        && access.refusal(MACHINE.remoteChanges, 'POST', '/api/athletes/approval', req.socket.remoteAddress, undefined, device ? device.level : null)) {
+        return send(res, 404, 'Not found', 'text/plain');
+      }
+      const file = competitions.imageFile(competitions.activeId(), kind, name);
       // Added files are served as plain files, never as pages of Studio's (uploads.js).
       return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
     }

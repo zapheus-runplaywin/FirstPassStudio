@@ -41,6 +41,11 @@ test('a photo saved for an athlete shows on the team lists, and a new one replac
   const r = await upload('athlete=Blizzardz%20GS&ext=png');
   assert.equal(r.status, 200);
   assert.equal(r.json.name, 'Blizzardz GS.png');
+  // Not on a graphic until the athlete has approved its use; the athletes page shows it either way.
+  assert.equal((await player('Blizzardz GS')).photo, null, 'not approved yet: the silhouette');
+  assert.deepEqual([(await inRegister('Blizzardz GS')).photo, (await inRegister('Blizzardz GS')).photoOk], ['/photos/Blizzardz%20GS.png', false]);
+  assert.deepEqual((await studio.post('/api/athletes/approval', { athletes: ['Blizzardz GS'], approved: true })).athletes, [{ name: 'Blizzardz GS', photoOk: true }]);
+  assert.equal((await inRegister('Blizzardz GS')).photoOk, true);
   assert.equal((await player('Blizzardz GS')).photo, '/photos/Blizzardz%20GS.png');
   const served = await studio.request('GET', '/photos/Blizzardz%20GS.png');
   assert.equal(served.status, 200);
@@ -48,6 +53,10 @@ test('a photo saved for an athlete shows on the team lists, and a new one replac
   assert.equal((await upload('athlete=blizzardz%20gs&ext=jpeg', JPG)).json.name, 'blizzardz gs.jpg');
   assert.deepEqual(fs.readdirSync(photosDir).filter(f => /blizzardz gs/i.test(f)), ['blizzardz gs.jpg'], 'one photo per athlete');
   assert.match((await player('Blizzardz GS')).photo, /blizzardz%20gs\.jpg$/, 'matched by name whatever its case');
+  // Taking approval away takes the photo off the graphics again.
+  await studio.post('/api/athletes/approval', { athletes: ['Blizzardz GS'], approved: false });
+  assert.equal((await player('Blizzardz GS')).photo, null);
+  assert.equal((await studio.request('POST', '/api/athletes/approval', { athletes: ['Blizzardz GS'] })).status, 400, 'approved or not must be said');
 });
 
 test('photos dropped in by file name are matched to athletes, and a wrong one can be given to the right athlete', async () => {

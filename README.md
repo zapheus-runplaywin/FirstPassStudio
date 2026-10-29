@@ -851,7 +851,11 @@ The card shows the games per division and positions played. The position match u
 game's division (for the club, when the athlete has a line for it) beside the athlete's number; `?games=0` leaves it off.
 
 The page keeps a register of the competition's athletes in `competitions/<name>/athletes.json`: the teams and divisions
-each one has played for, their PlayHQ ids and gender, any gender you picked, and the games and positions played you typed in. It fills in as line ups are read
+each one has played for, their PlayHQ ids and gender, any gender you picked, the games and positions played you typed in, and
+`photoOk` once *Approved for photo use* is ticked. A photo goes on a graphic (`/api/teams`, the lower third, the Socials
+pictures) only for an approved athlete, else the silhouette; `/photos/<file>` serves an unapproved one only to someone who may
+change the athletes (the athletes page), never to a device that only watches. `POST /api/athletes/approval
+{ athletes: [names], approved }` sets it (*Approve all for photo use* sends the team's list). It fills in as line ups are read
 (opening a team, or the game on the control page). Photos and the register are files in the competition's folder, so
 commit the ones you want to keep like any other setting.
 
