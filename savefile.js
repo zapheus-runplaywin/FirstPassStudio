@@ -32,18 +32,44 @@ function writeFileSync(file, data, options) {
   }
 }
 
-// The same, without waiting: the callback gets the error, if any.
+// The same, without waiting: the callback gets the error, if any. Saves of one file go one at a
+// time, so the newest always lands last: two saves started close together could otherwise finish
+// out of order and leave the older contents on disk (the scoreboard's clock coming back stopped
+// after a restart). A save asked for while one is being written waits for it; if several wait,
+// only the newest is written, and each of their callbacks gets that save's result.
+const saving = new Map(); // file -> { next: { data, options, callbacks } | null } while a save is being written
+
 function writeFile(file, data, options, callback) {
   if (typeof options === 'function') { callback = options; options = undefined; }
   const done = callback || (() => {});
+  const busy = saving.get(file);
+  if (busy) {
+    const callbacks = busy.next ? busy.next.callbacks : [];
+    callbacks.push(done);
+    busy.next = { data, options, callbacks };
+    return;
+  }
+  saving.set(file, { next: null });
+  writeNow(file, data, options, [done]);
+}
+
+function writeNow(file, data, options, callbacks) {
+  const finish = err => {
+    const state = saving.get(file);
+    const next = state.next;
+    state.next = null;
+    if (next) writeNow(file, next.data, next.options, next.callbacks);
+    else saving.delete(file);
+    for (const cb of callbacks) cb(err);
+  };
   fs.mkdir(path.dirname(file), { recursive: true }, errDir => {
-    if (errDir) return done(errDir);
+    if (errDir) return finish(errDir);
     const tmp = tempName(file);
     fs.writeFile(tmp, data, options, errWrite => {
-      if (errWrite) return fs.rm(tmp, { force: true }, () => done(errWrite));
+      if (errWrite) return fs.rm(tmp, { force: true }, () => finish(errWrite));
       fs.rename(tmp, file, errRename => {
-        if (errRename) return fs.rm(tmp, { force: true }, () => done(errRename));
-        done(null);
+        if (errRename) return fs.rm(tmp, { force: true }, () => finish(errRename));
+        finish(null);
       });
     });
   });
