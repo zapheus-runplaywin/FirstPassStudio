@@ -164,7 +164,7 @@
       <li><b>Preview</b> opens the selected source on its own in a new window, the way the Preview buttons on this page do; the small <b>PVW</b> button beside a source's On / Off does the same from the list. A preview opens at half size (960 x 540): the page is still laid out at 1080p, just scaled down, on a checkerboard so the see-through parts show, so a few fit on one screen. Resize the window to make it bigger.</li>
       <li><b>Videos</b> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
         A video that fades out when it finishes is switched off in the scene, so the Sources list and its Stream Deck key show it off and the next On plays it again.
-        <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output. <b>Restart video</b> starts it again.</li>
+        <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output, or in the SDI of a Blackmagic output. <b>Restart video</b> starts it again.</li>
       <li><b>ProRes:</b> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency; the Output page warns when a .mov has none to keep, such as H.264),
         and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>
       <li><b>Media folder:</b> the Output page's <b>Media folder</b> (at the bottom, folded until you open it) lists every song, video and image added (under Music, Add image or video, or on the Sponsors page),
@@ -246,6 +246,7 @@
         reports it can't send (older UltraStudios with HD-SDI rather than 3G-SDI stop at 1080p30); you can still try it, and the Output page says if it fails. The fill is premultiplied: turn the switcher's
         <b>Pre Multiplied Key</b> on for clean edges (clip and gain aren't used then), and leave <b>Straight</b> off: straight fill into a Pre Multiplied Key
         leaves a light fringe round logos and text. Tick Straight only for a switcher that can't do a premultiplied key (every ATEM can); ticking it asks if you're sure.
+        <b>Sound</b> goes in the SDI as 48 kHz stereo, in time with the picture (with fill and key, on the fill), so on the switcher turn on the sound of the input the fill comes into (On, or AFV to follow the picture); an SDI to HDMI converter passes it on. It can go on the Mac's sound output instead, or both.
         It needs Blackmagic Desktop Video installed (the Output page says if it isn't, with where to get it; quit and reopen Studio after installing) and the device free, so quit any other app using it first. Output on/off and the
         <code>/deck/output</code> links work the same.</li>
       <li><b>NDI® output (Mac app):</b> sends the scene over the network as NDI sources, in the video format you pick (1080p at 23.98 to 120 fps, the same rates as a Blackmagic device, or 720p at 25 to 60 fps):

@@ -356,6 +356,8 @@ const showOut = o => {
   const pickedMode = modes.find(m => m.mode === so.decklinkMode) || defaultMode(modes);
   $('outDlMode').value = String((pickedMode || {}).mode || '');
   $('outDlKeying').value = so.decklinkKeying;
+  $('outDlSound').value = so.decklinkSound || 'sdi';
+  $('outDlSoundNote').classList.toggle('hidden', so.decklinkSound === 'mac');
   $('outDlStraight').checked = so.decklinkStraight;
   $('outDlStraightWarn').classList.toggle('hidden', !so.decklinkStraight);
   // NDI: whether the NDI runtime is installed, and the formats it can send.
@@ -414,7 +416,7 @@ const showOut = o => {
     : so.mode === 'off' ? 'Web links only: nothing is actively sent from this Mac.'
     : !so.on ? 'Output is off: nothing is sent until it\'s turned on.'
     : so.mode === 'decklink' ? (st.error ? `Couldn't start the Blackmagic output: ${st.error}`
-      : st.running ? `Sending to ${st.name} (${st.mode}${so.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
+      : st.running ? `Sending to ${st.name} (${st.mode}${so.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}${{ sdi: ', sound in the SDI', both: ', sound in the SDI and on the Mac', mac: ', sound on the Mac' }[st.sound] || ''}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
       : so.showing.length ? 'Starting the Blackmagic output…' : dl.ok ? 'Pick the device and video format.' : dl.error || 'Looking for Blackmagic devices…')
     : so.mode === 'ndi' ? (ns.error ? `Couldn't start NDI: ${ns.error}`
       : ns.running && ns.sources?.length ? `Sending NDI at ${ns.format}: ${ns.sources.map(watching).join(', ')}.`
@@ -476,6 +478,7 @@ $('outSponsors').onchange = () => setOut({ sponsors: $('outSponsors').checked })
 $('outDlDevice').onchange = () => setOut({ decklinkDevice: $('outDlDevice').value, decklinkMode: 0 }).then(() => setOut({ decklinkMode: Number($('outDlMode').value) || 0 }));
 $('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').value) || 0 });
 $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
+$('outDlSound').onchange = () => setOut({ decklinkSound: $('outDlSound').value });
 // Ticking Straight asks first: straight fill into a Pre Multiplied key leaves a light fringe round logos and text.
 $('outDlStraight').onchange = () => {
   const on = $('outDlStraight').checked;

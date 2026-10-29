@@ -357,6 +357,13 @@
           <option value="external">Fill and key (the device's external keyer: fill on one SDI out, key on the other)</option>
           <option value="off">Fill only</option>
         </select>
+        <label for="outDlSound" class="forDecklink">Sound</label>
+        <select id="outDlSound" class="forDecklink" title="Where this output's sound goes">
+          <option value="sdi">In the SDI (with fill and key, on the fill)</option>
+          <option value="both">In the SDI and on the Mac's sound output</option>
+          <option value="mac">On the Mac's sound output only</option>
+        </select>
+        <p class="note forDecklink" id="outDlSoundNote" style="grid-column:1/-1">The sound goes into the SDI as 48 kHz stereo, in time with the picture. On the switcher, turn on the sound of the input the fill comes into (On, or AFV to follow the picture). An SDI to HDMI converter passes it on.</p>
         <label for="outNdiFormat" class="forNdi">Video format</label>
         <select id="outNdiFormat" class="forNdi"></select>
         <label for="outNdiName" class="forNdi">Source name</label>
@@ -392,7 +399,7 @@
         through the Mac's audio output. Each output opens full screen in its own window: leave full screen (the green button or ⌃⌘F) to move it to another display or get at
         other apps. To turn it off from the display itself, click it and press Esc, or close its window.
         <b>Blackmagic:</b> needs Blackmagic Desktop Video installed, and nothing else (such as Media Express) using the device; the scene plays
-        at the video format's frame rate, its sound through the Mac's audio output. Pick the format the switcher runs at.
+        at the video format's frame rate, its sound in the SDI (on the fill) unless <b>Sound</b> says otherwise. Pick the format the switcher runs at.
         <b>NDI:</b> needs NDI's runtime for Mac (free, <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>) installed on this Mac.
         The sources show up on the network as <i>this Mac's name (Source name Fill)</i> and <i>(Source name Key)</i>, or <i>(Source name Chroma)</i>,
         or just <i>(Source name)</i> with transparency. The source name is the output's name, and changes with it when the output is renamed,
@@ -758,7 +765,7 @@
           <label class="forVideo">Sound</label>
           <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
         </div>
-        <p class="note forVideo">Sound plays through this Mac's audio output. The Scene View above plays it only while <b>Video output</b> is off.</p>
+        <p class="note forVideo">Sound plays through this Mac's audio output, or in a Blackmagic output's SDI. The Scene View above plays it only while <b>Video output</b> is off.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
           <button class="alt" id="fPreview" title="Open this source on its own, the way the Docs page's Preview does">Preview</button>

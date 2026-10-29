@@ -39,6 +39,8 @@ const FILE = datadir.file('outputs.json');
 // 'off' is Web links only on the Output page: nothing sent from this Mac (the scene's web links work whatever the mode).
 const MODES = ['off', 'chroma', 'fillkey', 'decklink', 'ndi'];
 const KEYING = ['external', 'off'];
+// Where a Blackmagic output's sound goes: embedded in the SDI (with fill and key, the fill), the Mac's sound output, or both.
+const DECKLINK_SOUND = ['sdi', 'mac', 'both'];
 // Which of the switcher's keys an output comes into ('' for the usual one: Output 1 on downstream key 1, the others
 // on upstream keys 2 to 4, and a chroma output on an upstream key, as only those key on a colour), or none.
 const KEYERS = ['', 'none', 'dsk1', 'dsk2', 'usk1', 'usk2', 'usk3', 'usk4'];
@@ -61,7 +63,7 @@ const PRIMARY = 'main';
 const COLOURS = { 1: '#ea9a38', 2: '#f24f91', 3: '#4ec1e6', 4: '#95ba45' };
 const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
-  decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
+  decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false, decklinkSound: 'sdi',
   ndiSignal: 'fillkey', ndiOwnName: false, ndiName: '', ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
   keyer: '', swFill: 0, swKey: 0, swCameras: [],
 };
@@ -124,6 +126,7 @@ function clean(s, old = DEFAULTS) {
     decklinkMode: Number(pick('decklinkMode', 0)) || 0,
     decklinkKeying: KEYING.includes(pick('decklinkKeying')) ? pick('decklinkKeying') : 'external',
     decklinkStraight: pick('decklinkStraight', false) === true,
+    decklinkSound: DECKLINK_SOUND.includes(pick('decklinkSound')) ? pick('decklinkSound') : 'sdi',
     ndiSignal: NDI_SIGNALS.includes(pick('ndiSignal')) ? pick('ndiSignal') : 'fillkey',
     // The NDI sources take the output's name unless ndiOwnName is ticked: then ndiName, the name typed (see ndiSource).
     ndiOwnName: pick('ndiOwnName', false) === true,
@@ -203,7 +206,7 @@ const listening = () => !!(sceneViewSound() && listener && listener.until > Date
 // What each output should show now, every output's in one list, each tagged with its output id (output)
 // and whether it's silent (muted: every output but the primary):
 // [{ display, kind: 'fill' | 'key' | 'chroma', color, safe }] on the Mac's displays,
-// [{ kind: 'decklink', device, mode, keying, straight }] for the Blackmagic device, or
+// [{ kind: 'decklink', device, mode, keying, straight, sound }] for the Blackmagic device, or
 // [{ kind: 'ndi', signal, name, format, color, safe }] for NDI. safe: the scene drawn chroma key safe.
 const windows = () => outputWindows();
 
@@ -226,7 +229,7 @@ function windowsOf(o) {
     const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
     const mode = device && decklinkMode(device, o);
     if (!mode) return [];
-    return [{ kind: 'decklink', device: device.id, mode: mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight }];
+    return [{ kind: 'decklink', device: device.id, mode: mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: o.decklinkSound }];
   }
   if (o.mode === 'ndi') {
     if (!ndi?.ok) return [];

@@ -12,5 +12,6 @@ const r = decklink.start({ device: 'none', mode: 0, keying: 'external' });
 assert.strictEqual(r.ok, false);
 assert.ok(r.error);
 assert.strictEqual(decklink.frame(Buffer.alloc(16), 2, 2), false);
+assert.strictEqual(decklink.audio(Buffer.alloc(3840)), false);
 decklink.stop();
 console.log(`decklink module OK: ${list.ok ? `${list.devices.length} device(s), Desktop Video ${list.version}` : list.error}`);
