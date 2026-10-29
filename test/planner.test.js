@@ -145,8 +145,8 @@ test('the fixture board says which games are done, live and next, with live scor
   assert.deepEqual(g0.score, { home: 3, away: 0 });
   assert.equal(g0.winner, 'home');
   assert.equal(g0.people[0].name, p.pool[0].name);
-  // The old roster link opens the fixture board.
-  assert.match(await fetch(`${studio.base}/roster.html`).then(x => x.text()), /fixtureboard\.html/);
+  // The old roster link is gone (Matt, 2026-10-29): fixtureboard.html is the only link.
+  assert.equal((await fetch(`${studio.base}/roster.html`)).status, 404);
 });
 
 test('the commentators graphics read who is on the mic', async () => {
