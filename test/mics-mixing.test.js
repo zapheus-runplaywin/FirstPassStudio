@@ -73,7 +73,7 @@ test('the primary output\'s window mixes the mics, a Scene View and the key neve
   // The Output page lists them, says Output 1 is off (so they aren't heard), and shows the trouble.
   const page = await context.newPage();
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('#mxList [data-mic]').length === 2, null, { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelectorAll('#mxList [data-mic]').length === 2);
   assert.equal(await page.textContent('#mxList [data-mic] b'), 'Court mic');
   assert.match(await page.textContent('#mxHeard'), /Output 1 is off/);
   await page.click('#mxDip');

@@ -4,6 +4,10 @@
 //   const page = await openPage(t, studio, '/output.html');   // null when skipped
 // Requests anywhere but Studio (web fonts) are answered empty, so the tests never reach the internet.
 // Everything is closed when the test ends.
+// A wait for something to show up on a page (waitForFunction, waitForSelector, waitForEvent) keeps Playwright's
+// own 30 second timeout: CI runners are slow, more so with test files running side by side, and a longer wait
+// only costs time when the test is failing anyway. Give a shorter timeout only when the test checks how fast
+// something happens ("says so within seconds").
 
 'use strict';
 

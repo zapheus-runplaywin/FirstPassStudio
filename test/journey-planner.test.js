@@ -44,12 +44,12 @@ test('plan tonight: the commentators, the court and who calls the game on now', 
 
   // Scoreboard control follows the plan's court, and says where it came from.
   const control = await openPage(t, studio, '/control.html', { browser });
-  await control.waitForFunction(() => document.querySelector('#autoCourt').value === 'Court 1' && !document.querySelector('#planCourt').hidden, null, { timeout: 20000 });
+  await control.waitForFunction(() => document.querySelector('#autoCourt').value === 'Court 1' && !document.querySelector('#planCourt').hidden);
   await studio.until(async () => (await studio.get('/api/scoreboard')).gameId === now.id, 20000);
 
   // The Commentators graphic, with no names typed, names them.
   const graphic = await openPage(t, studio, '/commentators.html', { browser });
-  await graphic.waitForFunction(() => /Will Linter and Honey Harrington/.test(document.querySelector('#lineNames').textContent), null, { timeout: 10000 });
+  await graphic.waitForFunction(() => /Will Linter and Honey Harrington/.test(document.querySelector('#lineNames').textContent));
   assert.equal(await graphic.textContent('#lineLabel'), 'Commentators', 'one of the two is not a guest');
 
   // A court changed by hand on Scoreboard control stays, and the Planner flags it.
@@ -57,7 +57,7 @@ test('plan tonight: the commentators, the court and who calls the game on now', 
   await control.press('#autoCourt', 'Tab');
   await studio.until(async () => (await studio.get('/api/scoreboard')).autoCourt === 'Court 2');
   await planner.reload();
-  await planner.waitForFunction(() => /following Court 2, but the plan for tonight is Court 1/.test(document.querySelector('#flags').textContent), null, { timeout: 10000 });
+  await planner.waitForFunction(() => /following Court 2, but the plan for tonight is Court 1/.test(document.querySelector('#flags').textContent));
   assert.equal((await studio.get('/api/scoreboard')).autoCourt, 'Court 2');
   assert.deepEqual(planner.errors, []);
   assert.deepEqual(control.errors, []);

@@ -16,7 +16,7 @@ const tally = page => page.$$eval('#swInputs button', bs => bs.map(b => [b.textC
 const shows = (page, program, preview) => page.waitForFunction(([p, v]) => {
   const b = [...document.querySelectorAll('#swInputs button')];
   return b.some(x => x.textContent === p && x.className === 'prg') && b.some(x => x.textContent === v && x.className === 'pvw');
-}, [program, preview], { timeout: 5000 });
+}, [program, preview]);
 const text = (page, sel) => page.textContent(sel);
 
 async function setUp(t, opts = {}) {
@@ -32,7 +32,7 @@ async function useAddress(page, atem) {
   await page.click('#swSetup');
   await page.fill('#swAddress', `127.0.0.1:${atem.port}`);
   await page.click('#swUseAddress');
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 10000 });
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
 }
 
 test('setting up the switcher by its address: its model, inputs by name, and program and preview in tally colours', async t => {
@@ -82,24 +82,24 @@ test('keys and fade to black from the page: each button lights while its key is 
   await useAddress(page, atem);
   assert.deepEqual(await page.$$eval('#swUsk button', bs => bs.map(b => b.textContent)), ['Key 1', 'Key 2', 'Key 3', 'Key 4']);
   await page.click('#swUsk button:has-text("Key 2")');
-  await page.waitForSelector('#swUsk button.on:has-text("Key 2")', { timeout: 5000 });
+  await page.waitForSelector('#swUsk button.on:has-text("Key 2")');
   assert.deepEqual(atem.state.usk, [false, true, false, false]);
   await page.click('#swUsk button:has-text("Key 2")');
-  await page.waitForSelector('#swUsk button:not(.on):has-text("Key 2")', { timeout: 5000 });
+  await page.waitForSelector('#swUsk button:not(.on):has-text("Key 2")');
   assert.deepEqual(atem.state.usk, [false, false, false, false]);
   // DSK 1 on with a cut, DSK 2 with its Auto.
   await page.click('#swDsk button:has-text("DSK 1")');
-  await page.waitForSelector('#swDsk button.on:has-text("DSK 1")', { timeout: 5000 });
+  await page.waitForSelector('#swDsk button.on:has-text("DSK 1")');
   await page.click('#swDsk button.alt >> nth=1');
-  await page.waitForSelector('#swDsk button.on:has-text("DSK 2")', { timeout: 5000 });
+  await page.waitForSelector('#swDsk button.on:has-text("DSK 2")');
   assert.deepEqual(atem.state.dsk, [true, true]);
   // Fade to black and back.
   await page.click('#swFtb');
-  await page.waitForFunction(() => document.querySelector('#swFtb').textContent === 'Faded to black', null, { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('#swFtb').textContent === 'Faded to black');
   assert.equal(atem.state.ftb, true);
   assert.match(await text(page, '#swHas'), /faded to black/);
   await page.click('#swFtb');
-  await page.waitForFunction(() => document.querySelector('#swFtb').textContent === 'Fade to black', null, { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('#swFtb').textContent === 'Fade to black');
   assert.equal(atem.state.ftb, false);
   assert.deepEqual(page.errors, []);
 });
@@ -118,7 +118,7 @@ test('the switcher\'s cable pulled mid-stream: the page says so within seconds, 
   // Back on the network: connected again without a click, showing the switcher as it is now.
   atem.state.program = 2; atem.state.preview = 3;
   atem.resume();
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 15000 });
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
   await shows(page, 'Bench', 'Wide');
   assert.equal(await page.isVisible('#swRetry'), false);
   await wait(300);
@@ -144,7 +144,7 @@ test('Try again while the switcher is still gone keeps saying it isn\'t answerin
   assert.equal(await page.isVisible('#swRetry'), true, 'Try again is there to press again');
   // Back: connected without another press.
   atem.resume();
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 15000 });
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
 });
 
 test('an answer that arrives after the switcher has connected doesn\'t put the page back to Connecting', async t => {
@@ -161,7 +161,7 @@ test('an answer that arrives after the switcher has connected doesn\'t put the p
   await page.click('#swSetup');
   await page.fill('#swAddress', `127.0.0.1:${atem.port}`);
   await page.click('#swUseAddress');
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 10000 });
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
   await page.waitForResponse('**/api/switcher');
   await wait(300);
   assert.match(await text(page, '#swText'), /ATEM Mini Extreme connected/);
@@ -175,12 +175,12 @@ test('a mistyped address is refused with what to type, and Forget lets the switc
   await page.click('#swSetup');
   await page.fill('#swAddress', 'court atem please');
   await page.press('#swAddress', 'Enter');
-  await page.waitForFunction(() => document.querySelector('#swErr').textContent !== '', null, { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('#swErr').textContent !== '');
   assert.match(await text(page, '#swErr'), /Type the switcher's IP address, such as 192\.168\.10\.240/);
   assert.equal(await text(page, '#swText'), 'Not set up');
   await page.fill('#swAddress', `127.0.0.1:${atem.port}`);
   await page.click('#swUseAddress');
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 10000 });
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
   assert.equal(await text(page, '#swErr'), '', 'the old error goes once it works');
   // Forget asks first; Cancel keeps it.
   page.once('dialog', d => d.dismiss());
@@ -189,11 +189,11 @@ test('a mistyped address is refused with what to type, and Forget lets the switc
   assert.match(await text(page, '#swText'), /connected/);
   page.once('dialog', d => d.accept());
   await page.click('#swForget');
-  await page.waitForFunction(() => document.querySelector('#swText').textContent === 'Not set up', null, { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('#swText').textContent === 'Not set up');
   assert.equal(await page.isVisible('#swLive'), false);
   // Forgotten for good: it's still not set up after the page is opened again.
   await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelector('#swText').textContent === 'Not set up', null, { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('#swText').textContent === 'Not set up');
   assert.equal(await text(page, '#swSetup'), 'Set up');
 });
 
@@ -209,6 +209,6 @@ test('the switcher set up last time is connected again when Studio starts, and t
   t.after(() => require('node:fs').rmSync(first.dataDir, { recursive: true, force: true }));
   const page = await openPage(t, studio, '/output.html');
   if (!page) return;
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent), null, { timeout: 10000 });
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
   await shows(page, 'Court', 'Bench');
 });
