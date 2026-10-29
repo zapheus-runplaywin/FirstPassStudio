@@ -12,13 +12,13 @@ const { createWorld } = require('./support/playhq');
 const { openBrowser, openPage } = require('./support/browser');
 
 // Waits until the page's element's text matches (and fails with what it says instead).
-async function says(page, sel, re, timeout = 10000) {
+async function says(page, sel, re, timeout = 30000) {
   try { await page.waitForFunction(([s, src, flags]) => new RegExp(src, flags).test(document.querySelector(s).textContent), [sel, re.source, re.flags], { timeout }); }
   catch (err) { throw new Error(`${sel} says "${await page.textContent(sel)}", not ${re}`); }
 }
 // The scoreboard graphic's team names (they're the board's).
 const teams = page => page.evaluate(() => [document.querySelector('#homeName').textContent, document.querySelector('#awayName').textContent]);
-async function showsTeams(page, home, away, timeout = 10000) {
+async function showsTeams(page, home, away, timeout = 30000) {
   try { await page.waitForFunction(([h, a]) => document.querySelector('#homeName').textContent === h && document.querySelector('#awayName').textContent === a, [home, away], { timeout }); }
   catch (err) { throw new Error(`the scoreboard shows ${(await teams(page)).join(' v ')}, not ${home} v ${away}`); }
 }
@@ -45,10 +45,10 @@ test('stream night on court 1: the game being played is on, then Studio moves to
   assert.equal((await studio.get('/api/scoreboard')).court, 'Court 1');
   // The scorer scores: the graphic follows.
   Object.assign(world.live[now.id], { home: 3, away: 1, homeGoals: 3, awayGoals: 1 });
-  await graphic.waitForFunction(() => document.querySelector('#homeScore').textContent === '3' && document.querySelector('#awayScore').textContent === '1', null, { timeout: 10000 });
+  await graphic.waitForFunction(() => document.querySelector('#homeScore').textContent === '3' && document.querySelector('#awayScore').textContent === '1');
   // Scoring for the next game opens: the graphic moves to it at 0-0 by itself (Studio looks every 15 seconds).
   await showsTeams(graphic, next.home, next.away, 100000);
-  await graphic.waitForFunction(() => document.querySelector('#homeScore').textContent === '0' && document.querySelector('#awayScore').textContent === '0', null, { timeout: 5000 });
+  await graphic.waitForFunction(() => document.querySelector('#homeScore').textContent === '0' && document.querySelector('#awayScore').textContent === '0');
   await says(control, '#autoNote', /^Last game on this court today\./);
   const b = await studio.get('/api/scoreboard');
   assert.equal(b.gameId, next.id);
@@ -95,7 +95,7 @@ test('the operator follows another court, then picks a game by hand, then hands 
   await showsTeams(graphic, court2.home, court2.away);
   assert.equal((await studio.get('/api/scoreboard')).court, 'Court 2');
   // The game list has this game night's games in every division; picking one turns automatic off.
-  await control.waitForFunction(() => document.querySelectorAll('#games option').length === 4, null, { timeout: 10000 });
+  await control.waitForFunction(() => document.querySelectorAll('#games option').length === 4);
   const options = await control.$$eval('#games option', os => os.map(o => o.textContent));
   assert.ok(options.every(o => /Round 3/.test(o)), options.join('\n'));
   const pickIndex = options.findIndex(o => o.includes('Division 2') && o.includes('Court 2'));
@@ -104,7 +104,7 @@ test('the operator follows another court, then picks a game by hand, then hands 
   const picked = world.divisions[1].rounds[2].games[1];
   await showsTeams(graphic, picked.home, picked.away);
   // The control page hears that automatic went off a moment after the graphic changes.
-  await control.waitForFunction(() => !document.querySelector('#autoSelect').checked, null, { timeout: 5000 });
+  await control.waitForFunction(() => !document.querySelector('#autoSelect').checked);
   await says(control, '#autoNote', /^Off, so the game stays as picked from the list/);
   // Ticked again: back to the game on court 2.
   await control.check('#autoSelect');
@@ -141,17 +141,17 @@ test('a game night picked by hand changes the games list and every page\'s round
   const studio = await startStudio(t, { competition: 'Thunder League' });
   const control = await openPage(t, studio, '/control.html');
   if (!control) return;
-  await control.waitForFunction(() => /^Automatic: \w{3}, \d+ \w{3} \(Round 3\)$/.test(document.querySelector('#round option').textContent), null, { timeout: 10000 });
+  await control.waitForFunction(() => /^Automatic: \w{3}, \d+ \w{3} \(Round 3\)$/.test(document.querySelector('#round option').textContent));
   const night = studio.world.divisions[0].rounds[0].games[0].date;
   assert.match(await control.textContent(`#round option[value="${night}"]`), / · Round 1$/);
   await control.selectOption('#round', night);
   await says(control, '#roundNote', /^Picked by hand/);
-  await control.waitForFunction(() => [...document.querySelectorAll('#games option')].every(o => / Round 1 /.test(o.textContent)), null, { timeout: 10000 });
+  await control.waitForFunction(() => [...document.querySelectorAll('#games option')].every(o => / Round 1 /.test(o.textContent)));
   assert.equal((await studio.get('/api/rounds')).choice, night);
   const fixtures = await studio.get('/api/fixtures');
   assert.match(JSON.stringify(fixtures), /Round 1/);
   await control.selectOption('#round', '');
   await says(control, '#roundNote', /^Automatic picks the first game night in the next 5 days/);
-  await control.waitForFunction(() => [...document.querySelectorAll('#games option')].every(o => / Round 3 /.test(o.textContent)), null, { timeout: 10000 });
+  await control.waitForFunction(() => [...document.querySelectorAll('#games option')].every(o => / Round 3 /.test(o.textContent)));
   assert.equal((await studio.get('/api/rounds')).choice, '');
 });

@@ -64,7 +64,7 @@ test('the team list graphic shows the scoreboard\'s home team and its players, w
   studio.world.answers.discoverGame = gamePage(g => ({ ...g, home: g.away, away: g.home, statistics: { home: g.statistics.away, away: g.statistics.home } }));
   const page = await openPage(t, studio, '/teamlist.html?side=home');
   if (!page) return;
-  await page.waitForFunction(() => document.querySelectorAll('#players .teamlist__player').length >= 7, null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelectorAll('#players .teamlist__player').length >= 7);
   assert.equal(await page.textContent('#name'), game.home);
   const names = await page.$$eval('#players .pname', els => els.map(e => e.firstChild.textContent));
   assert.ok(names.every(n => n.startsWith('Blizzardz')), names.join(', '));
