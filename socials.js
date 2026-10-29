@@ -62,6 +62,9 @@ const TEMPLATES = [
   { id: 'striped', name: 'Striped', blurb: 'Varsity stripes and an outlined title', font: 'Oswald' },
   { id: 'highcontrast', name: 'High contrast', blurb: 'Black, white and the highlight', font: 'Archivo Black', mark: 'white' },
   { id: '3d', name: '3D', blurb: 'Perspective: a floor and angled walls', font: 'Rubik' },
+  { id: 'neon', name: 'Neon', blurb: 'Glowing shards on dark navy', font: 'Archivo Black', mark: 'white' },
+  { id: 'poster', name: 'Poster', blurb: 'Huge stacked words and colour bars', font: 'Anton', mark: 'light' },
+  { id: 'splash', name: 'Splash', blurb: 'Paint shapes on white', font: 'Oswald', mark: 'light' },
 ].map(t => ({ ...t, fontCss: t.font ? `vendor/fonts/${TEMPLATE_FONTS[t.font]}/${TEMPLATE_FONTS[t.font]}.css` : null }));
 const templateOf = id => TEMPLATES.find(t => t.id === id) || null;
 const HEX = /^#[0-9a-f]{6}$/i;

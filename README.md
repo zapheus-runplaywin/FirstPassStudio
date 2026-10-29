@@ -932,7 +932,8 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   the FirstPass Studio mark (bottom right) and the PIVT logo (bottom left) on every picture; all are kept in
   `competitions/<name>/socials.json`.
 - **Template:** a template set for every picture: *Default* (the stream's own look), *Fun*, *Dynamic*, *Junior*, *Retro*,
-  *Futuristic*, *Professional*, *Thunder*, *Geometric*, *Gradient*, *Striped*, *High contrast* and *3D* (real perspective).
+  *Futuristic*, *Professional*, *Thunder*, *Geometric*, *Gradient*, *Striped*, *High contrast*, *3D* (real perspective),
+  *Neon*, *Poster* and *Splash*.
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
   for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template
   takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one.
