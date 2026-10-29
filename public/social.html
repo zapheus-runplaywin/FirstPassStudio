@@ -226,7 +226,8 @@
               streams and its commentators, from the Production Planner)  commentators (the commentary team's headshots,
               from the Production Planner)  polaroid (a match photo in a white print)
               Results: results (the night's final scores)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as
-              PlayHQ has it now)  topshooters (the night's, from each finished game's line ups)  polaroid&game=<id> (the
+              PlayHQ has it now)  topshooters (&division=<name>, that division's, else the
+              night's, from each finished game's line ups)  polaroid&game=<id> (the
               game's score under the photo)
        size:  square (1080 x 1080)  portrait (1080 x 1350)  story (1080 x 1920)
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
@@ -520,9 +521,11 @@
     }
 
     function drawTopShooters(d) {
-      head(d, 'Top shooters', [dayLong(d.date), el('small', '', d.venue)]);
+      // One division's (?division=, a picture per division on the Socials tab), or the whole night's without it.
+      const division = params.get('division');
+      head(d, 'Top shooters', division ? [division, el('small', '', dayLong(d.date))] : [dayLong(d.date), el('small', '', d.venue)]);
       const s = d.shooters || { players: [] };
-      if (!s.gamesFinished) return `No results for ${dayLong(d.date)} yet: the top shooters show once games are finished.`;
+      if (!s.gamesFinished) return `No results${division ? ` in ${division}` : ''} for ${dayLong(d.date)} yet: the top shooters show once games are finished.`;
       if (!s.players.length) return s.error ? `Couldn't read the games' line ups from PlayHQ: ${s.error}` : 'No shooting recorded in that night\'s games.';
       for (const [i, p] of s.players.entries()) {
         const row = $('fit').appendChild(el('div', 'shooter'));
@@ -569,7 +572,7 @@
         for (const k of ['home', 'away', 'athlete']) if (params.get(k)) q.set(k, params.get(k));
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
-        if (kind === 'topshooters') q.set('with', 'shooters');
+        if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
         const d = await (await fetch(`/api/socials/night?${q}`, { cache: 'no-store' })).json();
         if (d.error) throw new Error(d.error);
         // The colour set: theme.css's colours worked out for it (none for the competition's own). A pale ground takes

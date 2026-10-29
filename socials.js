@@ -18,7 +18,8 @@
 //   GET  /api/socials                    the game nights, the settings and whether pictures can be saved (the app)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
 //                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played, &with=shooters
-//                                        the night's top shooters (each with their photo when approved); &home= &away= &athlete= the
+//                                        the night's top shooters (each with their photo when approved; &division= one
+//                                        division's, as on the Socials tab's Top shooters picture per division); &home= &away= &athlete= the
 //                                        athletes picked for a picture (picked, with their approved photo)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id> }
@@ -235,7 +236,10 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     for (const k of ['home', 'away', 'athlete']) if (q[k]) { const photo = photoFor(String(q[k])); if (photo) picked[k] = { name: String(q[k]).trim(), photo }; }
     out.picked = picked;
     if (want.has('ladders')) out.ladders = await ladders(dates, date, games);
-    if (want.has('shooters')) out.shooters = await shooters(raw.filter((g, i) => games[i].finished));
+    if (want.has('shooters')) {
+      const division = q.division ? String(q.division) : '';
+      out.shooters = await shooters(raw.filter((g, i) => games[i].finished && (!division || games[i].division === division)));
+    }
     return out;
   }
 
@@ -257,8 +261,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return out;
   }
 
-  // The night's top shooters, over every division's finished games, most points first (goals where there are no super
-  // shots). superShots: whether any of those divisions has them, to show the super goals and points.
+  // The top shooters of the finished games given (one division's, or the whole night's), most points first (goals where
+  // there are no super shots). superShots: whether any of those divisions has them, to show the super goals and points.
   async function shooters(finished) {
     if (!finished.length) return { players: [], gamesRead: 0, gamesFinished: 0, superShots: false };
     const t = await tallyShooters(finished);
