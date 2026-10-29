@@ -931,7 +931,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
 - **Results:** the night's final scores (each division, the winner highlighted), a full time card per game, the ladder of
   each division that played (as PlayHQ has it now, "after Round N" when it's the division's latest night with results,
   with the finals line), the night's top six shooters over every division (from each finished game's line ups, read once
-  and kept) and a polaroid per game with its score as the caption. A game shows once PlayHQ has its final score.
+  and kept) and a polaroid per game with its score as the caption (and the opponent, division, round and date under it). A game shows once PlayHQ has its final score.
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
   (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.

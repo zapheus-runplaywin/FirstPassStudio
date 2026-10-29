@@ -115,7 +115,7 @@
     align-items: center; justify-content: center; color: #1d1d24; text-align: center; padding: 0 30px; }
   .polaroid__caption b { font-size: var(--cap, 60px); font-weight: 800; font-style: italic; line-height: 1; text-transform: uppercase; color: var(--ink-dark, var(--purple-dark)); }
   .polaroid__caption span { margin-top: 10px; font-size: calc(var(--cap, 60px) * .45); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #555; }
-  .polaroid__caption b { white-space: nowrap; max-width: 100%; }
+  .polaroid__caption :is(b, span) { white-space: nowrap; max-width: 100%; }
   .tape { position: absolute; top: calc(-1 * var(--edge) - 26px); left: 50%; width: 220px; height: 56px; margin-left: -110px; transform: rotate(3deg);
     background: rgba(var(--yellow-rgb), .75); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 
@@ -452,13 +452,15 @@
       if (g && g.finished) {
         const [w, l] = g.winner === 'away' ? [g.away, g.home] : [g.home, g.away];
         caption = g.winner === 'draw' ? `Draw ${g.home.score}–${g.away.score}` : `${w.name} win ${w.score}–${l.score}`;
-        note = [g.winner === 'draw' ? `${g.home.name} v ${g.away.name}` : `v ${l.name}`, g.division, dayShort(d.date)].filter(Boolean).join('  ·  ');
+        note = [g.winner === 'draw' ? `${g.home.name} v ${g.away.name}` : `v ${l.name}`, g.division, g.round, dayShort(d.date)].filter(Boolean).join('  ·  ');
       }
       const cap = p.appendChild(el('div', 'polaroid__caption'));
       const b = el('b', '', params.get('caption') || caption);
-      cap.append(b, el('span', '', params.get('note') || note));
-      // A long team name shrinks the line to fit the print's chin.
+      const small = el('span', '', params.get('note') || note);
+      cap.append(b, small);
+      // A long team name shrinks each line to fit the print's chin (the second line also carries the division and round).
       for (let px = parseFloat(p.style.getPropertyValue('--cap')); b.scrollWidth > cap.clientWidth - 60 && px > 20; px -= 2) b.style.fontSize = `${px}px`;
+      for (let px = parseFloat(p.style.getPropertyValue('--cap')) * .45; small.scrollWidth > cap.clientWidth - 60 && px > 12; px -= 1) small.style.fontSize = `${px}px`;
     }
 
     const score = (t, won) => el('div', `score${won ? ' won' : ''}`, String(t.score));
