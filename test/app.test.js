@@ -34,7 +34,11 @@ function freePort() {
   });
 }
 
-// Starts the app in a settings folder of its own, on a free port. Gives { app, port, log(), answering(), answer(n), asked() }.
+// Starts the app in a settings folder of its own, on a free port. Gives { app, port, log(), answering(), onAir(),
+// answer(n), asked() }.
+// The free port is found by opening and closing a socket, so a Studio started by another test file (they run side by
+// side) can take it first. So answering() only counts this app's own helper, and onAir() starts the app again on
+// another port when its helper finds the port taken.
 async function launch(t, env = {}) {
   if (!electron) {
     if (process.env.STUDIO_TEST_REQUIRE_APP) assert.fail(`can't run the app: ${why}`);
@@ -44,29 +48,39 @@ async function launch(t, env = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-app-'));
   const local = path.join(home, 'FirstPass Studio');
   fs.mkdirSync(local, { recursive: true });
-  const port = await freePort();
-  fs.writeFileSync(path.join(local, 'config.json'), JSON.stringify({ port, linkHost: 'localhost' }));
-  const app = await electron.launch({ executablePath, args: [ROOT, '--no-sandbox'], cwd: ROOT, env: { ...process.env, XDG_CONFIG_HOME: home, ...env } });
-  t.after(async () => {
+  const start = async () => {
+    studio.port = await freePort();
+    fs.writeFileSync(path.join(local, 'config.json'), JSON.stringify({ port: studio.port, linkHost: 'localhost' }));
+    studio.app = await electron.launch({ executablePath, args: [ROOT, '--no-sandbox'], cwd: ROOT, env: { ...process.env, XDG_CONFIG_HOME: home, ...env } });
+  };
+  const quit = async () => {
     // Quit without asking, then make sure nothing is left on the port.
-    await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {});
-    await app.close().catch(() => {});
+    await studio.app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {});
+    await studio.app.close().catch(() => {});
+  };
+  t.after(async () => {
+    await quit();
     fs.rmSync(home, { recursive: true, force: true });
   });
   const studio = {
-    app, port, local,
+    app: null, port: null, local,
     log: () => { try { return fs.readFileSync(path.join(local, 'logs', 'app.log'), 'utf8'); } catch { return ''; } },
-    answering: async () => { try { return (await fetch(`http://127.0.0.1:${port}/api/version`)).ok; } catch { return false; } },
-    get: async p => (await fetch(`http://127.0.0.1:${port}${p}`)).json(),
-    post: async (p, body) => (await fetch(`http://127.0.0.1:${port}${p}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json(),
+    // This app's helper, if it is what listens on the port: a process the app started.
+    helperPid: () => { const pid = helperPid(studio.port); return pid && startedBy(pid, studio.app.process().pid) ? pid : null; },
+    answering: async () => {
+      if (!studio.helperPid()) return false;
+      try { return (await fetch(`http://127.0.0.1:${studio.port}/api/version`)).ok; } catch { return false; }
+    },
+    get: async p => (await fetch(`http://127.0.0.1:${studio.port}${p}`)).json(),
+    post: async (p, body) => (await fetch(`http://127.0.0.1:${studio.port}${p}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json(),
     // The app's message boxes are answered with button n from now on, and their messages kept for asked().
     async answer(n) {
-      await app.evaluate(({ dialog }, n) => {
+      await studio.app.evaluate(({ dialog }, n) => {
         globalThis.asked = globalThis.asked || [];
         dialog.showMessageBox = async (win, opts) => { globalThis.asked.push((opts || win).message); return { response: n }; };
       }, n);
     },
-    asked: () => app.evaluate(() => globalThis.asked || []),
+    asked: () => studio.app.evaluate(() => globalThis.asked || []),
     async until(fn, ms = 15000) {
       const end = Date.now() + ms;
       let last;
@@ -74,11 +88,39 @@ async function launch(t, env = {}) {
       throw new Error(`Gave up waiting after ${ms}ms. The app's log:\n${studio.log().slice(-2000)}`);
     },
     // Open Studio, as from the menu bar icon (or the Dock).
-    open: () => app.evaluate(({ app }) => app.emit('activate', {}, false)),
+    open: () => studio.app.evaluate(({ app }) => app.emit('activate', {}, false)),
+    // Open Studio and wait until its helper answers. With the port taken (by something else already listening, or
+    // by something that got there first and made the helper exit with code 3) the app is started again on another
+    // port, before anything else has been done with it.
+    async onAir() {
+      for (let attempt = 1; ; attempt++) {
+        const taken = () => /Helper stopped \(code 3\)/.test(studio.log());
+        const other = helperPid(studio.port);
+        if (!other || startedBy(other, studio.app.process().pid)) {
+          await studio.open();
+          await studio.until(async () => taken() || await studio.answering());
+          if (!taken()) return;
+        }
+        if (attempt === 3) assert.fail(`port ${studio.port} was taken ${attempt} times running`);
+        await quit();
+        fs.rmSync(path.join(local, 'logs'), { recursive: true, force: true });
+        await start();
+      }
+    },
     // The window showing a Studio page (not the splash).
-    studioWindow: () => app.windows().find(w => w.url().startsWith(`http://localhost:${port}`)),
+    studioWindow: () => studio.app.windows().find(w => w.url().startsWith(`http://localhost:${studio.port}`)),
   };
+  await start();
   return studio;
+}
+
+// Whether a process was started by another, directly or further down (Linux's /proc: each process's parent).
+function startedBy(pid, ancestor) {
+  for (let p = pid, hops = 0; p > 1 && hops < 20; hops++) {
+    if (p === ancestor) return true;
+    try { p = Number(/\) \S+ (\d+)/.exec(fs.readFileSync(`/proc/${p}/stat`, 'utf8'))[1]); } catch { return false; }
+  }
+  return false;
 }
 
 // The helper's process id, from what's listening on its port (Linux's /proc: the socket's inode, then the process
@@ -110,8 +152,7 @@ test('the app starts off air in the menu bar, and Open Studio puts it on air wit
   await studio.until(() => /Off air until Studio is opened/.test(studio.log()));
   assert.equal(await studio.answering(), false, 'nothing talks to PlayHQ until Studio is opened');
   assert.equal(studio.studioWindow(), undefined);
-  await studio.open();
-  await studio.until(() => studio.answering());
+  await studio.onAir();
   const win = await studio.until(() => studio.studioWindow());
   await win.waitForLoadState('load');
   assert.equal(new URL(win.url()).pathname, '/');
@@ -122,19 +163,18 @@ test('the app starts off air in the menu bar, and Open Studio puts it on air wit
 test('a helper that crashes mid-stream is started again by itself, with the score and clock it had', async t => {
   const studio = await launch(t);
   if (!studio) return;
-  await studio.open();
-  await studio.until(() => studio.answering());
+  await studio.onAir();
   await studio.post('/api/scoreboard', { type: 'score', side: 'home', delta: 2 });
   await studio.post('/api/scoreboard', { type: 'score', side: 'away', delta: 1 });
   await studio.post('/api/scoreboard', { type: 'clockStart' });
   await wait(1500); // the board is saved a moment after a change
-  const pid = helperPid(studio.port);
+  const pid = studio.helperPid();
   assert.ok(pid, 'the helper is listening');
   process.kill(pid, 'SIGKILL');
   await studio.until(async () => !(await studio.answering()), 5000);
   // Back within a few seconds, a new process, with the same score and the clock still running.
   await studio.until(() => studio.answering(), 15000);
-  assert.notEqual(helperPid(studio.port), pid);
+  assert.notEqual(studio.helperPid(), pid);
   const b = await studio.get('/api/scoreboard');
   assert.deepEqual([b.home.score, b.away.score], [2, 1]);
   assert.equal(b.clock.running, true);
@@ -147,8 +187,7 @@ test('a helper that crashes mid-stream is started again by itself, with the scor
 test('closing the last Studio window asks first: Cancel stays on air, Take Off Air stops Studio', async t => {
   const studio = await launch(t);
   if (!studio) return;
-  await studio.open();
-  await studio.until(() => studio.answering());
+  await studio.onAir();
   const win = await studio.until(() => studio.studioWindow());
   await win.waitForSelector('#sources');
   // Cancel: the window stays and Studio stays on air.
@@ -166,8 +205,7 @@ test('closing the last Studio window asks first: Cancel stays on air, Take Off A
   assert.match(studio.log(), /Last Studio window closed/);
   assert.match(studio.log(), /Helper stopped$/m);
   // Open Studio again: back on air.
-  await studio.open();
-  await studio.until(() => studio.answering());
+  await studio.onAir();
 });
 
 test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at their full size, see-through where they should be', async t => {
@@ -175,8 +213,7 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   t.after(() => playhq.close());
   const studio = await launch(t, { PLAYHQ_API_URL: playhq.url, PLAYHQ_SPECTATOR_URL: playhq.spectatorUrl, TZ: localZone(playhq.world.now).tz });
   if (!studio) return;
-  await studio.open();
-  await studio.until(() => studio.answering());
+  await studio.onAir();
   const tpl = fs.readFileSync(path.join(ROOT, 'templates', 'Thunder League.json'));
   await fetch(`http://127.0.0.1:${studio.port}/api/setup-template`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: tpl });
   const pictures = path.join(studio.local, 'Pictures');
