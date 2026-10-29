@@ -415,16 +415,18 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
-- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; every unmuted scene.html plays it with an
-  `<audio>` element, so it follows video sound. Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
+- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; the unmuted scene.html of every output it
+  plays on plays it with an `<audio>` element, so it follows that output's video sound. **Music plays on** (shown with more than one output)
+  ticks those outputs, Output 1 unless set; a sequence's music plays on every output playing the sequence (one of them, the first in its
+  Plays on order, starts and stops it, and the last to end ends it). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
-  pauses under a visible video with sound on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
+  pauses under a visible video with sound on, on an output it plays on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
   startAtSec, fadeInSec; `musicEnd`: fade, cut, or continue into a `then: { type: 'sequence' }`; with none, a sequence step's own
   music plays while that step's sequence does), and scenes and sequences can be `quiet`.
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
-  **Live View** when the Mac is busy. The Scene View plays the scene's sound only while **Video output** is off (for testing);
-  with a display, Blackmagic or NDI output on, the output carries the sound and the Scene View is silent, so it never plays twice. Only one Output
+  **Live View** when the Mac is busy. The Scene View plays the sound of the output it shows only while that output is off (for testing);
+  with its display, Blackmagic or NDI output on, the output carries its own sound and the Scene View is silent, so it never plays twice. Only one Output
   page plays it at a time (click another page's Scene View to bring the sound there). A line under the Scene View says why it's silent, if it is.
   **Pop out** opens the Scene View in its own window (`/preview.html`) that you can resize, move to another screen or make full screen while
   testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it plays the sound just as the Scene View does, and the Output page's Scene View turns off while it's open (so the scene only runs
