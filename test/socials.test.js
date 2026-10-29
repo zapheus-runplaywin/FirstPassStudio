@@ -22,16 +22,19 @@ test('the tab lists every game night, opens on the next, and knows saving needs 
   assert.equal(s.next, studio.world.today);
   assert.deepEqual(Object.keys(s.sizes), ['square', 'portrait', 'story']);
   assert.deepEqual(s.sizes.story, { width: 1080, height: 1920, label: 'Story' });
-  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
+  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
   assert.deepEqual(s.nights.map(n => n.results), [4, 4, 0, 0], 'last two weeks played, tonight and next week to come');
   assert.equal(s.app, false, 'no Mac app around the helper here');
 });
 
+// PlayHQ calls the Socials tab makes; the scoreboard's own live score polling (spectator) runs alongside on its timer.
+const asked = () => studio.calls().filter(c => !c.spectator).length;
+
 test('a night has every game on every court, in time order, with logos, and asks PlayHQ nothing more', async () => {
   await studio.get('/api/socials/night'); // the season's rounds are read once, as for every other page
-  const before = studio.calls().length;
+  const before = asked();
   const n = await studio.get(`/api/socials/night?date=${studio.world.today}`);
-  assert.equal(studio.calls().length, before, 'answered from Studio\'s cache');
+  assert.equal(asked(), before, 'answered from Studio\'s cache');
   assert.equal(n.competition, 'Thunder League');
   assert.equal(n.games.length, 4);
   assert.deepEqual([...new Set(n.games.map(g => g.court))].sort(), ['Court 1', 'Court 2']);
@@ -48,7 +51,22 @@ test('On the stream comes from the Production Planner', async () => {
   const n = await studio.get(`/api/socials/night?date=${studio.world.today}`);
   assert.equal(n.stream.court, 'Court 2');
   assert.equal(n.stream.slots.length, 2);
-  assert.deepEqual(n.stream.slots.find(s => s.time === time).people, [{ name: 'Sam Lee', guest: false }]);
+  assert.deepEqual(n.stream.slots.find(s => s.time === time).people, [{ name: 'Sam Lee', guest: false, headshot: null }]);
+
+  // A headshot added on the Planner goes with them, for the Commentary team picture.
+  const id = p.pool[0].id;
+  const shot = await studio.request('POST', `/api/planner/headshot?id=${id}&ext=png`, PNG, { 'content-type': 'application/octet-stream' });
+  assert.equal(shot.status, 200);
+  assert.equal(shot.json.pool[0].headshotUrl, `/headshots/${id}.png`);
+  const withShot = await studio.get(`/api/socials/night?date=${studio.world.today}`);
+  assert.equal(withShot.stream.slots.find(s => s.time === time).people[0].headshot, `/headshots/${id}.png`);
+  assert.equal((await studio.request('GET', `/headshots/${id}.png`)).status, 200);
+  assert.equal((await studio.post('/api/planner/pool', { pool: [{ id, name: 'Sam Lee', guest: true }] })).pool[0].headshot, `${id}.png`, 'kept when the list is saved');
+  assert.equal((await studio.request('POST', `/api/planner/headshot?id=${id}&ext=gif`, PNG)).status, 400, 'a photo type only');
+  assert.equal((await studio.request('POST', '/api/planner/headshot?id=nobody&ext=png', PNG)).status, 400);
+  await studio.del(`/api/planner/headshot?id=${id}`);
+  assert.equal((await studio.request('GET', `/headshots/${id}.png`)).status, 404, 'removed');
+  await studio.post('/api/planner/pool', { pool: [{ id, name: 'Sam Lee' }] });
 });
 
 test('a played night has each result and winner; the ladders and top shooters come only when asked, then from the cache', async () => {
@@ -70,9 +88,9 @@ test('a played night has each result and winner; the ladders and top shooters co
   assert.equal(full.shooters.superShots, true);
   assert.equal(full.shooters.players.length, 6);
   assert.deepEqual(full.shooters.players.map(p => p.points), [...full.shooters.players.map(p => p.points)].sort((a, b) => b - a), 'most points first');
-  const before = studio.calls().length;
+  const before = asked();
   await studio.get(`/api/socials/night?date=${date}&with=ladders,shooters`);
-  assert.equal(studio.calls().length, before, 'finished games\' line ups are read once and kept');
+  assert.equal(asked(), before, 'finished games\' line ups are read once and kept');
 
   const old = await studio.get(`/api/socials/night?date=${(await studio.get('/api/socials')).nights[0].date}&with=ladders,shooters`);
   assert.deepEqual(old.ladders.map(l => l.after), ['', ''], 'an older night gets the ladder as it stands, not "after" its round');
@@ -82,7 +100,7 @@ test('a played night has each result and winner; the ladders and top shooters co
 
 test('the sponsor strip and the Studio mark are kept per competition', async () => {
   const r = await studio.post('/api/socials/settings', { mark: false, sponsor: { polaroid: true, fixtures: false, nonsense: true } });
-  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
+  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, commentators: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
   assert.deepEqual((await studio.get('/api/socials')).settings, r.settings);
   assert.equal((await studio.post('/api/socials/settings', { pivt: false })).settings.pivt, false, 'the PIVT logo is optional too');
   await studio.post('/api/socials/settings', { mark: true, pivt: true });

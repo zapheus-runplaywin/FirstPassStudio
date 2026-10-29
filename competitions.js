@@ -390,7 +390,7 @@ function saveAsImport(id, importId, replace) {
 }
 
 // ─── Images (and font files) ────────────────────────────────────────────────
-const KINDS = ['logos', 'brand', 'photos', 'fonts'];
+const KINDS = ['logos', 'brand', 'photos', 'fonts', 'headshots']; // headshots: the Production Planner's commentators'
 function imageDir(id, kind) { return path.join(dirOf(id), KINDS.includes(kind) ? kind : 'logos'); }
 const typeOf = kind => kind === 'fonts' ? fonts.FILE : IMAGE;
 function images(id, kind) {
@@ -400,7 +400,7 @@ function saveImage(id, kind, fileName, buf) {
   writable();
   const name = path.basename(String(fileName || '')).replace(/[^\w .'()&+-]/g, '').trim();
   if (!typeOf(kind).test(name)) throw new Error(kind === 'fonts' ? 'Fonts must be TTF, OTF, WOFF or WOFF2 files.'
-    : `${kind === 'photos' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
+    : `${kind === 'photos' || kind === 'headshots' ? 'Photos' : 'Logos'} must be PNG, JPG, WebP, SVG or GIF files.`);
   if (!buf.length) throw new Error('That file is empty.');
   if (kind !== 'fonts') uploads.checkImage(name, buf);
   fs.mkdirSync(imageDir(id, kind), { recursive: true });
@@ -421,7 +421,7 @@ function renameImage(id, kind, from, to) {
   fs.renameSync(src, path.join(imageDir(id, kind), name));
   return name;
 }
-// The file behind a /logos/, /brand/, /photos/ or /fonts/ link, for the competition in use.
+// The file behind a /logos/, /brand/, /photos/, /headshots/ or /fonts/ link, for the competition in use.
 function imageFile(id, kind, fileName) {
   const name = path.basename(decodeURIComponent(fileName));
   return typeOf(kind).test(name) ? path.join(imageDir(id, kind), name) : null;

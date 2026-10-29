@@ -988,7 +988,7 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/setup')) return await setupRoute(req, res, url, q);
     // The competition in use: its colours and font, team logos, competition logo, athlete photos and added fonts.
     if (url.pathname === '/theme.css') return send(res, 200, competitions.themeCss(CONFIG, fontPaths(competitions.activeId()), await fonts.macFaces(CONFIG.font)), 'text/css; charset=utf-8');
-    if (/^\/(logos|brand|photos|fonts)\//.test(url.pathname)) {
+    if (/^\/(logos|brand|photos|headshots|fonts)\//.test(url.pathname)) {
       const [, kind, name = ''] = url.pathname.split('/');
       // A photo the athlete hasn't approved goes only to someone who may change the athletes (the athletes page), never
       // to a graphic or a device that only watches.
@@ -1028,7 +1028,7 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
     // A saved plan can change tonight's court, so automatic game selection looks again straight away.
-    if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, changed: () => autoPick() })) return;
+    if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, readRaw, changed: () => autoPick() })) return;
     if (url.pathname.startsWith('/api/socials') || url.pathname.startsWith('/socials/')) {
       if (await socials.route(req, res, url, { send, readBody, readRaw, port: PORT })) return;
     }

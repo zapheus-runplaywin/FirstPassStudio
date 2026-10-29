@@ -888,7 +888,9 @@ The **Production Planner** tab (`planner.html`, ⌘2, before Scoreboard control)
 three commentators for each game on it. Studio streams one court a night; another court is another Mac running its own Studio.
 
 - **Commentators:** a list per competition (name, and a Guest tick for a special guest). Adding a name suggests people
-  from your other competitions' lists.
+  from your other competitions' lists. Click the circle beside a name (or drop a photo on the row) to add their headshot,
+  for the Socials tab's Commentary team picture; the × on it takes it off (`POST`/`DELETE /api/planner/headshot?id=`,
+  saved in `competitions/<name>/headshots/`, served at `/headshots/`).
 - **Nights:** every date any division plays this season, from PlayHQ's fixture (by date, not round). Pick the court, then
   add people to each game. A night with no plan of its own takes the plan of the last planned night before it (the court,
   and the people game by game in time order), so a regular team is planned once.
@@ -920,7 +922,9 @@ square 1080 x 1080, portrait 1080 x 1350 and Story 1080 x 1920. Pick the night b
 Upcoming or Results (a night with results opens on Results) and the sizes; untick what you don't want.
 
 - **Upcoming:** the game night fixture (every game on every court, by time), a match up for each game, *On the stream* (the
-  court Studio streams, each game's division and who calls it, from the Production Planner) and a polaroid for a match photo.
+  court Studio streams, each game's division and who calls it, from the Production Planner), *Commentary team* (everyone on
+  the mic that night with their headshot from the Production Planner, initials until one is added, and a Special guest
+  pill for a guest) and a polaroid for a match photo.
 - **Results:** the night's final scores (each division, the winner highlighted), a full time card per game, the ladder of
   each division that played (as PlayHQ has it now, "after Round N" when it's the division's latest night with results,
   with the finals line), the night's top six shooters over every division (from each finished game's line ups, read once
@@ -950,7 +954,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   opens the folder; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
   picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.
 
-Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|polaroid|results|fulltime|ladder|topshooters&size=square|portrait|story`
+Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|commentators|polaroid|results|fulltime|ladder|topshooters&size=square|portrait|story`
 (`&date=`, `&game=`, `&division=`, `&sponsor=0|1`, `&mark=0|1`, `&pivt=0|1`, `&colours=`, `&title=`; the polaroid's `&photo=`, `&px=`,
 `&py=`, `&zoom=`, `&caption=`, `&note=`). Everything comes from Studio (`/api/socials/night`, `&with=ladders` or
 `&with=shooters` for the pictures that need them), which reads the fixture, results and ladders through the same cache
