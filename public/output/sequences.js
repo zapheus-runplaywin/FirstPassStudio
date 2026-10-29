@@ -447,8 +447,10 @@ function renderThens(fresh) {
   if (ticked.length < 2) return;
   ticked.forEach((o, i) => {
     const x = out.outputs.find(y => y.id === o);
-    const row = document.createElement('label');
-    row.className = 'inline sqThenRow';
+    // A plain row, not a label: in the Mac app a dropdown inside a label can shut as it opens.
+    const row = document.createElement('div');
+    row.className = 'sqThenRow';
+    row.style.cssText = 'display:flex;align-items:center;gap:4px';
     row.innerHTML = `<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${x ? x.colour : '#888'}"></i> <span style="display:inline-block;min-width:140px"></span>`;
     row.querySelector('span').textContent = `On ${x ? x.name : 'a removed output'}`;
     let sel = main;
