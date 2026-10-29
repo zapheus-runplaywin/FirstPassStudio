@@ -202,8 +202,9 @@ test('closing the last Studio window asks first: Cancel stays on air, Take Off A
   await studio.answer(0);
   await studio.app.evaluate(({ BrowserWindow }, port) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes(`:${port}`)).close(), studio.port);
   await studio.until(async () => !(await studio.answering()));
+  // The log reaches its file a moment after the port closes.
+  await studio.until(() => /Helper stopped$/m.test(studio.log()));
   assert.match(studio.log(), /Last Studio window closed/);
-  assert.match(studio.log(), /Helper stopped$/m);
   // Open Studio again: back on air.
   await studio.onAir();
 });
