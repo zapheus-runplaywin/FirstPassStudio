@@ -196,6 +196,8 @@ const socials = require('./socials').create({
     return { rows, finalsPlaces: finals.ladderMarks(finals.sized(finalsFor(grade.name), rows.length)).places };
   },
   tallyShooters: games => theGames.tallyShooters(games), superShots: division => !!rules(division).superShots,
+  // The competition's colours, for the colour sets.
+  theme: () => ({ colours: CONFIG.colours, panelOpacity: CONFIG.panelOpacity }),
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
