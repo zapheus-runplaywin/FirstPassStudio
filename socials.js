@@ -44,7 +44,7 @@ const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
 const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-function create({ log, competitions, savefile, photosDir, byDate, roster, about, logoFor, sponsorsFor, appPort = process.parentPort || null }) {
+function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -94,8 +94,7 @@ function create({ log, competitions, savefile, photosDir, byDate, roster, about,
     const games = (dates[date] || []).map(brief);
     let stream = null;
     try {
-      const r = await roster({ date });
-      if (r.court && !r.error) stream = { court: r.court, slots: r.slots.map(s => ({ time: s.time, division: s.division, home: s.home, away: s.away, people: s.people })) };
+      stream = await onStream(date);
     } catch (err) { log('warn', 'socials', `No Production Planner for ${date}: ${err.message}`); }
     const a = about();
     const venues = [...new Set(games.map(g => g.venue).filter(Boolean))];

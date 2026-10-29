@@ -39,7 +39,7 @@ const SHOWS = {
   'commentator.html?refresh=0': ['Blizzardz', 'Game stats', 'Shooting', 'Lead changes', 'Blizzardz GS', 'games', 'Moments', 'Score worm'],
   'worm.html': ['Blizzardz', 'Score worm', 'Lead changes'],
   'social.html': ['Game night', 'Blizzardz', 'Court 2'],
-  'socials.html': ['Fixture board', 'Polaroid', 'Match up Blizzardz'],
+  'socials.html': ['Game night fixture', 'Polaroid', 'Match up Blizzardz'],
 };
 // How long each page gets to load its data and draw.
 const SETTLE_MS = 2500;

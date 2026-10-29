@@ -895,12 +895,18 @@ three commentators for each game on it. Studio streams one court a night; anothe
   court or picking a game by hand there is never undone; the Planner flags it at the top instead.
 - **Graphics:** `commentators.html` with no `?name=` shows whoever is planned for the game on the scoreboard
   (`/api/planner/onair`), with the tab *Special guest commentators* when everyone planned is a guest, and
-  `commentator.html` shows them under the clock (`?mic=0` leaves that out). `roster.html` is a full-screen roster of the
-  night for a monitor backstage: each game on the planned court with who is on the mic, the game on now lit up
-  (`/api/planner/roster`; `?date=`, `?title=`, `?bg=0`, `?refresh=0`).
+  `commentator.html` shows them under the clock (`?mic=0` leaves that out). `fixtureboard.html`, the **Fixture board (Full Page)**,
+  is the night's whole fixture for a screen in the competition room or backstage (or to share before the night): a
+  row per time slot and a column per court, headed *Tonight's Fixtures* or the day (*Tuesday Night's Fixtures*). The
+  planned court has a camera and its games name who is on the mic. Live games show their score and quarter (the
+  streamed one from the scoreboard, the rest through the ticker's reader and cache, `games.js` `withLiveScores`, so
+  no extra PlayHQ requests while the ticker reads, at most one a minute per live game otherwise); finished games grey
+  out with the winner in yellow (on the streamed court, the score the scoreboard had when it moved on, `lastGame` in
+  the board, until PlayHQ has the result), and only the last finished time slot stays (`/api/planner/fixtureboard`;
+  `?date=`, `?title=`, `?bg=0`, `?refresh=0`). The old `roster.html` link opens it.
 
 Saved in `competitions/<name>/planner.json`. Reading `/api/planner` is private like the athlete register (this Mac and
-allowed devices when the lock is on); `/api/planner/onair` and `/api/planner/roster` stay open for the graphics.
+allowed devices when the lock is on); `/api/planner/onair` and `/api/planner/fixtureboard` stay open for the graphics.
 
 ## Socials
 
@@ -908,7 +914,7 @@ The **Socials** tab (`socials.html`, ⌘8) makes pictures of a game night for so
 square 1080 x 1080, portrait 1080 x 1350 and Story 1080 x 1920. Pick the night by date (every division playing that night)
 and the sizes; untick what you don't want.
 
-- **Upcoming:** a fixture board (every game on every court, by time), a match up for each game, *On the stream* (the
+- **Upcoming:** the game night fixture (every game on every court, by time), a match up for each game, *On the stream* (the
   court Studio streams and who calls each game, from the Production Planner) and a polaroid for a match photo.
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac

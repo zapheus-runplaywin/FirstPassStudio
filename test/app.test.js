@@ -185,11 +185,11 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   assert.equal(info.app, true, 'the helper knows the app is there to save them');
   const date = info.next;
   const saved = await studio.post('/api/socials/export', { date, set: 'upcoming', items: [
-    { name: 'Fixture board', link: `/social.html?kind=fixtures&size=story&date=${date}`, size: 'story' },
+    { name: 'Game night fixture', link: `/social.html?kind=fixtures&size=story&date=${date}`, size: 'story' },
     { name: 'Polaroid', link: `/social.html?kind=polaroid&size=square&date=${date}`, size: 'square' },
   ] });
   assert.ok(!saved.error, saved.error);
-  assert.deepEqual(saved.files, ['01 Fixture board (story).png', '02 Polaroid (square).png']);
+  assert.deepEqual(saved.files, ['01 Game night fixture (story).png', '02 Polaroid (square).png']);
   const folder = path.join(pictures, 'FirstPass Studio', `Thunder League ${date} Upcoming`);
   assert.equal(await studio.app.evaluate(() => globalThis.opened), folder, 'Finder shows the folder');
   const png = f => fs.readFileSync(path.join(folder, f));

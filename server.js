@@ -176,11 +176,12 @@ const { setNightChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, g
 const planner = require('./planner').create({
   log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt: theGames.sameCourt, night: theGames.nightChoice,
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '' }), logoFor: n => logoFor(n),
+  withLiveScores: theGames.withLiveScores, isLive: theGames.isLive,
 });
 
 // The Socials tab: a game night's pictures for social media, saved by the Mac app (socials.js).
 const socials = require('./socials').create({
-  log, competitions, savefile, photosDir: datadir.local('socials-photos'), byDate: () => planner.byDate(), roster: q => planner.roster(q),
+  log, competitions, savefile, photosDir: datadir.local('socials-photos'), byDate: () => planner.byDate(), onStream: date => planner.onStream(date),
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '', logo: rules().competitionLogoDark }), logoFor: n => logoFor(n),
   // The top sponsors (naming, elite and major), for the sponsor strip.
   sponsorsFor: () => {

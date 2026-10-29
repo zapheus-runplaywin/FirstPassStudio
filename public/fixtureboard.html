@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fixture Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="graphics.css">
+<style>
+  /* This page's own layout. What it shares with other graphics is in graphics.css. */
+  /* The fixture board: the whole 1920 x 1080 frame, for a screen in the competition room or backstage rather than the
+     stream. A header with the night, then the night's fixture as a grid: a row per time slot, a column per court.
+     The streamed court is marked with a camera, and its games name who is on the mic. --s sizes everything in the
+     grid: it starts at 1.6 and is made smaller until every cell fits (many courts or slots, long names). */
+  body { padding: 40px 56px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 22px;
+    background: radial-gradient(circle at 50% 25%, var(--purple-dark-light, #3b1a52), var(--purple-dark, #1e0b2b) 75%); }
+  body.see-through { background: transparent; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .head__left { display: flex; align-items: center; gap: 24px; min-width: 0; }
+  .head__title { margin: 0; font-size: 56px; font-weight: 800; line-height: 1; text-transform: uppercase; color: var(--yellow); letter-spacing: .02em; white-space: nowrap; }
+  .head__when { text-align: right; font-size: 28px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; line-height: 1.2; white-space: nowrap; }
+  .head__when small { display: block; font-size: 20px; color: var(--muted); letter-spacing: .1em; }
+  .board { --s: 1; flex: 1; min-height: 0; display: grid; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); gap: calc(16px * var(--s)); }
+  .court { text-align: center; font-size: calc(24px * var(--s)); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); align-self: end; white-space: nowrap; }
+  .court.streamed { color: var(--text); }
+  .cam { display: inline-block; width: 1.4em; height: .9em; background: currentColor; vertical-align: -.05em;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 16'%3E%3Crect x='0' y='1' width='16' height='14' rx='3'/%3E%3Cpath d='M17 6l7-4v12l-7-4z'/%3E%3C/svg%3E") center/contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 16'%3E%3Crect x='0' y='1' width='16' height='14' rx='3'/%3E%3Cpath d='M17 6l7-4v12l-7-4z'/%3E%3C/svg%3E") center/contain no-repeat; }
+  .court .cam { color: var(--pink); margin-right: .4em; }
+  .slot { display: flex; flex-direction: column; justify-content: center; }
+  .slot b { font-size: calc(40px * var(--s)); font-weight: 800; color: var(--yellow); line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .slot small { font-size: calc(20px * var(--s)); color: var(--muted); font-weight: 800; letter-spacing: .1em; margin-top: 4px; }
+  .slot.done b { color: var(--muted); }
+  .game { min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; background: var(--purple-deep); border-radius: calc(16px * var(--s));
+    padding: calc(14px * var(--s)) calc(20px * var(--s)); display: flex; flex-direction: column; justify-content: center; gap: calc(8px * var(--s));
+    border: calc(3px * var(--s)) solid transparent; }
+  .game.streamed { border-color: rgba(230, 0, 126, .6); }
+  .game.live.streamed { border-color: var(--pink); background: var(--purple-deep-alt); box-shadow: 0 0 0 calc(3px * var(--s)) rgba(230, 0, 126, .35), 0 0 calc(36px * var(--s)) rgba(230, 0, 126, .45); }
+  /* Done: greyed, but the winner keeps its yellow so the result still reads. */
+  .game.done { background: rgba(255, 255, 255, .06); }
+  .game.done .team:not(.win), .game.done .meta, .game.done .mic { opacity: .5; }
+  .game.done .logo { filter: grayscale(1); opacity: .6; }
+  .game.empty { background: transparent; }
+  .team { display: flex; align-items: center; gap: calc(12px * var(--s)); min-width: 0; font-size: calc(26px * var(--s)); font-weight: 800; text-transform: uppercase; }
+  .team .logo { width: calc(44px * var(--s)); height: calc(44px * var(--s)); object-fit: contain; flex: none; }
+  .team .logo.logo-fallback { font-size: calc(18px * var(--s)); border-width: calc(3px * var(--s)); box-sizing: border-box; }
+  .team .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .team.win .name, .team.win .pts { color: var(--yellow); }
+  .pts { font-size: calc(30px * var(--s)); font-variant-numeric: tabular-nums; }
+  .meta { display: flex; align-items: center; gap: calc(10px * var(--s)); font-size: calc(16px * var(--s)); font-weight: 700; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+  .tags { display: flex; gap: calc(8px * var(--s)); margin-left: auto; }
+  .tag { font-size: calc(15px * var(--s)); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: calc(4px * var(--s)) calc(10px * var(--s)); border-radius: 999px; background: rgba(255, 255, 255, .12); color: var(--text); }
+  .tag.live { background: var(--pink); }
+  .tag.live::before { content: ''; display: inline-block; width: .6em; height: .6em; border-radius: 50%; background: var(--text); margin-right: .4em; vertical-align: .05em; }
+  .tag.streamed { background: var(--pink); padding-left: calc(8px * var(--s)); padding-right: calc(8px * var(--s)); }
+  .mic { display: flex; flex-wrap: wrap; gap: calc(8px * var(--s)); }
+  .person { background: rgba(255, 255, 255, .12); border-radius: 999px; padding: calc(5px * var(--s)) calc(14px * var(--s)); font-size: calc(20px * var(--s)); font-weight: 800; white-space: nowrap; }
+  .person.guest { background: var(--pink); }
+  .person.guest::after { content: 'Guest'; margin-left: .3em; font-size: .55em; letter-spacing: .12em; text-transform: uppercase; vertical-align: .3em; }
+  .message { color: var(--text); background: var(--purple-deep); padding: 16px 24px; border-radius: 8px; font-size: 26px; align-self: flex-start; }
+</style>
+<script src="log.js"></script>
+<script src="chroma.js"></script>
+<script src="sceneevents.js"></script>
+</head>
+<body>
+  <!-- A 1920 x 1080 full page for the Output page, for a screen in the competition room or backstage (not the stream),
+       and a picture to share before the night: the night's whole fixture from PlayHQ.
+       http://localhost:8080/fixtureboard.html
+       The night is the game night picked on Scoreboard control, else today, else the next game night; the heading is
+       "Tonight's Fixtures", or the day ("Tuesday Night's Fixtures") for another night. A row per time slot and a column per
+       court. The court the Production Planner (planner.html) streams that night has a camera, and its games name who is
+       on the mic (special guests marked). Games being played show LIVE with their score and quarter: the streamed game's
+       from the scoreboard, the others' through the ticker's live reader and cache, so the board adds no PlayHQ requests
+       while the ticker is reading. Finished games grey out with their final score and the winner in yellow; once a time
+       slot is all finished the slot before it drops off, so only the last finished slot stays.
+       It follows the scoreboard live and reads the fixture again every minute.
+       Options: ?date=2026-11-04 (another night)  ?title=Grand%20Final%20Night (the heading)  ?bg=0 (see-through)
+                ?refresh=0 (loads once) -->
+  <header class="head" id="head" hidden>
+    <div class="head__left">
+      <div class="tab" id="comp"></div>
+      <h1 class="head__title" id="title"></h1>
+    </div>
+    <div class="head__when" id="when"></div>
+  </header>
+  <div class="board" id="board"></div>
+  <p class="message" id="message" hidden></p>
+  <script src="teams.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const $ = id => document.getElementById(id);
+    if (params.get('bg') === '0') document.body.classList.add('see-through');
+    const refresh = params.get('refresh') !== '0';
+
+    function clock(time) {
+      const [h, m] = String(time || '').split(':').map(Number);
+      return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')}` : (time || 'TBC');
+    }
+    const ampm = time => (Number(String(time).split(':')[0]) < 12 ? 'AM' : 'PM');
+    const camera = () => el('span', 'cam');
+
+    // The time slots shown: from the last one that is all finished, so one finished slot at most stays.
+    function shown(slots) {
+      let first = 0;
+      slots.forEach((s, i) => { if (s.games.length && s.games.every(g => g.state === 'done')) first = i; });
+      return slots.slice(first);
+    }
+
+    function cell(g) {
+      const c = el('div', `game ${g.state}${g.streamed ? ' streamed' : ''}`);
+      for (const side of ['home', 'away']) {
+        const t = el('div', `team${g.winner === side ? ' win' : ''}`);
+        t.append(logoEl(g[side], 'logo'), el('span', 'name', g[side].name));
+        if (g.score) t.append(el('span', 'pts', g.score[side]));
+        c.append(t);
+      }
+      const meta = el('div', 'meta');
+      meta.append(el('span', '', [g.division, g.round].filter(Boolean).join('  ·  ')));
+      const tags = meta.appendChild(el('div', 'tags'));
+      if (g.streamed) { const t = tags.appendChild(el('span', 'tag streamed')); t.title = 'Streamed'; t.append(camera()); }
+      if (g.state === 'live') tags.append(el('span', 'tag live', g.period || 'Live'));
+      if (g.state === 'done') tags.append(el('span', 'tag', g.winner === 'draw' ? 'Draw' : 'Full time'));
+      c.append(meta);
+      if (g.streamed && g.people.length) {
+        const mic = c.appendChild(el('div', 'mic'));
+        for (const p of g.people) mic.append(el('span', `person${p.guest ? ' guest' : ''}`, p.name));
+      }
+      return c;
+    }
+
+    function draw(d) {
+      const day = new Date(`${d.date}T00:00:00`);
+      $('comp').textContent = d.competition || '';
+      $('title').textContent = params.get('title') || (d.today ? "Tonight's Fixtures" : `${day.toLocaleDateString('en-AU', { weekday: 'long' })} Night's Fixtures`);
+      $('when').replaceChildren(day.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }), el('small', '', d.venue || ''));
+      $('head').hidden = false;
+      const courts = d.courts.length ? d.courts : [''];
+      const board = $('board');
+      board.style.gridTemplateColumns = `max-content repeat(${courts.length}, minmax(0, 1fr))`;
+      board.style.setProperty('--s', 1.6);
+      const cells = [el('div')];
+      for (const c of courts) {
+        const h = el('div', `court${c && c === d.court ? ' streamed' : ''}`);
+        if (c && c === d.court) h.append(camera(), `${c} · Streamed`); else h.textContent = c;
+        cells.push(h);
+      }
+      for (const s of shown(d.slots)) {
+        const t = el('div', `slot${s.games.every(g => g.state === 'done') ? ' done' : ''}`);
+        t.append(el('b', '', clock(s.time)), el('small', '', ampm(s.time)));
+        cells.push(t);
+        for (const c of courts) {
+          const g = s.games.find(x => x.court === c) || (c === '' ? s.games[0] : null);
+          cells.push(g ? cell(g) : el('div', 'game empty'));
+        }
+      }
+      board.replaceChildren(...cells);
+      // As big as fits: from 1.6 (a small night fills the frame) down until nothing in a cell is cut off.
+      const over = () => [...board.querySelectorAll('.game')].some(g => g.scrollHeight > g.clientHeight + 1 || g.scrollWidth > g.clientWidth + 1)
+        || board.scrollHeight > board.clientHeight + 1;
+      for (let size = 1.6; size > 0.4 && over(); size -= 0.05) board.style.setProperty('--s', size.toFixed(2));
+    }
+
+    let last = '';
+    async function load() {
+      try {
+        const q = new URLSearchParams();
+        if (params.get('date')) q.set('date', params.get('date'));
+        const d = await (await fetch(`/api/planner/fixtureboard?${q}`, { cache: 'no-store' })).json();
+        if (d.error && !(d.slots && d.slots.length)) throw new Error(d.error);
+        $('message').hidden = true;
+        const json = JSON.stringify(d);
+        if (json === last) return;
+        last = json;
+        draw(d);
+        window.pageLog && window.pageLog('info', `Fixture board: ${d.date}, ${d.slots.length} time slots${d.court ? `, ${d.court} streamed` : ''}`);
+      } catch (err) {
+        console.warn('Fixture board unavailable:', err.message);
+        $('message').textContent = `Fixture board: ${err.message}`;
+        $('message').hidden = false;
+      }
+    }
+
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
+      load();
+      if (!refresh) return;
+      // The scoreboard moves on through the night: a new game, a goal, a new quarter or the clock starting shows
+      // straight away (at most once a second).
+      let key, timer;
+      sceneEvents(null, { board: b => {
+        const k = `${b.gameId}|${b.home && b.home.score}|${b.away && b.away.score}|${b.period}|${!!(b.clock && b.clock.running)}`;
+        if (key !== undefined && k !== key && !timer) timer = setTimeout(() => { timer = null; load(); }, 1000);
+        key = k;
+      } });
+      setInterval(load, 60000);
+    });
+  </script>
+</body>
+</html>

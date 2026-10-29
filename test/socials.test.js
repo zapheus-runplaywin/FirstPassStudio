@@ -71,7 +71,7 @@ test('a polaroid photo is kept on this Mac and served as a plain file; anything 
 });
 
 test('saving says it needs the Mac app when Studio runs without it', async () => {
-  const r = await studio.request('POST', '/api/socials/export', { date: studio.world.today, items: [{ name: 'Fixture board', link: '/social.html?kind=fixtures&size=square', size: 'square' }] });
+  const r = await studio.request('POST', '/api/socials/export', { date: studio.world.today, items: [{ name: 'Game night fixture', link: '/social.html?kind=fixtures&size=square', size: 'square' }] });
   assert.equal(r.status, 501);
   assert.match(r.json.error, /needs the FirstPass Studio app/);
 });

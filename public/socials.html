@@ -74,7 +74,7 @@
       </span>
       <label><input type="checkbox" id="mark"> FirstPass Studio mark in the corner</label>
     </div>
-    <p class="help">Upcoming: the night's fixture board, a match up for each game, who is on the stream (from the Production Planner) and a polaroid for a match photo.
+    <p class="help">Upcoming: the night's fixture, a match up for each game, who is on the stream (from the Production Planner) and a polaroid for a match photo.
       Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
@@ -100,7 +100,7 @@
 
   // The pictures for this night, each { key, kind, name, help, game?, missing? }.
   function pictures() {
-    const list = [{ key: 'fixtures', kind: 'fixtures', name: 'Fixture board', help: 'Every game of the night, on every court, by time.' }];
+    const list = [{ key: 'fixtures', kind: 'fixtures', name: 'Game night fixture', help: 'Every game of the night, on every court, by time.' }];
     for (const g of night.games) list.push({ key: `matchup:${g.id}`, kind: 'matchup', game: g.id, name: `Match up ${g.home.name} v ${g.away.name}`,
       help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
     list.push({ key: 'onstream', kind: 'onstream', name: 'On the stream', help: night.stream ? `${night.stream.court}'s games and who is calling them.` : '',

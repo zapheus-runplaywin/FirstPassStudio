@@ -50,16 +50,19 @@ test('a pool, a night\'s plan, nights after it, and the scoreboard\'s court', as
   assert.ok(due, 'the scoreboard is on one of the planned games');
   const on = await get('/api/planner/onair');
   assert.deepEqual(on.names, due.people.map(id => p.pool.find(x => x.id === id).name));
-  // The roster graphic: tonight's games on the planned court, who calls each, and which is on now.
-  const roster = await get('/api/planner/roster');
-  assert.equal(roster.date, studio.world.today);
-  assert.equal(roster.court, 'Court 2');
-  assert.equal(roster.slots.length, 2);
-  assert.deepEqual(roster.slots.find(s => s.onAir).people.map(x => x.name), on.names);
-  assert.deepEqual(roster.slots[0].people.find(x => x.name === 'Honey Harrington'), { name: 'Honey Harrington', guest: true });
-  const later = await get(`/api/planner/roster?date=${p.nights[3].date}`);
+  // The fixture board: every game of the night by time and court, the planned court streamed with who calls each.
+  const fb = await get('/api/planner/fixtureboard');
+  assert.equal(fb.date, studio.world.today);
+  assert.equal(fb.court, 'Court 2');
+  assert.deepEqual(fb.courts, ['Court 1', 'Court 2']);
+  const all = fb.slots.flatMap(x => x.games);
+  assert.equal(all.length, tonight.games.length, 'every game of the night, all courts');
+  assert.ok(all.filter(g => g.court === 'Court 1').every(g => !g.streamed && !g.people.length), 'only the streamed court names commentators');
+  assert.deepEqual(all.find(g => g.onAir).people.map(x => x.name), on.names);
+  assert.deepEqual(all.filter(g => g.streamed)[0].people.find(x => x.name === 'Honey Harrington'), { name: 'Honey Harrington', guest: true });
+  const later = await get(`/api/planner/fixtureboard?date=${p.nights[3].date}`);
   assert.equal(later.court, 'Court 2', 'another night, taking tonight\'s plan');
-  assert.ok(later.slots.every(s => !s.onAir));
+  assert.ok(later.slots.every(x => x.games.every(g => !g.onAir)));
 
   // The nights after it take tonight's plan; next week can have its own.
   const next = p.nights.find(n => n.date > studio.world.today);
@@ -114,6 +117,36 @@ test('a slot keeps its commentators when PlayHQ moves its game, and says so', as
   const gone = v.slots.find(s => s.time === '23:59');
   assert.equal(gone.game, null, 'a slot with no game now is still shown, so its people can be moved');
   assert.equal(gone.changed.was, 'Moved Home v Moved Away');
+});
+
+test('the fixture board says which games are done, live and next, with live scores and the winner', async () => {
+  let p = await get('/api/planner');
+  const id = p.pool[0].id;
+  const games = (await get('/api/games')).filter(g => g.court === 'Court 1' && g.date === studio.world.today).sort((a, b) => a.time.localeCompare(b.time));
+  p = await post('/api/planner/night', { date: studio.world.today, court: 'Court 1', slots: { [games[0].time.slice(0, 5)]: [id] } });
+  await post('/api/scoreboard', { type: 'selectGame', game: games[0] });
+  await post('/api/scoreboard', { type: 'score', side: 'home', delta: 3 });
+  const find = (r, gid) => r.slots.flatMap(x => x.games).find(g => g.id === gid);
+  let r = await get('/api/planner/fixtureboard');
+  let g0 = find(r, games[0].id);
+  assert.equal(g0.state, 'live', 'scored, so live');
+  assert.deepEqual(g0.score, { home: 3, away: 0 }, 'the scoreboard\'s score');
+  assert.match(g0.period, /^Q\d$/);
+  // The other division's game being played now is live too, with its score from the live feed (as the ticker reads it).
+  const other = r.slots.flatMap(x => x.games).find(g => g.id !== games[0].id && g.state === 'live');
+  assert.ok(other && other.score, 'another court\'s live game has a score');
+  // Finished games from earlier rounds aren't tonight; tonight's later games are next.
+  assert.ok(r.slots.flatMap(x => x.games).some(g => g.state === 'next' || g.state === 'live'));
+  // The scoreboard moves on: the first game is done, with the score it had (PlayHQ has no result yet) and its winner.
+  await post('/api/scoreboard', { type: 'selectGame', game: games[1] });
+  r = await get('/api/planner/fixtureboard');
+  g0 = find(r, games[0].id);
+  assert.equal(g0.state, 'done');
+  assert.deepEqual(g0.score, { home: 3, away: 0 });
+  assert.equal(g0.winner, 'home');
+  assert.equal(g0.people[0].name, p.pool[0].name);
+  // The old roster link opens the fixture board.
+  assert.match(await fetch(`${studio.base}/roster.html`).then(x => x.text()), /fixtureboard\.html/);
 });
 
 test('the commentators graphics read who is on the mic', async () => {
