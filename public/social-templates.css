@@ -9,8 +9,8 @@
 /* Every template: the points stay on the highlight (the ladder's last column) and the accent (a shooter's points),
    whatever a template does to the cells around them. --nf scales the team and player names for a face that runs
    wider or narrower than most. */
-:is(.t-fun, .t-dynamic, .t-futuristic, .t-professional, .t-thunder, .t-geometric, .t-striped, .t-highcontrast, .t-3d, .t-neon, .t-gameday, .t-arena) .ladder td:last-child { background: var(--yellow); color: var(--text-on-yellow); }
-:is(.t-fun, .t-dynamic, .t-junior, .t-retro, .t-futuristic, .t-professional, .t-thunder, .t-geometric, .t-gradient, .t-striped, .t-3d, .t-neon) .stat.main { background: var(--pink); color: #fff; }
+:is(.t-fun, .t-dynamic, .t-futuristic, .t-professional, .t-thunder, .t-geometric, .t-striped, .t-highcontrast, .t-3d, .t-neon, .t-gameday, .t-arena, .t-court, .t-bib, .t-goal) .ladder td:last-child { background: var(--yellow); color: var(--text-on-yellow); }
+:is(.t-fun, .t-dynamic, .t-junior, .t-retro, .t-futuristic, .t-professional, .t-thunder, .t-geometric, .t-gradient, .t-striped, .t-3d, .t-neon, .t-court, .t-bib, .t-goal) .stat.main { background: var(--pink); color: #fff; }
 :is(.t-junior, .t-retro) .stat.main small { color: #fff; }
 
 /* ── Fun: stickers, confetti and a bouncy rounded face ─────────────────────────────────────────────────────────── */
@@ -504,3 +504,81 @@
 .t-hero .title { font-size: 124px; }
 .t-final .head__logo { width: 220px; }
 .t-final .title { font-size: 128px; }
+
+/* ── Netball: three sets drawn from the game itself, a court, a bib and the goal. Shapes are masks (an SVG's shape,
+   filled with the colour set's colours), so they follow the colour set like everything else. ──────────────────── */
+
+/* Court: the court's surface in the main colour, its lines in white: the outline, the thirds, the centre circle and
+   both goal circles. */
+.t-court { --dfont: 'Oswald', var(--font); --surround: color-mix(in srgb, var(--purple), #000 45%); --line: rgba(255, 255, 255, .5); color: #fff; }
+.t-court .ground { background: var(--surround); }
+.t-court .ground::before { content: ''; position: absolute; inset: 34px; border: 7px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 86px, var(--line) 86px 93px, transparent 93px),
+    radial-gradient(circle at 50% 0, transparent 0 300px, var(--line) 300px 307px, transparent 307px),
+    radial-gradient(circle at 50% 100%, transparent 0 300px, var(--line) 300px 307px, transparent 307px),
+    linear-gradient(transparent calc(33.33% - 3.5px), var(--line) calc(33.33% - 3.5px) calc(33.33% + 3.5px), transparent calc(33.33% + 3.5px) calc(66.66% - 3.5px),
+      var(--line) calc(66.66% - 3.5px) calc(66.66% + 3.5px), transparent calc(66.66% + 3.5px)),
+    linear-gradient(160deg, color-mix(in srgb, var(--purple), #fff 8%), var(--purple)); }
+.t-court .ground::after { display: none; }
+.t-court .tab { background: #fff; color: var(--purple-dark); border-radius: 0; }
+.t-court .title { font-weight: 700; font-size: 104px; line-height: .9; color: #fff; }
+.t-court .title::after { content: ''; display: block; width: 120px; height: 120px; border: 7px solid var(--yellow); border-radius: 50%; position: absolute; right: 70px; top: 60px; opacity: 0; }
+.t-court :is(.game, .result, .call, .shooter, .message, .info) { background: rgba(255, 255, 255, .96); border: 0; border-radius: 4px; box-shadow: 0 10px 24px rgba(0, 0, 0, .25); }
+.t-court :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: var(--purple-dark); }
+.t-court :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: color-mix(in srgb, var(--purple-dark), #fff 40%); }
+.t-court .result .game__team { color: color-mix(in srgb, var(--purple-dark), #fff 45%); }
+.t-court .result .game__team.won { color: var(--purple-dark); }
+.t-court .score { background: rgba(0, 0, 0, .07); color: var(--purple-dark); }
+.t-court .stat { background: rgba(0, 0, 0, .07); }
+.t-court .stat :is(b, small) { color: var(--purple-dark); }
+.t-court :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 0; }
+.t-court .ladder td { background: rgba(255, 255, 255, .96); color: var(--purple-dark); border-radius: 0 !important; }
+.t-court .ladder td:first-child { color: var(--purple-dark); }
+.t-court .ladder th { color: #fff; }
+.t-court .info, .t-court .info b { color: var(--purple-dark); }
+.t-court .vs__v { background: #fff; color: var(--purple-dark); border-radius: 50%; box-shadow: 0 0 0 7px var(--line); }
+
+/* Bib: a big netball bib, a shade lighter than the ground so the cards over it stay clear, with its position letters, and bib-letter badges for times. */
+.t-bib { --dfont: 'Archivo Black', var(--font); --nf: .9; color: #fff; }
+.t-bib .ground { background: repeating-radial-gradient(circle at 0 0, rgba(255, 255, 255, .035) 0 2px, transparent 2px 9px), linear-gradient(170deg, var(--purple), var(--purple-dark)); }
+.t-bib .ground::before { content: ''; position: absolute; right: -90px; top: 120px; width: 470px; height: 564px; transform: rotate(10deg);
+  background: color-mix(in srgb, var(--purple), #fff 16%); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 240'%3E%3Cpath d='M40 0H72Q100 34 128 0H160Q164 52 200 74V240H0V74Q36 52 40 0Z' fill='white'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 240'%3E%3Cpath d='M40 0H72Q100 34 128 0H160Q164 52 200 74V240H0V74Q36 52 40 0Z' fill='white'/%3E%3C/svg%3E") center / contain no-repeat; }
+.t-bib .ground::after { content: 'GS'; top: 330px; left: auto; right: -40px; width: 400px; height: auto; background: none; transform: rotate(10deg);
+  font-family: 'Archivo Black', var(--font); font-size: 210px; line-height: 1; text-align: center; color: rgba(var(--yellow-rgb), .55); }
+.t-bib .tab { background: var(--yellow); color: var(--text-on-yellow); border-radius: 999px; }
+.t-bib .title { font-weight: 400; font-size: 92px; line-height: .95; color: #fff; }
+.t-bib :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--purple-dark); border: 0; border-radius: 22px; box-shadow: 0 12px 26px rgba(0, 0, 0, .28); }
+.t-bib :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: var(--purple-dark); }
+.t-bib :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: color-mix(in srgb, var(--purple-dark), #fff 40%); }
+.t-bib .result .game__team { color: color-mix(in srgb, var(--purple-dark), #fff 45%); }
+.t-bib .result .game__team.won { color: var(--purple-dark); }
+.t-bib .score { background: rgba(0, 0, 0, .07); color: var(--purple-dark); }
+.t-bib .stat { background: rgba(0, 0, 0, .07); }
+.t-bib .stat :is(b, small) { color: var(--purple-dark); }
+/* Times, divisions and the verdict as bib letters: a white circle with a dark heavy face. */
+.t-bib :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 999px; }
+.t-bib .shooter__rank { width: 64px; height: 64px; border-radius: 50%; background: var(--yellow); color: var(--text-on-yellow); display: flex; align-items: center; justify-content: center; }
+.t-bib .ladder td { background: #fff; color: var(--purple-dark); }
+.t-bib .ladder td:first-child { color: var(--purple-dark); }
+.t-bib .vs__v { background: var(--yellow); color: var(--text-on-yellow); border-radius: 50%; }
+
+/* Goal: the ring, net and post rising up the right edge under the title, a netball in the corner, and a spotlight on both;
+   faint, so the glass cards over them stay clear. */
+.t-goal { --dfont: 'Teko', var(--font); --nf: 1.15; color: #fff; }
+.t-goal .ground { background: radial-gradient(ellipse 60% 45% at 80% 12%, rgba(var(--yellow-rgb), .28), transparent 70%),
+    linear-gradient(180deg, var(--purple-dark), color-mix(in srgb, var(--purple-dark), #000 35%)); }
+.t-goal .ground::before { content: ''; position: absolute; right: 24px; top: 190px; width: 300px; height: 573px; background: rgba(255, 255, 255, .28);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 420' fill='none' stroke='white'%3E%3Crect x='168' y='54' width='14' height='366' fill='white' stroke='none'/%3E%3Crect x='140' y='52' width='34' height='9' fill='white' stroke='none'/%3E%3Cellipse cx='88' cy='58' rx='56' ry='13' stroke-width='8'/%3E%3Cpath stroke-width='3' d='M34 62L58 160M50 68L74 162M68 71L88 163M88 71L100 163M108 71L114 163M126 68L126 162M142 62L140 160M34 62L140 160M34 62L52 72M58 160L142 62M38 90L132 90M44 116L136 116M52 140L138 140'/%3E%3C/svg%3E") top right / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 420' fill='none' stroke='white'%3E%3Crect x='168' y='54' width='14' height='366' fill='white' stroke='none'/%3E%3Crect x='140' y='52' width='34' height='9' fill='white' stroke='none'/%3E%3Cellipse cx='88' cy='58' rx='56' ry='13' stroke-width='8'/%3E%3Cpath stroke-width='3' d='M34 62L58 160M50 68L74 162M68 71L88 163M88 71L100 163M108 71L114 163M126 68L126 162M142 62L140 160M34 62L140 160M34 62L52 72M58 160L142 62M38 90L132 90M44 116L136 116M52 140L138 140'/%3E%3C/svg%3E") top right / contain no-repeat; }
+.t-goal .ground::after { top: auto; right: auto; left: -70px; bottom: -70px; width: 300px; height: 300px; border-radius: 50%; transform: rotate(-20deg);
+  background: var(--yellow); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='white' stroke-width='3'%3E%3Ccircle cx='50' cy='50' r='47'/%3E%3Cpath d='M8 30Q50 46 92 30M8 70Q50 54 92 70M30 8Q46 50 30 92M70 8Q54 50 70 92'/%3E%3C/svg%3E") center / contain no-repeat, radial-gradient(circle, #000 0 0); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='white' stroke-width='3'%3E%3Ccircle cx='50' cy='50' r='47'/%3E%3Cpath d='M8 30Q50 46 92 30M8 70Q50 54 92 70M30 8Q46 50 30 92M70 8Q54 50 70 92'/%3E%3C/svg%3E") center / contain no-repeat; opacity: .4; }
+.t-goal .tab { background: transparent; padding: 0; color: var(--yellow); letter-spacing: .3em; }
+.t-goal .title { font-weight: 600; font-size: 140px; line-height: .8; color: #fff; }
+.t-goal .when { color: var(--yellow); }
+.t-goal :is(.game, .result, .call, .shooter, .message, .info) { background: rgba(255, 255, 255, .08); border: 2px solid rgba(255, 255, 255, .22); border-radius: 14px; backdrop-filter: blur(6px); }
+.t-goal :is(.game__team, .call__teams, .shooter__name, .vs h2) { font-family: var(--dfont); font-weight: 600; letter-spacing: .02em; }
+.t-goal :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 999px; }
+.t-goal .vs__v { background: transparent; color: var(--yellow); box-shadow: 0 0 0 8px var(--yellow); border-radius: 50%; }
+.t-goal .vs__score { font-family: var(--dfont); font-weight: 600; font-size: 210px; line-height: .85; }
+.t-goal .ladder td { background: rgba(255, 255, 255, .08); border-radius: 0 !important; }
+.t-goal .game__v { color: var(--yellow); }
