@@ -42,16 +42,19 @@ function thenText(sq) {
 }
 // Where it plays, once there's more than one output: a tick per output, in its colour, changed from the card
 // itself (it takes effect the next time the sequence starts; what's playing carries on). The last tick stays.
+// A green ▶ marks each output it's playing on now (ticked or not).
 function outTicks(sq) {
   const box = document.createElement('div');
   box.className = 'seqOuts';
   if (!scene.viewMany) return box;
   const on = sq.playsOn || ['main'];
+  const playingOn = new Set((scene.onOut?.sequences[sq.id] || []).map(x => x.id));
   box.title = 'The outputs it plays on together: started by itself, or played on any of them';
   for (const o of out.outputs) {
     const l = document.createElement('label');
     l.innerHTML = '<input type="checkbox"> <i></i> <span></span>';
     const c = l.querySelector('input');
+    if (playingOn.has(o.id)) l.append(Object.assign(document.createElement('b'), { className: 'playingOn', textContent: '▶', title: `Playing on ${o.name}` }));
     c.checked = on.includes(o.id);
     c.disabled = c.checked && on.length === 1;
     c.onchange = () => act({ type: 'seqUpdate', sequence: sq.id, changes: { playsOn: out.outputs.map(x => x.id).filter(id => id === o.id ? c.checked : on.includes(id)) } });
@@ -92,7 +95,6 @@ function renderSequences() {
     if (sq.quiet) card.querySelector('b').append(quietMark());
     const swActs = sq.steps.flatMap(st => st.switcher || []);
     if (swActs.length) card.querySelector('b').append(switcherMark(swActs));
-    card.querySelector('b').append(outDots(scene.onOut?.sequences[sq.id]));
     if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
     card.querySelector('.band').classList.add(sq.colour);
     if (scene.viewMany) card.append(outTicks(sq));
@@ -165,7 +167,7 @@ function renderSequences() {
       + `Stream Deck: <code>${deckBase}${scene.viewDeck}/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
       + `<code>${scene.viewDeck}/sequence/next</code> (or <code>${scene.viewDeck}/sequence/advance</code>, only for a step waiting on Next), <code>${scene.viewDeck}/sequence/pause</code> and <code>${scene.viewDeck}/sequence/stop</code>; for one about to start `
       + `<code>${scene.viewDeck}/sequence/now</code> and <code>${scene.viewDeck}/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.`
-      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (the coloured dots), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
+      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (a green ▶ by each output it's playing on), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
     : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
       + 'Add your sources below first, then <b>+ New sequence</b>.';
 }
