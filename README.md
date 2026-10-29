@@ -896,8 +896,10 @@ three commentators for each game on it. Studio streams one court a night; anothe
 - **Graphics:** `commentators.html` with no `?name=` shows whoever is planned for the game on the scoreboard
   (`/api/planner/onair`), with the tab *Special guest commentators* when everyone planned is a guest, and
   `commentator.html` shows them under the clock (`?mic=0` leaves that out). `roster.html` is a full-screen roster of the
-  night for a monitor backstage: each game on the planned court with who is on the mic, the game on now lit up
-  (`/api/planner/roster`; `?date=`, `?title=`, `?bg=0`, `?refresh=0`).
+  night for a monitor backstage: a tile per game on the planned court (up to 8) with who is on the mic, the game on
+  now live with its score and quarter, and the game before it greyed at full time with its final score and winner
+  (PlayHQ's result, else the score the scoreboard had when it moved on, `lastGame` in the board); earlier games drop
+  off (`/api/planner/roster`; `?date=`, `?title=`, `?bg=0`, `?refresh=0`).
 
 Saved in `competitions/<name>/planner.json`. Reading `/api/planner` is private like the athlete register (this Mac and
 allowed devices when the lock is on); `/api/planner/onair` and `/api/planner/roster` stay open for the graphics.

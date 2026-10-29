@@ -186,6 +186,8 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division; b.court = a.court ?? b.court; break;
       case 'selectGame':
         if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
+        // The game it leaves, with the score it had, for the commentary roster's Full time tile until PlayHQ has the result.
+        if (b.gameId && b.gameId !== a.game.id) b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } };
         Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
           round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null });
         b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };

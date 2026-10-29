@@ -4,7 +4,8 @@
 // A competition keeps its own plan in competitions/<id>/planner.json:
 //   pool    the commentators to choose from: { id, name, guest } (guest: a special guest commentator)
 //   nights  by date (YYYY-MM-DD): { court, slots: { "HH:MM": { people: [id, ...], game: { id, home, away } } } }
-// The roster graphic (roster.html, roster()) shows a night's team on a monitor backstage.
+// The roster graphic (roster.html, roster()) shows a night's team on a monitor backstage, a tile per game with its
+// state (done, now, next) and score.
 // Studio streams one court a night (another court is another Mac running its own Studio), so a night's
 // timeslots are its games on that court, read from the PlayHQ fixture every time. The commentators belong to
 // the timeslot, not the game: the desk and cameras are set up at the court, so when PlayHQ moves a game to
@@ -34,7 +35,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { localDate } = require('./playhq');
+const { localDate, isFinished } = require('./playhq');
 
 const MAX_PEOPLE = 3; // commentators in one timeslot
 const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
@@ -152,8 +153,14 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   }
 
   // The night's commentary team for the roster graphic (roster.html, a backstage monitor): each game on the planned
-  // court in time order with who is on the mic, and which is on the scoreboard now. The night is ?date=, else the game
-  // night picked by hand on Scoreboard control, else today when it is a game night, else the next one.
+  // court in time order with who is on the mic, its state and its score. The night is ?date=, else the game night
+  // picked by hand on Scoreboard control, else today when it is a game night, else the next one.
+  //   state  'now'   the game on the scoreboard (live: it has started; final: PlayHQ has its result)
+  //          'done'  a game before it (or, with the scoreboard elsewhere, one PlayHQ has a result for)
+  //          'next'  the rest
+  //   score  { home, away } for a game that has started: the scoreboard's for the game on it, else PlayHQ's
+  //          result, else the score the scoreboard had when it moved on (board.js lastGame) until PlayHQ has one
+  //   winner 'home', 'away' or 'draw' for a done or final game with a score
   async function roster(q = {}) {
     const p = plan();
     const dates = await byDate();
@@ -163,11 +170,26 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     const n = nightView(p, date, dates[date] || []);
     const b = board();
     const name = id => p.pool.find(x => x.id === id);
-    const slots = n.slots.filter(s => s.game).map(s => ({
-      time: s.time, division: s.game.division, round: s.game.round,
-      home: { name: s.game.home, logo: logoFor(s.game.home) }, away: { name: s.game.away, logo: logoFor(s.game.away) },
-      people: s.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest })),
-      onAir: !!b.gameId && s.game.id === b.gameId }));
+    const fixture = id => (dates[date] || []).find(g => g.id === id) || {};
+    const listed = n.slots.filter(s => s.game);
+    const nowAt = listed.findIndex(s => b.gameId && s.game.id === b.gameId);
+    const slots = listed.map((s, i) => {
+      const g = fixture(s.game.id);
+      const final = isFinished(g) && g.home && g.home.score != null && g.away.score != null;
+      const state = i === nowAt ? 'now' : nowAt >= 0 ? (i < nowAt ? 'done' : 'next') : final ? 'done' : 'next';
+      let score = final ? { home: g.home.score, away: g.away.score } : null;
+      if (state === 'now') {
+        const started = b.home.score > 0 || b.away.score > 0 || b.period > 1 || (b.clock && (b.clock.running || b.clock.elapsedMs > 0)) || /PROGRESS|LIVE|STARTED/i.test(g.status || '');
+        if (started || final) score = { home: b.home.score, away: b.away.score };
+      } else if (!score && state === 'done' && b.lastGame && b.lastGame.id === s.game.id) score = { home: b.lastGame.home.score, away: b.lastGame.away.score };
+      const live = state === 'now' && !!score && !final;
+      const winner = score && (state === 'done' || final) ? (score.home > score.away ? 'home' : score.away > score.home ? 'away' : 'draw') : '';
+      return { id: s.game.id, time: s.time, division: s.game.division, round: s.game.round,
+        home: { name: s.game.home, logo: logoFor(s.game.home) }, away: { name: s.game.away, logo: logoFor(s.game.away) },
+        people: s.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest })),
+        onAir: state === 'now', state, live, final: state === 'now' && final, score, winner,
+        ...(live ? { period: `${b.periodLabel || 'Q'}${b.period || 1}` } : {}) };
+    });
     const a = about();
     return { competition: a.competition || '', venue: a.venue || '', date, today: date === today, court: n.court, from: n.from, slots,
       ...(!n.court ? { error: `No plan for ${date} yet: plan it on the Production Planner tab` } : {}) };
