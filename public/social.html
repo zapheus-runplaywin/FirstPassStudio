@@ -186,6 +186,17 @@
   .crew--4 { --ms: 210px; }
   .story .crew { --ms: 340px; }
   .story .crew--3, .story .crew--4 { --ms: 260px; }
+  /* Two or three on the mic, the usual nights: the biggest faces that fit, in one row (Story stacks two, and puts three
+     two over one). */
+  .crew--2, .crew--3 { --ms: 400px; gap: 32px; flex-wrap: nowrap; }
+  .crew--3 { --ms: 300px; }
+  .story .crew--2 { --ms: 500px; flex-direction: column; align-items: center; }
+  .story .crew--3 { --ms: 400px; flex-wrap: wrap; }
+  .crew--2 .mic, .crew--3 .mic { width: auto; flex: 0 1 calc(var(--ms) + 40px); min-width: 0; }
+  .story .crew--2 .mic { flex: none; width: calc(var(--ms) + 60px); }
+  .crew--2 .mic__face, .crew--3 .mic__face { width: min(var(--ms), 100%); height: auto; aspect-ratio: 1; }
+  .crew--2 .mic__name { font-size: calc(48px * var(--nf, 1)); }
+  .crew--2 .mic__games { font-size: 22px; }
   .mic { width: calc(var(--ms) + 60px); text-align: center; }
   .mic__face { width: var(--ms); height: var(--ms); margin: 0 auto; border-radius: 50%; overflow: hidden; border: 8px solid var(--yellow);
     background: var(--purple-deep); display: flex; align-items: center; justify-content: center; font-family: var(--dfont);
