@@ -54,6 +54,21 @@ test('writeFile (async) saves atomically and reports errors through the callback
   assert.deepEqual(fs.readdirSync(dir).sort(), ['blocked.json', 'scoreboard-state.json']);
 });
 
+test('writeFile (async) saves started close together land in order: the newest is what stays', async () => {
+  const dir = tmp();
+  const file = path.join(dir, 'scoreboard-state.json');
+  // A big save first (slow to write) then small ones: written side by side, a small one would
+  // finish first and the big, older one would be renamed over it.
+  const saves = [JSON.stringify({ n: 0, pad: 'x'.repeat(20e6) }), ...Array.from({ length: 20 }, (_, i) => JSON.stringify({ n: i + 1 }))];
+  const results = await Promise.all(saves.map(data => new Promise(resolve => savefile.writeFile(file, data, resolve))));
+  assert.deepEqual(results, saves.map(() => null), 'every save reports success');
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), { n: 20 });
+  assert.deepEqual(fs.readdirSync(dir), ['scoreboard-state.json'], 'no temporary files left');
+  // Once those are done, the next save is written straight away.
+  await new Promise((resolve, reject) => savefile.writeFile(file, '{"n":21}', err => (err ? reject(err) : resolve())));
+  assert.equal(fs.readFileSync(file, 'utf8'), '{"n":21}');
+});
+
 test('readJson gives the fallback for a missing file without calling onError', () => {
   const calls = [];
   assert.deepEqual(savefile.readJson(path.join(tmp(), 'none.json'), { none: true }, err => calls.push(err)), { none: true });

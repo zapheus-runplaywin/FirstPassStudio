@@ -83,7 +83,8 @@ debug log), `autoreload.js`.
    each second). The ATEM switcher's state (`switcher.js`) travels it a third way, for a page that sends `{"subscribe":"switcher"}` (the Output page), on each change, and to the plugin's Switcher keys over its own SSE feed (`/api/switcher/events`). `sceneevents.js` wraps them for the pages; the HTTP endpoints stay for the plugin and other tools.
 
 Every change to a saved file uses `savefile.js` (write to a temporary file, then rename), so a crash mid-write never
-leaves a half-written settings file.
+leaves a half-written settings file. Its async saves of one file go one at a time (the newest waiting one is written
+next), so saves started close together can't land out of order and leave older contents on disk.
 
 ## What runs on a timer
 
