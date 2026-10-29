@@ -954,7 +954,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   the competition's main, highlight and accent colours (Accent first, Highlight ground, Accent ground, Night, Day, Two
   colours), so they follow the competition when its colours change. *New colour set* adds your own (up to 12). A set
   whose highlight is under 3:1 against its ground says *low contrast*. Kept in `socials.json` (`colours`, `colourSets`).
-- **Saving:** *Save pictures* saves the ticked ones in `Pictures/FirstPass Studio/<competition> <date> Upcoming/` (or
+- **Saving:** *Select all* and *Select none* tick or untick every picture at once. *Save pictures* saves the ticked ones in `Pictures/FirstPass Studio/<competition> <date> Upcoming/` (or
   `Results/`), with *As a zip* also as `<competition> <date> Upcoming.zip` beside it (Share then sends the zip), and
   opens the folder; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
   picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.

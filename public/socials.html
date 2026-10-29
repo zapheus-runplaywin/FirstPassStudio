@@ -117,6 +117,8 @@
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
   <div class="bar">
+    <button class="alt" id="all" title="Tick every picture">Select all</button>
+    <button class="alt" id="none" title="Untick every picture">Select none</button>
     <button id="save">Save pictures</button>
     <button class="alt" id="share">Share…</button>
     <label title="Also save the pictures as one .zip beside the folder; Share then sends the zip"><input type="checkbox" id="zip"> As a zip</label>
@@ -445,6 +447,17 @@
   $('newCancel').onclick = () => { $('newSet').hidden = true; };
   $('mark').onchange = () => saveSettings({ mark: $('mark').checked });
   $('pivt').onchange = () => saveSettings({ pivt: $('pivt').checked });
+  // Select all / none: every picture shown (one that can't be made yet stays unticked), without reloading the previews.
+  function tickAll(on) {
+    for (const p of pictures()) if (on) off.delete(p.key); else off.add(p.key);
+    for (const s of document.querySelectorAll('.pic[data-key]')) {
+      const c = s.querySelector('.pic__ticks input');
+      if (c.disabled) continue;
+      c.checked = on; s.classList.toggle('off', !on);
+    }
+  }
+  $('all').onclick = () => tickAll(true);
+  $('none').onclick = () => tickAll(false);
   $('save').onclick = () => save(false);
   $('share').onclick = () => save(true);
   load();
