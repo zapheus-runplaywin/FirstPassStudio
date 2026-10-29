@@ -913,7 +913,7 @@ three commentators for each game on it. Studio streams one court a night; anothe
   no extra PlayHQ requests while the ticker reads, at most one a minute per live game otherwise); finished games grey
   out with the winner in yellow (on the streamed court, the score the scoreboard had when it moved on, `lastGame` in
   the board, until PlayHQ has the result), and only the last finished time slot stays (`/api/planner/fixtureboard`;
-  `?date=`, `?title=`, `?bg=0`, `?refresh=0`). The old `roster.html` link opens it.
+  `?date=`, `?title=`, `?bg=0`, `?refresh=0`).
 
 Saved in `competitions/<name>/planner.json`. Reading `/api/planner` is private like the athlete register (this Mac and
 allowed devices when the lock is on); `/api/planner/onair` and `/api/planner/fixtureboard` stay open for the graphics.
