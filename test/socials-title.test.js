@@ -19,8 +19,9 @@ test('the title stays on one line beside the logo at every size', async t => {
   t.after(() => browser.close());
   const studio = await startStudio(t, { competition: 'Thunder League' });
   const SIZES = { square: 1080, portrait: 1350, story: 1920 };
-  for (const template of ['default', 'thunder', 'hero', 'final', 'goal', 'geometric']) {
+  for (const template of ['default', 'thunder', 'hero', 'final', 'goal', 'poster']) {
     for (const [size, h] of Object.entries(SIZES)) {
+      if (template === 'poster' && size !== 'square') continue; // stacked a word a line there, on purpose
       const page = await browser.newPage({ viewport: { width: 1080, height: h } });
       await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
       await page.goto(`${studio.base}/social.html?kind=onstream&size=${size}&template=${template}&title=${encodeURIComponent('On the stream tonight')}`);

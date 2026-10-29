@@ -146,7 +146,7 @@ test('colour sets are made from the competition\'s colours, your own are kept, a
 
 test('template sets: each has its own face, one is kept for every picture, and a picture can ask for another', async () => {
   const s = await studio.get('/api/socials');
-  assert.deepEqual(s.templates.map(t => t.id), ['default', 'fun', 'dynamic', 'junior', 'retro', 'futuristic', 'professional', 'thunder', 'geometric', 'gradient', 'striped', 'highcontrast', '3d', 'neon', 'poster', 'splash', 'gameday', 'arena', 'hero', 'final', 'court', 'bib', 'goal']);
+  assert.deepEqual(s.templates.map(t => t.id), ['default', 'dynamic', 'junior', 'retro', 'professional', 'thunder', 'gradient', 'highcontrast', 'neon', 'poster', 'splash', 'gameday', 'hero', 'final', 'court', 'bib', 'goal']);
   for (const t of s.templates.filter(x => x.font)) {
     const css = await studio.request('GET', `/${t.fontCss}`);
     assert.equal(css.status, 200, `${t.name}'s face is bundled, so it draws with no internet`);
@@ -156,10 +156,13 @@ test('template sets: each has its own face, one is kept for every picture, and a
   assert.equal((await studio.post('/api/socials/settings', { template: 'retro' })).settings.template, 'retro');
   const retro = (await studio.get('/api/socials/night')).look.template;
   assert.deepEqual([retro.id, retro.font, retro.mark], ['retro', 'Bungee', 'light'], 'a pale paper ground takes the dark-ink mark');
-  const asked = await studio.get('/api/socials/night?template=3d&colours=night');
-  assert.deepEqual([asked.look.template.id, asked.look.colours], ['3d', 'night'], 'template and colours mix freely');
+  const asked = await studio.get('/api/socials/night?template=neon&colours=night');
+  assert.deepEqual([asked.look.template.id, asked.look.colours], ['neon', 'night'], 'template and colours mix freely');
+  // A set no longer on the list is drawn as the closest one kept, from an old link or a saved choice.
+  assert.equal((await studio.get('/api/socials/night?template=3d')).look.template.id, 'neon');
   assert.equal((await studio.get('/api/socials/night?template=nonsense')).look.template.id, 'retro', 'an unknown one keeps the picked one');
   assert.equal((await studio.request('POST', '/api/socials/settings', { template: 'nonsense' })).status, 400);
+  assert.equal((await studio.post('/api/socials/settings', { template: 'arena' })).settings.template, 'highcontrast');
   assert.equal((await studio.post('/api/socials/settings', { template: 'default' })).settings.template, 'default');
 });
 

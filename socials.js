@@ -55,30 +55,26 @@ const MAX_OWN_SETS = 12;
 function fontCss(font) { return `vendor/fonts/${TEMPLATE_FONTS[font]}/${TEMPLATE_FONTS[font]}.css`; }
 const TEMPLATES = [
   { id: 'default', name: 'Default', blurb: 'The stream\'s own look', font: null },
-  { id: 'fun', name: 'Fun', blurb: 'Stickers, confetti, a bouncy face', font: 'Fredoka' },
   { id: 'dynamic', name: 'Dynamic', blurb: 'Speed lines and slanted panels', font: 'Anton' },
   { id: 'junior', name: 'Junior', blurb: 'Bright paper and chunky cards', font: 'Fredoka', mark: 'light' },
   { id: 'retro', name: 'Retro', blurb: 'Cream paper and sunset stripes', font: 'Bungee', mark: 'light' },
-  { id: 'futuristic', name: 'Futuristic', blurb: 'A neon HUD with a grid floor', font: 'Orbitron', mark: 'white' },
   { id: 'professional', name: 'Professional', blurb: 'Broadcast clean and calm', font: 'IBM Plex Sans' },
   { id: 'thunder', name: 'Thunder', blurb: 'A storm and a lightning bolt', font: 'Teko', mark: 'white' },
-  { id: 'geometric', name: 'Geometric', blurb: 'Circles, triangles and blocks', font: 'Archivo Black' },
   { id: 'gradient', name: 'Gradient', blurb: 'A colour mesh under frosted glass', font: 'Sora', mark: 'white' },
-  { id: 'striped', name: 'Striped', blurb: 'Varsity stripes and an outlined title', font: 'Oswald' },
   { id: 'highcontrast', name: 'High contrast', blurb: 'Black, white and the highlight', font: 'Archivo Black', mark: 'white' },
-  { id: '3d', name: '3D', blurb: 'Perspective: a floor and angled walls', font: 'Rubik' },
   { id: 'neon', name: 'Neon', blurb: 'Glowing shards on dark navy', font: 'Archivo Black', mark: 'white' },
   { id: 'poster', name: 'Poster', blurb: 'Huge stacked words and colour bars', font: 'Anton', mark: 'light' },
   { id: 'splash', name: 'Splash', blurb: 'Paint shapes on white', font: 'Oswald', mark: 'light' },
   { id: 'gameday', name: 'Game Day', blurb: 'Charcoal slabs, the highlight and a tall bold face', font: 'Anton', mark: 'white' },
-  { id: 'arena', name: 'Arena', blurb: 'A spotlight, hazard stripes and an echoed title', font: 'Archivo Black', mark: 'white' },
   { id: 'hero', name: 'Hero', blurb: 'A huge slanted title, athletes standing in front of it', font: 'Anton', mark: 'light' },
   { id: 'final', name: 'Final', blurb: 'A bold colour, a tall title and a script word', font: 'Anton', script: 'Yellowtail', mark: 'white' },
   { id: 'court', name: 'Court', blurb: 'A netball court: its lines, thirds and circles', font: 'Oswald', mark: 'white' },
   { id: 'bib', name: 'Bib', blurb: 'A netball bib with its position letters', font: 'Archivo Black', mark: 'white' },
   { id: 'goal', name: 'Goal', blurb: 'The goal ring, net and post, and a netball', font: 'Teko', mark: 'white' },
 ].map(t => ({ ...t, fontCss: t.font ? fontCss(t.font) : null, scriptCss: t.script ? fontCss(t.script) : null }));
-const templateOf = id => TEMPLATES.find(t => t.id === id) || null;
+// Sets dropped from the list, each drawn as the closest one kept, so a saved choice or an old link still works.
+const RETIRED = { fun: 'default', geometric: 'default', futuristic: 'neon', '3d': 'neon', striped: 'gameday', arena: 'highcontrast' };
+const templateOf = id => TEMPLATES.find(t => t.id === (RETIRED[id] || id)) || null;
 const HEX = /^#[0-9a-f]{6}$/i;
 const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 const PHOTOS_KEPT = 40;
@@ -104,7 +100,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     for (const [k, on] of Object.entries(KINDS)) sponsor[k] = d.sponsor && typeof d.sponsor[k] === 'boolean' ? d.sponsor[k] : on;
     const colourSets = Array.isArray(d.colourSets) ? d.colourSets.filter(ownSet) : [];
     const colours = typeof d.colours === 'string' && allSets(colourSets).some(x => x.id === d.colours) ? d.colours : 'competition';
-    const template = templateOf(d.template) ? d.template : 'default';
+    const template = templateOf(d.template)?.id || 'default';
     return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template };
   }
   const ownSet = x => x && /^own-\d+$/.test(x.id) && typeof x.name === 'string' && [x.ground, x.highlight, x.accent].every(c => HEX.test(c));
@@ -128,7 +124,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (!allSets(now.colourSets).some(x => x.id === now.colours)) now.colours = 'competition';
     if (typeof body.template === 'string') {
       if (!templateOf(body.template)) throw new Error('There is no such template set.');
-      now.template = body.template;
+      now.template = templateOf(body.template).id;
     }
     savefile.writeJsonSync(fileOf(id), now);
     return now;

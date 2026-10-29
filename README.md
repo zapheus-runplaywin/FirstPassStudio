@@ -941,9 +941,8 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
 - **Sponsors and logos:** each picture has a sponsor strip tick (naming, elite and major sponsors), and two ticks under Options put
   the FirstPass Studio mark (bottom right) and the PIVT logo (bottom left) on every picture; all are kept in
   `competitions/<name>/socials.json`.
-- **Template:** a template set for every picture: *Default* (the stream's own look), *Fun*, *Dynamic*, *Junior*, *Retro*,
-  *Futuristic*, *Professional*, *Thunder*, *Geometric*, *Gradient*, *Striped*, *High contrast*, *3D* (real perspective),
-  *Neon*, *Poster*, *Splash*, *Game Day*, *Arena*, *Hero*, *Final*, and three netball sets: *Court* (the court's lines,
+- **Template:** a template set for every picture: *Default* (the stream's own look), *Dynamic*, *Junior*, *Retro*,
+  *Professional*, *Thunder*, *Gradient*, *High contrast*, *Neon*, *Poster*, *Splash*, *Game Day*, *Hero*, *Final*, and three netball sets: *Court* (the court's lines,
   thirds and circles), *Bib* (a bib with its position letters) and *Goal* (the ring, net and post, and a netball). Hero and Final stand a picked athlete's photo (best as a
   cut-out PNG from the Athletes tab) tall, in front of the title; Final sets the title's last word in a script face (`script`, `--sfont`).
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
