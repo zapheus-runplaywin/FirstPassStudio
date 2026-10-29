@@ -85,7 +85,7 @@ test('one sequence plays on two outputs at once, each with its own runner', () =
   ok({ type: 'hideAll', output: two() });
   ok({ type: 'seqAdd', changes: { name: 'commentaryLoop', repeat: 'loop', steps: [step(['Game stats'], 10), step(['Worm'], 10)] } });
   ok({ type: 'seqAdd', changes: { name: 'Main run', steps: [step(['Ladder'], 30)] } });
-  assert.equal(st().sequences.find(s => s.name === 'commentaryLoop').startOn, 'main');
+  assert.deepEqual(st().sequences.find(s => s.name === 'commentaryLoop').playsOn, ['main']);
   ok({ type: 'seqPlay', sequence: 'commentaryLoop', output: two() });
   ok({ type: 'seqPlay', sequence: 'Main run' });
   assert.deepEqual(onTwo(), ['Game stats']);
@@ -118,10 +118,10 @@ test('Next and Stop act on the output they name; a scene on Commentary stops onl
   assert.equal(st().playing, null);
 });
 
-test('a sequence set to start by itself on another output keeps that, and stays off once that output has gone', () => {
+test('a sequence set to play on another output keeps that, and stays off once that output has gone', () => {
   const sq = st().sequences.find(s => s.name === 'commentaryLoop');
   ok({ type: 'seqUpdate', sequence: sq.id, changes: { startOn: two() } });
-  assert.equal(st().sequences.find(s => s.name === 'commentaryLoop').startOn, two());
+  assert.deepEqual(st().sequences.find(s => s.name === 'commentaryLoop').playsOn, [two()], 'an older startOn becomes playsOn');
   const was = two();
   ok({ type: 'seqPlay', sequence: 'commentaryLoop', output: was });
   ok({ type: 'sceneGo', scene: 'Stats', output: was });
@@ -130,7 +130,8 @@ test('a sequence set to start by itself on another output keeps that, and stays 
   assert.equal(st().playingOut[was], undefined, 'what played there stops');
   assert.equal(st().currentOut[was], undefined);
   const after = st().sequences.find(s => s.name === 'commentaryLoop');
-  assert.equal(after.startOn, was, 'kept, for the editor to show');
+  assert.deepEqual(after.playsOn, [was], 'kept, for the editor to show');
+  assert.deepEqual(after.goneOn, [was]);
   assert.equal(after.startGone, true);
   // Its moment comes: it doesn't start on Output 1 instead (where it would be on air).
   scene.apply({ type: 'seqStop' });
@@ -142,7 +143,7 @@ test('a sequence set to start by itself on another output keeps that, and stays 
   scene.game(game);
   assert.equal(st().playing, null, 'nothing started on Output 1');
   assert.equal(st().pending, null);
-  ok({ type: 'seqUpdate', sequence: sq.id, changes: { start: { type: 'hand' }, startOn: 'main' } });
+  ok({ type: 'seqUpdate', sequence: sq.id, changes: { start: { type: 'hand' }, playsOn: ['main'] } });
   assert.equal(st().sequences.find(s => s.name === 'commentaryLoop').startGone, undefined, 'picking another output clears it');
   ok({ type: 'sceneGo', scene: 'Ladder up' });
   assert.ok(onMain().includes('Ladder'));
@@ -153,4 +154,101 @@ test('the scene feed lists the outputs for the Stream Deck plugin', () => {
   assert.ok(o.length >= 1);
   assert.deepEqual(Object.keys(o[0]).sort(), ['colour', 'id', 'link', 'name', 'slot']);
   assert.equal(o[0].id, 'main');
+});
+
+// One sequence played on two outputs together, each going somewhere different when it ends.
+test('a sequence that plays on two outputs starts on both together and does each output\'s own Then', () => {
+  outputs.apply({ add: true });
+  outputs.apply({ output: outputs.state().outputs[1].id, name: 'Camera key' });
+  outputs.apply({ add: true });
+  outputs.apply({ output: outputs.state().outputs[2].id, name: 'Spare' });
+  const cam = () => outputs.find('camera-key').id, spare = outputs.find('spare').id;
+  const onCam = () => st().sources.filter(s => s.out[cam()]).map(s => s.name).sort();
+  ok({ type: 'hideAll' });
+  ok({ type: 'hideAll', output: cam() });
+  ok({ type: 'sceneSave', name: 'Scores', states: { [id('Scoreboard')]: 'on', [id('Ladder')]: 'off', [id('Game stats')]: 'off', [id('Worm')]: 'off' } });
+  ok({ type: 'seqAdd', changes: { name: 'Feature', playsOn: ['main', cam()], then: { type: 'scene', scene: sceneId('Scores') },
+    thenOn: { [cam()]: { type: 'sequence', sequence: st().sequences.find(s => s.name === 'commentaryLoop').id }, nowhere: { type: 'leave' } },
+    steps: [step(['Ladder'], 10), step(['Worm'], 10)] } });
+  const sq = st().sequences.find(s => s.name === 'Feature');
+  assert.deepEqual(sq.playsOn, ['main', cam()]);
+  assert.deepEqual(Object.keys(sq.thenOn), [cam()], 'only outputs it plays on keep a Then of their own');
+  // Played on the camera key output (one of its two): it starts on both.
+  ok({ type: 'seqPlay', sequence: 'Feature', output: cam() });
+  assert.equal(st().playing.id, sq.id);
+  assert.equal(st().playingOut[cam()].id, sq.id);
+  assert.deepEqual(onMain(), ['Ladder']);
+  assert.deepEqual(onCam(), ['Ladder']);
+  wait(10);
+  assert.deepEqual(onMain(), ['Worm']);
+  assert.deepEqual(onCam(), ['Worm']);
+  wait(10);
+  // Output 1 goes to its scene; the camera key output plays its own next sequence.
+  assert.equal(st().playing, null);
+  assert.equal(st().current, sceneId('Scores'));
+  assert.deepEqual(onMain(), ['Scoreboard']);
+  assert.equal(st().playingOut[cam()].id, st().sequences.find(s => s.name === 'commentaryLoop').id);
+  assert.deepEqual(onCam(), ['Game stats']);
+  ok({ type: 'seqStop', output: cam() });
+  // Played on an output it doesn't play on, it plays there alone.
+  ok({ type: 'seqPlay', sequence: 'Feature', output: spare });
+  assert.equal(st().playingOut[spare].id, sq.id);
+  assert.equal(st().playing, null, 'not on Output 1');
+  assert.equal(st().playingOut[cam()], undefined);
+  ok({ type: 'seqStop', output: spare });
+  // only: on the output picked alone.
+  assert.equal(link('output/camera-key/sequence/feature/only').status, 200);
+  assert.equal(st().playingOut[cam()].id, sq.id);
+  assert.equal(st().playing, null, 'only plays on the output named');
+  // Toggle (and Stop naming it) stops it on every output it plays on together, each doing its Then.
+  link('sequence/feature/play');
+  assert.equal(st().playing.id, sq.id);
+  link('sequence/feature/toggle');
+  assert.equal(st().playing, null);
+  assert.equal(st().current, sceneId('Scores'));
+  assert.equal(st().playingOut[cam()].id, st().sequences.find(s => s.name === 'commentaryLoop').id, 'the camera key output did its own Then');
+  ok({ type: 'seqStop', output: cam() });
+  // Plain Stop on one output stops just that one.
+  link('sequence/feature');
+  link('output/camera-key/sequence/stop');
+  assert.equal(st().playing.id, sq.id, 'Output 1 carries on');
+  link('sequence/stop');
+});
+
+test('a sequence that plays on two outputs starts by itself on both, and on what\'s left when one goes', () => {
+  const cam = outputs.find('camera-key').id;
+  const sq = st().sequences.find(s => s.name === 'Feature');
+  ok({ type: 'seqUpdate', sequence: sq.id, changes: { start: { type: 'fulltime', afterSec: 0 } } });
+  const game = { id: 'g-two', label: 'Stormz v Titans', startAt: Date.now() - 60000, period: 4, last: 4, left: 5, running: true, onBreak: false, finished: false };
+  scene.game(game);
+  scene.game({ ...game, period: 4, left: 0, running: false });
+  wait(4);
+  scene.game({ ...game, period: 4, left: 0, running: false });
+  assert.equal(st().playing?.id, sq.id, 'on Output 1');
+  assert.equal(st().playingOut[cam]?.id, sq.id, 'and on the camera key output, together');
+  link('sequence/feature/stop');
+  ok({ type: 'seqStop', output: cam });
+  assert.equal(outputs.apply({ remove: cam }), null);
+  const after = st().sequences.find(s => s.name === 'Feature');
+  assert.deepEqual(after.goneOn, [cam]);
+  assert.equal(after.startGone, undefined, 'it still plays on Output 1');
+  ok({ type: 'seqPlay', sequence: 'Feature' });
+  assert.equal(st().playing.id, sq.id);
+  link('sequence/stop');
+});
+
+test('an output says which sequence last ended there, played out or cut short, until that one plays again', () => {
+  const main = () => st().sequences.find(s => s.name === 'Main run').id;
+  ok({ type: 'seqPlay', sequence: 'Main run' });
+  assert.notEqual(st().stoppedOn.main, main());
+  ok({ type: 'sceneGo', scene: 'Live' });
+  assert.equal(st().stoppedOn.main, st().sequences.find(s => s.name === 'Main run').id, 'a scene cut it short');
+  ok({ type: 'seqPlay', sequence: 'Main run' });
+  assert.equal(st().stoppedOn.main, undefined, 'playing again clears it');
+  wait(30);
+  assert.equal(st().playing, null);
+  assert.equal(st().stoppedOn.main, main(), 'played out is stopped too');
+  ok({ type: 'seqPlay', sequence: 'Main run' });
+  link('sequence/stop');
+  assert.equal(st().stoppedOn.main, st().sequences.find(s => s.name === 'Main run').id, 'Stop cut it short');
 });

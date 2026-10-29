@@ -155,6 +155,16 @@
   .seq b { font-weight: 800; overflow-wrap: anywhere; }
   .seq .tag { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--fp-navy); color: var(--fp-white); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
   .seq small { font-size: 12px; color: var(--fp-muted); }
+  .seq .seqOuts { display: grid; gap: 2px; font-size: 12px; }
+  .seq .seqOuts label { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+  .seq .seqOuts label span { overflow: hidden; text-overflow: ellipsis; }
+  .seq .seqOuts .seqSt:first-of-type { margin-left: auto; }
+  .seq .seqOuts i { width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; flex: none; }
+  .seq .seqOuts .seqSt { font-size: 11px; font-weight: 700; color: var(--fp-muted); }
+  .seq .seqOuts .seqSt.playing { color: #16a34a; }
+  .seq .seqOuts .seqSt.paused, .seq .seqOuts .seqSt.starting { color: #d97706; }
+  .seq .seqOuts .notSending i { background: transparent !important; }
+  .seq .seqOuts .notSending small { font-size: 11px; }
   .seq .band { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0 0 7px 7px; }
   .seq .row button { padding: 4px 10px; font-size: 13px; }
   .seq.run { border-color: var(--fp-orange); box-shadow: 0 0 0 3px rgba(247, 92, 3, .22); }
@@ -576,13 +586,13 @@
           <span class="sqBreaks row" style="gap:8px"><label class="inline"><input type="checkbox" value="qt"> Quarter time</label><label class="inline"><input type="checkbox" value="ht"> Half time</label><label class="inline"><input type="checkbox" value="3qt"> Three quarter time</label></span>
           <label class="inline sqAfter"><input type="number" id="sqAfter" min="0" max="120" style="width:64px"> s after the siren</label>
         </div>
-        <label for="sqStartOn" class="sqStartOn">Starts by itself on</label><select id="sqStartOn" class="sqStartOn" title="The output a sequence that starts before the game, at a break or at full time plays on"></select>
+        <label class="sqPlaysOn">Plays on</label><div id="sqPlaysOn" class="sqPlaysOn row" style="gap:8px" title="The outputs it plays on together: started by itself, or played on any of them"></div>
         <label for="sqRepeat">Repeat</label>
         <div class="row" style="gap:8px">
           <select id="sqRepeat"><option value="once">Play once</option><option value="loop">Repeat until stopped</option><option value="until:resume">Repeat until play resumes</option><option value="until:before">Repeat until before the start</option></select>
           <label class="inline sqUntilMin"><input type="number" id="sqUntilMin" min="0" max="120" style="width:64px"> min before the scheduled start</label>
         </div>
-        <label for="sqThen">Then</label><select id="sqThen"></select>
+        <label for="sqThen">Then</label><div id="sqThens" style="display:grid;gap:6px"><select id="sqThen"></select></div>
         <label for="sqMusic">Music</label>
         <div class="row" style="gap:8px">
           <select id="sqMusic"></select>

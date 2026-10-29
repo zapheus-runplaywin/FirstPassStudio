@@ -33,10 +33,48 @@ function runText(sq) {
   const t = runTime(sq.steps, new Set([sq.id]));
   return !t.sec ? (t.ads ? 'runs as long as its ads' : t.open ? 'runs until Next' : 'runs 0:00') : `runs ${t.open ? 'at least ' : ''}${fmt(t.sec * 1000)}`;
 }
+// What it does when it ends on the output picked over the Scene View: that output's own Then, else the sequence's.
 function thenText(sq) {
-  if (sq.then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === sq.then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
-  if (sq.then.type === 'sequence') { const nx = sequences().find(x => x.id === sq.then.sequence); return nx ? `then ${nx.name}` : 'then its next sequence (gone)'; }
-  return sq.then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';
+  const then = (sq.thenOn || {})[scene.viewOutput || 'main'] || sq.then;
+  if (then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
+  if (then.type === 'sequence') { const nx = sequences().find(x => x.id === then.sequence); return nx ? `then ${nx.name}` : 'then its next sequence (gone)'; }
+  return then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';
+}
+// Where it plays, once there's more than one output: a tick per output, in its colour, changed from the card
+// itself (it takes effect the next time the sequence starts; what's playing carries on). The last tick stays.
+// Each output it plays on (ticked, or playing it now) says how it is there: playing, paused, starting, or stopped (it
+// ended there, played out or cut short, and hasn't played again); nothing before it has played there; and
+// "output off" while that output isn't sending (it still plays there, for when it's turned on).
+function outTicks(sq) {
+  const box = document.createElement('div');
+  box.className = 'seqOuts';
+  if (!scene.viewMany) return box;
+  const on = sq.playsOn || ['main'];
+  const all = sceneAll.scenes ? sceneAll : scene;
+  const playOf = o => o === 'main' ? all.playing : (all.playingOut || {})[o];
+  const pendOf = o => o === 'main' ? all.pending : (all.pendingOut || {})[o];
+  box.title = 'The outputs it plays on together: started by itself, or played on any of them';
+  for (const o of out.outputs) {
+    const l = document.createElement('label');
+    l.innerHTML = '<input type="checkbox"> <i></i> <span></span>';
+    const c = l.querySelector('input');
+    const p = playOf(o.id), w = pendOf(o.id);
+    const st = p && p.id === sq.id ? (p.paused ? ['paused', '⏸ Paused'] : ['playing', '▶ Playing']) : w && w.id === sq.id ? ['starting', '⏳ Starting'] : (all.stoppedOn || {})[o.id] === sq.id ? ['stopped', '■ Stopped'] : null;
+    if (st) l.append(Object.assign(document.createElement('b'), { className: `seqSt ${st[0]}`, textContent: st[1] }));
+    // An output that isn't sending: its dot hollow and "off" by its name (it still plays there, for when it's turned on).
+    if (!(o.showing || []).length) {
+      l.classList.add('notSending');
+      l.querySelector('span').after(Object.assign(document.createElement('small'), { textContent: 'off' }));
+      l.title = `${o.name} isn't sending: a sequence still plays there, for when it's turned on`;
+    }
+    c.checked = on.includes(o.id);
+    c.disabled = c.checked && on.length === 1;
+    c.onchange = () => act({ type: 'seqUpdate', sequence: sq.id, changes: { playsOn: out.outputs.map(x => x.id).filter(id => id === o.id ? c.checked : on.includes(id)) } });
+    l.querySelector('i').style.cssText = `background:${o.colour};border:2px solid ${o.colour}`;
+    l.querySelector('span').textContent = o.name;
+    box.append(l);
+  }
+  return box;
 }
 let showHidden = false;
 try { showHidden = localStorage.getItem('studio.seqShowHidden') === '1'; } catch { /* no storage */ }
@@ -69,9 +107,9 @@ function renderSequences() {
     if (sq.quiet) card.querySelector('b').append(quietMark());
     const swActs = sq.steps.flatMap(st => st.switcher || []);
     if (swActs.length) card.querySelector('b').append(switcherMark(swActs));
-    card.querySelector('b').append(outDots(scene.onOut?.sequences[sq.id]));
     if (sq.hidden) { card.classList.add('hiddenSeq'); card.querySelector('.t').append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Hidden', title: 'Hidden from the list: plays inside other sequences, by its start, or from the Stream Deck' })); }
     card.querySelector('.band').classList.add(sq.colour);
+    if (scene.viewMany) card.append(outTicks(sq));
     if (run) {
       const dots = document.createElement('div');
       dots.className = 'dots';
@@ -141,7 +179,7 @@ function renderSequences() {
       + `Stream Deck: <code>${deckBase}${scene.viewDeck}/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
       + `<code>${scene.viewDeck}/sequence/next</code> (or <code>${scene.viewDeck}/sequence/advance</code>, only for a step waiting on Next), <code>${scene.viewDeck}/sequence/pause</code> and <code>${scene.viewDeck}/sequence/stop</code>; for one about to start `
       + `<code>${scene.viewDeck}/sequence/now</code> and <code>${scene.viewDeck}/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.`
-      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (the coloured dots), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
+      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (each output's tick on the card says Playing, Paused, Starting or Stopped), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
     : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
       + 'Add your sources below first, then <b>+ New sequence</b>.';
 }
@@ -199,16 +237,27 @@ function lengthsChanged() {
   if (plDraft) renderPlTracks();
 }
 function openSequence(sq) {
-  draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, steps: [] };
-  // With more than one output: where it starts by itself, and what plays only on Output 1.
+  // A new one plays on the output picked over the Scene View.
+  draft = sq ? JSON.parse(JSON.stringify(sq)) : { name: '', colour: 'purple', repeat: 'once', start: { type: 'hand' }, then: { type: 'off' }, playsOn: [scene.viewOutput || 'main'], thenOn: {}, steps: [] };
+  // With more than one output: the outputs it plays on together (each with its own Then), and what plays only on Output 1.
   const outs = scene.viewMany ? out.outputs : [];
   $('sqOutNote').classList.toggle('hidden', !outs.length);
-  $('sqStartOn').innerHTML = '';
-  for (const o of outs) $('sqStartOn').append(new Option(o.name, o.id));
-  // Set to start on an output that has since been removed: it won't start by itself until another is picked.
-  if (draft.startGone && outs.length) $('sqStartOn').append(new Option("A removed output (won't start by itself)", draft.startOn));
-  $('sqStartOn').value = outs.some(o => o.id === draft.startOn) || draft.startGone ? draft.startOn : 'main';
-  $('sqOutNote').textContent = "Played by hand, it plays on the output picked over the Scene View. Music plays only on Output 1; on other outputs it is silent, and Sponsor ads play in that output's own ad sources (counted for sponsors only if its card says so).";
+  $('sqPlaysOn').innerHTML = '';
+  const on = draft.playsOn || ['main'];
+  for (const o of outs) {
+    const l = document.createElement('label');
+    l.className = 'inline';
+    l.innerHTML = '<input type="checkbox"> <i></i> <span></span>';
+    l.querySelector('input').value = o.id;
+    l.querySelector('input').checked = on.includes(o.id);
+    l.querySelector('input').onchange = () => renderThens();
+    l.querySelector('i').style.cssText = `display:inline-block;width:10px;height:10px;border-radius:50%;background:${o.colour}`;
+    l.querySelector('span').textContent = o.name;
+    $('sqPlaysOn').append(l);
+  }
+  // Set to play on outputs that have since been removed: those are left out (with all gone, it won't start by itself).
+  if (draft.startGone && outs.length) $('sqPlaysOn').append(Object.assign(document.createElement('small'), { textContent: "The outputs it played on have been removed: it won't start by itself until you tick one." }));
+  $('sqOutNote').textContent = "Started by itself, or played on any output it plays on, it plays on all of them together, and each does its own Then when it ends there. Played on another output, it plays there alone. Music plays only on Output 1; on other outputs it is silent, and Sponsor ads play in that output's own ad sources (counted for sponsors only if its card says so).";
   const start = draft.start || { type: 'hand' };
   $('sqStart').value = start.type;
   $('sqStartMin').value = start.min || 10;
@@ -221,13 +270,8 @@ function openSequence(sq) {
   $('sqName').value = draft.name;
   $('sqColour').innerHTML = '';
   for (const [v, label] of COLOURS) $('sqColour').add(new Option(label, v, false, v === draft.colour));
-  const then = $('sqThen');
-  then.innerHTML = '';
-  then.add(new Option('Turn off what it turned on', 'off'));
-  then.add(new Option('Leave everything as it is', 'leave'));
-  for (const sc of scene.scenes || []) then.add(new Option(`Go to scene: ${sc.name}`, `scene:${sc.id}`));
-  for (const other of sequences()) if (other.id !== draft.id) then.add(new Option(`Play sequence: ${other.name}`, `sequence:${other.id}`));
-  then.value = draft.then.type === 'scene' ? `scene:${draft.then.scene}` : draft.then.type === 'sequence' ? `sequence:${draft.then.sequence}` : draft.then.type;
+  thenOptions($('sqThen'), draft.then);
+  renderThens(true);
   // Music: none, a song or a playlist.
   const mus = $('sqMusic');
   mus.innerHTML = '';
@@ -248,7 +292,6 @@ function openSequence(sq) {
   $('sqHidden').checked = !!draft.hidden;
   stopListening();
   showStartFields();
-  if (!then.value) then.value = 'off';
   $('sqDelete').classList.toggle('hidden', !sq);
   $('sqCopy').classList.toggle('hidden', !sq);
   $('sqErr').textContent = '';
@@ -372,14 +415,63 @@ function playsInside(sq, id, seen = new Set()) {
   seen.add(sq.id);
   return sq.steps.some(st => st.kind === 'sequence' && (st.sequence === id || playsInside(sequences().find(x => x.id === st.sequence), id, seen)));
 }
+// The Then choices, set to then.
+function thenOptions(sel, then) {
+  sel.innerHTML = '';
+  sel.add(new Option('Turn off what it turned on', 'off'));
+  sel.add(new Option('Leave everything as it is', 'leave'));
+  for (const sc of scene.scenes || []) sel.add(new Option(`Go to scene: ${sc.name}`, `scene:${sc.id}`));
+  for (const other of sequences()) if (other.id !== draft.id) sel.add(new Option(`Play sequence: ${other.name}`, `sequence:${other.id}`));
+  sel.value = !then ? 'off' : then.type === 'scene' ? `scene:${then.scene}` : then.type === 'sequence' ? `sequence:${then.sequence}` : then.type;
+  if (!sel.value) sel.value = 'off';
+}
+const thenOf = v => v.startsWith('scene:') ? { type: 'scene', scene: v.slice(6) } : v.startsWith('sequence:') ? { type: 'sequence', sequence: v.slice(9) } : { type: v };
+// The outputs ticked under Plays on (the primary with just one output).
+const playsOnTicked = () => scene.viewMany ? [...document.querySelectorAll('#sqPlaysOn input:checked')].map(c => c.value) : ['main'];
+// One Then per ticked output once it plays on more than one: the first is #sqThen (the sequence's Then, also
+// used on any other output it's played on), the others that output's own. Keeps what's picked as ticks change
+// (fresh: the editor has just opened, so nothing's been picked yet).
+function renderThens(fresh) {
+  const box = $('sqThens'), main = $('sqThen');
+  const picked = {};
+  if (!fresh) {
+    for (const sel of box.querySelectorAll('select[data-out]')) picked[sel.dataset.out] = sel.value;
+    if (main.dataset.for) picked[main.dataset.for] = main.value;
+  }
+  box.querySelectorAll('.sqThenRow').forEach(r => { if (r.contains(main)) box.prepend(main); r.remove(); });
+  const ticked = playsOnTicked();
+  // The first ticked output's Then is the sequence's own: what was picked for it, else what it was set to.
+  main.dataset.for = ticked[0] || '';
+  if (ticked[0] && picked[ticked[0]]) main.value = picked[ticked[0]];
+  else if (ticked[0] && (draft.thenOn || {})[ticked[0]]) thenOptions(main, draft.thenOn[ticked[0]]);
+  if (ticked.length < 2) return;
+  ticked.forEach((o, i) => {
+    const x = out.outputs.find(y => y.id === o);
+    const row = document.createElement('label');
+    row.className = 'inline sqThenRow';
+    row.innerHTML = `<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${x ? x.colour : '#888'}"></i> <span style="display:inline-block;min-width:140px"></span>`;
+    row.querySelector('span').textContent = `On ${x ? x.name : 'a removed output'}`;
+    let sel = main;
+    if (i > 0) {
+      sel = document.createElement('select');
+      sel.dataset.out = o;
+      thenOptions(sel, (draft.thenOn || {})[o] || draft.then);
+      if (picked[o]) sel.value = picked[o];
+      sel.onchange = showStartFields;
+    }
+    row.append(sel);
+    box.append(row);
+  });
+}
 // Only the start and repeat settings that fit what's picked.
 function showStartFields() {
   const type = $('sqStart').value;
-  // Where it starts by itself, with more than one output.
-  document.querySelectorAll('.sqStartOn').forEach(e => e.classList.toggle('hidden', !scene.viewMany || type === 'hand'));
+  // Where it plays, with more than one output.
+  document.querySelectorAll('.sqPlaysOn').forEach(e => e.classList.toggle('hidden', !scene.viewMany));
   const hasMusic = !!$('sqMusic').value;
   document.querySelector('.sqMusicOn').classList.toggle('hidden', !hasMusic);
   $('sqListen').classList.toggle('hidden', !$('sqMusic').value.startsWith('track:'));
+  // Music plays on Output 1 alone, which (ticked, or not playing it together) does the first Then.
   const chained = $('sqThen').value.startsWith('sequence:');
   [...$('sqMusicEnd').options].find(o => o.value === 'continue').disabled = !chained;
   if (!chained && $('sqMusicEnd').value === 'continue') $('sqMusicEnd').value = 'fade';
@@ -425,7 +517,7 @@ function stepSeconds(st) {
   return secs.length ? Math.max(...secs) : 0;
 }
 function draftChanges() {
-  const then = $('sqThen').value, type = $('sqStart').value, [repeat, moment] = $('sqRepeat').value.split(':');
+  const type = $('sqStart').value, [repeat, moment] = $('sqRepeat').value.split(':');
   const start = type === 'before' ? { type, min: Number($('sqStartMin').value) || 10 }
     : type === 'break' ? { type, breaks: [...document.querySelectorAll('.sqBreaks input:checked')].map(c => c.value), afterSec: Number($('sqAfter').value) || 0 }
     : type === 'fulltime' ? { type, afterSec: Number($('sqAfter').value) || 0 } : { type: 'hand' };
@@ -435,8 +527,10 @@ function draftChanges() {
   return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start, music: musicChoice, quiet: $('sqQuiet').checked, hidden: $('sqHidden').checked,
     musicEnd: endType === 'fade' ? { type: 'fade', sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
     ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
-    then: then.startsWith('scene:') ? { type: 'scene', scene: then.slice(6) } : then.startsWith('sequence:') ? { type: 'sequence', sequence: then.slice(9) } : { type: then },
-    ...(scene.viewMany ? { startOn: $('sqStartOn').value } : {}),
+    then: thenOf($('sqThen').value),
+    // With one output it plays there (an output it played on that has since been removed is let go).
+    playsOn: playsOnTicked(),
+    thenOn: Object.fromEntries([...document.querySelectorAll('#sqThens select[data-out]')].filter(sel => sel.value !== $('sqThen').value).map(sel => [sel.dataset.out, thenOf(sel.value)])),
     steps: draft.steps };
 }
 async function saveSequence(andPlay) {
@@ -445,6 +539,7 @@ async function saveSequence(andPlay) {
   if (!changes.steps.length) { $('sqErr').textContent = 'Add at least one step.'; return; }
   if (changes.steps.some(st => st.kind === 'scene' && !st.scene)) { $('sqErr').textContent = 'Pick a scene for each scene step.'; return; }
   if (changes.steps.some(st => st.kind === 'sequence' && !st.sequence)) { $('sqErr').textContent = 'Pick a sequence for each sequence step.'; return; }
+  if (!changes.playsOn.length) { $('sqErr').textContent = 'Tick at least one output it plays on.'; return; }
   if (changes.start.type === 'break' && !changes.start.breaks.length && scene.game?.last !== 2) { $('sqErr').textContent = 'Tick at least one break.'; return; }
   const before = new Set(sequences().map(s => s.id));
   const body = draft.id ? await act({ type: 'seqUpdate', sequence: draft.id, changes }) : await act({ type: 'seqAdd', changes });
