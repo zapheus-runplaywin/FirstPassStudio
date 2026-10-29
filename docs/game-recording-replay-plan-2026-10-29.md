@@ -84,6 +84,13 @@ A 4K replay plays the night's on-air layer again through Studio's outputs, with 
 
 **Timecode (Matt asked 2026-10-29).** When the recorder's file carries time-of-day timecode (a HyperDeck's own clock, or timecode embedded from the ATEM), Studio reads the file's start timecode from its header with the bundled ffmpeg, no video processing, and sets the offset from that. The replay then starts at the right moment by itself. Two clocks can still differ by a second, so the nudge stays. The 1080p programme recording gives the exact frame: Studio's graphics are burned into it, so Studio can find the frame the scoreboard first appeared, lock the offset to it, and carry it to the 4K file by timecode. Pressing Play on both at a marked moment (the 10 min before sequence) is the fallback when there is no timecode.
 
+**Following the video's timecode live (Matt, 2026-10-29).** Better than any sync point: the replay follows the player's running timecode, so the graphics lock to the video, never drift, and scrubbing the video drags the graphics with it. Two ways in, both planned:
+
+- **HyperDeck over the network, first.** A HyperDeck reports its transport timecode over Ethernet (its control protocol on port 9993, pushed on every change). Studio follows it the way it talks to the ATEM today. No cable, nothing to patch.
+- **SDI into the UltraStudio, second.** SDI carries timecode (RP188) and the Blackmagic driver exposes it on the UltraStudio's SDI input. Any player that sends SDI into the UltraStudio gives Studio a running timecode. A 1080p feed is enough for this, so the HyperDeck's monitor output does, while the 4K picture goes to the switcher. HDMI carries no timecode, so the HDMI input can't be used for this.
+
+In the Recordings tab the replay gets a Follow choice: the HyperDeck (its address, as the ATEM has), the UltraStudio input, or none (sync point and nudge). The recorded time of day maps to the video's timecode through the offset above, set once and saved. Playing, pausing and scrubbing the player then drive the replay; Studio's own Play and Pause stay for the no-follow case.
+
 ## Sound
 
 Take the sound from the 1080p HyperDeck recording. Don't save a sound track from Studio.
@@ -101,7 +108,7 @@ If the 4K ISO file already carries the programme mix, use that sound and skip th
 
 ## PR plan
 
-Seven PRs, one change each. 4K first, since it stands alone and every later piece shows through it. Each PR keeps the Docs page, Data and bandwidth, the user guide, STREAMDECK.md and docs/ARCHITECTURE.md in sync. The feature bumps minor once.
+Eight PRs, one change each. 4K first, since it stands alone and every later piece shows through it. Each PR keeps the Docs page, Data and bandwidth, the user guide, STREAMDECK.md and docs/ARCHITECTURE.md in sync. The feature bumps minor once.
 
 1. **4K output mode.** The HD / 4K control, 2160p derived for NDI and Blackmagic, output window at 2x with a sharpness check, canvases by devicePixelRatio, pages fit themselves above 1080p, 2160p stinger pick, soft-picture warnings. Perf meter run on your M1 and M3 Pro.
 2. **Record games.** The two-layer recording, the Recordings folder and tab (nights, games, size, delete), the record switch, 60-day tidy.
@@ -109,7 +116,8 @@ Seven PRs, one change each. 4K first, since it stands alone and every later piec
 4. **Tests from recordings.** A real-game recording with made-up names in test/recordings, the test stand-in loads it, journey tests for a whole game, clock-shift and pause tests.
 5. **Demo games.** Id translation to the client's competition, team and athlete mapping table with line-up fallbacks, Swap, saved mappings.
 6. **4K replay.** replay.html from the on-air layer, the Replay strip, event list, jump, sync point and nudge, /deck/replay links, missing-media warnings.
-7. **Stream Deck keys** for practice, demo and replay in the plugin, with the Output dropdown as for other keys.
+7. **Follow timecode.** The replay follows a HyperDeck's timecode over the network, then the UltraStudio's SDI input timecode; the Follow choice in the Recordings tab.
+8. **Stream Deck keys** for practice, demo and replay in the plugin, with the Output dropdown as for other keys.
 
 Later, only if syncing by hand proves fiddly: Studio renders the night's graphics to a 2160p ProRes 4444 file with alpha, frame by frame, the way the stinger is rendered, for an editor to composite.
 
