@@ -93,8 +93,8 @@ In it:
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
-- `recordings.json`, `demos.json` and `Recordings/`: whether Studio records each night on air, the saved demo games and the recordings (see **Recordings**
-  below), in the local data folder, so they stay on this Mac (not in iCloud Drive or a backup).
+- `recordings.json`, `demos.json`, `replay.json` and `Recordings/`: whether Studio records each night on air, the saved demo games, the HyperDeck
+  a 4K replay follows (with each recording's sync) and the recordings (see **Recordings** below), in the local data folder, so they stay on this Mac (not in iCloud Drive or a backup).
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`, `remoteChanges`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log (`playhq-graphics.log`) and the app log (`app.log`: updates, What's new, outputs and windows).
@@ -1006,6 +1006,14 @@ answered from the recording at that point (`replay.answer()`). Times are moved t
 Output page's 4K on the outputs send the night at 2160p. It starts paused at the game; Play/Pause, nudge (`{ nudge: ms }`),
 jump to what went on air (`{ seek: t }`, the `events` list: sources on, quarters) and Stop (`/api/replay`). Exposure is held
 and the night's recording paused. Studio never plays the video.
+
+**Following a HyperDeck** (`hyperdeck.js`): `{ follow: { kind: 'hyperdeck', address } }` (or `kind: 'none'`) makes the replay
+follow a HyperDeck's timecode. Studio connects to its Ethernet control protocol (TCP 9993) only while a replay follows it, sends
+`notify: transport: true` and asks `transport info` four times a second, and never sends a command that changes the deck. The
+timecode (`display timecode`, frames by the `video format`) is read as a time of day on the night, plus an offset kept per
+recording in `replay.json`; between answers it runs on by the time passed and the speed. While following, the HyperDeck's play and
+stop drive the replay (Studio's Play/Pause gets a 400), `{ seek: t }` sets the offset so the video's moment is `t`, and `{ nudge }`
+moves the offset.
 
 **Practice games** (`practice.js`): *Practise* beside a game on the Recordings tab plays it back as if live
 (`POST /api/practice` `{ start: { recording, game, from } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).

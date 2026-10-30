@@ -13,22 +13,44 @@
 //
 // Controls (the Recordings tab): Play, Pause, nudge (a frame either way, or a second), and jump to anything that went
 // on air (a source coming on, a quarter starting), which pauses there: pause the video on the same moment, then
-// Play both. hooks (init): read(recording), shift(value, ms), scene(state or null) and board(json or null) put the
-// replay on the pages (null: live again), paused(on) pause the night's recording, held(on).
+// Play both.
+//
+// Or the replay follows a HyperDeck playing the video (Follow, hyperdeck.js): its timecode, as a time of day, is the
+// moment of the night to show, so playing, pausing and scrubbing the HyperDeck drive the graphics and they never
+// drift. The two clocks (the HyperDeck's timecode and this Mac's) can differ, so the offset between them is kept for
+// each recording: the nudge moves it, and Jump there sets it (the video is at that moment now). Saved in replay.json
+// in the local data folder: { follow: 'none' | 'hyperdeck', hyperdeck (its address), offsets: { recording: ms } }.
+//
+// hooks (init): read(recording), shift(value, ms), scene(state or null) and board(json or null) put the replay on the
+// pages (null: live again), paused(on) pause the night's recording, timecode (hyperdeck.js: follow, now, state),
+// settings (replay.json's path).
 
 'use strict';
 
 const TICK_MS = 20;
 const FRAME_MS = 40; // one frame at 25 fps, the nudge's smallest step
 
+const fs = require('fs');
+const savefile = require('./savefile');
+
 let log = () => {};
-let hooks = { read: () => [], shift: v => v, scene() {}, board() {}, paused() {} };
+let hooks = { read: () => [], shift: v => v, scene() {}, board() {}, paused() {}, timecode: null, settings: '' };
 let run = null;
 let timer = null;
+let saved = { follow: 'none', hyperdeck: '', offsets: {} };
 
 function init(logger, h = {}) {
   log = logger || log;
   hooks = { ...hooks, ...h };
+  try {
+    const s = JSON.parse(fs.readFileSync(hooks.settings, 'utf8'));
+    saved = { follow: s.follow === 'hyperdeck' ? 'hyperdeck' : 'none', hyperdeck: String(s.hyperdeck || '').slice(0, 100), offsets: {} };
+    for (const [k, v] of Object.entries(s.offsets || {})) if (Number.isFinite(v)) saved.offsets[k] = v;
+  } catch { /* none saved yet */ }
+}
+function save() {
+  if (!hooks.settings) return;
+  try { savefile.writeJsonSync(hooks.settings, saved); } catch (err) { log('warn', 'replay', `Could not save replay.json: ${err.message}`); }
 }
 
 const active = () => !!run;
@@ -78,16 +100,70 @@ function load(recording, gameId) {
   return { recording, scene, board, api, events, first, last, start: game ? game.t : first, game: game && { id: game.id, home: game.home, away: game.away } };
 }
 
+// ─── Following a HyperDeck ─────────────────────────────────────────────────
+const following = () => !!(run && saved.follow === 'hyperdeck' && hooks.timecode);
+const offset = () => saved.offsets[run.recording] || 0;
+
+// The moment of the night a timecode (ms of the day) is: on the day of the game, or the day before or after it, for
+// a night that goes past midnight.
+function nightOf(ms) {
+  const d = new Date(run.start);
+  d.setHours(0, 0, 0, 0);
+  let best = null;
+  for (const day of [-1, 0, 1]) {
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate() + day).getTime() + ms + offset();
+    if (best === null || Math.abs(t - run.start) < Math.abs(best - run.start)) best = t;
+  }
+  return best;
+}
+
+// Moves the replay to where the HyperDeck is. While it plays, the replay plays too, and only moves again if the two
+// have slipped apart by more than two frames (the HyperDeck answers to the frame, a few times a second).
+function followTimecode() {
+  const n = hooks.timecode.now();
+  if (!n) return; // not answering: the replay stays where it is
+  const t = nightOf(n.ms);
+  if (n.playing) {
+    if (run.pausedAt !== null || Math.abs(position() - t) > 2 * FRAME_MS) { run.from = t; run.startedAt = Date.now(); run.pausedAt = null; run.sentBoard = -2; }
+  } else if (run.pausedAt === null || Math.abs(run.pausedAt - t) >= 1) {
+    run.pausedAt = t;
+    run.sentBoard = -2;
+  }
+}
+
+function connectFollow() {
+  if (!hooks.timecode) return;
+  const to = run && saved.follow === 'hyperdeck' ? hooks.timecode.parseAddress(saved.hyperdeck) : null;
+  hooks.timecode.follow(to);
+}
+
+// { kind: 'none' | 'hyperdeck', address }: what the replay follows, kept for next time.
+function setFollow(f) {
+  if (!f || typeof f !== 'object') return 'Send { follow: { kind, address } }.';
+  if (f.kind === 'hyperdeck') {
+    const address = f.address !== undefined ? String(f.address).trim() : saved.hyperdeck;
+    if (!hooks.timecode || !hooks.timecode.parseAddress(address)) return "Type the HyperDeck's IP address (as on its setup page), such as 192.168.1.50.";
+    saved.follow = 'hyperdeck';
+    saved.hyperdeck = address;
+  } else if (f.kind === 'none') saved.follow = 'none';
+  else return 'Follow a HyperDeck (kind: hyperdeck) or nothing (kind: none).';
+  save();
+  connectFollow();
+  if (run) { run.sentBoard = -2; tick(); }
+  return null;
+}
+
 // ─── Playing ────────────────────────────────────────────────────────────────
 // Sends what was on air at the position, when it's another entry than last sent (or always, with force).
 function tick(force) {
   if (!run) return;
+  if (following()) followTimecode();
   const p = position();
   // Before the first recorded scene or board (the night's recording started with Studio), the first one.
   const si = run.scene.length ? Math.max(0, indexAt(run.scene, p)) : -1, bi = run.board.length ? Math.max(0, indexAt(run.board, p)) : -1;
   if (force || si !== run.sentScene) { run.sentScene = si; hooks.scene(si >= 0 ? hooks.shift(run.scene[si].value, gap()) : { sources: [], scenes: [], current: null }); }
   if (force || bi !== run.sentBoard) { run.sentBoard = bi; if (bi >= 0) hooks.board({ ...hooks.shift(run.board[bi].value, gap()), serverNow: Date.now() }); }
-  if (run.pausedAt === null && p > run.last + 60000) pause(true); // past the end: it stands at the last moment
+  if (run.pausedAt === null && !following() && p > run.last + 60000) pause(true); // past the end: it stands at the last moment
 }
 
 function start({ recording, game, at } = {}) {
@@ -96,6 +172,7 @@ function start({ recording, game, at } = {}) {
   hooks.paused(true);
   run = { ...loaded, from: Number.isFinite(at) ? at : loaded.start, startedAt: Date.now(), pausedAt: null, sentScene: -2, sentBoard: -2 };
   run.pausedAt = run.from; // starts paused at its point, ready to Play with the video
+  connectFollow();
   tick(true);
   timer = setInterval(() => { try { tick(); } catch (err) { log('warn', 'replay', `Replay: ${err.message}`); } }, TICK_MS);
   if (timer.unref) timer.unref();
@@ -104,6 +181,7 @@ function start({ recording, game, at } = {}) {
 }
 
 function pause(on) {
+  if (following()) return "The HyperDeck's play and stop drive the replay while it follows it. Set Follow to None to play it here.";
   if (on && run.pausedAt === null) run.pausedAt = position();
   if (!on && run.pausedAt !== null) { run.from = run.pausedAt; run.startedAt = Date.now(); run.pausedAt = null; }
   run.sentBoard = -2; // the clock's times move with the pause
@@ -115,6 +193,7 @@ function pause(on) {
 function nudge(ms) {
   const n = Number(ms);
   if (!Number.isFinite(n) || Math.abs(n) > 600000) return 'Nudge by up to 10 minutes either way.';
+  if (following()) { saved.offsets[run.recording] = offset() + n; save(); run.sentBoard = -2; tick(); return null; } // the graphics move against the video
   if (run.pausedAt !== null) run.pausedAt += n; else run.from += n;
   run.sentBoard = -2;
   tick();
@@ -123,6 +202,16 @@ function nudge(ms) {
 function seek(t) {
   const n = Number(t);
   if (!Number.isFinite(n)) return 'Jump to a time in the recording.';
+  if (following()) {
+    // The video is at this moment now: the offset that makes it so.
+    const tc = hooks.timecode.now();
+    if (!tc) return "The HyperDeck isn't answering yet, so the replay can't be synced to it.";
+    saved.offsets[run.recording] = offset() + Math.max(run.first, Math.min(run.last, n)) - nightOf(tc.ms);
+    save();
+    run.sentBoard = -2;
+    tick();
+    return null;
+  }
   run.pausedAt = Math.max(run.first, Math.min(run.last, n));
   run.sentBoard = -2;
   tick();
@@ -135,6 +224,7 @@ function stop() {
   timer = null;
   const { recording } = run;
   run = null;
+  connectFollow();
   hooks.scene(null);
   hooks.board(null);
   hooks.paused(false);
@@ -153,13 +243,20 @@ function answer(pathAndQuery) {
   return v && typeof v === 'object' && !Array.isArray(v) && 'serverNow' in v ? { ...v, serverNow: Date.now() } : v;
 }
 
-function state() {
-  if (!run) return { active: false };
-  return { active: true, recording: run.recording, game: run.game, paused: run.pausedAt !== null, position: position(),
-    first: run.first, last: run.last, start: run.start, frameMs: FRAME_MS, events: run.events };
+function followState() {
+  const f = { kind: saved.follow, address: saved.hyperdeck };
+  if (run && f.kind === 'hyperdeck' && hooks.timecode) Object.assign(f, { hyperdeck: hooks.timecode.state(), offset: offset() });
+  return f;
 }
 
-// /api/replay: GET where it is; POST { start: { recording, game, at } } | { pause } | { nudge: ms } | { seek: t } | { stop }.
+function state() {
+  if (!run) return { active: false, follow: followState() };
+  return { active: true, recording: run.recording, game: run.game, paused: run.pausedAt !== null, position: position(),
+    first: run.first, last: run.last, start: run.start, frameMs: FRAME_MS, events: run.events, follow: followState() };
+}
+
+// /api/replay: GET where it is; POST { start: { recording, game, at } } | { pause } | { nudge: ms } | { seek: t } | { stop }
+// | { follow: { kind: 'none' | 'hyperdeck', address } }.
 async function route(req, res, url, { send: reply, readBody }) {
   if (url.pathname !== '/api/replay') return false;
   if (req.method === 'POST') {
@@ -167,12 +264,13 @@ async function route(req, res, url, { send: reply, readBody }) {
     let error = null;
     try {
       if (body.start) error = start(body.start);
+      else if (body.follow !== undefined) error = setFollow(body.follow);
       else if (!run) error = 'No replay is running.';
       else if (body.stop) error = stop();
       else if (typeof body.pause === 'boolean') error = pause(body.pause);
       else if (body.nudge !== undefined) error = nudge(body.nudge);
       else if (body.seek !== undefined) error = seek(body.seek);
-      else error = 'Send { start }, { pause }, { nudge }, { seek } or { stop }.';
+      else error = 'Send { start }, { pause }, { nudge }, { seek }, { follow } or { stop }.';
     } catch (err) { error = err.message; }
     if (error) { reply(res, 400, { error, ...state() }); return true; }
   }

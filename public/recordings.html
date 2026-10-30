@@ -81,9 +81,18 @@
       <button class="danger" id="replayStop">Stop</button></div>
     <div class="row"><select id="replayEvents" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;max-width:100%"></select>
       <button id="replayJump">Jump there</button></div>
+    <div class="row"><label for="followKind">Follow</label>
+      <select id="followKind" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px">
+        <option value="none">Nothing (Play here)</option><option value="hyperdeck">A HyperDeck's timecode</option></select>
+      <input id="followAddress" placeholder="HyperDeck IP address" maxlength="100" hidden style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;width:12em">
+      <button id="followSet" hidden>Follow</button>
+      <span class="help" id="followStatus" style="margin:0"></span></div>
     <p class="help">The night's graphics go to every output exactly as they went to air, with the Output page's <b>4K</b> on for 2160p, to key over the
       4K camera recording. Studio doesn't play the video. To sync: pause the video on a moment you can see (the first centre pass), jump here to the same
       moment, then press Play on both together and nudge until they match. While it runs the live scene and scoreboard are kept as they were and can't be changed.</p>
+    <p class="help">With the video on a HyperDeck, Follow its timecode instead: the HyperDeck's play, stop and scrubbing drive the graphics, so they
+      never drift. Type its IP address (on its setup page, or in HyperDeck Setup). To sync once, stop the HyperDeck on a moment you can see, pick the same
+      moment above and press Jump there; the nudge moves the graphics against the video. The sync is kept for each recording.</p>
   </section>
 
   <section id="savedDemos" hidden>
@@ -224,6 +233,7 @@ function showReplay(r) {
   $('replayWhat').innerHTML = `${r.game ? `<b>${esc(r.game.home)} v ${esc(r.game.away)}</b>, ` : ''}${r.paused ? 'paused' : 'playing'} at <b>${esc(tod(r.position))}</b> on the night.`;
   $('replayPlay').textContent = r.paused ? 'Play' : 'Pause';
   $('replayPlay').dataset.paused = r.paused ? '1' : '';
+  showFollow(r.follow || {});
   const key = JSON.stringify(r.events);
   if (key !== eventsKey) {
     eventsKey = key;
@@ -239,6 +249,33 @@ async function replayCall(body) {
     showReplay(s);
   } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
 }
+// Follow: nothing, or a HyperDeck's timecode (its address typed, as the ATEM's can be).
+let followShown = '';
+function showFollow(f) {
+  const hd = f.kind === 'hyperdeck';
+  // The choice and address only change here when they changed in Studio, so typing isn't overwritten.
+  const key = `${f.kind}|${f.address}`;
+  if (key !== followShown) { followShown = key; $('followKind').value = f.kind || 'none'; $('followAddress').value = f.address || ''; }
+  const picked = $('followKind').value === 'hyperdeck';
+  $('followAddress').hidden = $('followSet').hidden = !picked;
+  $('replayPlay').disabled = hd;
+  $('replayPlay').title = hd ? "The HyperDeck's play and stop drive the replay" : '';
+  const h = f.hyperdeck;
+  const offset = Math.round((f.offset || 0) / 100) / 10;
+  $('followStatus').textContent = !hd || !h ? ''
+    : h.conn === 'connected' ? `${h.model || 'HyperDeck'}: ${h.status === 'play' ? 'playing' : h.status || 'stopped'} at ${h.tc || '--:--:--:--'}${offset ? `, graphics ${offset > 0 ? '+' : ''}${offset} s` : ''}`
+    : h.conn === 'lost' ? `The HyperDeck stopped answering${h.error ? ` (${h.error})` : ''}. Trying again.`
+    : `Connecting to the HyperDeck${h.error ? ` (${h.error})` : ''}…`;
+}
+$('followKind').onchange = () => {
+  const hd = $('followKind').value === 'hyperdeck';
+  $('followAddress').hidden = $('followSet').hidden = !hd;
+  if (!hd) replayCall({ follow: { kind: 'none' } });
+  else if ($('followAddress').value.trim()) replayCall({ follow: { kind: 'hyperdeck', address: $('followAddress').value } });
+  else $('followAddress').focus();
+};
+$('followSet').onclick = () => replayCall({ follow: { kind: 'hyperdeck', address: $('followAddress').value } });
+$('followAddress').onkeydown = e => { if (e.key === 'Enter') $('followSet').click(); };
 $('replayPlay').onclick = () => replayCall({ pause: !$('replayPlay').dataset.paused });
 $('replay').onclick = e => { const b = e.target.closest('[data-nudge]'); if (b) replayCall({ nudge: Number(b.dataset.nudge) }); };
 $('replayJump').onclick = () => { if ($('replayEvents').value) replayCall({ seek: Number($('replayEvents').value) }); };
