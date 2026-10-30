@@ -33,7 +33,7 @@ const os = require('os');
 const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key', '/api/planner'];
 function privateRead(method, pathname) {
   if (method !== 'GET' && method !== 'HEAD') return false;
-  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || macOnly(pathname);
+  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || macOnly(pathname);
 }
 
 // Who may change things from another device (the Devices… window, devices.js): read and changed only on this Mac,

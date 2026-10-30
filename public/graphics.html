@@ -486,6 +486,17 @@
       <code style="display:inline">ladder</code> with <code style="display:inline">&amp;division=</code>, <code style="display:inline">topshooters</code> with <code style="display:inline">&amp;division=</code>; <code style="display:inline">&amp;date=</code>, <code style="display:inline">&amp;game=</code>, <code style="display:inline">&amp;sponsor=0|1</code>, <code style="display:inline">&amp;mark=0|1</code>, <code style="display:inline">&amp;pivt=0|1</code>, <code style="display:inline">&amp;colours=</code>, <code style="display:inline">&amp;template=</code>, <code style="display:inline">&amp;home=</code>, <code style="display:inline">&amp;away=</code>, <code style="display:inline">&amp;athlete=</code>, <code style="display:inline">&amp;title=</code>).
       Photos dropped on a polaroid stay on this Mac (the newest 40), never in a backup or iCloud.</p>
   </div>
+  <div class="card" id="recordings">
+    <h2>Recordings (each night on air, for practice games and 4K replays)</h2>
+    <p class="page__help">Every night on air (from <b>Open Studio</b> until off air) Studio keeps a recording of what PlayHQ said and what went to air, timed:
+      PlayHQ's answers (live score, clock, quarter, line ups, fixtures, ladders), each scoreboard press and Stream Deck press, and every change to the scene,
+      the board and the answers the graphics read. There's no video or sound in it, only what the graphics need, a few megabytes a night.
+      The <a href="/recordings.html" target="_blank">Recordings</a> tab lists each night with its games (by when each was picked), its length and size, with
+      <b>Download</b> (the .jsonl.gz file, to keep or send in as test data) and <b>Remove</b>. <b>Record every night on air</b> is on unless you turn it off;
+      turning it off stops the recording being made. A recording with no game in it (Studio opened to set things up) and one older than 60 days are removed when Studio starts.
+      Recordings stay on this Mac (in <b>Recordings/</b> of the data folder), never in a backup or iCloud, and hold nothing secret: no keys, devices, cookies or private answers.
+      A recording plays back as a practice game, and replays a night's graphics at 4K over a 4K camera recording; those come next.</p>
+  </div>
   <div class="card">
     <h2>Example graphics</h2>
     <p class="page__help">From a copy of the FirstPassStudio repository, double-click <b>Make Examples (Mac).command</b>
@@ -528,7 +539,7 @@
     <p class="page__help">The app window is like any Mac app's: no address bar, tabs or bookmarks, the Studio header is the title bar
       (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
       open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
-      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘9), <b>View</b> for reload, back and zoom, <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
+      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘9, and ⌘0 for Docs), <b>View</b> for reload, back and zoom, <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
     <p class="page__help">Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
   </div>
   <div class="card">
@@ -566,6 +577,7 @@
         <code style="display:inline">x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
+      <li><b>recordings.json</b> and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <h3>Keeping the settings in iCloud Drive</h3>
@@ -644,6 +656,7 @@
       <li>Mics: nothing over the internet. Output 1's window tells Studio what it hears twice a second, and the Output page asks for it twice a second while its Mics section is open; the sound itself stays inside the Mac. A mic on the switcher is a few small fader messages over the switcher's connection when its level changes (about 20 a second while a dip fades).</li>
       <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
       <li>Stream Deck plugin's keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen (and one more while a Switcher key is), and Studio only sends when the scene or the switcher changes.</li>
+      <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds, a few megabytes a night.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>

@@ -42,7 +42,7 @@ const SETTINGS = new Set([
 // Kept in the local folder whichever folder holds the settings (saved with datadir.local()).
 const LOCAL_ONLY = new Set([
   LOCATION_FILE, 'app-settings.json', 'logs', 'backups',
-  'scoreboard-state.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json', 'socials-photos',
+  'scoreboard-state.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json', 'socials-photos', 'recordings.json', 'Recordings',
 ]);
 
 const PROVIDERS = {

@@ -16,11 +16,12 @@
 //   playhq                                 the PlayHQ client (getLive, liveScore, scoringNotYet, PERIOD_NUMBER, getRoundGames)
 //   control                                control.json: get(), save(), LASTING, exists(), markUnsaved()
 //   logoFor(name), colourFor(name), rules(division), competitionName(), warmTeamLists(why)   from server.js
+//   record                                 recorder.js (record.action: each action, for the game recording)
 const fs = require('fs');
 const path = require('path');
 const { isFinished } = require('./playhq');
 
-function create({ log, datadir, savefile, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists }) {
+function create({ log, datadir, savefile, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }) {
   const { getRoundGames, liveScore, scoringNotYet, PERIOD_NUMBER } = playhq;
   const MACHINE = machine;
   const { LASTING } = controlFile;
@@ -99,6 +100,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // PlayHQ scorer's clock is switched to match. Changing the clock afterwards still wins.
   const SETS_SOURCE = new Set(['source', 'selectGame']);
   function applyAction(b, a) {
+    record.action(a);
     const sourceBefore = b.source;
     applyOne(b, a);
     if (b.source === sourceBefore && !SETS_SOURCE.has(a.type)) return;
