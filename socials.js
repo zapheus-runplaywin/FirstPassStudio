@@ -71,6 +71,11 @@ const TEMPLATES = [
   { id: 'court', name: 'Court', blurb: 'A netball court: its lines, thirds and circles', font: 'Oswald', mark: 'white' },
   { id: 'bib', name: 'Bib', blurb: 'A netball bib with its position letters', font: 'Archivo Black', mark: 'white' },
   { id: 'goal', name: 'Goal', blurb: 'The goal ring, net and post, and a netball', font: 'Teko', mark: 'white' },
+  { id: 'bottle', name: 'Bottle', blurb: 'A squeeze bottle and cool water', font: 'Sora', mark: 'white' },
+  { id: 'cones', name: 'Cones', blurb: 'Training cones and a drill line across the field', font: 'Fredoka', mark: 'white' },
+  { id: 'sneakers', name: 'Sneakers', blurb: 'A court shoe, its tread and a thick sole', font: 'Archivo Black', mark: 'white' },
+  { id: 'stadium', name: 'Stadium', blurb: 'Floodlights over the stands at night', font: 'Teko', mark: 'white' },
+  { id: 'locker', name: 'Locker room', blurb: 'Locker doors with name labels', font: 'Oswald', mark: 'white' },
 ].map(t => ({ ...t, fontCss: t.font ? fontCss(t.font) : null, scriptCss: t.script ? fontCss(t.script) : null }));
 // Sets dropped from the list, each drawn as the closest one kept, so a saved choice or an old link still works.
 const RETIRED = { fun: 'default', geometric: 'default', futuristic: 'neon', '3d': 'neon', striped: 'gameday', arena: 'highcontrast' };
