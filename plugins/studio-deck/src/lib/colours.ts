@@ -43,12 +43,13 @@ export const TALLY = { program: "#ff4d4d", preview: "#22c55e" } as const;
 /** The dot a Scene key shows in its top corner while sources differ from the scene as saved (a Switcher key: while the switcher isn't answering). */
 export const DOT = "#facc15";
 
-/** The four kinds of key. Each draws its own picture and band, so they can be told apart across a page. */
-export type KeyKind = "source" | "scene" | "sequence" | "switcher";
+/** The five kinds of key. Each draws its own picture and band, so they can be told apart across a page. */
+export type KeyKind = "source" | "scene" | "sequence" | "switcher" | "playback";
 
 /**
  * The big faint picture behind a key's title: an eye for a Source (shows or hides one thing), stacked layers for
- * a Scene (a set of sources), a play button for a Sequence (plays in order), a camera for a Switcher key. White at low opacity so the title
+ * a Scene (a set of sources), a play button for a Sequence (plays in order), a camera for a Switcher key, play and
+ * pause together for a Replay key (a recorded game played back). White at low opacity so the title
  * still reads over it, on every dark body and every lit colour.
  */
 const PICTURE: Record<KeyKind, string> = {
@@ -60,14 +61,22 @@ const PICTURE: Record<KeyKind, string> = {
 		`<path d="M20 62L72 88L124 62M20 82L72 108L124 82" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>`,
 	sequence: `<path d="M44 16L112 60L44 104Z" fill="#fff" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>`,
 	switcher: `<rect x="14" y="34" width="84" height="56" rx="10" fill="#fff"/>` + `<path d="M104 52L130 36V88L104 72Z" fill="#fff"/>`,
+	playback:
+		`<path d="M20 22L76 60L20 98Z" fill="#fff" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>` +
+		`<rect x="90" y="22" width="14" height="76" rx="3" fill="#fff"/><rect x="114" y="22" width="14" height="76" rx="3" fill="#fff"/>`,
 };
 
 /**
  * The band along the bottom in the group's colour: one solid strip for a Source, the same with a frame up the
- * sides and over the top for a Scene (a whole screen), four steps with gaps for a Sequence, and two halves for a
- * Switcher key (program and preview).
+ * sides and over the top for a Scene (a whole screen), four steps with gaps for a Sequence, two halves for a
+ * Switcher key (program and preview), and a timeline with its playhead for a Replay key.
  */
 function band(kind: KeyKind, colour: string): string {
+	if (kind === "playback")
+		return (
+			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +
+			`<rect y="130" width="144" height="8" fill="${colour}"/><rect x="58" y="124" width="10" height="20" fill="${colour}"/>`
+		);
 	if (kind === "switcher")
 		return (
 			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +

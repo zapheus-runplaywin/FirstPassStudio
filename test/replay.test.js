@@ -61,6 +61,18 @@ test('a replay puts the recorded night on the pages, leaves the live setup alone
   await new Promise(r => setTimeout(r, 300));
   assert.ok((await studio.get('/api/replay')).position > at + 40);
 
+  // The Stream Deck's Replay key: pause and play, jump on and back to what went on air, nudge.
+  let k = await studio.get('/deck/replay/toggle');
+  assert.equal(k.paused, true);
+  k = await studio.get('/deck/replay/prev');
+  assert.equal(k.position, s.events.find(e => e.label === 'Q1').t, 'back past the scoreboard coming on, to Q1');
+  k = await studio.get('/deck/replay/next');
+  assert.equal(k.position, at, 'on to the scoreboard coming on');
+  assert.equal((await studio.get('/deck/replay/nudge/-40')).position, at - 40);
+  assert.equal((await studio.get('/deck/replay/play')).paused, false);
+  assert.equal((await studio.request('GET', '/deck/practice/toggle')).status, 409, 'a practice link while a replay runs');
+  assert.equal((await studio.request('GET', '/deck/replay/dance')).status, 404);
+
   // Nothing live can be changed meanwhile, but the outputs can.
   const press = await studio.request('POST', '/api/scoreboard', { type: 'score', side: 'home', delta: 1 });
   assert.equal(press.status, 409);

@@ -82,8 +82,11 @@
         <li><b>FirstPass Studio › Switcher</b> presses the ATEM picked on the Output page's Switcher card: a camera to preview or straight to program,
           a stinger, Cut, Auto, a key, Fade to black or a macro. A camera's key lights red while it's on program and green on preview, like the switcher's
           own buttons, and a key or Fade to black lights red while on air. While the switcher isn't answering the key goes dark with a yellow dot and a press does nothing.</li>
-        <li>The four kinds look different at a glance: a Source key has a faint eye and one strip along the bottom, a Scene key stacked layers
-          and a frame in its colour round the key, a Sequence key a play button and its strip split into four steps, and a Switcher key a camera and its strip in two halves.</li>
+        <li><b>FirstPass Studio › Replay</b> plays or pauses, jumps, nudges or stops the 4K replay or practice game started on the Recordings tab, whichever is running,
+          and lights while one runs.</li>
+        <li>The five kinds look different at a glance: a Source key has a faint eye and one strip along the bottom, a Scene key stacked layers
+          and a frame in its colour round the key, a Sequence key a play button and its strip split into four steps, a Switcher key a camera and its strip in two halves,
+          and a Replay key play and pause with a timeline and its playhead.</li>
         <li><b>Studio</b> in its settings stays empty when the Stream Deck is on the same Mac; for another Mac type its address, like <code>http://studio-mac.local:8080</code>.</li>
       </ul>
       <p class="note">No plugin? Every source also has links for a <b>Website</b> action (the Output page copies them), but those keys don't light up.
@@ -126,6 +129,12 @@
     <section>
       <h2>Game and ticker</h2>
       <table id="otherLinks"></table>
+    </section>
+
+    <section>
+      <h2>4K replay and practice games</h2>
+      <p class="note">For the 4K replay or practice (or demo) game started on the Recordings tab. The plugin's <b>Replay</b> key does the same for whichever is running, and lights while one runs.</p>
+      <table id="playbackLinks"></table>
     </section>
 
     <div class="ref">
@@ -172,6 +181,11 @@
         ['All square (score unchanged)', '/deck/streak/level'], ['Coming back for away (score unchanged)', '/deck/streak/comeback/away'],
         ['On the siren for home (score unchanged)', '/deck/streak/siren/home'], ['Back to back super shots for home (score unchanged)', '/deck/streak/backtoback/home'],
         ['Ticker faster', '/deck/ticker/faster'], ['Ticker slower', '/deck/ticker/slower'], ['Ticker normal speed', '/deck/ticker/normal']],
+      playbackLinks: [['4K replay: play / pause', '/deck/replay/toggle'], ['4K replay: next thing that went on air', '/deck/replay/next'],
+        ['4K replay: back a moment', '/deck/replay/prev'], ['4K replay: nudge back a frame', '/deck/replay/nudge/-40'],
+        ['4K replay: nudge on a frame', '/deck/replay/nudge/40'], ['4K replay: stop', '/deck/replay/stop'],
+        ['Practice game: play / pause', '/deck/practice/toggle'], ['Practice game: next quarter', '/deck/practice/next'],
+        ['Practice game: back a quarter', '/deck/practice/prev'], ['Practice game: stop', '/deck/practice/stop']],
     };
     function drawLinks(base) {
       for (const [id, rows] of Object.entries(LINKS)) {

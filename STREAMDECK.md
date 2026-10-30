@@ -171,9 +171,10 @@ For Studio's scene, built on the Output page (http://localhost:8080/output.html)
 (**Install the Stream Deck plugin**) or the button on the Output page; the Stream Deck app opens it and installs it (do the same after an
 app update to update the plugin). Then drag **FirstPass Studio > Source** onto a key and pick the source in its settings.
 
-The four kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
+The five kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
 **Scene** key has stacked layers and a frame in its colour round the whole key, a **Sequence** key has a play button and its strip
-split into four steps, and a **Switcher** key (see **Switcher** below) has a camera and its strip in two halves. For a Source key:
+split into four steps, a **Switcher** key (see **Switcher** below) has a camera and its strip in two halves, and a **Replay** key (see
+**4K replay and practice games** below) has play and pause with a timeline and its playhead. For a Source key:
 
 
 - **Press:** show or hide (default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.
@@ -361,6 +362,36 @@ while it's on, or plugged into the ATEM switcher, whose faders Studio moves. The
 | One mic up or down 10% | http://localhost:8080/deck/mic/court-mic/up, http://localhost:8080/deck/mic/court-mic/down |
 
 - A mic is named like a source (**Court mic** is `court-mic`), or by its number on the Output page (`/deck/mic/1/up`).
+
+## 4K replay and practice games (Recordings tab)
+
+For the 4K replay or the practice (or demo) game started on the Recordings tab. With none running a link answers that none is,
+and does nothing. Practice links are refused while a 4K replay runs.
+
+| Button | Link |
+|---|---|
+| 4K replay: play / pause (one key) | http://localhost:8080/deck/replay/toggle (also play, pause) |
+| 4K replay: next thing that went on air | http://localhost:8080/deck/replay/next |
+| 4K replay: back a moment | http://localhost:8080/deck/replay/prev |
+| 4K replay: nudge a frame | http://localhost:8080/deck/replay/nudge/-40, http://localhost:8080/deck/replay/nudge/40 |
+| 4K replay: nudge a second | http://localhost:8080/deck/replay/nudge/-1000, http://localhost:8080/deck/replay/nudge/1000 |
+| 4K replay: stop | http://localhost:8080/deck/replay/stop |
+| Practice game: play / pause | http://localhost:8080/deck/practice/toggle (also play, pause) |
+| Practice game: next quarter | http://localhost:8080/deck/practice/next |
+| Practice game: back a quarter | http://localhost:8080/deck/practice/prev |
+| Practice game: stop | http://localhost:8080/deck/practice/stop |
+
+- A replay's next and back go to what went on air (a source coming on, a quarter, a game picked) and pause there, as **Jump there**
+  does, to sync with the video. Back goes past the one just gone, so pressing it again goes further back.
+- A practice game's back goes to the start of the quarter it's in, or the one before when it's only just begun.
+- While a replay follows a player's timecode, the player plays and pauses it (play and pause are refused), and a nudge moves the
+  graphics against the video.
+
+**Replay key.** Drag **FirstPass Studio > Replay** onto a key. It acts on whichever is running (the 4K replay, or a practice or demo
+game) and lights while one runs. **Press:** play or pause (one key; it says Pause while it plays), the next or previous moment, a
+nudge of a frame or a second either way (the replay's only), or Stop. It names what it acts on (**4K replay**, **Practice**,
+**Demo**), says **none on** when nothing is running, and **follows video** on the play key while a replay follows a player's
+timecode. With the video's own play on another key, one **Multi Action** starts both.
 
 ## Timed buttons (Timed Sequence plugin)
 

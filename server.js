@@ -280,6 +280,7 @@ setInterval(pushBoard, 1000);
 //   /deck/auto/on  off  toggle   (pick the game from the court and the time)
 //   /deck/court/Indoor%2001  or  /deck/court/1   (the court for automatic selection)
 //   /deck/ticker/faster  slower  normal   /deck/ticker/speed/150   (pixels per second)
+// (The 4K replay's and practice game's links, /deck/replay/... and /deck/practice/..., are replay.js's and practice.js's deck().)
 function deckAction(parts, q) {
   const [what, verb, arg] = parts;
   if (what === 'home' || what === 'away') {
@@ -1005,7 +1006,7 @@ http.createServer(async (req, res) => {
         if (night !== undefined) return send(res, 200, night);
       }
       const changing = (req.method !== 'GET' && /^\/api\/(scene|scoreboard|practice|sequences|music|mics)(\/|$)/.test(url.pathname))
-        || (/^\/deck\//.test(url.pathname) && !/^\/deck\/output\//.test(url.pathname));
+        || (/^\/deck\//.test(url.pathname) && !/^\/deck\/(output|replay)\//.test(url.pathname));
       if (changing) return send(res, 409, { error: 'A 4K replay is running. Stop it on the Recordings tab first.' });
     }
     // Stream Deck links: only with the key, from the Studio plugin, or from Studio's own pages (access.deckPress()), so
@@ -1192,6 +1193,9 @@ http.createServer(async (req, res) => {
       // The ATEM switcher: /deck/switcher/cut, auto, preview/<input>, usk/<n>/on ... (switcher.js).
       const sw = await switcher.deck(parts);
       if (sw) return send(res, sw.status, sw.body);
+      // A 4K replay or a practice game: /deck/replay/play, pause, toggle, stop, next, prev, nudge/<ms>; /deck/practice/... (replay.js, practice.js).
+      const playback = replay.deck(parts) || practice.deck(parts);
+      if (playback) return send(res, playback.status, playback.body);
       const action = deckAction(parts, q);
       if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See the Stream Deck page, /api.html.` });
       const b = board();

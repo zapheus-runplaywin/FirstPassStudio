@@ -31,6 +31,7 @@ const ACTION = "com.runplaywin.firstpass-studio.source";
 const SCENE_ACTION = "com.runplaywin.firstpass-studio.scene";
 const SEQUENCE_ACTION = "com.runplaywin.firstpass-studio.sequence";
 const SWITCHER_ACTION = "com.runplaywin.firstpass-studio.switcher";
+const PLAYBACK_ACTION = "com.runplaywin.firstpass-studio.playback";
 // Studio's stand-in ATEM switcher (CommonJS, shared with Studio's own tests).
 const { startAtem } = createRequire(import.meta.url)(path.join(REPO, "test", "support", "atem.js"));
 
@@ -107,6 +108,9 @@ async function startDeck() {
 		},
 	};
 }
+
+/** Removes a test's data folder, trying again while Studio (just killed) still writes its recording's last lines. */
+const removeDataDir = (dir: string) => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 
 async function startStudio(port: number, dataDir: string): Promise<ChildProcess> {
 	// Stream Deck links need the key, so every press below also proves the plugin gets through: by its old x-studio-deck
@@ -225,7 +229,7 @@ test("real SDK and real Studio: key follows its source and toggles it", { timeou
 		plugin.kill();
 		studio.kill();
 		deck.close();
-		fs.rmSync(dataDir, { recursive: true, force: true });
+		removeDataDir(dataDir);
 	}
 });
 
@@ -302,7 +306,7 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 		plugin.kill();
 		studio.kill();
 		deck.close();
-		fs.rmSync(dataDir, { recursive: true, force: true });
+		removeDataDir(dataDir);
 	}
 });
 
@@ -361,7 +365,59 @@ test("real SDK and real Studio: Sequence keys play and stop a sequence and show 
 		plugin.kill();
 		studio.kill();
 		deck.close();
-		fs.rmSync(dataDir, { recursive: true, force: true });
+		removeDataDir(dataDir);
+	}
+});
+
+test("real SDK and real Studio: Replay keys play, pause and stop a 4K replay", { timeout: 60000 }, async () => {
+	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-deck-"));
+	const studioPort = 20000 + Math.floor(Math.random() * 20000);
+	const studio = await startStudio(studioPort, dataDir);
+	const host = `http://127.0.0.1:${studioPort}`;
+	const deck = await startDeck();
+	const plugin = launchPlugin(deck.port);
+	const after = (mark: number) => (m: Msg) => deck.received.indexOf(m) >= mark;
+	const replay = async () => (await (await fetch(`${host}/api/replay`)).json()) as { active: boolean; paused?: boolean };
+
+	try {
+		await deck.waitFor((m) => m.event === "registerPlugin", "registration", 15000);
+		// A night two days ago with one game and the scoreboard coming on.
+		const T0 = Date.now() - 2 * 86400000;
+		const lines = [
+			{ t: T0, k: "start" },
+			{ t: T0 + 1000, k: "game", id: "g1", home: "Red", away: "Blue" },
+			{ t: T0 + 2000, k: "scene", scene: { sources: [{ id: "sb", name: "Scoreboard", url: "scoreboard.html", visible: true }], scenes: [], current: null } },
+		];
+		const name = `${new Date(T0).toISOString().slice(0, 10)} 1900.jsonl.gz`;
+		const zlib = await import("node:zlib");
+		fs.writeFileSync(path.join(dataDir, "Recordings", name), zlib.gzipSync(lines.map((l) => JSON.stringify(l)).join("\n") + "\n"));
+
+		deck.send(keyEvent("willAppear", "R1", { host }, PLAYBACK_ACTION));
+		deck.send(keyEvent("willAppear", "R2", { host, press: "stop" }, PLAYBACK_ACTION));
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "R1" && m.payload?.title === "Play ▶\n(none on)", "nothing running");
+
+		// A replay started on the Recordings tab: the keys light, and the play key says Play (it starts paused).
+		let mark = deck.received.length;
+		await fetch(`${host}/api/replay`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ start: { recording: name, game: "g1" } }) });
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "R1" && m.payload?.title === "Play ▶\n4K replay", "lit, paused");
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "R2" && m.payload?.state === 1, "stop key lit");
+
+		// Pressed, it plays.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "R1", { host }, PLAYBACK_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "R1" && m.payload?.title === "Pause ⏸\n4K replay", "playing");
+		assert.equal((await replay()).paused, false);
+
+		// Stop: the live scene again, and the keys go dark.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "R2", { host, press: "stop" }, PLAYBACK_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "R1" && m.payload?.state === 0, "dark when stopped");
+		assert.equal((await replay()).active, false);
+	} finally {
+		plugin.kill();
+		studio.kill();
+		deck.close();
+		removeDataDir(dataDir);
 	}
 });
 
@@ -450,7 +506,7 @@ test("real SDK and real Studio: Switcher keys show the tally and press the switc
 		studio.kill();
 		deck.close();
 		await atem.close();
-		fs.rmSync(dataDir, { recursive: true, force: true });
+		removeDataDir(dataDir);
 	}
 });
 
@@ -512,6 +568,6 @@ test("real SDK and real Studio: the plugin asks to pair, then signs every press"
 		plugin.kill();
 		studio.kill();
 		deck.close();
-		fs.rmSync(dataDir, { recursive: true, force: true });
+		removeDataDir(dataDir);
 	}
 });

@@ -3,7 +3,7 @@
 	"Name": "FirstPass Studio",
 	"Version": "1.0.0.0",
 	"Author": "PIVT",
-	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, play sequences, and see which are on. Also presses the ATEM switcher Studio controls, with its tally.",
+	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, play sequences, and see which are on. Also presses the ATEM switcher Studio controls, with its tally, and runs a 4K replay or practice game from Studio's Recordings tab.",
 	"Icon": "imgs/plugin/icon",
 	"Category": "FirstPass Studio",
 	"CategoryIcon": "imgs/plugin/category",
@@ -133,6 +133,34 @@
 				{
 					"Image": "imgs/actions/switcher/on",
 					"Name": "On air",
+					"TitleAlignment": "middle",
+					"TitleColor": "#000000",
+					"FontSize": 12
+				}
+			]
+		},
+		{
+			"Name": "Replay",
+			"UUID": "com.runplaywin.firstpass-studio.playback",
+			"Icon": "imgs/actions/playback/icon",
+			"Tooltip": "Plays, pauses, nudges, jumps or stops the 4K replay or practice game started on Studio's Recordings tab, whichever is running. Lights up while one runs.",
+			"PropertyInspectorPath": "ui/playback.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": true,
+			"DisableAutomaticStates": true,
+			"States": [
+				{
+					"Image": "imgs/actions/playback/off",
+					"Name": "None running",
+					"TitleAlignment": "middle",
+					"TitleColor": "#ffffff",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/playback/on",
+					"Name": "Running",
 					"TitleAlignment": "middle",
 					"TitleColor": "#000000",
 					"FontSize": 12

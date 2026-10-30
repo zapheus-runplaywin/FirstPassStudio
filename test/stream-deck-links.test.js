@@ -32,7 +32,7 @@ function documentedLinks() {
 // Values for path parameters that are free text.
 const SAMPLES = { time: ['5:00', '12:34'], amount: ['10', '-10', '1m', '-1m'], minutes: ['10'], court: ['1', 'Court%202'], pixels: ['150'],
   quarter: ['1', '4', '5', 'next', 'prev'], name: ['scoreboard', 'pre-game', 'next', 'again'],
-  input: ['2', 'Camera%202'], key: ['1', '2'], macro: ['1'], level: ['0', '80'] };
+  input: ['2', 'Camera%202'], key: ['1', '2'], macro: ['1'], level: ['0', '80'], ms: ['-40', '1000'] };
 
 function expand(link) {
   let urls = [link.path];
