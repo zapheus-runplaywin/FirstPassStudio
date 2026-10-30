@@ -7,6 +7,7 @@
  */
 
 import { forget, getIdentity, pair, signedHeaders } from "./identity";
+import type { Playback } from "./playback-key";
 
 export const DEFAULT_HOST = "http://localhost:8080";
 
@@ -302,6 +303,23 @@ export async function press(host: string, path: string): Promise<boolean> {
 		return res.ok;
 	} catch {
 		return false;
+	}
+}
+
+/**
+ * What Studio is playing back from the Recordings tab (Replay keys): the 4K replay and the practice game; null if
+ * Studio can't be reached. A Studio older than replays answers 404 there, taken as none running.
+ */
+export async function fetchPlayback(host: string): Promise<Playback> {
+	const get = async (path: string) => {
+		const res = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(5000) });
+		return res.ok ? ((await res.json()) as { active: boolean }) : { active: false };
+	};
+	try {
+		const [replay, practice] = await Promise.all([get("/api/replay"), get("/api/practice")]);
+		return { replay, practice };
+	} catch {
+		return null;
 	}
 }
 

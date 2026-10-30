@@ -33,6 +33,8 @@ tags:
   - name: Status
   - name: Scene
     description: Studio's scene, built on the Output page. Sources are named by the name given on the Output page, lower case with dashes for spaces ("Up Next" is `up-next`).
+  - name: Recordings
+    description: A 4K replay or a practice (or demo) game started on the Recordings tab. The links answer 409 when none is running.
   - name: Switcher
     description: The Blackmagic ATEM switcher set up on the Output page (Switcher card). Studio sends a link's command straight away, or refuses it with 409 when no switcher is set up or it isn't answering (nothing is saved up for later). Keys and macros count from 1, as on the switcher; a link for a key the switcher doesn't have (a second downstream key on an ATEM Mini Pro) answers 404 with what it does have.
 
@@ -1081,6 +1083,56 @@ paths:
               schema: { $ref: '#/components/schemas/SwitcherDone' }
         '404': { description: No such input or key on this switcher, or not one of the links listed here }
         '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
+
+  /deck/replay/{action}:
+    get:
+      tags: [Recordings]
+      summary: Play, pause, jump or stop the 4K replay
+      description: "`toggle` plays a paused replay and pauses a playing one. `next` and `prev` jump to the next thing that went on air, or back past the one just gone, and pause there (as Jump there on the Recordings tab). `stop` puts the live scene and scoreboard back. While the replay follows a player's timecode, the player plays and pauses it, so `play`, `pause` and `toggle` answer 400."
+      operationId: replayControl
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [play, pause, toggle, next, prev, stop] }
+      responses:
+        '200': { description: Done. Returns the replay's state (as GET /api/replay). }
+        '400': { description: Nothing to jump to, or the replay follows a player's timecode }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+        '409': { description: No 4K replay is running }
+
+  /deck/replay/nudge/{ms}:
+    get:
+      tags: [Recordings]
+      summary: Nudge the 4K replay
+      description: Moves the graphics by this many milliseconds, back with a minus (40 is a frame at 25 fps), up to 10 minutes either way. While the replay follows a player's timecode it moves the graphics against the video, and is kept for the recording.
+      operationId: replayNudge
+      parameters:
+        - name: ms
+          in: path
+          required: true
+          schema: { type: integer, example: -40 }
+      responses:
+        '200': { description: Done. Returns the replay's state (as GET /api/replay). }
+        '400': { description: More than 10 minutes }
+        '409': { description: No 4K replay is running }
+
+  /deck/practice/{action}:
+    get:
+      tags: [Recordings]
+      summary: Play, pause, jump or stop the practice game
+      description: "A practice or demo game started on the Recordings tab. `toggle` plays a paused one and pauses a playing one. `next` jumps to the next quarter's start (or full time); `prev` to the start of the quarter it's in, or the one before when it's only just begun. `stop` puts the scoreboard back as it was. Refused with 409 while a 4K replay runs."
+      operationId: practiceControl
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [play, pause, toggle, next, prev, stop] }
+      responses:
+        '200': { description: Done. Returns the practice game's state (as GET /api/practice). }
+        '400': { description: Nothing to jump to }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+        '409': { description: No practice game is running, or a 4K replay is }
 
   /api/scene/media:
     get:

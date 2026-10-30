@@ -110,6 +110,15 @@ test('a practice game plays a recording as if live, from PlayHQ\'s answers moved
   const played = (await studio.post('/api/practice', { pause: false })).position;
   assert.equal(played, p1);
 
+  // The Stream Deck's Replay key: pause and play with one link, and back and on by a quarter.
+  assert.equal((await studio.get('/deck/practice/toggle')).paused, true);
+  assert.equal((await studio.get('/deck/practice/toggle')).paused, false);
+  const jumpAt = id => s.jumps.find(j => j.id === id).at;
+  const near = (a, b, why) => assert.ok(Math.abs(a - b) < 500, why);
+  near((await studio.get('/deck/practice/next')).position, jumpAt('FOURTH_QTR'), 'the recording has no Q3 start: on to Q4');
+  near((await studio.get('/deck/practice/prev')).position, jumpAt('SECOND_QTR'), 'back to Q2');
+  assert.equal((await studio.request('GET', '/deck/practice/dance')).status, 404);
+
   await studio.post('/api/practice', { jump: 'end' });
   await studio.until(async () => { const x = await board(); return x.home.score === 30 && x.away.score === 25; });
   assert.equal(studio.calls().length, asked, 'PlayHQ wasn\'t asked anything');

@@ -260,6 +260,27 @@ function state() {
     first: run.first, last: run.last, start: run.start, frameMs: FRAME_MS, events: run.events, follow: followState() };
 }
 
+// A Stream Deck key (/deck/replay/...): play, pause, toggle, stop, next and prev (the next or previous thing that went
+// on air, which pauses there, as Jump there does), nudge/<ms>. { status, body } or null when it isn't a replay link.
+function deck(parts) {
+  if (parts[0] !== 'replay') return null;
+  const [, verb, arg] = parts;
+  const known = ['play', 'pause', 'toggle', 'stop', 'next', 'prev', 'nudge'];
+  if (!known.includes(verb)) return { status: 404, body: { error: `Unknown replay link /deck/replay/${verb || ''}. Use play, pause, toggle, stop, next, prev or nudge/<ms>.` } };
+  if (!run) return { status: 409, body: { error: 'No 4K replay is running.', ...state() } };
+  let error = null;
+  if (verb === 'stop') error = stop();
+  else if (verb === 'play' || verb === 'pause' || verb === 'toggle') error = pause(verb === 'toggle' ? run.pausedAt === null : verb === 'pause');
+  else if (verb === 'nudge') error = nudge(arg);
+  else {
+    // From where it stands: the next one on, or back past the one just gone (pressing again goes further back).
+    const p = position();
+    const ev = verb === 'next' ? run.events.find(e => e.t > p + FRAME_MS / 2) : [...run.events].reverse().find(e => e.t < p - 1000);
+    error = ev ? seek(ev.t) : `There's nothing ${verb === 'next' ? 'further on' : 'further back'} to jump to.`;
+  }
+  return error ? { status: 400, body: { error, ...state() } } : { status: 200, body: state() };
+}
+
 // /api/replay: GET where it is; POST { start: { recording, game, at } } | { pause } | { nudge: ms } | { seek: t } | { stop }
 // | { follow: { kind: 'none' | 'hyperdeck' | 'sdi', address } }.
 async function route(req, res, url, { send: reply, readBody }) {
@@ -283,4 +304,4 @@ async function route(req, res, url, { send: reply, readBody }) {
   return true;
 }
 
-module.exports = { init, active, start, stop, pause, nudge, seek, answer, state, route, load, FRAME_MS };
+module.exports = { init, active, start, stop, pause, nudge, seek, answer, state, route, deck, load, FRAME_MS };

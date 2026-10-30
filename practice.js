@@ -382,6 +382,25 @@ function state() {
     jumps: run.jumps.map(({ id, label, at: t }) => ({ id, label, at: t })) };
 }
 
+// A Stream Deck key (/deck/practice/...): play, pause, toggle, stop, and next and prev (the next or previous jump: the
+// start, each quarter, full time). { status, body } or null when it isn't a practice link.
+function deck(parts) {
+  if (parts[0] !== 'practice') return null;
+  const verb = parts[1];
+  if (!['play', 'pause', 'toggle', 'stop', 'next', 'prev'].includes(verb)) return { status: 404, body: { error: `Unknown practice link /deck/practice/${verb || ''}. Use play, pause, toggle, stop, next or prev.` } };
+  if (!run) return { status: 409, body: { error: 'No practice game is running.', ...state() } };
+  let error = null;
+  if (verb === 'stop') error = stop();
+  else if (verb === 'play' || verb === 'pause' || verb === 'toggle') error = pause(verb === 'toggle' ? run.pausedAt === null : verb === 'pause');
+  else {
+    // Back goes to the start of the part it's in, or the one before when it's only just begun.
+    const p = position();
+    const j = verb === 'next' ? run.jumps.find(x => x.at > p + 1000) : [...run.jumps].reverse().find(x => x.at < p - 3000);
+    error = j ? jump(j.id) : `There's nothing ${verb === 'next' ? 'further on' : 'further back'} to jump to.`;
+  }
+  return error ? { status: 400, body: { error, ...state() } } : { status: 200, body: state() };
+}
+
 // /api/practice: GET where it is and the saved demos (/api/practice/games: the demo game picker's choices); POST
 // { start: { recording, game, from, lead, demo } | { saved, lead } } | { pair: { id, name } } | { save: name } | { forget: name } | { pause: true|false } | { jump, lead } | { stop: true }.
 async function route(req, res, url, { send: reply, readBody }) {
@@ -412,4 +431,4 @@ async function route(req, res, url, { send: reply, readBody }) {
   return true;
 }
 
-module.exports = { init, active, answer, live, start, stop, pause, jump, state, route, shift, load };
+module.exports = { init, active, answer, live, start, stop, pause, jump, state, route, deck, shift, load };
