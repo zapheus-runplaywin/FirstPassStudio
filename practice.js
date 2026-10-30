@@ -4,8 +4,8 @@
 // GraphQL API, live() for live scoring), which gives what PlayHQ said at the same point of the recorded night.
 // Everything else in Studio runs as on a real night (the scoreboard follows the score and clock, sequences and
 // game triggers fire, the outputs can be on), so it's for rehearsing a night, trying a change and showing
-// Studio to someone. The recording is played in real time from a point picked on the Recordings tab (Start,
-// 5 minutes before the game's scheduled start, each quarter or full time), and can be paused.
+// Studio to someone. The recording is played in real time from a point picked on the Recordings tab (Start, a few
+// minutes before the game's scheduled start, as many as Starts in says, each quarter or full time), and can be paused.
 //
 // The recorded night's times are moved to now: every time in an answer (a fixture's date and time, the clock's
 // lastUpdatedAt, any other date and time) gets the gap between now and that point in the recording added, so the
@@ -21,7 +21,8 @@
 
 'use strict';
 
-const LEAD_MS = 5 * 60000; // Start: this long before the game's scheduled start
+const LEAD_MIN = 5; // Start: this many minutes before the game's scheduled start, unless another is picked (0 to 60)
+const leadMs = m => Math.max(0, Math.min(60, Number.isFinite(Number(m)) && m !== '' && m !== null ? Number(m) : LEAD_MIN)) * 60000;
 const PERIODS = { FIRST_QTR: 'Q1', SECOND_QTR: 'Q2', THIRD_QTR: 'Q3', FOURTH_QTR: 'Q4', FIRST_HALF: '1st half', SECOND_HALF: '2nd half' };
 
 let log = () => {};
@@ -52,7 +53,7 @@ const periodOf = g => (g && ((g.clock && (g.clock.periodValue || g.clock.period)
 const finished = s => /FINAL|COMPLETE|RESULT|FINISH|ENDED/i.test(String((s && s.value) || s || ''));
 
 // A recording's game, ready to play: its answers by question, its live answers, and where it can be played from.
-function load(recording, gameId) {
+function load(recording, gameId, lead) {
   const lines = hooks.read(recording);
   const chapter = lines.find(l => l.k === 'game' && l.id === gameId);
   if (!chapter) throw new Error(`The recording has no game ${gameId}.`);
@@ -72,7 +73,7 @@ function load(recording, gameId) {
     home: { name: chapter.home || (b.home || {}).name || 'Home' }, away: { name: chapter.away || (b.away || {}).name || 'Away' } };
   const scheduled = (game.date && localMs(game.date, game.time)) || chapter.t;
   // Where it can be played from: Start, each period as the scorer started it, and full time.
-  const jumps = [{ id: 'start', label: 'Start', at: scheduled - LEAD_MS }];
+  const jumps = [{ id: 'start', label: 'Start', at: scheduled - leadMs(lead) }];
   const seen = new Set();
   for (const a of live.get(gameId) || []) {
     const g = a.json.data && a.json.data.game;
@@ -81,7 +82,7 @@ function load(recording, gameId) {
     if (p && !seen.has(p)) { seen.add(p); jumps.push({ id: p, label: PERIODS[p] || p, at: a.t }); }
     if (finished(g.status)) { jumps.push({ id: 'end', label: 'Full time', at: a.t }); break; }
   }
-  return { recording, game, chapter, answers, live, jumps, started: lines.length ? lines[0].t : chapter.t };
+  return { recording, game, chapter, answers, live, jumps, scheduled, started: lines.length ? lines[0].t : chapter.t };
 }
 
 // ─── Moving the recorded night to now ───────────────────────────────────────
@@ -137,9 +138,10 @@ function live(gameId) {
 }
 
 // ─── Running one ────────────────────────────────────────────────────────────
-function start({ recording, game: gameId, from = 'start' } = {}) {
+// lead: Start's minutes before the scheduled start (0 to 60, else 5).
+function start({ recording, game: gameId, from = 'start', lead } = {}) {
   if (run) stop();
-  const loaded = load(recording, gameId);
+  const loaded = load(recording, gameId, lead);
   const jump = loaded.jumps.find(j => j.id === from) || loaded.jumps[0];
   const snap = hooks.snapshot();
   hooks.paused(true);
@@ -158,7 +160,9 @@ function pick() {
   hooks.select({ ...g, ...moved });
 }
 
-function jump(id) {
+// lead (with Start): the minutes before the scheduled start to start from this time.
+function jump(id, lead) {
+  if (id === 'start' && lead !== undefined) run.jumps[0].at = run.scheduled - leadMs(lead);
   const j = run.jumps.find(x => x.id === id);
   if (!j) return `There's no ${id} in this game.`;
   run.from = j.at;
@@ -194,7 +198,7 @@ function state() {
     jumps: run.jumps.map(({ id, label, at: t }) => ({ id, label, at: t })) };
 }
 
-// /api/practice: GET where it is; POST { start: { recording, game, from } } | { pause: true|false } | { jump } | { stop: true }.
+// /api/practice: GET where it is; POST { start: { recording, game, from, lead } } | { pause: true|false } | { jump, lead } | { stop: true }.
 async function route(req, res, url, { send: reply, readBody }) {
   if (url.pathname !== '/api/practice') return false;
   if (req.method === 'POST') {
@@ -205,7 +209,7 @@ async function route(req, res, url, { send: reply, readBody }) {
       else if (!run) error = 'No practice game is running.';
       else if (body.stop) error = stop();
       else if (typeof body.pause === 'boolean') error = pause(body.pause);
-      else if (body.jump) error = jump(String(body.jump));
+      else if (body.jump) error = jump(String(body.jump), body.lead);
       else error = 'Send { start }, { pause }, { jump } or { stop }.';
     } catch (err) { error = err.message; }
     if (error) { reply(res, 400, { error, ...state() }); return true; }

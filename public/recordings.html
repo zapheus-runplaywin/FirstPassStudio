@@ -63,6 +63,8 @@
 
   <section>
     <h2>Nights</h2>
+    <p class="help" style="margin:0 0 10px"><label>A practice game starts in <input type="number" id="lead" min="0" max="60" step="1" value="5" style="width:4.5em;font:inherit"> minutes</label>
+      (0 to 60): <b>Practise</b> and <b>Jump to Start</b> put the game this long before its first centre pass, time for a pre-game sequence.</p>
     <div id="nights"><p class="empty">Looking…</p></div>
   </section>
 </main>
@@ -120,14 +122,18 @@ async function practice(body) {
     showPractice(p);
   } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
 }
-$('practiceJumps').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) practice({ jump: b.dataset.jump }); };
+// Starts in: the minutes before the first centre pass a practice game starts from, remembered on this computer.
+const lead = () => Math.max(0, Math.min(60, Math.round(Number($('lead').value) || 0)));
+try { const saved = localStorage.getItem('practiceLead'); if (saved !== null) $('lead').value = saved; } catch { /* not kept */ }
+$('lead').onchange = () => { $('lead').value = lead(); try { localStorage.setItem('practiceLead', String(lead())); } catch { /* not kept */ } };
+$('practiceJumps').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) practice({ jump: b.dataset.jump, lead: lead() }); };
 $('practicePause').onclick = () => practice({ pause: !$('practicePause').dataset.paused });
 $('practiceStop').onclick = () => practice({ stop: true });
 
 $('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
 $('nights').onclick = e => {
   const p = e.target.closest('[data-practise]');
-  if (p) { practice({ start: { recording: p.dataset.practise, game: p.dataset.game } }); return; }
+  if (p) { practice({ start: { recording: p.dataset.practise, game: p.dataset.game, lead: lead() } }); return; }
   const b = e.target.closest('[data-remove]');
   if (b && confirm(`Remove the recording of ${b.closest('.night').querySelector('h3').textContent}? This can't be undone.`)) call('DELETE', `/api/recordings/${encodeURIComponent(b.dataset.remove)}`);
 };

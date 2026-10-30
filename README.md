@@ -1001,7 +1001,8 @@ Tests and 4K replays will play these back too (docs/game-recording-replay-plan-2
 (`POST /api/practice` `{ start: { recording, game, from } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
 While it runs `playhq.js` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before
 the same point of the night, with every date and time moved by the gap to now (a game's `date` with its `time` or
-`allocation.time` as one moment, ISO times, `...At` millisecond times), so the game starts 5 minutes from now. Paused, the
+`allocation.time` as one moment, ISO times, `...At` millisecond times), so the game starts `lead` minutes from now (the Recordings tab's *A practice game starts in*, 0 to 60, 5 by
+default, also sent with `{ jump: 'start', lead }`). Paused, the
 gap grows, so the clock stands still. Starting keeps a copy of the scoreboard and picks the game by hand; Stop puts the
 copy back. Exposure isn't kept (`exposure.js` `held`), finished games aren't added to `game-cache.json`, and the night's
 recording is paused (a `practice` line at each end). Every Studio page shows a red strip while one runs (`studiobar.js`).

@@ -77,7 +77,7 @@ test('a practice game plays a recording as if live, from PlayHQ\'s answers moved
   const list = await studio.get('/api/recordings');
   assert.ok(list.recordings.some(r => r.name === name && r.games.some(g => g.id === game.id)), 'it\'s listed');
 
-  const s = await studio.post('/api/practice', { start: { recording: name, game: game.id } });
+  const s = await studio.post('/api/practice', { start: { recording: name, game: game.id, lead: 10 } });
   assert.equal(s.active, true);
   assert.deepEqual(s.jumps.map(j => j.label), ['Start', 'Q1', 'Q2', 'Q4', 'Full time']);
   const asked = studio.calls().length;
@@ -87,7 +87,12 @@ test('a practice game plays a recording as if live, from PlayHQ\'s answers moved
   assert.equal(b.home.name, game.home);
   assert.equal(b.date, dateOf(Date.now()), 'the game is today');
   const startsIn = new Date(`${b.date}T${b.time}`).getTime() - Date.now();
-  assert.ok(startsIn > 3.5 * 60000 && startsIn < 6 * 60000, `starts about five minutes from now (${Math.round(startsIn / 1000)}s)`);
+  assert.ok(startsIn > 8.5 * 60000 && startsIn < 11 * 60000, `starts about ten minutes from now, as asked (${Math.round(startsIn / 1000)}s)`);
+  const atStart = (await studio.post('/api/practice', { jump: 'start', lead: 0 })).position;
+  const startAt = (await studio.get('/api/practice')).jumps[0].at;
+  assert.ok(atStart - startAt >= 0 && atStart - startAt < 2000, 'Start can be moved to the first centre pass (playing on from there)');
+  b = await board();
+  assert.ok(Math.abs(new Date(`${b.date}T${b.time}`).getTime() - Date.now()) < 90000, 'which is now');
   assert.equal(b.home.score, 0);
 
   // Q2: the score as it was 20 minutes in, read from the recording.
