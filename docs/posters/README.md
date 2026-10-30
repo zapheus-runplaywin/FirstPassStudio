@@ -9,6 +9,7 @@ Graphics shown are from the fictional Elite Netball League used in the user guid
 | `game-night` | "First centre pass to final siren." Gold hero and a game night in six stages |
 | `court` | Laid out on a netball court: the pitch, the numbers round the centre circle, the audiences |
 | `automation` | "Set it once. The show runs itself." Sequences and automation, a "Who presses the button?" run sheet |
+| `live-on-air` | The original, brought up to date in the FirstPass brand colours: 36 graphics, and new cards for Socials and the commentary desk (Production Planner and commentator stats) |
 
 ## Feature poster (A3 landscape)
 
