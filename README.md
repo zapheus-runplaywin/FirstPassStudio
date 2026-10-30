@@ -93,7 +93,7 @@ In it:
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
-- `recordings.json`, `demos.json`, `replay.json` and `Recordings/`: whether Studio records each night on air, the saved demo games, the HyperDeck
+- `recordings.json`, `demos.json`, `replay.json` and `Recordings/`: whether Studio records each PlayHQ game on air (and how long after full time), the saved demo games, the HyperDeck
   a 4K replay follows (with each recording's sync) and the recordings (see **Recordings** below), in the local data folder, so they stay on this Mac (not in iCloud Drive or a backup).
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`, `remoteChanges`); a `config.json` here changes only the settings it names.
@@ -995,15 +995,18 @@ as the other pages, and each finished game's line up once, so the tab asks PlayH
 
 ## Recordings
 
-Every night on air (the helper running, from Open Studio until off air) `recorder.js` writes one recording,
-`Recordings/<date> <time>.jsonl.gz` in the local data folder: one JSON line per thing that happened, with `t` (ms) and `k`:
-`start`, `game` (a game picked: the chapters), `playhq` (each PlayHQ answer from `gql()`), `live` (each live scoring answer),
+For each PlayHQ game on the scoreboard while on air, `recorder.js` writes one recording, `Recordings/<date> <time> <home> v <away>.jsonl.gz`
+in the local data folder. It starts when the game is due (`games.js` `leadMs()`, the setup page's `autoSelectMinutesBefore`, before its
+scheduled start) and stops `afterMinutes` (10, 0 to 60) after PlayHQ says it's finished, when the board moves on to another game, after
+four hours if PlayHQ never says so, or off air; on air with no game due records nothing. It starts with the last of every answer, the scene
+and the board already known, so it stands on its own. One JSON line per thing that happened, with `t` (ms) and `k`:
+`start`, `game` (the game it's of), `playhq` (each PlayHQ answer from `gql()`), `live` (each live scoring answer),
 `action` (each scoreboard action), `scene` and `board` (what the pages were sent, when it changed) and `api` (a graphic's
-`GET /api/...` answer, when it changed: only reads asked for by a page without the tab bar, never a private one), then `end`.
+`GET /api/...` answer, when it changed: only reads asked for by a page without the tab bar, never a private one), then `end` (`why`: full time, next game, off air, recording off, too long).
 Lines are written every 5 seconds as a gzip member of their own, so a recording reads up to its last write even if Studio
-stopped suddenly. Recordings with no game, and ones older than 60 days, are removed when Studio starts. The Recordings tab
-(`/recordings.html`, ⌘4) lists them with their games, Download and Remove, and *Record every night on air*
-(`GET`/`POST /api/recordings` `{ record }`, `DELETE /api/recordings/<name>`, `GET /api/recordings/<name>/file`; private reads).
+stopped suddenly. Recordings older than 60 days, and old ones with no game, are removed when Studio starts. The Recordings tab
+(`/recordings.html`, ⌘4) lists them with their games, Download and Remove, when the next one starts (`waiting`), *Record each PlayHQ game on air*
+and the minutes after full time (`GET`/`POST /api/recordings` `{ record }` or `{ afterMinutes }`, `DELETE /api/recordings/<name>`, `GET /api/recordings/<name>/file`; private reads).
 Tests and 4K replays will play these back too (docs/game-recording-replay-plan-2026-10-29.md).
 
 **4K replay** (`replay.js`): *Replay* beside a game plays the recording's on-air layer (`scene`, `board`, `api`) back

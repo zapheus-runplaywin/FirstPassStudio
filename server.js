@@ -102,9 +102,11 @@ process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(er
 
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
-// The game recording (recorder.js): this night on air, from now until Studio stops.
+// The game recordings (recorder.js): each PlayHQ game on the scoreboard while on air, from when it's due (the
+// automatic game selection's minutes before its start) to a while after full time.
 const RECORDING_START = () => ({ version: require('./package.json').version, competition: competitions.activeId() || '' });
-recorder.init(log, { dir: datadir.local('Recordings'), settings: datadir.local('recordings.json'), start: RECORDING_START() });
+recorder.init(log, { dir: datadir.local('Recordings'), settings: datadir.local('recordings.json'), start: RECORDING_START,
+  lead: () => theGames.leadMs() }); // theGames is made below; this is only asked once a board has been sent
 process.on('exit', () => { savefile.flushSync(); recorder.close(); }); // saves still in the background (the scoreboard) are written first
 process.on('SIGTERM', () => process.exit(0)); // the Mac app taking Studio off air: the exit above ends the recording
 // Sequences belong to the competition in use, in its folder.
@@ -1164,7 +1166,7 @@ http.createServer(async (req, res) => {
       if (await practice.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname === '/api/recordings' || url.pathname.startsWith('/api/recordings/')) {
-      if (await recorder.route(req, res, url, { send, readBody, start: RECORDING_START })) return;
+      if (await recorder.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname === '/api/outputs' || url.pathname.startsWith('/api/outputs/')) {
       if (await outputs.route(req, res, url, { send, readBody })) return;

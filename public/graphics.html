@@ -488,15 +488,20 @@
       Photos dropped on a polaroid stay on this Mac (the newest 40), never in a backup or iCloud.</p>
   </div>
   <div class="card" id="recordings">
-    <h2>Recordings (each night on air, for practice games and 4K replays)</h2>
-    <p class="page__help">Every night on air (from <b>Open Studio</b> until off air) Studio keeps a recording of what PlayHQ said and what went to air, timed:
+    <h2>Recordings (each PlayHQ game on air, for practice games and 4K replays)</h2>
+    <p class="page__help">For each PlayHQ game on the scoreboard while on air, Studio keeps a recording of what PlayHQ said and what went to air, timed:
       PlayHQ's answers (live score, clock, quarter, line ups, fixtures, ladders), each scoreboard press and Stream Deck press, and every change to the scene,
-      the board and the answers the graphics read. There's no video or sound in it, only what the graphics need, a few megabytes a night.
-      The <a href="/recordings.html" target="_blank">Recordings</a> tab lists each night with its games (by when each was picked), its length and size, with
-      <b>Download</b> (the .jsonl.gz file, to keep or send in as test data) and <b>Remove</b>. <b>Record every night on air</b> is on unless you turn it off;
-      turning it off stops the recording being made. A recording with no game in it (Studio opened to set things up) and one older than 60 days are removed when Studio starts.
+      the board and the answers the graphics read. There's no video or sound in it, only what the graphics need, a megabyte or so a game.
+      Each recording follows a PlayHQ game: it starts when the game is due on the scoreboard (as many minutes before its scheduled start as
+      <b>automatic game selection</b> on the competition setup page says, 10 by default) and stops a set time after PlayHQ says it's finished
+      (<b>Keep recording for … minutes after full time</b>, 10 by default, 0 to 60), when the scoreboard moves on to another game, or when Studio goes off air.
+      Being on air with no PlayHQ game due records nothing, and a game PlayHQ already says is finished isn't recorded. Each recording starts with the last
+      of everything Studio already knew (the fixtures and ladders PlayHQ gave, the scene, the board), so it stands on its own.
+      The <a href="/recordings.html" target="_blank">Recordings</a> tab lists each game's recording (named after when it started and the teams), its length and size, with
+      <b>Download</b> (the .jsonl.gz file, to keep or send in as test data) and <b>Remove</b>, and says when the next one starts. <b>Record each PlayHQ game on air</b> is on unless you turn it off;
+      turning it off stops the recording being made. A recording older than 60 days is removed when Studio starts, and so is an old one with no game in it.
       Recordings stay on this Mac (in <b>Recordings/</b> of the data folder), never in a backup or iCloud, and hold nothing secret: no keys, devices, cookies or private answers.
-      A recording also replays a night's graphics at 4K (below).</p>
+      A recording also replays a game's graphics at 4K (below).</p>
     <p class="page__help"><b>4K replay:</b> <b>Replay</b> beside a game puts that night's graphics back on every output exactly as they went to air: the scene,
       the scoreboard and what each graphic read, from the recording. Turn on <b>4K</b> on the Output page and the outputs send it at 2160p, sharp, to key over the
       4K camera recording of the game in a 4K switcher or recorder; Studio doesn't play the video. It starts paused at the game. To sync, pause the video on a
@@ -614,7 +619,7 @@
         <code style="display:inline">x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
-      <li><b>recordings.json</b>, <b>demos.json</b> (saved demo games), <b>replay.json</b> (what a 4K replay follows, and each recording's sync) and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
+      <li><b>recordings.json</b>, <b>demos.json</b> (saved demo games), <b>replay.json</b> (what a 4K replay follows, and each recording's sync) and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each PlayHQ game on air and for how long after full time, and the recordings themselves.</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <h3>Keeping the settings in iCloud Drive</h3>
@@ -693,7 +698,7 @@
       <li>Mics: nothing over the internet. Each output window mixing mics tells Studio what it hears twice a second, and the Output page asks for it twice a second while its Mics section is open; the sound itself stays inside the Mac. A mic on the switcher is a few small fader messages over the switcher's connection when its level changes (about 20 a second while a dip fades).</li>
       <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
       <li>Stream Deck plugin's keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen (and one more while a Switcher key is), and Studio only sends when the scene or the switcher changes.</li>
-      <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds, a few megabytes a night. A practice game asks PlayHQ nothing at all: the recording answers.</li>
+      <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds while a game is recording, a megabyte or so a game. A practice game asks PlayHQ nothing at all: the recording answers.</li>
       <li>4K replay following a HyperDeck: nothing over the internet. While a replay follows it, Studio keeps one connection to the HyperDeck on your local network and asks where it is four times a second, a few hundred bytes each time.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>
