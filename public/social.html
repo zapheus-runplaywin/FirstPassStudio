@@ -184,6 +184,16 @@
   .stat.main { background: var(--pink); }
   .stat.main small { color: var(--text); }
   .story .shooter { padding: 22px 24px; }
+  /* Tournament top shooters: the move since the night before under the rank, and a row that climbed (or is new) lit. */
+  .shooter__rank { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+  .move { margin-top: 4px; font-size: 20px; font-weight: 800; letter-spacing: .04em; border-radius: 6px; padding: 3px 6px; }
+  .move--up { background: #1f9d55; color: #fff; }
+  .move--down { background: #b23a48; color: #fff; }
+  .move--new { background: var(--yellow); color: var(--purple-deep); }
+  .move--same { color: var(--muted); }
+  .k-tournament .shooter { grid-template-columns: 64px 76px minmax(0, 1fr) auto; }
+  .k-tournament .shooter--climbed:not(:first-of-type) { box-shadow: 0 0 0 3px #1f9d55 inset; }
+  .k-tournament .stat { min-width: 84px; }
 
   /* Commentary team: a headshot (or initials) per commentator of one game, their name, and the game once underneath. */
   .crew { display: flex; flex-wrap: nowrap; justify-content: center; align-items: flex-start; gap: 32px; --ms: 400px; }
@@ -240,7 +250,9 @@
               from the Production Planner)  polaroid (a match photo in a white print)
               Results: results (the night's final scores)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as
               PlayHQ has it now)  topshooters (&division=<name>, that division's, else the
-              night's, from each finished game's line ups)  polaroid&game=<id> (the
+              night's, from each finished game's line ups)  tournament (&division=<name>: its top shooters over every
+              finished game so far, &after=HH:MM counting only this night's games starting by then, &movers=0|1 the
+              places each moved since the night before; else as on the tab)  polaroid&game=<id> (the
               game's score under the photo)
        size:  square (1080 x 1080)  portrait (1080 x 1350)  story (1080 x 1920)
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
@@ -286,7 +298,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters'];
+    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters', 'tournament'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -652,6 +664,36 @@
       }
     }
 
+    // A division's top shooters over the whole tournament or season so far (?division=; Tournament or Season top shooters,
+    // d.running), after this night's round, or as at a time that night (?after=HH:MM). With movers on, each shows the places they climbed or fell since the night before.
+    function drawTournament(d) {
+      const t = d.tournament || { players: [] };
+      const asAt = t.after ? `as at ${clock(t.after)} ${dayShort(d.date)}` : t.round ? `after ${t.round}` : `after ${dayShort(d.date)}`;
+      head(d, `${d.running || 'Season'} top shooters`, [t.division || '', el('small', '', asAt)]);
+      if (!t.division) return `Pick a division: there is a ${d.running || 'Season'} top shooters picture for each one on the Socials tab.`;
+      if (!t.gamesFinished) return `No results in ${t.division} yet: the top shooters show once games are finished.`;
+      if (!t.players.length) return t.error ? `Couldn't read the games' line ups from PlayHQ: ${t.error}` : `No shooting recorded in ${t.division} yet.`;
+      const movers = flag('movers', d.settings.movers) && t.compared;
+      for (const [i, p] of t.players.entries()) {
+        const row = $('fit').appendChild(el('div', 'shooter'));
+        const rank = el('div', 'shooter__rank');
+        rank.append(el('span', '', String(i + 1)));
+        if (movers) {
+          const m = p.fresh ? ['new', 'NEW'] : p.moved > 0 ? ['up', `▲${p.moved}`] : p.moved < 0 ? ['down', `▼${-p.moved}`] : ['same', '–'];
+          rank.append(el('small', `move move--${m[0]}`, m[1]));
+          if (p.fresh || p.moved > 0) row.classList.add('shooter--climbed');
+        }
+        const who = el('div');
+        who.append(el('div', 'shooter__name', p.name), el('div', 'shooter__team', p.team));
+        const stats = el('div', 'shooter__stats');
+        const stat = (v, label, main) => { const x = el('div', `stat${main ? ' main' : ''}`); x.append(el('b', '', String(v)), el('small', '', label)); return x; };
+        stats.append(stat(p.games, 'Games'));
+        if (t.superShots) stats.append(stat(p.goals, 'Goals'), stat(p.superGoals, 'Super'), stat(p.points, 'Points', true));
+        else stats.append(stat(p.goals, 'Goals', true));
+        row.append(rank, p.photo ? face(p) : logoEl({ name: p.team, logo: p.logo }), who, stats);
+      }
+    }
+
     function foot(d) {
       const sponsor = flag('sponsor', d.settings.sponsor[kind]);
       if (sponsor && d.sponsors.length) {
@@ -686,6 +728,7 @@
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
+        if (kind === 'tournament') { q.set('with', 'tournament'); for (const k of ['division', 'after']) if (params.get(k)) q.set(k, params.get(k)); }
         const d = await (await fetch(`/api/socials/night?${q}`, { cache: 'no-store' })).json();
         if (d.error) throw new Error(d.error);
         // The colour set: theme.css's colours worked out for it (none for the competition's own). A pale ground takes
@@ -701,7 +744,7 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
-          results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters }[kind](d);
+          results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));
         await imagesLoaded();
         await fontLoaded;

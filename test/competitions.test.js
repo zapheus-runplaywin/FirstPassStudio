@@ -36,7 +36,7 @@ test('clean: bad values are put right rather than saved', () => {
     competitionLogo: '../../etc/passwd.png', brandColours: [{ hex: '#ABCDEF', name: ' Sky ' }, { hex: 'blue' }],
     clubs: { ' Comets ': { logo: '../x/Comets.png', colour: '#FF0000' }, Empty: {} }, teamClubs: { 'Comets 21U': ' Comets ', Bad: 3 },
     divisionSuperShots: { Open: 'true', '21': false, Men: 'maybe' }, divisionFinals: { 'Division 1': 'none', 'Division 2': 'nope' },
-    quarterBreakMinutes: -1, unknownSetting: 'gone',
+    quarterBreakMinutes: -1, unknownSetting: 'gone', runningShooters: 'Carnival',
   });
   assert.equal(s.name.length, 80);
   assert.equal(s.periodType, 'quarters');
@@ -44,6 +44,8 @@ test('clean: bad values are put right rather than saved', () => {
   assert.equal(s.superShotMinutes, 60, 'no longer than a quarter');
   assert.equal(s.autoSelectMinutesBefore, 0);
   assert.equal(s.roundLookaheadDays, 14);
+  assert.equal(s.runningShooters, '', 'automatic unless tournament or season');
+  assert.equal(clean({ runningShooters: 'season' }).runningShooters, 'season');
   assert.equal(s.panelOpacity, 0.3);
   assert.equal(s.font, 'Montserrat', 'nothing left of the name once the CSS breaking letters are gone');
   assert.equal(s.finalsFormat, 'top4-page');

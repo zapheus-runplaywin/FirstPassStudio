@@ -200,7 +200,8 @@ const planner = require('./planner').create({
 // The Socials tab: a game night's pictures for social media, saved by the Mac app (socials.js).
 const socials = require('./socials').create({
   log, competitions, savefile, photosDir: datadir.local('socials-photos'), byDate: () => planner.byDate(), onStream: date => planner.onStream(date),
-  about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '', logo: rules().competitionLogoDark }), logoFor: n => logoFor(n),
+  about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '', logo: rules().competitionLogoDark, runningShooters: CONFIG.runningShooters || '' }),
+  logoFor: n => logoFor(n),
   // Athletes' photos: only those who approved their use (athletes.js photoFor), and the list to pick from.
   photoFor: who => photoFor(who), // a name, or a shooter with their PlayHQ ids
   athletesWithPhotos: () => Object.values(athletes()).filter(e => e.photoOk).map(e => ({ name: e.name, photo: photoFor(e.name), teams: athleteTeams(e.name) }))

@@ -49,6 +49,7 @@ const DEFAULTS = {
   autoSelectGame: true,
   autoSelectMinutesBefore: 10,
   roundLookaheadDays: 5,
+  runningShooters: '',                 // what the Socials tab's running top shooters are called: 'tournament', 'season', or blank = Tournament when the fixture spans under 15 days, else Season
   colours: {
     main: '#7f4092',        // banners, headers, logo circles
     dark: '#4a1f57',        // darker shade of the main colour
@@ -220,6 +221,7 @@ function clean(input, base = DEFAULTS) {
     out[k] = v;
   }
   if (!['names', 'metals', 'own'].includes(out.sponsorTierNames)) out.sponsorTierNames = 'names';
+  if (!['tournament', 'season'].includes(out.runningShooters)) out.runningShooters = '';
   out.periodType = out.periodType === 'halves' ? 'halves' : 'quarters';
   out.quarterMinutes = Math.min(60, Math.max(1, out.quarterMinutes));
   for (const k of ['quarterBreakMinutes', 'halfTimeMinutes', 'threeQuarterBreakMinutes']) out[k] = Math.min(60, Math.max(0, out[k]));
