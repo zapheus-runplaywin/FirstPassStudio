@@ -998,6 +998,15 @@ stopped suddenly. Recordings with no game, and ones older than 60 days, are remo
 (`GET`/`POST /api/recordings` `{ record }`, `DELETE /api/recordings/<name>`, `GET /api/recordings/<name>/file`; private reads).
 Tests and 4K replays will play these back too (docs/game-recording-replay-plan-2026-10-29.md).
 
+**4K replay** (`replay.js`): *Replay* beside a game plays the recording's on-air layer (`scene`, `board`, `api`) back
+through Studio's own pages: `scene.js` `replay()`/`replayBoard()` send the recorded scene and board to the sockets instead of
+the live ones (the live scene goes on underneath, unsaved changes impossible: scene, scoreboard, practice, sequences,
+music, mics changes and Stream Deck links other than `/deck/output/...` get a 409), and a graphic's read (`graphicRead`) is
+answered from the recording at that point (`replay.answer()`). Times are moved to now (`practice.shift()`), so with the
+Output page's 4K on the outputs send the night at 2160p. It starts paused at the game; Play/Pause, nudge (`{ nudge: ms }`),
+jump to what went on air (`{ seek: t }`, the `events` list: sources on, quarters) and Stop (`/api/replay`). Exposure is held
+and the night's recording paused. Studio never plays the video.
+
 **Practice games** (`practice.js`): *Practise* beside a game on the Recordings tab plays it back as if live
 (`POST /api/practice` `{ start: { recording, game, from } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
 While it runs `playhq.js` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before

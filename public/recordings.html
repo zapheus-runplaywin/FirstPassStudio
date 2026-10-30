@@ -35,6 +35,9 @@
   #practice h2 { color: var(--fp-danger); }
   #practice .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
   #practice .row .on { background: var(--fp-blue); color: #fff; }
+  #replay { border-color: var(--fp-danger); }
+  #replay h2 { color: var(--fp-danger); }
+  #replay .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
   .pairs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 6px 24px; }
   .pairs table { border-collapse: collapse; width: 100%; font-size: 14px; }
   .pairs th { text-align: left; font-size: 12px; color: var(--fp-muted); font-weight: 700; padding: 2px 4px; }
@@ -68,6 +71,19 @@
     </div>
     <p class="help">The game plays in real time, as PlayHQ had it on the night, moved to now. Studio runs as on a real night: the scoreboard,
       sequences and outputs all work. Nothing counts for the sponsors and nothing is recorded. Stop puts the scoreboard back as it was.</p>
+  </section>
+
+  <section id="replay" hidden>
+    <h2>4K replay</h2>
+    <p id="replayWhat" style="margin:0"></p>
+    <div class="row"><button id="replayPlay">Play</button>
+      <span class="help" style="margin:0">Nudge</span><button data-nudge="-1000">−1 s</button><button data-nudge="-40">−1 frame</button><button data-nudge="40">+1 frame</button><button data-nudge="1000">+1 s</button>
+      <button class="danger" id="replayStop">Stop</button></div>
+    <div class="row"><select id="replayEvents" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;max-width:100%"></select>
+      <button id="replayJump">Jump there</button></div>
+    <p class="help">The night's graphics go to every output exactly as they went to air, with the Output page's <b>4K</b> on for 2160p, to key over the
+      4K camera recording. Studio doesn't play the video. To sync: pause the video on a moment you can see (the first centre pass), jump here to the same
+      moment, then press Play on both together and nudge until they match. While it runs the live scene and scoreboard are kept as they were and can't be changed.</p>
   </section>
 
   <section id="savedDemos" hidden>
@@ -120,7 +136,7 @@ function show(s) {
         <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
         <span class="acts"><a class="button" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
           <button class="danger" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once Studio is off air"' : ''}>Remove</button></span></div>
-      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
+      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button><button data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
     </div>`).join('') : '<p class="empty">No recordings yet. The next night on air is recorded.</p>';
 }
 
@@ -183,7 +199,7 @@ $('savedList').onclick = e => {
   if (f && confirm(`Remove the saved demo ${f.dataset.forget}?`)) practice({ forget: f.dataset.forget });
 };
 async function practice(body) {
-  $('err').textContent = '';
+  if (body) $('err').textContent = '';
   try {
     const r = await fetch('/api/practice', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
     const p = await r.json();
@@ -198,6 +214,35 @@ $('lead').onchange = () => { $('lead').value = lead(); try { localStorage.setIte
 $('practiceJumps').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) practice({ jump: b.dataset.jump, lead: lead() }); };
 $('practicePause').onclick = () => practice({ pause: !$('practicePause').dataset.paused });
 $('practiceStop').onclick = () => practice({ stop: true });
+
+// 4K replay: Play / Pause, the nudge, what went on air to jump to, and Stop.
+const tod = t => new Date(t).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', second: '2-digit' }) + `.${String(Math.floor((t % 1000) / 100))}`;
+let eventsKey = '';
+function showReplay(r) {
+  $('replay').hidden = !r.active;
+  if (!r.active) { eventsKey = ''; return; }
+  $('replayWhat').innerHTML = `${r.game ? `<b>${esc(r.game.home)} v ${esc(r.game.away)}</b>, ` : ''}${r.paused ? 'paused' : 'playing'} at <b>${esc(tod(r.position))}</b> on the night.`;
+  $('replayPlay').textContent = r.paused ? 'Play' : 'Pause';
+  $('replayPlay').dataset.paused = r.paused ? '1' : '';
+  const key = JSON.stringify(r.events);
+  if (key !== eventsKey) {
+    eventsKey = key;
+    $('replayEvents').innerHTML = r.events.map(ev => `<option value="${ev.t}">${esc(tod(ev.t).replace(/\.\d$/, ''))} ${esc(ev.label)}</option>`).join('');
+  }
+}
+async function replayCall(body) {
+  if (body) $('err').textContent = '';
+  try {
+    const r = await fetch('/api/replay', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
+    const s = await r.json();
+    if (!r.ok && s.error) $('err').textContent = s.error;
+    showReplay(s);
+  } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
+}
+$('replayPlay').onclick = () => replayCall({ pause: !$('replayPlay').dataset.paused });
+$('replay').onclick = e => { const b = e.target.closest('[data-nudge]'); if (b) replayCall({ nudge: Number(b.dataset.nudge) }); };
+$('replayJump').onclick = () => { if ($('replayEvents').value) replayCall({ seek: Number($('replayEvents').value) }); };
+$('replayStop').onclick = () => replayCall({ stop: true });
 
 // Demo game: the recorded game picked with Demo, shown as a finished game of the competition in use.
 let demoOf = null;
@@ -240,6 +285,8 @@ $('demoStart').onclick = async () => {
 
 $('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
 $('nights').onclick = e => {
+  const rp = e.target.closest('[data-replay]');
+  if (rp) { replayCall({ start: { recording: rp.dataset.replay, game: rp.dataset.game } }); return; }
   const d = e.target.closest('[data-demo]');
   if (d) { openDemo(d.dataset.demo, d.dataset.game, d.dataset.what); return; }
   const p = e.target.closest('[data-practise]');
@@ -249,8 +296,10 @@ $('nights').onclick = e => {
 };
 call('GET', '/api/recordings');
 practice();
+replayCall();
 setInterval(() => { if (!document.hidden) call('GET', '/api/recordings'); }, 15000);
 setInterval(() => { if (!document.hidden) practice(); }, 2000);
+setInterval(() => { if (!document.hidden) replayCall(); }, 500); // the replay's position, to the tenth of a second
 </script>
 </body>
 </html>
