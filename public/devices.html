@@ -17,18 +17,16 @@
   .asking { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
   .asking h2 { margin: 0 0 6px; font-size: 18px; }
   .asking .row { display: flex; gap: 8px; margin-top: 12px; }
-  .msg { padding: 10px 14px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); margin: 0 0 14px; line-height: 1.5; }
 </style>
 </head>
 <body class="fp">
 <script src="log.js"></script>
-<header class="fp-bar"></header><script src="studiobar.js"></script>
+<header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Devices</h1>
   <p class="sub">What may change scores, the scene and sequences from somewhere other than this Mac's own windows. Opened from
     <b>Devices…</b> in the menu bar icon, and only on the Mac running Studio: another device can't see or change this list.
     <a href="/api.html">Back to Stream Deck</a></p>
-  <p class="msg" id="msg" hidden></p>
   <section class="asking" id="asking" hidden>
     <h2 id="askWho"></h2>
     <div class="what" id="askWhat"></div>
@@ -56,11 +54,11 @@
 <script>
   'use strict';
   const rows = document.getElementById('rows');
-  const msg = document.getElementById('msg');
   const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page or the Stream Deck page)', program: 'A program that asked to be added', browser: 'A phone or browser, paired from its pair page', plugin: 'Studio Stream Deck plugin (signs each press)' };
   const LEVELS = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
   const when = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
-  const say = text => { msg.textContent = text; msg.hidden = !text; };
+  // Studio's one status line (studio.js): what just happened, or why it didn't.
+  const say = (text, bad) => studioStatus(text, bad ? 'error' : '');
 
   function draw(list) {
     rows.replaceChildren(...list.map(d => {
@@ -77,7 +75,7 @@
         pick.value = d.level;
         pick.onchange = async () => {
           const r = await fetch(`/api/devices/${encodeURIComponent(d.id)}/level`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ level: pick.value }) });
-          say(r.ok ? `${d.name} can now ${pick.value === 'scoring' ? 'only score' : 'change everything'}.` : 'Studio didn\'t answer.');
+          say(r.ok ? `${d.name} can now ${pick.value === 'scoring' ? 'only score' : 'change everything'}.` : 'Studio didn\'t answer.', !r.ok);
         };
         cells[0].replaceChildren(pick);
       }
@@ -110,7 +108,7 @@
     const r = await fetch(`/api/devices/requests/${encodeURIComponent(asking.id)}/${allow ? 'allow' : 'deny'}`,
       { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ level }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return load(); }
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return load(); }
     say(allow ? `${asking.name} can now control Studio.` : `${asking.name} was denied.`);
     draw(j.devices); drawAsking(j.asking);
   }
@@ -121,7 +119,7 @@
   async function load() {
     const r = await fetch('/api/devices');
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return; }
     // Not while a level is being picked: drawing again would close the list.
     if (!rows.contains(document.activeElement)) draw(j.devices);
     drawAsking(j.asking);
@@ -134,7 +132,7 @@
     if (ok !== 'go') return;
     const r = await fetch(path, { method: 'POST' });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return; }
     say(done);
     draw(j.devices);
   }
@@ -149,12 +147,12 @@
     if (!name) return;
     const r = await fetch('/api/devices/links', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { say(j.error || 'Studio didn\'t answer.'); return; }
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return; }
     say(`${j.name} made. Pick it on the Output page or the Stream Deck page to copy its links.`);
     load();
   };
 
-  load().catch(err => say(`Couldn't load the devices: ${err.message}`));
+  load().catch(err => say(`Couldn't load the devices: ${err.message}`, true));
 </script>
 </body>
 </html>

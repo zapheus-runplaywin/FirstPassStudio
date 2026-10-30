@@ -27,7 +27,7 @@ test('every Studio page loads studio.css and the tab bar, and redeclares none of
     const html = fs.readFileSync(path.join(PUBLIC, `${name}.html`), 'utf8');
     assert.match(html, /<link rel="stylesheet" href="studio.css">/, `${name}.html loads studio.css`);
     assert.match(html, /<body class="fp">/, `${name}.html is a Studio page (body.fp)`);
-    assert.match(html, /<header class="fp-bar"><\/header><script src="studiobar.js"><\/script>/, `${name}.html has the tab bar`);
+    assert.match(html, /<header class="fp-bar"><\/header><script src="studiobar.js"><\/script><script src="studio.js"><\/script>/, `${name}.html has the tab bar and studio.js`);
     const style = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
     const copies = topLevelSelectors(style).filter(s => KIT.has(s) || KIT.has(s.replace(/^\.guide /, '')));
     assert.deepEqual(copies, [], `${name}.html styles the kit's own selectors itself: ${copies.join(', ')}`);

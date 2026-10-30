@@ -38,7 +38,7 @@
 <script src="asktext.js"></script>
 </head>
 <body class="fp">
-<header class="fp-bar"></header><script src="studiobar.js"></script>
+<header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Recordings</h1>
   <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what PlayHQ said and what went to air, timed, a megabyte or so a game.
@@ -107,7 +107,6 @@
       after full time</label> (0 to 60). A recording starts when its game is due on the scoreboard, <span id="leadMin">10</span> minutes before its
       scheduled start (the competition setup page's automatic game selection), and stops then, or when the scoreboard moves on to another game.</p>
     <p class="help" id="recordNote"></p>
-    <p class="error" id="err"></p>
   </section>
 
   <section>
@@ -145,14 +144,17 @@ function show(s) {
     </div>`).join('') : '<p class="empty">No recordings yet. The next PlayHQ game on air is recorded.</p>';
 }
 
+// The last thing that went wrong (studioStatus shows it); '' once something works.
+let lastError = '';
+const fail = msg => { lastError = msg; studioStatus(msg, 'error'); };
 async function call(method, path, body) {
-  $('err').textContent = '';
+  lastError = '';
   try {
     const r = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
     const s = await r.json();
-    if (!r.ok && s.error) $('err').textContent = s.error;
+    if (!r.ok && s.error) fail(s.error);
     if (s.recordings) show(s);
-  } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
+  } catch (err) { fail(`Could not reach Studio: ${err.message}`); }
 }
 
 // The practice game running, if any: what it is, where it can jump to, Pause and Stop.
@@ -186,7 +188,7 @@ function showPairs(d) {
   }).join('');
 }
 $('pairsSides').onchange = e => { const s = e.target.closest('[data-pair]'); if (s) practice({ pair: { id: s.dataset.pair, name: s.value } }); };
-$('saveDemo').onclick = async () => { await practice({ save: $('saveName').value }); if (!$('err').textContent) $('saveName').value = ''; };
+$('saveDemo').onclick = async () => { await practice({ save: $('saveName').value }); if (!lastError) $('saveName').value = ''; };
 // Saved demos: start one again, or remove it.
 let savedKey = '';
 function showSaved(list = []) {
@@ -204,13 +206,13 @@ $('savedList').onclick = async e => {
   if (f && await askConfirm(`Remove the saved demo ${f.dataset.forget}?`, '', { ok: 'Remove', danger: true })) practice({ forget: f.dataset.forget });
 };
 async function practice(body) {
-  if (body) $('err').textContent = '';
+  if (body) lastError = '';
   try {
     const r = await fetch('/api/practice', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
     const p = await r.json();
-    if (!r.ok && p.error) $('err').textContent = p.error;
+    if (!r.ok && p.error) fail(p.error);
     showPractice(p);
-  } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
+  } catch (err) { fail(`Could not reach Studio: ${err.message}`); }
 }
 // Starts in: the minutes before the first centre pass a practice game starts from, remembered on this computer.
 const lead = () => Math.max(0, Math.min(60, Math.round(Number($('lead').value) || 0)));
@@ -237,13 +239,13 @@ function showReplay(r) {
   }
 }
 async function replayCall(body) {
-  if (body) $('err').textContent = '';
+  if (body) lastError = '';
   try {
     const r = await fetch('/api/replay', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
     const s = await r.json();
-    if (!r.ok && s.error) $('err').textContent = s.error;
+    if (!r.ok && s.error) fail(s.error);
     showReplay(s);
-  } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
+  } catch (err) { fail(`Could not reach Studio: ${err.message}`); }
 }
 // Follow: nothing, a HyperDeck's timecode (its address typed, as the ATEM's can be), or the SDI input's.
 let followShown = '';
@@ -285,7 +287,7 @@ const options = (list, first) => `<option value="">${first}</option>` + list.map
 async function demoChoices(division) {
   const r = await fetch(`/api/practice/games${division ? `?division=${encodeURIComponent(division)}` : ''}`);
   const c = await r.json();
-  if (!r.ok) $('err').textContent = c.error || 'Couldn\'t read your competition\'s games.';
+  if (!r.ok) fail(c.error || 'Couldn\'t read your competition\'s games.');
   return c;
 }
 async function openDemo(recording, game, what) {
@@ -315,11 +317,11 @@ $('demoStart').onclick = async () => {
     demo: { game: $('demoGame').value, division: $('demoDivision').value, swap: $('demoSwap').checked } } });
   $('demoStart').textContent = 'Start demo';
   $('demoStart').disabled = false;
-  if (!$('err').textContent) { $('demo').hidden = true; demoOf = null; }
+  if (!lastError) { $('demo').hidden = true; demoOf = null; }
 };
 
-$('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
-$('after').onchange = () => call('POST', '/api/recordings', { afterMinutes: Number($('after').value) });
+$('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked }).then(() => { if (!lastError) studioStatus('Saved'); });
+$('after').onchange = () => call('POST', '/api/recordings', { afterMinutes: Number($('after').value) }).then(() => { if (!lastError) studioStatus('Saved'); });
 $('nights').onclick = async e => {
   const rp = e.target.closest('[data-replay]');
   if (rp) { replayCall({ start: { recording: rp.dataset.replay, game: rp.dataset.game } }); return; }
