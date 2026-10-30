@@ -376,8 +376,13 @@
   $('resetScores').onclick = () => { if (confirm('Set both scores back to 0?')) act({ type: 'resetScores' }); };
   $('resetAll').onclick = () => { if (confirm('Clear the teams, scores and clock?')) act({ type: 'reset' }); };
 
+  // Keyboard scoring: A / Z home, K / M away (Shift for 2), Space for the clock. Only for a plain key press on the
+  // page itself: not while typing in a field, not with ⌘, ⌥ or ⌃ held (⌘A is select all, not a home goal), and not
+  // when a button has the focus, where Space presses that button.
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(t.tagName) || t.isContentEditable)) return;
     const keys = { a: ['home', 1], z: ['home', -1], k: ['away', 1], m: ['away', -1] };
     const k = keys[e.key.toLowerCase()];
     if (k) act({ type: 'score', side: k[0], delta: k[1] * (e.shiftKey ? 2 : 1) });
