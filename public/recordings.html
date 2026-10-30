@@ -56,8 +56,9 @@
       <div class="row"><input id="saveName" placeholder="Name this demo" maxlength="60" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px">
         <button id="saveDemo">Save demo</button><span class="help" style="margin:0">Saved with these teams, athletes and Swap, to run again.</span></div>
     </div>
-    <p class="help">The game plays in real time, as PlayHQ had it on the night, moved to now. Studio runs as on a real night: the scoreboard,
-      sequences and outputs all work. Nothing counts for the sponsors and nothing is recorded. Stop puts the scoreboard back as it was.</p>
+    <p class="help">The game plays in real time as it did on the night; nothing counts for the sponsors and nothing is recorded.</p>
+    <details class="info"><summary>Expand for info</summary><p class="note">PlayHQ's answers from the night are replayed, moved to now, so Studio runs as on a real night: the scoreboard,
+      sequences and outputs all work. Stop puts the scoreboard back as it was.</p></details>
   </section>
 
   <section id="replay" hidden>
@@ -74,13 +75,14 @@
       <input id="followAddress" placeholder="HyperDeck IP address" maxlength="100" hidden style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;width:12em">
       <button id="followSet" hidden>Follow</button>
       <span class="help" id="followStatus" style="margin:0"></span></div>
-    <p class="help">The night's graphics go to every output exactly as they went to air, with the Output page's <b>4K</b> on for 2160p, to key over the
-      4K camera recording. Studio doesn't play the video. To sync: pause the video on a moment you can see (the first centre pass), jump here to the same
-      moment, then press Play on both together and nudge until they match. While it runs the live scene and scoreboard are kept as they were and can't be changed.</p>
-    <p class="help">With the video on a HyperDeck, Follow its timecode instead: the HyperDeck's play, stop and scrubbing drive the graphics, so they
+    <p class="help">The night's graphics go to every output as they went to air, with the Output page's <b>4K</b> on, to key over the camera recording.</p>
+    <details class="info"><summary>Expand for info</summary><p class="note">Studio doesn't play the video. To sync by hand: pause the video on a moment you can see (the first centre pass),
+      <b>Jump there</b> to the same moment, then press Play on both together and nudge until they match. While a replay runs the live scene and scoreboard
+      are kept as they were and can't be changed.</p>
+      <p class="note">With the video on a HyperDeck, <b>Follow</b> its timecode instead: the HyperDeck's play, stop and scrubbing drive the graphics, so they
       never drift. Type its IP address (on its setup page, or in HyperDeck Setup). To sync once, stop the HyperDeck on a moment you can see, pick the same
       moment above and press Jump there; the nudge moves the graphics against the video. The sync is kept for each recording.
-      Or send the player's SDI into the UltraStudio's SDI input (the HyperDeck's monitor output is enough) and follow the timecode it carries. HDMI carries no timecode.</p>
+      Or send the player's SDI into the UltraStudio's SDI input (the HyperDeck's monitor output is enough) and follow the timecode it carries. HDMI carries no timecode.</p></details>
   </section>
 
   <section id="savedDemos" hidden>
@@ -96,17 +98,19 @@
       <select id="demoGame" disabled><option value="">Game…</option></select>
       <label><input type="checkbox" id="demoSwap"> Swap home and away</label>
       <button id="demoStart" disabled>Start demo</button><button class="alt" id="demoCancel">Cancel</button></div>
-    <p class="help">Athletes are matched by position, so the recorded GS's goals are your GS's; anyone with no match is left unnamed and their
-      goals go to the team. Swap puts the teams the other way round, so either can be the winner. Your competition's setup comes from PlayHQ, so a demo needs the internet.</p>
+    <p class="help">Athletes are matched by position, so the recorded GS's goals are your GS's. A demo needs the internet.</p>
+    <details class="info"><summary>Expand for info</summary><p class="note">Anyone with no match is left unnamed and their goals go to the team. Swap puts the teams the other
+      way round, so either can be the winner. Your competition's teams and athletes come from PlayHQ, which is why a demo needs the internet.</p></details>
   </section>
 
   <section>
     <h2>Recording</h2>
     <label><input type="checkbox" id="record"> Record each PlayHQ game on air</label>
     <p class="help"><label>Keep recording for <input type="number" id="after" min="0" max="60" step="1" value="10" style="width:4.5em;font:inherit"> minutes
-      after full time</label> (0 to 60). A recording starts when its game is due on the scoreboard, <span id="leadMin">10</span> minutes before its
-      scheduled start (the competition setup page's automatic game selection), and stops then, or when the scoreboard moves on to another game.</p>
+      after full time</label> (0 to 60).</p>
     <p class="help" id="recordNote"></p>
+    <details class="info"><summary>Expand for info</summary><p class="note">A recording starts when its game is due on the scoreboard, <span id="leadMin">10</span> minutes before its
+      scheduled start (Competitions setup's automatic game selection), and stops this long after full time, or when the scoreboard moves on to another game.</p></details>
   </section>
 
   <section>
