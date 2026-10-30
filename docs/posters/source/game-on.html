@@ -1,0 +1,145 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FirstPass Studio poster (game on)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;0,900;1,800;1,900&amp;display=swap">
+<style>
+/* FirstPass brand colours, from the 1P Studio logo */
+:root { --navy:#101729; --navy2:#17213A; --orange:#EE5200; --gold:#EEB80E; --blue:#22688C; --sky:#3FA2D4; --white:#FFFFFF; --muted:#CBD5E1; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--navy); }
+.p { position: relative; width: 3179px; height: 4494px; overflow: hidden; background: var(--navy); color: var(--white); font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+.abs { position: absolute; }
+img { display: block; }
+
+/* the burst behind the hero */
+.glow { left: -400px; top: -500px; width: 3000px; height: 2600px; background: radial-gradient(closest-side, rgba(238,82,0,.42), rgba(238,82,0,0) 72%); }
+.glow2 { left: 1500px; top: 300px; width: 2200px; height: 2000px; background: radial-gradient(closest-side, rgba(34,104,140,.55), rgba(34,104,140,0) 72%); }
+.rays { left: 0; top: 0; width: 3179px; height: 2050px; background: repeating-conic-gradient(from 0deg at 18% 14%, rgba(238,184,14,.07) 0 4deg, transparent 4deg 11deg); -webkit-mask: radial-gradient(circle at 18% 14%, #000 20%, transparent 75%); mask: radial-gradient(circle at 18% 14%, #000 20%, transparent 75%); }
+.stripe { height: 150px; transform-origin: left center; border-radius: 0 80px 80px 0; }
+.s1 { left: -200px; top: 1880px; width: 2700px; background: var(--orange); transform: rotate(-8deg); }
+.s2 { left: -200px; top: 2060px; width: 2300px; height: 70px; background: var(--gold); transform: rotate(-8deg); }
+.s3 { left: -200px; top: 2170px; width: 1700px; height: 34px; background: var(--sky); transform: rotate(-8deg); }
+
+/* logo and headline */
+.logo { left: 150px; top: 110px; height: 400px; filter: drop-shadow(0 20px 40px rgba(0,0,0,.5)); }
+.title { left: 120px; top: 560px; transform: rotate(-7deg); transform-origin: left top; }
+.title h1 { margin: 0; font-size: 500px; line-height: .8; font-weight: 900; font-style: italic; letter-spacing: -.05em; text-shadow: 0 24px 0 rgba(0,0,0,.35); }
+.title h1 span { display: block; }
+.title h1 em { color: var(--gold); text-shadow: 14px 14px 0 var(--orange), 0 30px 60px rgba(0,0,0,.4); }
+.sub { left: 170px; top: 1420px; width: 1050px; font-size: 62px; line-height: 1.3; font-weight: 600; transform: rotate(-7deg); transform-origin: left top; }
+.sub b { color: var(--gold); font-weight: 900; }
+
+/* flying graphics */
+.phone { left: 2060px; top: 300px; width: 760px; height: 1350px; border-radius: 96px; background: #05070d; padding: 26px; transform: rotate(9deg); box-shadow: 0 60px 120px rgba(0,0,0,.6), 0 0 0 8px #2a3550; }
+.phone img { width: 100%; height: 100%; object-fit: cover; border-radius: 74px; }
+.phone::before { content: ""; position: absolute; left: 50%; top: 46px; width: 180px; height: 44px; margin-left: -90px; border-radius: 30px; background: #05070d; z-index: 1; }
+.burst { -webkit-mask: radial-gradient(closest-side, #000 62%, transparent 100%); mask: radial-gradient(closest-side, #000 62%, transparent 100%); mix-blend-mode: lighten; }
+.ss { left: 1080px; top: -30px; width: 900px; transform: rotate(-8deg); }
+.fire { left: 1150px; top: 1080px; width: 900px; transform: rotate(6deg); }
+.win { left: 1180px; top: 1480px; width: 1400px; transform: rotate(-5deg); filter: drop-shadow(0 30px 50px rgba(0,0,0,.5)); }
+.pill { display: inline-flex; align-items: center; gap: 22px; padding: 22px 44px; border-radius: 999px; font-size: 46px; font-weight: 900; font-style: italic; letter-spacing: .02em; box-shadow: 0 20px 40px rgba(0,0,0,.4); }
+.pill i { width: 28px; height: 28px; border-radius: 50%; background: #fff; display: block; }
+.live { left: 2560px; top: 220px; background: #E11D48; transform: rotate(9deg); }
+
+/* netball and its arc */
+.arc { left: 0; top: 0; }
+.ball { left: 1870px; top: 1540px; width: 280px; height: 280px; transform: rotate(-20deg); filter: drop-shadow(0 30px 40px rgba(0,0,0,.5)); }
+
+/* sticker */
+.sticker { left: 2520px; top: 1720px; width: 520px; height: 520px; border-radius: 50%; background: var(--gold); color: var(--navy); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; transform: rotate(14deg); box-shadow: 0 30px 60px rgba(0,0,0,.5), inset 0 0 0 16px rgba(255,255,255,.35); }
+.sticker b { font-size: 92px; line-height: .9; font-weight: 900; font-style: italic; letter-spacing: -.03em; }
+.sticker span { font-size: 34px; font-weight: 800; letter-spacing: .25em; text-transform: uppercase; margin-top: 18px; }
+
+/* six tiles */
+.band { left: 150px; top: 2160px; right: 150px; display: flex; align-items: baseline; gap: 40px; }
+.band h2 { margin: 0; font-size: 150px; line-height: 1; font-weight: 900; font-style: italic; letter-spacing: -.04em; }
+.band h2 em { color: var(--orange); }
+.tiles { left: 150px; right: 150px; top: 2380px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 60px; }
+.tile { position: relative; background: var(--navy2); border-radius: 48px; overflow: hidden; height: 770px; box-shadow: 0 30px 60px rgba(0,0,0,.35); }
+.tile .top { display: flex; align-items: center; gap: 30px; padding: 40px 46px 0; }
+.tile .ic { flex: none; width: 130px; height: 130px; border-radius: 34px; display: flex; align-items: center; justify-content: center; transform: rotate(-6deg); }
+.tile .ic svg { width: 84px; height: 84px; }
+.tile h3 { margin: 0; font-size: 76px; line-height: .95; font-weight: 900; font-style: italic; letter-spacing: -.03em; }
+.tile p { margin: 26px 46px 0; font-size: 40px; line-height: 1.32; color: var(--muted); }
+.tile .pic { position: absolute; left: 46px; right: 46px; bottom: -30px; height: 330px; border-radius: 26px 26px 0 0; overflow: hidden; transform: rotate(-2deg); box-shadow: 0 -10px 40px rgba(0,0,0,.4); border: 5px solid rgba(255,255,255,.14); }
+.tile .pic img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.tile .pic.two { display: flex; gap: 14px; background: #0b1020; }
+.tile .pic.two img { width: 50%; }
+.o .ic { background: var(--orange); } .o { border-top: 18px solid var(--orange); }
+.g .ic { background: var(--gold); } .g { border-top: 18px solid var(--gold); } .g .ic svg { stroke: var(--navy); }
+.b .ic { background: var(--blue); } .b { border-top: 18px solid var(--sky); }
+.ic svg { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* footer */
+.foot { left: 0; right: 0; top: 4040px; height: 454px; background: var(--orange); overflow: hidden; }
+.foot::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(-62deg, rgba(255,255,255,.07) 0 50px, transparent 50px 140px); }
+.foot .in { position: absolute; left: 150px; right: 150px; top: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 60px; }
+.foot .k { font-size: 40px; font-weight: 800; letter-spacing: .25em; text-transform: uppercase; color: rgba(255,255,255,.9); }
+.foot .mail { font-size: 150px; font-weight: 900; font-style: italic; letter-spacing: -.03em; line-height: 1; margin-top: 18px; }
+.foot .r { display: flex; flex-direction: column; align-items: flex-end; gap: 22px; }
+.foot .r span { font-size: 40px; font-weight: 800; }
+</style></head>
+<body>
+<div class="p">
+  <div class="abs glow"></div><div class="abs glow2"></div><div class="abs rays"></div>
+  <svg class="abs" id="confetti" width="3179" height="2300" style="left:0;top:0"></svg>
+
+  <div class="abs stripe s1"></div><div class="abs stripe s2"></div><div class="abs stripe s3"></div>
+
+  <!-- the netball's flight, from the stripes up to the ring of the sticker -->
+  <svg class="abs arc" width="3179" height="2300" viewBox="0 0 3179 2300"><path d="M 1300 1900 C 1500 1500, 1800 1450, 2010 1680" stroke="#EEB80E" stroke-width="16" stroke-dasharray="2 46" stroke-linecap="round" fill="none" opacity=".9"/></svg>
+
+  <img class="abs burst ss" src="assets/fun-supershot-still.jpg" alt="">
+  <div class="abs phone"><img src="assets/fun-social-matchup.jpg" alt="A match day post made by Studio's Socials"></div>
+  <div class="abs pill live"><i></i>LIVE</div>
+  <img class="abs burst fire" src="assets/fun-fire-still.jpg" alt="">
+
+  <svg class="abs ball" viewBox="0 0 100 100"><defs><clipPath id="bc"><circle cx="50" cy="50" r="46"/></clipPath></defs>
+    <circle cx="50" cy="50" r="47" fill="#F6F1E4" stroke="#EEB80E" stroke-width="3"/>
+    <g clip-path="url(#bc)" stroke="#22688C" stroke-width="3" fill="none"><g id="seam"><path d="M50 50 C 50 30, 62 14, 82 8"/><path d="M58 52 C 60 34, 72 20, 92 18"/></g><use href="#seam" transform="rotate(120 50 50)"/><use href="#seam" transform="rotate(240 50 50)"/></g></svg>
+
+  <img class="abs logo" src="assets/1p-studio.svg" alt="1P Studio">
+  <div class="abs title"><h1><span>Game</span><em>on.</em></h1></div>
+  <div class="abs sub">Live netball graphics from PlayHQ for your <b>stream</b>, your <b>big screen</b> and your <b>socials</b>.</div>
+
+  <div class="abs sticker"><b>Made for<br>netball</b><span>by PIVT</span></div>
+
+  <div class="abs band"><h2>Your night, <em>levelled up.</em></h2></div>
+  <div class="abs tiles">
+    <div class="tile o"><div class="top"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg></div><h3>Live from PlayHQ</h3></div>
+      <p>Scores, the clock, ladders, fixtures and line-ups come straight from PlayHQ. Nobody types on game night.</p>
+      <div class="pic"><img src="assets/fun-ladder.jpg" alt=""></div></div>
+    <div class="tile g"><div class="top"><div class="ic"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M12 15.5s-3.2-2-3.2-4.2a1.8 1.8 0 0 1 3.2-1.1 1.8 1.8 0 0 1 3.2 1.1c0 2.2-3.2 4.2-3.2 4.2z"/></svg></div><h3>Socials in a click</h3></div>
+      <p>Results, match-ups, ladders and top shooters become Instagram posts, in square, portrait or Story sizes.</p>
+      <div class="pic two"><img src="assets/fun-social-fixtures.jpg" alt=""><img src="assets/fun-social-matchup.jpg" alt=""></div></div>
+    <div class="tile b"><div class="top"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2.5" y="13" width="4" height="7" rx="1.5"/><rect x="17.5" y="13" width="4" height="7" rx="1.5"/><path d="M19.5 20c0 1.5-2 2-5 2"/></svg></div><h3>The commentary desk</h3></div>
+      <p>Plan who's on the mic for the whole season. Their names and live game stats fill in by themselves.</p>
+      <div class="pic"><img src="assets/fun-commentator-stats.jpg" alt=""></div></div>
+    <div class="tile g"><div class="top"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg></div><h3>Sponsors everywhere</h3></div>
+      <p>Logos go on the stream, the big screen and every post, with a report of how much airtime each sponsor got.</p>
+      <div class="pic"><img src="assets/fun-sponsorwall.jpg" alt=""></div></div>
+    <div class="tile o"><div class="top"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.8 7-6.8 0-4.3-3.5-6.4-4.3-10.2-1.7 1.3-2.7 3-2.7 5-1.3-.8-2-2.2-2.2-3.5C7.3 8.6 5 11.6 5 15.2 5 19.2 8 22 12 22z"/></svg></div><h3>Big moments</h3></div>
+      <p>On fire, comebacks, lead changes and super shots pop up as they happen, and each one has a sponsor's name on it.</p>
+      <div class="pic"><img src="assets/fun-fire-still.jpg" alt="" style="object-position: center 30%;"></div></div>
+    <div class="tile b"><div class="top"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.7"/><path d="M2.5 20c.5-3.6 3-5.6 6-5.6s5.5 2 6 5.6M14.5 14.6c3.2-.4 6.3 1.2 7 5.4"/></svg></div><h3>Run it with two</h3></div>
+      <p>Sequences follow the game clock, and Stream Deck keys handle the quick calls by hand.</p>
+      <div class="pic"><img src="assets/fun-production-table.jpg" alt="" style="object-position: center 62%;"></div></div>
+  </div>
+
+  <div class="abs foot"><div class="in">
+    <div><div class="k">Bring Studio to your competition</div><div class="mail">pivtmedia@gmail.com</div></div>
+    <div class="r"><img src="assets/pivt.png" alt="PIVT" style="height: 120px;"><span>FirstPass Studio · Made by PIVT</span></div>
+  </div></div>
+</div>
+<script>
+// confetti in the brand colours, the same every render
+(function () {
+  let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const svg = document.getElementById('confetti'), cols = ['#EE5200', '#EEB80E', '#3FA2D4', '#FFFFFF', '#EEB80E'];
+  let h = '';
+  for (let i = 0; i < 170; i++) {
+    const x = r() * 3179, y = r() * 2250, w = 14 + r() * 26, l = 30 + r() * 50, a = r() * 180, c = cols[Math.floor(r() * cols.length)], o = .45 + r() * .5;
+    h += `<rect x="${x}" y="${y}" width="${w}" height="${l}" rx="5" fill="${c}" opacity="${o.toFixed(2)}" transform="rotate(${a.toFixed(0)} ${x.toFixed(0)} ${y.toFixed(0)})"/>`;
+  }
+  svg.innerHTML = h;
+})();
+</script>
+</body></html>

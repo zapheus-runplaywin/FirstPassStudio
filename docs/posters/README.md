@@ -10,6 +10,7 @@ Graphics shown are from the fictional Elite Netball League used in the user guid
 | `court` | Laid out on a netball court: the pitch, the numbers round the centre circle, the audiences |
 | `automation` | "Set it once. The show runs itself." Sequences and automation, a "Who presses the button?" run sheet |
 | `live-on-air` | The original, brought up to date in the FirstPass brand colours: 36 graphics, and new cards for Socials and the commentary desk (Production Planner and commentator stats) |
+| `game-on` | The fun one: "Game on." in huge type, speed stripes, confetti, a phone with a match day post, Super shot and On fire bursts, a "Made for netball" sticker and six feature tiles, in the FirstPass brand colours |
 
 ## Feature poster (A3 landscape)
 
