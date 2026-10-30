@@ -50,7 +50,7 @@
   const practice = () => fetch('/api/practice').then(r => r.json()).then(p => {
     strip.style.display = p.active ? 'flex' : 'none';
     if (!p.active) return;
-    strip.innerHTML = `<span>Practice game${p.paused ? ' (paused)' : ''}: ${esc(p.game.home.name)} v ${esc(p.game.away.name)}. Nothing counts for the sponsors.</span>`
+    strip.innerHTML = `<span>${p.demo ? 'Demo' : 'Practice'} game${p.paused ? ' (paused)' : ''}: ${esc(p.game.home.name)} v ${esc(p.game.away.name)}. Nothing counts for the sponsors.</span>`
       + `<a href="/recordings.html" style="${button}">Practice controls</a><button type="button" style="${button}">Stop</button>`;
     strip.querySelector('button').onclick = () => fetch('/api/practice', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"stop":true}' }).then(practice);
   }).catch(() => {});

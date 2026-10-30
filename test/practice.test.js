@@ -38,7 +38,7 @@ test('a recorded answer\'s dates and times move together, by the gap to now', ()
 
 // A recorded night, three days ago: the game starts at T0, is 5-3 in the second quarter 20 minutes in, and
 // finishes 30-25.
-function recording(dir, game) {
+function recording(dir, game, more = () => {}) {
   const T0 = Math.floor((Date.now() - 3 * 86400000) / 60000) * 60000;
   const stat = (type, count) => ({ type: { value: type }, count });
   const live = (t, home, away, period, status = 'IN_PROGRESS') => ({ t, k: 'live', id: game.id, data: { game: {
@@ -57,6 +57,8 @@ function recording(dir, game) {
     live(T0 + 60 * 60000, 30, 25, 'FOURTH_QTR', 'FINAL'),
     { t: T0 + 70 * 60000, k: 'end' },
   ];
+  more(lines);
+  lines.sort((a, b) => a.t - b.t);
   const name = `${dateOf(T0)} ${timeOf(T0 - 30 * 60000).slice(0, 5).replace(':', '')}.jsonl.gz`;
   fs.mkdirSync(path.join(dir, 'Recordings'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'Recordings', name), zlib.gzipSync(lines.map(l => JSON.stringify(l)).join('\n') + '\n'));
@@ -127,4 +129,57 @@ test('a practice game plays a recording as if live, from PlayHQ\'s answers moved
   assert.equal(b.home.score, before.home.score);
   assert.equal(b.autoSelect, before.autoSelect);
   assert.match((await studio.request('POST', '/api/practice', { jump: 'start' })).text, /No practice game/);
+});
+
+// A demo game: a game recorded in another competition (Red v Blue) shown as one of this competition's finished
+// games (Blizzardz v Knights): their names, athletes by position and division's teams on the ladder, with the
+// recorded score.
+test('a demo game wears the client\'s teams and athletes over the recorded game', async t => {
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  await studio.post('/api/scoreboard', { type: 'playhqRefresh', value: 1 });
+  const historic = studio.world.divisions[0].rounds[0].games[0]; // Blizzardz v Knights, two weeks ago
+  const recordedGame = { id: 'other-game', roundId: 'other-round', division: 'Open', court: 'Court 3', home: 'Red', away: 'Blue' };
+  const { name } = recording(studio.dataDir, recordedGame, lines => {
+    const T = lines[1].t;
+    const players = side => ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK', 'GK'].map((pos, i) => ({ playerNumber: String(i + 1),
+      player: { __typename: 'DiscoverParticipant', id: `${side}-${i}`, profile: { firstName: side, lastName: pos } },
+      statistics: i === 0 ? [{ type: { value: '1_POINT_SCORE' }, count: 4 }] : [], playerPosition: { shortName: pos } }));
+    const team = n => ({ __typename: 'DiscoverTeam', id: `team-${n}`, name: n });
+    lines.push({ t: T, k: 'playhq', op: 'discoverGame', vars: { gameID: 'other-game' }, tenant: 'na', data: { discoverGame: {
+      id: 'other-game', date: lines[2].board.date, status: { value: 'IN_PROGRESS' }, home: team('Red'), away: team('Blue'), result: null,
+      statistics: { home: { players: players('Red'), statistics: [] }, away: { players: players('Blue'), statistics: [] } } } } });
+    lines.push({ t: T, k: 'playhq', op: 'gradeLadder', vars: { gradeID: 'other-grade' }, tenant: 'na', data: { discoverGrade: { id: 'other-grade', name: 'Open',
+      ladder: [{ standings: ['Green', 'Red', 'Yellow', 'Blue'].map(n => ({ team: team(n), played: 3, won: 1, lost: 2, competitionPoints: 4 })) }] } } });
+  });
+
+  const choices = await studio.get('/api/practice/games?division=grade-div1');
+  assert.deepEqual(choices.divisions.map(d => d.name), ['Division 1', 'Division 2']);
+  assert.ok(choices.games.some(g => g.id === historic.id && g.home === 'Blizzardz' && g.away === 'Knights'), 'its finished games to pick from');
+
+  const s = await studio.post('/api/practice', { start: { recording: name, game: 'other-game', demo: { game: historic.id, division: 'grade-div1' } } });
+  assert.equal(s.game.home.name, 'Blizzardz');
+  assert.equal(s.demo.recorded.home, 'Red');
+  assert.equal(s.demo.athletes, 14, 'seven a side matched by position');
+  let b = await studio.get('/api/scoreboard');
+  assert.deepEqual([b.home.name, b.away.name, b.division], ['Blizzardz', 'Knights', 'Division 1']);
+
+  await studio.post('/api/practice', { jump: 'SECOND_QTR' });
+  b = await studio.until(async () => { const x = await studio.get('/api/scoreboard'); return x.home.score === 5 && x.away.score === 3 && x; });
+  const teams = await studio.get('/api/teams');
+  const gs = teams.home.players.find(p => p.position === 'GS');
+  assert.equal(gs.name, 'Blizzardz GS', 'the recorded GS is their GS');
+  assert.equal(gs.shooting.goals, 4, 'with the recorded goals');
+  const ladder = await studio.get('/api/ladder?division=Division%201');
+  const rows = ladder.pools[0].map(r => r.team || r.name);
+  assert.equal(rows.length, 4);
+  assert.equal(rows[1], 'Blizzardz', 'the recorded ladder, in their teams');
+  assert.equal(rows[3], 'Knights');
+  assert.ok(!rows.some(r => ['Red', 'Blue', 'Green', 'Yellow'].includes(r)), `no recorded names left: ${rows}`);
+
+  // Swap: the client's away team on the home side, with the home score.
+  await studio.post('/api/practice', { start: { recording: name, game: 'other-game', demo: { game: historic.id, division: 'grade-div1', swap: true } } });
+  b = await studio.get('/api/scoreboard');
+  assert.deepEqual([b.home.name, b.away.name], ['Knights', 'Blizzardz']);
+  await studio.post('/api/practice', { stop: true });
 });

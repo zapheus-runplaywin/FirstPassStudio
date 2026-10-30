@@ -1005,7 +1005,13 @@ the same point of the night, with every date and time moved by the gap to now (a
 `allocation.time` as one moment, ISO times, `...At` millisecond times), so the game starts `lead` minutes from now (the Recordings tab's *A practice game starts in*, 0 to 60, 5 by
 default, also sent with `{ jump: 'start', lead }`). Paused, the
 gap grows, so the clock stands still. Starting keeps a copy of the scoreboard and picks the game by hand; Stop puts the
-copy back. Exposure isn't kept (`exposure.js` `held`), finished games aren't added to `game-cache.json`, and the night's
+copy back.
+**Demo games**: `{ start: { ..., demo: { game, division, swap } } }` with a finished game of the competition in use (its
+division's PlayHQ id; `GET /api/practice/games?division=` lists the choices). `practice.js` `dress()` reads that game's line
+ups and the division's teams from PlayHQ, then maps the recording: its two teams to the game's (swapped with `swap`), the
+recorded division's other teams (its ladder, else fixtures) to the client's others, and athletes by position, by PlayHQ id
+(`wear()`; an athlete with no match becomes anonymous, so the goals stay the team's). The client's division id is translated
+to the recorded one, and a question the recording never asked goes to PlayHQ (the client's competition). Exposure isn't kept (`exposure.js` `held`), finished games aren't added to `game-cache.json`, and the night's
 recording is paused (a `practice` line at each end). Every Studio page shows a red strip while one runs (`studiobar.js`).
 
 ## Roadmap

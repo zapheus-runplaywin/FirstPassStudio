@@ -143,7 +143,7 @@ const playhq = require('./playhq').create({
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
 });
 const { gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS, getGame, lineup, getLive, scoringNotYet, lastLive } = playhq;
-const { parsePlayhqUrl, startOf } = require('./playhq');
+const { parsePlayhqUrl, startOf, isFinished } = require('./playhq');
 
 // ─── control.json ───────────────────────────────────────────────────────────
 // control.json holds the control page's lasting settings on this computer (git ignores it):
@@ -794,6 +794,27 @@ practice.init(log, {
     saveBoards();
   },
   paused: on => recorder.pause(on),
+  positionOf: p => positionOf(p),
+  // A demo game's choices: the competition's divisions, and a division's finished games this season.
+  choices: async gradeId => {
+    const st = await playhq.getStructure();
+    const divisions = (st.grades || []).map(g => ({ id: g.id, name: g.name }));
+    const grade = (st.grades || []).find(g => g.id === gradeId);
+    const games = grade ? (await theGames.getSeasonGames(grade)).filter(g => isFinished(g)).reverse()
+      .map(g => ({ id: g.id, date: g.date, round: g.round, home: g.home.name, away: g.away.name, score: [g.home.score, g.away.score] })) : [];
+    return { competition: competitionName(), divisions, games };
+  },
+  // The client's historic game: its teams' line ups, and its division's teams.
+  demo: async (gameId, gradeId) => {
+    const st = await playhq.getStructure();
+    const grade = (st.grades || []).find(g => g.id === gradeId);
+    if (!grade) throw new Error('Pick the division of the game to show.');
+    const game = await playhq.getGame(gameId, 10 * 60 * 1000);
+    const teams = [];
+    for (const g of await theGames.getSeasonGames(grade)) for (const n of [g.home.name, g.away.name]) if (n && n !== 'TBC' && !teams.includes(n)) teams.push(n);
+    const side = s => ({ name: s.name, players: s.players.map(p => ({ name: p.name, playhqId: p.playhqId, position: p.position, gender: p.gender, private: p.private })) });
+    return { division: grade.name, gradeId, teams, home: side(game.home), away: side(game.away) };
+  },
 });
 async function getTeamSheets() {
   const b = board();
@@ -1098,7 +1119,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
-    if (url.pathname === '/api/practice') {
+    if (url.pathname === '/api/practice' || url.pathname === '/api/practice/games') {
       if (await practice.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname === '/api/recordings' || url.pathname.startsWith('/api/recordings/')) {

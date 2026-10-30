@@ -16,8 +16,20 @@
 // back. Nothing a practice game does counts: sponsor exposure isn't kept (exposure.js held), and the night's
 // recording is paused (recorder.js) so a practice isn't recorded as a night of its own.
 //
+// A demo game is a practice game wearing the client's competition (the one in use): a historic game of theirs is
+// picked, and only its teams and athletes are taken from it. Everything else, the score, clock, quarters, moments
+// and timing, comes from the recording. Under the hood the recorded game's two teams become the historic game's
+// (Swap puts them the other way round, so the client's team can be the winner), the recorded division's other teams
+// become the client's division's others (so the ladder and fixtures are theirs), and the recorded athletes become
+// the historic game's by position (a recorded GS's goals are the client's GS's); one with no match is left unnamed,
+// so their goals go to the team. The division's PlayHQ id is translated to the recorded one, and anything the
+// recording doesn't have (the client's competition, seasons and divisions) is asked of PlayHQ as usual.
+//
 // hooks (init): read(recording) the recording's lines, reset() forget what was read from PlayHQ, snapshot() and
-// restore(s) the scoreboard, select(game) pick the game on the scoreboard, paused(on) pause the night's recording.
+// restore(s) the scoreboard, select(game) pick the game on the scoreboard, paused(on) pause the night's recording,
+// choices(gradeId) the client's divisions and a division's finished games, for picking one,
+// demo(gameId, gradeId) the client's historic game ({ division, gradeId, teams, home, away }, each side { name,
+// players: [{ name, playhqId, position, gender, private }] }), positionOf(player) a PlayHQ line up entry's position.
 
 'use strict';
 
@@ -26,7 +38,7 @@ const leadMs = m => Math.max(0, Math.min(60, Number.isFinite(Number(m)) && m !==
 const PERIODS = { FIRST_QTR: 'Q1', SECOND_QTR: 'Q2', THIRD_QTR: 'Q3', FOURTH_QTR: 'Q4', FIRST_HALF: '1st half', SECOND_HALF: '2nd half' };
 
 let log = () => {};
-let hooks = { read: () => [], reset() {}, snapshot: () => null, restore() {}, select() {}, paused() {} };
+let hooks = { read: () => [], reset() {}, snapshot: () => null, restore() {}, select() {}, paused() {}, demo: async () => { throw new Error('Demo games need Studio.'); }, choices: async () => ({ divisions: [], games: [] }), positionOf: p => (p.playerPosition && p.playerPosition.shortName) || '' };
 let run = null; // the practice game running: see start()
 
 function init(logger, h = {}) {
@@ -124,11 +136,18 @@ function at(list) {
 }
 
 // ─── What playhq.js asks while a practice game runs ─────────────────────────
-// The GraphQL answer's data, or an error when the recording never asked that.
+// The GraphQL answer's data. When the recording never asked that: an error, or, in a demo game, undefined, and
+// PlayHQ is asked (the client's competition, seasons and divisions).
 function answer(op, vars) {
-  const list = run.answers.get(`${op} ${JSON.stringify(vars || {})}`);
-  if (!list) throw new Error(`The practice game's recording has no answer for ${op}.`);
-  return shift(at(list).data, gap());
+  const d = run.demo;
+  const asked = d ? Object.fromEntries(Object.entries(vars || {}).map(([k, v]) => [k, d.ids.get(v) || v])) : vars;
+  const list = run.answers.get(`${op} ${JSON.stringify(asked || {})}`);
+  if (!list) {
+    if (d) return undefined;
+    throw new Error(`The practice game's recording has no answer for ${op}.`);
+  }
+  const data = shift(at(list).data, gap());
+  return d ? wear(data, d) : data;
 }
 // The live scoring answer ({ data } or { errors }), as PlayHQ sent it.
 function live(gameId) {
@@ -137,24 +156,113 @@ function live(gameId) {
   return shift(at(list).json, gap());
 }
 
+// ─── Demo games ─────────────────────────────────────────────────────────────
+// The recorded game's line ups (its last discoverGame answer), the recorded division's teams (its ladder, else the
+// night's fixtures) and its PlayHQ id.
+function recorded(loaded) {
+  const last = list => (list && list.length ? list[list.length - 1].data : null);
+  const game = last(loaded.answers.get(`discoverGame ${JSON.stringify({ gameID: loaded.game.id })}`));
+  const names = [loaded.game.home.name, loaded.game.away.name];
+  let gradeId = '', teams = [];
+  for (const [key, list] of loaded.answers) {
+    if (!key.startsWith('gradeLadder ')) continue;
+    const standings = (((last(list) || {}).discoverGrade || {}).ladder || []).flatMap(l => l.standings || []);
+    const ladder = standings.map(s => (s.team && s.team.name) || '').filter(Boolean);
+    if (names.some(n => ladder.includes(n))) { gradeId = JSON.parse(key.slice(12)).gradeID || ''; teams = ladder; break; }
+  }
+  if (!gradeId) {
+    for (const [key, list] of loaded.answers) {
+      if (!key.startsWith('gradeRounds ')) continue;
+      const rounds = (((last(list) || {}).discoverGrade || {}).rounds || []);
+      if (rounds.some(r => r.id === loaded.game.roundId)) { gradeId = JSON.parse(key.slice(12)).gradeID || ''; break; }
+    }
+  }
+  if (!teams.length) {
+    for (const [key, list] of loaded.answers) {
+      if (!key.startsWith('discoverFixtureByRound ')) continue;
+      const games = (((last(list) || {}).discoverFixtureByRound || {}).games || []);
+      if (!games.some(g => names.includes(g.home && g.home.name))) continue;
+      for (const g of games) for (const s of [g.home, g.away]) if (s && s.name && !teams.includes(s.name)) teams.push(s.name);
+    }
+  }
+  return { game: game && game.discoverGame, gradeId, teams };
+}
+
+// What the demo game wears: { teams: recorded name -> client's, players: recorded PlayHQ id -> client's athlete (or
+// null: unnamed), ids: client's PlayHQ ids -> recorded, home, away, division, swap }.
+async function dress(loaded, { game: clientGame, division: clientGrade, swap } = {}) {
+  const client = await hooks.demo(clientGame, clientGrade);
+  const rec = recorded(loaded);
+  const side = { home: swap ? 'away' : 'home', away: swap ? 'home' : 'away' };
+  const teams = new Map([[loaded.game.home.name, client[side.home].name], [loaded.game.away.name, client[side.away].name]]);
+  const others = (client.teams || []).filter(n => ![...teams.values()].includes(n));
+  for (const n of rec.teams) if (!teams.has(n) && others.length) teams.set(n, others.shift());
+  const players = new Map();
+  for (const k of ['home', 'away']) {
+    const pool = [...(client[side[k]].players || [])];
+    const recPlayers = (((rec.game || {}).statistics || {})[k] || {}).players || [];
+    const unmatched = [];
+    for (const p of recPlayers) {
+      const id = p.player && p.player.id;
+      if (!id) continue;
+      const pos = hooks.positionOf(p);
+      const i = pos ? pool.findIndex(c => c.position === pos) : -1;
+      if (i >= 0) players.set(id, pool.splice(i, 1)[0]);
+      else unmatched.push(id);
+    }
+    // Recorded athletes with no position match take the historic game's others (the bench) in order.
+    for (const id of unmatched) players.set(id, pool.shift() || null);
+  }
+  const ids = new Map();
+  if (client.gradeId && rec.gradeId) ids.set(client.gradeId, rec.gradeId);
+  return { teams, players, ids, swap: !!swap, division: client.division || '', game: clientGame,
+    home: client[side.home].name, away: client[side.away].name,
+    athletes: [...players.values()].filter(Boolean).length };
+}
+
+// A recorded answer in the client's names: team names swapped by name, and athletes by their PlayHQ id.
+function wear(value, d) {
+  const walk = v => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') {
+      const o = {};
+      for (const [k, x] of Object.entries(v)) o[k] = walk(x);
+      const who = v.player && v.player.id;
+      if (who && d.players.has(who)) {
+        const c = d.players.get(who);
+        const [firstName, ...rest] = String((c && c.name) || '').split(' ');
+        o.player = c && !c.private && c.name
+          ? { __typename: 'DiscoverParticipant', id: c.playhqId || `demo-${who}`, profile: { firstName, lastName: rest.join(' '), gender: c.gender ? c.gender.toUpperCase() : null } }
+          : { __typename: 'DiscoverAnonymousParticipant', id: `demo-${who}` };
+      }
+      return o;
+    }
+    if (typeof v === 'string' && d.teams.has(v)) return d.teams.get(v);
+    return v;
+  };
+  return walk(value);
+}
+
 // ─── Running one ────────────────────────────────────────────────────────────
-// lead: Start's minutes before the scheduled start (0 to 60, else 5).
-function start({ recording, game: gameId, from = 'start', lead } = {}) {
+// lead: Start's minutes before the scheduled start (0 to 60, else 5). demo: { game, division, swap }, the client's
+// historic game and its division's PlayHQ id, for a demo game.
+async function start({ recording, game: gameId, from = 'start', lead, demo } = {}) {
   if (run) stop();
   const loaded = load(recording, gameId, lead);
+  if (demo) loaded.demo = await dress(loaded, demo);
   const jump = loaded.jumps.find(j => j.id === from) || loaded.jumps[0];
   const snap = hooks.snapshot();
   hooks.paused(true);
   run = { ...loaded, snap, from: jump.at, startedAt: Date.now(), pausedAt: null };
   hooks.reset();
   pick();
-  log('info', 'practice', `Practice game ${loaded.game.home.name} v ${loaded.game.away.name} from ${recording}, at ${jump.label}`);
+  log('info', 'practice', `${loaded.demo ? `Demo game ${loaded.demo.home} v ${loaded.demo.away} (${loaded.demo.athletes} athletes matched), playing` : 'Practice game'} ${loaded.game.home.name} v ${loaded.game.away.name} from ${recording}, at ${jump.label}`);
   return null;
 }
 
 // Picks the game on the scoreboard, with its date and time moved to now.
 function pick() {
-  const g = run.game;
+  const g = run.demo ? { ...run.game, division: run.demo.division || run.game.division, home: { name: run.demo.teams.get(run.game.home.name) }, away: { name: run.demo.teams.get(run.game.away.name) } } : run.game;
   const at0 = g.date ? localMs(g.date, g.time) : null;
   const moved = at0 === null ? {} : { date: dateOf(at0 + gap()), time: g.time ? timeOf(at0 + gap(), g.time) : '' };
   hooks.select({ ...g, ...moved });
@@ -194,18 +302,27 @@ function stop() {
 function state() {
   if (!run) return { active: false };
   const p = position();
-  return { active: true, recording: run.recording, game: run.game, paused: run.pausedAt !== null, position: p, recordedOn: run.started,
+  const d = run.demo;
+  return { active: true, recording: run.recording, game: d ? { ...run.game, division: d.division || run.game.division, home: { name: d.home }, away: { name: d.away } } : run.game,
+    demo: d ? { recorded: { home: run.game.home.name, away: run.game.away.name }, swap: d.swap, athletes: d.athletes, game: d.game } : null,
+    paused: run.pausedAt !== null, position: p, recordedOn: run.started,
     jumps: run.jumps.map(({ id, label, at: t }) => ({ id, label, at: t })) };
 }
 
-// /api/practice: GET where it is; POST { start: { recording, game, from, lead } } | { pause: true|false } | { jump, lead } | { stop: true }.
+// /api/practice: GET where it is (/api/practice/games: the demo game picker's choices); POST { start: { recording, game, from, lead, demo } } | { pause: true|false } | { jump, lead } | { stop: true }.
 async function route(req, res, url, { send: reply, readBody }) {
+  // The client's divisions, and a division's finished games (?division=<PlayHQ id>), to pick a demo game's.
+  if (url.pathname === '/api/practice/games') {
+    try { reply(res, 200, await hooks.choices(url.searchParams.get('division') || '')); }
+    catch (err) { reply(res, 502, { error: `Couldn't read your competition's games from PlayHQ: ${err.message}`, divisions: [], games: [] }); }
+    return true;
+  }
   if (url.pathname !== '/api/practice') return false;
   if (req.method === 'POST') {
     const body = await readBody(req);
     let error = null;
     try {
-      if (body.start) error = start(body.start);
+      if (body.start) error = await start(body.start);
       else if (!run) error = 'No practice game is running.';
       else if (body.stop) error = stop();
       else if (typeof body.pause === 'boolean') error = pause(body.pause);
