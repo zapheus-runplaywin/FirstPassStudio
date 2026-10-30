@@ -9,8 +9,8 @@ const { STUDIO_PAGES } = require('../public/studiobar.js');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
-test('the tabs are Output, Scoreboard control, Competitions setup, Sponsors, Athletes, Stream Deck, Socials, Docs', () => {
-  assert.deepEqual(STUDIO_PAGES.map(p => p.label), ['Output', 'Production Planner', 'Scoreboard control', 'Competitions setup', 'Sponsors', 'Athletes', 'Stream Deck', 'Socials', 'Docs']);
+test('the tabs are Output, Production Planner, Scoreboard control, Competitions setup, Sponsors, Athletes, Stream Deck, Socials, Recordings, Docs', () => {
+  assert.deepEqual(STUDIO_PAGES.map(p => p.label), ['Output', 'Production Planner', 'Scoreboard control', 'Competitions setup', 'Sponsors', 'Athletes', 'Stream Deck', 'Socials', 'Recordings', 'Docs']);
   for (const p of STUDIO_PAGES) assert.ok(fs.existsSync(path.join(PUBLIC, p.href.slice(1))), `${p.href} exists`);
 });
 

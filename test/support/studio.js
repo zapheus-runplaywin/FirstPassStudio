@@ -89,7 +89,7 @@ async function startStudio(t, opts = {}) {
     return { status: res.status, type: res.headers.get('content-type') || '', text, json };
   };
   const studio = {
-    base, port, dataDir, playhq, world: playhq.world, output, child, stop,
+    base, port, dataDir, playhq, world: playhq.world, output, child, stop, exitedPromise: server.exit,
     exited,
     request,
     // The JSON answer of a GET or POST (fails the test on an HTTP error).

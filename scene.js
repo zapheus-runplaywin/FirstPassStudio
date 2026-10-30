@@ -168,11 +168,15 @@ function publishSwitcher() {
   for (const s of switcherSockets) s.write(frame);
 }
 let lastBoardKey = '';
+// recorder.js, for the game recording: the scene and the board as they're sent (init's record).
+let recordApi = null;
 function boardFrame(json) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'board', board: json }))); }
 function setBoardSource(fn) { boardSource = fn; }
 function publishBoard() {
-  if (!boardSource || !boardSockets.size) return;
+  if (!boardSource || (!boardSockets.size && !recordApi)) return;
   const json = boardSource();
+  if (recordApi) recordApi.board(json);
+  if (!boardSockets.size) return;
   const key = JSON.stringify({ ...json, serverNow: 0 }); // only a change is sent, not the clock reading
   if (key === lastBoardKey) return;
   lastBoardKey = key;
@@ -367,7 +371,9 @@ function notify() {
   const sting = stingerSource();
   if ((sting ? sting.name : '') !== stingerName) { stingerName = sting ? sting.name : ''; publishSwitcher(); }
   rev++;
-  const json = JSON.stringify(state());
+  const st = state();
+  const json = JSON.stringify(st);
+  if (recordApi) recordApi.scene(st, json);
   const body = `data: ${json}\n\n`;
   for (const res of listeners) res.write(body);
   const frame = wsFrame(1, Buffer.from(json));
@@ -1330,8 +1336,9 @@ async function route(req, res, url, { send, readBody }) {
 }
 
 // outputs: outputs.js's find and summary, for the outputs besides the primary.
-function init(logger, { ffmpeg, sequencesFile, outputs } = {}) {
+function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
   log = logger || log;
+  if (record) recordApi = record;
   if (outputs) outputsApi = outputs;
   ffmpegSetting = ffmpeg || '';
   load();

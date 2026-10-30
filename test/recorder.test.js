@@ -1,0 +1,121 @@
+// The game recording (recorder.js): every night on air is one file in Recordings/, with what PlayHQ said, each
+// scoreboard action, and what went to air (the scene, the board, a graphic's reads), only when it changed, a game
+// picked marking a chapter; never a Studio page's reads or a private answer. Lines are written as gzip members of
+// their own, so the file reads up to its last write; going off air ends it. A recording with no game, or older
+// than 60 days, is tidied away, and recording can be turned off.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const zlib = require('node:zlib');
+const { startStudio } = require('./support/studio');
+
+const read = f => zlib.gunzipSync(fs.readFileSync(f), { finishFlush: zlib.constants.Z_SYNC_FLUSH }).toString('utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+
+test('the recorder keeps only changes, marks each game, and tidies away what has no game or is old', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-recorder-'));
+  try {
+    const recordings = path.join(dir, 'Recordings');
+    fs.mkdirSync(recordings);
+    // Left from earlier: one night with a game, one with none (set up only), one too old.
+    const member = lines => zlib.gzipSync(lines.map(l => JSON.stringify(l)).join('\n') + '\n');
+    fs.writeFileSync(path.join(recordings, '2026-10-01 1900.jsonl.gz'), member([{ t: 1, k: 'start' }, { t: 2, k: 'game', id: 'g1', home: 'A', away: 'B' }]));
+    fs.writeFileSync(path.join(recordings, '2026-10-02 1900.jsonl.gz'), member([{ t: 1, k: 'start' }]));
+    const old = path.join(recordings, '2026-01-01 1900.jsonl.gz');
+    fs.writeFileSync(old, member([{ t: 1, k: 'start' }, { t: 2, k: 'game', id: 'g0' }]));
+    const longAgo = new Date(Date.now() - 61 * 86400000);
+    fs.utimesSync(old, longAgo, longAgo);
+
+    const recorder = require('../recorder');
+    recorder.init(() => {}, { dir: recordings, settings: path.join(dir, 'recordings.json'), start: { version: '9.9.9', competition: 'thunder' } });
+    const names = fs.readdirSync(recordings).sort();
+    assert.equal(names.length, 2, 'the set-up-only and the old one are gone');
+    assert.ok(names.includes('2026-10-01 1900.jsonl.gz'));
+    const now = recorder.state();
+    assert.equal(now.record, true);
+    assert.ok(now.recording);
+
+    recorder.scene({ sources: [1] }, JSON.stringify({ sources: [1] }));
+    recorder.scene({ sources: [1] }, JSON.stringify({ sources: [1] }));
+    recorder.board({ gameId: 'g7', home: { name: 'Stormz', score: 0 }, away: { name: 'Semi Pro', score: 0 }, division: 'Div 1', serverNow: 1 });
+    recorder.board({ gameId: 'g7', home: { name: 'Stormz', score: 0 }, away: { name: 'Semi Pro', score: 0 }, division: 'Div 1', serverNow: 2 });
+    recorder.board({ gameId: 'g7', home: { name: 'Stormz', score: 1 }, away: { name: 'Semi Pro', score: 0 }, division: 'Div 1', serverNow: 3 });
+    recorder.action({ type: 'score', side: 'home', delta: 1 });
+    recorder.playhq('gradeLadder', { gradeID: 'x' }, 'na', { ladder: 1 });
+    recorder.playhq('gradeLadder', { gradeID: 'x' }, 'na', { ladder: 1 });
+    recorder.live('g7', { data: { game: { id: 'g7' } } });
+    recorder.live('g7', { errors: [{ message: 'not electronically scored' }] });
+    const graphic = () => true;
+    recorder.answer({ method: 'GET', url: '/api/ladder?division=1', headers: {} }, 200, '{"rows":[1],"serverNow":5}', undefined, graphic);
+    recorder.answer({ method: 'GET', url: '/api/ladder?division=1', headers: {} }, 200, '{"rows":[1],"serverNow":6}', undefined, graphic);
+    recorder.answer({ method: 'GET', url: '/api/teams', headers: {} }, 200, '{}', undefined, () => false);
+    recorder.answer({ method: 'POST', url: '/api/scoreboard', headers: {} }, 200, '{}', undefined, graphic);
+    recorder.answer({ method: 'GET', url: '/api/stats', headers: {} }, 500, '{}', undefined, graphic);
+
+    const r = recorder.list().find(x => x.recording);
+    assert.deepEqual(r.games.map(g => [g.id, g.home, g.away, g.division]), [['g7', 'Stormz', 'Semi Pro', 'Div 1']]);
+    const lines = recorder.read(r.name);
+    const kinds = lines.map(l => l.k);
+    assert.deepEqual(kinds, ['start', 'scene', 'game', 'board', 'board', 'action', 'playhq', 'live', 'live', 'api']);
+    assert.equal(lines[0].version, '9.9.9');
+    assert.equal(lines[4].board.home.score, 1);
+    assert.deepEqual(lines[6], { t: lines[6].t, k: 'playhq', op: 'gradeLadder', vars: { gradeID: 'x' }, tenant: 'na', data: { ladder: 1 } });
+    assert.deepEqual(lines[8].errors, [{ message: 'not electronically scored' }]);
+    assert.equal(lines[9].p, '/api/ladder?division=1');
+
+    assert.match(recorder.remove(r.name), /still being made/);
+    assert.match(recorder.remove('../recordings.json'), /no recording/);
+    assert.equal(recorder.remove('2026-10-01 1900.jsonl.gz'), null);
+
+    // Off: the recording ends; on again: a new one starts.
+    recorder.setRecord(false);
+    assert.equal(recorder.state().recording, '');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'recordings.json'), 'utf8')).record, false);
+    assert.equal(recorder.read(r.name).at(-1).k, 'end');
+    recorder.scene({ sources: [2] }, JSON.stringify({ sources: [2] }));
+    assert.equal(recorder.read(r.name).at(-1).k, 'end', 'nothing more once off');
+    recorder.setRecord(true, {});
+    assert.ok(recorder.state().recording);
+    recorder.close();
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a night on air is recorded, a graphic\'s reads but not a Studio page\'s, and going off air ends it', async t => {
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const game = studio.world.gameNow(0);
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  await studio.post('/api/scoreboard', { type: 'score', side: 'home', delta: 1 });
+  const graphic = { referer: `${studio.base}/ladder.html?division=1` };
+  await studio.request('GET', '/api/scoreboard', undefined, graphic);
+  await studio.request('GET', '/api/teams', undefined, { referer: `${studio.base}/control.html` });
+  await studio.request('GET', '/api/athletes', undefined, graphic);
+
+  const s = await studio.get('/api/recordings');
+  assert.equal(s.record, true);
+  const r = s.recordings.find(x => x.recording);
+  assert.ok(r, 'one is being made');
+  assert.ok(r.games.some(g => g.id === game.id && g.home === game.home && g.away === game.away), 'the game is a chapter');
+
+  const file = path.join(studio.dataDir, 'Recordings', r.name);
+  let lines = read(file);
+  const kinds = new Set(lines.map(l => l.k));
+  for (const k of ['start', 'game', 'playhq', 'board', 'scene', 'action', 'api']) assert.ok(kinds.has(k), `has ${k}`);
+  assert.ok(lines.some(l => l.k === 'action' && l.action.type === 'score'));
+  const reads = lines.filter(l => l.k === 'api').map(l => l.p);
+  assert.ok(reads.includes('/api/scoreboard'), 'a graphic\'s read');
+  assert.ok(!reads.includes('/api/teams'), 'not the control page\'s');
+  assert.ok(!reads.includes('/api/athletes'), 'never a private one');
+  assert.ok(!JSON.stringify(lines).includes('x-studio-deck'), 'no keys');
+
+  // The file downloads, and the recordings are private reads.
+  const dl = await studio.request('GET', `/api/recordings/${encodeURIComponent(r.name)}/file`);
+  assert.equal(dl.status, 200);
+  assert.match(dl.type, /gzip/);
+  assert.equal((await studio.request('DELETE', `/api/recordings/${encodeURIComponent(r.name)}`)).status, 400, 'not while being made');
+
+  studio.child.kill();
+  await studio.exitedPromise;
+  lines = read(file);
+  assert.equal(lines.at(-1).k, 'end', 'off air ends the recording');
+});

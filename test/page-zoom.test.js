@@ -10,7 +10,7 @@ const { startStudio } = require('./support/studio');
 const { openBrowser } = require('./support/browser');
 
 const ROOT = path.join(__dirname, '..');
-const APP_PAGES = ['api', 'athletes', 'control', 'devices', 'graphics', 'output', 'pair', 'planner', 'preview', 'pvw', 'setup', 'social', 'socials', 'sponsorreport', 'sponsors'];
+const APP_PAGES = ['api', 'athletes', 'control', 'devices', 'graphics', 'output', 'pair', 'planner', 'preview', 'pvw', 'recordings', 'setup', 'social', 'socials', 'sponsorreport', 'sponsors'];
 const graphicsPages = () => fs.readdirSync(path.join(ROOT, 'public')).filter(n => n.endsWith('.html') && !APP_PAGES.includes(n.replace('.html', '')));
 
 test('every graphics page loads zoom.js, and the canvas pages draw through sharpCanvas', () => {
