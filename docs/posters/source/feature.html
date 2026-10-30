@@ -1,0 +1,98 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FirstPass Studio poster (feature)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,800;0,900;1,800;1,900&amp;display=swap">
+<style>
+:root { --navy:#0F172A; --soft:#1E293B; --orange:#F75C03; --gold:#F1C40F; --white:#FFFFFF; --muted:#CBD5E1; --faint:#94A3B8; --W:2480px; --H:1754px; --heroH:1150px; }
+/* 16:9 display version: the arena fills the screen and the four close-ups are left out */
+body.wide { --H:1395px; --heroH:1335px; }
+body.wide .cards { display: none; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--navy); }
+.p { position: relative; width: var(--W); height: var(--H); overflow: hidden; background: var(--navy); color: var(--white); font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; }
+img { display: block; }
+.k { font-weight: 800; letter-spacing: .3em; text-transform: uppercase; }
+
+/* the arena */
+.hero { position: relative; height: var(--heroH); flex: none; overflow: hidden; }
+.hero > img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; }
+.hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 46%; z-index: 1;
+  background: linear-gradient(180deg, rgba(15,23,42,.9), rgba(15,23,42,0) 42%), radial-gradient(60% 78% at 18% 22%, rgba(15,23,42,.85), rgba(15,23,42,0)); }
+.hero::after { content: ""; position: absolute; inset: auto 0 0 0; height: 90px; background: linear-gradient(0deg, var(--navy), rgba(15,23,42,0)); z-index: 1; }
+.head { position: absolute; left: 90px; top: 64px; z-index: 2; display: flex; gap: 52px; align-items: flex-start; }
+.head h1 { margin: 0; font-size: 116px; line-height: .9; font-weight: 900; font-style: italic; letter-spacing: -.04em; text-shadow: 0 6px 30px rgba(0,0,0,.5); }
+.head h1 em { color: var(--gold); }
+.head p { margin: 20px 0 0; font-size: 34px; line-height: 1.35; color: var(--muted); max-width: 1180px; text-shadow: 0 3px 16px rgba(0,0,0,.7); }
+.head p b { color: var(--white); }
+.from { position: absolute; right: 90px; top: 74px; z-index: 2; text-align: right; }
+.from .k { font-size: 24px; color: var(--orange); }
+.from div:last-child { font-size: 44px; font-weight: 900; font-style: italic; margin-top: 8px; }
+
+/* callouts on the arena */
+.pin { position: absolute; z-index: 2; width: 0; height: 0; }
+.pin i { position: absolute; left: -17px; top: -17px; width: 34px; height: 34px; border-radius: 50%; border: 6px solid var(--gold); background: rgba(15,23,42,.35); box-shadow: 0 0 0 6px rgba(241,196,15,.25), 0 4px 18px rgba(0,0,0,.6); }
+.pin span { position: absolute; white-space: nowrap; background: var(--gold); color: var(--navy); font-size: 30px; font-weight: 900; font-style: italic; padding: 12px 24px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.55); }
+.pin span::before { content: ""; position: absolute; width: 4px; background: var(--gold); }
+.pin span { --stem: 50px; }
+.pin.up span { left: 50%; bottom: calc(var(--stem) + 16px); transform: translateX(-50%); }
+.pin.up span::before { left: 50%; top: 100%; height: var(--stem); margin-left: -2px; }
+.pin.down span { left: 50%; top: calc(var(--stem) + 16px); transform: translateX(-50%); }
+.pin.down span::before { left: 50%; bottom: 100%; height: var(--stem); margin-left: -2px; }
+.pin.left span { right: 66px; top: 50%; transform: translateY(-50%); }
+.pin.left span::before { left: 100%; top: 50%; height: 4px; width: 50px; margin-top: -2px; }
+
+/* four close-ups */
+.cards { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 36px; padding: 6px 90px 0; }
+.card { display: flex; flex-direction: column; background: var(--soft); border-radius: 22px; overflow: hidden; border: 2px solid rgba(255,255,255,.1); }
+.card img { width: 100%; height: 318px; object-fit: cover; }
+.card div { padding: 14px 26px 0; }
+.card h2 { margin: 0; font-size: 38px; font-weight: 900; font-style: italic; color: var(--gold); letter-spacing: -.01em; }
+.card p { margin: 6px 0 0; font-size: 23px; line-height: 1.36; color: var(--muted); }
+
+.foot { flex: none; height: 80px; margin-top: 24px; background: var(--orange); display: flex; align-items: center; justify-content: space-between; padding: 0 90px; }
+.foot .l { display: flex; align-items: center; gap: 26px; font-size: 24px; color: rgba(255,255,255,.9); }
+.foot .mail { font-size: 44px; font-weight: 900; font-style: italic; letter-spacing: -.01em; }
+body.wide .foot { margin-top: 0; height: 60px; }
+body.wide .foot .mail { font-size: 34px; }
+</style></head>
+<body>
+<div class="p">
+  <div class="hero" id="hero">
+    <img id="arena" src="feature/photos/hero-arena-comp.jpg" alt="A netball centre on stream night with FirstPass Studio on every screen">
+    <div class="head">
+      <img src="assets/1p-studio.svg" alt="1P Studio" style="height: 170px;">
+      <div>
+        <h1>Your competition, <em>everywhere.</em></h1>
+        <p><b>FirstPass Studio</b> turns your PlayHQ competition into a live broadcast. It puts graphics on the stream and the big screen, gives your commentators a plan, gets your sponsors seen, and posts the results to your socials.</p>
+      </div>
+    </div>
+    <!-- x, y are fractions of the photo; the script places them wherever the photo is cropped -->
+    <div class="pin down" data-x=".762" data-y=".345"><i></i><span style="--stem: 26px;">Graphics on the big screen</span></div>
+    <div class="pin down" data-x=".825" data-y=".49"><i></i><span>Socials</span></div>
+    <div class="pin down" data-x=".314" data-y=".875"><i></i><span style="--stem: 30px;">Production Planner</span></div>
+    <div class="pin up" data-x=".581" data-y=".673"><i></i><span>Commentator stats</span></div>
+    <div class="pin up" data-x=".772" data-y=".708"><i></i><span>Sequences run the show</span></div>
+    <div class="pin left" data-x=".705" data-y=".89"><i></i><span>Stream Deck</span></div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><img src="feature/photos/fan-phone-comp.jpg" alt="" style="object-position: 40% 47%;"><div><h2>Socials</h2><p>Results, match-ups, ladders and top shooters become Instagram posts, made from the night's games.</p></div></div>
+    <div class="card"><img src="feature/photos/big-screen-sponsors-comp.jpg" alt="" style="object-position: 50% 78%;"><div><h2>Sponsors</h2><p>Sponsors appear on the stream, on the big screen and on every post. A report shows how often each one was on air.</p></div></div>
+    <div class="card"><img src="feature/photos/commentary-desk-comp.jpg" alt="" style="object-position: 60% 62%;"><div><h2>Commentary</h2><p>You plan who's on the mic for every game. Their names and live game stats fill in by themselves.</p></div></div>
+    <div class="card"><img src="feature/photos/production-table-comp.jpg" alt="" style="object-position: 50% 62%;"><div><h2>Run it with two</h2><p>Sequences follow the game clock, and Stream Deck keys handle the quick calls by hand.</p></div></div>
+  </div>
+
+  <div class="foot">
+    <div class="l"><img src="assets/pivt.png" alt="PIVT" style="height: 52px;">Made by PIVT</div>
+    <div class="mail">pivtmedia@gmail.com</div>
+  </div>
+</div>
+<script>
+if (location.hash === '#wide') document.body.classList.add('wide');
+function pins() {
+  const img = document.getElementById('arena'), box = document.getElementById('hero');
+  const W = box.clientWidth, H = box.clientHeight, iw = img.naturalWidth, ih = img.naturalHeight;
+  const s = Math.max(W / iw, H / ih), dx = (W - iw * s) / 2, dy = (H - ih * s); // object-position 50% 100%
+  for (const p of document.querySelectorAll('.pin')) { p.style.left = (dx + p.dataset.x * iw * s) + 'px'; p.style.top = (dy + p.dataset.y * ih * s) + 'px'; }
+}
+const a = document.getElementById('arena'); a.complete ? pins() : a.addEventListener('load', pins);
+</script>
+</body></html>
