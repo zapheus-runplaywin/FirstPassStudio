@@ -433,7 +433,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       {
         label: 'Go',
         // ⌘1, ⌘2... in tab order, the same list as the tab bar on every page.
-        submenu: TABS.map((p, i) => ({ label: p.label.replace(/\b([a-z])/g, (m, c) => c.toUpperCase()), accelerator: `CmdOrCtrl+${(i + 1) % 10}`, ...go(p.also && p.also[0] === '/' ? '/' : p.href) })),
+        submenu: TABS.map((p, i) => ({ label: p.label, accelerator: `CmdOrCtrl+${(i + 1) % 10}`, ...go(p.also && p.also[0] === '/' ? '/' : p.href) })),
       },
       { role: 'windowMenu' },
     ]));

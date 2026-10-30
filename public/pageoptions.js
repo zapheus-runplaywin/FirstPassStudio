@@ -42,7 +42,7 @@ const PAGE_OPTIONS = (() => {
       spot('naming rights sponsor, in a tab over the home team'),
     ],
     'ticker.html': [
-      { key: 'speed', label: 'Speed', type: 'number', min: 20, max: 600, unit: 'px a second', placeholder: 'from the control page' },
+      { key: 'speed', label: 'Speed', type: 'number', min: 20, max: 600, unit: 'px a second', placeholder: 'from Scoreboard control' },
       { key: 'refresh', label: 'Update scores every', type: 'number', min: 0, max: 3600, unit: 's', placeholder: '30', help: '0 loads them once.' },
       spot('next sponsor in rotation, Partner and up, first in the line'),
     ],

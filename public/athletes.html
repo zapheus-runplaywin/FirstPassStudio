@@ -194,7 +194,7 @@ async function loadTeams() {
       if (t.division !== division) { division = t.division; const h = el('div', 'help', division); h.style.flexBasis = '100%'; h.style.fontWeight = '700'; box.appendChild(h); }
       box.appendChild(teamButton(t));
     }
-    $('teamsNote').textContent = `${d.competition}${current.length ? ` · On the control page now: ${current.join(' v ')}` : ''}`;
+    $('teamsNote').textContent = `${d.competition}${current.length ? ` · On Scoreboard control now: ${current.join(' v ')}` : ''}`;
     renderLibrary();
     const qs = new URLSearchParams(location.search);
     const want = qs.get('team') || current[0];

@@ -295,7 +295,7 @@ function refreshMenu() {
     { type: 'separator' },
     { label: 'Open Studio', click: () => openPage('/') },
     { label: 'Scoreboard control', click: () => openPage('/control.html') },
-    { label: 'Competition setup', click: () => openPage('/setup.html') },
+    { label: 'Competitions setup', click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
     // What may change things from another device (devices.js); the page answers on this Mac only.
     { label: 'Devices…', click: () => openPage('/devices.html') },
@@ -505,7 +505,7 @@ async function restoreFromMac() {
   const { response } = await dialog.showMessageBox({
     type: 'warning', buttons: ['Restore', 'Cancel'], defaultId: 0, cancelId: 1,
     message: `Replace this Mac's settings with ${name}'s?`,
-    detail: `Competitions, scenes, sequences, music and the control page's choices are copied from ${from}${where.local ? ` into a folder for this Mac beside it (${location.computerName()}), and this Mac keeps its settings in ${drive.name} from then on` : ''}. ${name} keeps its own. This Mac's settings are backed up first, in the backups folder on this Mac.${wasOn ? '\n\nStudio goes off air while they copy and comes straight back. Avoid doing this during a live game.' : ''}`,
+    detail: `Competitions, scenes, sequences, music and Scoreboard control's choices are copied from ${from}${where.local ? ` into a folder for this Mac beside it (${location.computerName()}), and this Mac keeps its settings in ${drive.name} from then on` : ''}. ${name} keeps its own. This Mac's settings are backed up first, in the backups folder on this Mac.${wasOn ? '\n\nStudio goes off air while they copy and comes straight back. Avoid doing this during a live game.' : ''}`,
   });
   if (response === 1) return;
   moving = true; refreshMenu();

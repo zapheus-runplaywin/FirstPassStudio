@@ -29,7 +29,7 @@
   <p class="page__help">How Studio works and what every graphic does. Build the show on the <a href="/output.html">Output page</a>: each graphic's options are fields in its source's settings there.
     The links here, with <b>Copy link</b> and <b>Preview</b>, are for using a graphic on its own, such as an OBS browser source; the options below can be added to them by hand.</p>
   <div class="card">
-    <h2>Competition setup</h2>
+    <h2>Competitions setup</h2>
     <p class="page__help" id="compNow">Every graphic is set up for one competition at a time.</p>
     <div class="row"><a class="btn alt" href="/setup.html" target="_blank">Open competition setup</a><a class="btn alt" href="/athletes.html" target="_blank">Open athlete photos</a><a class="btn alt" href="/sponsors.html" target="_blank">Open sponsors</a></div>
     <p class="page__help">The <a href="/sponsors.html" target="_blank">Sponsors page</a> keeps the competition's sponsors by tier (Naming rights, Elite, Major, Partner, Supporter, or Platinum, Gold, Silver and Bronze, or your own names),
@@ -76,10 +76,10 @@
         1 to 8). Every team: everyone plays on grand final day, 1 v 2 for the title, 3 v 4 for third, 5 v 6 for fifth and so on down
         the ladder, with nobody knocked out (an odd team out has no game). The ladder marks the finals
         places by what each earns and the finals graphic follows it (see <b>Finals</b> below).</li>
-      <li><b>Game day:</b> the court the scoreboard follows, whether it picks the game automatically, <b>Electronic scoring starts [x] minutes before the game</b>
+      <li><b>Game night:</b> the court the scoreboard follows, whether it picks the game automatically, <b>Electronic scoring starts [x] minutes before the game</b>
         (default 10; set 20 or 30 when games are further apart), and how many days ahead counts as this game night. Automatic selection switches
         to the next game when its electronic scoring starts, and the scoreboard doesn't ask PlayHQ for a game's score before then, even for a game
-        picked by hand: the control page says when it will start checking. That keeps PlayHQ's "game could not be found or was not electronically
+        picked by hand: Scoreboard control says when it will start checking. That keeps PlayHQ's "game could not be found or was not electronically
         scored" error out of the debug log.</li>
       <li><b>Colours and font:</b> nine colours, how see-through the dark panels are, and the font, with a preview. Click a colour's
         swatch for a colour picker (shade square, hue slider, HEX and RGB boxes, and on Chrome or Edge <b>Pick from screen</b>), or type or
@@ -107,7 +107,7 @@
         picker or paste it as HEX or RGB.</li>
       <li><b>More:</b> the PlayHQ Client ID most competitions don't need, and exporting, saving or deleting the competition. (The emoji either side of the title banner and The Clash's big word are options on those graphics on the Output page.)</li>
     </ul>
-    <p class="page__help"><b>Use this one</b> switches every graphic, the control page and the Stream Deck to that competition: the game night goes back
+    <p class="page__help"><b>Use this one</b> switches every graphic, Scoreboard control and the Stream Deck to that competition: the game night goes back
       to automatic and the scoreboard starts on that competition's first game. Saving the competition in use reloads the graphics
       with the changes. Setups are kept in the <b>competitions</b> folder (see <b>Saved settings and git</b> below).</p>
     <p class="page__help"><b>Carnivals</b> (like the AMMNA nationals) play several rounds a day: on those days "this round" moves on to each round
@@ -347,8 +347,8 @@
     <p class="page__help">The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>
   <div class="card">
-    <h2>Control page settings (every page follows these)</h2>
-    <p class="page__help">Every graphic uses the game night, game and court set on the <a href="/control.html" target="_blank">scoreboard control page</a>.
+    <h2>Scoreboard control settings (every page follows these)</h2>
+    <p class="page__help">Every graphic uses the game night, game and court set on the <a href="/control.html" target="_blank">Scoreboard control</a>.
       A setting added to a page's own link (like <code>?division=2</code> or <code>?round=6</code>) overrides it for that page only.</p>
     <ul class="page__help">
       <li><b>Game night:</b> the games list has every division's games on one date, whatever round each division is up to, so one
@@ -374,8 +374,8 @@
         button switches scores to manual, and any clock button switches the clock to manual.</li>
       <li><b>Follow PlayHQ:</b> the score and quarter come from PlayHQ's live scoring every 5 seconds, and
         <b>Follow the PlayHQ scorer's clock</b> runs the clock from the scorer's clock too. Switching scores between
-        <b>Follow PlayHQ</b> and <b>Manual</b> (on the control page, the Stream Deck, by pressing a score button or by picking a game)
-        turns the clock option on or off to match, and the control page says so. Changing the clock after that still wins:
+        <b>Follow PlayHQ</b> and <b>Manual</b> (on Scoreboard control, the Stream Deck, by pressing a score button or by picking a game)
+        turns the clock option on or off to match, and Scoreboard control says so. Changing the clock after that still wins:
         untick the box or press a clock button to run the clock by hand while scores follow PlayHQ.</li>
       <li><b>Pages that use the picked game's division:</b> ladder and finals (without <code>?division=</code>), ladder bar, top shooters,
         title, match up, The Clash, winner celebration, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
@@ -426,13 +426,13 @@
       moves on to the next game, and the champions show under it once the grand final is decided.
       PlayHQ's finals games (rounds with "final" or "play-off" in their name) are used when it has them, with their day, time, court and score.
       PlayHQ often has no finals fixtures, so pick each winner (and the score, if you like) in <b>Finals</b> on the
-      <a href="/control.html" target="_blank">control page</a>; a PlayHQ result always wins over one picked there.
+      <a href="/control.html" target="_blank">Scoreboard control</a>; a PlayHQ result always wins over one picked there.
       The ladder marks the same finals places: double chance or a week off in the highlight colour, elimination finals in the accent colour,
       playing for third in the small print colour, with a line under the last finals place and a key under the ladder (<code>?key=0</code> leaves it off).
       Loads once. Options: <code>?week=2</code> shows one week only, <code>?title=Grand%20Final%20day</code> changes the heading,
       <code>?seeds=0</code> leaves off the ladder positions, <code>?sub=Double%20chance%20for%20the%20top%202</code> changes the line under the heading (it says <b>Top 4 finals</b> and so on; <code>?sub=0</code> leaves it off), <code>?projected=0</code> leaves off "If the season ended today",
       <code>?logo=0</code> leaves off the competition logo (<code>?mode=light</code> uses the light mode one), and without <code>?division=</code>
-      it shows the division of the game picked on the control page.</p>
+      it shows the division of the game picked on Scoreboard control.</p>
     <div id="finalsPages"></div>
   </div>
   <div class="card" id="shootersCard" hidden>
@@ -461,7 +461,7 @@
       <li><b>Full time:</b> one per game, the two logos and the score big, with who won and by how much.</li>
       <li><b>Ladder:</b> one per division that played, as PlayHQ has it now ("after Round 5" when it is that division's latest night with results), with the finals line.</li>
       <li><b>Top shooters:</b> one per division, its top six shooters that night, from each finished game's line ups (goals, plus super goals and points where there are super shots).</li>
-      <li><b>Tournament top shooters</b> (<b>Season top shooters</b> when the fixture runs 15 days or more, or as picked under Game day in Competitions setup): one per division, its top eight shooters over every finished game so far, labelled after this night's latest round, or after an earlier round that night (<b>As at</b>, for a carnival day with several rounds). With <b>Highlight movers</b> ticked (kept for the competition), each shows the places they climbed (green ▲) or fell (red ▼) since the round before, even on the same day (the day before for games with no round), and NEW for anyone new to the top eight. It reads the same kept line ups as Top shooters.</li>
+      <li><b>Tournament top shooters</b> (<b>Season top shooters</b> when the fixture runs 15 days or more, or as picked under Game night in Competitions setup): one per division, its top eight shooters over every finished game so far, labelled after this night's latest round, or after an earlier round that night (<b>As at</b>, for a carnival day with several rounds). With <b>Highlight movers</b> ticked (kept for the competition), each shows the places they climbed (green ▲) or fell (red ▼) since the round before, even on the same day (the day before for games with no round), and NEW for anyone new to the top eight. It reads the same kept line ups as Top shooters.</li>
       <li><b>Polaroid:</b> one per game, with the score under the photo ("Blizzardz win 31–26") and the opponent, division, round and date under that.</li>
     </ul>
     <p class="page__help">Each picture has a <b>Sponsor strip</b> tick (your naming, elite and major sponsors along the bottom), remembered for next week, and
@@ -537,7 +537,7 @@
     <p class="page__help">From a copy of the FirstPassStudio repository, double-click <b>Make Examples (Mac).command</b>
       to take a 1920 x 1080 picture of every graphic on this page with PlayHQ's data right now. They are saved in
       <b>Examples/&lt;date and time&gt;</b> with an <b>index.html</b> that shows them all, and keep their transparent background.
-      The pictures use the game, round and court picked on the control page, so pick those first. The Clash and the winner celebration are shown at the end of their animations, and the logo animations and the ad part way through.</p>
+      The pictures use the game, round and court picked on Scoreboard control, so pick those first. The Clash and the winner celebration are shown at the end of their animations, and the logo animations and the ad part way through.</p>
     <p class="page__help">It uses Studio if it is on air (keep a Studio window open), otherwise starts it on its own for the run, and needs Google Chrome (or Edge, Brave or
       Chromium) and Node 22 or newer. It takes about a minute and a half, and fetches the same data the pages do once each.</p>
   </div>
@@ -547,7 +547,7 @@
       <li><b>Open the app.</b> The Output page opens and Studio goes on air. Keep a Studio window open all night; closing the last one takes it off air.</li>
       <li><b>Right competition.</b> Competitions setup shows the one in use at the top. Check its PlayHQ link, the court to follow and the scoring window (<b>Electronic scoring starts N minutes before the game</b>).</li>
       <li><b>Right game.</b> On Scoreboard control, the picked game is tonight's first on your court and <b>Follow PlayHQ</b> is on. If the night is wrong, pick tonight under <b>Game night</b> there.</li>
-      <li><b>Scores arrive.</b> Once the scorer has started on PlayHQ, the control page says the game is being live scored and the scoreboard moves. Nothing is read before the scoring window opens, so a quiet board before then is normal.</li>
+      <li><b>Scores arrive.</b> Once the scorer has started on PlayHQ, Scoreboard control says the game is being live scored and the scoreboard moves. Nothing is read before the scoring window opens, so a quiet board before then is normal.</li>
       <li><b>Scene and output.</b> On the Output page turn on the display, NDI or Blackmagic output your switcher takes, check the fill and key or chroma setting, and show one graphic to see it land.</li>
       <li><b>Sound.</b> Play a few seconds of music and an animation with sound, and check the preview sound only comes out where you want it.</li>
       <li><b>Stream Deck.</b> Press a Source key and watch the Output page's Sources list follow it. A score key switches scoring to Manual, so put those back to Follow PlayHQ after testing.</li>
@@ -579,7 +579,7 @@
   </div>
   <div class="card">
     <h2>Links (this Mac's .local name)</h2>
-    <p class="page__help">The links on this page, the control page and the Mac app's menu (<b>Copy the Studio link</b> too) start with this Mac's
+    <p class="page__help">The links on this page, Scoreboard control and the Mac app's menu (<b>Copy the Studio link</b> too) start with this Mac's
       Bonjour name, <code id="linkBase" style="display:inline"></code>, instead of <code style="display:inline">localhost</code>. It is the
       <b>Local hostname</b> in System Settings &gt; General &gt; Sharing, so the same link works on this Mac and from a phone, another
       computer or a Stream Deck on the same network. The port stays 8080, and <code style="display:inline">http://localhost:8080</code> still works on this Mac,
@@ -597,7 +597,7 @@
     <ul class="page__help">
       <li><b>competitions/</b>: a folder per competition with its setup (<code style="display:inline">settings.json</code>), team logos, competition logo,
         athlete photos and athlete register, and <b>active.json</b>, the one in use.</li>
-      <li><b>control.json</b>: the control page's choices (the game night picked by hand, automatic game selection and its court, following the
+      <li><b>control.json</b>: Scoreboard control's choices (the game night picked by hand, automatic game selection and its court, following the
         PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
       <li><b>scoreboard-state.json</b>: the game on the board, the scores and the clock.</li>
       <li><b>config.json</b> (optional): changes this computer's settings (port, log size, how often to check PlayHQ, <code style="display:inline">remoteChanges</code>) from the app's defaults.
@@ -630,13 +630,13 @@
       (iCloud Drive turned off, signed out), Studio says so and doesn't start, rather than starting with no settings.
       <b>Settings folder &gt; Move back to this Mac…</b> moves them back.</p>
     <p class="page__help"><b>Settings folder &gt; Restore from another Mac…</b> copies another Mac's settings (competitions, scenes, sequences,
-      music, the control page's choices) over this Mac's: pick the Mac from the list of folders beside this one, or choose its folder.
+      music, Scoreboard control's choices) over this Mac's: pick the Mac from the list of folders beside this one, or choose its folder.
       The other Mac keeps its own; this Mac's settings are backed up in <b>backups/</b> on this Mac first, and are only replaced once
       the copy has checked out. If this Mac's settings are on the Mac, they go into iCloud Drive too, in a new folder for this Mac beside
       the other Mac's, and stay there from then on. Studio goes off air for the copy and comes straight back. <b>Open the settings folder</b> opens wherever they are now.</p>
     <h3>Backing up the settings</h3>
     <p class="page__help"><b>Back up…</b> in the 1P menu saves every setting in one zip: competitions with their logos and athletes,
-      sponsors, scenes, sequences, music and playlists, the media folder, the control page's choices and <code style="display:inline">config.json</code>,
+      sponsors, scenes, sequences, music and playlists, the media folder, Scoreboard control's choices and <code style="display:inline">config.json</code>,
       wherever they are kept (on the Mac or in iCloud Drive). The debug log, the scores and clock, PlayHQ caches and stream keys stay out.
       First it asks for notes (what the backup is for, say) and whether to include the media folder (videos, songs), which can make the zip big.
       The zip is named <code style="display:inline">FirstPassStudioBackup-2026-10-24_10-46-02.zip</code>, the date and time it was made, so each one is new
@@ -674,7 +674,7 @@
   </div>
   <div class="card">
     <h2>Data and bandwidth</h2>
-    <p class="page__help"><b>scoreboard.html</b>, <b>goals.html</b> and <b>countdown.html</b> (and the control page) follow the scoreboard over the one connection Studio's pages keep open for the scene, so a score press or a PlayHQ reading reaches them the moment it happens, with no asking in between. <b>ticker.html</b>, <b>viewers.html</b> (every 15 seconds, Studio only) and the automatic <b>supershot.html</b> and <b>streak.html</b> keep asking for new data; <b>ticker.html</b> also asks for its speed every 3 seconds. None of that reaches PlayHQ.
+    <p class="page__help"><b>scoreboard.html</b>, <b>goals.html</b> and <b>countdown.html</b> (and Scoreboard control) follow the scoreboard over the one connection Studio's pages keep open for the scene, so a score press or a PlayHQ reading reaches them the moment it happens, with no asking in between. <b>ticker.html</b>, <b>viewers.html</b> (every 15 seconds, Studio only) and the automatic <b>supershot.html</b> and <b>streak.html</b> keep asking for new data; <b>ticker.html</b> also asks for its speed every 3 seconds. None of that reaches PlayHQ.
       <b>commentator.html</b> follows the scoreboard live for its clock, moments and run, and with Auto-refresh (on by default there) asks Studio for its stats every 15 seconds and for who is on the mic each minute, neither of which reaches PlayHQ; its team lists load at the start and each quarter break (see below).
       The super shot and hot streak pages ask Studio every second for the scoreboard and nothing else, so they add no PlayHQ requests.
       Every other graphic gets its data once when it loads, and again each time it's shown on the Output page (with <b>Load the page fresh each time it's shown</b>, the default).
@@ -682,10 +682,10 @@
     <p class="page__help">Pages only ever talk to Studio on this computer, which uses no internet. Studio is the only thing that
       contacts PlayHQ, and it caches what it gets:</p>
     <ul class="page__help">
-      <li>Scoreboard following PlayHQ: one small request every 5 seconds by default (<b>Check PlayHQ every</b> on the control page, 1 to 120 seconds), starting when
+      <li>Scoreboard following PlayHQ: one small request every 5 seconds by default (<b>Check PlayHQ every</b> on Scoreboard control, 1 to 120 seconds), starting when
         the game's electronic scoring starts (set on the setup page). Nothing is asked before then. Studio makes this request itself
         whatever windows are open, so the score, the goal order and the game triggers (quarter breaks, full time) keep up even while the
-        scoreboard is hidden and the control page is closed; the pages share that reading rather than adding to it.</li>
+        scoreboard is hidden and Scoreboard control is closed; the pages share that reading rather than adding to it.</li>
       <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to Studio, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
       <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen, and each extra output runs the pages turned on for it once more. NDI's video goes over your local network only, never the internet. In 4K nothing more is asked for, but each NDI source carries about four times the pixels (roughly 250 to 400 Mbit/s at 50 or 60 fps, and fill and key is two sources), so use one source with transparency on a gigabit network, and the Mac does about four times the work per 4K output: the Output page's performance line shows whether it keeps up.</li>
       <li>Mics: nothing over the internet. Each output window mixing mics tells Studio what it hears twice a second, and the Output page asks for it twice a second while its Mics section is open; the sound itself stays inside the Mac. A mic on the switcher is a few small fader messages over the switcher's connection when its level changes (about 20 a second while a dip fades).</li>
@@ -706,7 +706,7 @@
       <li>Team lists: warmed up ahead, so they show straight away. When a game is picked (by hand or automatically) and when Studio starts, it reads the game's line up and both teams' season squads, and the next game's teams on the same court too. Finished games come from <code style="display:inline">game-cache.json</code>, so after the first time that's only a few small requests per game picked. Squads are kept for 30 minutes; the team list itself asks for the game's line up and score when it loads.</li>
     </ul>
     <p class="page__help">Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
-      <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard, scene and control page.</p>
+      <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard, scene and Scoreboard control.</p>
   </div>
   <p class="sub">Something not working? The debug log is in the <b>logs</b> folder of the data folder, or <a href="/api/log" target="_blank">open the debug log</a>. Send <code style="display:inline">logs/playhq-graphics.log</code> to Claude.</p>
   <p class="sub">On the <a href="/output.html">Output page</a>, <b>Add page</b> puts any of these graphics in the scene; turn each on or off there or from the Stream Deck. Animations run at the same speed at any frame rate, 50p or 60p.</p>
@@ -777,7 +777,7 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   '<code>?score=0</code> leaves the score off. Combine them with &amp;, e.g. <code>/winner.html?out=12&amp;score=0</code>. Uses club colours from the competition setup.'], ['Super shot (after a successful super shot)', '/supershot.html',
   'A 3 second burst after a super shot goes in, small and centred just under the title: a netball flies in and bursts, SUPER and SHOT slam in from either side, then it fades out and leaves the frame clear. ' +
   '<b>Automatic (this link):</b> leave the source on and it plays by itself for every super shot, with that team\'s logo and name in their club colour: ' +
-  'a +2 press on the control page or Stream Deck, or, while following PlayHQ, the PlayHQ scorer recording a super shot. ' +
+  'a +2 press on Scoreboard control or Stream Deck, or, while following PlayHQ, the PlayHQ scorer recording a super shot. ' +
   'Two normal goals between checks, a scorer correcting a goal to a super shot, scores catching up when a game is picked, anything after full time and a −2 don\'t play it; a +2 pressed by mistake does. ' +
   'Two close together play one after the other. <code>/deck/home/supershot</code> or <code>/deck/away/supershot</code> plays it without changing the score (to test it). ' +
   '<b>Manual:</b> <code>?team=home</code>, <code>?team=away</code> or <code>?team=none</code> (competition colours, no team) doesn\'t watch; it plays once each time the source comes on, so keep <b>Load the page fresh each time it\'s shown</b> ticked and show it from the Stream Deck (see the <a href="/api.html">Stream Deck page</a>). ' +
@@ -792,7 +792,7 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   '<b>on the siren</b> for a goal with 10 seconds or less left while the clock is running, or just stopped (a red beacon, the quarter and time left); ' +
   '<b>back to back</b> for a team\'s second super shot in a row (two netballs drop in). These use the scoreboard\'s score and clock, so the clock needs to be right for all square and on the siren. ' +
   'One goal plays one at most, in this order: on the siren, back to back, on fire, hits the front, coming back, all square, goal for goal, heating up. ' +
-  '<b>Automatic (this link):</b> leave the source on and it plays by itself, from the same goal order as the Last 10 goals graphic (a super shot is one goal): while following PlayHQ, the scorer\'s goals, and the +1 / +2 presses on the control page or Stream Deck. ' +
+  '<b>Automatic (this link):</b> leave the source on and it plays by itself, from the same goal order as the Last 10 goals graphic (a super shot is one goal): while following PlayHQ, the scorer\'s goals, and the +1 / +2 presses on Scoreboard control or Stream Deck. ' +
   'Each plays once per run: a run that reaches 5 plays on fire (not heating up again), a goal for goal stretch plays once however long it goes, and a −1 then the goal again doesn\'t replay it. ' +
   'Scores catching up when a game is picked part way through, and anything after full time, don\'t play. One that comes with a super shot waits for the super shot graphic to finish, and two close together play one after the other. ' +
   '<b>Brought to you by:</b> each streak and moment can name its sponsor, as the super shot does (Sponsored moments on the Sponsors page; <code>?sponsor=0</code> leaves it off). ' +
@@ -801,7 +801,7 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   '<b>Manual:</b> <code>?play=heating</code>, <code>fire</code>, <code>goalforgoal</code>, <code>lead</code>, <code>level</code>, <code>comeback</code>, <code>siren</code> or <code>backtoback</code>, with <code>&amp;team=away</code> for the away team, doesn\'t watch; it plays once each time the source comes on (keep <b>Load the page fresh each time it\'s shown</b> ticked).'], ['Last 10 goals (momentum, updates itself)', '/goals.html',
   'Who scored each of the last 10 goals of the game on the scoreboard, oldest to newest, with the quarter and time of each, a momentum line (up for a home goal, down for an away goal, shaded in the club colours), ' +
   'how many of the 10 each team scored, and the current run (3 or more in a row lights up). Super goals show a +2 badge. Like the scoreboard it updates itself every 2 seconds, so it can stay on screen: new goals pop in and the older ones slide along. ' +
-  'PlayHQ only gives running totals, not a list of goals, so the order is worked out by Studio from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on the control page or Stream Deck. ' +
+  'PlayHQ only gives running totals, not a list of goals, so the order is worked out by Studio from the score going up between readings (every 5 seconds while following PlayHQ) and from each +1 / +2 press on Scoreboard control or Stream Deck. ' +
   'A -1 or -2 takes that team\'s latest goal off. The list starts again when a new game is picked or the scores are reset. It only builds while the scoreboard (or this page) is open, and if the score jumps by more than 3 for one team at once, or the game was picked part way through, a dashed … marks the gap. ' +
   'Options: <code>?layout=vertical</code> (the default is <code>horizontal</code>, above the scoreboard), <code>?count=8</code> shows a different number of goals (3 to 30), <code>?times=0</code> leaves the quarter and time off, <code>?run=0</code> leaves the current run line off, ' +
   '<code>?position=top</code> or <code>middle</code> moves the horizontal one (it stays between the title and the scoreboard), <code>?position=left</code> puts the vertical one on the left and <code>?title=Momentum</code> changes the heading.'],
@@ -827,7 +827,7 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   'It stays hidden while no stream is live and below the setup page\'s minimum (50 by default), since a small number can look worse than none; <code>?min=200</code> sets another for this page. It checks Studio every 15 seconds and nothing else. ' +
   '<code>?show=peak</code> is a card with tonight\'s peak instead (for the end of the night; loads once), with <code>?title=</code> for its heading and <code>?out=12</code> to animate it away after 12 seconds.'],
  ['Countdown to the start of the game', '/countdown.html',
-  'Counts down (days, hours, minutes and seconds as needed) to the scheduled start time from PlayHQ of the game picked on the control page, with both teams, their logos, the division, round, court, time and venue. ' +
+  'Counts down (days, hours, minutes and seconds as needed) to the scheduled start time from PlayHQ of the game picked on Scoreboard control, with both teams, their logos, the division, round, court, time and venue. ' +
   'The clock ticks in the page, so it can stay on screen: every 5 seconds it checks with Studio which game is picked (PlayHQ is not asked), so when a new game is picked, by hand or by automatic game selection, it counts down to that one. ' +
   'The last 10 seconds pulse in the accent colour, and at zero it shows <b>STARTING SOON</b> until the next game is picked. ' +
   'Options: <code>?end=Game%20on</code> changes the words at zero (keep them short), <code>?end=hide</code> fades the card away instead, <code>?fade=1</code> fades the whole card out smoothly over the last 5 seconds so it is gone at zero (<code>?fade=8</code> over 8 seconds), <code>?label=Next%20game%20in</code> changes the heading, ' +
@@ -859,14 +859,14 @@ showLink('/scene.html', document.getElementById('sceneUrl'), document.getElement
   'A stretch Studio wasn\'t watching (the game picked up part way, a score typed in, or a jump of more than 3 at once) is hatched and the line jumps across it dotted. ' +
   'Options: <code>?title=Score%20worm</code> changes the heading, <code>?draw=3</code> seconds to draw the line in (<code>0</code> shows it straight away), <code>?leads=0</code> leaves out the biggest leads and lead changes, <code>?supershot=0</code> leaves out the super shot periods, <code>?colours=0</code> uses the competition\'s colours.'], ['Ladder lower third', '/ladderbar.html', 'Both teams\' ladder position, record, points and percentage, right above the scoreboard and the same width as it.'], ['Score ticker (other courts, updates itself)', '/ticker.html',
   'Scrolling scores from the other games this round, leaving out the game on the scoreboard. It updates its scores itself every 30 seconds (<code>?refresh=0</code> loads once). ' +
-  '<b>Speed:</b> set it on the control page (<b>Ticker speed</b> in pixels a second, with <b>Slower</b>, <b>Faster</b> and <b>Normal (120)</b>) or from the Stream Deck with ' +
+  '<b>Speed:</b> set it on Scoreboard control (<b>Ticker speed</b> in pixels a second, with <b>Slower</b>, <b>Faster</b> and <b>Normal (120)</b>) or from the Stream Deck with ' +
   '<code>/deck/ticker/faster</code>, <code>/deck/ticker/slower</code>, <code>/deck/ticker/normal</code> or <code>/deck/ticker/speed/80</code>. Faster and slower change it by 20, between 20 and 600. ' +
   'The ticker asks Studio for the speed every 3 seconds (PlayHQ is not asked) and changes without starting the scroll again; the speed is remembered in control.json. ' +
-  '<code>?speed=80</code> fixes the speed for that link only, ignoring the control page.']]
+  '<code>?speed=80</code> fixes the speed for that link only, ignoring Scoreboard control.']]
   .forEach(([n, p, h]) => document.getElementById('gamePages').appendChild(pageRow(n, p, h)));
 document.getElementById('fixturePages').appendChild(pageRow('Round fixture', '/fixtures.html',
   'Every game of a round in every division, sorted by time, with court, division, logos and the score once a game is finished. ' +
-  'It shows this round (the one the control page has, picked by date unless set by hand) and loads once, getting the latest each time it\'s turned on on the Output page. ' +
+  'It shows this round (the one Scoreboard control has, picked by date unless set by hand) and loads once, getting the latest each time it\'s turned on on the Output page. ' +
   'Options: <code>?round=next</code> shows the round after this one (next week), <code>?round=prev</code> the one before, <code>?round=+2</code> or <code>?round=-1</code> counts from this round, ' +
   '<code>?round=6</code> shows round 6 (or a round by name, like <code>?round=Final</code>), and <code>?division=1</code> shows one division. Combine them with &amp;, e.g. <code>/fixtures.html?round=next&amp;division=1</code>. ' +
   'A division without that round is left out. When divisions are on different rounds (one on Round 10, another on Finals Round 1), the heading says Fixture and each game shows its round under its division.'));
@@ -928,7 +928,7 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
   '<b>tiles</b> (a wall of team logo tiles flips over, tile by tile, into a mosaic of the competition logo), <b>spotlight</b> (the teams stand under an arch; in the dark a spotlight visits each with its name, then the lights come up), ' +
   '<b>court</b> (netball court lines draw on and the teams play the ball from one goal circle to the other, left to right: each drives in to catch it, turns and passes on, then clears; with fewer than 7 teams each runs on and reoffers for a second catch. The last one shoots, the goal brings in the competition logo, and the teams line up along the side lines), ' +
   '<b>blueprint</b> (on a glowing grid, lasers sketch the team logos like blueprints, they solidify into holographic cards, the camera pushes through them and the competition logo is traced and blasted in as the grid scatters), or <b>random</b>. ' +
-  'The teams are the division of the game picked on the control page; <code>?division=2</code> picks one, <code>?division=all</code> shows one team per club across the competition. Logos get smaller as there are more teams. ' +
+  'The teams are the division of the game picked on Scoreboard control; <code>?division=2</code> picks one, <code>?division=all</code> shows one team per club across the competition. Logos get smaller as there are more teams. ' +
   'It holds for 5 seconds once the words are in, then animates away and switches its source off: <code>?hold=10</code> holds longer, <code>?out=0</code> stays on screen. ' +
   'Options: <code>?message=</code> changes the yellow line, <code>?speed=1.5</code> plays it faster (0.5 slower), <code>?mode=dark</code> the dark mode competition logo, ' +
   '<code>?bg=</code>, <code>?bg2=</code> and <code>?bgimage=</code> a background as on the logo animations (it is see-through without them; the blueprint style brings its own grid), ' +
