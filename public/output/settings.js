@@ -316,6 +316,7 @@ const showOut = o => {
   outSel = so.id;
   renderOutputs(o, so);
   renderPerf(o, so);
+  renderQuality(o);
   if (hadExtras !== extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join()) { renderList(); renderForm(); renderTabs(); }
   if (wasSending !== sendingOf(o) && typeof renderSequences === 'function') renderSequences();
   if (relisten) { listen(); if (popped) popChannel.postMessage('ask'); }
@@ -423,6 +424,9 @@ const showOut = o => {
       : so.showing.length ? 'Starting NDI…' : nd.ok ? 'Pick the signal and video format.' : nd.error || 'Checking for NDI…')
     : so.showing.length ? 'Showing ' + so.showing.map(w => `${w.kind} on ${name(w.display)}`).join(' and ') + '.'
     : 'Pick the display to use.';
+  // In 4K, an output that can't go to 2160p says what it stays at, and why.
+  const pic = so.picture || {};
+  if (pic.why && so.mode !== 'off' && !so.clash) $('outStatus').textContent += ` 4K: ${pic.why}.`;
   $('outDeck').textContent = so.primary ? `${deckBase}/deck/output/toggle` : `${deckBase}/deck/output/${so.link}/toggle`;
   // Web links only has nothing to turn on; and while the output is on its setup is locked, so it's turned off before changing.
   const live = sending;
@@ -442,7 +446,7 @@ const showOut = o => {
 // Changes the output being set up here (changes.output), or adds or removes one ({ add }, { remove }).
 const setOut = async changes => {
   try {
-    if (!changes.add && changes.remove === undefined && changes.output === undefined) changes = { output: outSel, ...changes };
+    if (!changes.add && changes.remove === undefined && changes.output === undefined && changes.quality === undefined) changes = { output: outSel, ...changes };
     const r = await fetch('/api/outputs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes) });
     const body = await r.json();
     if (!r.ok && body.error) $('err').textContent = body.error;
@@ -539,7 +543,7 @@ function renderOutputs(o, so) {
     const small = card.querySelector('small');
     // With the switcher: "On air with Court" or "Waiting for Court" (output/switcher.js).
     const withCam = ((sw && sw.state === 'connected' && sw.keys) || []).find(k => k.output === x.id)?.withCamera;
-    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.primary ? ' · primary, with sound' : '') + (withCam ? ` · ${withCam}` : '');
+    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.picture && x.picture.uhd ? ' · 4K' : '') + (x.primary ? ' · primary, with sound' : '') + (withCam ? ` · ${withCam}` : '');
     if (x.perf) {
       const p = document.createElement('span');
       p.textContent = ' · ' + perfText(x.perf);
@@ -571,6 +575,24 @@ function renderPerf(o, so) {
   el.textContent = (mine + all).trim();
   el.classList.toggle('slow', !!so.perf && perfSlow(so.perf));
 }
+// Picture: HD or 4K for every output at once (outputs.js quality), in the section's title row with the app.
+function renderQuality(o) {
+  const q = o.quality || 'hd';
+  $('outQuality').classList.toggle('hidden', !o.app);
+  for (const b of $('outQuality').querySelectorAll('button')) {
+    b.classList.toggle('on', b.dataset.q === q);
+    b.setAttribute('aria-pressed', String(b.dataset.q === q));
+  }
+  $('outQualityNote').classList.toggle('hidden', !o.app || q !== 'uhd');
+  // What will look soft in 4K, by name, so a bigger file can go in (outputs.js soft, from picturesize.js).
+  const soft = (o.app && q === 'uhd' && o.soft) || [];
+  const logos = soft.filter(x => x.what === 'logo'), videos = soft.filter(x => x.what === 'video');
+  const name = x => `${esc(x.name)} (${x.width} × ${x.height})`;
+  $('outSoft').innerHTML = (logos.length ? `<b>Soft in 4K, logos under 1024 pixels:</b> ${logos.map(name).join(', ')}. Swap in a bigger file (1024 pixels or more, or an SVG). ` : '')
+    + (videos.length ? `<b>Videos under 2160 pixels tall:</b> ${videos.map(name).join(', ')}. They're scaled up in 4K; a 4K export of each is sharp.` : '');
+  $('outSoft').classList.toggle('hidden', !soft.length);
+}
+for (const b of $('outQuality').querySelectorAll('button')) b.onclick = () => { if (!b.classList.contains('on')) setOut({ quality: b.dataset.q }); };
 // What an output sends to, in a few words.
 function outWhere(o, x) {
   const disp = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';

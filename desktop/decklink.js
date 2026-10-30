@@ -52,9 +52,9 @@ module.exports = function decklink({ port, log, onStatus }) {
     if (addon) addon.stop();
   }
 
-  // w: { device, mode, keying, straight, sound, output } from outputs.js, or null to stop.
+  // w: { device, mode, keying, straight, sound, density, output } from outputs.js, or null to stop.
   function show(w) {
-    const key = w && JSON.stringify([w.device, w.mode, w.keying, w.straight, w.sound, w.output]);
+    const key = w && JSON.stringify([w.device, w.mode, w.keying, w.straight, w.sound, w.density || 1, w.output]);
     if (key && running?.key === key) return;
     stop();
     error = '';
@@ -83,7 +83,7 @@ module.exports = function decklink({ port, log, onStatus }) {
 
     running.frameRate = r.frameRate;
     win = sceneWindow({
-      port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output', output,
+      port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output', output, density: w.density || 1,
       onFrame: (bitmap, width, height) => addon.frame(bitmap, width, height),
     });
     if (sound !== 'mac' && win.contents()) {

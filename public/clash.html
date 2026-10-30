@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
 <script src="chroma.js"></script>
+<script src="zoom.js"></script>
 <script src="done.js"></script>
 <script src="fit.js"></script>
 <style>
@@ -217,7 +218,7 @@
 
     // Sparks fly out from the centre at the moment of impact.
     function sparks() {
-      const c = $('sparks'), ctx = c.getContext('2d');
+      const ctx = sharpCanvas($('sparks'));
       const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
       const colours = ['#ffffff', css('--yellow'), css('--yellow-light'), css('--pink'), css('--purple-light')].filter(Boolean);
       const ps = Array.from({ length: 140 }, () => {
@@ -245,7 +246,7 @@
 
     // Embers drifting up for as long as the graphic is on screen.
     function embers() {
-      const c = $('embers'), ctx = c.getContext('2d');
+      const ctx = sharpCanvas($('embers'));
       const emberA = getComputedStyle(document.documentElement).getPropertyValue('--yellow-rgb').trim() || '255,205,0';
       const emberB = getComputedStyle(document.documentElement).getPropertyValue('--pink-rgb').trim() || '230,0,126';
       const make = () => ({ x: Math.random() * 1920, y: 1080 + Math.random() * 200, vy: .6 + Math.random() * 1.6,

@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
 <script src="chroma.js"></script>
+<script src="zoom.js"></script>
 <script src="done.js"></script>
 <script src="fit.js"></script>
 <style>
@@ -232,7 +233,7 @@
 
     // Confetti: two cannons from the bottom corners, then a steady fall from the top while the graphic is up.
     function confetti(colours, { cannons, rate }) {
-      const c = $('confetti'), ctx = c.getContext('2d');
+      const ctx = sharpCanvas($('confetti'));
       const ps = [];
       const piece = (x, y, vx, vy) => ({ x, y, vx, vy, rot: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
         w: 10 + Math.random() * 12, h: 6 + Math.random() * 8, flip: Math.random() * Math.PI * 2, vf: .08 + Math.random() * .12,

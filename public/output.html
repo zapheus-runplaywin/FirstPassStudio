@@ -66,6 +66,11 @@
   h2.forOutput::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--c); margin-right: 8px; vertical-align: 1px; }
   .perf.slow, .outCard small .slow { color: #8A3B00; font-weight: 600; }
   .outCard .onBtn { background: var(--c); color: #0F172A; }
+  /* Picture: HD or 4K for every output (outputs.js quality). */
+  .quality { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; }
+  .quality button { border-radius: 0; background: var(--fp-white); color: var(--fp-muted); padding: 6px 12px; }
+  .quality button:hover { background: var(--fp-gray); }
+  .quality button.on, .quality button.on:hover { background: var(--fp-navy); color: var(--fp-white); }
   .outTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .outTab { background: var(--fp-white); color: var(--fp-navy); border: 2px solid var(--fp-line); box-shadow: inset 0 -4px 0 var(--c); }
   .outTab:hover { background: var(--fp-gray); }
@@ -297,10 +302,16 @@
   <section id="outSection" data-fold="output">
     <div class="secHead">
       <h2>Video output</h2>
-      <div class="row"><button id="outAdd" class="alt hidden" title="Send different graphics to another output at the same time (up to four)">Add an output</button>
+      <div class="row"><span class="quality hidden" id="outQuality" role="group" aria-label="Picture" title="The picture every output sends: HD, or 4K (2160p) for 4K gear. Nothing else changes.">
+          <button data-q="hd" aria-pressed="true">HD</button><button data-q="uhd" aria-pressed="false">4K</button></span>
+        <button id="outAdd" class="alt hidden" title="Send different graphics to another output at the same time (up to four)">Add an output</button>
       <button id="outOn" class="alt">Output on</button></div>
     </div>
     <div class="outList hidden" id="outList"></div>
+    <p class="note hidden" id="outQualityNote" style="margin-top:0"><b>4K:</b> every NDI and Blackmagic output sends 2160p at its own frame rate (2160p50 for 1080p50),
+      with the same graphics, scenes and links as in HD; press HD to go back. Use it only with 4K gear: an HD switcher can't take 2160p.
+      Text, shapes and logos drawn by Studio are sharp; pictures and videos are only as sharp as their files, so a 1080p video or a small logo looks softer.</p>
+    <p class="note hidden" id="outSoft" style="margin-top:0"></p>
     <p class="note hidden" id="outNoApp" style="margin-top:0">Sending the scene to a display, a Blackmagic device or NDI needs the FirstPass Studio Mac app (this copy of Studio was started another way).</p>
     <div id="outForm">
       <div class="form">

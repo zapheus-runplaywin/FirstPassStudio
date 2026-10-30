@@ -472,6 +472,12 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   against a stand-in runtime that is slow to compress. Sound
   plays through the Mac's audio output, not over NDI. Output on/off and `/deck/output/on|off|toggle` work the same.
   NDI® is a registered trademark of Vizrt NDI AB.
+- **Picture, HD or 4K (Mac app):** the HD and 4K buttons at the top of Video output set the picture for every output. In 4K each
+  NDI and Blackmagic output sends the 2160p version of the format picked for it, at the same rate (2160p50 for 1080p50), with
+  everything else unchanged (scenes, sources, NDI names, links, the switcher key); HD is exactly as before. The graphics keep their
+  1920 x 1080 layout and are drawn at twice the density (`desktop/scenewindow.js`), and the canvases are sized for it (`public/zoom.js`).
+  A Blackmagic device without that 2160p format, or a 720p NDI format, stays as it is and says so; displays are left alone.
+  Any graphic's link opened at 3840 x 2160 draws itself at twice the size too (`public/zoom.js`), with nothing added to the link.
 
 The scene is saved as `scene.json` in the data folder. http://localhost:8080/scene.html is the scene on its own, 1920 x 1080.
 

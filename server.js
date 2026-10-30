@@ -23,6 +23,7 @@ const competitions = require('./competitions');
 const finals = require('./finals');
 const fonts = require('./fonts');
 const scene = require('./scene');
+const picturesize = require('./picturesize');
 const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
@@ -108,6 +109,12 @@ outputs.init(log, {
   ],
   removed: id => scene.dropOutput(id),
   changed: () => switcher.refresh(),
+  // In 4K: the competition's team and brand logos and the media folder's images and videos that look soft.
+  soft: () => {
+    const id = competitions.activeId();
+    const comp = kind => (id ? competitions.images(id, kind) : []).map(f => ({ name: f, file: competitions.imageFile(id, kind, f) }));
+    return picturesize.soft({ logos: [...comp('logos'), ...comp('brand'), ...scene.imageFiles()], videos: scene.videoSizes() });
+  },
 });
 sponsors.init(log);
 // Proof of play for the sponsors: what's on screen, and whether an output that counts for them is on (Output 1, or
