@@ -11,7 +11,6 @@
   textarea { width: 100%; resize: vertical; }
   input[type=file] { display: none; }
   .ok { color: var(--fp-ok); }
-  .saved { font-size: 13px; color: var(--fp-ok); min-height: 1.2em; }
   /* Sponsors by tier */
   .tier { border-top: 1px solid var(--fp-line); padding: 12px 0 4px; }
   .tier:first-of-type { border-top: 0; padding-top: 0; }
@@ -74,7 +73,7 @@
 <script src="log.js"></script>
 </head>
 <body class="fp">
-<header class="fp-bar"></header><script src="studiobar.js"></script>
+<header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Sponsors</h1>
   <p class="sub">The sponsors of <b id="compName">the competition in use</b>, by tier. Each sponsor has its logos, website, offer and deal dates,
@@ -112,7 +111,6 @@
     <p class="help"><b>Pull up</b> and <b>Pull down</b> fill the empty tier's spots with a sponsor pulled up from the tier below or down from the tier above, and keep going past empty tiers.
       <b>Skip tier</b> leaves the spots out. <b>Advertise vacancy</b> puts the vacancy card below in the tier's spots where a card fits (break cards and the sponsor wall);
       on the scoreboard tab and "brought to you by" tags it skips. The share sets how screen time is split between tiers when a sponsor has no target of its own.</p>
-    <p class="saved" id="tierSaved" aria-live="polite"></p>
   </section>
 
   <section id="momentSection">
@@ -120,7 +118,6 @@
     <p class="help" style="margin:0 0 10px">The super shot, hot streak and game moment animations say who they're <b>brought to you by</b>.
       Sell a moment to one sponsor for the season, or let the <b id="momentTier">Elite</b> sponsors take turns (when that tier is empty it follows its rule above; a vacancy shows nothing).</p>
     <div class="tblwrap"><table class="moments"><thead><tr><th>Moment</th><th>Brought to you by</th></tr></thead><tbody id="momentRows"></tbody></table></div>
-    <p class="saved" id="momentSaved" aria-live="polite"></p>
   </section>
 
   <section id="vacancySection">
@@ -136,7 +133,6 @@
       <div class="qr" id="vQr">No link yet</div>
       <div><div class="qrlink" id="vQrLink"></div><div class="row" style="margin-top:8px"><button class="alt small" id="vSave" type="button">Save QR code as PNG</button></div></div>
     </div>
-    <p class="saved" id="vacancySaved" aria-live="polite"></p>
   </section>
 </main>
 
@@ -221,7 +217,6 @@ const post = (path, body) => api(path, { method: 'POST', headers: { 'content-typ
 const tierName = key => (view.tiers.find(t => t.key === key) || {}).name || key;
 const here = s => view.competition && s.competitions[view.competition.id];
 const share = n => n === 0.5 ? '½' : String(n);
-const flashSaved = (el, text = 'Saved') => { el.textContent = text; clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ''; }, 2500); };
 
 function render() {
   const c = view.competition;
@@ -369,8 +364,8 @@ function saveSettings(which) {
     try {
       view = await post('/api/sponsors/settings', body);
       render();
-      flashSaved($(which === 'vacancy' ? 'vacancySaved' : 'tierSaved'));
-    } catch (err) { $(which === 'vacancy' ? 'vacancySaved' : 'tierSaved').textContent = err.message; }
+      studioStatus('Saved');
+    } catch (err) { studioStatus(err.message, 'error'); }
   }, 450);
 }
 $('sets').onchange = () => saveSettings('tiers');
@@ -383,8 +378,8 @@ $('momentRows').addEventListener('change', async () => {
   try {
     view = await post('/api/sponsors/settings', { sponsorMoments: moments });
     render();
-    flashSaved($('momentSaved'));
-  } catch (err) { $('momentSaved').textContent = err.message; }
+    studioStatus('Saved');
+  } catch (err) { studioStatus(err.message, 'error'); }
 });
 
 // ─── QR codes as PNG files ─────────────────────────────────────────────────

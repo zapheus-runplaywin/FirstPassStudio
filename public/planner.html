@@ -62,7 +62,7 @@
 <script src="asktext.js"></script>
 </head>
 <body class="fp">
-<header class="fp-bar"></header><script src="studiobar.js"></script>
+<header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Production Planner</h1>
   <p class="sub">Plan the court Studio streams each game night and who is on the mic for each game. Tonight's court goes to
@@ -70,7 +70,6 @@
     <b>Commentator stats</b> show whoever is planned for the game on the scoreboard. A night you haven't planned takes the plan of the night before it.</p>
   <div id="flags"></div>
   <p class="sub" id="onair" hidden></p>
-  <p class="error" id="err" hidden></p>
   <div class="layout">
     <section class="pool">
       <h2>Commentators</h2>
@@ -94,7 +93,7 @@
   const games = n => `${n} game${n === 1 ? '' : 's'}`;
   const dayName = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  function showError(msg) { $('err').textContent = msg || ''; $('err').hidden = !msg; }
+  const showError = msg => { if (msg) studioStatus(msg, 'error'); };
 
   // Redrawing closes an open list, so a look again waits while one is being used.
   const busy = () => ['SELECT', 'INPUT'].includes((document.activeElement || {}).tagName);
@@ -104,7 +103,7 @@
       const res = await fetch('/api/planner', { cache: 'no-store' });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      data = d; showError(''); draw();
+      data = d; draw();
     } catch (err) { showError(`Couldn't load the plan: ${err.message}`); }
   }
   // A commentator's headshot, for the Socials tab's Commentary team picture.
@@ -126,7 +125,7 @@
       const res = await fetch(path, { method, body });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      data = d; showError(''); draw();
+      data = d; draw(); studioStatus('Saved');
     } catch (err) { showError(`Couldn't save the headshot: ${err.message}`); }
   }
   async function post(path, body) {
@@ -134,7 +133,7 @@
       const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      data = d; showError(''); draw();
+      data = d; draw(); studioStatus('Saved');
     } catch (err) { showError(err.message); load(); }
   }
   const person = id => data.pool.find(p => p.id === id);
