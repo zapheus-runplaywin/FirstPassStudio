@@ -1,6 +1,6 @@
 // Renders one poster: node render.js automation  ->  ../automation.pdf (A0) and ../automation-full.png (2x, 6358 x 8988)
 const { chromium } = require('playwright'); const path = require('path');
-const name = process.argv[2]; if (!name) { console.error('usage: node render.js <original|game-night|court|automation|live-on-air>'); process.exit(1); }
+const name = process.argv[2]; if (!name) { console.error('usage: node render.js <original|game-night|court|automation|live-on-air|game-on>'); process.exit(1); }
 (async () => {
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 3179, height: 4494 }, deviceScaleFactor: 2 });
