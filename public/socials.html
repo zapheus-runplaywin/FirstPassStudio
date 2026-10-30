@@ -181,17 +181,16 @@
       help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
     list.push({ key: 'onstream', kind: 'onstream', name: 'On the stream', help: night.stream ? `${night.stream.court}'s games and who is calling them.` : '',
       missing: night.stream ? '' : 'This night isn\'t planned yet: plan its court and commentators on the Production Planner tab first.' });
-    // Commentary team: two commentators a picture (bigger faces), so a night with more gets a picture for each pair.
-    const people = night.stream ? night.stream.slots.flatMap(s => s.people).filter((p, i, a) => a.findIndex(x => x.name === p.name) === i) : [];
+    // Commentary team: a picture for each game someone calls, with that game's commentators, so the social team can group them.
+    const called = night.stream ? night.stream.slots.filter(s => s.people.length) : [];
     const missing = !night.stream ? 'This night isn\'t planned yet: plan its court and commentators on the Production Planner tab first.'
-      : !people.length ? 'Nobody is on the mic this night yet: add the commentators on the Production Planner tab.' : '';
-    const pairs = people.length ? Array.from({ length: Math.ceil(people.length / 2) }, (_, i) => people.slice(i * 2, i * 2 + 2)) : [[]];
-    pairs.forEach((pair, i) => {
-      const noShot = pair.filter(p => !p.headshot).map(p => p.name);
-      list.push({ key: i ? `commentators:${i + 1}` : 'commentators', kind: 'commentators', part: i + 1, missing,
-        name: pairs.length > 1 ? `Commentary team ${pair.map(p => p.name).join(' and ')}` : 'Commentary team',
-        help: pair.length ? `${pair.map(p => p.name).join(' and ')}, with their headshots.${pairs.length > 1 ? ` Two to a picture: ${pairs.length} pictures cover the night.` : ''}${noShot.length ? ` No headshot yet for ${noShot.join(', ')}: add one on the Production Planner (their initials show until then).` : ''}` : '' });
-    });
+      : !called.length ? 'Nobody is on the mic this night yet: add the commentators on the Production Planner tab.' : '';
+    if (!called.length) list.push({ key: 'commentators', kind: 'commentators', name: 'Commentary team', missing, help: '' });
+    for (const s of called) {
+      const noShot = s.people.filter(p => !p.headshot).map(p => p.name);
+      list.push({ key: `commentators:${s.id}`, kind: 'commentators', game: s.id, name: `Commentary team ${s.home.name} v ${s.away.name}`,
+        help: `${s.people.map(p => p.name).join(', ').replace(/, ([^,]*)$/, ' and $1')}, with ${s.people.length > 1 ? 'their headshots' : 'their headshot'}, calling the ${s.time} game.${noShot.length ? ` No headshot yet for ${noShot.join(', ')}: add one on the Production Planner (their initials show until then).` : ''}` });
+    }
     list.push({ key: 'polaroid', kind: 'polaroid', name: 'Polaroid', help: 'Drop a match photo on it, then drag the preview to frame it. With no photo the window is see-through, for your social team to put a photo under in Canva or on a phone.' });
     return list;
   }
@@ -199,7 +198,6 @@
     const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours, template: info.settings.template });
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
-    if (p.part > 1) q.set('part', p.part);
     const photo = photos[p.key];
     for (const [k, v] of Object.entries(picks[p.key] || {})) if (v) q.set(k, v);
     if (p.kind === 'polaroid' && photo && photo.file) { q.set('photo', photo.file); q.set('px', Math.round(photo.px)); q.set('py', Math.round(photo.py)); q.set('zoom', photo.zoom); }

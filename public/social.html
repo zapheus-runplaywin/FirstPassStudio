@@ -185,17 +185,24 @@
   .stat.main small { color: var(--text); }
   .story .shooter { padding: 22px 24px; }
 
-  /* Commentary team: a headshot (or initials) per commentator, their name and the games they call. */
-  .crew { display: flex; flex-wrap: nowrap; justify-content: center; gap: 32px; --ms: 400px; }
-  /* Two to a picture, the biggest faces that fit in one row (a Story stacks them); one alone is bigger still. */
+  /* Commentary team: a headshot (or initials) per commentator of one game, their name, and the game once underneath. */
+  .crew { display: flex; flex-wrap: nowrap; justify-content: center; align-items: flex-start; gap: 32px; --ms: 400px; }
+  /* Up to three in one row, the biggest faces that fit (a Story stacks them); one alone is bigger still. */
   .crew--1 { --ms: 460px; }
-  .story .crew { --ms: 500px; flex-direction: column; align-items: center; }
+  .crew--3 { --ms: 290px; gap: 24px; }
+  .story .crew { --ms: 440px; flex-direction: column; align-items: center; gap: 20px; }
   .story .crew--1 { --ms: 620px; }
+  .story .crew--3 { --ms: 300px; }
   .crew .mic { width: auto; flex: 0 1 calc(var(--ms) + 40px); min-width: 0; }
   .story .crew .mic { flex: none; width: calc(var(--ms) + 60px); }
   .crew .mic__face { width: min(var(--ms), 100%); height: auto; aspect-ratio: 1; }
-  .crew .mic__name { font-size: calc(48px * var(--nf, 1)); }
-  .crew .mic__games { font-size: 26px; }
+  .crew .mic__name { font-size: calc(48px * var(--nf, 1)); text-wrap: balance; }
+  .crew .mic__name span { white-space: nowrap; }
+  .crew--3 .mic__name { font-size: calc(38px * var(--nf, 1)); }
+  .crew__game { margin-top: 36px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .crew__game b { font-family: var(--dfont); font-size: 34px; font-weight: 800; color: var(--yellow); letter-spacing: .04em; }
+  .crew__game span { font-family: var(--dfont); font-size: 46px; font-weight: 800; text-transform: uppercase; line-height: 1.05; text-wrap: balance; }
+  .crew__game small { font-size: 24px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
   .mic { width: calc(var(--ms) + 60px); text-align: center; }
   .mic__face { width: var(--ms); height: var(--ms); margin: 0 auto; border-radius: 50%; overflow: hidden; border: 8px solid var(--yellow);
     background: var(--purple-deep); display: flex; align-items: center; justify-content: center; font-family: var(--dfont);
@@ -203,8 +210,9 @@
   .mic__face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
   .mic__guest { display: inline-block; margin-top: -22px; position: relative; background: var(--pink); color: #fff; font-size: 22px; font-weight: 800;
     letter-spacing: .1em; text-transform: uppercase; padding: 6px 16px; border-radius: 6px; }
+  .mic__guest--blank { visibility: hidden; }
+  .story .mic__guest--blank { display: none; }
   .mic__name { margin-top: 18px; font-family: var(--dfont); font-size: calc(40px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; line-height: 1.05; }
-  .mic__games { margin-top: 8px; font-size: 24px; font-weight: 700; color: var(--muted); letter-spacing: .04em; white-space: pre; }
 
   /* Athletes' photos (only those who approved their use): a shooter's face in place of the logo, with the logo as a badge;
      an athlete picked for a match up or full time over their team's logo; a polaroid's print. Cut-out PNGs stand free. */
@@ -340,7 +348,7 @@
     // A team or player name stays on one line in its row, shrinking (to 60%) rather than breaking onto a second line, so
     // the rows keep one height; a name too long for that wraps between words at 85%.
     function fitNames() {
-      for (const e of $('fit').querySelectorAll('.game__team, .call__teams span, .shooter__name, .vs h2')) {
+      for (const e of $('fit').querySelectorAll('.game__team, .call__teams span, .shooter__name, .vs h2, .crew__game span')) {
         const base = parseFloat(getComputedStyle(e).fontSize);
         e.style.whiteSpace = 'nowrap';
         if (!e.clientWidth || e.scrollWidth <= e.clientWidth) continue;
@@ -348,6 +356,24 @@
         if (px >= base * .6) { e.style.fontSize = `${px}px`; continue; }
         e.style.whiteSpace = 'normal'; e.style.overflowWrap = 'normal'; e.style.fontSize = `${Math.round(base * .85)}px`;
       }
+    }
+
+    // The commentators' names share one size, so a long name next to a short one keeps the row balanced: the biggest
+    // that fits each one's longest word in its column, shrinking up to 25% to keep a hyphenated name whole, and
+    // otherwise breaking it after the hyphen (down to 60%).
+    function fitCrew() {
+      const names = [...$('fit').querySelectorAll('.crew .mic__name')];
+      if (!names.length) return;
+      const base = parseFloat(getComputedStyle(names[0]).fontSize);
+      const fitOf = n => {
+        const words = [[]];
+        for (const c of n.childNodes) if (c.nodeType === 3) words.push([]); else if (c.tagName === 'SPAN') words.at(-1).push(c.offsetWidth);
+        const k = ws => Math.min(1, ...ws.filter(Boolean).map(w => n.clientWidth / w));
+        const whole = k(words.map(w => w.reduce((a, b) => a + b, 0)));
+        return whole >= .75 ? whole : k(words.flat());
+      };
+      const k = Math.min(...names.map(fitOf));
+      if (k < 1) for (const n of names) n.style.fontSize = `${Math.floor(base * Math.max(k, .6))}px`;
     }
 
     function head(d, title, when, tab) {
@@ -434,31 +460,28 @@
       return box;
     }
 
-    // Commentary team: who is on the mic that night (Production Planner), each once, with their headshot (or initials),
-    // a Special guest tag and the games they call. Two to a picture: ?part=2 is the third and fourth, and so on.
+    // Commentary team: one picture a game (?game=, else the night's first called game), with who calls it side by side,
+    // each with their headshot (or initials) and a Special guest tag, and the game's time and teams once underneath.
     function drawCommentators(d) {
       head(d, 'Commentary team', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
       if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
-      const crew = new Map();
-      for (const s of d.stream.slots) for (const p of s.people) {
-        const c = crew.get(p.name) || crew.set(p.name, { ...p, games: [] }).get(p.name);
-        c.games.push(`${clock(s.time)}  ${s.home.name} v ${s.away.name}`);
-      }
-      if (!crew.size) return `Nobody is on the mic for ${dayLong(d.date)} yet: add the commentators on the Production Planner tab.`;
-      const all = [...crew.values()];
-      const part = Math.min(Math.max(1, parseInt(params.get('part'), 10) || 1), Math.ceil(all.length / 2));
-      const pair = all.slice((part - 1) * 2, part * 2);
-      const box = $('fit').appendChild(el('div', `crew crew--${pair.length}`));
-      for (const c of pair) {
+      const called = d.stream.slots.filter(s => s.people.length);
+      const s = called.find(x => x.id === params.get('game')) || called[0];
+      if (!s) return `Nobody is on the mic for ${dayLong(d.date)} yet: add the commentators on the Production Planner tab.`;
+      const box = $('fit').appendChild(el('div', `crew crew--${s.people.length}`));
+      for (const c of s.people) {
         const card = box.appendChild(el('div', 'mic'));
         const faceBox = card.appendChild(el('div', 'mic__face'));
         if (c.headshot) { const img = faceBox.appendChild(el('img')); img.src = c.headshot; img.alt = c.name; }
         else faceBox.append(c.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
-        if (c.guest) card.append(el('div', 'mic__guest', 'Special guest'));
-        card.append(el('div', 'mic__name', c.name));
-        const games = card.appendChild(el('div', 'mic__games'));
-        for (const g of c.games) games.append(el('div', '', g));
+        // A blank tag under the others when someone is a guest, so the names all start on one line.
+        if (s.people.some(x => x.guest)) card.append(el('div', `mic__guest${c.guest ? '' : ' mic__guest--blank'}`, 'Special guest'));
+        // A word a span that never breaks, with a break allowed after a hyphen: Hartley- / Nguyen, never Papadopoul / os.
+        const name = card.appendChild(el('div', 'mic__name'));
+        c.name.split(/\s+/).forEach((w, i) => w.split(/(?<=-)/).forEach((bit, j) => name.append(...(i && !j ? [' '] : j ? [document.createElement('wbr')] : []), el('span', '', bit))));
       }
+      const game = $('fit').appendChild(el('div', 'crew__game'));
+      game.append(el('b', '', clock(s.time)), el('span', '', `${s.home.name} v ${s.away.name}`), ...(s.division ? [el('small', '', s.division)] : []));
     }
 
     function drawMatchup(d) {
@@ -683,7 +706,7 @@
         await imagesLoaded();
         await fontLoaded;
         if (document.fonts) await document.fonts.ready;
-        if (kind !== 'polaroid') { fitTitle(); fitNames(); fit(); }
+        if (kind !== 'polaroid') { fitTitle(); fitNames(); fitCrew(); fit(); }
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         window.pageLog && window.pageLog('info', `Social picture: ${kind} ${size} for ${d.date}${missing ? ` (${missing})` : ''}`);
         return missing || true;
