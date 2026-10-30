@@ -4,7 +4,7 @@
 // script straight after it, which fills in the wordmark and the tabs and marks the page it is on.
 // Add a tab here and every page and the Mac app's Go menu (desktop/windows.js reads STUDIO_PAGES
 // too, with ⌘1, ⌘2... in this order) have it. Tabs are listed in the order Matt set: Output,
-// Production Planner, Scoreboard control, Competitions setup, Sponsors, Athletes, Stream Deck, Socials, Recordings, Docs
+// Production Planner, Scoreboard control, Recordings, Socials, Competitions setup, Sponsors, Athletes, Stream Deck, Docs
 // (the tenth tab is ⌘0).
 (function () {
   'use strict';
@@ -12,12 +12,12 @@
     { href: '/output.html', label: 'Output', also: ['/'] },
     { href: '/planner.html', label: 'Production Planner' },
     { href: '/control.html', label: 'Scoreboard control' },
+    { href: '/recordings.html', label: 'Recordings' },
+    { href: '/socials.html', label: 'Socials' },
     { href: '/setup.html', label: 'Competitions setup' },
     { href: '/sponsors.html', label: 'Sponsors', also: ['/sponsorreport.html'] },
     { href: '/athletes.html', label: 'Athletes' },
     { href: '/api.html', label: 'Stream Deck', also: ['/devices.html'] },
-    { href: '/socials.html', label: 'Socials' },
-    { href: '/recordings.html', label: 'Recordings' },
     { href: '/graphics.html', label: 'Docs' },
   ];
 

@@ -26,7 +26,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
 - **The helper** is plain Node, no framework: `server.js` routes every request by hand and the modules beside it each
   own one subject. Everything it saves goes in the data folder (`datadir.js`), never inside the app.
 - **The pages** are static HTML in `public/`. The Studio pages (Output, Production Planner, Scoreboard control, Competitions setup,
-  Sponsors, Athletes, Stream Deck, Socials, Docs) share `studio.css` and `studiobar.js`. The graphics only talk to the helper
+  Sponsors, Athletes, Stream Deck, Socials, Recordings, Docs) share `studio.css` and `studiobar.js`. The graphics only talk to the helper
   on this computer and keep the competition's own look.
 
 Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-deck`, TypeScript, talks to the helper's
