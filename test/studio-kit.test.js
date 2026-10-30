@@ -42,9 +42,9 @@ test('the kit itself is in studio.css, scoped so a page\'s own classes still win
 });
 
 // Help text follows one pattern (review finding 7): a line under the control says what it does, and anything longer waits
-// behind Expand for info, on the Output page, the Production Planner and Socials alike.
-test('help text on the Output page, Production Planner and Socials folds behind Expand for info', () => {
-  for (const name of ['output', 'planner', 'socials']) {
+// behind Expand for info, on the Output page, the Production Planner, Socials and Recordings alike.
+test('help text on the Output page, Production Planner, Socials and Recordings folds behind Expand for info', () => {
+  for (const name of ['output', 'planner', 'socials', 'recordings']) {
     const html = fs.readFileSync(path.join(PUBLIC, `${name}.html`), 'utf8');
     assert.match(html, /<details class="info"><summary>Expand for info<\/summary><p class="note">/, `${name}.html folds its longer help`);
     for (const m of html.matchAll(/<p class="help">([\s\S]*?)<\/p>/g)) {
