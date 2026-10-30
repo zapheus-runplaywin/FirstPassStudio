@@ -1,6 +1,6 @@
 // A Socials picture fills its frame: a short ladder or a night's results grow into spare room (wider and taller, rows
 // spread apart) without a name running out of a row it fits at the picture's own size, and a Story keeps its words and
-// marks out of the top and bottom 200px, where Instagram draws its own bar and reply box.
+// marks out of the top and bottom 200px, where Instagram draws its own bar and reply box. Team names stay on one line.
 // The browser: Playwright's own, or STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -41,11 +41,14 @@ test('pictures grow into spare room, and a Story keeps clear of Instagram\'s bar
         return { scale: Number(fit.style.scale || 1), spread: parseFloat(fit.style.getPropertyValue('--spread')) || 0,
           top: box.top, bottom: box.bottom, left: box.left, right: box.right, body: { top: body.top, bottom: body.bottom },
           head: document.getElementById('head').getBoundingClientRect().top,
-          foot: document.getElementById('foot').getBoundingClientRect().bottom, spilt };
+          foot: document.getElementById('foot').getBoundingClientRect().bottom, spilt,
+          // Team names on more than one line (a long one shrinks instead).
+          wrapped: [...fit.querySelectorAll('.game__team')].filter(e => e.offsetHeight > parseFloat(getComputedStyle(e).fontSize) * 1.6).map(e => e.textContent) };
       });
       const at = `${kind} ${size}`;
       assert.ok(r.scale > 1 || r.spread > 0, `${at}: grows into the room (scale ${r.scale}, spread ${r.spread})`);
       assert.deepEqual(r.spilt, [], `${at}: nothing runs out of its box`);
+      assert.deepEqual(r.wrapped, [], `${at}: every team name on one line`);
       assert.ok(r.left >= 0 && r.right <= 1080, `${at}: inside the picture across`);
       assert.ok(r.top >= r.body.top - 2 && r.bottom <= r.body.bottom + 2, `${at}: between the head and the foot`);
       if (size === 'story') {
