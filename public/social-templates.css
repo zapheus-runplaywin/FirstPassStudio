@@ -36,6 +36,7 @@
 .t-junior .ground::after { content: '★'; position: absolute; left: 30px; top: auto; bottom: 150px; right: auto; height: auto; background: none; font-size: 90px; line-height: 1; color: var(--pink); transform: rotate(-12deg); }
 .t-junior .tab { border-radius: 999px; }
 .t-junior .title { color: var(--ink); text-transform: none; font-weight: 700; font-size: 100px; text-decoration: underline wavy var(--yellow); text-decoration-thickness: 8px; text-underline-offset: 14px; }
+.t-junior .when { margin-top: 30px; } /* clear of the wavy underline */
 .t-junior :is(.when, .info, .key, .later, .call__mic, .call__mic b, .call__time, .shooter__team, .game__info) { color: var(--ink); }
 .t-junior :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--ink); border: 5px solid var(--ink); border-radius: 28px; box-shadow: 0 8px 0 var(--ink); }
 .t-junior :is(.game__team, .result .game__team, .call__teams, .shooter__name, .vs h2, .vs__score) { color: var(--ink); }
@@ -118,7 +119,7 @@
 
 /* ── Gradient: a mesh of the three colours under frosted glass ─────────────────────────────────────────────────── */
 .t-gradient { --dfont: 'Sora', var(--font); color: #fff; --muted: rgba(255, 255, 255, .78); }
-.t-gradient .ground { background: radial-gradient(circle at 15% 20%, var(--yellow), transparent 45%), radial-gradient(circle at 85% 30%, var(--pink), transparent 50%),
+.t-gradient .ground { background: radial-gradient(circle at 10% 88%, var(--yellow), transparent 45%), radial-gradient(circle at 85% 30%, var(--pink), transparent 50%),
     radial-gradient(circle at 50% 100%, var(--purple), transparent 60%), var(--purple-dark); }
 .t-gradient .ground::after { display: none; }
 .t-gradient .tab { background: rgba(255, 255, 255, .18); border: 2px solid rgba(255, 255, 255, .35); border-radius: 999px; color: #fff; }
@@ -204,7 +205,8 @@
 .t-poster { --dfont: 'Anton', var(--font); --paper: color-mix(in srgb, var(--yellow), #f4f4f2 90%); }
 .t-poster .ground { background: var(--paper); }
 .t-poster .ground::before { content: ''; position: absolute; right: 60px; top: 0; width: 90px; height: 42%; background: var(--pink); }
-.t-poster .ground::after { top: 150px; left: 0; right: 0; height: 70px; background: var(--yellow); }
+.t-poster .ground::after { top: 150px; left: 260px; right: 0; height: 70px; background: var(--yellow); } /* starts after the logo */
+.story.t-poster .ground::after { top: 300px; }
 .t-poster .head { align-items: flex-end; --title-clear: 110px; } /* the title stops short of the pink bar */
 .t-poster .tab { background: var(--ink); color: #fff; border-radius: 0; }
 .t-poster .title { font-weight: 400; font-size: 140px; line-height: .84; color: var(--purple); letter-spacing: -.01em; position: relative; }
@@ -222,11 +224,11 @@
 /* ── Splash: white with flowing paint shapes, a narrow italic title and a badge ────────────────────────────────── */
 .t-splash { --dfont: 'Oswald', var(--font); }
 .t-splash .ground { background:
-    radial-gradient(ellipse 260px 160px at 8% 78%, rgba(var(--yellow-rgb), .85), transparent 70%),
+    radial-gradient(ellipse 260px 160px at 2% 96%, rgba(var(--yellow-rgb), .85), transparent 70%),
     radial-gradient(ellipse 300px 200px at 100% 66%, rgba(var(--pink-rgb), .6), transparent 70%),
     radial-gradient(ellipse 240px 300px at 104% 40%, rgba(var(--purple-rgb), .55), transparent 70%),
     linear-gradient(160deg, #fff 55%, #f2f2f6); }
-.t-splash .ground::before { content: ''; position: absolute; left: -120px; bottom: -80px; width: 640px; height: 360px; transform: rotate(-18deg);
+.t-splash .ground::before { content: ''; position: absolute; left: -200px; bottom: -150px; width: 560px; height: 300px; transform: rotate(-18deg);
   background: linear-gradient(90deg, var(--purple), var(--pink), var(--yellow)); border-radius: 62% 38% 55% 45% / 58% 42% 58% 42%; opacity: .85; filter: blur(2px); }
 .t-splash .ground::after { top: -90px; right: -110px; left: auto; width: 460px; height: 300px; transform: rotate(24deg);
   background: linear-gradient(90deg, var(--yellow), var(--pink)); border-radius: 45% 55% 40% 60% / 55% 45% 55% 45%; opacity: .8; }
@@ -316,8 +318,8 @@
 .t-hero .vs__score { font-family: var(--dfont); font-weight: 400; font-size: 190px; line-height: .9; color: var(--ink); transform: skewX(-9deg); }
 .t-hero .athlete__name { color: color-mix(in srgb, var(--ink), #fff 30%); }
 /* An athlete picked for a side stands tall, up in front of the title. */
-.t-hero .vs .athlete { width: 420px; height: 600px; margin-top: -250px; }
-.t-hero.k-fulltime .vs .athlete { width: 340px; height: 470px; margin-top: -200px; }
+.t-hero .vs .athlete { width: 420px; height: 600px; margin-top: -150px; } /* up to the title, not over the date line */
+.t-hero.k-fulltime .vs .athlete { width: 340px; height: 470px; margin-top: -110px; }
 .t-hero .athlete__photo { filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .3)); }
 
 /* ── Final: a bold accent ground, a tall title, its last word in script and the title again, huge and faint ──── */
@@ -385,7 +387,7 @@
 
 /* Court: the court's surface in the main colour, its lines in white: the outline, the thirds, the centre circle and
    both goal circles. */
-.t-court { --dfont: 'Oswald', var(--font); --surround: color-mix(in srgb, var(--purple), #000 45%); --line: rgba(255, 255, 255, .5); color: #fff; }
+.t-court { --dfont: 'Oswald', var(--font); --surround: color-mix(in srgb, var(--purple), #000 45%); --line: rgba(255, 255, 255, .26); color: #fff; } /* soft lines: words cross them */
 .t-court .ground { background: var(--surround); }
 .t-court .ground::before { content: ''; position: absolute; inset: 34px; border: 7px solid var(--line);
   background:
@@ -420,7 +422,7 @@
 .t-bib .ground::before { content: ''; position: absolute; right: -90px; top: 120px; width: 470px; height: 564px; transform: rotate(10deg);
   background: color-mix(in srgb, var(--purple), #fff 16%); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 240'%3E%3Cpath d='M40 0H72Q100 34 128 0H160Q164 52 200 74V240H0V74Q36 52 40 0Z' fill='white'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 240'%3E%3Cpath d='M40 0H72Q100 34 128 0H160Q164 52 200 74V240H0V74Q36 52 40 0Z' fill='white'/%3E%3C/svg%3E") center / contain no-repeat; }
 .t-bib .ground::after { content: 'GS'; top: 330px; left: auto; right: -40px; width: 400px; height: auto; background: none; transform: rotate(10deg);
-  font-family: 'Archivo Black', var(--font); font-size: 210px; line-height: 1; text-align: center; color: rgba(var(--yellow-rgb), .55); }
+  font-family: 'Archivo Black', var(--font); font-size: 210px; line-height: 1; text-align: center; color: rgba(var(--yellow-rgb), .22); } /* faint: it shows between cards */
 .t-bib .tab { background: var(--yellow); color: var(--text-on-yellow); border-radius: 999px; }
 .t-bib .title { font-weight: 400; font-size: 92px; line-height: .95; color: #fff; }
 .t-bib :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: var(--purple-dark); border: 0; border-radius: 22px; box-shadow: 0 12px 26px rgba(0, 0, 0, .28); }
