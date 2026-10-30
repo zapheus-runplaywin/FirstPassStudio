@@ -1,5 +1,5 @@
 // Scenes and sequences shared by the outputs (scene.js, sequences.js): any output can play any scene or
-// sequence, each output has its own current scene and its own playing sequence, and only the primary plays music.
+// sequence, each output has its own current scene and its own playing sequence, and a sequence's music plays on every output playing it.
 const test = require('node:test');
 const { mock } = require('node:test');
 const assert = require('node:assert/strict');

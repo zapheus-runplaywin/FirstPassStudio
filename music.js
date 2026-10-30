@@ -2,8 +2,10 @@
 //
 // The player plays audio files from the media folder (MP3, M4A, AAC, WAV, AIFF), one at a time, alone or
 // from a playlist (a named list of tracks, shuffled or not, looping or not). Studio keeps the player's
-// state and every scene.html plays it, so music takes the same route as video sound: the Mac's sound
-// output, an output's embedded audio, or the Scene View while no video output is on, and is never heard twice.
+// state and the scene.html of every output it plays on plays it: the outputs ticked in Music plays on (Output 1
+// unless set), or for a sequence's music the outputs that sequence is playing on. So on each of them music takes
+// the same route as that output's video sound: the Mac's sound output, the output's embedded audio, or the Scene
+// View while that output is off, and is never heard twice.
 //
 // Where a track is: pos { sec, at } is the position (sec) at time at (ms), so a page opened part way
 // through starts in the right place. Fades: gain { from, to, at, ms } is the fade the pages follow,
@@ -46,9 +48,9 @@ const STINGER_UP_SEC = 0.5;
 const UNKNOWN_MS = 5000;
 
 let log = () => {};
-let api = null; // { duration(file), files(), changed(), quiet(on) }
+let api = null; // { duration(file), files(), changed(), quiet(on), playingOn(sequenceId) }
 let playlists = [];
-let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false, superShotSong: '', superShotVolume: 80 };
+let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false, superShotSong: '', superShotVolume: 80, outputs: ['main'] };
 // The super shot song plays as this owner; superFired is the game and quarter it last started for.
 const SUPER = 'supershot';
 let superFired = null;
@@ -66,6 +68,7 @@ const newId = () => Math.random().toString(36).slice(2, 10);
 const cleanFile = f => String(f || '').split(/[\\/]/).pop().replace(/^\.+/, '');
 const isAudio = f => !!AUDIO_TYPES[require('path').extname(String(f || '')).toLowerCase()];
 const now = () => Date.now();
+const outputIds = v => [...new Set((Array.isArray(v) ? v : []).map(x => String(x || '').replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8);
 // The seconds a fade takes: the one asked for, else the player's fade in or fade out time.
 const given = v => v !== undefined && v !== null && v !== '';
 const fadeIn = v => given(v) ? clamp(v, 0, 60, settings.fadeInSec) : settings.fadeInSec;
@@ -100,6 +103,8 @@ function cleanSettings(v) {
     duckHalf: s.duckHalf === true, // the duck fades over half the fade in and out times
     superShotSong: cleanFile(s.superShotSong),
     superShotVolume: Math.round(clamp(s.superShotVolume, 0, 100, 80)),
+    // Music plays on: the outputs the player's music (and the super shot song) plays on, Output 1 unless set.
+    outputs: outputIds(s.outputs).length ? outputIds(s.outputs) : ['main'],
   };
 }
 function load() {
@@ -454,13 +459,19 @@ function deck(parts, q = {}) {
   return { body: { ok: true, track: track(), status: p.status, muted: p.muted, ducked: !!p.ducked } };
 }
 
+// The outputs the music plays on now: a sequence's music on the outputs playing that sequence, else Music plays on.
+function outputsNow() {
+  const seq = p.owner && p.owner !== SUPER && api.playingOn ? api.playingOn(p.owner) : [];
+  return seq.length ? seq : settings.outputs;
+}
+
 function state() {
   return {
     music: {
       track: track(), queue: p.queue, index: p.index, playlist: p.playlist, loop: p.loop,
       // Paused for a video's sound counts as playing for the buttons: it comes back by itself.
       status: p.status, after: p.after, pos: p.pos, gain: p.gain, playId: p.playId,
-      muted: p.muted, ducked: !!p.ducked, duck: p.duck, video: p.video, owner: p.owner,
+      muted: p.muted, ducked: !!p.ducked, duck: p.duck, video: p.video, owner: p.owner, outputs: outputsNow(),
       volume: p.owner === SUPER ? settings.superShotVolume : settings.volume, level: p.video === 'lower' ? settings.lowerTo : 100, duckTo: settings.duckTo,
       length: track() ? api.duration(track()) : null,
     },

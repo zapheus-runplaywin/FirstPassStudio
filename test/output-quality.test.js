@@ -76,7 +76,7 @@ test('what can\'t go to 2160p stays as it is and says why', () => {
   assert.equal(win('main').format.id, '720p50');
   assert.equal(win('main').density, 1);
   assert.match(outputs.state().outputs[0].picture.why, /720p50 has no 4K version/);
-  assert.deepEqual(win('monitor'), { display: '2', kind: 'chroma', color: '#00b140', safe: true, output: outputs.find('monitor').id, muted: true }, 'a display is left alone');
+  assert.deepEqual(win('monitor'), { display: '2', kind: 'chroma', color: '#00b140', safe: true, output: outputs.find('monitor').id }, 'a display is left alone');
   assert.match(outputs.state().outputs[2].picture.why, /display draws at its own size/);
   assert.equal(outputs.apply({ ndiFormat: '1080p50' }), null);
   assert.equal(outputs.apply({ output: 'court', decklinkDevice: 'uhd', decklinkMode: 1 }), null);

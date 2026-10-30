@@ -138,3 +138,25 @@ for (const sec of document.querySelectorAll('section[data-fold]')) {
   b.onclick = h2.onclick = () => setFolded(sec, !isFolded(sec));
   setFolded(sec, foldedNow.includes(sec.dataset.fold) && location.hash !== `#${sec.id}`, false);
 }
+
+// Ticks for the outputs something plays on (the music, a mic): box is filled with one tick per output, in its colour,
+// with chosen ticked; onChange(ids) gets the new list. One stays ticked, so it always plays somewhere.
+function outputTicks(box, chosen, onChange) {
+  const list = typeof out !== 'undefined' && out && out.outputs || [];
+  const on = chosen && chosen.length ? chosen : ['main'];
+  box.className = 'seqOuts outTicks';
+  box.innerHTML = '';
+  for (const o of list) {
+    const l = document.createElement('label');
+    l.innerHTML = '<input type="checkbox"> <i></i> <span></span>';
+    const c = l.querySelector('input');
+    c.checked = on.includes(o.id);
+    c.disabled = c.checked && on.filter(id => list.some(x => x.id === id)).length === 1;
+    c.onchange = () => onChange(list.map(x => x.id).filter(id => id === o.id ? c.checked : on.includes(id)));
+    l.querySelector('i').style.cssText = `background:${o.colour};border:2px solid ${o.colour}`;
+    l.querySelector('span').textContent = o.name;
+    box.append(l);
+  }
+}
+// The outputs' names, for a list of output ids.
+const outputNames = ids => { const list = typeof out !== 'undefined' && out && out.outputs || []; return (ids && ids.length ? ids : ['main']).map(id => list.find(o => o.id === id)?.name).filter(Boolean).join(', '); };

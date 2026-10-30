@@ -17,8 +17,8 @@
 // primary (out: { <output id>: true }), and scene.html?output=<id> draws that output's sources. Scenes and
 // sequences are shared by every output: going to a scene (a.output, the primary unless set) sets its
 // sources on that output, and each output has its own current scene (current for the primary, currentOut
-// for the others) and its own playing sequence. Sponsor ads and the music stay with the primary, and only
-// the primary plays sound. /deck/output/<output>/layer/<name>/on|off|toggle|restart,
+// for the others) and its own playing sequence. Sponsor ads stay with the primary. Each output plays the sound of
+// the sources on it; the music plays on the outputs it's ticked for (music.js). /deck/output/<output>/layer/<name>/on|off|toggle|restart,
 // /deck/output/<output>/layers/off, /deck/output/<output>/scene/<name>|next|prev|again and
 // /deck/output/<output>/sequence/... act on one output; the links above act on the primary.
 //
@@ -465,7 +465,7 @@ function apply(a) {
   return error;
 }
 // Music gets out of the way while a video with its sound on plays, or a page playing a theme song (the intro and outro's
-// ?theme=; its effects alone don't count).
+// ?theme=; its effects alone don't count), on an output the music plays on.
 const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
 // A stinger with ?music=quiet or dip ducks the music as it comes on, by the time it covers the frame (0.22 of its length);
 // dip brings it back up when it goes off.
@@ -478,7 +478,10 @@ function stingerMusic(s, on) {
   const length = Math.min(3, Math.max(.5, parseFloat(q.get('length')) || 1));
   music.stinger(mode, on, Math.max(.2, .22 * length));
 }
-const videoOn = () => scene.sources.some(s => s.visible && ((s.type === 'video' && s.sound && !soundDone.has(s.id)) || playsTheme(s)));
+const videoOn = () => {
+  const outs = music.state().music.outputs.map(o => o === PRIMARY ? null : o);
+  return scene.sources.some(s => outs.some(o => isOn(s, o)) && ((s.type === 'video' && s.sound && !soundDone.has(s.id)) || playsTheme(s)));
+};
 function videoSound() { music.videoSound(videoOn()); }
 function noteShowings() {
   videoSound();
@@ -1337,6 +1340,7 @@ function init(logger, { ffmpeg, sequencesFile, outputs } = {}) {
     files: () => mediaList().filter(m => m.kind === 'audio' && !m.converting).map(m => m.name),
     changed: () => save(),
     quiet: on => mics.quiet(on),
+    playingOn: id => sequences.playingOn(id),
   });
   mics.init(log, { changed: () => notify() });
   sequences.init(log, {

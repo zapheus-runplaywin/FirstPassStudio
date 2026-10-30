@@ -17,7 +17,7 @@ const SCENE_READY = `new Promise(done => !document.getElementById('stage') ? don
 // onFrame(bitmap, width, height): each new picture, BGRA with premultiplied alpha, at width x height;
 // returns false when the output didn't take it.
 // chromaKey: draw the scene chroma key safe (public/chroma.js), for NDI's chroma signal.
-// output: the output's id when it isn't the primary (scene.html draws that output's sources, silently).
+// output: the output's id when it isn't the primary (scene.html draws that output's sources, with their sound).
 // density: 2 for a 2160p (4K) output: the window is 1920 x 1080 points at twice the density, so the pages keep
 // their 1920 x 1080 layout and draw text, shapes and canvases (sized by devicePixelRatio) with every pixel of 3840 x 2160.
 module.exports = function sceneWindow({ port, width, height, frameRate, log, label, onFrame, chromaKey = false, output = '', density = 1 }) {
@@ -43,7 +43,7 @@ module.exports = function sceneWindow({ port, width, height, frameRate, log, lab
     win = make(2);
   }
   win.webContents.setFrameRate(Math.min(240, Math.ceil(frameRate) || 30));
-  const url = `http://localhost:${port}/scene.html?fit=1${chromaKey ? '&chromaKey=true' : ''}${output && output !== 'main' ? `&output=${encodeURIComponent(output)}&mute=1` : ''}`;
+  const url = `http://localhost:${port}/scene.html?fit=1${chromaKey ? '&chromaKey=true' : ''}${output && output !== 'main' ? `&output=${encodeURIComponent(output)}` : ''}`;
   let loaded = false;
   const retry = () => setTimeout(() => { if (win) win.loadURL(url); }, 1000);
   win.webContents.on('did-finish-load', async () => {

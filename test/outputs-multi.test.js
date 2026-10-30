@@ -1,6 +1,6 @@
 // More than one output (outputs.js): up to four, each with its own graphics. Output 1 is the primary
-// (scenes, sequences, sound, the old links); the others show the sources turned on for them (scene.js
-// out), silently. An older outputs.json becomes Output 1, and two outputs can't share a way out.
+// (scenes, sequences, the old links); the others show the sources turned on for them (scene.js out), with
+// their sound. An older outputs.json becomes Output 1, and two outputs can't share a way out.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -74,18 +74,23 @@ test('names are kept apart and usable in links; outputs are found by name or num
   assert.equal(outputs.find(two.id).id, two.id);
 });
 
-test('each output sends its own way out, and only the primary has sound', () => {
+test('each output sends its own way out with its own sound, and a Scene View plays the sound of an output that isn\'t on', () => {
   const big = byName('Big screen'), three = byName('Big Screen 2');
   outputs.apply({ output: 'main', mode: 'decklink', decklinkDevice: 'dl', on: true });
   outputs.apply({ output: big.id, mode: 'ndi', ndiSignal: 'fillkey', on: true });
   outputs.apply({ output: three.id, mode: 'chroma', chromaDisplay: '2', on: true });
   const w = outputs.windows();
   assert.deepEqual(w.map(x => [x.output, x.kind]), [['main', 'decklink'], [big.id, 'ndi'], [three.id, 'chroma']]);
-  assert.deepEqual(w.map(x => !!x.muted), [false, true, true]);
-  assert.equal(st().previewSound, false, 'the primary is on, so the Scene View is silent');
-  outputs.apply({ output: 'main', on: false });
-  assert.equal(st().previewSound, true, 'the other outputs never play sound, so the Scene View may');
-  outputs.apply({ output: 'main', on: true });
+  assert.deepEqual(w.map(x => !!x.muted), [false, false, false], 'every output plays its own sound');
+  assert.equal(st().previewSound, false, 'the primary is on, so a Scene View of it is silent');
+  assert.deepEqual(st().outputs.filter(o => [big.id, three.id].includes(o.id)).map(o => o.previewSound), [false, false]);
+  outputs.apply({ output: big.id, on: false });
+  assert.equal(st().outputs.find(o => o.id === big.id).previewSound, true, 'Big screen is off, so a Scene View of it may play its sound');
+  assert.deepEqual(outputs.listen({ id: 'page', on: true, output: big.id }), { sound: true });
+  assert.equal(st().outputs.find(o => o.id === big.id).listening, true);
+  assert.deepEqual(outputs.listen({ id: 'page', on: true, output: three.id }), { sound: false }, 'not while that output is on');
+  outputs.listen({ id: 'page', on: false });
+  outputs.apply({ output: big.id, on: true });
 });
 
 test('two chroma outputs over HDMI on two displays, each with its own colour', () => {
@@ -191,15 +196,17 @@ test('what\'s on for an output isn\'t saved run by run, and goes when the output
   assert.equal(st().outputs[3].colour, '#f24f91');
 });
 
-test('scene.html draws another output\'s sources, silently; the pop-out and Output page know outputs', () => {
+test('scene.html draws another output\'s sources with their sound, and the music and mics ticked for it; the pop-out and Output page know outputs', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'scene.html'), 'utf8');
   assert.match(html, /params\.get\('output'\)/);
-  assert.match(html, /alwaysSilent/);
-  assert.match(html, /renderMusic\(outputId \? null/);
+  assert.doesNotMatch(html, /alwaysSilent/);
+  assert.match(html, /renderMusic\(ticked\(scene\.music\)/);
+  assert.match(html, /m\.on !== 'atem' && ticked\(m\)/);
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
   for (const id of ['outAdd', 'outList', 'outName', 'outRemove', 'outTabs', 'outFilter']) assert.match(page, new RegExp(`id="${id}"`));
   const win = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'scenewindow.js'), 'utf8');
-  assert.match(win, /&output=\$\{encodeURIComponent\(output\)\}&mute=1/);
+  assert.match(win, /&output=\$\{encodeURIComponent\(output\)\}`/);
+  assert.doesNotMatch(win, /mute=1/);
 });
 
 test('sponsors are on air while Output 1 or an output that counts for them is sending', () => {
