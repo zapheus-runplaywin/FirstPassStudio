@@ -209,14 +209,14 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   }
 
   // The court Studio streams on a night and who calls each game there, for the Socials tab's On the stream picture:
-  // { court, slots: [{ time, division, home, away, people }] }, or null when the night isn't planned. The fixture
+  // { court, slots: [{ id, time, division, home, away, people }] }, or null when the night isn't planned. The fixture
   // only, no live scores, so it asks PlayHQ for nothing.
   async function onStream(date) {
     const n = nightView(plan(), date, (await byDate())[date] || []);
     if (!n.court) return null;
     const p = plan();
     const name = id => p.pool.find(x => x.id === id);
-    return { court: n.court, slots: n.slots.filter(s => s.game).map(s => ({ time: s.time, division: s.game.division,
+    return { court: n.court, slots: n.slots.filter(s => s.game).map(s => ({ id: s.game.id, time: s.time, division: s.game.division,
       home: { name: s.game.home, logo: logoFor(s.game.home) }, away: { name: s.game.away, logo: logoFor(s.game.away) },
       people: s.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })) })) };
   }
