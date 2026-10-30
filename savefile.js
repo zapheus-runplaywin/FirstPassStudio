@@ -37,7 +37,8 @@ function writeFileSync(file, data, options) {
 // out of order and leave the older contents on disk (the scoreboard's clock coming back stopped
 // after a restart). A save asked for while one is being written waits for it; if several wait,
 // only the newest is written, and each of their callbacks gets that save's result.
-const saving = new Map(); // file -> { next: { data, options, callbacks } | null } while a save is being written
+// file -> { current: { data, options }, next: { data, options, callbacks } | null, flushed } while a save is being written
+const saving = new Map();
 
 function writeFile(file, data, options, callback) {
   if (typeof options === 'function') { callback = options; options = undefined; }
@@ -49,30 +50,46 @@ function writeFile(file, data, options, callback) {
     busy.next = { data, options, callbacks };
     return;
   }
-  saving.set(file, { next: null });
+  saving.set(file, { current: null, next: null, flushed: false });
   writeNow(file, data, options, [done]);
 }
 
 function writeNow(file, data, options, callbacks) {
+  const state = saving.get(file);
+  state.current = { data, options };
   const finish = err => {
-    const state = saving.get(file);
     const next = state.next;
     state.next = null;
-    if (next) writeNow(file, next.data, next.options, next.callbacks);
-    else saving.delete(file);
+    if (next && !state.flushed) writeNow(file, next.data, next.options, next.callbacks);
+    else if (saving.get(file) === state) saving.delete(file);
     for (const cb of callbacks) cb(err);
+    if (next && state.flushed) for (const cb of next.callbacks) cb(null);
   };
   fs.mkdir(path.dirname(file), { recursive: true }, errDir => {
     if (errDir) return finish(errDir);
     const tmp = tempName(file);
     fs.writeFile(tmp, data, options, errWrite => {
       if (errWrite) return fs.rm(tmp, { force: true }, () => finish(errWrite));
+      if (state.flushed) return fs.rm(tmp, { force: true }, () => finish(null)); // flushSync already wrote the newest
       fs.rename(tmp, file, errRename => {
         if (errRename) return fs.rm(tmp, { force: true }, () => finish(errRename));
         finish(null);
       });
     });
   });
+}
+
+// Writes every save still waiting or being written by writeFile, now, newest contents only. For
+// Studio stopping (process exit): exiting doesn't wait for a save in the background, so without
+// this the last change before going off air could be missing after a restart. The background
+// writes already under way are dropped, so they can't land over what this wrote.
+function flushSync() {
+  for (const [file, state] of saving) {
+    const latest = state.next || state.current;
+    state.flushed = true;
+    saving.delete(file);
+    try { writeFileSync(file, latest.data, latest.options); } catch { /* as a failed background save: the old file stays */ }
+  }
 }
 
 // Saves value as pretty JSON, atomically.
@@ -102,4 +119,4 @@ function readJson(file, fallback, onError) {
   }
 }
 
-module.exports = { writeFileSync, writeFile, writeJsonSync, readJson };
+module.exports = { writeFileSync, writeFile, flushSync, writeJsonSync, readJson };

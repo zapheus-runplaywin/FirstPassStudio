@@ -217,7 +217,7 @@ test('the score, clock and lasting settings are kept over a restart', async () =
   await act({ type: 'clockSet', secondsLeft: 200 });
   await act({ type: 'tickerSpeed', value: 220 });
   await act({ type: 'playhqRefresh', value: 8 });
-  await wait(300); // scoreboard-state.json is written in the background
+  // No wait: scoreboard-state.json is saved in the background, and stopping writes what is still to save.
   await studio.stop();
   studio = await startStudio(null, { dataDir: studio.dataDir, keepDataDir: true });
   const b = await board();
