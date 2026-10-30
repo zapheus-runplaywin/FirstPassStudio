@@ -946,7 +946,10 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
 - **Results:** the night's final scores (each division, the winner highlighted), a full time card per game, the ladder of
   each division that played (as PlayHQ has it now, "after Round N" when it's the division's latest night with results,
   with the finals line), each division's top six shooters that night (one picture per division, `&division=`, from each finished
-  game's line ups, read once and kept) and a polaroid per game with its score as the caption (and the opponent, division, round and date under it). A game shows once PlayHQ has its final score.
+  game's line ups, read once and kept), each division's *Tournament top shooters* (*Season top shooters* when the fixture runs 15 days or more, or as set under
+  Game day in Competitions setup, `runningShooters`; its top eight over every finished game so
+  far, after this night's round or as at a time that night, `&after=HH:MM`, with each one's places up or down since the night
+  before when *Highlight movers* is ticked, `&movers=0|1`, kept in `socials.json`) and a polaroid per game with its score as the caption (and the opponent, division, round and date under it). A game shows once PlayHQ has its final score.
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
   (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.
@@ -984,10 +987,10 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   opens the folder; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
   picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.
 
-Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|commentators|polaroid|results|fulltime|ladder|topshooters&size=square|portrait|story`
+Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|commentators|polaroid|results|fulltime|ladder|topshooters|tournament&size=square|portrait|story`
 (`&date=`, `&game=`, `&division=`, `&sponsor=0|1`, `&mark=0|1`, `&pivt=0|1`, `&colours=`, `&title=`; the polaroid's `&photo=`, `&px=`,
 `&py=`, `&zoom=`, `&caption=`, `&note=`). Everything comes from Studio (`/api/socials/night`, `&with=ladders` or
-`&with=shooters` for the pictures that need them), which reads the fixture, results and ladders through the same cache
+`&with=shooters` or `&with=tournament` for the pictures that need them), which reads the fixture, results and ladders through the same cache
 as the other pages, and each finished game's line up once, so the tab asks PlayHQ for nothing more.
 
 ## Recordings

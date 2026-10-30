@@ -74,6 +74,7 @@
   .newset[hidden] { display: none; }
   .picker { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-top: 10px; max-width: 240px; }
   .picker select { font: inherit; padding: 3px 6px; }
+  .picker.movers { flex-direction: row; align-items: center; }
   .newset { margin-top: 10px; padding: 10px; border: 1px dashed var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=text] { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=color] { width: 36px; height: 28px; padding: 0; border: 1px solid var(--fp-line-strong); border-radius: 6px; vertical-align: middle; }
@@ -171,6 +172,9 @@
     for (const div of shot) list.push({ key: `topshooters:${div}`, kind: 'topshooters', division: div, name: div ? `Top shooters ${div}` : 'Top shooters',
       help: `${div || 'The night'}'s top shooters, from each finished game's line ups (read once and kept).` });
     if (!shot.length) list.push({ key: 'topshooters', kind: 'topshooters', name: 'Top shooters', missing: none, help: '' });
+    // Tournament (or Season) top shooters: a picture per division that played, its running totals over every finished game so far.
+    for (const div of shot.filter(Boolean)) list.push({ key: `tournament:${div}`, kind: 'tournament', division: div, name: `${night.running} top shooters ${div}`,
+      help: `${div}'s top shooters over every finished game so far, after this night (or as at a time that night).` });
     for (const g of done) list.push({ key: `polaroid:${g.id}`, kind: 'polaroid', game: g.id, name: `Polaroid ${g.home.name} v ${g.away.name}`,
       help: 'The score goes under the photo. Drop a match photo on it, then drag the preview to frame it; with no photo the window is see-through.' });
     return list;
@@ -198,6 +202,7 @@
     const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours, template: info.settings.template });
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
+    if (p.kind === 'tournament') q.set('movers', info.settings.movers ? '1' : '0');
     const photo = photos[p.key];
     for (const [k, v] of Object.entries(picks[p.key] || {})) if (v) q.set(k, v);
     if (p.kind === 'polaroid' && photo && photo.file) { q.set('photo', photo.file); q.set('px', Math.round(photo.px)); q.set('py', Math.round(photo.py)); q.set('zoom', photo.zoom); }
@@ -239,6 +244,25 @@
     const c = el('input'); c.type = 'checkbox'; c.checked = info.settings.sponsor[kind];
     c.onchange = () => saveSettings({ sponsor: { [kind]: c.checked } });
     l.append(c, ' Sponsor strip');
+    return l;
+  }
+  // Tournament top shooters: as at the end of the night, or after the games starting at a time that night.
+  function afterPicker(p) {
+    const l = el('label', 'picker');
+    const pick = el('select');
+    const times = [...new Set(night.games.filter(g => g.division === p.division && g.finished).map(g => g.time))].sort();
+    pick.append(new Option('End of night', ''), ...times.map(t => new Option(`After the ${t} games`, t)));
+    pick.value = (picks[p.key] || {}).after || '';
+    pick.onchange = () => { picks[p.key] = { ...(picks[p.key] || {}), after: pick.value }; redraw(p.key); };
+    l.append(el('b', '', 'As at'), pick);
+    return l;
+  }
+  // Movers: each shooter's places up or down since the night before, kept for the competition.
+  function moversTick() {
+    const l = el('label', 'picker movers');
+    const c = el('input'); c.type = 'checkbox'; c.checked = info.settings.movers;
+    c.onchange = () => saveSettings({ movers: c.checked });
+    l.append(c, ' Highlight movers');
     return l;
   }
   // Pick an athlete by name, narrowed by division and team (to the side's own team to start with).
@@ -320,6 +344,7 @@
     if (p.help) left.append(el('p', 'help', p.help));
     if (p.missing) left.append(el('p', 'note warn', p.missing));
     if (p.kind === 'polaroid') left.append(photoControls(p.key), athletePicker(p.key, 'athlete', 'Or an athlete\'s photo', {}));
+    if (p.kind === 'tournament') left.append(afterPicker(p), moversTick());
     if (p.kind === 'matchup' || p.kind === 'fulltime') {
       const g = night.games.find(x => x.id === p.game);
       if (g) left.append(athletePicker(p.key, 'home', g.home.name, { division: g.division, team: g.home.name }),

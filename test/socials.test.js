@@ -22,7 +22,7 @@ test('the tab lists every game night, opens on the next, and knows saving needs 
   assert.equal(s.next, studio.world.today);
   assert.deepEqual(Object.keys(s.sizes), ['square', 'portrait', 'story']);
   assert.deepEqual(s.sizes.story, { width: 1080, height: 1920, label: 'Story' });
-  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default', favourites: [], favouritesOnly: false });
+  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true }, colours: 'competition', colourSets: [], template: 'default', favourites: [], favouritesOnly: false, movers: true });
   assert.deepEqual(s.nights.map(n => n.results), [4, 4, 0, 0], 'last two weeks played, tonight and next week to come');
   assert.equal(s.app, false, 'no Mac app around the helper here');
 });
@@ -104,9 +104,48 @@ test('a played night has each result and winner; the ladders and top shooters co
   assert.deepEqual(none.shooters, { players: [], gamesRead: 0, gamesFinished: 0, superShots: false });
 });
 
+test('tournament top shooters: a division\'s totals so far, as at a time that night, and each one\'s move since the night before', async () => {
+  const nights = (await studio.get('/api/socials')).nights.filter(n => n.results);
+  const [first, second] = nights.map(n => n.date);
+  const t = (date, extra = '') => studio.get(`/api/socials/night?date=${date}&with=tournament&division=Division%201${extra}`).then(n => n.tournament);
+  const one = await t(first), two = await t(second);
+  assert.equal(one.round, 'Round 1');
+  assert.equal(one.compared, false, 'nothing to compare on the division\'s first night');
+  assert.ok(one.players.every(p => p.moved === undefined && !p.fresh));
+  assert.equal(two.round, 'Round 2');
+  assert.equal(two.gamesFinished, 4, 'both nights\' games');
+  assert.ok(two.players.length <= 8 && two.players.every(p => p.games === 2));
+  assert.deepEqual(two.players.map(p => p.points), [...two.players.map(p => p.points)].sort((a, b) => b - a), 'most points first');
+  // Each move is the place after round 1 less the place now; anyone who wasn't in round 1's top 8 is new.
+  const was = one.players.map(p => p.name);
+  for (const [i, p] of two.players.entries()) {
+    if (was.includes(p.name)) assert.equal(p.moved, was.indexOf(p.name) - i, p.name);
+    else assert.equal(p.fresh, true, p.name);
+  }
+  assert.equal(two.compared, true);
+  // The test fixture runs four weeks, so it's Season top shooters unless the competition setup says otherwise.
+  assert.equal((await studio.get(`/api/socials/night?date=${second}`)).running, 'Season');
+  const id = studio.competition.id || 'thunder-league';
+  await studio.post(`/api/setup/${id}`, { runningShooters: 'tournament' });
+  assert.equal((await studio.get(`/api/socials/night?date=${second}`)).running, 'Tournament', 'as the competition setup says');
+  await studio.post(`/api/setup/${id}`, { runningShooters: '' });
+  // As at a time that night: only the games starting by then, so before the first game it's round 1's totals.
+  const times = (await studio.get(`/api/socials/night?date=${second}`)).games.filter(g => g.division === 'Division 1').map(g => g.time).sort();
+  const early = await t(second, `&after=${times[0]}`);
+  assert.equal(early.gamesFinished, 3);
+  const before = await t(second, '&after=00:00');
+  assert.deepEqual(before.players.map(p => [p.name, p.points]), one.players.map(p => [p.name, p.points]));
+  assert.equal(before.compared, false);
+  assert.equal((await t(second, '&after=junk')).gamesFinished, 4, 'a time like 14:00 or none');
+  // Movers are on to start with, and kept for the competition.
+  assert.equal((await studio.post('/api/socials/settings', { movers: false })).settings.movers, false);
+  assert.equal((await studio.get('/api/socials')).settings.movers, false);
+  await studio.post('/api/socials/settings', { movers: true });
+});
+
 test('the sponsor strip and the Studio mark are kept per competition', async () => {
   const r = await studio.post('/api/socials/settings', { mark: false, sponsor: { polaroid: true, fixtures: false, nonsense: true } });
-  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, commentators: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default', favourites: [], favouritesOnly: false });
+  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, commentators: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true }, colours: 'competition', colourSets: [], template: 'default', favourites: [], favouritesOnly: false, movers: true });
   assert.deepEqual((await studio.get('/api/socials')).settings, r.settings);
   assert.equal((await studio.post('/api/socials/settings', { pivt: false })).settings.pivt, false, 'the PIVT logo is optional too');
   await studio.post('/api/socials/settings', { mark: true, pivt: true });

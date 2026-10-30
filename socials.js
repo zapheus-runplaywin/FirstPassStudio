@@ -20,11 +20,14 @@
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
 //                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played, &with=shooters
 //                                        the night's top shooters (each with their photo when approved; &division= one
-//                                        division's, as on the Socials tab's Top shooters picture per division); &home= &away= &athlete= the
-//                                        athletes picked for a picture (picked, with their approved photo)
+//                                        division's, as on the Socials tab's Top shooters picture per division); &with=tournament&division=
+//                                        that division's running totals over every finished game up to this night (&after=HH:MM: only
+//                                        its games starting by then), with each one's move since the night before; &home= &away= &athlete= the
+//                                        athletes picked for a picture (picked, with their approved photo); running: what the running
+//                                        top shooters are called (Tournament or Season)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
-//                                        favourites: [<template id>], favouritesOnly: bool }
+//                                        favourites: [<template id>], favouritesOnly: bool, movers: bool }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
 //   POST /api/socials/export             { date, set: upcoming|results, share, zip, items: [{ name, link, size }] }: the
@@ -46,9 +49,11 @@ const SIZES = {
   story: { width: 1080, height: 1920, label: 'Story' },
 };
 // Each graphic and whether it carries the sponsor strip until that's changed on the tab. Upcoming: fixtures, matchup,
-// onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, fulltime, ladder, topshooters and a polaroid per game.
-const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true };
+// onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, fulltime, ladder, topshooters,
+// tournament (each division's top shooters so far, called Tournament or Season top shooters) and a polaroid per game.
+const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true };
 const SHOOTERS_SHOWN = 6;
+const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
 // The template sets: the look of every picture (public/social-templates.css, a class t-<id> on social.html's body),
 // each with its display face (fonts.js TEMPLATE_FONTS) and, for the ones that keep their own ground whatever the
@@ -108,7 +113,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const colourSets = Array.isArray(d.colourSets) ? d.colourSets.filter(ownSet) : [];
     const colours = typeof d.colours === 'string' && allSets(colourSets).some(x => x.id === d.colours) ? d.colours : 'competition';
     const template = templateOf(d.template)?.id || 'default';
-    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template, favourites: favouritesOf(d.favourites), favouritesOnly: d.favouritesOnly === true };
+    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template, favourites: favouritesOf(d.favourites), favouritesOnly: d.favouritesOnly === true,
+      movers: d.movers !== false };
   }
   // Starred template sets, in the list's order; a retired one counts as the set it is now drawn as.
   const favouritesOf = list => Array.isArray(list) ? TEMPLATES.map(t => t.id).filter(id => list.some(x => templateOf(x)?.id === id)) : [];
@@ -140,6 +146,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       now.favourites = favouritesOf(body.favourites);
     }
     if (typeof body.favouritesOnly === 'boolean') now.favouritesOnly = body.favouritesOnly;
+    if (typeof body.movers === 'boolean') now.movers = body.movers;
     savefile.writeJsonSync(fileOf(id), now);
     return now;
   }
@@ -238,7 +245,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const a = about();
     const venues = [...new Set(games.map(g => g.venue).filter(Boolean))];
     const s = settings();
-    const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null,
+    const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null, running: running(all, a.runningShooters),
       venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: s, look: look(q.colours || s.colours, s.colourSets, templateOf(q.template) ? q.template : s.template) };
     // Athletes picked on the tab (&home= &away= on a match up or full time, &athlete= on a polaroid), with their photo when
     // they approved its use; a name without one draws as if none was picked.
@@ -250,6 +257,47 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       const division = q.division ? String(q.division) : '';
       out.shooters = await shooters(raw.filter((g, i) => games[i].finished && (!division || games[i].division === division)));
     }
+    if (want.has('tournament')) out.tournament = await tournament(dates, date, String(q.division || ''), /^\d\d:\d\d$/.test(q.after) ? q.after : '');
+    return out;
+  }
+
+  // What the running top shooters are called: as the competition setup says, else Tournament when its fixture runs
+  // under 15 days from first game to last (a carnival or nationals), Season when longer (a league).
+  function running(dates, set) {
+    if (set === 'tournament' || set === 'season') return set === 'tournament' ? 'Tournament' : 'Season';
+    const days = dates.length ? (Date.parse(`${dates[dates.length - 1]}T00:00:00Z`) - Date.parse(`${dates[0]}T00:00:00Z`)) / 864e5 + 1 : 0;
+    return days && days < 15 ? 'Tournament' : 'Season';
+  }
+
+  // A division's top shooters so far: every finished game of the division up to and including this night (after: only
+  // this night's games starting by then), most points first (goals where there are no super shots). Each has their
+  // move since the night before (moved: places up, or down when below 0; fresh: new to the top), and round: the round
+  // they're "after" (this night's, when every game it counts is finished).
+  async function tournament(dates, date, division, after) {
+    const mine = d => (dates[d] || []).filter(g => g.division === division && isFinished(g));
+    const before = Object.keys(dates).sort().filter(d => d < date);
+    const tonight = mine(date).filter(g => !after || slotOf(g) <= after);
+    const earlier = before.flatMap(mine);
+    const rounds = [...new Set((dates[date] || []).filter(g => g.division === division).map(g => g.round).filter(Boolean))];
+    const out = { division, after, round: rounds.length === 1 ? rounds[0] : '', players: [], gamesRead: 0, gamesFinished: earlier.length + tonight.length,
+      superShots: !!superShots(division), compared: false };
+    if (!division || !out.gamesFinished) return out;
+    const order = list => [...list].sort((a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name));
+    const key = p => `${p.name.toLowerCase()}|${p.team.toLowerCase()}`;
+    const now = await tallyShooters([...earlier, ...tonight]);
+    out.gamesRead = now.read;
+    if (!now.read && now.failed) out.error = now.lastError;
+    // Where each stood after the nights before; none when tonight is the division's first, or added nothing.
+    let was = null;
+    if (earlier.length && tonight.length) {
+      const then = await tallyShooters(earlier);
+      if (then.read) { was = new Map(order(then.players).map((p, i) => [key(p), i + 1])); out.compared = true; }
+    }
+    out.players = order(now.players).slice(0, TOURNAMENT_SHOWN).map((p, i) => {
+      const prev = was && was.get(key(p));
+      return { name: p.name, team: p.team, logo: p.logo, photo: photoFor(p), games: p.games, goals: p.goals, superGoals: p.superGoals, points: p.points,
+        ...(was ? (prev && prev <= TOURNAMENT_SHOWN ? { moved: prev - (i + 1) } : { fresh: true }) : {}) };
+    });
     return out;
   }
 
