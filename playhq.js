@@ -62,7 +62,8 @@ function create(deps) {
   const { log, apiUrl, cacheMs, linkBase, config, leadMs, logoFor, positionOf } = deps;
   // recorder.js, for the game recording: every answer PlayHQ gives (record.playhq, record.live).
   const record = deps.record || { playhq() {}, live() {} };
-  // practice.js: while a practice game runs, its recording answers instead of PlayHQ (practice.answer, practice.live).
+  // practice.js: while a practice game runs, its recording answers instead of PlayHQ (practice.answer, practice.live);
+  // a demo game's recording leaves what it doesn't have (the client's competition) to PlayHQ.
   const practice = deps.practice || { active: () => false };
 
   let TENANT = 'netball-australia', ORG_ID = null;
@@ -110,7 +111,10 @@ function create(deps) {
   }
 
   async function gql(operationName, query, variables, retried, tenant = TENANT) {
-    if (practice.active()) return practice.answer(operationName, variables);
+    if (practice.active()) {
+      const own = practice.answer(operationName, variables);
+      if (own !== undefined) return own; // else a demo game asks PlayHQ (the client's competition)
+    }
     const c = await getSession(retried);
     const headers = { ...HEADERS, tenant, 'request-id': crypto.randomUUID() };
     if (c) headers.cookie = c;

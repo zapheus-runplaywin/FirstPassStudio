@@ -35,6 +35,8 @@
   #practice h2 { color: var(--fp-danger); }
   #practice .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
   #practice .row .on { background: var(--fp-blue); color: #fff; }
+  #demo .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 10px; }
+  #demo select { font: inherit; padding: 5px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; max-width: 100%; }
 </style>
 <script src="log.js"></script>
 </head>
@@ -52,6 +54,18 @@
     <div class="row"><button id="practicePause">Pause</button><button class="danger" id="practiceStop">Stop</button></div>
     <p class="help">The game plays in real time, as PlayHQ had it on the night, moved to now. Studio runs as on a real night: the scoreboard,
       sequences and outputs all work. Nothing counts for the sponsors and nothing is recorded. Stop puts the scoreboard back as it was.</p>
+  </section>
+
+  <section id="demo" hidden>
+    <h2>Demo game</h2>
+    <p style="margin:0">Plays <b id="demoRecorded"></b> as one of <b id="demoCompetition">your competition</b>'s games: their teams, athletes, logos and colours,
+      with the recorded score, clock and moments. Pick the game whose teams and athletes to show.</p>
+    <div class="row"><select id="demoDivision"><option value="">Division…</option></select>
+      <select id="demoGame" disabled><option value="">Game…</option></select>
+      <label><input type="checkbox" id="demoSwap"> Swap home and away</label>
+      <button id="demoStart" disabled>Start demo</button><button id="demoCancel">Cancel</button></div>
+    <p class="help">Athletes are matched by position, so the recorded GS's goals are your GS's; anyone with no match is left unnamed and their
+      goals go to the team. Swap puts the teams the other way round, so either can be the winner. Your competition's setup comes from PlayHQ, so a demo needs the internet.</p>
   </section>
 
   <section>
@@ -87,7 +101,7 @@ function show(s) {
         <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
         <span class="acts"><a class="button" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
           <button class="danger" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once Studio is off air"' : ''}>Remove</button></span></div>
-      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
+      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
     </div>`).join('') : '<p class="empty">No recordings yet. The next night on air is recorded.</p>';
 }
 
@@ -107,7 +121,8 @@ function showPractice(p) {
   $('practice').hidden = !p.active;
   if (!p.active) return;
   const start = (p.jumps.find(j => j.id === 'start') || {}).at || p.position;
-  $('practiceWhat').innerHTML = `<b>${esc(p.game.home.name)} v ${esc(p.game.away.name)}</b>${p.game.division ? ` · ${esc(p.game.division)}` : ''}, recorded ${esc(when(p.recordedOn))}.
+  $('practice').querySelector('h2').textContent = p.demo ? 'Demo game' : 'Practice game';
+  $('practiceWhat').innerHTML = `<b>${esc(p.game.home.name)} v ${esc(p.game.away.name)}</b>${p.game.division ? ` · ${esc(p.game.division)}` : ''}${p.demo ? ` (playing ${esc(p.demo.recorded.home)} v ${esc(p.demo.recorded.away)}, ${p.demo.athletes} athletes matched)` : ''}, recorded ${esc(when(p.recordedOn))}.
     ${p.paused ? 'Paused' : 'Playing'} at ${clock(p.position - start)} from Start.`;
   $('practiceJumps').innerHTML = 'Jump to ' + p.jumps.map(j => `<button data-jump="${esc(j.id)}">${esc(j.label)}</button>`).join('');
   $('practicePause').textContent = p.paused ? 'Play' : 'Pause';
@@ -130,8 +145,49 @@ $('practiceJumps').onclick = e => { const b = e.target.closest('[data-jump]'); i
 $('practicePause').onclick = () => practice({ pause: !$('practicePause').dataset.paused });
 $('practiceStop').onclick = () => practice({ stop: true });
 
+// Demo game: the recorded game picked with Demo, shown as a finished game of the competition in use.
+let demoOf = null;
+const options = (list, first) => `<option value="">${first}</option>` + list.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
+async function demoChoices(division) {
+  const r = await fetch(`/api/practice/games${division ? `?division=${encodeURIComponent(division)}` : ''}`);
+  const c = await r.json();
+  if (!r.ok) $('err').textContent = c.error || 'Couldn\'t read your competition\'s games.';
+  return c;
+}
+async function openDemo(recording, game, what) {
+  demoOf = { recording, game };
+  $('demo').hidden = false;
+  $('demoRecorded').textContent = what;
+  $('demoGame').innerHTML = options([], 'Game…'); $('demoGame').disabled = true; $('demoStart').disabled = true;
+  const c = await demoChoices('');
+  if (c.competition) $('demoCompetition').textContent = c.competition;
+  $('demoDivision').innerHTML = options(c.divisions.map(d => [d.id, d.name]), 'Division…');
+  $('demo').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+$('demoDivision').onchange = async () => {
+  $('demoGame').disabled = true; $('demoStart').disabled = true;
+  if (!$('demoDivision').value) return;
+  const c = await demoChoices($('demoDivision').value);
+  $('demoGame').innerHTML = options(c.games.map(g => [g.id, `${g.round ? g.round + ': ' : ''}${g.home} v ${g.away}${g.score[0] != null ? ` (${g.score[0]}–${g.score[1]})` : ''}`]), c.games.length ? 'Game…' : 'No finished games yet');
+  $('demoGame').disabled = !c.games.length;
+};
+$('demoGame').onchange = () => { $('demoStart').disabled = !$('demoGame').value; };
+$('demoCancel').onclick = () => { $('demo').hidden = true; demoOf = null; };
+$('demoStart').onclick = async () => {
+  if (!demoOf) return;
+  $('demoStart').disabled = true;
+  $('demoStart').textContent = 'Starting…';
+  await practice({ start: { recording: demoOf.recording, game: demoOf.game, lead: lead(),
+    demo: { game: $('demoGame').value, division: $('demoDivision').value, swap: $('demoSwap').checked } } });
+  $('demoStart').textContent = 'Start demo';
+  $('demoStart').disabled = false;
+  if (!$('err').textContent) { $('demo').hidden = true; demoOf = null; }
+};
+
 $('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
 $('nights').onclick = e => {
+  const d = e.target.closest('[data-demo]');
+  if (d) { openDemo(d.dataset.demo, d.dataset.game, d.dataset.what); return; }
   const p = e.target.closest('[data-practise]');
   if (p) { practice({ start: { recording: p.dataset.practise, game: p.dataset.game, lead: lead() } }); return; }
   const b = e.target.closest('[data-remove]');
