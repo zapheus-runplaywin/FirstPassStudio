@@ -58,6 +58,8 @@
       "competitions.js",
       "playhq.js",
       "athletes.js",
+      "teams.js",
+      "lowerthird.js",
       "board.js",
       "games.js",
       "planner.js",

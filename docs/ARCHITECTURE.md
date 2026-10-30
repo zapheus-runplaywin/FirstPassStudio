@@ -38,7 +38,9 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 
 | File | Owns |
 | --- | --- |
-| `server.js` | Routing, the competition in use and `control.json`, team sheets and shooting stats, the person lower third, health and page version, start-up and shutdown. |
+| `server.js` | Routing, the competition in use and `control.json`, health and page version, start-up and shutdown. |
+| `teams.js` | The team sheets (`/api/teams`: teamlist, match ups, commentator stats) and each player's shooting stats, from PlayHQ's game page line ups with the live feed's team totals, or with a Client ID its REST Summary for the Game; which way round PlayHQ's teams and line ups sit against the scoreboard (`orientToBoard`); whether scoring has opened (`scoringState`); the team list warm up when a game is picked (`warmTeamLists`); `positionOf`. |
+| `lowerthird.js` | The person lower third (`/api/lowerthird`): an athlete from the register by name with their team, club logo and photo, and the athletes the Output page suggests for it (`/api/lowerthird/athletes`). |
 | `playhq.js` | Everything that talks to PlayHQ: the guest session, the organisation's competitions and seasons, ladders, rounds and games, one game in detail, the live feed, the scoring window, the game cache. |
 | `athletes.js` | Team logos, athlete photos (on graphics only once the athlete has approved their use, `photoOk`), the athlete register (`athletes.json`), what the athletes page shows and edits, a team's season squad for short line ups. |
 | `games.js` | The games: which game night and round are "this round", the fixture, up next and the end of night card, intro and outro, the countdown, automatic game selection, the season graphics (ladder bar, head to head, form, ticker, top shooters) and the finals. |
