@@ -120,15 +120,15 @@ $('swSetup').onclick = () => {
 $('swFind').onclick = () => { showSwitcher({ ...sw, finding: true }); swPost('/api/switcher/find'); };
 $('swUseAddress').onclick = () => swDo({ type: 'use', address: $('swAddress').value });
 $('swAddress').onkeydown = e => { if (e.key === 'Enter') $('swUseAddress').click(); };
-$('swForget').onclick = () => { if (confirm('Forget this switcher? Studio stops controlling it until you pick it again.')) swDo({ type: 'forget' }); };
+$('swForget').onclick = async () => { if (await askConfirm('Forget this switcher?', 'Studio stops controlling it until you pick it again.', { ok: 'Forget', danger: true })) swDo({ type: 'forget' }); };
 $('swRetry').onclick = () => swDo({ type: 'reconnect' });
 $('swCut').onclick = () => swDo({ type: 'cut' });
 $('swAuto').onclick = () => swDo({ type: 'auto' });
 $('swStinger').onclick = () => swDo({ type: 'stinger' });
 $('swLineup').onchange = () => swDo({ type: 'lineup', frames: Number($('swLineup').value) || 0 });
-$('swLineupTest').onclick = () => {
+$('swLineupTest').onclick = async () => {
   const on = (sw && sw.stingerOutput || {}).name || 'Output 1';
-  if (confirm(`Test the line-up? This plays the stinger on ${on} and cuts program to the preview input, 2 frames after the stinger covers the frame. Do it before you\'re live. If you see the old picture before the bands cover it, add frames; if the bands are late on screen, take frames off.`)) swDo({ type: 'lineupTest' });
+  if (await askConfirm('Test the line-up?', `This plays the stinger on ${on} and cuts program to the preview input, 2 frames after the stinger covers the frame. Do it before you're live. If you see the old picture before the bands cover it, add frames; if the bands are late on screen, take frames off.`, { ok: 'Test' })) swDo({ type: 'lineupTest' });
 };
 $('swFtb').onclick = () => swDo({ type: 'ftb' });
 
@@ -207,13 +207,13 @@ $('outKeyer').onchange = () => setOut({ keyer: $('outKeyer').value });
 $('swFollow').onchange = () => swDo({ type: 'follow', on: $('swFollow').checked });
 $('outSwFill').onchange = () => setOut({ swFill: Number($('outSwFill').value) || 0 });
 $('outSwKey').onchange = () => setOut({ swKey: Number($('outSwKey').value) || 0 });
-$('outKeySetup').onclick = () => {
+$('outKeySetup').onclick = async () => {
   const so = selectedOutput();
   const c = so && sw && (sw.keys || []).find(k => k.output === so.id);
   if (!c) return;
   const air = c.onAir ? `\n\n${c.label} is on air now, so the change shows on the programme straight away.` : '';
   const restart = c.want && c.want.straightOff && so.on ? `\n\nUnticking Straight restarts ${so.name}'s Blackmagic output, so its picture drops for a moment.` : '';
-  if (confirm(`Set up ${c.label} on the ${sw.model} for ${so.name}?\n\n${c.fixes.join('\n')}\n\nIts clip, gain, mask and position are left as they are, and so is whether it's on air.${air}${restart}`)) swDo({ type: 'keySetup', output: so.id });
+  if (await askConfirm(`Set up ${c.label} on the ${sw.model} for ${so.name}?`, `${c.fixes.join('\n')}\n\nIts clip, gain, mask and position are left as they are, and so is whether it's on air.${air}${restart}`, { ok: 'Set it up' })) swDo({ type: 'keySetup', output: so.id });
 };
 
 // ─── Switcher actions on sequence steps and scenes ───────────────────────

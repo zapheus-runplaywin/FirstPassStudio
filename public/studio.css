@@ -141,4 +141,4 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
   border: 1px solid var(--fp-line-strong); border-radius: 6px; }
 .fp-ask__buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .fp-ask__question { margin: 0; font-weight: 700; }
-.fp-ask__detail { margin: 8px 0 0; color: var(--fp-muted); }
+.fp-ask__detail { margin: 8px 0 0; color: var(--fp-muted); white-space: pre-line; }

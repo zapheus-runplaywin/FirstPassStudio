@@ -182,13 +182,15 @@ test('a mistyped address is refused with what to type, and Forget lets the switc
   await page.click('#swUseAddress');
   await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
   assert.equal(await text(page, '#swErr'), '', 'the old error goes once it works');
-  // Forget asks first; Cancel keeps it.
-  page.once('dialog', d => d.dismiss());
+  // Forget asks first, in Studio's own dialog; Cancel keeps it.
   await page.click('#swForget');
-  await wait(300);
+  await page.waitForSelector('dialog.fp-ask[open]');
+  await page.click('dialog.fp-ask button.alt');
+  await page.waitForSelector('dialog.fp-ask', { state: 'detached' });
   assert.match(await text(page, '#swText'), /connected/);
-  page.once('dialog', d => d.accept());
   await page.click('#swForget');
+  await page.waitForSelector('dialog.fp-ask[open]');
+  await page.click('dialog.fp-ask button.danger');
   await page.waitForFunction(() => document.querySelector('#swText').textContent === 'Not set up');
   assert.equal(await page.isVisible('#swLive'), false);
   // Forgotten for good: it's still not set up after the page is opened again.

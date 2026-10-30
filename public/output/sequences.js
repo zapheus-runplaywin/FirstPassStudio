@@ -561,7 +561,7 @@ $('sqTry').onclick = () => saveSequence(true);
 $('sqCancel').onclick = () => { $('seqDialog').close(); draft = null; };
 $('sqCopy').onclick = async () => { if (draft?.id && await act({ type: 'seqCopy', sequence: draft.id })) { $('seqDialog').close(); draft = null; } };
 $('sqDelete').onclick = async () => {
-  if (!draft?.id || !confirm(`Delete the sequence "${draft.name}"? Its Stream Deck keys will stop working. The sources stay as they are.`)) return;
+  if (!draft?.id || !await askConfirm(`Delete the sequence "${draft.name}"?`, 'Its Stream Deck keys will stop working. The sources stay as they are.', { ok: 'Delete', danger: true })) return;
   if (await act({ type: 'seqRemove', sequence: draft.id })) { $('seqDialog').close(); draft = null; }
 };
 $('seqDialog').addEventListener('close', () => { draft = null; });

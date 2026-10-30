@@ -169,15 +169,17 @@ test('Edit scenes: a cell set to Leave keeps that source as it is, Copy makes a 
   await control.click('#scenes button.scene:has-text("Live")');
   await wait(500);
   await outputShows(output, ['Scoreboard on', 'Ladder on']);
-  // Copy, then Delete the copy: Cancel keeps it, OK deletes it.
+  // Copy, then Delete the copy: it asks in Studio's own dialog (asktext.js); Cancel keeps it, Delete deletes it.
   await control.click('#sceneGrid th .copy');
   await control.waitForSelector('#scenes button.scene:has-text("Live copy")');
-  control.once('dialog', d => d.dismiss());
   await control.locator('#sceneGrid th').nth(2).locator('.del').click();
-  await wait(300);
+  await control.waitForSelector('dialog.fp-ask[open]');
+  await control.click('dialog.fp-ask button.alt');
+  await control.waitForSelector('dialog.fp-ask', { state: 'detached' });
   assert.equal((await studio.get('/api/scene')).scenes.length, 2);
-  control.once('dialog', d => d.accept());
   await control.locator('#sceneGrid th').nth(2).locator('.del').click();
+  await control.waitForSelector('dialog.fp-ask[open]');
+  await control.click('dialog.fp-ask button.danger');
   await control.waitForFunction(() => document.querySelectorAll('#scenes button.scene:not(.addScene)').length === 1);
   // Renamed in the grid.
   await control.fill('#sceneGrid th input', 'Live play');
@@ -227,8 +229,9 @@ test('a quarter-break sequence built in the editor: Save and play runs its steps
   await control.click('#sqCopy');
   await control.waitForSelector('#seqs .seq b:has-text("Quarter break copy")');
   await control.locator('#seqs .seq', { hasText: 'Quarter break copy' }).locator('.edit').click();
-  control.once('dialog', d => d.accept());
   await control.click('#sqDelete');
+  await control.waitForSelector('dialog.fp-ask[open]');
+  await control.click('dialog.fp-ask button.danger');
   await control.waitForFunction(() => document.querySelectorAll('#seqs .seq:not(.addSeq)').length === 1);
   assert.deepEqual((await studio.get('/api/scene')).sequences.map(s => s.name), ['Quarter break']);
   await wait(5500); // the pages check for a new version every 5 seconds

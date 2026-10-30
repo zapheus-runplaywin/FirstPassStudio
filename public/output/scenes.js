@@ -119,8 +119,8 @@ function renderGrid() {
     swb.title = sc.switcher?.length ? `Switcher: ${sc.switcher.map(swActText).join(', ')}` : 'Cut to a camera, a key on or off, fade to black or a macro when this scene is picked';
     swb.onclick = () => editSceneSwitcher(sc);
     th.querySelector('.copy').onclick = () => act({ type: 'sceneCopy', scene: sc.id });
-    th.querySelector('.del').onclick = () => {
-      if (confirm(`Delete the scene "${sc.name}"? Its Stream Deck keys will say gone. The sources stay as they are.`)) act({ type: 'sceneRemove', scene: sc.id });
+    th.querySelector('.del').onclick = async () => {
+      if (await askConfirm(`Delete the scene "${sc.name}"?`, 'Its Stream Deck keys will say gone. The sources stay as they are.', { ok: 'Delete', danger: true })) act({ type: 'sceneRemove', scene: sc.id });
     };
     head.appendChild(th);
   });

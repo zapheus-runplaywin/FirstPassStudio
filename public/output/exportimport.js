@@ -26,9 +26,9 @@ $('importFile').onchange = async () => {
   $('importFile').value = '';
   if (!file) return;
   $('err').textContent = ''; sceneNote('');
-  if (scene.sources.length && !confirm(`Replace the ${scene.sources.length} source${scene.sources.length === 1 ? '' : 's'} in the scene with the ones in ${file.name}?`
-    + ' The imported sources start hidden, and Stream Deck keys for sources that aren\'t in the file stop working.'
-    + ' If the file has scenes they replace these scenes; an older file without them keeps these scenes.')) return;
+  if (scene.sources.length && !await askConfirm(`Replace the ${scene.sources.length} source${scene.sources.length === 1 ? '' : 's'} in the scene with the ones in ${file.name}?`,
+    'The imported sources start hidden, and Stream Deck keys for sources that aren\'t in the file stop working.'
+    + ' If the file has scenes they replace these scenes; an older file without them keeps these scenes.', { ok: 'Replace' })) return;
   $('importScene').disabled = true;
   sceneNote(`Importing ${file.name}…`);
   try {

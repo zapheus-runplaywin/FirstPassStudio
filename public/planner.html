@@ -59,6 +59,7 @@
   .flag.soft { background: var(--fp-gray); color: var(--fp-muted); }
 </style>
 <script src="log.js"></script>
+<script src="asktext.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar"></header><script src="studiobar.js"></script>
@@ -169,7 +170,7 @@
       tick.onchange = () => savePool(data.pool.map(x => x.id === p.id ? { ...x, guest: tick.checked } : x));
       lab.append(' Guest');
       const rm = el('button', 'alt small', '×'); rm.title = `Take ${p.name} out of the list (and every night)`;
-      rm.onclick = () => { if (confirm(`Take ${p.name} out of the commentators? They come out of every night they're planned for.`)) savePool(data.pool.filter(x => x.id !== p.id)); };
+      rm.onclick = async () => { if (await askConfirm(`Take ${p.name} out of the commentators?`, "They come out of every night they're planned for.", { ok: 'Take out', danger: true })) savePool(data.pool.filter(x => x.id !== p.id)); };
       row.append(lab, rm);
       row.ondragover = e => { e.preventDefault(); row.classList.add('over'); };
       row.ondragleave = () => row.classList.remove('over');

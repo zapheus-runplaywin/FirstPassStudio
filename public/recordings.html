@@ -35,6 +35,7 @@
   #demo select { font: inherit; padding: 5px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; max-width: 100%; }
 </style>
 <script src="log.js"></script>
+<script src="asktext.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar"></header><script src="studiobar.js"></script>
@@ -196,11 +197,11 @@ function showSaved(list = []) {
   $('savedList').innerHTML = list.map(s => `<div class="saved"><b>${esc(s.name)}</b><span class="help" style="margin:0">${esc(s.what)}</span>
     <span class="acts" style="margin-left:auto;display:flex;gap:8px"><button data-run="${esc(s.name)}">Start demo</button><button class="danger" data-forget="${esc(s.name)}">Remove</button></span></div>`).join('');
 }
-$('savedList').onclick = e => {
+$('savedList').onclick = async e => {
   const r = e.target.closest('[data-run]');
   if (r) practice({ start: { saved: r.dataset.run, lead: lead() } });
   const f = e.target.closest('[data-forget]');
-  if (f && confirm(`Remove the saved demo ${f.dataset.forget}?`)) practice({ forget: f.dataset.forget });
+  if (f && await askConfirm(`Remove the saved demo ${f.dataset.forget}?`, '', { ok: 'Remove', danger: true })) practice({ forget: f.dataset.forget });
 };
 async function practice(body) {
   if (body) $('err').textContent = '';
@@ -319,7 +320,7 @@ $('demoStart').onclick = async () => {
 
 $('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
 $('after').onchange = () => call('POST', '/api/recordings', { afterMinutes: Number($('after').value) });
-$('nights').onclick = e => {
+$('nights').onclick = async e => {
   const rp = e.target.closest('[data-replay]');
   if (rp) { replayCall({ start: { recording: rp.dataset.replay, game: rp.dataset.game } }); return; }
   const d = e.target.closest('[data-demo]');
@@ -327,7 +328,7 @@ $('nights').onclick = e => {
   const p = e.target.closest('[data-practise]');
   if (p) { practice({ start: { recording: p.dataset.practise, game: p.dataset.game, lead: lead() } }); return; }
   const b = e.target.closest('[data-remove]');
-  if (b && confirm(`Remove the recording of ${b.closest('.night').querySelector('h3').textContent}? This can't be undone.`)) call('DELETE', `/api/recordings/${encodeURIComponent(b.dataset.remove)}`);
+  if (b && await askConfirm(`Remove the recording of ${b.closest('.night').querySelector('h3').textContent}?`, "This can't be undone.", { ok: 'Remove', danger: true })) call('DELETE', `/api/recordings/${encodeURIComponent(b.dataset.remove)}`);
 };
 call('GET', '/api/recordings');
 practice();

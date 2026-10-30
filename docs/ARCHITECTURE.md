@@ -65,7 +65,9 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 | `access.js` | Who on the network may change things (the "Only this Mac can change things" switch, ticked at every launch), and who may press a Stream Deck link (its key, the plugin's header, or Studio's own pages). |
 | `linkhost.js`, `zip.js`, `examples.js` | The `.local` name in links; just enough zip for export and backup; example PNGs of every graphic. |
 
-Shared browser code in `public/`: `sceneevents.js` (follow the scene over the WebSocket), `pageoptions.js` (the options
+Shared browser code in `public/`: `asktext.js` (every question a Studio page asks, in one dialog: askConfirm, askChoice, askText,
+tell; never the browser's confirm, alert or prompt, which does nothing in the Mac app) and `unsaved.js` (an editor's unsaved changes),
+`sceneevents.js` (follow the scene over the WebSocket), `pageoptions.js` (the options
 each graphic takes in its link), `pages.js` (the registry of graphics, review decision D7), `fit.js` (keep a card in
 the zone between title and scoreboard), `done.js` (a one-shot animation switches its source off), `sfx.js` and
 `pagesound.js` (animation sound), `sponsorspot.js` (presented-by spots), `chroma.js`, `zoom.js` (a graphic in a

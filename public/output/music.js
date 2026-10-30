@@ -187,6 +187,6 @@ $('plSave').onclick = async () => {
   $('plDialog').close();
 };
 $('plDelete').onclick = async () => {
-  if (!plDraft?.id || !confirm(`Delete the playlist "${plDraft.name}"? The songs stay in the media folder.`)) return;
+  if (!plDraft?.id || !await askConfirm(`Delete the playlist "${plDraft.name}"?`, 'The songs stay in the media folder.', { ok: 'Delete', danger: true })) return;
   if (await act({ type: 'playlistRemove', playlist: plDraft.id })) $('plDialog').close();
 };

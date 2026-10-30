@@ -40,8 +40,8 @@ async function removeMedia(name) {
   if (!m) return;
   const uses = m.uses || [];
   if (uses.some(u => u.onAir)) { $('mediaErr').textContent = `${name} is on air now (${uses.filter(u => u.onAir).map(useName).join(', ')}). Turn it off first.`; return; }
-  if (!confirm(`Remove ${name} from the media folder? This can't be undone.`
-    + (uses.length ? `\n\nIt's used by:\n${uses.map(u => '• ' + useName(u)).join('\n')}\n\nPlaylists, the super shot song and sponsors' ads let go of it. Sources, page themes and sequence music keep its name, shown as missing, until you pick another file.` : ''))) return;
+  if (!await askConfirm(`Remove ${name} from the media folder?`, "This can't be undone."
+    + (uses.length ? `\n\nIt's used by:\n${uses.map(u => '• ' + useName(u)).join('\n')}\n\nPlaylists, the super shot song and sponsors' ads let go of it. Sources, page themes and sequence music keep its name, shown as missing, until you pick another file.` : ''), { ok: 'Remove', danger: true })) return;
   try {
     const res = await fetch(`/api/scene/media?name=${encodeURIComponent(name)}&force=1`, { method: 'DELETE' });
     const body = await res.json();
@@ -141,7 +141,7 @@ $('addGo').onclick = async () => {
 };
 
 async function copy(text, btn) {
-  try { await navigator.clipboard.writeText(text); } catch { prompt('Copy this link', text); return; }
+  try { await navigator.clipboard.writeText(text); } catch { askText('Copy this link', text); return; } // prompt() does nothing in the Mac app
   const was = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = was; }, 1200);
 }
 
