@@ -307,8 +307,9 @@ export async function press(host: string, path: string): Promise<boolean> {
 }
 
 /**
- * What Studio is playing back from the Recordings tab (Replay keys): the 4K replay and the practice game; null if
- * Studio can't be reached. A Studio older than replays answers 404 there, taken as none running.
+ * What Studio is playing back from the Recordings tab (Replay keys): the 4K replay and the practice game in one read
+ * of /api/playback; null if Studio can't be reached. A Studio from before that read answers 404 there, so the two are
+ * then read apart (/api/replay and /api/practice), and one older than replays answers 404 to those, taken as none running.
  */
 export async function fetchPlayback(host: string): Promise<Playback> {
 	const get = async (path: string) => {
@@ -316,6 +317,8 @@ export async function fetchPlayback(host: string): Promise<Playback> {
 		return res.ok ? ((await res.json()) as { active: boolean }) : { active: false };
 	};
 	try {
+		const res = await fetch(`${host}/api/playback`, { signal: AbortSignal.timeout(5000) });
+		if (res.ok) return (await res.json()) as Playback;
 		const [replay, practice] = await Promise.all([get("/api/replay"), get("/api/practice")]);
 		return { replay, practice };
 	} catch {

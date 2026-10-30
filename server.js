@@ -1158,6 +1158,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
+    // What's playing back, for the strip under every Studio page's tab bar and the Stream Deck plugin's Replay keys: one read.
+    if (url.pathname === '/api/playback') return send(res, 200, { replay: replay.state(), practice: practice.state() });
     if (url.pathname === '/api/replay') {
       if (req.method === 'POST' && practice.active()) return send(res, 409, { error: 'A practice game is running. Stop it first.', ...replay.state() });
       if (await replay.route(req, res, url, { send, readBody })) return;

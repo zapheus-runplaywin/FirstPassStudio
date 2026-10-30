@@ -44,6 +44,11 @@
 .fp-bar nav a[aria-current="page"] { color: var(--fp-navy); background: var(--fp-gold); }
 /* Links to a spot on the page (#anchors, the Stream Deck reference) land below the pinned header. */
 html:has(> body.fp > .fp-bar) { scroll-padding-top: 96px; }
+/* The strip under the bar while a practice game or a 4K replay runs (studiobar.js). */
+.fp-practice { background: #c62828; color: #fff; font-weight: 700; padding: 8px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.fp-practice[hidden] { display: none; }
+.fp-practice a, .fp-practice button { font: inherit; font-size: 13px; padding: 2px 10px; border-radius: 6px; border: 1px solid #fff; background: transparent; color: #fff; cursor: pointer; text-decoration: none; }
+.fp-practice a:hover, .fp-practice button:hover { background: rgba(255,255,255,.15); }
 @media (max-width: 600px) { .fp-bar { padding: 12px 16px; } .fp-bar nav { margin-left: 0; } .fp-logo { font-size: 22px; } }
 
 /* Shared page basics. */
