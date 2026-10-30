@@ -1,4 +1,4 @@
-// Editors in a dialog (unsaved.js): with changes not saved yet, Escape asks Save, Don't save or
+// Editors in a dialog (unsaved.js; the Competitions setup page is in setup-unsaved.test.js): with changes not saved yet, Escape asks Save, Don't save or
 // Keep editing, and so does leaving the page from the Mac app's Go menu (window.studioBeforeLeave);
 // a browser reload gets the browser's own question. In Chromium through Playwright, as
 // pages.test.js does.
@@ -78,6 +78,23 @@ test('editors in a dialog ask before losing changes', async t => {
   assert.equal(await staying, false);
   assert.ok(await page.$('#plDialog[open]'));
   await page.click('#plCancel');
+
+  // A scene's switcher actions (the Edit scenes grid's Switcher button): changed, Escape asks;
+  // Save keeps them on the scene.
+  await page.click('#scenes .addScene');
+  await page.fill('dialog.fp-ask input', 'Live');
+  await page.click('dialog.fp-ask button[type=submit]');
+  await page.waitForSelector('#scenes button.scene:has-text("Live")');
+  const sceneId = await page.evaluate(() => { editSceneSwitcher(scene.scenes[0]); return scene.scenes[0].id; });
+  await page.waitForSelector('#swSceneDialog[open]');
+  await page.click('#swSceneActs button:has-text("+ Switcher action")');
+  await page.keyboard.press('Escape');
+  await ask();
+  assert.match(await page.textContent('dialog.fp-ask'), /switcher actions/);
+  await press('Save');
+  await page.waitForSelector('#swSceneDialog', { state: 'hidden' });
+  const swSaved = await page.evaluate(id => scene.scenes.find(s => s.id === id).switcher.length, sceneId);
+  assert.equal(swSaved, 2);
 
   // A sequence opened and left as it was: Escape just closes it.
   await page.evaluate(() => [...document.querySelectorAll('.seq.addSeq')].find(b => /sequence/i.test(b.textContent)).click());

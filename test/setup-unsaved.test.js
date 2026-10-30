@@ -1,5 +1,6 @@
 // Competitions setup with changes not saved yet: leaving the page by a tab, opening another
-// competition, switching competition or making a new one asks Save, Don't save or Cancel first
+// competition, switching competition or making a new one asks Save, Don't save or Keep editing first
+// (unsaved.js, the same question as a dialog editor)
 // (in a real browser, Chromium through Playwright, as pages.test.js does).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -30,13 +31,13 @@ test('setup: unsaved changes are saved, discarded or kept before leaving them', 
   const ask = () => page.waitForSelector('dialog.fp-ask[open]');
   const press = label => page.click(`dialog.fp-ask button:text-is("${label}")`);
 
-  // A tab, Cancel: stays, with the change still there.
+  // A tab, Keep editing: stays, with the change still there.
   await load();
   await change('Changed once');
   await page.click('nav a[href="/sponsors.html"]');
   await ask();
   assert.match(await page.textContent('dialog.fp-ask'), /Save your changes to Thunder League/);
-  await press('Cancel');
+  await press('Keep editing');
   assert.equal(new URL(page.url()).pathname, '/setup.html');
   assert.equal(await page.inputValue('#displayName'), 'Changed once');
 
@@ -54,12 +55,12 @@ test('setup: unsaved changes are saved, discarded or kept before leaving them', 
   await Promise.all([page.waitForURL('**/athletes.html'), press("Don't save")]);
   assert.equal(await saved(), 'Changed once');
 
-  // Another competition in the list, Cancel, then Save.
+  // Another competition in the list, Keep editing, then Save.
   await load();
   await change('Changed twice');
   await page.click('.comp:has-text("Second Comp") .comp__name');
   await ask();
-  await press('Cancel');
+  await press('Keep editing');
   assert.equal(await page.inputValue('#name'), 'Thunder League');
   await page.click('.comp:has-text("Second Comp") .comp__name');
   await ask();
@@ -79,13 +80,13 @@ test('setup: unsaved changes are saved, discarded or kept before leaving them', 
   await page.waitForFunction(() => document.getElementById('displayName').value === 'Changed twice');
   assert.equal((await studio.get('/api/setup')).active, id, 'still in use');
 
-  // New competition: asked after its name, and Cancel makes nothing.
+  // New competition: asked after its name, and Keep editing makes nothing.
   await change('Changed thrice');
   await page.click('#newComp');
   await page.fill('dialog.fp-ask input', 'Third Comp');
   await page.click('dialog.fp-ask button:text-is("OK")');
   await page.waitForSelector('dialog.fp-ask .fp-ask__question');
-  await press('Cancel');
+  await press('Keep editing');
   assert.ok(!(await studio.get('/api/setup')).competitions.some(c => c.name === 'Third Comp'));
   assert.equal(await page.inputValue('#displayName'), 'Changed thrice');
 
