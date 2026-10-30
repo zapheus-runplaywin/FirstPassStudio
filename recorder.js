@@ -12,6 +12,7 @@
 //   scene     the scene the pages were sent (scene.js notify), when it changed
 //   board     the board the pages were sent (scene.js publishBoard), when it changed (not the clock reading)
 //   api       an answer a graphic fetched (GET /api/...), when it changed: p (the path and query) and body
+//   practice  a practice game started (on: true) or stopped (practice.js); nothing is recorded in between
 //   end       Studio went off air
 // The first two layers (playhq, live, action) are what came in, for practice games and tests; the rest (scene,
 // board, api) is what went to air, for replaying the graphics at 4K. Nothing secret is recorded: no keys,
@@ -40,6 +41,7 @@ let pending = [];
 let timer = null;
 const last = new Map(); // what was last recorded for a key, so only a change is
 let gameId = null;
+let paused = false; // a practice game is running (practice.js): only its start and end are recorded
 const listed = new Map(); // name -> { mtimeMs, size, summary }
 
 const two = n => String(n).padStart(2, '0');
@@ -71,13 +73,13 @@ function begin(start) {
 }
 
 function note(k, data) {
-  if (!file) return;
+  if (!file || (paused && k !== 'practice')) return;
   pending.push(JSON.stringify({ t: Date.now(), k, ...data }));
 }
 
 // Records data under key only when it isn't what was last recorded there.
 function changed(k, key, data, same = JSON.stringify(data)) {
-  if (!file || last.get(key) === same) return;
+  if (!file || paused || last.get(key) === same) return;
   last.set(key, same);
   note(k, data);
 }
@@ -88,6 +90,14 @@ function flush() {
   pending = [];
   try { fs.appendFileSync(file, zlib.gzipSync(lines)); }
   catch (err) { log('warn', 'recorder', `Could not write the recording: ${err.message}`); }
+}
+
+// A practice game started (on) or stopped: nothing it does is recorded, and after it everything is recorded afresh.
+function pause(on) {
+  note('practice', { on: !!on });
+  paused = !!on;
+  last.clear();
+  gameId = null;
 }
 
 // Off air: the end line, written straight away.
@@ -242,4 +252,4 @@ async function route(req, res, url, { send: reply, readBody, start = () => ({}) 
   return false;
 }
 
-module.exports = { route, init, close, flush, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, state, fileOf, KEEP_DAYS };
+module.exports = { route, init, close, flush, pause, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, state, fileOf, KEEP_DAYS };

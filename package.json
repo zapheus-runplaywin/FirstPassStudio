@@ -68,6 +68,7 @@
       "outputs.js",
       "picturesize.js",
       "recorder.js",
+      "practice.js",
       "switcher.js",
       "datadir.js",
       "savefile.js",

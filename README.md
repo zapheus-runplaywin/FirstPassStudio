@@ -995,7 +995,16 @@ Lines are written every 5 seconds as a gzip member of their own, so a recording 
 stopped suddenly. Recordings with no game, and ones older than 60 days, are removed when Studio starts. The Recordings tab
 (`/recordings.html`, ⌘9) lists them with their games, Download and Remove, and *Record every night on air*
 (`GET`/`POST /api/recordings` `{ record }`, `DELETE /api/recordings/<name>`, `GET /api/recordings/<name>/file`; private reads).
-Practice games, tests and 4K replays play these back (docs/game-recording-replay-plan-2026-10-29.md).
+Tests and 4K replays will play these back too (docs/game-recording-replay-plan-2026-10-29.md).
+
+**Practice games** (`practice.js`): *Practise* beside a game on the Recordings tab plays it back as if live
+(`POST /api/practice` `{ start: { recording, game, from } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
+While it runs `playhq.js` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before
+the same point of the night, with every date and time moved by the gap to now (a game's `date` with its `time` or
+`allocation.time` as one moment, ISO times, `...At` millisecond times), so the game starts 5 minutes from now. Paused, the
+gap grows, so the clock stands still. Starting keeps a copy of the scoreboard and picks the game by hand; Stop puts the
+copy back. Exposure isn't kept (`exposure.js` `held`), finished games aren't added to `game-cache.json`, and the night's
+recording is paused (a `practice` line at each end). Every Studio page shows a red strip while one runs (`studiobar.js`).
 
 ## Roadmap
 

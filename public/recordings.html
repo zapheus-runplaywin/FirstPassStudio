@@ -30,6 +30,11 @@
   .night ul { margin: 6px 0 0; padding-left: 20px; line-height: 1.6; }
   .live { color: #fff; background: var(--fp-danger); border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
   .empty { color: var(--fp-muted); margin: 0; }
+  .night li button { margin-left: 8px; font-size: 12px; padding: 1px 9px; }
+  #practice { border-color: var(--fp-danger); }
+  #practice h2 { color: var(--fp-danger); }
+  #practice .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  #practice .row .on { background: var(--fp-blue); color: #fff; }
 </style>
 <script src="log.js"></script>
 </head>
@@ -39,6 +44,15 @@
   <h1>Recordings</h1>
   <p class="sub">Every night on air, Studio records what PlayHQ said and what went to air, timed, a few megabytes a night.
     No video or sound: the graphics only. A recording plays back later as a practice game, and replays a night's graphics at 4K.</p>
+
+  <section id="practice" hidden>
+    <h2>Practice game</h2>
+    <p id="practiceWhat" style="margin:0"></p>
+    <div class="row" id="practiceJumps"></div>
+    <div class="row"><button id="practicePause">Pause</button><button class="danger" id="practiceStop">Stop</button></div>
+    <p class="help">The game plays in real time, as PlayHQ had it on the night, moved to now. Studio runs as on a real night: the scoreboard,
+      sequences and outputs all work. Nothing counts for the sponsors and nothing is recorded. Stop puts the scoreboard back as it was.</p>
+  </section>
 
   <section>
     <h2>Recording</h2>
@@ -71,7 +85,7 @@ function show(s) {
         <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
         <span class="acts"><a class="button" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
           <button class="danger" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once Studio is off air"' : ''}>Remove</button></span></div>
-      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}</li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
+      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
     </div>`).join('') : '<p class="empty">No recordings yet. The next night on air is recorded.</p>';
 }
 
@@ -85,13 +99,42 @@ async function call(method, path, body) {
   } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
 }
 
+// The practice game running, if any: what it is, where it can jump to, Pause and Stop.
+const clock = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+function showPractice(p) {
+  $('practice').hidden = !p.active;
+  if (!p.active) return;
+  const start = (p.jumps.find(j => j.id === 'start') || {}).at || p.position;
+  $('practiceWhat').innerHTML = `<b>${esc(p.game.home.name)} v ${esc(p.game.away.name)}</b>${p.game.division ? ` · ${esc(p.game.division)}` : ''}, recorded ${esc(when(p.recordedOn))}.
+    ${p.paused ? 'Paused' : 'Playing'} at ${clock(p.position - start)} from Start.`;
+  $('practiceJumps').innerHTML = 'Jump to ' + p.jumps.map(j => `<button data-jump="${esc(j.id)}">${esc(j.label)}</button>`).join('');
+  $('practicePause').textContent = p.paused ? 'Play' : 'Pause';
+  $('practicePause').dataset.paused = p.paused ? '1' : '';
+}
+async function practice(body) {
+  $('err').textContent = '';
+  try {
+    const r = await fetch('/api/practice', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
+    const p = await r.json();
+    if (!r.ok && p.error) $('err').textContent = p.error;
+    showPractice(p);
+  } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
+}
+$('practiceJumps').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) practice({ jump: b.dataset.jump }); };
+$('practicePause').onclick = () => practice({ pause: !$('practicePause').dataset.paused });
+$('practiceStop').onclick = () => practice({ stop: true });
+
 $('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
 $('nights').onclick = e => {
+  const p = e.target.closest('[data-practise]');
+  if (p) { practice({ start: { recording: p.dataset.practise, game: p.dataset.game } }); return; }
   const b = e.target.closest('[data-remove]');
   if (b && confirm(`Remove the recording of ${b.closest('.night').querySelector('h3').textContent}? This can't be undone.`)) call('DELETE', `/api/recordings/${encodeURIComponent(b.dataset.remove)}`);
 };
 call('GET', '/api/recordings');
+practice();
 setInterval(() => { if (!document.hidden) call('GET', '/api/recordings'); }, 15000);
+setInterval(() => { if (!document.hidden) practice(); }, 2000);
 </script>
 </body>
 </html>

@@ -25,6 +25,7 @@ const fonts = require('./fonts');
 const scene = require('./scene');
 const picturesize = require('./picturesize');
 const recorder = require('./recorder');
+const practice = require('./practice');
 const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
@@ -125,7 +126,7 @@ outputs.init(log, {
 sponsors.init(log);
 // Proof of play for the sponsors: what's on screen, and whether an output that counts for them is on (Output 1, or
 // one with Counts for sponsors ticked: outputs.sponsorsOnAir).
-exposure.init(log, { showing: scene.showing, onAir: outputs.sponsorsOnAir });
+exposure.init(log, { showing: scene.showing, onAir: outputs.sponsorsOnAir, held: practice.active });
 // Live viewer numbers from the competition's streams, read only while on air.
 devices.load(log);
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
@@ -138,7 +139,7 @@ mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
 const playhq = require('./playhq').create({
-  log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE, record: recorder,
+  log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE, record: recorder, practice,
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
 });
 const { gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS, getGame, lineup, getLive, scoringNotYet, lastLive } = playhq;
@@ -778,6 +779,22 @@ function scoringState(fromLiveFeed, status) {
 }
 
 const summaryCache = new Map();
+// Practice games (practice.js): a recording plays back as if live. It forgets what was read from PlayHQ when it
+// starts, moves and stops, so the recording's answers (and then PlayHQ's again) are read afresh.
+practice.init(log, {
+  read: name => recorder.read(name),
+  reset: () => { playhq.resetCaches(); theGames.resetCaches(); summaryCache.clear(); },
+  snapshot: () => theBoard.snapshot(),
+  restore: s => theBoard.restore(s),
+  select: game => {
+    const b = board();
+    applyAction(b, { type: 'selectGame', game });
+    applyAction(b, { type: 'resetScores' });
+    applyAction(b, { type: 'source', value: 'playhq' });
+    saveBoards();
+  },
+  paused: on => recorder.pause(on),
+});
 async function getTeamSheets() {
   const b = board();
   const base = { home: { name: b.home.name, logo: logoFor(b.home.name), players: [] }, away: { name: b.away.name, logo: logoFor(b.away.name), players: [] } };
@@ -1081,6 +1098,9 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
+    if (url.pathname === '/api/practice') {
+      if (await practice.route(req, res, url, { send, readBody })) return;
+    }
     if (url.pathname === '/api/recordings' || url.pathname.startsWith('/api/recordings/')) {
       if (await recorder.route(req, res, url, { send, readBody, start: RECORDING_START })) return;
     }

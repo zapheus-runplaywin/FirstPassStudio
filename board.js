@@ -764,7 +764,15 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   const quarterSec = () => QUARTER_SEC;
   const setQuarterSec = n => { QUARTER_SEC = n; };
 
-  return { board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock,
+  // A copy of the scoreboard, and putting one back (practice.js: a practice game leaves it as it was).
+  const snapshot = () => JSON.parse(JSON.stringify(board()));
+  function restore(s) {
+    if (!s) return;
+    boards['1'] = s;
+    saveBoards();
+  }
+
+  return { snapshot, restore, board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock,
     getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
 
