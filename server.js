@@ -795,6 +795,10 @@ practice.init(log, {
   },
   paused: on => recorder.pause(on),
   positionOf: p => positionOf(p),
+  demos: datadir.local('demos.json'),
+  competition: () => competitions.activeId() || '',
+  readJson: f => savefile.readJson(f, {}),
+  writeJson: (f, v) => savefile.writeJsonSync(f, v),
   // A demo game's choices: the competition's divisions, and a division's finished games this season.
   choices: async gradeId => {
     const st = await playhq.getStructure();
@@ -804,7 +808,8 @@ practice.init(log, {
       .map(g => ({ id: g.id, date: g.date, round: g.round, home: g.home.name, away: g.away.name, score: [g.home.score, g.away.score] })) : [];
     return { competition: competitionName(), divisions, games };
   },
-  // The client's historic game: its teams' line ups, and its division's teams.
+  // The client's historic game: its teams' line ups (with the season's squad after them, by the position each played
+  // most, for a line up that's missing or short), and its division's teams.
   demo: async (gameId, gradeId) => {
     const st = await playhq.getStructure();
     const grade = (st.grades || []).find(g => g.id === gradeId);
@@ -812,8 +817,16 @@ practice.init(log, {
     const game = await playhq.getGame(gameId, 10 * 60 * 1000);
     const teams = [];
     for (const g of await theGames.getSeasonGames(grade)) for (const n of [g.home.name, g.away.name]) if (n && n !== 'TBC' && !teams.includes(n)) teams.push(n);
-    const side = s => ({ name: s.name, players: s.players.map(p => ({ name: p.name, playhqId: p.playhqId, position: p.position, gender: p.gender, private: p.private })) });
-    return { division: grade.name, gradeId, teams, home: side(game.home), away: side(game.away) };
+    const side = async s => {
+      const players = s.players.filter(p => !p.private).map(p => ({ name: p.name, playhqId: p.playhqId, position: p.position, gender: p.gender, private: false }));
+      if (players.length < 7) {
+        let squad = [];
+        try { squad = await squadFor(s.name, grade.name); } catch (err) { log('warn', 'practice', `${s.name}: no season squad for the demo: ${err.message}`); }
+        for (const a of squad) if (!players.some(p => p.name === a.name)) players.push({ name: a.name, playhqId: '', position: a.position || '', gender: a.gender || '', private: false });
+      }
+      return { name: s.name, players };
+    };
+    return { division: grade.name, gradeId, teams, home: await side(game.home), away: await side(game.away) };
   },
 });
 async function getTeamSheets() {

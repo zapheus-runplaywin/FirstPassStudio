@@ -177,6 +177,30 @@ test('a demo game wears the client\'s teams and athletes over the recorded game'
   assert.equal(rows[3], 'Knights');
   assert.ok(!rows.some(r => ['Red', 'Blue', 'Green', 'Yellow'].includes(r)), `no recorded names left: ${rows}`);
 
+  // The pairing table: the recorded GS shown as their GA instead, then saved, stopped and started again.
+  const now = await studio.get('/api/practice');
+  const gsPair = now.demo.sides.home.pairs.find(r => r.position === 'GS');
+  assert.equal(gsPair.shown, 'Blizzardz GS');
+  assert.ok(now.demo.sides.home.choices.some(c => c.name === 'Blizzardz GA'));
+  await studio.post('/api/practice', { pair: { id: gsPair.id, name: 'Blizzardz GA' } });
+  await studio.until(async () => (await studio.get('/api/teams')).home.players.find(p => p.name === 'Blizzardz GA' && p.shooting.goals === 4));
+  assert.match((await studio.request('POST', '/api/practice', { pair: { id: gsPair.id, name: 'Nobody' } })).text, /isn't in the team/);
+  assert.equal((await studio.post('/api/practice', { save: 'Thunder pitch' })).saved[0].name, 'Thunder pitch');
+  await studio.post('/api/practice', { stop: true });
+  assert.deepEqual((await studio.get('/api/practice')).saved.map(x => x.name), ['Thunder pitch'], 'kept after stopping');
+  const again = await studio.post('/api/practice', { start: { saved: 'Thunder pitch' } });
+  assert.equal(again.demo.sides.home.pairs.find(r => r.id === gsPair.id).shown, 'Blizzardz GA', 'the saved pairs come back');
+  await studio.post('/api/practice', { stop: true });
+  assert.deepEqual((await studio.post('/api/practice', { forget: 'Thunder pitch' })).saved, []);
+
+  // A game with no line up yet takes the teams' season squads, by the position each played most.
+  const upcoming = studio.world.divisions[0].rounds[3].games[0];
+  const fromSquad = await studio.post('/api/practice', { start: { recording: name, game: 'other-game', demo: { game: upcoming.id, division: 'grade-div1' } } });
+  const home = fromSquad.demo.sides.home;
+  assert.equal(home.pairs.find(r => r.position === 'GS').shown, `${upcoming.home.split(/\W/)[0]} GS`);
+  assert.ok(fromSquad.demo.athletes >= 12, `${fromSquad.demo.athletes} athletes from the squads`);
+  await studio.post('/api/practice', { stop: true });
+
   // Swap: the client's away team on the home side, with the home score.
   await studio.post('/api/practice', { start: { recording: name, game: 'other-game', demo: { game: historic.id, division: 'grade-div1', swap: true } } });
   b = await studio.get('/api/scoreboard');

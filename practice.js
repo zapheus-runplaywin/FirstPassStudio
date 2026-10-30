@@ -28,6 +28,7 @@
 // hooks (init): read(recording) the recording's lines, reset() forget what was read from PlayHQ, snapshot() and
 // restore(s) the scoreboard, select(game) pick the game on the scoreboard, paused(on) pause the night's recording,
 // choices(gradeId) the client's divisions and a division's finished games, for picking one,
+// competition() the competition in use's id, readJson(file) and writeJson(file, value) for the saved demos,
 // demo(gameId, gradeId) the client's historic game ({ division, gradeId, teams, home, away }, each side { name,
 // players: [{ name, playhqId, position, gender, private }] }), positionOf(player) a PlayHQ line up entry's position.
 
@@ -38,12 +39,14 @@ const leadMs = m => Math.max(0, Math.min(60, Number.isFinite(Number(m)) && m !==
 const PERIODS = { FIRST_QTR: 'Q1', SECOND_QTR: 'Q2', THIRD_QTR: 'Q3', FOURTH_QTR: 'Q4', FIRST_HALF: '1st half', SECOND_HALF: '2nd half' };
 
 let log = () => {};
-let hooks = { read: () => [], reset() {}, snapshot: () => null, restore() {}, select() {}, paused() {}, demo: async () => { throw new Error('Demo games need Studio.'); }, choices: async () => ({ divisions: [], games: [] }), positionOf: p => (p.playerPosition && p.playerPosition.shortName) || '' };
+let hooks = { read: () => [], reset() {}, snapshot: () => null, restore() {}, select() {}, paused() {}, demo: async () => { throw new Error('Demo games need Studio.'); }, choices: async () => ({ divisions: [], games: [] }), competition: () => '', readJson: () => ({}), writeJson() {}, positionOf: p => (p.playerPosition && p.playerPosition.shortName) || '' };
 let run = null; // the practice game running: see start()
 
+// h.demos: the saved demos' file.
 function init(logger, h = {}) {
   log = logger || log;
   hooks = { ...hooks, ...h };
+  if (h.demos) demosFile = h.demos;
 }
 
 const active = () => !!run;
@@ -189,8 +192,10 @@ function recorded(loaded) {
 }
 
 // What the demo game wears: { teams: recorded name -> client's, players: recorded PlayHQ id -> client's athlete (or
-// null: unnamed), ids: client's PlayHQ ids -> recorded, home, away, division, swap }.
-async function dress(loaded, { game: clientGame, division: clientGrade, swap } = {}) {
+// null: unnamed), ids: client's PlayHQ ids -> recorded, sides: per side the recorded athletes and the client's to pick
+// from, home, away, division, swap }. pairs: { recorded PlayHQ id: client athlete's name, or '' for unnamed } picked
+// by hand (the pairing table, or a saved demo), over the match by position.
+async function dress(loaded, { game: clientGame, division: clientGrade, swap, pairs = {} } = {}) {
   const client = await hooks.demo(clientGame, clientGrade);
   const rec = recorded(loaded);
   const side = { home: swap ? 'away' : 'home', away: swap ? 'home' : 'away' };
@@ -198,27 +203,81 @@ async function dress(loaded, { game: clientGame, division: clientGrade, swap } =
   const others = (client.teams || []).filter(n => ![...teams.values()].includes(n));
   for (const n of rec.teams) if (!teams.has(n) && others.length) teams.set(n, others.shift());
   const players = new Map();
+  const sides = {};
   for (const k of ['home', 'away']) {
-    const pool = [...(client[side[k]].players || [])];
+    const all = client[side[k]].players || [];
+    const pool = [...all];
     const recPlayers = (((rec.game || {}).statistics || {})[k] || {}).players || [];
+    const list = [];
     const unmatched = [];
     for (const p of recPlayers) {
       const id = p.player && p.player.id;
       if (!id) continue;
+      const prof = p.player.profile || {};
+      list.push({ id, name: `${prof.firstName || ''} ${prof.lastName || ''}`.trim() || 'Private player', position: hooks.positionOf(p) });
       const pos = hooks.positionOf(p);
       const i = pos ? pool.findIndex(c => c.position === pos) : -1;
       if (i >= 0) players.set(id, pool.splice(i, 1)[0]);
       else unmatched.push(id);
     }
-    // Recorded athletes with no position match take the historic game's others (the bench) in order.
+    // Recorded athletes with no position match take the historic game's others (the bench, then the season's
+    // squad) in order.
     for (const id of unmatched) players.set(id, pool.shift() || null);
+    // Pairs picked by hand win.
+    for (const r of list) {
+      if (!(r.id in pairs)) continue;
+      players.set(r.id, pairs[r.id] ? all.find(c => c.name === pairs[r.id]) || null : null);
+    }
+    sides[k] = { recorded: list, client: all };
   }
   const ids = new Map();
   if (client.gradeId && rec.gradeId) ids.set(client.gradeId, rec.gradeId);
-  return { teams, players, ids, swap: !!swap, division: client.division || '', game: clientGame,
-    home: client[side.home].name, away: client[side.away].name,
-    athletes: [...players.values()].filter(Boolean).length };
+  return { teams, players, ids, sides, swap: !!swap, division: client.division || '', gradeId: clientGrade, game: clientGame,
+    home: client[side.home].name, away: client[side.away].name };
 }
+const matched = d => [...d.players.values()].filter(Boolean).length;
+
+// The pairing table: a recorded athlete (PlayHQ id) shown as one of the client's (by name), or unnamed ('').
+function pair(id, name) {
+  const d = run && run.demo;
+  if (!d) return 'Pairs are for a demo game.';
+  const k = ['home', 'away'].find(x => d.sides[x].recorded.some(r => r.id === id));
+  if (!k) return 'That athlete isn\'t in the recorded game.';
+  const c = name ? d.sides[k].client.find(x => x.name === name) : null;
+  if (name && !c) return `${name} isn't in the team.`;
+  d.players.set(id, c);
+  hooks.reset(); // the line ups are read again, with the new pair
+  return null;
+}
+
+// ─── Saved demos ────────────────────────────────────────────────────────────
+// A demo game set up once and run again: demos.json in the data folder, { <name>: { recording, game, demo: { game,
+// division, swap, pairs }, lead, competition, what } }.
+let demosFile = '';
+const savedDemos = () => (demosFile ? hooks.readJson(demosFile) || {} : {});
+function save(name) {
+  const d = run && run.demo;
+  if (!d) return 'Only a demo game can be saved.';
+  const n = String(name || '').trim().slice(0, 60);
+  if (!n) return 'Give the demo a name.';
+  const pairs = {};
+  for (const k of ['home', 'away']) for (const r of d.sides[k].recorded) { const c = d.players.get(r.id); pairs[r.id] = c ? c.name : ''; }
+  const all = savedDemos();
+  all[n] = { recording: run.recording, game: run.game.id, lead: run.lead, competition: hooks.competition(),
+    what: `${d.home} v ${d.away}, playing ${run.game.home.name} v ${run.game.away.name}`,
+    demo: { game: d.game, division: d.gradeId, swap: d.swap, pairs } };
+  hooks.writeJson(demosFile, all);
+  log('info', 'practice', `Demo saved as ${n}`);
+  return null;
+}
+function forget(name) {
+  const all = savedDemos();
+  if (!all[name]) return `There's no demo ${name}.`;
+  delete all[name];
+  hooks.writeJson(demosFile, all);
+  return null;
+}
+const savedList = () => Object.entries(savedDemos()).map(([name, s]) => ({ name, what: s.what || '', recording: s.recording, competition: s.competition || '' }));
 
 // A recorded answer in the client's names: team names swapped by name, and athletes by their PlayHQ id.
 function wear(value, d) {
@@ -246,17 +305,24 @@ function wear(value, d) {
 // ─── Running one ────────────────────────────────────────────────────────────
 // lead: Start's minutes before the scheduled start (0 to 60, else 5). demo: { game, division, swap }, the client's
 // historic game and its division's PlayHQ id, for a demo game.
-async function start({ recording, game: gameId, from = 'start', lead, demo } = {}) {
+async function start(opts = {}) {
+  if (opts.saved) {
+    const s = savedDemos()[opts.saved];
+    if (!s) return `There's no demo ${opts.saved}.`;
+    if (s.competition && s.competition !== hooks.competition()) return `That demo is for another competition (${s.competition}). Switch to it on Competitions setup first.`;
+    opts = { recording: s.recording, game: s.game, lead: opts.lead ?? s.lead, demo: s.demo };
+  }
+  const { recording, game: gameId, from = 'start', lead, demo } = opts;
   if (run) stop();
   const loaded = load(recording, gameId, lead);
   if (demo) loaded.demo = await dress(loaded, demo);
   const jump = loaded.jumps.find(j => j.id === from) || loaded.jumps[0];
   const snap = hooks.snapshot();
   hooks.paused(true);
-  run = { ...loaded, snap, from: jump.at, startedAt: Date.now(), pausedAt: null };
+  run = { ...loaded, snap, lead, from: jump.at, startedAt: Date.now(), pausedAt: null };
   hooks.reset();
   pick();
-  log('info', 'practice', `${loaded.demo ? `Demo game ${loaded.demo.home} v ${loaded.demo.away} (${loaded.demo.athletes} athletes matched), playing` : 'Practice game'} ${loaded.game.home.name} v ${loaded.game.away.name} from ${recording}, at ${jump.label}`);
+  log('info', 'practice', `${loaded.demo ? `Demo game ${loaded.demo.home} v ${loaded.demo.away} (${matched(loaded.demo)} athletes matched), playing` : 'Practice game'} ${loaded.game.home.name} v ${loaded.game.away.name} from ${recording}, at ${jump.label}`);
   return null;
 }
 
@@ -300,16 +366,24 @@ function stop() {
 }
 
 function state() {
-  if (!run) return { active: false };
+  if (!run) return { active: false, saved: savedList() };
   const p = position();
   const d = run.demo;
   return { active: true, recording: run.recording, game: d ? { ...run.game, division: d.division || run.game.division, home: { name: d.home }, away: { name: d.away } } : run.game,
-    demo: d ? { recorded: { home: run.game.home.name, away: run.game.away.name }, swap: d.swap, athletes: d.athletes, game: d.game } : null,
+    demo: d ? { recorded: { home: run.game.home.name, away: run.game.away.name }, swap: d.swap, athletes: matched(d), game: d.game,
+      // The pairing table: each recorded athlete, who they are shown as, and who they could be.
+      sides: Object.fromEntries(['home', 'away'].map(k => [k, {
+        team: d.teams.get(run.game[k].name),
+        pairs: d.sides[k].recorded.map(r => ({ id: r.id, recorded: r.name, position: r.position, shown: (d.players.get(r.id) || {}).name || '' })),
+        choices: d.sides[k].client.map(c => ({ name: c.name, position: c.position || '' })),
+      }])) } : null,
+    saved: savedList(),
     paused: run.pausedAt !== null, position: p, recordedOn: run.started,
     jumps: run.jumps.map(({ id, label, at: t }) => ({ id, label, at: t })) };
 }
 
-// /api/practice: GET where it is (/api/practice/games: the demo game picker's choices); POST { start: { recording, game, from, lead, demo } } | { pause: true|false } | { jump, lead } | { stop: true }.
+// /api/practice: GET where it is and the saved demos (/api/practice/games: the demo game picker's choices); POST
+// { start: { recording, game, from, lead, demo } | { saved, lead } } | { pair: { id, name } } | { save: name } | { forget: name } | { pause: true|false } | { jump, lead } | { stop: true }.
 async function route(req, res, url, { send: reply, readBody }) {
   // The client's divisions, and a division's finished games (?division=<PlayHQ id>), to pick a demo game's.
   if (url.pathname === '/api/practice/games') {
@@ -323,9 +397,12 @@ async function route(req, res, url, { send: reply, readBody }) {
     let error = null;
     try {
       if (body.start) error = await start(body.start);
+      else if (body.forget !== undefined) error = forget(String(body.forget));
       else if (!run) error = 'No practice game is running.';
       else if (body.stop) error = stop();
       else if (typeof body.pause === 'boolean') error = pause(body.pause);
+      else if (body.pair) error = pair(String(body.pair.id || ''), String(body.pair.name || ''));
+      else if (body.save !== undefined) error = save(body.save);
       else if (body.jump) error = jump(String(body.jump), body.lead);
       else error = 'Send { start }, { pause }, { jump } or { stop }.';
     } catch (err) { error = err.message; }
