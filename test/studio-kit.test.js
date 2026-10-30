@@ -40,3 +40,17 @@ test('the kit itself is in studio.css, scoped so a page\'s own classes still win
     assert.ok(css.includes(`:where(body.fp) ${sel}`), `studio.css has :where(body.fp) ${sel}`);
   }
 });
+
+// Help text follows one pattern (review finding 7): a line under the control says what it does, and anything longer waits
+// behind Expand for info, on the Output page, the Production Planner and Socials alike.
+test('help text on the Output page, Production Planner and Socials folds behind Expand for info', () => {
+  for (const name of ['output', 'planner', 'socials']) {
+    const html = fs.readFileSync(path.join(PUBLIC, `${name}.html`), 'utf8');
+    assert.match(html, /<details class="info"><summary>Expand for info<\/summary><p class="note">/, `${name}.html folds its longer help`);
+    for (const m of html.matchAll(/<p class="help">([\s\S]*?)<\/p>/g)) {
+      const text = m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      assert.ok(text.length <= 260, `${name}.html: help text over a line or two belongs behind Expand for info: "${text.slice(0, 60)}…" (${text.length} chars)`);
+    }
+  }
+});
+
