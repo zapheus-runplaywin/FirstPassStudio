@@ -7,6 +7,10 @@
 // SDI (sound 'sdi', or 'both' to hear it on the Mac too), desktop/soundtap.js hears the window and the sound
 // goes out embedded, with the fill; 'mac' leaves it on the Mac's sound output only. Talks to the
 // Blackmagic Desktop Video driver; without it, or without the built module, devices() says why.
+//
+// It also reads the timecode coming into the device's SDI input, while a 4K replay follows it (the helper's
+// sditimecode.js asks with readInput): the timecode goes to the helper each time it changes, and every half second
+// besides, so the helper can tell playing from stopped.
 
 'use strict';
 
@@ -19,7 +23,7 @@ let addon = null;
 let loadError = '';
 try { addon = require(MODULE); } catch (err) { loadError = err.message; }
 
-module.exports = function decklink({ port, log, onStatus }) {
+module.exports = function decklink({ port, log, onStatus, onTimecode = () => {} }) {
   let win = null;
   let running = null; // { key, name, mode } while sending
   let error = '';
@@ -106,5 +110,37 @@ module.exports = function decklink({ port, log, onStatus }) {
   // The scene window sending now, for desktop/perf.js.
   const windows = () => win && running ? [{ output, contents: win.contents(), target: running.frameRate }] : [];
 
-  return { devices, show, stop, status, windows };
+  // ─── The SDI input's timecode ─────────────────────────────────────────────
+  // want: { device } (an id, or '' for the first device with an input) to read, or null to stop.
+  let inputTimer = null;
+  let reading = '';
+  function readInput(want) {
+    const stopReading = () => {
+      if (inputTimer) { clearInterval(inputTimer); inputTimer = null; }
+      if (reading && addon) { addon.inputStop(); log(`Stopped reading the timecode on ${reading}`); }
+      reading = '';
+    };
+    if (!want) { stopReading(); return; }
+    const send = (s, error = '') => onTimecode({ name: s.name || '', signal: !!s.signal, timecode: s.timecode || '', fps: s.fps || 0, at: Date.now(), error });
+    if (!addon) { send({}, "This copy of Studio was built without Blackmagic support."); return; }
+    const list = devices();
+    const device = list.ok && list.devices.find(d => (want.device ? d.id === want.device : d.input));
+    if (!device) { send({}, list.ok ? 'No Blackmagic device with an SDI input is connected.' : list.error); return; }
+    if (inputTimer && addon.inputStatus().device === device.id) return;
+    stopReading();
+    const r = addon.inputStart({ device: device.id });
+    if (!r.ok) { log(`Couldn't read the timecode on ${device.name}: ${r.error}`); send({ name: device.name }, r.error); return; }
+    reading = r.name;
+    log(`Reading the timecode coming into ${r.name}`);
+    // Checked every 10 ms, so a change of timecode reaches the helper within a fraction of a frame.
+    let last = '', sentAt = 0;
+    inputTimer = setInterval(() => {
+      const s = addon.inputStatus();
+      if (!s.running) return;
+      const now = Date.now();
+      if (s.timecode !== last || now - sentAt >= 500) { last = s.timecode; sentAt = now; send(s); }
+    }, 10);
+  }
+
+  return { devices, show, stop, status, windows, readInput };
 };

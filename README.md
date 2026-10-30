@@ -1019,6 +1019,12 @@ recording in `replay.json`; between answers it runs on by the time passed and th
 stop drive the replay (Studio's Play/Pause gets a 400), `{ seek: t }` sets the offset so the video's moment is `t`, and `{ nudge }`
 moves the offset.
 
+**Following the SDI input** (`sditimecode.js`, `{ follow: { kind: 'sdi' } }`): the Mac app reads the RP188 timecode coming into
+the first Blackmagic device with an input (`native/decklink` `inputStart`/`inputStatus`/`inputStop`, format detection on, the
+pictures not looked at; `desktop/decklink.js` `readInput`, asked by the helper's `readTimecode` message) and sends it to the
+helper (`sdiTimecode`) each time it changes and every half second. A timecode moving on by about a frame is playing, the same one
+is stopped, a jump is scrubbing; between changes it runs on. The helper asks again every 3 s while nothing comes.
+
 **Practice games** (`practice.js`): *Practise* beside a game on the Recordings tab plays it back as if live
 (`POST /api/practice` `{ start: { recording, game, from } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
 While it runs `playhq.js` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before

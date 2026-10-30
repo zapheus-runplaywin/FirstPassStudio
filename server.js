@@ -28,6 +28,7 @@ const recorder = require('./recorder');
 const practice = require('./practice');
 const replay = require('./replay');
 const hyperdeck = require('./hyperdeck');
+const sditimecode = require('./sditimecode');
 const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
@@ -782,10 +783,12 @@ function scoringState(fromLiveFeed, status) {
 
 const summaryCache = new Map();
 // 4K replays (replay.js): a recording's on-air layer on the pages again, its times moved to now.
-// A replay can follow a HyperDeck's timecode (hyperdeck.js); what it follows is this Mac's (replay.json, local).
+// A replay can follow a HyperDeck's timecode (hyperdeck.js) or the SDI input's (sditimecode.js, from the Mac app); what it
+// follows is this Mac's (replay.json, local).
 hyperdeck.init(log);
+sditimecode.init(log);
 replay.init(log, { read: name => recorder.read(name), shift: (v, ms) => practice.shift(v, ms), scene: st => scene.replay(st),
-  board: json => scene.replayBoard(json), paused: on => recorder.pause(on), timecode: hyperdeck, settings: datadir.local('replay.json') });
+  board: json => scene.replayBoard(json), paused: on => recorder.pause(on), timecodes: { hyperdeck, sdi: sditimecode }, settings: datadir.local('replay.json') });
 // Practice games (practice.js): a recording plays back as if live. It forgets what was read from PlayHQ when it
 // starts, moves and stops, so the recording's answers (and then PlayHQ's again) are read afresh.
 practice.init(log, {

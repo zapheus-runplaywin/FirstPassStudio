@@ -10,10 +10,16 @@
 //   audio(buffer)       -> true when taken: the next sound, 48 kHz stereo, 16-bit interleaved
 //   stop()
 //   status()            -> { running, device, completed, late, dropped, audio, gaps, skipped }
+//   inputStart({ device }) -> { ok, name } or { ok: false, error }: reads the device's SDI input for its timecode
+//   inputStatus()       -> { running, device, name, signal, timecode ('HH:MM:SS:FF', '' without one), fps, frames }
+//   inputStop()
 //
 // Playback is scheduled: the driver hands back each frame as it's shown and we fill it again with
 // the latest picture, so the output keeps running (repeating the last picture) however often the
 // scene changes. With the external keyer on, the card sends the picture as fill and its alpha as key.
+//
+// The input is read only for its timecode (RP188, for the 4K replay to follow a player, desktop/decklink.js): the
+// driver works out the incoming format by itself, and each frame's timecode is kept; the pictures aren't looked at.
 //
 // With audio on, the sound is embedded in the SDI (with fill and key, the fill carries it). Each piece
 // is scheduled on the device's own clock, as far behind what it's showing now as the pictures queued
@@ -28,6 +34,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
@@ -194,6 +201,78 @@ static void stopOutput() {
   o->Release();
 }
 
+// ---- The SDI input's timecode ----
+
+class Input : public IDeckLinkInputCallback {
+public:
+  std::string id, name;
+  IDeckLinkInput *in = nullptr;
+  std::mutex lock;
+  bool signal = false;
+  std::string timecode;
+  double fps = 0;
+  uint64_t frames = 0;
+
+  ~Input() { if (in) in->Release(); }
+
+  // The signal changed format (or the first one came): read it in its own format.
+  HRESULT STDMETHODCALLTYPE VideoInputFormatChanged(BMDVideoInputFormatChangedEvents, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags flags) override {
+    if (!mode) return S_OK;
+    BMDPixelFormat format = (flags & bmdDetectedVideoInputRGB444) ? bmdFormat10BitRGB : bmdFormat10BitYUV;
+    in->PauseStreams();
+    in->EnableVideoInput(mode->GetDisplayMode(), format, bmdVideoInputEnableFormatDetection);
+    in->FlushStreams();
+    in->StartStreams();
+    BMDTimeValue dur = 0; BMDTimeScale sc = 0;
+    mode->GetFrameRate(&dur, &sc);
+    std::lock_guard<std::mutex> hold(lock);
+    fps = dur ? (double)sc / dur : 0;
+    return S_OK;
+  }
+
+  HRESULT STDMETHODCALLTYPE VideoInputFrameArrived(IDeckLinkVideoInputFrame *frame, IDeckLinkAudioInputPacket *) override {
+    if (!frame) return S_OK;
+    std::string tc;
+    Ref<IDeckLinkTimecode> code;
+    if (frame->GetTimecode(bmdTimecodeRP188Any, code.out()) == S_OK && code) {
+      uint8_t h = 0, m = 0, s = 0, f = 0;
+      if (code->GetComponents(&h, &m, &s, &f) == S_OK) {
+        char buf[16];
+        snprintf(buf, sizeof buf, "%02u:%02u:%02u%c%02u", (unsigned)h, (unsigned)m, (unsigned)s, (code->GetFlags() & bmdTimecodeIsDropFrame) ? ';' : ':', (unsigned)f);
+        tc = buf;
+      }
+    }
+    std::lock_guard<std::mutex> hold(lock);
+    signal = !(frame->GetFlags() & bmdFrameHasNoInputSource);
+    timecode = signal ? tc : "";
+    frames++;
+    return S_OK;
+  }
+
+  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, LPVOID *ppv) override { *ppv = nullptr; return E_NOINTERFACE; }
+  ULONG STDMETHODCALLTYPE AddRef() override { return ++refs; }
+  ULONG STDMETHODCALLTYPE Release() override {
+    ULONG n = --refs;
+    if (n == 0) delete this;
+    return n;
+  }
+
+private:
+  std::atomic<ULONG> refs{1};
+};
+
+static Input *reading = nullptr;
+
+static void stopInput() {
+  if (!reading) return;
+  Input *i = reading;
+  reading = nullptr;
+  i->in->StopStreams();
+  i->in->SetCallback(nullptr);
+  i->in->DisableVideoInput();
+  i->Release();
+}
+
 // ---- Exported functions ----
 
 static napi_value Devices(napi_env env, napi_callback_info) {
@@ -225,6 +304,9 @@ static napi_value Devices(napi_env env, napi_callback_info) {
       attrs->GetFlag(BMDDeckLinkSupportsExternalKeying, &ext);
       attrs->GetFlag(BMDDeckLinkSupportsInternalKeying, &internal);
     }
+    int64_t io = 0;
+    if (attrs) attrs->GetInt(BMDDeckLinkVideoIOSupport, &io);
+    set(env, d, "input", boolean(env, (io & bmdDeviceSupportsCapture) != 0));
     set(env, d, "externalKeying", boolean(env, ext));
     set(env, d, "internalKeying", boolean(env, internal));
 
@@ -436,6 +518,76 @@ static napi_value Status(napi_env env, napi_callback_info) {
   return r;
 }
 
+static napi_value InputStart(napi_env env, napi_callback_info cb) {
+  size_t argc = 1; napi_value opts;
+  napi_get_cb_info(env, cb, &argc, &opts, nullptr, nullptr);
+  if (argc < 1) return failure(env, "inputStart() needs { device }");
+  std::string wanted = getString(env, opts, "device");
+
+  stopInput();
+
+  Ref<IDeckLinkIterator> it(CreateDeckLinkIteratorInstance());
+  if (!it) return failure(env, "Blackmagic Desktop Video isn't installed.");
+  Ref<IDeckLink> dl;
+  int index = 0;
+  bool found = false;
+  while (it->Next(dl.out()) == S_OK && dl) {
+    if (deviceId(dl.p, index++) == wanted) { found = true; break; }
+  }
+  if (!found) return failure(env, "That Blackmagic device isn't connected.");
+
+  Ref<IDeckLinkInput> in;
+  if (!query(dl.p, IID_IDeckLinkInput, in)) return failure(env, "That device has no input.");
+  Ref<IDeckLinkProfileAttributes> attrs;
+  bool detects = false;
+  if (query(dl.p, IID_IDeckLinkProfileAttributes, attrs)) attrs->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &detects);
+  if (!detects) return failure(env, "That device can't tell the format of what comes into it, so Studio can't read its timecode.");
+
+  Input *i = new Input();
+  i->id = wanted;
+  dlstring name = nullptr;
+  i->name = dl->GetDisplayName(&name) == S_OK ? toStd(name) : "DeckLink";
+  i->in = in.take();
+  // Any format to begin with: the driver says what the signal is, and VideoInputFormatChanged switches to it.
+  if (i->in->EnableVideoInput(bmdModeHD1080p25, bmdFormat10BitYUV, bmdVideoInputEnableFormatDetection) != S_OK) {
+    i->Release();
+    return failure(env, "Couldn't read the device's input. Is another app (such as Media Express) using it, or can it not read its input while it sends?");
+  }
+  i->in->SetCallback(i);
+  if (i->in->StartStreams() != S_OK) {
+    i->in->SetCallback(nullptr);
+    i->in->DisableVideoInput();
+    i->Release();
+    return failure(env, "Couldn't start reading the device's input.");
+  }
+  reading = i;
+  napi_value r = object(env);
+  set(env, r, "ok", boolean(env, true));
+  set(env, r, "name", str(env, i->name));
+  return r;
+}
+
+static napi_value InputStatus(napi_env env, napi_callback_info) {
+  napi_value r = object(env);
+  set(env, r, "running", boolean(env, reading != nullptr));
+  if (reading) {
+    std::lock_guard<std::mutex> hold(reading->lock);
+    set(env, r, "device", str(env, reading->id));
+    set(env, r, "name", str(env, reading->name));
+    set(env, r, "signal", boolean(env, reading->signal));
+    set(env, r, "timecode", str(env, reading->timecode));
+    set(env, r, "fps", num(env, reading->fps));
+    set(env, r, "frames", num(env, (double)reading->frames));
+  }
+  return r;
+}
+
+static napi_value InputStop(napi_env env, napi_callback_info) {
+  stopInput();
+  napi_value u; napi_get_undefined(env, &u);
+  return u;
+}
+
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor props[] = {
     { "devices", nullptr, Devices, nullptr, nullptr, nullptr, napi_default, nullptr },
@@ -444,10 +596,13 @@ static napi_value Init(napi_env env, napi_value exports) {
     { "frame", nullptr, Frame, nullptr, nullptr, nullptr, napi_default, nullptr },
     { "stop", nullptr, Stop, nullptr, nullptr, nullptr, napi_default, nullptr },
     { "status", nullptr, Status, nullptr, nullptr, nullptr, napi_default, nullptr },
+    { "inputStart", nullptr, InputStart, nullptr, nullptr, nullptr, napi_default, nullptr },
+    { "inputStatus", nullptr, InputStatus, nullptr, nullptr, nullptr, napi_default, nullptr },
+    { "inputStop", nullptr, InputStop, nullptr, nullptr, nullptr, napi_default, nullptr },
   };
   napi_define_properties(env, exports, sizeof props / sizeof props[0], props);
-  // Stop the output if the process exits with it running.
-  napi_add_env_cleanup_hook(env, [](void *) { stopOutput(); }, nullptr);
+  // Stop the output and the input if the process exits with them running.
+  napi_add_env_cleanup_hook(env, [](void *) { stopOutput(); stopInput(); }, nullptr);
   return exports;
 }
 

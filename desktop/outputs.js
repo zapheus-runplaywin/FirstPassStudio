@@ -19,7 +19,8 @@ module.exports = function outputs({ port, log }) {
   let quitting = false; // quitting closes the windows, which mustn't turn the output off for next time
   app.on('before-quit', () => { quitting = true; });
   let helper = null;
-  const decklink = require('./decklink')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }) });
+  const decklink = require('./decklink')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }),
+    onTimecode: t => helper?.postMessage({ type: 'sdiTimecode', ...t }) });
   const ndi = require('./ndi')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'ndiStatus', status, output }) });
   // How hard each output is working (desktop/perf.js), while any output is showing.
   const perf = require('./perf')({
@@ -107,6 +108,7 @@ module.exports = function outputs({ port, log }) {
     for (const o of open.values()) o.win.destroy();
     open.clear();
     decklink.stop();
+    decklink.readInput(null);
     ndi.stop();
   }
 
@@ -129,6 +131,7 @@ module.exports = function outputs({ port, log }) {
         if (msg?.type === 'ready') { sendDisplays(); sendDecklink(); sendNdi(); } // the helper is listening now
         if (msg?.type === 'scan') { sendDecklink(); sendNdi(); }
         if (msg?.type === 'outputs') show(msg.windows || []);
+        if (msg?.type === 'readTimecode') decklink.readInput(msg.device === null || msg.device === undefined ? null : { device: String(msg.device) }); // a 4K replay following the SDI input
       });
     },
     // Studio off air: the outputs go dark.

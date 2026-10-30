@@ -174,7 +174,53 @@ test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync
   s = await studio.post('/api/replay', { follow: { kind: 'none' } });
   assert.equal(s.follow.kind, 'none');
   assert.equal((await studio.request('POST', '/api/replay', { pause: false })).status, 200);
+  // The SDI input's timecode is read by the Mac app: the helper on its own says so.
+  s = await studio.post('/api/replay', { follow: { kind: 'sdi' } });
+  assert.equal(s.follow.kind, 'sdi');
+  assert.equal(s.follow.sdi.error, 'Only in the Mac app.');
+  assert.equal((await studio.request('POST', '/api/replay', { seek: at })).status, 400);
   await studio.post('/api/replay', { follow: { kind: 'hyperdeck' } });
   await studio.post('/api/replay', { stop: true });
   assert.equal((await studio.request('POST', '/api/replay', { follow: { kind: 'hyperdeck', address: 'not an address!' } })).status, 400);
+});
+
+// Following the SDI input's timecode (sditimecode.js): the Mac app sends what comes into the UltraStudio.
+test("the SDI input's timecode is followed: moving on a frame at a time is playing, the same one is stopped", async () => {
+  const sdi = require('../sditimecode');
+  const { EventEmitter } = require('node:events');
+  const port = new EventEmitter();
+  const asked = [];
+  port.postMessage = m => asked.push(m);
+  sdi.init(() => {}, { port });
+  const say = m => port.emit('message', { data: { type: 'sdiTimecode', name: 'UltraStudio 4K Mini', signal: true, fps: 50, ...m } });
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  sdi.follow({ device: '' });
+  assert.deepEqual(asked[0], { type: 'readTimecode', device: '' });
+  assert.equal(sdi.state().conn, 'connecting');
+  say({ timecode: '19:30:00:00' });
+  assert.equal(sdi.now().playing, false, 'one timecode is stopped');
+  assert.equal(sdi.now().ms, ((19 * 60 + 30) * 60) * 1000);
+  // A frame on each 40 ms (50p counts frame pairs: 25 a second), so it's playing, and runs on between frames.
+  for (let f = 1; f <= 3; f++) { await wait(40); say({ timecode: `19:30:00:0${f}` }); }
+  let n = sdi.now();
+  assert.equal(n.playing, true);
+  await wait(20);
+  assert.ok(sdi.now().ms > n.ms, 'it runs on between frames');
+  assert.equal(sdi.state().status, 'play');
+  // The same timecode again and again: stopped there.
+  for (let i = 0; i < 4; i++) { await wait(40); say({ timecode: '19:30:00:03' }); }
+  n = sdi.now();
+  assert.equal(n.playing, false);
+  assert.equal(n.ms, ((19 * 60 + 30) * 60) * 1000 + 120);
+  // A jump (scrubbing) isn't playing.
+  say({ timecode: '19:31:00:00' });
+  assert.equal(sdi.now().playing, false);
+  // No signal: nothing to follow, and it says why.
+  say({ signal: false, timecode: '' });
+  assert.equal(sdi.now(), null);
+  assert.equal(sdi.state().error, 'no signal');
+  sdi.follow(null);
+  assert.deepEqual(asked.at(-1), { type: 'readTimecode', device: null });
+  assert.equal(sdi.state().conn, 'off');
 });

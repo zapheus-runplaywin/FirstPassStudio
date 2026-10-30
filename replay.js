@@ -15,15 +15,16 @@
 // on air (a source coming on, a quarter starting), which pauses there: pause the video on the same moment, then
 // Play both.
 //
-// Or the replay follows a HyperDeck playing the video (Follow, hyperdeck.js): its timecode, as a time of day, is the
-// moment of the night to show, so playing, pausing and scrubbing the HyperDeck drive the graphics and they never
-// drift. The two clocks (the HyperDeck's timecode and this Mac's) can differ, so the offset between them is kept for
+// Or the replay follows the timecode of the player with the video (Follow): a HyperDeck over the network
+// (hyperdeck.js), or whatever sends SDI into the UltraStudio (sditimecode.js). The timecode, as a time of day, is the
+// moment of the night to show, so playing, pausing and scrubbing the player drive the graphics and they never
+// drift. The two clocks (the player's timecode and this Mac's) can differ, so the offset between them is kept for
 // each recording: the nudge moves it, and Jump there sets it (the video is at that moment now). Saved in replay.json
-// in the local data folder: { follow: 'none' | 'hyperdeck', hyperdeck (its address), offsets: { recording: ms } }.
+// in the local data folder: { follow: 'none' | 'hyperdeck' | 'sdi', hyperdeck (its address), offsets: { recording: ms } }.
 //
 // hooks (init): read(recording), shift(value, ms), scene(state or null) and board(json or null) put the replay on the
-// pages (null: live again), paused(on) pause the night's recording, timecode (hyperdeck.js: follow, now, state),
-// settings (replay.json's path).
+// pages (null: live again), paused(on) pause the night's recording, timecodes ({ hyperdeck, sdi }: hyperdeck.js and
+// sditimecode.js, each with follow, now, state), settings (replay.json's path).
 
 'use strict';
 
@@ -34,7 +35,7 @@ const fs = require('fs');
 const savefile = require('./savefile');
 
 let log = () => {};
-let hooks = { read: () => [], shift: v => v, scene() {}, board() {}, paused() {}, timecode: null, settings: '' };
+let hooks = { read: () => [], shift: v => v, scene() {}, board() {}, paused() {}, timecodes: {}, settings: '' };
 let run = null;
 let timer = null;
 let saved = { follow: 'none', hyperdeck: '', offsets: {} };
@@ -44,7 +45,7 @@ function init(logger, h = {}) {
   hooks = { ...hooks, ...h };
   try {
     const s = JSON.parse(fs.readFileSync(hooks.settings, 'utf8'));
-    saved = { follow: s.follow === 'hyperdeck' ? 'hyperdeck' : 'none', hyperdeck: String(s.hyperdeck || '').slice(0, 100), offsets: {} };
+    saved = { follow: ['hyperdeck', 'sdi'].includes(s.follow) ? s.follow : 'none', hyperdeck: String(s.hyperdeck || '').slice(0, 100), offsets: {} };
     for (const [k, v] of Object.entries(s.offsets || {})) if (Number.isFinite(v)) saved.offsets[k] = v;
   } catch { /* none saved yet */ }
 }
@@ -101,7 +102,9 @@ function load(recording, gameId) {
 }
 
 // ─── Following a HyperDeck ─────────────────────────────────────────────────
-const following = () => !!(run && saved.follow === 'hyperdeck' && hooks.timecode);
+// The timecode followed (hyperdeck.js or sditimecode.js), or null.
+const source = () => (saved.follow !== 'none' && hooks.timecodes[saved.follow]) || null;
+const following = () => !!(run && source());
 const offset = () => saved.offsets[run.recording] || 0;
 
 // The moment of the night a timecode (ms of the day) is: on the day of the game, or the day before or after it, for
@@ -120,7 +123,7 @@ function nightOf(ms) {
 // Moves the replay to where the HyperDeck is. While it plays, the replay plays too, and only moves again if the two
 // have slipped apart by more than two frames (the HyperDeck answers to the frame, a few times a second).
 function followTimecode() {
-  const n = hooks.timecode.now();
+  const n = source().now();
   if (!n) return; // not answering: the replay stays where it is
   const t = nightOf(n.ms);
   if (n.playing) {
@@ -131,22 +134,24 @@ function followTimecode() {
   }
 }
 
+// Only the one followed is connected, and only while a replay runs.
 function connectFollow() {
-  if (!hooks.timecode) return;
-  const to = run && saved.follow === 'hyperdeck' ? hooks.timecode.parseAddress(saved.hyperdeck) : null;
-  hooks.timecode.follow(to);
+  const { hyperdeck, sdi } = hooks.timecodes;
+  if (hyperdeck) hyperdeck.follow(run && saved.follow === 'hyperdeck' ? hyperdeck.parseAddress(saved.hyperdeck) : null);
+  if (sdi) sdi.follow(run && saved.follow === 'sdi' ? { device: '' } : null);
 }
 
-// { kind: 'none' | 'hyperdeck', address }: what the replay follows, kept for next time.
+// { kind: 'none' | 'hyperdeck' | 'sdi', address }: what the replay follows, kept for next time.
 function setFollow(f) {
   if (!f || typeof f !== 'object') return 'Send { follow: { kind, address } }.';
   if (f.kind === 'hyperdeck') {
     const address = f.address !== undefined ? String(f.address).trim() : saved.hyperdeck;
-    if (!hooks.timecode || !hooks.timecode.parseAddress(address)) return "Type the HyperDeck's IP address (as on its setup page), such as 192.168.1.50.";
+    if (!hooks.timecodes.hyperdeck || !hooks.timecodes.hyperdeck.parseAddress(address)) return "Type the HyperDeck's IP address (as on its setup page), such as 192.168.1.50.";
     saved.follow = 'hyperdeck';
     saved.hyperdeck = address;
-  } else if (f.kind === 'none') saved.follow = 'none';
-  else return 'Follow a HyperDeck (kind: hyperdeck) or nothing (kind: none).';
+  } else if (f.kind === 'sdi' && hooks.timecodes.sdi) saved.follow = 'sdi';
+  else if (f.kind === 'none') saved.follow = 'none';
+  else return 'Follow a HyperDeck (kind: hyperdeck), the SDI input (kind: sdi) or nothing (kind: none).';
   save();
   connectFollow();
   if (run) { run.sentBoard = -2; tick(); }
@@ -181,7 +186,7 @@ function start({ recording, game, at } = {}) {
 }
 
 function pause(on) {
-  if (following()) return "The HyperDeck's play and stop drive the replay while it follows it. Set Follow to None to play it here.";
+  if (following()) return "The player's play and stop drive the replay while it follows its timecode. Set Follow to Nothing to play it here.";
   if (on && run.pausedAt === null) run.pausedAt = position();
   if (!on && run.pausedAt !== null) { run.from = run.pausedAt; run.startedAt = Date.now(); run.pausedAt = null; }
   run.sentBoard = -2; // the clock's times move with the pause
@@ -204,8 +209,8 @@ function seek(t) {
   if (!Number.isFinite(n)) return 'Jump to a time in the recording.';
   if (following()) {
     // The video is at this moment now: the offset that makes it so.
-    const tc = hooks.timecode.now();
-    if (!tc) return "The HyperDeck isn't answering yet, so the replay can't be synced to it.";
+    const tc = source().now();
+    if (!tc) return saved.follow === 'sdi' ? 'No timecode is coming into the SDI input yet, so the replay can\'t be synced to it.' : "The HyperDeck isn't answering yet, so the replay can't be synced to it.";
     saved.offsets[run.recording] = offset() + Math.max(run.first, Math.min(run.last, n)) - nightOf(tc.ms);
     save();
     run.sentBoard = -2;
@@ -245,7 +250,7 @@ function answer(pathAndQuery) {
 
 function followState() {
   const f = { kind: saved.follow, address: saved.hyperdeck };
-  if (run && f.kind === 'hyperdeck' && hooks.timecode) Object.assign(f, { hyperdeck: hooks.timecode.state(), offset: offset() });
+  if (run && source()) Object.assign(f, { [f.kind]: source().state(), offset: offset() });
   return f;
 }
 
@@ -256,7 +261,7 @@ function state() {
 }
 
 // /api/replay: GET where it is; POST { start: { recording, game, at } } | { pause } | { nudge: ms } | { seek: t } | { stop }
-// | { follow: { kind: 'none' | 'hyperdeck', address } }.
+// | { follow: { kind: 'none' | 'hyperdeck' | 'sdi', address } }.
 async function route(req, res, url, { send: reply, readBody }) {
   if (url.pathname !== '/api/replay') return false;
   if (req.method === 'POST') {
