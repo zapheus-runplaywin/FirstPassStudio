@@ -359,6 +359,7 @@
 
 <script src="colourpicker.js"></script>
 <script src="asktext.js"></script>
+<script src="unsaved.js"></script>
 <script>
 (function () {
   const $ = id => document.getElementById(id);
@@ -388,19 +389,16 @@
   function note(id, text, cls) { $(id).textContent = text; $(id).className = 'note' + (cls ? ' ' + cls : ''); }
   function markDirty() { dirty = true; note('saveNote', 'Not saved yet.'); }
 
-  // Before anything that would lose unsaved changes: asks to save them, discard them or stay put.
+  // Before anything that would lose unsaved changes: asks to save them, discard them or stay put
+  // (unsaved.js, which also asks before a tab, the Mac app's Go menu, closing or reloading).
   // Resolves to false to stay put, else to 'saved', 'discarded' or true (nothing to save).
-  async function settle() {
-    if (!dirty) return true;
-    const choice = await askChoice(`Save your changes to ${form.name || 'this competition'}?`, "If you don't save them, they're lost.",
-      [{ label: 'Cancel', value: 'cancel', alt: true }, { label: "Don't save", value: 'discard', alt: true }, { label: 'Save', value: 'save' }]);
-    if (choice === 'discard') { dirty = false; return 'discarded'; }
-    if (choice !== 'save') return false;
-    try { await save(true); return 'saved'; }
-    catch (err) { note('saveNote', `Couldn't save: ${err.message}`, 'error'); return false; }
-  }
-  // The Mac app asks this before its Go menu, Back and Forward load another page.
-  window.studioBeforeLeave = async () => !!await settle();
+  const guard = unsavedPage({
+    what: () => form?.name || 'this competition',
+    changed: () => dirty,
+    save: async () => { try { await save(true); return true; } catch (err) { note('saveNote', `Couldn't save: ${err.message}`, 'error'); return false; } },
+    discard: () => { dirty = false; },
+  });
+  const settle = () => guard.settle();
   // After discarding changes but staying on this competition: show what's saved again.
   async function reopen() { const id = editing; editing = null; if (id) await open(id); }
 
@@ -986,7 +984,7 @@
     try {
       if (dirty) {
         const choice = await askChoice('Save your changes first?', 'The template file is made from the saved settings.',
-          [{ label: 'Cancel', value: 'cancel', alt: true }, { label: 'Save', value: 'save' }]);
+          [{ label: 'Keep editing', value: 'cancel', alt: true }, { label: 'Save', value: 'save' }]);
         if (choice !== 'save') return;
         await save(true);
       }
@@ -1011,19 +1009,6 @@
       note('saveNote', d.active ? `Imported ${d.settings.name}. It's in use now.` : `Imported ${d.settings.name}. Check its settings, then Save and use it.`, 'ok');
     } catch (err) { note('saveNote', `Couldn't import it: ${err.message}`, 'error'); }
   };
-  // Following a link to another page in this window (the tabs at the top) asks first too.
-  document.addEventListener('click', async e => {
-    const a = e.target.closest && e.target.closest('a[href]');
-    if (!dirty || !a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    if ((a.target && a.target !== '_self') || a.hasAttribute('download')) return;
-    const to = new URL(a.href, location.href);
-    if (to.origin === location.origin && to.pathname === location.pathname && to.search === location.search && to.hash) return;
-    e.preventDefault();
-    if (await settle()) location.href = to.href;
-  });
-  // Anything else (closing the window, reloading): the browser's own "Leave page?" question; the
-  // Mac app asks Leave or Stay itself (desktop/windows.js), as Electron would cancel it silently.
-  addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
   loadList().catch(err => note('saveNote', `Couldn't load the competitions: ${err.message}`, 'error'));
 })();

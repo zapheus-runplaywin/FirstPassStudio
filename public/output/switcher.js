@@ -339,6 +339,7 @@ function editSceneSwitcher(sc) {
   $('swSceneTitle').textContent = `Switcher when ${sc.name} is picked`;
   drawSceneSwitcher();
   $('swSceneDialog').showModal();
+  swSceneGuard.opened();
 }
 function drawSceneSwitcher() {
   const box = $('swSceneActs');
@@ -349,3 +350,8 @@ $('swSceneSave').onclick = async () => {
   if (await act({ type: 'sceneUpdate', scene: swScene.id, changes: { switcher: swScene.list } })) $('swSceneDialog').close();
 };
 $('swSceneCancel').onclick = () => $('swSceneDialog').close();
+const swSceneGuard = unsavedDialog($('swSceneDialog'), {
+  what: () => $('swSceneTitle').textContent.replace(/^Switcher when /, '').replace(/ is picked$/, '') + "'s switcher actions",
+  snapshot: () => swScene && swScene.list,
+  save: async () => { await $('swSceneSave').onclick(); return !$('swSceneDialog').open; },
+});
