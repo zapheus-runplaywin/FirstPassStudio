@@ -24,6 +24,7 @@ test('a Results polaroid names the round under the score', async t => {
   await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
   await page.goto(`${studio.base}/social.html?kind=polaroid&date=${date}&game=${g.id}`);
   await page.waitForFunction(() => window.socialReady !== undefined);
+  await page.evaluate(() => window.socialReady); // drawn, not just started
   const lines = await page.$$eval('.polaroid__caption > *', els => els.map(e => ({ text: e.textContent, fits: e.scrollWidth <= e.parentElement.clientWidth })));
   assert.match(lines[0].text, /win|Draw/);
   assert.ok(lines[1].text.includes(g.division) && lines[1].text.includes(g.round), `"${lines[1].text}" names ${g.division} and ${g.round}`);
