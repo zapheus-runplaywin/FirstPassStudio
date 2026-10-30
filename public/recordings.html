@@ -83,7 +83,7 @@
       <button id="replayJump">Jump there</button></div>
     <div class="row"><label for="followKind">Follow</label>
       <select id="followKind" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px">
-        <option value="none">Nothing (Play here)</option><option value="hyperdeck">A HyperDeck's timecode</option></select>
+        <option value="none">Nothing (Play here)</option><option value="hyperdeck">A HyperDeck's timecode</option><option value="sdi">Timecode into the UltraStudio (SDI)</option></select>
       <input id="followAddress" placeholder="HyperDeck IP address" maxlength="100" hidden style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;width:12em">
       <button id="followSet" hidden>Follow</button>
       <span class="help" id="followStatus" style="margin:0"></span></div>
@@ -92,7 +92,8 @@
       moment, then press Play on both together and nudge until they match. While it runs the live scene and scoreboard are kept as they were and can't be changed.</p>
     <p class="help">With the video on a HyperDeck, Follow its timecode instead: the HyperDeck's play, stop and scrubbing drive the graphics, so they
       never drift. Type its IP address (on its setup page, or in HyperDeck Setup). To sync once, stop the HyperDeck on a moment you can see, pick the same
-      moment above and press Jump there; the nudge moves the graphics against the video. The sync is kept for each recording.</p>
+      moment above and press Jump there; the nudge moves the graphics against the video. The sync is kept for each recording.
+      Or send the player's SDI into the UltraStudio's SDI input (the HyperDeck's monitor output is enough) and follow the timecode it carries. HDMI carries no timecode.</p>
   </section>
 
   <section id="savedDemos" hidden>
@@ -249,28 +250,30 @@ async function replayCall(body) {
     showReplay(s);
   } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
 }
-// Follow: nothing, or a HyperDeck's timecode (its address typed, as the ATEM's can be).
+// Follow: nothing, a HyperDeck's timecode (its address typed, as the ATEM's can be), or the SDI input's.
 let followShown = '';
 function showFollow(f) {
-  const hd = f.kind === 'hyperdeck';
+  const hd = f.kind === 'hyperdeck' || f.kind === 'sdi';
   // The choice and address only change here when they changed in Studio, so typing isn't overwritten.
   const key = `${f.kind}|${f.address}`;
   if (key !== followShown) { followShown = key; $('followKind').value = f.kind || 'none'; $('followAddress').value = f.address || ''; }
   const picked = $('followKind').value === 'hyperdeck';
   $('followAddress').hidden = $('followSet').hidden = !picked;
   $('replayPlay').disabled = hd;
-  $('replayPlay').title = hd ? "The HyperDeck's play and stop drive the replay" : '';
-  const h = f.hyperdeck;
+  $('replayPlay').title = hd ? "The player's play and stop drive the replay" : '';
+  const h = f[f.kind];
+  const who = f.kind === 'sdi' ? 'the SDI input' : 'the HyperDeck';
   const offset = Math.round((f.offset || 0) / 100) / 10;
   $('followStatus').textContent = !hd || !h ? ''
-    : h.conn === 'connected' ? `${h.model || 'HyperDeck'}: ${h.status === 'play' ? 'playing' : h.status || 'stopped'} at ${h.tc || '--:--:--:--'}${offset ? `, graphics ${offset > 0 ? '+' : ''}${offset} s` : ''}`
-    : h.conn === 'lost' ? `The HyperDeck stopped answering${h.error ? ` (${h.error})` : ''}. Trying again.`
-    : `Connecting to the HyperDeck${h.error ? ` (${h.error})` : ''}…`;
+    : h.conn === 'connected' ? `${h.model || (f.kind === 'sdi' ? 'SDI input' : 'HyperDeck')}: ${h.error ? h.error : `${h.status === 'play' ? 'playing' : h.status || 'stopped'} at ${h.tc || '--:--:--:--'}`}${offset ? `, graphics ${offset > 0 ? '+' : ''}${offset} s` : ''}`
+    : h.conn === 'error' ? `Can't read ${who}: ${h.error}`
+    : h.conn === 'lost' ? `Nothing from ${who}${h.error ? ` (${h.error})` : ''}. Trying again.`
+    : `Connecting to ${who}${h.error ? ` (${h.error})` : ''}…`;
 }
 $('followKind').onchange = () => {
   const hd = $('followKind').value === 'hyperdeck';
   $('followAddress').hidden = $('followSet').hidden = !hd;
-  if (!hd) replayCall({ follow: { kind: 'none' } });
+  if (!hd) replayCall({ follow: { kind: $('followKind').value } });
   else if ($('followAddress').value.trim()) replayCall({ follow: { kind: 'hyperdeck', address: $('followAddress').value } });
   else $('followAddress').focus();
 };

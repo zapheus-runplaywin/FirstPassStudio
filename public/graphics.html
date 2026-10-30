@@ -509,6 +509,11 @@
       network (its control protocol, port 9993) and never plays, stops or records anything on it. If the HyperDeck's clock and this Mac's differed on the
       night, sync once: stop the HyperDeck on a moment you can see, pick the same moment in the list and press <b>Jump there</b>. <b>Nudge</b> then moves the
       graphics against the video. The sync is kept for each recording. The recording needs time-of-day timecode (the HyperDeck's timecode set to Time of day, or timecode from the switcher).</p>
+    <p class="page__help"><b>Following the SDI input:</b> any player can drive the replay through the UltraStudio instead. Send its SDI into the
+      UltraStudio's SDI input (a HyperDeck's monitor or SDI output is enough; the 4K picture can go to the switcher as usual) and set <b>Follow</b> to
+      <i>Timecode into the UltraStudio (SDI)</i>. Studio reads the timecode that comes with each frame (only the timecode, not the picture) and follows it
+      the same way: playing, stopped and scrubbing, with <b>Jump there</b> and <b>Nudge</b> to sync. HDMI carries no timecode, so the HDMI input can't be
+      used. If the UltraStudio can't read its input while it sends the graphics, Studio says so beside Follow. Only in the Mac app.</p>
     <p class="page__help"><b>Practice games:</b> <b>Practise</b> beside a game on the Recordings tab plays it back as if it were live. Studio asks PlayHQ nothing;
       the recording answers instead, with the night's dates and times moved to now, so the game starts a few minutes from now: as many as <b>A practice game starts in</b> says (5 to begin with, 0 to 60). Everything runs as on a real night:
       the scoreboard follows the score, clock and quarter, sequences and game triggers fire, and the outputs can be on. <b>Jump to</b> Start, each quarter or Full time,
@@ -605,7 +610,7 @@
         <code style="display:inline">x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
-      <li><b>recordings.json</b>, <b>demos.json</b> (saved demo games), <b>replay.json</b> (the HyperDeck a 4K replay follows, and each recording's sync) and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
+      <li><b>recordings.json</b>, <b>demos.json</b> (saved demo games), <b>replay.json</b> (what a 4K replay follows, and each recording's sync) and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <h3>Keeping the settings in iCloud Drive</h3>
