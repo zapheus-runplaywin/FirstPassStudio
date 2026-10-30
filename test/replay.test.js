@@ -7,6 +7,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const { startStudio } = require('./support/studio');
+const { localZone } = require('./support/playhq');
+
+// Studio runs in the stand-in PlayHQ's time zone: the test reads timecode as a time of day in the same one.
+process.env.TZ = localZone().tz;
 
 test('a replay puts the recorded night on the pages, leaves the live setup alone and stops cleanly', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });
@@ -70,4 +74,107 @@ test('a replay puts the recorded night on the pages, leaves the live setup alone
   st = await studio.get('/api/scene');
   assert.deepEqual(st.sources.map(x => x.id), live.sources.map(x => x.id));
   assert.equal((await studio.request('POST', '/api/scoreboard', { type: 'score', side: 'home', delta: 1 })).status, 200);
+});
+
+// Following a HyperDeck (hyperdeck.js): its protocol's answers, and its timecode as the moment of the night.
+const net = require('node:net');
+const hyperdeck = require('../hyperdeck');
+
+test("a HyperDeck's answers and timecode are read", () => {
+  const { blocks, rest } = hyperdeck.parseBlocks('500 connection info:\r\nprotocol version: 1.12\r\nmodel: HyperDeck Studio 4K Pro\r\n\r\n200 ok\r\n208 transport info:\r\nstatus: play\r\nspeed: 100\r\n');
+  assert.deepEqual(blocks.map(b => b.code), [500, 200]);
+  assert.equal(blocks[0].fields.model, 'HyperDeck Studio 4K Pro');
+  assert.match(rest, /^208 transport info:/, 'a block not yet ended waits for the rest');
+  assert.equal(hyperdeck.fpsOf('1080p25'), 25);
+  assert.equal(hyperdeck.fpsOf('4Kp50'), 25);
+  assert.equal(hyperdeck.fpsOf('1080i5994'), 30);
+  assert.equal(hyperdeck.fpsOf('1080p2997'), 30);
+  assert.equal(hyperdeck.tcMs('19:42:10:12', 25), ((19 * 60 + 42) * 60 + 10) * 1000 + 480);
+  assert.equal(hyperdeck.tcMs('nonsense'), null);
+  assert.deepEqual(hyperdeck.parseAddress('192.168.1.50'), { address: '192.168.1.50', port: 9993 });
+  assert.equal(hyperdeck.parseAddress('not an address!'), null);
+});
+
+// A stand-in HyperDeck: answers transport info with whatever deck says.
+function fakeHyperDeck(t) {
+  const deck = { status: 'stopped', tc: '00:00:00:00', heard: [] };
+  const sockets = new Set();
+  const server = net.createServer(s => {
+    sockets.add(s);
+    s.on('close', () => sockets.delete(s));
+    s.on('error', () => {});
+    s.write('500 connection info:\r\nprotocol version: 1.12\r\nmodel: HyperDeck Studio HD Plus\r\n\r\n');
+    s.on('data', d => {
+      for (const line of String(d).split('\r\n').filter(Boolean)) {
+        deck.heard.push(line);
+        if (line === 'transport info') s.write(`208 transport info:\r\nstatus: ${deck.status}\r\nspeed: ${deck.status === 'play' ? 100 : 0}\r\ndisplay timecode: ${deck.tc}\r\ntimecode: ${deck.tc}\r\nvideo format: 1080p25\r\n\r\n`);
+        else s.write('200 ok\r\n');
+      }
+    });
+  });
+  t.after(() => { for (const s of sockets) s.destroy(); server.close(); });
+  return new Promise(r => server.listen(0, '127.0.0.1', () => r({ deck, port: server.address().port })));
+}
+const two = n => String(n).padStart(2, '0');
+const tcOf = t => { const d = new Date(t); return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}:${two(Math.floor(d.getMilliseconds() / 40))}`; };
+
+test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync it", async t => {
+  const { deck, port } = await fakeHyperDeck(t);
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  // A night two days ago, at a time of day well away from midnight.
+  const day = new Date(Date.now() - 2 * 86400000);
+  day.setHours(19, 0, 0, 0);
+  const T0 = day.getTime();
+  const scene = on => ({ sources: [{ id: 'sb', name: 'Scoreboard', url: 'scoreboard.html', visible: on }], scenes: [], current: null });
+  const lines = [
+    { t: T0, k: 'start' },
+    { t: T0 + 1000, k: 'game', id: 'g1', home: 'Red', away: 'Blue' },
+    { t: T0 + 2000, k: 'scene', scene: scene(false) },
+    { t: T0 + 60000, k: 'scene', scene: scene(true) },
+    { t: T0 + 600000, k: 'end' },
+  ];
+  const name = `${new Date(T0).toISOString().slice(0, 10)} 1900.jsonl.gz`;
+  fs.writeFileSync(path.join(studio.dataDir, 'Recordings', name), zlib.gzipSync(lines.map(l => JSON.stringify(l)).join('\n') + '\n'));
+
+  // The video stopped 30 s in: the replay goes there.
+  deck.tc = tcOf(T0 + 30000);
+  await studio.post('/api/replay', { start: { recording: name, game: 'g1' } });
+  let s = await studio.post('/api/replay', { follow: { kind: 'hyperdeck', address: `127.0.0.1:${port}` } });
+  assert.equal(s.follow.kind, 'hyperdeck');
+  s = await studio.until(async () => { const r = await studio.get('/api/replay'); return r.follow.hyperdeck.conn === 'connected' && Math.abs(r.position - (T0 + 30000)) < 50 && r; });
+  assert.equal(s.paused, true);
+  assert.ok(deck.heard.includes('notify: transport: true'));
+  assert.ok(deck.heard.every(l => l === 'transport info' || l.startsWith('notify:')), 'Studio only asks, never controls the HyperDeck');
+  // Studio's own Play is the HyperDeck's while it follows.
+  assert.equal((await studio.request('POST', '/api/replay', { pause: false })).status, 400);
+
+  // Played on the HyperDeck, the replay plays from there.
+  deck.status = 'play';
+  s = await studio.until(async () => { const r = await studio.get('/api/replay'); return !r.paused && r; });
+  assert.ok(s.position > T0 + 29000);
+
+  // Stopped on the scoreboard coming on, but the HyperDeck's clock is 5 s behind: Jump there syncs it.
+  deck.status = 'stopped';
+  deck.tc = tcOf(T0 + 55000);
+  const at = s.events.find(e => e.label === 'Scoreboard on').t;
+  await studio.until(async () => { const r = await studio.get('/api/replay'); return r.paused && Math.abs(r.position - (T0 + 55000)) < 50; });
+  s = await studio.post('/api/replay', { seek: at });
+  assert.ok(Math.abs(s.follow.offset - 5000) < 50, `offset ${s.follow.offset}`);
+  s = await studio.until(async () => { const r = await studio.get('/api/replay'); return Math.abs(r.position - at) < 50 && r; });
+  assert.equal((await studio.get('/api/scene')).sources[0].visible, true);
+  // The nudge moves the graphics against the video, and the sync is kept for the recording.
+  s = await studio.post('/api/replay', { nudge: 40 });
+  assert.ok(Math.abs(s.follow.offset - 5040) < 50);
+  const kept = JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'replay.json'), 'utf8'));
+  assert.equal(kept.follow, 'hyperdeck');
+  assert.equal(kept.hyperdeck, `127.0.0.1:${port}`);
+  assert.ok(Math.abs(kept.offsets[name] - 5040) < 50);
+
+  // Follow nothing: Play is Studio's again. Stop lets go of the HyperDeck.
+  s = await studio.post('/api/replay', { follow: { kind: 'none' } });
+  assert.equal(s.follow.kind, 'none');
+  assert.equal((await studio.request('POST', '/api/replay', { pause: false })).status, 200);
+  await studio.post('/api/replay', { follow: { kind: 'hyperdeck' } });
+  await studio.post('/api/replay', { stop: true });
+  assert.equal((await studio.request('POST', '/api/replay', { follow: { kind: 'hyperdeck', address: 'not an address!' } })).status, 400);
 });

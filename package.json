@@ -70,6 +70,7 @@
       "recorder.js",
       "practice.js",
       "replay.js",
+      "hyperdeck.js",
       "switcher.js",
       "datadir.js",
       "savefile.js",

@@ -503,6 +503,12 @@
       press <b>Play</b> on both together; <b>Nudge</b> moves the graphics a frame (40 ms) or a second either way. While it runs the live scene and scoreboard are
       kept as they were and can't be changed (the outputs can), nothing counts for the sponsors and the night isn't recorded, and a red strip on every
       Studio page says so, with Stop. Stop puts the live graphics back.</p>
+    <p class="page__help"><b>Following a HyperDeck:</b> with the 4K video on a HyperDeck, set <b>Follow</b> to <i>A HyperDeck's timecode</i> and type its IP
+      address (on its setup page). The replay then goes where the HyperDeck's timecode says, as a time of day on the night: play, stop and scrub the
+      HyperDeck and the graphics go with it, so they never drift, and Studio's own Play is the HyperDeck's. Studio only reads its timecode over the
+      network (its control protocol, port 9993) and never plays, stops or records anything on it. If the HyperDeck's clock and this Mac's differed on the
+      night, sync once: stop the HyperDeck on a moment you can see, pick the same moment in the list and press <b>Jump there</b>. <b>Nudge</b> then moves the
+      graphics against the video. The sync is kept for each recording. The recording needs time-of-day timecode (the HyperDeck's timecode set to Time of day, or timecode from the switcher).</p>
     <p class="page__help"><b>Practice games:</b> <b>Practise</b> beside a game on the Recordings tab plays it back as if it were live. Studio asks PlayHQ nothing;
       the recording answers instead, with the night's dates and times moved to now, so the game starts a few minutes from now: as many as <b>A practice game starts in</b> says (5 to begin with, 0 to 60). Everything runs as on a real night:
       the scoreboard follows the score, clock and quarter, sequences and game triggers fire, and the outputs can be on. <b>Jump to</b> Start, each quarter or Full time,
@@ -599,7 +605,7 @@
         <code style="display:inline">x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
-      <li><b>recordings.json</b>, <b>demos.json</b> (saved demo games) and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
+      <li><b>recordings.json</b>, <b>demos.json</b> (saved demo games), <b>replay.json</b> (the HyperDeck a 4K replay follows, and each recording's sync) and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <h3>Keeping the settings in iCloud Drive</h3>
@@ -679,6 +685,7 @@
       <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
       <li>Stream Deck plugin's keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen (and one more while a Switcher key is), and Studio only sends when the scene or the switcher changes.</li>
       <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds, a few megabytes a night. A practice game asks PlayHQ nothing at all: the recording answers.</li>
+      <li>4K replay following a HyperDeck: nothing over the internet. While a replay follows it, Studio keeps one connection to the HyperDeck on your local network and asks where it is four times a second, a few hundred bytes each time.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
