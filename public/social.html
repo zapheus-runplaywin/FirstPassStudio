@@ -184,15 +184,17 @@
   .stat.main { background: var(--pink); }
   .stat.main small { color: var(--text); }
   .story .shooter { padding: 22px 24px; }
-  /* Tournament top shooters: the move since the night before under the rank, and a row that climbed (or is new) lit. */
-  .shooter__rank { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-  .move { margin-top: 4px; font-size: 20px; font-weight: 800; letter-spacing: .04em; border-radius: 6px; padding: 3px 6px; }
+  /* Tournament top shooters: the move since the round before beside the rank, big enough to read on a phone, and a row
+     that climbed (or is new) outlined. */
+  .shooter__rank { display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1; }
+  .move { min-width: 58px; text-align: center; font-size: 28px; font-weight: 800; letter-spacing: .02em; border-radius: 8px; padding: 5px 6px; }
   .move--up { background: #1f9d55; color: #fff; }
   .move--down { background: #b23a48; color: #fff; }
   .move--new { background: var(--yellow); color: var(--purple-deep); }
   .move--same { color: var(--muted); }
   .k-tournament .shooter { grid-template-columns: 64px 76px minmax(0, 1fr) auto; }
-  .k-tournament .shooter--climbed:not(:first-of-type) { box-shadow: 0 0 0 3px #1f9d55 inset; }
+  .k-tournament .movers .shooter { grid-template-columns: 124px 76px minmax(0, 1fr) auto; }
+  .k-tournament .shooter--climbed:not(:first-of-type) { box-shadow: 0 0 0 5px #1f9d55 inset; }
   .k-tournament .stat { min-width: 84px; }
 
   /* Commentary team: a headshot (or initials) per commentator of one game, their name, and the game once underneath. */
@@ -252,7 +254,7 @@
               PlayHQ has it now)  topshooters (&division=<name>, that division's, else the
               night's, from each finished game's line ups)  tournament (&division=<name>: its top shooters over every
               finished game so far, &after=HH:MM counting only this night's games starting by then, &movers=0|1 the
-              places each moved since the night before; else as on the tab)  polaroid&game=<id> (the
+              places each moved since the round before; else as on the tab)  polaroid&game=<id> (the
               game's score under the photo)
        size:  square (1080 x 1080)  portrait (1080 x 1350)  story (1080 x 1920)
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
@@ -665,15 +667,18 @@
     }
 
     // A division's top shooters over the whole tournament or season so far (?division=; Tournament or Season top shooters,
-    // d.running), after this night's round, or as at a time that night (?after=HH:MM). With movers on, each shows the places they climbed or fell since the night before.
+    // d.running), after this night's latest round, or after a round earlier that night (?after=HH:MM, its games' start).
+    // With movers on, each shows the places they climbed or fell since the round before.
     function drawTournament(d) {
       const t = d.tournament || { players: [] };
-      const asAt = t.after ? `as at ${clock(t.after)} ${dayShort(d.date)}` : t.round ? `after ${t.round}` : `after ${dayShort(d.date)}`;
+      // After the latest round counted; with no round, after the games picked (they're finished, so "after", not "as at").
+      const asAt = t.round ? `after ${t.round}` : t.after ? `after the ${clock(t.after)} games  ·  ${dayShort(d.date)}` : `after ${dayShort(d.date)}`;
       head(d, `${d.running || 'Season'} top shooters`, [t.division || '', el('small', '', asAt)]);
       if (!t.division) return `Pick a division: there is a ${d.running || 'Season'} top shooters picture for each one on the Socials tab.`;
       if (!t.gamesFinished) return `No results in ${t.division} yet: the top shooters show once games are finished.`;
       if (!t.players.length) return t.error ? `Couldn't read the games' line ups from PlayHQ: ${t.error}` : `No shooting recorded in ${t.division} yet.`;
       const movers = flag('movers', d.settings.movers) && t.compared;
+      $('fit').classList.toggle('movers', movers);
       for (const [i, p] of t.players.entries()) {
         const row = $('fit').appendChild(el('div', 'shooter'));
         const rank = el('div', 'shooter__rank');

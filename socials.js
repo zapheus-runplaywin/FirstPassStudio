@@ -22,7 +22,7 @@
 //                                        the night's top shooters (each with their photo when approved; &division= one
 //                                        division's, as on the Socials tab's Top shooters picture per division); &with=tournament&division=
 //                                        that division's running totals over every finished game up to this night (&after=HH:MM: only
-//                                        its games starting by then), with each one's move since the night before; &home= &away= &athlete= the
+//                                        its games starting by then), with each one's move since the round before; &home= &away= &athlete= the
 //                                        athletes picked for a picture (picked, with their approved photo); running: what the running
 //                                        top shooters are called (Tournament or Season)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
@@ -270,27 +270,31 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // A division's top shooters so far: every finished game of the division up to and including this night (after: only
-  // this night's games starting by then), most points first (goals where there are no super shots). Each has their
-  // move since the night before (moved: places up, or down when below 0; fresh: new to the top), and round: the round
-  // they're "after" (this night's, when every game it counts is finished).
+  // this night's games starting by then), most points first (goals where there are no super shots). round: the latest
+  // round counted, which they're "after". Each has their move since the round before it (moved: places up, or down when
+  // below 0; fresh: new to the top), so a carnival day with several rounds compares round by round; games with no round
+  // compare with the day before.
   async function tournament(dates, date, division, after) {
-    const mine = d => (dates[d] || []).filter(g => g.division === division && isFinished(g));
+    const mine = d => (dates[d] || []).filter(g => g.division === division && isFinished(g)).sort((x, y) => slotOf(x).localeCompare(slotOf(y)));
     const before = Object.keys(dates).sort().filter(d => d < date);
     const tonight = mine(date).filter(g => !after || slotOf(g) <= after);
     const earlier = before.flatMap(mine);
-    const rounds = [...new Set((dates[date] || []).filter(g => g.division === division).map(g => g.round).filter(Boolean))];
-    const out = { division, after, round: rounds.length === 1 ? rounds[0] : '', players: [], gamesRead: 0, gamesFinished: earlier.length + tonight.length,
+    const counted = [...earlier, ...tonight];
+    const last = counted[counted.length - 1];
+    const round = (last && last.round) || '';
+    const prior = round ? counted.filter(g => g.round !== round) : earlier;
+    const out = { division, after, round, players: [], gamesRead: 0, gamesFinished: counted.length,
       superShots: !!superShots(division), compared: false };
     if (!division || !out.gamesFinished) return out;
     const order = list => [...list].sort((a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name));
     const key = p => `${p.name.toLowerCase()}|${p.team.toLowerCase()}`;
-    const now = await tallyShooters([...earlier, ...tonight]);
+    const now = await tallyShooters(counted);
     out.gamesRead = now.read;
     if (!now.read && now.failed) out.error = now.lastError;
-    // Where each stood after the nights before; none when tonight is the division's first, or added nothing.
+    // Where each stood after the round before; none when this is the division's first.
     let was = null;
-    if (earlier.length && tonight.length) {
-      const then = await tallyShooters(earlier);
+    if (prior.length && prior.length < counted.length) {
+      const then = await tallyShooters(prior);
       if (then.read) { was = new Map(order(then.players).map((p, i) => [key(p), i + 1])); out.compared = true; }
     }
     out.players = order(now.players).slice(0, TOURNAMENT_SHOWN).map((p, i) => {

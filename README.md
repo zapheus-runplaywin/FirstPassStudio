@@ -948,8 +948,8 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   with the finals line), each division's top six shooters that night (one picture per division, `&division=`, from each finished
   game's line ups, read once and kept), each division's *Tournament top shooters* (*Season top shooters* when the fixture runs 15 days or more, or as set under
   Game day in Competitions setup, `runningShooters`; its top eight over every finished game so
-  far, after this night's round or as at a time that night, `&after=HH:MM`, with each one's places up or down since the night
-  before when *Highlight movers* is ticked, `&movers=0|1`, kept in `socials.json`) and a polaroid per game with its score as the caption (and the opponent, division, round and date under it). A game shows once PlayHQ has its final score.
+  far, after this night's latest round or an earlier round that night (*As at*, `&after=HH:MM`, its games' start), with each
+  one's places up or down since the round before (the day before for games with no round) when *Highlight movers* is ticked, `&movers=0|1`, kept in `socials.json`) and a polaroid per game with its score as the caption (and the opponent, division, round and date under it). A game shows once PlayHQ has its final score.
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
   (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.
