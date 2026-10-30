@@ -855,8 +855,9 @@ function ffmpegPath() {
 const webmFor = f => path.basename(f, path.extname(f)) + '.webm';
 
 // How long each video is, in seconds, from ffmpeg (null until it's been measured). A sequence's
-// Until it finishes step waits that long at most, and the Output page shows it.
-const durations = new Map(); // file -> { mtimeMs, sec } (sec null while measuring or if ffmpeg couldn't tell)
+// Until it finishes step waits that long at most, and the Output page shows it. The same reading gives a video's
+// picture size, for the Output page's list of what looks soft in 4K (videoSizes).
+const durations = new Map(); // file -> { mtimeMs, sec, width, height } (sec null while measuring or if ffmpeg couldn't tell)
 function duration(name) {
   const file = path.join(MEDIA_DIR, cleanFile(name));
   let mtimeMs;
@@ -873,7 +874,9 @@ function duration(name) {
   child.on('close', () => {
     const m = /Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/.exec(out);
     if (!m) return;
-    durations.set(name, { mtimeMs, sec: Math.round((Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])) * 10) / 10 });
+    const v = /Stream #[^\n]*Video: [^\n]*?(\d{2,5})x(\d{2,5})/.exec(out);
+    durations.set(name, { mtimeMs, sec: Math.round((Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])) * 10) / 10,
+      ...(v ? { width: Number(v[1]), height: Number(v[2]) } : {}) });
     notify();
   });
   return null;
@@ -1364,4 +1367,14 @@ function game(snapshot) {
   if (music.superShotPeriod(snapshot)) notify();
 }
 
-module.exports = { stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };
+// The media folder's images, as files: [{ name, file }].
+const imageFiles = () => mediaList().filter(m => m.kind === 'image').map(m => ({ name: m.name, file: path.join(MEDIA_DIR, m.name) }));
+
+// The media folder's videos and their picture sizes, once ffmpeg has read them: [{ name, width, height }]. A .mov
+// that has been converted is left out (its WebM is the one that plays).
+function videoSizes() {
+  return mediaList().filter(m => m.kind === 'video' && !m.converted).map(m => ({ name: m.name, ...durations.get(m.name) }))
+    .filter(v => v.width && v.height).map(({ name, width, height }) => ({ name, width, height }));
+}
+
+module.exports = { videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };

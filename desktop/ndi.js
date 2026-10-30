@@ -101,7 +101,7 @@ module.exports = function ndi({ port, log, onStatus }) {
     senders.delete(output);
   }
 
-  // list: [{ signal, name, format: { id, width, height, rateN, rateD }, color, safe, output }] from outputs.js,
+  // list: [{ signal, name, format: { id, width, height, rateN, rateD }, color, safe, density, output }] from outputs.js,
   // one for each output sending NDI (an empty list stops them all).
   function show(list) {
     const wanted = new Map(list.map(w => [w.output || 'main', w]));
@@ -110,7 +110,7 @@ module.exports = function ndi({ port, log, onStatus }) {
   }
 
   function start(output, w) {
-    const key = JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '', !!w.safe]);
+    const key = JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '', !!w.safe, w.density || 1]);
     if (senders.get(output)?.key === key) return;
     stop(output);
     const x = { key, win: null, running: null, error: '', watch: null, late: 0 };
@@ -132,7 +132,7 @@ module.exports = function ndi({ port, log, onStatus }) {
     log(`NDI output on: ${sources.map(s => s.name).join(', ')} (${w.format.id}, ${width} x ${height})`);
 
     x.win = sceneWindow({
-      port, width, height, frameRate: rateN / rateD, log, label: `NDI output ${w.name}`, chromaKey: !!w.safe, output,
+      port, width, height, frameRate: rateN / rateD, log, label: `NDI output ${w.name}`, chromaKey: !!w.safe, output, density: w.density || 1,
       onFrame: (bitmap, bw, bh) => addon.frame(r.id, bitmap, bw, bh),
     });
 

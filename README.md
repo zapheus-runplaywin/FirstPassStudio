@@ -474,6 +474,13 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   against a stand-in runtime that is slow to compress. Sound
   plays through the Mac's audio output, not over NDI. Output on/off and `/deck/output/on|off|toggle` work the same.
   NDI® is a registered trademark of Vizrt NDI AB.
+- **Picture, HD or 4K (Mac app):** the HD and 4K buttons at the top of Video output set the picture for every output. In 4K each
+  NDI and Blackmagic output sends the 2160p version of the format picked for it, at the same rate (2160p50 for 1080p50), with
+  everything else unchanged (scenes, sources, NDI names, links, the switcher key); HD is exactly as before. The graphics keep their
+  1920 x 1080 layout and are drawn at twice the density (`desktop/scenewindow.js`), and the canvases are sized for it (`public/zoom.js`).
+  A Blackmagic device without that 2160p format, or a 720p NDI format, stays as it is and says so; displays are left alone.
+  In 4K a Blackmagic output can also have one of the device's own 2160p formats picked; HD hides them and sends the 1080p one at its rate.
+  Any graphic's link opened at 3840 x 2160 draws itself at twice the size too (`public/zoom.js`), with nothing added to the link.
 
 The scene is saved as `scene.json` in the data folder. http://localhost:8080/scene.html is the scene on its own, 1920 x 1080.
 
@@ -943,9 +950,8 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
 - **Sponsors and logos:** each picture has a sponsor strip tick (naming, elite and major sponsors), and two ticks under Options put
   the FirstPass Studio mark (bottom right) and the PIVT logo (bottom left) on every picture; all are kept in
   `competitions/<name>/socials.json`.
-- **Template:** a template set for every picture: *Default* (the stream's own look), *Fun*, *Dynamic*, *Junior*, *Retro*,
-  *Futuristic*, *Professional*, *Thunder*, *Geometric*, *Gradient*, *Striped*, *High contrast*, *3D* (real perspective),
-  *Neon*, *Poster*, *Splash*, *Game Day*, *Arena*, *Hero*, *Final*, and three netball sets: *Court* (the court's lines,
+- **Template:** a template set for every picture: *Default* (the stream's own look), *Dynamic*, *Junior*, *Retro*,
+  *Professional*, *Thunder*, *Gradient*, *High contrast*, *Neon*, *Poster*, *Splash*, *Game Day*, *Hero*, *Final*, and three netball sets: *Court* (the court's lines,
   thirds and circles), *Bib* (a bib with its position letters) and *Goal* (the ring, net and post, and a netball). Hero and Final stand a picked athlete's photo (best as a
   cut-out PNG from the Athletes tab) tall, in front of the title; Final sets the title's last word in a script face (`script`, `--sfont`).
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
@@ -954,6 +960,9 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   The title stays on one line beside the competition logo (`fitTitle` in `social.html` shrinks it up to 30% before it
   may wrap; Poster's stacked portrait and Story titles are left alone), and the date line under it likewise; a long
   date line puts its court and venue on a second line. A template keeps its decoration clear with `--title-clear`.
+  `fit()` grows what's in the middle into spare room as well as shrinking it: laid out narrower and scaled back up to
+  the full width (up to 1.35 times, 1.6 on a Story) while no words rewrap or spill, then rows spread apart (`--spread`).
+  A Story's frame keeps 200px clear at the top and bottom for Instagram's own bar and reply box.
 - **Athletes' photos:** only athletes who approved their photo's use (Athletes tab). Top shooters shows each shooter's
   photo, matched by PlayHQ id then name, with the team logo as a badge. A Match up or Full time card picks an athlete for each side
   (division, team, then name; `&home=` `&away=`), drawn over the team's logo, and a polaroid can use an athlete's photo

@@ -18,8 +18,10 @@ const SCENE_READY = `new Promise(done => !document.getElementById('stage') ? don
 // returns false when the output didn't take it.
 // chromaKey: draw the scene chroma key safe (public/chroma.js), for NDI's chroma signal.
 // output: the output's id when it isn't the primary (scene.html draws that output's sources, with their sound).
-module.exports = function sceneWindow({ port, width, height, frameRate, log, label, onFrame, chromaKey = false, output = '' }) {
-  // The window is the format's full size at one pixel per point, so the scene is drawn 1:1 with no
+// density: 2 for a 2160p (4K) output: the window is 1920 x 1080 points at twice the density, so the pages keep
+// their 1920 x 1080 layout and draw text, shapes and canvases (sized by devicePixelRatio) with every pixel of 3840 x 2160.
+module.exports = function sceneWindow({ port, width, height, frameRate, log, label, onFrame, chromaKey = false, output = '', density = 1 }) {
+  // At 1080p the window is the format's full size at one pixel per point, so the scene is drawn 1:1 with no
   // scaling anywhere. (Drawn at half size at twice the density, it came out soft on the Mac, as if
   // drawn at half size and scaled up.) enableLargerThanScreen lets it be bigger than the
   // Mac's screen; if macOS still makes it smaller, fall back to half size at twice the density.
@@ -32,9 +34,10 @@ module.exports = function sceneWindow({ port, width, height, frameRate, log, lab
       autoplayPolicy: 'no-user-gesture-required',
     },
   });
-  let win = make(1);
+  let win = make(density === 2 ? 2 : 1);
   const [cw, ch] = win.getContentSize();
-  if (cw < width || ch < height) {
+  if (density === 2) log(`${label}: the scene window is ${cw} x ${ch} at twice the density, for ${width} x ${height}`);
+  else if (cw < width || ch < height) {
     log(`${label}: the scene window could only be ${cw} x ${ch}, so drawing it at half size at twice the density`);
     win.destroy();
     win = make(2);

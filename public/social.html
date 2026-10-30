@@ -26,6 +26,11 @@
   .ground::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 14px; background: var(--pink); }
 
   .frame { position: absolute; inset: 0; padding: 64px 64px 0; display: flex; flex-direction: column; }
+  /* A Story keeps its words and marks out of the top and bottom, where Instagram draws its own bar, name and reply box;
+     only the ground runs to the edges. */
+  .story .frame { padding-top: 200px; padding-bottom: 200px; }
+  .story .title { font-size: 100px; }
+  .story .head__logo { width: 210px; height: 210px; }
   .head { display: flex; align-items: center; gap: 28px; }
   .head__logo { width: 180px; height: 180px; object-fit: contain; flex: none; filter: drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
   .head__text { min-width: 0; }
@@ -54,19 +59,19 @@
   .message { font-size: 34px; font-weight: 700; background: var(--purple-deep); padding: 28px 32px; border-radius: 14px; text-align: center; }
 
   /* Game night fixture: the night's games by time, every court. */
-  .slot + .slot { margin-top: 26px; }
+  .slot + .slot { margin-top: calc(26px + 2 * var(--spread, 0px)); }
   .slot__time { display: inline-block; font-size: 30px; font-weight: 800; color: var(--purple-dark); background: var(--yellow);
     border-radius: 8px; padding: 4px 16px; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
   .game { display: grid; grid-template-columns: var(--logo) minmax(0, 1fr) 50px minmax(0, 1fr) var(--logo); align-items: center; gap: 16px;
     background: var(--purple-deep); border-radius: 14px; padding: 14px 20px; border-left: 8px solid var(--pink); }
-  .game + .game { margin-top: 10px; }
+  .game + .game { margin-top: calc(10px + var(--spread, 0px)); }
   .game .logo { width: var(--logo); height: var(--logo); }
   body { --logo: 76px; }
   /* A Story has the height for bigger rows. */
   body.story { --logo: 100px; }
   .story .game { padding: 20px 24px; }
   .story .game__team { font-size: calc(38px * var(--nf, 1)); }
-  .story .slot + .slot { margin-top: 40px; }
+  .story .slot + .slot { margin-top: calc(40px + 2 * var(--spread, 0px)); }
   .game .logo-fallback { font-size: 24px; border-width: 3px; }
   .game__team { font-size: calc(32px * var(--nf, 1)); font-weight: 800; text-transform: uppercase; line-height: 1.05; min-width: 0; overflow-wrap: anywhere; }
   .game__team.away { text-align: right; }
@@ -90,7 +95,7 @@
   .live::before { content: ''; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
   .call { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 22px; align-items: center; background: var(--purple-deep);
     border-radius: 14px; padding: 18px 24px; }
-  .call + .call { margin-top: 12px; }
+  .call + .call { margin-top: calc(12px + 2 * var(--spread, 0px)); }
   .call__time { grid-row: span 2; min-width: 150px; font-size: 40px; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
   /* The logos either side of the names, which wrap between words (never mid-word) when long. */
   .call__teams { --cl: 100px; display: grid; grid-template-columns: var(--cl) minmax(0, 1fr) auto minmax(0, 1fr) var(--cl); align-items: center; gap: 14px;
@@ -120,12 +125,12 @@
     background: rgba(var(--yellow-rgb), .75); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 
   /* Results: the night's final scores, division by division; the winner in the highlight colour. */
-  .group + .group { margin-top: 26px; }
+  .group + .group { margin-top: calc(26px + 2 * var(--spread, 0px)); }
   .group__name { display: inline-block; font-size: 26px; font-weight: 800; color: var(--purple-dark); background: var(--yellow);
     border-radius: 8px; padding: 4px 16px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .06em; }
   .result { display: grid; grid-template-columns: var(--logo) minmax(0, 1fr) 84px 84px minmax(0, 1fr) var(--logo); align-items: center; gap: 14px;
     background: var(--purple-deep); border-radius: 14px; padding: 14px 20px; border-left: 8px solid var(--pink); }
-  .result + .result { margin-top: 10px; }
+  .result + .result { margin-top: calc(10px + var(--spread, 0px)); }
   .result .logo { width: var(--logo); height: var(--logo); }
   .result .logo-fallback { font-size: 24px; border-width: 3px; }
   .story .result { padding: 20px 24px; }
@@ -146,7 +151,7 @@
     font-size: 40px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 
   /* Ladder: a division's standings; a line under the finals places. */
-  .ladder { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ladder { width: 100%; border-collapse: separate; border-spacing: 0 calc(8px + var(--spread, 0px)); font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .ladder th { font-size: 20px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 0 10px; }
   .ladder td { background: var(--purple-deep); padding: 12px 10px; text-align: center; }
   .ladder td:first-child { border-radius: 12px 0 0 12px; color: var(--yellow); width: 70px; }
@@ -157,7 +162,7 @@
   .ladder .logo-fallback { font-size: 18px; border-width: 3px; }
   .ladder td.pct { color: var(--muted); font-size: 26px; }
   .ladder tr.cut td { border-bottom: 4px dashed var(--pink); }
-  .story .ladder { font-size: 36px; border-spacing: 0 12px; }
+  .story .ladder { font-size: 36px; border-spacing: 0 calc(12px + var(--spread, 0px)); }
   .story .ladder td { padding: 18px 10px; }
   .key { margin-top: 10px; font-size: 20px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
   .key i { display: inline-block; width: 40px; border-top: 4px dashed var(--pink); vertical-align: middle; margin-right: 10px; }
@@ -165,7 +170,7 @@
   /* Top shooters: the night's best, from each finished game's line ups. */
   .shooter { display: grid; grid-template-columns: 60px 76px minmax(0, 1fr) auto; gap: 18px; align-items: center; background: var(--purple-deep);
     border-radius: 14px; padding: 14px 22px; }
-  .shooter + .shooter { margin-top: 10px; }
+  .shooter + .shooter { margin-top: calc(10px + var(--spread, 0px)); }
   .shooter:first-of-type { background: var(--purple); box-shadow: 0 0 0 4px var(--yellow) inset; }
   .shooter__rank { font-size: 44px; font-weight: 800; color: var(--yellow); text-align: center; }
   .shooter .logo { width: 76px; height: 76px; }
@@ -233,8 +238,8 @@
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
                 ?colours=<colour set> (competition, accent-first, highlight-ground, accent-ground, night, day,
                 two-colours or one made on the tab; else the one picked there)
-                ?template=<template set> (default, fun, dynamic, junior, retro, futuristic, professional, thunder,
-                geometric, gradient, striped, highcontrast, 3d, neon, poster or splash; else the one picked there)
+                ?template=<template set> (default, dynamic, junior, retro, professional, thunder, gradient,
+                highcontrast, neon, poster, splash, gameday, hero, final, court, bib or goal; else the one picked there)
                 ?mark=0|1 (the FirstPass Studio mark, bottom right; else as on the tab)  ?pivt=0|1 (the PIVT logo, bottom left)  ?title= (the heading)
                 Match up, full time: &home=<athlete> &away=<athlete> (their photo over the team's logo, when they approved its use)
                 Top shooters: each shooter's photo, when they approved its use
@@ -290,15 +295,45 @@
     const dayLong = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
     const dayShort = d => { const x = new Date(`${d}T00:00:00`); return `${x.toLocaleDateString('en-AU', { weekday: 'short' })} ${x.getDate()} ${x.toLocaleDateString('en-AU', { month: 'short' })}`; };
 
-    // Shrinks what's in the middle to fit between the heading and the foot, never grows it.
+    // Fits what's in the middle between the heading and the foot: shrinks it when it's too big, and when there's room
+    // to spare, lays it out narrower and scales it back up to the full width, as far as the height allows (up to 1.35
+    // times, 1.6 on a Story), then spreads its rows apart, so a short ladder or two games fill the picture instead of
+    // floating in it.
     function fit() {
       const box = $('body'), inner = $('fit');
-      inner.style.scale = '';
+      inner.style.scale = ''; inner.style.width = ''; inner.style.alignSelf = ''; inner.style.removeProperty('--spread');
       // The body's own padding is 36 + 60; a template that pads it more (to clear its decoration) gets less room.
       const cs = getComputedStyle(box), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) - 96;
       const room = { w: box.clientWidth, h: box.clientHeight - 72 - pad }, need = { w: inner.scrollWidth, h: inner.scrollHeight };
       const s = Math.min(1, room.w / need.w, room.h / need.h);
-      if (s < 1) inner.style.scale = String(Math.floor(s * 1000) / 1000);
+      if (s < 1) { inner.style.scale = String(Math.floor(s * 1000) / 1000); return; }
+      // How tall it comes out at g times, laid out at the width that g brings back to full; no good if anything is too
+      // wide for it, or any words wrap onto more lines than at full width (a name broken up, a row taller).
+      const all = [...inner.querySelectorAll('*')];
+      const words = all.filter(e => !e.children.length && e.textContent.trim());
+      const lines = words.map(e => e.offsetHeight);
+      const spill = e => e.clientWidth ? e.scrollWidth - e.clientWidth : 0; // a name running out of its cell, say
+      const spills = all.map(spill);
+      const tall = g => {
+        inner.style.width = `${room.w / g}px`;
+        if (inner.scrollWidth > room.w / g + 1 || words.some((e, i) => e.offsetHeight > lines[i] * 1.2 + 2)
+          || all.some((e, i) => spill(e) > spills[i] + 1)) return Infinity;
+        return inner.scrollHeight * g;
+      };
+      let lo = 1, hi = size === 'story' ? 1.6 : 1.35;
+      if (tall(hi) <= room.h) lo = hi;
+      else for (let i = 0; i < 8; i++) { const g = (lo + hi) / 2; if (tall(g) <= room.h) lo = g; else hi = g; }
+      if (lo >= 1.03) {
+        inner.style.width = `${room.w / lo}px`;
+        inner.style.alignSelf = 'center';
+        inner.style.scale = String(Math.floor(lo * 1000) / 1000);
+      } else { inner.style.width = ''; lo = 1; }
+      // Height still to spare (a Story, mostly): the rows and groups spread apart into it, up to 36px more between rows.
+      let a = 0, b = 36;
+      const fits = x => { inner.style.setProperty('--spread', `${x}px`); return inner.scrollHeight * lo <= room.h; };
+      if (fits(b)) a = b;
+      else for (let i = 0; i < 6; i++) { const x = (a + b) / 2; if (fits(x)) a = x; else b = x; }
+      inner.style.setProperty('--spread', `${Math.floor(a)}px`);
     }
 
     function head(d, title, when, tab) {
@@ -307,7 +342,7 @@
       // A word a span, so a template can set one apart (Final puts the last word in its script face).
       const words = String(params.get('title') || title).split(/\s+/).filter(Boolean);
       $('title').replaceChildren(...words.flatMap((w, i) => [...(i ? [' '] : []), el('span', 'w', w)]));
-      $('title').dataset.text = $('title').textContent; // for a template that echoes the title (Arena's outlines)
+      $('title').dataset.text = $('title').textContent; // for a template that echoes the title (Final's faint echo)
       $('when').replaceChildren(...when);
       if (d.competitionLogo) { $('compLogo').src = d.competitionLogo; $('compLogo').hidden = false; }
     }
@@ -318,7 +353,7 @@
       const t = $('title'), head = $('head'), logo = $('compLogo');
       if (document.body.classList.contains('t-poster') && size !== 'square') return;
       const gap = parseFloat(getComputedStyle(head).columnGap) || 0;
-      // --title-clear: the room a template keeps free at the right for its decoration (Poster's bar, Geometric's circle).
+      // --title-clear: the room a template keeps free at the right for its decoration (Poster's bar).
       const clear = parseFloat(getComputedStyle(head).getPropertyValue('--title-clear')) || 0;
       const room = head.clientWidth - (logo.hidden ? 0 : logo.getBoundingClientRect().width + gap) - 8 - clear;
       fitWhen(room);

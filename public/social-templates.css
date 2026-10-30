@@ -1,5 +1,5 @@
 /* FirstPass Studio - the Socials template sets: other looks for social.html's pictures. Default is social.html's own
-   look; each set here is a class on <body> (t-fun, t-dynamic ...) that restyles the same picture: its ground and
+   look; each set here is a class on <body> (t-dynamic, t-junior ...) that restyles the same picture: its ground and
    decoration (.ground and its ::before / ::after, so a polaroid's see-through window cuts through them too), the
    panels, the title and the display face (--dfont, from public/vendor/fonts, fonts.js TEMPLATE_FONTS). Colours stay
    the colour set's (theme.css's variables, or the set's own from socials.js): --purple ground, --purple-dark deep
@@ -9,30 +9,9 @@
 /* Every template: the points stay on the highlight (the ladder's last column) and the accent (a shooter's points),
    whatever a template does to the cells around them. --nf scales the team and player names for a face that runs
    wider or narrower than most. */
-:is(.t-fun, .t-dynamic, .t-futuristic, .t-professional, .t-thunder, .t-geometric, .t-striped, .t-highcontrast, .t-3d, .t-neon, .t-gameday, .t-arena, .t-court, .t-bib, .t-goal) .ladder td:last-child { background: var(--yellow); color: var(--text-on-yellow); }
-:is(.t-fun, .t-dynamic, .t-junior, .t-retro, .t-futuristic, .t-professional, .t-thunder, .t-geometric, .t-gradient, .t-striped, .t-3d, .t-neon, .t-court, .t-bib, .t-goal) .stat.main { background: var(--pink); color: #fff; }
+:is(.t-dynamic, .t-professional, .t-thunder, .t-highcontrast, .t-neon, .t-gameday, .t-court, .t-bib, .t-goal) .ladder td:last-child { background: var(--yellow); color: var(--text-on-yellow); }
+:is(.t-dynamic, .t-junior, .t-retro, .t-professional, .t-thunder, .t-gradient, .t-neon, .t-court, .t-bib, .t-goal) .stat.main { background: var(--pink); color: #fff; }
 :is(.t-junior, .t-retro) .stat.main small { color: #fff; }
-
-/* ── Fun: stickers, confetti and a bouncy rounded face ─────────────────────────────────────────────────────────── */
-.t-fun { --dfont: 'Fredoka', var(--font); }
-.t-fun .ground { background:
-    radial-gradient(circle at 92% 6%, var(--yellow) 0 150px, transparent 151px),
-    radial-gradient(circle at 6% 94%, rgba(var(--pink-rgb), .7) 0 230px, transparent 231px), var(--purple); }
-.t-fun .ground::before { content: ''; position: absolute; inset: 0; opacity: .5;
-  background-image: radial-gradient(circle, var(--yellow) 7px, transparent 8px), radial-gradient(circle, var(--pink) 6px, transparent 7px);
-  background-size: 180px 160px, 230px 210px; background-position: 30px 40px, 120px 90px; }
-.t-fun .ground::after { display: none; }
-.t-fun .tab { background: var(--text); color: var(--purple); border-radius: 999px; transform: rotate(-3deg); }
-.t-fun .title { text-transform: none; font-weight: 700; font-size: 92px; transform: rotate(-3deg); transform-origin: 0 50%; text-shadow: 6px 6px 0 var(--pink); }
-.t-fun :is(.game, .result, .call, .shooter, .info) { border: 5px solid var(--text); border-left-width: 5px; border-radius: 40px; }
-.t-fun .slot:nth-child(odd) .game, .t-fun .group:nth-child(odd) .result { transform: rotate(-1deg); }
-.t-fun .slot:nth-child(even) .game, .t-fun .group:nth-child(even) .result { transform: rotate(1deg); }
-.t-fun :is(.slot__time, .group__name, .call__div, .verdict, .live) { border-radius: 999px; }
-.t-fun .slot__time, .t-fun .group__name { transform: rotate(-3deg); }
-.t-fun .vs__v { transform: rotate(-10deg); box-shadow: 0 0 0 8px var(--text); }
-.t-fun .ladder td { border-top: 4px solid var(--text); border-bottom: 4px solid var(--text); }
-.t-fun .ladder td:first-child { border-left: 4px solid var(--text); border-radius: 30px 0 0 30px; }
-.t-fun .ladder td:last-child { border-right: 4px solid var(--text); border-radius: 0 30px 30px 0; }
 
 /* ── Dynamic: speed lines, slanted panels and a heavy condensed face ───────────────────────────────────────────── */
 .t-dynamic { --dfont: 'Anton', var(--font); }
@@ -96,27 +75,6 @@
 .t-retro .ladder td:first-child { border-left: 4px solid var(--ink); border-radius: 999px 0 0 999px; }
 .t-retro .ladder td:last-child { border-right: 4px solid var(--ink); border-radius: 0 999px 999px 0; background: var(--yellow); color: var(--text-on-yellow); }
 
-/* ── Futuristic: a dark HUD with a grid floor, neon edges and clipped corners ──────────────────────────────────── */
-.t-futuristic { --dfont: 'Orbitron', var(--font); --night: color-mix(in srgb, var(--purple), #05060c 78%); color: #eef2ff; --muted: rgba(238, 242, 255, .6); }
-.t-futuristic .ground { background:
-    linear-gradient(rgba(var(--yellow-rgb), .12) 2px, transparent 2px) 0 0 / 60px 60px,
-    linear-gradient(90deg, rgba(var(--yellow-rgb), .12) 2px, transparent 2px) 0 0 / 60px 60px,
-    radial-gradient(ellipse at 50% 110%, rgba(var(--pink-rgb), .45), transparent 60%), var(--night); }
-.t-futuristic .ground::before, .t-futuristic .ground::after { content: ''; position: absolute; width: 60px; height: 60px; background: none; border: 6px solid var(--yellow); }
-.t-futuristic .ground::before { left: 24px; top: 24px; border-right: 0; border-bottom: 0; }
-.t-futuristic .ground::after { left: auto; right: 14px; top: auto; bottom: 14px; border-left: 0; border-top: 0; }
-.t-futuristic .tab { background: none; padding: 0; color: var(--pink); letter-spacing: .4em; font-size: 20px; }
-.t-futuristic .title { font-size: 74px; color: var(--yellow); text-shadow: 0 0 22px rgba(var(--yellow-rgb), .7); letter-spacing: .04em; }
-.t-futuristic :is(.game, .result, .call, .shooter, .message) { background: rgba(var(--purple-rgb), .3); border: 2px solid var(--pink); border-radius: 0;
-  clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px); box-shadow: inset 0 0 30px rgba(var(--pink-rgb), .4); }
-.t-futuristic :is(.slot__time, .group__name, .verdict, .call__div) { border-radius: 0; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); padding-left: 22px; padding-right: 22px; }
-.t-futuristic { --nf: .8; }
-.t-futuristic :is(.game__team, .call__teams, .shooter__name, .vs h2) { color: #eef2ff; letter-spacing: .04em; }
-.t-futuristic .vs__score { color: var(--yellow); text-shadow: 0 0 30px rgba(var(--yellow-rgb), .6); font-size: 130px; }
-.t-futuristic .vs__v { border-radius: 0; background: none; border: 3px solid var(--pink); color: var(--pink); box-shadow: 0 0 24px rgba(var(--pink-rgb), .6); }
-.t-futuristic .info { background: rgba(var(--purple-rgb), .35); border: 2px solid var(--pink); border-radius: 0; }
-.t-futuristic .ladder td { background: rgba(var(--purple-rgb), .3); border-radius: 0 !important; border-top: 2px solid rgba(var(--pink-rgb), .5); }
-
 /* ── Professional: broadcast clean, flat, calm and sentence case ───────────────────────────────────────────────── */
 .t-professional { --dfont: 'IBM Plex Sans', var(--font); }
 .t-professional .ground { background: var(--purple-dark); }
@@ -158,22 +116,6 @@
 .t-thunder .ladder { font-size: 44px; font-weight: 500; }
 .t-thunder .ladder td { background: color-mix(in srgb, var(--night), black 30%); border-radius: 0 !important; }
 
-/* ── Geometric: Bauhaus circles, triangles and solid blocks ────────────────────────────────────────────────────── */
-.t-geometric { --dfont: 'Archivo Black', var(--font); }
-.t-geometric .ground { background: radial-gradient(circle at 100% 100%, var(--purple-dark) 0 220px, transparent 221px), var(--purple); }
-.t-geometric { --title-clear: 60px; }
-.t-geometric .ground::before { content: ''; position: absolute; right: -150px; top: -150px; width: 300px; height: 300px; border-radius: 50%; background: var(--yellow); }
-.t-geometric .ground::after { top: auto; bottom: 0; width: 360px; right: auto; height: 300px; background: var(--pink); clip-path: polygon(0 0, 100% 100%, 0 100%); }
-.t-geometric .tab { background: var(--text); color: var(--purple); border-radius: 0; }
-.t-geometric .title { font-weight: 400; color: var(--text); font-size: 92px; }
-.t-geometric .when { text-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
-.t-geometric :is(.game, .result, .call, .shooter, .message, .info) { background: var(--purple-dark); border: 0; border-radius: 0; }
-.t-geometric :is(.game, .result, .call, .shooter) .logo { border-radius: 50%; background: rgba(255, 255, 255, .12); padding: 6px; }
-.t-geometric :is(.game__team, .call__teams, .shooter__name, .vs h2, .vs__score, .score, .verdict, .ladder, .slot__time, .group__name) { font-weight: 400; }
-.t-geometric :is(.slot__time, .group__name, .verdict, .score, .call__div) { border-radius: 0; }
-.t-geometric .vs__v { border-radius: 0; box-shadow: none; clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 34px; font-size: 34px; }
-.t-geometric .ladder td { background: var(--purple-dark); border-radius: 0 !important; }
-
 /* ── Gradient: a mesh of the three colours under frosted glass ─────────────────────────────────────────────────── */
 .t-gradient { --dfont: 'Sora', var(--font); color: #fff; --muted: rgba(255, 255, 255, .78); }
 .t-gradient .ground { background: radial-gradient(circle at 15% 20%, var(--yellow), transparent 45%), radial-gradient(circle at 85% 30%, var(--pink), transparent 50%),
@@ -193,27 +135,6 @@
 .t-gradient .ladder td:last-child { background: #fff; color: var(--purple-dark); }
 .t-gradient .ladder td.team { text-transform: none; }
 .t-gradient .shooter__rank { color: #fff; }
-
-/* ── Striped: varsity diagonal stripes, banded edges and an outlined title ─────────────────────────────────────── */
-.t-striped { --dfont: 'Oswald', var(--font); }
-.t-striped .ground { background: repeating-linear-gradient(135deg, var(--purple) 0 70px, var(--purple-dark) 70px 140px); }
-.t-striped .ground::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 40px; background: linear-gradient(var(--yellow) 0 33%, var(--text) 33% 66%, var(--pink) 66%); }
-.t-striped .ground::after { top: auto; bottom: 0; height: 40px; background: linear-gradient(var(--pink) 0 33%, var(--text) 33% 66%, var(--yellow) 66%); }
-.t-striped .frame { padding-top: 84px; }
-.t-striped .tab { background: none; padding: 0; color: var(--yellow); letter-spacing: .3em; }
-.t-striped .title { font-weight: 700; font-size: 112px; color: var(--yellow); -webkit-text-stroke: 3px var(--text); paint-order: stroke fill; text-shadow: 6px 6px 0 var(--pink); }
-.t-striped :is(.game, .result, .call, .shooter) { border-radius: 0; border-left: 10px solid var(--yellow); box-shadow: -20px 0 0 var(--pink); margin-left: 20px; }
-.t-striped { --nf: 1.15; }
-.t-striped :is(.game__team, .call__teams, .shooter__name, .vs h2) { font-weight: 700; }
-.t-striped :is(.slot__time, .group__name, .verdict, .score, .call__div) { border-radius: 0; }
-.t-striped .vs__score { -webkit-text-stroke: 4px var(--pink); paint-order: stroke fill; }
-.t-striped .vs__v { border-radius: 0; }
-.t-striped .ladder { font-weight: 700; font-size: 38px; }
-.t-striped .ladder td { border-radius: 0 !important; }
-.t-striped .info { background: var(--purple-deep); border-radius: 0; border-left: 10px solid var(--yellow); }
-.t-striped .body { padding-bottom: 90px; }
-.t-striped .sponsors[hidden] ~ .mark { bottom: 56px; }
-.t-striped .sponsors[hidden] ~ .pivt { bottom: 52px; }
 
 /* ── High contrast: black, white and the highlight only ────────────────────────────────────────────────────────── */
 .t-highcontrast { --dfont: 'Archivo Black', var(--font); color: #fff; --muted: #c4c4c4; }
@@ -241,37 +162,6 @@
 .t-highcontrast .vs__v { border-radius: 0; background: #fff; color: #000; box-shadow: none; }
 .t-highcontrast .ladder td { background: #fff; color: #000; border-radius: 0 !important; }
 .t-highcontrast .ladder td:first-child { color: #000; }
-
-/* ── 3D: real perspective. A floor running away to a horizon, the title on an angled wall, panels standing in
-   space with a front edge, the two teams turned towards each other and the ladder lying back on the floor. ──── */
-.t-3d { --dfont: 'Rubik', var(--font); --d3: color-mix(in srgb, var(--purple), black 55%); }
-.t-3d .ground { background: linear-gradient(180deg, var(--purple-dark) 0%, var(--purple) 46%, color-mix(in srgb, var(--purple), black 55%) 46.2%, var(--purple-dark) 100%);
-  perspective: 700px; perspective-origin: 50% 46%; overflow: hidden; }
-.t-3d .ground::before { content: ''; position: absolute; left: -60%; right: -60%; top: 46%; height: 1600px; transform-origin: 50% 0; transform: rotateX(78deg);
-  background: linear-gradient(rgba(var(--yellow-rgb), .55) 3px, transparent 3px) 0 0 / 120px 120px, linear-gradient(90deg, rgba(var(--yellow-rgb), .55) 3px, transparent 3px) 0 0 / 120px 120px;
-  -webkit-mask: linear-gradient(transparent, #000 25%); mask: linear-gradient(transparent, #000 25%); }
-.t-3d .ground::after { top: 45.6%; height: 8px; box-shadow: 0 0 40px var(--pink); }
-.t-3d .frame { perspective: 1100px; perspective-origin: 50% 40%; }
-.t-3d .head { transform: rotateY(18deg) translateZ(-30px); transform-origin: 0 50%; }
-.t-3d .tab { box-shadow: 6px 6px 0 color-mix(in srgb, var(--pink), black 45%); }
-.t-3d .title { font-weight: 900;
-  text-shadow: 1px 1px 0 var(--d3), 2px 2px 0 var(--d3), 3px 3px 0 var(--d3), 4px 4px 0 var(--d3), 5px 5px 0 var(--d3), 6px 6px 0 var(--d3), 7px 7px 0 var(--d3), 8px 8px 0 var(--d3), 9px 9px 0 var(--d3), 10px 10px 0 var(--d3), 20px 24px 26px rgba(0, 0, 0, .5); }
-.t-3d .body { perspective: 1200px; perspective-origin: 50% 20%; padding-top: 56px; }
-.t-3d :is(.game__team, .call__teams, .shooter__name, .vs h2, .score, .ladder, .slot__time, .group__name, .verdict) { font-weight: 900; }
-.t-3d :is(.slot, .group, .call, .shooter) { transform: rotateY(14deg) rotateX(6deg); transform-origin: 0 50%; }
-.t-3d :is(.game, .result, .call, .shooter) { border-left: 0; border-radius: 6px; box-shadow: 0 14px 0 color-mix(in srgb, rgb(var(--deep-rgb)), black 50%), 0 30px 36px rgba(0, 0, 0, .45); }
-.t-3d :is(.game, .result) + :is(.game, .result), .t-3d :is(.call, .shooter) + :is(.call, .shooter) { margin-top: 24px; }
-.t-3d :is(.slot__time, .group__name) { box-shadow: 0 8px 0 color-mix(in srgb, var(--yellow), black 40%); }
-.t-3d .vs { transform-style: preserve-3d; }
-.t-3d .vs > div:first-child { transform: rotateY(20deg); transform-origin: 100% 50%; }
-.t-3d .vs > div:last-child { transform: rotateY(-20deg); transform-origin: 0 50%; }
-.t-3d .vs__v { transform: rotateY(55deg) translateZ(60px); box-shadow: -10px 0 0 color-mix(in srgb, var(--pink), black 45%), -20px 0 0 color-mix(in srgb, var(--pink), black 55%), 0 30px 40px rgba(0, 0, 0, .5); }
-.t-3d .vs__score { text-shadow: 2px 2px 0 var(--d3), 4px 4px 0 var(--d3), 6px 6px 0 var(--d3), 8px 8px 0 var(--d3), 10px 10px 0 var(--d3), 12px 12px 0 var(--d3), 26px 30px 30px rgba(0, 0, 0, .5); }
-.t-3d .verdict { transform: rotateX(28deg); transform-origin: 50% 100%; box-shadow: 0 14px 0 color-mix(in srgb, var(--yellow), black 40%), 0 30px 36px rgba(0, 0, 0, .45); }
-.t-3d .info { transform: rotateX(32deg); transform-origin: 50% 0; box-shadow: 0 14px 0 color-mix(in srgb, var(--purple), black 50%); }
-.t-3d .ladder { transform: rotateX(30deg); transform-origin: 50% 100%; border-spacing: 0 24px; }
-.t-3d .ladder td { box-shadow: 0 12px 0 color-mix(in srgb, rgb(var(--deep-rgb)), black 50%); }
-.t-3d .ladder td:last-child { box-shadow: 0 12px 0 color-mix(in srgb, var(--yellow), black 40%); }
 
 /* Paper templates (Poster, Splash): dark ink on a pale ground, white cards. */
 :is(.t-poster, .t-splash) { --ink: var(--ink-dark, var(--purple-dark)); color: var(--ink); --muted: rgba(0, 0, 0, .55); }
@@ -352,26 +242,26 @@
 .t-splash .ladder td:first-child { border-radius: 14px 0 0 14px !important; }
 .t-splash .ladder td:last-child { border-radius: 0 14px 14px 0 !important; }
 
-/* Game Day and Arena: charcoal grounds with the highlight as the one bright colour, like a club's game day kit. */
-:is(.t-gameday, .t-arena) { --char: #1d1e22; --slab: #2a2b30; color: #fff; --muted: rgba(255, 255, 255, .66); }
-:is(.t-gameday, .t-arena) :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: #16171a; border: 0; border-radius: 0; box-shadow: 0 12px 28px rgba(0, 0, 0, .35); }
-:is(.t-gameday, .t-arena) :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: #16171a; }
-:is(.t-gameday, .t-arena) :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: #5a5b60; }
-:is(.t-gameday, .t-arena) .result .game__team { color: #8a8b90; }
-:is(.t-gameday, .t-arena) .result .game__team.won { color: #16171a; }
-:is(.t-gameday, .t-arena) .score { background: #ececee; color: #5a5b60; }
-:is(.t-gameday, .t-arena) .score.won { background: var(--yellow); color: var(--text-on-yellow); }
-:is(.t-gameday, .t-arena) .stat { background: #ececee; }
-:is(.t-gameday, .t-arena) .stat small { color: #5a5b60; }
-:is(.t-gameday, .t-arena) .stat b { color: #16171a; }
-:is(.t-gameday, .t-arena) .stat.main { background: var(--yellow); }
-:is(.t-gameday, .t-arena) .stat.main :is(b, small) { color: var(--text-on-yellow); }
-:is(.t-gameday, .t-arena) :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 0; }
-:is(.t-gameday, .t-arena) .ladder td { background: #fff; color: #16171a; border-radius: 0 !important; }
-:is(.t-gameday, .t-arena) .ladder td:first-child { color: #16171a; }
-:is(.t-gameday, .t-arena) .ladder th { color: var(--muted); }
-:is(.t-gameday, .t-arena) .vs h2, :is(.t-gameday, .t-arena) .vs__score { color: #fff; }
-:is(.t-gameday, .t-arena) .vs__v { background: var(--yellow); color: var(--text-on-yellow); border-radius: 0; box-shadow: none; }
+/* Game Day: a charcoal ground with the highlight as the one bright colour, like a club's game day kit. */
+.t-gameday { --char: #1d1e22; --slab: #2a2b30; color: #fff; --muted: rgba(255, 255, 255, .66); }
+.t-gameday :is(.game, .result, .call, .shooter, .message, .info) { background: #fff; color: #16171a; border: 0; border-radius: 0; box-shadow: 0 12px 28px rgba(0, 0, 0, .35); }
+.t-gameday :is(.game__team, .result .game__team, .call__teams, .shooter__name, .game__v, .call__teams i, .call__mic b, .call__time) { color: #16171a; }
+.t-gameday :is(.game__info, .call__mic, .shooter__team, .shooter__rank) { color: #5a5b60; }
+.t-gameday .result .game__team { color: #8a8b90; }
+.t-gameday .result .game__team.won { color: #16171a; }
+.t-gameday .score { background: #ececee; color: #5a5b60; }
+.t-gameday .score.won { background: var(--yellow); color: var(--text-on-yellow); }
+.t-gameday .stat { background: #ececee; }
+.t-gameday .stat small { color: #5a5b60; }
+.t-gameday .stat b { color: #16171a; }
+.t-gameday .stat.main { background: var(--yellow); }
+.t-gameday .stat.main :is(b, small) { color: var(--text-on-yellow); }
+.t-gameday :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--yellow); color: var(--text-on-yellow); border-radius: 0; }
+.t-gameday .ladder td { background: #fff; color: #16171a; border-radius: 0 !important; }
+.t-gameday .ladder td:first-child { color: #16171a; }
+.t-gameday .ladder th { color: var(--muted); }
+.t-gameday .vs h2, .t-gameday .vs__score { color: #fff; }
+.t-gameday .vs__v { background: var(--yellow); color: var(--text-on-yellow); border-radius: 0; box-shadow: none; }
 
 /* ── Game Day: charcoal, offset slabs, a highlight block and a tall condensed face ─────────────────────────────── */
 .t-gameday { --dfont: 'Anton', var(--font); }
@@ -388,25 +278,7 @@
 .t-gameday .vs__score { font-family: var(--dfont); font-weight: 400; font-size: 190px; line-height: .9; }
 .t-gameday .ladder td.team { font-family: var(--dfont); font-weight: 400; }
 
-/* ── Arena: a spotlight in the highlight colour, hazard stripes in two corners and the title echoed in outline ── */
-.t-arena { --dfont: 'Archivo Black', var(--font); --nf: .9; }
-.t-arena .ground { background:
-    radial-gradient(ellipse 70% 46% at 50% 0%, rgba(var(--yellow-rgb), .42), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(var(--yellow-rgb), .14), transparent 70%),
-    var(--char); }
-.t-arena .ground::before { content: ''; position: absolute; left: 0; top: 0; width: 150px; height: 150px;
-  background: repeating-linear-gradient(135deg, var(--yellow) 0 14px, transparent 14px 30px); clip-path: polygon(0 0, 100% 0, 0 100%); }
-.t-arena .ground::after { top: 0; left: auto; right: 0; width: 150px; height: 150px;
-  background: repeating-linear-gradient(45deg, var(--yellow) 0 14px, transparent 14px 30px); clip-path: polygon(0 0, 100% 0, 100% 100%); }
-.t-arena .tab { background: var(--yellow); color: var(--text-on-yellow); border-radius: 0; }
-.t-arena .title { position: relative; isolation: isolate; font-weight: 400; font-size: 96px; line-height: .92; color: #fff; text-transform: uppercase; margin-bottom: .5em; }
 /* The title echoed once below itself in outline, its top half showing, fading out to the right. */
-.t-arena .title::after { content: attr(data-text); position: absolute; left: 0; top: calc(100% - .12em); white-space: nowrap; color: transparent;
-  -webkit-text-stroke: 2px rgba(var(--yellow-rgb), .6); clip-path: inset(0 0 48% 0); pointer-events: none;
-  -webkit-mask-image: linear-gradient(90deg, #000 40%, transparent 95%); mask-image: linear-gradient(90deg, #000 40%, transparent 95%); }
-.t-arena .when { color: var(--yellow); }
-.t-arena :is(.game, .result, .call, .shooter, .message, .info) { border-top: 8px solid var(--yellow); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%); }
-.t-arena .vs__score { font-family: var(--dfont); font-weight: 400; }
 
 /* ── Hero: a light ground in the main colour, a white floor, a huge slanted title and athletes standing in front ── */
 .t-hero { --dfont: 'Anton', var(--font); --sky: color-mix(in srgb, var(--purple), #fff 42%); --ink: var(--ink-dark, var(--purple-dark));
@@ -414,6 +286,7 @@
 .t-hero .ground { background: radial-gradient(ellipse 80% 55% at 50% 30%, color-mix(in srgb, var(--sky), #fff 22%), var(--sky) 75%); }
 .t-hero .ground::before { content: ''; position: absolute; left: -25%; right: -25%; bottom: -70%; height: 100%; border-radius: 50%; background: #fff; }
 .t-hero .ground::after { display: none; }
+.story.t-hero .ground::before { bottom: -86%; } /* a Story's rows reach lower: the floor stays under the foot */
 .t-hero .body { position: relative; z-index: 2; }
 .t-hero .when { position: relative; z-index: 3; } /* athletes stand in front of the title, never the date and place */
 .t-hero .tab { background: transparent; padding: 0; color: #fff; font-size: 22px; letter-spacing: .55em; }
