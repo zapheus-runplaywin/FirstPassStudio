@@ -174,7 +174,7 @@
     if (!shot.length) list.push({ key: 'topshooters', kind: 'topshooters', name: 'Top shooters', missing: none, help: '' });
     // Tournament (or Season) top shooters: a picture per division that played, its running totals over every finished game so far.
     for (const div of shot.filter(Boolean)) list.push({ key: `tournament:${div}`, kind: 'tournament', division: div, name: `${night.running} top shooters ${div}`,
-      help: `${div}'s top shooters over every finished game so far, after this night (or as at a time that night).` });
+      help: `${div}'s top shooters over every finished game so far, after this night's last round (or an earlier round that night).` });
     for (const g of done) list.push({ key: `polaroid:${g.id}`, kind: 'polaroid', game: g.id, name: `Polaroid ${g.home.name} v ${g.away.name}`,
       help: 'The score goes under the photo. Drop a match photo on it, then drag the preview to frame it; with no photo the window is see-through.' });
     return list;
@@ -246,17 +246,25 @@
     l.append(c, ' Sponsor strip');
     return l;
   }
-  // Tournament top shooters: as at the end of the night, or after the games starting at a time that night.
+  // Tournament top shooters: after the night's last round, or after an earlier round that night (by its games' start,
+  // so "After Round 5 · 11:30am"); games with no round are picked by their start time.
   function afterPicker(p) {
     const l = el('label', 'picker');
     const pick = el('select');
-    const times = [...new Set(night.games.filter(g => g.division === p.division && g.finished).map(g => g.time))].sort();
-    pick.append(new Option('End of night', ''), ...times.map(t => new Option(`After the ${t} games`, t)));
+    const done = night.games.filter(g => g.division === p.division && g.finished);
+    const times = [...new Set(done.map(g => g.time))].sort();
+    // A round's choice counts up to its last game's start; a time with no round of its own is offered as a time.
+    const rounds = [...new Set(done.map(g => g.round).filter(Boolean))];
+    const choices = rounds.length
+      ? rounds.map(r => { const t = done.filter(g => g.round === r).map(g => g.time).sort().pop(); return [t, `After ${r} · ${twelve(t)}`]; }).sort((x, y) => x[0].localeCompare(y[0]))
+      : times.map(t => [t, `After the ${twelve(t)} games`]);
+    pick.append(new Option('End of night', ''), ...choices.slice(0, -1).map(([t, label]) => new Option(label, t)));
     pick.value = (picks[p.key] || {}).after || '';
     pick.onchange = () => { picks[p.key] = { ...(picks[p.key] || {}), after: pick.value }; redraw(p.key); };
     l.append(el('b', '', 'As at'), pick);
     return l;
   }
+  const twelve = t => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`; };
   // Movers: each shooter's places up or down since the night before, kept for the competition.
   function moversTick() {
     const l = el('label', 'picker movers');

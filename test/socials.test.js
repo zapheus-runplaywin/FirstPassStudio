@@ -116,7 +116,7 @@ test('tournament top shooters: a division\'s totals so far, as at a time that ni
   assert.equal(two.gamesFinished, 4, 'both nights\' games');
   assert.ok(two.players.length <= 8 && two.players.every(p => p.games === 2));
   assert.deepEqual(two.players.map(p => p.points), [...two.players.map(p => p.points)].sort((a, b) => b - a), 'most points first');
-  // Each move is the place after round 1 less the place now; anyone who wasn't in round 1's top 8 is new.
+  // Each move is the place after the round before (round 1) less the place now; anyone who wasn't in round 1's top 8 is new.
   const was = one.players.map(p => p.name);
   for (const [i, p] of two.players.entries()) {
     if (was.includes(p.name)) assert.equal(p.moved, was.indexOf(p.name) - i, p.name);
@@ -133,6 +133,8 @@ test('tournament top shooters: a division\'s totals so far, as at a time that ni
   const times = (await studio.get(`/api/socials/night?date=${second}`)).games.filter(g => g.division === 'Division 1').map(g => g.time).sort();
   const early = await t(second, `&after=${times[0]}`);
   assert.equal(early.gamesFinished, 3);
+  assert.equal(early.round, 'Round 2', 'after the latest round counted');
+  assert.equal(early.compared, true, 'compared with the round before');
   const before = await t(second, '&after=00:00');
   assert.deepEqual(before.players.map(p => [p.name, p.points]), one.players.map(p => [p.name, p.points]));
   assert.equal(before.compared, false);
@@ -141,6 +143,23 @@ test('tournament top shooters: a division\'s totals so far, as at a time that ni
   assert.equal((await studio.post('/api/socials/settings', { movers: false })).settings.movers, false);
   assert.equal((await studio.get('/api/socials')).settings.movers, false);
   await studio.post('/api/socials/settings', { movers: true });
+});
+
+test('tournament top shooters on a carnival day compare round by round, and As at picks a round', async t => {
+  const world = createWorld();
+  const div1 = Object.values(world.games).filter(g => g.division === 'Division 1');
+  const r1 = div1.filter(g => g.roundId.endsWith('-r1')), r2 = div1.filter(g => g.roundId.endsWith('-r2'));
+  r1.forEach((g, i) => { g.date = r2[0].date; g.time = `0${8 + i}:00:00`; }); // round 1 that morning, round 2 after
+  const carnival = await startStudio(t, { competition: 'Thunder League', world });
+  const day = n => carnival.get(`/api/socials/night?date=${r2[0].date}&with=tournament&division=Division%201${n}`).then(x => x.tournament);
+  const all = await day('');
+  assert.equal(all.round, 'Round 2');
+  assert.equal(all.compared, true, 'round 2 against round 1, the same day');
+  assert.ok(all.players.some(p => p.moved), 'someone moved');
+  const morning = await day('&after=09:00');
+  assert.equal(morning.round, 'Round 1');
+  assert.equal(morning.gamesFinished, 2);
+  assert.equal(morning.compared, false, 'nothing before round 1');
 });
 
 test('the sponsor strip and the Studio mark are kept per competition', async () => {
