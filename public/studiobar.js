@@ -38,4 +38,22 @@
     nav.appendChild(a);
   }
   bar.append(logo, nav);
+
+  // While a practice game runs (practice.js), a red strip under the bar on every Studio page says so, with Stop.
+  const strip = document.createElement('div');
+  strip.className = 'fp-practice';
+  strip.setAttribute('role', 'status');
+  strip.style.cssText = 'background:#c62828;color:#fff;font-weight:700;padding:8px 16px;display:none;gap:12px;align-items:center;flex-wrap:wrap';
+  bar.after(strip);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const button = 'font:inherit;font-size:13px;padding:2px 10px;border-radius:6px;border:1px solid #fff;background:transparent;color:#fff;cursor:pointer;text-decoration:none';
+  const practice = () => fetch('/api/practice').then(r => r.json()).then(p => {
+    strip.style.display = p.active ? 'flex' : 'none';
+    if (!p.active) return;
+    strip.innerHTML = `<span>Practice game${p.paused ? ' (paused)' : ''}: ${esc(p.game.home.name)} v ${esc(p.game.away.name)}. Nothing counts for the sponsors.</span>`
+      + `<a href="/recordings.html" style="${button}">Practice controls</a><button type="button" style="${button}">Stop</button>`;
+    strip.querySelector('button').onclick = () => fetch('/api/practice', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"stop":true}' }).then(practice);
+  }).catch(() => {});
+  practice();
+  setInterval(() => { if (!document.hidden) practice(); }, 3000);
 })();

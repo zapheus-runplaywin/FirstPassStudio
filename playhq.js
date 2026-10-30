@@ -62,6 +62,8 @@ function create(deps) {
   const { log, apiUrl, cacheMs, linkBase, config, leadMs, logoFor, positionOf } = deps;
   // recorder.js, for the game recording: every answer PlayHQ gives (record.playhq, record.live).
   const record = deps.record || { playhq() {}, live() {} };
+  // practice.js: while a practice game runs, its recording answers instead of PlayHQ (practice.answer, practice.live).
+  const practice = deps.practice || { active: () => false };
 
   let TENANT = 'netball-australia', ORG_ID = null;
 
@@ -108,6 +110,7 @@ function create(deps) {
   }
 
   async function gql(operationName, query, variables, retried, tenant = TENANT) {
+    if (practice.active()) return practice.answer(operationName, variables);
     const c = await getSession(retried);
     const headers = { ...HEADERS, tenant, 'request-id': crypto.randomUUID() };
     if (c) headers.cookie = c;
@@ -462,6 +465,7 @@ function create(deps) {
     }, 2000);
   }
   function keepFinished(gameId, parsed) {
+    if (practice.active()) return; // a practice game's answers aren't kept
     finishedSummaries.set(gameId, parsed);
     finishedAt.set(gameId, Date.now());
     while (finishedSummaries.size > GAME_CACHE_MAX) {
@@ -542,7 +546,7 @@ function create(deps) {
     if (!tenantLabel) tenantLabel = TENANT === 'netball-australia' ? 'na' : TENANT;
     return tenantLabel;
   }
-  async function fetchLive(gameId) {
+  async function askLive(gameId) {
     const headers = { ...HEADERS, 'x-phq-tenant': await getTenantLabel() };
     const c = await getSession();
     if (c) headers.cookie = c;
@@ -555,6 +559,10 @@ function create(deps) {
     if (!res.ok) { log('warn', 'live', 'answer', text.slice(0, 500)); throw new Error(`PlayHQ live feed answered HTTP ${res.status}`); }
     const json = JSON.parse(text);
     record.live(gameId, json);
+    return json;
+  }
+  async function fetchLive(gameId) {
+    const json = practice.active() ? practice.live(gameId) : await askLive(gameId);
     if (json.errors && json.errors.length) {
       const message = json.errors.map(e => e.message).join('; ');
       // Inside the window but the scorer hasn't started: expected, so said once per game.
@@ -661,7 +669,7 @@ function create(deps) {
     return { tenant: TENANT, orgId: ORG_ID };
   }
   function resetCaches() {
-    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache]) cache.clear();
+    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, gameStarts]) cache.clear();
     tenantLabel = ''; cookie = null;
   }
 

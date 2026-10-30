@@ -495,7 +495,13 @@
       <b>Download</b> (the .jsonl.gz file, to keep or send in as test data) and <b>Remove</b>. <b>Record every night on air</b> is on unless you turn it off;
       turning it off stops the recording being made. A recording with no game in it (Studio opened to set things up) and one older than 60 days are removed when Studio starts.
       Recordings stay on this Mac (in <b>Recordings/</b> of the data folder), never in a backup or iCloud, and hold nothing secret: no keys, devices, cookies or private answers.
-      A recording plays back as a practice game, and replays a night's graphics at 4K over a 4K camera recording; those come next.</p>
+      A recording also replays a night's graphics at 4K over a 4K camera recording; that comes next.</p>
+    <p class="page__help"><b>Practice games:</b> <b>Practise</b> beside a game on the Recordings tab plays it back as if it were live. Studio asks PlayHQ nothing;
+      the recording answers instead, with the night's dates and times moved to now, so the game starts a few minutes from now: as many as <b>A practice game starts in</b> says (5 to begin with, 0 to 60). Everything runs as on a real night:
+      the scoreboard follows the score, clock and quarter, sequences and game triggers fire, and the outputs can be on. <b>Jump to</b> Start, each quarter or Full time,
+      <b>Pause</b> (the clock stands still) and <b>Stop</b> are at the top of the Recordings tab, and a red strip on every Studio page says a practice game is running,
+      with Stop. Nothing it does counts for the sponsors' reports, it isn't recorded as a night, and Stop puts the scoreboard back as it was. Use it to rehearse a night,
+      try a new sequence or show Studio to someone.</p>
   </div>
   <div class="card">
     <h2>Example graphics</h2>
@@ -656,7 +662,7 @@
       <li>Mics: nothing over the internet. Each output window mixing mics tells Studio what it hears twice a second, and the Output page asks for it twice a second while its Mics section is open; the sound itself stays inside the Mac. A mic on the switcher is a few small fader messages over the switcher's connection when its level changes (about 20 a second while a dip fades).</li>
       <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
       <li>Stream Deck plugin's keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen (and one more while a Switcher key is), and Studio only sends when the scene or the switcher changes.</li>
-      <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds, a few megabytes a night.</li>
+      <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds, a few megabytes a night. A practice game asks PlayHQ nothing at all: the recording answers.</li>
       <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
       <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>
       <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>

@@ -29,6 +29,7 @@ const SAVE_EVERY = 60 * 1000;
 let log = () => {};
 let showing = () => [];   // the scene's sources that are on: [{ id, name, url, sponsor, air }] (air false: its output is off)
 let onAir = () => false;  // a video output is on
+let held = () => false;   // a practice game is running (practice.js): nothing is kept
 const given = new Map();  // page link -> { ids, place, qr, comp }
 const open = new Map();   // sponsor|place|source -> segment
 let timer = null;
@@ -55,6 +56,7 @@ function gave(req, list, place, opts = {}) {
 }
 
 function append(rec) {
+  if (held()) return;
   try {
     fs.mkdirSync(DIR, { recursive: true });
     fs.appendFileSync(path.join(DIR, `${nightOf(rec.from || rec.at)}.jsonl`), JSON.stringify(rec) + '\n');
@@ -229,6 +231,7 @@ function init(logger, hooks = {}) {
   log = logger || log;
   if (hooks.showing) showing = hooks.showing;
   if (hooks.onAir) onAir = hooks.onAir;
+  if (hooks.held) held = hooks.held;
   clearInterval(timer);
   if (hooks.every !== 0) {
     timer = setInterval(() => { try { tick(); } catch (err) { log('warn', 'sponsors', `Exposure tick: ${err.message}`); } }, hooks.every || 1000);
