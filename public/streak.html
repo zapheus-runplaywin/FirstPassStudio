@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="theme.css">
 <script src="log.js"></script>
 <script src="chroma.js"></script>
+<script src="zoom.js"></script>
 <script src="done.js"></script>
 <script src="fit.js"></script>
 <style>
@@ -409,7 +410,7 @@
     }
 
     // ── Embers, flames and sparks: a canvas moved by elapsed time (speeds in px a second), so the frame rate doesn't change them ──
-    const ctx = $('fx').getContext('2d');
+    const ctx = sharpCanvas($('fx'));
     const sprites = new Map();
     function sprite(rgb) { // a soft round blob in one colour, drawn once and reused
       if (sprites.has(rgb)) return sprites.get(rgb);

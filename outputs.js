@@ -25,7 +25,13 @@
 // nothing until it's changed, and the Output page says why. An output's NDI sources are named after the
 // output (and follow it when it's renamed) unless "Use my own name" is ticked (ndiOwnName) with a name typed.
 //
-// Saved as outputs.json in the data folder: { outputs: [...] }, the primary first (an older file with one
+// Picture (quality): HD, or 4K for every output at once. In 4K each NDI and Blackmagic output keeps the format
+// saved for it (1080p50, say) and sends the 2160p one at the same rate instead: the scene keeps its 1920 x 1080
+// layout and is drawn at twice the density (density 2 in its windows), so nothing set up for 1080p changes, and
+// HD again is exactly as before. A Blackmagic device without that 2160p format, or a 720p NDI format, stays as
+// it is and says so. Displays are left alone: a 4K screen set to look like 1920 x 1080 already draws at 2x.
+//
+// Saved as outputs.json in the data folder: { outputs: [...], quality }, the primary first (an older file with one
 // output's settings becomes Output 1). Stream Deck: /deck/output/on|off|toggle (the primary),
 // /deck/output/<name or number>/on|off|toggle and /deck/output/all/on|off|toggle.
 
@@ -57,6 +63,9 @@ const NDI_FORMATS = [
 ].map(([id, width, height, rateN, rateD]) => ({ id, width, height, rateN, rateD }));
 const DEFAULT_NDI_FORMAT = '1080p50';
 
+// Picture: hd (as before) or uhd (4K, 2160p).
+const QUALITY = ['hd', 'uhd'];
+
 const MAX = 4;
 const PRIMARY = 'main';
 // Each output's colour, by its number (slot): the same colours light its Stream Deck keys.
@@ -70,11 +79,14 @@ const DEFAULTS = {
 
 let log = () => {};
 let list = [{ id: PRIMARY, slot: 1, name: 'Output 1', ...DEFAULTS }];
+let quality = 'hd';
 const primary = () => list[0];
 // Called with an output's id when it's removed, so the scene forgets what was on for it.
 let onRemove = () => {};
 // Called after any change to the outputs' settings (the switcher's key settings check follows them).
 let onChange = () => {};
+// The pictures and videos that look soft in 4K (picturesize.js soft()), for the Output page while 4K is on.
+let softPictures = () => [];
 // The Mac app's displays: [{ id, label, width, height, scale, primary }]; null when not run by the app.
 // width x height is the size macOS draws at; scale 2 means it draws each point as 2 x 2 pixels (HiDPI).
 let displays = null;
@@ -189,11 +201,12 @@ function load() {
     }
     if (!list.length || list[0].id !== PRIMARY) list.unshift(clean({ name: 'Output 1' }, { ...DEFAULTS, id: PRIMARY }));
     tidy();
+    quality = QUALITY.includes(saved.quality) ? saved.quality : 'hd';
   } catch (err) { if (err.code !== 'ENOENT') log('warn', 'outputs', `Could not read outputs.json: ${err.message}`); }
 }
 
 function save() {
-  try { savefile.writeJsonSync(FILE, { outputs: list }); }
+  try { savefile.writeJsonSync(FILE, { outputs: list, quality }); }
   catch (err) { log('error', 'outputs', `Could not save outputs.json: ${err.message}`); }
   send();
 }
@@ -206,8 +219,9 @@ const listening = () => !!(sceneViewSound() && listener && listener.until > Date
 // What each output should show now, every output's in one list, each tagged with its output id (output)
 // and whether it's silent (muted: every output but the primary):
 // [{ display, kind: 'fill' | 'key' | 'chroma', color, safe }] on the Mac's displays,
-// [{ kind: 'decklink', device, mode, keying, straight, sound }] for the Blackmagic device, or
-// [{ kind: 'ndi', signal, name, format, color, safe }] for NDI. safe: the scene drawn chroma key safe.
+// [{ kind: 'decklink', device, mode, keying, straight, sound, density }] for the Blackmagic device, or
+// [{ kind: 'ndi', signal, name, format, color, safe, density }] for NDI. safe: the scene drawn chroma key safe;
+// density: 2 when it's sent at 2160p (4K), the 1920 x 1080 scene drawn at twice the density.
 const windows = () => outputWindows();
 
 // The Blackmagic format to send: the one picked if it's 1080p (even one the device says it can't send: it
@@ -222,19 +236,35 @@ function decklinkMode(device, o) {
     || sends.find(m => m.keying) || sends[0] || modes[0];
 }
 
+// The 2160p format to send in 4K for a 1080p one, at the same rate: for NDI, the 1080p format at twice the size
+// (2160p50 for 1080p50); for a Blackmagic device, its own 2160p progressive format with the same rate in its name,
+// if it has one. null when there isn't one (720p, or a device that only does HD).
+const rateOf = name => (String(name).replace(/\s/g, '').match(/^(?:1080|2160)p(.+)$/) || [])[1] || '';
+function uhdNdi(format) {
+  if (!format || format.height !== 1080) return null;
+  return { ...format, id: format.id.replace(/^1080p/, '2160p'), width: 3840, height: 2160 };
+}
+function uhdDecklink(device, mode) {
+  const rate = rateOf(mode.name);
+  return (rate && device.modes.find(m => m.height === 2160 && !m.interlaced && rateOf(m.name) === rate)) || null;
+}
+
 // One output's windows, as if it were the only one.
 function windowsOf(o) {
   if (!o.on) return [];
   if (o.mode === 'decklink') {
     const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
-    const mode = device && decklinkMode(device, o);
-    if (!mode) return [];
-    return [{ kind: 'decklink', device: device.id, mode: mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: o.decklinkSound }];
+    const hd = device && decklinkMode(device, o);
+    if (!hd) return [];
+    const uhd = quality === 'uhd' ? uhdDecklink(device, hd) : null;
+    const mode = uhd || hd;
+    return [{ kind: 'decklink', device: device.id, mode: mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: o.decklinkSound, density: uhd ? 2 : 1 }];
   }
   if (o.mode === 'ndi') {
     if (!ndi?.ok) return [];
-    const format = NDI_FORMATS.find(f => f.id === o.ndiFormat);
-    return [{ kind: 'ndi', signal: o.ndiSignal, name: ndiSource(o), format, color: o.chromaColor, safe: chromaSafe(o) }];
+    const hd = NDI_FORMATS.find(f => f.id === o.ndiFormat);
+    const uhd = quality === 'uhd' ? uhdNdi(hd) : null;
+    return [{ kind: 'ndi', signal: o.ndiSignal, name: ndiSource(o), format: uhd || hd, color: o.chromaColor, safe: chromaSafe(o), density: uhd ? 2 : 1 }];
   }
   if (!displays) return [];
   const have = id => displays.some(d => d.id === id);
@@ -306,6 +336,27 @@ function send() {
   if (port) port.postMessage({ type: 'outputs', windows: windows() });
 }
 
+// What an output sends at in 4K, for its card and status: { uhd, format, why }. uhd: it goes out at 2160p;
+// otherwise why says what it stays at and why (nothing while the picture is HD).
+function pictureOf(o) {
+  if (quality !== 'uhd') return { uhd: false, format: '', why: '' };
+  if (o.mode === 'ndi') {
+    const hd = NDI_FORMATS.find(f => f.id === o.ndiFormat);
+    const uhd = uhdNdi(hd);
+    return uhd ? { uhd: true, format: uhd.id, why: '' } : { uhd: false, format: hd.id, why: `${hd.id} has no 4K version, so it stays ${hd.id}` };
+  }
+  if (o.mode === 'decklink') {
+    const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
+    const hd = device && decklinkMode(device, o);
+    if (!hd) return { uhd: false, format: '', why: '' };
+    const uhd = uhdDecklink(device, hd);
+    return uhd ? { uhd: true, format: uhd.name, why: uhd.supported === false ? `${device.name} says it can't send ${uhd.name}` : '' }
+      : { uhd: false, format: hd.name, why: `${device.name} has no 4K version of ${hd.name}, so it stays ${hd.name}` };
+  }
+  if (o.mode === 'chroma' || o.mode === 'fillkey') return { uhd: false, format: '', why: 'a display draws at its own size (a 4K screen set to look like 1920 × 1080 is already 4K)' };
+  return { uhd: false, format: '', why: '' };
+}
+
 // One output as the Output page shows it: its settings, colour, what it's sending and how that's going.
 function outputState(o, clash, showing) {
   const mine = showing.filter(w => w.output === o.id);
@@ -318,6 +369,7 @@ function outputState(o, clash, showing) {
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
     perf: perfNow()?.outputs[o.id] || null,
+    picture: pictureOf(o),
     // Colours in the graphics a chroma key on chromaColor would cut into.
     nearKey: nearKey(competitionColours(), o.chromaColor),
   };
@@ -328,7 +380,7 @@ function state() {
   const outputs = list.map(o => outputState(o, clash, showing));
   return {
     // The primary output's settings at the top, as before there could be more than one.
-    ...outputs[0], outputs, max: MAX, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' },
+    ...outputs[0], outputs, quality, soft: quality === 'uhd' ? softPictures() : [], max: MAX, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' },
     ndi: ndi || { ok: false, error: '' }, ndiFormats: NDI_FORMATS, showing,
     // previewSound: the primary output isn't on, so the Scene View plays the sound (listening: one does now).
     previewSound: sceneViewSound(), listening: listening(),
@@ -343,8 +395,13 @@ const find = ref => {
 
 // Changes from the Output page: { output, ...settings } changes that output (the primary without one);
 // { add: true } adds an output (off, with every source off, so nothing shows until something's turned
-// on), { remove: id } removes one. Returns an error or null.
+// on), { remove: id } removes one, { quality: 'hd' | 'uhd' } sets the picture for every output. Returns an error or null.
 function change(changes = {}) {
+  if (changes.quality !== undefined) {
+    if (!QUALITY.includes(changes.quality)) return 'The picture is hd or uhd (4K).';
+    quality = changes.quality;
+    return null;
+  }
   if (changes.add) {
     if (list.length >= MAX) return `Studio can send to ${MAX} outputs at most.`;
     const slot = [1, 2, 3, 4].find(n => !list.some(o => o.slot === n));
@@ -376,8 +433,10 @@ function change(changes = {}) {
 
 function apply(changes) {
   const before = new Map(list.map(o => [o.id, JSON.stringify(o)]));
+  const wasQuality = quality;
   const error = change(changes || {});
-  if (list.length !== before.size || list.some(o => before.get(o.id) !== JSON.stringify(o))) {
+  if (quality !== wasQuality) log('info', 'outputs', `Picture ${quality === 'uhd' ? '4K (2160p)' : 'HD'}`);
+  if (quality !== wasQuality || list.length !== before.size || list.some(o => before.get(o.id) !== JSON.stringify(o))) {
     listenChanged();
     const w = windows();
     // Log each output that changed.
@@ -532,9 +591,11 @@ function logPerf() {
 
 // colours(): the active competition's colours and club colours, [{ name, hex }].
 // removed(id): an output was removed (the scene drops what was on for it). changed(): any setting changed.
-function init(logger, { colours, removed, changed } = {}) {
+// soft(): the pictures and videos that look soft in 4K, [{ what, name, width, height }].
+function init(logger, { colours, removed, changed, soft } = {}) {
   log = logger;
   if (changed) onChange = changed;
+  if (soft) softPictures = () => { try { return soft() || []; } catch (err) { log('warn', 'outputs', `Checking pictures for 4K: ${err.message}`); return []; } };
   if (colours) competitionColours = () => { try { return colours() || []; } catch { return []; } };
   if (removed) onRemove = id => { try { removed(id); } catch (err) { log('warn', 'outputs', `Removing an output: ${err.message}`); } };
   load();

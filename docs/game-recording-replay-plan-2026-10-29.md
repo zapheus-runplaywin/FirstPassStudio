@@ -22,7 +22,7 @@ What 4K does under the hood:
 
 - Each output keeps its saved format (for example 1080p50). With 4K on, Studio sends the 2160p version at the same rate: NDI always; Blackmagic only when the device offers a 2160p mode, otherwise that card says "stays 1080p on this device"; display outputs are unchanged (a 4K screen already draws at 2x).
 - The output window keeps the 1920x1080 layout and draws at 2x, as the 4K design chose. The first PR checks the result is sharp, since one 2x path once looked soft.
-- The clash, winner and streak canvases size by devicePixelRatio, and the stinger uses its 2160p file when one exists.
+- The clash, winner and streak canvases size by devicePixelRatio. (Built: the stinger page is drawn by Studio, so it's sharp at 4K by itself and needs no 2160p file.)
 - Every page fits itself when opened larger than 1920x1080, so a browser source at 3840x2160 is sharp without `?fit=1` on the link. At 1920x1080 nothing changes.
 - Soft-picture warnings on the Output page for raster logos and 1080p videos.
 
@@ -110,7 +110,7 @@ If the 4K ISO file already carries the programme mix, use that sound and skip th
 
 Eight PRs, one change each. 4K first, since it stands alone and every later piece shows through it. Each PR keeps the Docs page, Data and bandwidth, the user guide, STREAMDECK.md and docs/ARCHITECTURE.md in sync. The feature bumps minor once.
 
-1. **4K output mode.** The HD / 4K control, 2160p derived for NDI and Blackmagic, output window at 2x with a sharpness check, canvases by devicePixelRatio, pages fit themselves above 1080p, 2160p stinger pick, soft-picture warnings. Perf meter run on your M1 and M3 Pro.
+1. **4K output mode.** The HD / 4K control, 2160p derived for NDI and Blackmagic, output window at 2x with a sharpness check, canvases by devicePixelRatio, pages fit themselves above 1080p, soft-picture warnings naming each logo and video that looks soft in 4K. Perf meter run on your M1 and M3 Pro.
 2. **Record games.** The two-layer recording, the Recordings folder and tab (nights, games, size, delete), the record switch, 60-day tidy.
 3. **Practice games.** Built-in PlayHQ stand-in fed from a recording, the red strip with Pause and Jump to, clock shifting, nothing written to exposure, athletes or the game cache.
 4. **Tests from recordings.** A real-game recording with made-up names in test/recordings, the test stand-in loads it, journey tests for a whole game, clock-shift and pause tests.

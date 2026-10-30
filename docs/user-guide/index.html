@@ -370,6 +370,14 @@
     <tr><td class="k">Blackmagic</td><td>An UltraStudio or DeckLink with Blackmagic Desktop Video installed, and the device free</td><td><strong>Fill and key</strong> through the device's external keyer (fill on one SDI out, key on the other), or fill only, at the switcher's 1080p format (1080p50 is picked first). The fill is premultiplied: turn the switcher's Pre Multiplied Key on for clean edges, and leave Straight off (it leaves a light fringe round logos and text). <strong>Sound</strong> goes in the SDI with the fill (48 kHz stereo, in time with the picture): turn that switcher input's sound on. It can go on the Mac's sound output instead, or both.</td></tr>
     <tr><td class="k">NDI®</td><td>NDI's free runtime for Mac, and a wired network</td><td>Fill and key as two sources, chroma as one, or one source with transparency for receivers that key on NDI's alpha. They appear as this Mac's name with the output's name in brackets (or a name of your own).</td></tr>
   </table></div>
+  <h4>HD or 4K</h4>
+  <p>The <strong>HD</strong> and <strong>4K</strong> buttons at the top of Video output set the picture for every output at once. In 4K each NDI and Blackmagic output sends 2160p at the frame rate you picked for it (2160p50 for 1080p50). Nothing else changes: scenes, sources, Stream Deck keys, links, NDI names and the switcher key stay as they are, and pressing HD puts everything back exactly as it was.</p>
+  <ul>
+    <li><strong>Sharp where Studio draws.</strong> The graphics keep their 1920 × 1080 layout and are drawn at twice the density, so text, shapes, logos drawn by Studio and the animations' sparks and confetti are sharp. Pictures and videos are only as sharp as their files: a 1080p video or a small logo looks softer.</li>
+    <li><strong>Only for 4K gear.</strong> An HD switcher can't take 2160p. A Blackmagic device without the 2160p format (an HD UltraStudio) stays at 1080p and its card says so; a display is left alone, since a 4K screen set to look like 1920 × 1080 already draws at 4K.</li>
+    <li><strong>Any graphic's link works at 4K too.</strong> Opened in a browser source or window set to 3840 × 2160, a graphic draws itself at twice the size, with nothing added to its link.</li>
+    <li><strong>Check the Mac keeps up.</strong> A 4K output is about four times the work of an HD one; the performance line under the output says whether it's keeping up.</li>
+  </ul>
   <h4>More than one output</h4>
   <p>One output is all most nights need. To give a camera its own graphics, press <strong>Add an output</strong> beside Output on (up to four). Each output is its own picture with its own route and its own on/off, so a second output can feed an upstream keyer tied to a camera and its graphics cut with that camera, while Output 1 stays the downstream key over everything. Name an output in its card ("Wide camera", say) and that name is used everywhere, including its Stream Deck links.</p>
   <ul>
