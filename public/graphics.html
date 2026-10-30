@@ -506,6 +506,9 @@
       league in their own colours. Pick a <b>division</b> and one of its finished <b>games</b>: Studio takes that game's two teams (with their logos and colours) and
       athletes, and the division's other teams, and everything else (the score, clock, quarters, moments and timing) comes from the recording.
       Athletes are matched by position, so the recorded GS's goals are their GS's; anyone with no match is left unnamed and their goals go to the team.
+      A game with no line up (or a short one) takes the team's season squad, by the position each played most. While the demo runs, its <b>Athletes</b> table
+      shows who each recorded athlete is shown as, and any of them can be changed. <b>Save demo</b> keeps it by name (teams, athletes, Swap) under <b>Saved demos</b>,
+      to start again in one click; saved demos stay on this Mac.
       <b>Swap home and away</b> puts the teams the other way round, so either can be the winner. The competition's setup comes from PlayHQ, so a demo needs the internet.
       Studio never plays video: play the recorded game wherever you like and lay Studio's output over it. A red strip says a demo game is running, as for practice.</p>
   </div>
@@ -589,7 +592,7 @@
         <code style="display:inline">x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</li>
       <li><b>switcher.json</b>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
       <li><b>app-settings.json</b>: the Mac app's own choices (where the window was).</li>
-      <li><b>recordings.json</b> and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
+      <li><b>recordings.json</b>, <b>demos.json</b> (saved demo games) and <b>Recordings/</b> (on this Mac, not in iCloud Drive or a backup): whether Studio records each night on air, and the recordings themselves.</li>
       <li><b>logs/</b>: the debug log. <b>backups/</b>: a copy of the folder made before an update changes how settings are saved.</li>
     </ul>
     <h3>Keeping the settings in iCloud Drive</h3>

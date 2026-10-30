@@ -35,6 +35,13 @@
   #practice h2 { color: var(--fp-danger); }
   #practice .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
   #practice .row .on { background: var(--fp-blue); color: #fff; }
+  .pairs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 6px 24px; }
+  .pairs table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .pairs th { text-align: left; font-size: 12px; color: var(--fp-muted); font-weight: 700; padding: 2px 4px; }
+  .pairs td { padding: 3px 4px; }
+  .pairs select { font: inherit; font-size: 13px; padding: 2px 4px; max-width: 100%; }
+  #savedList .saved { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px solid var(--fp-line); }
+  #savedList .saved:first-child { border-top: 0; }
   #demo .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 10px; }
   #demo select { font: inherit; padding: 5px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; max-width: 100%; }
 </style>
@@ -52,8 +59,20 @@
     <p id="practiceWhat" style="margin:0"></p>
     <div class="row" id="practiceJumps"></div>
     <div class="row"><button id="practicePause">Pause</button><button class="danger" id="practiceStop">Stop</button></div>
+    <div id="pairs" hidden>
+      <h3 style="margin:14px 0 4px;font-size:15px">Athletes</h3>
+      <p class="help" style="margin:0 0 8px">Who each recorded athlete is shown as. Matched by position to begin with; change any of them here.</p>
+      <div class="pairs" id="pairsSides"></div>
+      <div class="row"><input id="saveName" placeholder="Name this demo" maxlength="60" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px">
+        <button id="saveDemo">Save demo</button><span class="help" style="margin:0">Saved with these teams, athletes and Swap, to run again.</span></div>
+    </div>
     <p class="help">The game plays in real time, as PlayHQ had it on the night, moved to now. Studio runs as on a real night: the scoreboard,
       sequences and outputs all work. Nothing counts for the sponsors and nothing is recorded. Stop puts the scoreboard back as it was.</p>
+  </section>
+
+  <section id="savedDemos" hidden>
+    <h2>Saved demos</h2>
+    <div id="savedList"></div>
   </section>
 
   <section id="demo" hidden>
@@ -118,8 +137,9 @@ async function call(method, path, body) {
 // The practice game running, if any: what it is, where it can jump to, Pause and Stop.
 const clock = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 function showPractice(p) {
+  showSaved(p.saved);
   $('practice').hidden = !p.active;
-  if (!p.active) return;
+  if (!p.active) { showPairs(null); return; }
   const start = (p.jumps.find(j => j.id === 'start') || {}).at || p.position;
   $('practice').querySelector('h2').textContent = p.demo ? 'Demo game' : 'Practice game';
   $('practiceWhat').innerHTML = `<b>${esc(p.game.home.name)} v ${esc(p.game.away.name)}</b>${p.game.division ? ` · ${esc(p.game.division)}` : ''}${p.demo ? ` (playing ${esc(p.demo.recorded.home)} v ${esc(p.demo.recorded.away)}, ${p.demo.athletes} athletes matched)` : ''}, recorded ${esc(when(p.recordedOn))}.
@@ -127,7 +147,41 @@ function showPractice(p) {
   $('practiceJumps').innerHTML = 'Jump to ' + p.jumps.map(j => `<button data-jump="${esc(j.id)}">${esc(j.label)}</button>`).join('');
   $('practicePause').textContent = p.paused ? 'Play' : 'Pause';
   $('practicePause').dataset.paused = p.paused ? '1' : '';
+  showPairs(p.demo);
 }
+// A demo game's pairing table: drawn again only when it changes, so a list being picked from stays open.
+let pairsKey = '';
+function showPairs(d) {
+  $('pairs').hidden = !d;
+  const key = d ? JSON.stringify(d.sides) : '';
+  if (!d || key === pairsKey) return;
+  pairsKey = key;
+  $('pairsSides').innerHTML = ['home', 'away'].map(k => {
+    const s = d.sides[k];
+    return `<table><tr><th colspan="2">${esc(s.team)}</th></tr>${s.pairs.map(r => `<tr><td>${esc(r.position || '')} ${esc(r.recorded)}</td>
+      <td><select data-pair="${esc(r.id)}"><option value="">Unnamed (goals to the team)</option>${s.choices.map(c =>
+        `<option value="${esc(c.name)}"${c.name === r.shown ? ' selected' : ''}>${esc(c.name)}${c.position ? ` (${esc(c.position)})` : ''}</option>`).join('')}</select></td></tr>`).join('')}
+      ${s.pairs.length ? '' : '<tr><td colspan="2" class="help">The recording has no line up for this team.</td></tr>'}</table>`;
+  }).join('');
+}
+$('pairsSides').onchange = e => { const s = e.target.closest('[data-pair]'); if (s) practice({ pair: { id: s.dataset.pair, name: s.value } }); };
+$('saveDemo').onclick = async () => { await practice({ save: $('saveName').value }); if (!$('err').textContent) $('saveName').value = ''; };
+// Saved demos: start one again, or remove it.
+let savedKey = '';
+function showSaved(list = []) {
+  $('savedDemos').hidden = !list.length;
+  const key = JSON.stringify(list);
+  if (key === savedKey) return;
+  savedKey = key;
+  $('savedList').innerHTML = list.map(s => `<div class="saved"><b>${esc(s.name)}</b><span class="help" style="margin:0">${esc(s.what)}</span>
+    <span class="acts" style="margin-left:auto;display:flex;gap:8px"><button data-run="${esc(s.name)}">Start demo</button><button class="danger" data-forget="${esc(s.name)}">Remove</button></span></div>`).join('');
+}
+$('savedList').onclick = e => {
+  const r = e.target.closest('[data-run]');
+  if (r) practice({ start: { saved: r.dataset.run, lead: lead() } });
+  const f = e.target.closest('[data-forget]');
+  if (f && confirm(`Remove the saved demo ${f.dataset.forget}?`)) practice({ forget: f.dataset.forget });
+};
 async function practice(body) {
   $('err').textContent = '';
   try {

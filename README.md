@@ -93,7 +93,7 @@ In it:
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
-- `recordings.json` and `Recordings/`: whether Studio records each night on air, and the recordings (see **Recordings**
+- `recordings.json`, `demos.json` and `Recordings/`: whether Studio records each night on air, the saved demo games and the recordings (see **Recordings**
   below), in the local data folder, so they stay on this Mac (not in iCloud Drive or a backup).
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`, `remoteChanges`); a `config.json` here changes only the settings it names.
@@ -1010,7 +1010,10 @@ copy back.
 division's PlayHQ id; `GET /api/practice/games?division=` lists the choices). `practice.js` `dress()` reads that game's line
 ups and the division's teams from PlayHQ, then maps the recording: its two teams to the game's (swapped with `swap`), the
 recorded division's other teams (its ladder, else fixtures) to the client's others, and athletes by position, by PlayHQ id
-(`wear()`; an athlete with no match becomes anonymous, so the goals stay the team's). The client's division id is translated
+(`wear()`; an athlete with no match becomes anonymous, so the goals stay the team's). A game with no or a short line up
+takes the season squad (`athletes.js` `squadFor`, by each athlete's most played position). The pairing table changes a pair
+(`{ pair: { id, name } }`), and `{ save: name }` keeps the demo (recording, game, client game, division, Swap, pairs) in
+`demos.json` in the local data folder, started again with `{ start: { saved } }` and removed with `{ forget }`. The client's division id is translated
 to the recorded one, and a question the recording never asked goes to PlayHQ (the client's competition). Exposure isn't kept (`exposure.js` `held`), finished games aren't added to `game-cache.json`, and the night's
 recording is paused (a `practice` line at each end). Every Studio page shows a red strip while one runs (`studiobar.js`).
 

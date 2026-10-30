@@ -444,7 +444,9 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
     if (hit && Date.now() - hit.at < 30 * 60 * 1000) return hit.list;
     if (!squadInFlight.has(k)) {
       squadInFlight.set(k, seasonLineups(teamName, division).then(({ athletes }) => {
-        const list = [...athletes.values()].map(a => ({ name: a.name, number: a.number, gender: a.gender }));
+        // position: the one they played most this season.
+        const list = [...athletes.values()].map(a => ({ name: a.name, number: a.number, gender: a.gender,
+          position: Object.entries(a.positions).sort((x, y) => y[1] - x[1])[0]?.[0] || '' }));
         squadCache.set(k, { at: Date.now(), list });
         return list;
       }).finally(() => squadInFlight.delete(k)));
