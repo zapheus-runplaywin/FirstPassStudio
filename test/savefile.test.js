@@ -69,6 +69,36 @@ test('writeFile (async) saves started close together land in order: the newest i
   assert.equal(fs.readFileSync(file, 'utf8'), '{"n":21}');
 });
 
+test('flushSync: a process exiting with saves still in the background leaves the newest on disk', () => {
+  const dir = tmp();
+  const file = path.join(dir, 'scoreboard-state.json');
+  // As Studio going off air: saves started, then exit straight away, with the flush on exit.
+  const script = `
+    const savefile = require(${JSON.stringify(path.join(__dirname, '..', 'savefile'))});
+    process.on('exit', () => savefile.flushSync());
+    const file = ${JSON.stringify(file)};
+    savefile.writeFile(file, JSON.stringify({ n: 0, pad: 'x'.repeat(5e6) }));
+    for (let i = 1; i <= 5; i++) savefile.writeFile(file, JSON.stringify({ n: i }));
+    process.exit(0);`;
+  require('node:child_process').execFileSync(process.execPath, ['-e', script]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), { n: 5 });
+  assert.deepEqual(fs.readdirSync(dir), ['scoreboard-state.json'], 'no temporary files left');
+});
+
+test('flushSync: a save under way when it runs is dropped, so it never lands over the newest', async () => {
+  const dir = tmp();
+  const file = path.join(dir, 'scoreboard-state.json');
+  const done = [];
+  savefile.writeFile(file, JSON.stringify({ n: 0, pad: 'x'.repeat(5e6) }), err => done.push(err));
+  savefile.writeFile(file, '{"n":1}', err => done.push(err));
+  savefile.flushSync();
+  assert.equal(fs.readFileSync(file, 'utf8'), '{"n":1}');
+  await new Promise(resolve => { const check = () => (done.length === 2 ? resolve() : setTimeout(check, 10)); check(); });
+  assert.deepEqual(done, [null, null]);
+  assert.equal(fs.readFileSync(file, 'utf8'), '{"n":1}');
+  assert.deepEqual(fs.readdirSync(dir), ['scoreboard-state.json'], 'no temporary files left');
+});
+
 test('readJson gives the fallback for a missing file without calling onError', () => {
   const calls = [];
   assert.deepEqual(savefile.readJson(path.join(tmp(), 'none.json'), { none: true }, err => calls.push(err)), { none: true });

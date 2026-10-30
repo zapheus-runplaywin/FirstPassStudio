@@ -104,7 +104,7 @@ const DATA_STATE = migrations.run(log);
 // The game recording (recorder.js): this night on air, from now until Studio stops.
 const RECORDING_START = () => ({ version: require('./package.json').version, competition: competitions.activeId() || '' });
 recorder.init(log, { dir: datadir.local('Recordings'), settings: datadir.local('recordings.json'), start: RECORDING_START() });
-process.on('exit', () => recorder.close());
+process.on('exit', () => { savefile.flushSync(); recorder.close(); }); // saves still in the background (the scoreboard) are written first
 process.on('SIGTERM', () => process.exit(0)); // the Mac app taking Studio off air: the exit above ends the recording
 // Sequences belong to the competition in use, in its folder.
 scene.init(log, { ffmpeg: MACHINE.ffmpegPath, outputs: { find: outputs.find, summary: outputs.summary }, record: recorder,
