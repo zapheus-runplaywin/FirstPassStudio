@@ -477,6 +477,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   everything else unchanged (scenes, sources, NDI names, links, the switcher key); HD is exactly as before. The graphics keep their
   1920 x 1080 layout and are drawn at twice the density (`desktop/scenewindow.js`), and the canvases are sized for it (`public/zoom.js`).
   A Blackmagic device without that 2160p format, or a 720p NDI format, stays as it is and says so; displays are left alone.
+  In 4K a Blackmagic output can also have one of the device's own 2160p formats picked; HD hides them and sends the 1080p one at its rate.
   Any graphic's link opened at 3840 x 2160 draws itself at twice the size too (`public/zoom.js`), with nothing added to the link.
 
 The scene is saved as `scene.json` in the data folder. http://localhost:8080/scene.html is the scene on its own, 1920 x 1080.

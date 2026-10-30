@@ -1,6 +1,7 @@
 // Picture HD or 4K (outputs.js quality): one setting for every output. In 4K each NDI and Blackmagic output keeps
 // the format saved for it and sends the 2160p one at the same rate, drawn at twice the density; nothing else about
-// it changes (names, sources, keys), and HD again is exactly as before. What can't go to 2160p says why.
+// it changes (names, sources, keys), and HD again is exactly as before. What can't go to 2160p says why. In 4K a
+// Blackmagic output can also have one of the device's own 2160p formats picked.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -79,6 +80,20 @@ test('what can\'t go to 2160p stays as it is and says why', () => {
   assert.match(outputs.state().outputs[2].picture.why, /display draws at its own size/);
   assert.equal(outputs.apply({ ndiFormat: '1080p50' }), null);
   assert.equal(outputs.apply({ output: 'court', decklinkDevice: 'uhd', decklinkMode: 1 }), null);
+});
+
+test('in 4K a Blackmagic output can have the device\'s own 2160p format picked, and HD sends the 1080p one at its rate', () => {
+  assert.equal(outputs.apply({ output: 'court', decklinkMode: 4 }), null);
+  assert.equal(win('court').mode, 4, '2160p25 as it is');
+  assert.equal(win('court').density, 2);
+  assert.deepEqual(outputs.state().outputs[1].picture, { uhd: true, format: '2160p25', why: '' });
+  assert.equal(outputs.apply({ quality: 'hd' }), null);
+  assert.equal(win('court').mode, 2, 'HD sends 1080p25, the same rate');
+  assert.equal(win('court').density, 1);
+  assert.equal(outputs.state().outputs[1].decklinkMode, 4, 'the pick is kept for 4K');
+  assert.equal(outputs.apply({ quality: 'uhd' }), null);
+  assert.equal(win('court').mode, 4);
+  assert.equal(outputs.apply({ output: 'court', decklinkMode: 1 }), null);
 });
 
 test('HD again is exactly as before', () => {
