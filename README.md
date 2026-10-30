@@ -1049,7 +1049,7 @@ takes the season squad (`athletes.js` `squadFor`, by each athlete's most played 
 (`{ pair: { id, name } }`), and `{ save: name }` keeps the demo (recording, game, client game, division, Swap, pairs) in
 `demos.json` in the local data folder, started again with `{ start: { saved } }` and removed with `{ forget }`. The client's division id is translated
 to the recorded one, and a question the recording never asked goes to PlayHQ (the client's competition). Exposure isn't kept (`exposure.js` `held`), finished games aren't added to `game-cache.json`, and the night's
-recording is paused (a `practice` line at each end). Every Studio page shows a red strip while one runs (`studiobar.js`).
+recording is paused (a `practice` line at each end). Every Studio page shows a red strip while one runs (`studiobar.js`, one read of `/api/playback` every 3 s, which answers the replay and the practice game together).
 
 ## Roadmap
 
