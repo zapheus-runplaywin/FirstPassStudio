@@ -1,6 +1,6 @@
-/* FirstPass Studio look for the pages that aren't overlays: home, scoreboard control,
-   competition setup and the Stream Deck API docs. Colours and type come from the FirstPass
-   brand kit. Overlays keep the competition's own colours from theme.css. */
+/* FirstPass Studio look for the Studio pages (the ones with the tab bar), not the graphics. Colours and
+   type come from the FirstPass brand kit; the page kit below is what every Studio page is built from.
+   Graphics keep the competition's own colours from theme.css. */
 
 @font-face { font-family: "Montserrat"; font-style: normal; font-weight: 400; font-display: swap; src: url("vendor/montserrat/montserrat-latin-400-normal.woff2") format("woff2"); }
 @font-face { font-family: "Montserrat"; font-style: normal; font-weight: 600; font-display: swap; src: url("vendor/montserrat/montserrat-latin-600-normal.woff2") format("woff2"); }
@@ -52,6 +52,57 @@ body.fp h1 { font-weight: 900; font-style: italic; letter-spacing: -0.02em; colo
 :where(body.fp main a) { color: var(--fp-blue); }
 :where(body.fp main a:hover) { color: var(--fp-blue-dark); }
 body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2px; }
+
+/* The page kit: what every Studio page (Output, Production Planner, Scoreboard control, Recordings, Socials,
+   Competitions setup, Sponsors, Athletes, Stream Deck, Devices) is built from, so a button, a section or a line of
+   help looks the same on each. Everything is wrapped in :where(body.fp), which adds no specificity: a page's own
+   class (.eye, .pill, .quality button) still wins, and a page's <style> only carries what is really its own.
+   Pages are 1000 px wide; a working page with previews (Output, Socials) says <main class="wide"> for 1280 px, and
+   the Docs page <main class="narrow"> for 800 px of reading.
+   Buttons: the plain button is the action (filled blue); .alt is the quieter choice (white, blue text); .danger
+   removes or stops something (white, red text); .small fits a table row. A link that acts like a button says
+   class="btn" (and .alt, .small). Help text: .help is a line under a control, .note a longer note, .error says why
+   something failed (and takes no room while empty). Long explanations wait behind <details class="info">. */
+:where(body.fp) *, :where(body.fp) *::before, :where(body.fp) *::after { box-sizing: border-box; }
+:where(body.fp) main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+:where(body.fp) main.wide { max-width: 1280px; }
+:where(body.fp) main.narrow { max-width: 800px; }  /* the Docs page: reading width */
+:where(body.fp) h1 { margin: 0 0 4px; font-size: 32px; }
+:where(body.fp) .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+:where(body.fp) .sub b { color: var(--fp-navy); }
+:where(body.fp) section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; min-width: 0; }
+:where(body.fp) h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+:where(body.fp) h3 { font-size: 13px; font-weight: 700; color: var(--fp-muted); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+:where(body.fp) .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+:where(body.fp) select, :where(body.fp) textarea,
+:where(body.fp) input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]) {
+  font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); min-width: 0; max-width: 100%; }
+:where(body.fp) input[type=checkbox], :where(body.fp) input[type=radio] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
+:where(body.fp) input[type=range] { accent-color: var(--fp-blue); }
+:where(body.fp) button, :where(body.fp) .btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue);
+  background: var(--fp-blue); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; }
+:where(body.fp) button:hover, :where(body.fp) .btn:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); color: #fff; }
+:where(body.fp) button.alt, :where(body.fp) .btn.alt { background: var(--fp-white); color: var(--fp-blue); border-color: var(--fp-blue); }
+:where(body.fp) button.alt:hover, :where(body.fp) .btn.alt:hover { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
+:where(body.fp) button.danger, :where(body.fp) button.danger:hover { background: var(--fp-white); color: var(--fp-danger); border-color: var(--fp-danger); }
+:where(body.fp) button.danger:hover { background: #FEF3F2; }
+:where(body.fp) button.small, :where(body.fp) .btn.small { font-size: 12px; padding: 3px 9px; }
+:where(body.fp) button:disabled { opacity: .5; cursor: default; }
+:where(body.fp) .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
+:where(body.fp) .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
+:where(body.fp) .note b { color: var(--fp-navy); }
+:where(body.fp) .error { color: var(--fp-danger); }
+:where(body.fp) .error:empty { display: none; }
+:where(body.fp) code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--fp-gray); border: 1px solid var(--fp-line); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
+:where(body.fp) details.info { margin-top: 8px; }
+:where(body.fp) details.info > summary { cursor: pointer; width: max-content; max-width: 100%; font-size: 13px; font-weight: 600; color: var(--fp-blue); }
+:where(body.fp) details.info > summary:hover { color: var(--fp-blue-dark); }
+:where(body.fp) details.info > .note { margin-top: 4px; }
+:where(body.fp) dialog { border: 1px solid var(--fp-line-strong); border-radius: var(--fp-radius); padding: 20px 22px; max-width: 820px; width: calc(100% - 32px);
+  color: var(--fp-navy); font-family: var(--fp-font); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
+:where(body.fp) dialog::backdrop { background: rgba(15, 23, 42, .45); }
+:where(body.fp) dialog h2 { color: var(--fp-navy); font-size: 20px; text-transform: none; letter-spacing: 0; }
+:where(body.fp) .hidden { display: none !important; }
 
 /* Colour picker (colourpicker.js): a swatch and a HEX/RGB box, and the picker it opens */
 .cp-field { display: inline-flex; align-items: center; gap: 8px; }

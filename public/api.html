@@ -29,18 +29,9 @@
   /* The guide's "Every link" heading stands in for Swagger's title block, which only repeated the guide. */
   .swagger-ui .information-container { display: none; }
   /* The guide above the API reference. */
-  .guide { max-width: 1100px; margin: 0 auto; padding: 24px 20px 0; font-family: var(--fp-font); color: var(--fp-navy); }
-  .guide * { box-sizing: border-box; }
-  .guide h1 { margin: 0 0 4px; font-size: 32px; }
-  .guide .sub { color: var(--fp-muted); margin: 0 0 16px; }
-  .guide section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
-  .guide h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 10px; }
+  .guide { padding-bottom: 0; }
   .guide h3 { font-size: 16px; margin: 16px 0 6px; }
   .guide p, .guide li { font-size: 15px; }
-  .guide .note { font-size: 14px; color: var(--fp-muted); }
-  .guide code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--fp-gray); border: 1px solid var(--fp-line); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
-  .guide button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--fp-blue); color: #fff; cursor: pointer; }
-  .guide button.alt { background: var(--fp-blue-soft); color: var(--fp-blue-dark); padding: 4px 10px; font-size: 13px; }
   .guide .warn { border: 2px solid var(--fp-orange); background: #FFF4EC; border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; }
   .guide .warn strong { color: #B23F00; }
   .guide table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -59,7 +50,7 @@
 </head>
 <body class="fp">
   <header class="fp-bar"></header><script src="studiobar.js"></script>
-  <div class="guide">
+  <main class="guide">
     <h1>Stream Deck</h1>
     <p class="sub">Run the scene and the scoreboard from a Stream Deck. Studio has to be on air: keep a Studio window open.</p>
     <p id="linkSetRow" hidden><label>Copy links for <select id="linkSet"></select></label>
@@ -142,7 +133,7 @@
       <span class="note">The OpenAPI reference for every link. Try it out sends a link to Studio for real, so a score or clock link there stops Follow PlayHQ just like a key.</span>
       <a href="/openapi.yaml" download>Download openapi.yaml</a>
     </div>
-  </div>
+  </main>
   <div id="swagger"></div>
   <div id="fallback" hidden>
     <p>The documentation viewer did not load.
@@ -198,7 +189,7 @@
           code.textContent = base + path;
           tr.insertCell().appendChild(code);
           const btn = document.createElement('button');
-          btn.className = 'alt';
+          btn.className = 'alt small';
           btn.textContent = 'Copy';
           btn.onclick = async () => {
             try { await navigator.clipboard.writeText(base + path); btn.textContent = 'Copied'; } catch { btn.textContent = 'Select it'; }

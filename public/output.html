@@ -7,27 +7,8 @@
 <link rel="icon" href="studio/favicon.png">
 <link rel="stylesheet" href="studio.css">
 <style>
-  * { box-sizing: border-box; }
-  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 40px; }
-  h1 { margin: 0 0 4px; font-size: 32px; }
-  .sub { color: var(--fp-muted); margin: 0 0 16px; }
-  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; min-width: 0; }
-  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  select, input { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); min-width: 0; }
-  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
   input[type=number] { width: 96px; }
-  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--fp-blue); color: #fff; cursor: pointer; }
-  button:hover { background: var(--fp-blue-dark); }
-  button.alt { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
-  button.alt:hover { background: #D3E4EF; }
-  button.danger { background: #FEF3F2; color: var(--fp-danger); }
-  button:disabled { opacity: .4; cursor: default; }
   #outNdiName:disabled { opacity: .6; cursor: default; } /* following the output's name */
-  .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
-  .note b { color: var(--fp-navy); }
-  .error { color: var(--fp-danger); }
-  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--fp-gray); border: 1px solid var(--fp-line); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
 
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
@@ -46,6 +27,8 @@
   .sources li .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sources li .name small { font-weight: 400; color: var(--fp-muted); margin-left: 6px; }
   .sources li button { padding: 4px 9px; }
+  /* The page's own kinds of button sit on the kit's: no blue border on them. */
+  .eye, .pill, .cell, .quality button, button.fold, .drift button, .outCard .onBtn { border-color: transparent; }
   .eye { background: var(--fp-line); color: var(--fp-muted); min-width: 46px; }
   .eye:hover { background: var(--fp-line-strong); }
   .eye.on, .eye.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
@@ -81,8 +64,7 @@
   .sources li.dropBefore { box-shadow: inset 0 3px 0 var(--fp-blue); }
   .sources li.dropAfter { box-shadow: inset 0 -3px 0 var(--fp-blue); }
   .sources li .grip { cursor: grab; color: var(--fp-muted); padding: 0 2px; user-select: none; }
-  #addDialog { border: 0; border-radius: var(--fp-radius); padding: 18px 20px; width: min(560px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
-  #addDialog::backdrop { background: rgba(15, 23, 42, .45); }
+  #addDialog { max-width: 560px; }
   .empty { padding: 16px; color: var(--fp-muted); cursor: default !important; display: block !important; }
 
   .mediaList li { grid-template-columns: minmax(0, 1fr) auto; cursor: default; }
@@ -99,10 +81,6 @@
   button.fold:hover { background: var(--fp-blue-soft); }
   section.folded button.fold { transform: rotate(-90deg); }
   /* Long explanations wait behind Expand for info. */
-  details.info { margin-top: 8px; }
-  details.info > summary { cursor: pointer; width: max-content; max-width: 100%; font-size: 13px; font-weight: 600; color: var(--fp-blue); }
-  details.info > summary:hover { color: var(--fp-blue-dark); }
-  details.info > .note { margin-top: 4px; }
   .form { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
   .form > label { font-weight: 600; font-size: 14px; }
   .form .wide { grid-column: 1 / -1; }
@@ -115,7 +93,6 @@
   .links div { display: flex; gap: 8px; align-items: center; }
   .links code { flex: 1; }
   .links button { padding: 4px 10px; }
-  .hidden { display: none !important; }
 
   /* Scenes: saved looks for the sources. The strip along each card's bottom is its Stream Deck colour group. */
   .scenes { display: flex; flex-wrap: wrap; gap: 14px 8px; padding-top: 6px; }
@@ -293,7 +270,7 @@
 </head>
 <body class="fp">
 <header class="fp-bar"></header><script src="studiobar.js"></script>
-<main>
+<main class="wide">
   <h1>Output</h1>
   <!-- The health strip (/api/health, every 2 s): what Studio is following and whether PlayHQ is answering, so a problem
        Studio keeps off the stream still shows here, on the page that stays open all night. -->
