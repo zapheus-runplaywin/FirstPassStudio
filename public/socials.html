@@ -7,31 +7,15 @@
 <link rel="icon" href="studio/favicon.png">
 <link rel="stylesheet" href="studio.css">
 <style>
-  * { box-sizing: border-box; }
-  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
-  h1 { margin: 0 0 4px; font-size: 32px; }
-  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
-  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
-  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
-  select { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); min-width: 0; max-width: 100%; }
-  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
   input[type=range] { accent-color: var(--fp-blue); width: 140px; vertical-align: middle; }
-  button { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; }
-  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
-  button:disabled { opacity: .5; cursor: default; }
-  button.alt { background: var(--fp-white); color: var(--fp-blue); }
-  button.alt:hover { background: var(--fp-blue-soft); }
-  button.small { font-size: 12px; padding: 3px 9px; }
   .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
   .row label { white-space: nowrap; }
   .seg { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; }
   .seg label { padding: 6px 12px; cursor: pointer; font-weight: 600; }
   .seg input { position: absolute; opacity: 0; pointer-events: none; }
   .seg label:has(input:checked) { background: var(--fp-blue); color: #fff; }
-  .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
-  .error { color: var(--fp-danger); }
-  .note { font-size: 14px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); }
-  .note.warn { background: var(--fp-orange); font-weight: 600; }
+  .callout { font-size: 14px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); }
+  .callout.warn { background: var(--fp-orange); font-weight: 600; }
 
   /* A graphic: its ticks, then a preview per size ticked at the top. */
   .pic { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px 20px; align-items: start; }
@@ -84,11 +68,11 @@
 </head>
 <body class="fp">
 <header class="fp-bar"></header><script src="studiobar.js"></script>
-<main>
+<main class="wide">
   <h1>Socials</h1>
   <p class="sub">Pictures of a game night for Instagram and other social media, before it (Upcoming) or after it (Results), made from the fixture, results and ladders Studio already has.
     Pick the night and the sizes, untick what you don't want, then <b>Save</b> them as PNGs or <b>Share</b> them to your phone with AirDrop, Messages or Mail.</p>
-  <p class="note warn" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
+  <p class="callout warn" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
   <p class="error" id="err" hidden></p>
   <section>
     <div class="row">
@@ -350,7 +334,7 @@
     l.append(c, ' Save this one');
     ticks.append(l, sponsorTick(p.kind));
     if (p.help) left.append(el('p', 'help', p.help));
-    if (p.missing) left.append(el('p', 'note warn', p.missing));
+    if (p.missing) left.append(el('p', 'callout warn', p.missing));
     if (p.kind === 'polaroid') left.append(photoControls(p.key), athletePicker(p.key, 'athlete', 'Or an athlete\'s photo', {}));
     if (p.kind === 'tournament') left.append(afterPicker(p), moversTick());
     if (p.kind === 'matchup' || p.kind === 'fulltime') {

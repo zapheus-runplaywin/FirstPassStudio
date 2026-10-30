@@ -7,30 +7,23 @@
 <link rel="icon" href="studio/favicon.png">
 <link rel="stylesheet" href="studio.css">
 <style>
-  main { max-width: 800px; margin: 0 auto; padding: 32px 16px 40px; }
-  h1 { margin: 0 0 4px; font-size: 34px; }
-  .sub { color: var(--fp-muted); margin: 0 0 24px; }
   .card { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 18px 22px; margin-bottom: 14px; }
   .card h2 { margin: 0 0 10px; font-size: 18px; font-weight: 800; }
   code { display: block; background: var(--fp-blue-soft); color: var(--fp-navy); padding: 8px 10px; border-radius: 8px; word-break: break-all; font-size: 14px; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  button, a.btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-blue); color: #fff; cursor: pointer; text-decoration: none; }
-  button:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); }
-  a.btn { background: var(--fp-white); color: var(--fp-blue); }
-  a.btn:hover { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
   .page { padding: 14px 0; border-top: 1px solid var(--fp-line); }
   .page:first-child { border-top: 0; padding-top: 0; }
   .page__name { font-weight: 800; margin-bottom: 6px; }
   .page__help { margin: 10px 0 0; font-size: 14px; color: var(--fp-muted); line-height: 1.55; }
   .page__help b { color: var(--fp-navy); }
   .page__help code { display: inline; padding: 1px 5px; white-space: nowrap; }
-  .error { background: #FEF3F2; border-color: #FECDCA; color: var(--fp-danger); }
+  .card.error { background: #FEF3F2; border-color: #FECDCA; color: var(--fp-danger); }
 </style>
 <script src="log.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar"></header><script src="studiobar.js"></script>
-<main>
+<main class="narrow">
   <h1>Docs</h1>
   <p class="sub" id="sub">Loading from PlayHQ…</p>
   <p class="page__help">How Studio works and what every graphic does. Build the show on the <a href="/output.html">Output page</a>: each graphic's options are fields in its source's settings there.
@@ -38,7 +31,7 @@
   <div class="card">
     <h2>Competition setup</h2>
     <p class="page__help" id="compNow">Every graphic is set up for one competition at a time.</p>
-    <div class="row"><a class="btn" href="/setup.html" target="_blank">Open competition setup</a><a class="btn" href="/athletes.html" target="_blank">Open athlete photos</a><a class="btn" href="/sponsors.html" target="_blank">Open sponsors</a></div>
+    <div class="row"><a class="btn alt" href="/setup.html" target="_blank">Open competition setup</a><a class="btn alt" href="/athletes.html" target="_blank">Open athlete photos</a><a class="btn alt" href="/sponsors.html" target="_blank">Open sponsors</a></div>
     <p class="page__help">The <a href="/sponsors.html" target="_blank">Sponsors page</a> keeps the competition's sponsors by tier (Naming rights, Elite, Major, Partner, Supporter, or Platinum, Gold, Silver and Bronze, or your own names),
       each with its colour and white logos, tagline, website, offer, brand colour, category, deal dates and optional targets, and a QR code to its website (made on this Mac, with tracking tags for the sponsor's website analytics unless turned off; <b>Save QR code as PNG</b> gives a copy).
       A sponsor can be shown on more than one competition at its own tier in each, and is kept once. For each tier, pick what its spots do when it has no sponsor:
@@ -123,7 +116,7 @@
   <div class="card">
     <h2>Live scoreboard</h2>
     <code id="sbUrl"></code>
-    <div class="row"><button id="sbCopy">Copy link</button><a class="btn" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn" href="/api.html" target="_blank">Stream Deck links</a></div>
+    <div class="row"><button id="sbCopy">Copy link</button><a class="btn alt" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn alt" href="/api.html" target="_blank">Stream Deck links</a></div>
     <p class="page__help">Sits centred at the bottom, just above the score ticker with a small gap, so both can be on together.
       <code>?position=top-center</code>, <code>bottom-center</code>, <code>top-left</code> or <code>bottom-left</code> moves it.</p>
     <p class="page__help"><b>Super shot tab:</b> in a division with super shots, when the quarter clock gets to the last 3 minutes (or is already
@@ -135,7 +128,7 @@
   <div class="card">
     <h2>Output (the Studio scene)</h2>
     <code id="sceneUrl"></code>
-    <div class="row"><button id="sceneCopy">Copy link</button><a class="btn" href="/output.html" target="_blank">Open the Output page</a><a class="btn pvw" href="/pvw.html?src=%2Fscene.html&amp;name=Scene" target="_blank">Preview</a></div>
+    <div class="row"><button id="sceneCopy">Copy link</button><a class="btn alt" href="/output.html" target="_blank">Open the Output page</a><a class="btn alt pvw" href="/pvw.html?src=%2Fscene.html&amp;name=Scene" target="_blank">Preview</a></div>
     <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
       top layer first, and sends it to a display, a Blackmagic device or NDI® for your switcher.
       Each section folds away with the arrow by its title (or a click on the title), and stays folded on that Mac until it's opened again; buttons in a folded section's
@@ -753,7 +746,7 @@ document.addEventListener('click', e => {
 function pageRow(name, path, help) {
   const row = document.createElement('div');
   row.className = 'page';
-  row.innerHTML = '<div class="page__name"></div><code></code><div class="row"><button>Copy link</button><a class="btn pvw" target="_blank">Preview</a></div>';
+  row.innerHTML = '<div class="page__name"></div><code></code><div class="row"><button>Copy link</button><a class="btn alt pvw" target="_blank">Preview</a></div>';
   row.querySelector('.page__name').textContent = name;
   row.querySelector('a').href = previewLink(path, name);
   showLink(path, row.querySelector('code'), row.querySelector('button'));
@@ -1008,7 +1001,7 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
       const path = `/ladder.html?division=${g.division}`;
       const card = document.createElement('div');
       card.className = 'card';
-      card.innerHTML = `<h2></h2><code></code><div class="row"><button>Copy link</button><a class="btn pvw" target="_blank">Preview</a></div>`;
+      card.innerHTML = `<h2></h2><code></code><div class="row"><button>Copy link</button><a class="btn alt pvw" target="_blank">Preview</a></div>`;
       card.querySelector('h2').textContent = `Ladder: ${g.name}`;
       card.querySelector('a').href = previewLink(path, `Ladder: ${g.name}`);
       showLink(path, card.querySelector('code'), card.querySelector('button'));

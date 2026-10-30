@@ -8,36 +8,17 @@
 <link rel="stylesheet" href="studio.css">
 <script src="sceneevents.js"></script>
 <style>
-  * { box-sizing: border-box; }
-  main { max-width: 920px; margin: 0 auto; padding: 24px 16px 40px; }
-  h1 { margin: 0 0 4px; font-size: 32px; }
-  .sub { color: var(--fp-muted); margin: 0 0 16px; }
-  .sub b { color: var(--fp-navy); }
-  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
-  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  select, input { font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
-  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
   select { flex: 1 1 360px; min-width: 0; }
-  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--fp-blue); color: #fff; cursor: pointer; }
-  button:hover { background: var(--fp-blue-dark); }
-  button.alt { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
-  button.alt:hover { background: #D3E4EF; }
-  button.on, button.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
+  button.on, button.on:hover { background: var(--fp-orange); border-color: var(--fp-orange); color: var(--fp-navy); }
   .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .team { border: 1px solid var(--fp-line); background: var(--fp-gray); border-radius: var(--fp-radius); padding: 14px; text-align: center; }
   .team input { width: 100%; text-align: center; font-weight: 800; margin-bottom: 8px; }
   .big { font-size: 68px; font-weight: 900; font-style: italic; color: var(--fp-navy); line-height: 1; margin: 8px 0 12px; font-variant-numeric: tabular-nums; }
   .team .row { justify-content: center; }
-  .plus, .plus:hover { background: var(--fp-gold); color: var(--fp-navy); font-size: 22px; font-weight: 800; padding: 12px 26px; }
+  .plus, .plus:hover { background: var(--fp-gold); border-color: var(--fp-gold); color: var(--fp-navy); font-size: 22px; font-weight: 800; padding: 12px 26px; }
   .plus:hover { filter: brightness(.95); }
   .clockface { font-size: 34px; font-weight: 900; font-style: italic; color: var(--fp-navy); min-width: 110px; font-variant-numeric: tabular-nums; }
-  a.btnlink { font-weight: 600; padding: 8px 14px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-blue-dark); text-decoration: none; }
-  a.btnlink:hover { background: #D3E4EF; }
-  .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
-  .note b { color: var(--fp-navy); }
   .alert { font-size: 14px; margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--fp-orange); color: var(--fp-navy); font-weight: 600; }
-  .error { color: var(--fp-danger); }
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
   .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
@@ -136,19 +117,19 @@
     <h2>Title, match up, team lists and shooting stats</h2>
     <p class="note" id="teamsNote">Pick a PlayHQ game above to load its team lists.</p>
     <div class="row" style="margin-top:10px">
-      <a class="btnlink" href="/title.html" target="_blank" id="titlelink">Title</a>
-      <a class="btnlink" href="/matchup.html" target="_blank" id="matchup">Match up</a>
-      <a class="btnlink" href="/clash.html" target="_blank" id="clash">The Clash</a>
-      <a class="btnlink" href="/upnext.html" target="_blank" id="upnext">Up next</a>
-      <a class="btnlink" href="/fulltime.html" target="_blank" id="fulltime">Full time</a>
-      <a class="btnlink" href="/gamestats.html" target="_blank" id="gamestats">Game stats</a>
-      <a class="btnlink" href="/worm.html" target="_blank" id="worm">Score worm</a>
-      <a class="btnlink" href="/ladderbar.html" target="_blank" id="ladderbar">Ladder bar</a>
-      <a class="btnlink" href="/ticker.html" target="_blank" id="ticker">Ticker</a>
-      <a class="btnlink" href="/topshooters.html" target="_blank" id="shooters">Top shooters</a>
-      <a class="btnlink" href="/teamlist.html?side=home" target="_blank" id="tlHome">Home team list</a>
-      <a class="btnlink" href="/teamlist.html?side=away" target="_blank" id="tlAway">Away team list</a>
-      <a class="btnlink" href="/shooting.html" target="_blank" id="shoot">Shooting stats</a>
+      <a class="btn alt" href="/title.html" target="_blank" id="titlelink">Title</a>
+      <a class="btn alt" href="/matchup.html" target="_blank" id="matchup">Match up</a>
+      <a class="btn alt" href="/clash.html" target="_blank" id="clash">The Clash</a>
+      <a class="btn alt" href="/upnext.html" target="_blank" id="upnext">Up next</a>
+      <a class="btn alt" href="/fulltime.html" target="_blank" id="fulltime">Full time</a>
+      <a class="btn alt" href="/gamestats.html" target="_blank" id="gamestats">Game stats</a>
+      <a class="btn alt" href="/worm.html" target="_blank" id="worm">Score worm</a>
+      <a class="btn alt" href="/ladderbar.html" target="_blank" id="ladderbar">Ladder bar</a>
+      <a class="btn alt" href="/ticker.html" target="_blank" id="ticker">Ticker</a>
+      <a class="btn alt" href="/topshooters.html" target="_blank" id="shooters">Top shooters</a>
+      <a class="btn alt" href="/teamlist.html?side=home" target="_blank" id="tlHome">Home team list</a>
+      <a class="btn alt" href="/teamlist.html?side=away" target="_blank" id="tlAway">Away team list</a>
+      <a class="btn alt" href="/shooting.html" target="_blank" id="shoot">Shooting stats</a>
     </div>
     <div class="row" style="margin-top:10px">
       <label>Ticker speed <input id="tickerSpeed" type="number" min="20" max="600" step="10" style="width:80px"> pixels a second</label>
@@ -163,7 +144,7 @@
     <h2>Finals</h2>
     <div class="row">
       <label>Division <select id="finDivision" style="flex:0 1 260px"></select></label>
-      <a class="btnlink" id="finLink" href="/finals.html" target="_blank">Finals graphic</a>
+      <a class="btn alt" id="finLink" href="/finals.html" target="_blank">Finals graphic</a>
       <button class="alt" id="finReload">Refresh</button>
     </div>
     <p class="note" id="finNote">Loading the finals…</p>

@@ -7,20 +7,6 @@
 <link rel="icon" href="studio/favicon.png">
 <link rel="stylesheet" href="studio.css">
 <style>
-  * { box-sizing: border-box; }
-  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 100px; }
-  h1 { margin: 0 0 4px; font-size: 32px; }
-  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
-  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
-  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
-  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
-  button, .button { font: inherit; font-size: 13px; font-weight: 600; padding: 4px 11px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-white); color: var(--fp-blue); cursor: pointer; text-decoration: none; display: inline-block; }
-  button:hover, .button:hover { background: var(--fp-blue-soft); }
-  button.danger { border-color: var(--fp-danger); color: var(--fp-danger); }
-  button:disabled { opacity: .5; cursor: default; }
-  .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
-  .error { color: var(--fp-danger); margin: 8px 0 0; }
-  .error:empty { display: none; }
   .night { border-top: 1px solid var(--fp-line); padding: 12px 0; }
   .night:first-of-type { border-top: 0; padding-top: 0; }
   .night .head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
@@ -30,7 +16,7 @@
   .night ul { margin: 6px 0 0; padding-left: 20px; line-height: 1.6; }
   .live { color: #fff; background: var(--fp-danger); border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
   .empty { color: var(--fp-muted); margin: 0; }
-  .night li button { margin-left: 8px; font-size: 12px; padding: 1px 9px; }
+  .night li button { margin-left: 8px; }
   #practice { border-color: var(--fp-danger); }
   #practice h2 { color: var(--fp-danger); }
   #practice .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
@@ -77,10 +63,10 @@
     <h2>4K replay</h2>
     <p id="replayWhat" style="margin:0"></p>
     <div class="row"><button id="replayPlay">Play</button>
-      <span class="help" style="margin:0">Nudge</span><button data-nudge="-1000">−1 s</button><button data-nudge="-40">−1 frame</button><button data-nudge="40">+1 frame</button><button data-nudge="1000">+1 s</button>
+      <span class="help" style="margin:0">Nudge</span><button class="alt" data-nudge="-1000">−1 s</button><button class="alt" data-nudge="-40">−1 frame</button><button class="alt" data-nudge="40">+1 frame</button><button class="alt" data-nudge="1000">+1 s</button>
       <button class="danger" id="replayStop">Stop</button></div>
     <div class="row"><select id="replayEvents" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;max-width:100%"></select>
-      <button id="replayJump">Jump there</button></div>
+      <button class="alt" id="replayJump">Jump there</button></div>
     <div class="row"><label for="followKind">Follow</label>
       <select id="followKind" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px">
         <option value="none">Nothing (Play here)</option><option value="hyperdeck">A HyperDeck's timecode</option><option value="sdi">Timecode into the UltraStudio (SDI)</option></select>
@@ -108,7 +94,7 @@
     <div class="row"><select id="demoDivision"><option value="">Division…</option></select>
       <select id="demoGame" disabled><option value="">Game…</option></select>
       <label><input type="checkbox" id="demoSwap"> Swap home and away</label>
-      <button id="demoStart" disabled>Start demo</button><button id="demoCancel">Cancel</button></div>
+      <button id="demoStart" disabled>Start demo</button><button class="alt" id="demoCancel">Cancel</button></div>
     <p class="help">Athletes are matched by position, so the recorded GS's goals are your GS's; anyone with no match is left unnamed and their
       goals go to the team. Swap puts the teams the other way round, so either can be the winner. Your competition's setup comes from PlayHQ, so a demo needs the internet.</p>
   </section>
@@ -152,9 +138,9 @@ function show(s) {
   $('nights').innerHTML = s.recordings.length ? s.recordings.map(r => `<div class="night">
       <div class="head"><h3>${esc(when(r.started))}</h3>${r.recording ? '<span class="live">Recording</span>' : ''}
         <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
-        <span class="acts"><a class="button" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
-          <button class="danger" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once it stops, after the game"' : ''}>Remove</button></span></div>
-      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button><button data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
+        <span class="acts"><a class="btn alt small" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
+          <button class="danger small" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once it stops, after the game"' : ''}>Remove</button></span></div>
+      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button class="alt small" data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button class="alt small" data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button><button class="alt small" data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
     </div>`).join('') : '<p class="empty">No recordings yet. The next PlayHQ game on air is recorded.</p>';
 }
 
@@ -178,7 +164,7 @@ function showPractice(p) {
   $('practice').querySelector('h2').textContent = p.demo ? 'Demo game' : 'Practice game';
   $('practiceWhat').innerHTML = `<b>${esc(p.game.home.name)} v ${esc(p.game.away.name)}</b>${p.game.division ? ` · ${esc(p.game.division)}` : ''}${p.demo ? ` (playing ${esc(p.demo.recorded.home)} v ${esc(p.demo.recorded.away)}, ${p.demo.athletes} athletes matched)` : ''}, recorded ${esc(when(p.recordedOn))}.
     ${p.paused ? 'Paused' : 'Playing'} at ${clock(p.position - start)} from Start.`;
-  $('practiceJumps').innerHTML = 'Jump to ' + p.jumps.map(j => `<button data-jump="${esc(j.id)}">${esc(j.label)}</button>`).join('');
+  $('practiceJumps').innerHTML = 'Jump to ' + p.jumps.map(j => `<button class="alt small" data-jump="${esc(j.id)}">${esc(j.label)}</button>`).join('');
   $('practicePause').textContent = p.paused ? 'Play' : 'Pause';
   $('practicePause').dataset.paused = p.paused ? '1' : '';
   showPairs(p.demo);
