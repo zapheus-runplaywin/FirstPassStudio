@@ -9,9 +9,10 @@
 // or the Mac's Share menu. Without the Mac app (npm start) the previews work and Export says it needs the app.
 //
 // Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
-// colourSets: [{ id, name, ground, highlight, accent }], template }: the FirstPass Studio mark and the PIVT logo in the
-// corners, which graphics carry the sponsor strip, the colour set in use and the ones made by hand, and the template
-// set, kept week to week. Photos dropped on a polaroid stay
+// colourSets: [{ id, name, ground, highlight, accent }], template, favourites: [<template id>], favouritesOnly }: the
+// FirstPass Studio mark and the PIVT logo in the corners, which graphics carry the sponsor strip, the colour set in use
+// and the ones made by hand, the template set, and the template sets starred (and whether the tab lists only those),
+// kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
 // Routes (server.js hands every /api/socials and /socials/ request here):
@@ -22,7 +23,8 @@
 //                                        division's, as on the Socials tab's Top shooters picture per division); &home= &away= &athlete= the
 //                                        athletes picked for a picture (picked, with their approved photo)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
-//   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id> }
+//   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
+//                                        favourites: [<template id>], favouritesOnly: bool }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
 //   POST /api/socials/export             { date, set: upcoming|results, share, zip, items: [{ name, link, size }] }: the
@@ -106,8 +108,10 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const colourSets = Array.isArray(d.colourSets) ? d.colourSets.filter(ownSet) : [];
     const colours = typeof d.colours === 'string' && allSets(colourSets).some(x => x.id === d.colours) ? d.colours : 'competition';
     const template = templateOf(d.template)?.id || 'default';
-    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template };
+    return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template, favourites: favouritesOf(d.favourites), favouritesOnly: d.favouritesOnly === true };
   }
+  // Starred template sets, in the list's order; a retired one counts as the set it is now drawn as.
+  const favouritesOf = list => Array.isArray(list) ? TEMPLATES.map(t => t.id).filter(id => list.some(x => templateOf(x)?.id === id)) : [];
   const ownSet = x => x && /^own-\d+$/.test(x.id) && typeof x.name === 'string' && [x.ground, x.highlight, x.accent].every(c => HEX.test(c));
   function saveSettings(body) {
     const id = competitions.activeId();
@@ -131,6 +135,11 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       if (!templateOf(body.template)) throw new Error('There is no such template set.');
       now.template = templateOf(body.template).id;
     }
+    if (Array.isArray(body.favourites)) {
+      if (!body.favourites.every(x => templateOf(x))) throw new Error('There is no such template set.');
+      now.favourites = favouritesOf(body.favourites);
+    }
+    if (typeof body.favouritesOnly === 'boolean') now.favouritesOnly = body.favouritesOnly;
     savefile.writeJsonSync(fileOf(id), now);
     return now;
   }

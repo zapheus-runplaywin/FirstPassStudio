@@ -66,7 +66,10 @@
   .dots i { display: block; width: 13px; height: 20px; }
   .dots i:first-child { width: 22px; }
   .low { font-size: 11px; font-weight: 700; color: var(--fp-danger); }
-  #templates .set { padding: 5px 11px; }
+  #templates .set { padding: 5px 9px 5px 11px; }
+  .set .star { color: var(--fp-muted); font-size: 15px; line-height: 1; }
+  .set .star:hover, .set .star.on { color: #e0a800; }
+  .favonly { font-size: 13px; white-space: nowrap; }
   .set .rm { margin-left: 2px; color: var(--fp-muted); font-weight: 700; }
   .newset[hidden] { display: none; }
   .picker { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-top: 10px; max-width: 240px; }
@@ -116,7 +119,7 @@
     </form>
     <p class="help"><b>Upcoming</b>: the night's fixture, a match up for each game, who is on the stream (from the Production Planner) and a polaroid for a match photo.
       <b>Results</b>: the night's final scores, a full time card and a polaroid with the score for each game, each division's ladder and each division's top shooters.
-      A night with results opens on Results. <b>Template</b> is the look of every picture: Default is the stream's own, and the others each bring their own shapes and lettering. <b>Colours</b> change every picture in any template: sets made from the competition's main, highlight and accent colours (Competition colours is the stream's own look), or your own with <b>New colour set</b>. Under <b>Options</b>, the FirstPass Studio mark sits bottom right and the PIVT logo bottom left; untick either to leave it off. Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
+      A night with results opens on Results. <b>Template</b> is the look of every picture: Default is the stream's own, and the others each bring their own shapes and lettering. Star (☆) the ones you use and tick <b>Favourites only</b> to list just those. <b>Colours</b> change every picture in any template: sets made from the competition's main, highlight and accent colours (Competition colours is the stream's own look), or your own with <b>New colour set</b>. Under <b>Options</b>, the FirstPass Studio mark sits bottom right and the PIVT logo bottom left; untick either to leave it off. Whether each one carries the sponsor strip (your naming, elite and major sponsors) is remembered for next week.</p>
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
   <div class="bar">
@@ -403,16 +406,30 @@
 
   $('night').onchange = () => loadNight($('night').value);
   for (const c of document.querySelectorAll('[data-size], [name=set]')) c.onchange = draw;
-  // The template sets: the look of every picture, picked once for them all.
+  // The template sets: the look of every picture, picked once for them all. The star marks a favourite; Favourites
+  // only lists just those (and the one in use), once there is one.
   function drawTemplates() {
-    $('templates').replaceChildren(el('b', '', 'Template'), ...info.templates.map(t => {
+    const favs = info.settings.favourites, only = info.settings.favouritesOnly && favs.length > 0;
+    const shown = info.templates.filter(t => !only || favs.includes(t.id) || t.id === info.settings.template);
+    const tick = el('label', 'favonly');
+    const box = el('input');
+    box.type = 'checkbox';
+    box.checked = info.settings.favouritesOnly;
+    box.onchange = () => saveSettings({ favouritesOnly: box.checked });
+    tick.append(box, ' Favourites only');
+    tick.title = favs.length ? 'List only the starred templates' : 'Star a template (☆) to make it a favourite';
+    $('templates').replaceChildren(el('b', '', 'Template'), ...shown.map(t => {
       const b = el('button', 'set small', t.name);
       b.type = 'button';
       b.title = t.blurb;
       b.setAttribute('aria-pressed', String(t.id === info.settings.template));
       b.onclick = () => saveSettings({ template: t.id });
+      const fav = favs.includes(t.id), star = el('span', fav ? 'star on' : 'star', fav ? '★' : '☆');
+      star.title = fav ? `Remove ${t.name} from favourites` : `Make ${t.name} a favourite`;
+      star.onclick = e => { e.stopPropagation(); saveSettings({ favourites: fav ? favs.filter(x => x !== t.id) : [...favs, t.id] }); };
+      b.append(star);
       return b;
-    }));
+    }), tick);
   }
   // The colour sets: pick one for every picture, add your own, or remove one you made.
   function drawColours() {

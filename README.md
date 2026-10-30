@@ -960,7 +960,9 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   cut-out PNG from the Athletes tab) tall, in front of the title; Final sets the title's last word in a script face (`script`, `--sfont`).
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
   for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template
-  takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one.
+  takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one. A star on a template marks
+  it a favourite (`favourites`, in the list's order), and **Favourites only** (`favouritesOnly`) lists just those and
+  the one in use; with none starred it lists them all.
   The title stays on one line beside the competition logo (`fitTitle` in `social.html` shrinks it up to 30% before it
   may wrap; Poster's stacked portrait and Story titles are left alone), and the date line under it likewise; a long
   date line puts its court and venue on a second line. A template keeps its decoration clear with `--title-clear`.

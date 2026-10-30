@@ -22,7 +22,7 @@ test('the tab lists every game night, opens on the next, and knows saving needs 
   assert.equal(s.next, studio.world.today);
   assert.deepEqual(Object.keys(s.sizes), ['square', 'portrait', 'story']);
   assert.deepEqual(s.sizes.story, { width: 1080, height: 1920, label: 'Story' });
-  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
+  assert.deepEqual(s.settings, { mark: true, pivt: true, sponsor: { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default', favourites: [], favouritesOnly: false });
   assert.deepEqual(s.nights.map(n => n.results), [4, 4, 0, 0], 'last two weeks played, tonight and next week to come');
   assert.equal(s.app, false, 'no Mac app around the helper here');
 });
@@ -106,7 +106,7 @@ test('a played night has each result and winner; the ladders and top shooters co
 
 test('the sponsor strip and the Studio mark are kept per competition', async () => {
   const r = await studio.post('/api/socials/settings', { mark: false, sponsor: { polaroid: true, fixtures: false, nonsense: true } });
-  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, commentators: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default' });
+  assert.deepEqual(r.settings, { mark: false, pivt: true, sponsor: { fixtures: false, matchup: true, onstream: true, commentators: true, polaroid: true, results: true, fulltime: true, ladder: true, topshooters: true }, colours: 'competition', colourSets: [], template: 'default', favourites: [], favouritesOnly: false });
   assert.deepEqual((await studio.get('/api/socials')).settings, r.settings);
   assert.equal((await studio.post('/api/socials/settings', { pivt: false })).settings.pivt, false, 'the PIVT logo is optional too');
   await studio.post('/api/socials/settings', { mark: true, pivt: true });
@@ -164,6 +164,14 @@ test('template sets: each has its own face, one is kept for every picture, and a
   assert.equal((await studio.request('POST', '/api/socials/settings', { template: 'nonsense' })).status, 400);
   assert.equal((await studio.post('/api/socials/settings', { template: 'arena' })).settings.template, 'highcontrast');
   assert.equal((await studio.post('/api/socials/settings', { template: 'default' })).settings.template, 'default');
+  // Favourites: starred sets kept in the list's order, a retired one counted as the set it is drawn as, and a tick to list only those.
+  assert.deepEqual([s.settings.favourites, s.settings.favouritesOnly], [[], false], 'none starred at first');
+  const fav = (await studio.post('/api/socials/settings', { favourites: ['stadium', 'court', 'arena', 'court'], favouritesOnly: true })).settings;
+  assert.deepEqual([fav.favourites, fav.favouritesOnly], [['highcontrast', 'court', 'stadium'], true]);
+  assert.equal((await studio.request('POST', '/api/socials/settings', { favourites: ['nonsense'] })).status, 400);
+  assert.deepEqual((await studio.get('/api/socials')).settings.favourites, ['highcontrast', 'court', 'stadium'], 'kept');
+  const off = (await studio.post('/api/socials/settings', { favourites: [], favouritesOnly: false })).settings;
+  assert.deepEqual([off.favourites, off.favouritesOnly], [[], false]);
 });
 
 test('athletes\' photos: only those who approved their use, matched to the top shooters by name or picked for a picture', async () => {
