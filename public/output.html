@@ -165,7 +165,9 @@
   .seq .seqOuts label { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
   .seq .seqOuts label span { overflow: hidden; text-overflow: ellipsis; }
   .seq .seqOuts .seqSt:first-of-type { margin-left: auto; }
-  .seq .seqOuts i { width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; flex: none; }
+  .seq .seqOuts i, .outTicks i { width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; flex: none; }
+  .outTicks { display: flex !important; flex-wrap: wrap; gap: 4px 14px !important; font-size: 13px !important; }
+  .outTicks label { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; font-weight: 400; }
   .seq .seqOuts .seqSt { font-size: 11px; font-weight: 700; color: var(--fp-muted); }
   .seq .seqOuts .seqSt.playing { color: #16a34a; }
   .seq .seqOuts .seqSt.paused, .seq .seqOuts .seqSt.starting { color: #d97706; }
@@ -401,8 +403,8 @@
       <p class="note" id="outStatus"></p>
       <p class="note perf hidden" id="outPerf" title="Checked every 5 seconds while an output is on. CPU is a percentage of one processor core. Studio writes these to its log once a minute."></p>
       <p class="note hidden" id="outExtraNote"><b>This output shows its own graphics:</b> turn sources on and off for it with its
-      coloured buttons in the Sources list (they start off), or its own Stream Deck links. It's always silent: only Output 1, the primary,
-      plays sound and music. Scenes and sequences are shared by every output: pick its tab over the Scene View and a click plays them on this output.</p>
+      coloured buttons in the Sources list (they start off), or its own Stream Deck links. It plays the sound of what it shows, the music if
+      <b>Music plays on</b> ticks it, and the mics that go to it. Scenes and sequences are shared by every output: pick its tab over the Scene View and a click plays them on this output.</p>
       <p class="note" id="viewersNow" hidden></p>
       <p class="note hidden" id="outLocked">Turn the output off to change these settings.</p>
       <details class="info"><summary>Expand for info</summary><p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
@@ -498,6 +500,8 @@
     </div>
     <div class="seqs" id="playlists"></div>
     <div class="form" style="margin-top:12px">
+      <label class="mOutsRow">Music plays on</label>
+      <div class="row mOutsRow"><div id="mOuts"></div> <small>the player's music and the super shot song; a sequence's music plays on the outputs playing the sequence</small></div>
       <label for="mFadeIn">Fade in</label>
       <div class="row"><input type="number" id="mFadeIn" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Carry on and the duck coming back up</span></div>
       <label for="mFadeOut">Fade out</label>
@@ -560,12 +564,14 @@
       <div class="form">
         <label for="mxName">Name</label><input id="mxName" maxlength="40" placeholder="Court mic">
         <label for="mxOn">Plugged into</label>
-        <div class="row"><select id="mxOn"><option value="mac">The Mac (Studio mixes it into Output 1)</option><option value="atem">The switcher (Studio moves its fader)</option></select></div>
+        <div class="row"><select id="mxOn"><option value="mac">The Mac (Studio mixes it into the outputs it goes to)</option><option value="atem">The switcher (Studio moves its fader)</option></select></div>
         <label for="mxDevice">Input</label>
         <div class="row"><select id="mxDevice"></select> <button class="alt" id="mxFind" type="button">Find inputs</button></div>
         <label for="mxChannel">Channel</label>
         <div class="row"><select id="mxChannel"><option value="both">Both (mixed to one)</option><option value="left">Left (1)</option><option value="right">Right (2)</option></select>
           <small>two receivers on one stereo input are two mics, left and right</small></div>
+        <label class="mxOutsRow">Goes to</label>
+        <div class="row mxOutsRow"><div id="mxOuts"></div></div>
         <label>Sound</label>
         <div class="row" style="gap:12px">
           <label class="inline" id="mxLowCutRow"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>

@@ -6,11 +6,13 @@
 // preview calls listen() while this file loads, before a later file's functions exist.
 // Display output (the Mac app opens the windows; outputs.js decides what goes where).
 let out = null;
-// The Scene View's sound: only while no video output is on (out.previewSound); with one on, the output carries
-// the sound. This page asks the helper for it, and only the page it says yes to unmutes its Scene View. It checks
+// The Scene View's sound: the sound of the output it shows, only while that output isn't sending (its previewSound);
+// with it on, the output carries its sound. This page asks the helper for it, and only the page it says yes to unmutes its Scene View. It checks
 // in every few seconds and lets go when it closes.
 const listenId = Math.random().toString(36).slice(2);
 let previewSound = false;
+// Whether a Scene View of the output it shows may play that output's sound now.
+const viewSound = () => { const o = out && out.outputs && out.outputs.find(x => x.id === previewOutput); return !!(o ? o.previewSound : out && out.previewSound); };
 const applySound = () => { try { $('previewFrame').contentWindow.setSilent?.(!previewSound); } catch {} soundNote(); };
 // Says why the preview is or isn't playing the sound, next to the tick box (and in the log when it changes).
 let lastNote = '';
@@ -18,8 +20,7 @@ function soundNote() {
   let st = null;
   try { st = $('previewFrame').contentWindow.soundState?.(); } catch {}
   const note = !out ? ''
-    : previewOutput !== 'main' ? 'Silent: this output never plays sound (only Output 1, the primary, does).'
-    : !out.previewSound ? 'Silent: a video output is on, so the output plays the sound.'
+    : !viewSound() ? 'Silent: this output is on, so it plays its own sound.'
     : popped ? popped.note
     : !$('previewOn').checked ? 'Silent: turn Live View on.'
     : !previewSound ? 'Silent: another Output page is playing the sound. Click the Scene View to bring it here.'
@@ -35,15 +36,15 @@ function soundNote() {
 // (that unlocks it for later), then take the sound properly.
 $('preview').addEventListener('click', () => {
   if (popped) return popChannel.postMessage('focus');
-  if (!out || !out.previewSound) return;
+  if (!out || !viewSound()) return;
   try { $('previewFrame').contentWindow.unlockSound?.(); } catch {}
   listen(true);
 });
 $('previewFrame').addEventListener('load', applySound);
 async function listen(take = false) {
-  const on = !!(out && out.previewSound && $('previewOn').checked && !popped && previewOutput === 'main');
+  const on = !!(out && viewSound() && $('previewOn').checked && !popped);
   try {
-    const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take }) });
+    const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take, output: previewOutput }) });
     previewSound = !!(await r.json()).sound;
   } catch { previewSound = false; }
   applySound();

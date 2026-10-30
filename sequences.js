@@ -19,9 +19,10 @@
 // it starts on all of them together (with "only", on the one picked alone). Played on another output it
 // plays there alone. An output in playsOn that has gone is left out; with all of them gone it doesn't
 // start by itself. Each output does its own Then when the sequence ends there (thenOn, else then), so one
-// sequence played on two outputs can go to a different scene or sequence on each. Only the
-// primary plays music: on another output a sequence plays its steps silently, and its Sponsor ads steps
-// play in that output's own ad sources.
+// sequence played on two outputs can go to a different scene or sequence on each. A sequence's music plays on
+// every output playing it (music.js asks playingOn()), and one of them drives it: the first in its playsOn order
+// that's playing it now (leads()), so the music starts, fades and stops once. The last of them to end ends it.
+// Its Sponsor ads steps play in each output's own ad sources.
 //
 // Sequences belong to the competition in use (sequences.json in its folder) and refer to the scene's
 // shared sources and scenes by id. The runner lives here in Studio, not in a page, so it keeps time
@@ -123,9 +124,23 @@ const goneNote = (sq, when) => log('info', 'sequence', `"${sq.name}" won't start
 const groupOf = (sq, out, only) => !only && outsOf(sq).includes(out) ? outsOf(sq) : [out];
 // What output out does when the sequence ends there: its own Then, else the sequence's.
 const thenFor = (sq, out) => (sq.thenOn && sq.thenOn[out]) || sq.then;
-// Music is the primary's alone: another output's sequences play theirs silently.
+// The outputs playing sequence id now.
+function playingOn(id) {
+  const out = [];
+  each(() => { if (run && run.id === id) out.push(here); });
+  return out;
+}
+// Whether this output's runner drives the music: the first output, in the sequence's playsOn order, playing it
+// now (the primary with nothing playing). The others play the same music without touching it.
+function leads() {
+  if (!run) return here === PRIMARY;
+  const on = playingOn(run.id), sq = find(run.id);
+  return [...(sq ? outsOf(sq) : []), ...on].find(o => on.includes(o)) === here;
+}
 const SILENT = { stopFor() {}, quiet() {}, playFor() {}, handOver() {} };
-const sound = () => here === PRIMARY ? music : SILENT;
+const sound = () => leads() ? music : SILENT;
+// As a run ends: only the last output still playing the sequence ends its music (with the next leading the rest).
+const soundAtEnd = () => run && playingOn(run.id).length > 1 ? SILENT : sound();
 
 function uniqueName(name, id) {
   const base = String(name || '').trim().slice(0, 60) || 'Sequence';
@@ -417,7 +432,7 @@ function tick() {
 // sponsorAd), as long as the ad: a video until it finishes, a still for its seconds. With no ad to play
 // (and no house ad), it goes straight on.
 function fillAd(step) {
-  // On another output, in that output's own ad sources (silent there, like everything off the primary).
+  // On another output, in that output's own ad sources.
   const ad = api.sponsorAd ? api.sponsorAd({ house: step.house }, here) : null;
   step.sources = ad ? [ad.source] : [];
   step.length = ad ? ad.length : { type: 'now' };
@@ -511,8 +526,8 @@ function finish(why) {
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
   const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
   const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.STOP_FADE_SEC };
-  if (next && end.type === 'continue') sound().handOver(ended.id, next.id);
-  else sound().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
+  if (next && end.type === 'continue') soundAtEnd().handOver(ended.id, next.id);
+  else soundAtEnd().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
   if (next) {
     // Hands over to the next sequence: its own sources go off as the next one's first step comes on.
     const keep = new Set(firstOf(next));
@@ -522,7 +537,7 @@ function finish(why) {
     for (const id of [...ended.shown]) if (!sc.states[id]) turnOff(id);
   } else if (then.type !== 'leave') for (const id of [...ended.shown]) turnOff(id);
   // Ending on a scene step that quieted the music brings it back up, unless a scene or sequence takes over.
-  if (quietStep(ended.steps[ended.step]) && !sc && !next) sound().quiet(false);
+  if (quietStep(ended.steps[ended.step]) && !sc && !next) soundAtEnd().quiet(false);
   run = null;
   log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${next ? `, then "${next.name}"` : sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'sequence' ? ', its next sequence has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}`);
   if (sc) api.goTo(sc, false, here);
@@ -545,7 +560,7 @@ function interrupt(keep, why) {
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
   const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
-  sound().stopFor(run.id, end.type === 'cut' ? 0 : fadeLeft(run, end.type === 'fade' ? end.sec : music.STOP_FADE_SEC));
+  soundAtEnd().stopFor(run.id, end.type === 'cut' ? 0 : fadeLeft(run, end.type === 'fade' ? end.sec : music.STOP_FADE_SEC));
   run = null;
   log('info', 'sequence', `Stopped "${sq ? sq.name : '?'}" because ${why}`);
   // One that was waiting for it to finish its step gives way too: something else was picked.
@@ -1004,4 +1019,4 @@ function init(logger, hooks, sequencesFile) {
   reload();
 }
 
-module.exports = { init, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
+module.exports = { init, playingOn, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };

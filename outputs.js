@@ -1,9 +1,10 @@
 // FirstPass Studio - sending the scene to the Mac's own displays or a Blackmagic device (optional).
 //
 // Up to four outputs at once, each with its own graphics. Output 1 (id "main") is the primary output: it
-// always exists, it's the one scenes, sequences and old Stream Deck links act on, and it carries all the
-// sound. Outputs 2 to 4 are added on the Output page; each shows the sources turned on for it
-// (scene.js keeps an on and off per output) and is always silent. Each output picks one way out:
+// always exists, and it's the one scenes, sequences and old Stream Deck links act on. Outputs 2 to 4 are added
+// on the Output page; each shows the sources turned on for it (scene.js keeps an on and off per output). Each
+// output plays the sound of what it shows (its videos and pages), with the music and the mics on the outputs
+// they're ticked for (music.js, mics.js). Each output picks one way out:
 //   chroma   - the scene over a solid colour on one extra display (a single HDMI into a switcher
 //              that keys on that colour);
 //   fill+key - the scene over black on one display (fill) and its transparency as white on black
@@ -110,9 +111,9 @@ let perfLoggedAt = 0;
 const PERF_STALE_MS = 15000;
 const PERF_LOG_MS = 60000;
 const port = process.parentPort || null;
-// The Output page (or Scene View window) whose Scene View plays the sound: { id, until }. Only while no
-// video output is on (an output on carries the sound itself, so the Scene View is silent and the same sound
-// never plays twice), and only one at a time. It checks in every few seconds; if it stops (the page closed
+// The Output page (or Scene View window) whose Scene View plays the sound: { id, output, until }, for the output
+// it's showing. Only while that output has no video output on (an output on carries its sound itself, so the
+// Scene View is silent and the same sound never plays twice), and only one at a time. It checks in every few seconds; if it stops (the page closed
 // without saying so) it lets go.
 let listener = null;
 const LISTEN_MS = 70000; // a hidden page's timers can slow to once a minute
@@ -213,13 +214,11 @@ function save() {
   send();
 }
 
-// Whether the Scene View may play the sound: only with the primary output not showing (the other outputs
-// are always silent, so they don't count).
-const sceneViewSound = () => !outputWindows().some(w => w.output === PRIMARY);
-const listening = () => !!(sceneViewSound() && listener && listener.until > Date.now());
+// Whether a Scene View showing output out may play its sound: only with that output not showing.
+const sceneViewSound = (out = PRIMARY) => !outputWindows().some(w => w.output === out);
+const listening = () => !!(listener && sceneViewSound(listener.output) && listener.until > Date.now());
 
-// What each output should show now, every output's in one list, each tagged with its output id (output)
-// and whether it's silent (muted: every output but the primary):
+// What each output should show now, every output's in one list, each tagged with its output id (output):
 // [{ display, kind: 'fill' | 'key' | 'chroma', color, safe }] on the Mac's displays,
 // [{ kind: 'decklink', device, mode, keying, straight, sound, density }] for the Blackmagic device, or
 // [{ kind: 'ndi', signal, name, format, color, safe, density }] for NDI. safe: the scene drawn chroma key safe;
@@ -317,7 +316,7 @@ function clashes() {
 
 function outputWindows() {
   const clash = clashes();
-  return list.flatMap(o => clash.get(o.id) ? [] : windowsOf(o).map(w => ({ ...w, output: o.id, ...(o.id === PRIMARY ? {} : { muted: true }) })));
+  return list.flatMap(o => clash.get(o.id) ? [] : windowsOf(o).map(w => ({ ...w, output: o.id })));
 }
 
 // Whether an output's scene goes out chroma key safe: ticked, and it's keyed on a colour.
@@ -381,6 +380,8 @@ function outputState(o, clash, showing) {
     // Into the switcher as: the key it comes into now (the usual one when not picked), and what it sends.
     keyerNow: keyerOf(o), signal: signalOf(o),
     clash: clash.get(o.id) ? clash.get(o.id).name : '',
+    // A Scene View showing this output may play its sound (it isn't sending), and whether one does now.
+    previewSound: sceneViewSound(o.id), listening: listening() && listener.output === o.id,
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
     perf: perfNow()?.outputs[o.id] || null,
@@ -397,7 +398,8 @@ function state() {
     // The primary output's settings at the top, as before there could be more than one.
     ...outputs[0], outputs, quality, soft: quality === 'uhd' ? softPictures() : [], max: MAX, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' },
     ndi: ndi || { ok: false, error: '' }, ndiFormats: NDI_FORMATS, showing,
-    // previewSound: the primary output isn't on, so the Scene View plays the sound (listening: one does now).
+    // previewSound: the primary output isn't on, so a Scene View showing it may play its sound (listening: a Scene View
+    // plays sound now, for any output; each output has its own previewSound and listening too).
     previewSound: sceneViewSound(), listening: listening(),
     perfTotal: perfNow()?.total || null,
   };
@@ -474,24 +476,26 @@ const label = id => (displays || []).find(d => d.id === id)?.label || `display $
 const deviceName = id => decklink?.devices?.find(d => d.id === id)?.name || 'Blackmagic device';
 const modeName = (id, mode) => decklink?.devices?.find(d => d.id === id)?.modes.find(m => m.mode === mode)?.name || 'video format';
 
-// The sound moving to or from a Scene View (logged; the primary output plays it whenever it's on).
-let wasListening = false;
+// The sound moving to or from a Scene View (logged; an output plays its own whenever it's on).
+let wasListening = '';
 function listenChanged() {
-  if (listener && !sceneViewSound()) listener = null;
-  const now = listening();
+  if (listener && (!sceneViewSound(listener.output) || !list.some(o => o.id === listener.output))) listener = null;
+  const now = listening() ? listener.output : '';
   if (now === wasListening) return;
   wasListening = now;
-  log('info', 'outputs', now ? 'Sound from the Scene View (the primary output is off)' : 'The Scene View is silent');
+  const name = list.find(o => o.id === now)?.name || 'the output';
+  log('info', 'outputs', now ? `Sound from the Scene View (${name} is off)` : 'The Scene View is silent');
 }
 
-// POST /api/outputs/listen { id, on, take }: an Output page (or the Scene View window) asking to play the
-// sound in its Scene View (on), or letting go of it. take: someone clicked that Scene View, so it takes the
-// sound from another page. Answers { sound }: whether that Scene View should play sound, which it never
-// does while the primary output is on.
-function listen({ id, on, take } = {}) {
+// POST /api/outputs/listen { id, on, take, output }: an Output page (or the Scene View window) asking to play the
+// sound of the output its Scene View shows (on; the primary without one), or letting go of it. take: someone clicked
+// that Scene View, so it takes the sound from another page. Answers { sound }: whether that Scene View should play
+// sound, which it never does while that output is on.
+function listen({ id, on, take, output } = {}) {
   id = String(id || '');
+  const out = list.some(o => o.id === output) ? output : PRIMARY;
   const mine = listener && listener.id === id;
-  if (on && id && sceneViewSound() && (mine || take || !listening())) listener = { id, until: Date.now() + LISTEN_MS };
+  if (on && id && sceneViewSound(out) && (mine || take || !listening())) listener = { id, output: out, until: Date.now() + LISTEN_MS };
   else if (mine) listener = null;
   listenChanged();
   return { sound: listening() && listener.id === id };

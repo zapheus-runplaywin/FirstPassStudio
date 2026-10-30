@@ -47,12 +47,20 @@ function renderMusic() {
     ss.value = set.superShotSong || '';
   }
   if (document.activeElement !== $('mSuperVolume')) $('mSuperVolume').value = set.superShotVolume ?? 80;
+  // Music plays on: shown once there's more than one output.
+  const many = !!(out && out.outputs && out.outputs.length > 1);
+  for (const el of document.querySelectorAll('.mOutsRow')) el.classList.toggle('hidden', !many);
+  const ticks = JSON.stringify([set.outputs, (out?.outputs || []).map(o => [o.id, o.name, o.colour])]);
+  if (many && $('mOuts').dataset.look !== ticks) {
+    $('mOuts').dataset.look = ticks;
+    outputTicks($('mOuts'), set.outputs, ids => act({ type: 'musicSettings', settings: { outputs: ids } }));
+  }
   const busy = media.filter(x => x.kind === 'audio' && x.converting).map(x => x.name);
   $('mNote').textContent = busy.length ? `Evening out the loudness of ${busy.map(songName).join(', ')}…` : '';
   renderPlaylists();
   musicHeard = performance.now();
   tickMusic();
-  $('musicNote').innerHTML = 'Music plays wherever video sound plays: the outputs, or this page\'s Scene View while Video output is off, never both. '
+  $('musicNote').innerHTML = 'Music plays on Output 1, or the outputs ticked in <b>Music plays on</b>, the same way as each one\'s video sound: the output, or this page\'s Scene View while that output is off, never both. A sequence\'s music plays on every output playing the sequence. '
     + 'Add MP3, M4A, AAC, WAV or AIFF songs you\'re licensed to stream (Apple Music songs are copy-protected and can\'t be used). '
     + 'With <b>Even out its loudness</b> ticked, a song is levelled to the same loudness as the others (as streaming services do) and the original is kept in the media folder\'s originals. '
     + 'A sequence can bring its own music (in its editor), which fades out when the sequence is stopped by a scene or another sequence. A sequence with no music of its own plays the music of a sequence inside it while that one plays. '

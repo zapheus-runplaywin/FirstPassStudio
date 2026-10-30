@@ -1,4 +1,4 @@
-// The mics in the browser (scene.html, the Output page): only the primary output's own window opens them (never a
+// The mics in the browser (scene.html, the Output page): only the own window of an output a mic goes to opens it (never a
 // Scene View or the key output), it mixes them at their levels and mutes, says what it hears, and says plainly when a
 // device isn't plugged in. Chromium's stand-in microphone plays a beep.
 // The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
@@ -26,7 +26,7 @@ async function launch(t) {
   return browser;
 }
 
-test('the primary output\'s window mixes the mics, a Scene View and the key never open them, and the Output page shows them', async t => {
+test('an output\'s window mixes the mics that go to it, a Scene View and the key never open them, and the Output page shows them', async t => {
   const browser = await launch(t);
   if (!browser) return;
   const studio = await startStudio(t);
@@ -49,6 +49,22 @@ test('the primary output\'s window mixes the mics, a Scene View and the key neve
   assert.equal(await output.evaluate('micChains.size'), 1);
   assert.equal(await view.evaluate('micChains.size + micDevices.size'), 0, 'a Scene View never opens the mics');
   assert.equal(await key.evaluate('micChains.size + micDevices.size'), 0, 'nor does the key output');
+
+  // Another output's window opens only the mics that go to it.
+  const added2 = await studio.request('POST', '/api/outputs', { add: true });
+  assert.equal(added2.status, 200, JSON.stringify(added2.json));
+  const two = (await studio.get('/api/outputs')).outputs[1].id;
+  const other = await context.newPage();
+  await other.goto(`${studio.base}/scene.html?fit=1&bg=000000&output=${two}`, { waitUntil: 'load' });
+  await other.waitForTimeout(500);
+  assert.equal(await other.evaluate('micChains.size + micDevices.size'), 0, 'Court mic goes to Output 1 only');
+  await act({ type: 'micUpdate', mic: id, changes: { outputs: ['main', two] } });
+  await other.waitForFunction(() => micChains.size === 1, null, { timeout: 15000 });
+  await act({ type: 'micUpdate', mic: id, changes: { outputs: [two] } });
+  await output.waitForFunction(() => micChains.size === 0, null, { timeout: 5000 });
+  await act({ type: 'micUpdate', mic: id, changes: { outputs: ['main'] } });
+  await output.waitForFunction(() => micChains.size === 1, null, { timeout: 15000 });
+  await other.close();
 
   // Its level follows the mute and the level.
   const gain = () => output.evaluate(m => micChains.get(m).gain.gain.value, id);
