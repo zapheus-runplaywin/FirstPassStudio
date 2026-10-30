@@ -24,6 +24,7 @@ const finals = require('./finals');
 const fonts = require('./fonts');
 const scene = require('./scene');
 const picturesize = require('./picturesize');
+const recorder = require('./recorder');
 const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
@@ -97,8 +98,13 @@ process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(er
 
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
+// The game recording (recorder.js): this night on air, from now until Studio stops.
+const RECORDING_START = () => ({ version: require('./package.json').version, competition: competitions.activeId() || '' });
+recorder.init(log, { dir: datadir.local('Recordings'), settings: datadir.local('recordings.json'), start: RECORDING_START() });
+process.on('exit', () => recorder.close());
+process.on('SIGTERM', () => process.exit(0)); // the Mac app taking Studio off air: the exit above ends the recording
 // Sequences belong to the competition in use, in its folder.
-scene.init(log, { ffmpeg: MACHINE.ffmpegPath, outputs: { find: outputs.find, summary: outputs.summary },
+scene.init(log, { ffmpeg: MACHINE.ffmpegPath, outputs: { find: outputs.find, summary: outputs.summary }, record: recorder,
   sequencesFile: () => { const id = competitions.activeId(); return id ? path.join(competitions.DIR, id, 'sequences.json') : null; } });
 // The colours the Output page checks against the chroma key colour.
 const COLOUR_NAMES = { main: 'Main colour', dark: 'Dark colour', panel: 'Panels', panelAlt: 'Every second row', highlight: 'Highlight', accent: 'Accent', text: 'Text', textOnHighlight: 'Text on highlight', muted: 'Small print' };
@@ -132,7 +138,7 @@ mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
 const playhq = require('./playhq').create({
-  log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE,
+  log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE, record: recorder,
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
 });
 const { gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS, getGame, lineup, getLive, scoringNotYet, lastLive } = playhq;
@@ -165,6 +171,7 @@ const theBoard = require('./board').create({
   log, datadir, savefile, machine: MACHINE, config: () => CONFIG, competitions, scene, playhq,
   control: { get: () => control, save: () => saveControl(), LASTING, exists: () => fs.existsSync(CONTROL_FILE), markUnsaved: () => { controlSaved = ''; } },
   logoFor: n => logoFor(n), colourFor: n => colourFor(n), rules: d => rules(d), competitionName: () => competitionName(), warmTeamLists: why => warmTeamLists(why),
+  record: recorder,
 });
 const { board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock,
   getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED } = theBoard;
@@ -876,7 +883,19 @@ function send(res, status, body, type, headers) {
   // Stream Deck plugin isn't a browser. A web page from anywhere else can't read Studio's answers; access.crossSite
   // stops it changing anything.
   res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', ...headers });
-  res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+  const text = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
+  res.end(text);
+  recorder.answer(res.req, status, text, type, graphicRead);
+}
+// What the game recording keeps of the answers: a graphic's reads (asked for by a page that isn't one of Studio's
+// own, which have the tab bar), never a private one or the recordings themselves.
+const OWN_PAGES = new Set(fs.readdirSync(path.join(__dirname, 'public')).filter(n => n.endsWith('.html')
+  && fs.readFileSync(path.join(__dirname, 'public', n), 'utf8').includes('class="fp-bar"')).map(n => `/${n}`).concat('/'));
+function graphicRead(pathname, headers) {
+  if (access.privateRead('GET', pathname) || pathname.startsWith('/api/recordings')) return false;
+  let from;
+  try { from = new URL(headers.referer).pathname; } catch { return false; }
+  return !OWN_PAGES.has(from);
 }
 
 // Addresses already logged as refused a change (one line each, not one per press).
@@ -1062,6 +1081,9 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
+    if (url.pathname === '/api/recordings' || url.pathname.startsWith('/api/recordings/')) {
+      if (await recorder.route(req, res, url, { send, readBody, start: RECORDING_START })) return;
+    }
     if (url.pathname === '/api/outputs' || url.pathname.startsWith('/api/outputs/')) {
       if (await outputs.route(req, res, url, { send, readBody })) return;
     }

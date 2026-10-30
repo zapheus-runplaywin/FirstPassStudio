@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Recordings · FirstPass Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="studio/favicon.png">
+<link rel="stylesheet" href="studio.css">
+<style>
+  * { box-sizing: border-box; }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 100px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
+  section { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 16px 18px; margin-bottom: 14px; }
+  h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--fp-blue); margin: 0 0 12px; }
+  input[type=checkbox] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
+  button, .button { font: inherit; font-size: 13px; font-weight: 600; padding: 4px 11px; border-radius: 8px; border: 1px solid var(--fp-blue); background: var(--fp-white); color: var(--fp-blue); cursor: pointer; text-decoration: none; display: inline-block; }
+  button:hover, .button:hover { background: var(--fp-blue-soft); }
+  button.danger { border-color: var(--fp-danger); color: var(--fp-danger); }
+  button:disabled { opacity: .5; cursor: default; }
+  .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
+  .error { color: var(--fp-danger); margin: 8px 0 0; }
+  .error:empty { display: none; }
+  .night { border-top: 1px solid var(--fp-line); padding: 12px 0; }
+  .night:first-of-type { border-top: 0; padding-top: 0; }
+  .night .head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+  .night h3 { margin: 0; font-size: 17px; color: var(--fp-navy); }
+  .night .meta { color: var(--fp-muted); font-size: 13px; }
+  .night .acts { margin-left: auto; display: flex; gap: 8px; }
+  .night ul { margin: 6px 0 0; padding-left: 20px; line-height: 1.6; }
+  .live { color: #fff; background: var(--fp-danger); border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
+  .empty { color: var(--fp-muted); margin: 0; }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<header class="fp-bar"></header><script src="studiobar.js"></script>
+<main>
+  <h1>Recordings</h1>
+  <p class="sub">Every night on air, Studio records what PlayHQ said and what went to air, timed, a few megabytes a night.
+    No video or sound: the graphics only. A recording plays back later as a practice game, and replays a night's graphics at 4K.</p>
+
+  <section>
+    <h2>Recording</h2>
+    <label><input type="checkbox" id="record"> Record every night on air</label>
+    <p class="help" id="recordNote"></p>
+    <p class="error" id="err"></p>
+  </section>
+
+  <section>
+    <h2>Nights</h2>
+    <div id="nights"><p class="empty">Looking…</p></div>
+  </section>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const when = t => new Date(t).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+const time = t => new Date(t).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+const mb = n => n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`;
+const length = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
+
+function show(s) {
+  $('record').checked = s.record;
+  $('recordNote').textContent = s.recording ? `Recording now. Recordings with no game in them, and ones older than ${s.keepDays} days, are removed when Studio starts.`
+    : s.record ? 'Recording starts the next time Studio goes on air.'
+    : 'Not recording. Turn it on to keep a night for practice games and 4K replays.';
+  $('nights').innerHTML = s.recordings.length ? s.recordings.map(r => `<div class="night">
+      <div class="head"><h3>${esc(when(r.started))}</h3>${r.recording ? '<span class="live">Recording</span>' : ''}
+        <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
+        <span class="acts"><a class="button" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
+          <button class="danger" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once Studio is off air"' : ''}>Remove</button></span></div>
+      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}</li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
+    </div>`).join('') : '<p class="empty">No recordings yet. The next night on air is recorded.</p>';
+}
+
+async function call(method, path, body) {
+  $('err').textContent = '';
+  try {
+    const r = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    const s = await r.json();
+    if (!r.ok && s.error) $('err').textContent = s.error;
+    if (s.recordings) show(s);
+  } catch (err) { $('err').textContent = `Could not reach Studio: ${err.message}`; }
+}
+
+$('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
+$('nights').onclick = e => {
+  const b = e.target.closest('[data-remove]');
+  if (b && confirm(`Remove the recording of ${b.closest('.night').querySelector('h3').textContent}? This can't be undone.`)) call('DELETE', `/api/recordings/${encodeURIComponent(b.dataset.remove)}`);
+};
+call('GET', '/api/recordings');
+setInterval(() => { if (!document.hidden) call('GET', '/api/recordings'); }, 15000);
+</script>
+</body>
+</html>

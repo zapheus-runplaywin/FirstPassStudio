@@ -67,11 +67,11 @@
   addEventListener('resize', fit);
   fit();
 
-  // The Scene View's sound, the same way as the Output page's Scene View: only while no video output is on
-  // (with one on, the output carries the sound), ask the helper for it, check in every few seconds, let go on closing.
+  // The Scene View's sound, the same way as the Output page's Scene View: the sound of the output it shows, only
+  // while that output isn't sending (with it on, the output carries its sound), ask the helper for it, check in every few seconds, let go on closing.
   // Opening the window takes the sound, since the Output page's own preview has just turned off.
   const listenId = 'popout-' + Math.random().toString(36).slice(2);
-  // Another output than the primary (?output=<id>): its sources, and never any sound.
+  // Another output than the primary (?output=<id>): its sources, and its sound.
   const outputId = /^[a-z0-9]{1,20}$/i.test(new URLSearchParams(location.search).get('output') || '') ? new URLSearchParams(location.search).get('output') : 'main';
   let wanted = false, sound = false, note = '';
   async function listen(take = false) {
@@ -82,8 +82,8 @@
       const src = `/scene.html?mute=1${outputId !== 'main' ? `&output=${outputId}` : ''}${mine.chromaSafeNow ? '&chromaKey=true' : ''}`;
       if (frame.getAttribute('src') !== src) frame.src = src;
       if (outputId !== 'main') document.title = `Scene View · ${mine.name || 'Output'} · FirstPass Studio`;
-      wanted = !!o.previewSound && outputId === 'main';
-      const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on: wanted, take }) });
+      wanted = !!mine.previewSound;
+      const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on: wanted, take, output: outputId }) });
       sound = !!(await r.json()).sound;
       showNote(o);
     } catch { sound = false; showNote(null); }
@@ -95,8 +95,7 @@
     try { st = s?.soundState?.(); } catch {}
     // The same line here ("here") and under the Output page's preview ("in the Scene View window").
     const line = (here, there) => !o ? ''
-      : outputId !== 'main' ? 'Silent: only the primary output plays sound.'
-      : !wanted ? 'Silent: a video output is on, so the output plays the sound.'
+      : !wanted ? 'Silent: this output is on, so it plays its own sound.'
       : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the Scene View window'} to bring it ${here ? 'to this window' : 'there'}.`
       : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the Scene View window'} to hear it.`
       : st && !st.videos && !st.pages ? `Sound plays ${there} once a video with Sound ticked, or an animation with sound, is on.`

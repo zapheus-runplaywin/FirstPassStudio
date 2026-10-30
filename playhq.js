@@ -60,6 +60,8 @@ function unreachable(err, what = 'PlayHQ') {
 
 function create(deps) {
   const { log, apiUrl, cacheMs, linkBase, config, leadMs, logoFor, positionOf } = deps;
+  // recorder.js, for the game recording: every answer PlayHQ gives (record.playhq, record.live).
+  const record = deps.record || { playhq() {}, live() {} };
 
   let TENANT = 'netball-australia', ORG_ID = null;
 
@@ -134,6 +136,7 @@ function create(deps) {
       err.graphql = json.errors;
       throw err;
     }
+    record.playhq(operationName, variables, tenant, json.data);
     return json.data;
   }
 
@@ -551,6 +554,7 @@ function create(deps) {
     log(res.ok ? 'info' : 'warn', 'live', `game ${gameId} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`);
     if (!res.ok) { log('warn', 'live', 'answer', text.slice(0, 500)); throw new Error(`PlayHQ live feed answered HTTP ${res.status}`); }
     const json = JSON.parse(text);
+    record.live(gameId, json);
     if (json.errors && json.errors.length) {
       const message = json.errors.map(e => e.message).join('; ');
       // Inside the window but the scorer hasn't started: expected, so said once per game.

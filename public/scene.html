@@ -15,9 +15,10 @@
   see-through, on black). The chroma outputs add ?chromaKey=true (chroma.js): every source drawn
   chroma key safe, with nothing half see-through, and sources cut instead of fading.
   ?output=<id> draws one of the outputs besides the primary (outputs.js): the sources turned on for that
-  output, always silent (only the primary output plays sound, and it has the music).
-  The primary output's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into
-  the Mac (mics.js), so they go out with the rest of the sound; a Scene View never plays them.
+  output, with their sound. The music plays on the outputs it's ticked for (music.js: a sequence's music on
+  the outputs the sequence is playing on).
+  An output's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
+  Mac that go to that output (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -47,10 +48,12 @@
   const LOAD_WAIT_MS = 2500; // longest a page waits to finish loading before it fades in anyway
   let first = true;
   const params = new URLSearchParams(location.search);
-  // An output other than the primary (?output=<id>): its own sources on and off, and never any sound.
+  // An output other than the primary (?output=<id>): its own sources on and off, and their sound.
   const outputId = /^[a-z0-9]{1,20}$/i.test(params.get('output') || '') && params.get('output') !== 'main' ? params.get('output') : '';
-  const alwaysSilent = !!outputId;
-  let silent = params.get('mute') === '1' || alwaysSilent; // the Output page's preview and the key output play no sound
+  const here = outputId || 'main';
+  // The music and a mic play here when they're ticked for this output (Output 1 when nothing says).
+  const ticked = x => (Array.isArray(x?.outputs) && x.outputs.length ? x.outputs : ['main']).includes(here);
+  let silent = params.get('mute') === '1'; // the Output page's preview and the key output play no sound
   // A source as this window sees it: on the primary output its own visible and showSeq; on another output
   // whether it's on for that output, and that output's showSeq.
   const forOutput = s => !outputId ? s : { ...s, visible: !!(s.out && s.out[outputId]), showSeq: (s.outSeq && s.outSeq[outputId]) || 0 };
@@ -59,7 +62,7 @@
   // refuses to play it): it then plays muted, and soundState() says so.
   let blocked = false;
   window.setSilent = on => {
-    silent = !!on || alwaysSilent;
+    silent = !!on;
     for (const L of layers.values()) {
       const v = L.el.querySelector('video');
       if (!v || !L.src) continue;
@@ -288,7 +291,8 @@
 
   // ─── Music (music.js) ───────────────────────────────────────────────────
   // Studio keeps the player: the track, where it is (pos: sec at time at), and its fade (gain: from, to,
-  // at, ms). Each scene window plays it, unless it's silent, so music goes wherever video sound goes.
+  // at, ms). Each scene window of an output the music is ticked for plays it, unless it's silent, so music goes
+  // wherever that output's video sound goes.
   const audio = new Audio();
   audio.preload = 'auto';
   let music = null, musicPlayId = -1, level = 0;
@@ -339,12 +343,12 @@
   });
 
   // ─── Mics (mics.js) ─────────────────────────────────────────────────────
-  // Live mics plugged into the Mac, mixed into the sound here. Only the primary output's own window in the app
-  // (?fit=1, not silent, not the key) opens them: never a Scene View, where a speaker near a mic would feed back, and
-  // never twice. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
+  // Live mics plugged into the Mac, mixed into the sound here. Only an output's own window in the app (?fit=1, not
+  // silent, not the key) opens them, and only the mics that go to that output: never a Scene View, where a speaker
+  // near a mic would feed back, and never twice on one output. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
   // the master level, mutes and the dip on top); then all of them through a limiter. The browser's call
   // processing (echo cancelling, noise suppression, automatic level) is off: it would pump the crowd noise.
-  const micsHere = params.get('fit') === '1' && !alwaysSilent && params.get('mute') !== '1' && params.get('key') !== '1';
+  const micsHere = params.get('fit') === '1' && params.get('mute') !== '1' && params.get('key') !== '1';
   let micCtx = null, micBus = null, micSet = null;
   const micDevices = new Map(); // device name -> { stream, source, splitter, error, opening }
   const micChains = new Map(); // mic id -> { device, channel, from, out, input, filter, gain, meter, data }
@@ -443,7 +447,7 @@
   }
   function renderMics(set) {
     micSet = set || null;
-    const want = micsHere && micSet ? micSet.mics.filter(m => m.on !== 'atem') : []; // the switcher mixes its own
+    const want = micsHere && micSet ? micSet.mics.filter(m => m.on !== 'atem' && ticked(m)) : []; // the switcher mixes its own
     const names = new Set(want.map(m => m.device));
     for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
     for (const [id, c] of micChains) {
@@ -476,7 +480,7 @@
     }, 25);
     // Tell Studio what this window hears, for the Output page: each mic's loudest moment (dBFS) in the last half second.
     setInterval(async () => {
-      if (!micSet || !micSet.mics.length) return;
+      if (!micSet || !micSet.mics.some(m => m.on !== 'atem' && ticked(m))) return;
       const levels = {};
       for (const [id, c] of micChains) {
         levels[id] = c.peak > 0 ? 20 * Math.log10(c.peak) : -100;
@@ -484,7 +488,7 @@
       }
       let devices = [];
       try { devices = (await audioInputs()).map(d => d.label).filter(Boolean); } catch {}
-      fetch('/api/scene/mics/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ devices, levels, problems: micProblem, status: micStatus }) }).catch(() => {});
+      fetch('/api/scene/mics/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ output: here, devices, levels, problems: micProblem, status: micStatus }) }).catch(() => {});
     }, 500);
     // A device plugged in or out: try the mics again.
     navigator.mediaDevices?.addEventListener('devicechange', () => {
@@ -503,7 +507,7 @@
       update(L, forOutput(s), scene.sources.length - i);
     });
     for (const [id, L] of layers) if (!seen.has(id)) { stopPageSound(L, .1); L.el.remove(); layers.delete(id); }
-    renderMusic(outputId ? null : scene.music);
+    renderMusic(ticked(scene.music) ? scene.music : null);
     renderMics(scene.mics);
     first = false;
   }

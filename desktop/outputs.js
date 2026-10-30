@@ -2,7 +2,7 @@
 // what goes where; the Output page sets it up).
 //
 // Each display output is a window that opens full screen on its display, showing scene.html (with
-// ?output=<id> for an output besides the primary, which draws that output's sources and is silent): over black (fill),
+// ?output=<id> for an output besides the primary, which draws that output's sources): over black (fill),
 // as white on black where the scene isn't see-through (key), or over a chroma colour. They're ordinary
 // windows otherwise: leave full screen (the green button or ⌃⌘F) to move one to another display or get
 // at other apps, and the scene scales to fit whatever size it is. They aren't Studio windows: closing
@@ -58,9 +58,9 @@ module.exports = function outputs({ port, log }) {
 
   const pageFor = w => {
     const q = new URLSearchParams({ fit: '1' });
-    if (w.kind === 'key' || w.muted) q.set('mute', '1');
+    if (w.kind === 'key') q.set('mute', '1'); // the key is the fill's shape: the fill plays the sound
     if (w.kind === 'key') q.set('key', '1');
-    if (w.output && w.output !== 'main') q.set('output', w.output); // another output's sources, silent
+    if (w.output && w.output !== 'main') q.set('output', w.output); // another output's sources and their sound
     q.set('bg', w.kind === 'chroma' ? w.color.replace('#', '') : '000000');
     if (w.safe) q.set('chromaKey', 'true'); // chroma key safe (public/chroma.js)
     return `http://localhost:${port}/scene.html?${q}`;

@@ -93,6 +93,8 @@ In it:
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
+- `recordings.json` and `Recordings/`: whether Studio records each night on air, and the recordings (see **Recordings**
+  below), in the local data folder, so they stay on this Mac (not in iCloud Drive or a backup).
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`, `remoteChanges`); a `config.json` here changes only the settings it names.
 - `logs/`: the debug log (`playhq-graphics.log`) and the app log (`app.log`: updates, What's new, outputs and windows).
@@ -106,7 +108,7 @@ into `<that folder>/<Local hostname>/`, so Macs on one Apple account each keep t
 are is saved on the Mac only, in `data-location.json` in the local folder; `studio-computer.json` in the subfolder names
 the Mac using it, and a different Mac with the same name is refused. The move backs up to the local
 `backups/<date>-before-move`, copies, checks every file's size, then removes the originals. The debug logs,
-`scoreboard-state.json`, `game-cache.json`, `last-game-summary.json`, `app-settings.json` and `backups/` stay local
+`scoreboard-state.json`, `game-cache.json`, `last-game-summary.json`, `app-settings.json`, `backups/` and the recordings stay local
 (`LOCAL_ONLY`). Before going on air the app downloads any file iCloud has evicted (`.<name>.icloud` placeholders, via
 `brctl download`); if the iCloud folder is missing, Studio won't start rather than start empty. `PROVIDERS` in
 `datalocation.js` is where other cloud drives (Dropbox, Google Drive, OneDrive in `~/Library/CloudStorage`) would go.
@@ -230,7 +232,7 @@ the app shows in the Dock and ⌘Tab while a window is open, then goes back to j
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
 (⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
-⌘2 Production Planner, ⌘3 control, ⌘4 setup, ⌘5 sponsors, ⌘6 athletes, ⌘7 Stream Deck, ⌘8 Socials, ⌘9 docs) and Window. Closing the last window takes Studio off air (see
+⌘2 Production Planner, ⌘3 control, ⌘4 setup, ⌘5 sponsors, ⌘6 athletes, ⌘7 Stream Deck, ⌘8 Socials, ⌘9 Recordings, ⌘0 docs) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.
 
@@ -415,16 +417,18 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
-- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; every unmuted scene.html plays it with an
-  `<audio>` element, so it follows video sound. Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
+- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; the unmuted scene.html of every output it
+  plays on plays it with an `<audio>` element, so it follows that output's video sound. **Music plays on** (shown with more than one output)
+  ticks those outputs, Output 1 unless set; a sequence's music plays on every output playing the sequence (one of them, the first in its
+  Plays on order, starts and stops it, and the last to end ends it). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
-  pauses under a visible video with sound on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
+  pauses under a visible video with sound on, on an output it plays on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
   startAtSec, fadeInSec; `musicEnd`: fade, cut, or continue into a `then: { type: 'sequence' }`; with none, a sequence step's own
   music plays while that step's sequence does), and scenes and sequences can be `quiet`.
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
-  **Live View** when the Mac is busy. The Scene View plays the scene's sound only while **Video output** is off (for testing);
-  with a display, Blackmagic or NDI output on, the output carries the sound and the Scene View is silent, so it never plays twice. Only one Output
+  **Live View** when the Mac is busy. The Scene View plays the sound of the output it shows only while that output is off (for testing);
+  with its display, Blackmagic or NDI output on, the output carries its own sound and the Scene View is silent, so it never plays twice. Only one Output
   page plays it at a time (click another page's Scene View to bring the sound there). A line under the Scene View says why it's silent, if it is.
   **Pop out** opens the Scene View in its own window (`/preview.html`) that you can resize, move to another screen or make full screen while
   testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it plays the sound just as the Scene View does, and the Output page's Scene View turns off while it's open (so the scene only runs
@@ -980,6 +984,19 @@ Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|c
 `&py=`, `&zoom=`, `&caption=`, `&note=`). Everything comes from Studio (`/api/socials/night`, `&with=ladders` or
 `&with=shooters` for the pictures that need them), which reads the fixture, results and ladders through the same cache
 as the other pages, and each finished game's line up once, so the tab asks PlayHQ for nothing more.
+
+## Recordings
+
+Every night on air (the helper running, from Open Studio until off air) `recorder.js` writes one recording,
+`Recordings/<date> <time>.jsonl.gz` in the local data folder: one JSON line per thing that happened, with `t` (ms) and `k`:
+`start`, `game` (a game picked: the chapters), `playhq` (each PlayHQ answer from `gql()`), `live` (each live scoring answer),
+`action` (each scoreboard action), `scene` and `board` (what the pages were sent, when it changed) and `api` (a graphic's
+`GET /api/...` answer, when it changed: only reads asked for by a page without the tab bar, never a private one), then `end`.
+Lines are written every 5 seconds as a gzip member of their own, so a recording reads up to its last write even if Studio
+stopped suddenly. Recordings with no game, and ones older than 60 days, are removed when Studio starts. The Recordings tab
+(`/recordings.html`, ⌘9) lists them with their games, Download and Remove, and *Record every night on air*
+(`GET`/`POST /api/recordings` `{ record }`, `DELETE /api/recordings/<name>`, `GET /api/recordings/<name>/file`; private reads).
+Practice games, tests and 4K replays play these back (docs/game-recording-replay-plan-2026-10-29.md).
 
 ## Roadmap
 

@@ -2,10 +2,11 @@
 //
 // A mic is one input of an audio device plugged into the Mac (a wireless receiver, a USB interface): the device by
 // the name macOS gives it, and which of its channels (both, left or right, so two receivers on one stereo interface
-// are two mics). Studio keeps the settings; the primary output's own window (scene.html in the app's display, NDI or
-// Blackmagic output) opens the devices and mixes them into its sound, so the mics go out with the music and video
-// sound on the Mac's sound output. They're never played in a Scene View: a speaker in the room near a mic would
-// feed back. With the primary output off, the mics are silent.
+// are two mics). Each mic goes to the outputs ticked for it (outputs, Output 1 unless set): a commentators' feed can
+// take the effects mics and leave out the commentators' own. Studio keeps the settings; each output's own window
+// (scene.html in the app's display, NDI or Blackmagic output) opens the devices of the mics going to it and mixes
+// them into its sound, so the mics go out with that output's music and video sound. They're never played in a
+// Scene View: a speaker in the room near a mic would feed back. With its outputs off, a mic is silent.
 //
 // Each mic has a level (0-200 %, 100 as it comes in), a mute and a low cut (on by default: takes out rumble and wind
 // below about 100 Hz). One master level and mute sit over all of them, and a limiter at the end stops a loud shout
@@ -20,8 +21,9 @@
 // (follow false) stays at its level whatever happens: the mixer does the fading. The dip goes down over dipDownSec
 // and back up over dipUpSec: dip { from, to, at, ms } goes from 0 (up) to 1 (down at dipTo), as the music's duck does.
 //
-// The window mixing the mics reports what it hears every half second (report()): the devices it can see, each mic's
-// level as it comes in, and any trouble (no permission, device not plugged in). The Output page shows it from live().
+// Each window mixing mics reports what it hears every half second (report()): the devices it can see, each mic's
+// level as it comes in, and any trouble (no permission, device not plugged in). The Output page shows them all
+// together from live().
 // The Output page opened in the Mac app can also list the Mac's devices itself, before any output is on.
 //
 // A mic can be plugged into the ATEM switcher instead (on: 'atem'): one of its mic or line inputs (input, as the
@@ -48,7 +50,7 @@ const ROUTES = ['mac', 'atem'];
 const FLOOR_DB = -100, LOW_DB = -60, TOP_DB = 6;
 const STEP_MS = 50;            // fades on the switcher's faders move in steps this often
 const OWN_ECHO_MS = 1000;      // a fader reading this soon after Studio moved it is Studio's own move coming back
-// A report older than this means no window is mixing the mics (the primary output is off, or its window stopped).
+// A report older than this means that window isn't mixing the mics any more (its output is off, or the window stopped).
 const REPORT_STALE_MS = 3000;
 
 let log = () => {};
@@ -57,7 +59,7 @@ let hand = false; // the Dip by hand
 let why = { music: false, video: false, quiet: false };
 let down = false;
 let dip = { from: 0, to: 0, at: 0, ms: 0 };
-let seen = { at: 0, devices: [], levels: {}, problems: {}, status: '' };
+const seen = new Map(); // output id -> { at, devices, levels, problems, status }: what that output's window last said
 let listed = { at: 0, devices: [] }; // the devices the Output page in the Mac app listed
 let changedHook = () => {};    // scene.js: publish the scene (a fader moved on the switcher changed a mic's level)
 let sw = null;                 // switcher.js: { inputs(), set(input, source, dB) }
@@ -72,6 +74,7 @@ const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n)
 const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const newId = () => Math.random().toString(36).slice(2, 10);
 const now = () => Date.now();
+const outputIds = v => [...new Set((Array.isArray(v) ? v : []).map(x => String(x || '').replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8);
 const text = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, max);
 const flag = (v, d) => v === undefined ? d : !!v;
 
@@ -89,6 +92,8 @@ function cleanMic(m, existing = {}) {
     muted: flag(s.muted, false),
     lowCut: flag(s.lowCut, true),
     follow: flag(s.follow, true), // follows the dips; false when an external mixer does the fading
+    // The outputs it goes to (on 'mac'): Output 1 unless set. One a removed output had is left out by the windows.
+    outputs: outputIds(s.outputs).length ? outputIds(s.outputs) : ['main'],
   };
   const base = text(s.name, 40) || 'Mic';
   const taken = new Set(settings.mics.filter(x => x.id !== out.id).map(x => slug(x.name)));
@@ -347,27 +352,34 @@ function deck(parts, q = {}) {
 
 // ─── What the windows hear ───────────────────────────────────────────────
 const cleanDevices = list => (Array.isArray(list) ? list : []).map(d => text(d, 200)).filter(Boolean).slice(0, 40);
-// The output window mixing the mics: { devices: [name], levels: { micId: dBFS }, problems: { micId: words }, status }.
+// An output window mixing mics: { output, devices: [name], levels: { micId: dBFS }, problems: { micId: words }, status }.
 function report(r) {
-  const was = seen.status;
+  const out = outputIds([r?.output])[0] || 'main';
+  const was = seen.get(out)?.status;
   const levels = {}, problems = {};
   for (const m of settings.mics) {
     const v = Number(r?.levels?.[m.id]);
     if (Number.isFinite(v)) levels[m.id] = Math.max(-100, Math.min(0, Math.round(v)));
     if (r?.problems?.[m.id]) problems[m.id] = text(r.problems[m.id], 200);
   }
-  seen = { at: now(), devices: cleanDevices(r?.devices), levels, problems, status: text(r?.status, 200) };
-  if (seen.status !== was && seen.status) log('warn', 'mics', seen.status);
+  const s = { at: now(), devices: cleanDevices(r?.devices), levels, problems, status: text(r?.status, 200) };
+  seen.set(out, s);
+  if (s.status !== was && s.status) log('warn', 'mics', s.status);
 }
 // The Output page in the Mac app listing the Mac's audio inputs.
 function devicesListed(list) { listed = { at: now(), devices: cleanDevices(list) }; }
 function live() {
-  const fresh = now() - seen.at < REPORT_STALE_MS;
-  const devices = [...new Set([...(fresh ? seen.devices : []), ...listed.devices])];
+  // Every window still reporting, together: a mic heard on two outputs shows its louder reading.
+  const fresh = [...seen.values()].filter(s => now() - s.at < REPORT_STALE_MS);
+  const devices = [...new Set([...fresh.flatMap(s => s.devices), ...listed.devices])];
   const atem = onSwitcherLive();
   const mac = new Set(settings.mics.filter(m => m.on !== 'atem').map(m => m.id));
-  const keep = o => Object.fromEntries(Object.entries(o).filter(([id]) => mac.has(id)));
-  return { mixing: fresh, devices, levels: fresh ? keep(seen.levels) : {}, problems: { ...(fresh ? keep(seen.problems) : {}), ...atem.problems }, status: fresh ? seen.status : '',
+  const levels = {}, problems = {};
+  for (const s of fresh) {
+    for (const [id, v] of Object.entries(s.levels)) if (mac.has(id)) levels[id] = Math.max(levels[id] ?? -100, v);
+    for (const [id, v] of Object.entries(s.problems)) if (mac.has(id)) problems[id] = v;
+  }
+  return { mixing: fresh.length > 0, devices, levels, problems: { ...problems, ...atem.problems }, status: fresh.map(s => s.status).find(Boolean) || '',
     switcher: { connected: atem.connected, inputs: atem.inputs }, faders: atem.faders };
 }
 
@@ -383,6 +395,7 @@ function init(logger, { changed } = {}) {
   log = logger || log;
   if (changed) changedHook = changed;
   sent.clear();
+  seen.clear();
   load();
 }
 

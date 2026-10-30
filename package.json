@@ -67,6 +67,7 @@
       "zip.js",
       "outputs.js",
       "picturesize.js",
+      "recorder.js",
       "switcher.js",
       "datadir.js",
       "savefile.js",
