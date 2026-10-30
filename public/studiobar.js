@@ -39,7 +39,8 @@
   }
   bar.append(logo, nav);
 
-  // While a practice game runs (practice.js), a red strip under the bar on every Studio page says so, with Stop.
+  // While a practice game or a 4K replay runs (practice.js, replay.js), a red strip under the bar on every Studio page
+  // says so, with Stop.
   const strip = document.createElement('div');
   strip.className = 'fp-practice';
   strip.setAttribute('role', 'status');
@@ -47,13 +48,22 @@
   bar.after(strip);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const button = 'font:inherit;font-size:13px;padding:2px 10px;border-radius:6px;border:1px solid #fff;background:transparent;color:#fff;cursor:pointer;text-decoration:none';
-  const practice = () => fetch('/api/practice').then(r => r.json()).then(p => {
+  // A 4K replay says so the same way, with its own Stop.
+  const replay = () => fetch('/api/replay').then(r => r.json()).then(r => {
+    if (!r.active) return false;
+    strip.style.display = 'flex';
+    strip.innerHTML = `<span>4K replay${r.paused ? ' (paused)' : ''}${r.game ? `: ${esc(r.game.home)} v ${esc(r.game.away)}` : ''}. The pages show the recorded night; the live scene and scoreboard can't be changed.</span>`
+      + `<a href="/recordings.html" style="${button}">Replay controls</a><button type="button" style="${button}">Stop</button>`;
+    strip.querySelector('button').onclick = () => fetch('/api/replay', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"stop":true}' }).then(practice);
+    return true;
+  }).catch(() => false);
+  const practice = async () => { if (await replay()) return; return fetch('/api/practice').then(r => r.json()).then(p => {
     strip.style.display = p.active ? 'flex' : 'none';
     if (!p.active) return;
     strip.innerHTML = `<span>${p.demo ? 'Demo' : 'Practice'} game${p.paused ? ' (paused)' : ''}: ${esc(p.game.home.name)} v ${esc(p.game.away.name)}. Nothing counts for the sponsors.</span>`
       + `<a href="/recordings.html" style="${button}">Practice controls</a><button type="button" style="${button}">Stop</button>`;
     strip.querySelector('button').onclick = () => fetch('/api/practice', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"stop":true}' }).then(practice);
-  }).catch(() => {});
+  }).catch(() => {}); };
   practice();
   setInterval(() => { if (!document.hidden) practice(); }, 3000);
 })();

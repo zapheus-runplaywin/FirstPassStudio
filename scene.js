@@ -173,6 +173,7 @@ let recordApi = null;
 function boardFrame(json) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'board', board: json }))); }
 function setBoardSource(fn) { boardSource = fn; }
 function publishBoard() {
+  if (replayBoardJson) return; // a replay's board is on the pages (replayBoard)
   if (!boardSource || (!boardSockets.size && !recordApi)) return;
   const json = boardSource();
   if (recordApi) recordApi.board(json);
@@ -374,11 +375,31 @@ function notify() {
   const st = state();
   const json = JSON.stringify(st);
   if (recordApi) recordApi.scene(st, json);
+  if (!replayState) broadcast(json);
+}
+function broadcast(json) {
   const body = `data: ${json}\n\n`;
   for (const res of listeners) res.write(body);
   const frame = wsFrame(1, Buffer.from(json));
   for (const s of sockets) s.write(frame);
 }
+
+// A 4K replay (replay.js) puts a recorded scene and board on the pages instead of the live ones: replay(state)
+// sends one, replay(null) the live scene again; replayBoard(json) and replayBoard(null) the same for the board.
+// The live scene goes on changing underneath (saved as ever), just not shown while a replay runs.
+let replayState = null, replayBoardJson = null;
+function replay(st) {
+  replayState = st || null;
+  broadcast(JSON.stringify(replayState || state()));
+}
+function replayBoard(json) {
+  replayBoardJson = json || null;
+  lastBoardKey = '';
+  if (replayBoardJson) { const frame = boardFrame(replayBoardJson); for (const s of boardSockets) s.write(frame); }
+  else publishBoard();
+}
+const outward = () => replayState || state();
+const replaying = () => !!replayState;
 
 // The pages follow the scene over a WebSocket rather than server-sent events: a browser only keeps
 // six ordinary connections open to Studio at once, and each scene.html (the preview, its pop out, the
@@ -433,12 +454,12 @@ function upgrade(req, socket) {
       if (opcode === 1) { // a text frame from the page: what it wants besides the scene
         let msg = null;
         try { msg = JSON.parse(payload.toString()); } catch { /* not for us */ }
-        if (msg && msg.subscribe === 'board' && boardSource) { boardSockets.add(socket); socket.write(boardFrame(boardSource())); }
+        if (msg && msg.subscribe === 'board' && boardSource) { boardSockets.add(socket); socket.write(boardFrame(replayBoardJson || boardSource())); }
         if (msg && msg.subscribe === 'switcher' && switcherSource) { switcherSockets.add(socket); socket.write(switcherFrame(switcherSource())); }
       }
     }
   });
-  socket.write(wsFrame(1, Buffer.from(JSON.stringify(state()))));
+  socket.write(wsFrame(1, Buffer.from(JSON.stringify(outward()))));
   return true;
 }
 
@@ -1224,7 +1245,7 @@ async function importFile(file) {
 // Returns false for anything else.
 async function route(req, res, url, { send, readBody }) {
   const p = url.pathname;
-  if (p === '/api/scene' && req.method === 'GET') return send(res, 200, state()), true;
+  if (p === '/api/scene' && req.method === 'GET') return send(res, 200, outward()), true;
   if (p === '/api/scene' && req.method === 'POST') {
     const error = apply(await readBody(req));
     if (error) return send(res, 400, { error }), true;
@@ -1240,7 +1261,7 @@ async function route(req, res, url, { send, readBody }) {
     // Server-sent events: the whole scene now, then again on every change, for the Stream Deck
     // plugin (Studio's own pages use the WebSocket below instead).
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
-    res.write(`retry: 1000\ndata: ${JSON.stringify(state())}\n\n`);
+    res.write(`retry: 1000\ndata: ${JSON.stringify(outward())}\n\n`);
     listeners.add(res);
     const ping = setInterval(() => res.write(': ping\n\n'), 25000);
     req.on('close', () => { clearInterval(ping); listeners.delete(res); });
@@ -1384,4 +1405,4 @@ function videoSizes() {
     .filter(v => v.width && v.height).map(({ name, width, height }) => ({ name, width, height }));
 }
 
-module.exports = { videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };
+module.exports = { replay, replayBoard, replaying, videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };

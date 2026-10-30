@@ -26,6 +26,7 @@ const scene = require('./scene');
 const picturesize = require('./picturesize');
 const recorder = require('./recorder');
 const practice = require('./practice');
+const replay = require('./replay');
 const sponsors = require('./sponsors');
 const exposure = require('./exposure');
 const viewers = require('./viewers');
@@ -126,7 +127,7 @@ outputs.init(log, {
 sponsors.init(log);
 // Proof of play for the sponsors: what's on screen, and whether an output that counts for them is on (Output 1, or
 // one with Counts for sponsors ticked: outputs.sponsorsOnAir).
-exposure.init(log, { showing: scene.showing, onAir: outputs.sponsorsOnAir, held: practice.active });
+exposure.init(log, { showing: scene.showing, onAir: outputs.sponsorsOnAir, held: () => practice.active() || replay.active() });
 // Live viewer numbers from the competition's streams, read only while on air.
 devices.load(log);
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
@@ -779,6 +780,9 @@ function scoringState(fromLiveFeed, status) {
 }
 
 const summaryCache = new Map();
+// 4K replays (replay.js): a recording's on-air layer on the pages again, its times moved to now.
+replay.init(log, { read: name => recorder.read(name), shift: (v, ms) => practice.shift(v, ms), scene: st => scene.replay(st),
+  board: json => scene.replayBoard(json), paused: on => recorder.pause(on) });
 // Practice games (practice.js): a recording plays back as if live. It forgets what was read from PlayHQ when it
 // starts, moves and stops, so the recording's answers (and then PlayHQ's again) are read afresh.
 practice.init(log, {
@@ -986,6 +990,18 @@ http.createServer(async (req, res) => {
       if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
       return send(res, 403, { error: refused });
     }
+    // A 4K replay (replay.js) is on the pages: a graphic's read gets what it was answered on the night, and the scene
+    // and scoreboard can't be changed (nor a practice game started) until it's stopped, so the live setup is left as it
+    // was. The outputs can still be changed (4K on, an output on).
+    if (replay.active()) {
+      if (req.method === 'GET' && url.pathname.startsWith('/api/') && graphicRead(url.pathname, req.headers)) {
+        const night = replay.answer(url.pathname + url.search);
+        if (night !== undefined) return send(res, 200, night);
+      }
+      const changing = (req.method !== 'GET' && /^\/api\/(scene|scoreboard|practice|sequences|music|mics)(\/|$)/.test(url.pathname))
+        || (/^\/deck\//.test(url.pathname) && !/^\/deck\/output\//.test(url.pathname));
+      if (changing) return send(res, 409, { error: 'A 4K replay is running. Stop it on the Recordings tab first.' });
+    }
     // Stream Deck links: only with the key, from the Studio plugin, or from Studio's own pages (access.deckPress()), so
     // a web page can't press one. A refused link is logged once per address, with how to fix it.
     const deck = access.deckPress(url.pathname, { keyOk: !!keyDevice, signed: signed === 'ok', headerOk: !devices.pluginPaired() }, req.headers, PORT, ownHosts());
@@ -1132,6 +1148,10 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
     if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
+    if (url.pathname === '/api/replay') {
+      if (req.method === 'POST' && practice.active()) return send(res, 409, { error: 'A practice game is running. Stop it first.', ...replay.state() });
+      if (await replay.route(req, res, url, { send, readBody })) return;
+    }
     if (url.pathname === '/api/practice' || url.pathname === '/api/practice/games') {
       if (await practice.route(req, res, url, { send, readBody })) return;
     }
