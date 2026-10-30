@@ -343,8 +343,9 @@ const showOut = o => {
   $('outDisplaySize').innerHTML = off.map(d => `<b>${esc(d.label)}</b> is set to ${d.width} × ${d.height}${(d.scale || 1) !== 1 ? ` (HiDPI, ${d.scale}x)` : ''}, not 1920 × 1080, so the scene is scaled and looks softer. `
     + 'In System Settings, Displays, pick it, turn on Show all resolutions and choose 1920 × 1080 (not the HiDPI one).').join('<br>');
   $('outDisplaySize').classList.toggle('hidden', !off.length);
-  // Blackmagic devices, and the 1080p formats each names (interlaced and 720p look soft, so they aren't offered).
-  // A format the device says it can't send is still listed, marked, so it's clear why it isn't working.
+  // Blackmagic devices, and the 1080p formats each names (interlaced and 720p look soft, so they aren't offered),
+  // with its 2160p ones too in 4K. A format the device says it can't send is still listed, marked, so it's clear
+  // why it isn't working. In HD a 2160p format picked in 4K shows as the 1080p one at its rate, which is sent.
   const dl = o.decklink || {};
   const devices = dl.ok ? dl.devices : [];
   $('outDecklink').disabled = !devices.length && so.mode !== 'decklink';
@@ -352,9 +353,16 @@ const showOut = o => {
   $('outDlDevice').innerHTML = devices.length ? devices.map(d => `<option value="${d.id}">${d.name}${d.externalKeying ? '' : ' (no fill and key)'}</option>`).join('') : '<option value="">No device connected</option>';
   const device = devices.find(d => d.id === so.decklinkDevice) || devices[0];
   $('outDlDevice').value = device ? device.id : '';
+  const uhd = o.quality === 'uhd';
   const modes = device ? device.modes.filter(m => m.height === 1080 && !m.interlaced) : [];
-  $('outDlMode').innerHTML = modes.map(m => `<option value="${m.mode}">${m.name}${!m.supported ? ' (device says it can\'t)' : so.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`).join('');
-  const pickedMode = modes.find(m => m.mode === so.decklinkMode) || defaultMode(modes);
+  const uhdModes = device && uhd ? device.modes.filter(m => m.height === 2160 && !m.interlaced) : [];
+  const option = m => `<option value="${m.mode}">${m.name}${!m.supported ? ' (device says it can\'t)' : so.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`;
+  $('outDlMode').innerHTML = uhdModes.length
+    ? `<optgroup label="4K">${uhdModes.map(option).join('')}</optgroup><optgroup label="HD (sent as 4K at the same rate)">${modes.map(option).join('')}</optgroup>`
+    : modes.map(option).join('');
+  const savedUhd = device && device.modes.find(m => m.mode === so.decklinkMode && m.height === 2160 && !m.interlaced);
+  const pickedMode = [...uhdModes, ...modes].find(m => m.mode === so.decklinkMode)
+    || (savedUhd && modes.find(m => rateOf(m.name) === rateOf(savedUhd.name))) || defaultMode(modes);
   $('outDlMode').value = String((pickedMode || {}).mode || '');
   $('outDlKeying').value = so.decklinkKeying;
   $('outDlSound').value = so.decklinkSound || 'sdi';
@@ -458,6 +466,8 @@ const setOut = async changes => {
 const loadOut = () => fetch('/api/outputs?scan=1').then(r => r.json()).then(showOut).catch(() => {});
 // The format to start with (the same as outputs.js uses): 1080p50 if the device can key it (Australian
 // switchers mostly run at 50), else the first 1080p format that can, else the first it can send.
+// The frame rate in a format's name (50 for 1080p50 and 2160p 50), as outputs.js matches them.
+const rateOf = name => (String(name).replace(/\s/g, '').match(/^(?:1080|2160)p(.+)$/) || [])[1] || '';
 const defaultMode = modes => ['1080p50', '1080p25'].map(n => modes.find(m => m.supported && m.keying && m.name.replace(/\s/g, '').includes(n))).find(Boolean)
   || modes.find(m => m.supported && m.keying) || modes.find(m => m.supported) || modes[0];
 loadOut();

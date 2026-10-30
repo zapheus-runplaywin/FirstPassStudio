@@ -30,6 +30,8 @@
 // layout and is drawn at twice the density (density 2 in its windows), so nothing set up for 1080p changes, and
 // HD again is exactly as before. A Blackmagic device without that 2160p format, or a 720p NDI format, stays as
 // it is and says so. Displays are left alone: a 4K screen set to look like 1920 x 1080 already draws at 2x.
+// In 4K a Blackmagic output can also have one of the device's own 2160p formats picked, which it sends as it is;
+// in HD those aren't offered, and one picked earlier goes out as the 1080p format at the same rate.
 //
 // Saved as outputs.json in the data folder: { outputs: [...], quality }, the primary first (an older file with one
 // output's settings becomes Output 1). Stream Deck: /deck/output/on|off|toggle (the primary),
@@ -228,12 +230,27 @@ const windows = () => outputWindows();
 // may be wrong, and if not the output says so), else (nothing picked yet, or an interlaced or 720p format
 // saved before they were taken off the Output page, as they look soft) the one the Output page starts with:
 // 1080p50 if the device can key it, else the first 1080p format that can, else the first it can send.
+// A 2160p format picked in 4K is sent as it is in 4K (uhdPicked), and in HD as the 1080p one at its rate.
 function decklinkMode(device, o) {
   const modes = device.modes.filter(m => m.height === 1080 && !m.interlaced);
   const sends = modes.filter(m => m.supported);
+  const picked = uhdPicked(device, o);
   return modes.find(m => m.mode === o.decklinkMode)
+    || (picked && modes.find(m => rateOf(m.name) === rateOf(picked.name)))
     || ['1080p50', '1080p25'].map(n => sends.find(m => m.keying && String(m.name).replace(/\s/g, '').includes(n))).find(Boolean)
     || sends.find(m => m.keying) || sends[0] || modes[0];
+}
+// The device's 2160p progressive format picked for this output, or null.
+const uhdPicked = (device, o) => device.modes.find(m => m.mode === o.decklinkMode && m.height === 2160 && !m.interlaced) || null;
+// What a Blackmagic output sends: { mode, uhd } (uhd: 2160p, drawn at twice the density).
+function decklinkSends(device, o) {
+  if (quality === 'uhd') {
+    const picked = uhdPicked(device, o);
+    if (picked) return { mode: picked, uhd: true };
+  }
+  const hd = decklinkMode(device, o);
+  const uhd = hd && quality === 'uhd' ? uhdDecklink(device, hd) : null;
+  return { mode: uhd || hd, uhd: !!uhd };
 }
 
 // The 2160p format to send in 4K for a 1080p one, at the same rate: for NDI, the 1080p format at twice the size
@@ -254,11 +271,9 @@ function windowsOf(o) {
   if (!o.on) return [];
   if (o.mode === 'decklink') {
     const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
-    const hd = device && decklinkMode(device, o);
-    if (!hd) return [];
-    const uhd = quality === 'uhd' ? uhdDecklink(device, hd) : null;
-    const mode = uhd || hd;
-    return [{ kind: 'decklink', device: device.id, mode: mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: o.decklinkSound, density: uhd ? 2 : 1 }];
+    const sends = device && decklinkSends(device, o);
+    if (!sends || !sends.mode) return [];
+    return [{ kind: 'decklink', device: device.id, mode: sends.mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: o.decklinkSound, density: sends.uhd ? 2 : 1 }];
   }
   if (o.mode === 'ndi') {
     if (!ndi?.ok) return [];
@@ -347,11 +362,11 @@ function pictureOf(o) {
   }
   if (o.mode === 'decklink') {
     const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
-    const hd = device && decklinkMode(device, o);
-    if (!hd) return { uhd: false, format: '', why: '' };
-    const uhd = uhdDecklink(device, hd);
-    return uhd ? { uhd: true, format: uhd.name, why: uhd.supported === false ? `${device.name} says it can't send ${uhd.name}` : '' }
-      : { uhd: false, format: hd.name, why: `${device.name} has no 4K version of ${hd.name}, so it stays ${hd.name}` };
+    const sends = device && decklinkSends(device, o);
+    if (!sends || !sends.mode) return { uhd: false, format: '', why: '' };
+    const m = sends.mode;
+    return sends.uhd ? { uhd: true, format: m.name, why: m.supported === false ? `${device.name} says it can't send ${m.name}` : '' }
+      : { uhd: false, format: m.name, why: `${device.name} has no 4K version of ${m.name}, so it stays ${m.name}` };
   }
   if (o.mode === 'chroma' || o.mode === 'fillkey') return { uhd: false, format: '', why: 'a display draws at its own size (a 4K screen set to look like 1920 × 1080 is already 4K)' };
   return { uhd: false, format: '', why: '' };
