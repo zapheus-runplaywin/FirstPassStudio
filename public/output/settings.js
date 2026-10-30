@@ -248,7 +248,7 @@ function fillAthletes() {
   if (team) list = list.filter(a => a.teams.some(t => sameName(t.team, team)));
   if ($('opt-gameOnly') && $('opt-gameOnly').checked) {
     list = list.filter(a => a.teams.some(inGame));
-    if (!g.teams.length) console.warn('Lower third: no game picked on the control page, so no athletes are in it');
+    if (!g.teams.length) console.warn('Lower third: no game picked on Scoreboard control, so no athletes are in it');
   }
   for (const a of list) dl.appendChild(new Option([...new Set(a.teams.map(t => t.team))].join(', '), a.name));
 }

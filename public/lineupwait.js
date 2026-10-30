@@ -9,7 +9,7 @@
   function lineupWait(data) {
     if (!data) return { title: 'Waiting for PlayHQ', detail: 'The match ups show once the game\'s line ups are read.' };
     if (lineup(data.home).length || lineup(data.away).length) return null;
-    if (/no playhq game picked/i.test(data.error || '')) return { title: 'No game picked', detail: 'Pick the PlayHQ game on the control page.' };
+    if (/no playhq game picked/i.test(data.error || '')) return { title: 'No game picked', detail: 'Pick the PlayHQ game on Scoreboard control.' };
     if (data.scoring === 'live') return { title: 'No line ups yet', detail: 'Live scoring has started, but no line ups are entered on PlayHQ yet. The match ups show as soon as they are.' };
     if (data.scoring === 'finished') return { title: 'No line ups', detail: 'PlayHQ has no line ups for this game.' };
     return { title: 'Live scoring is not active for this game', detail: 'The match ups show once live scoring starts on PlayHQ.' };

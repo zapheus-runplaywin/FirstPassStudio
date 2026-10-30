@@ -24,7 +24,7 @@ offline. The graphics don't use it: they keep the colours, font and logos of the
 1. Install the FirstPass Studio app (see **Desktop app** below) and open it.
 2. Open the competition setup page and **Import** your competition (Thunder League, AMMNA Nationals or GIG WANL), or make a new one.
 
-## Competition setup
+## Competitions setup
 
 http://localhost:8080/setup.html keeps a saved setup for each competition and switches between them. Each setup has the
 organisation's PlayHQ link and which competition and season to use (**Find its competitions** lists them), the names
@@ -215,7 +215,7 @@ This Mac's key, so they too need the lock unticked from another device for now. 
 pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
 CORS header, so another site can't read its answers.
 
-The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competition setup, Copy the
+The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competitions setup, Copy the
 Studio link, Devices…, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
 login, Only this Mac can change things, Check for updates and Quit.
 
@@ -947,7 +947,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   each division that played (as PlayHQ has it now, "after Round N" when it's the division's latest night with results,
   with the finals line), each division's top six shooters that night (one picture per division, `&division=`, from each finished
   game's line ups, read once and kept), each division's *Tournament top shooters* (*Season top shooters* when the fixture runs 15 days or more, or as set under
-  Game day in Competitions setup, `runningShooters`; its top eight over every finished game so
+  Game night in Competitions setup, `runningShooters`; its top eight over every finished game so
   far, after this night's latest round or an earlier round that night (*As at*, `&after=HH:MM`, its games' start), with each
   one's places up or down since the round before (the day before for games with no round) when *Highlight movers* is ticked, `&movers=0|1`, kept in `socials.json`) and a polaroid per game with its score as the caption (and the opponent, division, round and date under it). A game shows once PlayHQ has its final score.
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is

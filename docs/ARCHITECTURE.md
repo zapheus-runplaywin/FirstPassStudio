@@ -25,8 +25,8 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   and menus from the tab list in `public/studiobar.js`; `desktop/updates.js` and `desktop/whatsnew.js` handle updates.
 - **The helper** is plain Node, no framework: `server.js` routes every request by hand and the modules beside it each
   own one subject. Everything it saves goes in the data folder (`datadir.js`), never inside the app.
-- **The pages** are static HTML in `public/`. The Studio pages (Output, Production Planner, Scoreboard control, Competitions setup,
-  Sponsors, Athletes, Stream Deck, Socials, Recordings, Docs) share `studio.css` and `studiobar.js`: the page kit in `studio.css`
+- **The pages** are static HTML in `public/`. The Studio pages (Output, Production Planner, Scoreboard control, Recordings, Socials,
+  Competitions setup, Sponsors, Athletes, Stream Deck, Docs; the order of the tab bar) share `studio.css` and `studiobar.js`: the page kit in `studio.css`
   (section, headings, buttons, help text, dialogs, scoped with `:where(body.fp)` so a page's own classes win) is what each is built from,
   and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). The graphics only talk to the helper
   on this computer and keep the competition's own look.
