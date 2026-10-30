@@ -958,6 +958,9 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   The title stays on one line beside the competition logo (`fitTitle` in `social.html` shrinks it up to 30% before it
   may wrap; Poster's stacked portrait and Story titles are left alone), and the date line under it likewise; a long
   date line puts its court and venue on a second line. A template keeps its decoration clear with `--title-clear`.
+  `fit()` grows what's in the middle into spare room as well as shrinking it: laid out narrower and scaled back up to
+  the full width (up to 1.35 times, 1.6 on a Story) while no words rewrap or spill, then rows spread apart (`--spread`).
+  A Story's frame keeps 200px clear at the top and bottom for Instagram's own bar and reply box.
 - **Athletes' photos:** only athletes who approved their photo's use (Athletes tab). Top shooters shows each shooter's
   photo, matched by PlayHQ id then name, with the team logo as a badge. A Match up or Full time card picks an athlete for each side
   (division, team, then name; `&home=` `&away=`), drawn over the team's logo, and a polaroid can use an athlete's photo

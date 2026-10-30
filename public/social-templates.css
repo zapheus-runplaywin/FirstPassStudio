@@ -286,6 +286,7 @@
 .t-hero .ground { background: radial-gradient(ellipse 80% 55% at 50% 30%, color-mix(in srgb, var(--sky), #fff 22%), var(--sky) 75%); }
 .t-hero .ground::before { content: ''; position: absolute; left: -25%; right: -25%; bottom: -70%; height: 100%; border-radius: 50%; background: #fff; }
 .t-hero .ground::after { display: none; }
+.story.t-hero .ground::before { bottom: -86%; } /* a Story's rows reach lower: the floor stays under the foot */
 .t-hero .body { position: relative; z-index: 2; }
 .t-hero .when { position: relative; z-index: 3; } /* athletes stand in front of the title, never the date and place */
 .t-hero .tab { background: transparent; padding: 0; color: #fff; font-size: 22px; letter-spacing: .55em; }
