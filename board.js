@@ -191,7 +191,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
         if (b.gameId && b.gameId !== a.game.id) b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } };
         Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
-          round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null });
+          round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null });
         b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
         b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
         if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);

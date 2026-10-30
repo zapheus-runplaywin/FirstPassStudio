@@ -54,8 +54,8 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script>
 <main>
   <h1>Recordings</h1>
-  <p class="sub">Every night on air, Studio records what PlayHQ said and what went to air, timed, a few megabytes a night.
-    No video or sound: the graphics only. A recording plays back later as a practice game, and replays a night's graphics at 4K.</p>
+  <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what PlayHQ said and what went to air, timed, a megabyte or so a game.
+    No video or sound: the graphics only. A recording plays back later as a practice game, and replays a game's graphics at 4K.</p>
 
   <section id="practice" hidden>
     <h2>Practice game</h2>
@@ -115,13 +115,16 @@
 
   <section>
     <h2>Recording</h2>
-    <label><input type="checkbox" id="record"> Record every night on air</label>
+    <label><input type="checkbox" id="record"> Record each PlayHQ game on air</label>
+    <p class="help"><label>Keep recording for <input type="number" id="after" min="0" max="60" step="1" value="10" style="width:4.5em;font:inherit"> minutes
+      after full time</label> (0 to 60). A recording starts when its game is due on the scoreboard, <span id="leadMin">10</span> minutes before its
+      scheduled start (the competition setup page's automatic game selection), and stops then, or when the scoreboard moves on to another game.</p>
     <p class="help" id="recordNote"></p>
     <p class="error" id="err"></p>
   </section>
 
   <section>
-    <h2>Nights</h2>
+    <h2>Games</h2>
     <p class="help" style="margin:0 0 10px"><label>A practice game starts in <input type="number" id="lead" min="0" max="60" step="1" value="5" style="width:4.5em;font:inherit"> minutes</label>
       (0 to 60): <b>Practise</b> and <b>Jump to Start</b> put the game this long before its first centre pass, time for a pre-game sequence.</p>
     <div id="nights"><p class="empty">Looking…</p></div>
@@ -138,16 +141,21 @@ const length = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} m
 
 function show(s) {
   $('record').checked = s.record;
-  $('recordNote').textContent = s.recording ? `Recording now. Recordings with no game in them, and ones older than ${s.keepDays} days, are removed when Studio starts.`
-    : s.record ? 'Recording starts the next time Studio goes on air.'
-    : 'Not recording. Turn it on to keep a night for practice games and 4K replays.';
+  if (document.activeElement !== $('after')) $('after').value = s.afterMinutes;
+  $('leadMin').textContent = s.leadMinutes;
+  const w = s.waiting;
+  $('recordNote').textContent = s.recording ? `Recording now. Recordings older than ${s.keepDays} days are removed when Studio starts.`
+    : !s.record ? 'Not recording. Turn it on to keep games for practice games and 4K replays.'
+    : w && w.from ? `${w.game} starts recording at ${time(w.from)}${new Date(w.from).toDateString() === new Date().toDateString() ? '' : ` on ${new Date(w.from).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`}.`
+    : w ? `Not recording ${w.game}: ${w.why}.`
+    : 'Recording starts when a PlayHQ game is due on the scoreboard while Studio is on air.';
   $('nights').innerHTML = s.recordings.length ? s.recordings.map(r => `<div class="night">
       <div class="head"><h3>${esc(when(r.started))}</h3>${r.recording ? '<span class="live">Recording</span>' : ''}
         <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
         <span class="acts"><a class="button" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
-          <button class="danger" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once Studio is off air"' : ''}>Remove</button></span></div>
+          <button class="danger" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once it stops, after the game"' : ''}>Remove</button></span></div>
       ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button><button data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
-    </div>`).join('') : '<p class="empty">No recordings yet. The next night on air is recorded.</p>';
+    </div>`).join('') : '<p class="empty">No recordings yet. The next PlayHQ game on air is recorded.</p>';
 }
 
 async function call(method, path, body) {
@@ -324,6 +332,7 @@ $('demoStart').onclick = async () => {
 };
 
 $('record').onchange = () => call('POST', '/api/recordings', { record: $('record').checked });
+$('after').onchange = () => call('POST', '/api/recordings', { afterMinutes: Number($('after').value) });
 $('nights').onclick = e => {
   const rp = e.target.closest('[data-replay]');
   if (rp) { replayCall({ start: { recording: rp.dataset.replay, game: rp.dataset.game } }); return; }

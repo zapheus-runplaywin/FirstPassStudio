@@ -39,7 +39,7 @@ const SHOWS = {
   'commentator.html?refresh=0': ['Blizzardz', 'Game stats', 'Shooting', 'Lead changes', 'Blizzardz GS', 'games', 'Moments', 'Score worm'],
   'worm.html': ['Blizzardz', 'Score worm', 'Lead changes'],
   'social.html': ['Game night', 'Blizzardz', 'Court 2'],
-  'recordings.html': ['Record every night on air', 'Blizzardz v'],
+  'recordings.html': ['Record each PlayHQ game on air', 'after full time', 'Blizzardz v'],
   'socials.html': ['Game night fixture', 'Polaroid', 'Match up Blizzardz', 'Select all', 'Select none'],
   'social.html?kind=ladder&size=portrait&division=Division%202': ['Ladder', 'Division 2', 'Stormz', 'Pts'],
 };
