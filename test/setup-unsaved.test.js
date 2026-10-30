@@ -22,9 +22,9 @@ test('setup: unsaved changes are saved, discarded or kept before leaving them', 
   await studio.post('/api/setup-new', { name: 'Second Comp' });
   const saved = async () => (await studio.get(`/api/setup/${id}`)).settings.displayName;
   const page = await browser.newPage();
-  // A native confirm() (Switch every graphic…) is cancelled; the browser's Leave page? is counted.
+  // The browser's Leave page? is counted (Studio's own questions are pressed below).
   let leaveAsked = 0;
-  page.on('dialog', d => { if (d.type() === 'beforeunload') { leaveAsked++; d.accept(); } else d.dismiss(); });
+  page.on('dialog', d => { if (d.type() === 'beforeunload') leaveAsked++; d.accept(); });
   const load = async () => { await page.goto(studio.base + '/setup.html'); await page.waitForSelector('#editor:not([hidden])'); };
   const change = text => page.fill('#displayName', text);
   const ask = () => page.waitForSelector('dialog.fp-ask[open]');
@@ -74,6 +74,8 @@ test('setup: unsaved changes are saved, discarded or kept before leaving them', 
   await page.click('.comp:has-text("Second Comp") button:text-is("Use this one")');
   await ask();
   await press("Don't save");
+  await page.waitForSelector('dialog.fp-ask:has-text("Switch every graphic")');
+  await press('Cancel');
   await page.waitForFunction(() => document.getElementById('displayName').value === 'Changed twice');
   assert.equal((await studio.get('/api/setup')).active, id, 'still in use');
 

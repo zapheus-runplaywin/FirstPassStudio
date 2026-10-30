@@ -293,9 +293,9 @@ function previewSource(s) {
   window.open(`/pvw.html?src=${encodeURIComponent(to)}&name=${encodeURIComponent(s.name)}`, '_blank', 'popup,width=960,height=540');
 }
 $('fPreview').onclick = () => { const s = current(); if (s) previewSource(s); };
-$('fRemove').onclick = () => {
+$('fRemove').onclick = async () => {
   const s = current();
-  if (s && confirm(`Remove "${s.name}" from the scene? Its Stream Deck links will stop working.`)) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
+  if (s && await askConfirm(`Remove "${s.name}" from the scene?`, 'Its Stream Deck links will stop working.', { ok: 'Remove', danger: true })) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
 };
 // Hide all: every source off on one output (hideAllOn, which its label names: see renderList), never on every output
 // at once: clearing a monitor mustn't blank the one on air.
@@ -494,9 +494,9 @@ $('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').val
 $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
 $('outDlSound').onchange = () => setOut({ decklinkSound: $('outDlSound').value });
 // Ticking Straight asks first: straight fill into a Pre Multiplied key leaves a light fringe round logos and text.
-$('outDlStraight').onchange = () => {
+$('outDlStraight').onchange = async () => {
   const on = $('outDlStraight').checked;
-  if (on && !confirm('Are you sure? Premultiplied keys are much better if the switcher supports it (every ATEM does).\n\nTick Straight only if the switcher can\'t do a Pre Multiplied key: into one, Straight leaves a light fringe round logos and text.')) {
+  if (on && !await askConfirm('Send a straight fill?', 'Premultiplied keys are much better if the switcher supports it (every ATEM does).\n\nTick Straight only if the switcher can\'t do a Pre Multiplied key: into one, Straight leaves a light fringe round logos and text.', { ok: 'Tick Straight' })) {
     $('outDlStraight').checked = false;
     return;
   }
@@ -519,10 +519,10 @@ $('outAdd').onclick = async () => {
   const added = (out?.outputs || []).find(o => !before.has(o.id));
   if (added) pickOutput(added.id);
 };
-$('outRemove').onclick = () => {
+$('outRemove').onclick = async () => {
   const so = selectedOutput();
   if (!so || so.primary) return;
-  if (!confirm(`Remove ${so.name}? It stops sending, and its Stream Deck links stop working. The sources stay; only what was on for ${so.name} is forgotten.`)) return;
+  if (!await askConfirm(`Remove ${so.name}?`, `It stops sending, and its Stream Deck links stop working. The sources stay; only what was on for ${so.name} is forgotten.`, { ok: 'Remove', danger: true })) return;
   setOut({ remove: so.id }).then(() => pickOutput('main'));
 };
 

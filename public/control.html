@@ -354,8 +354,8 @@
   $('tickerNormal').onclick = () => act({ type: 'tickerSpeed', value: 'normal' });
   $('showClock').onchange = () => act({ type: 'showClock', value: $('showClock').checked });
   $('followClock').onchange = () => act({ type: 'followPlayhqClock', value: $('followClock').checked });
-  $('resetScores').onclick = () => { if (confirm('Set both scores back to 0?')) act({ type: 'resetScores' }); };
-  $('resetAll').onclick = () => { if (confirm('Clear the teams, scores and clock?')) act({ type: 'reset' }); };
+  $('resetScores').onclick = async () => { if (await askConfirm('Set both scores back to 0?', '', { ok: 'Reset scores' })) act({ type: 'resetScores' }); };
+  $('resetAll').onclick = async () => { if (await askConfirm('Clear the teams, scores and clock?', '', { ok: 'Clear', danger: true })) act({ type: 'reset' }); };
 
   // Keyboard scoring: A / Z home, K / M away (Shift for 2), Space for the clock. Only for a plain key press on the
   // page itself: not while typing in a field, not with ⌘, ⌥ or ⌃ held (⌘A is select all, not a home goal), and not
@@ -383,6 +383,7 @@
   setInterval(tick, 250);
 })();
 </script>
+<script src="asktext.js"></script>
 <script src="autoreload.js"></script>
 <script>
 // Finals: who plays who in each division, and winners picked by hand for finals PlayHQ has no games for.

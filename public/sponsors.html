@@ -575,7 +575,7 @@ const editorGuard = unsavedDialog($('editor'), {
 });
 $('edDelete').onclick = async () => {
   const on = Object.keys(editing.competitions).length;
-  if (!confirm(`Delete ${editing.name}${on > 1 ? ` from all ${on} competitions it's shown on` : ''}, with its logos? To take it off just this competition, set its tier to Not shown.`)) return;
+  if (!await askConfirm(`Delete ${editing.name}${on > 1 ? ` from all ${on} competitions it's shown on` : ''}, with its logos?`, 'To take it off just this competition, set its tier to Not shown.', { ok: 'Delete', danger: true })) return;
   view = await api(`/api/sponsors?id=${encodeURIComponent(editing.id)}`, { method: 'DELETE' });
   render();
   $('editor').close();

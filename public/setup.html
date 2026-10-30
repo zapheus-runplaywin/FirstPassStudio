@@ -451,7 +451,7 @@
   async function activate(id) {
     const settled = await settle();
     if (!settled) return;
-    if (!confirm('Switch every graphic, the control page and the Stream Deck to this competition? The scoreboard starts again on its first game.')) { if (settled === 'discarded') reopen(); return; }
+    if (!await askConfirm('Switch every graphic, Scoreboard control and the Stream Deck to this competition?', 'The scoreboard starts again on its first game.', { ok: 'Use this competition' })) { if (settled === 'discarded') reopen(); return; }
     try {
       await post(`/api/setup/${id}/activate`, {});
       editing = null; dirty = false;
@@ -714,7 +714,7 @@
       const chip = el('span', 'kitc'); chip.append(el('code', '', name));
       const del = el('button', '', '×'); del.type = 'button'; del.title = `Remove ${name}`;
       del.onclick = async () => {
-        if (!confirm(`Remove ${name}?`)) return;
+        if (!await askConfirm(`Remove ${name}?`, '', { ok: 'Remove', danger: true })) return;
         const d = await api(`/api/setup/${editing}/image?kind=fonts&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
         files.fonts = d.fonts; files.fontFamilies = d.fontFamilies; buildFonts(); preview();
       };
@@ -822,7 +822,7 @@
       const img = el('img'); img.src = imgUrl('logos', name); img.alt = '';
       const del = el('button', 'alt', '×'); del.title = `Remove ${name}`;
       del.onclick = async () => {
-        if (!confirm(`Remove ${name}?`)) return;
+        if (!await askConfirm(`Remove ${name}?`, '', { ok: 'Remove', danger: true })) return;
         files.logos = (await api(`/api/setup/${editing}/image?kind=logos&name=${encodeURIComponent(name)}`, { method: 'DELETE' })).logos;
         renderLogos(); loadTeams(editing === info.active);
       };
@@ -975,7 +975,7 @@
     const inUse = editing === info.active;
     const next = info.competitions.find(c => c.id !== editing);
     const then = !inUse ? '' : next ? ` It's in use, so every graphic switches to ${next.name}.` : " It's in use and it's your only competition, so the graphics will have none until you import or make one.";
-    if (!confirm(`Delete ${form.name}, with its settings and logos? This can't be undone.${then}`)) return;
+    if (!await askConfirm(`Delete ${form.name}, with its settings and logos?`, `This can't be undone.${then}`, { ok: 'Delete', danger: true })) return;
     try {
       const d = await api(`/api/setup/${editing}`, { method: 'DELETE' });
       dirty = false; editing = null;

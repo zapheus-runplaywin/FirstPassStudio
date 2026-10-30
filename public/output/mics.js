@@ -223,6 +223,6 @@ $('mxSave').onclick = async () => {
   $('mxDialog').close();
 };
 $('mxDelete').onclick = async () => {
-  if (!mxDraft?.id || !confirm(`Delete the mic "${mxDraft.name}"? Studio stops mixing it in.`)) return;
+  if (!mxDraft?.id || !await askConfirm(`Delete the mic "${mxDraft.name}"?`, 'Studio stops mixing it in.', { ok: 'Delete', danger: true })) return;
   if (await act({ type: 'micRemove', mic: mxDraft.id })) $('mxDialog').close();
 };

@@ -330,7 +330,7 @@ async function approve(names, approved) {
   try {
     await api('/api/athletes/approval', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ athletes: names, approved }) });
     for (const a of team.athletes) if (names.includes(a.name)) a.photoOk = approved;
-  } catch (err) { alert(`Couldn't save that: ${err.message}`); }
+  } catch (err) { tell("Couldn't save that", err.message); }
   renderAthletes();
 }
 
@@ -439,7 +439,7 @@ function genderPicker(a) {
       const d = await api('/api/athletes/gender', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ athlete: a.name, gender: sel.value }) });
       Object.assign(a, { gender: d.gender, genderFrom: d.genderFrom, genderSetByHand: d.genderSetByHand, silhouette: d.silhouette });
       renderAthletes();
-    } catch (err) { alert(err.message); }
+    } catch (err) { tell("Studio couldn't do that", err.message); }
   };
   const wrap = el('label', 'ath__meta', 'Silhouette ');
   wrap.appendChild(sel);
@@ -485,20 +485,20 @@ async function refreshPhotos() {
 
 async function setPhoto(name, file) {
   try { await upload(file, name); }
-  catch (err) { alert(`Couldn't save the photo for ${name}: ${err.message}`); console.warn('Athlete photo upload failed:', err.message); }
+  catch (err) { tell(`Couldn't save the photo for ${name}`, err.message); console.warn('Athlete photo upload failed:', err.message); }
   refreshPhotos();
 }
 
 async function removePhoto(file) {
-  if (!confirm(`Remove ${file}? This deletes it from the competition's photos folder.`)) return;
+  if (!await askConfirm(`Remove ${file}?`, "This deletes it from the competition's photos folder.", { ok: 'Remove', danger: true })) return;
   try { await api(`/api/athletes/photo?file=${encodeURIComponent(file)}`, { method: 'DELETE' }); }
-  catch (err) { alert(err.message); }
+  catch (err) { tell("Studio couldn't do that", err.message); }
   refreshPhotos();
 }
 
 async function assign(file, athlete) {
   try { await api('/api/athletes/rename', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, athlete }) }); }
-  catch (err) { alert(err.message); }
+  catch (err) { tell("Studio couldn't do that", err.message); }
   refreshPhotos();
 }
 
@@ -526,7 +526,7 @@ drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); bulk([..
 $('bulkFile').onchange = e => bulk([...e.target.files]);
 $('otherFile').onchange = e => {
   const name = $('otherName').value.trim();
-  if (!name) { alert('Type the athlete\'s name first.'); e.target.value = ''; return; }
+  if (!name) { tell('Type the athlete\'s name first.'); e.target.value = ''; return; }
   setPhoto(name, e.target.files[0]).then(() => { $('otherName').value = ''; e.target.value = ''; });
 };
 // Dropping a photo anywhere else shouldn't open it in the browser.
