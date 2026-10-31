@@ -3,7 +3,7 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 // ─── Run order ──────────────────────────────────────────────────────────
-// A numbered list of sequences and scenes for the output picked over the Scene View (the primary unless another
+// Above Scenes and Sequences: a numbered list of sequences and scenes for the output picked over the Scene View (the primary unless another
 // tab is picked). Play next plays the head, Skip drops it; a sequence that ends plays the head itself instead of its
 // Then, so the list is the night's plan and each sequence's Then is the fallback when the list runs out. Add… puts a
 // scene or sequence at the end; rows drag to reorder (or use their arrows); Saved… loads an order kept under a name
