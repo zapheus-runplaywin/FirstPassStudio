@@ -16,6 +16,9 @@ const onFor = (s, o) => o.primary ? s.visible : !!(s.out && s.out[o.id]);
 let hideAllOn = 'main'; // the output Hide all clears (set as the list is drawn)
 // The eye (preview the source on its own) and the pencil (its settings), as inline icons.
 const ICON_EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+// The speaker (a video with sound): the same line style as the eye and pencil, with waves while on and a cross while muted.
+const ICON_SOUND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const ICON_MUTED = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m16 9 6 6"/><path d="m22 9-6 6"/></svg>';
 const ICON_PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 function renderList() {
   const ul = $('sources');
@@ -47,7 +50,7 @@ function renderList() {
     const li = document.createElement('li');
     li.className = s.id === selected ? 'sel' : '';
     li.title = 'Top layer first: drag a source up or down to move it between layers';
-    li.innerHTML = '<span class="name"></span><button class="eye"></button><span class="row" style="gap:4px"><button class="alt snd hidden"></button>'
+    li.innerHTML = '<span class="name"></span><button class="eye"></button><span class="row" style="gap:4px"><span class="sndCol"><button class="alt ico snd hidden"></button></span>'
       + `<button class="alt ico pvw" title="Preview: open this source on its own" aria-label="Preview">${ICON_EYE}</button>`
       + `<button class="alt ico edit" title="Settings: name, address, position, fade, its Stream Deck links" aria-label="Settings" aria-pressed="false">${ICON_PEN}</button></span>`;
     const eye = li.querySelector('.eye');
@@ -89,7 +92,9 @@ function renderList() {
     if (s.type === 'video') {
       const snd = li.querySelector('.snd');
       snd.classList.remove('hidden');
-      snd.textContent = s.sound ? '🔊' : '🔇';
+      snd.innerHTML = s.sound ? ICON_SOUND : ICON_MUTED;
+      snd.classList.toggle('on', !!s.sound);
+      snd.setAttribute('aria-label', s.sound ? 'Sound on' : 'Muted');
       snd.title = s.sound ? 'Sound on: click to mute' : 'Muted: click to turn sound on';
       snd.onclick = e => { e.stopPropagation(); act({ type: 'soundToggle', id: s.id }); };
     }

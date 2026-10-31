@@ -99,6 +99,9 @@
   .sources li.editor #fOptionsBox { margin-top: 6px; }
   .sources li.editor .links code { font-size: 11px; overflow-wrap: anywhere; }
   .sources li .ico { display: inline-flex; align-items: center; padding: 4px 7px; }
+  /* The speaker's column is on every row, empty where a source has no sound, so the Off buttons line up. */
+  .sources li .sndCol { display: inline-flex; width: 36px; justify-content: center; }
+  .sources li .snd.on { color: var(--fp-navy); border-color: var(--fp-line-strong); }
   .sources li .ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .sources li .edit[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
   .sources li:first-child { border-top: 0; }
