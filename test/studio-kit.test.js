@@ -54,3 +54,18 @@ test('help text on the Output page, Production Planner, Socials and Recordings f
   }
 });
 
+
+// Dark theme (UI level-up, 31 Oct 2026): studio.css carries the brand kit's dark values under prefers-color-scheme, and a page's
+// own <style> tints things with the kit's tokens (--fp-warn-bg, --fp-danger-bg, --fp-check-a/b, color-mix on --fp-white), never
+// a light-only hex that would glare in the dark.
+test('the kit has a dark theme and no Studio page carries a light-only tint of its own', () => {
+  const css = fs.readFileSync(path.join(PUBLIC, 'studio.css'), 'utf8');
+  assert.match(css, /@media \(prefers-color-scheme: dark\) \{\s*:root \{[^}]*--fp-white: #1E293B;[^}]*--fp-muted: #CBD5E1;/, 'dark tokens from the brand kit');
+  for (const tok of ['--fp-bar', '--fp-btn', '--fp-warn-bg', '--fp-warn-ink', '--fp-danger-bg', '--fp-check-a', '--fp-check-b']) assert.ok(css.includes(`${tok}:`), `studio.css defines ${tok}`);
+  const lightOnly = /#(FFF4E5|FFF4EC|8A3B00|B23F00|FEF3F2|FECDCA|F8FAFC|f6f6f6|e4e4e4|eeeeee|FCE7F3|FFF7F1|F4F7FD)\b/;
+  for (const name of PAGES) {
+    const style = (fs.readFileSync(path.join(PUBLIC, `${name}.html`), 'utf8').match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+    assert.doesNotMatch(style, lightOnly, `${name}.html tints with the kit's tokens`);
+    assert.doesNotMatch(style, /background: var\(--fp-navy\)/, `${name}.html uses --fp-bar, not the ink, as a dark background`);
+  }
+});

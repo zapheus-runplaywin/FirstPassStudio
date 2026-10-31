@@ -12,7 +12,7 @@
 
 'use strict';
 
-const { app, BrowserWindow, Menu, shell, clipboard, screen, dialog, protocol } = require('electron');
+const { app, BrowserWindow, Menu, shell, clipboard, screen, dialog, protocol, nativeTheme } = require('electron');
 const fs = require('fs');
 const path = require('path');
 // The Studio pages, in tab order, shared with the tab bar on every page (public/studiobar.js).
@@ -236,7 +236,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       ...bounds,
       minWidth: popout || pvw ? 320 : 560, minHeight: popout || pvw ? 180 : 400,
       title: popout ? 'Scene View · FirstPass Studio' : 'FirstPass Studio',
-      backgroundColor: studioPage ? '#F8FAFC' : '#1E293B', // overlays are see-through: show them on dark
+      // The page background in the theme in use (studio.css --fp-gray), so nothing flashes white while it loads;
+      // overlays are see-through: show them on dark.
+      backgroundColor: studioPage ? (nativeTheme.shouldUseDarkColors ? '#0B1220' : '#F8FAFC') : '#1E293B',
       show: false,
       // The Studio header is the title bar; the window buttons sit inside it.
       titleBarStyle: studioPage ? 'hiddenInset' : 'default',
