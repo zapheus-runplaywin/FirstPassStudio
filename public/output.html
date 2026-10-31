@@ -22,7 +22,7 @@
   .modeSeg { margin-top: 6px; flex: none; }
   .modeSeg > button { font-size: 15px; padding: 7px 16px; }
   /* The stage: the picture (and its tabs) left, the status board right in the Show view. Pinned under the bar in Show. */
-  .mv { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 9fr); gap: 14px; align-items: start; margin-bottom: 14px; }
+  .mv { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 9fr); gap: 14px; align-items: stretch; margin-bottom: 14px; }
   body.mode-show .mv { position: sticky; top: var(--barh, 83px); z-index: 20; background: var(--fp-gray); padding-bottom: 8px; }
   body.mode-prep .mv { grid-template-columns: minmax(0, 1fr); }
   .pgm { min-width: 0; display: grid; gap: 8px; align-content: start; }
@@ -34,45 +34,47 @@
   #outSection.drawer { margin-bottom: 0; }
   body.mode-show #outSection.drawer:not(.cfgOpen) { display: none; }
   body.mode-prep #outCfg { display: none; }
-  body.mode-show .pgm .preview { width: min(100%, calc(38vh * 16 / 9)); }
+  body.mode-show .pgm .preview { width: min(100%, calc(46vh * 16 / 9)); }
   body.mode-prep .pgm .preview { width: min(100%, calc(34vh * 16 / 9)); margin: 0 auto; }
   .pgmUnder { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
   .pgmUnder .note { margin: 0; font-size: 13px; }
   .pgmView { gap: 10px; }
   /* The status board (output/board.js): lights, the game, then eight lines in two columns, each a light, a word, a bar or
      meter and a time, readable from arm's length. */
-  .sboard { display: grid; gap: 6px; align-content: start; background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 10px 12px; font-size: 13px; min-width: 0; }
+  /* The board fills the picture's height: the lights and the game row take what they need, and the eight lines
+     share the rest, so on a big screen everything has room and on a small one nothing is cut. */
+  .sboard { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 10px; align-content: stretch; background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 14px 18px; font-size: 14px; min-width: 0; }
   .sboard .brow { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .sboard .lights { flex-wrap: wrap; gap: 6px; }
-  .sboard .light { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--fp-gray); border: 1px solid var(--fp-line); font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .sboard .lights { flex-wrap: wrap; gap: 8px; }
+  .sboard .light { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: var(--fp-gray); border: 1px solid var(--fp-line); font-weight: 700; font-size: 13px; white-space: nowrap; }
   .sboard .light.on { background: var(--c, var(--fp-orange)); color: var(--fp-bar); border-color: transparent; }
   .sboard .light.rec.on { background: #DC2626; color: #fff; }
   .sboard .light.ok { border-color: var(--fp-ok); }
   .sboard .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--fp-line-strong); flex: none; }
   .sboard .dot.ok { background: var(--fp-ok); } .sboard .dot.warn { background: var(--fp-gold); } .sboard .dot.bad { background: var(--fp-danger); } .sboard .dot.live { background: var(--fp-orange); }
-  .sboard .game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px solid var(--fp-line); border-bottom: 1px solid var(--fp-line); }
+  .sboard .game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--fp-line); border-bottom: 1px solid var(--fp-line); }
   .sboard .game .pq { display: flex; align-items: center; gap: 6px; color: var(--fp-muted); font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sboard .game .pq.bad, .sboard .game .pq.warn { color: var(--fp-warn-ink); }
   .sboard .game .pq.bad { color: var(--fp-danger); }
-  .sboard .game .sclock { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 20px; color: var(--fp-navy); }
+  .sboard .game .sclock { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 26px; color: var(--fp-navy); }
   .sboard .game .score { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: baseline; }
-  .sboard .game .tname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sboard .game .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sboard .game .tname.away { text-align: right; }
-  .sboard .game .num { font-weight: 900; font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
-  .sboard .sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
-  .sboard .line { display: grid; grid-template-columns: 9px 62px minmax(0, 1fr) auto; gap: 7px; align-items: center; min-width: 0; padding: 3px 0; }
-  .sboard .line .lbl { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--fp-muted); white-space: nowrap; }
+  .sboard .game .num { font-weight: 900; font-size: 30px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .sboard .sgrid { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(0, 1fr); gap: 4px 22px; min-height: 0; }
+  .sboard .line { display: grid; grid-template-columns: 10px minmax(5.5em, auto) minmax(0, 1fr) auto; gap: 9px; align-items: center; min-width: 0; padding: 4px 0; }
+  .sboard .line .lbl { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--fp-muted); white-space: nowrap; }
   .sboard .line .txt { display: grid; gap: 3px; min-width: 0; }
   .sboard .line .txt b { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fp-navy); }
   .sboard .line .txt small { color: var(--fp-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sboard .bar { height: 5px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
+  .sboard .bar { height: 7px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
   .sboard .bar i { display: block; height: 100%; width: 0; background: var(--fp-orange); transition: width .3s linear; }
   .sboard .bar.meter i { background: #22c55e; transition: width .12s linear; }
   .sboard .bar.meter i.warm { background: #f59e0b; } .sboard .bar.meter i.hot { background: #ff4d4d; }
   .sboard .bar.blue i { background: var(--fp-btn); }
-  .sboard .tm { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; white-space: nowrap; min-width: 3.2em; text-align: right; }
+  .sboard .tm { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; white-space: nowrap; min-width: 3.2em; text-align: right; }
   .sboard .tm:empty { min-width: 0; }
-  .sboard .line button { padding: 2px 8px; font-size: 11px; }
+  .sboard .line button { display: block; margin: 4px 0 0 auto; padding: 3px 10px; font-size: 12px; font-family: var(--fp-font, inherit); }
   /* Show: scenes | sequences | sources (show and hide) side by side; music and mics together under them. */
   body.mode-show .console { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, .9fr); gap: 14px; align-items: start; }
   body.mode-show .console > section, body.mode-show .cols > section { margin-bottom: 0; }

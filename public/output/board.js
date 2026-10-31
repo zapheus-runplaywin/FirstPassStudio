@@ -12,7 +12,7 @@ const boardEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&':
 const boardMmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const boardAgo = ms => ms == null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`;
 const boardLine = (lbl, dot, main, sub, bar, tm, extra = '') =>
-  `<div class="line"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}${bar || ''}</span><span class="tm">${tm || ''}</span>${extra}</div>`;
+  `<div class="line"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}${bar || ''}</span><span class="tm">${tm || ''}${extra}</span></div>`;
 const boardBar = (pct, cls = '') => pct == null ? '' : `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span>`;
 
 function renderBoard() {
