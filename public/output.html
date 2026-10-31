@@ -12,7 +12,9 @@
 
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 24px 24px; }
-  .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  /* The frame keeps the graphics' own (light) colour scheme: Chromium paints a frame opaque white when its page's scheme differs
+     from the frame's, which hid the checkerboard behind see-through scenes in dark mode. */
+  .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; color-scheme: light; }
   .preview .box { position: absolute; border: 2px dashed var(--fp-orange); pointer-events: none; display: none; }
   .preview .off { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fp-muted); font-weight: 600; }
 
@@ -74,8 +76,6 @@
   .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px; align-items: start; }
   .pair.dock { grid-template-columns: 1fr 1fr; }
   /* Scenes | Sequences | Run order; on a narrower window the run order drops under the two. */
-  .pair.trio { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); }
-  @media (max-width: 1400px) { .pair.trio { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); } #roSection { grid-column: 1 / -1; } }
   .seq.run { grid-column: 1 / -1; }
   .seqs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 8px; }
   .scenes { gap: 12px 8px; }
@@ -631,29 +631,7 @@
     </section>
 
   <div class="stack">
-  <div class="pair trio">
-  <section id="scenesSection" data-fold="scenes">
-    <div class="secHead">
-      <h2 id="scenesHead">Scenes</h2>
-      <span class="row"><button class="alt" id="editScenes">Edit scenes</button><button class="alt" id="addScene" title="Save what's on now as a new scene">Add scene</button></span>
-    </div>
-    <div class="scenes" id="scenes"></div>
-    <div class="drift hidden" id="drift"></div>
-    <div class="sceneGrid hidden" id="sceneGrid"></div>
-    <p class="fp-empty" id="scenesEmpty"></p>
-  </section>
-
-  <section id="seqSection" data-fold="sequences">
-    <div class="secHead">
-      <h2 id="seqHead">Sequences</h2>
-      <button class="alt" id="addSeq" title="Steps played one after another">Add sequence</button>
-    </div>
-    <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
-    <div class="seqs" id="seqs"></div>
-    <p class="fp-empty" id="seqEmpty"></p>
-  </section>
-
-  <!-- The run order: what plays next tonight on the picked output, sequences and scenes in order (output/runorder.js). -->
+  <!-- The run order: what plays next tonight on the picked output, sequences and scenes in order (output/runorder.js), above Scenes and Sequences. -->
   <section id="roSection" data-fold="runorder">
     <div class="secHead">
       <h2 id="roHead">Run order</h2>
@@ -734,6 +712,29 @@
       </div>
     </dialog>
   </section>
+
+  <div class="pair">
+  <section id="scenesSection" data-fold="scenes">
+    <div class="secHead">
+      <h2 id="scenesHead">Scenes</h2>
+      <span class="row"><button class="alt" id="editScenes">Edit scenes</button><button class="alt" id="addScene" title="Save what's on now as a new scene">Add scene</button></span>
+    </div>
+    <div class="scenes" id="scenes"></div>
+    <div class="drift hidden" id="drift"></div>
+    <div class="sceneGrid hidden" id="sceneGrid"></div>
+    <p class="fp-empty" id="scenesEmpty"></p>
+  </section>
+
+  <section id="seqSection" data-fold="sequences">
+    <div class="secHead">
+      <h2 id="seqHead">Sequences</h2>
+      <button class="alt" id="addSeq" title="Steps played one after another">Add sequence</button>
+    </div>
+    <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
+    <div class="seqs" id="seqs"></div>
+    <p class="fp-empty" id="seqEmpty"></p>
+  </section>
+
 
   </div>
 
