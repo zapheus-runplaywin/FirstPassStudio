@@ -8,16 +8,60 @@
 <link rel="stylesheet" href="studio.css">
 <script src="sceneevents.js"></script>
 <style>
+  /* The operator panel: the game in one bar, the two scores and the clock as the biggest things on the page with their
+     keys printed on them, then the graphics, team lists, finals and the rest as tabs. The game's set-up (night, court,
+     automatic selection, PlayHQ) is a folding section at the bottom; Change game… opens it. */
+  .pageHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 12px; }
+  .pageHead h1 { margin: 0; }
+  .pageHead .sub { margin: 0; }
   select { flex: 1 1 360px; min-width: 0; }
-  button.on, button.on:hover { background: var(--fp-orange); border-color: var(--fp-orange); color: var(--fp-navy); }
-  .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .team { border: 1px solid var(--fp-line); background: var(--fp-gray); border-radius: var(--fp-radius); padding: 14px; text-align: center; }
-  .team input { width: 100%; text-align: center; font-weight: 800; margin-bottom: 8px; }
-  .big { font-size: 68px; font-weight: 900; font-style: italic; color: var(--fp-navy); line-height: 1; margin: 8px 0 12px; font-variant-numeric: tabular-nums; }
-  .team .row { justify-content: center; }
-  .plus, .plus:hover { background: var(--fp-gold); border-color: var(--fp-gold); color: var(--fp-navy); font-size: 22px; font-weight: 800; padding: 12px 26px; }
+  button.on, button.on:hover { background: var(--fp-orange); border-color: var(--fp-orange); color: #0F172A; }
+  .gamebar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 16px; margin-bottom: 12px; }
+  .gamebar .g { font-weight: 800; font-size: 16px; min-width: 0; flex: none; }
+  .gamebar .g small { display: block; font-weight: 500; color: var(--fp-muted); font-size: 12px; }
+  .gamebar .nextNote { margin: 0; flex: 1 1 220px; }
+  .gamebar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .board { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; margin-bottom: 8px; }
+  .board section { margin: 0; }
+  .team { display: grid; gap: 10px; justify-items: center; align-content: start; text-align: center; padding: 16px 18px; }
+  .team .tn { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 360px; }
+  .team .tn i { width: 14px; height: 14px; border-radius: 4px; flex: none; border: 1px solid var(--fp-line-strong); }
+  .team .tn i:not([style]) { display: none; }
+  .team input { width: 100%; min-width: 0; text-align: center; font-weight: 800; font-size: 16px; }
+  .big { font-size: clamp(64px, 9vw, 96px); font-weight: 900; font-style: italic; color: var(--fp-navy); line-height: 1; margin: 4px 0; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+  .pads { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 320px; }
+  .pads button { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-radius: 12px; }
+  .pads kbd { font: 700 11px/1 inherit; font-family: inherit; color: rgba(15,23,42,.6); background: rgba(255,255,255,.45); padding: 3px 6px; border-radius: 4px; }
+  .plus, .plus:hover { background: var(--fp-gold); border-color: var(--fp-gold); color: #0F172A; font-size: 26px; font-weight: 900; padding: 14px 12px 14px 16px; }
   .plus:hover { filter: brightness(.95); }
-  .clockface { font-size: 34px; font-weight: 900; font-style: italic; color: var(--fp-navy); min-width: 110px; font-variant-numeric: tabular-nums; }
+  .pads .alt { padding: 7px 10px 7px 14px; font-size: 16px; font-weight: 700; color: var(--fp-muted); }
+  .pads .alt kbd { color: var(--fp-muted); background: transparent; }
+  .clock { display: grid; gap: 10px; justify-items: center; align-content: start; min-width: 300px; padding: 16px 20px; }
+  .clock h2 { margin: 0; }
+  .clock .q { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+  .clock .q button { padding: 5px 10px; font-size: 12px; font-weight: 800; }
+  .clock .q button.on, .clock .q button.on:hover { background: var(--fp-bar); border-color: var(--fp-bar); color: #fff; }
+  @media (prefers-color-scheme: dark) { .clock .q button.on, .clock .q button.on:hover { background: var(--fp-gold); border-color: var(--fp-gold); color: #0F172A; } }
+  .clockface { font-size: clamp(48px, 7vw, 72px); font-weight: 900; font-style: italic; color: var(--fp-navy); line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  #clockToggle { font-size: 18px; font-weight: 900; padding: 12px 36px; border-radius: 12px; display: inline-flex; align-items: center; gap: 10px; }
+  #clockToggle kbd { font: 700 10px/1 inherit; font-family: inherit; background: rgba(255,255,255,.35); padding: 2px 6px; border-radius: 4px; }
+  #clockToggle:not(.on) kbd { background: rgba(255,255,255,.22); }
+  .clock .nudge, .clock .small { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+  .clock .small { font-size: 12px; color: var(--fp-muted); }
+  .clock .small label { font-size: 12px; }
+  .clock .follow { display: grid; justify-items: center; gap: 4px; text-align: center; }
+  .clock .follow .note { margin: 0; }
+  .boardFoot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 12px; }
+  .boardFoot .note { margin: 0 auto 0 0; }
+  .lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 400px); gap: 12px; align-items: start; margin-bottom: 12px; }
+  .lower section { margin: 0; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--fp-line); margin: -4px 0 12px; }
+  .tabs button, .tabs button:hover { border: 0; background: transparent; color: var(--fp-muted); font-weight: 700; padding: 8px 12px; border-radius: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button[aria-selected="true"] { color: var(--fp-navy); border-bottom-color: var(--fp-orange); }
+  .tab[hidden] { display: none; }
+  .gfx { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .gfx .btn { display: block; text-align: left; padding: 10px 12px; border-radius: 10px; font-weight: 700; border-color: var(--fp-line-strong); color: var(--fp-navy); background: var(--fp-white); }
+  .gfx .btn:hover { border-color: var(--fp-blue); color: var(--fp-blue); }
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 24px 24px; }
   .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
@@ -26,18 +70,129 @@
   .fin__name small { display: block; font-weight: 400; color: var(--fp-muted); }
   .fin .row button { padding: 6px 12px; }
   .fin input[type=number] { width: 84px; }
-  @media (max-width: 600px) { .teams { grid-template-columns: 1fr; } .fin { grid-template-columns: 1fr; } }
+  #gameSection h2 { cursor: pointer; }
+  #gameSection h2::before { content: '▾ '; color: var(--fp-muted); }
+  #gameSection.folded h2::before { content: '▸ '; }
+  #gameSection.folded > :not(h2) { display: none; }
+  @media (max-width: 1000px) { .board { grid-template-columns: 1fr 1fr; } .clock { grid-column: 1 / -1; grid-row: 1; min-width: 0; } .lower { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { .board { grid-template-columns: 1fr; } .clock { grid-column: auto; grid-row: auto; } .fin { grid-template-columns: 1fr; } }
 </style>
 <script src="log.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
-  <h1>Scoreboard control</h1>
-  <p class="sub" id="compLine"></p>
-  <p class="sub" id="sub">The scoreboard is <b>http://localhost:8080/scoreboard.html</b>: add it on the <a href="/output.html">Output page</a>.</p>
+  <div class="pageHead"><h1>Scoreboard control</h1><p class="sub">Scores, clock and the game graphics for the game on the board; the game itself is set up at the bottom.</p></div>
 
-  <section>
+  <section class="gamebar" id="gameBar">
+    <span class="g"><b id="gameName">No game picked</b><small id="gameMeta"></small></span>
+    <span class="fp-seg" role="group" aria-label="Scores"><button id="srcPlayhq">Follow PlayHQ</button><button id="srcManual">Manual</button></span>
+    <span class="note nextNote" id="nextGame" hidden></span>
+    <span class="right"><button class="alt" id="changeGame">Change game…</button></span>
+  </section>
+
+  <div class="board">
+    <section class="team">
+      <span class="tn"><i id="homeSw"></i><input id="homeName" aria-label="Home team name"></span>
+      <div class="big" id="homeScore">0</div>
+      <div class="pads"><button class="plus" data-side="home" data-delta="1">+1<kbd>A</kbd></button><button class="plus" data-side="home" data-delta="2" title="Super shot">+2<kbd>⇧A</kbd></button><button class="alt" data-side="home" data-delta="-1">−1<kbd>Z</kbd></button><button class="alt" data-side="home" data-delta="-2">−2<kbd>⇧Z</kbd></button></div>
+    </section>
+    <section class="clock">
+      <h2 id="periodHeading">Quarter and clock</h2>
+      <div class="q" id="periods"></div>
+      <span class="clockface" id="clockface">10:00</span>
+      <button id="clockToggle"><span id="clockWord">Start</span><kbd>Space</kbd></button>
+      <div class="nudge">
+        <button class="alt" id="clockMinus">−10 s</button>
+        <button class="alt" id="clockPlus">+10 s</button>
+        <input id="clockSetValue" placeholder="12:34" inputmode="numeric" aria-label="Match venue clock" title="Type the venue clock's time, then Set" style="width:80px">
+        <button class="alt" id="clockSet">Set</button>
+        <button class="alt" id="clockReset">Reset clock</button>
+      </div>
+      <div class="follow">
+        <label class="fp-switch"><input id="followClock" type="checkbox"> Follow the PlayHQ scorer's clock</label>
+        <span class="note" id="clockNote"></span>
+      </div>
+      <div class="small">
+        <label>Length <input id="clockLength" type="number" min="1" max="60" style="width:70px"> min</label>
+        <label><input id="showClock" type="checkbox"> Show clock</label>
+      </div>
+    </section>
+    <section class="team">
+      <span class="tn"><i id="awaySw"></i><input id="awayName" aria-label="Away team name"></span>
+      <div class="big" id="awayScore">0</div>
+      <div class="pads"><button class="plus" data-side="away" data-delta="1">+1<kbd>K</kbd></button><button class="plus" data-side="away" data-delta="2" title="Super shot">+2<kbd>⇧K</kbd></button><button class="alt" data-side="away" data-delta="-1">−1<kbd>M</kbd></button><button class="alt" data-side="away" data-delta="-2">−2<kbd>⇧M</kbd></button></div>
+    </section>
+  </div>
+  <div class="boardFoot">
+    <p class="note">Keys: <b>A</b> / <b>Z</b> home, <b>K</b> / <b>M</b> away, <b>Shift</b> for a super shot, <b>Space</b> for the clock. Stream Deck links are on the <a href="/api.html">Stream Deck page</a>.</p>
+    <button class="alt" id="resetScores">Reset scores to 0</button>
+    <button class="alt" id="resetAll">Clear scoreboard</button>
+  </div>
+
+  <div class="lower">
+    <section>
+      <div class="tabs" role="tablist" id="ctlTabs">
+        <button role="tab" data-tab="graphics" aria-selected="true">Graphics</button>
+        <button role="tab" data-tab="teams" aria-selected="false">Team lists</button>
+        <button role="tab" data-tab="finals" aria-selected="false">Finals</button>
+        <button role="tab" data-tab="more" aria-selected="false">More</button>
+      </div>
+      <div class="tab" data-tab="graphics">
+        <div class="gfx">
+          <a class="btn alt" href="/title.html" target="_blank" id="titlelink">Title</a>
+          <a class="btn alt" href="/matchup.html" target="_blank" id="matchup">Match up</a>
+          <a class="btn alt" href="/clash.html" target="_blank" id="clash">The Clash</a>
+          <a class="btn alt" href="/upnext.html" target="_blank" id="upnext">Up next</a>
+          <a class="btn alt" href="/fulltime.html" target="_blank" id="fulltime">Full time</a>
+          <a class="btn alt" href="/gamestats.html" target="_blank" id="gamestats">Game stats</a>
+          <a class="btn alt" href="/worm.html" target="_blank" id="worm">Score worm</a>
+          <a class="btn alt" href="/ladderbar.html" target="_blank" id="ladderbar">Ladder bar</a>
+          <a class="btn alt" href="/ticker.html" target="_blank" id="ticker">Ticker</a>
+          <a class="btn alt" href="/topshooters.html" target="_blank" id="shooters">Top shooters</a>
+        </div>
+        <p class="note">Each opens that graphic on its own for this game, to check it. They go on and off air from the <a href="/output.html">Output page</a> or the Stream Deck.</p>
+        <div class="row" style="margin-top:10px">
+          <label>Ticker speed <input id="tickerSpeed" type="number" min="20" max="600" step="10" style="width:80px"> pixels a second</label>
+          <button class="alt" id="tickerSlower">Slower</button>
+          <button class="alt" id="tickerFaster">Faster</button>
+          <button class="alt" id="tickerNormal">Normal (120)</button>
+          <span class="note">The ticker changes speed within a few seconds, without starting again.</span>
+        </div>
+      </div>
+      <div class="tab" data-tab="teams" hidden>
+        <p class="note" id="teamsNote">Pick a PlayHQ game to load its team lists.</p>
+        <div class="gfx">
+          <a class="btn alt" href="/teamlist.html?side=home" target="_blank" id="tlHome">Home team list</a>
+          <a class="btn alt" href="/teamlist.html?side=away" target="_blank" id="tlAway">Away team list</a>
+          <a class="btn alt" href="/shooting.html" target="_blank" id="shoot">Shooting stats</a>
+        </div>
+      </div>
+      <div class="tab" data-tab="finals" hidden>
+        <div class="row">
+          <label>Division <select id="finDivision" style="flex:0 1 260px"></select></label>
+          <a class="btn alt" id="finLink" href="/finals.html" target="_blank">Finals graphic</a>
+          <button class="alt" id="finReload">Refresh</button>
+        </div>
+        <p class="note" id="finNote">Loading the finals…</p>
+        <div id="finGames"></div>
+        <p class="note">Each division's finals format is set on the <a href="/setup.html" target="_blank">competition setup page</a>, and the teams come from the ladder.
+          When PlayHQ has the finals games, their scores move the winners on by themselves. PlayHQ often has no finals fixtures, so pick each winner here
+          (the score is optional). A result from PlayHQ always wins over one picked here.</p>
+      </div>
+      <div class="tab" data-tab="more" hidden>
+        <p class="note" id="compLine"></p>
+        <p class="note" id="sub">The scoreboard is <b>http://localhost:8080/scoreboard.html</b>: add it on the <a href="/output.html">Output page</a>.</p>
+        <p class="note">Switching between <b>Follow PlayHQ</b> and <b>Manual</b> (here, on the Stream Deck, or by pressing a score button) also turns <b>Follow the PlayHQ scorer's clock</b> on or off to match. Change the clock afterwards if you want it different.</p>
+      </div>
+    </section>
+    <section>
+      <h2>Preview</h2>
+      <div class="preview" id="preview"><iframe id="frame" title="Scoreboard preview"></iframe></div>
+    </section>
+  </div>
+
+  <section id="gameSection">
     <h2>Game</h2>
     <div class="row">
       <label>Game night <select id="round"><option value="">Automatic</option></select></label>
@@ -56,105 +211,13 @@
       <button class="alt" id="reloadGames">Refresh list</button>
     </div>
     <div class="row" style="margin-top:10px">
-      <span>Scores:</span>
-      <span class="fp-seg" role="group" aria-label="Scores"><button id="srcPlayhq">Follow PlayHQ</button><button id="srcManual">Manual</button></span>
-    </div>
-    <div class="row" style="margin-top:10px">
       <label>Check PlayHQ every <input id="refreshSec" type="number" min="1" max="120" style="width:70px"> seconds</label>
     </div>
     <p class="note" id="sourceNote"></p>
-    <p class="note">Switching between <b>Follow PlayHQ</b> and <b>Manual</b> (here, on the Stream Deck, or by pressing a score button) also turns <b>Follow the PlayHQ scorer's clock</b> on or off to match. Change the clock afterwards if you want it different.</p>
     <p class="fp-callout" id="clockMatched" hidden></p>
     <div class="row" style="margin-top:10px">
       <label>Court shown left of the home team <input id="court" placeholder="Court 1" style="width:140px"></label>
     </div>
-  </section>
-
-  <section>
-    <h2>Score</h2>
-    <div class="teams">
-      <div class="team">
-        <input id="homeName" aria-label="Home team name">
-        <div class="big" id="homeScore">0</div>
-        <div class="row"><button class="plus" data-side="home" data-delta="1">+1</button><button class="plus" data-side="home" data-delta="2" title="Super shot">+2</button><button class="alt" data-side="home" data-delta="-1">−1</button><button class="alt" data-side="home" data-delta="-2">−2</button></div>
-      </div>
-      <div class="team">
-        <input id="awayName" aria-label="Away team name">
-        <div class="big" id="awayScore">0</div>
-        <div class="row"><button class="plus" data-side="away" data-delta="1">+1</button><button class="plus" data-side="away" data-delta="2" title="Super shot">+2</button><button class="alt" data-side="away" data-delta="-1">−1</button><button class="alt" data-side="away" data-delta="-2">−2</button></div>
-      </div>
-    </div>
-    <div class="row" style="margin-top:10px"><button class="alt" id="resetScores">Reset scores to 0</button></div>
-    <p class="note">Keyboard: <b>A</b> / <b>Z</b> home +1 / −1, <b>K</b> / <b>M</b> away +1 / −1. Hold <b>Shift</b> for +2 / −2 (super shot). <b>Space</b> starts or stops the clock. Stream Deck links are on the <a href="/api.html">Stream Deck page</a>.</p>
-  </section>
-
-  <section>
-    <h2 id="periodHeading">Quarter and clock</h2>
-    <div class="row" id="periods"></div>
-    <div class="row" style="margin-top:10px">
-      <span class="clockface" id="clockface">10:00</span>
-      <button id="clockToggle">Start</button>
-      <button class="alt" id="clockMinus">−10 s</button>
-      <button class="alt" id="clockPlus">+10 s</button>
-      <button class="alt" id="clockReset">Reset clock</button>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label>Match venue clock <input id="clockSetValue" placeholder="12:34" inputmode="numeric" style="width:80px"></label>
-      <button class="alt" id="clockSet">Set</button>
-      <label>Length <input id="clockLength" type="number" min="1" max="60" style="width:70px"> min</label>
-      <label><input id="showClock" type="checkbox"> Show clock</label>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label class="fp-switch"><input id="followClock" type="checkbox"> Follow the PlayHQ scorer's clock</label>
-      <span class="note" id="clockNote"></span>
-    </div>
-  </section>
-
-  <section>
-    <h2>Title, match up, team lists and shooting stats</h2>
-    <p class="note" id="teamsNote">Pick a PlayHQ game above to load its team lists.</p>
-    <div class="row" style="margin-top:10px">
-      <a class="btn alt" href="/title.html" target="_blank" id="titlelink">Title</a>
-      <a class="btn alt" href="/matchup.html" target="_blank" id="matchup">Match up</a>
-      <a class="btn alt" href="/clash.html" target="_blank" id="clash">The Clash</a>
-      <a class="btn alt" href="/upnext.html" target="_blank" id="upnext">Up next</a>
-      <a class="btn alt" href="/fulltime.html" target="_blank" id="fulltime">Full time</a>
-      <a class="btn alt" href="/gamestats.html" target="_blank" id="gamestats">Game stats</a>
-      <a class="btn alt" href="/worm.html" target="_blank" id="worm">Score worm</a>
-      <a class="btn alt" href="/ladderbar.html" target="_blank" id="ladderbar">Ladder bar</a>
-      <a class="btn alt" href="/ticker.html" target="_blank" id="ticker">Ticker</a>
-      <a class="btn alt" href="/topshooters.html" target="_blank" id="shooters">Top shooters</a>
-      <a class="btn alt" href="/teamlist.html?side=home" target="_blank" id="tlHome">Home team list</a>
-      <a class="btn alt" href="/teamlist.html?side=away" target="_blank" id="tlAway">Away team list</a>
-      <a class="btn alt" href="/shooting.html" target="_blank" id="shoot">Shooting stats</a>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label>Ticker speed <input id="tickerSpeed" type="number" min="20" max="600" step="10" style="width:80px"> pixels a second</label>
-      <button class="alt" id="tickerSlower">Slower</button>
-      <button class="alt" id="tickerFaster">Faster</button>
-      <button class="alt" id="tickerNormal">Normal (120)</button>
-      <span class="note">The ticker changes speed within a few seconds, without starting again.</span>
-    </div>
-  </section>
-
-  <section>
-    <h2>Finals</h2>
-    <div class="row">
-      <label>Division <select id="finDivision" style="flex:0 1 260px"></select></label>
-      <a class="btn alt" id="finLink" href="/finals.html" target="_blank">Finals graphic</a>
-      <button class="alt" id="finReload">Refresh</button>
-    </div>
-    <p class="note" id="finNote">Loading the finals…</p>
-    <div id="finGames"></div>
-    <p class="note">Each division's finals format is set on the <a href="/setup.html" target="_blank">competition setup page</a>, and the teams come from the ladder.
-      When PlayHQ has the finals games, their scores move the winners on by themselves. PlayHQ often has no finals fixtures, so pick each winner here
-      (the score is optional). A result from PlayHQ always wins over one picked here.</p>
-  </section>
-
-  <section>
-    <h2>Preview</h2>
-    <div class="preview" id="preview"><iframe id="frame" title="Scoreboard preview"></iframe></div>
-    <div class="row" style="margin-top:10px"><button class="alt" id="resetAll">Clear scoreboard</button></div>
   </section>
 </main>
 <script>
@@ -194,7 +257,7 @@
       : 'Scores only change when you press the buttons here.';
     if (s.playhqWaiting && s.source === 'playhq') $('sourceNote').textContent += ` ${s.playhqWaiting}`;
     if (s.playhqError && s.source === 'playhq') $('sourceNote').textContent += ` Last PlayHQ error: ${s.playhqError}`;
-    $('clockToggle').textContent = s.clock.running ? 'Stop' : 'Start';
+    $('clockWord').textContent = s.clock.running ? 'Stop' : 'Start';
     $('clockToggle').classList.toggle('on', s.clock.running);
     if (document.activeElement !== $('clockLength')) $('clockLength').value = Math.round(s.clock.lengthSec / 60);
     $('showClock').checked = s.showClock;
@@ -218,6 +281,7 @@
       : s.playhqClock ? `PlayHQ: ${s.playhqClock.time} ${String(s.playhqClock.status || '').toLowerCase()}. Pressing a clock button switches it back to manual.`
       : 'Waiting for the PlayHQ scorer to start the clock.';
     buildPeriods(s.rules);
+    gameBar(s);
     [...$('periods').children].forEach(b => b.classList.toggle('on', Number(b.dataset.p) === s.period));
     const comp = s.competitionSetup || s.competition || '';
     if ($('compLine').dataset.comp !== comp) {
@@ -226,6 +290,37 @@
         Object.assign(document.createElement('a'), { href: '/setup.html', target: '_blank', textContent: 'Change competition, colours and logos' }));
     }
   }
+
+  // The game bar over the scores: the teams, the division, round, court and time (from the games list once it has
+  // loaded), the team colours, and the next game when the board switches games by itself.
+  function gameBar(s) {
+    const g = games.find(x => x.id === s.gameId);
+    $('gameName').textContent = s.home.name || s.away.name ? `${s.home.name || 'Home'} v ${s.away.name || 'Away'}` : 'No game picked';
+    $('gameMeta').textContent = (g ? [g.division, g.round, g.court, g.time] : [s.division, s.court]).filter(Boolean).join(' · ');
+    for (const side of ['home', 'away']) {
+      const c = s.teamColours && s.teamColours[side];
+      if (c) $(`${side}Sw`).style.background = c; else $(`${side}Sw`).removeAttribute('style');
+    }
+    const next = s.autoSelect && /^Next: /.test(s.autoNote || '') ? s.autoNote.replace(/\.$/, '') : '';
+    $('nextGame').hidden = !next;
+    $('nextGame').textContent = next;
+  }
+  // Change game… opens the Game section at the bottom, which folds to its title (kept on this Mac).
+  const GAME_FOLD = 'studio.controlGameFolded';
+  const foldGame = on => { $('gameSection').classList.toggle('folded', on); try { localStorage.setItem(GAME_FOLD, on ? '1' : '0'); } catch {} };
+  try { if (localStorage.getItem(GAME_FOLD) === '1') foldGame(true); } catch {}
+  $('gameSection').querySelector('h2').onclick = () => foldGame(!$('gameSection').classList.contains('folded'));
+  $('changeGame').onclick = () => { foldGame(false); $('gameSection').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('games').focus({ preventScroll: true }); };
+  // Graphics, Team lists, Finals and More as tabs; the one open is kept on this Mac.
+  const TAB_KEY = 'studio.controlTab';
+  function showTab(name) {
+    if (!document.querySelector(`.tab[data-tab="${name}"]`)) name = 'graphics';
+    for (const b of $('ctlTabs').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
+    for (const t of document.querySelectorAll('.tab')) t.hidden = t.dataset.tab !== name;
+    try { localStorage.setItem(TAB_KEY, name); } catch {}
+  }
+  for (const b of $('ctlTabs').querySelectorAll('button')) b.onclick = () => showTab(b.dataset.tab);
+  try { showTab(localStorage.getItem(TAB_KEY) || 'graphics'); } catch { showTab('graphics'); }
 
   // Q1-Q4 or H1-H2 (from the competition setup page), then extra time.
   function buildPeriods(rules) {
@@ -303,6 +398,7 @@
         if (state && state.gameId === g.id) o.selected = true;
         sel.appendChild(o);
       });
+      if (state) gameBar(state);
     } catch (err) {
       sel.innerHTML = '';
       const o = document.createElement('option');
