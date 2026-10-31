@@ -18,7 +18,6 @@
   .plus, .plus:hover { background: var(--fp-gold); border-color: var(--fp-gold); color: var(--fp-navy); font-size: 22px; font-weight: 800; padding: 12px 26px; }
   .plus:hover { filter: brightness(.95); }
   .clockface { font-size: 34px; font-weight: 900; font-style: italic; color: var(--fp-navy); min-width: 110px; font-variant-numeric: tabular-nums; }
-  .alert { font-size: 14px; margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--fp-orange); color: var(--fp-navy); font-weight: 600; }
   .preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; position: relative;
              background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 24px 24px; }
   .preview iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
@@ -65,7 +64,7 @@
     </div>
     <p class="note" id="sourceNote"></p>
     <p class="note">Switching between <b>Follow PlayHQ</b> and <b>Manual</b> (here, on the Stream Deck, or by pressing a score button) also turns <b>Follow the PlayHQ scorer's clock</b> on or off to match. Change the clock afterwards if you want it different.</p>
-    <p class="alert" id="clockMatched" hidden></p>
+    <p class="fp-callout" id="clockMatched" hidden></p>
     <div class="row" style="margin-top:10px">
       <label>Court shown left of the home team <input id="court" placeholder="Court 1" style="width:140px"></label>
     </div>

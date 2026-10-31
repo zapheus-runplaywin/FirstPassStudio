@@ -10,8 +10,6 @@
   input[type=range] { accent-color: var(--fp-blue); width: 140px; vertical-align: middle; }
   .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
   .row label { white-space: nowrap; }
-  .callout { font-size: 14px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); }
-  .callout.warn { background: var(--fp-orange); font-weight: 600; }
 
   /* A graphic: its ticks, then a preview per size ticked at the top. */
   .pic { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px 20px; align-items: start; }
@@ -68,7 +66,7 @@
   <h1>Socials</h1>
   <p class="sub">Pictures of a game night for Instagram and other social media, before it (Upcoming) or after it (Results), made from the fixture, results and ladders Studio already has.
     Pick the night and the sizes, untick what you don't want, then <b>Save</b> them as PNGs or <b>Share</b> them to your phone with AirDrop, Messages or Mail.</p>
-  <p class="callout warn" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
+  <p class="fp-callout" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
   <p class="error" id="err" hidden></p>
   <section>
     <div class="row">
@@ -276,7 +274,7 @@
   function athletePicker(key, slot, label, start) {
     const box = el('div', 'picker');
     box.append(el('b', '', label));
-    if (!athletesList.length) { box.append(el('p', 'help', 'No athletes with an approved photo yet: add photos and tick Approved for photo use on the Athletes tab.')); return box; }
+    if (!athletesList.length) { box.append(el('p', 'fp-empty', 'No athletes with an approved photo yet: add photos and tick Approved for photo use on the Athletes tab.')); return box; }
     const same = (a, b) => String(a || '').toLowerCase().trim() === String(b || '').toLowerCase().trim();
     const divs = [...new Set(athletesList.flatMap(a => a.teams.map(t => t.division)))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
     const div = el('select'), team = el('select'), who = el('select');
@@ -349,7 +347,7 @@
     l.append(c, ' Save this one');
     ticks.append(l, sponsorTick(p.kind));
     if (p.help) left.append(el('p', 'help', p.help));
-    if (p.missing) left.append(el('p', 'callout warn', p.missing));
+    if (p.missing) left.append(el('p', 'fp-callout warn', p.missing));
     if (p.kind === 'polaroid') left.append(photoControls(p.key), athletePicker(p.key, 'athlete', 'Or an athlete\'s photo', {}));
     if (p.kind === 'tournament') left.append(afterPicker(p), moversTick());
     if (p.kind === 'matchup' || p.kind === 'fulltime') {
@@ -409,7 +407,7 @@
         o.value = n.date;
         return o;
       }));
-      if (!d.nights.length) { $('pics').replaceChildren(el('section', 'help', 'No game nights in this season yet.')); return; }
+      if (!d.nights.length) { $('pics').replaceChildren(el('p', 'fp-empty', 'No game nights in this season yet.')); return; }
       $('night').value = d.next;
       await loadNight(d.next);
     } catch (err) { showError(`Couldn't load the game nights: ${err.message}`); }

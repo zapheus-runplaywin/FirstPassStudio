@@ -314,7 +314,7 @@ function renderAthletes() {
     card.ondrop = e => { e.preventDefault(); e.stopPropagation(); card.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) setPhoto(a.name, f); };
     box.appendChild(card);
   }
-  if (!team.athletes.length) box.appendChild(el('p', 'help', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
+  if (!team.athletes.length) box.appendChild(el('p', 'fp-empty', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
 }
 
 // Whether the athlete has approved their photo's use: without it graphics show the silhouette.

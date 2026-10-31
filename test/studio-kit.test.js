@@ -69,3 +69,18 @@ test('the kit has a dark theme and no Studio page carries a light-only tint of i
     assert.doesNotMatch(style, /background: var\(--fp-navy\)/, `${name}.html uses --fp-bar, not the ink, as a dark background`);
   }
 });
+
+// Callouts and empty states (UI level-up): information is a blue .fp-callout, something to check an amber .fp-callout.warn,
+// and an empty list a .fp-empty box; orange is kept for what is on air, so no page paints a banner, flag or badge orange.
+test('the kit has callouts and empty states, and no page paints a banner orange', () => {
+  const css = fs.readFileSync(path.join(PUBLIC, 'studio.css'), 'utf8');
+  for (const sel of ['.fp-callout', '.fp-callout.warn', '.fp-callout.danger', '.fp-empty', '.fp-seg', '.fp-switch']) assert.ok(css.includes(`:where(body.fp) ${sel} {`), `studio.css has ${sel}`);
+  for (const name of PAGES) {
+    const html = fs.readFileSync(path.join(PUBLIC, `${name}.html`), 'utf8');
+    const style = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+    for (const line of style.split('\n')) {
+      if (/^\s*\.(alert|callout|flag|night__badge\.warn|guide \.warn)\b/.test(line)) assert.doesNotMatch(line, /var\(--fp-orange\)/, `${name}.html paints a banner orange: ${line.trim()}`);
+    }
+    assert.doesNotMatch(html, /class="(alert|callout warn)"/, `${name}.html uses the kit's callouts`);
+  }
+});

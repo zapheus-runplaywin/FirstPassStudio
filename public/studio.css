@@ -127,7 +127,10 @@ body.fp :focus-visible { outline: 2px solid var(--fp-blue); outline-offset: 2px;
    Buttons: the plain button is the action (filled blue); .alt is the quieter choice (white, blue text); .danger
    removes or stops something (white, red text); .small fits a table row. A link that acts like a button says
    class="btn" (and .alt, .small). Help text: .help is a line under a control, .note a longer note, .error says why
-   something failed (and takes no room while empty). Long explanations wait behind <details class="info">. */
+   something failed (and takes no room while empty). Long explanations wait behind <details class="info">.
+   Callouts: .fp-callout is a blue line of information (this needs the app, this was turned on too); .warn is amber for
+   something to check and .danger red for something that failed. Orange is kept for what is on air. An empty list says
+   what goes there in a .fp-empty box. */
 :where(body.fp) *, :where(body.fp) *::before, :where(body.fp) *::after { box-sizing: border-box; }
 :where(body.fp) main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
 :where(body.fp) main.wide { max-width: 1280px; }
@@ -185,6 +188,16 @@ body.fp :focus-visible { outline: 2px solid var(--fp-blue); outline-offset: 2px;
 :where(body.fp) .note b { color: var(--fp-navy); }
 :where(body.fp) .error { color: var(--fp-danger); }
 :where(body.fp) .error:empty { display: none; }
+:where(body.fp) .fp-callout { font-size: 14px; margin: 0 0 12px; padding: 8px 12px 8px 14px; border-radius: 8px; border-left: 3px solid var(--fp-blue); background: var(--fp-blue-soft); color: var(--fp-navy); line-height: 1.5; }
+:where(body.fp) .fp-callout.warn { border-left-color: var(--fp-warn-ink); background: var(--fp-warn-bg); color: var(--fp-warn-ink); font-weight: 600; }
+:where(body.fp) .fp-callout.danger { border-left-color: var(--fp-danger); background: var(--fp-danger-bg); color: var(--fp-danger); font-weight: 600; }
+:where(body.fp) .fp-callout a { color: inherit; }
+:where(body.fp) .fp-callout[hidden] { display: none; }
+:where(body.fp) .fp-callout p:first-child { margin-top: 0; } :where(body.fp) .fp-callout p:last-child, :where(body.fp) .fp-callout ul:last-child { margin-bottom: 0; }
+/* An empty list says what goes there and how, in a quiet dashed box, instead of a bare line of text or nothing. */
+:where(body.fp) .fp-empty { display: block; border: 1px dashed var(--fp-line-strong); border-radius: 10px; padding: 16px 18px; margin: 4px 0 0; text-align: center; color: var(--fp-muted); font-size: 14px; line-height: 1.5; list-style: none; }
+:where(body.fp) .fp-empty b { color: var(--fp-navy); }
+:where(body.fp) .fp-empty[hidden] { display: none; }
 :where(body.fp) code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--fp-gray); border: 1px solid var(--fp-line); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
 :where(body.fp) details.info { margin-top: 8px; }
 :where(body.fp) details.info > summary { cursor: pointer; width: max-content; max-width: 100%; font-size: 13px; font-weight: 600; color: var(--fp-blue); }
