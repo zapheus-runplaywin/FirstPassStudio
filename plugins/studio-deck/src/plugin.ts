@@ -1,6 +1,7 @@
 import streamDeck from "@elgato/streamdeck";
 
 import { PlaybackAction } from "./actions/playback";
+import { RunOrderAction } from "./actions/runorder";
 import { SceneAction } from "./actions/scene";
 import { SequenceAction } from "./actions/sequence";
 import { SourceAction } from "./actions/source";
@@ -15,6 +16,7 @@ streamDeck.actions.registerAction(new SceneAction());
 streamDeck.actions.registerAction(new SequenceAction());
 streamDeck.actions.registerAction(new SwitcherAction());
 streamDeck.actions.registerAction(new PlaybackAction());
+streamDeck.actions.registerAction(new RunOrderAction());
 
 // The plugin's key pair and the Studios that allowed it (lib/identity.ts) live in the plugin's global settings, so they
 // survive restarts and updates.

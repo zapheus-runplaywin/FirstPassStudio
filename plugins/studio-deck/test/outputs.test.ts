@@ -110,16 +110,16 @@ test("a lit key takes its output's colour, with black titles that read on every 
 	// Stream Deck draws the titles: white on the dark off keys, black on the lit ones.
 	const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
 	for (const a of manifest.Actions) assert.deepEqual(a.States.map((st: { TitleColor: string }) => st.TitleColor), ["#ffffff", "#000000"], a.Name);
-	// One naming for every kind's two states: Off, then the kind's own word for on (On, Playing, On air, Running).
+	// One naming for every kind's two states: Off, then the kind's own word for on (On, Playing, On air, Running, Queued).
 	for (const a of manifest.Actions) {
 		const names = a.States.map((st: { Name: string }) => st.Name);
 		assert.equal(names[0], "Off", `${a.Name}'s first state`);
-		assert.ok(["On", "Playing", "On air", "Running"].includes(names[1]), `${a.Name}'s on state: ${names[1]}`);
+		assert.ok(["On", "Playing", "On air", "Running", "Queued"].includes(names[1]), `${a.Name}'s on state: ${names[1]}`);
 	}
 });
 
 test("every settings panel has the Output list", () => {
-	for (const f of ["source", "scene", "sequence"]) {
+	for (const f of ["source", "scene", "sequence", "runorder"]) {
 		const html = fs.readFileSync(path.join(ROOT, "ui", `${f}.html`), "utf8");
 		assert.match(html, /<select id="output">/, f);
 		assert.match(html, /output: \$\("output"\)\.value/, f);

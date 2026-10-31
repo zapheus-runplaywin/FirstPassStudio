@@ -423,7 +423,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
   The **run order** (Output page, above Scenes and Sequences) is a queue per output of sequences and scenes for the night: Play next plays the head, a sequence that
   ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger puts its sequence at the head (Cancel takes it out). Kept with
-  the competition's sequences (`runOrder`, saved orders in `runOrders`); `/deck/runorder/next`, `skip`, `clear`, `add/<name>`, `load/<order>`.
+  the competition's sequences (`runOrder`, saved orders in `runOrders`); `/deck/runorder/next`, `skip`, `clear`, `add/<name>`, `load/<order>`; the plugin's
+  Run order key (`plugins/studio-deck`, `runorder-key.ts`) names the head from the scene's `runOrder` / `runOrderOut` and lists `runOrders` for its Load press.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
 - **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; the unmuted scene.html of every output it

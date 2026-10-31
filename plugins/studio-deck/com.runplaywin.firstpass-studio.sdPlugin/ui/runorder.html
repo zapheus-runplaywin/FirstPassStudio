@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Run order</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 10px 12px 16px;
+    background: #2d2d2d; color: #d8d8d8;
+    font: 12px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .row > label:first-child { flex: 0 0 92px; color: #9a9a9a; text-align: right; }
+  .row > .field { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; }
+  input[type=text], select {
+    width: 100%; background: #3d3d3d; color: #e6e6e6; border: 1px solid #4a4a4a;
+    border-radius: 3px; padding: 4px 6px; font: inherit; outline: none;
+  }
+  input:focus, select:focus { border-color: #6b8cff; }
+  button {
+    background: #4a4a4a; color: #eee; border: 1px solid #5a5a5a; border-radius: 3px;
+    padding: 4px 10px; font: inherit; cursor: pointer; white-space: nowrap;
+  }
+  button:hover { background: #575757; }
+  .check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .check input { margin: 0; }
+  .note { margin: 0 0 8px 100px; color: #9a9a9a; font-size: 11px; }
+  .note.bad { color: #ff8a80; }
+</style>
+</head>
+<body>
+  <div class="row" id="outputRow" style="display:none">
+    <label for="output">Output</label>
+    <div class="field"><select id="output"></select></div>
+  </div>
+  <p class="note" id="outputNote" style="display:none">Acts on this output's run order. The key lights in its colour.</p>
+
+  <div class="row">
+    <label for="press">Press</label>
+    <div class="field">
+      <select id="press">
+        <option value="next">Play next: play what's at the head of the run order</option>
+        <option value="skip">Skip what's next without playing it</option>
+        <option value="load">Load a saved order in place of what's queued</option>
+        <option value="clear">Clear the run order</option>
+      </select>
+    </div>
+  </div>
+  <p class="note" id="pressNote">With nothing queued, Play next ends the sequence playing (its Then runs), as the Output page's button does.</p>
+
+  <div class="row" id="orderRow" style="display:none">
+    <label for="order">Saved order</label>
+    <div class="field">
+      <select id="order"><option value="">Loading…</option></select>
+      <button id="refresh" title="Fetch the list again">↻</button>
+    </div>
+  </div>
+  <p class="note" id="note"></p>
+
+  <div class="row">
+    <label for="colour">Colour</label>
+    <div class="field">
+      <select id="colour">
+        <option value="">What's next's own colour</option>
+        <option value="blue">Blue: live stream</option>
+        <option value="green">Green: pre-game</option>
+        <option value="grey">Grey: post-game</option>
+        <option value="yellow">Yellow: ads</option>
+        <option value="purple">Purple: quarter time</option>
+      </select>
+    </div>
+  </div>
+  <p class="note">What's next's own colour is the one set for that scene or sequence in its editor on Studio's Output page, so the key changes colour as the night moves on. The key lights in its output's colour while something is queued and names what plays next.</p>
+
+  <div class="row">
+    <label>Title</label>
+    <div class="field">
+      <label class="check"><input id="keepTitle" type="checkbox" /> Use my own title instead of what's next</label>
+    </div>
+  </div>
+
+  <div class="row">
+    <label for="host">Studio</label>
+    <div class="field"><input id="host" type="text" placeholder="http://localhost:8080" spellcheck="false" /></div>
+  </div>
+  <p class="note">Leave Studio empty when it runs on this computer.</p>
+
+<script>
+  let websocket = null;
+  let uuid = null;
+  let settings = {};
+  let outputs = [];
+  let orders = [];
+
+  const $ = (id) => document.getElementById(id);
+
+  // Called by the Stream Deck app.
+  // eslint-disable-next-line no-unused-vars
+  function connectElgatoStreamDeckSocket(port, propertyInspectorUUID, registerEvent, info, actionInfo) {
+    uuid = propertyInspectorUUID;
+    const ai = JSON.parse(actionInfo);
+    settings = (ai.payload && ai.payload.settings) || {};
+    fillOutputs();
+    $("press").value = settings.press || "next";
+    $("colour").value = settings.colour || "";
+    $("keepTitle").checked = !!settings.keepTitle;
+    $("host").value = settings.host || "";
+    showOrderPick();
+    fillOrders();
+
+    websocket = new WebSocket("ws://127.0.0.1:" + port);
+    websocket.onopen = () => {
+      websocket.send(JSON.stringify({ event: registerEvent, uuid }));
+      askForOrders();
+    };
+    websocket.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+      if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.outputs) { outputs = msg.payload.outputs; fillOutputs(); }
+      if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.type === "orders") {
+        orders = msg.payload.orders || [];
+        const note = $("note");
+        note.className = msg.payload.ok ? "note" : "note bad";
+        note.textContent = msg.payload.ok
+          ? (orders.length ? "Run orders saved for the competition in use (Saved… on Studio's Output page)." : "No saved run orders yet: save tonight's with Saved… on Studio's Output page.")
+          : "Can't reach Studio at " + msg.payload.host + ". Is it on air?";
+        if ($("press").value !== "load") note.textContent = "";
+        fillOrders();
+      }
+    };
+  }
+
+  // Only loading one needs a saved order picked; the others act on the run order as it is.
+  function showOrderPick() {
+    const load = $("press").value === "load";
+    $("orderRow").style.display = load ? "" : "none";
+    $("pressNote").style.display = $("press").value === "next" ? "" : "none";
+    if (!load) $("note").textContent = "";
+  }
+
+  function askForOrders() {
+    send({ event: "sendToPlugin", context: uuid, payload: { cmd: "orders", host: $("host").value.trim() } });
+  }
+
+  function fillOrders() {
+    const select = $("order");
+    select.innerHTML = "";
+    const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; select.appendChild(o); };
+    add("", orders.length ? "Choose a saved order" : "No saved orders");
+    for (const o of orders) add(o.id, o.name + " (" + o.count + ")");
+    // One picked before that isn't in the list now (Studio off air, another competition in use, or deleted) stays chosen.
+    if (settings.order && !orders.some((o) => o.id === settings.order)) add(settings.order, (settings.orderName || "Saved order") + " (not in Studio now)");
+    select.value = settings.order || "";
+  }
+
+  // The Output list shows once Studio has more than one output (or the key is already set to another one).
+  function fillOutputs() {
+    const select = $("output");
+    select.innerHTML = "";
+    const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; select.appendChild(o); };
+    const list = outputs.length ? outputs : [{ id: "main", name: "Output 1" }];
+    for (const o of list) add(o.id === "main" ? "" : o.id, o.name);
+    const mine = settings.output || "";
+    if (mine && !list.some((o) => o.id === mine)) add(mine, (settings.outputName || "Output") + " (not in Studio now)");
+    select.value = mine;
+    const show = list.length > 1 || !!mine;
+    $("outputRow").style.display = show ? "" : "none";
+    $("outputNote").style.display = show ? "" : "none";
+  }
+
+  function send(obj) {
+    if (websocket && websocket.readyState === 1) websocket.send(JSON.stringify(obj));
+  }
+
+  function save() {
+    const id = $("order").value;
+    const picked = orders.find((o) => o.id === id);
+    settings = Object.assign({}, settings, {
+      order: id,
+      orderName: picked ? picked.name : (id === settings.order ? settings.orderName : ""),
+      press: $("press").value,
+      colour: $("colour").value,
+      keepTitle: $("keepTitle").checked,
+      host: $("host").value.trim(),
+      output: $("output").value,
+      outputName: $("output").value ? $("output").selectedOptions[0].textContent.replace(/ \(not in Studio now\)$/, "") : "",
+    });
+    send({ event: "setSettings", context: uuid, payload: settings });
+  }
+
+  $("order").addEventListener("change", save);
+  $("press").addEventListener("change", () => { showOrderPick(); save(); if ($("press").value === "load") askForOrders(); });
+  $("colour").addEventListener("change", save);
+  $("keepTitle").addEventListener("change", save);
+  $("output").addEventListener("change", save);
+  $("host").addEventListener("change", () => { save(); askForOrders(); });
+  $("refresh").addEventListener("click", askForOrders);
+</script>
+</body>
+</html>

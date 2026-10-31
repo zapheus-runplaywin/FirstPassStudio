@@ -43,11 +43,13 @@ src/
   actions/source.ts    SDK action: one SourceKey per key on screen; answers the settings panel's list request
   actions/scene.ts     SDK action: one SceneKey per key on screen; answers the settings panel's scene list request
   actions/sequence.ts  SDK action: one SequenceKey per key on screen, redrawn each second while it counts down
+  actions/runorder.ts  SDK action: one RunOrderKey per key on screen; answers the settings panel's saved orders request
   actions/switcher.ts  SDK action: one SwitcherKey per key on screen; answers the settings panel's cameras and keys request
   actions/playback.ts  SDK action: one PlaybackKey per key on screen, asking what's playing back each second
   lib/source-key.ts    what a key shows (lit, title) and which link a press opens (no SDK)
   lib/scene-key.ts     what a Scene key shows (lit, changed dot, title, colour) and which link a press opens (no SDK)
   lib/sequence-key.ts  what a Sequence key shows (lit, step and time left, colour) and which link a press opens (no SDK)
+  lib/runorder-key.ts  what a Run order key shows (what plays next, its colour, lit while queued) and which link a press opens (no SDK)
   lib/switcher-key.ts  what a Switcher key shows (tally red or green, on air, not answering) and which link a press opens (no SDK)
   lib/playback-key.ts  what a Replay key shows (lit while a replay or practice game runs, Play or Pause) and which link a press opens (no SDK)
   lib/colours.ts       colour groups (blue, green, grey, yellow, purple), tally colours, and the key images drawn for each
@@ -58,6 +60,7 @@ com.runplaywin.firstpass-studio.sdPlugin/
   ui/source.html       Source key settings panel (plain HTML/JS)
   ui/scene.html        Scene key settings panel
   ui/sequence.html     Sequence key settings panel
+  ui/runorder.html     Run order key settings panel
   ui/switcher.html     Switcher key settings panel
   ui/playback.html     Replay key settings panel
   imgs/                plugin, category, action and key images per kind (the default blue group: off navy, on Output 1's orange)
@@ -65,6 +68,7 @@ test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
   scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot, settings panel list
   sequence.test.ts     Sequence key views (playing, paused, Next, off air, gone, time left), links, settings panel lists
+  runorder.test.ts     Run order key views (head, more queued, gone items, another output, Load), links, manifest and panel
   switcher.test.ts     Switcher key views (tally, on air, not answering, not on it), links
   playback.test.ts     Replay key views (replay, practice, demo, following the video, none on), links, manifest and panel
   colours.test.ts      colour groups, key images and contrast (on vs off in every colour), settings panel list
