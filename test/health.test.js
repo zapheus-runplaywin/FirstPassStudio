@@ -60,3 +60,25 @@ test('a score press by hand shows as scores by hand, and a failing live feed tur
   h = await studio.until(async () => { await poll(); const h = await studio.get('/api/health'); return h.playhq.state === 'ok' && h; }, 10000, 500);
   assert.equal(h.playhq.error, '');
 });
+
+// Where the game is, for the chips: orange before the clock starts, green from then until an hour after it ends, then grey.
+test('the game has a phase: live while it is on (PlayHQ says so, or the clock or a score has moved), ended once the last quarter is done, live again if wound back', async () => {
+  await studio.post('/api/scoreboard', { type: 'source', value: 'manual' });
+  await studio.post('/api/scoreboard', { type: 'resetScores' });
+  await studio.post('/api/scoreboard', { type: 'period', value: 1 });
+  await studio.post('/api/scoreboard', { type: 'clockReset' });
+  let h = await studio.get('/api/health');
+  assert.equal(h.game.phase, 'live', 'PlayHQ says the game is in progress, so it is under way whatever the board shows');
+  assert.equal(h.game.ended, false);
+  // The last quarter run down to 0:00 with the clock stopped: ended (by hand, full time).
+  await studio.post('/api/scoreboard', { type: 'period', value: 4 });
+  await studio.post('/api/scoreboard', { type: 'clockSet', secondsLeft: 0 });
+  h = await studio.get('/api/health');
+  assert.equal(h.game.phase, 'ended');
+  assert.equal(h.game.ended, true);
+  // Wound back to play on: live again.
+  await studio.post('/api/scoreboard', { type: 'clockSet', secondsLeft: 30 });
+  h = await studio.get('/api/health');
+  assert.equal(h.game.phase, 'live');
+  assert.equal(h.game.ended, false);
+});

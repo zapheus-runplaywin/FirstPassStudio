@@ -349,13 +349,16 @@ function health() {
   const waiting = following ? scoringNotYet(b) : '';
   const refreshMs = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
   const finished = following && /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(b.playhqStatus || '');
+  // The game itself (by PlayHQ or by hand): upcoming, live, ended (within the hour) or over. Studio keeps asking PlayHQ after
+  // full time, so the state below (the link) is judged the same way whether or not the game is finished.
+  const phase = theBoard.gamePhase(b);
   const readAgoMs = lastLive.at ? now - lastLive.at : null;
   // ok: fine or nothing to read; warn: a reading is overdue; bad: PlayHQ has been failing for a minute.
   // Overdue is measured from the later of the last answer and the switch to following PlayHQ (clockMatchedAt),
   // so the first seconds after a switch back from manual scores aren't a false alarm.
   const since = Math.max(lastLive.at, b.clockMatchedAt || 0);
   let playhqState = 'ok';
-  if (following && !waiting && !finished) {
+  if (following && !waiting) {
     if (lastLive.error && lastLive.errorAt > lastLive.at && now - since > 60000) playhqState = 'bad';
     else if (now - since > 2 * refreshMs + 2000) playhqState = 'warn';
   }
@@ -373,7 +376,7 @@ function health() {
   const rec = recorder.state();
   return {
     version: pageVersion(), serverNow: now, competition: competitionName(), competitionSetup: CONFIG.name,
-    game: b.gameId ? { id: b.gameId, label: `${b.home.name} v ${b.away.name}`, court: b.court || '', division: b.division || '', time: b.time || '' } : null,
+    game: b.gameId ? { id: b.gameId, label: `${b.home.name} v ${b.away.name}`, court: b.court || '', division: b.division || '', time: b.time || '', phase, ended: phase === 'ended' || phase === 'over' } : null,
     source: b.source, autoSelect: !!b.autoSelect,
     playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
       error: lastLive.error && lastLive.errorAt > lastLive.at ? lastLive.error : (b.playhqError || '') },

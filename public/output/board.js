@@ -3,7 +3,7 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //
 // Like a switcher's multiview: one board, read from arm's length, that says what is on and what needs a hand. The game
-// row (PlayHQ and how long since it answered, the score, the quarter and clock), then eight lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
+// row (the score, with the team names), then eight lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
 // next one armed (or the run order's head), the music and the mics, the mics' dip and the switcher, the recording (with Record games on or off) and
 // the next game. It draws from what the page already has: /api/health (common.js, every 2 s), the scene (sceneAll), the
 // outputs (out), the switcher (sw) and the mics' live levels (micLive), and counts the clocks down between reads.
@@ -26,23 +26,13 @@ function renderBoard() {
   const s = sceneAll || {};
   // (The outputs, the switcher and REC are the bar's chips, on every page.)
   const swOn = sw && sw.state === 'connected';
-  // The game: PlayHQ, the score, the clock.
+  // The game: the score with the team names. (PlayHQ, the quarter and the clock are the bar's chips, on every page.)
   let game = '';
   if (!h) game = '<span class="pq bad"><span class="dot bad"></span>Studio isn\'t answering</span>';
   else if (!h.game) game = `<span class="pq"><span class="dot"></span>${boardEsc(h.competition || 'No competition')}: no game picked</span>`;
   else {
-    const p = h.playhq || {}, c = h.clock || {};
-    let dot = 'ok', text, cls = '';
-    if (h.source !== 'playhq') { dot = ''; text = 'Scores by hand'; }
-    else if (p.waiting) { dot = ''; text = 'PlayHQ · not scoring yet'; }
-    else if (p.finished) text = 'PlayHQ · game finished';
-    else if (p.state === 'bad') { dot = 'bad'; cls = 'bad'; text = `PlayHQ failing for ${boardAgo(p.readAgoMs)}`; }
-    else if (p.state === 'warn') { dot = 'warn'; cls = 'warn'; text = `PlayHQ overdue · ${boardAgo(p.readAgoMs == null ? null : p.readAgoMs + since)}`; }
-    else text = `PlayHQ · ${boardAgo(p.readAgoMs == null ? null : p.readAgoMs + since)}`;
-    const clock = c.left != null ? `${boardEsc(c.periodLabel || 'Q')}${boardEsc(c.period)} ${boardMmss(c.left * 1000 - (c.running ? since : 0))}` : '';
     const sc = h.score || {};
-    game = `<span class="pq ${cls}" title="${boardEsc(h.game.label)}${h.game.court ? ` · ${boardEsc(h.game.court)}` : ''}"><span class="dot ${dot}"></span>${text}</span><span class="sclock" title="${c.following ? 'The clock follows the scorer' : 'The clock by hand'}${c.running ? ', running' : ''}">${clock}</span>`
-      + `<span class="score"><span class="tname">${boardEsc(sc.homeName || '')}</span><span class="num">${sc.home ?? ''} – ${sc.away ?? ''}</span><span class="tname away">${boardEsc(sc.awayName || '')}</span></span>`;
+    game = `<span class="score" title="${boardEsc(h.game.label)}${h.game.court ? ` · ${boardEsc(h.game.court)}` : ''}"><span class="tname">${boardEsc(sc.homeName || '')}</span><span class="num">${sc.home ?? ''} – ${sc.away ?? ''}</span><span class="tname away">${boardEsc(sc.awayName || '')}</span></span>`;
   }
   // Sequence playing, and the next one armed.
   const pl = h && h.playing;

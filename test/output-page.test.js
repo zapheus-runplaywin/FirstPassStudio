@@ -24,7 +24,8 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
   assert.equal((await page.$$('.fp-chips a.chip')).length, 0, 'no chip is a link');
   assert.equal((await page.$$('.fp-chips .chip.atem')).length, 0, 'no switcher set up: no ATEM chip');
   assert.match(await page.textContent('#board .game'), /0 – 0/, 'the game row shows the score');
-  assert.match(await page.textContent('#board .game'), /Q1 \d+:\d\d/, 'and shows the clock');
+  assert.doesNotMatch(await page.textContent('#board .game'), /Q1 \d+:\d\d/, 'the clock is the bar\'s PlayHQ chip, not the board\'s');
+  assert.match(await page.textContent('.fp-chips .chip.playhq'), /Q1 \d+:\d\d/, 'the PlayHQ chip carries the quarter and clock');
   assert.equal(await page.isVisible('#boardRecord'), true, 'recording is controlled from the board');
   assert.equal(await page.isVisible('#outOn'), true);
   assert.equal(await page.isVisible('#addBrowser'), true);

@@ -149,11 +149,10 @@ FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and late
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
 icon). The Output page and the Stream Deck use the same links as the Docs page. It is one page laid out for the night: the
 picture with its output tabs and a status board, the sources down the left, scenes and sequences as tiles, with every
-setting a click away in its section. The status board (from `/api/health`) shows the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
-answered (amber when a reading is overdue, red after a minute of errors, with the error), and whether the video output is
-on, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
+setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics, dip, switcher,
+recording and next game, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
 every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
-sends, hollow while it doesn't) or Off air, the game on the board, PlayHQ and the clock, the sequence playing (step and time
+sends, hollow while it doesn't) or Off air, the game on the board (orange before the clock starts, green until an hour after it ends, then grey), PlayHQ (the dot is the link: green, amber overdue, red failing, grey by hand; the words the quarter and clock or game completed), the sequence playing (step and time
 left) or armed to start, ATEM while a switcher is set up (answering or not) and REC while a game records; status, not links. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
 and Set up (Recordings, Competitions setup, Sponsors, Athletes, Devices), with Docs at the right; the ⌘ keys keep
 the order below.
