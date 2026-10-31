@@ -221,6 +221,8 @@ const socials = require('./socials').create({
     return { rows, finalsPlaces: finals.ladderMarks(finals.sized(finalsFor(grade.name), rows.length)).places };
   },
   tallyShooters: games => theGames.tallyShooters(games), superShots: division => !!rules(division).superShots,
+  // A division's finals: whether it has a format (Competitions setup), and its finals as the Finals page has them.
+  hasFinals: division => !!finalsFor(division), finalsOf: division => getFinals({ division }),
   // The competition's colours, for the colour sets.
   theme: () => ({ colours: CONFIG.colours, panelOpacity: CONFIG.panelOpacity }),
 });

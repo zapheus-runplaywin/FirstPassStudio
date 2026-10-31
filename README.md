@@ -950,6 +950,12 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   Game night in Competitions setup, `runningShooters`; its top eight over every finished game so
   far, after this night's latest round or an earlier round that night (*As at*, `&after=HH:MM`, its games' start), with each
   one's places up or down since the round before (the day before for games with no round) when *Highlight movers* is ticked, `&movers=0|1`, kept in `socials.json`) and a polaroid per game with its score as the caption (and the opponent, division, round and date under it). A game shows once PlayHQ has its final score.
+- **Finals:** for a division with a finals format (Competitions setup), its last home and away round's Results add *Finals bound*
+  (`finalsbound`: the teams in its finals in ladder order, each with what their place earned, such as Double chance or
+  Elimination final) and the *Finals draw* (`finalsdraw`: its finals week by week, who will play who, "Winner minor semi final"
+  for a team not known yet, and the scores and winners as they come in, from PlayHQ or entered by hand on Scoreboard control).
+  On a night PlayHQ has as a finals round, the draw is under Upcoming and Results, and the match up, full time and results
+  name each final (Major semi final, Grand final) instead of the round.
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
   (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.
