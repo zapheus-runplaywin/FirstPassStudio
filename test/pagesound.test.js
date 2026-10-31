@@ -61,7 +61,7 @@ test('an intro plays its sound in the scene until it goes off, and the Output pa
   // The Output page: the theme is a choice, and the note under Theme timing compares the lengths.
   const output = await context.newPage();
   await output.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
-  await output.click('#sources li:has-text("Intro")');
+  await output.click('#sources li:has-text("Intro") .name'); // the name, not the row's centre: the sound column put Off there
   await output.waitForSelector('#opt-theme');
   assert.ok(await output.$eval('#opt-theme', s => [...s.options].some(o => o.value === 'Stinger.wav')), 'songs in the media folder are offered');
   const note = async want => {
