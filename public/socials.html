@@ -10,10 +10,6 @@
   input[type=range] { accent-color: var(--fp-blue); width: 140px; vertical-align: middle; }
   .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
   .row label { white-space: nowrap; }
-  .seg { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; }
-  .seg label { padding: 6px 12px; cursor: pointer; font-weight: 600; }
-  .seg input { position: absolute; opacity: 0; pointer-events: none; }
-  .seg label:has(input:checked) { background: var(--fp-btn); color: #fff; }
   .callout { font-size: 14px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); }
   .callout.warn { background: var(--fp-orange); font-weight: 600; }
 
@@ -77,7 +73,7 @@
   <section>
     <div class="row">
       <label>Game night <select id="night"></select></label>
-      <span class="seg" role="radiogroup" aria-label="Pictures">
+      <span class="fp-seg" role="radiogroup" aria-label="Pictures">
         <label><input type="radio" name="set" value="upcoming" checked> Upcoming</label>
         <label><input type="radio" name="set" value="results"> Results</label>
       </span>

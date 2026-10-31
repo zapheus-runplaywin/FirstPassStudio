@@ -28,7 +28,7 @@
   .sources li .name small { font-weight: 400; color: var(--fp-muted); margin-left: 6px; }
   .sources li button { padding: 4px 9px; }
   /* The page's own kinds of button sit on the kit's: no blue border on them. */
-  .eye, .pill, .cell, .quality button, button.fold, .drift button, .outCard .onBtn { border-color: transparent; }
+  .eye, .pill, .cell, button.fold, .drift button, .outCard .onBtn { border-color: transparent; }
   .eye { background: var(--fp-line); color: var(--fp-muted); min-width: 46px; }
   .eye:hover { background: var(--fp-line-strong); }
   .eye.on, .eye.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
@@ -49,11 +49,6 @@
   h2.forOutput::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--c); margin-right: 8px; vertical-align: 1px; }
   .perf.slow, .outCard small .slow { color: var(--fp-warn-ink); font-weight: 600; }
   .outCard .onBtn { background: var(--c); color: var(--fp-bar); }
-  /* Picture: HD or 4K for every output (outputs.js quality). */
-  .quality { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; }
-  .quality button { border-radius: 0; background: var(--fp-white); color: var(--fp-muted); padding: 6px 12px; }
-  .quality button:hover { background: var(--fp-gray); }
-  .quality button.on, .quality button.on:hover { background: var(--fp-bar); color: #fff; }
   .outTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .outTab { background: var(--fp-white); color: var(--fp-navy); border: 2px solid var(--fp-line); box-shadow: inset 0 -4px 0 var(--c); }
   .outTab:hover { background: var(--fp-gray); }
@@ -281,7 +276,7 @@
   <section id="outSection" data-fold="output">
     <div class="secHead">
       <h2>Video output</h2>
-      <div class="row"><span class="quality hidden" id="outQuality" role="group" aria-label="Picture" title="The picture every output sends: HD, or 4K (2160p) for 4K gear. Nothing else changes.">
+      <div class="row"><span class="fp-seg hidden" id="outQuality" role="group" aria-label="Picture" title="The picture every output sends: HD, or 4K (2160p) for 4K gear. Nothing else changes.">
           <button data-q="hd" aria-pressed="true">HD</button><button data-q="uhd" aria-pressed="false">4K</button></span>
         <button id="outAdd" class="alt hidden" title="Send different graphics to another output at the same time (up to four)">Add an output</button>
       <button id="outOn" class="alt">Output on</button></div>
@@ -417,7 +412,7 @@
         <button class="alt" id="swFtb" title="Fade to black, or back from it">Fade to black</button></div>
       <div class="row swKeys" style="margin-top:10px"><span class="swLabel" id="swUskLabel">Upstream keys</span><span id="swUsk" class="row"></span>
         <span class="swLabel" id="swDskLabel">Downstream keys</span><span id="swDsk" class="row"></span></div>
-      <div class="row swKeys" style="margin-top:10px"><label class="inline" style="font-weight:400" title="After a cut made on the switcher itself (or in ATEM Software Control), the keys of outputs that go with a camera follow it, a frame or two later. Studio's own cuts take them in the same transition either way.">
+      <div class="row swKeys" style="margin-top:10px"><label class="fp-switch inline" style="font-weight:400" title="After a cut made on the switcher itself (or in ATEM Software Control), the keys of outputs that go with a camera follow it, a frame or two later. Studio's own cuts take them in the same transition either way.">
         <input type="checkbox" id="swFollow"> Keys follow the camera</label> <span class="note" id="swFollowNote" style="margin:0"></span></div>
       <div class="row swKeys swStingerRow" style="margin-top:10px"><span class="swLabel">Stinger</span><span class="note" id="swStingerName" style="margin:0"></span>
         <label class="inline" style="font-weight:400" title="Frames to cut later (or earlier, below 0) than the middle of the stinger, for the delay of that output's picture into the switcher. Each output keeps its own."><span id="swLineupLabel">line-up</span>
@@ -568,7 +563,7 @@
     <div class="secHead">
       <h2 id="seqHead">Sequences</h2>
     </div>
-    <div class="seqAuto"><label><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
+    <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
     <div class="seqs" id="seqs"></div>
     <p class="note" id="seqEmpty"></p>
     <details class="info" id="seqInfo"><summary>Expand for info</summary><p class="note" id="seqNote"></p></details>
@@ -653,7 +648,7 @@
   <section id="viewSection" data-fold="view">
     <div class="secHead">
       <h2>Scene View</h2>
-      <div class="row"><label><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></div>
+      <div class="row"><label class="fp-switch"><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></div>
     </div>
     <div class="outTabs hidden" id="outTabs"></div>
     <div class="preview" id="preview">

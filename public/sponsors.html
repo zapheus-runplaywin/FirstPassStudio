@@ -41,8 +41,7 @@
   .tiers td { padding: 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
   .tiers input[type=text] { width: 100%; max-width: 200px; }
   .tablewrap { overflow-x: auto; }
-  .sets { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 10px; }
-  .sets label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
+  .sets { margin-bottom: 10px; }
   /* Vacancy card */
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
   .ads { display: grid; gap: 6px; }
@@ -99,7 +98,7 @@
 
   <section id="tierSection">
     <h2>Tiers</h2>
-    <div class="sets" id="sets" role="radiogroup" aria-label="Tier names">
+    <div class="sets fp-seg" id="sets" role="radiogroup" aria-label="Tier names">
       <label><input type="radio" name="set" value="names"> <span id="setNames"></span></label>
       <label><input type="radio" name="set" value="metals"> <span id="setMetals"></span></label>
       <label><input type="radio" name="set" value="own"> Our own names</label>

@@ -45,7 +45,7 @@
     </div>
     <p class="note" id="roundNote"></p>
     <div class="row" style="margin-top:10px">
-      <label><input id="autoSelect" type="checkbox"> Pick the game automatically for court</label>
+      <label class="fp-switch"><input id="autoSelect" type="checkbox"> Pick the game automatically for court</label>
       <input id="autoCourt" list="courtList" placeholder="none set" style="width:140px">
       <datalist id="courtList"></datalist>
       <span class="note" id="planCourt" hidden style="margin:0">from the <a href="/planner.html">Production Planner</a></span>
@@ -58,8 +58,7 @@
     </div>
     <div class="row" style="margin-top:10px">
       <span>Scores:</span>
-      <button class="alt" id="srcPlayhq">Follow PlayHQ</button>
-      <button class="alt" id="srcManual">Manual</button>
+      <span class="fp-seg" role="group" aria-label="Scores"><button id="srcPlayhq">Follow PlayHQ</button><button id="srcManual">Manual</button></span>
     </div>
     <div class="row" style="margin-top:10px">
       <label>Check PlayHQ every <input id="refreshSec" type="number" min="1" max="120" style="width:70px"> seconds</label>
@@ -107,7 +106,7 @@
       <label><input id="showClock" type="checkbox"> Show clock</label>
     </div>
     <div class="row" style="margin-top:10px">
-      <label><input id="followClock" type="checkbox"> Follow the PlayHQ scorer's clock</label>
+      <label class="fp-switch"><input id="followClock" type="checkbox"> Follow the PlayHQ scorer's clock</label>
       <span class="note" id="clockNote"></span>
     </div>
   </section>
@@ -188,8 +187,8 @@
     if (document.activeElement !== $('refreshSec')) $('refreshSec').value = s.playhqRefreshSec || 5;
     if (document.activeElement !== $('court')) $('court').value = s.court || '';
     if (document.activeElement !== $('tickerSpeed')) $('tickerSpeed').value = s.tickerSpeed || 120;
-    $('srcPlayhq').classList.toggle('on', s.source === 'playhq');
-    $('srcManual').classList.toggle('on', s.source === 'manual');
+    $('srcPlayhq').setAttribute('aria-pressed', String(s.source === 'playhq'));
+    $('srcManual').setAttribute('aria-pressed', String(s.source === 'manual'));
     $('srcPlayhq').disabled = !s.gameId;
     $('sourceNote').textContent = s.source === 'playhq'
       ? `Scores update from PlayHQ every ${s.playhqRefreshSec || 5} seconds, if the game is being live-scored there. Pressing a score button switches to manual.`

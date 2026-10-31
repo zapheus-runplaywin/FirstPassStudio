@@ -115,7 +115,8 @@ body.fp { font-family: var(--fp-font); background: var(--fp-gray); color: var(--
 body.fp h1 { font-weight: 900; font-style: italic; letter-spacing: -0.02em; color: var(--fp-navy); }
 :where(body.fp main a) { color: var(--fp-blue); }
 :where(body.fp main a:hover) { color: var(--fp-blue-dark); }
-body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2px; }
+/* One focus ring everywhere: blue (orange is kept for what's on air). */
+body.fp :focus-visible { outline: 2px solid var(--fp-blue); outline-offset: 2px; }
 
 /* The page kit: what every Studio page (Output, Production Planner, Scoreboard control, Recordings, Socials,
    Competitions setup, Sponsors, Athletes, Stream Deck, Devices) is built from, so a button, a section or a line of
@@ -152,6 +153,33 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
 :where(body.fp) button.danger:hover { background: var(--fp-danger-bg); }
 :where(body.fp) button.small, :where(body.fp) .btn.small { font-size: 12px; padding: 3px 9px; }
 :where(body.fp) button:disabled { opacity: .5; cursor: default; }
+/* A number box is as wide as its number (a page says style="width:…" for a wider one), digits lined up. */
+:where(body.fp) input[type=number] { width: 6em; font-variant-numeric: tabular-nums; }
+/* Segmented control: one choice from a few, side by side (<span class="fp-seg">): buttons that say aria-pressed, or labels
+   each wrapping a radio. The picked one is filled blue; the rest are quiet. The Output page's HD/4K, Scoreboard control's
+   Follow PlayHQ/Manual, Socials' Upcoming/Results and Competitions setup's Quarters/Halves are all this. */
+:where(body.fp) .fp-seg { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; background: var(--fp-white); vertical-align: middle; }
+:where(body.fp) .fp-seg > button, :where(body.fp) .fp-seg > label { font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; margin: 0; border: 0; border-radius: 0;
+  background: transparent; color: var(--fp-muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+:where(body.fp) .fp-seg > * + * { border-left: 1px solid var(--fp-line); }
+:where(body.fp) .fp-seg > button:hover, :where(body.fp) .fp-seg > label:hover { background: var(--fp-gray); color: var(--fp-navy); }
+:where(body.fp) .fp-seg > label > input[type=radio] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none; }
+:where(body.fp) .fp-seg > button[aria-pressed="true"], :where(body.fp) .fp-seg > button.on, :where(body.fp) .fp-seg > label:has(input:checked),
+:where(body.fp) .fp-seg > button[aria-pressed="true"]:hover, :where(body.fp) .fp-seg > button.on:hover, :where(body.fp) .fp-seg > label:has(input:checked):hover { background: var(--fp-btn); color: #fff; }
+:where(body.fp) .fp-seg > label:has(input:focus-visible) { outline: 2px solid var(--fp-blue); outline-offset: -2px; }
+:where(body.fp) .fp-seg > button:disabled { opacity: .5; cursor: default; }
+/* Switch: a setting that is on or off (<label class="fp-switch"><input type="checkbox"> Record…</label>), drawn as a slider
+   instead of a tick box, for the few settings that change the whole night: Record, Automatic sequences, Follow the clock,
+   Pick the game automatically, Live View, Keys follow the camera. The checkbox and its id stay, so links and tests do too. */
+:where(body.fp) .fp-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+:where(body.fp) .fp-switch > input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 38px; height: 22px; margin: 0; border-radius: 11px; border: 0; flex: none;
+  background: var(--fp-line-strong); position: relative; cursor: pointer; transition: background .15s; vertical-align: middle; }
+:where(body.fp) .fp-switch > input[type=checkbox]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
+:where(body.fp) .fp-switch > input[type=checkbox]:checked { background: var(--fp-btn); }
+:where(body.fp) .fp-switch > input[type=checkbox]:checked::after { transform: translateX(16px); }
+:where(body.fp) .fp-switch > input[type=checkbox]:disabled { opacity: .5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { :where(body.fp) .fp-switch > input[type=checkbox], :where(body.fp) .fp-switch > input[type=checkbox]::after { transition: none; } }
 :where(body.fp) .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
 :where(body.fp) .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
 :where(body.fp) .note b { color: var(--fp-navy); }
