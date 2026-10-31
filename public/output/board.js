@@ -11,9 +11,9 @@ const boardEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&':
 const boardMmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const boardAgo = ms => ms == null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`;
 // The time sits to the right; with below, it goes under the words instead (the music's "0:47 / 3:25" is too wide
-// for a column, and squeezed the song's name to nothing).
-const boardLine = (lbl, dot, main, sub, bar, tm, extra = '', below = false) =>
-  `<div class="line"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}${below && tm ? `<span class="tm under">${tm}</span>` : ''}${bar || ''}</span><span class="tm">${below ? '' : tm || ''}${extra}</span></div>`;
+// for a column, and squeezed the song's name to nothing). With wrap, the name runs to two lines before it is cut.
+const boardLine = (lbl, dot, main, sub, bar, tm, extra = '', { below = false, wrap = false } = {}) =>
+  `<div class="line"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b${wrap ? ' class="wrap"' : ''}>${main}</b>${sub ? `<small>${sub}</small>` : ''}${below && tm ? `<span class="tm under">${tm}</span>` : ''}${bar || ''}</span><span class="tm">${below ? '' : tm || ''}${extra}</span></div>`;
 const boardBar = (pct, cls = '') => pct == null ? '' : `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span>`;
 
 function renderBoard() {
@@ -67,7 +67,7 @@ function renderBoard() {
   const mSym = musicOn ? '<span class="sym">▶</span>' : m.status === 'paused' ? '<span class="sym">❚❚</span>' : m.track ? '<span class="sym">■</span>' : '';
   const mFlags = [m.muted ? 'muted' : '', m.ducked ? 'ducked' : ''].filter(Boolean).join(' · ');
   const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? mFlags : 'nothing loaded',
-    m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, m.track && $('mTime') ? `${mSym}${boardEsc($('mTime').textContent)}` : '', '', true);
+    m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, m.track && $('mTime') ? `${mSym}${boardEsc($('mTime').textContent)}` : '', '', { below: true, wrap: true });
   const meters = [...document.querySelectorAll('#mxList .mxMeter i')];
   const level = meters.length ? Math.max(...meters.map(i => parseFloat(i.style.width) || 0)) : null;
   const hot = meters.some(i => i.classList.contains('hot')), warm = meters.some(i => i.classList.contains('warm'));
