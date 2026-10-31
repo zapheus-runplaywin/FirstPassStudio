@@ -35,6 +35,8 @@ test('Output page starts in Prep, Show draws the status board and a Settings dra
   assert.match(await page.textContent('#board .game'), /0 – 0/, 'the game row shows the score');
   assert.match(await page.textContent('#board .game'), /Q1 \d+:\d\d/, 'and shows the clock');
   assert.equal(await page.isVisible('#boardRecord'), true, 'recording is controlled from the board');
+  assert.equal(await page.isVisible('#hideAll'), true, 'Hide all stays in reach on the night');
+  assert.equal(await page.isVisible('#addBrowser'), false, 'adding sources is Prep');
 
   // Settings opens the picked output's set-up as a drawer under the row, and closes it again.
   await page.click('#outCfg');
