@@ -91,14 +91,14 @@ test('layers: moving a source up or down changes what covers what on the output,
   for (const p of ['scoreboard.html', 'ladder.html', 'fixtures.html']) await addPage(control, p);
   await listShows(control, ['Round fixture Off', 'Ladder Off', 'Scoreboard Off']);
   // Move up and Move down are in a source's settings, under its row: the top one can't go up, the bottom one can't go down.
-  await source(control, 'Round fixture').click();
+  await source(control, 'Round fixture').locator('.name').click(); // the name: the row's centre is its Off button now
   assert.equal(await control.locator('#fUp').isDisabled(), true);
-  await source(control, 'Scoreboard').click();
+  await source(control, 'Scoreboard').locator('.name').click();
   assert.equal(await control.locator('#fDown').isDisabled(), true);
   await control.click('#fUp');
   await listShows(control, ['Round fixture Off', 'Scoreboard Off', 'Ladder Off']);
   await outputShows(output, ['Ladder', 'Scoreboard', 'Round fixture']);
-  await source(control, 'Round fixture').click();
+  await source(control, 'Round fixture').locator('.name').click();
   await control.click('#fDown');
   await listShows(control, ['Scoreboard Off', 'Round fixture Off', 'Ladder Off']);
   await outputShows(output, ['Ladder', 'Round fixture', 'Scoreboard']);
