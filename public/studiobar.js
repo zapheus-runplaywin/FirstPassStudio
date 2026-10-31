@@ -80,7 +80,7 @@
     // ON AIR with a dot per output (one output without a list: its one dot), hollow while that output isn't sending.
     const outs = h.output && h.output.outputs && h.output.outputs.length ? h.output.outputs : [{ name: 'Output', colour: '#F75C03', on: !!(h.output && h.output.on) }];
     const sending = outs.filter(o => o.on);
-    const dots = outs.map(o => `<i class="odot${o.on ? ' on' : ''}" style="--c:${esc(o.colour || '#F75C03')}" title="${esc(o.name)}: ${o.on ? 'sending' : 'off'}"></i>`).join('');
+    const dots = outs.map(o => `<i class="odot${o.on ? ' on' : ''}" data-colour="${esc(o.colour || '#F75C03')}" title="${esc(o.name)}: ${o.on ? 'sending' : 'off'}"></i>`).join('');
     parts.push(chip(sending.length ? 'air' : 'off', sending.length ? `On air: ${sending.map(o => o.name).join(', ')}` : 'No output is sending', '', `${sending.length ? 'ON AIR' : 'Off air'}<span class="odots">${dots}</span>`));
     const g = h.game;
     parts.push(g ? chip('game', '', 'ok', `${esc(g.label)}${g.court ? ` · ${esc(g.court)}` : ''}`) : chip('game off', '', 'off', 'No game on the board'));
@@ -112,6 +112,8 @@
     if (r.on) parts.push(chip('rec', `Recording ${r.name || 'this game'}`, 'rec', 'REC'));
     else if (r.record) parts.push(chip('rec wait', 'Records the next PlayHQ game on air', 'off', 'REC'));
     chips.innerHTML = parts.join('');
+    // Each output's dot takes that output's colour (the one thing here studio.css can't know).
+    for (const d of chips.querySelectorAll('.odot')) d.style.setProperty('--c', d.dataset.colour);
   };
   // Page zoom (the Mac app, desktop/windows.js): the app says the level after each change and each load; while it
   // isn't 100% a chip at the right of the bar shows it, and a click asks for 100% (the app watches for #zoom=100).
