@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 1 of 15: Shared state and helpers for every section: $, the scene as last seen, the selected source, act() sending a change to Studio, and folding sections.
+// FirstPass Studio - the Output page, part 1 of 16: Shared state and helpers for every section: $, the scene as last seen, the selected source, act() sending a change to Studio, and folding sections.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -71,7 +71,7 @@ const current = () => scene.sources.find(s => s.id === selected) || null;
 async function act(action) {
   $('err').textContent = '';
   // Scenes and sequences are played on the output picked over the Scene View.
-  if (/^(scene|seq)/.test(action.type) && scene.viewOutput && scene.viewOutput !== 'main' && action.output === undefined) action = { ...action, output: scene.viewOutput };
+  if (/^(scene|seq|ro[A-Z])/.test(action.type) && scene.viewOutput && scene.viewOutput !== 'main' && action.output === undefined) action = { ...action, output: scene.viewOutput };
   try {
     const res = await fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) });
     const body = await res.json();

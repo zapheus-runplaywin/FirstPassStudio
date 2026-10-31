@@ -63,7 +63,7 @@
   // ─── Status chips ───────────────────────────────────────────────────────
   // What's on air, at a glance, from any page: the outputs sending (orange while any is), the game on the board,
   // PlayHQ following and the clock, the sequence playing (step and time left on it) or the triggered one counting
-  // down to start, and REC while a game records. One read of /api/health every 2 s while the page is in view; the
+  // down to start (or the head of the run order as Next), and REC while a game records. One read of /api/health every 2 s while the page is in view; the
   // times count down between reads. Styled by studio.css (.fp-chips).
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const mmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -91,13 +91,15 @@
       else text = c.following ? 'PlayHQ' : 'PlayHQ · clock by hand';
       parts.push(chip(`playhq ${dot}`, '/control.html', dot, `${text}${clock}`));
     }
+    // The run order's head rides along: "then X" on the sequence playing, or a Next chip of its own.
+    const then = h.next && h.next.name ? ` · then ${esc(h.next.name)}` : '';
     if (h.playing) {
       const s = h.playing, l = s.paused ? s.leftMs : left(s.leftMs);
-      parts.push(chip('seq', '/output.html', 'gold', `${esc(s.name || 'Sequence')} ${s.step}/${s.steps}${s.paused ? ' · paused' : l != null ? ` · ${mmss(l)}` : ''}`));
+      parts.push(chip('seq', '/output.html', 'gold', `${esc(s.name || 'Sequence')} ${s.step}/${s.steps}${s.paused ? ' · paused' : l != null ? ` · ${mmss(l)}` : ''}${then}`));
     } else if (h.armed) {
       const a = h.armed, l = left(a.leftMs);
       parts.push(chip('armed', '/output.html', 'ok', `Armed: ${esc(a.name || 'sequence')}${l != null ? ` · in ${mmss(l)}` : ' · after this'}`));
-    }
+    } else if (h.next) parts.push(chip('next', '/output.html', 'off', `Next: ${esc(h.next.name)}`));
     if (h.recording && h.recording.on) parts.push(chip('rec', '/recordings.html', 'rec', 'REC'));
     chips.innerHTML = parts.join('');
   };

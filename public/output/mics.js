@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 7 of 15: Mics: live mics plugged into the Mac or the switcher, their levels, mutes and dips.
+// FirstPass Studio - the Output page, part 8 of 16: Mics: live mics plugged into the Mac or the switcher, their levels, mutes and dips.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 

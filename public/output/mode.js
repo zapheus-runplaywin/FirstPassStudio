@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 14 of 15: The set-up behind buttons: the output's Settings drawer, each source's settings under its row, Music and Mics Settings.
+// FirstPass Studio - the Output page, part 15 of 16: The set-up behind buttons: the output's Settings drawer, each source's settings under its row, Music and Mics Settings.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //

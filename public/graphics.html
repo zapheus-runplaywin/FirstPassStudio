@@ -222,6 +222,15 @@
         <code>/deck/sequence/next</code>, <code>pause</code> and <code>stop</code> act on whatever is playing (<code>/deck/sequence/advance</code> is Next only when the step on now is <b>Until I press Next</b>, and does nothing otherwise), <code>/deck/sequence/now</code> and <code>cancel</code>
         on one about to start, and <code>/deck/sequence/auto/on</code>, <code>off</code> or <code>toggle</code> set the switch.
         The break lengths (Competitions setup, Game rules) let the editor say how many times a break sequence fits in each break.</li>
+      <li><b>Run order:</b> tonight's plan, beside Sequences: a numbered list of sequences and scenes for the picked output, in the order they play
+        (Run-up, Walk out, Live, Quarter time, Live, Half time…). <b>Add…</b> puts a scene or sequence at the end; rows drag, or move with their arrows, and <b>×</b> takes one out.
+        <b>Next</b> plays the head (a sequence starts, a scene is gone to) and <b>Skip</b> drops it. A sequence that ends looks at the run order first and plays what is queued after it;
+        its own <b>Then</b> runs only when nothing is queued, so a sequence built for one night still works alone on another. Whatever is at the head leaves the list as it starts, however it was started.
+        A game trigger puts its sequence at the head (with its few seconds and Start now / Cancel as usual) rather than starting it blind; Cancel takes it out again, and <b>Next</b> plays it when the ball is dead.
+        Playing a scene or sequence by hand leaves the list alone unless it was the head, and nothing in the list starts by itself. The status board's <b>Next</b> line and the bar's chip say what Next will do.
+        <b>Saved…</b> keeps tonight's order under a name (<b>Save tonight's order as…</b>), loads one in place of what is queued, deletes one or clears the list; the list and the saved orders live with the competition's sequences,
+        so a relaunch picks the night up where it was. Stream Deck: <code>/deck/runorder/next</code>, <code>skip</code>, <code>clear</code>, <code>add/&lt;sequence or scene&gt;</code> and <code>load/&lt;saved order&gt;</code>
+        (<code>/deck/output/&lt;output&gt;/runorder/…</code> for another output's list). The existing <code>/deck/sequence/next</code> still ends the step on screen.</li>
       <li><b>Music:</b> the Output page's <b>Music</b> player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF; use music you're licensed to stream, as Apple Music songs
         are copy-protected), one song or a <b>playlist</b> (shuffled or not, starting again after the last or not). <b>Add a song</b> with <b>Even out its loudness</b> ticked
         levels it to the same loudness as the others and keeps the original in the media folder's <code>originals</code>. It plays wherever video sound plays (the outputs, or

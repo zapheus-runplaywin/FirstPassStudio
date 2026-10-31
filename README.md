@@ -422,6 +422,9 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   seconds after the siren, from the scoreboard state server.js sends each second (`gameSnapshot()`, no extra PlayHQ calls). It waits as
   pending (Start now, Cancel). A "before the start" moment that passed before Studio started (opened inside the window) is skipped, for the operator to start by hand. The Automatic sequences switch is kept in `sequence-settings.json` in the data folder.
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
+  The **run order** (Output page, beside Sequences) is a queue per output of sequences and scenes for the night: Next plays the head, a sequence that
+  ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger puts its sequence at the head (Cancel takes it out). Kept with
+  the competition's sequences (`runOrder`, saved orders in `runOrders`); `/deck/runorder/next`, `skip`, `clear`, `add/<name>`, `load/<order>`.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
 - **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; the unmuted scene.html of every output it

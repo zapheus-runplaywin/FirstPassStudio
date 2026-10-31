@@ -37,6 +37,15 @@
 // off nothing starts by itself. A step can last until the game moves on (the clock starts, or a break
 // or full time comes), and a sequence can repeat until play resumes or until N minutes before the start:
 // it finishes the step on screen, then ends.
+//
+// The run order: each output has a queue of what plays next tonight, sequences and scenes, built on the Output
+// page (or loaded from a saved order) and added to on the fly. Next (the panel's, or /deck/runorder/next) plays
+// the head; a sequence that ends looks at the queue first and plays its head instead of its own Then, which is
+// the fallback when nothing is queued. Whatever is at the head leaves the queue as it starts, however it was
+// started. A game trigger puts its sequence at the head (with its few seconds' countdown as usual) rather than
+// starting it blind; Cancel takes it out again. Playing a scene or sequence by hand leaves the queue as it is
+// (unless it was the head). Queues are saved with the competition's sequences (runOrder), and named orders
+// (runOrders) can be loaded for the night.
 
 'use strict';
 
@@ -83,9 +92,13 @@ let fadeTimer = null; // starts a music fade out early, so it's done as the step
 let pending = null;   // a triggered start waiting its few seconds: { id, reason, at, afterEnd }
 let pendTimer = null;
 let cut = null;       // the sequence that last ended here (played out or cut short), until it plays again
+let queue = [];       // the run order here: [{ key, kind: 'sequence' | 'scene', id }], the head first
+let orders = [];      // the saved run orders of the competition in use: [{ id, name, items }]
 const PRIMARY = 'main';
 let here = PRIMARY;
-const runners = new Map(); // output id -> { run, timer, fadeTimer, pending, pendTimer, cut }
+const runners = new Map(); // output id -> { run, timer, fadeTimer, pending, pendTimer, cut, queue }
+const MAX_QUEUE = 100, MAX_ORDERS = 30;
+const ITEM_KINDS = ['sequence', 'scene'];
 let auto = true;      // the Automatic sequences switch
 let settingsFile = null;
 let game = null;      // the latest scoreboard reading, from game()
@@ -99,8 +112,8 @@ const cleanId = (id, fallback) => String(id || '').replace(/[^a-z0-9]/gi, '').sl
 const ids = v => [...new Set((Array.isArray(v) ? v : []).map(x => cleanId(x, '')).filter(Boolean))].slice(0, 50);
 
 // ─── One runner per output ───────────────────────────────────────────────
-function stash() { runners.set(here, { run, timer, fadeTimer, pending, pendTimer, cut }); }
-function unstash() { ({ run = null, timer = null, fadeTimer = null, pending = null, pendTimer = null, cut = null } = runners.get(here) || {}); }
+function stash() { runners.set(here, { run, timer, fadeTimer, pending, pendTimer, cut, queue }); }
+function unstash() { ({ run = null, timer = null, fadeTimer = null, pending = null, pendTimer = null, cut = null, queue = [] } = runners.get(here) || {}); }
 // Runs fn with output out's runner in use.
 function within(out, fn) {
   out = out || PRIMARY;
@@ -308,10 +321,19 @@ function musicOf(step) {
 
 // ─── Saving: one file per competition ────────────────────────────────────
 function load() {
+  each(() => { queue = []; });
+  orders = [];
   try {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     list = [];
     for (const s of Array.isArray(saved.sequences) ? saved.sequences : []) if (s && typeof s === 'object') list.push(clean(s));
+    // The run order of each output as it was (a relaunch picks the night up where it was), and the saved orders.
+    for (const [o, items] of Object.entries(saved.runOrder && typeof saved.runOrder === 'object' ? saved.runOrder : {})) {
+      const out = cleanId(o, '');
+      if (out) within(out, () => { queue = cleanItems(items); });
+    }
+    for (const o of Array.isArray(saved.runOrders) ? saved.runOrders : []) if (o && typeof o === 'object') orders.push(cleanOrder(o));
+    orders = orders.slice(0, MAX_ORDERS);
   } catch (err) {
     if (err.code !== 'ENOENT') log('warn', 'sequence', `Could not read ${file}, starting with no sequences: ${err.message}`);
     list = [];
@@ -320,10 +342,87 @@ function load() {
 function save() {
   if (file) {
     try {
-      savefile.writeJsonSync(file, { sequences: list });
+      const runOrder = {};
+      each(() => { if (queue.length) runOrder[here] = queue.map(({ kind, id }) => ({ kind, id })); });
+      savefile.writeJsonSync(file, { sequences: list, ...(Object.keys(runOrder).length ? { runOrder } : {}), ...(orders.length ? { runOrders: orders } : {}) });
     } catch (err) { log('error', 'sequence', `Could not save ${file}: ${err.message}`); }
   }
 }
+
+// ─── The run order ───────────────────────────────────────────────────────
+// Items are references: a sequence or scene renamed is renamed in the order too, and one deleted shows as gone
+// (skipped when its turn comes).
+const cleanItem = v => {
+  const it = v && typeof v === 'object' ? v : {};
+  const kind = ITEM_KINDS.includes(it.kind) ? it.kind : 'sequence';
+  const id = cleanId(it.id, '');
+  return id ? { key: newId(), kind, id } : null;
+};
+const cleanItems = v => (Array.isArray(v) ? v : []).map(cleanItem).filter(Boolean).slice(0, MAX_QUEUE);
+function cleanOrder(o) {
+  const base = String(o.name || '').trim().slice(0, 60) || 'Run order';
+  const taken = new Set(orders.filter(x => x.id !== o.id).map(x => slug(x.name)));
+  let name = base;
+  for (let i = 2; taken.has(slug(name)); i++) name = `${base} ${i}`;
+  return { id: cleanId(o.id, newId()), name, items: cleanItems(o.items).map(({ kind, id }) => ({ kind, id })) };
+}
+// What an item refers to now, or null when it has gone.
+const itemOf = it => it.kind === 'scene' ? api.scene(it.id) : list.find(s => s.id === it.id) || null;
+const itemName = it => itemOf(it)?.name || (it.kind === 'scene' ? 'a scene that has gone' : 'a sequence that has gone');
+// Something in the order changed here: the page and the file.
+function queueChanged() { save(); }
+// The head of the run order that still exists; gone ones in front of it are dropped with a note.
+function nextQueued() {
+  while (queue.length && !itemOf(queue[0])) {
+    const it = queue.shift();
+    log('info', 'sequence', `Run order: skipped ${itemName(it)}`);
+  }
+  return queue[0] || null;
+}
+// The head leaves the queue as it starts, however it was started.
+function consume(kind, id) {
+  if (!queue.length || queue[0].kind !== kind || queue[0].id !== id) return;
+  queue.shift();
+  queueChanged();
+}
+// Next in the run order: the head plays (a sequence starts, a scene is gone to). With nothing queued, the
+// sequence playing ends and does its Then; with nothing playing either, nothing to do.
+function playHead(why) {
+  const it = nextQueued();
+  if (!it) {
+    if (!run) return 'Nothing is in the run order, and no sequence is playing.';
+    finish(why);
+    return null;
+  }
+  if (it.kind === 'scene') {
+    const sc = api.scene(it.id);
+    queue.shift();
+    queueChanged();
+    if (run) interrupt(new Set(Object.keys(sc.states).filter(id => sc.states[id] === 'on')), `the run order went on to scene "${sc.name}"`);
+    log('info', 'sequence', `Run order: going to scene "${sc.name}"`);
+    api.goTo(sc, false, here);
+    return null;
+  }
+  const sq = list.find(s => s.id === it.id);
+  if (pending && pending.id === sq.id) { pending.now = true; startPending(); return null; }
+  if (!flatten(sq).length) { queue.shift(); queueChanged(); log('info', 'sequence', `Run order: "${sq.name}" has no steps, skipped`); return playHead(why); }
+  if (run) interrupt(new Set(firstOf(sq)), `the run order went on to "${sq.name}"`);
+  start(sq, 'next in the run order');
+  return null;
+}
+// Adds an item (a sequence or scene, by id or name) at the end, or at a place.
+function enqueue(kind, ref, at) {
+  const target = kind === 'scene' ? api.scene(ref) || api.sceneNamed?.(ref) : find(ref);
+  if (!target) return `No ${kind} "${ref}".`;
+  if (queue.length >= MAX_QUEUE) return `The run order is full (${MAX_QUEUE} items).`;
+  const it = { key: newId(), kind, id: target.id };
+  const i = at === undefined ? queue.length : Math.round(clamp(at, 0, queue.length, queue.length));
+  queue.splice(i, 0, it);
+  queueChanged();
+  log('info', 'sequence', `Run order: added ${kind} "${target.name}"${i < queue.length - 1 ? ` at ${i + 1}` : ''}`);
+  return null;
+}
+const queueState = () => queue.map(it => ({ key: it.key, kind: it.kind, id: it.id, name: itemName(it), gone: !itemOf(it) }));
 
 // The Automatic sequences switch, kept in the data folder for every competition.
 function loadSettings() {
@@ -505,6 +604,7 @@ function advance() {
 function start(sq, why) {
   if (pending && pending.id === sq.id) cancelPending(null);
   if (cut === sq.id) cut = null;
+  consume('sequence', sq.id);
   run = { id: sq.id, steps: flatten(sq), step: -1, loop: 0, startedAt: now(), loopAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, ready: false, waiting: null, finishing: null };
   log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
   sound().quiet(sq.quiet);
@@ -521,10 +621,14 @@ function finish(why) {
   // The card says Stopped for it here until it plays again.
   cut = sq ? sq.id : null;
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
-  // This output's own Then (a sequence played on two outputs can go somewhere different on each).
-  const then = sq ? thenFor(sq, here) : { type: 'off' };
+  // The run order first: its head plays instead of the Then. Else this output's own Then (a sequence played on
+  // two outputs can go somewhere different on each).
+  const queued = nextQueued();
+  const then = queued ? (queued.kind === 'scene' ? { type: 'scene', scene: queued.id } : { type: 'sequence', sequence: queued.id }) : sq ? thenFor(sq, here) : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
-  const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== ended.id) : null;
+  const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && (queued || s.id !== ended.id)) : null;
+  // A queued scene leaves the order now; a queued sequence as it starts (start() takes it), unless it can't.
+  if (queued && (sc || (next && !flatten(next).length))) { queue.shift(); queueChanged(); }
   const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.STOP_FADE_SEC };
   if (next && end.type === 'continue') soundAtEnd().handOver(ended.id, next.id);
   else soundAtEnd().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
@@ -539,7 +643,7 @@ function finish(why) {
   // Ending on a scene step that quieted the music brings it back up, unless a scene or sequence takes over.
   if (quietStep(ended.steps[ended.step]) && !sc && !next) soundAtEnd().quiet(false);
   run = null;
-  log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${next ? `, then "${next.name}"` : sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'sequence' ? ', its next sequence has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}`);
+  log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${next ? `, then "${next.name}"` : sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'sequence' ? ', its next sequence has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}${queued ? ' (from the run order)' : ''}`);
   if (sc) api.goTo(sc, false, here);
   // A sequence with no steps would end at once, so a chain of them can't go round for ever.
   if (next && flatten(next).length && !(pending && pending.afterEnd)) start(next, `after "${sq.name}"`);
@@ -590,6 +694,8 @@ function schedulePending() {
 function cancelPending(why) {
   if (!pending) return;
   if (why) log('info', 'sequence', `"${find(pending.id)?.name || '?'}" won't start: ${why}`);
+  // A trigger put it at the head of the run order: Cancel takes it out again (one queued by hand stays).
+  if (pending.queued && queue[0]?.kind === 'sequence' && queue[0].id === pending.id) { queue.shift(); queueChanged(); }
   pending = null;
   schedulePending();
 }
@@ -615,7 +721,14 @@ function trigger(sq, reason, afterSec) {
   if (run && run.id === sq.id) return;
   // The sequence on screen repeats until the next trigger: this is it.
   if (playing()?.repeat === 'until') finishSoon(`"${sq.name}" is next`);
-  pending = { id: sq.id, reason, at: now() + afterSec * 1000, afterEnd: false };
+  // Its place in the run order is the head now: it moves up if it was further down, or joins the order if it wasn't in it (and leaves as it starts).
+  const was = queue.findIndex(it => it.kind === 'sequence' && it.id === sq.id);
+  if (was !== 0) {
+    queue.unshift(was > 0 ? queue.splice(was, 1)[0] : { key: newId(), kind: 'sequence', id: sq.id });
+    queueChanged();
+  }
+  // queued: the trigger put it in the order, so Cancel takes it out again (one queued by hand stays, at the head).
+  pending = { id: sq.id, reason, at: now() + afterSec * 1000, afterEnd: false, queued: was < 0 };
   log('info', 'sequence', `${reason}: "${sq.name}" starts${afterSec ? ` in ${afterSec} s` : ''}`);
   if (afterSec) schedulePending(); else startPending();
 }
@@ -737,7 +850,10 @@ function turnedOffHere(src) {
 }
 // A scene picked on output out stops the sequence playing there.
 function beforeScene(sc, out) {
-  within(out, () => { if (run) interrupt(new Set(Object.keys(sc.states).filter(id => sc.states[id] === 'on')), `scene "${sc.name}" was picked`); });
+  within(out, () => {
+    if (run) interrupt(new Set(Object.keys(sc.states).filter(id => sc.states[id] === 'on')), `scene "${sc.name}" was picked`);
+    consume('scene', sc.id);
+  });
 }
 function allOff(out) { within(out, () => { if (run) interrupt(new Set(), 'every source was turned off'); }); }
 // An output was removed: what played there stops (its sequences play on the primary from now on).
@@ -894,6 +1010,76 @@ function applyHere(a, sq) {
       }
       return null;
     }
+    // ─── The run order on this output ───
+    case 'roNext':
+      log('info', 'sequence', 'Run order: Next pressed');
+      return playHead('Next in the run order was pressed');
+    case 'roSkip': {
+      const it = nextQueued();
+      if (!it) return 'Nothing is in the run order.';
+      queue.shift();
+      queueChanged();
+      log('info', 'sequence', `Run order: skipped ${itemName(it)}`);
+      return null;
+    }
+    case 'roAdd':
+      return enqueue(a.kind === 'scene' ? 'scene' : 'sequence', a.sequence || a.scene || a.id || a.name, a.at);
+    case 'roRemove': {
+      const i = queue.findIndex(it => it.key === a.key);
+      if (i < 0) return 'That item isn\'t in the run order any more.';
+      const [it] = queue.splice(i, 1);
+      queueChanged();
+      log('info', 'sequence', `Run order: took out ${itemName(it)}`);
+      return null;
+    }
+    case 'roMove': {
+      const from = queue.findIndex(it => it.key === a.key);
+      if (from < 0) return 'That item isn\'t in the run order any more.';
+      const to = a.to !== undefined ? Math.round(clamp(a.to, 0, queue.length - 1, from)) : from + (a.direction === 'up' ? -1 : a.direction === 'down' ? 1 : 0);
+      if (to < 0 || to >= queue.length || to === from) return null;
+      queue.splice(to, 0, queue.splice(from, 1)[0]);
+      queueChanged();
+      return null;
+    }
+    case 'roClear':
+      if (!queue.length) return null;
+      queue = [];
+      queueChanged();
+      log('info', 'sequence', 'Run order: cleared');
+      return null;
+    case 'roSave': {
+      // Tonight's order kept under a name (over one of that name), for another night.
+      if (!queue.length) return 'The run order is empty, so there\'s nothing to save.';
+      const name = String(a.name || '').trim().slice(0, 60);
+      if (!name) return 'Give the run order a name, such as "Thursday night".';
+      const items = queue.map(({ kind, id }) => ({ kind, id }));
+      const existing = orders.find(o => slug(o.name) === slug(name));
+      if (existing) existing.items = items;
+      else {
+        if (orders.length >= MAX_ORDERS) return `There are already ${MAX_ORDERS} saved run orders; delete one first.`;
+        orders.push({ id: newId(), name, items });
+      }
+      save();
+      log('info', 'sequence', `Run order: saved as "${name}" (${items.length} item${items.length === 1 ? '' : 's'})`);
+      return null;
+    }
+    case 'roLoad': {
+      const o = orders.find(x => x.id === String(a.order || '')) || orders.find(x => slug(x.name) === slug(a.order));
+      if (!o) return `No saved run order "${a.order || ''}".`;
+      // Loaded in place of what's queued (the Output page asks first when the queue isn't empty).
+      queue = cleanItems(o.items);
+      queueChanged();
+      log('info', 'sequence', `Run order: loaded "${o.name}" (${queue.length} item${queue.length === 1 ? '' : 's'})`);
+      return null;
+    }
+    case 'roDeleteOrder': {
+      const i = orders.findIndex(x => x.id === String(a.order || '') || slug(x.name) === slug(a.order));
+      if (i < 0) return `No saved run order "${a.order || ''}".`;
+      const [o] = orders.splice(i, 1);
+      save();
+      log('info', 'sequence', `Run order: deleted the saved order "${o.name}"`);
+      return null;
+    }
     default:
       return undefined;
   }
@@ -904,6 +1090,22 @@ function applyHere(a, sq) {
 // out: the output these act on (/deck/output/<output>/sequence/…), the primary by default.
 function deck(parts, out = PRIMARY) {
   const [what, name, verb] = parts;
+  // The run order: /deck/runorder/next (play the head), skip, clear, add/<sequence or scene name>, load/<saved order>.
+  if (what === 'runorder') {
+    if (!name) return null;
+    const simple = { next: 'roNext', skip: 'roSkip', clear: 'roClear' };
+    let action = null;
+    if (simple[name] && !verb) action = { type: simple[name], output: out };
+    else if (name === 'add' && verb) action = { type: 'roAdd', output: out, kind: find(verb) ? 'sequence' : 'scene', name: verb };
+    else if (name === 'load' && verb) action = { type: 'roLoad', output: out, order: verb };
+    if (!action) return null;
+    const error = apply(action);
+    if (error) return { error, status: /^No /.test(error) ? 404 : 409 };
+    return within(out, () => {
+      const head = nextQueued();
+      return { body: { ok: true, next: head ? itemName(head) : null, queued: queue.length, playing: playing()?.name || null } };
+    });
+  }
   if (what !== 'sequence' || !name) return null;
   if (name === 'auto') {
     if (!['on', 'off', 'toggle'].includes(verb || 'toggle')) return null;
@@ -984,13 +1186,14 @@ function state() {
   // The primary's at the top (playing, pending), as before there could be more than one output; the
   // others' by output id (playingOut, pendingOut), only while there's something to say.
   // stoppedOn: the sequence that last ended on each output (played out or cut short), until it plays again.
-  const playingOut = {}, pendingOut = {}, stoppedOn = {};
+  const playingOut = {}, pendingOut = {}, stoppedOn = {}, runOrderOut = {};
   each(() => {
     if (cut && (!run || run.id !== cut)) stoppedOn[here] = cut;
     if (here === PRIMARY) return;
     const p = playingHere(), w = pendingHere();
     if (p) playingOut[here] = p;
     if (w) pendingOut[here] = w;
+    if (queue.length) runOrderOut[here] = queueState();
   });
   return {
     // goneOn: outputs in its playsOn that have been removed (kept for the editor to show); startGone: all of them.
@@ -1004,6 +1207,11 @@ function state() {
     pending: within(PRIMARY, pendingHere),
     pendingOut,
     stoppedOn,
+    // The run order: the primary's items (each with its name now, and gone when its sequence or scene was deleted),
+    // the other outputs' by output id while they have one, and the saved orders.
+    runOrder: within(PRIMARY, queueState),
+    runOrderOut,
+    runOrders: orders.map(o => ({ id: o.id, name: o.name, count: o.items.length })),
     nextAuto: nextAuto(),
     game: game ? { label: game.label || '', startAt: game.startAt || null, breaks: game.breaks || null, last: game.last || 4 } : null,
   };
