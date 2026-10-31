@@ -48,7 +48,7 @@ test('finals pictures: Finals bound and the draw after the last round, the final
   // Before the last round, no finals pictures.
   assert.deepEqual((await studio.get(`/api/socials/night?date=${world.today}`)).finals, []);
   const last = await studio.get(`/api/socials/night?date=${lastDate}`);
-  assert.deepEqual(last.finals.find(f => f.division === 'Division 1'), { division: 'Division 1', finalsNight: false, lastRound: true, left: 0 });
+  assert.deepEqual(last.finals.find(f => f.division === 'Division 1'), { division: 'Division 1', finalsNight: false, lastRound: true, left: 0, champion: '' });
 
   const page = await browser.newPage({ viewport: { width: 1080, height: 1080 } });
   await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
@@ -74,7 +74,7 @@ test('finals pictures: Finals bound and the draw after the last round, the final
 
   // The semi finals night: the draw to post before it, and each game named.
   const semis = await studio.get(`/api/socials/night?date=${semisDate}`);
-  assert.deepEqual(semis.finals, [{ division: 'Division 1', finalsNight: true, lastRound: false, left: 2 }]);
+  assert.deepEqual(semis.finals, [{ division: 'Division 1', finalsNight: true, lastRound: false, left: 2, champion: '' }]);
   assert.deepEqual(semis.games.map(g => g.final), ['Major semi final', 'Minor semi final']);
   await draw('matchup', semisDate, `&game=${semis.games[0].id}`);
   assert.match(await page.textContent('#when'), /Division 1\s+·\s+Major semi final/);
@@ -86,4 +86,23 @@ test('finals pictures: Finals bound and the draw after the last round, the final
   assert.deepEqual(await texts('.game__team.won'), ['Blizzardz']);
   assert.ok((await texts('.final--gf .game__team')).includes('Blizzardz'), 'the winner goes through to the grand final');
   assert.ok((await texts('.game__team')).filter(x => x === 'Mavericks').length === 2, 'the loser gets another chance');
+
+  // The rest of the finals by hand: Knights win the minor semi, Mavericks the preliminary final, Blizzardz the grand final.
+  await page.goto(`${studio.base}/social.html?kind=champions&date=${semisDate}&division=Division%201`);
+  await page.waitForFunction(() => window.socialReady !== undefined);
+  assert.match(await page.evaluate(() => window.socialReady), /no champions yet/, 'none until the grand final has a winner');
+  for (const [game, winner, homeScore, awayScore] of [['mSF', 'Knights', 35, 30], ['PF', 'Mavericks', 38, 33], ['GF', 'Blizzardz', 42, 39]]) {
+    await studio.post('/api/finals/result', { division: '1', game, winner, homeScore, awayScore });
+  }
+  assert.equal((await studio.get(`/api/socials/night?date=${semisDate}`)).finals[0].champion, 'Blizzardz', 'the Socials tab lists Champions');
+  await draw('champions', semisDate, '&division=Division%201');
+  assert.equal(await page.textContent('#title'), 'Champions');
+  assert.equal(await page.textContent('.champ__name'), 'Blizzardz');
+  assert.match(await page.textContent('.champ__final .final__name'), /^Grand final/);
+  assert.deepEqual(await texts('.champ__final .score'), ['42', '39']);
+  // Premiers, as the competition setup says.
+  await studio.post(`/api/setup/${studio.competition.id || 'thunder-league'}`, { finalsWinners: 'premiers' });
+  await draw('champions', semisDate, '&division=Division%201');
+  assert.equal(await page.textContent('#title'), 'Premiers');
+  assert.match(await page.textContent('.champ__what'), /Division 1 premiers/);
 });

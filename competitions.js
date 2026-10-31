@@ -49,6 +49,7 @@ const DEFAULTS = {
   autoSelectGame: true,
   autoSelectMinutesBefore: 10,
   roundLookaheadDays: 5,
+  finalsWinners: 'champions',         // what the Socials tab's Champions picture calls the grand final winners: 'champions' or 'premiers'
   runningShooters: '',                 // what the Socials tab's running top shooters are called: 'tournament', 'season', or blank = Tournament when the fixture spans under 15 days, else Season
   colours: {
     main: '#7f4092',        // banners, headers, logo circles
@@ -222,6 +223,7 @@ function clean(input, base = DEFAULTS) {
   }
   if (!['names', 'metals', 'own'].includes(out.sponsorTierNames)) out.sponsorTierNames = 'names';
   if (!['tournament', 'season'].includes(out.runningShooters)) out.runningShooters = '';
+  if (!['champions', 'premiers'].includes(out.finalsWinners)) out.finalsWinners = 'champions';
   out.periodType = out.periodType === 'halves' ? 'halves' : 'quarters';
   out.quarterMinutes = Math.min(60, Math.max(1, out.quarterMinutes));
   for (const k of ['quarterBreakMinutes', 'halfTimeMinutes', 'threeQuarterBreakMinutes']) out[k] = Math.min(60, Math.max(0, out[k]));

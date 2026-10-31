@@ -955,7 +955,9 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   Elimination final) and the *Finals draw* (`finalsdraw`: its finals week by week, who will play who, "Winner minor semi final"
   for a team not known yet, and the scores and winners as they come in, from PlayHQ or entered by hand on Scoreboard control).
   On a night PlayHQ has as a finals round, the draw is under Upcoming and Results, and the match up, full time and results
-  name each final (Major semi final, Grand final) instead of the round.
+  name each final (Major semi final, Grand final) instead of the round. Once the grand final (or a best of three) has a
+  winner, Results adds *Champions* (`champions`: the winners' logo lit in their colour, their name, and the deciding game's
+  score), called *Premiers* instead when *The winners are called* says so under Finals in Competitions setup (`finalsWinners`).
 - **Polaroid:** drop a photo on it, drag the preview to frame it and set the zoom. With no photo its window is
   see-through, for the social team to put their own photo under it in another app. Photos stay on this Mac
   (`socials-photos/` in the local folder, the newest 40), never in a backup or iCloud.

@@ -163,6 +163,9 @@
         help: `The teams in ${f.division}'s finals, each with what their ladder place earned (a double chance, a week off).${left}` });
       list.push({ key: `finalsdraw:${f.division}`, kind: 'finalsdraw', division: f.division, name: `Finals draw ${f.division}`,
         help: `${f.division}'s finals week by week, with the winners filled in as the games finish.${f.lastRound ? left : ''}` });
+      // Once the grand final (or a best of three) has a winner: the champions.
+      if (f.champion) list.push({ key: `champions:${f.division}`, kind: 'champions', division: f.division, name: `${night.winners} ${f.division}`,
+        help: `${f.champion}, ${f.division} ${night.winners.toLowerCase()}, with the grand final's score. Call them Champions or Premiers under Finals on Competitions setup.` });
     }
     // Top shooters: a picture per division that has a finished game, each division's best from its games' line ups.
     const shot = [...new Set(done.map(g => g.division))];
