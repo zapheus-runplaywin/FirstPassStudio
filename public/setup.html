@@ -45,7 +45,7 @@
   .kitc button:hover { background: var(--fp-line); color: var(--fp-danger); }
   .lookgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
   /* Preview, drawn with the colours above */
-  .preview { border-radius: 8px; padding: 16px; background: repeating-conic-gradient(#d6d6d6 0 25%, #eeeeee 0 50%) 0 0 / 22px 22px;
+  .preview { border-radius: 8px; padding: 16px; background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 22px 22px;
     font-family: var(--font); color: var(--text); display: grid; gap: 14px; justify-items: center; }
   .pv-title { display: flex; flex-direction: column; align-items: center; text-transform: uppercase; filter: drop-shadow(0 3px 8px rgba(0,0,0,.4)); }
   .pv-title img { height: 54px; max-width: 220px; object-fit: contain; margin-bottom: 4px; }
@@ -77,19 +77,19 @@
   .drop.over { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
   .logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
   .logo { border: 1px solid var(--fp-line); border-radius: 8px; padding: 8px; text-align: center; position: relative;
-    background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; }
+    background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 16px 16px; }
   .logo img { width: 90px; height: 90px; object-fit: contain; display: block; margin: 0 auto 4px; }
   .logo div { font-size: 12px; word-break: break-word; background: rgba(255,255,255,.85); border-radius: 4px; }
   .logo button { position: absolute; top: 4px; right: 4px; padding: 0 7px; font-size: 14px; line-height: 20px; }
   .brandlogo { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-  .brandlogo img { height: 80px; max-width: 240px; object-fit: contain; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; border-radius: 6px; padding: 4px; }
+  .brandlogo img { height: 80px; max-width: 240px; object-fit: contain; background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 16px 16px; border-radius: 6px; padding: 4px; }
   .brandlogo--dark img { background: #0f172a; }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
   td, th { text-align: left; padding: 5px 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
   th { font-size: 12px; text-transform: uppercase; color: var(--fp-muted); letter-spacing: .05em; }
   td img, td .none { width: 40px; height: 40px; object-fit: contain; display: block; }
   .teamcolour { display: flex; gap: 6px; align-items: center; }
-  td .none { border-radius: 50%; background: #eee; color: #888; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  td .none { border-radius: 50%; background: var(--fp-line); color: var(--fp-muted); font-size: 11px; display: flex; align-items: center; justify-content: center; }
   td select { width: auto; max-width: 260px; }
   /* Save bar */
   .savebar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--fp-white); border-top: 1px solid var(--fp-line); box-shadow: 0 -4px 14px rgba(15,23,42,.08); padding: 12px 16px; }
@@ -104,9 +104,7 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Competitions setup</h1>
-  <p class="sub">Everything about a competition that doesn't come from PlayHQ: its PlayHQ link, names, game rules, colours, font and logos.
-    Each competition keeps its own setup. The one marked <b>In use</b> is what every graphic, Scoreboard control and the Stream Deck use.
-    <a href="/graphics.html">Back to the Docs</a></p>
+  <p class="sub">Everything about a competition that doesn't come from PlayHQ: its PlayHQ link, names, game rules, colours, font and logos; the one marked <b>In use</b> is what every page follows. <a href="/graphics.html#setup">More in the Docs</a></p>
 
   <p class="note error" id="readOnlyNote" hidden>These settings were saved by a newer version of FirstPass Studio, so they can't be changed here. Update Studio to change them.</p>
 
@@ -172,8 +170,7 @@
     <section>
       <h2>Game rules</h2>
       <div class="row">
-        <label class="inline"><input type="radio" name="periodType" value="quarters"> Quarters</label>
-        <label class="inline"><input type="radio" name="periodType" value="halves"> Halves</label>
+        <span class="fp-seg" role="radiogroup" aria-label="Periods" style="margin-top:10px"><label><input type="radio" name="periodType" value="quarters"> Quarters</label><label><input type="radio" name="periodType" value="halves"> Halves</label></span>
         <label class="inline">Minutes each <input type="number" id="quarterMinutes" data-key="quarterMinutes" min="1" max="60"></label>
       </div>
       <div class="row">

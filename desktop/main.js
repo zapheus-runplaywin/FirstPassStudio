@@ -13,7 +13,7 @@
 
 'use strict';
 
-const { app, Tray, Menu, shell, dialog, nativeImage, utilityProcess, clipboard, BrowserWindow } = require('electron');
+const { app, Tray, Menu, shell, dialog, nativeImage, nativeTheme, utilityProcess, clipboard, BrowserWindow } = require('electron');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -115,6 +115,13 @@ const APP_SETTINGS = path.join(LOCAL_DIR, 'app-settings.json');
 function appSettings() { try { return JSON.parse(fs.readFileSync(APP_SETTINGS, 'utf8')); } catch { return {}; } }
 function saveAppSetting(key, value) {
   try { savefile.writeJsonSync(APP_SETTINGS, { ...appSettings(), [key]: value }); } catch (err) { log(`Couldn't save ${key}: ${err.message}`); }
+}
+// Light, dark or the Mac's own (app-settings.json `appearance`): the menu bar icon's Appearance.
+const appearance = () => ['light', 'dark'].includes(appSettings().appearance) ? appSettings().appearance : 'system';
+function setAppearance(v) {
+  saveAppSetting('appearance', v);
+  nativeTheme.themeSource = v;
+  refreshMenu();
 }
 
 const windows = require('./windows')({
@@ -312,6 +319,10 @@ function refreshMenu() {
     { label: 'Restart Studio', enabled: running, click: restartHelper },
     { type: 'separator' },
     { label: 'Open at login', type: 'checkbox', checked: login, click: item => { app.setLoginItemSettings({ openAtLogin: item.checked }); refreshMenu(); } },
+    // The Studio pages follow the Mac's appearance (studio.css, prefers-color-scheme) unless pinned here; Electron's
+    // nativeTheme.themeSource is what the pages see, so a change applies to every open window at once. The graphics
+    // keep the competition's own colours whichever is picked.
+    { label: 'Appearance', submenu: ['system', 'light', 'dark'].map(v => ({ label: { system: 'Follow the Mac', light: 'Light', dark: 'Dark' }[v], type: 'radio', checked: appearance() === v, click: () => setAppearance(v) })) },
     // config.json remoteChanges (access.js): off (ticked), only this Mac can change scores, the scene, settings and media;
     // other devices can still open every page. Ticked again at every launch (start()); unticking lasts until Quit. The
     // helper reads config.json when it starts, so it restarts on a change.
@@ -759,6 +770,7 @@ async function start() {
   // Every launch starts with only this Mac able to change things; "Only this Mac can change things" is unticked by
   // hand to let other devices in, until Quit.
   if (machineConfig().remoteChanges !== false) setMachineConfig('remoteChanges', false);
+  nativeTheme.themeSource = appearance();
   refreshMenu();
   windows.refreshMenu();
   log(`Starting ${app.getVersion()}, settings in ${dataDir()}`);

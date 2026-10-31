@@ -361,16 +361,29 @@ function health() {
   }
   const out = outputs.state();
   const sc = scene.state();
+  // The sequence playing on the primary output and the triggered one counting down to start, with their names, for
+  // the tab bar's chips on every page (studiobar.js); the recorder's state the same way.
+  const nameOf = id => (sc.sequences || []).find(sq => sq.id === id)?.name || '';
+  const playing = sc.playing ? { name: nameOf(sc.playing.id), step: sc.playing.step + 1, steps: sc.playing.steps, paused: !!sc.playing.paused,
+    leftMs: sc.playing.leftMs, totalLeftMs: sc.playing.totalLeftMs, totalOpen: !!sc.playing.totalOpen } : null;
+  const armed = sc.pending ? { name: nameOf(sc.pending.id), reason: sc.pending.reason || '', leftMs: sc.pending.leftMs } : null;
+  const rec = recorder.state();
   return {
     version: pageVersion(), serverNow: now, competition: competitionName(), competitionSetup: CONFIG.name,
     game: b.gameId ? { id: b.gameId, label: `${b.home.name} v ${b.away.name}`, court: b.court || '', division: b.division || '', time: b.time || '' } : null,
     source: b.source, autoSelect: !!b.autoSelect,
     playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
       error: lastLive.error && lastLive.errorAt > lastLive.at ? lastLive.error : (b.playhqError || '') },
-    clock: { following: following && !!b.followPlayhqClock, running: !!b.clock.running, period: b.period, left: clockLeft(b) },
-    output: { on: !!out.on && out.mode !== 'off', mode: out.on && out.mode !== 'off' ? out.mode : '', showing: (out.showing || []).length },
+    clock: { following: following && !!b.followPlayhqClock, running: !!b.clock.running, period: b.period, periodLabel: rules(b.division).periodLabel, left: clockLeft(b) },
+    output: { on: !!out.on && out.mode !== 'off', mode: out.on && out.mode !== 'off' ? out.mode : '', showing: (out.showing || []).length,
+      // Every output that's sending (on, not off), by name and colour, for the on-air chip.
+      onAir: (out.outputs || []).filter(o => o.on && o.mode !== 'off').map(o => ({ name: o.name, colour: o.colour })) },
     sourcesOn: (sc.sources || []).filter(s => s.visible).length, sources: (sc.sources || []).length,
-    scene: sc.current || null, sequence: sc.playing ? (sc.playing.name || true) : null,
+    scene: sc.current || null, sequence: sc.playing ? (playing.name || true) : null,
+    playing, armed,
+    score: b.gameId ? { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0, homeName: b.home.name, awayName: b.away.name } : null,
+    autoNote: b.autoSelect ? (b.autoNote || '') : '',
+    recording: { on: !!rec.recording, name: rec.recording || '', record: !!rec.record },
   };
 }
 

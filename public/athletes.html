@@ -13,7 +13,7 @@
   .teams { display: flex; flex-wrap: wrap; gap: 6px; }
   .teams button { display: inline-flex; align-items: center; gap: 6px; background: var(--fp-white); color: var(--fp-navy); border-color: var(--fp-line-strong); }
   .teams button:hover { background: var(--fp-blue-soft); }
-  .teams button[aria-pressed=true] { background: var(--fp-blue); color: #fff; border-color: var(--fp-blue); }
+  .teams button[aria-pressed=true] { background: var(--fp-btn); color: #fff; border-color: var(--fp-blue); }
   .teams img { width: 24px; height: 24px; object-fit: contain; }
   .teams .live { font-size: 11px; background: var(--fp-gold); color: var(--fp-navy); border-radius: 6px; padding: 1px 6px; }
   /* Athletes */
@@ -43,10 +43,10 @@
   .recs input[type=number] { width: 80px; }
   .totals { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.6; }
   .dlgbuttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-  .ath__photo { height: 190px; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
+  .ath__photo { height: 190px; background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 16px 16px; display: flex; align-items: flex-end; justify-content: center; position: relative; }
   .ath__photo img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .ath__photo .none { align-self: center; width: 90px; height: 90px; border-radius: 50%; background: var(--fp-line); color: var(--fp-muted); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; }
-  .ath__pos { position: absolute; top: 6px; left: 6px; background: var(--fp-navy); color: var(--fp-gold); font-weight: 800; font-size: 13px; padding: 2px 8px; border-radius: 6px; }
+  .ath__pos { position: absolute; top: 6px; left: 6px; background: var(--fp-bar); color: var(--fp-gold); font-weight: 800; font-size: 13px; padding: 2px 8px; border-radius: 6px; }
   .ath__body { padding: 8px 10px 10px; display: grid; gap: 6px; flex: 1; }
   .ath__name { font-weight: 800; line-height: 1.2; }
   .ath__meta { font-size: 12px; color: var(--fp-muted); }
@@ -57,7 +57,7 @@
   .library { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .pic { border: 1px solid var(--fp-line); border-radius: 8px; padding: 8px; font-size: 12px; display: grid; gap: 6px; }
   .pic.unmatched { border-color: var(--fp-orange); }
-  .pic img { width: 100%; height: 110px; object-fit: contain; background: repeating-conic-gradient(#e4e4e4 0 25%, #f6f6f6 0 50%) 0 0 / 16px 16px; border-radius: 6px; }
+  .pic img { width: 100%; height: 110px; object-fit: contain; background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 16px 16px; border-radius: 6px; }
   .pic div { word-break: break-word; }
   .pic select { width: 100%; font-size: 12px; padding: 4px; }
   .tag { font-size: 11px; font-weight: 700; color: var(--fp-ok); }
@@ -71,19 +71,13 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Athletes</h1>
-  <p class="sub">Photos of each team's athletes, for the <b>position match ups</b> graphic. Pick a team to see every athlete PlayHQ has in its line ups this season,
-    then add a photo to each one. A photo is saved under the athlete's name in the competition's <b>photos</b> folder
-    (<code id="folder">competitions/…/photos</code>), so it matches that athlete in every game, team and division: an athlete who
-    plays in more than one division needs only one photo. Without a photo, graphics show a generic silhouette for the athlete's gender
-    (from PlayHQ, or picked under the athlete). Photos are made smaller before they're saved;
-    cut-out PNGs with a transparent background look best. A photo goes on the stream and the Socials pictures only once
-    <b>Approved for photo use</b> is ticked: tick it when the athlete (or their parent or guardian) has agreed to their
-    image being used. Until then graphics show the silhouette. <a href="/graphics.html">Back to the Docs</a></p>
+  <p class="sub">Photos of each team's athletes for the <b>position match ups</b> graphic, shown only once <b>Approved for photo use</b> is ticked. <a href="/graphics.html#athletes">More in the Docs</a></p>
 
   <section>
     <h2>Team</h2>
     <div class="teams" id="teams"><span class="help">Loading teams from PlayHQ…</span></div>
     <p class="help" id="teamsNote"></p>
+    <p class="help">A photo is saved under the athlete's name in the competition's <b>photos</b> folder (<code id="folder">competitions/…/photos</code>), so one photo covers every team and division they play in. Without one, graphics show a silhouette for the athlete's gender (from PlayHQ, or picked under the athlete). Tick <b>Approved for photo use</b> when the athlete, or their parent or guardian, has agreed to their image being used.</p>
   </section>
 
   <section id="teamBox" hidden>
@@ -314,7 +308,7 @@ function renderAthletes() {
     card.ondrop = e => { e.preventDefault(); e.stopPropagation(); card.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) setPhoto(a.name, f); };
     box.appendChild(card);
   }
-  if (!team.athletes.length) box.appendChild(el('p', 'help', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
+  if (!team.athletes.length) box.appendChild(el('p', 'fp-empty', 'No athletes yet. PlayHQ lists athletes once a line up has been entered for one of the team\'s games.'));
 }
 
 // Whether the athlete has approved their photo's use: without it graphics show the silhouette.

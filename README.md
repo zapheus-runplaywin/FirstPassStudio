@@ -147,10 +147,16 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
-icon). The Output page and the Stream Deck use the same links as the Docs page. A status line under its title (from
-`/api/health`) shows the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
+icon). The Output page and the Stream Deck use the same links as the Docs page. It has a Show view for the night (the
+picture with its output tabs, a status board, scenes and sequences as tiles) and a Prep view with every setting. The
+status board, and in Prep a status line under the title (both from `/api/health`), show the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
 answered (amber when a reading is overdue, red after a minute of errors, with the error), and whether the video output is
-on, so a problem Studio keeps off the stream still shows on the page that stays open all night.
+on, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
+every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR with the outputs sending (or Off
+air), the game on the board, PlayHQ and the clock, the sequence playing (step and time left) or armed to start, and REC
+while a game records. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
+and Set up (Recordings, Competitions setup, Sponsors, Athletes, Stream Deck), with Docs at the right; the ⌘ keys keep
+the order below.
 
 **Studio only runs while a Studio window is open.** Opening a Studio window (opening the app, **Open Studio** or any
 page in the menu bar icon, ⌘N) puts Studio on air: it serves the graphics and the Stream Deck links, talks to PlayHQ,
@@ -231,7 +237,7 @@ bookmarks, the Studio header is the title bar (the window buttons sit in it, and
 the app shows in the Dock and ⌘Tab while a window is open, then goes back to just the menu bar icon. A link that opens
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
-(⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
+(⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], page zoom in steps with the level shown, Zoom In ⌘+, Zoom Out ⌘−, Actual Size ⌘⌥0, pinch on the trackpad; a chip at the right of the bar shows the level while it isn't 100% and a click puts it back; full screen, developer tools), Go (⌘1 output,
 ⌘2 Production Planner, ⌘3 control, ⌘4 Recordings, ⌘5 Socials, ⌘6 setup, ⌘7 sponsors, ⌘8 athletes, ⌘9 Stream Deck, ⌘0 docs) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.

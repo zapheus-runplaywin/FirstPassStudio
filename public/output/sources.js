@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 3 of 13: The Sources list: every layer, on and off, order, and the Stream Deck links.
+// FirstPass Studio - the Output page, part 3 of 15: The Sources list: every layer, on and off, order, and the Stream Deck links.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -35,7 +35,7 @@ function renderList() {
   hideAllOn = target ? target.id : 'main';
   $('hideAll').textContent = target ? `Hide all on ${target.name}` : 'Hide all';
   $('hideAll').title = target ? `Every source off on ${target.name} only (${filtered ? 'the output the list shows' : 'the output picked over the Scene View'})` : 'Every source off';
-  if (!scene.sources.length) { ul.innerHTML = '<li class="empty">No sources yet. Add a page, an image or a video.</li>'; return; }
+  if (!scene.sources.length) { ul.innerHTML = '<li class="empty fp-empty">No sources yet: <b>Add page</b>, <b>Add image</b> or <b>Add video</b> below puts one at the top.</li>'; return; }
   for (const s of scene.sources) {
     const li = document.createElement('li');
     li.className = s.id === selected ? 'sel' : '';

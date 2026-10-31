@@ -22,13 +22,15 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   full-screen displays (`desktop/outputs.js`), NDI (`desktop/ndi.js`), Blackmagic (`desktop/decklink.js`, with its sound in the SDI heard from its window by `desktop/soundtap.js`), both fed
   by an off-screen render of the scene (`desktop/scenewindow.js`; at 2160p it's 1920 x 1080 points at twice the density). `desktop/perf.js` measures each output's CPU, memory and frame
   rate every 5 s while one is showing; `outputs.js` shows it on the Output page and logs it once a minute. `desktop/windows.js` makes the app's own windows
-  and menus from the tab list in `public/studiobar.js`; `desktop/updates.js` and `desktop/whatsnew.js` handle updates.
+  and menus from the tab list in `public/studiobar.js` (and the page zoom: one level for every Studio window, kept as `pageZoom`, shown in the View menu, told to each page as a `studio-zoom` event for the bar's chip, which asks for 100% with `#zoom=100`); `desktop/updates.js` and `desktop/whatsnew.js` handle updates.
 - **The helper** is plain Node, no framework: `server.js` routes every request by hand and the modules beside it each
   own one subject. Everything it saves goes in the data folder (`datadir.js`), never inside the app.
 - **The pages** are static HTML in `public/`. The Studio pages (Output, Production Planner, Scoreboard control, Recordings, Socials,
-  Competitions setup, Sponsors, Athletes, Stream Deck, Docs; the order of the tab bar) share `studio.css` and `studiobar.js`: the page kit in `studio.css`
-  (section, headings, buttons, help text, dialogs, scoped with `:where(body.fp)` so a page's own classes win) is what each is built from,
-  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). The graphics only talk to the helper
+  Competitions setup, Sponsors, Athletes, Stream Deck, Docs; the keyboard order, ⌘1 to ⌘0; the bar shows them grouped Run, Plan, Set up, Docs apart,
+  with status chips from `/api/health`) share `studio.css` and `studiobar.js`: the page kit in `studio.css`
+  (section, headings, buttons, segmented controls `.fp-seg`, switches `.fp-switch`, help text, dialogs, scoped with `:where(body.fp)` so a page's own classes win) is what each is built from, its `--fp-*` tokens carry the
+  brand kit's light and dark values (`prefers-color-scheme`; the app pins the theme with `nativeTheme.themeSource` from the menu bar icon's Appearance),
+  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). Each page has one line under its title and a **More in the Docs** link to its card on the Docs page (`graphics.html#output`, `#control`, `#planner`, `#socials`, `#recordings`, `#setup`, `#sponsors`, `#athletes`, `#streamdeck`), where the longer explanations live. The graphics only talk to the helper
   on this computer and keep the competition's own look.
 
 Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-deck`, TypeScript, talks to the helper's
@@ -70,7 +72,7 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 Shared browser code in `public/`: `studio.js` (on every Studio page after `studiobar.js`: the red banner under the bar when Studio refuses a
 change from this device, with Pair this device, by wrapping `fetch`; and `studioStatus()`, the one "Saved" / "Couldn't save" line), `asktext.js` (every question a Studio page asks, in one dialog: askConfirm, askChoice, askText,
 tell; never the browser's confirm, alert or prompt, which does nothing in the Mac app) and `unsaved.js` (unsaved changes: `unsavedDialog` for an editor in a dialog, `unsavedPage` for a page that edits in place such as Competitions setup; one question, Keep editing, Don't save or Save, before Escape, a tab, the Go menu, closing or reloading),
-`sceneevents.js` (follow the scene over the WebSocket), `pageoptions.js` (the options
+`output/*.js` (the Output page's script, split by section and loaded in order into one scope; `mode.js` is its Show and Prep views, a body class the page's styles key off, remembered in localStorage, and `board.js` the Show view's status board drawn from the same `/api/health` answer as the bar's chips), `sceneevents.js` (follow the scene over the WebSocket), `pageoptions.js` (the options
 each graphic takes in its link), `pages.js` (the registry of graphics, review decision D7), `fit.js` (keep a card in
 the zone between title and scoreboard), `done.js` (a one-shot animation switches its source off), `sfx.js` and
 `pagesound.js` (animation sound), `sponsorspot.js` (presented-by spots), `chroma.js`, `zoom.js` (a graphic in a

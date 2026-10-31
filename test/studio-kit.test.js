@@ -54,3 +54,33 @@ test('help text on the Output page, Production Planner, Socials and Recordings f
   }
 });
 
+
+// Dark theme (UI level-up, 31 Oct 2026): studio.css carries the brand kit's dark values under prefers-color-scheme, and a page's
+// own <style> tints things with the kit's tokens (--fp-warn-bg, --fp-danger-bg, --fp-check-a/b, color-mix on --fp-white), never
+// a light-only hex that would glare in the dark.
+test('the kit has a dark theme and no Studio page carries a light-only tint of its own', () => {
+  const css = fs.readFileSync(path.join(PUBLIC, 'studio.css'), 'utf8');
+  assert.match(css, /@media \(prefers-color-scheme: dark\) \{\s*:root \{[^}]*--fp-white: #1E293B;[^}]*--fp-muted: #CBD5E1;/, 'dark tokens from the brand kit');
+  for (const tok of ['--fp-bar', '--fp-btn', '--fp-warn-bg', '--fp-warn-ink', '--fp-danger-bg', '--fp-check-a', '--fp-check-b']) assert.ok(css.includes(`${tok}:`), `studio.css defines ${tok}`);
+  const lightOnly = /#(FFF4E5|FFF4EC|8A3B00|B23F00|FEF3F2|FECDCA|F8FAFC|f6f6f6|e4e4e4|eeeeee|FCE7F3|FFF7F1|F4F7FD)\b/;
+  for (const name of PAGES) {
+    const style = (fs.readFileSync(path.join(PUBLIC, `${name}.html`), 'utf8').match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+    assert.doesNotMatch(style, lightOnly, `${name}.html tints with the kit's tokens`);
+    assert.doesNotMatch(style, /background: var\(--fp-navy\)/, `${name}.html uses --fp-bar, not the ink, as a dark background`);
+  }
+});
+
+// Callouts and empty states (UI level-up): information is a blue .fp-callout, something to check an amber .fp-callout.warn,
+// and an empty list a .fp-empty box; orange is kept for what is on air, so no page paints a banner, flag or badge orange.
+test('the kit has callouts and empty states, and no page paints a banner orange', () => {
+  const css = fs.readFileSync(path.join(PUBLIC, 'studio.css'), 'utf8');
+  for (const sel of ['.fp-callout', '.fp-callout.warn', '.fp-callout.danger', '.fp-empty', '.fp-seg', '.fp-switch']) assert.ok(css.includes(`:where(body.fp) ${sel} {`), `studio.css has ${sel}`);
+  for (const name of PAGES) {
+    const html = fs.readFileSync(path.join(PUBLIC, `${name}.html`), 'utf8');
+    const style = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+    for (const line of style.split('\n')) {
+      if (/^\s*\.(alert|callout|flag|night__badge\.warn|guide \.warn)\b/.test(line)) assert.doesNotMatch(line, /var\(--fp-orange\)/, `${name}.html paints a banner orange: ${line.trim()}`);
+    }
+    assert.doesNotMatch(html, /class="(alert|callout warn)"/, `${name}.html uses the kit's callouts`);
+  }
+});

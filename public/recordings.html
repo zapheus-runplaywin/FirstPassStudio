@@ -15,12 +15,11 @@
   .night .acts { margin-left: auto; display: flex; gap: 8px; }
   .night ul { margin: 6px 0 0; padding-left: 20px; line-height: 1.6; }
   .live { color: #fff; background: var(--fp-danger); border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
-  .empty { color: var(--fp-muted); margin: 0; }
   .night li button { margin-left: 8px; }
   #practice { border-color: var(--fp-danger); }
   #practice h2 { color: var(--fp-danger); }
   #practice .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
-  #practice .row .on { background: var(--fp-blue); color: #fff; }
+  #practice .row .on { background: var(--fp-btn); color: #fff; }
   #replay { border-color: var(--fp-danger); }
   #replay h2 { color: var(--fp-danger); }
   #replay .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
@@ -41,8 +40,7 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Recordings</h1>
-  <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what PlayHQ said and what went to air, timed, a megabyte or so a game.
-    No video or sound: the graphics only. A recording plays back later as a practice game, and replays a game's graphics at 4K.</p>
+  <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what went to air (the graphics, not video or sound), to play back as a practice game or replay at 4K. <a href="/graphics.html#recordings">More in the Docs</a></p>
 
   <section id="practice" hidden>
     <h2>Practice game</h2>
@@ -105,7 +103,7 @@
 
   <section>
     <h2>Recording</h2>
-    <label><input type="checkbox" id="record"> Record each PlayHQ game on air</label>
+    <label class="fp-switch"><input type="checkbox" id="record"> Record each PlayHQ game on air</label>
     <p class="help"><label>Keep recording for <input type="number" id="after" min="0" max="60" step="1" value="10" style="width:4.5em;font:inherit"> minutes
       after full time</label> (0 to 60).</p>
     <p class="help" id="recordNote"></p>
@@ -146,7 +144,7 @@ function show(s) {
         <span class="acts"><a class="btn alt small" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
           <button class="danger small" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once it stops, after the game"' : ''}>Remove</button></span></div>
       ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button class="alt small" data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button class="alt small" data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button><button class="alt small" data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
-    </div>`).join('') : '<p class="empty">No recordings yet. The next PlayHQ game on air is recorded.</p>';
+    </div>`).join('') : '<p class="fp-empty">No recordings yet. The next PlayHQ game on air is recorded.</p>';
 }
 
 // The last thing that went wrong (studioStatus shows it); '' once something works.

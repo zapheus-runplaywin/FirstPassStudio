@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 9 of 13: Source settings: the selected source's name, address and page options, placing and fades.
+// FirstPass Studio - the Output page, part 9 of 15: Source settings: the selected source's name, address and page options, placing and fades.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -209,7 +209,7 @@ async function checkThemeLength(params = lengthParams) {
   const speed = parseFloat(params.get('speed')) > 0 ? parseFloat(params.get('speed')) : 0;
   const style = (params.get('style') || 'orbit').toLowerCase(), STYLES = ['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'];
   const s1 = x => x.toFixed(1) + ' s';
-  const say = (warn, text) => { note.textContent = (warn ? '⚠️ ' : '') + text; note.style.color = warn ? '#b45309' : ''; note.style.fontWeight = warn ? '700' : ''; };
+  const say = (warn, text) => { note.textContent = (warn ? '⚠️ ' : '') + text; note.style.color = warn ? 'var(--fp-warn-ink)' : ''; note.style.fontWeight = warn ? '700' : ''; };
   const runs = st => introLength(st, n.n, hold, outOn) / (speed || 1);
   if (!STYLES.includes(style)) {
     const lens = STYLES.map(runs), lo = Math.min(...lens), hi = Math.max(...lens);

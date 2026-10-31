@@ -24,24 +24,86 @@
   --fp-ok: #127A3E;
   --fp-font: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   --fp-radius: 12px;
+  /* The brand navy for the bar, tags and toasts, the same in both themes (--fp-navy is the ink, which turns light in dark). */
+  --fp-bar: #0F172A;
+  --fp-btn: #2274A5;         /* the filled button, white text on it in both themes */
+  --fp-btn-hover: #1B5E86;
+  --fp-warn-bg: #FFF4E5;     /* a line that warns: amber tint and dark amber text */
+  --fp-warn-ink: #8A3B00;
+  --fp-danger-bg: #FEF3F2;   /* a line that failed: red tint */
+  --fp-danger-line: #FECDCA;
+  --fp-check-a: #E2E8F0;     /* the checkerboard behind see-through pictures */
+  --fp-check-b: #F8FAFC;
+  color-scheme: light;
+}
+/* Dark theme: the brand kit's dark surfaces (navy page, #1E293B panels, #CBD5E1 muted text), following the Mac
+   (System Settings > Appearance; the app's menu bar icon has Appearance to pin Light or Dark). Every Studio page
+   is built from these tokens, so the graphics, which keep the competition's own colours, are untouched. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fp-blue: #6DB3E3;        /* links and headings: lighter so it reads on navy */
+    --fp-blue-dark: #93C9EF;
+    --fp-blue-soft: #1E3A5F;
+    --fp-navy: #F1F5F9;        /* the ink */
+    --fp-gray: #0B1220;        /* page background */
+    --fp-white: #1E293B;       /* panels */
+    --fp-muted: #CBD5E1;
+    --fp-line: #334155;
+    --fp-line-strong: #475569;
+    --fp-danger: #F87171;
+    --fp-ok: #4ADE80;
+    --fp-btn: #2274A5;
+    --fp-btn-hover: #2B86BE;
+    --fp-warn-bg: #3B2A14;
+    --fp-warn-ink: #FBBF77;
+    --fp-danger-bg: #3B1A1A;
+    --fp-danger-line: #7F2B2B;
+    --fp-check-a: #334155;
+    --fp-check-b: #1E293B;
+    color-scheme: dark;
+  }
 }
 
-/* Header bar with the FirstPass Studio wordmark (dark version: white FirstPass, gold STUDIO).
-   It stays pinned at the top while the page scrolls, so the tabs are always in reach, and sits
-   above everything on the page (previews, pickers) that scrolls underneath it. */
+/* Header bar: the 1P mark and the FirstPass STUDIO wordmark (public/studio/, the versions for navy), the tabs in
+   their groups (Run, Plan, Set up; Docs apart at the right) and the status chips, all drawn by studiobar.js.
+   It stays pinned at the top while the page scrolls, so the tabs and the chips are always in reach, and sits
+   above everything on the page (previews, pickers) that scrolls underneath it. On a narrower window the chips
+   wrap onto their own row under the tabs. */
 .fp-bar {
   position: sticky; top: 0; z-index: 100;
-  background: var(--fp-navy); color: var(--fp-white); font-family: var(--fp-font);
-  display: flex; align-items: center; gap: 12px 28px; flex-wrap: wrap; padding: 14px 24px;
-  border-bottom: 4px solid var(--fp-orange);
+  background: var(--fp-bar); color: #fff; font-family: var(--fp-font);
+  display: flex; align-items: center; gap: 5px 16px; flex-wrap: wrap; padding: 7px 20px 7px 16px;
+  border-bottom: 3px solid var(--fp-orange);
 }
-.fp-logo { font-weight: 800; font-style: italic; font-size: 26px; line-height: 1; text-decoration: none; white-space: nowrap; padding: 4px 0; }
-.fp-logo__name { color: var(--fp-white); letter-spacing: -0.02em; }
-.fp-logo__product { color: var(--fp-gold); }
-.fp-bar nav { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-left: auto; }
-.fp-bar nav a { color: #CBD5E1; text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 10px; border-radius: 8px; }
-.fp-bar nav a:hover { color: var(--fp-white); background: rgba(255,255,255,.08); }
-.fp-bar nav a[aria-current="page"] { color: var(--fp-navy); background: var(--fp-gold); }
+.fp-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex: none; }
+.fp-mark { width: 40px; height: 36px; overflow: hidden; position: relative; flex: none; border-radius: 6px; }
+.fp-mark img { position: absolute; width: 60px; left: -9px; top: -3px; max-width: none; }
+.fp-word { height: 20px; display: block; }
+.fp-bar nav { display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
+.fp-bar .fp-grp { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748B; padding: 0 6px 0 14px; }
+.fp-bar .fp-grp:first-child { padding-left: 0; }
+.fp-bar nav a { color: #CBD5E1; text-decoration: none; font-weight: 600; font-size: 13px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
+.fp-bar nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
+.fp-bar nav a[aria-current="page"] { color: var(--fp-bar); background: var(--fp-gold); }
+.fp-bar .fp-docs { margin-left: auto; order: 2; }
+/* The status chips (studiobar.js): on air (orange), the game, PlayHQ and the clock, the sequence playing or armed, REC. */
+.fp-chips { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; font-weight: 600; color: #CBD5E1; order: 3; }
+.fp-chips .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); white-space: nowrap; color: inherit; text-decoration: none; line-height: 1.3; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.fp-chips .chip:hover { background: rgba(255,255,255,.14); color: #fff; }
+.fp-chips .chip.air { background: var(--fp-orange); color: var(--fp-bar); border-color: transparent; font-weight: 800; letter-spacing: .02em; }
+.fp-chips .chip.air:hover { background: #ff7a2e; color: var(--fp-bar); }
+.fp-bar .chip.zoom { order: 4; margin-left: 6px; display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--fp-gold); color: var(--fp-bar); border: 1px solid transparent; font-size: 12px; font-weight: 800; text-decoration: none; line-height: 1.3; }
+.fp-bar .chip.zoom:hover { background: #f7d13a; color: var(--fp-bar); }
+.fp-bar .chip.zoom[hidden] { display: none; }
+.fp-chips .chip.rec { background: rgba(198,40,40,.35); border-color: rgba(255,120,120,.4); color: #fff; font-weight: 800; letter-spacing: .08em; }
+.fp-chips .dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; flex: none; }
+.fp-chips .dot.off { background: #64748B; }
+.fp-chips .dot.warn { background: var(--fp-gold); }
+.fp-chips .dot.bad { background: #EF4444; }
+.fp-chips .dot.gold { background: var(--fp-gold); }
+.fp-chips .dot.rec { background: #EF4444; animation: fp-blink 1.2s steps(2, start) infinite; }
+@keyframes fp-blink { to { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .fp-chips .dot.rec { animation: none; } }
 /* Links to a spot on the page (#anchors, the Stream Deck reference) land below the pinned header. */
 html:has(> body.fp > .fp-bar) { scroll-padding-top: 96px; }
 /* The strip under the bar while a practice game or a 4K replay runs (studiobar.js). */
@@ -49,14 +111,15 @@ html:has(> body.fp > .fp-bar) { scroll-padding-top: 96px; }
 .fp-practice[hidden] { display: none; }
 .fp-practice a, .fp-practice button { font: inherit; font-size: 13px; padding: 2px 10px; border-radius: 6px; border: 1px solid #fff; background: transparent; color: #fff; cursor: pointer; text-decoration: none; }
 .fp-practice a:hover, .fp-practice button:hover { background: rgba(255,255,255,.15); }
-@media (max-width: 600px) { .fp-bar { padding: 12px 16px; } .fp-bar nav { margin-left: 0; } .fp-logo { font-size: 22px; } }
+@media (max-width: 600px) { .fp-bar { padding: 8px 12px; } .fp-chips { margin-left: 0; } .fp-word { display: none; } }
 
 /* Shared page basics. */
 body.fp { font-family: var(--fp-font); background: var(--fp-gray); color: var(--fp-navy); margin: 0; line-height: 1.45; }
 body.fp h1 { font-weight: 900; font-style: italic; letter-spacing: -0.02em; color: var(--fp-navy); }
 :where(body.fp main a) { color: var(--fp-blue); }
 :where(body.fp main a:hover) { color: var(--fp-blue-dark); }
-body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2px; }
+/* One focus ring everywhere: blue (orange is kept for what's on air). */
+body.fp :focus-visible { outline: 2px solid var(--fp-blue); outline-offset: 2px; }
 
 /* The page kit: what every Studio page (Output, Production Planner, Scoreboard control, Recordings, Socials,
    Competitions setup, Sponsors, Athletes, Stream Deck, Devices) is built from, so a button, a section or a line of
@@ -67,11 +130,19 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
    Buttons: the plain button is the action (filled blue); .alt is the quieter choice (white, blue text); .danger
    removes or stops something (white, red text); .small fits a table row. A link that acts like a button says
    class="btn" (and .alt, .small). Help text: .help is a line under a control, .note a longer note, .error says why
-   something failed (and takes no room while empty). Long explanations wait behind <details class="info">. */
+   something failed (and takes no room while empty). Long explanations wait behind <details class="info">.
+   Callouts: .fp-callout is a blue line of information (this needs the app, this was turned on too); .warn is amber for
+   something to check and .danger red for something that failed. Orange is kept for what is on air. An empty list says
+   what goes there in a .fp-empty box. */
 :where(body.fp) *, :where(body.fp) *::before, :where(body.fp) *::after { box-sizing: border-box; }
 :where(body.fp) main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
 :where(body.fp) main.wide { max-width: 1280px; }
 :where(body.fp) main.narrow { max-width: 800px; }  /* the Docs page: reading width */
+/* 150 ms transitions on what the hand reaches for: buttons, the bar's tabs and chips, folding arrows, the toast. */
+:where(body.fp) button, :where(body.fp) .btn, .fp-bar nav a, .fp-chips .chip, :where(body.fp) section .fold, :where(body.fp) .fp-seg > * { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s; }
+:where(body.fp) section.folded .fold { transform: rotate(-90deg); }
+.fp-status { transition: opacity .15s, transform .15s; }
+@media (prefers-reduced-motion: reduce) { :where(body.fp) button, :where(body.fp) .btn, .fp-bar nav a, .fp-chips .chip, :where(body.fp) section .fold, :where(body.fp) .fp-seg > *, .fp-status { transition: none; } }
 :where(body.fp) h1 { margin: 0 0 4px; font-size: 32px; }
 :where(body.fp) .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
 :where(body.fp) .sub b { color: var(--fp-navy); }
@@ -84,27 +155,64 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
   font: inherit; padding: 7px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); min-width: 0; max-width: 100%; }
 :where(body.fp) input[type=checkbox], :where(body.fp) input[type=radio] { accent-color: var(--fp-blue); width: 16px; height: 16px; vertical-align: -2px; }
 :where(body.fp) input[type=range] { accent-color: var(--fp-blue); }
-:where(body.fp) button, :where(body.fp) .btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-blue);
-  background: var(--fp-blue); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; }
-:where(body.fp) button:hover, :where(body.fp) .btn:hover { background: var(--fp-blue-dark); border-color: var(--fp-blue-dark); color: #fff; }
+:where(body.fp) button, :where(body.fp) .btn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--fp-btn);
+  background: var(--fp-btn); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; }
+:where(body.fp) button:hover, :where(body.fp) .btn:hover { background: var(--fp-btn-hover); border-color: var(--fp-btn-hover); color: #fff; }
 :where(body.fp) button.alt, :where(body.fp) .btn.alt { background: var(--fp-white); color: var(--fp-blue); border-color: var(--fp-blue); }
 :where(body.fp) button.alt:hover, :where(body.fp) .btn.alt:hover { background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
 :where(body.fp) button.danger, :where(body.fp) button.danger:hover { background: var(--fp-white); color: var(--fp-danger); border-color: var(--fp-danger); }
-:where(body.fp) button.danger:hover { background: #FEF3F2; }
+:where(body.fp) button.danger:hover { background: var(--fp-danger-bg); }
 :where(body.fp) button.small, :where(body.fp) .btn.small { font-size: 12px; padding: 3px 9px; }
 :where(body.fp) button:disabled { opacity: .5; cursor: default; }
+/* A number box is as wide as its number (a page says style="width:…" for a wider one), digits lined up. */
+:where(body.fp) input[type=number] { width: 6em; font-variant-numeric: tabular-nums; }
+/* Segmented control: one choice from a few, side by side (<span class="fp-seg">): buttons that say aria-pressed, or labels
+   each wrapping a radio. The picked one is filled blue; the rest are quiet. The Output page's HD/4K, Scoreboard control's
+   Follow PlayHQ/Manual, Socials' Upcoming/Results and Competitions setup's Quarters/Halves are all this. */
+:where(body.fp) .fp-seg { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; background: var(--fp-white); vertical-align: middle; }
+:where(body.fp) .fp-seg > button, :where(body.fp) .fp-seg > label { font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; margin: 0; border: 0; border-radius: 0;
+  background: transparent; color: var(--fp-muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+:where(body.fp) .fp-seg > * + * { border-left: 1px solid var(--fp-line); }
+:where(body.fp) .fp-seg > button:hover, :where(body.fp) .fp-seg > label:hover { background: var(--fp-gray); color: var(--fp-navy); }
+:where(body.fp) .fp-seg > label > input[type=radio] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none; }
+:where(body.fp) .fp-seg > button[aria-pressed="true"], :where(body.fp) .fp-seg > button.on, :where(body.fp) .fp-seg > label:has(input:checked),
+:where(body.fp) .fp-seg > button[aria-pressed="true"]:hover, :where(body.fp) .fp-seg > button.on:hover, :where(body.fp) .fp-seg > label:has(input:checked):hover { background: var(--fp-btn); color: #fff; }
+:where(body.fp) .fp-seg > label:has(input:focus-visible) { outline: 2px solid var(--fp-blue); outline-offset: -2px; }
+:where(body.fp) .fp-seg > button:disabled { opacity: .5; cursor: default; }
+/* Switch: a setting that is on or off (<label class="fp-switch"><input type="checkbox"> Record…</label>), drawn as a slider
+   instead of a tick box, for the few settings that change the whole night: Record, Automatic sequences, Follow the clock,
+   Pick the game automatically, Live View, Keys follow the camera. The checkbox and its id stay, so links and tests do too. */
+:where(body.fp) .fp-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+:where(body.fp) .fp-switch > input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 38px; height: 22px; margin: 0; border-radius: 11px; border: 0; flex: none;
+  background: var(--fp-line-strong); position: relative; cursor: pointer; transition: background .15s; vertical-align: middle; }
+:where(body.fp) .fp-switch > input[type=checkbox]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
+:where(body.fp) .fp-switch > input[type=checkbox]:checked { background: var(--fp-btn); }
+:where(body.fp) .fp-switch > input[type=checkbox]:checked::after { transform: translateX(16px); }
+:where(body.fp) .fp-switch > input[type=checkbox]:disabled { opacity: .5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { :where(body.fp) .fp-switch > input[type=checkbox], :where(body.fp) .fp-switch > input[type=checkbox]::after { transition: none; } }
 :where(body.fp) .help { font-size: 13px; color: var(--fp-muted); margin: 6px 0 0; line-height: 1.5; }
 :where(body.fp) .note { font-size: 14px; color: var(--fp-muted); margin: 8px 0 0; }
 :where(body.fp) .note b { color: var(--fp-navy); }
 :where(body.fp) .error { color: var(--fp-danger); }
 :where(body.fp) .error:empty { display: none; }
+:where(body.fp) .fp-callout { font-size: 14px; margin: 0 0 12px; padding: 8px 12px 8px 14px; border-radius: 8px; border-left: 3px solid var(--fp-blue); background: var(--fp-blue-soft); color: var(--fp-navy); line-height: 1.5; }
+:where(body.fp) .fp-callout.warn { border-left-color: var(--fp-warn-ink); background: var(--fp-warn-bg); color: var(--fp-warn-ink); font-weight: 600; }
+:where(body.fp) .fp-callout.danger { border-left-color: var(--fp-danger); background: var(--fp-danger-bg); color: var(--fp-danger); font-weight: 600; }
+:where(body.fp) .fp-callout a { color: inherit; }
+:where(body.fp) .fp-callout[hidden] { display: none; }
+:where(body.fp) .fp-callout p:first-child { margin-top: 0; } :where(body.fp) .fp-callout p:last-child, :where(body.fp) .fp-callout ul:last-child { margin-bottom: 0; }
+/* An empty list says what goes there and how, in a quiet dashed box, instead of a bare line of text or nothing. */
+:where(body.fp) .fp-empty { display: block; border: 1px dashed var(--fp-line-strong); border-radius: 10px; padding: 16px 18px; margin: 4px 0 0; text-align: center; color: var(--fp-muted); font-size: 14px; line-height: 1.5; list-style: none; }
+:where(body.fp) .fp-empty b { color: var(--fp-navy); }
+:where(body.fp) .fp-empty[hidden] { display: none; }
 :where(body.fp) code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--fp-gray); border: 1px solid var(--fp-line); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
 :where(body.fp) details.info { margin-top: 8px; }
 :where(body.fp) details.info > summary { cursor: pointer; width: max-content; max-width: 100%; font-size: 13px; font-weight: 600; color: var(--fp-blue); }
 :where(body.fp) details.info > summary:hover { color: var(--fp-blue-dark); }
 :where(body.fp) details.info > .note { margin-top: 4px; }
 :where(body.fp) dialog { border: 1px solid var(--fp-line-strong); border-radius: var(--fp-radius); padding: 20px 22px; max-width: 820px; width: calc(100% - 32px);
-  color: var(--fp-navy); font-family: var(--fp-font); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
+  color: var(--fp-navy); background: var(--fp-white); font-family: var(--fp-font); box-shadow: 0 20px 60px rgba(15, 23, 42, .35); }
 :where(body.fp) dialog::backdrop { background: rgba(15, 23, 42, .45); }
 :where(body.fp) dialog h2 { color: var(--fp-navy); font-size: 20px; text-transform: none; letter-spacing: 0; }
 :where(body.fp) .hidden { display: none !important; }
@@ -114,7 +222,7 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
 .fp-refused a { color: #fff; }
 .fp-refused button { font: inherit; font-size: 13px; padding: 2px 10px; border-radius: 6px; border: 1px solid #fff; background: transparent; color: #fff; cursor: pointer; margin-left: auto; }
 .fp-status { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 90; max-width: min(720px, calc(100% - 32px));
-  background: var(--fp-navy); color: #fff; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .3); }
+  background: var(--fp-bar); color: #fff; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .3); }
 .fp-status.error { background: var(--fp-danger); }
 
 /* Colour picker (colourpicker.js): a swatch and a HEX/RGB box, and the picker it opens */
@@ -124,7 +232,7 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
 .cp-swatch:hover { border-color: var(--fp-blue); }
 .cp-swatch:focus-visible, .cp-sv:focus-visible, .cp-chip:focus-visible { outline: 3px solid var(--fp-blue); outline-offset: 2px; }
 .cp-text { font-family: ui-monospace, Menlo, Consolas, monospace !important; width: 84px !important; padding: 5px 6px !important; }
-.cp-text.bad, .cp-hex.bad { border-color: var(--fp-danger) !important; background: #FEF3F2 !important; }
+.cp-text.bad, .cp-hex.bad { border-color: var(--fp-danger) !important; background: var(--fp-danger-bg) !important; }
 .cp-panel { position: absolute; z-index: 50; width: 268px; background: var(--fp-white); color: var(--fp-navy); font-family: var(--fp-font);
   border: 1px solid var(--fp-line-strong); border-radius: var(--fp-radius); box-shadow: 0 12px 32px rgba(15,23,42,.22); padding: 12px; display: grid; gap: 10px; }
 .cp-sv { position: relative; height: 150px; border-radius: 8px; cursor: crosshair; touch-action: none;
@@ -147,11 +255,11 @@ body.fp :focus-visible { outline: 3px solid var(--fp-orange); outline-offset: 2p
 
 /* askText() and askChoice() dialogs (asktext.js) */
 .fp-ask { border: 1px solid var(--fp-line-strong); border-radius: var(--fp-radius); padding: 20px 22px; width: min(460px, calc(100% - 32px));
-  color: var(--fp-navy); font-family: var(--fp-font); }
+  color: var(--fp-navy); background: var(--fp-white); font-family: var(--fp-font); }
 .fp-ask::backdrop { background: rgba(15,23,42,.45); }
 .fp-ask label { display: block; font-weight: 700; }
 .fp-ask input { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; font: inherit; font-weight: 400; padding: 7px 9px;
-  border: 1px solid var(--fp-line-strong); border-radius: 6px; }
+  border: 1px solid var(--fp-line-strong); border-radius: 6px; color: var(--fp-navy); background: var(--fp-white); }
 .fp-ask__buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .fp-ask__question { margin: 0; font-weight: 700; }
 .fp-ask__detail { margin: 8px 0 0; color: var(--fp-muted); white-space: pre-line; }

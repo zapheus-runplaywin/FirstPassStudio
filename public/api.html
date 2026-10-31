@@ -32,8 +32,6 @@
   .guide { padding-bottom: 0; }
   .guide h3 { font-size: 16px; margin: 16px 0 6px; }
   .guide p, .guide li { font-size: 15px; }
-  .guide .warn { border: 2px solid var(--fp-orange); background: #FFF4EC; border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; }
-  .guide .warn strong { color: #B23F00; }
   .guide table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .guide td { padding: 5px 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
   .guide td:first-child { width: 34%; font-weight: 600; }
@@ -52,7 +50,7 @@
   <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
   <main class="guide">
     <h1>Stream Deck</h1>
-    <p class="sub">Run the scene and the scoreboard from a Stream Deck. Studio has to be on air: keep a Studio window open.</p>
+    <p class="sub">Run the scene and the scoreboard from a Stream Deck; Studio has to be on air, so keep a Studio window open. <a href="/graphics.html#streamdeck">More in the Docs</a></p>
     <p id="linkSetRow" hidden><label>Copy links for <select id="linkSet"></select></label>
       <span class="note">Each link set has its own key: make one per Stream Deck, and <a href="/devices.html">Devices…</a> can give one a new key or remove it without touching the others.</span></p>
 
@@ -91,7 +89,7 @@
 
     <section>
       <h2>Manual scoring and timing</h2>
-      <div class="warn">
+      <div class="fp-callout warn">
         <p style="margin:0 0 6px"><strong>These links stop Follow PlayHQ.</strong></p>
         <ul style="margin:0;padding-left:20px">
           <li><b>Any score link</b> (+1, +2, −1, −2, reset) switches the scoreboard to <b>Manual</b>: it stops taking the score from PlayHQ,

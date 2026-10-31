@@ -8,8 +8,6 @@
 <link rel="stylesheet" href="studio.css">
 <script src="sceneevents.js"></script>
 <style>
-  .alert { font-size: 14px; margin: 0 0 8px; padding: 8px 12px; border-radius: 8px; background: var(--fp-orange); color: var(--fp-navy); font-weight: 600; }
-  .alert a { color: inherit; }
 
   /* The pool down the side, the nights beside it (one column on a phone). */
   .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; align-items: start; }
@@ -41,7 +39,7 @@
   .night__date { font-weight: 800; color: var(--fp-navy); }
   .night__what { color: var(--fp-muted); font-size: 14px; }
   .night__badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--fp-blue-soft); color: var(--fp-blue-dark); }
-  .night__badge.warn { background: var(--fp-orange); color: var(--fp-navy); }
+  .night__badge.warn { background: var(--fp-warn-bg); color: var(--fp-warn-ink); }
   .night.past > summary { opacity: .6; }
   .night__body { padding: 0 16px 14px; }
   .slot { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--fp-line); }
@@ -51,11 +49,11 @@
   .slot.onair { background: linear-gradient(90deg, var(--fp-blue-soft), transparent); }
   .seats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .seat { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 6px 4px 12px; background: var(--fp-blue-soft); color: var(--fp-navy); font-weight: 600; font-size: 14px; }
-  .seat.guest { background: #FCE7F3; }
+  .seat.guest { background: color-mix(in srgb, #e6007e 12%, var(--fp-white)); }
   .seat button { border: 0; background: transparent; color: var(--fp-muted); padding: 0 6px; font-size: 16px; line-height: 1; }
   .seat button:hover { background: transparent; color: var(--fp-danger); }
   .seat select { border-style: dashed; border-radius: 999px; padding: 4px 10px; font-size: 14px; color: var(--fp-muted); }
-  .flag { font-size: 13px; color: var(--fp-navy); background: var(--fp-orange); border-radius: 6px; padding: 2px 8px; display: inline-block; margin-top: 6px; }
+  .flag { font-size: 13px; color: var(--fp-warn-ink); background: var(--fp-warn-bg); border-radius: 6px; padding: 2px 8px; display: inline-block; margin-top: 6px; }
   .flag.soft { background: var(--fp-gray); color: var(--fp-muted); }
 </style>
 <script src="log.js"></script>
@@ -65,9 +63,7 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Production Planner</h1>
-  <p class="sub">Plan the court Studio streams each game night and who is on the mic for each game. Tonight's court goes to
-    <a href="/control.html">Scoreboard control</a> when the night arrives, and the <b>Commentators</b> graphic and
-    <b>Commentator stats</b> show whoever is planned for the game on the scoreboard. A night you haven't planned takes the plan of the night before it.</p>
+  <p class="sub">Plan the court Studio streams each game night and who is on the mic for each game; tonight's plan reaches <a href="/control.html">Scoreboard control</a> and the commentator graphics by itself. <a href="/graphics.html#planner">More in the Docs</a></p>
   <div id="flags"></div>
   <p class="sub" id="onair" hidden></p>
   <div class="layout">
@@ -143,7 +139,7 @@
   function draw() {
     // Tonight's flags: Scoreboard control on another court, or a game picked by hand that isn't in the plan.
     $('flags').replaceChildren(...data.tonight.flags.map(f => {
-      const p = el('p', 'alert', f.text + ' ');
+      const p = el('p', 'fp-callout warn', f.text + ' ');
       const a = p.appendChild(el('a', '', f.kind === 'court' ? 'Change it on Scoreboard control' : 'Move the commentators below'));
       a.href = f.kind === 'court' ? '/control.html' : `#night-${data.tonight.date}`;
       if (f.kind !== 'court') a.onclick = () => { opened.add(data.tonight.date); draw(); };
@@ -177,14 +173,14 @@
       row.ondragleave = () => row.classList.remove('over');
       row.ondrop = e => { e.preventDefault(); row.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) addHeadshot(p, f); };
       return row;
-    }) : [el('p', 'help', 'No commentators yet. Add the people who call your games.')]));
+    }) : [el('p', 'fp-empty', 'No commentators yet. Add the people who call your games.')]));
     $('others').replaceChildren(...data.others.filter(o => !data.pool.some(p => p.name.toLowerCase() === o.name.toLowerCase()))
       .map(o => { const opt = el('option'); opt.value = o.name; opt.label = `from ${o.from}`; return opt; }));
 
     // The nights.
     if (!data.nights.length) {
       const empty = el('section');
-      empty.append(el('p', 'help', 'PlayHQ has no game nights for this season yet.'));
+      empty.append(el('p', 'fp-empty', 'PlayHQ has no game nights for this season yet.'));
       $('nights').replaceChildren(empty);
       return;
     }

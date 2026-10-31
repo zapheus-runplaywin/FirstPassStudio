@@ -10,12 +10,6 @@
   input[type=range] { accent-color: var(--fp-blue); width: 140px; vertical-align: middle; }
   .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
   .row label { white-space: nowrap; }
-  .seg { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; }
-  .seg label { padding: 6px 12px; cursor: pointer; font-weight: 600; }
-  .seg input { position: absolute; opacity: 0; pointer-events: none; }
-  .seg label:has(input:checked) { background: var(--fp-blue); color: #fff; }
-  .callout { font-size: 14px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--fp-blue-soft); color: var(--fp-navy); }
-  .callout.warn { background: var(--fp-orange); font-weight: 600; }
 
   /* A graphic: its ticks, then a preview per size ticked at the top. */
   .pic { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px 20px; align-items: start; }
@@ -27,7 +21,7 @@
   .previews { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
   .preview { position: relative; flex: none; overflow: hidden; border-radius: 6px; box-shadow: 0 2px 10px rgba(15,23,42,.18);
     /* A chequer behind it, so a see-through window shows as one. */
-    background: repeating-conic-gradient(#d7dce3 0 25%, #f3f5f8 0 50%) 0 0 / 20px 20px; }
+    background: repeating-conic-gradient(var(--fp-check-a) 0 25%, var(--fp-check-b) 0 50%) 0 0 / 20px 20px; }
   .preview iframe { border: 0; transform-origin: 0 0; pointer-events: none; display: block; }
   .preview figcaption { position: absolute; right: 6px; top: 8px; font-size: 11px; font-weight: 700; background: rgba(15,23,42,.75); color: #fff; padding: 2px 7px; border-radius: 999px; }
   .preview .drag { position: absolute; inset: 0; cursor: grab; }
@@ -70,14 +64,13 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main class="wide">
   <h1>Socials</h1>
-  <p class="sub">Pictures of a game night for Instagram and other social media, before it (Upcoming) or after it (Results), made from the fixture, results and ladders Studio already has.
-    Pick the night and the sizes, untick what you don't want, then <b>Save</b> them as PNGs or <b>Share</b> them to your phone with AirDrop, Messages or Mail.</p>
-  <p class="callout warn" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
+  <p class="sub">Pictures of a game night for Instagram and other social media, before it (Upcoming) or after it (Results), to <b>Save</b> as PNGs or <b>Share</b> to your phone. <a href="/graphics.html#socials">More in the Docs</a></p>
+  <p class="fp-callout" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
   <p class="error" id="err" hidden></p>
   <section>
     <div class="row">
       <label>Game night <select id="night"></select></label>
-      <span class="seg" role="radiogroup" aria-label="Pictures">
+      <span class="fp-seg" role="radiogroup" aria-label="Pictures">
         <label><input type="radio" name="set" value="upcoming" checked> Upcoming</label>
         <label><input type="radio" name="set" value="results"> Results</label>
       </span>
@@ -280,7 +273,7 @@
   function athletePicker(key, slot, label, start) {
     const box = el('div', 'picker');
     box.append(el('b', '', label));
-    if (!athletesList.length) { box.append(el('p', 'help', 'No athletes with an approved photo yet: add photos and tick Approved for photo use on the Athletes tab.')); return box; }
+    if (!athletesList.length) { box.append(el('p', 'fp-empty', 'No athletes with an approved photo yet: add photos and tick Approved for photo use on the Athletes tab.')); return box; }
     const same = (a, b) => String(a || '').toLowerCase().trim() === String(b || '').toLowerCase().trim();
     const divs = [...new Set(athletesList.flatMap(a => a.teams.map(t => t.division)))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
     const div = el('select'), team = el('select'), who = el('select');
@@ -353,7 +346,7 @@
     l.append(c, ' Save this one');
     ticks.append(l, sponsorTick(p.kind));
     if (p.help) left.append(el('p', 'help', p.help));
-    if (p.missing) left.append(el('p', 'callout warn', p.missing));
+    if (p.missing) left.append(el('p', 'fp-callout warn', p.missing));
     if (p.kind === 'polaroid') left.append(photoControls(p.key), athletePicker(p.key, 'athlete', 'Or an athlete\'s photo', {}));
     if (p.kind === 'tournament') left.append(afterPicker(p), moversTick());
     if (p.kind === 'matchup' || p.kind === 'fulltime') {
@@ -413,7 +406,7 @@
         o.value = n.date;
         return o;
       }));
-      if (!d.nights.length) { $('pics').replaceChildren(el('section', 'help', 'No game nights in this season yet.')); return; }
+      if (!d.nights.length) { $('pics').replaceChildren(el('p', 'fp-empty', 'No game nights in this season yet.')); return; }
       $('night').value = d.next;
       await loadNight(d.next);
     } catch (err) { showError(`Couldn't load the game nights: ${err.message}`); }
