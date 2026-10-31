@@ -6,7 +6,6 @@
 const FIELDS = { fName: 'name', fUrl: 'url', fFile: 'file', fWidth: 'width', fHeight: 'height', fFade: 'fadeMs', fX: 'x', fY: 'y', fScale: 'scale' };
 function renderForm(force) {
   const s = current();
-  $('noSel').classList.toggle('hidden', !!s);
   $('selForm').classList.toggle('hidden', !s);
   if (!s) return;
   for (const el of document.querySelectorAll('.forBrowser')) el.classList.toggle('hidden', s.type !== 'browser');

@@ -55,6 +55,7 @@ function outDots(outs) {
   return box;
 }
 let selected = null;
+let editOpen = false; // the selected source's settings are open under its row (the pencil)
 let base = location.origin;
 // Where Stream Deck links start: base with this Mac's key, /k/<key> (access.js deckPress()), once Studio has said it.
 let deckBase = base;
@@ -80,32 +81,14 @@ async function act(action) {
   } catch (err) { $('err').textContent = err.message; console.warn('Scene change failed', action.type, err.message); }
 }
 
-// ─── Health strip ───────────────────────────────────────────────────────
-// One line under the title from /api/health: the game and what Studio follows, how long since PlayHQ
-// answered (amber when a reading is overdue, red after a minute of errors), the clock, the video output.
-const hEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const ago = ms => ms === null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`;
+// ─── Health ─────────────────────────────────────────────────────────────
+// /api/health every 2 s: the game and what Studio follows, how long since PlayHQ answered, the clock, the outputs,
+// the recording. The status board beside the picture (output/board.js) draws it.
+const hEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); // HTML-safe text (the switcher's status uses it too)
 let lastHealth = null, lastHealthAt = 0; // the last /api/health answer, for the status board
 async function health() {
-  let h;
-  try { h = await (await fetch('/api/health', { cache: 'no-store' })).json(); }
-  catch { $('healthDot').className = 'hdot bad'; $('healthPlayhq').innerHTML = '<span class="badText">Studio isn\'t answering</span>'; $('health').hidden = false; lastHealth = null; if (typeof renderBoard === 'function') renderBoard(); return; }
-  $('healthGame').innerHTML = h.game ? `<b>${hEsc(h.game.label)}</b>${h.game.court ? ` on ${hEsc(h.game.court)}` : ''}` : `<b>${hEsc(h.competition || 'No competition')}</b>: no game picked`;
-  const p = h.playhq;
-  let text, cls = 'hdot ok';
-  if (!h.game || h.source !== 'playhq') { text = 'Scores by hand'; cls = 'hdot off'; }
-  else if (p.waiting) text = p.waiting.replace(/^Electronic scoring starts .*?, so /, 'PlayHQ ');
-  else if (p.finished) text = `Following PlayHQ · game finished (${hEsc(p.status.toLowerCase().replace(/_/g, ' '))})`;
-  else if (p.state === 'bad') { text = `<span class="badText">PlayHQ failing for ${ago(p.readAgoMs)}: ${hEsc(p.error)}</span>`; cls = 'hdot bad'; }
-  else if (p.state === 'warn') { text = `<span class="warnText">PlayHQ last answered ${ago(p.readAgoMs)}${p.error ? `: ${hEsc(p.error)}` : ''}</span>`; cls = 'hdot warn'; }
-  else text = `Following PlayHQ · read ${ago(p.readAgoMs)}`;
-  $('healthDot').className = cls;
-  $('healthPlayhq').innerHTML = text;
-  $('healthClock').textContent = h.game ? `Clock ${h.clock.following ? 'follows the scorer' : 'by hand'}${h.clock.running ? ', running' : ''}` : '';
-  $('healthOut').textContent = h.output.on ? `Output on (${h.output.mode})` : 'Output off';
-  $('health').hidden = false;
-  // The Show view's status board (output/board.js) draws from the same answer.
-  lastHealth = h; lastHealthAt = Date.now();
+  try { lastHealth = await (await fetch('/api/health', { cache: 'no-store' })).json(); lastHealthAt = Date.now(); }
+  catch { lastHealth = null; }
   if (typeof renderBoard === 'function') renderBoard();
 }
 health(); setInterval(health, 2000);

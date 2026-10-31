@@ -60,14 +60,6 @@ function renderMusic() {
   renderPlaylists();
   musicHeard = performance.now();
   tickMusic();
-  $('musicNote').innerHTML = 'Music plays on Output 1, or the outputs ticked in <b>Music plays on</b>, the same way as each one\'s video sound: the output, or this page\'s Scene View while that output is off, never both. A sequence\'s music plays on every output playing the sequence. '
-    + 'Add MP3, M4A, AAC, WAV or AIFF songs you\'re licensed to stream (Apple Music songs are copy-protected and can\'t be used). '
-    + 'With <b>Even out its loudness</b> ticked, a song is levelled to the same loudness as the others (as streaming services do) and the original is kept in the media folder\'s originals. '
-    + 'A sequence can bring its own music (in its editor), which fades out when the sequence is stopped by a scene or another sequence. A sequence with no music of its own plays the music of a sequence inside it while that one plays. '
-    + 'A scene or sequence with <b>Quiet the music</b> ticked (an interview on court) ducks whatever music is playing, a sequence\'s or the player\'s, until the next scene, sequence or sequence step without it. '
-    + 'The <b>super shot song</b> cuts in over whatever is playing (no fade) once the clock runs in the super shot period (the competition setup\'s super shot minutes, in a division with super shots), plays round until the period ends, then fades out. Stop it by hand and it stays stopped for that quarter. '
-    + `Stream Deck: <code>${deckBase}/deck/music/toggle</code> (play or pause), <code>/play</code>, <code>/pause</code>, <code>/resume</code>, <code>/stop</code>, <code>/fade</code>, <code>/next</code>, <code>/prev</code>, `
-    + '<code>/mute/toggle</code>, <code>/duck/toggle</code>, <code>/load/&lt;song&gt;</code> and <code>/playlist/&lt;name&gt;</code> (add <code>?play</code> to start it too); add <code>?fade=2</code> to any of them for a 2 second fade, or <code>?fade=0</code> to cut.';
 }
 function tickMusic() {
   const m = scene.music;

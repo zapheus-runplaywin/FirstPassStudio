@@ -16,14 +16,9 @@
   .preview .box { position: absolute; border: 2px dashed var(--fp-orange); pointer-events: none; display: none; }
   .preview .off { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fp-muted); font-weight: 600; }
 
-  /* The page head: title, one line, and the Show | Prep switch at the right. */
-  .pageHead { display: flex; gap: 12px 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
   .pageHead .sub { margin-bottom: 10px; }
-  .modeSeg { margin-top: 6px; flex: none; }
-  .modeSeg > button { font-size: 15px; padding: 7px 16px; }
-  /* The stage: the picture (and its tabs) left, the status board right in the Show view. It scrolls with the page. */
+  /* The stage: the picture (and its tabs) left, the status board right. It scrolls with the page. */
   .mv { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 9fr); gap: 14px; align-items: stretch; margin-bottom: 14px; }
-  body.mode-prep .mv { grid-template-columns: minmax(0, 1fr); }
   .pgm { min-width: 0; display: grid; gap: 8px; align-content: start; }
   .pgmTop { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
   .pgmTop .outTabs { margin: 0; }
@@ -31,10 +26,8 @@
   .pgmTools button, .pgmTools .fp-seg > button { padding: 5px 11px; font-size: 13px; }
   #outCfg[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
   #outSection.drawer { margin-bottom: 0; }
-  body.mode-show #outSection.drawer:not(.cfgOpen) { display: none; }
-  body.mode-prep #outCfg { display: none; }
-  body.mode-show .pgm .preview { width: min(100%, calc(46vh * 16 / 9)); }
-  body.mode-prep .pgm .preview { width: min(100%, calc(34vh * 16 / 9)); margin: 0 auto; }
+  #outSection.drawer:not(.cfgOpen) { display: none; }
+  .pgm .preview { width: min(100%, calc(46vh * 16 / 9)); }
   .pgmUnder { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
   .pgmUnder .note { margin: 0; font-size: 13px; }
   .pgmView { gap: 10px; }
@@ -74,32 +67,39 @@
   .sboard .tm { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; white-space: nowrap; min-width: 3.2em; text-align: right; }
   .sboard .tm:empty { min-width: 0; }
   .sboard .line button { display: block; margin: 4px 0 0 auto; padding: 3px 10px; font-size: 12px; font-family: var(--fp-font, inherit); }
-  /* Show: scenes | sequences | sources (show and hide) side by side; music and mics together under them. */
-  body.mode-show .console { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, .9fr); gap: 14px; align-items: start; }
-  body.mode-show .console > section, body.mode-show .cols > section { margin-bottom: 0; }
-  body.mode-show .cols { display: block; }
-  body.mode-show .dock { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-  body.mode-show .dock > section { margin-bottom: 0; }
-  body.mode-show .seq.run { grid-column: 1 / -1; }
-  body.mode-show .seqs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 8px; }
-  body.mode-show .scenes { gap: 12px 8px; }
-  body.mode-show .scene { min-width: 0; flex: 1 1 120px; }
-  body.mode-show .sources li { grid-template-columns: auto minmax(0, 1fr) auto; padding: 5px 8px; }
-  body.mode-show .showHide, body.mode-prep .showOnly, body.mode-show .prepOnly { display: none !important; }
-  body.mode-show #health, body.mode-show #settings, body.mode-show #mediaSection, body.mode-show .sources .grip, body.mode-show .sources .up, body.mode-show .sources .down,
-  body.mode-show .sources .pvw, body.mode-show #addBrowser, body.mode-show #addImage, body.mode-show #addVideo, body.mode-show #editScenes, body.mode-show #sceneGrid, body.mode-show .scene.addScene,
-  body.mode-show .seq.addSeq, body.mode-show .console details.info, body.mode-show #musicSection .form, body.mode-show #musicSection details.info,
-  body.mode-show #micsSection .form, body.mode-show #micsSection details.info, body.mode-show #swForm, body.mode-show #swSection details.info,
-  body.mode-show #outQualityNote, body.mode-show #outSoft { display: none !important; }
-  .layerNote { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--fp-muted); }
-  @media (max-width: 1100px) { .mv, body.mode-show .console { grid-template-columns: minmax(0, 1fr); } }
-  @media (max-width: 760px) { body.mode-show .dock { grid-template-columns: 1fr; } }
-
-  .cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px; align-items: start; }
-  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+  /* The console: the Sources down the left, and to their right scenes beside sequences, music beside mics, the
+     switcher, then the media folder. Set-up waits behind a button in each section's header: each source's settings
+     under its row (the pencil), Edit scenes, Music and Mics Settings, the switcher's Set up. */
+  .console { display: grid; grid-template-columns: minmax(300px, 2fr) minmax(0, 5fr); gap: 14px; align-items: start; }
+  .console > section, .stack section { margin-bottom: 0; }
+  .stack { display: grid; gap: 14px; min-width: 0; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px; align-items: start; }
+  .pair.dock { grid-template-columns: 1fr 1fr; }
+  .seq.run { grid-column: 1 / -1; }
+  .seqs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 8px; }
+  .scenes { gap: 12px 8px; }
+  .scene { min-width: 0; flex: 1 1 120px; }
+  .addRow { margin-bottom: 10px; }
+  .addRow button { padding: 4px 10px; font-size: 13px; }
+  button.cfg[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
+  #musicSection:not(.cfgOpen) > .form, #micsSection:not(.cfgOpen) > .form { display: none; }
+  @media (max-width: 1100px) { .mv, .console { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
 
   .sources { list-style: none; margin: 0 0 12px; padding: 0; border: 1px solid var(--fp-line); border-radius: 8px; overflow: hidden; }
-  .sources li { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 8px; border-top: 1px solid var(--fp-line); cursor: pointer; }
+  .sources li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-top: 1px solid var(--fp-line); cursor: pointer; }
+  /* A source's settings open under its row (the pencil): the Source settings section moves into the list. */
+  .sources li.editor, .sources li.editor:hover { display: block; padding: 0; cursor: default; background: var(--fp-gray); }
+  .sources li.editor > section { margin: 0; border: 0; border-left: 4px solid var(--fp-blue); border-radius: 0; padding: 12px 14px; background: transparent; }
+  /* In the narrow column the form puts each label over its field. */
+  .sources li.editor .form { grid-template-columns: 1fr; gap: 4px 12px; }
+  .sources li.editor .form > label { margin-top: 6px; }
+  .sources li.editor .form > label:first-child { margin-top: 0; }
+  .sources li.editor #fOptionsBox { margin-top: 6px; }
+  .sources li.editor .links code { font-size: 11px; overflow-wrap: anywhere; }
+  .sources li .ico { display: inline-flex; align-items: center; padding: 4px 7px; }
+  .sources li .ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .sources li .edit[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
   .sources li:first-child { border-top: 0; }
   .sources li:hover { background: var(--fp-gray); }
   .sources li.sel { background: var(--fp-blue-soft); }
@@ -133,11 +133,9 @@
   .outTab:hover { background: var(--fp-gray); }
   .outTab.sel { border-color: var(--c); background: color-mix(in srgb, var(--c) 22%, var(--fp-white)); }
   #outSection.picked, .preview.picked { box-shadow: 0 -4px 0 var(--oc); }
-  .sources li .pvw { font-size: 11px; padding: 4px 6px; }
   .sources li.dragging { opacity: .4; }
   .sources li.dropBefore { box-shadow: inset 0 3px 0 var(--fp-blue); }
   .sources li.dropAfter { box-shadow: inset 0 -3px 0 var(--fp-blue); }
-  .sources li .grip { cursor: grab; color: var(--fp-muted); padding: 0 2px; user-select: none; }
   #addDialog { max-width: 560px; }
 
   .mediaList li { grid-template-columns: minmax(0, 1fr) auto; cursor: default; }
@@ -346,20 +344,12 @@
 <main class="wide">
   <div class="pageHead">
     <div><h1>Output</h1>
-      <p class="sub">Tonight's scenes and sequences and what is on air, with the sources, outputs and media behind them under <b>Prep</b>. <a href="/graphics.html#output">More in the Docs</a></p></div>
-    <!-- Show is game night (the picture, the status board, scenes and sequences as tiles, show and hide); Prep is before
-         it (sources, their settings, the editors, music and mic settings, the media folder). Remembered on this Mac (output/mode.js). -->
-    <span class="fp-seg modeSeg" id="modeSeg" role="group" aria-label="View">
-      <button data-mode="show" aria-pressed="false" title="Game night: the picture, the status board, scenes and sequences">Show</button>
-      <button data-mode="prep" aria-pressed="false" title="Before the night: sources, settings, outputs and media">Prep</button></span>
+      <p class="sub">What is on air and tonight's scenes and sequences; every setting is a click away in its section. <a href="/graphics.html#output">More in the Docs</a></p></div>
   </div>
-  <!-- The health strip (/api/health, every 2 s) in the Prep view: what Studio is following and whether PlayHQ is answering;
-       the Show view's status board says the same and more. -->
-  <p class="health" id="health" hidden><span class="hdot ok" id="healthDot"></span><span id="healthGame"></span><span id="healthPlayhq"></span><span id="healthClock"></span><span id="healthOut"></span><a href="/api/log" target="_blank" rel="noopener">Log</a></p>
 
   <!-- The stage: the picture of the output picked (its tabs, HD/4K, Settings and Output on in one row above it; Settings
-       opens that output's set-up as a drawer under the row, pushing the picture down) and, in the Show view, the status
-       board beside it (output/board.js). It scrolls with the rest of the page. -->
+       opens that output's set-up as a drawer under the row, pushing the picture down) and the status board beside it
+       (output/board.js). It scrolls with the rest of the page. -->
   <div class="mv" id="mv">
     <div class="pgm" id="viewSection">
       <div class="pgmTop">
@@ -501,40 +491,141 @@
         <p class="note" id="previewWhich"></p>
         <p class="note" id="previewSoundNote" style="font-weight:600"></p>
       </div>
-      <div class="prepOnly">
-    <details class="info"><summary>Expand for info</summary><p class="note">Sound plays in the Scene View only while <b>Video output</b> is off, for testing. With a video output on, the output carries the sound and the Scene View is silent.</p>
-    <p class="note">The Scene View shows the scene as it is right now, whether or not your switcher has it on air. It runs every page in the scene a second time, so turn
-      <b>Live View</b> off on stream nights if the Mac is busy. The dashed box is the selected source.
-      <b>Pop out</b> shows the Scene View in its own window that you can resize, move to another screen or make full screen, with On/Off buttons for the sources floating in it; the one here
-      turns off while it's open, and closing it brings it back. The Scene View's sound needs Live View on, and only one Output page plays it at a time:
-      click a Scene View to bring the sound to it. The line above says why it's silent, if it is.</p></details>
-      </div>
     </div>
-    <aside class="sboard showOnly" id="board" aria-label="Status board"></aside>
+    <aside class="sboard" id="board" aria-label="Status board"></aside>
   </div>
 
-  <!-- Show: scenes | sequences | sources as show-and-hide, side by side. Prep: sources and settings first, then the rest. -->
+  <!-- The console: Sources down the left; scenes and sequences, music and mics, the switcher and the media folder to
+       their right. Each section's set-up waits behind a button in its header. -->
   <div class="console" id="console">
+    <section id="sourcesSection" data-fold="sources">
+      <div class="secHead">
+        <h2>Sources</h2>
+        <label class="row hidden" id="outFilterRow" style="gap:6px;font-weight:400">Show <select id="outFilter" title="Which outputs' on and off buttons to show"></select></label>
+      </div>
+      <div class="row addRow">
+        <button class="alt" id="addBrowser">Add page</button>
+        <button class="alt" id="addImage">Add image</button>
+        <button class="alt" id="addVideo">Add video</button>
+      </div>
+      <!-- Top layer first. Each row: the name, On/Off (a pill per output once there's more than one), the eye (preview on
+           its own) and the pencil, which opens the Source settings section under the row (output/sources.js). -->
+      <ul class="sources" id="sources"></ul>
+      <div class="row">
+        <button class="alt" id="hideAll">Hide all</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="alt" id="exportScene">Export sources</button>
+        <button class="alt" id="importScene">Import sources</button>
+        <label style="font-weight:400"><input id="exportMedia" type="checkbox" checked> Export with their images and videos</label>
+        <input id="importFile" type="file" accept=".zip,.json,application/zip,application/json" hidden>
+      </div>
+      <p class="note hidden" id="sceneNote"></p>
+      <p class="error" id="err"></p>
+      <div class="row hidden" id="linkSetRow" style="margin-top:10px">
+        <label style="font-weight:400">Stream Deck links on this page are for <select id="linkSet"></select></label>
+        <span class="note" style="margin:0">Each link set has its own key: make one per Stream Deck, and <a href="/devices.html">Devices…</a> can give one a new key or remove it.</span>
+      </div>
+      <div class="row hidden" id="deckRow" style="margin-top:10px">
+        <button class="alt" id="deckInstall">Install the Stream Deck plugin</button>
+        <span class="note" style="margin:0">Its <b>Source</b>, <b>Scene</b>, <b>Sequence</b>, <b>Switcher</b> and <b>Replay</b> keys light up while what they press is on.</span>
+      </div>
+
+      <dialog id="addDialog">
+        <h2 id="addTitle">Add a page</h2>
+        <p class="note" id="addWhere" style="margin:0 0 12px"></p>
+        <div class="form" id="addBrowserForm">
+          <label for="newPage">Page</label>
+          <select id="newPage"></select>
+          <label for="newUrl">Address</label>
+          <input id="newUrl" placeholder="scoreboard.html, or https://…">
+          <div class="wide row"><button class="alt" id="addAllUnused">Add all unused pages</button>
+            <span class="note" style="margin:0">Every Studio graphic not in the scene yet, hidden, in this list's order.</span></div>
+        </div>
+        <div class="form hidden" id="addMediaForm">
+          <label for="newFile" id="newFileLabel">Image</label>
+          <select id="newFile"></select>
+          <label for="upload">Add to media</label>
+          <input id="upload" type="file">
+          <p class="note wide" id="mediaNote"></p>
+        </div>
+        <p class="error" id="addErr"></p>
+        <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="alt" id="addCancel">Cancel</button><button id="addGo">Add to scene</button></div>
+      </dialog>
+
+      <!-- The selected source's settings. Parked here out of sight; the list moves it under the source's row while
+           the pencil has it open, and back when it's done or the list is drawn again. -->
+      <div id="settingsPark" hidden>
+    <section id="settings">
+      <div class="secHead"><h2>Source settings</h2><button class="alt" id="settingsDone">Done</button></div>
+      <div id="selForm" class="hidden">
+        <div class="form">
+          <label for="fName">Name</label>
+          <input id="fName" maxlength="60">
+          <label for="fUrl" class="forBrowser">Address</label>
+          <input id="fUrl" class="forBrowser">
+          <div class="wide hidden" id="fOptionsBox">
+            <div class="form" id="fOptions"></div>
+            <p class="note">The page's own options, the ones the Docs page describes. They're saved in its address above.</p>
+          </div>
+          <label for="fFile" class="forMedia" id="fFileLabel">Image</label>
+          <select id="fFile" class="forMedia"></select>
+          <label class="forBrowser">Page size</label>
+          <div class="row forBrowser"><input id="fWidth" type="number" min="16" max="7680"> × <input id="fHeight" type="number" min="16" max="4320"> px</div>
+          <label for="fFade">Fade</label>
+          <div class="row"><input id="fFade" type="number" min="0" max="10000" step="50"> ms <span class="note" style="margin:0">0 is a cut</span>
+            <span class="note hidden" id="fFadeChroma" style="margin:0">Chroma key safe: a cut on the chroma output</span></div>
+          <label>Position</label>
+          <div class="row">x <input id="fX" type="number"> y <input id="fY" type="number"> px</div>
+          <label for="fScale">Scale</label>
+          <div class="row"><input id="fScale" type="number" min="1" max="1000" step="1"> % <button class="alt" id="fFull">Full frame</button></div>
+          <label class="forBrowser">When shown</label>
+          <label class="forBrowser" style="font-weight:400"><input id="fReload" type="checkbox"> Load the page fresh each time it's shown (replays its animation)</label>
+          <label class="forVideo">Playing</label>
+          <div class="forVideo" style="display:grid;gap:6px">
+            <label><input id="fRestartOnShow" type="checkbox"> Start from the beginning each time it's shown</label>
+            <label><input id="fLoop" type="checkbox"> Loop</label>
+            <label><input id="fHideWhenDone" type="checkbox"> Fade out when it finishes and switch off (when not looping)</label>
+          </div>
+          <label class="forVideo">Sound</label>
+          <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
+        </div>
+        <p class="note forVideo">Sound plays through this Mac's audio output, or in a Blackmagic output's SDI. The Scene View above plays it only while <b>Video output</b> is off.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
+          <button class="alt" id="fPreview" title="Open this source on its own, the way the Docs page's Preview does">Preview</button>
+          <button class="alt forBrowser" id="fRestart">Refresh page</button>
+          <button class="alt forVideo" id="fRestartVideo">Restart video</button>
+          <button class="danger" id="fRemove">Remove</button>
+        </div>
+        <h2 style="margin-top:18px">Stream Deck links</h2>
+        <div class="links" id="links"></div>
+      </div>
+    </section>
+      </div>
+    </section>
+
+  <div class="stack">
+  <div class="pair">
   <section id="scenesSection" data-fold="scenes">
     <div class="secHead">
       <h2 id="scenesHead">Scenes</h2>
-      <button class="alt" id="editScenes">Edit scenes</button>
+      <span class="row"><button class="alt" id="editScenes">Edit scenes</button><button class="alt" id="addScene" title="Save what's on now as a new scene">Add scene</button></span>
     </div>
     <div class="scenes" id="scenes"></div>
     <div class="drift hidden" id="drift"></div>
     <div class="sceneGrid hidden" id="sceneGrid"></div>
     <p class="fp-empty" id="scenesEmpty"></p>
-    <details class="info" id="scenesInfo"><summary>Expand for info</summary><p class="note" id="scenesNote"></p></details>
   </section>
 
   <section id="seqSection" data-fold="sequences">
     <div class="secHead">
       <h2 id="seqHead">Sequences</h2>
+      <button class="alt" id="addSeq" title="Steps played one after another">Add sequence</button>
     </div>
     <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
     <div class="seqs" id="seqs"></div>
     <p class="fp-empty" id="seqEmpty"></p>
-    <details class="info" id="seqInfo"><summary>Expand for info</summary><p class="note" id="seqNote"></p></details>
     <dialog id="swSceneDialog">
       <h2 id="swSceneTitle">Switcher</h2>
       <div id="swSceneActs"></div>
@@ -601,118 +692,13 @@
     </dialog>
   </section>
 
-  <div class="cols">
-    <section id="sourcesSection" data-fold="sources">
-      <div class="secHead">
-        <h2>Sources <small class="prepOnly layerNote">(top layer first)</small></h2>
-        <label class="row hidden" id="outFilterRow" style="gap:6px;font-weight:400">Show <select id="outFilter" title="Which outputs' on and off buttons to show"></select></label>
-      </div>
-      <ul class="sources" id="sources"></ul>
-      <div class="row">
-        <button id="addBrowser">Add page</button>
-        <button id="addImage">Add image</button>
-        <button id="addVideo">Add video</button>
-        <button class="alt" id="hideAll">Hide all</button>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button class="alt" id="exportScene">Export sources</button>
-        <button class="alt" id="importScene">Import sources</button>
-        <label style="font-weight:400"><input id="exportMedia" type="checkbox" checked> Export with their images and videos</label>
-        <input id="importFile" type="file" accept=".zip,.json,application/zip,application/json" hidden>
-      </div>
-      <p class="note hidden" id="sceneNote"></p>
-      <p class="error" id="err"></p>
-      <div class="row hidden" id="linkSetRow" style="margin-top:10px">
-        <label style="font-weight:400">Stream Deck links on this page are for <select id="linkSet"></select></label>
-        <span class="note" style="margin:0">Each link set has its own key: make one per Stream Deck, and <a href="/devices.html">Devices…</a> can give one a new key or remove it.</span>
-      </div>
-      <div class="row hidden" id="deckRow" style="margin-top:10px">
-        <button class="alt" id="deckInstall">Install the Stream Deck plugin</button>
-        <span class="note" style="margin:0">Its <b>Source</b>, <b>Scene</b>, <b>Sequence</b>, <b>Switcher</b> and <b>Replay</b> keys light up while what they press is on.</span>
-      </div>
-
-      <dialog id="addDialog">
-        <h2 id="addTitle">Add a page</h2>
-        <p class="note" id="addWhere" style="margin:0 0 12px"></p>
-        <div class="form" id="addBrowserForm">
-          <label for="newPage">Page</label>
-          <select id="newPage"></select>
-          <label for="newUrl">Address</label>
-          <input id="newUrl" placeholder="scoreboard.html, or https://…">
-          <div class="wide row"><button class="alt" id="addAllUnused">Add all unused pages</button>
-            <span class="note" style="margin:0">Every Studio graphic not in the scene yet, hidden, in this list's order.</span></div>
-        </div>
-        <div class="form hidden" id="addMediaForm">
-          <label for="newFile" id="newFileLabel">Image</label>
-          <select id="newFile"></select>
-          <label for="upload">Add to media</label>
-          <input id="upload" type="file">
-          <p class="note wide" id="mediaNote"></p>
-        </div>
-        <p class="error" id="addErr"></p>
-        <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="alt" id="addCancel">Cancel</button><button id="addGo">Add to scene</button></div>
-      </dialog>
-    </section>
-
-    <section id="settings" data-fold="settings">
-      <div class="secHead"><h2>Source settings</h2></div>
-      <p class="note" id="noSel">Select a source to change it.</p>
-      <div id="selForm" class="hidden">
-        <div class="form">
-          <label for="fName">Name</label>
-          <input id="fName" maxlength="60">
-          <label for="fUrl" class="forBrowser">Address</label>
-          <input id="fUrl" class="forBrowser">
-          <div class="wide hidden" id="fOptionsBox">
-            <div class="form" id="fOptions"></div>
-            <p class="note">The page's own options, the ones the Docs page describes. They're saved in its address above.</p>
-          </div>
-          <label for="fFile" class="forMedia" id="fFileLabel">Image</label>
-          <select id="fFile" class="forMedia"></select>
-          <label class="forBrowser">Page size</label>
-          <div class="row forBrowser"><input id="fWidth" type="number" min="16" max="7680"> × <input id="fHeight" type="number" min="16" max="4320"> px</div>
-          <label for="fFade">Fade</label>
-          <div class="row"><input id="fFade" type="number" min="0" max="10000" step="50"> ms <span class="note" style="margin:0">0 is a cut</span>
-            <span class="note hidden" id="fFadeChroma" style="margin:0">Chroma key safe: a cut on the chroma output</span></div>
-          <label>Position</label>
-          <div class="row">x <input id="fX" type="number"> y <input id="fY" type="number"> px</div>
-          <label for="fScale">Scale</label>
-          <div class="row"><input id="fScale" type="number" min="1" max="1000" step="1"> % <button class="alt" id="fFull">Full frame</button></div>
-          <label class="forBrowser">When shown</label>
-          <label class="forBrowser" style="font-weight:400"><input id="fReload" type="checkbox"> Load the page fresh each time it's shown (replays its animation)</label>
-          <label class="forVideo">Playing</label>
-          <div class="forVideo" style="display:grid;gap:6px">
-            <label><input id="fRestartOnShow" type="checkbox"> Start from the beginning each time it's shown</label>
-            <label><input id="fLoop" type="checkbox"> Loop</label>
-            <label><input id="fHideWhenDone" type="checkbox"> Fade out when it finishes and switch off (when not looping)</label>
-          </div>
-          <label class="forVideo">Sound</label>
-          <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
-        </div>
-        <p class="note forVideo">Sound plays through this Mac's audio output, or in a Blackmagic output's SDI. The Scene View above plays it only while <b>Video output</b> is off.</p>
-        <div class="row" style="margin-top:12px">
-          <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
-          <button class="alt" id="fPreview" title="Open this source on its own, the way the Docs page's Preview does">Preview</button>
-          <button class="alt forBrowser" id="fRestart">Refresh page</button>
-          <button class="alt forVideo" id="fRestartVideo">Restart video</button>
-          <button class="danger" id="fRemove">Remove</button>
-        </div>
-        <h2 style="margin-top:18px">Stream Deck links</h2>
-        <div class="links" id="links"></div>
-        <details class="info"><summary>Expand for info</summary><p class="note">The FirstPass Studio plugin's <b>Source</b> key is the easiest way: pick this source in its settings and it lights up while
-          the source is on, and keeps working if you rename it. These links work in a Stream Deck <b>Website</b> action (tick
-          <b>GET request in background</b>) or the Timed Sequence plugin. They carry this Mac's Stream Deck key after the port, so a web page can't
-          press them; a link without it is refused, so copy older links again from here. Renaming the source changes its links.</p></details>
-      </div>
-    </section>
   </div>
 
-  </div>
-
-  <div class="dock" id="dock">
+  <div class="pair dock" id="dock">
   <section id="musicSection" data-fold="music">
     <div class="secHead">
       <h2>Music</h2>
+      <button class="alt cfg" id="musicCfg" aria-pressed="false" title="Where the music plays, its fades, ducking and the super shot song">Settings</button>
     </div>
     <div class="player" id="player">
       <div class="np"><span><b id="mTrack">Nothing loaded</b> <small id="mWhere"></small></span><span class="t" id="mTime"></span></div>
@@ -753,7 +739,6 @@
       <div class="row"><select id="mSuperSong"></select> <label class="inline">at <input type="number" id="mSuperVolume" min="0" max="100" style="width:64px"> % volume</label>
         <span>(cuts in when the super shot period starts, fades out when it ends)</span></div>
     </div>
-    <details class="info"><summary>Expand for info</summary><p class="note" id="musicNote"></p></details>
     <dialog id="plDialog">
       <h2 id="plTitle">Playlist</h2>
       <div class="form">
@@ -774,6 +759,7 @@
   <section id="micsSection" data-fold="mics">
     <div class="secHead">
       <h2>Mics</h2>
+      <button class="alt cfg" id="micsCfg" aria-pressed="false" title="The dip level, what dips the mics and how fast">Settings</button>
     </div>
     <div class="player" id="mxBar">
       <div class="np"><span><b id="mxHeard">No mics yet</b> <small id="mxWhy"></small></span></div>
@@ -795,7 +781,6 @@
       <div class="row"><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, and back up over</span>
         <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:70px" aria-label="Back up over"> <span>seconds</span></div>
     </div>
-    <details class="info"><summary>Expand for info</summary><p class="note" id="micsNote"></p></details>
     <dialog id="mxDialog">
       <h2 id="mxTitle">Mic</h2>
       <div class="form">
@@ -857,21 +842,6 @@
         <button class="danger hidden" id="swForget">Forget this switcher</button></div>
     </div>
     <p class="note error" id="swErr"></p>
-    <details class="info"><summary>Expand for info</summary><p class="note" id="swNote">Studio controls a Blackmagic ATEM switcher over the network: the Mac and the switcher need to be on the same network,
-      ideally a wired one. <b>Look for switchers</b> finds them the way ATEM Software Control does (the first time, macOS asks to let Studio use the
-      local network: say Allow), and Studio remembers the one you pick by its name, so it finds it again if its address changes. Click an input to put it on
-      preview, then <b>Cut</b> or <b>Auto</b> to take it, or <b>Stinger</b>: Studio plays the scene's Stinger page on the output on a downstream key (Output 1 unless another one that's on is; the card says if that output is off, as it is when set to Web links only) and cuts in the middle of it,
-      where the bands cover the frame (read from the stinger's own settings, so a longer hold still lines up). If that output's picture reaches the switcher a
-      little late, set its <b>line-up</b> in frames (each output keeps its own) and check it with <b>Test the line-up</b> before you're live. Studio shows only what your switcher has (an ATEM Mini Pro has 4 inputs, one upstream key and
-      one downstream key; a Mini Extreme has 8, four and two). The switcher's own buttons, ATEM Software Control and other controllers keep working
-      alongside Studio, and Studio shows what they do. Each output's <b>Into the switcher as</b> (under Video output) checks the key it comes into, and
-      <b>Set up this key for me</b> sets that key's inputs, type and Pre Multiplied Key when you press it. An output on an upstream key can
-      tick the cameras it <b>goes with</b>: Studio's cuts take its key on and off with them on the same frame, and with <b>Keys follow the camera</b>
-      a cut on the switcher's panel brings it a frame or two later. It sends nothing to the switcher by itself, not even when it connects or reconnects, and if the
-      switcher stops answering nothing is saved up for later. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code>, <code>stinger</code> (or <code>stinger/2</code>), <code>ftb</code>,
-      <code>preview/2</code> or <code>preview/Camera%202</code>, <code>program/2</code>, <code>usk/1/toggle</code> (<code>on</code>, <code>off</code>),
-      <code>dsk/1/toggle</code> (<code>on</code>, <code>off</code>, <code>auto</code>) and <code>macro/1</code>. The Stream Deck plugin's <b>Switcher</b> key presses these
-      and lights like the switcher's buttons: red on program, green on preview.</p></details>
   </section>
 
   <section id="mediaSection" data-fold="media">
@@ -883,11 +853,9 @@
       </div>
       <ul class="sources mediaList" id="mediaList"></ul>
       <p class="error" id="mediaErr"></p>
-      <details class="info"><summary>Expand for info</summary><p class="note">Every song, video and image added here, under Music or on the Sponsors page. <b>Remove</b> deletes the file from the media folder for good
-        (with a levelled song's original, kept in <i>originals</i>), and asks first, listing where it's used. Something on air (a source showing it, or the song playing)
-        can't be removed until it's off. Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as
-        <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file. A .mov and the WebM converted from it are separate files: remove each one you don't want.</p></details>
   </section>
+  </div>
+  </div>
 </main>
 <script src="output/common.js"></script>
 <script src="output/preview.js"></script>

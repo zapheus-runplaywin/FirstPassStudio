@@ -147,9 +147,9 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
-icon). The Output page and the Stream Deck use the same links as the Docs page. It has a Show view for the night (the
-picture with its output tabs, a status board, scenes and sequences as tiles) and a Prep view with every setting. The
-status board, and in Prep a status line under the title (both from `/api/health`), show the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
+icon). The Output page and the Stream Deck use the same links as the Docs page. It is one page laid out for the night: the
+picture with its output tabs and a status board, the sources down the left, scenes and sequences as tiles, with every
+setting a click away in its section. The status board (from `/api/health`) shows the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
 answered (amber when a reading is overdue, red after a minute of errors, with the error), and whether the video output is
 on, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
 every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR with the outputs sending (or Off
@@ -365,10 +365,10 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   solid ramps (banding) and transparency ramps and soft shapes (with Pre Multiplied Key on they fade evenly). Not for air.
 - **Sources:** **Add page** adds any Studio graphic (or any web address); **Add image** adds a PNG, JPG, GIF, WebP or SVG, and
   **Add video** an MP4, WebM or MOV, saved in the data folder's `media` folder. Each opens a
-  dialog to pick it. A new source goes above the selected one (on top if none is selected), hidden, and is selected so its
-  settings are ready to change. The page list splits into pages not in the scene yet and pages already in it, and **Add all
-  unused pages** adds every Studio graphic not in the scene, hidden, in that order. Drag a source (by its ⋮⋮ or anywhere on
-  its row) to move it up or down the layers, or use ↑ and ↓.
+  dialog to pick it. A new source goes above the selected one (on top if none is selected), hidden, with its
+  settings open under its row, ready to change (click a row, or its pencil, for any source's settings; **Done** closes them). The page list splits into pages not in the scene yet and pages already in it, and **Add all
+  unused pages** adds every Studio graphic not in the scene, hidden, in that order. Drag a source up or down
+  the list to move it between layers, or use **Move up** and **Move down** in its settings.
 - **Export and import:** **Export sources** downloads `FirstPass Studio scene <date>.zip`: `scene.json` (the sources, as in the data
   folder's scene.json) and a `media/` folder with the images and videos the sources use. Untick **Export with their images and videos** for a
   small file of just the sources. **Import sources** replaces every source in the scene with the ones in an exported .zip (a zip of that
@@ -386,7 +386,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
   when hidden. Untick it to keep a page running while hidden so it shows instantly.
   **Refresh page** reloads it now.
-- **Preview** opens the selected source on its own in a new window, like the Docs page's Preview buttons; the small **PVW** button beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
+- **Preview** opens the selected source on its own in a new window, like the Docs page's Preview buttons; the eye beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (or in a Blackmagic output's SDI), and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it

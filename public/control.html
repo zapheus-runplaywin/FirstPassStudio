@@ -21,9 +21,12 @@
   .gamebar .g small { display: block; font-weight: 500; color: var(--fp-muted); font-size: 12px; }
   .gamebar .nextNote { margin: 0; flex: 1 1 220px; }
   .gamebar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-  .board { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; margin-bottom: 8px; }
+  /* Home | clock | away. The clock's column is sized like the teams' (a little wider), never by its longest line of
+     text, so a long note wraps instead of squeezing the scores off their panels. */
+  .board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; align-items: stretch; margin-bottom: 8px; }
   .board section { margin: 0; }
-  .team { display: grid; gap: 10px; justify-items: center; align-content: start; text-align: center; padding: 16px 18px; }
+  .team { display: grid; gap: 10px; justify-items: center; align-content: start; text-align: center; padding: 16px 18px; min-width: 0; }
+  .team > * { max-width: 100%; }
   .team .tn { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 360px; }
   .team .tn i { width: 14px; height: 14px; border-radius: 4px; flex: none; border: 1px solid var(--fp-line-strong); }
   .team .tn i:not([style]) { display: none; }
@@ -36,7 +39,8 @@
   .plus:hover { filter: brightness(.95); }
   .pads .alt { padding: 7px 10px 7px 14px; font-size: 16px; font-weight: 700; color: var(--fp-muted); }
   .pads .alt kbd { color: var(--fp-muted); background: transparent; }
-  .clock { display: grid; gap: 10px; justify-items: center; align-content: start; min-width: 300px; padding: 16px 20px; }
+  .clock { display: grid; gap: 10px; justify-items: center; align-content: start; min-width: 0; padding: 16px 20px; }
+  .clock > * { max-width: 100%; min-width: 0; }
   .clock h2 { margin: 0; }
   .clock .q { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
   .clock .q button { padding: 5px 10px; font-size: 12px; font-weight: 800; }
@@ -50,7 +54,7 @@
   .clock .small { font-size: 12px; color: var(--fp-muted); }
   .clock .small label { font-size: 12px; }
   .clock .follow { display: grid; justify-items: center; gap: 4px; text-align: center; }
-  .clock .follow .note { margin: 0; }
+  .clock .follow .note { margin: 0; overflow-wrap: anywhere; }
   .boardFoot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 12px; }
   .boardFoot .note { margin: 0 auto 0 0; }
   .lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 400px); gap: 12px; align-items: start; margin-bottom: 12px; }
@@ -74,7 +78,7 @@
   #gameSection h2::before { content: '▾ '; color: var(--fp-muted); }
   #gameSection.folded h2::before { content: '▸ '; }
   #gameSection.folded > :not(h2) { display: none; }
-  @media (max-width: 1000px) { .board { grid-template-columns: 1fr 1fr; } .clock { grid-column: 1 / -1; grid-row: 1; min-width: 0; } .lower { grid-template-columns: 1fr; } }
+  @media (max-width: 1100px) { .board { grid-template-columns: 1fr 1fr; } .clock { grid-column: 1 / -1; grid-row: 1; } .lower { grid-template-columns: 1fr; } }
   @media (max-width: 600px) { .board { grid-template-columns: 1fr; } .clock { grid-column: auto; grid-row: auto; } .fin { grid-template-columns: 1fr; } }
 </style>
 <script src="log.js"></script>

@@ -103,7 +103,7 @@ async function addSources(sources) {
   const body = await act({ type: 'add', sources, before: selected || undefined });
   if (!body) { $('addErr').textContent = $('err').textContent; return; }
   const added = body.sources.find(x => !before.has(x.id));
-  if (added) selected = added.id;
+  if (added) { selected = added.id; editOpen = true; }
   closeAdd(); renderList(); renderForm(true); drawBox();
 }
 $('addAllUnused').onclick = () => {

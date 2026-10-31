@@ -38,13 +38,15 @@ test('Output page sections fold, stay folded when the page opens again, and keep
   const folded = () => page.$$eval('section[data-fold]', s => s.filter(x => x.classList.contains('folded')).map(x => x.dataset.fold));
   assert.deepEqual(await folded(), ['media']);
   assert.equal(await page.isVisible('#mediaList'), false);
-  // Long explanations are behind Expand for info.
-  assert.equal(await page.isVisible('#swNote'), false);
-  await page.click('#swSection details.info summary');
-  assert.equal(await page.isVisible('#swNote'), true);
+  // The switcher's set-up waits behind Set up.
+  assert.equal(await page.isVisible('#swAddress'), false);
+  await page.click('#swSetup');
+  assert.equal(await page.isVisible('#swAddress'), true);
 
-  // Fold Music (its arrow) and Video output (its title); Output on stays in reach, the player doesn't show.
+  // Fold Music (its arrow) and Output settings (its title, once Settings over the picture has opened the drawer);
+  // Output on stays in reach, the player doesn't show.
   await page.click('#musicSection button.fold');
+  await page.click('#outCfg');
   await page.click('#outSection h2');
   assert.deepEqual(await folded(), ['output', 'music', 'media']);
   assert.equal(await page.isVisible('#mPlay'), false);
