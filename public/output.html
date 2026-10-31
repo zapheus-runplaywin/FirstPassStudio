@@ -22,9 +22,10 @@
   /* The stage: the picture (and its tabs) left, the status board right. It scrolls with the page. */
   .mv { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 9fr); gap: 14px; align-items: stretch; margin-bottom: 14px; }
   .pgm { min-width: 0; display: grid; gap: 8px; align-content: start; }
-  .pgmTop { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
-  .pgmTop .outTabs { margin: 0; }
+  .pgmTop { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: flex-end; }
   .pgmTools { margin-left: auto; gap: 6px; }
+  /* The output tabs sit straight on the picture: the picked one's colour runs into the picture's top edge. */
+  .pgm > .outTabs { margin: 0; }
   .pgmTools button, .pgmTools .fp-seg > button { padding: 5px 11px; font-size: 13px; }
   #outCfg[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
   #outSection.drawer { margin-bottom: 0; }
@@ -372,13 +373,13 @@
       <p class="sub">What is on air and tonight's scenes and sequences; every setting is a click away in its section. <a href="/graphics.html#output">More in the Docs</a></p></div>
   </div>
 
-  <!-- The stage: the picture of the output picked (its tabs, HD/4K, Settings and Output on in one row above it; Settings
-       opens that output's set-up as a drawer under the row, pushing the picture down) and the status board beside it
-       (output/board.js). It scrolls with the rest of the page. -->
+  <!-- The stage: the picture of the output picked and the status board beside it (output/board.js). Above the picture:
+       the tools row (HD/4K, Add an output, Settings, Output on), then Settings' drawer (that output's set-up, pushing the
+       rest down), then the output tabs sitting directly on the picture, like a switcher's bus above its monitor. It
+       scrolls with the rest of the page. -->
   <div class="mv" id="mv">
     <div class="pgm" id="viewSection">
       <div class="pgmTop">
-        <div class="outTabs hidden" id="outTabs"></div>
         <div class="row pgmTools">
           <span class="fp-seg hidden" id="outQuality" role="group" aria-label="Picture" title="The picture every output sends: HD, or 4K (2160p) for 4K gear. Nothing else changes.">
             <button data-q="hd" aria-pressed="true">HD</button><button data-q="uhd" aria-pressed="false">4K</button></span>
@@ -506,6 +507,7 @@
     </div>
   </section>
 
+    <div class="outTabs hidden" id="outTabs"></div>
     <div class="preview" id="preview">
       <iframe id="previewFrame" title="Scene View"></iframe>
       <div class="box" id="selBox"></div>
