@@ -56,8 +56,8 @@
       <div class="row"><input id="saveName" placeholder="Name this demo" maxlength="60" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px">
         <button id="saveDemo">Save demo</button><span class="help" style="margin:0">Saved with these teams, athletes and Swap, to run again.</span></div>
     </div>
-    <p class="help">The game plays in real time as it did on the night; nothing counts for the sponsors and nothing is recorded.</p>
-    <details class="info"><summary>Expand for info</summary><p class="note">PlayHQ's answers from the night are replayed, moved to now, so Studio runs as on a real night: the scoreboard,
+    <p class="help">The game plays in real time as it was recorded; nothing counts for the sponsors and nothing is recorded.</p>
+    <details class="info"><summary>Expand for info</summary><p class="note">PlayHQ's answers from the game are replayed, moved to now, so Studio runs as on a real game night: the scoreboard,
       sequences and outputs all work. Stop puts the scoreboard back as it was.</p></details>
   </section>
 
@@ -75,7 +75,7 @@
       <input id="followAddress" placeholder="HyperDeck IP address" maxlength="100" hidden style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;width:12em">
       <button id="followSet" hidden>Follow</button>
       <span class="help" id="followStatus" style="margin:0"></span></div>
-    <p class="help">The night's graphics go to every output as they went to air, with the Output page's <b>4K</b> on, to key over the camera recording.</p>
+    <p class="help">The game's graphics go to every output as they went to air, with the Output page's <b>4K</b> on, to key over the camera recording.</p>
     <details class="info"><summary>Expand for info</summary><p class="note">Studio doesn't play the video. To sync by hand: pause the video on a moment you can see (the first centre pass),
       <b>Jump there</b> to the same moment, then press Play on both together and nudge until they match. While a replay runs the live scene and scoreboard
       are kept as they were and can't be changed.</p>
@@ -115,8 +115,9 @@
 
   <section>
     <h2>Games</h2>
-    <p class="help" style="margin:0 0 10px"><label>A practice game starts in <input type="number" id="lead" min="0" max="60" step="1" value="5" style="width:4.5em;font:inherit"> minutes</label>
-      (0 to 60): <b>Practise</b> and <b>Jump to Start</b> put the game this long before its first centre pass, time for a pre-game sequence.</p>
+    <p class="help" style="margin:0 0 4px"><label>A practice game starts in <input type="number" id="lead" min="0" max="60" step="1" value="5" style="width:4.5em;font:inherit"> minutes</label> (0 to 60).</p>
+    <details class="info" style="margin:0 0 10px"><summary>Expand for info</summary><p class="note"><b>Practise</b> and <b>Jump to Start</b> put the game this long
+      before its first centre pass, time for a pre-game sequence.</p></details>
     <div id="nights"><p class="empty">Looking…</p></div>
   </section>
 </main>
@@ -232,7 +233,7 @@ let eventsKey = '';
 function showReplay(r) {
   $('replay').hidden = !r.active;
   if (!r.active) { eventsKey = ''; return; }
-  $('replayWhat').innerHTML = `${r.game ? `<b>${esc(r.game.home)} v ${esc(r.game.away)}</b>, ` : ''}${r.paused ? 'paused' : 'playing'} at <b>${esc(tod(r.position))}</b> on the night.`;
+  $('replayWhat').innerHTML = `${r.game ? `<b>${esc(r.game.home)} v ${esc(r.game.away)}</b>, ` : ''}${r.paused ? 'paused' : 'playing'} at <b>${esc(tod(r.position))}</b> in the game.`;
   $('replayPlay').textContent = r.paused ? 'Play' : 'Pause';
   $('replayPlay').dataset.paused = r.paused ? '1' : '';
   showFollow(r.follow || {});
