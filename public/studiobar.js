@@ -61,24 +61,29 @@
   bar.append(brand, nav, chips, docs); // the zoom chip joins after chips below
 
   // ─── Status chips ───────────────────────────────────────────────────────
-  // What's on air, at a glance, from any page: the outputs sending (orange while any is), the game on the board,
-  // PlayHQ following and the clock, the sequence playing (step and time left on it) or the triggered one counting
-  // down to start (or the head of the run order as Next), and REC while a game records. One read of /api/health every 2 s while the page is in view; the
-  // times count down between reads. Styled by studio.css (.fp-chips).
+  // What's on air, at a glance, from any page: ON AIR like a tally light (orange while any output sends) with a dot per
+  // output, solid in its colour while it sends and hollow while it doesn't; the game on the board; PlayHQ following and
+  // the clock; the sequence playing (step and time left on it) or the triggered one counting down to start (or the head of the run order as Next); ATEM while a
+  // switcher is set up (green answering, red not); and REC while a game records (grey while Record games waits for one).
+  // They are status, not links: the tabs are the way to a page. One read of /api/health every 2 s while the page is in
+  // view; the times count down between reads. Styled by studio.css (.fp-chips).
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const mmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
   let health = null, heardAt = 0;
-  const chip = (cls, href, dot, text) => `<a class="chip ${cls}" href="${href}">${dot ? `<span class="dot ${dot}"></span>` : ''}${text}</a>`;
+  const chip = (cls, title, dot, text) => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ''}>${dot ? `<span class="dot ${dot}"></span>` : ''}${text}</span>`;
   const render = () => {
     const h = health;
-    if (!h) { chips.innerHTML = chip('off', '/output.html', 'bad', 'Studio isn\'t answering'); return; }
+    if (!h) { chips.innerHTML = chip('off', '', 'bad', 'Studio isn\'t answering'); return; }
     const since = Date.now() - heardAt;
     const left = ms => ms == null ? null : Math.max(0, ms - since);
     const parts = [];
-    const air = h.output && h.output.onAir && h.output.onAir.length ? h.output.onAir : h.output && h.output.on ? [{ name: 'Output' }] : [];
-    parts.push(air.length ? chip('air', '/output.html', '', `ON AIR · ${esc(air.map(o => o.name).join(', '))}`) : chip('off', '/output.html', 'off', 'Off air'));
+    // ON AIR with a dot per output (one output without a list: its one dot), hollow while that output isn't sending.
+    const outs = h.output && h.output.outputs && h.output.outputs.length ? h.output.outputs : [{ name: 'Output', colour: '#F75C03', on: !!(h.output && h.output.on) }];
+    const sending = outs.filter(o => o.on);
+    const dots = outs.map(o => `<i class="odot${o.on ? ' on' : ''}" data-colour="${esc(o.colour || '#F75C03')}" title="${esc(o.name)}: ${o.on ? 'sending' : 'off'}"></i>`).join('');
+    parts.push(chip(sending.length ? 'air' : 'off', sending.length ? `On air: ${sending.map(o => o.name).join(', ')}` : 'No output is sending', '', `${sending.length ? 'ON AIR' : 'Off air'}<span class="odots">${dots}</span>`));
     const g = h.game;
-    parts.push(g ? chip('game', '/control.html', 'ok', `${esc(g.label)}${g.court ? ` · ${esc(g.court)}` : ''}`) : chip('game off', '/control.html', 'off', 'No game on the board'));
+    parts.push(g ? chip('game', '', 'ok', `${esc(g.label)}${g.court ? ` · ${esc(g.court)}` : ''}`) : chip('game off', '', 'off', 'No game on the board'));
     if (g) {
       const p = h.playhq || {}, c = h.clock || {};
       const clock = c.left != null ? ` · ${esc(c.periodLabel || 'Q')}${esc(c.period)} ${mmss(c.left * 1000 - (c.running ? since : 0))}` : '';
@@ -89,19 +94,26 @@
       else if (p.state === 'bad') { dot = 'bad'; text = 'PlayHQ failing'; }
       else if (p.state === 'warn') { dot = 'warn'; text = 'PlayHQ overdue'; }
       else text = c.following ? 'PlayHQ' : 'PlayHQ · clock by hand';
-      parts.push(chip(`playhq ${dot}`, '/control.html', dot, `${text}${clock}`));
+      parts.push(chip(`playhq ${dot}`, '', dot, `${text}${clock}`));
     }
     // The run order's head rides along: "then X" on the sequence playing, or a Next chip of its own.
     const then = h.next && h.next.name ? ` · then ${esc(h.next.name)}` : '';
     if (h.playing) {
       const s = h.playing, l = s.paused ? s.leftMs : left(s.leftMs);
-      parts.push(chip('seq', '/output.html', 'gold', `${esc(s.name || 'Sequence')} ${s.step}/${s.steps}${s.paused ? ' · paused' : l != null ? ` · ${mmss(l)}` : ''}${then}`));
+      parts.push(chip('seq', '', 'gold', `${esc(s.name || 'Sequence')} ${s.step}/${s.steps}${s.paused ? ' · paused' : l != null ? ` · ${mmss(l)}` : ''}`));
     } else if (h.armed) {
       const a = h.armed, l = left(a.leftMs);
-      parts.push(chip('armed', '/output.html', 'ok', `Armed: ${esc(a.name || 'sequence')}${l != null ? ` · in ${mmss(l)}` : ' · after this'}`));
-    } else if (h.next) parts.push(chip('next', '/output.html', 'off', `Next: ${esc(h.next.name)}`));
-    if (h.recording && h.recording.on) parts.push(chip('rec', '/recordings.html', 'rec', 'REC'));
+      parts.push(chip('armed', '', 'ok', `Armed: ${esc(a.name || 'sequence')}${l != null ? ` · in ${mmss(l)}` : ' · after this'}`));
+    } else if (h.next) parts.push(chip('next', '', 'off', `Next: ${esc(h.next.name)}`));
+    // ATEM while a switcher is set up: answering or not. REC while a game records, or waiting for one with Record games on.
+    const sw = h.switcher || {};
+    if (sw.setUp) parts.push(chip(`atem ${sw.connected ? 'ok' : 'bad'}`, sw.connected ? `${sw.model || 'The switcher'} is answering` : `${sw.model || 'The switcher'} isn't answering`, sw.connected ? 'ok' : 'bad', 'ATEM'));
+    const r = h.recording || {};
+    if (r.on) parts.push(chip('rec', `Recording ${r.name || 'this game'}`, 'rec', 'REC'));
+    else if (r.record) parts.push(chip('rec wait', 'Records the next PlayHQ game on air', 'off', 'REC'));
     chips.innerHTML = parts.join('');
+    // Each output's dot takes that output's colour (the one thing here studio.css can't know).
+    for (const d of chips.querySelectorAll('.odot')) d.style.setProperty('--c', d.dataset.colour);
   };
   // Page zoom (the Mac app, desktop/windows.js): the app says the level after each change and each load; while it
   // isn't 100% a chip at the right of the bar shows it, and a click asks for 100% (the app watches for #zoom=100).

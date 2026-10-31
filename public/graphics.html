@@ -149,7 +149,7 @@
     <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
       top layer first, and sends it to a display, a Blackmagic device or NDI® for your switcher.
       It is one page, laid out for the night: the picked output's picture with its tabs, <b>HD</b> or <b>4K</b>, <b>Settings</b> (the output's set-up, opened as a drawer under the row)
-      and <b>Output on</b> in one row, and a status board beside it (a light per output, the ATEM and REC; the game, PlayHQ, the score and the clock; the sequence playing and the next one armed,
+      and <b>Output on</b> in one row, and a status board beside it (the game, PlayHQ, the score and the clock; the sequence playing and the next one armed,
       the music, the mics, the dip, the switcher's program and preview, the recording with <b>Record</b> or <b>Stop</b>, and the next game the automatic game switch is waiting for).
       Under them the Sources run down the left, and to their right the scenes and sequences as tiles, then music and mics, the switcher and the media folder.
       Every setting is a click away in its section rather than a view of its own: a source's settings open under its row (click the row, or its pencil), <b>Edit scenes</b> opens the scene grid,
@@ -617,9 +617,9 @@
       open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
       <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘9, and ⌘0 for Docs), <b>View</b> for reload, back and page zoom (in steps, the level shown in the menu; <b>Zoom In</b> ⌘+, <b>Zoom Out</b> ⌘−, <b>Actual Size</b> ⌘⌥0, or pinch on the trackpad; while it isn't 100% a chip at the right of the bar shows the level, and a click on it puts it back), <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
     <p class="page__help"><b>The bar</b> at the top of every Studio page has the tabs in three groups: <b>Run</b> (Output, Scoreboard control) for the night, <b>Plan</b> (Production Planner, Socials) for before it,
-      and <b>Set up</b> (Recordings, Competitions setup, Sponsors, Athletes, Stream Deck) for once, with Docs at the right. Its status chips say what is on from any page: <b>ON AIR</b> in orange with the
-      outputs sending (or Off air), the game on the board, PlayHQ following with the quarter and clock (amber when a reading is overdue, red when it keeps failing), the sequence playing with its step and time left
-      or the triggered one counting down to start, and <b>REC</b> while a game records. Each chip opens the page that controls it. They read <code>/api/health</code> every 2 seconds.</p>
+      and <b>Set up</b> (Recordings, Competitions setup, Sponsors, Athletes, Stream Deck) for once, with Docs at the right. Its status chips say what is on from any page: <b>ON AIR</b> in orange, like a tally light, with a dot per output
+      (solid in the output's colour while it sends, hollow while it doesn't; hover for its name) or <b>Off air</b>, the game on the board, PlayHQ following with the quarter and clock (amber when a reading is overdue, red when it keeps failing), the sequence playing with its step and time left
+      or the triggered one counting down to start, <b>ATEM</b> while a switcher is set up (green answering, red not), and <b>REC</b> while a game records (grey while Record games waits for one). They are status, not links; the tabs are the way to a page. They read <code>/api/health</code> every 2 seconds.</p>
     <p class="page__help">Building and releasing it is in the README under <b>Desktop app (Mac)</b>.</p>
   </div>
   <div class="card">

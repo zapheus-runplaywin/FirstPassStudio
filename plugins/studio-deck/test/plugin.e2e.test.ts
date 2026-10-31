@@ -120,7 +120,9 @@ async function startStudio(port: number, dataDir: string): Promise<ChildProcess>
 		env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir },
 		stdio: ["ignore", "ignore", "ignore"],
 	});
-	for (let i = 0; i < 100; i++) {
+	// Up to 30 s: the first start on a fresh runner loads Studio's modules from a cold disk and has taken over 10 s
+	// there, while every later start in the same run is up within a second.
+	for (let i = 0; i < 300; i++) {
 		try {
 			if ((await fetch(`http://127.0.0.1:${port}/api/scene`)).ok) return child;
 		} catch {

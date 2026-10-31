@@ -15,8 +15,14 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
 
   // One view: the board beside the picture, Output on and the add buttons in reach, the output's set-up folded away.
   await page.waitForSelector('#board .line');
-  assert.ok((await page.$$('#board .lights .light')).length >= 3, 'an output light, ATEM and REC');
+  assert.equal((await page.$$('#board .lights')).length, 0, 'the outputs, ATEM and REC are the bar\'s chips, not a board row');
   assert.equal((await page.$$('#board .line')).length, 8);
+  // The bar: ON AIR (or Off air) with a dot per output, hollow while it isn't sending; the chips are status, not links.
+  await page.waitForSelector('.fp-chips .chip .odot');
+  assert.equal((await page.$$('.fp-chips .chip .odot')).length, 1, 'one output, one dot');
+  assert.equal((await page.$$('.fp-chips .chip .odot.on')).length, 0, 'off air: hollow');
+  assert.equal((await page.$$('.fp-chips a.chip')).length, 0, 'no chip is a link');
+  assert.equal((await page.$$('.fp-chips .chip.atem')).length, 0, 'no switcher set up: no ATEM chip');
   assert.match(await page.textContent('#board .game'), /0 – 0/, 'the game row shows the score');
   assert.match(await page.textContent('#board .game'), /Q1 \d+:\d\d/, 'and shows the clock');
   assert.equal(await page.isVisible('#boardRecord'), true, 'recording is controlled from the board');

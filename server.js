@@ -380,7 +380,11 @@ function health() {
     clock: { following: following && !!b.followPlayhqClock, running: !!b.clock.running, period: b.period, periodLabel: rules(b.division).periodLabel, left: clockLeft(b) },
     output: { on: !!out.on && out.mode !== 'off', mode: out.on && out.mode !== 'off' ? out.mode : '', showing: (out.showing || []).length,
       // Every output that's sending (on, not off), by name and colour, for the on-air chip.
-      onAir: (out.outputs || []).filter(o => o.on && o.mode !== 'off').map(o => ({ name: o.name, colour: o.colour })) },
+      onAir: (out.outputs || []).filter(o => o.on && o.mode !== 'off').map(o => ({ name: o.name, colour: o.colour })),
+      // And every output, sending or not, for the chip's dot per output (solid while it sends, hollow while it doesn't).
+      outputs: (out.outputs || []).map(o => ({ name: o.name, colour: o.colour, on: !!o.on && o.mode !== 'off' })) },
+    // The switcher, for the bar's ATEM chip: set up or not, and whether it's answering.
+    switcher: (() => { const s = switcher.status(); return { setUp: !!s.setUp, connected: s.state === 'connected', model: s.model || '' }; })(),
     sourcesOn: (sc.sources || []).filter(s => s.visible).length, sources: (sc.sources || []).length,
     scene: sc.current || null, sequence: sc.playing ? (playing.name || true) : null,
     playing, armed, next,
