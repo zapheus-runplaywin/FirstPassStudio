@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 14 of 15: Show and Prep: the two views of the page, and the stage pinned under the bar.
+// FirstPass Studio - the Output page, part 14 of 15: Show and Prep: the two views of the page.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //
@@ -31,12 +31,3 @@ $('outCfg').onclick = () => {
   requestAnimationFrame(fitPreview);
 };
 
-// The stage sits under the bar, which wraps onto two rows on a narrower window: measure it.
-(() => {
-  const bar = document.querySelector('header.fp-bar');
-  if (!bar) return;
-  const set = () => document.documentElement.style.setProperty('--barh', `${bar.offsetHeight}px`);
-  set();
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(set).observe(bar);
-  else addEventListener('resize', set);
-})();
