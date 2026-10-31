@@ -2,9 +2,8 @@
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //
-// Like a switcher's multiview: one board, read from arm's length, that says what is on and what needs a hand. A lights
-// row (each output, the switcher, REC), the game row (PlayHQ and how long since it answered, the score, the quarter and
-// clock), then eight lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
+// Like a switcher's multiview: one board, read from arm's length, that says what is on and what needs a hand. The game
+// row (PlayHQ and how long since it answered, the score, the quarter and clock), then eight lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
 // next one armed (or the run order's head), the music and the mics, the mics' dip and the switcher, the recording (with Record games on or off) and
 // the next game. It draws from what the page already has: /api/health (common.js, every 2 s), the scene (sceneAll), the
 // outputs (out), the switcher (sw) and the mics' live levels (micLive), and counts the clocks down between reads.
@@ -23,13 +22,8 @@ function renderBoard() {
   const left = ms => ms == null ? null : Math.max(0, ms - since);
   const outs = (out && out.outputs) || [];
   const s = sceneAll || {};
-  // Lights: every output in its colour while it sends, the switcher, REC.
-  let lights = outs.map(o => `<span class="light${o.on && o.mode !== 'off' ? ' on' : ''}" style="--c:${boardEsc(o.colour)}" title="${boardEsc(o.name)}: ${o.on && o.mode !== 'off' ? `sending (${boardEsc(o.mode)})` : o.mode === 'off' ? 'web links only' : 'off'}"><span class="dot${o.on && o.mode !== 'off' ? ' live' : ''}"></span>${boardEsc(o.name)}</span>`).join('');
-  if (!outs.length) lights = `<span class="light${h && h.output && h.output.on ? ' on' : ''}"><span class="dot${h && h.output && h.output.on ? ' live' : ''}"></span>Output</span>`;
+  // (The outputs, the switcher and REC are the bar's chips, on every page.)
   const swOn = sw && sw.state === 'connected';
-  lights += `<span class="light${swOn ? ' ok' : ''}" title="${sw && sw.setUp ? boardEsc(sw.model || 'switcher') : 'No switcher set up'}"><span class="dot${swOn ? ' ok' : sw && sw.setUp ? ' bad' : ''}"></span>ATEM</span>`;
-  const rec = h && h.recording && h.recording.on;
-  lights += `<span class="light rec${rec ? ' on' : ''}" title="${rec ? `Recording ${boardEsc(h.recording.name)}` : h && h.recording && h.recording.record ? 'Records the next PlayHQ game on air' : 'Not recording games'}"><span class="dot${rec ? ' bad' : ''}"></span>REC</span>`;
   // The game: PlayHQ, the score, the clock.
   let game = '';
   if (!h) game = '<span class="pq bad"><span class="dot bad"></span>Studio isn\'t answering</span>';
@@ -86,7 +80,7 @@ function renderBoard() {
   const auto = h && h.autoNote ? h.autoNote.replace(/\s*Picking a game.*$/, '') : '';
   const nextGame = boardLine('Next game', '', auto ? boardEsc(auto.replace(/^Next:\s*/, '').replace(/,?\s*switches at.*$/, '')) : h && h.game ? 'Picked by hand' : 'No game',
     auto && /switches at/.test(auto) ? boardEsc(auto.replace(/^.*switches at\s*/, 'switches at ')) : auto ? '' : 'Scoreboard control picks the next one', null, '');
-  box.innerHTML = `<div class="brow lights">${lights}</div><div class="game">${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${dipLine}${swLine}${recLine}${nextGame}</div>`;
+  box.innerHTML = `<div class="game">${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${dipLine}${swLine}${recLine}${nextGame}</div>`;
   const rb = $('boardRecord');
   if (rb) rb.onclick = async () => {
     rb.disabled = true;

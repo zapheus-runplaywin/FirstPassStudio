@@ -152,9 +152,9 @@ picture with its output tabs and a status board, the sources down the left, scen
 setting a click away in its section. The status board (from `/api/health`) shows the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
 answered (amber when a reading is overdue, red after a minute of errors, with the error), and whether the video output is
 on, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
-every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR with the outputs sending (or Off
-air), the game on the board, PlayHQ and the clock, the sequence playing (step and time left) or armed to start, and REC
-while a game records. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
+every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
+sends, hollow while it doesn't) or Off air, the game on the board, PlayHQ and the clock, the sequence playing (step and time
+left) or armed to start, ATEM while a switcher is set up (answering or not) and REC while a game records; status, not links. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
 and Set up (Recordings, Competitions setup, Sponsors, Athletes, Stream Deck), with Docs at the right; the ⌘ keys keep
 the order below.
 
