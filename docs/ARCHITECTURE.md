@@ -30,7 +30,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   with status chips from `/api/health`) share `studio.css` and `studiobar.js`: the page kit in `studio.css`
   (section, headings, buttons, segmented controls `.fp-seg`, switches `.fp-switch`, help text, dialogs, scoped with `:where(body.fp)` so a page's own classes win) is what each is built from, its `--fp-*` tokens carry the
   brand kit's light and dark values (`prefers-color-scheme`; the app pins the theme with `nativeTheme.themeSource` from the menu bar icon's Appearance),
-  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). The graphics only talk to the helper
+  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). Each page has one line under its title and a **More in the Docs** link to its card on the Docs page (`graphics.html#output`, `#control`, `#planner`, `#socials`, `#recordings`, `#setup`, `#sponsors`, `#athletes`, `#streamdeck`), where the longer explanations live. The graphics only talk to the helper
   on this computer and keep the competition's own look.
 
 Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-deck`, TypeScript, talks to the helper's

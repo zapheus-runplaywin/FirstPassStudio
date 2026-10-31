@@ -28,11 +28,12 @@
   <p class="sub" id="sub">Loading from PlayHQ…</p>
   <p class="page__help">How Studio works and what every graphic does. Build the show on the <a href="/output.html">Output page</a>: each graphic's options are fields in its source's settings there.
     The links here, with <b>Copy link</b> and <b>Preview</b>, are for using a graphic on its own, such as an OBS browser source; the options below can be added to them by hand.</p>
-  <div class="card">
+  <div class="card" id="setup">
     <h2>Competitions setup</h2>
     <p class="page__help" id="compNow">Every graphic is set up for one competition at a time.</p>
+    <p class="page__help">Each competition keeps its own setup on the <a href="/setup.html" target="_blank">Competitions setup</a> page: everything about it that doesn't come from PlayHQ (its PlayHQ link, names, game rules, colours, font and logos). The one marked <b>In use</b> is what every graphic, Scoreboard control and the Stream Deck use.</p>
     <div class="row"><a class="btn alt" href="/setup.html" target="_blank">Open competition setup</a><a class="btn alt" href="/athletes.html" target="_blank">Open athlete photos</a><a class="btn alt" href="/sponsors.html" target="_blank">Open sponsors</a></div>
-    <p class="page__help">The <a href="/sponsors.html" target="_blank">Sponsors page</a> keeps the competition's sponsors by tier (Naming rights, Elite, Major, Partner, Supporter, or Platinum, Gold, Silver and Bronze, or your own names),
+    <p class="page__help" id="sponsors">The <a href="/sponsors.html" target="_blank">Sponsors page</a> keeps the competition's sponsors by tier (Naming rights, Elite, Major, Partner, Supporter, or Platinum, Gold, Silver and Bronze, or your own names),
       each with its colour and white logos, tagline, website, offer, brand colour, category, deal dates and optional targets, and a QR code to its website (made on this Mac, with tracking tags for the sponsor's website analytics unless turned off; <b>Save QR code as PNG</b> gives a copy).
       A sponsor can be shown on more than one competition at its own tier in each, and is kept once. For each tier, pick what its spots do when it has no sponsor:
       <b>Pull up</b> or <b>Pull down</b> a sponsor from the nearest tier below or above with one, <b>Skip tier</b>, or <b>Advertise vacancy</b> with the competition's vacancy card (heading, message, contact and a link or email for its QR code; never shown without one).
@@ -41,7 +42,8 @@
       The game stats, shooting stats and top shooters cards carry the next sponsor in rotation from Major and up in their footer, the ticker leads with the next from Partner and up, and the end of night card (Up next after the last game) thanks the sponsors from Major and up with their logos
       (<code style="display:inline">?sponsors=all</code> every tier, <code style="display:inline">?sponsors=0</code> none).
       On any of them, <code style="display:inline">?sponsor=0</code> leaves the sponsor off and <code style="display:inline">?sponsor=Golds%20Bakery</code> always shows that one; set it in the source's options on the Output page. With no sponsors they look as they always did.</p>
-    <p class="page__help">The <a href="/athletes.html" target="_blank">Athletes page</a> keeps a photo of each athlete for the position match ups.
+    <p class="page__help" id="athletes">The <a href="/athletes.html" target="_blank">Athletes page</a> keeps a photo of each athlete for the position match ups.
+      A photo is saved under the athlete's name in the competition's <b>photos</b> folder, so it matches that athlete in every game, team and division: an athlete who plays in more than one division needs only one photo. Photos are made smaller before they're saved; cut-out PNGs with a transparent background look best.
       Pick a team to see every athlete in its PlayHQ line ups this season and add a photo to each (or drop one onto them).
       Teams are listed by division, so a club with a team in more than one division (Knights) has a button in each, showing that division's line ups.
       Photos are saved in the competition's <code style="display:inline">photos</code> folder, named after the athlete, so they match in every game (and Studio remembers each athlete's PlayHQ id, so a player renamed in PlayHQ keeps their photo).
@@ -113,7 +115,7 @@
     <p class="page__help"><b>Carnivals</b> (like the AMMNA nationals) play several rounds a day: on those days "this round" moves on to each round
       as its first game comes up, and Up next looks across the whole day.</p>
   </div>
-  <div class="card">
+  <div class="card" id="scoreboard">
     <h2>Live scoreboard</h2>
     <code id="sbUrl"></code>
     <div class="row"><button id="sbCopy">Copy link</button><a class="btn alt" href="/control.html" target="_blank">Open scoreboard control</a><a class="btn alt" href="/api.html" target="_blank">Stream Deck links</a></div>
@@ -125,7 +127,7 @@
       own clock, so it follows the PlayHQ scorer's clock when the scoreboard does. The minutes are set per competition on the
       <a href="/setup.html" target="_blank">competition setup page</a> (Game rules, 0 leaves the tab off), and <code>?supershot=0</code> leaves it off this source.</p>
   </div>
-  <div class="card">
+  <div class="card" id="output">
     <h2>Output (the Studio scene)</h2>
     <code id="sceneUrl"></code>
     <div class="row"><button id="sceneCopy">Copy link</button><a class="btn alt" href="/output.html" target="_blank">Open the Output page</a><a class="btn alt pvw" href="/pvw.html?src=%2Fscene.html&amp;name=Scene" target="_blank">Preview</a></div>
@@ -171,7 +173,7 @@
         <b>Remove</b> deletes a file for good (with a levelled song's original) after asking, and says where it's used first. A file on air (a source showing it, or the song playing) can't be removed until it's off.
         Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file.
         A .mov and the WebM converted from it are separate files.</li>
-      <li><b>Stream Deck plugin:</b> the Mac app includes a FirstPass Studio plugin for the Stream Deck app. Install it from the menu bar icon
+      <li id="streamdeck"><b>Stream Deck plugin:</b> the Mac app includes a FirstPass Studio plugin for the Stream Deck app. Install it from the menu bar icon
         (<b>Install the Stream Deck plugin</b>) or the Output page's button. The first time a key is pressed, the plugin asks Studio to pair: the Mac shows <b>Allow</b> or <b>Deny</b> for “Stream Deck on <i>computer</i>”, and once allowed the plugin signs every press with its own key pair, so nothing secret crosses the network and a press seen on the network can't be sent again. Devices… lists it and can remove it. Its <b>Source</b> key shows or hides the source you pick in its settings
         (or fades it in, fades it out, restarts it, or turns a video's sound on or off) and lights up in its output's colour while the source is on, whether it was
         turned on from the key, the Output page or a link. With more than one output, each key's <b>Output</b> setting picks the output it acts on
@@ -352,7 +354,7 @@
     </ul>
     <p class="page__help">The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
   </div>
-  <div class="card">
+  <div class="card" id="control">
     <h2>Scoreboard control settings (every page follows these)</h2>
     <p class="page__help">Every graphic uses the game night, game and court set on the <a href="/control.html" target="_blank">Scoreboard control</a>.
       That page is laid out for the operator: the game on the board in one bar with <b>Follow PlayHQ</b> or <b>Manual</b> and the next game the board will switch to,
@@ -377,8 +379,8 @@
         (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a game night picked
         by hand, it follows that night's games on the court by their time: the game due now, otherwise the next one
         to come, otherwise (a night already played) its last game.</li>
-      <li><b>Production Planner:</b> when the <a href="/planner.html" target="_blank">Production Planner</a> has a court for tonight (the game night picked by hand,
-        otherwise today), that court is set here once when the night arrives, which also ticks automatic selection, and again if the plan's court changes.
+      <li id="planner"><b>Production Planner:</b> the <a href="/planner.html" target="_blank">Production Planner</a> plans the court Studio streams each game night and who is on the mic for each game. When it has a court for tonight (the game night picked by hand,
+        otherwise today), that court is set here once when the night arrives, which also ticks automatic selection, and again if the plan's court changes. The <b>Commentators</b> graphic and <b>Commentator stats</b> show whoever is planned for the game on the scoreboard, and a night that hasn't been planned takes the plan of the night before it.
         It says <i>from the Production Planner</i> beside the court. A court changed or a game picked by hand afterwards stays, and the Planner flags it.</li>
       <li><b>Overrides:</b> picking a game from the list turns automatic selection off until you tick it again or change the court. Pressing a score
         button switches scores to manual, and any clock button switches the clock to manual.</li>
@@ -570,7 +572,7 @@
     <p class="page__help"><b>If PlayHQ stops answering</b> the scoreboard keeps its last score, the ladder, fixtures and game list keep what they last read, and the <a href="/api/log" target="_blank" rel="noopener">debug log</a> records each failed read. Switch to <b>Manual</b> on Scoreboard control (or press a score key) and run the board by hand; <b>Follow PlayHQ</b> picks it up again when it is back. <b>If Studio itself stops</b>, the 1P menu's <b>Restart Studio</b> brings it back with the scores and clock it had.</p>
     <p class="page__help">How Studio is put together, module by module, is in <code>docs/ARCHITECTURE.md</code> in the repository.</p>
   </div>
-  <div class="card">
+  <div class="card" id="app">
     <h2>Mac app</h2>
     <p class="page__help">FirstPass Studio is a Mac app for Apple silicon Macs (M1 and later). Open it from Applications or Spotlight
       and the <b>1P</b> icon appears in the menu bar, off air. Choose <b>Open Studio</b> (or any page) there to put Studio on air;
