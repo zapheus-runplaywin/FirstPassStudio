@@ -367,6 +367,9 @@ function health() {
   const playing = sc.playing ? { name: nameOf(sc.playing.id), step: sc.playing.step + 1, steps: sc.playing.steps, paused: !!sc.playing.paused,
     leftMs: sc.playing.leftMs, totalLeftMs: sc.playing.totalLeftMs, totalOpen: !!sc.playing.totalOpen } : null;
   const armed = sc.pending ? { name: nameOf(sc.pending.id), reason: sc.pending.reason || '', leftMs: sc.pending.leftMs } : null;
+  // The head of the primary output's run order (what Next plays), and the one after it.
+  const ro = (sc.runOrder || []).filter(it => !it.gone);
+  const next = ro.length ? { name: ro[0].name, then: ro[1] ? ro[1].name : '', queued: ro.length } : null;
   const rec = recorder.state();
   return {
     version: pageVersion(), serverNow: now, competition: competitionName(), competitionSetup: CONFIG.name,
@@ -380,7 +383,7 @@ function health() {
       onAir: (out.outputs || []).filter(o => o.on && o.mode !== 'off').map(o => ({ name: o.name, colour: o.colour })) },
     sourcesOn: (sc.sources || []).filter(s => s.visible).length, sources: (sc.sources || []).length,
     scene: sc.current || null, sequence: sc.playing ? (playing.name || true) : null,
-    playing, armed,
+    playing, armed, next,
     score: b.gameId ? { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0, homeName: b.home.name, awayName: b.away.name } : null,
     autoNote: b.autoSelect ? (b.autoNote || '') : '',
     recording: { on: !!rec.recording, name: rec.recording || '', record: !!rec.record },

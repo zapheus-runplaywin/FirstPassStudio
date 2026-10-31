@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 12 of 15: The media folder: every file, where it is used, and Remove.
+// FirstPass Studio - the Output page, part 13 of 16: The media folder: every file, where it is used, and Remove.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -150,7 +150,7 @@ function show(s) {
   sceneAll = s;
   scene = viewFor(s, previewOutput);
   // Which output clicks play them on, once there's more than one.
-  for (const [h, word] of [['scenesHead', 'Scenes'], ['seqHead', 'Sequences']]) {
+  for (const [h, word] of [['scenesHead', 'Scenes'], ['seqHead', 'Sequences'], ['roHead', 'Run order']]) {
     $(h).textContent = scene.viewMany ? `${word}: playing on ${scene.viewName}` : word;
     $(h).style.setProperty('--c', scene.viewMany ? scene.viewColour : 'transparent');
     $(h).classList.toggle('forOutput', !!scene.viewMany);
@@ -159,7 +159,7 @@ function show(s) {
   const now = (s.converting || []).join('|');
   if (now !== wasConverting) { wasConverting = now; loadMedia(); }
   if (selected && !current()) selected = null;
-  renderList(); renderForm(); drawBox(); renderScenes(); renderSequences(); renderMusic(); renderMics();
+  renderList(); renderForm(); drawBox(); renderScenes(); renderSequences(); renderRunOrder(); renderMusic(); renderMics();
   // A source added, renamed or removed while the editor is open.
   if (draft && $('seqDialog').open && !$('sqSteps').contains(document.activeElement)) renderSteps();
 }

@@ -770,11 +770,11 @@ function applyScene(a) {
 function deck(parts, q = {}) {
   // /deck/output/<output>/layer/... and /deck/output/<output>/layers/off: one output's sources. The
   // primary's are the plain /deck/layer/... links.
-  if (parts[0] === 'output' && ['layer', 'layers', 'scene', 'sequence'].includes(parts[2])) {
+  if (parts[0] === 'output' && ['layer', 'layers', 'scene', 'sequence', 'runorder'].includes(parts[2])) {
     const o = outputsApi.find(parts[1]);
     if (!o) return { status: 404, body: { error: `No output "${parts[1]}". Use its name or number, as on the Output page.` } };
     if (o.id === PRIMARY) return deck(parts.slice(2), q);
-    // /deck/output/<output>/scene/<name>|next|prev|again and /deck/output/<output>/sequence/...
+    // /deck/output/<output>/scene/<name>|next|prev|again, /deck/output/<output>/sequence/... and /deck/output/<output>/runorder/...
     if (parts[2] === 'scene') {
       if (!parts[3] || parts.length !== 4) return { status: 404, body: { error: `Use /deck/output/${parts[1]}/scene/<name>, next, prev or again.` } };
       const type = { next: 'sceneNext', prev: 'scenePrev', previous: 'scenePrev', again: 'sceneAgain' }[parts[3]];
@@ -784,7 +784,7 @@ function deck(parts, q = {}) {
       const cur = currentScene(o.id);
       return { status: 200, body: { ok: true, output: outputName(o.id), scene: cur ? cur.name : null, changed: changed(o.id).length } };
     }
-    if (parts[2] === 'sequence') {
+    if (parts[2] === 'sequence' || parts[2] === 'runorder') {
       const r = sequences.deck(parts.slice(2), o.id);
       if (!r) return null;
       if (r.error) return { status: r.status, body: { error: r.error } };
@@ -833,7 +833,7 @@ function deck(parts, q = {}) {
     save();
     return { status: 200, body: { ok: true, sponsor: ad.name, source: src.name } };
   }
-  if (what === 'sequence') {
+  if (what === 'sequence' || what === 'runorder') {
     const r = sequences.deck(parts);
     if (!r) return null;
     if (r.error) return { status: r.status, body: { error: r.error } };
@@ -1377,6 +1377,7 @@ function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
     setOn: (s, on, out) => { const o = out === PRIMARY ? null : out; setOn(s, on, o); endedOf(o).delete(s.id); },
     hasOutput: id => outputsApi.find(id)?.id === id,
     scene: id => scene.scenes.find(s => s.id === id) || null,
+    sceneNamed: ref => scene.scenes.find(s => slug(s.name) === slug(ref)) || null,
     goTo: (sc, step, out) => goTo(sc, true, step, out === PRIMARY ? null : out),
     duration,
     sponsorAd: (opts, out) => sponsorAd(opts, out === PRIMARY ? null : out),

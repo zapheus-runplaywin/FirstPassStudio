@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 3 of 15: The Sources list: every layer, on and off, the eye (preview) and the pencil (its settings under the row), and the order by dragging.
+// FirstPass Studio - the Output page, part 3 of 16: The Sources list: every layer, on and off, the eye (preview) and the pencil (its settings under the row), and the order by dragging.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 

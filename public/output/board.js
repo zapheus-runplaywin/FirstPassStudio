@@ -1,11 +1,11 @@
-// FirstPass Studio - the Output page, part 13 of 15: The status board beside the picture: everything at a glance.
+// FirstPass Studio - the Output page, part 14 of 16: The status board beside the picture: everything at a glance.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //
 // Like a switcher's multiview: one board, read from arm's length, that says what is on and what needs a hand. A lights
 // row (each output, the switcher, REC), the game row (PlayHQ and how long since it answered, the score, the quarter and
 // clock), then eight lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
-// next one armed, the music and the mics, the mics' dip and the switcher, the recording (with Record games on or off) and
+// next one armed (or the run order's head), the music and the mics, the mics' dip and the switcher, the recording (with Record games on or off) and
 // the next game. It draws from what the page already has: /api/health (common.js, every 2 s), the scene (sceneAll), the
 // outputs (out), the switcher (sw) and the mics' live levels (micLive), and counts the clocks down between reads.
 const boardEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -54,12 +54,16 @@ function renderBoard() {
     ? boardLine('Sequence', pl.paused ? 'warn' : 'live', boardEsc(pl.name || 'Sequence'), `step ${pl.step} of ${pl.steps}${pl.paused ? ' · paused' : ''}${pl.totalLeftMs != null ? ` · ${boardMmss(left(pl.totalLeftMs))} in all${pl.totalOpen ? '+' : ''}` : ''}`,
       boardBar(pl.steps ? (pl.step - (pl.leftMs != null ? 0.5 : 0)) / pl.steps * 100 : null), pl.leftMs != null ? boardMmss(pl.paused ? pl.leftMs : left(pl.leftMs)) : '')
     : boardLine('Sequence', '', 'Nothing playing', s.current && (s.scenes || []).find(x => x.id === s.current) ? `scene: ${boardEsc((s.scenes || []).find(x => x.id === s.current).name)}` : '', null, '');
+  // Next: a triggered start counting down, else the head of the run order (what Next plays, and what follows it),
+  // else the next start before the game, else nothing armed.
   const ar = h && h.armed;
+  const ro = (s.runOrder || []).filter(it => !it.gone);
   const next = !ar && s.nextAuto && (s.sequences || []).find(x => x.id === s.nextAuto.id);
   const armedLine = ar
     ? boardLine('Next', 'ok', `Armed: ${boardEsc(ar.name || 'sequence')}`, ar.leftMs == null ? 'after the one playing' : 'counting down', null, ar.leftMs == null ? '' : `in ${boardMmss(left(ar.leftMs))}`)
+    : ro.length ? boardLine('Next', 'ok', boardEsc(ro[0].name), ro[1] ? `then ${boardEsc(ro[1].name)}${ro.length > 2 ? ` · ${ro.length - 2} more` : ''}` : 'last in the run order', null, '')
     : next ? boardLine('Next', 'ok', boardEsc(next.name), `at ${boardEsc(clockTime(s.nextAuto.at))}${next.start && next.start.min ? ` · ${next.start.min} min before the game` : ''}`, null, s.nextAuto.at ? `in ${boardMmss(Math.max(0, s.nextAuto.at - Date.now()))}` : '')
-    : boardLine('Next', '', s.seqAuto === false || (s.sequences || []).every(x => !x.start || x.start.type === 'hand') ? 'Nothing armed' : 'Nothing armed yet', (s.sequences || []).length ? 'sequences start by hand or by their triggers' : 'no sequences yet', null, '');
+    : boardLine('Next', '', s.seqAuto === false || (s.sequences || []).every(x => !x.start || x.start.type === 'hand') ? 'Nothing armed' : 'Nothing armed yet', (s.sequences || []).length ? 'run order empty; sequences start by hand or by their triggers' : 'no sequences yet', null, '');
   // Music and mics: from what their own sections already drew.
   const m = s.music || {};
   const musicOn = m.status === 'playing';
