@@ -7,7 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
-const PAGES = ['output', 'planner', 'control', 'recordings', 'socials', 'setup', 'sponsors', 'athletes', 'api', 'devices', 'graphics', 'sponsorreport'];
+// (devices.html is a forward to the Devices tab, api.html, since 31 Oct 2026, not a page of its own.)
+const PAGES = ['output', 'planner', 'control', 'recordings', 'socials', 'setup', 'sponsors', 'athletes', 'api', 'graphics', 'sponsorreport'];
 // Selectors the kit owns. A page may still style a more specific thing (.plus, .eye, .guide h3, dialog.editor).
 const KIT = new Set(['*', 'main', 'h1', '.sub', 'section', 'h2', 'button', 'button:hover', 'button.alt', 'button.alt:hover', 'button.danger',
   'button.small', 'button:disabled', '.help', '.note', '.error', 'dialog', 'dialog::backdrop', 'dialog h2', '.hidden', 'details.info']);
