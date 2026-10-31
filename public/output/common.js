@@ -84,6 +84,7 @@ async function act(action) {
 // ─── Health ─────────────────────────────────────────────────────────────
 // /api/health every 2 s: the game and what Studio follows, how long since PlayHQ answered, the clock, the outputs,
 // the recording. The status board beside the picture (output/board.js) draws it.
+const hEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); // HTML-safe text (the switcher's status uses it too)
 let lastHealth = null, lastHealthAt = 0; // the last /api/health answer, for the status board
 async function health() {
   try { lastHealth = await (await fetch('/api/health', { cache: 'no-store' })).json(); lastHealthAt = Date.now(); }
