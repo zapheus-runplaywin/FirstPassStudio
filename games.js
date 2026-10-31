@@ -485,7 +485,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // The teams come from the ladder. PlayHQ often has no finals fixtures: when it does (rounds
   // with "final" or "play-off" in their name), their games, times, courts and scores are used;
   // otherwise winners are entered on the control page and kept in control.json.
-  const FINALS_ROUND = /final|play.?off/i;
+  const FINALS_ROUND = finals.ROUND;
   const finalsKey = (division, format) => `${division}|${format.id}`;
   function finalsFor(division) { return finals.formatFor(config(), division); }
   function finalsGrade(st, q) { return findGrade(st, q.division ? q : { division: board().division || '1' }); }

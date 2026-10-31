@@ -156,6 +156,14 @@
     for (const div of [...new Set(night.games.map(g => g.division).filter(Boolean))]) {
       list.push({ key: `ladder:${div}`, kind: 'ladder', division: div, name: `Ladder ${div}`, help: 'The ladder as PlayHQ has it now: "after" the round when this is the division\'s latest night with results.' });
     }
+    // Finals: after a division's last home and away round, who made the finals and the draw; on a finals night, the draw.
+    for (const f of night.finals || []) {
+      const left = f.left ? ` ${f.left} of its game${f.left === 1 ? '' : 's'} this night still to finish, so it's as it stands until then.` : '';
+      if (f.lastRound) list.push({ key: `finalsbound:${f.division}`, kind: 'finalsbound', division: f.division, name: `Finals bound ${f.division}`,
+        help: `The teams in ${f.division}'s finals, each with what their ladder place earned (a double chance, a week off).${left}` });
+      list.push({ key: `finalsdraw:${f.division}`, kind: 'finalsdraw', division: f.division, name: `Finals draw ${f.division}`,
+        help: `${f.division}'s finals week by week, with the winners filled in as the games finish.${f.lastRound ? left : ''}` });
+    }
     // Top shooters: a picture per division that has a finished game, each division's best from its games' line ups.
     const shot = [...new Set(done.map(g => g.division))];
     for (const div of shot) list.push({ key: `topshooters:${div}`, kind: 'topshooters', division: div, name: div ? `Top shooters ${div}` : 'Top shooters',
@@ -172,6 +180,9 @@
     const list = [{ key: 'fixtures', kind: 'fixtures', name: 'Game night fixture', help: 'Every game of the night, on every court, by time.' }];
     for (const g of night.games) list.push({ key: `matchup:${g.id}`, kind: 'matchup', game: g.id, name: `Match up ${g.home.name} v ${g.away.name}`,
       help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
+    // A finals night: each division's finals draw, to post before the games.
+    for (const f of (night.finals || []).filter(x => x.finalsNight)) list.push({ key: `finalsdraw:${f.division}`, kind: 'finalsdraw', division: f.division,
+      name: `Finals draw ${f.division}`, help: `${f.division}'s finals week by week: who plays who this night, and the winners so far.` });
     list.push({ key: 'onstream', kind: 'onstream', name: 'On the stream', help: night.stream ? `${night.stream.court}'s games and who is calling them.` : '',
       missing: night.stream ? '' : 'This night isn\'t planned yet: plan its court and commentators on the Production Planner tab first.' });
     // Commentary team: a picture for each game someone calls, with that game's commentators, so the social team can group them.

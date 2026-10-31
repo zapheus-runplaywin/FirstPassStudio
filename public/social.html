@@ -167,6 +167,28 @@
   .key { margin-top: 10px; font-size: 22px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
   .key i { display: inline-block; width: 40px; border-top: 4px dashed var(--pink); vertical-align: middle; margin-right: 10px; }
 
+  /* Finals bound: the teams in a division's finals, each with what their ladder place earned. */
+  .bound { display: grid; grid-template-columns: 70px var(--logo) minmax(0, 1fr) auto; align-items: center; gap: 18px; background: var(--purple-deep);
+    border-radius: 14px; padding: 14px 20px; border-left: 8px solid var(--pink); font-size: 36px; font-weight: 800; text-transform: uppercase; }
+  .bound + .bound { margin-top: calc(10px + var(--spread, 0px)); }
+  .bound .logo { width: var(--logo); height: var(--logo); }
+  .bound .logo-fallback { font-size: 24px; border-width: 3px; }
+  .bound__earned { font-size: 22px; letter-spacing: .06em; border-radius: 8px; padding: 6px 14px; background: rgba(255,255,255,.08); color: var(--muted); white-space: nowrap; }
+  .bound__earned--final, .bound__earned--double, .bound__earned--bye { background: var(--yellow); color: var(--purple-dark); }
+  .bound__earned--elim { background: var(--pink); color: var(--text); }
+  .tag { display: inline-block; margin-bottom: 16px; font-size: 22px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    background: var(--pink); color: var(--text); border-radius: 8px; padding: 6px 16px; }
+
+  /* Finals draw: the finals week by week, each game with its name; the winners in the highlight colour, the grand final outlined. */
+  .final__name { display: flex; justify-content: space-between; gap: 16px; font-size: 20px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 6px 8px; }
+  .final + .final { margin-top: calc(12px + var(--spread, 0px)); }
+  .final--gf .result { box-shadow: 0 0 0 4px var(--yellow); }
+  .result .game__team.final__tbc { font-size: 26px; font-weight: 700; line-height: 1.2; text-transform: none; opacity: .8; }
+  .result__final { font-size: 18px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px 8px; }
+  .result__final + .result { margin-top: 0; }
+  .result + .result__final { margin-top: calc(12px + var(--spread, 0px)); }
+
   /* Top shooters: the night's best, from each finished game's line ups. */
   .shooter { display: grid; grid-template-columns: 60px 76px minmax(0, 1fr) auto; gap: 18px; align-items: center; background: var(--purple-deep);
     border-radius: 14px; padding: 14px 22px; }
@@ -255,7 +277,9 @@
               night's, from each finished game's line ups)  tournament (&division=<name>: its top shooters over every
               finished game so far, &after=HH:MM counting only this night's games starting by then, &movers=0|1 the
               places each moved since the round before; else as on the tab)  polaroid&game=<id> (the
-              game's score under the photo)
+              game's score under the photo)  finalsbound (&division=<name>: the teams in its finals and what
+              each earned)  finalsdraw (&division=<name>: its finals week by week, winners filled in)
+              On a finals night, match up, full time and results name each final (Major semi final, Grand final).
        size:  square (1080 x 1080)  portrait (1080 x 1350)  story (1080 x 1920)
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
                 ?colours=<colour set> (competition, accent-first, highlight-ground, accent-ground, night, day,
@@ -300,7 +324,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters', 'tournament'];
+    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -362,7 +386,7 @@
     // A team or player name stays on one line in its row, shrinking (to 60%) rather than breaking onto a second line, so
     // the rows keep one height; a name too long for that wraps between words at 85%.
     function fitNames() {
-      for (const e of $('fit').querySelectorAll('.game__team, .call__teams span, .shooter__name, .vs h2, .crew__game span')) {
+      for (const e of $('fit').querySelectorAll(':is(.game__team, .call__teams span, .shooter__name, .vs h2, .crew__game span):not(.final__tbc)')) {
         const base = parseFloat(getComputedStyle(e).fontSize);
         e.style.whiteSpace = 'nowrap';
         if (!e.clientWidth || e.scrollWidth <= e.clientWidth) continue;
@@ -501,7 +525,7 @@
     function drawMatchup(d) {
       const g = d.games.find(x => x.id === params.get('game')) || d.games[0];
       if (!g) { head(d, 'Match up', [dayLong(d.date)]); return `No games on ${dayLong(d.date)}.`; }
-      head(d, 'Match day', [[g.division, g.round].filter(Boolean).join('  ·  ')]);
+      head(d, 'Match day', [[g.division, g.final || g.round].filter(Boolean).join('  ·  ')]);
       const vs = $('fit').appendChild(el('div', 'vs'));
       const side = (t, which) => { const s = el('div'); s.append(...picture(t, d.picked[which]), el('h2', '', t.name), ...athleteName(d.picked[which])); return s; };
       vs.append(side(g.home, 'home'), el('div', 'vs__v', 'v'), side(g.away, 'away'));
@@ -601,6 +625,7 @@
         const group = $('fit').appendChild(el('div', 'group'));
         if (div) group.append(el('div', 'group__name', div));
         for (const g of done.filter(x => x.division === div)) {
+          if (g.final) group.append(el('div', 'result__final', g.final)); // a finals night: which final
           const row = group.appendChild(el('div', 'result'));
           row.append(logoEl(g.home), el('div', `game__team${g.winner === 'home' ? ' won' : ''}`, g.home.name), score(g.home, g.winner === 'home'),
             score(g.away, g.winner === 'away'), el('div', `game__team away${g.winner === 'away' ? ' won' : ''}`, g.away.name), logoEl(g.away));
@@ -613,7 +638,7 @@
     function drawFulltime(d) {
       const g = d.games.find(x => x.id === params.get('game')) || d.games.find(x => x.finished);
       if (!g || !g.finished) { head(d, 'Full time', [dayLong(d.date)]); return g ? `No result for ${g.home.name} v ${g.away.name} yet.` : `No results for ${dayLong(d.date)} yet.`; }
-      head(d, 'Full time', [[g.division, g.round].filter(Boolean).join('  ·  ')]);
+      head(d, 'Full time', [[g.division, g.final || g.round].filter(Boolean).join('  ·  ')]);
       const vs = $('fit').appendChild(el('div', 'vs'));
       const side = (t, which) => {
         const s = el('div', g.winner !== 'draw' && g.winner !== which ? 'lost' : '');
@@ -699,6 +724,51 @@
       }
     }
 
+    // Finals bound (?division=): the teams in the division's finals, in ladder order, each with what their place earned
+    // (Double chance, Week off, Elimination final), as it stands until the last home and away round is finished.
+    function drawFinalsBound(d) {
+      const f = d.finalsDraw || {};
+      head(d, 'Finals bound', [f.division || '']);
+      if (f.error) return f.error;
+      if (!f.ladder || !f.ladder.length) return `No ladder for ${f.division} yet.`;
+      const words = Object.fromEntries((f.legend || []).map(x => [x.mark, x.label]));
+      if (f.projected) $('fit').append(el('div', 'tag', 'As it stands'));
+      for (const r of f.ladder) {
+        const row = $('fit').appendChild(el('div', 'bound'));
+        row.append(el('div', 'shooter__rank', String(r.position)), logoEl({ name: r.team, logo: r.logo }), el('div', 'game__team', r.team),
+          el('div', `bound__earned bound__earned--${r.mark}`, words[r.mark] || ''));
+      }
+    }
+
+    // Finals draw (?division=): the division's finals week by week, each game with its name, when and where once PlayHQ has
+    // it, the teams (or who they will be: "Winner major semi final"), and the score and winner once played.
+    function drawFinalsDraw(d) {
+      const f = d.finalsDraw || {};
+      head(d, 'Finals', [f.division || '']);
+      if (f.error) return f.error;
+      if (f.projected) $('fit').append(el('div', 'tag', 'If the season ended today'));
+      const games = (f.games || []).filter(g => !g.notNeeded);
+      for (const week of [...new Set(games.map(g => g.weekName))]) {
+        const group = $('fit').appendChild(el('div', 'group'));
+        group.append(el('div', 'group__name', week));
+        for (const g of games.filter(x => x.weekName === week)) {
+          const box = group.appendChild(el('div', `final${g.id === 'GF' ? ' final--gf' : ''}`));
+          const when = [g.date ? dayShort(g.date) : '', g.time ? clock(g.time) : '', g.court || ''].filter(Boolean).join('  ·  ');
+          // The game's name over it, unless it's the week's own (Grand final) and there's no when yet.
+          if (g.name !== week || when) {
+            const name = box.appendChild(el('div', 'final__name'));
+            name.append(el('span', '', g.name !== week ? g.name : ''), el('span', '', when));
+          }
+          // A team not known yet says who it will be ("Winner minor semi final"), smaller, over two lines if need be.
+          const side = (t, cls) => t.name ? el('div', `game__team${cls}${g.winner && g.winner === t.name ? ' won' : ''}`, t.name) : el('div', `game__team final__tbc${cls}`, t.placeholder || 'TBC');
+          const sc = t => t.score === null || t.score === undefined ? el('div', 'score none', '\u00a0') : score(t, g.winner && g.winner === t.name);
+          const row = box.appendChild(el('div', 'result'));
+          row.append(logoEl({ name: g.home.name || '?', logo: g.home.logo }), side(g.home, ''), sc(g.home), sc(g.away), side(g.away, ' away'),
+            logoEl({ name: g.away.name || '?', logo: g.away.logo }));
+        }
+      }
+    }
+
     function foot(d) {
       const sponsor = flag('sponsor', d.settings.sponsor[kind]);
       if (sponsor && d.sponsors.length) {
@@ -733,6 +803,7 @@
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
+        if (kind === 'finalsbound' || kind === 'finalsdraw') { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
         if (kind === 'tournament') { q.set('with', 'tournament'); for (const k of ['division', 'after']) if (params.get(k)) q.set(k, params.get(k)); }
         const d = await (await fetch(`/api/socials/night?${q}`, { cache: 'no-store' })).json();
         if (d.error) throw new Error(d.error);
@@ -749,7 +820,8 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
-          results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament }[kind](d);
+          results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
+          finalsbound: drawFinalsBound, finalsdraw: drawFinalsDraw }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));
         await imagesLoaded();
         await fontLoaded;

@@ -210,6 +210,9 @@ function ordinal(n) {
 
 const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// A PlayHQ round that is part of the finals: "final" or "play-off" in its name (Semi Finals, Grand Final).
+const ROUND = /final|play.?off/i;
+
 // Works out every finals game: who plays, the score and who won.
 //   seeds    team names in ladder order
 //   played   PlayHQ's finals games: [{ week, home: { name, score, outcome }, away, finished, date, time, court, status, id }]
@@ -291,4 +294,4 @@ function winnerOf(g) {
   return null;
 }
 
-module.exports = { FORMATS, MARKS, byId, sized, fromPlaces, formatFor, list, ladderMarks, resolve, ordinal };
+module.exports = { FORMATS, MARKS, ROUND, byId, sized, fromPlaces, formatFor, list, ladderMarks, resolve, ordinal };

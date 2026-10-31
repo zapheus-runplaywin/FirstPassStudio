@@ -24,7 +24,9 @@
 //                                        that division's running totals over every finished game up to this night (&after=HH:MM: only
 //                                        its games starting by then), with each one's move since the round before; &home= &away= &athlete= the
 //                                        athletes picked for a picture (picked, with their approved photo); running: what the running
-//                                        top shooters are called (Tournament or Season)
+//                                        top shooters are called (Tournament or Season); finals: the divisions at their finals that
+//                                        night (their last home and away round, or a finals round), and on a finals night each finals
+//                                        game's name (final); &with=finals&division= that division's finals (finalsDraw, as GET /api/finals)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool }
@@ -41,6 +43,7 @@ const crypto = require('crypto');
 const uploads = require('./uploads');
 const { isFinished } = require('./playhq');
 const { TEMPLATE_FONTS } = require('./fonts');
+const { ROUND: FINALS_ROUND } = require('./finals');
 
 // The sizes Instagram takes: a square post, a portrait post (the most room in the feed) and a Story.
 const SIZES = {
@@ -51,7 +54,7 @@ const SIZES = {
 // Each graphic and whether it carries the sponsor strip until that's changed on the tab. Upcoming: fixtures, matchup,
 // onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, fulltime, ladder, topshooters,
 // tournament (each division's top shooters so far, called Tournament or Season top shooters) and a polaroid per game.
-const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true };
+const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true };
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
@@ -99,7 +102,7 @@ const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
-  theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
+  hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -229,7 +232,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
 
   // One night, for social.html: every game (all courts, in time order) with its result once finished, the court
   // Studio streams with who is on the mic (from the Production Planner, or null when the night isn't planned), the top
-  // sponsors and the competition. with: 'ladders' and/or 'shooters', for the Results pictures that need them.
+  // sponsors and the competition. with: 'ladders' and/or 'shooters', for the Results pictures that need them, 'finals' for a
+  // division's Finals bound and Finals draw (&division=). finals: the divisions at their finals this night.
   async function night(q = {}) {
     const dates = await byDate();
     const all = Object.keys(dates).sort();
@@ -252,6 +256,17 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const picked = {};
     for (const k of ['home', 'away', 'athlete']) if (q[k]) { const photo = photoFor(String(q[k])); if (photo) picked[k] = { name: String(q[k]).trim(), photo }; }
     out.picked = picked;
+    out.finals = finalsOn(dates, date, games);
+    // On a finals night, each finals game gets its name from the division's finals format (Major semi final, Grand final).
+    for (const f of out.finals.filter(x => x.finalsNight)) {
+      const draw = await finalsDraw(f.division);
+      for (const g of games.filter(x => x.division === f.division)) {
+        const same = x => x.playhqId === g.id || [[x.home.name, x.away.name], [x.away.name, x.home.name]].some(([h, a]) => sameName(h, g.home.name) && sameName(a, g.away.name));
+        const it = draw && !draw.error && draw.games.find(same);
+        if (it) g.final = it.name;
+      }
+    }
+    if (want.has('finals')) out.finalsDraw = await finalsDraw(String(q.division || ''));
     if (want.has('ladders')) out.ladders = await ladders(dates, date, games);
     if (want.has('shooters')) {
       const division = q.division ? String(q.division) : '';
@@ -260,6 +275,31 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('tournament')) out.tournament = await tournament(dates, date, String(q.division || ''), /^\d\d:\d\d$/.test(q.after) ? q.after : '');
     return out;
   }
+
+  // The divisions playing this night that have a finals format and are at the finals: their last home and away round
+  // (lastRound: Finals bound and the Finals draw, once its results are in; left: its games still to finish) or a finals
+  // round (finalsNight: PlayHQ has the finals as fixtures).
+  function finalsOn(dates, date, games) {
+    const out = [];
+    for (const division of [...new Set(games.map(g => g.division).filter(Boolean))]) {
+      if (!hasFinals(division)) continue;
+      const mine = games.filter(g => g.division === division);
+      const finalsNight = mine.some(g => FINALS_ROUND.test(g.round));
+      const regular = Object.keys(dates).sort().filter(d => dates[d].some(g => g.division === division && !FINALS_ROUND.test(g.round || '')));
+      const lastRound = !finalsNight && regular[regular.length - 1] === date;
+      if (finalsNight || lastRound) out.push({ division, finalsNight, lastRound, left: mine.filter(g => !g.finished).length });
+    }
+    return out;
+  }
+  // A division's finals (games.js getFinals: the format, the ladder's finals places and every game worked out so far).
+  async function finalsDraw(division) {
+    if (!division) return { division, error: 'Pick a division.' };
+    try { return await finalsOf(division); } catch (err) {
+      log('warn', 'socials', `No finals for ${division}: ${err.message}`);
+      return { division, error: err.message };
+    }
+  }
+  const sameName = (a, b) => String(a || '').toLowerCase().replace(/[^a-z0-9]/g, '') === String(b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   // What the running top shooters are called: as the competition setup says, else Tournament when its fixture runs
   // under 15 days from first game to last (a carnival or nationals), Season when longer (a league).
