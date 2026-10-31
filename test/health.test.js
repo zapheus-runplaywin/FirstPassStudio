@@ -27,6 +27,14 @@ test('health names the game, follows PlayHQ and reports a recent reading', async
   assert.equal(h.output.on, false);
   assert.equal(typeof h.sources, 'number');
   assert.equal(typeof h.version, 'string');
+  // For the tab bar's chips (studiobar.js): the clock's period label, every output sending, the sequence playing
+  // or armed, and the recorder.
+  assert.equal(h.clock.periodLabel, 'Q');
+  assert.deepEqual(h.output.onAir, []);
+  assert.equal(h.playing, null);
+  assert.equal(h.armed, null);
+  assert.equal(typeof h.recording.on, 'boolean');
+  assert.equal(typeof h.recording.record, 'boolean');
 });
 
 test('a score press by hand shows as scores by hand, and a failing live feed turns the state amber then red', async () => {

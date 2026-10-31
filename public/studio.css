@@ -26,22 +26,43 @@
   --fp-radius: 12px;
 }
 
-/* Header bar with the FirstPass Studio wordmark (dark version: white FirstPass, gold STUDIO).
-   It stays pinned at the top while the page scrolls, so the tabs are always in reach, and sits
-   above everything on the page (previews, pickers) that scrolls underneath it. */
+/* Header bar: the 1P mark and the FirstPass STUDIO wordmark (public/studio/, the versions for navy), the tabs in
+   their groups (Run, Plan, Set up; Docs apart at the right) and the status chips, all drawn by studiobar.js.
+   It stays pinned at the top while the page scrolls, so the tabs and the chips are always in reach, and sits
+   above everything on the page (previews, pickers) that scrolls underneath it. On a narrower window the chips
+   wrap onto their own row under the tabs. */
 .fp-bar {
   position: sticky; top: 0; z-index: 100;
   background: var(--fp-navy); color: var(--fp-white); font-family: var(--fp-font);
-  display: flex; align-items: center; gap: 12px 28px; flex-wrap: wrap; padding: 14px 24px;
-  border-bottom: 4px solid var(--fp-orange);
+  display: flex; align-items: center; gap: 5px 16px; flex-wrap: wrap; padding: 7px 20px 7px 16px;
+  border-bottom: 3px solid var(--fp-orange);
 }
-.fp-logo { font-weight: 800; font-style: italic; font-size: 26px; line-height: 1; text-decoration: none; white-space: nowrap; padding: 4px 0; }
-.fp-logo__name { color: var(--fp-white); letter-spacing: -0.02em; }
-.fp-logo__product { color: var(--fp-gold); }
-.fp-bar nav { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-left: auto; }
-.fp-bar nav a { color: #CBD5E1; text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 10px; border-radius: 8px; }
+.fp-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex: none; }
+.fp-mark { width: 40px; height: 36px; overflow: hidden; position: relative; flex: none; border-radius: 6px; }
+.fp-mark img { position: absolute; width: 60px; left: -9px; top: -3px; max-width: none; }
+.fp-word { height: 20px; display: block; }
+.fp-bar nav { display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
+.fp-bar .fp-grp { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748B; padding: 0 6px 0 14px; }
+.fp-bar .fp-grp:first-child { padding-left: 0; }
+.fp-bar nav a { color: #CBD5E1; text-decoration: none; font-weight: 600; font-size: 13px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
 .fp-bar nav a:hover { color: var(--fp-white); background: rgba(255,255,255,.08); }
 .fp-bar nav a[aria-current="page"] { color: var(--fp-navy); background: var(--fp-gold); }
+.fp-bar .fp-docs { margin-left: auto; order: 2; }
+/* The status chips (studiobar.js): on air (orange), the game, PlayHQ and the clock, the sequence playing or armed, REC. */
+.fp-chips { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; font-weight: 600; color: #CBD5E1; order: 3; }
+.fp-chips .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); white-space: nowrap; color: inherit; text-decoration: none; line-height: 1.3; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.fp-chips .chip:hover { background: rgba(255,255,255,.14); color: var(--fp-white); }
+.fp-chips .chip.air { background: var(--fp-orange); color: var(--fp-navy); border-color: transparent; font-weight: 800; letter-spacing: .02em; }
+.fp-chips .chip.air:hover { background: #ff7a2e; color: var(--fp-navy); }
+.fp-chips .chip.rec { background: rgba(198,40,40,.35); border-color: rgba(255,120,120,.4); color: #fff; font-weight: 800; letter-spacing: .08em; }
+.fp-chips .dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; flex: none; }
+.fp-chips .dot.off { background: #64748B; }
+.fp-chips .dot.warn { background: var(--fp-gold); }
+.fp-chips .dot.bad { background: #EF4444; }
+.fp-chips .dot.gold { background: var(--fp-gold); }
+.fp-chips .dot.rec { background: #EF4444; animation: fp-blink 1.2s steps(2, start) infinite; }
+@keyframes fp-blink { to { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .fp-chips .dot.rec { animation: none; } }
 /* Links to a spot on the page (#anchors, the Stream Deck reference) land below the pinned header. */
 html:has(> body.fp > .fp-bar) { scroll-padding-top: 96px; }
 /* The strip under the bar while a practice game or a 4K replay runs (studiobar.js). */
@@ -49,7 +70,7 @@ html:has(> body.fp > .fp-bar) { scroll-padding-top: 96px; }
 .fp-practice[hidden] { display: none; }
 .fp-practice a, .fp-practice button { font: inherit; font-size: 13px; padding: 2px 10px; border-radius: 6px; border: 1px solid #fff; background: transparent; color: #fff; cursor: pointer; text-decoration: none; }
 .fp-practice a:hover, .fp-practice button:hover { background: rgba(255,255,255,.15); }
-@media (max-width: 600px) { .fp-bar { padding: 12px 16px; } .fp-bar nav { margin-left: 0; } .fp-logo { font-size: 22px; } }
+@media (max-width: 600px) { .fp-bar { padding: 8px 12px; } .fp-chips { margin-left: 0; } .fp-word { display: none; } }
 
 /* Shared page basics. */
 body.fp { font-family: var(--fp-font); background: var(--fp-gray); color: var(--fp-navy); margin: 0; line-height: 1.45; }

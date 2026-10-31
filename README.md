@@ -150,7 +150,12 @@ the app to Applications and open it. It opens the Output page in its own window 
 icon). The Output page and the Stream Deck use the same links as the Docs page. A status line under its title (from
 `/api/health`) shows the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
 answered (amber when a reading is overdue, red after a minute of errors, with the error), and whether the video output is
-on, so a problem Studio keeps off the stream still shows on the page that stays open all night.
+on, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
+every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR with the outputs sending (or Off
+air), the game on the board, PlayHQ and the clock, the sequence playing (step and time left) or armed to start, and REC
+while a game records. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
+and Set up (Recordings, Competitions setup, Sponsors, Athletes, Stream Deck), with Docs at the right; the ⌘ keys keep
+the order below.
 
 **Studio only runs while a Studio window is open.** Opening a Studio window (opening the app, **Open Studio** or any
 page in the menu bar icon, ⌘N) puts Studio on air: it serves the graphics and the Stream Deck links, talks to PlayHQ,
