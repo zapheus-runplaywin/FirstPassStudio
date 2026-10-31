@@ -13,8 +13,8 @@ const { openPage } = require('./support/browser');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
-test('the tabs are Output, Production Planner, Scoreboard control, Recordings, Socials, Competitions setup, Sponsors, Athletes, Stream Deck, Docs', () => {
-  assert.deepEqual(STUDIO_PAGES.map(p => p.label), ['Output', 'Production Planner', 'Scoreboard control', 'Recordings', 'Socials', 'Competitions setup', 'Sponsors', 'Athletes', 'Stream Deck', 'Docs']);
+test('the tabs are Output, Production Planner, Scoreboard control, Recordings, Socials, Competitions setup, Sponsors, Athletes, Devices, Docs', () => {
+  assert.deepEqual(STUDIO_PAGES.map(p => p.label), ['Output', 'Production Planner', 'Scoreboard control', 'Recordings', 'Socials', 'Competitions setup', 'Sponsors', 'Athletes', 'Devices', 'Docs']);
   for (const p of STUDIO_PAGES) assert.ok(fs.existsSync(path.join(PUBLIC, p.href.slice(1))), `${p.href} exists`);
 });
 
@@ -23,7 +23,7 @@ test('the bar groups the tabs: Run, Plan, Set up, and Docs on its own', () => {
   const inGroup = g => STUDIO_PAGES.filter(p => p.group === g).map(p => p.label);
   assert.deepEqual(inGroup('Run'), ['Output', 'Scoreboard control']);
   assert.deepEqual(inGroup('Plan'), ['Production Planner', 'Socials']);
-  assert.deepEqual(inGroup('Set up'), ['Recordings', 'Competitions setup', 'Sponsors', 'Athletes', 'Stream Deck']);
+  assert.deepEqual(inGroup('Set up'), ['Recordings', 'Competitions setup', 'Sponsors', 'Athletes', 'Devices']);
   assert.deepEqual(inGroup('Docs'), ['Docs']);
   assert.ok(STUDIO_PAGES.every(p => [...GROUPS, 'Docs'].includes(p.group)), 'every tab is in a group');
 });
@@ -36,7 +36,7 @@ test('the bar draws the brand, the grouped tabs and the status chips, and the ch
   assert.equal(await page.$eval('.fp-bar .fp-brand img.fp-word', i => i.getAttribute('src')), '/studio/firstpass-studio.svg');
   assert.deepEqual(await page.$$eval('.fp-bar nav:not(.fp-docs) .fp-grp', els => els.map(e => e.textContent)), ['Run', 'Plan', 'Set up']);
   assert.deepEqual(await page.$$eval('.fp-bar nav:not(.fp-docs) a', els => els.map(e => e.textContent)),
-    ['Output', 'Scoreboard', 'Planner', 'Socials', 'Recordings', 'Competitions', 'Sponsors', 'Athletes', 'Stream Deck']);
+    ['Output', 'Scoreboard', 'Planner', 'Socials', 'Recordings', 'Competitions', 'Sponsors', 'Athletes', 'Devices']);
   assert.equal(await page.$eval('.fp-bar nav a[aria-current="page"]', a => a.textContent), 'Sponsors');
   assert.equal(await page.$eval('.fp-bar .fp-docs a', a => a.textContent), 'Docs');
   await page.waitForFunction(() => document.querySelector('.fp-chips .chip.game') && !/No game/.test(document.querySelector('.fp-chips .chip.game').textContent), null, { timeout: 8000 });

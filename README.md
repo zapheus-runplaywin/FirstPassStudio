@@ -3,7 +3,7 @@
 Transparent ladder, scoreboard and game graphics for a livestream, fed live from PlayHQ's public data (no API key). Set up for
 Thunder League, with saved setups ready for the AMMNA Nationals and GIG WANL (the WA Netball League).
 
-The pages you work in (output, graphics, scoreboard control, competitions setup, sponsors, athletes and Stream Deck) carry the FirstPass
+The pages you work in (output, graphics, scoreboard control, competitions setup, sponsors, athletes and Devices) carry the FirstPass
 Studio look from `public/studio.css`, with the Montserrat font served from `public/vendor/montserrat` so it works
 offline. The graphics don't use it: they keep the colours, font and logos of the competition in use.
 
@@ -155,7 +155,7 @@ on, so a problem Studio keeps off the stream still shows on the page that stays 
 every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
 sends, hollow while it doesn't) or Off air, the game on the board, PlayHQ and the clock, the sequence playing (step and time
 left) or armed to start, ATEM while a switcher is set up (answering or not) and REC while a game records; status, not links. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
-and Set up (Recordings, Competitions setup, Sponsors, Athletes, Stream Deck), with Docs at the right; the ⌘ keys keep
+and Set up (Recordings, Competitions setup, Sponsors, Athletes, Devices), with Docs at the right; the ⌘ keys keep
 the order below.
 
 **Studio only runs while a Studio window is open.** Opening a Studio window (opening the app, **Open Studio** or any
@@ -183,7 +183,7 @@ To go back to `localhost` links (or use a fixed name or IP address), set `"linkH
 Studio listens on every network connection, not just this Mac, so anything on the same network can open the pages.
 Changing things (pressing the Stream Deck links for scores, clock and game, switching scenes, running sequences, saving
 settings) is the job of **Only this Mac can change things** in the menu bar icon (`"remoteChanges": false` in
-`config.json`). The app ticks it every time it opens. Ticked, the devices in **Devices…** still can, within their
+`config.json`). The app ticks it every time it opens. Ticked, the devices in **Devices** still can, within their
 level: a phone or another computer pairs from `/pair.html` (`POST /api/pair` with `"browser": true`; the Mac's dialog
 offers **Allow scoring only**, **Allow everything** or Deny) and gets a device cookie (`studio_device`, HttpOnly,
 SameSite=Strict, set when it collects the answer); scoring only covers `POST /api/scoreboard`, `POST /api/rounds` and
@@ -204,25 +204,25 @@ over `GET\n<path and query>\n<time in ms>` with `x-studio-device`, `x-studio-tim
 takes a signature within a minute of its time and only once (`devices.signed()`). The plugin keeps its key pair in the
 Stream Deck's global settings, so it survives restarts and plugin updates. Until any plugin has paired, the plugin's
 old `x-studio-deck` header still counts, so plugins installed before pairing keep working; after that it doesn't. Studio's own pages are known by their `Referer`. A link without any of those is
-refused with a 403 saying to copy it again from the Output page (logged once per address). **Devices…** in the menu bar icon
+refused with a 403 saying to copy it again from the Output page (logged once per address). **Devices** in the menu bar icon
 lists what may change things from another device, starting with This Mac's links, with when each key was made and last used;
 **Make a new key** there gives up a set's old key, so every link copied with it stops working (`devices.js`; the list and
 its buttons answer only the Mac itself, whether or not the lock is ticked). **New link set…** (there, or in the picker on
-the Output page and the Stream Deck page) makes a named set such as "Office Stream Deck" with its own key; on the Mac
+the Output page and the Devices tab) makes a named set such as "Office Stream Deck" with its own key; on the Mac
 those pages copy links for the set picked (`public/linksets.js`, remembered in the browser), so one Stream Deck's
 Website keys can be given a new key or removed without touching the others. Link sets never run out. A program on another device can ask for a
 key of its own: `POST /api/pair` with `{"name": "Office Stream Deck"}` (allowed while the lock is ticked) opens an
 Allow / Deny dialog on the Mac, Deny the default, naming the device and its address; the request also shows on the
 Devices page. One request at a time, for five minutes, and a denied address waits a minute to ask again. The program
 asks `GET /api/pair/<id>` with its token in an `x-studio-pair` header until the answer comes; once allowed it gets
-its key once, with the start of its links (`base`), and Devices… lists it and can take it away alone. A device
+its key once, with the start of its links (`base`), and Devices lists it and can take it away alone. A device
 unused for 90 days drops off the list and has to ask again (This Mac's links never do). Paired keys press links like
 This Mac's key, so they too need the lock unticked from another device for now. Reads of private data get the same `Host` check, so a page that has
 pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
 CORS header, so another site can't read its answers.
 
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competitions setup, Copy the
-Studio link, Devices…, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
+Studio link, Devices, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
 login, Only this Mac can change things, Check for updates and Quit.
 
 The status line under the version reads "Studio is on air at …" or "Studio is off air". The app always starts in the
@@ -422,7 +422,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   seconds after the siren, from the scoreboard state server.js sends each second (`gameSnapshot()`, no extra PlayHQ calls). It waits as
   pending (Start now, Cancel). A "before the start" moment that passed before Studio started (opened inside the window) is skipped, for the operator to start by hand. The Automatic sequences switch is kept in `sequence-settings.json` in the data folder.
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
-  The **run order** (Output page, beside Sequences) is a queue per output of sequences and scenes for the night: Next plays the head, a sequence that
+  The **run order** (Output page, beside Sequences) is a queue per output of sequences and scenes for the night: Play next plays the head, a sequence that
   ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger puts its sequence at the head (Cancel takes it out). Kept with
   the competition's sequences (`runOrder`, saved orders in `runOrders`); `/deck/runorder/next`, `skip`, `clear`, `add/<name>`, `load/<order>`.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
@@ -583,7 +583,7 @@ follows the PlayHQ scorer too (you can still change it in between). The clock ma
 and the control page says so. You can still change the clock afterwards (the tick box, `/deck/clock/playhq/on|off`, or
 any clock button, which switches it back to manual). Otherwise press +1 / +2 / -1 / -2 (or keys A/Z for home, K/M for away,
 with Shift for 2) and it switches to manual. The quarter and the countdown clock (Space starts and stops it) are run from the control page.
-Everything can also be run from a Stream Deck: see `STREAMDECK.md`, or the API docs at http://localhost:8080/api.html. To line it up with the venue clock, type the venue's time (e.g. 12:34) in
+Everything can also be run from a Stream Deck: see `STREAMDECK.md`, or the Devices tab at http://localhost:8080/api.html (the Devices list on top, the Stream Deck plugin, links and API reference under it). To line it up with the venue clock, type the venue's time (e.g. 12:34) in
 **Match venue clock** and press Enter. Studio runs one scoreboard: for a second court, run a second Studio on another Mac.
 Scoreboard position: by default it is centred at the bottom, just above the score ticker with a small gap, so both can be on screen together. `?position=top-center`, `bottom-center`, `top-left` or `bottom-left` moves it.
 

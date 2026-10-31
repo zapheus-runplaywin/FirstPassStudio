@@ -209,8 +209,8 @@ function askToPair(child, msg) {
     type: 'question', buttons: choices.map(c => c.label), defaultId: deny, cancelId: deny, signal: stop.signal,
     message: `Allow "${name}" at ${address} to control Studio?`,
     detail: browser
-      ? 'Scoring only: the scores, clock, quarter and game, as on Scoreboard control. Everything: the scene, sequences and settings too. Only allow a device you know is yours. Devices… in the menu bar icon lists it, and can change or take it away.'
-      : 'It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. Devices… in the menu bar icon lists it, and can take it away again.',
+      ? 'Scoring only: the scores, clock, quarter and game, as on Scoreboard control. Everything: the scene, sequences and settings too. Only allow a device you know is yours. Devices in the menu bar icon lists it, and can change or take it away.'
+      : 'It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. Devices in the menu bar icon lists it, and can take it away again.',
   }).then(({ response }) => {
     if (stop.signal.aborted) return;
     pairDialogs.delete(id);
@@ -305,7 +305,7 @@ function refreshMenu() {
     { label: 'Competitions setup', click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
     // What may change things from another device (devices.js); the page answers on this Mac only.
-    { label: 'Devices…', click: () => openPage('/devices.html') },
+    { label: 'Devices', click: () => openPage('/api.html') },
     // Opening the file hands it to the Stream Deck app, which installs or updates the plugin.
     { label: 'Install the Stream Deck plugin', enabled: fs.existsSync(STREAMDECK_PLUGIN), click: () => shell.openPath(STREAMDECK_PLUGIN) },
     { type: 'separator' },
@@ -326,7 +326,7 @@ function refreshMenu() {
     // config.json remoteChanges (access.js): off (ticked), only this Mac can change scores, the scene, settings and media;
     // other devices can still open every page. Ticked again at every launch (start()); unticking lasts until Quit. The
     // helper reads config.json when it starts, so it restarts on a change.
-    { label: 'Only this Mac can change things', type: 'checkbox', checked: machineConfig().remoteChanges === false, toolTip: 'Phones and other computers on this network can see every graphic but not change scores, the scene or settings, or read backups, the athlete register, the log and sponsor reports, unless they are paired (Devices…). Untick to let every device until Studio quits; it is ticked again each time Studio opens.',
+    { label: 'Only this Mac can change things', type: 'checkbox', checked: machineConfig().remoteChanges === false, toolTip: 'Phones and other computers on this network can see every graphic but not change scores, the scene or settings, or read backups, the athlete register, the log and sponsor reports, unless they are paired (Devices). Untick to let every device until Studio quits; it is ticked again each time Studio opens.',
       click: item => { setMachineConfig('remoteChanges', !item.checked); if (helper) restartHelper(); refreshMenu(); } },
     updateMenuItem(),
     { label: 'What\'s new…', enabled: !!whatsnew.since(whatsnew.load(), null, app.getVersion()).length, click: () => showWhatsNew(whatsnew.since(whatsnew.load(), null, app.getVersion()).slice(0, 10), { recent: true }) },

@@ -4,7 +4,7 @@
 
 // ─── Run order ──────────────────────────────────────────────────────────
 // A numbered list of sequences and scenes for the output picked over the Scene View (the primary unless another
-// tab is picked). Next plays the head, Skip drops it; a sequence that ends plays the head itself instead of its
+// tab is picked). Play next plays the head, Skip drops it; a sequence that ends plays the head itself instead of its
 // Then, so the list is the night's plan and each sequence's Then is the fallback when the list runs out. Add… puts a
 // scene or sequence at the end; rows drag to reorder (or use their arrows); Saved… loads an order kept under a name
 // or saves tonight's. The runner (sequences.js in Studio) owns the list; this only draws it and sends changes.
@@ -64,7 +64,7 @@ function renderRunOrder() {
   $('roNote').textContent = head ? `Next: ${head.name}${second ? ` · then ${second.name}` : ' · then each sequence\'s own Then'}` : p ? 'Nothing queued: when this sequence ends it does its own Then' : '';
   $('roEmpty').hidden = !!items.length;
   $('roEmpty').innerHTML = 'Tonight\'s order: <b>Add…</b> puts a scene or sequence at the end (Run-up, Walk out, Live, Quarter time, Live…), or load a saved order. '
-    + '<b>Next</b> plays the head, and a sequence that ends plays what is queued after it. With nothing here, each sequence does its own <b>Then</b>.';
+    + '<b>Play next</b> plays the head now, and a sequence that ends plays what is queued after it. With nothing here, each sequence does its own <b>Then</b>.';
   // The pickers: Add… lists the scenes and sequences; Saved… the saved orders, with Save as… at the end.
   const add = $('roAdd');
   add.innerHTML = '<option value="">Add…</option>';

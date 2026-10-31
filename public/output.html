@@ -266,7 +266,7 @@
   .ro li .what { display: grid; gap: 1px; min-width: 0; }
   .ro li .what b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ro li .what small { font-size: 11px; color: var(--fp-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ro li.head { border-color: var(--fp-orange); box-shadow: 0 0 0 2px rgba(247, 92, 3, .18); }
+  .ro li.head { border-color: var(--fp-btn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--fp-btn) 22%, transparent); } /* the head waits its turn: blue, not the on-air orange */
   .ro li.head .what b { font-weight: 800; }
   .ro li.gone .what b { text-decoration: line-through; color: var(--fp-muted); }
   .ro li .row { gap: 2px; flex-wrap: nowrap; }
@@ -546,7 +546,7 @@
       <p class="error" id="err"></p>
       <div class="row hidden" id="linkSetRow" style="margin-top:10px">
         <label style="font-weight:400">Stream Deck links on this page are for <select id="linkSet"></select></label>
-        <span class="note" style="margin:0">Each link set has its own key: make one per Stream Deck, and <a href="/devices.html">Devices…</a> can give one a new key or remove it.</span>
+        <span class="note" style="margin:0">Each link set has its own key: make one per Stream Deck, and <a href="/devices.html">Devices</a> can give one a new key or remove it.</span>
       </div>
       <div class="row hidden" id="deckRow" style="margin-top:10px">
         <button class="alt" id="deckInstall">Install the Stream Deck plugin</button>
@@ -660,7 +660,7 @@
       </span>
     </div>
     <div class="roNext" id="roNextRow">
-      <button id="roNext" title="Play what's at the head of the run order">Next ▶</button>
+      <button id="roNext" title="Play what's at the head of the run order now (stepping through a sequence is the Sequences panel's Next)">Play next ▶</button>
       <button class="alt" id="roSkip" title="Drop the head item without playing it">Skip</button>
       <small id="roNote"></small>
     </div>

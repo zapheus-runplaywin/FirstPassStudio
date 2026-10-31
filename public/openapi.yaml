@@ -29,7 +29,7 @@ tags:
   - name: Quarter
   - name: Ticker
   - name: Pairing
-    description: A program on another device asks for its own Stream Deck key. Nothing is given until someone at the Mac presses Allow (a dialog, or the Devices page from the menu bar icon). One request at a time, for five minutes; a denied device waits a minute to ask again. Devices… lists the key and can take it away alone, and one unused for 90 days has to ask again.
+    description: A program on another device asks for its own Stream Deck key. Nothing is given until someone at the Mac presses Allow (a dialog, or the Devices page from the menu bar icon). One request at a time, for five minutes; a denied device waits a minute to ask again. Devices lists the key and can take it away alone, and one unused for 90 days has to ask again.
   - name: Status
   - name: Scene
     description: Studio's scene, built on the Output page. Sources are named by the name given on the Output page, lower case with dashes for spaces ("Up Next" is `up-next`).
@@ -338,7 +338,7 @@ paths:
               type: object
               required: [name]
               properties:
-                name: { type: string, maxLength: 40, example: Office Stream Deck, description: Shown in the Mac's dialog and in Devices… }
+                name: { type: string, maxLength: 40, example: Office Stream Deck, description: Shown in the Mac's dialog and in Devices }
                 browser: { type: boolean, description: 'A browser (the pair page): allowed to score only or for everything, and given a device cookie rather than a key.' }
                 publicKey: { type: string, description: 'A program that signs its presses (the Studio plugin): its Ed25519 public key, SPKI DER in base64url. It then gets no key.' }
       responses:
@@ -378,7 +378,7 @@ paths:
                   status: { type: string, enum: [waiting, allowed, denied] }
                   key: { type: string, description: Only when allowed, and only for a program that sent no publicKey }
                   base: { type: string, example: 'http://studio-mac.local:8080/k/3f9aQ2cB7xLd' }
-                  device: { type: string, description: Its id in Devices… }
+                  device: { type: string, description: Its id in Devices }
         '404':
           description: No such request (a wrong token, already collected, or run out after five minutes)
 

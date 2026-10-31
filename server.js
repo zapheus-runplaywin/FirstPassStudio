@@ -778,7 +778,7 @@ http.createServer(async (req, res) => {
       const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000` } : {};
       return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${got.key}` } : got, undefined, headers);
     }
-    // The Devices… window (devices.html), on this Mac only (access.notThisMac()).
+    // The Devices list at the top of the Devices tab (api.html), on this Mac only (access.notThisMac()).
     if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
     // Named link sets (Output page and Stream Deck page, on this Mac): make one, read its key for copying links, give it a new key.
     if (url.pathname === '/api/devices/links' && req.method === 'POST') {
