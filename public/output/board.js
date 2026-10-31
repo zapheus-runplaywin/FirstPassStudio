@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 13 of 15: The status board beside the picture in the Show view: everything at a glance.
+// FirstPass Studio - the Output page, part 13 of 15: The status board beside the picture: everything at a glance.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //
@@ -17,7 +17,7 @@ const boardBar = (pct, cls = '') => pct == null ? '' : `<span class="bar ${cls}"
 
 function renderBoard() {
   const box = $('board');
-  if (!box || !document.body.classList.contains('mode-show')) return;
+  if (!box) return;
   const h = lastHealth;
   const since = h ? Date.now() - lastHealthAt : 0;
   const left = ms => ms == null ? null : Math.max(0, ms - since);

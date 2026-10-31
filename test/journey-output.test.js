@@ -21,7 +21,7 @@ async function outputShows(page, want, timeout = 8000) {
   assert.deepEqual(got, want, 'what the output shows');
 }
 // The Sources list, top to bottom: name and On or Off.
-const sourceList = page => page.$$eval('#sources li', lis => lis.map(li => `${li.querySelector('.name').firstChild.textContent} ${li.querySelector('.eye').textContent}`));
+const sourceList = page => page.$$eval('#sources li:not(.editor)', lis => lis.map(li => `${li.querySelector('.name').firstChild.textContent} ${li.querySelector('.eye').textContent}`));
 async function listShows(page, want, timeout = 5000) {
   const end = Date.now() + timeout;
   let got;
@@ -42,7 +42,7 @@ async function addPage(page, file) {
   await page.waitForFunction(() => !document.querySelector('#addDialog').open);
 }
 // + Save what's on now, named in the page's own dialog.
-async function saveScene(page, name, button = '#scenes .addScene') {
+async function saveScene(page, name, button = '#addScene') {
   await page.click(button);
   await page.fill('dialog.fp-ask input', name);
   await page.click('dialog.fp-ask button[type=submit]');
@@ -90,13 +90,16 @@ test('layers: moving a source up or down changes what covers what on the output,
   await control.waitForSelector('#sources li.empty');
   for (const p of ['scoreboard.html', 'ladder.html', 'fixtures.html']) await addPage(control, p);
   await listShows(control, ['Round fixture Off', 'Ladder Off', 'Scoreboard Off']);
-  // The top one can't go up, the bottom one can't go down.
-  assert.equal(await source(control, 'Round fixture').locator('.up').isDisabled(), true);
-  assert.equal(await source(control, 'Scoreboard').locator('.down').isDisabled(), true);
-  await source(control, 'Scoreboard').locator('.up').click();
+  // Move up and Move down are in a source's settings, under its row: the top one can't go up, the bottom one can't go down.
+  await source(control, 'Round fixture').click();
+  assert.equal(await control.locator('#fUp').isDisabled(), true);
+  await source(control, 'Scoreboard').click();
+  assert.equal(await control.locator('#fDown').isDisabled(), true);
+  await control.click('#fUp');
   await listShows(control, ['Round fixture Off', 'Scoreboard Off', 'Ladder Off']);
   await outputShows(output, ['Ladder', 'Scoreboard', 'Round fixture']);
-  await source(control, 'Round fixture').locator('.down').click();
+  await source(control, 'Round fixture').click();
+  await control.click('#fDown');
   await listShows(control, ['Scoreboard Off', 'Round fixture Off', 'Ladder Off']);
   await outputShows(output, ['Ladder', 'Round fixture', 'Scoreboard']);
   await control.reload({ waitUntil: 'load' });
@@ -196,7 +199,7 @@ test('a quarter-break sequence built in the editor: Save and play runs its steps
   await source(control, 'Scoreboard').locator('.eye').click();
   await saveScene(control, 'Live');
   // + New sequence: Ladder for 2 seconds, then the fixture until Next, then back to Live.
-  await control.click('#seqs .addSeq');
+  await control.click('#addSeq');
   await control.fill('#sqName', 'Quarter break');
   await control.click('#sqAddStep');
   await control.selectOption('#sqSteps .stepRow >> nth=0 >> select[aria-label="Add a source"]', { label: 'Ladder' });
@@ -244,7 +247,7 @@ test('the sequence editor won\'t save a sequence without a name or steps, and sa
   const { control } = await setUp(t);
   if (!control) return;
   await control.waitForSelector('#sources li.empty');
-  await control.click('#seqs .addSeq');
+  await control.click('#addSeq');
   await control.click('#sqSave');
   assert.equal(await control.textContent('#sqErr'), 'Give the sequence a name.');
   await control.fill('#sqName', 'Walk out');

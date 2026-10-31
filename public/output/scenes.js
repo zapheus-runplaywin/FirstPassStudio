@@ -34,12 +34,6 @@ function renderScenes() {
     b.onclick = () => act({ type: 'sceneGo', scene: sc.id });
     box.appendChild(b);
   }
-  const add = document.createElement('button');
-  add.className = 'scene addScene';
-  add.innerHTML = "+ Save what's on now<small>as a new scene</small>";
-  add.onclick = saveNewScene;
-  box.appendChild(add);
-
   // What's different from the current scene, and the three ways out.
   const drift = $('drift');
   drift.classList.toggle('hidden', !(cur && changed.length));
@@ -56,17 +50,10 @@ function renderScenes() {
     drift.querySelector('.over').onclick = () => act({ type: 'sceneCapture', scene: cur.id });
     drift.querySelector('.asNew').onclick = saveNewScene;
   }
-  // With no scenes yet the first steps show; once there are some, the how-to waits behind Expand for info.
-  $('scenesInfo').hidden = !scenes.length;
+  // With no scenes yet, the first steps (the rest is on the Docs page).
   $('scenesEmpty').hidden = !!scenes.length;
-  $(scenes.length ? 'scenesNote' : 'scenesEmpty').innerHTML = scenes.length
-    ? 'Click a scene to go to it: it turns sources on and off to match, and a source that\'s already on stays on (it isn\'t reloaded). '
-      + 'Turning sources on and off by hand changes them everywhere and shows them as <b>changed</b>; click the scene again or <b>Back to saved</b> to put them back. '
-      + 'Scenes are listed by colour (pre-game, live stream, quarter time, post-game, ads), then name, and the Stream Deck\'s Next and Previous go in that order (they stop at the ends). A source you add later is off in every scene. '
-      + `Stream Deck: <code>${deckBase}${scene.viewDeck || '/deck'}/scene/${encodeURIComponent(slug(scenes[0].name))}</code>, <code>${scene.viewDeck || '/deck'}/scene/next</code>, <code>${scene.viewDeck || '/deck'}/scene/prev</code> and <code>${scene.viewDeck || '/deck'}/scene/again</code> (back to saved).`
-      + (scene.viewMany ? ` Every output shares these scenes, and each has its own current scene (the coloured dots). A click plays the scene on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>.` : '')
-    : 'A scene is a saved look: which sources are on and which are off. Set the sources up below, then <b>Save what\'s on now</b> and name it '
-      + '(Pre-game, Live, Quarter time, Full time…). Going to a scene, here or from the Stream Deck, puts the graphics back to that look.';
+  $('scenesEmpty').innerHTML = 'A scene is a saved look: which sources are on and which are off. Set the sources up, then <b>Add scene</b> saves what\'s on now under a name '
+    + '(Pre-game, Live, Quarter time, Full time…). Going to a scene, here or from the Stream Deck, puts the graphics back to that look.';
   $('editScenes').classList.toggle('hidden', !scenes.length);
   $('editScenes').textContent = editing ? 'Done' : 'Edit scenes';
   if (!scenes.length) editing = false;
@@ -84,6 +71,7 @@ async function saveNewScene() {
   if (name) act({ type: 'sceneSave', name });
 }
 $('editScenes').onclick = () => { editing = !editing; renderScenes(); };
+$('addScene').onclick = saveNewScene;
 
 // The Edit scenes grid: sources down the side, scenes across. Each cell goes On, Off, Leave as is.
 // It changes the saved scenes only, never what's on now.

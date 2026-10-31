@@ -81,7 +81,7 @@ test('editors in a dialog ask before losing changes', async t => {
 
   // A scene's switcher actions (the Edit scenes grid's Switcher button): changed, Escape asks;
   // Save keeps them on the scene.
-  await page.click('#scenes .addScene');
+  await page.click('#addScene');
   await page.fill('dialog.fp-ask input', 'Live');
   await page.click('dialog.fp-ask button[type=submit]');
   await page.waitForSelector('#scenes button.scene:has-text("Live")');
@@ -97,7 +97,7 @@ test('editors in a dialog ask before losing changes', async t => {
   assert.equal(swSaved, 2);
 
   // A sequence opened and left as it was: Escape just closes it.
-  await page.evaluate(() => [...document.querySelectorAll('.seq.addSeq')].find(b => /sequence/i.test(b.textContent)).click());
+  await page.click('#addSeq');
   await page.waitForSelector('#seqDialog[open]');
   await page.keyboard.press('Escape');
   await page.waitForSelector('#seqDialog', { state: 'hidden' });

@@ -148,19 +148,20 @@
     <div class="row"><button id="sceneCopy">Copy link</button><a class="btn alt" href="/output.html" target="_blank">Open the Output page</a><a class="btn alt pvw" href="/pvw.html?src=%2Fscene.html&amp;name=Scene" target="_blank">Preview</a></div>
     <p class="page__help">The <a href="/output.html" target="_blank">Output page</a> builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame,
       top layer first, and sends it to a display, a Blackmagic device or NDI® for your switcher.
-      It has two views, picked at the top of the page and remembered on that Mac. <b>Show</b> is for the night: the picked output's picture with its tabs,
-      <b>HD</b> or <b>4K</b>, <b>Settings</b> (the output's set-up, opened as a drawer under the row) and <b>Output on</b> in one row, a status board beside it
-      (a light per output, the ATEM and REC; the game, PlayHQ, the score and the clock; the sequence playing and the next one armed, the music, the mics, the dip, the switcher's program and preview,
-      the recording with <b>Record</b> or <b>Stop</b>, and the next game the automatic game switch is waiting for), then the scenes and sequences as tiles and the sources as On and Off only.
-      <b>Prep</b> is the whole page: the sources with their settings, the scene and sequence editors, the output's set-up as a section, music and mic settings and the media folder.
-      Every button keeps its place in both, so a Stream Deck link works the same whichever is showing.
+      It is one page, laid out for the night: the picked output's picture with its tabs, <b>HD</b> or <b>4K</b>, <b>Settings</b> (the output's set-up, opened as a drawer under the row)
+      and <b>Output on</b> in one row, and a status board beside it (a light per output, the ATEM and REC; the game, PlayHQ, the score and the clock; the sequence playing and the next one armed,
+      the music, the mics, the dip, the switcher's program and preview, the recording with <b>Record</b> or <b>Stop</b>, and the next game the automatic game switch is waiting for).
+      Under them the Sources run down the left, and to their right the scenes and sequences as tiles, then music and mics, the switcher and the media folder.
+      Every setting is a click away in its section rather than a view of its own: a source's settings open under its row (click the row, or its pencil), <b>Edit scenes</b> opens the scene grid,
+      <b>Settings</b> on Music and Mics unfolds theirs, and <b>Set up</b> on the switcher its address and keys. Everything keeps its place, so a Stream Deck link works the same whatever is open.
       Each section folds away with the arrow by its title (or a click on the title), and stays folded on that Mac until it's opened again; buttons in a folded section's
-      title row, like <b>Output on</b>, still work. Longer explanations wait behind <b>Expand for info</b>, here and on the Production Planner, Socials and Recordings tabs: one line under a control says what it does, and the fold has the rest.</p>
+      title row, like <b>Output on</b>, still work. The Output page carries no explanations: one line under a control says what it does, and this page has the rest. Longer explanations on the Production Planner, Socials and Recordings tabs wait behind <b>Expand for info</b>.</p>
     <ul class="page__help">
       <li><b>Sources:</b> <b>Add page</b> adds any Studio graphic or web address; <b>Add image</b> adds a PNG, JPG, GIF, WebP or SVG, and <b>Add video</b>
-        an MP4, WebM or MOV (saved in the data folder's <b>media</b> folder). Each opens a box to pick it. A new source goes above the selected one (on top if none is selected), hidden, and is selected
-        so you can set it up straight away. Pages not in the scene yet are listed first, and <b>Add all unused pages</b> adds every one of them, hidden.
-        Drag a source up or down the list to move it between layers, or use ↑ and ↓.</li>
+        an MP4, WebM or MOV (saved in the data folder's <b>media</b> folder). Each opens a box to pick it. A new source goes above the selected one (on top if none is selected), hidden, with its
+        settings open under its row so you can set it up straight away. Pages not in the scene yet are listed first, and <b>Add all unused pages</b> adds every one of them, hidden.
+        Each row has the source's On / Off (a pill per output once there's more than one), an eye to preview it on its own and a pencil for its settings (name, address and page options,
+        size, fade, position, its Stream Deck links, <b>Move up</b>, <b>Move down</b> and <b>Remove</b>); <b>Done</b> closes them. The list is top layer first: drag a source up or down to move it between layers.</li>
       <li><b>Export sources</b> saves the scene's sources as a .zip, with the images and videos they use (untick <b>Export with their images and videos</b> to leave them out),
         to keep as a backup or move to another Mac. <b>Import sources</b> replaces every source in the scene with the ones in an exported .zip (or its <code>scene.json</code>), after asking.
         Imported sources start hidden and keep their Stream Deck keys. Their images and videos go in the media folder; a file already there with the same name but different contents isn't
@@ -177,7 +178,7 @@
         with <b>At the end: Animates away</b> (their default), and the super shot and hot streak animations when they play once.
         Pages that stay on screen or wait for something to happen (super shots and hot streaks playing by themselves, the countdown, the scoreboard) stay on.
         This needs a scene window open (the Output page's Live View, its pop-out or a display or DeckLink output) to see the animation finish.</li>
-      <li><b>Preview</b> opens the selected source on its own in a new window, the way the Preview buttons on this page do; the small <b>PVW</b> button beside a source's On / Off does the same from the list. A preview opens at half size (960 x 540): the page is still laid out at 1080p, just scaled down, on a checkerboard so the see-through parts show, so a few fit on one screen. Resize the window to make it bigger.</li>
+      <li><b>Preview</b> opens the selected source on its own in a new window, the way the Preview buttons on this page do; the eye beside a source's On / Off does the same from the list. A preview opens at half size (960 x 540): the page is still laid out at 1080p, just scaled down, on a checkerboard so the see-through parts show, so a few fit on one screen. Resize the window to make it bigger.</li>
       <li><b>Videos</b> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
         A video that fades out when it finishes is switched off in the scene, so the Sources list and its Stream Deck key show it off and the next On plays it again.
         <b>Sound</b> turns a video's sound on or off, with a volume; it plays through the Mac's audio output, or in the SDI of a Blackmagic output. <b>Restart video</b> starts it again.</li>

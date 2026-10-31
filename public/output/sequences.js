@@ -78,6 +78,7 @@ function outTicks(sq) {
 }
 let showHidden = false;
 try { showHidden = localStorage.getItem('studio.seqShowHidden') === '1'; } catch { /* no storage */ }
+$('addSeq').onclick = () => openSequence(null);
 $('seqShowHidden').onchange = () => {
   showHidden = $('seqShowHidden').checked;
   try { localStorage.setItem('studio.seqShowHidden', showHidden ? '1' : '0'); } catch { /* no storage */ }
@@ -159,29 +160,13 @@ function renderSequences() {
     if (run) { const e = document.createElement('button'); e.className = 'alt'; e.textContent = 'Edit'; e.style.cssText = 'padding:4px 10px;font-size:13px;justify-self:start'; e.onclick = () => openSequence(sq); card.querySelector('.row').appendChild(e); }
     box.appendChild(card);
   }
-  const add = document.createElement('button');
-  add.className = 'seq addSeq';
-  add.innerHTML = '+ New sequence<small>steps played one after another</small>';
-  add.onclick = () => openSequence(null);
-  box.appendChild(add);
   heardAt = performance.now();
   tickSequence();
   const first = sequences()[0];
-  // With no sequences yet the first steps show; once there are some, the how-to waits behind Expand for info.
-  $('seqInfo').hidden = !first;
+  // With no sequences yet, the first steps (the rest is on the Docs page).
   $('seqEmpty').hidden = !!first;
-  $(first ? 'seqNote' : 'seqEmpty').innerHTML = first
-    ? 'A sequence plays its steps one after another: <b>Play</b> starts it, <b>Next</b> ends the step now, '
-      + 'and <b>Stop</b> ends it and does its "then". Going to a scene, or playing another sequence, stops it without its "then". Turning the step\'s source off by hand moves to the next step. '
-      + 'A sequence can start by itself before the game (if Studio was running at that moment), at the breaks or at full time, a few seconds after the siren (from the scoreboard\'s clock, whether it follows the PlayHQ scorer or you run it); '
-      + 'while it waits to start, <b>Start now</b> and <b>Cancel</b>. Untick <b>Automatic sequences on</b> and nothing starts by itself. '
-      + 'A sequence with <b>Hide</b> ticked (in its editor) stays off this list unless <b>Show hidden</b> is ticked; it plays as before. Sequences belong to the competition in use. '
-      + `Stream Deck: <code>${deckBase}${scene.viewDeck}/sequence/${encodeURIComponent(slug(first.name))}</code> plays it (add <code>/toggle</code> to stop it on a second press), and for whatever is playing `
-      + `<code>${scene.viewDeck}/sequence/next</code> (or <code>${scene.viewDeck}/sequence/advance</code>, only for a step waiting on Next), <code>${scene.viewDeck}/sequence/pause</code> and <code>${scene.viewDeck}/sequence/stop</code>; for one about to start `
-      + `<code>${scene.viewDeck}/sequence/now</code> and <code>${scene.viewDeck}/sequence/cancel</code>; and <code>/deck/sequence/auto/toggle</code> for the switch.`
-      + (scene.viewMany ? ` Every output shares these sequences and plays one at a time of its own (each output's tick on the card says Playing, Paused, Starting or Stopped), so the same sequence can play on two outputs at once. A click plays it on ${esc(scene.viewName)}, the output picked over the Scene View; its links start <code>${scene.viewDeck}</code>. Off Output 1 a sequence is silent, and a Sponsor ads step plays in that output's own ad sources.` : '')
-    : 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
-      + 'Add your sources below first, then <b>+ New sequence</b>.';
+  $('seqEmpty').innerHTML = 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
+    + 'Add your sources first, then <b>Add sequence</b>.';
 }
 function tickSequence() {
   const pend = scene.pending, pl = document.querySelector('.seq.pend .pendLeft');
