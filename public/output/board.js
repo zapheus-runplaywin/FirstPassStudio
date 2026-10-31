@@ -10,8 +10,10 @@
 const boardEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const boardMmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const boardAgo = ms => ms == null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`;
-const boardLine = (lbl, dot, main, sub, bar, tm, extra = '') =>
-  `<div class="line"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}${bar || ''}</span><span class="tm">${tm || ''}${extra}</span></div>`;
+// The time sits to the right; with below, it goes under the words instead (the music's "0:47 / 3:25" is too wide
+// for a column, and squeezed the song's name to nothing).
+const boardLine = (lbl, dot, main, sub, bar, tm, extra = '', below = false) =>
+  `<div class="line"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}${below && tm ? `<span class="tm under">${tm}</span>` : ''}${bar || ''}</span><span class="tm">${below ? '' : tm || ''}${extra}</span></div>`;
 const boardBar = (pct, cls = '') => pct == null ? '' : `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span>`;
 
 function renderBoard() {
@@ -62,14 +64,14 @@ function renderBoard() {
   const m = s.music || {};
   const musicOn = m.status === 'playing';
   const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? `${musicOn ? 'playing' : m.status === 'paused' ? 'paused' : 'ready'}${m.muted ? ' · muted' : ''}${m.ducked ? ' · ducked' : ''}` : 'nothing loaded',
-    m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, $('mTime') ? $('mTime').textContent : '');
+    m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, $('mTime') ? $('mTime').textContent : '', '', true);
   const meters = [...document.querySelectorAll('#mxList .mxMeter i')];
   const level = meters.length ? Math.max(...meters.map(i => parseFloat(i.style.width) || 0)) : null;
   const hot = meters.some(i => i.classList.contains('hot')), warm = meters.some(i => i.classList.contains('warm'));
   const mx = s.mics || {};
   const micsLine = boardLine('Mics', meters.length ? (mx.muted ? 'warn' : 'ok') : '', boardEsc($('mxHeard') ? $('mxHeard').textContent : 'Mics'), boardEsc($('mxWhy') ? $('mxWhy').textContent : ''),
     level == null ? null : `<span class="bar meter"><i class="${hot ? 'hot' : warm ? 'warm' : ''}" style="width:${level}%"></i></span>`, '');
-  const dipLine = boardLine('Dip', mx.dipped ? 'warn' : '', mx.dipped ? `Dipped to ${mx.dip ?? ''}%` : 'Full level', mx.dipped ? boardEsc((mx.why || []).join ? (mx.why || []).join(', ') : mx.why || '') : 'the mics dip while music or a video with sound plays', null, '');
+  const dipLine = boardLine('Dip', mx.dipped ? 'warn' : '', mx.dipped ? `Dipped to ${mx.dipTo ?? ''}%` : 'Full level', mx.dipped ? boardEsc((mx.why || []).join ? (mx.why || []).join(', ') : mx.why || '') : 'the mics dip while music or a video with sound plays', null, '');
   const prg = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.program) : null, pvw = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.preview) : null;
   const swLine = boardLine('Switcher', swOn ? 'ok' : sw && sw.setUp ? 'bad' : '', swOn ? `PGM ${boardEsc(prg ? prg.name : '?')}` : sw && sw.setUp ? 'Not answering' : 'Not set up',
     swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(sw.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
