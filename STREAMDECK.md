@@ -171,10 +171,11 @@ For Studio's scene, built on the Output page (http://localhost:8080/output.html)
 (**Install the Stream Deck plugin**) or the button on the Output page; the Stream Deck app opens it and installs it (do the same after an
 app update to update the plugin). Then drag **FirstPass Studio > Source** onto a key and pick the source in its settings.
 
-The five kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
+The six kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
 **Scene** key has stacked layers and a frame in its colour round the whole key, a **Sequence** key has a play button and its strip
-split into four steps, a **Switcher** key (see **Switcher** below) has a camera and its strip in two halves, and a **Replay** key (see
-**4K replay and practice games** below) has play and pause with a timeline and its playhead. For a Source key:
+split into four steps, a **Run order** key (see **Run order** below) has a list with a play button at its head and a strip whose first
+block stands taller than the ones queued behind it, a **Switcher** key (see **Switcher** below) has a camera and its strip in two halves,
+and a **Replay** key (see **4K replay and practice games** below) has play and pause with a timeline and its playhead. For a Source key:
 
 
 - **Press:** show or hide (default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.
@@ -217,6 +218,19 @@ split into four steps, a **Switcher** key (see **Switcher** below) has a camera 
 - **Output:** with more than one output, the output it plays the sequence on; Next, Pause and Stop keys act on what that output is playing.
 - When a sequence is about to start by itself after the siren, its key counts down to it (**in 0:04**).
 - It follows the sequence by id, so renaming it doesn't break the key; a deleted sequence's key says **gone**.
+
+**Run order key.** Drag **FirstPass Studio > Run order** onto a key for tonight's run order (see **Run order** below):
+
+- **Press:** **Play next** (default) plays what's at the head of the run order, a sequence or a scene; **Skip** drops it without
+  playing it; **Load** puts a saved order picked in its settings in place of what's queued; **Clear** empties the list.
+- Play next, Skip and Clear light up in their output's colour while something is queued and name what plays next (**Play next ▶ /
+  Quarter break / +2 more**), so the key says what a press will do before you press it; with nothing queued they say **empty**, and
+  Play next then ends the sequence playing (its Then runs), as the Output page's button does. A Load key names its saved order and how
+  many items it holds (**Thursday night / load 5**).
+- **Colour:** what's next's own colour (the scene's or sequence's, set in its editor on the Output page), so the key changes colour
+  as the night moves on, or one of the five groups.
+- **Output:** with more than one output, the output whose run order it acts on; each output has its own list.
+- It follows the saved order by id, so renaming it doesn't break a Load key; a deleted order's key says **gone**.
 
 **Switcher key.** Drag **FirstPass Studio > Switcher** onto a key for the ATEM switcher picked on the Output page (see **Switcher** below):
 
@@ -320,6 +334,24 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
   another sequence or `/deck/layers/off` stops it without its Then.
 - The plugin's **Sequence** key (above) presses these links and counts down the step on screen.
 - `next`, `advance`, `stop`, `pause`, `resume`, `now`, `cancel` and `auto` can't be sequence names, so these links never clash with one.
+
+## Run order (Output page)
+
+The run order is tonight's plan: a numbered list of sequences and scenes, in the order they play, kept per output with the competition's
+sequences. **Play next** plays the head (a sequence starts, a scene is gone to) and it leaves the list; a sequence that ends plays what is
+queued after it before falling back to its own Then.
+
+| Button | Link |
+|---|---|
+| Play what's next | http://localhost:8080/deck/runorder/next |
+| Skip what's next without playing it | http://localhost:8080/deck/runorder/skip |
+| Clear the run order | http://localhost:8080/deck/runorder/clear |
+| Add a sequence or scene to the end | http://localhost:8080/deck/runorder/add/quarter-break |
+| Load a saved order in place of what's queued | http://localhost:8080/deck/runorder/load/thursday-night |
+
+- With nothing queued, `next` ends the sequence playing (its Then runs); with nothing playing either it answers 409.
+- `/deck/output/<output>/runorder/…` acts on another output's list.
+- The plugin's **Run order** key (above) presses these links and names what plays next.
 
 ## Music (Output page)
 

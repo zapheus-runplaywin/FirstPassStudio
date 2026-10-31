@@ -43,6 +43,10 @@ export type Playing = {
 };
 /** A sequence about to start by itself. */
 export type Pending = { id: string; leftMs: number | null };
+/** One item in the run order: a sequence or a scene queued for the night; gone when it no longer exists. */
+export type RunOrderItem = { key: string; kind: "sequence" | "scene"; id: string; name: string; gone?: boolean };
+/** A saved run order, by name, with how many items it holds. */
+export type RunOrder = { id: string; name: string; count: number };
 /**
  * The whole scene as Studio sends it. scenes, current (the last scene gone to) and changed (sources that differ
  * from it) are missing from a Studio older than scenes; sequences and playing from one older than sequences.
@@ -66,6 +70,10 @@ export type Scene = {
 	changedOut?: Record<string, string[]>;
 	playingOut?: Record<string, Playing>;
 	pendingOut?: Record<string, Pending>;
+	/** The run order (missing from a Studio older than it): Output 1's queue, the other outputs' by id, and the saved orders. */
+	runOrder?: RunOrderItem[];
+	runOrderOut?: Record<string, RunOrderItem[]>;
+	runOrders?: RunOrder[];
 };
 
 /** Output 1's id. A key with no output set acts on it, as keys did before Studio had more than one. */
@@ -84,6 +92,7 @@ export function forOutput(scene: Scene | null, output?: string): Scene | null {
 		changed: scene.changedOut?.[id] ?? [],
 		playing: scene.playingOut?.[id] ?? null,
 		pending: scene.pendingOut?.[id] ?? null,
+		runOrder: scene.runOrderOut?.[id] ?? [],
 	};
 }
 

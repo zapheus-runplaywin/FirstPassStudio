@@ -32,6 +32,7 @@ const SCENE_ACTION = "com.runplaywin.firstpass-studio.scene";
 const SEQUENCE_ACTION = "com.runplaywin.firstpass-studio.sequence";
 const SWITCHER_ACTION = "com.runplaywin.firstpass-studio.switcher";
 const PLAYBACK_ACTION = "com.runplaywin.firstpass-studio.playback";
+const RUNORDER_ACTION = "com.runplaywin.firstpass-studio.runorder";
 // Studio's stand-in ATEM switcher (CommonJS, shared with Studio's own tests).
 const { startAtem } = createRequire(import.meta.url)(path.join(REPO, "test", "support", "atem.js"));
 
@@ -363,6 +364,78 @@ test("real SDK and real Studio: Sequence keys play and stop a sequence and show 
 		deck.send({ event: "sendToPlugin", action: SEQUENCE_ACTION, context: "Q1", payload: { cmd: "sequences", host } });
 		const list = await deck.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "sequences", "sequence list");
 		assert.deepEqual(list.payload.sequences, [{ id: qb.id, name: "Quarter break", colour: "purple" }]);
+	} finally {
+		plugin.kill();
+		studio.kill();
+		deck.close();
+		removeDataDir(dataDir);
+	}
+});
+
+test("real SDK and real Studio: Run order keys name what plays next and play or skip it", { timeout: 60000 }, async () => {
+	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-deck-"));
+	const studioPort = 20000 + Math.floor(Math.random() * 20000);
+	const studio = await startStudio(studioPort, dataDir);
+	const host = `http://127.0.0.1:${studioPort}`;
+	const deck = await startDeck();
+	const plugin = launchPlugin(deck.port);
+	const post = (body: object) => fetch(`${host}/api/scene`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+	type Studio = {
+		sources: { id: string; name: string; visible: boolean }[];
+		scenes: { id: string; name: string }[];
+		sequences: { id: string; name: string }[];
+		playing: { id: string } | null;
+		runOrder: { kind: string; name: string }[];
+		runOrders: { id: string; name: string; count: number }[];
+	};
+	const scene = async () => (await (await fetch(`${host}/api/scene`)).json()) as Studio;
+	const after = (mark: number) => (m: Msg) => deck.received.indexOf(m) >= mark;
+
+	try {
+		await deck.waitFor((m) => m.event === "registerPlugin", "registration", 15000);
+		await post({ type: "add", sources: [{ type: "browser", name: "Ladder", url: "ladder.html" }, { type: "browser", name: "Fixtures", url: "fixtures.html" }] });
+		const [ladder, fixtures] = (await scene()).sources;
+		await post({ type: "sceneSave", name: "Live game" });
+		await post({ type: "seqAdd", changes: { name: "Quarter break", colour: "purple", steps: [
+			{ sources: [ladder.id], length: { type: "next" } }, { sources: [fixtures.id], length: { type: "time", sec: 30 } }] } });
+
+		deck.send(keyEvent("willAppear", "N1", { host }, RUNORDER_ACTION));
+		deck.send(keyEvent("willAppear", "N2", { host, press: "skip" }, RUNORDER_ACTION));
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "N1" && m.payload?.title === "Play next ▶\n(empty)", "empty run order");
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "N2" && m.payload?.title === "Skip ⏭\n(empty)", "skip with nothing queued");
+
+		// The night's plan added on the Output page: both keys light and name the head, in its own colour.
+		let mark = deck.received.length;
+		await post({ type: "roAdd", kind: "sequence", name: "Quarter break" });
+		await post({ type: "roAdd", kind: "scene", name: "Live game" });
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "N1" && m.payload?.title === "Play next ▶\nQuarter\nbreak\n+1 more", "head named");
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "N2" && m.payload?.state === 1, "skip key lit");
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "N1" && m.payload?.state === 0 && svgOf(m).includes(GROUPS.purple.off), "the head's own colour");
+
+		// Play next plays the head: the sequence starts and the key moves on to the scene behind it.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "N1", { host }, RUNORDER_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "N1" && m.payload?.title === "Play next ▶\nLive game", "scene next");
+		const st = await scene();
+		assert.equal(st.playing?.id, st.sequences[0].id);
+		assert.deepEqual(st.runOrder.map((it) => it.name), ["Live game"]);
+
+		// Skip drops it unplayed: the keys go dark.
+		mark = deck.received.length;
+		deck.send(keyEvent("keyDown", "N2", { host, press: "skip" }, RUNORDER_ACTION));
+		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "N1" && m.payload?.state === 0, "dark when empty");
+		assert.deepEqual((await scene()).runOrder, []);
+
+		// A Load key names its saved order, and the settings panel's list has it.
+		await post({ type: "roAdd", kind: "scene", name: "Live game" });
+		await post({ type: "roSave", name: "Thursday" });
+		const [thu] = (await scene()).runOrders;
+		deck.send(keyEvent("willAppear", "N3", { host, press: "load", order: thu.id, orderName: "Thursday" }, RUNORDER_ACTION));
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "N3" && m.payload?.title === "Thursday\nload 1", "load key");
+		deck.send({ event: "propertyInspectorDidAppear", action: RUNORDER_ACTION, context: "N3", device: "DEV" });
+		deck.send({ event: "sendToPlugin", action: RUNORDER_ACTION, context: "N3", payload: { cmd: "orders", host } });
+		const list = await deck.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "orders", "saved orders list");
+		assert.deepEqual(list.payload.orders, [{ id: thu.id, name: "Thursday", count: 1 }]);
 	} finally {
 		plugin.kill();
 		studio.kill();

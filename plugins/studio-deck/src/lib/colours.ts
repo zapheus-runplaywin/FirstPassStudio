@@ -43,14 +43,15 @@ export const TALLY = { program: "#ff4d4d", preview: "#22c55e" } as const;
 /** The dot a Scene key shows in its top corner while sources differ from the scene as saved (a Switcher key: while the switcher isn't answering). */
 export const DOT = "#facc15";
 
-/** The five kinds of key. Each draws its own picture and band, so they can be told apart across a page. */
-export type KeyKind = "source" | "scene" | "sequence" | "switcher" | "playback";
+/** The six kinds of key. Each draws its own picture and band, so they can be told apart across a page. */
+export type KeyKind = "source" | "scene" | "sequence" | "switcher" | "playback" | "runorder";
 
 /**
  * The big faint picture behind a key's title: an eye for a Source (shows or hides one thing), stacked layers for
  * a Scene (a set of sources), a play button for a Sequence (plays in order), a camera for a Switcher key, play and
- * pause together for a Replay key (a recorded game played back). White at low opacity so the title
- * still reads over it, on every dark body and every lit colour.
+ * pause together for a Replay key (a recorded game played back), and a list with a play button at its head for a Run
+ * order key (what plays next tonight). White at low opacity so the title still reads over it, on every dark body and
+ * every lit colour.
  */
 const PICTURE: Record<KeyKind, string> = {
 	source:
@@ -64,14 +65,25 @@ const PICTURE: Record<KeyKind, string> = {
 	playback:
 		`<path d="M20 22L76 60L20 98Z" fill="#fff" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>` +
 		`<rect x="90" y="22" width="14" height="76" rx="3" fill="#fff"/><rect x="114" y="22" width="14" height="76" rx="3" fill="#fff"/>`,
+	runorder:
+		`<path d="M18 16L46 32L18 48Z" fill="#fff"/><rect x="58" y="24" width="68" height="14" rx="5" fill="#fff"/>` +
+		`<circle cx="30" cy="66" r="8" fill="#fff"/><rect x="58" y="59" width="68" height="14" rx="5" fill="#fff"/>` +
+		`<circle cx="30" cy="100" r="8" fill="#fff"/><rect x="58" y="93" width="68" height="14" rx="5" fill="#fff"/>`,
 };
 
 /**
  * The band along the bottom in the group's colour: one solid strip for a Source, the same with a frame up the
  * sides and over the top for a Scene (a whole screen), four steps with gaps for a Sequence, two halves for a
- * Switcher key (program and preview), and a timeline with its playhead for a Replay key.
+ * Switcher key (program and preview), a timeline with its playhead for a Replay key, and a queue for a Run order key:
+ * the head block full height, the ones behind it lower.
  */
 function band(kind: KeyKind, colour: string): string {
+	if (kind === "runorder")
+		return (
+			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +
+			`<rect y="124" width="33" height="20" fill="${colour}"/>` +
+			[1, 2, 3].map((i) => `<rect x="${i * 37}" y="131" width="33" height="13" fill="${colour}"/>`).join("")
+		);
 	if (kind === "playback")
 		return (
 			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +

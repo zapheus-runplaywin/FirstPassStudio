@@ -3,7 +3,7 @@
 	"Name": "FirstPass Studio",
 	"Version": "1.0.0.0",
 	"Author": "PIVT",
-	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, play sequences, and see which are on. Also presses the ATEM switcher Studio controls, with its tally, and runs a 4K replay or practice game from Studio's Recordings tab.",
+	"Description": "Keys for FirstPass Studio's scene: show and hide its sources, go to saved scenes, play sequences, play what's next in the run order, and see which are on. Also presses the ATEM switcher Studio controls, with its tally, and runs a 4K replay or practice game from Studio's Recordings tab.",
 	"Icon": "imgs/plugin/icon",
 	"Category": "FirstPass Studio",
 	"CategoryIcon": "imgs/plugin/category",
@@ -105,6 +105,34 @@
 				{
 					"Image": "imgs/actions/sequence/on",
 					"Name": "Playing",
+					"TitleAlignment": "middle",
+					"TitleColor": "#000000",
+					"FontSize": 12
+				}
+			]
+		},
+		{
+			"Name": "Run order",
+			"UUID": "com.runplaywin.firstpass-studio.runorder",
+			"Icon": "imgs/actions/runorder/icon",
+			"Tooltip": "Plays what's next in Studio's run order, skips it, loads a saved order or clears the list. Shows what plays next and lights up while something is queued.",
+			"PropertyInspectorPath": "ui/runorder.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": true,
+			"DisableAutomaticStates": true,
+			"States": [
+				{
+					"Image": "imgs/actions/runorder/off",
+					"Name": "Off",
+					"TitleAlignment": "middle",
+					"TitleColor": "#ffffff",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/runorder/on",
+					"Name": "Queued",
 					"TitleAlignment": "middle",
 					"TitleColor": "#000000",
 					"FontSize": 12

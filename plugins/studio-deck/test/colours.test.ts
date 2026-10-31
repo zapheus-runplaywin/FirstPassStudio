@@ -8,7 +8,7 @@ import { contrast, GROUPS, groupOf, keyImage, keyImageUrl, type KeyKind, ON, TAL
 
 const PANEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "com.runplaywin.firstpass-studio.sdPlugin", "ui", "source.html");
 const groups = Object.keys(GROUPS) as (keyof typeof GROUPS)[];
-const kinds: KeyKind[] = ["source", "scene", "sequence", "switcher"];
+const kinds: KeyKind[] = ["source", "scene", "sequence", "switcher", "playback", "runorder"];
 
 test("colour groups: the five phases, blue when not set or unknown", () => {
 	assert.deepEqual(groups, ["blue", "green", "grey", "yellow", "purple"]);
