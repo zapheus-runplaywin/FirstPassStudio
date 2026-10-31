@@ -18,12 +18,27 @@
   .page__help b { color: var(--fp-navy); }
   .page__help code { display: inline; padding: 1px 5px; white-space: nowrap; }
   .card.error { background: var(--fp-danger-bg); border-color: var(--fp-danger-line); color: var(--fp-danger); }
+  /* Contents: a sticky list of the cards at the left from 1280px, under the title on a narrower window. */
+  .contents { margin: 0 0 16px; padding: 0; font-size: 13px; }
+  .contents ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .contents a { color: var(--fp-muted); text-decoration: none; font-weight: 600; }
+  .contents a:hover, .contents li.here a { color: var(--fp-blue); }
+  .contents li[hidden] { display: none; }
+  @media (min-width: 1280px) {
+    body.fp main.narrow { max-width: 1060px; display: grid; grid-template-columns: 220px minmax(0, 800px); column-gap: 40px; align-items: start; }
+    main.narrow > :not(.contents) { grid-column: 2; }
+    .contents { grid-column: 1; grid-row: 1 / span 200; position: sticky; top: calc(var(--barh, 83px) + 16px); margin: 0; padding-top: 4px; }
+    .contents ol { display: block; }
+    .contents li { padding: 3px 0 3px 10px; border-left: 2px solid var(--fp-line); }
+    .contents li.here { border-left-color: var(--fp-orange); }
+  }
 </style>
 <script src="log.js"></script>
 </head>
 <body class="fp">
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main class="narrow">
+  <nav class="contents" id="contents" aria-label="Contents"><ol></ol></nav>
   <h1>Docs</h1>
   <p class="sub" id="sub">Loading from PlayHQ…</p>
   <p class="page__help">How Studio works and what every graphic does. Build the show on the <a href="/output.html">Output page</a>: each graphic's options are fields in its source's settings there.
@@ -590,7 +605,7 @@
     <p class="page__help">The app window is like any Mac app's: no address bar, tabs or bookmarks, the Studio header is the title bar
       (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
       open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <b>File &gt; Open in Browser</b> (⇧⌘O) and
-      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘9, and ⌘0 for Docs), <b>View</b> for reload, back and zoom, <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
+      <b>Copy Page Link</b> (⇧⌘C) for the page in front, <b>Go</b> for each Studio page (⌘1 to ⌘9, and ⌘0 for Docs), <b>View</b> for reload, back and page zoom (in steps, the level shown in the menu; <b>Zoom In</b> ⌘+, <b>Zoom Out</b> ⌘−, <b>Actual Size</b> ⌘⌥0, or pinch on the trackpad; while it isn't 100% a chip at the right of the bar shows the level, and a click on it puts it back), <b>New Window</b> (⌘N), and <b>Close Studio Windows</b> (⌥⌘W) in the FirstPass Studio menu.</p>
     <p class="page__help"><b>The bar</b> at the top of every Studio page has the tabs in three groups: <b>Run</b> (Output, Scoreboard control) for the night, <b>Plan</b> (Production Planner, Socials) for before it,
       and <b>Set up</b> (Recordings, Competitions setup, Sponsors, Athletes, Stream Deck) for once, with Docs at the right. Its status chips say what is on from any page: <b>ON AIR</b> in orange with the
       outputs sending (or Off air), the game on the board, PlayHQ following with the quarter and clock (amber when a reading is overdue, red when it keeps failing), the sequence playing with its step and time left
@@ -1034,6 +1049,36 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
     list.innerHTML = '<div class="card error"></div>';
     list.firstChild.textContent = `Couldn't load from PlayHQ: ${err.message}`;
   }
+})();
+</script>
+<script>
+// The contents list: one entry per card, from its title, hidden with the card (the Finals and Top shooters cards
+// show only when the competition has them); the entry of the card in view is marked.
+(function () {
+  const ol = document.querySelector('#contents ol');
+  const cards = [...document.querySelectorAll('main > .card')].filter(c => c.querySelector(':scope > h2'));
+  const slug = t => t.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const items = cards.map(c => {
+    const h2 = c.querySelector(':scope > h2');
+    if (!c.id) c.id = 'doc-' + slug(h2.textContent);
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = '#' + c.id; a.textContent = h2.textContent.replace(/\s*\(.*$/, '');
+    li.append(a); li.hidden = c.hidden;
+    ol.append(li);
+    return { c, li };
+  });
+  const sync = () => { for (const it of items) it.li.hidden = it.c.hidden; };
+  new MutationObserver(sync).observe(document.querySelector('main'), { attributes: true, attributeFilter: ['hidden'], subtree: true });
+  const bar = document.querySelector('header.fp-bar');
+  const barH = () => bar ? bar.offsetHeight : 83;
+  const mark = () => {
+    let here = items[0];
+    for (const it of items) if (!it.c.hidden && it.c.getBoundingClientRect().top <= barH() + 24) here = it;
+    for (const it of items) it.li.classList.toggle('here', it === here);
+  };
+  document.documentElement.style.setProperty('--barh', barH() + 'px');
+  addEventListener('scroll', mark, { passive: true }); addEventListener('resize', mark); mark();
 })();
 </script>
 </body>

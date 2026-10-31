@@ -92,6 +92,9 @@
 .fp-chips .chip:hover { background: rgba(255,255,255,.14); color: #fff; }
 .fp-chips .chip.air { background: var(--fp-orange); color: var(--fp-bar); border-color: transparent; font-weight: 800; letter-spacing: .02em; }
 .fp-chips .chip.air:hover { background: #ff7a2e; color: var(--fp-bar); }
+.fp-bar .chip.zoom { order: 4; margin-left: 6px; display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--fp-gold); color: var(--fp-bar); border: 1px solid transparent; font-size: 12px; font-weight: 800; text-decoration: none; line-height: 1.3; }
+.fp-bar .chip.zoom:hover { background: #f7d13a; color: var(--fp-bar); }
+.fp-bar .chip.zoom[hidden] { display: none; }
 .fp-chips .chip.rec { background: rgba(198,40,40,.35); border-color: rgba(255,120,120,.4); color: #fff; font-weight: 800; letter-spacing: .08em; }
 .fp-chips .dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; flex: none; }
 .fp-chips .dot.off { background: #64748B; }
@@ -135,6 +138,11 @@ body.fp :focus-visible { outline: 2px solid var(--fp-blue); outline-offset: 2px;
 :where(body.fp) main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
 :where(body.fp) main.wide { max-width: 1280px; }
 :where(body.fp) main.narrow { max-width: 800px; }  /* the Docs page: reading width */
+/* 150 ms transitions on what the hand reaches for: buttons, the bar's tabs and chips, folding arrows, the toast. */
+:where(body.fp) button, :where(body.fp) .btn, .fp-bar nav a, .fp-chips .chip, :where(body.fp) section .fold, :where(body.fp) .fp-seg > * { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s; }
+:where(body.fp) section.folded .fold { transform: rotate(-90deg); }
+.fp-status { transition: opacity .15s, transform .15s; }
+@media (prefers-reduced-motion: reduce) { :where(body.fp) button, :where(body.fp) .btn, .fp-bar nav a, .fp-chips .chip, :where(body.fp) section .fold, :where(body.fp) .fp-seg > *, .fp-status { transition: none; } }
 :where(body.fp) h1 { margin: 0 0 4px; font-size: 32px; }
 :where(body.fp) .sub { color: var(--fp-muted); margin: 0 0 16px; line-height: 1.55; }
 :where(body.fp) .sub b { color: var(--fp-navy); }

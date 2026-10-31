@@ -22,7 +22,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   full-screen displays (`desktop/outputs.js`), NDI (`desktop/ndi.js`), Blackmagic (`desktop/decklink.js`, with its sound in the SDI heard from its window by `desktop/soundtap.js`), both fed
   by an off-screen render of the scene (`desktop/scenewindow.js`; at 2160p it's 1920 x 1080 points at twice the density). `desktop/perf.js` measures each output's CPU, memory and frame
   rate every 5 s while one is showing; `outputs.js` shows it on the Output page and logs it once a minute. `desktop/windows.js` makes the app's own windows
-  and menus from the tab list in `public/studiobar.js`; `desktop/updates.js` and `desktop/whatsnew.js` handle updates.
+  and menus from the tab list in `public/studiobar.js` (and the page zoom: one level for every Studio window, kept as `pageZoom`, shown in the View menu, told to each page as a `studio-zoom` event for the bar's chip, which asks for 100% with `#zoom=100`); `desktop/updates.js` and `desktop/whatsnew.js` handle updates.
 - **The helper** is plain Node, no framework: `server.js` routes every request by hand and the modules beside it each
   own one subject. Everything it saves goes in the data folder (`datadir.js`), never inside the app.
 - **The pages** are static HTML in `public/`. The Studio pages (Output, Production Planner, Scoreboard control, Recordings, Socials,

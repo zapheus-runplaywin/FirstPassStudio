@@ -58,6 +58,27 @@ const isAppPage = u => u.startsWith('studio:');
 
 module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, onWindowOpened, onAllClosed }) {
   const local = p => `http://localhost:${port}${p}`;
+
+  // ─── Page zoom ──────────────────────────────────────────────────────────
+  // Like Safari's: one level for every Studio window, in steps, remembered on this Mac (pageZoom in the app's
+  // settings). The View menu shows it, the bar on every page shows a chip while it isn't 100% (a click on it puts
+  // it back, by setting #zoom=100 on the page, caught below), and a pinch on the trackpad or ⌃ + the wheel steps
+  // it (zoom-changed). Actual Size is ⌘⌥0, since ⌘0 is the Docs tab.
+  const ZOOM_STEPS = [50, 67, 75, 85, 100, 115, 125, 150, 175, 200];
+  let zoomPct = ZOOM_STEPS.includes(Number(appSettings().pageZoom)) ? Number(appSettings().pageZoom) : 100;
+  const tellZoom = wc => wc.executeJavaScript(`document.dispatchEvent(new CustomEvent('studio-zoom', { detail: ${zoomPct} }))`, true).catch(() => {});
+  function setZoom(pct) {
+    zoomPct = ZOOM_STEPS.includes(pct) ? pct : 100;
+    saveAppSetting('pageZoom', zoomPct);
+    for (const w of pageWindows()) { w.webContents.setZoomFactor(zoomPct / 100); tellZoom(w.webContents); }
+    refreshMenu();
+  }
+  const stepZoom = dir => setZoom(ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, ZOOM_STEPS.indexOf(zoomPct) + dir))]);
+  // A new page in a Studio window: at the level in use, and told it so the bar can show the chip.
+  function applyZoom(wc) {
+    wc.setZoomFactor(zoomPct / 100);
+    tellZoom(wc);
+  }
   // A page on this Studio: localhost, or the .local name the Studio links use.
   const isStudio = u => {
     try {
@@ -284,7 +305,15 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       else if (quitting) setQuitting(false);
     });
     wc.on('did-navigate', (e, to) => { if (isStudio(to)) win.studioUrl = to; });
-    wc.on('did-navigate-in-page', (e, to) => { if (isStudio(to)) win.studioUrl = to; });
+    wc.on('did-navigate-in-page', (e, to) => {
+      // The bar's zoom chip asks for 100% with #zoom=100 (the page has no other way to reach the app).
+      if (/#zoom=100$/.test(to)) { setZoom(100); wc.executeJavaScript('history.replaceState(null, "", location.pathname + location.search)', true).catch(() => {}); return; }
+      if (isStudio(to)) win.studioUrl = to;
+    });
+    if (studioPage) {
+      wc.on('did-finish-load', () => { if (isStudio(wc.getURL())) applyZoom(wc); });
+      wc.on('zoom-changed', (e, dir) => stepZoom(dir === 'in' ? 1 : -1));
+    }
     // Off air (or still starting): a page saying so, which tries again by itself.
     wc.on('did-fail-load', (e, code, desc, failed, isMainFrame) => {
       if (!isMainFrame || code === -3 /* aborted: a new page took over */ || !isStudio(failed)) return;
@@ -423,9 +452,10 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
           { label: 'Back', accelerator: 'CmdOrCtrl+[', click: () => { const c = current(); if (c && c.webContents.navigationHistory.canGoBack()) leaving(c, () => c.webContents.navigationHistory.goBack()); } },
           { label: 'Forward', accelerator: 'CmdOrCtrl+]', click: () => { const c = current(); if (c && c.webContents.navigationHistory.canGoForward()) leaving(c, () => c.webContents.navigationHistory.goForward()); } },
           { type: 'separator' },
-          { role: 'resetZoom' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
+          { label: `Zoom: ${zoomPct}%`, enabled: false },
+          { label: 'Zoom In', accelerator: 'CmdOrCtrl+Plus', click: () => stepZoom(1) },
+          { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: () => stepZoom(-1) },
+          { label: 'Actual Size', accelerator: 'CmdOrCtrl+Alt+0', enabled: zoomPct !== 100, click: () => setZoom(100) },
           { type: 'separator' },
           { role: 'togglefullscreen' },
           // Developer tools only from a checkout (npm run app): the shipped app has no use for them.

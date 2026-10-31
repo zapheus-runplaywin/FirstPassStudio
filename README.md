@@ -237,7 +237,7 @@ bookmarks, the Studio header is the title bar (the window buttons sit in it, and
 the app shows in the Dock and ⌘Tab while a window is open, then goes back to just the menu bar icon. A link that opens
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
 anywhere else open in the browser. The app menu has FirstPass Studio > Close Studio Windows (⌥⌘W, asks first while on air), File > New Window (⌘N), Open in Browser (⇧⌘O) and Copy Page Link
-(⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], zoom, full screen, developer tools), Go (⌘1 output,
+(⇧⌘C, the .local link), Edit, View (reload, back ⌘[, forward ⌘], page zoom in steps with the level shown, Zoom In ⌘+, Zoom Out ⌘−, Actual Size ⌘⌥0, pinch on the trackpad; a chip at the right of the bar shows the level while it isn't 100% and a click puts it back; full screen, developer tools), Go (⌘1 output,
 ⌘2 Production Planner, ⌘3 control, ⌘4 Recordings, ⌘5 Socials, ⌘6 setup, ⌘7 sponsors, ⌘8 athletes, ⌘9 Stream Deck, ⌘0 docs) and Window. Closing the last window takes Studio off air (see
 above), and ⌘Q while on air asks first (Quit or Cancel). Quit always quits: if anything holds the app up for 5 seconds after Quit, it exits anyway (logged in `logs/app.log`). While Studio is starting, or if it couldn't start, the window
 shows `desktop/offair.html` and opens the page again once Studio answers. The main window's size and position are saved as `windowBounds` in `app-settings.json`.

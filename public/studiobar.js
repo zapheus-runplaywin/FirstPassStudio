@@ -58,7 +58,7 @@
   const docs = document.createElement('nav');
   docs.className = 'fp-docs';
   for (const p of STUDIO_PAGES) if (p.group === 'Docs') docs.appendChild(tab(p));
-  bar.append(brand, nav, chips, docs);
+  bar.append(brand, nav, chips, docs); // the zoom chip joins after chips below
 
   // ─── Status chips ───────────────────────────────────────────────────────
   // What's on air, at a glance, from any page: the outputs sending (orange while any is), the game on the board,
@@ -101,6 +101,19 @@
     if (h.recording && h.recording.on) parts.push(chip('rec', '/recordings.html', 'rec', 'REC'));
     chips.innerHTML = parts.join('');
   };
+  // Page zoom (the Mac app, desktop/windows.js): the app says the level after each change and each load; while it
+  // isn't 100% a chip at the right of the bar shows it, and a click asks for 100% (the app watches for #zoom=100).
+  const zoomChip = document.createElement('a');
+  zoomChip.className = 'chip zoom';
+  zoomChip.href = '#zoom=100';
+  zoomChip.title = 'Page zoom: click for actual size (⌘⌥0)';
+  zoomChip.hidden = true;
+  chips.after(zoomChip);
+  document.addEventListener('studio-zoom', e => {
+    const pct = Number(e.detail) || 100;
+    zoomChip.hidden = pct === 100;
+    zoomChip.textContent = `${pct}%`;
+  });
   const read = () => fetch('/api/health', { cache: 'no-store' }).then(r => r.json()).then(h => { health = h; heardAt = Date.now(); render(); })
     .catch(() => { health = null; render(); });
   read();

@@ -3,20 +3,30 @@
 <head>
 <meta charset="utf-8">
 <title>FirstPass Studio</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <style>
   html, body { margin: 0; height: 100%; }
-  body { font-family: -apple-system, system-ui, sans-serif; background: #0F172A; color: #F8FAFC; display: grid; place-items: center; text-align: center; -webkit-app-region: drag; -webkit-user-select: none; }
-  .logo { font-weight: 800; font-style: italic; font-size: 34px; letter-spacing: -0.02em; }
-  .logo b { color: #F1C40F; font-weight: 800; }
-  h1 { font-size: 20px; margin: 28px 0 8px; }
-  p { color: #CBD5E1; margin: 0; max-width: 460px; line-height: 1.5; }
+  /* The brand kit's colours (public/studio.css): the page follows the Mac's appearance, as the Studio pages do. */
+  body { font-family: -apple-system, system-ui, sans-serif; background: #F8FAFC; color: #0F172A; display: grid; place-items: center; text-align: center; -webkit-app-region: drag; -webkit-user-select: none; }
+  .mark { width: 130px; height: auto; display: block; margin: 0 auto; }
+  .word { height: 22px; display: block; margin: 14px auto 0; }
+  h1 { font-size: 20px; margin: 26px 0 8px; }
+  p { color: #475569; margin: 0; max-width: 460px; line-height: 1.5; }
   .bar { width: 120px; height: 4px; background: #F75C03; border-radius: 2px; margin: 18px auto 0; }
+  .dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0F172A; color: #F8FAFC; } /* the mark's own navy, so it has no edge */
+    p { color: #CBD5E1; }
+    .light { display: none; } .dark { display: block; }
+  }
 </style>
 </head>
 <body>
 <div>
-  <div class="logo">FirstPass <b>STUDIO</b></div>
+  <img class="mark light" src="../public/studio/1p-studio-light.svg" alt="">
+  <img class="mark dark" src="../public/studio/1p-studio-dark.svg" alt="">
+  <img class="word light" src="../public/studio/firstpass-studio-light.svg" alt="FirstPass Studio">
+  <img class="word dark" src="../public/studio/firstpass-studio.svg" alt="FirstPass Studio">
   <div class="bar"></div>
   <h1 id="head">Studio is off air</h1>
   <p id="help">Studio couldn't start. Open the debug log from the 1P icon in the menu bar to see why, then choose <b>Open Studio</b> there. This page opens by itself once Studio is on air.</p>
