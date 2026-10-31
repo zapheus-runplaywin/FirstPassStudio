@@ -72,7 +72,7 @@ Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-
 Shared browser code in `public/`: `studio.js` (on every Studio page after `studiobar.js`: the red banner under the bar when Studio refuses a
 change from this device, with Pair this device, by wrapping `fetch`; and `studioStatus()`, the one "Saved" / "Couldn't save" line), `asktext.js` (every question a Studio page asks, in one dialog: askConfirm, askChoice, askText,
 tell; never the browser's confirm, alert or prompt, which does nothing in the Mac app) and `unsaved.js` (unsaved changes: `unsavedDialog` for an editor in a dialog, `unsavedPage` for a page that edits in place such as Competitions setup; one question, Keep editing, Don't save or Save, before Escape, a tab, the Go menu, closing or reloading),
-`sceneevents.js` (follow the scene over the WebSocket), `pageoptions.js` (the options
+`output/*.js` (the Output page's script, split by section and loaded in order into one scope; `mode.js` is its Show and Prep views, a body class the page's styles key off, remembered in localStorage, and `board.js` the Show view's status board drawn from the same `/api/health` answer as the bar's chips), `sceneevents.js` (follow the scene over the WebSocket), `pageoptions.js` (the options
 each graphic takes in its link), `pages.js` (the registry of graphics, review decision D7), `fit.js` (keep a card in
 the zone between title and scoreboard), `done.js` (a one-shot animation switches its source off), `sfx.js` and
 `pagesound.js` (animation sound), `sponsorspot.js` (presented-by spots), `chroma.js`, `zoom.js` (a graphic in a

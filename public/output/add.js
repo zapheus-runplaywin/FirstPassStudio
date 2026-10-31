@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 11 of 13: Adding sources: a page from the one list of graphics (pages.js), an image or a video.
+// FirstPass Studio - the Output page, part 11 of 15: Adding sources: a page from the one list of graphics (pages.js), an image or a video.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 

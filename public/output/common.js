@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 1 of 13: Shared state and helpers for every section: $, the scene as last seen, the selected source, act() sending a change to Studio, and folding sections.
+// FirstPass Studio - the Output page, part 1 of 15: Shared state and helpers for every section: $, the scene as last seen, the selected source, act() sending a change to Studio, and folding sections.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -85,10 +85,11 @@ async function act(action) {
 // answered (amber when a reading is overdue, red after a minute of errors), the clock, the video output.
 const hEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const ago = ms => ms === null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`;
+let lastHealth = null, lastHealthAt = 0; // the last /api/health answer, for the status board
 async function health() {
   let h;
   try { h = await (await fetch('/api/health', { cache: 'no-store' })).json(); }
-  catch { $('healthDot').className = 'hdot bad'; $('healthPlayhq').innerHTML = '<span class="badText">Studio isn\'t answering</span>'; $('health').hidden = false; return; }
+  catch { $('healthDot').className = 'hdot bad'; $('healthPlayhq').innerHTML = '<span class="badText">Studio isn\'t answering</span>'; $('health').hidden = false; lastHealth = null; if (typeof renderBoard === 'function') renderBoard(); return; }
   $('healthGame').innerHTML = h.game ? `<b>${hEsc(h.game.label)}</b>${h.game.court ? ` on ${hEsc(h.game.court)}` : ''}` : `<b>${hEsc(h.competition || 'No competition')}</b>: no game picked`;
   const p = h.playhq;
   let text, cls = 'hdot ok';
@@ -103,6 +104,9 @@ async function health() {
   $('healthClock').textContent = h.game ? `Clock ${h.clock.following ? 'follows the scorer' : 'by hand'}${h.clock.running ? ', running' : ''}` : '';
   $('healthOut').textContent = h.output.on ? `Output on (${h.output.mode})` : 'Output off';
   $('health').hidden = false;
+  // The Show view's status board (output/board.js) draws from the same answer.
+  lastHealth = h; lastHealthAt = Date.now();
+  if (typeof renderBoard === 'function') renderBoard();
 }
 health(); setInterval(health, 2000);
 

@@ -35,6 +35,13 @@ test('health names the game, follows PlayHQ and reports a recent reading', async
   assert.equal(h.armed, null);
   assert.equal(typeof h.recording.on, 'boolean');
   assert.equal(typeof h.recording.record, 'boolean');
+  // For the Output page's status board (output/board.js): the score with the team names, and the automatic game
+  // switch's note (empty with auto-select off).
+  assert.equal(h.score.home, 0);
+  assert.equal(h.score.away, 0);
+  assert.match(h.score.homeName, /\S/);
+  assert.match(h.score.awayName, /\S/);
+  assert.equal(typeof h.autoNote, 'string');
 });
 
 test('a score press by hand shows as scores by hand, and a failing live feed turns the state amber then red', async () => {

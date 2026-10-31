@@ -381,6 +381,8 @@ function health() {
     sourcesOn: (sc.sources || []).filter(s => s.visible).length, sources: (sc.sources || []).length,
     scene: sc.current || null, sequence: sc.playing ? (playing.name || true) : null,
     playing, armed,
+    score: b.gameId ? { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0, homeName: b.home.name, awayName: b.away.name } : null,
+    autoNote: b.autoSelect ? (b.autoNote || '') : '',
     recording: { on: !!rec.recording, name: rec.recording || '', record: !!rec.record },
   };
 }

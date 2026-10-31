@@ -147,8 +147,9 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
-icon). The Output page and the Stream Deck use the same links as the Docs page. A status line under its title (from
-`/api/health`) shows the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
+icon). The Output page and the Stream Deck use the same links as the Docs page. It has a Show view for the night (the
+picture with its output tabs, a status board, scenes and sequences as tiles) and a Prep view with every setting. The
+status board, and in Prep a status line under the title (both from `/api/health`), show the game on the board, whether the scores and clock follow PlayHQ and how long since PlayHQ last
 answered (amber when a reading is overdue, red after a minute of errors, with the error), and whether the video output is
 on, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
 every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR with the outputs sending (or Off
