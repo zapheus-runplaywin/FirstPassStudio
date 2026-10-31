@@ -83,17 +83,23 @@
     const dots = outs.map(o => `<i class="odot${o.on ? ' on' : ''}" data-colour="${esc(o.colour || '#F75C03')}" title="${esc(o.name)}: ${o.on ? 'sending' : 'off'}"></i>`).join('');
     parts.push(chip(sending.length ? 'air' : 'off', sending.length ? `On air: ${sending.map(o => o.name).join(', ')}` : 'No output is sending', '', `${sending.length ? 'ON AIR' : 'Off air'}<span class="odots">${dots}</span>`));
     const g = h.game;
-    parts.push(g ? chip('game', '', 'ok', `${esc(g.label)}${g.court ? ` · ${esc(g.court)}` : ''}`) : chip('game off', '', 'off', 'No game on the board'));
+    // The game's dot is where the game is: orange before the clock has started, green from then until an hour after it
+    // ends, grey after that (the game is picked either way; the words say which).
+    const gdot = !g ? 'off' : g.phase === 'upcoming' ? 'orange' : g.phase === 'over' ? 'off' : 'ok';
+    const gtitle = !g ? '' : g.phase === 'upcoming' ? 'Upcoming: the clock hasn\'t started' : g.phase === 'live' ? 'Under way' : g.phase === 'ended' ? 'Ended within the hour' : 'Over';
+    parts.push(g ? chip('game', gtitle, gdot, `${esc(g.label)}${g.court ? ` · ${esc(g.court)}` : ''}`) : chip('game off', '', 'off', 'No game on the board'));
     if (g) {
       const p = h.playhq || {}, c = h.clock || {};
-      const clock = c.left != null ? ` · ${esc(c.periodLabel || 'Q')}${esc(c.period)} ${mmss(c.left * 1000 - (c.running ? since : 0))}` : '';
+      // The dot is the link to PlayHQ only (green answering, amber overdue, red failing, grey by hand or not scoring
+      // yet), whatever the game's state; the words carry the game: the quarter and clock, or that it's over.
+      const over = g.ended ? (h.source === 'playhq' ? 'game completed' : 'full time') : '';
+      const clock = over ? ` · ${over}` : c.left != null ? ` · ${esc(c.periodLabel || 'Q')}${esc(c.period)} ${mmss(c.left * 1000 - (c.running ? since : 0))}` : '';
       let dot = 'ok', text;
       if (h.source !== 'playhq') { dot = 'off'; text = 'Scores by hand'; }
       else if (p.waiting) { dot = 'off'; text = 'PlayHQ · not scoring yet'; }
-      else if (p.finished) text = 'PlayHQ · game finished';
       else if (p.state === 'bad') { dot = 'bad'; text = 'PlayHQ failing'; }
       else if (p.state === 'warn') { dot = 'warn'; text = 'PlayHQ overdue'; }
-      else text = c.following ? 'PlayHQ' : 'PlayHQ · clock by hand';
+      else text = over || c.following ? 'PlayHQ' : 'PlayHQ · clock by hand';
       parts.push(chip(`playhq ${dot}`, '', dot, `${text}${clock}`));
     }
     // The run order's head rides along: "then X" on the sequence playing, or a Next chip of its own.

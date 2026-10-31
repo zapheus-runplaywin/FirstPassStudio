@@ -191,7 +191,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
         if (b.gameId && b.gameId !== a.game.id) b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } };
         Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
-          round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null });
+          round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null, endedAt: null });
         b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
         b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
         if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);
@@ -772,7 +772,31 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     saveBoards();
   }
 
-  return { snapshot, restore, board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock,
+  // ─── Where the game is, for the status chips ───────────────────────────
+  // 'upcoming' until the clock has run or a score has gone on, 'live' from then, 'ended' from the end (PlayHQ saying so,
+  // or by hand the last period run down to 0:00 with the clock stopped, or extra time's) for an hour, then 'over'.
+  // The end is kept on the board (endedAt), so a relaunch keeps the colour, and cleared if the period is wound back.
+  const ENDED_FOR_MS = 60 * 60000;
+  function gameEnded(b) {
+    if (!b.gameId) return false;
+    if (isFinished({ status: b.playhqStatus || '' })) return true;
+    const last = config().periodType === 'halves' ? 2 : 4;
+    return Number(b.period) >= last && !b.clock.running && clockLeft(b) === 0;
+  }
+  function gameStarted(b) {
+    return !!b.clock.running || clockElapsed(b.clock) > 0 || Number(b.period) > 1 || (Number(b.home.score) || 0) > 0 || (Number(b.away.score) || 0) > 0
+      || /PROGRESS|LIVE|STARTED/i.test(b.playhqStatus || '');
+  }
+  function gamePhase(b = board()) {
+    if (!b.gameId) return 'none';
+    const ended = gameEnded(b);
+    if (ended && !b.endedAt) { b.endedAt = Date.now(); saveBoards(); }
+    else if (!ended && b.endedAt) { b.endedAt = null; saveBoards(); }
+    if (b.endedAt) return Date.now() - b.endedAt > ENDED_FOR_MS ? 'over' : 'ended';
+    return gameStarted(b) ? 'live' : 'upcoming';
+  }
+
+  return { snapshot, restore, board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
     getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
 

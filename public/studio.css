@@ -105,6 +105,7 @@
 .fp-chips .dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; flex: none; }
 .fp-chips .dot.off { background: #64748B; }
 .fp-chips .dot.warn { background: var(--fp-gold); }
+.fp-chips .dot.orange { background: var(--fp-orange); }
 .fp-chips .dot.bad { background: #EF4444; }
 .fp-chips .dot.gold { background: var(--fp-gold); }
 .fp-chips .dot.rec { background: #EF4444; animation: fp-blink 1.2s steps(2, start) infinite; }
