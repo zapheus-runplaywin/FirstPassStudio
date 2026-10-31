@@ -318,6 +318,7 @@
 .t-hero .ladder td.team { font-family: var(--dfont); font-weight: 400; }
 .t-hero .ladder td:last-child { background: var(--purple); color: #fff; }
 .t-hero .vs h2 { font-family: var(--dfont); font-weight: 400; color: var(--ink); }
+.t-hero :is(.champ__what, .final__name) { color: var(--ink); } /* they sit on the white floor */
 .t-hero .vs__v { background: var(--ink); color: #fff; border-radius: 0; box-shadow: none; transform: skewX(-9deg); }
 .t-hero .vs__score { font-family: var(--dfont); font-weight: 400; font-size: 190px; line-height: .9; color: var(--ink); transform: skewX(-9deg); }
 .t-hero .athlete__name { color: color-mix(in srgb, var(--ink), #fff 30%); }

@@ -189,6 +189,19 @@
   .result__final + .result { margin-top: 0; }
   .result + .result__final { margin-top: calc(12px + var(--spread, 0px)); }
 
+  /* Champions: the grand final winners big, their logo lit in their own colour, and the grand final under them. */
+  .champ { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .champ__logo { position: relative; width: 340px; height: 340px; display: flex; align-items: center; justify-content: center; }
+  .champ__logo::before { content: ''; position: absolute; inset: -40px; border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--team, var(--yellow)) 70%, transparent) 0%, transparent 68%); }
+  .champ__logo .logo { position: relative; width: 100%; height: 100%; }
+  .champ__logo .logo-fallback { font-size: 110px; border-width: 8px; }
+  .champ__name { margin: 26px 0 0; font-size: 84px; font-weight: 800; line-height: 1.05; text-transform: uppercase; color: var(--yellow); font-family: var(--dfont); }
+  .champ__what { margin-top: 10px; font-size: 30px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .champ__final { margin-top: 40px; width: 100%; text-align: left; }
+  .story .champ__logo { width: 460px; height: 460px; }
+  .story .champ__name { font-size: 100px; }
+
   /* Top shooters: the night's best, from each finished game's line ups. */
   .shooter { display: grid; grid-template-columns: 60px 76px minmax(0, 1fr) auto; gap: 18px; align-items: center; background: var(--purple-deep);
     border-radius: 14px; padding: 14px 22px; }
@@ -279,6 +292,7 @@
               places each moved since the round before; else as on the tab)  polaroid&game=<id> (the
               game's score under the photo)  finalsbound (&division=<name>: the teams in its finals and what
               each earned)  finalsdraw (&division=<name>: its finals week by week, winners filled in)
+              champions (&division=<name>: its grand final winners, called Champions or Premiers as set up)
               On a finals night, match up, full time and results name each final (Major semi final, Grand final).
        size:  square (1080 x 1080)  portrait (1080 x 1350)  story (1080 x 1920)
        Options: ?date=2026-11-05 (the night; else the next one)  ?sponsor=0|1 (the sponsor strip; else as on the tab)
@@ -324,7 +338,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw'];
+    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -386,7 +400,7 @@
     // A team or player name stays on one line in its row, shrinking (to 60%) rather than breaking onto a second line, so
     // the rows keep one height; a name too long for that wraps between words at 85%.
     function fitNames() {
-      for (const e of $('fit').querySelectorAll(':is(.game__team, .call__teams span, .shooter__name, .vs h2, .crew__game span):not(.final__tbc)')) {
+      for (const e of $('fit').querySelectorAll(':is(.game__team, .call__teams span, .shooter__name, .vs h2, .crew__game span, .champ__name):not(.final__tbc)')) {
         const base = parseFloat(getComputedStyle(e).fontSize);
         e.style.whiteSpace = 'nowrap';
         if (!e.clientWidth || e.scrollWidth <= e.clientWidth) continue;
@@ -769,6 +783,40 @@
       }
     }
 
+    // Champions (?division=): the division's finals winners (the grand final's, or two wins in a best of three), called
+    // Champions or Premiers as set up, with their logo lit in their colour and the deciding game's score under them.
+    function drawChampions(d) {
+      const f = d.finalsDraw || {};
+      const word = d.winners || 'Champions';
+      head(d, word, [f.division || '', el('small', '', f.season || '')]);
+      if (f.error) return f.error;
+      const c = f.champion;
+      if (!c) return `${f.division} has no ${word.toLowerCase()} yet: they show once the grand final has a winner, from PlayHQ or picked on Scoreboard control.`;
+      const box = $('fit').appendChild(el('div', 'champ'));
+      if (c.colour) box.style.setProperty('--team', c.colour);
+      const logo = box.appendChild(el('div', 'champ__logo'));
+      logo.append(logoEl(c));
+      const name = el('h2', 'champ__name', c.name);
+      // The name in the title's colour, so it reads on a pale ground too (unless the title is a gradient or see-through).
+      const tc = getComputedStyle($('title')).color;
+      if (!/rgba\(.*,\s*0\)$|transparent/.test(tc)) name.style.color = tc;
+      box.append(name, el('div', 'champ__what', `${f.division} ${word.toLowerCase()}`));
+      // The game that decided it: the grand final, or the series' last game played.
+      const played = (f.games || []).filter(g => g.winner && !g.notNeeded);
+      const last = f.format && f.format.series ? played[played.length - 1] : played.find(g => g.id === 'GF');
+      if (!last) return;
+      const fin = box.appendChild(el('div', 'champ__final'));
+      if (f.format && f.format.series) {
+        const won = played.filter(g => g.winner === c.name).length;
+        fin.append(el('div', 'final__name', `Won the series ${won}–${played.length - won}  ·  ${last.name}`));
+      } else fin.append(el('div', 'final__name', [last.name, last.date ? dayShort(last.date) : ''].filter(Boolean).join('  ·  ')));
+      const row = fin.appendChild(el('div', 'result'));
+      const known = t => t.score !== null && t.score !== undefined;
+      const sc = t => known(t) ? score(t, last.winner === t.name) : el('div', 'score none', '\u00a0');
+      row.append(logoEl(last.home), el('div', `game__team${last.winner === last.home.name ? ' won' : ''}`, last.home.name), sc(last.home), sc(last.away),
+        el('div', `game__team away${last.winner === last.away.name ? ' won' : ''}`, last.away.name), logoEl(last.away));
+    }
+
     function foot(d) {
       const sponsor = flag('sponsor', d.settings.sponsor[kind]);
       if (sponsor && d.sponsors.length) {
@@ -803,7 +851,7 @@
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
-        if (kind === 'finalsbound' || kind === 'finalsdraw') { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
+        if (['finalsbound', 'finalsdraw', 'champions'].includes(kind)) { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
         if (kind === 'tournament') { q.set('with', 'tournament'); for (const k of ['division', 'after']) if (params.get(k)) q.set(k, params.get(k)); }
         const d = await (await fetch(`/api/socials/night?${q}`, { cache: 'no-store' })).json();
         if (d.error) throw new Error(d.error);
@@ -821,7 +869,7 @@
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
           results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
-          finalsbound: drawFinalsBound, finalsdraw: drawFinalsDraw }[kind](d);
+          finalsbound: drawFinalsBound, finalsdraw: drawFinalsDraw, champions: drawChampions }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));
         await imagesLoaded();
         await fontLoaded;

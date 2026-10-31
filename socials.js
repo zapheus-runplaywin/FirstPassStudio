@@ -26,7 +26,8 @@
 //                                        athletes picked for a picture (picked, with their approved photo); running: what the running
 //                                        top shooters are called (Tournament or Season); finals: the divisions at their finals that
 //                                        night (their last home and away round, or a finals round), and on a finals night each finals
-//                                        game's name (final); &with=finals&division= that division's finals (finalsDraw, as GET /api/finals)
+//                                        game's name (final) and each division's champion once known; winners: Champions or Premiers (Competitions setup);
+//                                        &with=finals&division= that division's finals (finalsDraw, as GET /api/finals)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool }
@@ -54,7 +55,7 @@ const SIZES = {
 // Each graphic and whether it carries the sponsor strip until that's changed on the tab. Upcoming: fixtures, matchup,
 // onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, fulltime, ladder, topshooters,
 // tournament (each division's top shooters so far, called Tournament or Season top shooters) and a polaroid per game.
-const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true };
+const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true };
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
@@ -249,7 +250,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const a = about();
     const venues = [...new Set(games.map(g => g.venue).filter(Boolean))];
     const s = settings();
-    const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null, running: running(all, a.runningShooters),
+    const out = { date, today: date === today, competition: a.competition || '', competitionLogo: a.logo || null, running: running(all, a.runningShooters), winners: a.finalsWinners || 'Champions',
       venue: a.venue || venues[0] || '', games, stream, sponsors: sponsorsFor(), settings: s, look: look(q.colours || s.colours, s.colourSets, templateOf(q.template) ? q.template : s.template) };
     // Athletes picked on the tab (&home= &away= on a match up or full time, &athlete= on a polaroid), with their photo when
     // they approved its use; a name without one draws as if none was picked.
@@ -257,9 +258,12 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     for (const k of ['home', 'away', 'athlete']) if (q[k]) { const photo = photoFor(String(q[k])); if (photo) picked[k] = { name: String(q[k]).trim(), photo }; }
     out.picked = picked;
     out.finals = finalsOn(dates, date, games);
-    // On a finals night, each finals game gets its name from the division's finals format (Major semi final, Grand final).
-    for (const f of out.finals.filter(x => x.finalsNight)) {
+    // Who won the division's finals (for the Champions picture), and on a finals night each finals game's name from the
+    // division's finals format (Major semi final, Grand final).
+    for (const f of out.finals) {
       const draw = await finalsDraw(f.division);
+      f.champion = (draw && draw.champion && draw.champion.name) || '';
+      if (!f.finalsNight) continue;
       for (const g of games.filter(x => x.division === f.division)) {
         const same = x => x.playhqId === g.id || [[x.home.name, x.away.name], [x.away.name, x.home.name]].some(([h, a]) => sameName(h, g.home.name) && sameName(a, g.away.name));
         const it = draw && !draw.error && draw.games.find(same);
@@ -278,7 +282,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
 
   // The divisions playing this night that have a finals format and are at the finals: their last home and away round
   // (lastRound: Finals bound and the Finals draw, once its results are in; left: its games still to finish) or a finals
-  // round (finalsNight: PlayHQ has the finals as fixtures).
+  // round (finalsNight: PlayHQ has the finals as fixtures). night() adds champion: the grand final's winner, once there is one.
   function finalsOn(dates, date, games) {
     const out = [];
     for (const division of [...new Set(games.map(g => g.division).filter(Boolean))]) {
