@@ -63,8 +63,11 @@ function renderBoard() {
   // Music and mics: from what their own sections already drew.
   const m = s.music || {};
   const musicOn = m.status === 'playing';
-  const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? `${musicOn ? 'playing' : m.status === 'paused' ? 'paused' : 'ready'}${m.muted ? ' · muted' : ''}${m.ducked ? ' · ducked' : ''}` : 'nothing loaded',
-    m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, $('mTime') ? $('mTime').textContent : '', '', true);
+  // Playing, paused or stopped is a symbol by the time (▶ ❚❚ ■), as on the player, rather than a word.
+  const mSym = musicOn ? '<span class="sym">▶</span>' : m.status === 'paused' ? '<span class="sym">❚❚</span>' : m.track ? '<span class="sym">■</span>' : '';
+  const mFlags = [m.muted ? 'muted' : '', m.ducked ? 'ducked' : ''].filter(Boolean).join(' · ');
+  const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? mFlags : 'nothing loaded',
+    m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, m.track && $('mTime') ? `${mSym}${boardEsc($('mTime').textContent)}` : '', '', true);
   const meters = [...document.querySelectorAll('#mxList .mxMeter i')];
   const level = meters.length ? Math.max(...meters.map(i => parseFloat(i.style.width) || 0)) : null;
   const hot = meters.some(i => i.classList.contains('hot')), warm = meters.some(i => i.classList.contains('warm'));
