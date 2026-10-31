@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Stream Deck · FirstPass Studio</title>
+<title>Devices · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="vendor/swagger-ui/swagger-ui.css">
 <link rel="icon" href="studio/favicon.png">
@@ -40,6 +40,17 @@
   .guide .ref h2 { margin: 0; }
   @media (max-width: 640px) { .guide td:first-child { width: auto; } .guide tr { display: grid; grid-template-columns: 1fr auto; } .guide td:nth-child(2) { grid-column: 1 / -1; order: 3; border-top: 0; } }
   #fallback { font-family: var(--fp-font); max-width: 760px; margin: 24px auto; padding: 0 16px; }
+  /* The Devices list at the top (what may change things from another device). */
+  .tblwrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--fp-muted); padding: 6px 10px; border-bottom: 1px solid var(--fp-line-strong); white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid var(--fp-line); vertical-align: top; }
+  td.act { text-align: right; white-space: nowrap; }
+  .what { font-size: 13px; color: var(--fp-muted); margin-top: 3px; line-height: 1.45; }
+  .asking { border-color: var(--fp-blue); background: var(--fp-blue-soft); }
+  .asking h2 { margin: 0 0 6px; font-size: 18px; }
+  .asking .row { display: flex; gap: 8px; margin-top: 12px; }
+  .devices th { text-align: left; }
   #linkSet { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
 </style>
 <script src="log.js"></script>
@@ -49,10 +60,36 @@
 <body class="fp">
   <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
   <main class="guide">
-    <h1>Stream Deck</h1>
-    <p class="sub">Run the scene and the scoreboard from a Stream Deck; Studio has to be on air, so keep a Studio window open. <a href="/graphics.html#streamdeck">More in the Docs</a></p>
+    <h1>Devices</h1>
+    <p class="sub">What may change scores, the scene and sequences from somewhere other than this Mac's own windows: Stream Decks and their links, paired phones and programs. Only the Mac running Studio sees and changes the list. <a href="/graphics.html#streamdeck">More in the Docs</a></p>
+    <section class="asking" id="asking" hidden>
+      <h2 id="askWho"></h2>
+      <div class="what" id="askWhat"></div>
+      <div class="row"><button id="allow">Allow</button><button id="allowFull" hidden>Allow everything</button><button class="alt" id="deny">Deny</button></div>
+    </section>
+    <section class="devices" id="devicesSection">
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Device</th><th>Allowed</th><th>Made</th><th>Last used</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p style="margin:12px 0 0"><button class="alt" id="newSet">New link set…</button></p>
+      <p class="help">A link set is a key for a Stream Deck's Website keys: make one per Stream Deck, pick it here or on the Output page,
+        and its links carry its own key, so one can be given a new key or removed without the others. Link sets never run out.
+        The Studio Stream Deck plugin asks to be added on its first key press and then signs every press with its own key pair;
+        once one has been allowed, plugins that haven't can't press anything. A phone, iPad or another computer pairs from
+        Studio's <b>/pair.html</b> page, allowed to score only or to change everything; a program on another device can ask too
+        (the Docs page says how). The Mac asks you to Allow or Deny each one, and it shows here too.
+        Studio's own pages on this Mac always can change things. While "Only this Mac can change things" is ticked in the menu bar icon
+        (it is each time Studio opens), only the devices in this list can as well. A device unused for 90 days drops off the list and has to ask again.</p>
+    </section>
+    <p class="note" id="devicesElsewhere" hidden>The list of devices shows only on the Mac running Studio.</p>
+
+    <h2 id="streamdeck" style="margin-top:28px">Stream Deck</h2>
+    <p class="sub">Run the scene and the scoreboard from a Stream Deck; Studio has to be on air, so keep a Studio window open.</p>
     <p id="linkSetRow" hidden><label>Copy links for <select id="linkSet"></select></label>
-      <span class="note">Each link set has its own key: make one per Stream Deck, and <a href="/devices.html">Devices…</a> can give one a new key or remove it without touching the others.</span></p>
+      <span class="note">Each link set has its own key: make one per Stream Deck, and the Devices list above can give one a new key or remove it without touching the others.</span></p>
 
     <section>
       <h2>Scene and sources: the FirstPass Studio plugin</h2>
@@ -82,8 +119,8 @@
         The links below for the whole scene and the video output work the same way. A sequence plays from <code>/deck/sequence/&lt;name&gt;</code>
         (<code>/deck/sequence/&lt;name&gt;/toggle</code> stops it on a second press); the Output page shows each one's link.
         Links copied here carry this Mac's Stream Deck key after the port (<code>/k/…</code>), so a web page can't press them; the plugin needs none.
-        A link without the key is refused, so copy older links again from here. To give up the key (a link got out), choose
-        <a href="/devices.html">Devices…</a> on the Mac and Make a new key.</p>
+        A link without the key is refused, so copy older links again from here. To give up the key (a link got out), press
+        <b>Make a new key</b> in the Devices list above, on the Mac.</p>
       <table id="sceneLinks"></table>
     </section>
 
@@ -137,6 +174,114 @@
     <p>The documentation viewer did not load.
        The raw document is at <a href="/openapi.yaml">/openapi.yaml</a>.</p>
   </div>
+  <script>
+  // The Devices list: what may change things from another device, from /api/devices (this Mac only).
+  'use strict';
+  const rows = document.getElementById('rows');
+  const KINDS = { links: 'Stream Deck links (Website keys, and links copied from the Output page or this one)', program: 'A program that asked to be added', browser: 'A phone or browser, paired from its pair page', plugin: 'Studio Stream Deck plugin (signs each press)' };
+  const LEVELS = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
+  const when = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
+  // Studio's one status line (studio.js): what just happened, or why it didn't.
+  const say = (text, bad) => studioStatus(text, bad ? 'error' : '');
+
+  function draw(list) {
+    rows.replaceChildren(...list.map(d => {
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
+      const b = document.createElement('b'); b.textContent = d.name;
+      const what = document.createElement('div'); what.className = 'what'; what.textContent = (KINDS[d.kind] || d.kind) + (d.address ? `, at ${d.address}` : '');
+      name.append(b, what);
+      const cells = [LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
+      // A paired browser's level can be changed here.
+      if (d.kind === 'browser') {
+        const pick = document.createElement('select');
+        pick.append(new Option(LEVELS.scoring, 'scoring'), new Option(LEVELS.full, 'full'));
+        pick.value = d.level;
+        pick.onchange = async () => {
+          const r = await fetch(`/api/devices/${encodeURIComponent(d.id)}/level`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ level: pick.value }) });
+          say(r.ok ? `${d.name} can now ${pick.value === 'scoring' ? 'only score' : 'change everything'}.` : 'Studio didn\'t answer.', !r.ok);
+        };
+        cells[0].replaceChildren(pick);
+      }
+      const act = document.createElement('td'); act.className = 'act';
+      const button = (label, onclick) => { const btn = document.createElement('button'); btn.className = 'alt'; btn.textContent = label; btn.onclick = onclick; return btn; };
+      if (d.kind === 'links') act.append(button('Make a new key', () => renew(d)));
+      // This Mac's links can't be removed, only given a new key.
+      if (d.id !== 'mac-links') act.append(' ', button('Remove', () => revoke(d)));
+      tr.append(name, ...cells, act);
+      return tr;
+    }));
+  }
+
+  // A device asking to be added: shown until it is answered here or in the Mac's dialog, or runs out.
+  let asking = null;
+  function drawAsking(a) {
+    asking = a || null;
+    document.getElementById('asking').hidden = !asking;
+    if (!asking) return;
+    document.getElementById('askWho').textContent = `"${asking.name}" at ${asking.address} asks to control Studio`;
+    const until = `The request runs out at ${new Date(asking.expires).toLocaleTimeString([], { timeStyle: 'short' })}.`;
+    document.getElementById('askWhat').textContent = asking.browser
+      ? `Scoring only: the scores, clock, quarter and game, as on Scoreboard control. Everything: the scene, sequences and settings too. Only allow a device you know is yours. ${until}`
+      : `It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. ${until}`;
+    document.getElementById('allow').textContent = asking.browser ? 'Allow scoring only' : 'Allow';
+    document.getElementById('allowFull').hidden = !asking.browser;
+  }
+  async function answer(allow, level) {
+    if (!asking) return;
+    const r = await fetch(`/api/devices/requests/${encodeURIComponent(asking.id)}/${allow ? 'allow' : 'deny'}`,
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ level }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return load(); }
+    say(allow ? `${asking.name} can now control Studio.` : `${asking.name} was denied.`);
+    draw(j.devices); drawAsking(j.asking);
+  }
+  document.getElementById('allow').onclick = () => answer(true, 'scoring');
+  document.getElementById('allowFull').onclick = () => answer(true, 'full');
+  document.getElementById('deny').onclick = () => answer(false);
+
+  let macOnly = false;
+  async function load() {
+    if (macOnly) return;
+    const r = await fetch('/api/devices');
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 403) { macOnly = true; document.getElementById('devicesSection').hidden = true; document.getElementById('devicesElsewhere').hidden = false; return; }
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return; }
+    // Not while a level is being picked: drawing again would close the list.
+    if (!rows.contains(document.activeElement)) draw(j.devices);
+    drawAsking(j.asking);
+  }
+  // Checks for a new request every few seconds while the page is showing.
+  setInterval(() => { if (!document.hidden) load().catch(() => {}); }, 3000);
+
+  async function act(path, question, detail, label, done) {
+    const ok = await askChoice(question, detail, [{ label: 'Cancel', value: 'cancel', alt: true }, { label, value: 'go' }]);
+    if (ok !== 'go') return;
+    const r = await fetch(path, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return; }
+    say(done);
+    draw(j.devices);
+  }
+  const renew = d => act(`/api/devices/${encodeURIComponent(d.id)}/renew`, `Make a new key for ${d.name}?`,
+    `Every Website key and copied link made for ${d.name} stops working straight away. Copy them again from the Output page or the Stream Deck links below (with ${d.name} picked) and paste them into the Stream Deck. Other link sets and the Studio plugin keep working.`,
+    'Make a new key', `New key made for ${d.name}. Links copied before no longer work: copy them again (reload the Output page first if it was already open).`);
+  const revoke = d => act(`/api/devices/${encodeURIComponent(d.id)}/revoke`, `Remove ${d.name}?`,
+    d.kind === 'links' ? `Every link made for ${d.name} stops working, and the set goes from the list.` : `${d.name} can no longer change anything until it is allowed again.`,
+    'Remove', `${d.name} removed.`);
+  document.getElementById('newSet').onclick = async () => {
+    const name = await askText('Name the new link set, after the Stream Deck it is for (such as "Office Stream Deck")');
+    if (!name) return;
+    const r = await fetch('/api/devices/links', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return; }
+    say(`${j.name} made. Pick it on the Output page or under Stream Deck below to copy its links.`);
+    load();
+  };
+
+  load().catch(err => say(`Couldn't load the devices: ${err.message}`, true));
+  // Devices in the menu bar icon and /devices.html land here.
+  </script>
   <script src="vendor/swagger-ui/swagger-ui-bundle.js"></script>
   <script>
     // The guide's links, with this Mac's address (its .local name) so a Stream Deck on another computer can use them too.

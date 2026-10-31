@@ -1,7 +1,7 @@
 // FirstPass Studio - which Stream Deck link set the links on a page are copied for (devices.js).
 //
 // Each link set has its own key, so the Website keys on one Stream Deck can be given a new key, or removed, in
-// Devices… without touching the others. linkSets(select, onBase) fills select with This Mac's links, every named set
+// Devices without touching the others. linkSets(select, onBase) fills select with This Mac's links, every named set
 // and "New link set…" (which asks for a name), and calls onBase(base) with the chosen set's link start, such as
 // http://studio-mac.local:8080/k/<key>, at the start and whenever the choice changes. The choice is remembered in this browser.
 // The sets can only be read on the Mac running Studio: elsewhere it resolves false, and the page keeps the links it
