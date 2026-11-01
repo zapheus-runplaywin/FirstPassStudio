@@ -1,6 +1,6 @@
-// The Run order panel on the Output page (public/output/runorder.js): Add… queues scenes and sequences, Next plays
-// the head and the list moves on, a sequence that ends plays what's queued after it, the board's Next line and the
-// bar's chip say what's next, and Saved… keeps tonight's order under a name.
+// The Run order panel on the Output page (public/output/runorder.js): Add… queues scenes and sequences, Play next
+// plays the head and the list moves on, a sequence that ends plays what's queued after it, the board's Run order line and the
+// bar's Run order chip say what Play next plays and what follows, and Saved… keeps tonight's order under a name.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startStudio, wait } = require('./support/studio');
@@ -44,8 +44,8 @@ test('Run order panel: add, Next, the queue after a sequence ends, the board and
   await page.selectOption('#roAdd', `sequence:${seqId}`);
   await orderIs(page, ['Promo *', 'Live', 'Promo']);
   assert.equal(await page.inputValue('#roAdd'), '', 'the picker resets');
-  assert.match(await page.textContent('#roNote'), /^Next: Promo · then Live/);
-  await page.waitForFunction(() => /Next.*Promo.*then Live/.test(document.querySelector('#board .line:nth-child(2)').textContent), null, { timeout: 4000 });
+  assert.match(await page.textContent('#roNote'), /^▶ Promo\s+⏭ Live/);
+  await page.waitForFunction(() => /Run order.*▶.*Promo.*⏭.*Live/.test(document.querySelector('#board .line:nth-child(2)').textContent), null, { timeout: 4000 });
   // Next plays Promo; it ends after a second and the queue takes it to Live, then Promo is the head again.
   await page.click('#roNext');
   await page.waitForSelector('#seqs .seq.run');
@@ -55,14 +55,15 @@ test('Run order panel: add, Next, the queue after a sequence ends, the board and
   const after = await studio.get('/api/scene');
   assert.equal(after.current, sceneId, 'the queued Live scene is on');
   assert.equal(after.sources.find(s => s.id === sb.id).visible, true);
-  // The bar's chip says what's next; Skip drops it.
-  await page.waitForFunction(() => [...document.querySelectorAll('.fp-chips .chip')].some(c => /Next: Promo/.test(c.textContent)), null, { timeout: 6000 });
+  // The bar's Run order chip says what Play next plays (no ⏭ with one queued); Skip drops it and the chip goes.
+  await page.waitForFunction(() => [...document.querySelectorAll('.fp-chips .chip')].some(c => /^Run order\s*▶\s*Promo$/.test(c.textContent.trim())), null, { timeout: 6000 });
   await page.click('#roSkip');
   await orderIs(page, []);
   // Save tonight's order under a name and load it again; the arrows reorder.
   await page.selectOption('#roAdd', `sequence:${seqId}`);
   await page.selectOption('#roAdd', `scene:${sceneId}`);
   await orderIs(page, ['Promo *', 'Live']);
+  await page.waitForFunction(() => [...document.querySelectorAll('.fp-chips .chip')].some(c => /^Run order\s*▶\s*Promo\s*⏭\s*Live$/.test(c.textContent.trim())), null, { timeout: 6000 });
   await page.click('#roList li:nth-child(2) .up');
   await orderIs(page, ['Live *', 'Promo']);
   await page.selectOption('#roSaved', 'save');

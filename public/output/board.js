@@ -55,16 +55,17 @@ function renderBoard() {
     ? boardLine('Sequence', pl.paused ? 'warn' : 'live', boardEsc(pl.name || 'Sequence'), `step ${pl.step} of ${pl.steps}${pl.paused ? ' · paused' : ''}${pl.totalLeftMs != null ? ` · ${boardMmss(left(pl.totalLeftMs))} in all${pl.totalOpen ? '+' : ''}` : ''}`,
       boardBar(pl.steps ? (pl.step - (pl.leftMs != null ? 0.5 : 0)) / pl.steps * 100 : null), pl.leftMs != null ? boardLeft(pl.paused ? pl.leftMs : left(pl.leftMs)) : '', '', { below: true, wrap: true })
     : boardLine('Sequence', '', 'Nothing playing', s.current && (s.scenes || []).find(x => x.id === s.current) ? `scene: ${boardEsc((s.scenes || []).find(x => x.id === s.current).name)}` : '', null, '', '', { wrap: true });
-  // Next: a triggered start counting down, else the head of the run order (what Next plays, and what follows it),
-  // else the next start before the game, else nothing armed.
+  // The run order line: a triggered start counting down, else the run order (▶ what Play next plays, ⏭ what follows),
+  // else the next start before the game, else nothing armed. "Next" is left to the Sequences panel's step button.
   const ar = h && h.armed;
   const ro = (s.runOrder || []).filter(it => !it.gone);
   const next = !ar && s.nextAuto && (s.sequences || []).find(x => x.id === s.nextAuto.id);
+  const sym = c => `<span class="sym">${c}</span>`;
   const armedLine = ar
-    ? boardLine('Next', 'ok', `Armed: ${boardEsc(ar.name || 'sequence')}`, ar.leftMs == null ? 'after the one playing' : 'counting down', null, ar.leftMs == null ? '' : `in ${boardLeft(left(ar.leftMs))}`, '', { below: true, wrap: true })
-    : ro.length ? boardLine('Next', 'ok', boardEsc(ro[0].name), ro[1] ? `then ${boardEsc(ro[1].name)}${ro.length > 2 ? ` · ${ro.length - 2} more` : ''}` : 'last in the run order', null, '', '', { wrap: true })
-    : next ? boardLine('Next', 'ok', boardEsc(next.name), `at ${boardEsc(boardAt(s.nextAuto.at))}${next.start && next.start.min ? ` · ${next.start.min} min before the game` : ''}`, null, s.nextAuto.at ? `in ${boardLeft(s.nextAuto.at - Date.now())}` : '', '', { below: true, wrap: true })
-    : boardLine('Next', '', s.seqAuto === false || (s.sequences || []).every(x => !x.start || x.start.type === 'hand') ? 'Nothing armed' : 'Nothing armed yet', (s.sequences || []).length ? 'run order empty; sequences start by hand or by their triggers' : 'no sequences yet', null, '', '', { wrap: true });
+    ? boardLine('Armed', 'ok', boardEsc(ar.name || 'sequence'), ar.leftMs == null ? 'after the one playing' : 'counting down', null, ar.leftMs == null ? '' : `in ${boardLeft(left(ar.leftMs))}`, '', { below: true, wrap: true })
+    : ro.length ? boardLine('Run order', 'ok', `${sym('▶')}${boardEsc(ro[0].name)}`, ro[1] ? `${sym('⏭')}${boardEsc(ro[1].name)}${ro.length > 2 ? ` · ${ro.length - 2} more` : ''}` : 'last in the run order', null, '', '', { wrap: true })
+    : next ? boardLine('Starts by itself', 'ok', boardEsc(next.name), `at ${boardEsc(boardAt(s.nextAuto.at))}${next.start && next.start.min ? ` · ${next.start.min} min before the game` : ''}`, null, s.nextAuto.at ? `in ${boardLeft(s.nextAuto.at - Date.now())}` : '', '', { below: true, wrap: true })
+    : boardLine('Run order', '', 'Empty', s.seqAuto === false || (s.sequences || []).every(x => !x.start || x.start.type === 'hand') ? 'sequences start by hand' : 'sequences start by hand or by their triggers', null, '', '', { wrap: true });
   // Music and mics: from what their own sections already drew.
   const m = s.music || {};
   const musicOn = m.status === 'playing';
