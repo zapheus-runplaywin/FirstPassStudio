@@ -24,7 +24,7 @@ async function launch(t) {
   return browser;
 }
 
-test('Hide all clears only the output the list shows, or else the one picked over the Scene View, and says which', async t => {
+test('The Sources list follows the output tab: its On/Off and Hide all act on that output only, and say which', async t => {
   const browser = await launch(t);
   if (!browser) return;
   const studio = await startStudio(t);
@@ -42,29 +42,26 @@ test('Hide all clears only the output the list shows, or else the one picked ove
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
   const page = await context.newPage();
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
-  // The Sources list's Show filter on All outputs, as in the review: still only the picked output is cleared.
+  // The Sources list follows the picked tab: one On/Off per row for that output, and Hide all clears only it.
   await page.waitForFunction(() => document.getElementById('hideAll').textContent === 'Hide all on Output 1');
-  assert.equal(await page.$eval('#outFilter', e => e.value), 'all');
+  assert.equal(await page.$('#outFilter'), null, 'no Show dropdown: the list follows the tab');
+  assert.equal(await page.$$eval('#sources li .pill', b => b.length), 1, 'one On/Off per row');
 
   await page.click(`.outTab:has-text("${two.name}")`);
   await page.waitForFunction(n => document.getElementById('hideAll').textContent === `Hide all on ${n}`, two.name);
+  assert.equal(await page.$eval('#sources li .pill', b => b.title.split(':')[0]), two.name, 'the row is for the picked output');
   await page.click('#hideAll');
   await studio.until(async () => !(await where()).two);
   assert.deepEqual(await where(), { one: true, two: false }, 'Output 1 is still showing it');
 
-  // Show set to one output: Hide all clears the output the list shows, even with another tab picked.
-  await act({ type: 'show', name: 'Scoreboard', output: two.id });
-  await page.click('.outTab:has-text("Output 1")');
-  await page.waitForFunction(() => document.getElementById('hideAll').textContent === 'Hide all on Output 1');
-  await page.selectOption('#outFilter', two.id);
-  await page.waitForFunction(n => document.getElementById('hideAll').textContent === `Hide all on ${n}`, two.name);
-  await page.click('#hideAll');
-  await studio.until(async () => !(await where()).two);
-  assert.deepEqual(await where(), { one: true, two: false }, 'the list showed Output 2, so Output 1 keeps it');
+  // Its On/Off turns it on for the picked output only.
+  await page.click('#sources li .pill');
+  await studio.until(async () => (await where()).two);
+  await page.waitForFunction(() => document.querySelector('#sources li .pill').textContent === 'On');
 
-  await page.selectOption('#outFilter', 'all');
+  await page.click('.outTab:has-text("Output 1")');
   await page.waitForFunction(() => document.getElementById('hideAll').textContent === 'Hide all on Output 1');
   await page.click('#hideAll');
   await studio.until(async () => !(await where()).one);
-  assert.deepEqual(await where(), { one: false, two: false });
+  assert.deepEqual(await where(), { one: false, two: true }, 'Output 2 keeps it');
 });

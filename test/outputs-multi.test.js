@@ -203,7 +203,8 @@ test('scene.html draws another output\'s sources with their sound, and the music
   assert.match(html, /renderMusic\(ticked\(scene\.music\)/);
   assert.match(html, /m\.on !== 'atem' && ticked\(m\)/);
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
-  for (const id of ['outAdd', 'outList', 'outName', 'outRemove', 'outTabs', 'outFilter']) assert.match(page, new RegExp(`id="${id}"`));
+  for (const id of ['outAdd', 'outList', 'outName', 'outRemove', 'outTabs']) assert.match(page, new RegExp(`id="${id}"`));
+  assert.doesNotMatch(page, /id="outFilter"/, 'the Sources list follows the output tab');
   const win = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'scenewindow.js'), 'utf8');
   assert.match(win, /&output=\$\{encodeURIComponent\(output\)\}`/);
   assert.doesNotMatch(win, /mute=1/);

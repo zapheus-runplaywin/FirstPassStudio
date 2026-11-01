@@ -4,13 +4,6 @@
 
 // ─── Sources list ──────────────────────────────────────────────────────
 let dragId = null; // the source being dragged in the list
-// With more than one output, which outputs' on and off buttons the list shows: 'all', or one output's id.
-let outFilter = (() => { try { return localStorage.getItem('outputFilter') || 'all'; } catch { return 'all'; } })();
-$('outFilter').onchange = () => {
-  outFilter = $('outFilter').value;
-  try { localStorage.setItem('outputFilter', outFilter); } catch {}
-  renderList();
-};
 // Whether a source is on for an output: the primary's is the source's own visible.
 const onFor = (s, o) => o.primary ? s.visible : !!(s.out && s.out[o.id]);
 let hideAllOn = 'main'; // the output Hide all clears (set as the list is drawn)
@@ -26,31 +19,21 @@ function renderList() {
   // the list is drawn again, so it survives, and put it back under the row below.
   $('settingsPark').appendChild($('settings'));
   ul.innerHTML = '';
-  // More than one output: one on and off button per output, in its colour, instead of the one On button.
+  // More than one output: the list follows the output picked over the Scene View (its tab), with that output's on and
+  // off in its colour on each row. Hide all clears that output too, and its label names it. Never every output at once.
   const all = out && out.outputs && out.outputs.length > 1 ? out.outputs : null;
-  $('outFilterRow').classList.toggle('hidden', !all);
-  if (all) {
-    if (!all.some(o => o.id === outFilter)) outFilter = 'all';
-    $('outFilter').innerHTML = '';
-    $('outFilter').add(new Option('All outputs', 'all'));
-    for (const o of all) $('outFilter').add(new Option(`${o.slot} · ${o.name}`, o.id));
-    $('outFilter').value = outFilter;
-  }
-  const shown = all ? all.filter(o => outFilter === 'all' || o.id === outFilter) : null;
-  // Hide all acts on one output and says which: the one the list shows when Show is set to one, else the one picked
-  // over the Scene View (where scene and sequence clicks go). Never every output at once.
-  const filtered = all && outFilter !== 'all' && all.find(o => o.id === outFilter);
-  const target = all && (filtered || all.find(o => o.id === scene.viewOutput) || all[0]);
+  const target = all && (all.find(o => o.id === scene.viewOutput) || all[0]);
   hideAllOn = target ? target.id : 'main';
   $('hideAll').textContent = target ? `Hide all on ${target.name}` : 'Hide all';
-  $('hideAll').title = target ? `Every source off on ${target.name} only (${filtered ? 'the output the list shows' : 'the output picked over the Scene View'})` : 'Every source off';
+  $('hideAll').title = target ? `Every source off on ${target.name} only (the output picked over the Scene View)` : 'Every source off';
   if (!scene.sources.length) { editOpen = false; ul.innerHTML = '<li class="empty fp-empty">No sources yet: <b>Add page</b>, <b>Add image</b> or <b>Add video</b> above puts one at the top.</li>'; return; }
   if (!current()) editOpen = false;
   for (const s of scene.sources) {
     const li = document.createElement('li');
     li.className = s.id === selected ? 'sel' : '';
     li.title = 'Top layer first: drag a source up or down to move it between layers';
-    li.innerHTML = '<span class="name"></span><button class="eye"></button><span class="row" style="gap:4px"><span class="sndCol"><button class="alt ico snd hidden"></button></span>'
+    // The speaker (videos only) sits left of On/Off, so a row without sound gives its name that room.
+    li.innerHTML = '<span class="name"></span><span class="row" style="gap:4px"><button class="alt ico snd hidden"></button><button class="eye"></button></span><span class="row" style="gap:4px">'
       + `<button class="alt ico pvw" title="Preview: open this source on its own" aria-label="Preview">${ICON_EYE}</button>`
       + `<button class="alt ico edit" title="Settings: name, address, position, fade, its Stream Deck links" aria-label="Settings" aria-pressed="false">${ICON_PEN}</button></span>`;
     const eye = li.querySelector('.eye');
@@ -58,20 +41,13 @@ function renderList() {
     eye.classList.toggle('on', s.visible);
     eye.title = s.visible ? 'Showing: click to fade it out' : 'Hidden: click to fade it in';
     eye.onclick = e => { e.stopPropagation(); act({ type: 'toggle', id: s.id }); };
-    if (shown) {
-      const pills = document.createElement('span');
-      pills.className = 'pills';
-      for (const o of shown) {
-        const on = onFor(s, o);
-        const b = document.createElement('button');
-        b.className = 'pill' + (on ? ' on' : '');
-        b.style.setProperty('--c', o.colour);
-        b.textContent = shown.length === 1 ? (on ? 'On' : 'Off') : String(o.slot);
-        b.title = `${o.name}: ${on ? 'showing, click to fade it out' : 'hidden, click to fade it in'}`;
-        b.onclick = e => { e.stopPropagation(); act({ type: 'toggle', id: s.id, ...(o.primary ? {} : { output: o.id }) }); };
-        pills.appendChild(b);
-      }
-      eye.replaceWith(pills);
+    if (target) {
+      const on = onFor(s, target);
+      eye.className = 'pill' + (on ? ' on' : '');
+      eye.style.setProperty('--c', target.colour);
+      eye.textContent = on ? 'On' : 'Off';
+      eye.title = `${target.name}: ${on ? 'showing, click to fade it out' : 'hidden, click to fade it in'}`;
+      eye.onclick = e => { e.stopPropagation(); act({ type: 'toggle', id: s.id, ...(target.primary ? {} : { output: target.id }) }); };
     }
     li.querySelector('.pvw').onclick = e => { e.stopPropagation(); previewSource(s); };
     // The pencil opens this source's settings under its row, and closes them on a second press.
