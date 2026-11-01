@@ -74,6 +74,22 @@ test('the mics are saved in mics.json and read back', () => {
   assert.equal(x().dipTo, 40);
 });
 
+test('ducking under music starts unticked, and a mics.json from before is unticked once', () => {
+  reset();
+  const file = path.join(process.env.FIRSTPASS_DATA_DIR, 'mics.json');
+  fs.writeFileSync(file, JSON.stringify({ dipTo: 30, dipMusic: true, dipVideo: true, dipQuiet: true, mics: [] }));
+  mics.init(() => {});
+  assert.equal(x().dipMusic, false, 'an old file is unticked');
+  assert.equal(x().dipVideo, true, 'the other ticks are kept');
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).v, 2, 'and saved so it happens only once');
+  ok({ type: 'micsSettings', settings: { dipMusic: true } });
+  mics.init(() => {});
+  assert.equal(x().dipMusic, true, 'ticked again, it stays ticked');
+  fs.unlinkSync(file);
+  mics.init(() => {});
+  assert.equal(x().dipMusic, false, 'unticked to start');
+});
+
 test('the mics dip while music plays, and come back up when it stops', () => {
   reset();
   ok({ type: 'micAdd', changes: { name: 'Court mic' } });
