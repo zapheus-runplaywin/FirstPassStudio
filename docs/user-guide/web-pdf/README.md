@@ -2,7 +2,8 @@
 
 The web PDF (`../FirstPass Studio User Guide (web).pdf`) is the guide's own text, arranged as a marketing piece:
 one tall page per chapter, a hero per chapter, framed screenshots, graphics shown close up with a map of where
-they sit on screen, and a pull quote per chapter.
+they sit on screen, and a pull quote per chapter. The guide's Reference (the last section, `class="ch ref"`) and
+the "More in the Reference" lines that point to it are left out; the print PDF (`print.js`) has them.
 
 - `build.py` reads the chapters from the guide page and writes `web.html`.
 - `layout.js` arranges each chapter in the browser (groups, floats, pairs, tiles, quotes, frames).

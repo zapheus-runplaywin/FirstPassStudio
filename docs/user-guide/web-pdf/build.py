@@ -8,6 +8,8 @@ sections = re.findall(r'(<section class="ch" id="ch\d+">.*?</section>)', src, re
 assert len(sections) == 11, len(sections)
 
 def imgs(h):  # screenshots: the full-size JPEGs; logos stay vector
+    # The Reference (section class "ch ref") isn't in this PDF, so neither are the pointers to it.
+    h = re.sub(r'\n  <p class="more">.*?</p>', '', h)
     h = re.sub(r'src="img/([^"]+)\.webp"', r'src="../img-web/\1.jpg"', h)
     return h.replace('src="img/', 'src="../img/')
 sections = [imgs(x) for x in sections]
