@@ -157,7 +157,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
 
   // The night's whole fixture for the fixture board (fixtureboard.html, a screen in the competition room or backstage):
   // every game of the night by time and court, the planned court marked streamed with who is on the mic for its
-  // games, and each game's state and score. The night is ?date=, else the game night picked by hand on Scoreboard
+  // games (people: { name, guest, headshot }, headshot a /headshots/ link or null), and each game's state and score. The night is ?date=, else the game night picked by hand on Scoreboard
   // control, else today when it is a game night, else the next one.
   //   state  'done'  PlayHQ has its result, or (streamed court) the scoreboard has moved on past it
   //          'live'  being played: the game on the scoreboard once it has started, or PlayHQ says in progress
@@ -198,7 +198,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
       const winner = state === 'done' && score ? (score.home > score.away ? 'home' : score.away > score.home ? 'away' : 'draw') : '';
       return { id: g.id, time: slotOf(g), court: g.court || '', division: g.division || '', round: g.round || '',
         home: { name: g.home.name, logo: logoFor(g.home.name) }, away: { name: g.away.name, logo: logoFor(g.away.name) },
-        streamed: streamed(g), onAir: onBoard(g), people: slot ? slot.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest })) : [],
+        streamed: streamed(g), onAir: onBoard(g), people: slot ? slot.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })) : [],
         state, score, winner, ...(period ? { period } : {}) };
     });
     const times = [...new Set(out.map(g => g.time))].sort();

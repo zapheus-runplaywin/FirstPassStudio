@@ -60,6 +60,9 @@ test('On the stream comes from the Production Planner', async () => {
   assert.equal(shot.json.pool[0].headshotUrl, `/headshots/${id}.png`);
   const withShot = await studio.get(`/api/socials/night?date=${studio.world.today}`);
   assert.equal(withShot.stream.slots.find(s => s.time === time).people[0].headshot, `/headshots/${id}.png`);
+  // and on the fixture board, whose "On the mic" photos use it.
+  const board = (await studio.get(`/api/planner/fixtureboard?date=${studio.world.today}`)).slots.flatMap(s => s.games);
+  assert.equal(board.find(g => g.streamed && g.people.length).people[0].headshot, `/headshots/${id}.png`);
   assert.equal((await studio.request('GET', `/headshots/${id}.png`)).status, 200);
   assert.equal((await studio.post('/api/planner/pool', { pool: [{ id, name: 'Sam Lee', guest: true }] })).pool[0].headshot, `${id}.png`, 'kept when the list is saved');
   assert.equal((await studio.request('POST', `/api/planner/headshot?id=${id}&ext=gif`, PNG)).status, 400, 'a photo type only');
