@@ -39,10 +39,11 @@
     if (current(p)) a.setAttribute('aria-current', 'page');
     return a;
   };
-  // The brand: the 1P mark and the FirstPass STUDIO wordmark (public/studio/), both for the navy bar.
+  // The brand: the 1P mark (the logo without STUDIO, shown whole) and the FirstPass STUDIO wordmark (public/studio/),
+  // both for the navy bar.
   const brand = document.createElement('a');
   brand.className = 'fp-brand'; brand.href = '/'; brand.setAttribute('aria-label', 'FirstPass Studio home');
-  brand.innerHTML = '<span class="fp-mark"><img src="/studio/1p-studio-dark.svg" alt=""></span><img class="fp-word" src="/studio/firstpass-studio.svg" alt="FirstPass Studio">';
+  brand.innerHTML = '<img class="fp-mark" src="/studio/1p-mark-dark.svg" alt=""><img class="fp-word" src="/studio/firstpass-studio.svg" alt="FirstPass Studio">';
   const nav = document.createElement('nav');
   for (const g of GROUPS) {
     const label = document.createElement('span');
