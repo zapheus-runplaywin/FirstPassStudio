@@ -323,17 +323,19 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
 
 
   // ─── Automatic game selection ───────────────────────────────────────────────
-  // With autoSelect on, the board shows today's game on its court (autoCourt, default
-  // defaultCourt in config.json): the first game of the day until the next one is due,
+  // With autoSelect on, the board shows today's game on its court (autoCourt): the first game of the day until the next one is due,
   // then each game from autoSelectMinutesBefore (default 10) minutes before its start, when
   // electronic scoring starts (the live feed isn't asked before then, see scoringNotYet).
   // With a game night picked by hand, that night's games on the court by their time: the
   // one due now, else the next to come, else (a night played already) its last.
   // A finals game is kept until PlayHQ says it is finished, because of extra time.
   // Picking a game by hand turns autoSelect off.
-  // When the Production Planner has a court for the night (planner.js courtFor), that court is set here once when the
-  // night arrives (and again if the plan's court changes), which also turns autoSelect on. A court or game picked by
-  // hand afterwards stays: the Planner flags it rather than undoing it.
+  // The court is set for one night at a time (followPlan): when a night arrives (a new date, a game night picked by hand,
+  // or another competition) the court goes to the Production Planner's court for it (planner.js courtFor), else the
+  // competition's fallback court (defaultCourt), and automatic selection goes back on. courtFrom says which ('plan',
+  // 'fallback', or 'hand' for a court changed on Scoreboard control). A court or game picked by hand lasts for the rest
+  // of that night, restarts included (control.json): the Planner flags it rather than undoing it. A plan whose court
+  // changes during the night is set again.
   let AUTO_LEAD_MS = 10 * 60 * 1000;
   const courtKey = c => String(c || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b0+(\d)/g, '$1').trim();
   function sameCourt(court, wanted) {
@@ -368,13 +370,26 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     saveBoards();
   }
   const byStart = (x, y) => `${x.date || ''} ${String(x.time || '').padStart(8, '0')}`.localeCompare(`${y.date || ''} ${String(y.time || '').padStart(8, '0')}`);
-  // The Production Planner's court for tonight (the game night picked by hand, else today), set once.
+  // Tonight's court: the plan's, else the fallback, set when the night arrives; the plan's again if it changes.
   async function followPlan(b) {
-    const planned = await courtPlan(nightChoice || localDate());
+    const night = nightChoice || localDate();
+    const key = `${config().id || ''}|${night}`;
+    const planned = await courtPlan(night);
+    if (b.courtNight !== key) {
+      b.courtNight = key;
+      b.planCourt = planned ? planned.key : '';
+      const court = planned ? planned.court : String(config().defaultCourt || '').trim();
+      log('info', 'auto', planned ? `The Production Planner streams ${planned.court} on ${night}, so Scoreboard control follows it`
+        : court ? `No plan for ${night} in the Production Planner, so Scoreboard control follows the fallback court, ${court}` : `No plan for ${night} in the Production Planner and no fallback court`);
+      applyAction(b, { type: 'autoCourt', value: court, from: planned ? 'plan' : court ? 'fallback' : '' });
+      if (!b.autoSelect) { b.autoSelect = true; log('info', 'auto', 'A new night, so automatic game selection is on'); }
+      saveBoards();
+      return;
+    }
     if (!planned || b.planCourt === planned.key) return;
     b.planCourt = planned.key;
     log('info', 'auto', `The Production Planner streams ${planned.court} tonight, so Scoreboard control follows it${b.autoCourt && !sameCourt(b.autoCourt, planned.court) ? ` (was ${b.autoCourt})` : ''}`);
-    applyAction(b, { type: 'autoCourt', value: planned.court });
+    applyAction(b, { type: 'autoCourt', value: planned.court, from: 'plan' });
     saveBoards();
   }
   async function autoPick() {
@@ -385,7 +400,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       try { await followPlan(b); } catch (err) { log('warn', 'auto', `Couldn't read the Production Planner's court: ${err.message}`); }
       // Runs while automatic selection is on, and whenever the board has no game at all.
       if (!b.autoSelect && b.gameId) return;
-      const court = b.autoCourt || config().defaultCourt || '';
+      const court = b.autoCourt || '';
       const games = court && b.autoSelect ? await todaysGames(court) : [];
       if (!games.length) {
         // Not a game day on this court, no court set, or automatic selection is off with no game picked:

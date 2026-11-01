@@ -206,7 +206,7 @@
       <label class="fp-switch"><input id="autoSelect" type="checkbox"> Pick the game automatically for court</label>
       <input id="autoCourt" list="courtList" placeholder="none set" style="width:140px">
       <datalist id="courtList"></datalist>
-      <span class="note" id="planCourt" hidden style="margin:0">from the <a href="/planner.html">Production Planner</a></span>
+      <span class="note" id="courtFrom" hidden style="margin:0"></span>
     </div>
     <p class="note" id="autoNote"></p>
     <div class="row" style="margin-top:10px">
@@ -269,11 +269,13 @@
     const gi = games.findIndex(g => g.id === s.gameId);
     if (gi >= 0 && document.activeElement !== $('games') && $('games').value !== String(gi)) $('games').value = gi;
     if (document.activeElement !== $('autoCourt')) $('autoCourt').value = s.autoCourt || '';
-    // The Production Planner set this court for tonight (planCourt is "<competition>|<night>|<court>"); changing it here still works.
-    $('planCourt').hidden = !s.planCourt || !s.autoCourt || s.planCourt.split('|').slice(2).join('|') !== s.autoCourt;
+    // Where tonight's court came from: the Production Planner, the competition's fallback court, or changed here for tonight.
+    const from = { plan: 'from the <a href="/planner.html">Production Planner</a>', fallback: 'fallback from <a href="/setup.html">Competitions setup</a>', hand: 'changed by hand for tonight' }[s.courtFrom];
+    $('courtFrom').hidden = !from;
+    if (from && $('courtFrom').dataset.from !== s.courtFrom) { $('courtFrom').innerHTML = from; $('courtFrom').dataset.from = s.courtFrom; }
     $('autoNote').textContent = s.autoSelect
       ? `${s.autoNote || 'Finding the game…'}${s.autoHold ? '' : ' Picking a game from the list turns this off.'}`
-      : `Off, so the game stays as picked from the list${s.court ? ` (now on ${s.court})` : ''}. Tick the box, or change the court, to follow ${s.autoCourt || 'a court'} automatically.`;
+      : `Off, so the game stays as picked from the list${s.court ? ` (now on ${s.court})` : ''}. Tick the box, or change the court, to follow ${s.autoCourt || 'a court'} automatically; it comes back on by itself for the next game night.`;
     $('followClock').checked = !!s.followPlayhqClock;
     const matchedAgo = s.clockMatchedAt ? s.serverNow - s.clockMatchedAt : Infinity;
     $('clockMatched').hidden = !(matchedAgo < 15000);

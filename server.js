@@ -152,13 +152,14 @@ const { parsePlayhqUrl, startOf, isFinished } = require('./playhq');
 
 // ─── control.json ───────────────────────────────────────────────────────────
 // control.json holds the control page's lasting settings on this computer (git ignores it):
-// the game night picked by hand (night), and the scoreboard's automatic game selection, its court, following
-// the PlayHQ clock, how often to check PlayHQ, showing the clock and the ticker's speed, and finals
+// the game night picked by hand (night), and the scoreboard's automatic game selection, tonight's court (with
+// where it came from and the night it was set for, so a court changed by hand survives a restart that night only),
+// following the PlayHQ clock, how often to check PlayHQ, showing the clock and the ticker's speed, and finals
 // winners entered by hand (for finals PlayHQ has no fixtures for). Without it the scoreboard
-// starts from the competition setup's defaults. The game itself, scores and the clock stay
+// starts on automatic, on the Production Planner's court for tonight or the competition's fallback court. The game itself, scores and the clock stay
 // in scoreboard-state.json.
 const CONTROL_FILE = DATA('control.json');
-const LASTING = ['autoSelect', 'autoCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock', 'tickerSpeed'];
+const LASTING = ['autoSelect', 'autoCourt', 'courtFrom', 'courtNight', 'planCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock', 'tickerSpeed'];
 let control = savefile.readJson(CONTROL_FILE, {}, (err, movedTo) => log('warn', 'helper', `Could not read control.json, starting from the defaults: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
 if (control.round === undefined) { // the round used to be kept in round-choice.json
   try { control.round = String(JSON.parse(fs.readFileSync(DATA('round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }

@@ -45,8 +45,7 @@ const DEFAULTS = {
   superShotMinutes: 3,                 // super shots count in the last N minutes of each quarter; the scoreboard shows a tab then (0 = no tab)
   finalsFormat: 'top4-page',           // the finals format (finals.js), blank = no finals
   divisionFinals: {},                  // { "PlayHQ division name": format id or "none" }, for a division with its own format
-  defaultCourt: '',
-  autoSelectGame: true,
+  defaultCourt: '',                    // the fallback court to follow on a night the Production Planner has no plan for
   autoSelectMinutesBefore: 10,
   roundLookaheadDays: 5,
   finalsWinners: 'champions',         // what the Socials tab's Champions picture calls the grand final winners: 'champions' or 'premiers'

@@ -29,7 +29,7 @@ offline. The graphics don't use it: they keep the colours, font and logos of the
 http://localhost:8080/setup.html keeps a saved setup for each competition and switches between them. Each setup has the
 organisation's PlayHQ link and which competition and season to use (**Find its competitions** lists them), the names
 shown on the graphics (competition, organisation, venue), the game rules (quarters or halves and their length, super
-shots), the finals format for the competition and for any division with its own (see **Finals** below), game day settings (court to follow, automatic game selection, minutes before a game
+shots), the finals format for the competition and for any division with its own (see **Finals** below), game day settings (the fallback court to follow, minutes before a game
 it switches, days ahead that count as this game night), nine colours (a colour picker that also takes HEX or RGB, plus brand kit colours pasted in as swatches), panel transparency and the font, the competition logo
 in light and dark mode versions (one alone is used for both; beside the title, above it and in the ladder's corner), the team logos (drop files on the page; they match clubs by file
 name, and the PlayHQ team list lets you pick a different logo for any club), an optional colour for each club (behind its teams'
@@ -566,14 +566,15 @@ dark mode competition logo, since it sits on the coloured header; `?mode=light` 
 game for now on the court, otherwise this game night's first game on that court, otherwise its first game. It is only
 left empty if PlayHQ can't be reached or the competition isn't found (check `organisationUrl` and `competitionName`).
 
-**Automatic game selection.** Set the court to follow on the competition setup page the day before (e.g. `"Indoor 01"`, or just `"1"`).
-With **Pick the game automatically for court** ticked on the control page, the scoreboard shows today's first game on
+**Automatic game selection.** The court to follow comes from the Production Planner's plan for the night; on a night with no
+plan it is the **Fallback court to follow** on the competition setup page (e.g. `"Indoor 01"`, or just `"1"`). Each game night
+starts with **Pick the game automatically for court** ticked on the control page: the scoreboard shows today's first game on
 that court, then switches to each next game when its electronic scoring starts (**Electronic scoring starts [x] minutes before the game**
 on the setup page, default 10; 20 or 30 suit games further apart), with
 Follow PlayHQ on, the quarter back to Q1 and a full clock. In finals (a round with "Final" in its name) it keeps the
 final on until PlayHQ marks it finished, in case of extra time. You can change the court on the control page or with
 `/deck/court/2`. Picking a game from the list turns automatic selection off; tick it again (or `/deck/auto/on`) to go back.
-Untick **Pick the game automatically** on the setup page to start with it off.
+A court changed or a game picked by hand lasts for that night only (restarts included); the next night goes back to the plan.
 Before a game's electronic scoring starts Studio doesn't ask PlayHQ's live feed for it at all (automatic or picked by hand),
 since PlayHQ only answers "not electronically scored"; the control page says when it will start checking.
 

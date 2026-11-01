@@ -212,14 +212,15 @@
     <section>
       <h2>Game night</h2>
       <div class="row">
-        <label class="inline">Court to follow <input type="text" id="defaultCourt" data-key="defaultCourt" placeholder="e.g. 1 or Indoor 01" style="width:150px"></label>
-        <label class="inline"><input type="checkbox" id="autoSelectGame" data-key="autoSelectGame"> Pick the game automatically</label>
+        <label class="inline">Fallback court to follow <input type="text" id="defaultCourt" data-key="defaultCourt" placeholder="e.g. 1 or Indoor 01" style="width:150px"></label>
         <label class="inline">Electronic scoring starts <input type="number" id="autoSelectMinutesBefore" data-key="autoSelectMinutesBefore" min="0" max="120"> minutes before the game</label>
         <label class="inline">This game night = played in the next <input type="number" id="roundLookaheadDays" data-key="roundLookaheadDays" min="1" max="14"> days</label>
         <label class="inline">Running top shooters are called <select id="runningShooters" data-key="runningShooters">
           <option value="">Automatic: Tournament under 15 days, else Season</option><option value="tournament">Tournament top shooters</option><option value="season">Season top shooters</option></select></label>
       </div>
-      <p class="help">These are the starting points; Scoreboard control can still change the court, pick a game by hand or pick another game night.
+      <p class="help">The <a href="/planner.html">Production Planner</a> sets the court for each game night, and Scoreboard control follows it, picking each game automatically.
+        The fallback court is only used on a night the Planner has no plan for (a night you haven't planned takes the night before's plan, so that is
+        mostly before the Planner is first used). Changing the court or picking a game by hand on Scoreboard control lasts for that night only.
         On a carnival day with several rounds, "this round" moves on to each round as its first game comes up.
         When electronic scoring starts (10 minutes before by default; 20 or 30 when games are further apart), automatic selection
         switches to that game, and the scoreboard only starts asking PlayHQ for its score from then on, whether the game was picked automatically or by hand.
