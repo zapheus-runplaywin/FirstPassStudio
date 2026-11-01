@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 470" width="400" height="470">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a86ee"/><stop offset="1" stop-color="#0d3a8c"/></linearGradient></defs>
+  <path d="M200 10 L385 70 L385 250 C385 360 300 420 200 460 C100 420 15 360 15 250 L15 70 Z" fill="#f4c20d"/>
+  <path d="M200 30 L365 84 L365 250 C365 350 290 404 200 440 C110 404 35 350 35 250 L35 84 Z" fill="url(#g)"/>
+  <path d="M200 52 L345 98 L345 250 C345 338 280 386 200 418 C120 386 55 338 55 250 L55 98 Z" fill="none" stroke="#ffffff" stroke-opacity=".25" stroke-width="3"/>
+  <circle cx="200" cy="190" r="88" fill="none" stroke="#f4c20d" stroke-width="16"/>
+  <circle cx="200" cy="190" r="88" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="12 9"/>
+  <g fill="none" stroke="#fff" stroke-width="4"><path d="M200 104 C150 150 150 230 200 276 C250 230 250 150 200 104 Z"/><path d="M114 190 C160 140 240 140 286 190 C240 240 160 240 114 190 Z"/></g>
+  <text x="200" y="345" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-weight="800" font-size="62" fill="#fff">ELITE</text>
+  <text x="200" y="385" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-weight="700" font-size="22" letter-spacing="1" fill="#f4c20d">NETBALL LEAGUE</text>
+</svg>

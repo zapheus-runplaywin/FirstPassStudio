@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const path = require('path'); const fs = require('fs');
 const HERE = __dirname; const OUT = path.join(HERE, 'out'); fs.mkdirSync(OUT, { recursive: true });
 (async () => {
-  const b = await chromium.launch();
+  const b = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined });
   const p = await b.newPage({ viewport: { width: 1280, height: 1000 } });
   p.on('console', m => console.log('page:', m.type(), m.text()));
   p.on('pageerror', e => console.log('ERR', e.message));
