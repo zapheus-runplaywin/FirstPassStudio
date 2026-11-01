@@ -687,6 +687,24 @@ function send(res, status, body, type, headers) {
   res.end(text);
   recorder.answer(res.req, status, text, type, graphicRead);
 }
+// The user guide's page and pictures (/guide/). The page asks Google for Montserrat, which suits the web copy; in
+// Studio it gets the Montserrat Studio's own pages use (studio.css), so it reads with no internet at the venue.
+const GUIDE_DIR = path.join(ROOT, 'docs', 'user-guide');
+function sendGuide(res, rel) {
+  if (!rel || rel === 'index.html') {
+    fs.readFile(path.join(GUIDE_DIR, 'index.html'), 'utf8', (err, html) => {
+      if (err) return send(res, 404, 'Not found', 'text/plain');
+      let fonts = '';
+      try { fonts = (fs.readFileSync(path.join(PUBLIC_DIR, 'studio.css'), 'utf8').match(/@font-face[^}]*}/g) || []).join('\n').replace(/url\("vendor\//g, 'url("/vendor/'); } catch {}
+      send(res, 200, html.replace(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/, `<style>${fonts}</style>`), TYPES['.html']);
+    });
+    return;
+  }
+  // Only the pictures straight in img/ (the print PDF's light ones in img/light aren't shipped).
+  if (!/^img\/[\w.-]+\.(webp|svg|png|jpg)$/.test(rel)) return send(res, 404, 'Not found', 'text/plain');
+  fs.readFile(path.join(GUIDE_DIR, rel), (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(rel)]));
+}
+
 // What the game recording keeps of the answers: a graphic's reads (asked for by a page that isn't one of Studio's
 // own, which have the tab bar), never a private one or the recordings themselves.
 const OWN_PAGES = new Set(fs.readdirSync(path.join(__dirname, 'public')).filter(n => n.endsWith('.html')
@@ -969,6 +987,10 @@ http.createServer(async (req, res) => {
       else await refreshFromPlayhq(b);
       return send(res, 200, scoreboardJson(b));
     }
+    // The user guide (docs/user-guide) at /guide/, from the Help menu and the Docs page: its page and the pictures
+    // it shows, nothing else of that folder.
+    if (url.pathname === '/guide') { res.writeHead(302, { location: '/guide/' }); return res.end(); }
+    if (url.pathname.startsWith('/guide/')) return sendGuide(res, decodeURIComponent(url.pathname.slice('/guide/'.length)));
     // / is the Output page; results.html is the fixture page showing finished games.
     const ALIASES = { '/': 'output.html', '/results.html': 'fixtures.html' };
     // The Graphics page was the home page at /index.html: old links still find it.

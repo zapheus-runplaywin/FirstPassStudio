@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const files = require('../package.json').build.files;
-const packed = rel => files.some(f => f === rel || (f.endsWith('/**/*') && rel.startsWith(f.slice(0, -4))));
+const packed = rel => files.some(f => f === rel || (f.endsWith('/**/*') && rel.startsWith(f.slice(0, -4))) || (f.includes('*') && path.matchesGlob(rel, f)));
 
 test('every local module that Studio and the Mac app load is packed into the app', () => {
   const seen = new Set();
@@ -44,6 +44,12 @@ test('every file listed in build.files is in the repository or built by the Mac 
       assert.ok(fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory(), `build.files lists ${f}, but ${f.slice(0, -5)} is not a folder`);
       continue;
     }
+    if (f.includes('*')) { // a pattern such as docs/user-guide/img/*.{webp,svg}: it must still pick out files
+      const dir = f.slice(0, f.lastIndexOf('/'));
+      const names = fs.existsSync(path.join(ROOT, dir)) ? fs.readdirSync(path.join(ROOT, dir)) : [];
+      assert.ok(names.some(n => path.matchesGlob(`${dir}/${n}`, f)), `build.files lists ${f}, which matches no file in the repository`);
+      continue;
+    }
     if (BUILT[f]) {
       assert.ok(workflow.includes(BUILT[f]), `build.files lists ${f}, built by "${BUILT[f]}", but the Mac app workflow no longer has that step`);
       continue;
@@ -72,7 +78,7 @@ test('the files Studio reads next to itself at run time are packed', () => {
 // Each page's scripts, styles and images, so a renamed or deleted file can't leave a page broken.
 // /theme.css, /api/... and the competition's own images are made by server.js, not files.
 test('every script, stylesheet and image a page links to exists', () => {
-  const made = /^(\/?theme\.css$|\/api\/|\/deck\/|\/(logos|brand|photos|media)\/)/;
+  const made = /^(\/?theme\.css$|\/api\/|\/deck\/|\/(logos|brand|photos|media|guide)\/)/;
   const missing = [];
   for (const dir of ['public', 'desktop']) {
     for (const page of fs.readdirSync(path.join(ROOT, dir)).filter(n => n.endsWith('.html'))) {
