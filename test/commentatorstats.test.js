@@ -3,20 +3,15 @@
 // its box's width, so the names get that room instead of being cut short (Matt, 2026-11-01).
 const test = require('node:test');
 const assert = require('node:assert/strict');
+// The browser comes from support/browser.js, so the test is skipped where there is none (the Mac app build).
 const { startStudio } = require('./support/studio');
-
-let chromium = null;
-try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+const { openBrowser } = require('./support/browser');
 
 test('team lists match the moments column and fill their width when scaled down', async t => {
-  if (!chromium) {
-    if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail('playwright is not installed');
-    t.skip('playwright is not installed'); return;
-  }
+  const browser = await openBrowser(t);
+  if (!browser) return;
   const studio = await startStudio(t, { competition: 'Thunder League' });
   await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
-  const browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined });
-  t.after(() => browser.close());
   const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
   await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
   await page.goto(`${studio.base}/commentatorstats.html?refresh=0`);
