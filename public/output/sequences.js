@@ -163,7 +163,7 @@ function renderSequences() {
   heardAt = performance.now();
   tickSequence();
   const first = sequences()[0];
-  // With no sequences yet, the first steps (the rest is on the Docs page).
+  // With no sequences yet, the first steps (the rest is in the user guide).
   $('seqEmpty').hidden = !!first;
   $('seqEmpty').innerHTML = 'A sequence plays sources one after another, each for a set time or until its video or animation finishes: the run-up to a game, a quarter break, full time. '
     + 'Add your sources first, then <b>Add sequence</b>.';

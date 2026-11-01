@@ -144,10 +144,6 @@ const SHOTS = [
     await go(page, studio, '/api.html', 3000);
     await page.screenshot({ path: out, ...JPEG, clip: { x: 0, y: 0, width: 1440, height: 1900 }, fullPage: true });
   } },
-  { name: 's-docs', async take({ page, studio, out }) {
-    await go(page, studio, '/graphics.html', 3000);
-    await page.screenshot({ path: out, ...JPEG, clip: { x: 0, y: 0, width: 1440, height: 1700 }, fullPage: true });
-  } },
 ];
 
 module.exports = { SHOTS };

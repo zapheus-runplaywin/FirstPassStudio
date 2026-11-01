@@ -16,13 +16,16 @@ test('every page in public/ is served with the right type', async () => {
     assert.equal(r.status, 200, name);
     assert.match(r.type, /text\/html/, name);
   }
-  // The home page is the Output page; the Docs page (graphics.html) used to be the home page at /index.html.
+  // The home page is the Output page. The Docs page (graphics.html, the home page at /index.html before that) is now the
+  // user guide, so old links to either land there.
   const home = await studio.request('GET', '/');
   assert.equal(home.status, 200);
   assert.equal(home.text, fs.readFileSync(path.join(ROOT, 'public', 'output.html'), 'utf8'));
-  const old = await fetch(`${studio.base}/index.html?division=2`, { redirect: 'manual' });
-  assert.equal(old.status, 302);
-  assert.equal(old.headers.get('location'), '/graphics.html?division=2');
+  for (const was of ['/index.html?division=2', '/graphics.html', '/graphics.html#output']) {
+    const old = await fetch(`${studio.base}${was}`, { redirect: 'manual' });
+    assert.equal(old.status, 302, was);
+    assert.equal(old.headers.get('location'), '/guide/', was);
+  }
   assert.equal((await studio.request('GET', '/results.html')).text, fs.readFileSync(path.join(ROOT, 'public', 'fixtures.html'), 'utf8'));
   assert.match((await studio.request('GET', '/studio.css')).type, /text\/css/);
   assert.match((await studio.request('GET', '/scoreboard.js')).type, /javascript/);

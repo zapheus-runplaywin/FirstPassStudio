@@ -340,7 +340,7 @@ data folder of their own, so they never touch PlayHQ or your settings.
 3. Open **Scoreboard control** (⌘3 in the app, or from the 1P icon) to run the scoreboard.
 4. Turn graphics on and off from the Output page or the Stream Deck.
 
-The Docs page has a **Before you go on air** checklist for the night, and `docs/ARCHITECTURE.md` says how Studio is put
+The user guide (the Docs tab) has a **Before you go on air** checklist for the night, and `docs/ARCHITECTURE.md` says how Studio is put
 together (which file owns what, how a request reaches PlayHQ, what runs on a timer) for anyone working on it.
 The user guide, `docs/user-guide/index.html` (also as PDFs in the same folder, one for the web and one for print), walks a new user
 through a game night, from the automated set-up with PlayHQ to running it by hand, with every page and graphic pictured.
@@ -386,7 +386,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Load the page fresh each time it's shown** (on by default) reloads a page as it fades in, so its animation replays, and unloads it
   when hidden. Untick it to keep a page running while hidden so it shows instantly.
   **Refresh page** reloads it now.
-- **Preview** opens the selected source on its own in a new window, like the Docs page's Preview buttons; the eye beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
+- **Preview** opens the selected source on its own in a new window, like the Preview buttons in the Devices tab's Links; the eye beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (or in a Blackmagic output's SDI), and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it

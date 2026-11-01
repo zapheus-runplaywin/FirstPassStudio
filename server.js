@@ -694,9 +694,25 @@ function sendGuide(res, rel) {
   if (!rel || rel === 'index.html') {
     fs.readFile(path.join(GUIDE_DIR, 'index.html'), 'utf8', (err, html) => {
       if (err) return send(res, 404, 'Not found', 'text/plain');
-      let fonts = '';
-      try { fonts = (fs.readFileSync(path.join(PUBLIC_DIR, 'studio.css'), 'utf8').match(/@font-face[^}]*}/g) || []).join('\n').replace(/url\("vendor\//g, 'url("/vendor/'); } catch {}
-      send(res, 200, html.replace(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/, `<style>${fonts}</style>`), TYPES['.html']);
+      // The Docs tab: the guide with Studio's bar (studiobar.js) on top, styled by studio.css's fonts, colours and bar rules
+      // only (the rest of studio.css is for the Studio pages and would restyle the guide).
+      let css = '';
+      try {
+        const kit = fs.readFileSync(path.join(PUBLIC_DIR, 'studio.css'), 'utf8');
+        css = [(kit.match(/@font-face[^}]*}/g) || []).join('\n'), kit.slice(kit.indexOf(':root {'), kit.indexOf('/* Shared page basics. */'))]
+          .join('\n').replace(/url\("vendor\//g, 'url("/vendor/');
+      } catch {}
+      // The guide's contents stay in view under the bar, however tall it is (its chips wrap on a narrow window).
+      css += `\nhtml { scroll-padding-top: calc(var(--fp-bar-h, 60px) + 16px); }
+nav.toc { top: var(--fp-bar-h, 60px) !important; max-height: calc(100vh - var(--fp-bar-h, 60px) - 8px) !important; }
+@media print { .fp-bar, .fp-practice { display: none !important; } }`;
+      // A link to a part of the guide (/guide/#s3-3) lands again once the bar's height is known, so its heading isn't under it.
+      const bar = '<header class="fp-bar"></header><script src="/studiobar.js"></script><script>(() => { const b = document.querySelector(".fp-bar"); let first = true;'
+        + ' new ResizeObserver(() => { document.documentElement.style.setProperty("--fp-bar-h", b.getBoundingClientRect().height + "px");'
+        + ' if (first && location.hash.length > 1) addEventListener("load", () => { const t = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView(); }, { once: true });'
+        + ' first = false; }).observe(b); })();</script>';
+      send(res, 200, html.replace(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/, `<style>${css}</style>`)
+        .replace(/<body([^>]*)>/, `<body$1>${bar}`), TYPES['.html']);
     });
     return;
   }
@@ -717,7 +733,7 @@ function openapiJson() {
 // What the game recording keeps of the answers: a graphic's reads (asked for by a page that isn't one of Studio's
 // own, which have the tab bar), never a private one or the recordings themselves.
 const OWN_PAGES = new Set(fs.readdirSync(path.join(__dirname, 'public')).filter(n => n.endsWith('.html')
-  && fs.readFileSync(path.join(__dirname, 'public', n), 'utf8').includes('class="fp-bar"')).map(n => `/${n}`).concat('/'));
+  && fs.readFileSync(path.join(__dirname, 'public', n), 'utf8').includes('class="fp-bar"')).map(n => `/${n}`).concat('/', '/guide/'));
 function graphicRead(pathname, headers) {
   if (access.privateRead('GET', pathname) || pathname.startsWith('/api/recordings')) return false;
   let from;
@@ -996,7 +1012,7 @@ http.createServer(async (req, res) => {
       else await refreshFromPlayhq(b);
       return send(res, 200, scoreboardJson(b));
     }
-    // The user guide (docs/user-guide) at /guide/, from the Help menu and the Docs page: its page and the pictures
+    // The user guide (docs/user-guide) at /guide/, from the Help menu and the Docs tab: its page and the pictures
     // it shows, nothing else of that folder.
     if (url.pathname === '/guide') { res.writeHead(302, { location: '/guide/' }); return res.end(); }
     if (url.pathname.startsWith('/guide/')) return sendGuide(res, decodeURIComponent(url.pathname.slice('/guide/'.length)));
@@ -1004,8 +1020,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/openapi.json') return send(res, 200, openapiJson());
     // / is the Output page; results.html is the fixture page showing finished games.
     const ALIASES = { '/': 'output.html', '/results.html': 'fixtures.html' };
-    // The Graphics page was the home page at /index.html: old links still find it.
-    if (url.pathname === '/index.html') { res.writeHead(302, { location: '/graphics.html' + url.search }); return res.end(); }
+    // The Docs page (graphics.html, the home page at /index.html before that) is now the user guide: old links still find it.
+    if (url.pathname === '/index.html' || url.pathname === '/graphics.html') { res.writeHead(302, { location: '/guide/' }); return res.end(); }
     let file = path.normalize(path.join(PUBLIC_DIR, ALIASES[url.pathname] || decodeURIComponent(url.pathname)));
     if (file !== PUBLIC_DIR && !file.startsWith(PUBLIC_DIR + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');
     fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file)] || 'application/octet-stream'));

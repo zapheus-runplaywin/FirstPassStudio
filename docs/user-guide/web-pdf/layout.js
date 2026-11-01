@@ -4,7 +4,7 @@
 const WIN_TITLES = [
   [/^s-output|^s-sequence|^s-playlist/, 'Output'], [/^s-control/, 'Scoreboard control'], [/^s-setup/, 'Competitions setup'],
   [/^s-sponsorreport/, 'Sponsor report'], [/^s-sponsor/, 'Sponsors'], [/^s-athlete/, 'Athletes'],
-  [/^s-devices/, 'Devices'], [/^s-planner/, 'Production Planner'], [/^s-docs/, 'Docs'],
+  [/^s-devices/, 'Devices'], [/^s-planner/, 'Production Planner'],
 ];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const fileOf = img => (img.getAttribute('src') || '').split('/').pop().replace(/\.\w+$/, '');
