@@ -393,6 +393,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         const night = await getCurrentGames();
         const onCourt = court ? night.filter(g => sameCourt(g.court, court)) : [];
         const pool = (onCourt.length ? onCourt : night).slice().sort(byStart);
+        b.autoNext = null;
         if (!pool.length) { b.autoNote = 'PlayHQ has no games on this game night yet.'; return; }
         if (b.autoSelect) b.autoNote = !court ? `Set a court to follow its games through the night. Showing this game night's first game.`
           : `No games on ${court} ${nightChoice ? 'that night' : 'today'}. Showing this game night's first game${onCourt.length ? ` on ${court}` : ''}.`;
@@ -411,6 +412,9 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       const at = g => new Date(startOf(g) - AUTO_LEAD_MS).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
       b.autoNote = next ? `Next: ${next.home.name} v ${next.away.name} (${next.time.slice(0, 5)}${day(next)}), switches at ${at(next)}${day(next)}.`
         : `Last game on this court ${nightChoice ? 'that night' : 'today'}.`;
+      // The same in parts, for the Output page's status board: the teams on one line, the game's time and when the
+      // board switches to it on the lines under (each as a time, so the page names the day when it isn't today).
+      b.autoNext = next ? { home: next.home.name, away: next.away.name, startAt: startOf(next), switchAt: startOf(next) - AUTO_LEAD_MS } : null;
       if (pick.id === b.gameId) { b.autoHold = ''; return; }
       // Keep a final on until PlayHQ says it is over (it may go to extra time).
       const current = games.find(g => g.id === b.gameId);
@@ -420,13 +424,14 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         if (!isFinished({ ...current, status })) {
           const hold = `Keeping the final on until PlayHQ marks it finished. To move on sooner, pick the next game from the list, then tick this again.`;
           if (b.autoHold !== hold) log('info', 'auto', hold);
-          b.autoHold = hold; b.autoNote = hold;
+          b.autoHold = hold; b.autoNote = hold; b.autoNext = null;
           return;
         }
       }
       b.autoHold = '';
       switchTo(b, pick, 'switching to');
     } catch (err) {
+      b.autoNext = null;
       b.autoNote = `Couldn't pick a game from PlayHQ: ${err.message}${/setup page/.test(err.message) ? '' : ' Check the PlayHQ link and competition on the competition setup page.'}`;
       log('error', 'auto', b.autoNote);
     } finally { autoBusy = false; }
