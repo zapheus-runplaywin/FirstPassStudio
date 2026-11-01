@@ -108,7 +108,7 @@ const PAGE_OPTIONS = (() => {
       show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'),
       spot('next sponsor in rotation, Major and up, in the footer'),
     ],
-    'commentator.html': [
+    'commentatorstats.html': [
       { key: 'refresh', label: 'Auto-refresh', type: 'select', tick: { text: 'Auto-refresh the stats', off: '0' },
         choices: [['', 'Every 15 seconds'], ['5', 'Every 5 seconds'], ['10', 'Every 10 seconds'], ['30', 'Every 30 seconds'], ['60', 'Every minute']],
         help: 'Updates the stats in place, and straight away when the score changes; they come from Studio, so this asks PlayHQ for nothing. Unticked, they load once each time the page comes on. The team lists load at the start and at each quarter break; the clock, moments, last 10 goals and run always follow the game live.' },
