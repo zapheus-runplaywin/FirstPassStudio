@@ -12,7 +12,8 @@ they sit on screen, and a pull quote per chapter.
 - `zoom.json` is where each small graphic sits in the 1920 × 1080 frame (for the close ups and their maps).
 
 It expects the full-size JPEG screenshots beside the guide page in `img-web/` (and close ups in `img-web/crop/`),
-made from the same screenshot run as `img/`; they are not committed because of their size. Edit the guide page,
+made from the same screenshot run as `img/` (`../shots/run.js` takes the Studio ones, `s-*`); they are not committed
+because of their size. Edit the guide page,
 not this layout, when the words change.
 
 When the screenshots haven't changed but the words have, `python3 recover.py` rebuilds `img-web/` from the current
