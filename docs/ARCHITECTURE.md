@@ -31,7 +31,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   with status chips from `/api/health`) share `studio.css` and `studiobar.js`: the page kit in `studio.css`
   (section, headings, buttons, segmented controls `.fp-seg`, switches `.fp-switch`, help text, dialogs, scoped with `:where(body.fp)` so a page's own classes win) is what each is built from, its `--fp-*` tokens carry the
   brand kit's light and dark values (`prefers-color-scheme`; the app pins the theme with `nativeTheme.themeSource` from the menu bar icon's Appearance),
-  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). Each page has one line under its title and a **More in the guide** link to its part of the user guide (`/guide/#s3-3` and so on), where the longer explanations live; the Docs tab is the guide itself, served by `sendGuide` with Studio's bar on top. The graphics only talk to the helper
+  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). `studiobar.js` also gives any name cut short (an ellipsis or a line clamp) its full text as a tooltip on hover (`data-full` when the element holds more than the name). Each page has one line under its title and a **More in the guide** link to its part of the user guide (`/guide/#s3-3` and so on), where the longer explanations live; the Docs tab is the guide itself, served by `sendGuide` with Studio's bar on top. The graphics only talk to the helper
   on this computer and keep the competition's own look.
 
 Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-deck`, TypeScript, talks to the helper's

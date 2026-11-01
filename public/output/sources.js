@@ -79,6 +79,7 @@ function renderList() {
     li.querySelector('.edit').setAttribute('aria-pressed', String(open));
     li.querySelector('.edit').onclick = e => { e.stopPropagation(); editOpen = !open; selected = s.id; renderList(); renderForm(true); drawBox(); };
     li.querySelector('.name').textContent = s.name;
+    li.querySelector('.name').dataset.full = s.name; // the hover tooltip shows the name without its type tag
     const tag = document.createElement('small');
     tag.textContent = s.type === 'browser' ? 'page' : s.type + (mediaLoaded && !media.some(m => m.name === s.file) ? ' (missing)' : '');
     li.querySelector('.name').appendChild(tag);
