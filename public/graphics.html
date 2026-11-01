@@ -41,7 +41,7 @@
   <nav class="contents" id="contents" aria-label="Contents"><ol></ol></nav>
   <h1>Docs</h1>
   <p class="sub" id="sub">Loading from PlayHQ…</p>
-  <p class="page__help">How Studio works and what every graphic does. Build the show on the <a href="/output.html">Output page</a>: each graphic's options are fields in its source's settings there.
+  <p class="page__help">How Studio works and what every graphic does. For a walk through a game night, read the <a href="/guide/" target="_blank">user guide</a> (also <b>Help &gt; FirstPass Studio User Guide</b> and <b>User guide</b> in the menu bar icon). Build the show on the <a href="/output.html">Output page</a>: each graphic's options are fields in its source's settings there.
     The links here, with <b>Copy link</b> and <b>Preview</b>, are for using a graphic on its own, such as an OBS browser source; the options below can be added to them by hand.</p>
   <div class="card" id="setup">
     <h2>Competitions setup</h2>
@@ -735,6 +735,7 @@
       <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen, and each extra output runs the pages turned on for it once more. NDI's video goes over your local network only, never the internet. In 4K nothing more is asked for, but each NDI source carries about four times the pixels (roughly 250 to 400 Mbit/s at 50 or 60 fps, and fill and key is two sources), so use one source with transparency on a gigabit network, and the Mac does about four times the work per 4K output: the Output page's performance line shows whether it keeps up.</li>
       <li>Mics: nothing over the internet. Each output window mixing mics tells Studio what it hears twice a second, and the Output page asks for it twice a second while its Mics section is open; the sound itself stays inside the Mac. A mic on the switcher is a few small fader messages over the switcher's connection when its level changes (about 20 a second while a dip fades).</li>
       <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
+      <li>User guide (/guide/): nothing over the internet. It comes with Studio, fonts and pictures included, about 4 MB when it opens and nothing after.</li>
       <li>Stream Deck plugin's keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen (and one more while a Switcher key is), and Studio only sends when the scene or the switcher changes.</li>
       <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds while a game is recording, a megabyte or so a game. A practice game asks PlayHQ nothing at all: the recording answers.</li>
       <li>4K replay following a HyperDeck: nothing over the internet. While a replay follows it, Studio keeps one connection to the HyperDeck on your local network and asks where it is four times a second, a few hundred bytes each time.</li>

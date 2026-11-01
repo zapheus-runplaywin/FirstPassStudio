@@ -270,3 +270,25 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
     body: JSON.stringify({ date, items: [{ name: 'x', link: '/output.html', size: 'square' }] }) });
   assert.equal(r.status, 400);
 });
+
+test('Help > FirstPass Studio User Guide opens the guide in a window of its own, once', async t => {
+  const studio = await launch(t);
+  if (!studio) return;
+  await studio.onAir();
+  const win = await studio.until(() => studio.studioWindow());
+  await win.waitForSelector('#sources');
+  const choose = () => studio.app.evaluate(({ Menu }) => {
+    const help = Menu.getApplicationMenu().items.find(i => i.role === 'help');
+    help.submenu.items.find(i => i.label === 'FirstPass Studio User Guide').click();
+  });
+  const guides = () => studio.app.windows().filter(w => w.url().includes('/guide/'));
+  await choose();
+  const guide = (await studio.until(() => guides().length && guides()))[0];
+  await guide.waitForLoadState('load');
+  assert.match(await guide.title(), /FirstPass Studio User Guide/);
+  // The Output page stays where it was, and choosing it again brings the same guide window forward.
+  assert.equal(new URL(win.url()).pathname, '/');
+  await choose();
+  await wait(1000);
+  assert.equal(guides().length, 1);
+});

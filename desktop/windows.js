@@ -368,6 +368,15 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     app.focus({ steal: true });
   }
 
+  // The user guide (/guide/) in a window of its own, so it reads beside the page it's about; the one already open
+  // comes to the front.
+  function openGuide() {
+    const url = local('/guide/');
+    const open = BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && w.studioUrl && new URL(w.studioUrl).pathname.startsWith('/guide/'));
+    if (open) { if (open.isMinimized()) open.restore(); open.show(); open.focus(); } else create(url);
+    app.focus({ steal: true });
+  }
+
   // Once Studio is on air: pages showing "off air" load their page again.
   function reloadOffAir() {
     for (const w of pageWindows()) {
@@ -468,9 +477,11 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
         submenu: TABS.map((p, i) => ({ label: p.label, accelerator: `CmdOrCtrl+${(i + 1) % 10}`, ...go(p.also && p.also[0] === '/' ? '/' : p.href) })),
       },
       { role: 'windowMenu' },
+      // The Mac's Help menu (it brings the menu search box with it).
+      { role: 'help', submenu: [{ label: 'FirstPass Studio User Guide', click: openGuide }] },
     ]));
   }
-  return { open, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport, showWhatsNew, setQuitting, isQuitting: () => quitting };
+  return { open, openGuide, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport, showWhatsNew, setQuitting, isQuitting: () => quitting };
 };
 // For the app's hidden pages opened elsewhere (desktop/soundtap.js).
 module.exports.loadPage = loadPage;

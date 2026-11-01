@@ -88,16 +88,16 @@ const PORT = Number(MACHINE.port) || 8080;
 // the Graphics page shows. The app checks the helper on localhost, which always works.
 const HOST = linkHost(MACHINE.linkHost);
 const pageUrl = p => `http://${HOST}:${PORT}${p}`;
-// Opens a page in the app's own window, putting Studio on air first (with the splash, the
+// Opens a page in the app's own window (or, with guide, the user guide in a window of its own), putting Studio on air first (with the splash, the
 // 1P Studio logo, while it starts). Nothing opens if Studio can't start (something else has the port).
-async function openPage(p) {
+async function openPage(p, { guide = false } = {}) {
   if (!helper) {
     windows.showSplash();
     if (!await settingsReady() || !await startHelperChecked()) return windows.closeSplash(true);
     await waitUntilRunning();
     windows.splashStatus(helper ? 'Studio is on air' : 'Still starting…', !!helper);
   }
-  windows.open(p);
+  if (guide) windows.openGuide(); else windows.open(p);
   if (whatsNewLater) { const later = whatsNewLater; whatsNewLater = null; showWhatsNew(later); }
 }
 
@@ -307,6 +307,7 @@ function refreshMenu() {
     // What may change things from another device (devices.js); the page answers on this Mac only.
     { label: 'Devices', click: () => openPage('/api.html') },
     // Opening the file hands it to the Stream Deck app, which installs or updates the plugin.
+    { label: 'User guide', click: () => openPage('/guide/', { guide: true }) },
     { label: 'Install the Stream Deck plugin', enabled: fs.existsSync(STREAMDECK_PLUGIN), click: () => shell.openPath(STREAMDECK_PLUGIN) },
     { type: 'separator' },
     { label: 'Open the settings folder', click: () => shell.openPath(dataDir()) },

@@ -93,6 +93,8 @@
       "devices.js",
       "config.json",
       "public/**/*",
+      "docs/user-guide/index.html",
+      "docs/user-guide/img/*.{webp,svg}",
       "imports/**/*",
       "desktop/**/*",
       "vendor/ffmpeg/ffmpeg",
