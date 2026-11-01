@@ -393,6 +393,8 @@ function health() {
     playing, armed, next,
     score: b.gameId ? { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0, homeName: b.home.name, awayName: b.away.name } : null,
     autoNote: b.autoSelect ? (b.autoNote || '') : '',
+    // The next game automatic selection moves to, in parts (teams, start and switch times as ms), for the status board.
+    autoNext: b.autoSelect && b.autoNext ? b.autoNext : null,
     recording: { on: !!rec.recording, name: rec.recording || '', record: !!rec.record },
   };
 }

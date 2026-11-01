@@ -31,6 +31,11 @@ test('Studio starts with today\'s game on the default court, following PlayHQ an
   assert.equal(b.followPlayhqClock, true);
   assert.equal(b.autoSelect, true);
   assert.match(b.autoNote, /^Next: Stormz v Semi Pro/);
+  // The same in parts for the Output page's status board: teams, then the start and switch times.
+  const h = await studio.get('/api/health');
+  assert.equal(h.autoNext.home, 'Stormz');
+  assert.equal(h.autoNext.away, 'Semi Pro');
+  assert.ok(h.autoNext.startAt > h.autoNext.switchAt, 'it switches before the game starts');
 });
 
 test('the score follows the live feed, goal by goal, into the goal order', async () => {

@@ -34,9 +34,9 @@
   .pgmUnder { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
   .pgmUnder .note { margin: 0; font-size: 13px; }
   .pgmView { gap: 10px; }
-  /* The status board (output/board.js): the game, then eight lines in two columns, each a light, a word, a bar or
-     meter and a time, readable from arm's length. (The outputs, ATEM and REC are the bar's chips.) */
-  /* The board fills the picture's height: the game row takes what it needs, and the eight lines
+  /* The status board (output/board.js): the game, then seven lines in two columns (the next game across both), each a
+     light, a word, a bar or meter and a time, readable from arm's length. (The outputs, ATEM and REC are the bar's chips.) */
+  /* The board fills the picture's height: the game row takes what it needs, and the lines
      share the rest, so on a big screen everything has room and on a small one nothing is cut. */
   .sboard { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; align-content: stretch; background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 14px 18px; font-size: 14px; min-width: 0; }
   .sboard .brow { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -57,7 +57,10 @@
   .sboard .line .txt { display: grid; gap: 3px; min-width: 0; }
   .sboard .line .txt b { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fp-navy); }
   .sboard .line .txt b.wrap { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
-  .sboard .line .txt small { color: var(--fp-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* The grey lines run to two lines before they are cut. */
+  .sboard .line .txt small { color: var(--fp-muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
+  .sboard .line .txt small.dip { color: var(--fp-warn-ink); font-weight: 600; }
+  .sboard .line.full { grid-column: 1 / -1; }
   .sboard .bar { height: 7px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
   .sboard .bar i { display: block; height: 100%; width: 0; background: var(--fp-orange); transition: width .3s linear; }
   .sboard .bar.meter i { background: #22c55e; transition: width .12s linear; }
