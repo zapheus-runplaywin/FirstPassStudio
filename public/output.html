@@ -104,8 +104,6 @@
   .sources li.editor #fOptionsBox { margin-top: 6px; }
   .sources li.editor .links code { font-size: 11px; overflow-wrap: anywhere; }
   .sources li .ico { display: inline-flex; align-items: center; padding: 4px 7px; }
-  /* The speaker's column is on every row, empty where a source has no sound, so the Off buttons line up. */
-  .sources li .sndCol { display: inline-flex; width: 36px; justify-content: center; }
   .sources li .snd.on { color: var(--fp-navy); border-color: var(--fp-line-strong); }
   .sources li .ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .sources li .edit[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
@@ -534,14 +532,13 @@
     <section id="sourcesSection" data-fold="sources">
       <div class="secHead">
         <h2>Sources</h2>
-        <label class="row hidden" id="outFilterRow" style="gap:6px;font-weight:400">Show <select id="outFilter" title="Which outputs' on and off buttons to show"></select></label>
       </div>
       <div class="row addRow">
         <button class="alt" id="addBrowser">Add page</button>
         <button class="alt" id="addImage">Add image</button>
         <button class="alt" id="addVideo">Add video</button>
       </div>
-      <!-- Top layer first. Each row: the name, On/Off (a pill per output once there's more than one), the eye (preview on
+      <!-- Top layer first. Each row: the name, the speaker (videos only), On/Off (for the output picked over the Scene View, in its colour, once there's more than one), the eye (preview on
            its own) and the pencil, which opens the Source settings section under the row (output/sources.js). -->
       <ul class="sources" id="sources"></ul>
       <div class="row">
