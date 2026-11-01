@@ -16,7 +16,6 @@
     "finalsFormat": "top4-page",
     "divisionFinals": {},
     "defaultCourt": "1",
-    "autoSelectGame": true,
     "autoSelectMinutesBefore": 10,
     "roundLookaheadDays": 5,
     "colours": {

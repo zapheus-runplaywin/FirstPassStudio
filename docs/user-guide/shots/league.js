@@ -168,7 +168,7 @@ function template() {
       name: COMP, organisationUrl: ORG_URL, competitionName: COMP, seasonName: '', displayName: '', organisationName: ORG_NAME, venueName: VENUE,
       periodType: 'quarters', quarterMinutes: 15, superShots: true, superShotMinutes: 5, divisionSuperShots: { 'Under 21': false },
       quarterBreakMinutes: 3, halfTimeMinutes: 6, threeQuarterBreakMinutes: 3,
-      finalsFormat: 'top4-page', divisionFinals: {}, defaultCourt: '1', autoSelectGame: true, autoSelectMinutesBefore: 15, roundLookaheadDays: 5,
+      finalsFormat: 'top4-page', divisionFinals: {}, defaultCourt: '1', autoSelectMinutesBefore: 15, roundLookaheadDays: 5,
       colours: { main: '#1e7cf0', dark: '#0b2a6f', panel: '#081a3f', panelAlt: '#0f2d63', highlight: '#ffd54a', accent: '#ff3d7f',
         text: '#ffffff', textOnHighlight: '#0b2a6f', muted: '#c7d8f5' },
       brandColours: [{ hex: '#1e7cf0', name: 'Elite blue' }, { hex: '#ffd54a', name: 'Gold' }, { hex: '#ff3d7f', name: 'Pink' }],

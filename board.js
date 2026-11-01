@@ -73,8 +73,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       clock: { lengthSec: QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null },
       showClock: true,
       followPlayhqClock: false,  // true = the clock follows the PlayHQ scorer's game clock (while following PlayHQ); matches source when that changes
-      autoSelect: config().autoSelectGame !== undefined ? !!config().autoSelectGame : !!config().defaultCourt, // pick the game from the court and the time
-      autoCourt: config().defaultCourt || '',
+      autoSelect: true,          // pick the game from the court and the time
+      autoCourt: config().defaultCourt || '', // the court to follow tonight (games.js followPlan sets it each night)
+      courtFrom: config().defaultCourt ? 'fallback' : '', // where it came from: 'plan', 'fallback' or 'hand'
+      courtNight: '',            // "<competition>|<night>" the court was set for
       playhqRefreshSec: DEFAULT_REFRESH_SEC,
       tickerSpeed: TICKER_SPEED,  // how fast ticker.html scrolls, in pixels per second
       updatedAt: Date.now(),
@@ -83,7 +85,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   function board() {
     if (!boards['1']) boards['1'] = { ...newBoard(), ...pickKeys(controlFile.get().boards['1'], LASTING) };
     const b = boards['1'];
-    if (b.autoSelect === undefined) { const n = newBoard(); b.autoSelect = n.autoSelect; b.autoCourt = n.autoCourt; } // saved before these existed
+    if (b.autoSelect === undefined) { const n = newBoard(); b.autoSelect = n.autoSelect; b.autoCourt = n.autoCourt; b.courtFrom = n.courtFrom; } // saved before these existed
     return b;
   }
 
@@ -210,6 +212,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         break;
       case 'autoCourt': // choosing a court means "follow this court", so it also turns automatic selection on
         b.autoCourt = String(a.value || '').trim(); b.autoHold = '';
+        b.courtFrom = a.from !== undefined ? a.from : 'hand'; // by hand (control page, Stream Deck) lasts the night
         if (b.autoCourt && !b.autoSelect) { b.autoSelect = true; log('info', 'auto', `Court set to ${b.autoCourt}, so automatic game selection is on`); }
         break;
       case 'followPlayhqClock': {

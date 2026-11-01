@@ -109,7 +109,7 @@ going off air is kept.
 | Where | Every | Does |
 | --- | --- | --- |
 | `server.js` refreshTick | 1 s | Refreshes the board from PlayHQ when the last reading is older than **Check PlayHQ every** (control page, default 5 s), while a game is followed and scoring has opened. Runs whatever windows are open (review decision D1). |
-| `server.js` autoPick | 15 s (first after 3 s) | Game auto-select: picks the next game on the default court when its scoring window opens. |
+| `server.js` autoPick | 15 s (first after 3 s) | Game auto-select: sets tonight's court when a game night arrives (the Production Planner's, else the competition's fallback court; a court changed by hand lasts that night), then picks the next game on it when its scoring window opens. |
 | `server.js` scene.game | 1 s | Hands the game snapshot to the scene for game triggers (quarter breaks, full time) and the super shot song. |
 | `viewers.js` | 30 s per stream | Live viewer counts, only while a video output is on. |
 | `outputs.js` listenChanged | 5 s | Notices a preview that stopped checking in. |

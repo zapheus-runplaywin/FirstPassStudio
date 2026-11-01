@@ -44,7 +44,7 @@ test('plan tonight: the commentators, the court and who calls the game on now', 
 
   // Scoreboard control follows the plan's court, and says where it came from.
   const control = await openPage(t, studio, '/control.html', { browser });
-  await control.waitForFunction(() => document.querySelector('#autoCourt').value === 'Court 1' && !document.querySelector('#planCourt').hidden);
+  await control.waitForFunction(() => document.querySelector('#autoCourt').value === 'Court 1' && !document.querySelector('#courtFrom').hidden && /Production Planner/.test(document.querySelector('#courtFrom').textContent));
   await studio.until(async () => (await studio.get('/api/scoreboard')).gameId === now.id, 20000);
 
   // The Commentators graphic, with no names typed, names them.

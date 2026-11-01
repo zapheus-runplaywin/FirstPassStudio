@@ -46,6 +46,7 @@ test('a pool, a night\'s plan, nights after it, and the scoreboard\'s court', as
   const b = await studio.until(async () => { const s = await get('/api/scoreboard'); return s.autoCourt === 'Court 2' && s; });
   assert.ok(b.autoSelect, 'following the planned court turns automatic selection on');
   assert.match(b.planCourt, /\|Court 2$/);
+  assert.equal(b.courtFrom, 'plan');
   const due = tonight.slots.find(s => s.game && s.game.id === b.gameId);
   assert.ok(due, 'the scoreboard is on one of the planned games');
   const on = await get('/api/planner/onair');
@@ -75,6 +76,7 @@ test('a pool, a night\'s plan, nights after it, and the scoreboard\'s court', as
   await post('/api/scoreboard', { type: 'autoCourt', value: 'Court 1' });
   await new Promise(r => setTimeout(r, 300));
   assert.equal((await get('/api/scoreboard')).autoCourt, 'Court 1', 'the plan doesn\'t undo a court changed by hand');
+  assert.equal((await get('/api/scoreboard')).courtFrom, 'hand');
   p = await get('/api/planner');
   assert.ok(p.tonight.flags.some(f => f.kind === 'court' && /Court 1/.test(f.text) && /Court 2/.test(f.text)));
   assert.ok(p.tonight.flags.some(f => f.kind === 'game'), 'the game on the scoreboard isn\'t in tonight\'s plan');
@@ -154,4 +156,30 @@ test('the commentators graphics read who is on the mic', async () => {
   assert.match(page, /\/api\/planner\/onair/, 'the Commentators graphic falls back to the plan');
   const res = await fetch(`${studio.base}/api/planner/onair`);
   assert.equal(res.status, 200);
+});
+
+test('a court changed by hand lasts the night; the next night goes back to the plan, else the fallback court', async () => {
+  const board = () => get('/api/scoreboard');
+  await post('/api/planner/night', { date: studio.world.today, court: 'Court 2', slots: {} });
+  await studio.until(async () => { const b = await board(); return b.autoCourt === 'Court 2' && b.courtFrom === 'plan'; });
+  // By hand tonight: another court, and a game picked from the list (automatic off).
+  await post('/api/scoreboard', { type: 'autoCourt', value: 'Court 1' });
+  await post('/api/scoreboard', { type: 'autoSelect', value: false });
+  let b = await board();
+  assert.equal(b.courtFrom, 'hand');
+  assert.match(b.courtNight, new RegExp(`\\|${studio.world.today}$`));
+  // Another night: its plan and automatic selection again.
+  const { date: next, court } = (await get('/api/planner')).nights.find(n => n.date > studio.world.today);
+  assert.ok(court, 'the next night has a plan');
+  await post('/api/rounds', { night: next });
+  b = await studio.until(async () => { const s = await board(); return s.courtNight.endsWith(`|${next}`) && s; });
+  assert.equal(b.autoCourt, court);
+  assert.equal(b.courtFrom, 'plan');
+  assert.ok(b.autoSelect, 'a new night starts on automatic');
+  // With no plan for tonight, the competition's fallback court (the Thunder League's is 1).
+  await post('/api/planner/night', { date: studio.world.today, clear: true });
+  await post('/api/rounds', { night: '' });
+  b = await studio.until(async () => { const s = await board(); return s.courtNight.endsWith(`|${studio.world.today}`) && s; });
+  assert.equal(b.autoCourt, '1');
+  assert.equal(b.courtFrom, 'fallback');
 });

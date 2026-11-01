@@ -54,7 +54,7 @@ test('clean: bad values are put right rather than saved', () => {
   assert.equal(s.colours.main, DEFAULTS.colours.main, 'not a colour, so the default');
   assert.equal(s.colours.highlight, '#ffcd00', 'lower case');
   assert.equal(s.superShots, true);
-  assert.equal(s.autoSelectGame, false);
+  assert.equal(s.autoSelectGame, undefined, 'gone: every night starts on automatic game selection');
   assert.equal(s.competitionLogo, 'passwd.png', 'a file name only, never a path');
   assert.deepEqual(s.brandColours, [{ hex: '#abcdef', name: 'Sky' }]);
   assert.deepEqual(s.clubs, { Comets: { logo: 'Comets.png', colour: '#ff0000' } });
