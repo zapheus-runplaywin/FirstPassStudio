@@ -9,7 +9,7 @@ const { isFinished, startOf, localDate } = require('./playhq');
 
 function create({ log, config, competitions, finals, playhq, board: theBoard, control, logoFor, colourFor, norm, sameTeam, courtPlan = async () => null }) {
   const { getStructure, getLadder, findGrade, getRounds, getRoundGames, readGame, eachLimited, PLAYHQ_AT_ONCE, getLive, liveScore, PERIOD_NUMBER } = playhq;
-  const { board, applyAction, saveBoards, TICKER_SPEED } = theBoard;
+  const { board, applyAction, saveBoards, courtShown, TICKER_SPEED } = theBoard;
 
   // ─── Which game night, and which round is "this round" ──────────────────────
   // The control page's game list is a game night: every division's games on one date, whatever
@@ -233,15 +233,17 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const court = b.court || current.court;
     const later = games.filter(g => g.id !== current.id && key(g) > key(current));
     const next = later.find(g => court && g.court === court) || later[0];
+    // The court's name as the scoreboard shows it (typed on Scoreboard control) for games on the court on air.
+    const shown = g => (b.court && g.court === b.court ? courtShown(b) : g.court);
     const out = { competition: competitionName(), venueName: config().venueName || current.venue || '',
-      after: { home: current.home.name, away: current.away.name, court: current.court, time: current.time } };
+      after: { home: current.home.name, away: current.away.name, court: shown(current), time: current.time } };
     if (wrap && (!next || wrap === 'force')) {
       const w = await endOfNight(current);
       log('info', 'upnext', `End of night after ${current.home.name} v ${current.away.name} (${current.round}): ${w.next ? `next ${w.next.round} on ${w.next.date || 'a date not set yet'}` : w.finalsNext ? 'finals next' : 'end of the season'}`);
-      return { ...out, ...(next ? { nextGame: { home: next.home.name, away: next.away.name, court: next.court, time: next.time } } : {}), wrap: w };
+      return { ...out, ...(next ? { nextGame: { home: next.home.name, away: next.away.name, court: shown(next), time: next.time } } : {}), wrap: w };
     }
     if (!next) return { ...out, error: 'No later game in this round' };
-    return { ...out, ...next, logos: { home: logoFor(next.home.name), away: logoFor(next.away.name) } };
+    return { ...out, ...next, court: shown(next), logos: { home: logoFor(next.home.name), away: logoFor(next.away.name) } };
   }
 
   // The end of night card on Up next: the competition and organisation to thank, and when to come
@@ -315,7 +317,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     if (!b.gameId) return { error: 'No game picked on the scoreboard control page' };
     const start = startOf(b);
     return { gameId: b.gameId, start, serverNow: Date.now(), date: b.date, time: b.time,
-      competition: competitionName(), division: b.division, round: b.round, court: b.court, venueName: config().venueName || b.venue || '',
+      competition: competitionName(), division: b.division, round: b.round, court: courtShown(b), venueName: config().venueName || b.venue || '',
       home: { name: b.home.name, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
       away: { name: b.away.name, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
       ...(start === null ? { error: 'PlayHQ has no start time for the picked game' } : {}) };
@@ -378,6 +380,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     if (b.courtNight !== key) {
       b.courtNight = key;
       b.planCourt = planned ? planned.key : '';
+      if (b.courtName) { log('info', 'auto', `A new night, so the court's name goes back to PlayHQ's (was ${b.courtName})`); b.courtName = ''; }
       const court = planned ? planned.court : String(config().defaultCourt || '').trim();
       log('info', 'auto', planned ? `The Production Planner streams ${planned.court} on ${night}, so Scoreboard control follows it`
         : court ? `No plan for ${night} in the Production Planner, so Scoreboard control follows the fallback court, ${court}` : `No plan for ${night} in the Production Planner and no fallback court`);

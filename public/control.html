@@ -220,7 +220,8 @@
     <p class="note" id="sourceNote"></p>
     <p class="fp-callout" id="clockMatched" hidden></p>
     <div class="row" style="margin-top:10px">
-      <label>Court shown left of the home team <input id="court" placeholder="Court 1" style="width:140px"></label>
+      <label>Court shown left of the home team <input id="court" placeholder="Court name" style="width:180px"></label>
+      <span class="note" id="courtNameFrom" style="margin:0"></span>
     </div>
   </section>
 </main>
@@ -251,7 +252,11 @@
     if (document.activeElement !== $('homeName')) $('homeName').value = s.home.name;
     if (document.activeElement !== $('awayName')) $('awayName').value = s.away.name;
     if (document.activeElement !== $('refreshSec')) $('refreshSec').value = s.playhqRefreshSec || 5;
-    if (document.activeElement !== $('court')) $('court').value = s.court || '';
+    // Blank shows PlayHQ's name for the game's court (in grey); a name typed here is shown instead, for tonight.
+    if (document.activeElement !== $('court')) $('court').value = s.courtName || '';
+    $('court').placeholder = s.courtPlayhq || 'Court name';
+    $('courtNameFrom').textContent = s.courtName ? `Typed here for tonight. Clear it to show PlayHQ's name${s.courtPlayhq ? ` (${s.courtPlayhq})` : ''}.`
+      : s.courtPlayhq ? 'From PlayHQ. Type a name to show instead, for tonight.' : '';
     if (document.activeElement !== $('tickerSpeed')) $('tickerSpeed').value = s.tickerSpeed || 120;
     $('srcPlayhq').setAttribute('aria-pressed', String(s.source === 'playhq'));
     $('srcManual').setAttribute('aria-pressed', String(s.source === 'manual'));
