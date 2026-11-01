@@ -59,7 +59,7 @@ test('a pool, a night\'s plan, nights after it, and the scoreboard\'s court', as
   assert.equal(all.length, tonight.games.length, 'every game of the night, all courts');
   assert.ok(all.filter(g => g.court === 'Court 1').every(g => !g.streamed && !g.people.length), 'only the streamed court names commentators');
   assert.deepEqual(all.find(g => g.onAir).people.map(x => x.name), on.names);
-  assert.deepEqual(all.filter(g => g.streamed)[0].people.find(x => x.name === 'Honey Harrington'), { name: 'Honey Harrington', guest: true });
+  assert.deepEqual(all.filter(g => g.streamed)[0].people.find(x => x.name === 'Honey Harrington'), { name: 'Honey Harrington', guest: true, headshot: null });
   const later = await get(`/api/planner/fixtureboard?date=${p.nights[3].date}`);
   assert.equal(later.court, 'Court 2', 'another night, taking tonight\'s plan');
   assert.ok(later.slots.every(x => x.games.every(g => !g.onAir)));
