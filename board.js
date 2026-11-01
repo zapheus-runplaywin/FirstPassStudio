@@ -40,7 +40,8 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     const teamColours = { home: colourFor(b.home.name), away: colourFor(b.away.name) };
     const venueName = config().venueName || b.venue || '';
     const r = rules(b.division);
-    return { ...b, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: config().name, venueName, logos, teamColours,
+    // court is the name the graphics show (courtShown); courtPlayhq is PlayHQ's own name for it, courtName the one typed.
+    return { ...b, court: courtShown(b), courtPlayhq: b.court, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: config().name, venueName, logos, teamColours,
       clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() };
   }
   // Pushes the board to the pages following it (scene.js), once the current change has finished.
@@ -67,6 +68,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       source: 'manual',          // 'playhq' = scores follow PlayHQ, 'manual' = scores from the control page
       gameId: null, roundId: null,
       division: '', court: '', round: '', date: '', time: '', venue: '',
+      courtName: '',             // the court's name typed on Scoreboard control, shown instead of PlayHQ's (court) for tonight
       home: { name: 'Home', score: 0 },
       away: { name: 'Away', score: 0 },
       period: 1, periodLabel: 'Q',
@@ -82,6 +84,9 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       updatedAt: Date.now(),
     };
   }
+  // The court's name on the graphics: the one typed on Scoreboard control, else PlayHQ's for the game on. Matching
+  // games to a court (following a court, up next, the Production Planner) uses PlayHQ's, b.court.
+  const courtShown = b => String(b.courtName || '').trim() || b.court || '';
   function board() {
     if (!boards['1']) boards['1'] = { ...newBoard(), ...pickKeys(controlFile.get().boards['1'], LASTING) };
     const b = boards['1'];
@@ -187,7 +192,9 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         }
         break;
       }
-      case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division; b.court = a.court ?? b.court; break;
+      case 'setTeams': b.home.name = a.home ?? b.home.name; b.away.name = a.away ?? b.away.name; b.division = a.division ?? b.division;
+        if (a.court !== undefined) b.courtName = String(a.court || '').trim(); // blank goes back to PlayHQ's name
+        break;
       case 'selectGame':
         if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
@@ -512,7 +519,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     }
     const r = rules(b.division);
     return {
-      gameId: b.gameId, division: b.division, court: b.court, round: b.round, source: b.source, period: b.period,
+      gameId: b.gameId, division: b.division, court: courtShown(b), round: b.round, source: b.source, period: b.period,
       periodLabel: r.periodLabel, superShots: r.superShots, competition: competitionName(),
       home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
       away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
@@ -616,7 +623,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       return { made, shots, percent: shots ? Math.round((made / shots) * 100) : null };
     };
     return {
-      gameId: b.gameId, division: b.division, court: b.court, round: b.round, period: b.period, competition: competitionName(),
+      gameId: b.gameId, division: b.division, court: courtShown(b), round: b.round, period: b.period, competition: competitionName(),
       periodType: r.periodType, periodLabel: r.periodLabel, periods: r.periods, superShots: r.superShots,
       home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
       away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
@@ -724,7 +731,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       superShot = { minutes: r.superShotMinutes, windows, points: { home: pts('home'), away: pts('away') }, timed: entries.some(e => !e.g.gap && !e.spread) };
     }
     return {
-      gameId: b.gameId, division: b.division, court: b.court, round: b.round, period: b.period, competition: competitionName(),
+      gameId: b.gameId, division: b.division, court: courtShown(b), round: b.round, period: b.period, competition: competitionName(),
       periodType: r.periodType, periodLabel: r.periodLabel, periods, regularPeriods: r.periods,
       home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
       away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
@@ -799,7 +806,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     return gameStarted(b) ? 'live' : 'upcoming';
   }
 
-  return { snapshot, restore, board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
+  return { snapshot, restore, board, newBoard, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
     getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
 

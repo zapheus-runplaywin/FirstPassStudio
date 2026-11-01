@@ -599,6 +599,7 @@ const teams = require('./teams').create({
   log, config: () => CONFIG, playhq, datadir, board: () => board(), getUpNext: () => getUpNext(),
   squadFor: (n, d) => squadFor(n, d), withSquad: (s, d) => withSquad(s, d), logoFor: n => logoFor(n),
   competitionName: () => competitionName(), rules: d => rules(d), defaultRefreshSec: () => DEFAULT_REFRESH_SEC, sameTeam,
+  courtShown: b => theBoard.courtShown(b),
 });
 const { positionOf, warmTeamLists, getTeamSheets } = teams;
 

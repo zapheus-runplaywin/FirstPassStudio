@@ -14,9 +14,10 @@
 //   competitionName(), rules(division)   from games.js
 //   defaultRefreshSec()           how often PlayHQ is checked unless the control says otherwise (board.js)
 //   sameTeam(a, b)                name matching, as server.js does it
+//   courtShown(board)             the court's name on the graphics: typed on Scoreboard control, else PlayHQ's (board.js)
 const fs = require('fs');
 
-function create({ log, config, playhq, datadir, board, getUpNext, squadFor, withSquad, logoFor, competitionName, rules, defaultRefreshSec, sameTeam }) {
+function create({ log, config, playhq, datadir, board, getUpNext, squadFor, withSquad, logoFor, competitionName, rules, defaultRefreshSec, sameTeam, courtShown = b => b.court }) {
   const { getGame, getLive } = playhq;
 
   // ─── Game Summary v2 (team lists and shooting stats) ────────────────────────
@@ -239,7 +240,7 @@ function create({ log, config, playhq, datadir, board, getUpNext, squadFor, with
   async function getTeamSheets() {
     const b = board();
     const base = { home: { name: b.home.name, logo: logoFor(b.home.name), players: [] }, away: { name: b.away.name, logo: logoFor(b.away.name), players: [] } };
-    const meta = { division: b.division, court: b.court, period: b.period, score: { home: b.home.score, away: b.away.score }, competition: competitionName(), rules: rules(b.division) };
+    const meta = { division: b.division, court: courtShown(b), period: b.period, score: { home: b.home.score, away: b.away.score }, competition: competitionName(), rules: rules(b.division) };
     if (!b.gameId) return { ...meta, ...base, error: 'No PlayHQ game picked on the control page yet.' };
     const maxAge = (b.playhqRefreshSec || defaultRefreshSec()) * 1000;
     let gqlError = '';

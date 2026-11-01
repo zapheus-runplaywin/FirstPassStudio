@@ -1465,7 +1465,9 @@ components:
         gameId: { type: string, nullable: true }
         competition: { type: string, example: Thunder League }
         division: { type: string, example: Division 1 }
-        court: { type: string, example: Court 1 }
+        court: { type: string, description: "The court's name on the graphics: courtName when one is typed, else courtPlayhq", example: Jerome Gillbard Centre }
+        courtPlayhq: { type: string, description: "PlayHQ's name for the game's court, used to follow a court", example: Indoor 01 }
+        courtName: { type: string, description: 'The name typed on Scoreboard control for tonight; blank uses PlayHQ''s', example: Jerome Gillbard Centre }
         home: { $ref: '#/components/schemas/Team' }
         away: { $ref: '#/components/schemas/Team' }
         period: { type: integer, description: 'Quarter, 1 to 4, or 5 for extra time', example: 2 }
