@@ -7,7 +7,10 @@ const path = require('node:path');
 const { STUDIO_PAGES } = require('../public/studiobar.js');
 
 test('each tab\'s label is its page\'s title and heading', () => {
-  for (const p of STUDIO_PAGES) {
+  // The Docs tab is the user guide, which keeps its own title.
+  const guide = fs.readFileSync(path.join(__dirname, '..', 'docs', 'user-guide', 'index.html'), 'utf8');
+  assert.match(guide, /<title>FirstPass Studio User Guide<\/title>/);
+  for (const p of STUDIO_PAGES.filter(t => t.href !== '/guide/')) {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', p.href.slice(1)), 'utf8');
     assert.equal((html.match(/<title>([^<·]+?)\s*·\s*FirstPass Studio<\/title>/) || [])[1], p.label, `${p.href} title`);
     assert.equal((html.match(/<h1[^>]*>([^<]+)<\/h1>/) || [])[1], p.label, `${p.href} h1`);
@@ -25,7 +28,7 @@ test('the Go menu and the menu bar icon use the tabs\' own names', () => {
 });
 
 test('Studio\'s pages say "Scoreboard control" and "game night", not "the control page" or "game day"', () => {
-  for (const f of ['output.html', 'planner.html', 'control.html', 'recordings.html', 'socials.html', 'setup.html', 'sponsors.html', 'athletes.html', 'api.html', 'devices.html', 'graphics.html']) {
+  for (const f of ['output.html', 'planner.html', 'control.html', 'recordings.html', 'socials.html', 'setup.html', 'sponsors.html', 'athletes.html', 'api.html', 'devices.html']) {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', f), 'utf8').replace(/<!--[\s\S]*?-->/g, '').replace(/^\s*\/\/.*$/gm, '');
     assert.doesNotMatch(html, /control page/i, `${f} says "control page"`);
     assert.doesNotMatch(html, /[Gg]ame day/, `${f} says "game day"`);

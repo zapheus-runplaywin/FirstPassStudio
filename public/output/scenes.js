@@ -50,7 +50,7 @@ function renderScenes() {
     drift.querySelector('.over').onclick = () => act({ type: 'sceneCapture', scene: cur.id });
     drift.querySelector('.asNew').onclick = saveNewScene;
   }
-  // With no scenes yet, the first steps (the rest is on the Docs page).
+  // With no scenes yet, the first steps (the rest is in the user guide).
   $('scenesEmpty').hidden = !!scenes.length;
   $('scenesEmpty').innerHTML = 'A scene is a saved look: which sources are on and which are off. Set the sources up, then <b>Add scene</b> saves what\'s on now under a name '
     + '(Pre-game, Live, Quarter time, Full time…). Going to a scene, here or from the Stream Deck, puts the graphics back to that look.';

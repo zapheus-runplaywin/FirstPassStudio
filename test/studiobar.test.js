@@ -15,7 +15,9 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 
 test('the tabs are Output, Production Planner, Scoreboard control, Recordings, Socials, Competitions setup, Sponsors, Athletes, Devices, Docs', () => {
   assert.deepEqual(STUDIO_PAGES.map(p => p.label), ['Output', 'Production Planner', 'Scoreboard control', 'Recordings', 'Socials', 'Competitions setup', 'Sponsors', 'Athletes', 'Devices', 'Docs']);
-  for (const p of STUDIO_PAGES) assert.ok(fs.existsSync(path.join(PUBLIC, p.href.slice(1))), `${p.href} exists`);
+  // Docs is the user guide (docs/user-guide, served at /guide/).
+  const file = p => p.href === '/guide/' ? path.join(__dirname, '..', 'docs', 'user-guide', 'index.html') : path.join(PUBLIC, p.href.slice(1));
+  for (const p of STUDIO_PAGES) assert.ok(fs.existsSync(file(p)), `${p.href} exists`);
 });
 
 test('the bar groups the tabs: Run, Plan, Set up, and Docs on its own', () => {

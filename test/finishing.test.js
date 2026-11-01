@@ -1,6 +1,6 @@
 // The finishing touches of the UI level-up: page zoom in the Mac app (View menu with the level, Actual Size on ⌘⌥0
-// clear of the Docs tab's ⌘0, a chip in the bar while the zoom isn't 100% that puts it back), the Docs page's
-// contents list, and the off air page in the brand.
+// clear of the Docs tab's ⌘0, a chip in the bar while the zoom isn't 100% that puts it back), the Docs tab
+// (the user guide with Studio's bar on top) and its contents list, and the off air page in the brand.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -25,17 +25,30 @@ test('the View menu zooms in steps with Actual Size on ⌘⌥0, and the off air 
   assert.match(read('public/studio.css'), /\.chip\.zoom/);
 });
 
-test('the Docs page lists its cards as contents, and the bar shows the zoom chip when told', async t => {
+test('the Docs tab is the guide under Studio\'s bar, with its contents, and the bar shows the zoom chip when told', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });
-  const page = await openPage(t, studio, '/graphics.html');
+  const page = await openPage(t, studio, '/guide/');
   if (!page) return;
-  await page.waitForSelector('#contents li');
-  const links = await page.$$eval('#contents li:not([hidden]) a', as => as.map(a => [a.textContent, a.getAttribute('href')]));
-  assert.ok(links.length >= 10, `contents has the cards (${links.length})`);
-  assert.ok(links.some(l => l[1] === '#output'), 'the Output card by its anchor');
+  await page.waitForSelector('.fp-bar nav a');
+  assert.equal(await page.textContent('.fp-bar a[aria-current="page"]'), 'Docs');
+  const links = await page.$$eval('nav.toc a[href^="#"]', as => as.map(a => [a.textContent, a.getAttribute('href')]));
+  assert.ok(links.length >= 12, `contents has the chapters (${links.length})`);
+  assert.ok(links.some(l => l[1] === '#ref'), 'the Reference');
   for (const [text, href] of links) {
     assert.ok(text.trim(), 'a title');
-    assert.equal(await page.$eval(href, c => c.tagName), 'DIV', `${href} is a card`);
+    assert.ok(await page.$(href), `${href} is in the guide`);
+  }
+  // The contents stay in view below the bar, not under it.
+  const bar = await page.$eval('.fp-bar', b => b.getBoundingClientRect().bottom);
+  await page.evaluate(() => window.scrollTo(0, 4000));
+  const toc = await page.$eval('nav.toc', n => n.getBoundingClientRect().top);
+  assert.ok(toc >= bar - 1, `the contents (${toc}) sit below the bar (${bar})`);
+  // Each Studio page's "More in the guide" lands on a part of the guide that is there.
+  for (const f of ['output', 'control', 'planner', 'socials', 'recordings', 'setup', 'sponsors', 'athletes']) {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', `${f}.html`), 'utf8');
+    const m = /<a href="\/guide\/#([\w-]+)">More in the guide<\/a>/.exec(html);
+    assert.ok(m, `${f}.html links to the guide`);
+    assert.ok(await page.$(`#${m[1]}`), `${f}.html's #${m[1]} is in the guide`);
   }
   // The zoom chip: hidden at 100%, shown with the level otherwise, a click asks for 100%.
   assert.equal(await page.isVisible('.fp-bar .chip.zoom'), false);

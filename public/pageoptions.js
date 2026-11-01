@@ -1,6 +1,5 @@
 // FirstPass Studio - the options each graphics page takes in its link (?position=top and so on), so the Output
-// page can offer them as fields instead of sending people to the Docs page to read them. The Docs page
-// describes the same options in words: keep the two in step when a page gets a new one.
+// page can offer them as fields, and the Devices tab's Links list (links.js) shows each graphic's options from here too.
 //
 // Each option: { key, label, type: 'select' | 'text' | 'number', ... }. A select's first choice is the
 // page's default, with value '' (left out of the link). text and number boxes left empty are left out too.

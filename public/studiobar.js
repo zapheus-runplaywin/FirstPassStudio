@@ -21,7 +21,7 @@
     { href: '/sponsors.html', label: 'Sponsors', also: ['/sponsorreport.html'], group: 'Set up' },
     { href: '/athletes.html', label: 'Athletes', group: 'Set up' },
     { href: '/api.html', label: 'Devices', also: ['/devices.html'], group: 'Set up' },
-    { href: '/graphics.html', label: 'Docs', group: 'Docs' },
+    { href: '/guide/', label: 'Docs', also: ['/guide/index.html'], group: 'Docs' },
   ];
   // The groups in the order the bar shows them; Docs is drawn apart, at the right.
   const GROUPS = ['Run', 'Plan', 'Set up'];

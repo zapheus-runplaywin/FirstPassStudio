@@ -9,7 +9,7 @@ const { startStudio } = require('./support/studio');
 const { openPage } = require('./support/browser');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
-const FILES = ['output', 'planner', 'control', 'recordings', 'socials', 'setup', 'sponsors', 'athletes', 'api', 'devices', 'graphics', 'sponsorreport']
+const FILES = ['output', 'planner', 'control', 'recordings', 'socials', 'setup', 'sponsors', 'athletes', 'api', 'devices', 'sponsorreport']
   .map(n => `${n}.html`).concat(fs.readdirSync(path.join(PUBLIC, 'output')).map(f => `output/${f}`));
 
 test('no Studio page uses the browser\'s confirm(), alert() or prompt()', () => {
@@ -17,7 +17,7 @@ test('no Studio page uses the browser\'s confirm(), alert() or prompt()', () => 
     const src = fs.readFileSync(path.join(PUBLIC, f), 'utf8').replace(/\/\/[^\n]*/g, '');
     const hits = [...src.matchAll(/(?<![\w.])(confirm|alert|prompt)\(/g)].map(m => m[1]);
     assert.deepEqual(hits, [], `${f} calls ${hits.join(', ')}`);
-    if (f.endsWith('.html') && /askConfirm|askChoice|askText|tell\(/.test(src) && !f.startsWith('graphics')) assert.match(src, /asktext\.js/, `${f} loads asktext.js`);
+    if (f.endsWith('.html') && /askConfirm|askChoice|askText|tell\(/.test(src)) assert.match(src, /asktext\.js/, `${f} loads asktext.js`);
   }
 });
 

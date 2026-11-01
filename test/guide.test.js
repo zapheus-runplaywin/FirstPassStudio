@@ -1,5 +1,5 @@
 // The user guide comes with Studio at /guide/ (Help > FirstPass Studio User Guide, User guide in the menu bar
-// icon, the Docs page): its page, every picture it shows and its Montserrat, all from Studio, so it reads at a
+// icon, the Docs tab): its page, every picture it shows and its Montserrat, all from Studio, so it reads at a
 // venue with no internet; nothing else of docs/user-guide can be read.
 const test = require('node:test');
 const assert = require('node:assert/strict');
