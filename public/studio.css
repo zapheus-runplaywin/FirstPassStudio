@@ -64,7 +64,7 @@
   }
 }
 
-/* Header bar: the 1P mark and the FirstPass STUDIO wordmark (public/studio/, the versions for navy), the tabs in
+/* Header bar: the 1P mark (1p-mark-dark.svg) and the FirstPass STUDIO wordmark (public/studio/, the versions for navy), the tabs in
    their groups (Run, Plan, Set up; Docs apart at the right) and the status chips, all drawn by studiobar.js.
    It stays pinned at the top while the page scrolls, so the tabs and the chips are always in reach, and sits
    above everything on the page (previews, pickers) that scrolls underneath it. On a narrower window the chips
@@ -76,8 +76,9 @@
   border-bottom: 3px solid var(--fp-orange);
 }
 .fp-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex: none; }
-.fp-mark { width: 40px; height: 36px; overflow: hidden; position: relative; flex: none; border-radius: 6px; }
-.fp-mark img { position: absolute; width: 60px; left: -9px; top: -3px; max-width: none; }
+/* The mark is its own file (the 1P and the arrow, without STUDIO under it), shown whole: a crop of the full logo
+   cut off the top of the 1P and the arrow's tip. */
+.fp-mark { height: 34px; width: auto; display: block; flex: none; }
 .fp-word { height: 20px; display: block; }
 .fp-bar nav { display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
 .fp-bar .fp-grp { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748B; padding: 0 6px 0 14px; }

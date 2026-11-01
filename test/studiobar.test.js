@@ -36,6 +36,11 @@ test('the bar draws the brand, the grouped tabs and the status chips, and the ch
   const page = await openPage(t, studio, '/sponsors.html');
   if (!page) return;
   assert.equal(await page.$eval('.fp-bar .fp-brand img.fp-word', i => i.getAttribute('src')), '/studio/firstpass-studio.svg');
+  // The 1P mark is its own file shown whole, not a crop of the full logo (which cut off the top of the 1P).
+  const mark = await page.$eval('.fp-bar .fp-brand img.fp-mark', i => ({ src: i.getAttribute('src'), w: i.getBoundingClientRect().width, h: i.getBoundingClientRect().height, clip: getComputedStyle(i.parentElement).overflow }));
+  assert.equal(mark.src, '/studio/1p-mark-dark.svg');
+  assert.equal(mark.clip, 'visible');
+  assert.ok(Math.abs(mark.w / mark.h - 404 / 284) < 0.02, `the mark keeps its shape (${mark.w}×${mark.h})`);
   assert.deepEqual(await page.$$eval('.fp-bar nav:not(.fp-docs) .fp-grp', els => els.map(e => e.textContent)), ['Run', 'Plan', 'Set up']);
   assert.deepEqual(await page.$$eval('.fp-bar nav:not(.fp-docs) a', els => els.map(e => e.textContent)),
     ['Output', 'Scoreboard', 'Planner', 'Socials', 'Recordings', 'Competitions', 'Sponsors', 'Athletes', 'Devices']);
