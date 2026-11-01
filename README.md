@@ -679,7 +679,7 @@ These follow the game picked on the scoreboard control page:
   3 and 5 goal runs and the longest run for each team. Studio works the quarters out from the scoreboard as the game goes
   (/api/stats), so keep it on air for the whole game; `?quarters=0`, `?won=0`, `?best=0`, `?supershots=0`, `?runs3=0`,
   `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. Lines starting `[stats]` in the log say when a quarter isn't sure.
-- http://localhost:8080/commentator.html: the whole screen, for a commentary desk monitor rather than the stream. Team lists
+- http://localhost:8080/commentatorstats.html: the whole screen, for a commentary desk monitor rather than the stream. Team lists
   on the left with scoring drought and games played this season (line-ups loaded at the start and each quarter break),
   the game stats big in the middle (each logo with ladder position, record and form under it, head to head under the names)
   with shooting % (from PlayHQ's live counts, /api/stats `stats.shooting`), biggest lead and lead changes, on the right the
@@ -932,7 +932,7 @@ three commentators for each game on it. Studio streams one court a night; anothe
   court or picking a game by hand there is never undone; the Planner flags it at the top instead.
 - **Graphics:** `commentators.html` with no `?name=` shows whoever is planned for the game on the scoreboard
   (`/api/planner/onair`), with the tab *Special guest commentators* when everyone planned is a guest, and
-  `commentator.html` shows them under the clock (`?mic=0` leaves that out). `fixtureboard.html`, the **Fixture board (Full Page)**,
+  `commentatorstats.html` shows them under the clock (`?mic=0` leaves that out). `fixtureboard.html`, the **Fixture board (Full Page)**,
   is the night's whole fixture for a screen in the competition room or backstage (or to share before the night): a
   card per court (side by side up to three, then two rows: 2 × 2 for four, 3 × 2 for six) with its games by time, headed *Tonight's Fixtures* or the day (*Tuesday Night's Fixtures*). The
   planned court has a camera and its games name who is on the mic. Live games show their score and quarter (the

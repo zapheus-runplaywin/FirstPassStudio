@@ -984,7 +984,7 @@
 
   <h3 id="sr-7">Data and bandwidth</h3>
     <p><strong>scoreboard.html</strong>, <strong>goals.html</strong> and <strong>countdown.html</strong> (and Scoreboard control) follow the scoreboard over the one connection Studio's pages keep open for the scene, so a score press or a PlayHQ reading reaches them the moment it happens, with no asking in between. <strong>ticker.html</strong>, <strong>viewers.html</strong> (every 15 seconds, Studio only) and the automatic <strong>supershot.html</strong> and <strong>streak.html</strong> keep asking for new data; <strong>ticker.html</strong> also asks for its speed every 3 seconds. None of that reaches PlayHQ.
-      <strong>commentator.html</strong> follows the scoreboard live for its clock, moments and run, and with Auto-refresh (on by default there) asks Studio for its stats every 15 seconds and for who is on the mic each minute, neither of which reaches PlayHQ; its team lists load at the start and each quarter break (see below).
+      <strong>commentatorstats.html</strong> follows the scoreboard live for its clock, moments and run, and with Auto-refresh (on by default there) asks Studio for its stats every 15 seconds and for who is on the mic each minute, neither of which reaches PlayHQ; its team lists load at the start and each quarter break (see below).
       The super shot and hot streak pages ask Studio every second for the scoreboard and nothing else, so they add no PlayHQ requests.
       Every other graphic gets its data once when it loads, and again each time it's shown on the Output page (with <strong>Load the page fresh each time it's shown</strong>, the default).
       The Clash and the winner celebration only retry if Studio isn't running.</p>

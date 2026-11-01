@@ -137,7 +137,7 @@
   .card--v .worm { position: absolute; left: calc(50% - 32px); width: 64px; top: 2px; display: block; }
   .card--v .row .empty { margin: 0 auto; grid-column: 1 / -1; width: 36px; height: 36px; }
   /* ?fill=1: the card fills its window instead of a 1920 x 1080 frame, scaled to fit, for a page that shows it in a box
-     of its own (commentator.html, horizontal); no shade, as that box has its own background. */
+     of its own (commentatorstats.html, horizontal); no shade, as that box has its own background. */
   html.fill, html.fill body { width: 100%; height: 100%; }
   html.fill .card::before { display: none; }
   html.fill .card--h { left: 50%; top: 0; bottom: auto; transform: translateX(-50%) scale(var(--fill, 1)); transform-origin: top center; }
@@ -154,7 +154,7 @@
        Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)  ?run=0 (no current run line)
                 ?position=top|middle|bottom (horizontal)  ?position=left|right (vertical)  ?title=Momentum
        &fill=1 fills the window it's in rather than a 1920 x 1080 frame (horizontal spreads its goals to the window's
-       shape): commentator.html shows it that way. -->
+       shape): commentatorstats.html shows it that way. -->
   <main class="card" id="card" data-fit="var" hidden></main>
   <script>
     const params = new URLSearchParams(location.search);

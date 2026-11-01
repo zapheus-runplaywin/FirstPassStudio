@@ -29,7 +29,7 @@
     { file: 'goals.html', name: 'Last 10 goals', group: 'gamePages', examples: [['Last 10 goals', '/goals.html', 3000], ['Last 10 goals: vertical', '/goals.html?layout=vertical', 3000]] },
     { file: 'fulltime.html', name: 'Full time', group: 'gamePages', examples: [['Full time card', '/fulltime.html', 3000]] },
     { file: 'gamestats.html', name: 'Game stats', group: 'gamePages', examples: [['Game stats', '/gamestats.html', 3000]] },
-    { file: 'commentator.html', name: 'Commentator stats (full screen)', group: 'gamePages', examples: [['Commentator stats', '/commentator.html', 3500]] },
+    { file: 'commentatorstats.html', name: 'Commentator stats (full screen)', group: 'gamePages', examples: [['Commentator stats', '/commentatorstats.html', 3500]] },
     { file: 'worm.html', name: 'Score worm', group: 'gamePages', examples: [['Score worm', '/worm.html?draw=0', 3000]] },
     { file: 'winner.html', name: 'Winner', group: 'gamePages', examples: [['Winner celebration: home (end of animation)', '/winner.html?winner=home', 5000], ['Winner celebration: away (end of animation)', '/winner.html?winner=away', 5000], ['Winner celebration: draw (end of animation)', '/winner.html?winner=draw', 5000]] },
     { file: 'supershot.html', name: 'Super shot', group: 'gamePages', examples: [['Super shot: home (mid animation)', '/supershot.html?team=home', 1500]] },
