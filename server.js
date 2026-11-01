@@ -705,6 +705,15 @@ function sendGuide(res, rel) {
   fs.readFile(path.join(GUIDE_DIR, rel), (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(rel)]));
 }
 
+// public/openapi.yaml as JSON, read again only when the file changes.
+let openapiCache = { mtime: 0, json: null };
+function openapiJson() {
+  const file = path.join(PUBLIC_DIR, 'openapi.yaml');
+  const mtime = fs.statSync(file).mtimeMs;
+  if (openapiCache.mtime !== mtime) openapiCache = { mtime, json: require('yaml').parse(fs.readFileSync(file, 'utf8')) };
+  return openapiCache.json;
+}
+
 // What the game recording keeps of the answers: a graphic's reads (asked for by a page that isn't one of Studio's
 // own, which have the tab bar), never a private one or the recordings themselves.
 const OWN_PAGES = new Set(fs.readdirSync(path.join(__dirname, 'public')).filter(n => n.endsWith('.html')
@@ -955,7 +964,7 @@ http.createServer(async (req, res) => {
       const playback = replay.deck(parts) || practice.deck(parts);
       if (playback) return send(res, playback.status, playback.body);
       const action = deckAction(parts, q);
-      if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See the Stream Deck page, /api.html.` });
+      if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See Links on the Devices tab, /api.html#links.` });
       const b = board();
       applyAction(b, action);
       if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick();
@@ -991,6 +1000,8 @@ http.createServer(async (req, res) => {
     // it shows, nothing else of that folder.
     if (url.pathname === '/guide') { res.writeHead(302, { location: '/guide/' }); return res.end(); }
     if (url.pathname.startsWith('/guide/')) return sendGuide(res, decodeURIComponent(url.pathname.slice('/guide/'.length)));
+    // openapi.yaml read for the Devices tab's Links list (devices.js), which has no YAML reader of its own.
+    if (url.pathname === '/openapi.json') return send(res, 200, openapiJson());
     // / is the Output page; results.html is the fixture page showing finished games.
     const ALIASES = { '/': 'output.html', '/results.html': 'fixtures.html' };
     // The Graphics page was the home page at /index.html: old links still find it.

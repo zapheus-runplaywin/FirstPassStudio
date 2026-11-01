@@ -1,4 +1,4 @@
-// The Stream Deck page (api.html) documents every control link in public/openapi.yaml. Each one,
+// The Devices tab (api.html) documents every control link in public/openapi.yaml. Each one,
 // with every value it lists, must be a link the helper knows: a renamed or removed link would
 // leave a Stream Deck button doing nothing on stream night. Links that name a source, scene,
 // sequence or song may answer that there's none by that name, but never "Unknown Stream Deck link".

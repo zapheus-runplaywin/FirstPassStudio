@@ -147,7 +147,7 @@ removes the tracked `competitions/` files when you pull, so import your competit
 
 FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and later), with no Node.js or Terminal needed. Download `FirstPass Studio.dmg`, drag
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
-icon). The Output page and the Stream Deck use the same links as the Docs page. It is one page laid out for the night: the
+icon). The Output page and the Stream Deck use the same links as the Devices tab's Links. It is one page laid out for the night: the
 picture with its output tabs and a status board, the sources down the left, scenes and sequences as tiles, with every
 setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics, dip, switcher,
 recording and next game, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
@@ -171,7 +171,7 @@ doesn't show it. **What's new…** in the menu bar icon shows the latest changes
 
 ### Links use the Mac's .local name
 
-The links on the Docs page, the control page and the Mac app's menu (including **Copy the Studio link**) start with
+The links on the Devices tab, the control page and the Mac app's menu (including **Copy the Studio link**) start with
 the Mac's Bonjour name, e.g. `http://matts-macbook-pro.local:8080/`, instead of `localhost`. That name is the
 **Local hostname** in System Settings > General > Sharing, and it works on the Mac itself and from a phone,
 another computer or a Stream Deck on the same network, without looking up an IP address. The port stays 8080.
@@ -349,8 +349,8 @@ Its Studio screenshots are taken again by `node docs/user-guide/shots/run.js` (s
 Only the scoreboard, the last 10 goals and the countdown update themselves (Studio pushes each change to them the moment it
 happens, and they reload when Studio restarts), along with the ticker and the automatic super shot (every second, asking Studio only). Every other page
 loads once, and again each time it's turned on on the Output page (with **Load the page fresh each time it's shown**, the
-default), or press **Refresh page** to get the latest. Divisions are numbered in name order, as listed on the
-http://localhost:8080/graphics.html page. You can also use part of a name, e.g. `?division=Premier`.
+default), or press **Refresh page** to get the latest. Divisions are numbered in name order, as listed under Ladders in the
+Devices tab's Links. You can also use part of a name, e.g. `?division=Premier`.
 
 Frame rate: every graphic and animation is timed by the clock, not by frames, so it plays at the same speed at 25, 30,
 50 or 60 fps. The Blackmagic and NDI outputs render at the video format's frame rate.
@@ -378,8 +378,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   sources use that). Media that's in neither the zip nor the media folder is listed as missing on the Output page, and an imported .mov
   that hasn't been converted yet converts. `/api/scene/export` (`?media=0` without media) and `POST /api/scene/import` (the file as the body) do the same.
 - **Page options:** a Studio graphic's link options (position, heading, division, round, animate away and so on) show as fields under its
-  **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`: add a page's
-  new option there as well as on the Docs page.
+  **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`, and the Devices
+  tab's Links list the same options under each graphic, so a new option goes there only.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
 - **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
   (1920 x 1080 for full-frame graphics).
@@ -499,9 +499,10 @@ The scene is saved as `scene.json` in the data folder. http://localhost:8080/sce
 
 ## Example graphics
 
-The graphics are listed once, in `public/pages.js` (link, name, Docs page section, example pictures): the Output page's
+The graphics are listed once, in `public/pages.js` (link, name, Links group, example pictures): the Output page's
 **Add a page** and the Make Examples script read it, and a test checks every graphic in `public/`, every page in
-`pageoptions.js` and the Docs page against it. A new graphic goes there first.
+`pageoptions.js` and `public/graphiclinks.js` (what each graphic's link does, for the Devices tab's Links) against it. A new
+graphic goes there first.
 
 From a copy of the repository, double-click `Make Examples (Mac).command` (or run `node examples.js`) to save a
 1920 x 1080 picture of every graphic with PlayHQ's current data in `Examples/<date and time>/`, with an `index.html`
@@ -768,7 +769,7 @@ those rules: `{ tier, sponsors }`, `{ tier, from, sponsors }` when pulled into a
 
 ### Sponsors on the graphics
 
-- **Sponsor card** (`/sponsor.html`, breaks) and **sponsor wall** (`/sponsorwall.html`, pre-game): see the Docs page.
+- **Sponsor card** (`/sponsor.html`, breaks) and **sponsor wall** (`/sponsorwall.html`, pre-game): see the Devices tab's Links.
   The card shows the next sponsor in rotation from Major and up, by tier share, never the same one twice running.
 - **Naming rights** (the naming rights tier, or what its empty-tier rule gives instead): a "Presented by" tab over the
   home team on the scoreboard (checked every 5 minutes), a pill under the title banner, and a line under the countdown.
@@ -1113,5 +1114,5 @@ pick each winner (the score is optional); those are kept in `control.json`, and 
 
 FirstPass Studio is open source under the MIT licence; see [LICENSE](LICENSE). Bundled third-party code keeps its own
 licence (Montserrat in `public/vendor/montserrat/OFL.txt`, the graphics' fonts under the SIL Open Font Licence in
-`public/vendor/fonts/<font>/LICENSE`, Swagger UI in `public/vendor/swagger-ui/LICENSE`). Team and
+`public/vendor/fonts/<font>/LICENSE`, and the `yaml` package that reads `openapi.yaml` under its ISC licence). Team and
 competition logos belong to their owners and are not covered by the MIT licence.

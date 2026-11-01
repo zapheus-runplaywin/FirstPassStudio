@@ -4,42 +4,35 @@
 <meta charset="utf-8">
 <title>Devices · FirstPass Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="vendor/swagger-ui/swagger-ui.css">
 <link rel="icon" href="studio/favicon.png">
 <link rel="stylesheet" href="studio.css">
 <style>
   body.fp { background: var(--fp-white); }
-  .apibar { max-width: 1460px; margin: 0 auto; padding: 20px 20px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; font-family: var(--fp-font); }
-  .apibar a { color: var(--fp-blue); font-weight: 600; font-size: 14px; }
-  /* Swagger in Montserrat and FirstPass colours; code and paths keep their monospace face. */
-  .swagger-ui, .swagger-ui :not(code):not(pre):not(.microlight):not(.opblock-summary-path):not(.opblock-summary-path *):not(textarea) { font-family: var(--fp-font); }
-  .swagger-ui .info .title { color: var(--fp-navy); font-weight: 900; font-style: italic; }
-  .swagger-ui .info a, .swagger-ui a.nostyle { color: var(--fp-blue); }
-  .swagger-ui .opblock-tag { color: var(--fp-navy); font-weight: 800; border-bottom-color: var(--fp-line); }
-  .swagger-ui .btn.execute { background: var(--fp-blue); border-color: var(--fp-blue); }
-  .swagger-ui .btn.try-out__btn, .swagger-ui .btn.cancel { border-color: var(--fp-blue); color: var(--fp-blue); }
-  .swagger-ui .opblock.opblock-get { border-color: var(--fp-blue); background: rgba(34, 116, 165, .06); }
-  .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--fp-blue); }
-  .swagger-ui .opblock.opblock-get .opblock-summary { border-color: var(--fp-blue); }
-  .swagger-ui .opblock .opblock-section-header { background: var(--fp-gray); box-shadow: none; }
-  .swagger-ui .scheme-container { background: var(--fp-gray); box-shadow: none; border-bottom: 1px solid var(--fp-line); }
-  .swagger-ui .markdown code, .swagger-ui .renderedMarkdown code { color: var(--fp-navy); background: var(--fp-blue-soft); }
-  .swagger-ui .info .title small.version-stamp { background: var(--fp-blue); }
-  .swagger-ui .info .title small:not(.version-stamp) { background: var(--fp-muted); }
-  /* The guide's "Every link" heading stands in for Swagger's title block, which only repeated the guide. */
-  .swagger-ui .information-container { display: none; }
-  /* The guide above the API reference. */
-  .guide { padding-bottom: 0; }
+  .guide { padding-bottom: 40px; }
   .guide h3 { font-size: 16px; margin: 16px 0 6px; }
   .guide p, .guide li { font-size: 15px; }
-  .guide table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  .guide td { padding: 5px 6px; border-top: 1px solid var(--fp-line); vertical-align: middle; }
-  .guide td:first-child { width: 34%; font-weight: 600; }
-  .guide td:last-child { width: 1%; white-space: nowrap; }
-  .guide .ref { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin: 22px 0 0; }
-  .guide .ref h2 { margin: 0; }
-  @media (max-width: 640px) { .guide td:first-child { width: auto; } .guide tr { display: grid; grid-template-columns: 1fr auto; } .guide td:nth-child(2) { grid-column: 1 / -1; order: 3; border-top: 0; } }
-  #fallback { font-family: var(--fp-font); max-width: 760px; margin: 24px auto; padding: 0 16px; }
+  /* The Links list (links.js): every link drawn the same way, a group per kind. */
+  .links .find { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  #linkFilter { font: inherit; padding: 7px 11px; border: 1px solid var(--fp-line-strong); border-radius: 8px; min-width: 260px; background: var(--fp-white); color: var(--fp-navy); }
+  .lnkgroup { margin-top: 26px; }
+  .lnkgroup > h3 { font-size: 18px; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--fp-line-strong); }
+  .lnk { padding: 12px 0; border-bottom: 1px solid var(--fp-line); }
+  .lnk__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+  .lnk__head h4 { margin: 0; font-size: 15px; font-weight: 800; color: var(--fp-navy); }
+  .lnk__path { font-size: 12px; color: var(--fp-muted); background: none; padding: 0; }
+  .lnk__about, .lnk__about p { font-size: 14px; color: var(--fp-muted); line-height: 1.55; margin: 6px 0 0; }
+  .lnk__about b, .lnk__about strong { color: var(--fp-navy); }
+  .lnk__about code, .lnk__settings code { display: inline; padding: 1px 5px; }
+  .lnk__link { display: grid; grid-template-columns: minmax(140px, 26%) 1fr auto; gap: 4px 10px; align-items: center; margin-top: 8px; font-size: 14px; }
+  .lnk__link:not(:has(.lnk__label)) { grid-template-columns: 1fr auto; }
+  .lnk__label { font-weight: 600; color: var(--fp-navy); }
+  .lnk__link > code { overflow-wrap: anywhere; font-size: 13px; }
+  .lnk__buttons { display: flex; gap: 6px; white-space: nowrap; }
+  .lnk__out { grid-column: 1 / -1; max-height: 260px; overflow: auto; margin: 4px 0 0; padding: 8px 10px; font-size: 12px; background: var(--fp-gray); border-radius: 8px; }
+  .lnk__settings { display: grid; grid-template-columns: minmax(140px, 26%) 1fr; gap: 3px 10px; margin: 10px 0 0; font-size: 13px; }
+  .lnk__settings dt { font-weight: 600; color: var(--fp-navy); }
+  .lnk__settings dd { margin: 0; color: var(--fp-muted); }
+  @media (max-width: 640px) { .lnk__link, .lnk__settings { grid-template-columns: 1fr; } .lnk__link:not(:has(.lnk__label)) { grid-template-columns: 1fr; } }
   /* The Devices list at the top (what may change things from another device). */
   .tblwrap { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: 14px; }
@@ -61,7 +54,7 @@
   <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
   <main class="guide">
     <h1>Devices</h1>
-    <p class="sub">What may change scores, the scene and sequences from somewhere other than this Mac's own windows: Stream Decks and their links, paired phones and programs. Only the Mac running Studio sees and changes the list. <a href="/graphics.html#streamdeck">More in the Docs</a></p>
+    <p class="sub">What may change scores, the scene and sequences from somewhere other than this Mac's own windows: Stream Decks and their links, paired phones and programs. Only the Mac running Studio sees and changes the list. <a href="/guide/#ch9" target="_blank">More in the guide</a></p>
     <section class="asking" id="asking" hidden>
       <h2 id="askWho"></h2>
       <div class="what" id="askWhat"></div>
@@ -80,7 +73,7 @@
         The Studio Stream Deck plugin asks to be added on its first key press and then signs every press with its own key pair;
         once one has been allowed, plugins that haven't can't press anything. A phone, iPad or another computer pairs from
         Studio's <b>/pair.html</b> page, allowed to score only or to change everything; a program on another device can ask too
-        (the Docs page says how). The Mac asks you to Allow or Deny each one, and it shows here too.
+        (Pairing, under Links below). The Mac asks you to Allow or Deny each one, and it shows here too.
         Studio's own pages on this Mac always can change things. While "Only this Mac can change things" is ticked in the menu bar icon
         (it is each time Studio opens), only the devices in this list can as well. A device unused for 90 days drops off the list and has to ask again.</p>
     </section>
@@ -88,95 +81,28 @@
 
     <h2 id="streamdeck" style="margin-top:28px">Stream Deck</h2>
     <p class="sub">Run the scene and the scoreboard from a Stream Deck; Studio has to be on air, so keep a Studio window open.</p>
+
+    <section>
+      <h2>The FirstPass Studio plugin</h2>
+      <p>Keys for Studio's own scene: sources, scenes, sequences, the run order, the switcher and the replay, each lit by what it does.
+        The Mac app includes the plugin: install it here (or <b>Install the Stream Deck plugin</b> in the menu bar icon) and the Stream Deck
+        app opens and installs it; do it again after an app update. What each key does and shows: <a href="/guide/#s9-1" target="_blank">The plugin</a> in the guide.</p>
+      <p id="deckRow" hidden><button id="deckInstall">Install the Stream Deck plugin</button> <span class="note" id="deckNote"></span></p>
+    </section>
+
+    <section class="links" id="links">
+      <h2>Links</h2>
+      <p>Every link Studio answers, each with what it does: the graphics, to use one on its own, and the Stream Deck links, for a <b>System › Website</b> action
+        with <b>GET request in background</b> ticked (or a Multi Action, or any program on the network). They use this Mac's network name, so they work from other devices on the same network.
+        A Stream Deck link carries a key after the port (<code>/k/…</code>) so no web page can press it; the Studio plugin needs none.
+        A score link switches the scoreboard to Manual, and a clock link stops the clock following the PlayHQ scorer: <b>Follow PlayHQ</b> puts both back.
+        Each graphic's <b>Preview</b> opens it at half size; on the Output page its options are fields in the source's settings.</p>
     <p id="linkSetRow" hidden><label>Copy links for <select id="linkSet"></select></label>
       <span class="note">Each link set has its own key: make one per Stream Deck, and the Devices list above can give one a new key or remove it without touching the others.</span></p>
-
-    <section>
-      <h2>Scene and sources: the FirstPass Studio plugin</h2>
-      <p>For Studio's own scene, built on the <a href="/output.html">Output</a> page. The Mac app includes a Stream Deck plugin.
-        Install it with the button below (or <b>Install the Stream Deck plugin</b> in the menu bar icon); the Stream Deck app opens it and
-        installs it. Do it again after an app update to update the plugin.</p>
-      <p id="deckRow" hidden><button id="deckInstall">Install the Stream Deck plugin</button> <span class="note" id="deckNote"></span></p>
-      <p>Then drag <b>FirstPass Studio › Source</b> onto a key and pick the source in its settings.</p>
-      <ul>
-        <li><b>Press:</b> show or hide (the default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.</li>
-        <li>The key shows the source's name and lights up orange while the source is on, however it was turned on. A sound key lights while the video's sound is on.</li>
-        <li>It follows the source itself, so renaming the source doesn't break the key. A removed source says <b>gone</b>; while Studio isn't running it says <b>off air</b>.</li>
-        <li><b>FirstPass Studio › Scene</b> goes to a saved scene; <b>FirstPass Studio › Sequence</b> plays a sequence, or presses Next,
-          Pause or Stop for whatever is playing. It lights up while its sequence plays and shows the step and time left, like <b>3/5 0:12</b>. Its <b>Time left</b> setting picks the step's, the whole sequence's (<b>all 1:40</b>; <b>+</b> when part of it waits, <b>↻</b> when it repeats), both, or none.
-          When a sequence is about to start by itself, its key counts down to it (<b>in 0:04</b>).</li>
-        <li><b>FirstPass Studio › Run order</b> plays what's next in the run order (<b>Play next</b>), skips it, loads a saved order or clears the list. It names what plays next,
-          takes that scene's or sequence's colour, and lights up while something is queued, so the key says what a press will do.</li>
-        <li><b>FirstPass Studio › Switcher</b> presses the ATEM picked on the Output page's Switcher card: a camera to preview or straight to program,
-          a stinger, Cut, Auto, a key, Fade to black or a macro. A camera's key lights red while it's on program and green on preview, like the switcher's
-          own buttons, and a key or Fade to black lights red while on air. While the switcher isn't answering the key goes dark with a yellow dot and a press does nothing.</li>
-        <li><b>FirstPass Studio › Replay</b> plays or pauses, jumps, nudges or stops the 4K replay or practice game started on the Recordings tab, whichever is running,
-          and lights while one runs.</li>
-        <li>The six kinds look different at a glance: a Source key has a faint eye and one strip along the bottom, a Scene key stacked layers
-          and a frame in its colour round the key, a Sequence key a play button and its strip split into four steps, a Run order key a list with a play button at its head
-          and a strip whose first block stands taller than the rest, a Switcher key a camera and its strip in two halves,
-          and a Replay key play and pause with a timeline and its playhead.</li>
-        <li><b>Studio</b> in its settings stays empty when the Stream Deck is on the same Mac; for another Mac type its address, like <code>http://studio-mac.local:8080</code>.</li>
-      </ul>
-      <p class="note">No plugin? Every source also has links for a <b>Website</b> action (the Output page copies them), but those keys don't light up.
-        The links below for the whole scene and the video output work the same way. A sequence plays from <code>/deck/sequence/&lt;name&gt;</code>
-        (<code>/deck/sequence/&lt;name&gt;/toggle</code> stops it on a second press); the Output page shows each one's link.
-        Links copied here carry this Mac's Stream Deck key after the port (<code>/k/…</code>), so a web page can't press them; the plugin needs none.
-        A link without the key is refused, so copy older links again from here. To give up the key (a link got out), press
-        <b>Make a new key</b> in the Devices list above, on the Mac.</p>
-      <table id="sceneLinks"></table>
+      <p class="find"><input type="search" id="linkFilter" placeholder="Find a link" aria-label="Find a link"> <a href="/openapi.yaml" download>Download openapi.yaml</a> <span class="note">for programs: every Stream Deck link and read, in OpenAPI.</span></p>
+      <div id="linkGroups"></div>
     </section>
-
-    <section>
-      <h2>Manual scoring and timing</h2>
-      <div class="fp-callout warn">
-        <p style="margin:0 0 6px"><strong>These links stop Follow PlayHQ.</strong></p>
-        <ul style="margin:0;padding-left:20px">
-          <li><b>Any score link</b> (+1, +2, −1, −2, reset) switches the scoreboard to <b>Manual</b>: it stops taking the score from PlayHQ,
-            and the clock stops following the PlayHQ scorer too.</li>
-          <li><b>Any clock link</b> (start, stop, reset, set, adjust) stops the clock following the PlayHQ scorer. The score keeps following PlayHQ.</li>
-          <li>Quarter links don't switch anything off, but while following PlayHQ the scorer's next quarter change still wins.</li>
-          <li>To go back, press <b>Follow PlayHQ</b> (it turns the score and the clock back on), or <b>Follow the PlayHQ scorer's clock</b> for the clock only.
-            Picking a game on Scoreboard control also turns Follow PlayHQ back on.</li>
-        </ul>
-      </div>
-      <p>Each link goes in a <b>System › Website</b> action with <b>GET request in background</b> ticked, so no browser opens.
-        These links use this Mac's network name, so they also work from a Stream Deck on another computer on the same network.</p>
-      <h3>Scoring mode</h3>
-      <table id="modeLinks"></table>
-      <h3>Scores <span class="note">(switch to Manual)</span></h3>
-      <table id="scoreLinks"></table>
-      <h3>Clock <span class="note">(stops following the PlayHQ scorer's clock)</span></h3>
-      <table id="clockLinks"></table>
-      <p class="note">Any amount works in an adjust link (<code>adjust/2m</code>, <code>adjust/-30s</code>), and any time in a set link (<code>set/7:30</code>).
-        <code>/deck/clock/length/12</code> sets the quarter length in minutes.</p>
-      <h3>Quarter</h3>
-      <table id="quarterLinks"></table>
-      <p class="note">Changing the quarter doesn't touch the clock: press Reset clock as well when the new quarter starts (a Stream Deck <b>Multi Action</b> can do both).</p>
-    </section>
-
-    <section>
-      <h2>Game and ticker</h2>
-      <table id="otherLinks"></table>
-    </section>
-
-    <section>
-      <h2>4K replay and practice games</h2>
-      <p class="note">For the 4K replay or practice (or demo) game started on the Recordings tab. The plugin's <b>Replay</b> key does the same for whichever is running, and lights while one runs.</p>
-      <table id="playbackLinks"></table>
-    </section>
-
-    <div class="ref">
-      <h2>Every link (API reference)</h2>
-      <span class="note">The OpenAPI reference for every link. Try it out sends a link to Studio for real, so a score or clock link there stops Follow PlayHQ just like a key.</span>
-      <a href="/openapi.yaml" download>Download openapi.yaml</a>
-    </div>
   </main>
-  <div id="swagger"></div>
-  <div id="fallback" hidden>
-    <p>The documentation viewer did not load.
-       The raw document is at <a href="/openapi.yaml">/openapi.yaml</a>.</p>
-  </div>
   <script>
   // The Devices list: what may change things from another device, from /api/devices (this Mac only).
   'use strict';
@@ -285,76 +211,16 @@
   load().catch(err => say(`Couldn't load the devices: ${err.message}`, true));
   // Devices in the menu bar icon and /devices.html land here.
   </script>
-  <script src="vendor/swagger-ui/swagger-ui-bundle.js"></script>
+  <script src="pageoptions.js"></script>
+  <script src="graphiclinks.js"></script>
+  <script src="links.js"></script>
   <script>
-    // The guide's links, with this Mac's address (its .local name) so a Stream Deck on another computer can use them too.
-    const LINKS = {
-      sceneLinks: [['Next scene', '/deck/scene/next'], ['Previous scene', '/deck/scene/prev'], ['Back to the current scene as saved', '/deck/scene/again'],
-        ['Fade every source out', '/deck/layers/off'], ['Video output on / off (Mac app)', '/deck/output/toggle'],
-        ['Video output on', '/deck/output/on'], ['Video output off', '/deck/output/off'],
-        ['Sequence: next step', '/deck/sequence/next'], ['Sequence: next step, only if it waits for Next', '/deck/sequence/advance'],
-        ['Sequence: pause / carry on', '/deck/sequence/pause'], ['Sequence: stop (does its "then")', '/deck/sequence/stop'],
-        ['Sequence about to start: start now', '/deck/sequence/now'], ['Sequence about to start: cancel', '/deck/sequence/cancel'],
-        ['Automatic sequences on / off', '/deck/sequence/auto/toggle'],
-        ['Run order: play what\'s next', '/deck/runorder/next'], ['Run order: skip what\'s next', '/deck/runorder/skip'], ['Run order: clear', '/deck/runorder/clear'],
-        ['Music: play / pause', '/deck/music/toggle'], ['Music: fade out and stop', '/deck/music/fade'], ['Music: stop now', '/deck/music/stop?fade=0'],
-        ['Music: next song', '/deck/music/next'], ['Music: previous song', '/deck/music/prev'],
-        ['Music: mute on / off', '/deck/music/mute/toggle'], ['Music: duck on / off', '/deck/music/duck/toggle'],
-        ['Mics: mute all on / off', '/deck/mics/mute/toggle'], ['Mics: dip on / off', '/deck/mics/dip/toggle'],
-        ['Mics: up 10%', '/deck/mics/up'], ['Mics: down 10%', '/deck/mics/down'], ['Mic 1: mute on / off', '/deck/mic/1/mute/toggle']],
-      modeLinks: [['Follow PlayHQ (score and clock)', '/deck/source/playhq'], ['Manual', '/deck/source/manual'], ['Toggle between the two', '/deck/source/toggle'],
-        ['Follow the PlayHQ scorer\'s clock', '/deck/clock/playhq/on'], ['Stop following the clock', '/deck/clock/playhq/off']],
-      scoreLinks: [['Home +1', '/deck/home/add1'], ['Home +2 (super shot)', '/deck/home/add2'], ['Home −1', '/deck/home/minus1'], ['Home −2', '/deck/home/minus2'],
-        ['Away +1', '/deck/away/add1'], ['Away +2 (super shot)', '/deck/away/add2'], ['Away −1', '/deck/away/minus1'], ['Away −2', '/deck/away/minus2'],
-        ['Reset scores to 0', '/deck/scores/reset']],
-      clockLinks: [['Start / stop (one key)', '/deck/clock/toggle'], ['Start', '/deck/clock/start'], ['Stop', '/deck/clock/stop'],
-        ['Reset to a full quarter', '/deck/clock/reset'], ['Set to 10:00', '/deck/clock/set/10:00'], ['Add 1 minute', '/deck/clock/adjust/1m'],
-        ['Take off 1 minute', '/deck/clock/adjust/-1m'], ['Add 10 seconds', '/deck/clock/adjust/10s'], ['Take off 10 seconds', '/deck/clock/adjust/-10s']],
-      quarterLinks: [['Next quarter', '/deck/quarter/next'], ['Previous quarter', '/deck/quarter/prev'], ['Q1', '/deck/quarter/1'], ['Q2', '/deck/quarter/2'],
-        ['Q3', '/deck/quarter/3'], ['Q4', '/deck/quarter/4'], ['Extra time', '/deck/quarter/5']],
-      otherLinks: [['Automatic game selection on / off', '/deck/auto/toggle'], ['Court for automatic selection (court 2)', '/deck/court/2'],
-        ['Super shot animation for home (score unchanged)', '/deck/home/supershot'], ['Super shot animation for away (score unchanged)', '/deck/away/supershot'],
-        ['Heating up for home (score unchanged)', '/deck/streak/heating/home'], ['On fire for away (score unchanged)', '/deck/streak/fire/away'],
-        ['Goal for goal (score unchanged)', '/deck/streak/goalforgoal'], ['Hits the front for home (score unchanged)', '/deck/streak/lead/home'],
-        ['All square (score unchanged)', '/deck/streak/level'], ['Coming back for away (score unchanged)', '/deck/streak/comeback/away'],
-        ['On the siren for home (score unchanged)', '/deck/streak/siren/home'], ['Back to back super shots for home (score unchanged)', '/deck/streak/backtoback/home'],
-        ['Ticker faster', '/deck/ticker/faster'], ['Ticker slower', '/deck/ticker/slower'], ['Ticker normal speed', '/deck/ticker/normal']],
-      playbackLinks: [['4K replay: play / pause', '/deck/replay/toggle'], ['4K replay: next thing that went on air', '/deck/replay/next'],
-        ['4K replay: back a moment', '/deck/replay/prev'], ['4K replay: nudge back a frame', '/deck/replay/nudge/-40'],
-        ['4K replay: nudge on a frame', '/deck/replay/nudge/40'], ['4K replay: stop', '/deck/replay/stop'],
-        ['Practice game: play / pause', '/deck/practice/toggle'], ['Practice game: next quarter', '/deck/practice/next'],
-        ['Practice game: back a quarter', '/deck/practice/prev'], ['Practice game: stop', '/deck/practice/stop']],
-    };
-    function drawLinks(base) {
-      for (const [id, rows] of Object.entries(LINKS)) {
-        const table = document.getElementById(id);
-        table.innerHTML = '';
-        for (const [label, path] of rows) {
-          const tr = table.insertRow();
-          tr.insertCell().textContent = label;
-          const code = document.createElement('code');
-          code.textContent = base + path;
-          tr.insertCell().appendChild(code);
-          const btn = document.createElement('button');
-          btn.className = 'alt small';
-          btn.textContent = 'Copy';
-          btn.onclick = async () => {
-            try { await navigator.clipboard.writeText(base + path); btn.textContent = 'Copied'; } catch { btn.textContent = 'Select it'; }
-            setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
-          };
-          tr.insertCell().appendChild(btn);
-        }
-      }
-    }
-    drawLinks(location.origin);
-    // With the chosen link set's key in front on the Mac (linksets.js); elsewhere with this Mac's Stream Deck key when
-    // Studio gives it (access.js deckPress()), plain otherwise.
-    linkSets(document.getElementById('linkSet'), drawLinks).then(onMac => {
+    // Stream Deck links: with the chosen link set's key in front on the Mac (linksets.js); elsewhere with this Mac's Stream Deck
+    // key when Studio gives it (access.js deckPress()), plain otherwise.
+    linkSets(document.getElementById('linkSet'), base => studioLinks.setDeckBase(base)).then(onMac => {
       document.getElementById('linkSetRow').hidden = !onMac;
       if (onMac) return;
-      fetch('/api/deck-key').then(r => r.ok ? r.json() : Promise.reject())
-        .then(k => drawLinks(k.base))
-        .catch(() => fetch('/api/version').then(r => r.json()).then(v => { if (v.base) drawLinks(v.base); }).catch(() => {}));
+      fetch('/api/deck-key').then(r => r.ok ? r.json() : Promise.reject()).then(k => studioLinks.setDeckBase(k.base)).catch(() => {});
     });
     // The plugin comes with the Mac app; opening it hands it to the Stream Deck app to install.
     fetch('/api/scene/streamdeck').then(r => r.json()).then(b => { document.getElementById('deckRow').hidden = !b.available; }).catch(() => {});
@@ -367,20 +233,6 @@
         note.textContent = r.ok ? 'The Stream Deck app should open to install it.' : (b.error || 'Could not open the plugin.');
       } catch (err) { note.textContent = `Could not open the plugin: ${err.message}`; }
     };
-
-    // "Try it out" on any link sends it to the scoreboard for real.
-    if (window.SwaggerUIBundle) {
-      SwaggerUIBundle({
-        url: '/openapi.yaml',
-        dom_id: '#swagger',
-        deepLinking: true,
-        docExpansion: 'list',
-        defaultModelsExpandDepth: 0,
-        tryItOutEnabled: true,
-      });
-    } else {
-      document.getElementById('fallback').hidden = false;
-    }
   </script>
 </body>
 </html>

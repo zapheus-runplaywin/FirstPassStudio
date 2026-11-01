@@ -2,25 +2,25 @@
 
 Each button presses one link on Studio. Studio must be on air: open the FirstPass Studio app and keep a Studio
 window open for the stream (closing the last one takes Studio off air, and the buttons get no answer).
-The **Stream Deck** page in Studio (http://localhost:8080/api.html) has the main links with Copy buttons, the plugin, and
-every link in its API reference, where **Try it out** sends any link to the scoreboard. The raw OpenAPI file is `public/openapi.yaml`.
+The **Devices** tab in Studio (http://localhost:8080/api.html) has the plugin and, under **Links**, every link with a Copy
+button, what it does and the settings it takes; a status read has **Try**. The links are made from `public/openapi.yaml`.
 
 **Setup for each button:** drag a **System → Website** action onto a key, paste a link from below,
 and tick **GET request in background** so no browser window opens.
 
-**The Stream Deck key.** Links copied from Studio (the Stream Deck page, the Output page) have this Mac's key after the
+**The Stream Deck key.** Links copied from Studio (the Devices tab, the Output page) have this Mac's key after the
 port, like `http://localhost:8080/k/3f9aQ2cB7xLd/deck/home/add1`, so a web page that doesn't know the key can't press them.
-The links below are shown without it, and Studio refuses a link without its key, so copy them from the Stream Deck page
+The links below are shown without it, and Studio refuses a link without its key, so copy them from the Devices tab
 instead, or put `/k/<your key>` after `:8080` yourself. The FirstPass Studio plugin needs no key: the first time you press
 one of its keys, the Mac asks you to **Allow** "Stream Deck on *computer*", and from then on the plugin signs every press
 with its own key pair. Install it again from the Output page if it came with an older Studio (it never asks). With more than one Stream Deck, give each its own link set: on the Mac, pick **New link set…** in **Copy links for**
-on the Stream Deck page (or the Output page), name it after the Stream Deck, and copy its links from there. If a link gets
+on the Devices tab (or the Output page), name it after the Stream Deck, and copy its links from there. If a link gets
 out, choose **Devices…** in the menu bar icon on the Mac and press **Make a new key** on that set: every link made for it
 stops working, so copy that Stream Deck's links again, and the other sets keep working.
-A program on another computer can ask for a key of its own instead (`POST /api/pair`, in the Stream Deck page's reference): the Mac asks
+A program on another computer can ask for a key of its own instead (`POST /api/pair`, under Pairing in the Devices tab's Links): the Mac asks
 you to Allow it, and Devices… can take that one key away without touching the others.
 The links below use `localhost`, which works when the Stream Deck is plugged into the Mac running Studio.
-The Docs page (http://localhost:8080/graphics.html) shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
+The Devices tab shows the same links with the Mac's .local name (for example `http://matts-macbook-pro.local:8080/...`),
 which also works from a Stream Deck on another computer on the same network.
 
 ## Scores

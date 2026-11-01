@@ -49,6 +49,15 @@ paths:
 
         Examples: `/deck/home/add1`, `/deck/away/add2`, `/deck/home/minus1`.
       operationId: changeScore
+      x-links:
+        - ["Home +1", "/deck/home/add1"]
+        - ["Home +2 (super shot)", "/deck/home/add2"]
+        - ["Home −1", "/deck/home/minus1"]
+        - ["Home −2", "/deck/home/minus2"]
+        - ["Away +1", "/deck/away/add1"]
+        - ["Away +2 (super shot)", "/deck/away/add2"]
+        - ["Away −1", "/deck/away/minus1"]
+        - ["Away −2", "/deck/away/minus2"]
       parameters:
         - name: side
           in: path
@@ -71,6 +80,9 @@ paths:
         changing the score, e.g. to test it or after a super shot the scoring missed. Only in a
         division that plays super shots (set on the competition setup page).
       operationId: playSuperShot
+      x-links:
+        - ["Home (score unchanged)", "/deck/home/supershot"]
+        - ["Away (score unchanged)", "/deck/away/supershot"]
       parameters:
         - name: side
           in: path
@@ -92,6 +104,15 @@ paths:
         "<team> is coming back", `siren` "<team> on the siren!" and `backtoback` "<team> back to back super shots".
         They also play by themselves from the goals on the scoreboard.
       operationId: playStreak
+      x-links:
+        - ["Heating up for home", "/deck/streak/heating/home"]
+        - ["On fire for away", "/deck/streak/fire/away"]
+        - ["Goal for goal", "/deck/streak/goalforgoal"]
+        - ["Hits the front for home", "/deck/streak/lead/home"]
+        - ["All square", "/deck/streak/level"]
+        - ["Coming back for away", "/deck/streak/comeback/away"]
+        - ["On the siren for home", "/deck/streak/siren/home"]
+        - ["Back to back super shots for home", "/deck/streak/backtoback/home"]
       parameters:
         - name: kind
           in: path
@@ -111,6 +132,8 @@ paths:
       summary: Set both scores back to 0
       description: Also switches the scoreboard to manual scoring. Team names, quarter and clock are kept.
       operationId: resetScores
+      x-links:
+        - ["Reset scores to 0", "/deck/scores/reset"]
       responses:
         '200': { $ref: '#/components/responses/Ok' }
 
@@ -125,6 +148,10 @@ paths:
         between the two. Following the PlayHQ scorer's clock is switched on or off to match
         (`/deck/clock/playhq/...` changes it again afterwards).
       operationId: setSource
+      x-links:
+        - ["Follow PlayHQ (score and clock)", "/deck/source/playhq"]
+        - ["Manual", "/deck/source/manual"]
+        - ["Toggle between the two", "/deck/source/toggle"]
       parameters:
         - name: mode
           in: path
@@ -143,6 +170,11 @@ paths:
         `reset` stops the clock and puts it back to a full quarter (10:00 unless
         the length on the competition setup page or `/deck/clock/length` says otherwise).
       operationId: clockControl
+      x-links:
+        - ["Start / stop (one key)", "/deck/clock/toggle"]
+        - ["Start", "/deck/clock/start"]
+        - ["Stop", "/deck/clock/stop"]
+        - ["Reset to a full quarter", "/deck/clock/reset"]
       parameters:
         - name: action
           in: path
@@ -161,6 +193,8 @@ paths:
         or `/deck/clock/set/10`. Keeps running if the clock was running. A time longer
         than the quarter is allowed; the next reset goes back to the normal length.
       operationId: clockSet
+      x-links:
+        - ["Set to 10:00", "/deck/clock/set/10:00"]
       parameters:
         - name: time
           in: path
@@ -180,6 +214,11 @@ paths:
 
         Examples: `1m`, `-1m`, `10s`, `-10s`, `1s`, `-1s`, `90`.
       operationId: clockAdjust
+      x-links:
+        - ["Add 1 minute", "/deck/clock/adjust/1m"]
+        - ["Take off 1 minute", "/deck/clock/adjust/-1m"]
+        - ["Add 10 seconds", "/deck/clock/adjust/10s"]
+        - ["Take off 10 seconds", "/deck/clock/adjust/-10s"]
       parameters:
         - name: amount
           in: path
@@ -195,6 +234,8 @@ paths:
       summary: Add or take off minutes and seconds together
       description: 'Example: `/deck/clock/adjust?minutes=-1&seconds=-15` takes 1:15 off.'
       operationId: clockAdjustQuery
+      x-links:
+        - ["Add 1 minute 30", "/deck/clock/adjust?minutes=1&seconds=30"]
       parameters:
         - name: minutes
           in: query
@@ -212,6 +253,8 @@ paths:
       summary: Change the quarter length
       description: Sets how long a quarter is; time already run is kept (reset the clock for a full quarter). At least 1 minute. Lasts until the scoreboard is cleared or Studio is set up again.
       operationId: clockLength
+      x-links:
+        - ["12 minute quarters", "/deck/clock/length/12"]
       parameters:
         - name: minutes
           in: path
@@ -231,6 +274,9 @@ paths:
         between Follow PlayHQ and Manual (including by a score button) sets this to match, so it is on
         whenever scores follow PlayHQ unless changed after that.
       operationId: clockFollowPlayhq
+      x-links:
+        - ["Follow the PlayHQ scorer's clock", "/deck/clock/playhq/on"]
+        - ["Stop following the clock", "/deck/clock/playhq/off"]
       parameters:
         - name: mode
           in: path
@@ -249,6 +295,10 @@ paths:
         game when its electronic scoring starts (10 minutes before by default, set on the competition setup page) (finals stay on until PlayHQ marks them finished).
         Picking a game by hand on the control page turns it off.
       operationId: autoSelect
+      x-links:
+        - ["Automatic game selection on / off", "/deck/auto/toggle"]
+        - ["On", "/deck/auto/on"]
+        - ["Off", "/deck/auto/off"]
       parameters:
         - name: mode
           in: path
@@ -264,6 +314,8 @@ paths:
       summary: Choose the court for automatic game selection
       description: The court's name as PlayHQ shows it (`Indoor%2001`) or just its number (`2`). Choosing a court also turns automatic game selection on.
       operationId: autoCourt
+      x-links:
+        - ["Court 2", "/deck/court/2"]
       parameters:
         - name: court
           in: path
@@ -282,6 +334,14 @@ paths:
         Doesn't touch the clock: also call `/deck/clock/reset` when a new quarter starts
         (a Stream Deck Multi Action can do both). `/deck/period/{quarter}` does the same.
       operationId: setQuarter
+      x-links:
+        - ["Next quarter", "/deck/quarter/next"]
+        - ["Previous quarter", "/deck/quarter/prev"]
+        - ["Q1", "/deck/quarter/1"]
+        - ["Q2", "/deck/quarter/2"]
+        - ["Q3", "/deck/quarter/3"]
+        - ["Q4", "/deck/quarter/4"]
+        - ["Extra time", "/deck/quarter/5"]
       parameters:
         - name: quarter
           in: path
@@ -300,6 +360,10 @@ paths:
         `normal` puts it back to 120. The ticker changes speed within a few seconds,
         carrying on from where it is. A ticker link with `?speed=` keeps its own speed.
       operationId: tickerChange
+      x-links:
+        - ["Faster", "/deck/ticker/faster"]
+        - ["Slower", "/deck/ticker/slower"]
+        - ["Normal speed", "/deck/ticker/normal"]
       parameters:
         - name: change
           in: path
@@ -315,6 +379,8 @@ paths:
       summary: Set the score ticker's speed
       description: 'Pixels a second, 20 to 600 (120 is normal). Example: `/deck/ticker/speed/80` for slower.'
       operationId: tickerSpeed
+      x-links:
+        - ["150 pixels a second", "/deck/ticker/speed/150"]
       parameters:
         - name: pixels
           in: path
@@ -388,6 +454,8 @@ paths:
       summary: Read the full scoreboard
       description: Everything the overlay shows. Useful for a Stream Deck plugin that displays the score or clock on a key.
       operationId: getScoreboard
+      x-links:
+        - ["The scoreboard", "/api/scoreboard"]
       responses:
         '200':
           description: Current scoreboard
@@ -405,6 +473,8 @@ paths:
         A quarter with sure false was only partly seen (the game was picked up part way, or a score jumped by more than 3
         at once) and isn't counted in quarters won or best quarter; home and away null means it wasn't seen at all.
       operationId: getStats
+      x-links:
+        - ["The game stats", "/api/stats"]
       responses:
         '200':
           description: The score by quarter and each team's stats
@@ -442,6 +512,8 @@ paths:
         without clock times has its goals spread evenly. Each gap (the game picked up part way, a score typed in, or a
         score jumping by more than 3 at once) starts a new segment from the score after it, and is listed in gaps.
       operationId: getWorm
+      x-links:
+        - ["The score worm", "/api/worm"]
       responses:
         '200':
           description: The worm's lines, gaps and biggest leads
@@ -490,6 +562,8 @@ paths:
         and from score presses, since PlayHQ only gives running totals. Goals are oldest first; an item with gap true
         marks where the score jumped too far to list goal by goal.
       operationId: getGoals
+      x-links:
+        - ["The last 10 goals", "/api/goals"]
       parameters:
         - name: count
           in: query
@@ -593,6 +667,8 @@ paths:
       tags: [Scene]
       summary: Fade every scene source out
       operationId: layersOff
+      x-links:
+        - ["Fade every source out", "/deck/layers/off"]
       responses:
         '200':
           description: Done.
@@ -612,6 +688,8 @@ paths:
         the Sponsor ads steps in sequences: sponsors by their tier's share, never the same one twice running. A video plays
         to its end with its sound and goes off; a still stays for its seconds. A sequence that's playing carries on.
       operationId: sponsorAd
+      x-links:
+        - ["Next sponsor ad", "/deck/sponsor/ad"]
       responses:
         '200':
           description: The ad is on.
@@ -636,6 +714,10 @@ paths:
         `next` and `prev` go through the scenes in the Output page's order and stop at the ends (with no current scene, `next` goes to the
         first and `prev` to the last). `again` goes back to the current scene as saved, undoing sources turned on or off since.
       operationId: sceneGo
+      x-links:
+        - ["Next scene", "/deck/scene/next"]
+        - ["Previous scene", "/deck/scene/prev"]
+        - ["Back to the current scene as saved", "/deck/scene/again"]
       parameters:
         - name: name
           in: path
@@ -667,6 +749,13 @@ paths:
         A sequence set to start by itself (before the game, at a break, at full time) waits a few seconds after the siren first:
         then `now` starts it straight away and `cancel` stops it starting.
       operationId: sequence
+      x-links:
+        - ["Next step", "/deck/sequence/next"]
+        - ["Next step, only if it waits for Next", "/deck/sequence/advance"]
+        - ["Pause / carry on", "/deck/sequence/pause"]
+        - ["Stop (does its Then)", "/deck/sequence/stop"]
+        - ["About to start: start now", "/deck/sequence/now"]
+        - ["About to start: cancel", "/deck/sequence/cancel"]
       parameters:
         - name: name
           in: path
@@ -696,6 +785,8 @@ paths:
         With it off, no sequence starts by itself (before the game, at a break or at full time), and one about to start is cancelled.
         Every sequence still plays by hand. Remembered when Studio opens again.
       operationId: sequenceAuto
+      x-links:
+        - ["Automatic sequences on / off", "/deck/sequence/auto/toggle"]
       parameters:
         - name: state
           in: path
@@ -718,7 +809,8 @@ paths:
       summary: Play, toggle or stop one sequence
       description: |
         `play` (or `start`) plays it from the first step. `toggle` plays it, or stops it (doing its Then) if it's the one playing.
-        `stop` stops it if it's the one playing, and does nothing otherwise.
+        `stop` stops it if it's the one playing, and does nothing otherwise. `only` plays it on this output alone, even when it's
+        ticked to play on more than one.
       operationId: sequenceAction
       parameters:
         - name: name
@@ -729,7 +821,7 @@ paths:
         - name: action
           in: path
           required: true
-          schema: { type: string, enum: [play, start, toggle, stop] }
+          schema: { type: string, enum: [play, start, toggle, stop, only] }
       responses:
         '200':
           description: Done.
@@ -744,6 +836,64 @@ paths:
                   paused: { type: boolean }
         '404': { description: No sequence by that name }
 
+  /deck/runorder/{action}:
+    get:
+      tags: [Scene]
+      summary: Play what's next in the run order, skip it or clear the list
+      description: |
+        The run order is tonight's plan on the Output page, above Scenes and Sequences. `next` plays the head now (a sequence starts,
+        a scene is gone to), `skip` drops it without playing it, and `clear` empties the list. Nothing in the list starts by itself.
+        Every scene, sequence and run order link also works for another output with `/deck/output/<output>/` in front
+        (`/deck/output/2/runorder/next`), the output's name as a link or its number.
+      operationId: runOrder
+      x-links:
+        - ["Play what's next", "/deck/runorder/next"]
+        - ["Skip what's next", "/deck/runorder/skip"]
+        - ["Clear the list", "/deck/runorder/clear"]
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [next, skip, clear] }
+      responses:
+        '200':
+          description: Done. Returns what plays next, how many are queued and what's playing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  next: { type: string, nullable: true }
+                  queued: { type: integer }
+                  playing: { type: string, nullable: true }
+        '404': { $ref: '#/components/responses/UnknownLink' }
+
+  /deck/runorder/{what}/{name}:
+    get:
+      tags: [Scene]
+      summary: Add a scene or sequence to the run order, or load a saved order
+      description: |
+        `add` puts a sequence (or, with no sequence by that name, a scene) at the end of the run order; `load` replaces what's queued
+        with a saved order (Saved… on the Output page).
+      operationId: runOrderAdd
+      x-links:
+        - ["Add Quarter time", "/deck/runorder/add/quarter-time"]
+        - ["Load a saved order", "/deck/runorder/load/finals-night"]
+      parameters:
+        - name: what
+          in: path
+          required: true
+          schema: { type: string, enum: [add, load] }
+        - name: name
+          in: path
+          required: true
+          description: The sequence, scene or saved order's name, lower case with dashes for spaces
+          schema: { type: string }
+      responses:
+        '200': { description: Done. Returns what plays next, how many are queued and what's playing. }
+        '404': { description: No sequence, scene or saved order by that name }
+
   /deck/music/{action}:
     get:
       tags: [Scene]
@@ -752,6 +902,12 @@ paths:
         The Output page's Music player. `toggle` plays or pauses, `play` plays the loaded song from the start, `pause` and `resume`,
         `stop`, `fade` (fade out and stop), `next` and `prev` (the playlist's next or previous song).
       operationId: music
+      x-links:
+        - ["Play / pause", "/deck/music/toggle"]
+        - ["Fade out and stop", "/deck/music/fade"]
+        - ["Stop now", "/deck/music/stop?fade=0"]
+        - ["Next song", "/deck/music/next"]
+        - ["Previous song", "/deck/music/prev"]
       parameters:
         - name: action
           in: path
@@ -785,6 +941,9 @@ paths:
         `playlist/<name>` loads a playlist. Add `?play` to start it straight away. `mute/on|off|toggle` silences the music and
         `duck/on|off|toggle` dips it low, both keeping it running.
       operationId: musicLoad
+      x-links:
+        - ["Mute on / off", "/deck/music/mute/toggle"]
+        - ["Duck on / off", "/deck/music/duck/toggle"]
       parameters:
         - name: what
           in: path
@@ -814,6 +973,9 @@ paths:
       description: |
         The Output page's Mics: `up` and `down` move the level over all the mics by 10% (or `?by=`), between 0 and 100%.
       operationId: micsLevel
+      x-links:
+        - ["Up 10%", "/deck/mics/up"]
+        - ["Down 10%", "/deck/mics/down"]
       parameters:
         - name: action
           in: path
@@ -844,6 +1006,9 @@ paths:
       description: |
         `mute/on|off|toggle` mutes every mic; `dip/on|off|toggle` dips them to the Dip to level by hand, as music playing does.
       operationId: micsMute
+      x-links:
+        - ["Mute all on / off", "/deck/mics/mute/toggle"]
+        - ["Dip on / off", "/deck/mics/dip/toggle"]
       parameters:
         - name: what
           in: path
@@ -861,6 +1026,8 @@ paths:
       tags: [Scene]
       summary: Set the level over every mic
       operationId: micsLevelSet
+      x-links:
+        - ["All mics at 80%", "/deck/mics/level/80"]
       parameters:
         - name: level
           in: path
@@ -877,6 +1044,9 @@ paths:
       description: |
         One mic by its name (lower case with dashes for spaces) or its number on the Output page: `up` and `down` move its level by 10% (or `?by=`), between 0 and 200%.
       operationId: micLevel
+      x-links:
+        - ["Mic 1 up", "/deck/mic/1/up"]
+        - ["Mic 1 down", "/deck/mic/1/down"]
       parameters:
         - name: name
           in: path
@@ -899,6 +1069,8 @@ paths:
       tags: [Scene]
       summary: Mute one mic
       operationId: micMute
+      x-links:
+        - ["Mic 1: mute on / off", "/deck/mic/1/mute/toggle"]
       parameters:
         - name: name
           in: path
@@ -918,6 +1090,10 @@ paths:
       summary: Show or blank the scene on the Mac's displays, Blackmagic device or NDI (Output page, Video output)
       description: Mac app only. Turns the video output on or off without changing its setup on the Output page (chroma, fill and key on two displays, a Blackmagic device, or NDI).
       operationId: output
+      x-links:
+        - ["Video output on / off", "/deck/output/toggle"]
+        - ["On", "/deck/output/on"]
+        - ["Off", "/deck/output/off"]
       parameters:
         - name: action
           in: path
@@ -942,6 +1118,9 @@ paths:
       summary: Cut, auto, stinger or fade to black
       description: "`cut` takes the preview input to program at once, `auto` with the switcher's transition, `stinger` plays the scene's Stinger page on Output 1 and cuts underneath it (in the middle of its cover, moved by the line-up; an auto when the scene has no stinger), `ftb` fades to black (or back from it). A stinger answers once the cut is done, about 1.5 s later."
       operationId: switcherTake
+      x-links:
+        - ["Cut", "/deck/switcher/cut"]
+        - ["Auto", "/deck/switcher/auto"]
       parameters:
         - name: action
           in: path
@@ -982,6 +1161,8 @@ paths:
       summary: Put an input on preview
       description: The input by its number on the switcher, or its name as set in ATEM Software Control (`Camera%202`, or `camera-2`).
       operationId: switcherPreview
+      x-links:
+        - ["Input 2 to preview", "/deck/switcher/preview/2"]
       parameters:
         - name: input
           in: path
@@ -1002,6 +1183,8 @@ paths:
       summary: Cut an input straight to program
       description: The input by its number or name, as for preview.
       operationId: switcherProgram
+      x-links:
+        - ["Input 2 straight to program", "/deck/switcher/program/2"]
       parameters:
         - name: input
           in: path
@@ -1022,6 +1205,8 @@ paths:
       summary: An upstream key on or off
       description: Upstream key 1 to 4 on an ATEM Mini Extreme, 1 on an ATEM Mini or Mini Pro. On and off are cuts.
       operationId: switcherUpstreamKey
+      x-links:
+        - ["Upstream key 1 on / off", "/deck/switcher/usk/1/toggle"]
       parameters:
         - name: key
           in: path
@@ -1046,6 +1231,8 @@ paths:
       summary: A downstream key on or off
       description: Downstream key 1 or 2 on an ATEM Mini Extreme, 1 on an ATEM Mini or Mini Pro. On, off and toggle are cuts; auto takes it on or off at the key's own rate.
       operationId: switcherDownstreamKey
+      x-links:
+        - ["Downstream key 1 on / off", "/deck/switcher/dsk/1/toggle"]
       parameters:
         - name: key
           in: path
@@ -1070,6 +1257,8 @@ paths:
       summary: Run a macro saved on the switcher
       description: Numbered from 1, as in ATEM Software Control. For anything Studio has no link for.
       operationId: switcherMacro
+      x-links:
+        - ["Macro 1", "/deck/switcher/macro/1"]
       parameters:
         - name: macro
           in: path
@@ -1090,6 +1279,11 @@ paths:
       summary: Play, pause, jump or stop the 4K replay
       description: "`toggle` plays a paused replay and pauses a playing one. `next` and `prev` jump to the next thing that went on air, or back past the one just gone, and pause there (as Jump there on the Recordings tab). `stop` puts the live scene and scoreboard back. While the replay follows a player's timecode, the player plays and pauses it, so `play`, `pause` and `toggle` answer 400."
       operationId: replayControl
+      x-links:
+        - ["Play / pause", "/deck/replay/toggle"]
+        - ["Next thing that went on air", "/deck/replay/next"]
+        - ["Back a moment", "/deck/replay/prev"]
+        - ["Stop", "/deck/replay/stop"]
       parameters:
         - name: action
           in: path
@@ -1107,6 +1301,9 @@ paths:
       summary: Nudge the 4K replay
       description: Moves the graphics by this many milliseconds, back with a minus (40 is a frame at 25 fps), up to 10 minutes either way. While the replay follows a player's timecode it moves the graphics against the video, and is kept for the recording.
       operationId: replayNudge
+      x-links:
+        - ["Back a frame", "/deck/replay/nudge/-40"]
+        - ["On a frame", "/deck/replay/nudge/40"]
       parameters:
         - name: ms
           in: path
@@ -1123,6 +1320,11 @@ paths:
       summary: Play, pause, jump or stop the practice game
       description: "A practice or demo game started on the Recordings tab. `toggle` plays a paused one and pauses a playing one. `next` jumps to the next quarter's start (or full time); `prev` to the start of the quarter it's in, or the one before when it's only just begun. `stop` puts the scoreboard back as it was. Refused with 409 while a 4K replay runs."
       operationId: practiceControl
+      x-links:
+        - ["Play / pause", "/deck/practice/toggle"]
+        - ["Next quarter", "/deck/practice/next"]
+        - ["Back a quarter", "/deck/practice/prev"]
+        - ["Stop", "/deck/practice/stop"]
       parameters:
         - name: action
           in: path
@@ -1142,6 +1344,8 @@ paths:
         Every song, video and image in the media folder (the Output page's Media folder list). With `?uses=1` each one
         also lists where it's used.
       operationId: listMedia
+      x-links:
+        - ["The media folder", "/api/scene/media"]
       parameters:
         - name: uses
           in: query
@@ -1248,7 +1452,7 @@ components:
     Error:
       type: object
       properties:
-        error: { type: string, example: 'Unknown Stream Deck link /deck/clock/adjust/abc. See the Stream Deck page, /api.html.' }
+        error: { type: string, example: 'Unknown Stream Deck link /deck/clock/adjust/abc. See Links on the Devices tab, /api.html#links.' }
     Team:
       type: object
       properties:
