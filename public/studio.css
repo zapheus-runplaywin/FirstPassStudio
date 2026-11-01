@@ -122,6 +122,10 @@ html:has(> body.fp > .fp-bar) { scroll-padding-top: 96px; }
 
 /* Shared page basics. */
 body.fp { font-family: var(--fp-font); background: var(--fp-gray); color: var(--fp-navy); margin: 0; line-height: 1.45; }
+/* A graphic shown in a frame (the Output page's Scene View, Scoreboard control's preview, Socials' pictures) keeps its
+   see-through parts in the dark theme: Chromium paints a frame solid white when the page in it (light, as the graphics
+   declare no scheme) and the frame differ in colour scheme, so every frame on a Studio page is light. */
+:where(body.fp) iframe { color-scheme: light; }
 body.fp h1 { font-weight: 900; font-style: italic; letter-spacing: -0.02em; color: var(--fp-navy); }
 :where(body.fp main a) { color: var(--fp-blue); }
 :where(body.fp main a:hover) { color: var(--fp-blue-dark); }
