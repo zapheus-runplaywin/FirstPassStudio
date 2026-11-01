@@ -10,8 +10,9 @@
   /* This page's own layout. What it shares with other graphics is in graphics.css. */
   /* Commentator stats: the whole 1920 x 1080 frame, for a monitor at the commentary desk rather than the stream.
      Three columns: the team lists, the game stats (kept big: more stats will come, Matt, 2026-10-29), and the clock and
-     moments; across the bottom, the last 10 goals, the current run and the score worm. */
-  body { padding: 24px; display: grid; grid-template-columns: 400px minmax(0, 1fr) 450px; grid-template-rows: minmax(0, 1fr) 224px; gap: 20px 24px; align-items: stretch; justify-content: stretch;
+     moments, the two sides the same width so the screen is balanced; across the bottom, the last 10 goals, the current
+     run and the score worm. */
+  body { padding: 24px; display: grid; grid-template-columns: 450px minmax(0, 1fr) 450px; grid-template-rows: minmax(0, 1fr) 224px; gap: 20px 24px; align-items: stretch; justify-content: stretch;
     background: radial-gradient(circle at 50% 30%, var(--purple-dark-light, #3b1a52), var(--purple-dark, #1e0b2b) 75%); }
   body.see-through { background: transparent; }
   .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 20px; }
@@ -22,6 +23,7 @@
 
   /* ── Left: team lists, home above away ─────────────────────────────────── */
   .teams .box { flex: 0 1 auto; }
+  .teams .box > .card { transform-origin: top left; } /* see fitTeam below */
   .team__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; color: var(--muted); font-size: 17px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
   .team__meta:empty { display: none; }
   .team__pos { color: var(--text); }
@@ -242,7 +244,21 @@
       const s = Math.min(1, box.clientHeight / h, box.clientWidth / w);
       e.style.scale = s < 1 ? String(Math.floor(s * 1000) / 1000) : '';
     }
-    const fitAll = () => ['home', 'away', 'card'].forEach(id => fitInto($(id)));
+    // A team list scaled down to fit its box's height is also drawn wider, so that once scaled it still fills the box's
+    // width: long names get that room instead of being cut short. Widening can make it shorter (fewer lines), so it's
+    // measured again a few times.
+    function fitTeam(e) {
+      const box = e.parentElement;
+      e.style.width = ''; e.style.scale = '';
+      for (let i = 0; i < 4; i++) {
+        const h = e.offsetHeight;
+        if (!h || !box.clientWidth) return;
+        const s = Math.min(1, box.clientHeight / h);
+        e.style.scale = s < 1 ? String(Math.floor(s * 1000) / 1000) : '';
+        e.style.width = s < 1 ? `${box.clientWidth / (Math.floor(s * 1000) / 1000)}px` : '';
+      }
+    }
+    const fitAll = () => { fitTeam($('home')); fitTeam($('away')); fitInto($('card')); };
     addEventListener('resize', fitAll);
     if (document.fonts) document.fonts.addEventListener('loadingdone', fitAll);
 
