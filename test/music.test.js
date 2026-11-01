@@ -351,9 +351,9 @@ test('Quiet the music: a scene ducks the player, the next scene brings it back; 
   assert.equal(m().status, 'playing');  wait(4); // let the duck come all the way back up
 });
 
-test('a stinger with ?music=quiet ducks the music quickly and leaves it down for the scene cut to; ?music=dip brings it back up', () => {
+test('a stinger with ?music=quiet ducks the music quickly and leaves it down for the scene cut to; ?music=duck (dip, its old name) brings it back up', () => {
   reset();
-  ok({ type: 'add', sources: [{ type: 'browser', name: 'Quiet stinger', url: 'stinger.html?music=quiet' }, { type: 'browser', name: 'Dip stinger', url: 'stinger.html?music=dip&length=2' },
+  ok({ type: 'add', sources: [{ type: 'browser', name: 'Quiet stinger', url: 'stinger.html?music=quiet' }, { type: 'browser', name: 'Duck stinger', url: 'stinger.html?music=duck&length=2' },
     { type: 'browser', name: 'Plain stinger', url: 'stinger.html' }] });
   ok({ type: 'show', name: 'Interview' });
   ok({ type: 'sceneSave', name: 'Interview' });
@@ -376,17 +376,17 @@ test('a stinger with ?music=quiet ducks the music quickly and leaves it down for
   assert.equal(m().ducked, false, 'the next scene without Quiet the music brings it back');
   wait(4);
   // dip: down while it plays (0.44 s at twice the length), back up in half a second when it ends.
-  ok({ type: 'show', name: 'Dip stinger' });
+  ok({ type: 'show', name: 'Duck stinger' });
   assert.equal(m().ducked, true);
   assert.equal(m().duck.ms, 440);
-  end('Dip stinger');
+  end('Duck stinger');
   assert.equal(m().ducked, false);
   assert.equal(m().duck.ms, 500);
   wait(1);
   // A dip that a quiet scene comes up under stays down.
-  ok({ type: 'show', name: 'Dip stinger' });
+  ok({ type: 'show', name: 'Duck stinger' });
   ok({ type: 'sceneGo', scene: 'Interview' });
-  end('Dip stinger');
+  end('Duck stinger');
   assert.equal(m().ducked, true);
   ok({ type: 'sceneGo', scene: 'Game' });
   assert.equal(m().ducked, false);

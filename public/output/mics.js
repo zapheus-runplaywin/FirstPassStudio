@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 8 of 16: Mics: live mics plugged into the Mac or the switcher, their levels, mutes and dips.
+// FirstPass Studio - the Output page, part 8 of 16: Mics: live mics plugged into the Mac or the switcher, their levels, mutes and ducking (the word the music uses too; the code and settings keep dip).
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -18,7 +18,7 @@ const channelName = c => ({ both: 'both channels', left: 'left', right: 'right' 
 const onAtem = m => m.on === 'atem';
 const atemInputName = id => ((micLive.switcher?.inputs || []).find(i => i.id === id) || {}).name || (id > 1300 && id < 1400 ? `Mic ${id - 1300}` : `input ${id}`);
 const micWhere = m => [`#${micsOf().indexOf(m) + 1}`, onAtem(m) ? `switcher: ${m.input ? atemInputName(m.input) : 'no input picked'}` : deviceName(m.device), channelName(m.channel),
-  !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'external mixer, doesn\'t dip', !onAtem(m) && manyOutputs() ? `to ${outputNames(micOuts(m)) || 'no output'}` : ''].filter(Boolean).join(' · ');
+  !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'external mixer, doesn\'t duck', !onAtem(m) && manyOutputs() ? `to ${outputNames(micOuts(m)) || 'no output'}` : ''].filter(Boolean).join(' · ');
 const fmtDb = d => d <= -100 ? 'all the way down' : `${d > 0 ? '+' : ''}${d.toFixed(1)} dB`;
 
 function renderMics() {
@@ -33,12 +33,12 @@ function renderMics() {
   $('mxHeard').textContent = !mics.length ? 'No mics yet'
     : set.muted ? 'All mics muted'
     : [macHeard, atemHeard].filter(Boolean).join(' · ').replace(/^./, c => c.toUpperCase()) + (set.level !== 100 ? ` (level ${set.level}%)` : '');
-  $('mxWhy').textContent = set.dipped && mics.length ? `dipped to ${set.dipTo}%: ${set.why.join(', ')}` : '';
+  $('mxWhy').textContent = set.dipped && mics.length ? `ducked to ${set.dipTo}%: ${set.why.join(', ')}` : '';
   $('mxBar').classList.toggle('on', !!mics.length && !set.muted && ((mac.length && live.length && micLive.mixing) || (atem.length && micLive.switcher?.connected)));
   $('mxMute').classList.toggle('lit', set.muted);
   $('mxMute').textContent = set.muted ? 'Muted' : 'Mute all';
   $('mxDip').classList.toggle('lit', set.hand);
-  $('mxDip').textContent = set.hand ? 'Dipped' : 'Dip';
+  $('mxDip').textContent = set.hand ? 'Ducked' : 'Duck';
   if (document.activeElement !== $('mxLevel')) $('mxLevel').value = set.level;
   for (const [id, key] of [['mxDipTo', 'dipTo'], ['mxDown', 'dipDownSec'], ['mxUp', 'dipUpSec']]) if (document.activeElement !== $(id)) $(id).value = set[key];
   for (const [id, key] of [['mxDipMusic', 'dipMusic'], ['mxDipVideo', 'dipVideo'], ['mxDipQuiet', 'dipQuiet']]) $(id).checked = !!set[key];

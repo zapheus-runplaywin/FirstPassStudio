@@ -987,7 +987,7 @@ paths:
           schema: { type: number }
       responses:
         '200':
-          description: Done. Returns the level, the mute and whether the mics are dipped.
+          description: Done. Returns the level, the mute and whether the mics are ducked (`dipped`).
           content:
             application/json:
               schema:
@@ -1002,18 +1002,18 @@ paths:
   /deck/mics/{what}/{state}:
     get:
       tags: [Scene]
-      summary: Mute every mic, or dip them by hand
+      summary: Mute every mic, or duck them by hand
       description: |
-        `mute/on|off|toggle` mutes every mic; `dip/on|off|toggle` dips them to the Dip to level by hand, as music playing does.
+        `mute/on|off|toggle` mutes every mic; `duck/on|off|toggle` ducks them to the Duck to level by hand, as music playing does (`dip`, its old name, still works).
       operationId: micsMute
       x-links:
         - ["Mute all on / off", "/deck/mics/mute/toggle"]
-        - ["Dip on / off", "/deck/mics/dip/toggle"]
+        - ["Duck on / off", "/deck/mics/duck/toggle"]
       parameters:
         - name: what
           in: path
           required: true
-          schema: { type: string, enum: [mute, dip] }
+          schema: { type: string, enum: [mute, duck, dip] }
         - name: state
           in: path
           required: true

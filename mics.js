@@ -157,7 +157,7 @@ function settle() {
   down = want;
   const sec = want ? settings.dipDownSec : settings.dipUpSec;
   dip = { from: along(dip), to: want ? 1 : 0, at: now(), ms: Math.round(sec * 1000) };
-  if (settings.mics.length) log('info', 'mics', want ? `Mics dip to ${settings.dipTo}% (${reasons().join(', ')})` : 'Mics back up');
+  if (settings.mics.length) log('info', 'mics', want ? `Mics duck to ${settings.dipTo}% (${reasons().join(', ')})` : 'Mics back up');
   drive();
   return true;
 }
@@ -336,14 +336,14 @@ function deck(parts, q = {}) {
   const by = q.by !== undefined && q.by !== '' ? Math.abs(Number(q.by)) || 10 : 10;
   let action = null;
   if (what === 'mics' && a1) {
-    if ((a1 === 'mute' || a1 === 'dip') && ['on', 'off', 'toggle'].includes(a2 || 'toggle') && !a3) action = { type: a1 === 'mute' ? 'micsMute' : 'micsDip', value: a2 || 'toggle' };
+    if ((a1 === 'mute' || a1 === 'duck' || a1 === 'dip') && ['on', 'off', 'toggle'].includes(a2 || 'toggle') && !a3) action = { type: a1 === 'mute' ? 'micsMute' : 'micsDip', value: a2 || 'toggle' };
     else if ((a1 === 'up' || a1 === 'down') && !a2) action = { type: 'micsLevel', by: a1 === 'up' ? by : -by };
     else if (a1 === 'level' && /^\d+$/.test(a2 || '') && !a3) action = { type: 'micsLevel', value: Number(a2) };
   } else if (what === 'mic' && a1 && a2) {
     if (a2 === 'mute' && ['on', 'off', 'toggle'].includes(a3 || 'toggle')) action = { type: 'micMute', mic: decodeURIComponent(a1), value: a3 || 'toggle' };
     else if ((a2 === 'up' || a2 === 'down') && !a3) action = { type: 'micLevel', mic: decodeURIComponent(a1), by: a2 === 'up' ? by : -by };
   } else if (what !== 'mics' && what !== 'mic') return null;
-  if (!action) return { status: 404, error: 'Use /deck/mics/mute, /deck/mics/dip (on, off or toggle), /deck/mics/up, /deck/mics/down, /deck/mics/level/<0-100>, or /deck/mic/<name>/mute, up or down.' };
+  if (!action) return { status: 404, error: 'Use /deck/mics/mute, /deck/mics/duck (on, off or toggle), /deck/mics/up, /deck/mics/down, /deck/mics/level/<0-100>, or /deck/mic/<name>/mute, up or down.' };
   const error = apply(action);
   if (error) return { status: 404, error };
   const m = action.mic ? find(action.mic) : null;

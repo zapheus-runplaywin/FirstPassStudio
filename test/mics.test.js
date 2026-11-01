@@ -140,8 +140,10 @@ test('the /deck/mics and /deck/mic links', () => {
   assert.equal(r.body.level, 85);
   r = link('mics/level/60');
   assert.equal(r.body.level, 60);
-  r = link('mics/dip/on');
+  r = link('mics/duck/on');
   assert.equal(r.body.dipped, true);
+  assert.equal(link('mics/duck/off').body.dipped, false);
+  assert.equal(link('mics/dip/on').body.dipped, true, 'dip, the old name, still works');
   link('mics/dip/off');
   r = link('mic/court-mic/mute/toggle');
   assert.deepEqual([r.body.mic, r.body.muted], ['Court mic', true]);

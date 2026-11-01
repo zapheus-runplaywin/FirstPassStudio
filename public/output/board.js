@@ -4,7 +4,7 @@
 //
 // Like a switcher's multiview: one board, read from arm's length, that says what is on and what needs a hand. The game
 // row (the score, with the team names), then seven lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
-// next one armed (or the run order's head), the music and the mics (with their dip), the switcher and the recording (with Record games on or off),
+// next one armed (or the run order's head), the music and the mics (with their duck), the switcher and the recording (with Record games on or off),
 // and the next game across both columns. It draws from what the page already has: /api/health (common.js, every 2 s), the scene (sceneAll), the
 // outputs (out), the switcher (sw) and the mics' live levels (micLive), and counts the clocks down between reads.
 const boardEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -26,7 +26,7 @@ const boardAgo = ms => ms == null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90
 // The time sits to the right; with below, it goes under the words instead (the music's "0:47 / 3:25" is too wide
 // for a column, and squeezed the song's name to nothing; a countdown beside a sequence's name did the same). With wrap,
 // the name runs to two lines before it is cut (the grey line under it always may). more is a further line under the
-// grey one (the next game's switch time, the mics' dip), and full makes the line span both columns.
+// grey one (the next game's switch time, the mics' duck), and full makes the line span both columns.
 const boardLine = (lbl, dot, main, sub, bar, tm, extra = '', { below = false, wrap = false, more = '', full = false } = {}) =>
   `<div class="line${full ? ' full' : ''}"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b${wrap ? ' class="wrap"' : ''}>${main}</b>${sub ? `<small>${sub}</small>` : ''}${more}${below && tm ? `<span class="tm under">${tm}</span>` : ''}${bar || ''}</span><span class="tm">${below ? '' : tm || ''}${extra}</span></div>`;
 const boardBar = (pct, cls = '') => pct == null ? '' : `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span>`;
@@ -77,11 +77,11 @@ function renderBoard() {
   const level = meters.length ? Math.max(...meters.map(i => parseFloat(i.style.width) || 0)) : null;
   const hot = meters.some(i => i.classList.contains('hot')), warm = meters.some(i => i.classList.contains('warm'));
   const mx = s.mics || {};
-  // The mics' dip is an amber line on the Mics line, only while they are dipped (at full level there's nothing to say).
+  // The mics' duck is an amber line on the Mics line, only while they are ducked (at full level there's nothing to say).
   const dipWhy = mx.dipped ? boardEsc((mx.why || []).join ? (mx.why || []).join(', ') : mx.why || '') : '';
   const micsLine = boardLine('Mics', mx.dipped ? 'warn' : meters.length ? (mx.muted ? 'warn' : 'ok') : '', boardEsc($('mxHeard') ? $('mxHeard').textContent : 'Mics'), '',
     level == null ? null : `<span class="bar meter"><i class="${hot ? 'hot' : warm ? 'warm' : ''}" style="width:${level}%"></i></span>`, '', '',
-    { more: mx.dipped ? `<small class="dip">dipped to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
+    { more: mx.dipped ? `<small class="dip">ducked to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
   const prg = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.program) : null, pvw = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.preview) : null;
   const swLine = boardLine('Switcher', swOn ? 'ok' : sw && sw.setUp ? 'bad' : '', swOn ? `PGM ${boardEsc(prg ? prg.name : '?')}` : sw && sw.setUp ? 'Not answering' : 'Not set up',
     swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(sw.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
