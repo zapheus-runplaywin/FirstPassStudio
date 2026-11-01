@@ -33,6 +33,7 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
   assert.doesNotMatch(await page.textContent('#board .game'), /Q1 \d+:\d\d/, 'the clock is the bar\'s PlayHQ chip, not the board\'s');
   assert.match(await page.textContent('.fp-chips .chip.playhq'), /Q1 \d+:\d\d/, 'the PlayHQ chip carries the quarter and clock');
   assert.equal(await page.isVisible('#boardRecord'), true, 'recording is controlled from the board');
+  await page.waitForFunction(() => /MicsNo mics/i.test(document.querySelector('#board').textContent), null, { timeout: 5000 }); // the mics line says so in a word
   assert.equal(await page.isVisible('#outOn'), true);
   assert.equal(await page.isVisible('#addBrowser'), true);
   assert.equal(await page.isVisible('#hideAll'), true);

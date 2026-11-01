@@ -471,7 +471,7 @@ function state() {
       track: track(), queue: p.queue, index: p.index, playlist: p.playlist, loop: p.loop,
       // Paused for a video's sound counts as playing for the buttons: it comes back by itself.
       status: p.status, after: p.after, pos: p.pos, gain: p.gain, playId: p.playId,
-      muted: p.muted, ducked: !!p.ducked, duck: p.duck, video: p.video, owner: p.owner, outputs: outputsNow(),
+      muted: p.muted, ducked: !!p.ducked, duckedBy: p.ducked || null, duck: p.duck, video: p.video, owner: p.owner, outputs: outputsNow(),
       volume: p.owner === SUPER ? settings.superShotVolume : settings.volume, level: p.video === 'lower' ? settings.lowerTo : 100, duckTo: settings.duckTo,
       length: track() ? api.duration(track()) : null,
     },

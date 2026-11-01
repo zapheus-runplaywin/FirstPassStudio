@@ -71,7 +71,9 @@ function renderBoard() {
   const musicOn = m.status === 'playing';
   // Playing, paused or stopped is a symbol by the time (▶ ❚❚ ■), as on the player, rather than a word.
   const mSym = musicOn ? '<span class="sym">▶</span>' : m.status === 'paused' ? '<span class="sym">❚❚</span>' : m.track ? '<span class="sym">■</span>' : '';
-  const mFlags = [m.muted ? 'muted' : '', m.ducked ? 'ducked' : ''].filter(Boolean).join(' · ');
+  // Why the music is ducked, so it isn't mistaken for the mics' duck: a quiet scene or sequence, a stinger, or by hand.
+  const mDuck = m.ducked ? `ducked${({ quiet: ' · quiet scene', stinger: ' · stinger', hand: ' · by hand' })[m.duckedBy] || ''}` : '';
+  const mFlags = [m.muted ? 'muted' : '', mDuck].filter(Boolean).join(' · ');
   const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? mFlags : 'nothing loaded',
     m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, m.track && $('mTime') ? `${mSym}${boardEsc($('mTime').textContent)}` : '', '', { below: true, wrap: true });
   const meters = [...document.querySelectorAll('#mxList .mxMeter i')];
@@ -80,16 +82,18 @@ function renderBoard() {
   const mx = s.mics || {};
   // The mics' duck is an amber line on the Mics line, only while they are ducked (at full level there's nothing to say).
   const dipWhy = mx.dipped ? boardEsc((mx.why || []).join ? (mx.why || []).join(', ') : mx.why || '') : '';
-  const micsLine = boardLine('Mics', mx.dipped ? 'warn' : meters.length ? (mx.muted ? 'warn' : 'ok') : '', boardEsc($('mxHeard') ? $('mxHeard').textContent : 'Mics'), '',
+  const mb = scene.mics ? micsBoard() : { word: 'Mics', why: '', dot: '' };
+  const micsLine = boardLine('Mics', mx.dipped && mb.dot === 'ok' ? 'warn' : mb.dot, boardEsc(mb.word), boardEsc(mb.why),
     level == null ? null : `<span class="bar meter"><i class="${hot ? 'hot' : warm ? 'warm' : ''}" style="width:${level}%"></i></span>`, '', '',
-    { more: mx.dipped ? `<small class="dip">ducked to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
+    { wrap: true, more: mx.dipped ? `<small class="dip">ducked to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
   const prg = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.program) : null, pvw = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.preview) : null;
   const swLine = boardLine('Switcher', swOn ? 'ok' : sw && sw.setUp ? 'bad' : '', swOn ? `PGM ${boardEsc(prg ? prg.name : '?')}` : sw && sw.setUp ? 'Not answering' : 'Not set up',
     swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(sw.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
   const r = (h && h.recording) || {};
-  const recLine = boardLine('Recording', r.on ? 'bad' : '', r.on ? boardEsc(r.name.replace(/\.jsonl(\.gz)?$/, '')) : r.record ? 'Waiting for a game' : 'Off',
-    r.on ? 'recording this game' : r.record ? 'records each PlayHQ game on air' : 'games are not recorded', null, '',
-    `<button class="alt" id="boardRecord" title="${r.record ? 'Stop recording games (the recording in progress ends)' : 'Record each PlayHQ game on air'}">${r.record ? 'Stop' : 'Record'}</button>`);
+  // A recording's name is its date, time and teams; the board keeps the teams (the Recordings tab has the rest).
+  const recLine = boardLine('Recording', r.on ? 'bad' : '', r.on ? boardEsc(r.name.replace(/\.jsonl(\.gz)?$/, '').replace(/^\d{4}-\d\d-\d\d \d{4} /, '')) : r.record ? 'Waiting for a game' : 'Off',
+    r.on ? 'recording this game' : r.record ? 'each PlayHQ game on air' : 'not recording games', null, '', '',
+    { wrap: true, more: `<button class="alt" id="boardRecord" title="${r.record ? 'Stop recording games (the recording in progress ends)' : 'Record each PlayHQ game on air'}">${r.record ? 'Stop' : 'Record'}</button>` });
   const auto = h && h.autoNote ? h.autoNote.replace(/\s*Picking a game.*$/, '') : '';
   // The next game in three lines: the teams, the game's time, and when the board switches to it. It spans the board.
   const an = h && h.autoNext;

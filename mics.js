@@ -13,7 +13,7 @@
 // clipping the stream.
 //
 // Dips: like the music's duck, the mics come down to the Dip to level (and back up) while
-//   - music is playing (the player's, a sequence's or the super shot song),
+//   - music is playing (the player's, a sequence's or the super shot song), if ticked (it starts unticked),
 //   - a video with its sound on is showing (or a page playing a theme song),
 //   - a scene or sequence with "Quiet the music" ticked is on (an interview on court),
 //   - the Dip button or /deck/mics/dip is on, by hand.
@@ -67,7 +67,7 @@ const sent = new Map();        // mic id -> { dB, at }: where Studio last put (o
 let stepTimer = null;
 
 function defaults() {
-  return { level: 100, muted: false, dipTo: 30, dipMusic: true, dipVideo: true, dipQuiet: true, dipDownSec: 1, dipUpSec: 2, mics: [] };
+  return { v: 2, level: 100, muted: false, dipTo: 30, dipMusic: false, dipVideo: true, dipQuiet: true, dipDownSec: 1, dipUpSec: 2, mics: [] };
 }
 
 const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
@@ -107,11 +107,12 @@ function cleanSettings(v) {
     level: Math.round(clamp(s.level, 0, 100, 100)),
     muted: flag(s.muted, false),
     dipTo: Math.round(clamp(s.dipTo, 0, 100, 30)),
-    dipMusic: flag(s.dipMusic, true),
+    dipMusic: flag(s.dipMusic, false), // off unless ticked (Matt, 2026-11-01)
     dipVideo: flag(s.dipVideo, true),
     dipQuiet: flag(s.dipQuiet, true),
     dipDownSec: clamp(s.dipDownSec, 0, 10, 1),
     dipUpSec: clamp(s.dipUpSec, 0, 10, 2),
+    v: 2,
     mics: settings.mics,
   };
 }
@@ -120,6 +121,8 @@ function load() {
   try {
     const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
     settings = cleanSettings(saved);
+    // Ducking under music was on by default before v2; such a file is unticked once, then saved with v: 2.
+    if (!(saved.v >= 2)) { settings.dipMusic = false; save(); }
     for (const m of Array.isArray(saved.mics) ? saved.mics.slice(0, MAX_MICS) : []) if (m && typeof m === 'object') settings.mics.push(cleanMic(m));
   } catch (err) {
     if (err.code !== 'ENOENT') log('warn', 'mics', `Could not read mics.json, starting with no mics: ${err.message}`);

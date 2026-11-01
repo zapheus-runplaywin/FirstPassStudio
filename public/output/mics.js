@@ -21,6 +21,23 @@ const micWhere = m => [`#${micsOf().indexOf(m) + 1}`, onAtem(m) ? `switcher: ${m
   !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'external mixer, doesn\'t duck', !onAtem(m) && manyOutputs() ? `to ${outputNames(micOuts(m)) || 'no output'}` : ''].filter(Boolean).join(' · ');
 const fmtDb = d => d <= -100 ? 'all the way down' : `${d > 0 ? '+' : ''}${d.toFixed(1)} dB`;
 
+// The status board's Mics line, short enough to read from arm's length: a word, why in grey under it, and its light
+// (green heard, amber not heard, waiting or muted, red when the switcher holding them isn't connected).
+function micsBoard() {
+  const set = scene.mics;
+  const mics = (set && set.mics) || [];
+  if (!mics.length) return { word: 'No mics', why: 'add them in the Mics section', dot: '' };
+  if (set.muted) return { word: 'Muted', why: 'all mics', dot: 'warn' };
+  const mac = mics.filter(m => !onAtem(m)), atem = mics.filter(onAtem);
+  const outs = [...new Set(mac.flatMap(micOuts))], live = outs.filter(outputOn);
+  const level = set.level !== 100 ? ` · level ${set.level}%` : '';
+  const swWhy = atem.length ? (micLive.switcher?.connected ? 'switcher mics on its faders' : 'switcher not connected') : '';
+  if (atem.length && !mac.length) return micLive.switcher?.connected ? { word: 'On the switcher', why: `on its faders${level}`, dot: 'ok' } : { word: 'Not heard', why: 'switcher not connected', dot: 'bad' };
+  if (!live.length) return { word: 'Not heard', why: [`${outputNames(outs) || 'their outputs'} ${outs.length > 1 ? 'are' : 'is'} off`, swWhy].filter(Boolean).join(' · '), dot: 'warn' };
+  if (!micLive.mixing) return { word: 'Waiting', why: [`for ${outputNames(live)} to open them`, swWhy].filter(Boolean).join(' · '), dot: 'warn' };
+  return { word: 'Heard', why: [`on ${outputNames(live)}`, swWhy].filter(Boolean).join(' · ') + level, dot: atem.length && !micLive.switcher?.connected ? 'warn' : 'ok' };
+}
+
 function renderMics() {
   const set = scene.mics;
   if (!set) return;
