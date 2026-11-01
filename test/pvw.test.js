@@ -1,4 +1,4 @@
-// Previews (the Output page's PVW button, the Docs page's Preview buttons) open pvw.html in a
+// Previews (the Output page's PVW button, the Preview buttons in the Devices tab's Links) open pvw.html in a
 // 960 x 540 window with the page laid out at 1920 x 1080 and scaled to half size.
 // The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
@@ -8,7 +8,7 @@ const { startStudio } = require('./support/studio');
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
 
-test('a Docs page preview opens at half size', async t => {
+test('a graphic\'s Preview in the Devices tab\'s Links opens at half size', async t => {
   let browser = null, why = 'playwright is not installed';
   if (chromium) {
     try { browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); }
@@ -26,7 +26,7 @@ test('a Docs page preview opens at half size', async t => {
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
 
   const page = await context.newPage();
-  await page.goto(studio.base + '/graphics.html');
+  await page.goto(studio.base + '/api.html');
   const link = page.locator('a.pvw').first();
   await link.waitFor();
   const [popup] = await Promise.all([context.waitForEvent('page'), link.click()]);

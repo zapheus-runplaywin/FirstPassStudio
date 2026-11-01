@@ -1,5 +1,5 @@
 // The one list of graphics pages (public/pages.js): every graphic in public/ is in it, every page with
-// link options (pageoptions.js) is in it, the Docs page describes every page in it, and the Output page
+// link options (pageoptions.js) is in it, graphiclinks.js (the Devices tab's Links) describes every page in it, and the Output page
 // and examples.js read it rather than keeping lists of their own.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -16,11 +16,11 @@ const NOT_GRAPHICS = new Set(['output.html', 'control.html', 'setup.html', 'spon
 const ALIASES = { 'results.html': 'fixtures.html' };
 const files = new Set(STUDIO_GRAPHICS.map(p => p.file));
 
-test('every page in the list exists, once, with a name and a Docs section', () => {
+test('every page in the list exists, once, with a name and a Links group', () => {
   assert.equal(files.size, STUDIO_GRAPHICS.length, 'no page is listed twice');
   for (const p of STUDIO_GRAPHICS) {
     assert.ok(fs.existsSync(path.join(PUBLIC, ALIASES[p.file] || p.file)), `${p.file} exists`);
-    assert.ok(p.name && p.docs, `${p.file} has a name and a docs section`);
+    assert.ok(p.name && p.group, `${p.file} has a name and a Links group`);
     for (const [caption, link, ms] of p.examples || []) {
       assert.ok(caption && link.startsWith(`/${p.file}`) && ms > 0, `${p.file} example ${caption} links to the page`);
     }
@@ -40,12 +40,17 @@ test('every page with link options is in the list', () => {
   for (const k of keys) assert.ok(files.has(k), `${k} (pageoptions.js) is in public/pages.js`);
 });
 
-test('the Docs page describes every page in the list, in the section the list names', () => {
-  const docs = read('graphics.html');
+test('the Devices tab\'s Links (graphiclinks.js) describe every page in the list, in the group the list names', () => {
+  const { GROUPS, LINKS } = require('../public/graphiclinks.js');
+  const ids = new Set(GROUPS.map(g => g.id));
   for (const p of STUDIO_GRAPHICS) {
-    assert.ok(docs.includes(`'/${p.file}`) || docs.includes(`"/${p.file}`) || docs.includes(`/${p.file}?`), `${p.file} is on the Docs page`);
-    assert.ok(docs.includes(`id="${p.docs}"`), `the Docs page has a ${p.docs} section for ${p.file}`);
+    assert.ok(ids.has(p.group), `graphiclinks.js has a ${p.group} group for ${p.file}`);
+    const g = GROUPS.find(x => x.id === p.group);
+    const here = LINKS.some(l => l.group === p.group && l.link.replace(/^\//, '').split('?')[0] === p.file)
+      || (g.perDivision && g.perDivision.link.replace(/^\//, '').split('?')[0] === p.file);
+    assert.ok(here, `${p.file} is in the ${p.group} group of graphiclinks.js`);
   }
+  for (const l of LINKS) assert.ok(ids.has(l.group), `${l.name} is in a group graphiclinks.js lists`);
 });
 
 test('the Output page and examples.js read the list instead of keeping their own', () => {
