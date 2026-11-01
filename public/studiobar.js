@@ -164,4 +164,21 @@
   }).catch(() => {});
   playback();
   setInterval(() => { if (!document.hidden) playback(); }, 3000);
+
+  // A name cut short (an ellipsis, or a line clamp) shows in full as a tooltip on hover, on every Studio page, so the
+  // operator never has to click a source, tile or line just to read it (Matt, 1 Nov 2026). It only adds a title where
+  // the text is cut and nothing set one, and takes it off again when the text fits (the window grew). An element's
+  // data-full, when set, is the name to show (a source's name also holds its type tag).
+  const cut = el => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+  document.addEventListener('mouseover', e => {
+    for (let el = e.target, i = 0; el && el.nodeType === 1 && i < 4; el = el.parentElement, i++) {
+      if (el.hasAttribute('title') && !el.hasAttribute('data-autotitle')) return;
+      const st = getComputedStyle(el);
+      if (st.overflow !== 'hidden' && st.overflowX !== 'hidden') continue;
+      if (!/ellipsis/.test(st.textOverflow) && st.webkitLineClamp === 'none') continue;
+      if (cut(el)) { el.title = el.dataset.full || el.innerText.replace(/\s+/g, ' ').trim(); el.setAttribute('data-autotitle', ''); }
+      else if (el.hasAttribute('data-autotitle')) { el.removeAttribute('title'); el.removeAttribute('data-autotitle'); }
+      return;
+    }
+  }, { passive: true });
 })();
