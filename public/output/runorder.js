@@ -16,6 +16,21 @@ const roColourOf = it => {
   const x = it.kind === 'scene' ? (scene.scenes || []).find(s => s.id === it.id) : sequences().find(s => s.id === it.id);
   return x ? x.colour : 'grey';
 };
+// A sequence that plays on other outputs too: a line for each, in its colour, saying what it does there after the
+// sequence. Play next starts it on all of them; when the run order moves on by itself, an output joins only if
+// nothing is playing there. After it, each other output follows its own run order, else its own Then.
+function roAlsoOn(sq) {
+  const here = scene.viewOutput || 'main', list = (out && out.outputs) || [];
+  if (!sq || !scene.viewMany) return [];
+  return (sq.playsOn || ['main']).filter(o => o !== here).map(o => list.find(x => x.id === o)).filter(Boolean).map(o => {
+    const q = ((o.id === 'main' ? scene.runOrder : (scene.runOrderOut || {})[o.id]) || []).filter(x => !x.gone);
+    const line = document.createElement('small');
+    line.className = 'also';
+    line.style.setProperty('--c', o.colour || 'var(--fp-muted)');
+    line.textContent = `also on ${o.name} · ${q.length ? `then its own run order (${q[0].name})` : thenText(sq, o.id)}`;
+    return line;
+  });
+}
 let roDrag = null;
 function renderRunOrder() {
   const items = roItems(), list = $('roList');
@@ -31,6 +46,7 @@ function renderRunOrder() {
     li.querySelector('.n').classList.add(roColourOf(it));
     li.querySelector('b').textContent = it.name;
     li.querySelector('small').textContent = it.gone ? `${it.kind} deleted: skipped when its turn comes` : it.kind === 'scene' ? 'scene' : (() => { const sq = sequences().find(s => s.id === it.id); return sq ? `sequence · ${runText(sq)}` : 'sequence'; })();
+    if (!it.gone && it.kind === 'sequence') li.querySelector('.what').append(...roAlsoOn(sequences().find(s => s.id === it.id)));
     li.querySelector('.up').disabled = i === 0;
     li.querySelector('.down').disabled = i === items.length - 1;
     li.querySelector('.up').onclick = () => act({ type: 'roMove', key: it.key, direction: 'up' });

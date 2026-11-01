@@ -408,6 +408,8 @@ function playHead(why) {
   if (!flatten(sq).length) { queue.shift(); queueChanged(); log('info', 'sequence', `Run order: "${sq.name}" has no steps, skipped`); return playHead(why); }
   if (run) interrupt(new Set(firstOf(sq)), `the run order went on to "${sq.name}"`);
   start(sq, 'next in the run order');
+  // Play next is pressed by hand: like its card, it plays on every output it plays on together.
+  joinOthers(sq);
   return null;
 }
 // Adds an item (a sequence or scene, by id or name) at the end, or at a place.
@@ -646,9 +648,30 @@ function finish(why) {
   log('info', 'sequence', `"${sq ? sq.name : '?'}" ended (${why})${next ? `, then "${next.name}"` : sc ? `, going to scene "${sc.name}"` : then.type === 'scene' ? ', its scene has gone so its sources go off' : then.type === 'sequence' ? ', its next sequence has gone so its sources go off' : then.type === 'leave' ? ', leaving its sources as they are' : ''}${queued ? ' (from the run order)' : ''}`);
   if (sc) api.goTo(sc, false, here);
   // A sequence with no steps would end at once, so a chain of them can't go round for ever.
-  if (next && flatten(next).length && !(pending && pending.afterEnd)) start(next, `after "${sq.name}"`);
+  if (next && flatten(next).length && !(pending && pending.afterEnd)) {
+    start(next, `after "${sq.name}"`);
+    // The run order moved on by itself: the sequence's other outputs join only where nothing is playing. One that
+    // played the sequence that just ended does its own Then there instead (Matt, 1 Nov 2026).
+    if (queued) joinOthers(next, ended.id);
+  }
   // A triggered start that waited for this one to finish goes now.
   if (pending && pending.afterEnd) startPending();
+}
+
+// A sequence the run order started on this output also starts on the other outputs it plays on together (its card
+// does the same). With after (the sequence that just ended here, when the run order moved on by itself), an output
+// joins only when nothing is playing or waiting there and it wasn't playing that sequence, which does its own Then.
+function joinOthers(sq, after) {
+  const from = here;
+  for (const o of groupOf(sq, from)) {
+    if (o === from) continue;
+    within(o, () => {
+      if (run && run.id === sq.id) return;
+      if (after !== undefined && (run || pending || cut === after)) return;
+      if (run) interrupt(new Set(firstOf(sq)), `"${sq.name}" started from the run order`);
+      start(sq, 'from the run order, with the output it plays on together');
+    });
+  }
 }
 
 // Stopped by something else (a scene, another sequence, every source off): no Then, and its own

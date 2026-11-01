@@ -273,6 +273,8 @@
   .ro li .what { display: grid; gap: 1px; min-width: 0; }
   .ro li .what b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ro li .what small { font-size: 11px; color: var(--fp-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* A sequence that plays on other outputs too: a line per output, with a dot in that output's colour. */
+  .ro li .what small.also::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c); margin-right: 5px; vertical-align: 1px; }
   .ro li.head { border-color: var(--fp-btn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--fp-btn) 22%, transparent); } /* the head waits its turn: blue, not the on-air orange */
   .ro li.head .what b { font-weight: 800; }
   .ro li.gone .what b { text-decoration: line-through; color: var(--fp-muted); }
