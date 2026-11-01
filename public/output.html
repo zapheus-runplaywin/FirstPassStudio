@@ -249,7 +249,7 @@
   .player .row button { padding: 4px 10px; font-size: 13px; }
   .player button.lit { background: var(--fp-orange); color: var(--fp-navy); }
   .player small { color: var(--fp-muted); }
-  /* Mics: each mic's level as it comes in (green, amber near the top, red at the top), and a lit Mute or Dip. */
+  /* Mics: each mic's level as it comes in (green, amber near the top, red at the top), and a lit Mute or Duck. */
   .mxMeter { height: 6px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
   .mxMeter i { display: block; height: 100%; width: 0; background: #22c55e; transition: width .12s linear; }
   .mxMeter i.warm { background: #f59e0b; }
@@ -273,6 +273,8 @@
   .ro li .what { display: grid; gap: 1px; min-width: 0; }
   .ro li .what b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ro li .what small { font-size: 11px; color: var(--fp-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* A sequence that plays on other outputs too: a line per output, with a dot in that output's colour. */
+  .ro li .what small.also::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c); margin-right: 5px; vertical-align: 1px; }
   .ro li.head { border-color: var(--fp-btn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--fp-btn) 22%, transparent); } /* the head waits its turn: blue, not the on-air orange */
   .ro li.head .what b { font-weight: 800; }
   .ro li.gone .what b { text-decoration: line-through; color: var(--fp-muted); }
@@ -758,7 +760,7 @@
         <button class="alt" id="mStop" title="Stop, fading out">⏹ Stop</button>
         <button class="alt" id="mNext" title="Next song">⏭</button>
         <button class="alt" id="mMute">Mute</button>
-        <button class="alt" id="mDuck" title="Dip the music low and keep it playing">Duck</button>
+        <button class="alt" id="mDuck" title="Duck the music low and keep it playing">Duck</button>
         <label class="inline" style="font-weight:400">Volume <input type="range" id="mVolume" min="0" max="100" style="width:120px"></label>
       </div>
       <div class="row">
@@ -808,25 +810,25 @@
   <section id="micsSection" data-fold="mics">
     <div class="secHead">
       <h2>Mics</h2>
-      <button class="alt cfg" id="micsCfg" aria-pressed="false" title="The dip level, what dips the mics and how fast">Settings</button>
+      <button class="alt cfg" id="micsCfg" aria-pressed="false" title="The duck level, what ducks the mics and how fast">Settings</button>
     </div>
     <div class="player" id="mxBar">
       <div class="np"><span><b id="mxHeard">No mics yet</b> <small id="mxWhy"></small></span></div>
       <div class="row">
         <button class="alt" id="mxMute" title="Mute every mic">Mute all</button>
-        <button class="alt" id="mxDip" title="Dip the mics to the Dip to level, by hand">Dip</button>
+        <button class="alt" id="mxDip" title="Duck the mics to the Duck to level, by hand">Duck</button>
         <label class="inline" style="font-weight:400">Level <input type="range" id="mxLevel" min="0" max="100" style="width:120px"></label>
       </div>
       <p class="error" id="mxProblem" style="margin:0"></p>
     </div>
     <div class="seqs" id="mxList"></div>
     <div class="form" style="margin-top:12px">
-      <label for="mxDipTo">Dip to</label>
+      <label for="mxDipTo">Duck to</label>
       <div class="row"><input type="number" id="mxDipTo" min="0" max="100" style="width:70px"> <span>% while</span>
         <label class="inline"><input type="checkbox" id="mxDipMusic"> music plays</label>
         <label class="inline"><input type="checkbox" id="mxDipVideo"> a video with sound plays</label>
         <label class="inline"><input type="checkbox" id="mxDipQuiet"> a scene or sequence quiets the music</label></div>
-      <label for="mxDown">Dip down over</label>
+      <label for="mxDown">Duck down over</label>
       <div class="row"><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, and back up over</span>
         <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:70px" aria-label="Back up over"> <span>seconds</span></div>
     </div>
@@ -846,7 +848,7 @@
         <label>Sound</label>
         <div class="row" style="gap:12px">
           <label class="inline" id="mxLowCutRow"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>
-          <label class="inline" title="The mixer does the fading, so Studio never dips this mic; its level and mute still work"><input type="checkbox" id="mxMixer"> Has an external mixer (doesn't dip)</label>
+          <label class="inline" title="The mixer does the fading, so Studio never ducks this mic; its level and mute still work"><input type="checkbox" id="mxMixer"> Has an external mixer (doesn't duck)</label>
         </div>
       </div>
       <p class="note" id="mxFindNote"></p>

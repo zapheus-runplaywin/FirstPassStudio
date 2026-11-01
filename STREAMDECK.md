@@ -369,7 +369,7 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
 | Load a song (ready to play) | http://localhost:8080/deck/music/load/pre-game-bed |
 | Load a playlist and play it | http://localhost:8080/deck/music/playlist/pre-game?play |
 | Mute, keeping it running | http://localhost:8080/deck/music/mute/toggle (or `/on`, `/off`) |
-| Duck: dip it low (down over the fade out time, up over the fade in time), keeping it running | http://localhost:8080/deck/music/duck/toggle (or `/on`, `/off`) |
+| Duck: lower it (down over the fade out time, up over the fade in time), keeping it running | http://localhost:8080/deck/music/duck/toggle (or `/on`, `/off`) |
 
 - Add `?fade=2` to any of them for a 2 second fade, or `?fade=0` to cut. Without it they use the player's fade in time (play, resume, duck off) or fade out time (stop, pause, fade, duck on).
 - Songs are named like sources: lower case with dashes for spaces, without the file's ending (**Pre-game bed.mp3** is `pre-game-bed`).
@@ -382,12 +382,12 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
 ## Mics (Output page)
 
 The Output page's **Mics** are live mics plugged into the Mac (wireless effects mics, crowd mics), mixed into Output 1's sound
-while it's on, or plugged into the ATEM switcher, whose faders Studio moves. They dip while music or a video with sound plays, or a scene quiets the music (each a setting), and by hand.
+while it's on, or plugged into the ATEM switcher, whose faders Studio moves. They duck while music or a video with sound plays, or a scene quiets the music (each a setting), and by hand.
 
 | Button | Link |
 |---|---|
 | Mute every mic | http://localhost:8080/deck/mics/mute/toggle (or `/on`, `/off`) |
-| Dip them by hand | http://localhost:8080/deck/mics/dip/toggle (or `/on`, `/off`) |
+| Duck them by hand | http://localhost:8080/deck/mics/duck/toggle (or `/on`, `/off`) |
 | Every mic up or down 10% | http://localhost:8080/deck/mics/up, http://localhost:8080/deck/mics/down (`?by=5` for another step) |
 | Every mic to a level | http://localhost:8080/deck/mics/level/80 |
 | Mute one mic | http://localhost:8080/deck/mic/court-mic/mute/toggle (or `/on`, `/off`) |

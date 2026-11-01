@@ -149,7 +149,7 @@ FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and late
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
 icon). The Output page and the Stream Deck use the same links as the Devices tab's Links. It is one page laid out for the night: the
 picture with its output tabs and a status board, the sources down the left, scenes and sequences as tiles, with every
-setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics (with their dip), switcher,
+setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics (with their duck), switcher,
 recording and next game, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
 every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
 sends, hollow while it doesn't) or Off air, the game on the board (orange before the clock starts, green until an hour after it ends, then grey), PlayHQ (the dot is the link: green, amber overdue, red failing, grey by hand; the words the quarter and clock or game completed), the sequence playing (step and time
@@ -423,7 +423,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   pending (Start now, Cancel). A "before the start" moment that passed before Studio started (opened inside the window) is skipped, for the operator to start by hand. The Automatic sequences switch is kept in `sequence-settings.json` in the data folder.
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
   The **run order** (Output page, above Scenes and Sequences) is a queue per output of sequences and scenes for the night: Play next plays the head, a sequence that
-  ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger puts its sequence at the head (Cancel takes it out). Kept with
+  ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger puts its sequence at the head (Cancel takes it out). Play next starts a sequence on every output it plays on together (`joinOthers()` in `sequences.js`); when the queue moves on by itself, another of its outputs joins only if idle and it didn't just play the sequence that ended (that one does its own Then); the row says what each other output does after it. Kept with
   the competition's sequences (`runOrder`, saved orders in `runOrders`); `/deck/runorder/next`, `skip`, `clear`, `add/<name>`, `load/<order>`; the plugin's
   Run order key (`plugins/studio-deck`, `runorder-key.ts`) names the head from the scene's `runOrder` / `runOrderOut` and lists `runOrders` for its Load press.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
@@ -612,7 +612,7 @@ These follow the game picked on the scoreboard control page:
   then carry on off the other side. `?hold=` (seconds on the full frame, 0 to 1 in steps of 0.1, 0.5 by default; 0 is a quick 1 second stinger),
   `?length=` (how long the bands take, 0.5 to 3 seconds), `?logo=0` (colours only), `?mode=dark`, `?size=`
   (logo height) and `?sfx=` (whoosh volume in %, 80 by default). `?music=quiet` ducks the music by the time the frame is covered and
-  keeps it down for the scene cut to (until one without Quiet the music); `?music=dip` brings it back up as it leaves. For a switcher or player that plays stingers from a file,
+  keeps it down for the scene cut to (until one without Quiet the music); `?music=duck` brings it back up as it leaves. For a switcher or player that plays stingers from a file,
   `node docs/stinger/render.js "Thunder League"` renders it from a competition template to a 1080p50 ProRes 4444 `.mov`
   with alpha (`--fps`, `--length`, `--hold`, `--logo 0`; needs ffmpeg with ProRes). `docs/stinger/` has Thunder League's.
 - http://localhost:8080/introoutro.html: the intro (or `?type=outro`, the outro) for the start and end of the stream, full screen,

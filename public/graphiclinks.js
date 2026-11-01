@@ -176,7 +176,7 @@ add('stingerPages', 'Stinger', '/stinger.html',
   'Options: <code>?hold=1</code> holds the full frame for a whole second (0 to 1 second in steps of 0.1; <code>?hold=0</code> is a quick 1 second stinger), <code>?length=1.5</code> makes the bands sweep in and out more slowly (0.5 to 3 seconds), <code>?logo=0</code> plays it with the colours only, ' +
   '<code>?mode=dark</code> uses the setup\'s dark mode competition logo, <code>?size=560</code> sets the logo\'s height in pixels, and <code>?sfx=80</code> is the whoosh\'s volume in % (<code>0</code> for none). ' +
   'The music carries on under it unless you say: <code>?music=quiet</code> brings the music down quickly, so it\'s down by the time the picture is covered, and keeps it down for the scene you cut to, as a scene with <b>Quiet the music</b> does, until a scene, sequence or step without it; ' +
-  '<code>?music=dip</code> brings it down the same way and back up in half a second as the stinger leaves. ' +
+  '<code>?music=duck</code> brings it down the same way and back up in half a second as the stinger leaves. ' +
   'It reads the competition logo once when it loads. ' +
   'With an ATEM switcher set up (under Video output), <b>Stinger</b> on its card, <code>/deck/switcher/stinger</code> and a sequence or scene\'s <b>Stinger to</b> play it on the output on a downstream key (Output 1 unless another one that\'s on is) and cut the switcher underneath, in the middle of the cover as this stinger\'s own settings make it (so <code>?hold=</code> and <code>?length=</code> still line up).');
 add('stingerPages', 'Stinger: colours only', '/stinger.html?logo=0');

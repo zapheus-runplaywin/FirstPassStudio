@@ -33,9 +33,9 @@ function runText(sq) {
   const t = runTime(sq.steps, new Set([sq.id]));
   return !t.sec ? (t.ads ? 'runs as long as its ads' : t.open ? 'runs until Next' : 'runs 0:00') : `runs ${t.open ? 'at least ' : ''}${fmt(t.sec * 1000)}`;
 }
-// What it does when it ends on the output picked over the Scene View: that output's own Then, else the sequence's.
-function thenText(sq) {
-  const then = (sq.thenOn || {})[scene.viewOutput || 'main'] || sq.then;
+// What it does when it ends on the output picked over the Scene View (or on output o): that output's own Then, else the sequence's.
+function thenText(sq, o = scene.viewOutput || 'main') {
+  const then = (sq.thenOn || {})[o] || sq.then;
   if (then.type === 'scene') { const sc = (scene.scenes || []).find(x => x.id === then.scene); return sc ? `then ${sc.name}` : 'then its scene (gone)'; }
   if (then.type === 'sequence') { const nx = sequences().find(x => x.id === then.sequence); return nx ? `then ${nx.name}` : 'then its next sequence (gone)'; }
   return then.type === 'leave' ? 'then leaves it all on' : 'then turns its sources off';

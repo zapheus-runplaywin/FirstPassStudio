@@ -271,8 +271,8 @@ const PAGE_OPTIONS = (() => {
       { key: 'size', label: 'Logo height', type: 'number', min: 50, max: 1080, unit: 'px', placeholder: '560' },
       mode(),
       { key: 'sfx', label: 'Whoosh volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '80', help: '0 turns it off.' },
-      { key: 'music', label: 'Music', type: 'select', choices: [['', 'Carries on as it is'], ['quiet', 'Quieted for the next scene'], ['dip', 'Dips while it plays']],
-        help: 'Quieted: down by the time the frame is covered and kept down, as a scene with Quiet the music does, until a scene, sequence or step without it. Dips: back up as the stinger leaves.' },
+      { key: 'music', label: 'Music', type: 'select', choices: [['', 'Carries on as it is'], ['quiet', 'Quieted for the next scene'], ['duck', 'Ducks while it plays']],
+        help: 'Quieted: down by the time the frame is covered and kept down, as a scene with Quiet the music does, until a scene, sequence or step without it. Ducks: back up as the stinger leaves.' },
     ],
     'ad.html': [
       { key: 'tagline', label: 'Tagline', type: 'text', placeholder: 'none' },
