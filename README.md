@@ -423,7 +423,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   pending (Start now, Cancel). A "before the start" moment that passed before Studio started (opened inside the window) is skipped, for the operator to start by hand. The Automatic sequences switch is kept in `sequence-settings.json` in the data folder.
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
   The **run order** (Output page, above Scenes and Sequences) is a queue per output of sequences and scenes for the night: Play next plays the head, a sequence that
-  ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger puts its sequence at the head (Cancel takes it out). Kept with
+  ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger puts its sequence at the head (Cancel takes it out). Play next starts a sequence on every output it plays on together (`joinOthers()` in `sequences.js`); when the queue moves on by itself, another of its outputs joins only if idle and it didn't just play the sequence that ended (that one does its own Then); the row says what each other output does after it. Kept with
   the competition's sequences (`runOrder`, saved orders in `runOrders`); `/deck/runorder/next`, `skip`, `clear`, `add/<name>`, `load/<order>`; the plugin's
   Run order key (`plugins/studio-deck`, `runorder-key.ts`) names the head from the scene's `runOrder` / `runOrderOut` and lists `runOrders` for its Load press.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`

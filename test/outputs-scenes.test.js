@@ -252,3 +252,38 @@ test('an output says which sequence last ended there, played out or cut short, u
   link('sequence/stop');
   assert.equal(st().stoppedOn.main, st().sequences.find(s => s.name === 'Main run').id, 'Stop cut it short');
 });
+
+test('the run order plays a sequence on every output it plays on; when it moves on by itself, an output that played the last one does its own Then', () => {
+  // An output of its own (earlier tests remove theirs).
+  outputs.apply({ add: true });
+  const added = outputs.state().outputs[outputs.state().outputs.length - 1].id;
+  const two = () => added;
+  link('sequence/stop');
+  ok({ type: 'roClear' });
+  const both = ['main', two()];
+  ok({ type: 'seqAdd', changes: { name: 'RO Run-up', playsOn: both, then: { type: 'off' }, steps: [step(['Ladder'], 20)] } });
+  ok({ type: 'seqAdd', changes: { name: 'RO Walk out', playsOn: both, then: { type: 'off' }, steps: [step(['Worm'], 20)] } });
+  ok({ type: 'seqAdd', changes: { name: 'RO Solo', then: { type: 'off' }, steps: [step(['Scoreboard'], 10)] } });
+  const sid = name => st().sequences.find(s => s.name === name).id;
+  // Play next: on both, as its card would.
+  ok({ type: 'roAdd', kind: 'sequence', name: 'RO Run-up' });
+  ok({ type: 'roAdd', kind: 'sequence', name: 'RO Walk out' });
+  ok({ type: 'roNext' });
+  assert.equal(st().playing.id, sid('RO Run-up'));
+  assert.equal(st().playingOut[two()]?.id, sid('RO Run-up'), 'Output 2 joins');
+  // Run-up ends: Output 1 goes on to Walk out; Output 2 played Run-up too, so it does its own Then (off).
+  wait(20);
+  assert.equal(st().playing.id, sid('RO Walk out'));
+  assert.equal(st().playingOut[two()], undefined, 'Output 2 followed its Then, not Output 1\'s run order');
+  wait(20);
+  // A sequence on Output 1 alone, then one on both: idle Output 2 joins when the run order moves on.
+  ok({ type: 'roAdd', kind: 'sequence', name: 'RO Solo' });
+  ok({ type: 'roAdd', kind: 'sequence', name: 'RO Walk out' });
+  ok({ type: 'roNext' });
+  assert.equal(st().playingOut[two()], undefined, 'Solo plays on Output 1 only');
+  wait(10);
+  assert.equal(st().playing.id, sid('RO Walk out'));
+  assert.equal(st().playingOut[two()]?.id, sid('RO Walk out'), 'nothing was playing on Output 2, so it joins');
+  link('sequence/stop');
+  ok({ type: 'seqStop', output: two() });
+});
