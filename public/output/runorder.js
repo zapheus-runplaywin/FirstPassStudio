@@ -71,13 +71,13 @@ function renderRunOrder() {
     };
     list.appendChild(li);
   });
-  // Next and Skip, and what Next does right now.
+  // Play next and Skip, and what Play next does right now (▶ the head, ⏭ what follows it).
   const p = scene.viewOutput && scene.viewOutput !== 'main' ? (scene.playingOut || {})[scene.viewOutput] : scene.playing;
   $('roNext').disabled = !head && !p;
   $('roSkip').disabled = !head;
   $('roNext').title = head ? `Play ${head.name} now` : p ? 'Nothing queued: ends the sequence playing (its Then)' : 'Nothing queued and nothing playing';
   const second = head ? items.slice(items.indexOf(head) + 1).find(it => !it.gone) : null;
-  $('roNote').textContent = head ? `Next: ${head.name}${second ? ` · then ${second.name}` : ' · then each sequence\'s own Then'}` : p ? 'Nothing queued: when this sequence ends it does its own Then' : '';
+  $('roNote').textContent = head ? `▶ ${head.name}${second ? `  ⏭ ${second.name}` : '  ⏭ each sequence\'s own Then'}` : p ? 'Nothing queued: when this sequence ends it does its own Then' : '';
   $('roEmpty').hidden = !!items.length;
   $('roEmpty').innerHTML = 'Tonight\'s order: <b>Add…</b> puts a scene or sequence at the end (Run-up, Walk out, Live, Quarter time, Live…), or load a saved order. '
     + '<b>Play next</b> plays the head now, and a sequence that ends plays what is queued after it. With nothing here, each sequence does its own <b>Then</b>.';

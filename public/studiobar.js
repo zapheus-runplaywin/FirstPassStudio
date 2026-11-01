@@ -103,15 +103,20 @@
       else text = over || c.following ? 'PlayHQ' : 'PlayHQ · clock by hand';
       parts.push(chip(`playhq ${dot}`, '', dot, `${text}${clock}`));
     }
-    // The run order's head rides along: "then X" on the sequence playing, or a Next chip of its own.
-    const then = h.next && h.next.name ? ` · then ${esc(h.next.name)}` : '';
+    // The sequence playing, or the one a trigger armed and is counting down.
     if (h.playing) {
       const s = h.playing, l = s.paused ? s.leftMs : left(s.leftMs);
       parts.push(chip('seq', '', 'gold', `${esc(s.name || 'Sequence')} ${s.step}/${s.steps}${s.paused ? ' · paused' : l != null ? ` · ${mmss(l)}` : ''}`));
     } else if (h.armed) {
       const a = h.armed, l = left(a.leftMs);
       parts.push(chip('armed', '', 'ok', `Armed: ${esc(a.name || 'sequence')}${l != null ? ` · in ${mmss(l)}` : ' · after this'}`));
-    } else if (h.next) parts.push(chip('next', '', 'off', `Next: ${esc(h.next.name)}`));
+    }
+    // The run order, whatever is playing: ▶ what Play next plays, ⏭ what follows it (and what Skip leaves at the head).
+    if (h.next && h.next.name) {
+      const sym = c => `<span class="sym" aria-hidden="true">${c}</span>`;
+      const title = `Play next plays ${h.next.name}${h.next.then ? `, then ${h.next.then}` : ''}`;
+      parts.push(chip('ro', title, '', `Run order ${sym('▶')}${esc(h.next.name)}${h.next.then ? ` ${sym('⏭')}${esc(h.next.then)}` : ''}`));
+    }
     // ATEM while a switcher is set up: answering or not. REC while a game records, or waiting for one with Record games on.
     const sw = h.switcher || {};
     if (sw.setUp) parts.push(chip(`atem ${sw.connected ? 'ok' : 'bad'}`, sw.connected ? `${sw.model || 'The switcher'} is answering` : `${sw.model || 'The switcher'} isn't answering`, sw.connected ? 'ok' : 'bad', 'ATEM'));
