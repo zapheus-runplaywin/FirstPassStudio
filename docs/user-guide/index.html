@@ -67,6 +67,8 @@
   .chno .dots { display: inline-flex; gap: 4px; }
   .chno .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); display: block; }
   .chno .dots i.on { background: var(--accent); }
+  .more { font-size: .9rem; color: var(--ink-2); }
+  .more a { color: var(--link); font-weight: 600; }
   .lead { font-size: 1.15rem; color: var(--muted); max-width: 62ch; line-height: 1.5; margin-top: 1rem; }
   .inthis { background: var(--soft); border-radius: var(--r); padding: 1rem 1.2rem; margin: 1.4rem 0 .4rem; max-width: 76ch; }
   .inthis .eyebrow { margin-bottom: .4rem; }
@@ -199,6 +201,21 @@
     <li><a class="top" href="#ch9">9 · Stream Deck</a></li>
     <li><a class="top" href="#ch10">10 · Settings and care</a></li>
     <li><a class="top" href="#ch11">11 · Quick reference</a></li>
+    <li><a class="top" href="#ref">Reference</a></li>
+    <li><a href="#sr-1">The Mac app</a></li>
+    <li><a href="#sr-2">Links and access</a></li>
+    <li><a href="#sr-3">The data folder</a></li>
+    <li><a href="#sr-4">Settings in iCloud Drive</a></li>
+    <li><a href="#sr-5">Backup and restore</a></li>
+    <li><a href="#sr-6">Unsaved changes</a></li>
+    <li><a href="#sr-7">Data and bandwidth</a></li>
+    <li><a href="#sr-8">Sponsors in detail</a></li>
+    <li><a href="#sr-9">Competitions setup in detail</a></li>
+    <li><a href="#sr-10">Athletes in detail</a></li>
+    <li><a href="#sr-11">The Output page in detail</a></li>
+    <li><a href="#sr-12">Scoreboard control in detail</a></li>
+    <li><a href="#sr-13">Socials in detail</a></li>
+    <li><a href="#sr-14">Recordings in detail</a></li>
   </ol>
 </nav>
 <main>
@@ -245,7 +262,7 @@
   <p>Studio only runs while a Studio window is open. Opening one (Open Studio, any page in the 1P menu, or ⌘N) puts it on air; closing the last one takes it off air, and the graphics and Stream Deck get no answer until a window opens again. Closing the last window while on air asks first, and so does ⌘Q, so a stray keypress can't stop a stream. Leave the Output page open all night.</p>
   <p>The bar's chips show the game on the board, whether PlayHQ is answering (amber when overdue, red after a minute of errors) and which outputs are on air, on every page; the Output page's status board shows the score and the rest of the night. If anything is wrong, the page you keep open says so.</p>
   <h3 id="s2-3">The 1P menu</h3>
-  <p>Open Studio, Scoreboard control, Competitions setup, Copy the Studio link, Devices, Install the Stream Deck plugin, Back up… and Restore…, Settings folder (iCloud Drive), Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at login, Appearance (Follow the Mac, Light or Dark: the Studio pages follow the Mac's light or dark look unless pinned here; the graphics never change), Only this Mac can change things, What's new…, Check for updates, Stop Studio (while on air) and Quit. Updates download in the background and install when the app quits, never mid-stream; <strong>Restart to update</strong> installs one straight away.</p>
+  <p>The 1P icon in the menu bar is Studio's home: it opens Studio, its pages and this guide, backs the settings up and restores them, and has <strong>Open at login</strong>, <strong>Appearance</strong> (the Studio pages follow the Mac's light or dark look unless pinned here; the graphics never change) and <strong>Check for updates</strong>. Chapter 10 lists every item. Updates download in the background and install when the app quits, never mid-stream.</p>
   <div class="tip"><div class="eyebrow">Links</div><p>Studio's links start with the Mac's Bonjour name, such as <code>http://matts-macbook-pro.local:8080/</code>, so the same link works from a phone, another computer or a Stream Deck on the same network. <code>http://localhost:8080</code> works on the Mac itself.</p></div>
   <h3 id="s2-4">Before you go on air</h3>
   <ol class="steps">
@@ -258,6 +275,7 @@
     <li><strong>Stream Deck.</strong> Press a Source key and watch the Sources list follow it. A score key switches scoring to Manual, so put it back to Follow PlayHQ after testing.</li>
     <li><strong>Sponsors.</strong> Tonight's spots and ads are on; the sponsor report starts counting when the output turns on.</li>
   </ol>
+  <p class="more">More in the Reference: <a href="#sr-1">The Mac app</a>.</p>
 </section>
 
 <section class="ch" id="ch3">
@@ -286,6 +304,7 @@
   <h4>Follow PlayHQ</h4>
   <p>With <strong>Follow PlayHQ</strong> on, the score and quarter update every 5 seconds from PlayHQ's live scoring, and <strong>Follow the PlayHQ scorer's clock</strong> runs the clock from the scorer's clock. The clock matches the scores: switching to Manual, or pressing any score button, turns clock-following off as well, and the control page says so. Press a clock button to run the clock by hand while scores still follow PlayHQ. To line the clock up with the venue, type the venue's time in <strong>Match venue clock</strong>.</p>
   <div class="tip"><div class="eyebrow">Nothing before the window</div><p>Studio doesn't ask PlayHQ's live feed for a game until its electronic scoring window opens, whether the game was picked automatically or by hand. The control page says when it will start checking.</p></div>
+  <p class="more">More in the Reference: <a href="#sr-12">Scoreboard control in detail</a>.</p>
 
   <h3 id="s3-3">The Output page</h3>
   <p>The Output page builds Studio's own scene: sources drawn as layers on one 1920 × 1080 frame, top layer first, and sends it to a display, a Blackmagic device or NDI for your switcher.</p>
@@ -299,6 +318,7 @@
   <p>Click a source, or its pencil, and its settings open under its row; <strong>Done</strong> closes them. A graphic's link options (position, heading, division, round, animate away and so on) show as fields under its address, so there is nothing to look up. <strong>On / Off</strong> fades it in or out over its own <strong>Fade</strong> time (0 is a cut). <strong>Position and scale</strong> place it on the frame. <strong>Load the page fresh each time it's shown</strong> (on by default) reloads a page as it fades in so its animation replays; untick it to keep a page running so it shows instantly. <strong>Preview</strong> (and the eye in its row) opens the source on its own, half size, on a checkerboard.</p>
   <figure><img src="img/s-output-source-settings.webp" alt="Source settings for the Title source"><figcaption>Source settings for the title banner: its options are fields, and the Stream Deck links for this source are copied from here.</figcaption></figure>
   <p>Videos play from the beginning each time they're shown, can loop, and fade out when they finish unless looping; a video that fades out switches its source off, so its key goes dark and the next On plays it again. A ProRes 4444 <code>.mov</code> is converted to a transparent WebM when it is added, keeping its alpha. <strong>Export sources</strong> saves the whole scene with its media as one zip to keep or move to another Mac; <strong>Import sources</strong> puts one back.</p>
+  <p class="more">More in the Reference: <a href="#sr-11">The Output page in detail</a>.</p>
 
   <h3 id="s3-4">The base scene</h3>
   <p>The base scene is what viewers see for most of the game. In the sample league it is the <strong>Live game</strong> scene: the scoreboard at the bottom, the title banner at the top with the PIVT and FirstPass Studio logos on the left and the competition logo on the right, and the score ticker along the bottom edge with the other courts' scores.</p>
@@ -476,6 +496,8 @@
   <p>On a Stream Deck, the plugin's <strong>Replay</strong> key plays or pauses, jumps to the next moment, nudges or stops the replay, or a practice game, whichever is running. It lights while one runs.</p>
   <h4>Demo games</h4>
   <p>Showing Studio to another league? Set up their competition, then press <strong>Demo</strong> beside one of your recorded games. Pick one of their divisions and a finished game: Studio plays your recorded game as theirs, with their competition, team names, logos, colours and athletes, while the score, clock, quarters, moments and timing come from your recording. Athletes are matched by position, so your GS's goals become their GS's; anyone without a match is left unnamed and their goals go to the team. If their game has no line up, Studio uses each team's season squad, by the position each athlete played most. While the demo runs, the <strong>Athletes</strong> table shows who each of your athletes is shown as; change any of them there. <strong>Save demo</strong> keeps the whole setup by name, so before the meeting it's one click under <strong>Saved demos</strong>. <strong>Swap home and away</strong> lets either team win. The other teams in the division take the places of yours on the ladder and fixture. Play the recorded game's video wherever you like and lay Studio's output over it: the pictures won't show their teams, but the graphics will. Their competition's setup is read from PlayHQ, so a demo needs the internet.</p>
+  <p class="more">More in the Reference: <a href="#sr-13">Socials in detail</a>.</p>
+  <p class="more">More in the Reference: <a href="#sr-14">Recordings in detail</a>.</p>
 </section>
 
 <section class="ch" id="ch4">
@@ -664,6 +686,7 @@
   <h3 id="s6-9">Templates, export and more</h3>
   <p><strong>Export as template</strong> saves the competition's settings, team logos, competition logo, font and sponsors (with their logos) as one .json file to import on any Studio or keep as a backup; <strong>Import a template file</strong> adds it. A PlayHQ Client ID is only needed if PlayHQ's game page has no line-ups and the association has given you one. <strong>Delete this competition</strong> removes it; deleting the one in use switches the graphics to another.</p>
   <figure><img src="img/s-setup-more.webp" alt="The More section"><figcaption>The More section: Client ID, export and delete.</figcaption></figure>
+  <p class="more">More in the Reference: <a href="#sr-9">Competitions setup in detail</a>.</p>
 </section>
 
 <section class="ch" id="ch7">
@@ -700,6 +723,7 @@
   <h3 id="s7-4">Proof of play</h3>
   <p>While a video output is on, Studio logs every second each sponsor is on screen and every ad played, matched to the scene's sources, and reads the live viewer count every 30 seconds. <strong>Sponsor report</strong> turns that into a page per night (or a run of nights) with minutes on screen, ad plays, viewer-minutes, peak and average viewers per sponsor, ready to print or save as a PDF for the sponsor. A tick box counts time with no video output on, for a rehearsal. With more than one output, only Output 1 and outputs with <strong>Counts for sponsors</strong> ticked are counted, and each counts as on air only while it's on: an output set to <strong>Web links only</strong> is off.</p>
   <figure><img src="img/s-sponsorreport.webp" alt="The sponsor report"><figcaption>The sponsor report for the sample night.</figcaption></figure>
+  <p class="more">More in the Reference: <a href="#sr-8">Sponsors in detail</a>.</p>
 </section>
 
 <section class="ch" id="ch8">
@@ -718,6 +742,7 @@
   <h3 id="s8-2">Positions and games played</h3>
   <p><strong>Games</strong> under an athlete opens their record. Positions played in a PlayHQ line-up this season are ticked already; tick any others from other seasons or competitions. Games played takes a line per division (and club): the number as of a date, to which Studio adds the games PlayHQ shows after it, so milestones keep up through the season. With no line, a division's games are this season's from PlayHQ.</p>
   <figure><img src="img/s-athlete-games.webp" alt="The athlete Games dialog"><figcaption>An athlete's positions and games played.</figcaption></figure>
+  <p class="more">More in the Reference: <a href="#sr-10">Athletes in detail</a>.</p>
 </section>
 
 <section class="ch" id="ch9">
@@ -778,12 +803,15 @@
 
   <h3 id="s10-2">The data folder</h3>
   <p>Everything Studio saves lives in one folder outside the app, <code>~/Library/Application Support/FirstPass Studio</code>, so updates never touch it. In it: <strong>competitions/</strong> (a folder per competition with its settings, logos, font, athlete photos and register), <strong>sponsors/</strong>, the scene, sequences, music and playlists, the <strong>media</strong> folder, <strong>control.json</strong> (Scoreboard control's choices), <strong>scoreboard-state.json</strong> (the game, scores and clock, saved every few seconds so a restart mid-game loses nothing), <strong>config.json</strong> for this Mac's own settings, <strong>logs/</strong> and <strong>backups/</strong>.</p>
+  <p class="more">Every file and folder in it: <a href="#sr-3">The data folder</a> in the Reference.</p>
 
   <h3 id="s10-3">Settings in iCloud Drive</h3>
   <p><strong>Settings folder &gt; Move to iCloud Drive…</strong> moves the settings into a folder you choose in iCloud Drive, in a subfolder named after this Mac, so each Mac on the same Apple account keeps its own and none saves over another's. The debug log, scores and clock, caches and window positions always stay on the Mac. <strong>Restore from another Mac…</strong> copies another Mac's settings over this one's (competitions, scenes, sequences, music, control choices), backing this Mac's up first. <strong>Move back to this Mac…</strong> undoes the move. Studio goes off air for a moment for each and comes straight back.</p>
+  <p class="more">In detail: <a href="#sr-4">Settings in iCloud Drive</a> in the Reference.</p>
 
   <h3 id="s10-4">Backup and restore</h3>
   <p><strong>Back up…</strong> saves every setting in one zip named with the date and time, with notes you type and, if you choose, the media folder; beside it goes a text summary listing the competitions, sequences, playlists, sources, scenes and sponsors inside. <strong>Restore…</strong> shows when and where a backup was made and what it holds, backs up this Mac's settings first, and replaces them only once the whole zip has unpacked and checked out. This Mac keeps its own <strong>Only this Mac can change things</strong> choice, port and link name whatever the backup says. Make a backup after setting up a season and before trying anything new on the Output page.</p>
+  <p class="more">In detail, with the link for scripts: <a href="#sr-5">Backup and restore</a> in the Reference.</p>
 
   <h3 id="s10-5">Updates</h3>
   <p>Updates download by themselves and install when the app quits, never mid-stream; <strong>Check for updates</strong> looks now, and <strong>Restart to update</strong> appears when one is ready. If a newer version has come out since that one downloaded, it asks whether to get the newer one first or install the one it named. The first launch after an update shows <strong>What's new</strong>, the changes since the version you last opened. When an update changes how settings are saved, Studio backs the data folder up to <strong>backups/</strong> first; settings saved by a newer Studio open read-only in an older one.</p>
@@ -791,6 +819,7 @@
 
   <h3 id="s10-6">Links and other devices</h3>
   <p>Studio's links use this Mac's Bonjour name (the Local hostname in System Settings &gt; General &gt; Sharing), so the same link works from a phone, another computer or a Stream Deck on the network; <code>localhost</code> still works on the Mac. Anything on the network can open the graphics. Only this Mac can change scores, the scene, sequences and settings: <strong>Only this Mac can change things</strong> is ticked every time Studio opens. To score from a phone or let another computer drive, pair it instead: open <code>/pair.html</code> on it (the Studio link with <code>/pair.html</code> on the end), type a name and press <strong>Ask the Mac</strong>, then choose <strong>Allow scoring only</strong> or <strong>Allow everything</strong> on the Mac. A paired device works with the box ticked, and <strong>Devices</strong> in the menu bar icon lists it, changes what it may do, or removes it. Unticking the box lets every device on the network in until Studio quits; keep that for emergencies. On a network you don't control, leave it ticked, or block incoming connections to FirstPass Studio in the Mac's firewall.</p>
+  <p class="more">The link name, pairing and what other devices may do: <a href="#sr-2">Links and access</a> in the Reference.</p>
 
   <h3 id="s10-7">When something isn't right</h3>
   <table>
@@ -806,6 +835,7 @@
 
   <h3 id="s10-8">Data and bandwidth</h3>
   <p>The graphics only ever talk to Studio on the Mac. Studio alone contacts PlayHQ: one small request every 5 seconds for the followed game (or as set, down to one a second), the ticker's other courts every 30 seconds, the fixture about once a minute for automatic selection, and the rest once when a graphic loads. The Production Planner and the Socials tab read the same fixture, results and ladders through the same cache, and finished games' line ups once, so they add nothing; the Fixture board reads other courts' live scores the ticker's way, so it adds nothing while the ticker is on and at most one request a minute per live game when it isn't. Commentator stats' auto-refresh asks Studio only; its team lists are read at the start and at each quarter break. Finished games are read once and kept. Extra outputs read the same data from Studio, so they add nothing here. It all comes to well under a megabyte an hour, so a phone hotspot is enough for Studio; the stream itself is the bandwidth.</p>
+  <p class="more">Page by page: <a href="#sr-7">Data and bandwidth</a> in the Reference.</p>
 </section>
 
 <section class="ch" id="ch11">
@@ -845,6 +875,558 @@
     <tr><td>Backups, iCloud, updates, the debug log</td><td>The 1P menu</td></tr>
   </table>
   <p class="meta">FirstPass Studio is made by PIVT. The Elite Netball League, its clubs, athletes and sponsors are fictional.</p>
+</section>
+
+<section class="ch ref" id="ref">
+  <div class="chno">Reference</div>
+  <h2>Reference</h2>
+  <p class="lead">Everything in detail, for when the chapters above aren't enough: what the Mac app needs and keeps, every setting on every page, and what Studio asks of the network.</p>
+  <div class="inthis"><div class="eyebrow">In this chapter</div><ol><li><a href="#sr-1"><b>1</b>The Mac app</a></li><li><a href="#sr-2"><b>2</b>Links and access</a></li><li><a href="#sr-3"><b>3</b>The data folder</a></li><li><a href="#sr-4"><b>4</b>Settings in iCloud Drive</a></li><li><a href="#sr-5"><b>5</b>Backup and restore</a></li><li><a href="#sr-6"><b>6</b>Unsaved changes</a></li><li><a href="#sr-7"><b>7</b>Data and bandwidth</a></li><li><a href="#sr-8"><b>8</b>Sponsors in detail</a></li><li><a href="#sr-9"><b>9</b>Competitions setup in detail</a></li><li><a href="#sr-10"><b>10</b>Athletes in detail</a></li><li><a href="#sr-11"><b>11</b>The Output page in detail</a></li><li><a href="#sr-12"><b>12</b>Scoreboard control in detail</a></li><li><a href="#sr-13"><b>13</b>Socials in detail</a></li><li><a href="#sr-14"><b>14</b>Recordings in detail</a></li></ol></div>
+
+  <h3 id="sr-1">The Mac app</h3>
+    <p>FirstPass Studio needs an Apple silicon Mac (M1 or later), and fits a 13" MacBook's screen. A plain M1 drives one extra display; Pro and Max chips drive more, which fill and key over two displays needs. A Blackmagic output needs Blackmagic Desktop Video, and NDI needs NDI's free runtime (both under <a href="#sr-11">The Output page in detail</a>); the app brings everything else with it, ffmpeg for video conversion included.</p>
+    <p>The app always starts in the menu bar off air, whether opened at login (tick <strong>Open at login</strong>) or by hand, so nothing talks to PlayHQ until you open Studio. On air it serves the graphics and the Stream Deck links, talks to PlayHQ, and restarts by itself if it stops. <strong>Stop Studio</strong> in the 1P menu closes the Studio windows and goes off air.</p>
+    <p>The app window is like any Mac app's: no address bar, tabs or bookmarks, the Studio header is the title bar
+      (drag it to move the window), and it shows in the Dock and ⌘Tab while a window is open. Links that open a new tab on Studio (a preview, the control or setup page)
+      open another window; links elsewhere (PlayHQ, GitHub) open in your browser. The menu at the top of the screen has <strong>File &gt; Open in Browser</strong> (⇧⌘O) and
+      <strong>Copy Page Link</strong> (⇧⌘C) for the page in front, <strong>Go</strong> for each Studio page (⌘1 to ⌘9, and ⌘0 for Docs), <strong>View</strong> for reload, back and page zoom (in steps, the level shown in the menu; <strong>Zoom In</strong> ⌘+, <strong>Zoom Out</strong> ⌘−, <strong>Actual Size</strong> ⌘⌥0, or pinch on the trackpad), <strong>Help &gt; FirstPass Studio User Guide</strong> for this guide, <strong>New Window</strong> (⌘N), and <strong>Close Studio Windows</strong> (⌥⌘W) in the FirstPass Studio menu.</p>
+
+  <h3 id="sr-2">Links and access</h3>
+    <p>Studio's links (on the Devices tab, Scoreboard control and in the Mac app's menu, <strong>Copy the Studio link</strong> too) start with this Mac's
+      Bonjour name, such as <code>http://studio-mac.local:8080</code>, instead of <code>localhost</code>. It is the
+      <strong>Local hostname</strong> in System Settings &gt; General &gt; Sharing, so the same link works on this Mac and from a phone, another
+      computer or a Stream Deck on the same network. The port stays 8080, and <code>http://localhost:8080</code> still works on this Mac,
+      so links and Stream Deck buttons you already have carry on.
+      To change it, set <code>"linkHost"</code> in <code>config.json</code> in the data folder:
+      <code>"bonjour"</code> (the default), <code>"localhost"</code>, or any name or IP address, then choose <strong>Restart Studio</strong> in the 1P menu.</p>
+    <p><strong>Only this Mac can change things</strong> in the menu bar icon sets <code>remoteChanges</code>, and is ticked again every time the app opens: ticked, phones, other computers and Stream Decks on the network that aren't
+        in <strong>Devices</strong> can still open every graphic but can't change scores, the scene, sequences, settings or media, or read private data (the settings and scene
+        backups, the athlete register, the debug log, the sponsor reports, the competition setup); Studio answers those with a 403 that says so.
+        Either way a change must come from Studio's own pages or a program (the Stream Deck plugin, a Website key): a request a browser marks as
+        coming from a web page on another site, or that asks for Studio by a name this computer doesn't answer to, gets a 403 too, and so does a
+        read of private data asked for by such a name. A Stream Deck link must carry this Mac's key (<code>/k/&lt;key&gt;/deck/…</code>, as Studio copies them; kept in
+        <code>devices.json</code>, never backed up) or be signed by a paired Studio plugin, or come from Studio's own pages, so a web page can't press one. A phone, iPad or another computer pairs from <code>/pair.html</code>: the Mac offers
+        <strong>Allow scoring only</strong> (the scores, clock, quarter and game) or <strong>Allow everything</strong>, and the device then works while the box is ticked; Devices can change its level or remove it. (Until a plugin has paired, the plugin's older
+        <code>x-studio-deck</code> header still counts, so plugins installed before pairing keep working until a new one is allowed.)</p>
+    <p>On a network you don't control, leave <strong>Only this Mac can change things</strong> ticked, or block incoming connections to FirstPass Studio in the Mac's firewall.</p>
+
+  <h3 id="sr-3">The data folder</h3>
+    <p>Everything Studio saves lives in one data folder on this computer, outside the app, so updates never touch it:
+      <code>~/Library/Application Support/FirstPass Studio</code> (the setup page shows where, and
+      <strong>Open the settings folder</strong> in the 1P menu opens it).</p>
+    <ul>
+      <li><strong>competitions/</strong>: a folder per competition with its setup (<code>settings.json</code>), team logos, competition logo,
+        athlete photos and athlete register, its sequences, run orders and the Production Planner's nights (<code>sequences.json</code>, <code>planner.json</code>), and <strong>active.json</strong>, the one in use.</li>
+      <li><strong>sponsors/</strong>: every sponsor once (<code>sponsors.json</code>), a folder of logos each, and <strong>exposure/</strong>, the log the sponsor report is made from.</li>
+      <li><strong>scene.json</strong>, <strong>outputs.json</strong>, <strong>music.json</strong> and <strong>mics.json</strong>: the sources and saved scenes, the video outputs, the music player and playlists, and the mics, shared by every competition; <strong>media/</strong>: the images, videos and songs they use.</li>
+      <li><strong>control.json</strong>: Scoreboard control's choices (the game night picked by hand, automatic game selection and its court, following the
+        PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners picked by hand).</li>
+      <li><strong>scoreboard-state.json</strong>: the game on the board, the scores and the clock.</li>
+      <li><strong>config.json</strong> (optional): changes this computer's settings (port, log size, how often to check PlayHQ, <code>linkHost</code>, <code>remoteChanges</code>) from the app's defaults (see <a href="#sr-2">Links and access</a>).</li>
+      <li><strong>devices.json</strong>: the Stream Deck key, link sets and the devices allowed to change things, on this Mac only and never backed up.</li>
+      <li><strong>switcher.json</strong>: the ATEM switcher Studio controls (its name on the network, or the address typed) and the stinger's line-up in frames, one for the Mac whichever competition is in use.</li>
+      <li><strong>app-settings.json</strong>: the Mac app's own choices (where the window was).</li>
+      <li><strong>recordings.json</strong>, <strong>demos.json</strong> (saved demo games), <strong>replay.json</strong> (what a 4K replay follows, and each recording's sync) and <strong>Recordings/</strong> (on this Mac, not in iCloud Drive or a backup): whether Studio records each PlayHQ game on air and for how long after full time, and the recordings themselves.</li>
+      <li><strong>logs/</strong>: the debug log. <strong>backups/</strong>: a copy of the folder made before an update changes how settings are saved.</li>
+    </ul>
+
+  <h3 id="sr-4">Settings in iCloud Drive</h3>
+    <p>In the 1P menu, <strong>Settings folder &gt; Move to iCloud Drive…</strong> asks for a folder in iCloud Drive (make one called
+      FirstPass Studio, say) and moves the settings into a subfolder named after this Mac, its <strong>Local hostname</strong> in
+      System Settings &gt; General &gt; Sharing: <code>iCloud Drive/FirstPass Studio/Studio-MacBook-Pro</code>.
+      Each Mac signed in to the same Apple account gets its own subfolder, so two Studios never save over each other's settings,
+      and a second Mac with the same name is stopped from using the first one's. Studio goes off air for the move and comes straight back.
+      Before anything moves, a copy of the settings is saved in <strong>backups/</strong> in the folder on this Mac, and the originals are removed only
+      once every file has copied across. If the folder already has settings for this Mac (from before), Studio asks whether to use those or replace them.</p>
+    <p>Some files always stay on this Mac: the debug log, the scores and clock (<code>scoreboard-state.json</code>,
+      saved every few seconds during a game), PlayHQ caches, the app's window positions and <code>data-location.json</code>,
+      which says where the settings are. If iCloud has kept only a placeholder of a file (Optimise Mac Storage), Studio downloads it before going on air;
+      to keep it all on the Mac, right-click the folder in Finder and choose <strong>Keep Downloaded</strong>. If the iCloud folder can't be found
+      (iCloud Drive turned off, signed out), Studio says so and doesn't start, rather than starting with no settings.
+      <strong>Settings folder &gt; Move back to this Mac…</strong> moves them back.</p>
+    <p><strong>Settings folder &gt; Restore from another Mac…</strong> copies another Mac's settings (competitions, scenes, sequences,
+      music, Scoreboard control's choices) over this Mac's: pick the Mac from the list of folders beside this one, or choose its folder.
+      The other Mac keeps its own; this Mac's settings are backed up in <strong>backups/</strong> on this Mac first, and are only replaced once
+      the copy has checked out. If this Mac's settings are on the Mac, they go into iCloud Drive too, in a new folder for this Mac beside
+      the other Mac's, and stay there from then on. Studio goes off air for the copy and comes straight back. <strong>Open the settings folder</strong> opens wherever they are now.</p>
+
+  <h3 id="sr-5">Backup and restore</h3>
+    <p><strong>Back up…</strong> in the 1P menu saves every setting in one zip: competitions with their logos and athletes,
+      sponsors, scenes, sequences, music and playlists, the media folder, Scoreboard control's choices and <code>config.json</code>,
+      wherever they are kept (on the Mac or in iCloud Drive). The debug log, the scores and clock, PlayHQ caches and stream keys stay out.
+      First it asks for notes (what the backup is for, say) and whether to include the media folder (videos, songs), which can make the zip big.
+      The zip is named <code>FirstPassStudioBackup-2026-10-24_10-46-02.zip</code>, the date and time it was made, so each one is new
+      and they sort oldest to newest. Beside it goes a summary with the same name, <code>FirstPassStudioBackup-2026-10-24_10-46-02.txt</code>:
+      the notes, then the names of the competitions (and which is in use), sequences, playlists, sources, scenes and sponsors. Inside the zip is one folder
+      of the same name holding the settings as they are in the settings folder, the same <code>summary.txt</code>, and
+      <code>studio-export.json</code> saying which Mac and Studio version made it. Files iCloud hasn't downloaded yet are downloaded first.
+      Studio stays on air while it backs up, and works off air too.
+      Link for scripts: <code>/api/settings/export</code> downloads the same zip (add <code>?media=0</code> to leave media out,
+      <code>&amp;notes=…</code> for notes).</p>
+    <p><strong>Restore…</strong> in the 1P menu puts a backup back: pick a <code>FirstPassStudioBackup-….zip</code>,
+      and Studio shows when and on which Mac it was made, its notes and how many competitions, sequences, playlists, sources, scenes and sponsors it holds,
+      then asks before replacing this Mac's settings with it (on the Mac or in iCloud Drive, wherever they are kept now). This Mac's settings are first
+      copied to <strong>backups/</strong> in the folder on this Mac, and only replaced once the whole backup has unpacked and checked out, so a damaged zip changes nothing.
+      Either way this Mac keeps its own <strong>Only this Mac can change things</strong>, port and link name, and the ffmpeg and PlayHQ addresses in its config.json.
+      A backup made without the media folder keeps this Mac's media. The debug log, scores and clock aren't touched. Studio goes off air while the settings
+      swap and comes straight back. A backup from an older Studio is brought up to date as Studio starts; one from a newer Studio opens with competitions read-only
+      until this Mac's Studio is updated.</p>
+
+  <h3 id="sr-6">Unsaved changes</h3>
+    <p>Changes on the Competitions setup page aren't kept until you press <strong>Save</strong>. With changes not saved yet,
+      leaving the page (a tab, or the Go menu), opening another competition, <strong>Use this one</strong>, <strong>New competition</strong> or
+      <strong>Import a template file</strong> first asks <strong>Save</strong>, <strong>Don't save</strong> or <strong>Keep editing</strong>. <strong>Export as template</strong> asks to save
+      first, since the file is made from the saved settings. Closing the window, reloading or quitting asks whether to leave without saving.</p>
+    <p>The editors that open over a page (a sponsor, a sequence, a playlist, a mic or a scene's <strong>Switcher</strong>
+      actions on the Output page, an athlete's <strong>Games</strong>) ask the same question: with changes not saved yet, pressing Escape or
+      leaving the page from the Go menu asks <strong>Save</strong>, <strong>Don't save</strong> or <strong>Keep editing</strong>, and closing the window asks whether
+      to leave without saving. Their <strong>Cancel</strong> button still just cancels.</p>
+
+  <h3 id="sr-7">Data and bandwidth</h3>
+    <p><strong>scoreboard.html</strong>, <strong>goals.html</strong> and <strong>countdown.html</strong> (and Scoreboard control) follow the scoreboard over the one connection Studio's pages keep open for the scene, so a score press or a PlayHQ reading reaches them the moment it happens, with no asking in between. <strong>ticker.html</strong>, <strong>viewers.html</strong> (every 15 seconds, Studio only) and the automatic <strong>supershot.html</strong> and <strong>streak.html</strong> keep asking for new data; <strong>ticker.html</strong> also asks for its speed every 3 seconds. None of that reaches PlayHQ.
+      <strong>commentator.html</strong> follows the scoreboard live for its clock, moments and run, and with Auto-refresh (on by default there) asks Studio for its stats every 15 seconds and for who is on the mic each minute, neither of which reaches PlayHQ; its team lists load at the start and each quarter break (see below).
+      The super shot and hot streak pages ask Studio every second for the scoreboard and nothing else, so they add no PlayHQ requests.
+      Every other graphic gets its data once when it loads, and again each time it's shown on the Output page (with <strong>Load the page fresh each time it's shown</strong>, the default).
+      The Clash and the winner celebration only retry if Studio isn't running.</p>
+    <p>Pages only ever talk to Studio on this computer, which uses no internet. Studio is the only thing that
+      contacts PlayHQ, and it caches what it gets:</p>
+    <ul>
+      <li>Scoreboard following PlayHQ: one small request every 5 seconds by default (<strong>Check PlayHQ every</strong> on Scoreboard control, 1 to 120 seconds), starting when
+        the game's electronic scoring starts (set on the setup page). Nothing is asked before then. Studio makes this request itself
+        whatever windows are open, so the score, the goal order and the game triggers (quarter breaks, full time) keep up even while the
+        scoreboard is hidden and Scoreboard control is closed; the pages share that reading rather than adding to it.</li>
+      <li>Studio scene (scene.html and the Output page): nothing. They keep one connection open to Studio, which only sends when the scene changes; the pages in the scene ask for what they normally do.</li>
+      <li>Display output (Mac app): nothing. The output windows show the scene page, so they ask for what the scene's pages normally ask for, once per display (fill and key means the pages run twice). The Blackmagic and NDI outputs run them once more, off screen, and each extra output runs the pages turned on for it once more. NDI's video goes over your local network only, never the internet. In 4K nothing more is asked for, but each NDI source carries about four times the pixels (roughly 250 to 400 Mbit/s at 50 or 60 fps, and fill and key is two sources), so use one source with transparency on a gigabit network, and the Mac does about four times the work per 4K output: the Output page's performance line shows whether it keeps up.</li>
+      <li>Mics: nothing over the internet. Each output window mixing mics tells Studio what it hears twice a second, and the Output page asks for it twice a second while its Mics section is open; the sound itself stays inside the Mac. A mic on the switcher is a few small fader messages over the switcher's connection when its level changes (about 20 a second while a dip fades).</li>
+      <li>Switcher (an ATEM, if one is set up): nothing over the internet. Studio keeps one connection to the switcher on your local network, a few kilobytes a second of small packets each way; looking for switchers asks the local network once.</li>
+      <li>User guide (/guide/): nothing over the internet. It comes with Studio, fonts and pictures included, about 4 MB when it opens and nothing after.</li>
+      <li>Stream Deck plugin's keys: nothing. The plugin keeps one connection open to Studio while any of its keys is on screen (and one more while a Switcher key is), and Studio only sends when the scene or the switcher changes.</li>
+      <li>Recordings: nothing over the internet. Studio writes what it already has to a file on this Mac every 5 seconds while a game is recording, a megabyte or so a game. A practice game asks PlayHQ nothing at all: the recording answers.</li>
+      <li>4K replay following a HyperDeck: nothing over the internet. While a replay follows it, Studio keeps one connection to the HyperDeck on your local network and asks where it is four times a second, a few hundred bytes each time.</li>
+      <li>Countdown: nothing. The clock ticks in the page and the start time comes from the game already picked.</li>
+      <li>Live viewers (Competitions setup): only while a video output is on, one small request per stream every 30 seconds to YouTube or Facebook, plus a YouTube search when a channel's live video isn't known yet (at most every 5 minutes). Nothing when no streams are set up.</li>
+      <li>Last 10 goals: nothing extra. It shares the scoreboard's 5 second reading, and Studio works out the goal order from it.</li>
+      <li>Commentator stats: the stats, shooting % included, share the scoreboard's reading, so auto-refresh adds nothing. Its team lists ask for the game's line up when the page comes on and at each quarter break, about four small requests a game; games played, ladder, form, head to head and up next are read once when the page comes on and for each new game (from the season Studio already keeps); games played reads the division's finished games once (kept in <code>game-cache.json</code>, as for the Athletes page).</li>
+      <li>Ticker: other courts' scores at most every 30 seconds.</li>
+      <li>Automatic game selection: the fixture about once a minute for the current round, every 10 minutes for the rest.</li>
+      <li>Socials tab: nothing extra. Its previews and pictures read the season's fixture, results and ladders through the same cache, and the Production Planner, sponsors and logos from Studio. Top shooters and Tournament top shooters read each finished game's line up once and keep it, the same as the Top shooters graphic. Finals bound and the Finals draw (and a finals night's other pictures) read the division's finals the way the Finals graphic does, through the same cache.</li>
+      <li>Production Planner: nothing extra. It reads the season's fixture through the same cache as automatic game selection (the current round about once a minute, the rest every 10 minutes), and the commentators graphics ask Studio only. The fixture board's live scores for other courts go through the ticker's reader and cache: nothing extra while the ticker is on, at most one request a minute per live game when it isn't.</li>
+      <li>Athletes page: when you open a team, the line up of each of its games this season, a few at a time. Finished games are only ever read once: Studio keeps their line ups in <code>game-cache.json</code> in the data folder, so they're kept through restarts too.</li>
+      <li>Finals: the division's ladder and its season's rounds when the page loads (the rounds are kept for 10 minutes, the current one for a minute).</li>
+      <li>Team lists: warmed up ahead, so they show straight away. When a game is picked (by hand or automatically) and when Studio starts, it reads the game's line up and both teams' season squads, and the next game's teams on the same court too. Finished games come from <code>game-cache.json</code>, so after the first time that's only a few small requests per game picked. Squads are kept for 30 minutes; the team list itself asks for the game's line up and score when it loads.</li>
+    </ul>
+    <p>Each answer is a few kilobytes, well under 1 MB an hour in total. Two options make a page poll, both off unless you add them:
+      <code>?refresh=</code> on the ladder, and <code>&amp;reload=</code> on the scoreboard, scene and Scoreboard control.</p>
+    <p>Animations run at the same speed at any frame rate, 50p or 60p.</p>
+
+
+  <h3 id="sr-8">Sponsors in detail</h3>
+    <p>A sponsor's QR code is made on this Mac, with tracking tags for the sponsor's website analytics unless they're turned off; <strong>Save QR code as PNG</strong> gives a copy. <strong>Pull up</strong> and <strong>Pull down</strong> take a sponsor from the nearest tier below or above that has one. The vacancy card is never shown without a link or email for its QR code.
+      The Sponsor report covers any run of nights: time on screen and where, ad plays, time with their QR code up, and progress against their targets. What's on an output counts as on air only while that output is on: one that's turned off or set to Web links only isn't, even while another is. <strong>Print or save as PDF</strong> to send it to them.</p>
+    <p><strong>Sponsors on the graphics:</strong> the naming rights sponsor (or what its empty-tier rule gives instead) is a <strong>Presented by</strong> tab over the home team on the scoreboard, a pill under the title banner and a line under the countdown.
+      The game stats, shooting stats and top shooters cards carry the next sponsor in rotation from Major and up in their footer, the ticker leads with the next from Partner and up, and the end of night card (Up next after the last game) thanks the sponsors from Major and up with their logos
+      (<code>?sponsors=all</code> every tier, <code>?sponsors=0</code> none).
+      On any of them, <code>?sponsor=0</code> leaves the sponsor off and <code>?sponsor=Golds%20Bakery</code> always shows that one; set it in the source's options on the Output page. With no sponsors they look as they always did.</p>
+
+  <h3 id="sr-9">Competitions setup in detail</h3>
+    <p>When an update improves one of the ready-made setups (AMMNA Nationals, GIG WANL), yours picks up only what you haven't changed yourself. Section by section:</p>
+    <ul>
+      <li><strong>Game rules:</strong> quarters or halves and their length, and super shots, for the whole competition or per division.
+        Under the super shots tick box each PlayHQ division can follow the competition, or have super shots or not. A setting can also be
+        saved for a word instead of a whole division name, and then covers every division with that word in its name ("Open" covers
+        "Division 1 Open"; "Men" covers "Men's" but not "Women's"); a division's own setting wins over a word. GIG WANL comes set for
+        super shots in Open only, not 21&amp;Under or Men's, by the words "Open", "21" and "Men". A division without super shots doesn't play
+        the super shot animation for a +2 press or count goals as super shots, and its shooting stats and top shooters leave the Super column off.
+        <strong>Super shots in the last [x] minutes of each quarter</strong> (default 3) is when the scoreboard shows its "Super shot" tab; 0 leaves it off.</li>
+      <li><strong>Finals:</strong> the competition's finals format, and a different one for any division that needs it. Top 2: grand final, or best of three.
+        Top 4: semis then grand final, Page (double chance for 1 and 2), or a placings day (1 v 2 and 3 v 4). Top 6: byes for 1 and 2, or a double
+        chance for 1 and 2. Top 8: AFL style, straight knockout, or carnival placings (a knockout over three weeks with play-offs, so every team gets a place
+        1 to 8). Every team: everyone plays on grand final day, 1 v 2 for the title, 3 v 4 for third, 5 v 6 for fifth and so on down
+        the ladder, with nobody knocked out (an odd team out has no game). The ladder marks the finals
+        places by what each earns and the finals graphic follows it.</li>
+      <li><strong>Game night:</strong> the court the scoreboard follows, whether it picks the game automatically, <strong>Electronic scoring starts [x] minutes before the game</strong>
+        (default 10; set 20 or 30 when games are further apart), and how many days ahead counts as this game night. Automatic selection switches
+        to the next game when its electronic scoring starts, and the scoreboard doesn't ask PlayHQ for a game's score before then, even for a game
+        picked by hand: Scoreboard control says when it will start checking. That keeps PlayHQ's "game could not be found or was not electronically
+        scored" error out of the debug log.</li>
+      <li><strong>Colours and font:</strong> nine colours, how see-through the dark panels are, and the font, with a preview. Click a colour's
+        swatch for a colour picker (shade square, hue slider, HEX and RGB boxes, and on Chrome or Edge <strong>Pick from screen</strong>), or type or
+        paste a colour into its box as HEX (#7f4092) or RGB (127, 64, 146). Under <strong>Brand kit colours</strong>, paste any text from a brand kit
+        with HEX or RGB values in it; those colours are saved with the competition and show in every picker, one click to use.</li>
+      <li><strong>Font:</strong> the Font box lists the fonts that come with Studio first (they work on any computer, with no internet),
+        then fonts added to the competition, then every font installed on this Mac (including any you add in Font Book), such as
+        Helvetica Neue, Avenir Next, Futura and DIN Condensed. A Mac font shows only on this Mac: a graphic opened on another
+        computer uses Montserrat instead. <strong>Add a font file</strong> takes TTF, OTF, WOFF or WOFF2 files (one per weight, or one variable
+        font); they're saved with the competition and go in its template file, so it looks the same on any Mac. Add only fonts you're
+        allowed to use, such as open licence fonts from Google Fonts. Any letter a font lacks comes from Montserrat.
+        Every font is sized and centred to match Montserrat, which the graphics were drawn with, so text fills its boxes the same
+        whichever font you pick; narrow fonts stand a little taller so they don't look small. <strong>Text size</strong> (80 to 130%) makes
+        a font other than Montserrat bigger or smaller on every graphic; keep an eye on long team names.</li>
+      <li><strong>Logos:</strong> the competition logo, in a light mode version (for a light picture behind it) and a dark mode version
+        (for a dark one; if you add only one, it is used for both), and the team logos.
+        The logos page and title use the light mode logo unless <code>?mode=dark</code> is added; the ladder's corner, on its coloured header, uses the dark mode one unless <code>?mode=light</code> is added. Drop team logo files on the page;
+        they match clubs by file name, and the PlayHQ team list shows which logo each team gets, with a box to pick a different one.</li>
+      <li><strong>Clubs:</strong> a team's logo and colour belong to its club, so every team of a club in every division shares them, and changing one row
+        changes them all. The club is the team's name without the division on the end ("Comets 21U", "Comets Men" and "Comets Open" are all
+        Comets; "Stormz Div 2" is Stormz). The <strong>Club</strong> box in the team list links a team to a different club, or to a new one.</li>
+      <li><strong>Club colours:</strong> in the same PlayHQ team list, <strong>Add colour</strong> gives a club its own colour. The scoreboard puts it behind
+        its teams' names and The Clash behind their logo and name, with dark or white text, whichever reads better. Clubs without one (or after
+        <strong>×</strong>) use the competition's colours. The match up page always uses the competition's colours. Pick the colour with the colour
+        picker or paste it as HEX or RGB.</li>
+    </ul>
+    <p><strong>Use this one</strong> switches every graphic, Scoreboard control and the Stream Deck to that competition: the game night goes back
+      to automatic and the scoreboard starts on that competition's first game. Saving the competition in use reloads the graphics
+      with the changes. Setups are kept in the <strong>competitions</strong> folder (see The data folder, above).</p>
+
+  <h3 id="sr-10">Athletes in detail</h3>
+    <p>Teams are listed by division, so a club with a team in more than one division (Knights) has a button in each, showing that division's line ups; <strong>All athletes</strong> lists everyone once.
+      A silhouette's gender is the one picked on the page if you've picked one, else PlayHQ's gender for the athlete, else the PlayHQ gender of their division when they play in a men's or women's division
+      (mixed and open divisions leave it neutral). <strong>Silhouette</strong> on each athlete shows where it came from and can override it.
+      <strong>Approve none</strong> takes photo approval away from every athlete listed. Games played can be kept per club as well as per division.</p>
+
+  <h3 id="sr-11">The Output page in detail</h3>
+    <ul>
+      <li><strong>Sources:</strong> <strong>Add page</strong> adds any Studio graphic or web address; <strong>Add image</strong> adds a PNG, JPG, GIF, WebP or SVG, and <strong>Add video</strong>
+        an MP4, WebM or MOV (saved in the data folder's <strong>media</strong> folder). Each opens a box to pick it. A new source goes above the selected one (on top if none is selected), hidden, with its
+        settings open under its row so you can set it up straight away. Pages not in the scene yet are listed first, and <strong>Add all unused pages</strong> adds every one of them, hidden.
+        Each row has the source's On / Off (a pill per output once there's more than one), an eye to preview it on its own and a pencil for its settings (name, address and page options,
+        size, fade, position, its Stream Deck links, <strong>Move up</strong>, <strong>Move down</strong> and <strong>Remove</strong>); <strong>Done</strong> closes them. The list is top layer first: drag a source up or down to move it between layers.</li>
+      <li><strong>Export sources</strong> saves the scene's sources as a .zip, with the images and videos they use (untick <strong>Export with their images and videos</strong> to leave them out),
+        to keep as a backup or move to another Mac. <strong>Import sources</strong> replaces every source in the scene with the ones in an exported .zip (or its <code>scene.json</code>), after asking.
+        Imported sources start hidden and keep their Stream Deck keys. Their images and videos go in the media folder; a file already there with the same name but different contents isn't
+        overwritten, the imported one is kept as <i>name (2)</i> instead. Exported without media, the files have to be in the other Studio's media folder already; the Output page lists any that are missing.</li>
+      <li><strong>Page options:</strong> a Studio graphic's link options listed on the Devices tab (position, heading, division, round, animate away and so on) show as fields
+        under its <strong>Address</strong>, and are saved in the address.</li>
+      <li><strong>On / Off</strong> fades a source in or out with its own <strong>Fade</strong> time in milliseconds (0 is a cut).</li>
+      <li><strong>Position and scale</strong> place it on the frame; <strong>Full frame</strong> fits it to 1920 × 1080. <strong>Page size</strong> is the size a page is drawn at (1920 × 1080 for full-frame graphics).</li>
+      <li><strong>Load the page fresh each time it's shown</strong> (on by default) reloads a page as it fades in so its animation replays, and unloads it when hidden.
+        Untick it to keep a page running so it shows instantly. <strong>Refresh page</strong> reloads it now.</li>
+      <li><strong>Animations that animate away switch themselves off:</strong> once a graphic has animated away and left the frame clear, its source is switched off in the scene
+        (the Sources list and its Stream Deck key show it off), rather than staying on as an empty layer. That's The Clash and the winner animation with
+        <strong>Animate away after</strong> set, a person lower third with <strong>Animate away after</strong>, positions with <strong>At the end: Animate away</strong>, the logo animation and the break ad
+        with <strong>At the end: Animates away</strong> (their default), and the super shot and hot streak animations when they play once.
+        Pages that stay on screen or wait for something to happen (super shots and hot streaks playing by themselves, the countdown, the scoreboard) stay on.
+        This needs a scene window open (the Output page's Live View, its pop-out or a display or DeckLink output) to see the animation finish.</li>
+      <li><strong>Preview</strong> opens the selected source on its own in a new window, the way the Preview buttons on the Devices tab do; the eye beside a source's On / Off does the same from the list. A preview opens at half size (960 x 540): the page is still laid out at 1080p, just scaled down, on a checkerboard so the see-through parts show, so a few fit on one screen. Resize the window to make it bigger.</li>
+      <li><strong>Videos</strong> start from the beginning each time they're shown (untick to carry on), can loop, and fade out when they finish unless looping.
+        A video that fades out when it finishes is switched off in the scene, so the Sources list and its Stream Deck key show it off and the next On plays it again.
+        <strong>Sound</strong> turns a video's sound on or off, with a volume; it plays through the Mac's audio output, or in the SDI of a Blackmagic output. <strong>Restart video</strong> starts it again.</li>
+      <li><strong>ProRes:</strong> the pages can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it (keeping a ProRes 4444 clip's transparency; the Output page warns when a .mov has none to keep, such as H.264),
+        and sources using it switch over when it's done. The original is kept. The Mac app includes ffmpeg to do this (running from a copy of the code instead, run <code>vendor/ffmpeg/build.sh</code> once or <code>brew install ffmpeg</code>). MP4 and WebM play as they are.</li>
+      <li><strong>Media folder:</strong> the Output page's <strong>Media folder</strong> (at the bottom, folded until you open it) lists every song, video and image added (under Music, Add image or video, or on the Sponsors page),
+        with its length, size and where it's used: sources, page themes (<code>?theme=</code>), sequence music (in any competition), playlists, the super shot song, the music player and sponsors' ads.
+        <strong>Remove</strong> deletes a file for good (with a levelled song's original) after asking, and says where it's used first. A file on air (a source showing it, or the song playing) can't be removed until it's off.
+        Playlists, the super shot song and sponsors' ads let go of it; sources, page themes and sequence music keep its name, shown as <i>(missing)</i>, so their settings and Stream Deck keys stay until you pick another file.
+        A .mov and the WebM converted from it are separate files.</li>
+      <li><strong>Sequences:</strong> play the scene's sources one after another, for the run-up to a game, a quarter break or full time. <strong>+ New sequence</strong> on the Output page opens
+        a list of steps: each step turns on the sources you pick and stays <strong>for a set time</strong> (seconds), <strong>until it finishes</strong> (its videos end, or pages that switch themselves off when done;
+        it moves on after the video's length plus 3 s, or a minute for a page, if the end never comes), <strong>until the game moves on</strong> (the clock starts, or the next break or full time) or <strong>until I press Next</strong>.
+        As a step ends, sources the next step doesn't use go off with their own fades. A step can also be a <strong>scene</strong> (+ Add scene: a starting or reset point;
+        what the scene turns on stays on under the next steps and after the sequence; it goes straight on or holds like any step) or another <strong>sequence</strong> (+ Add sequence: its steps play there,
+        so a mini sequence is built once and used in many; a sequence can't go inside itself). A sequence can be all sources, all scenes, all sequences or a mix. Tick <strong>Hide</strong> to keep one off the list (a mini sequence used inside others); it still plays inside them, when its start comes and from the Stream Deck, and <strong>Show hidden</strong> brings the hidden ones back to the list. <strong>Starts</strong> is by hand, N minutes before the picked game's scheduled start (only if Studio was running at that moment: opened later, the sequence is left for you to play by hand), at the breaks you tick (quarter, half and three quarter time) or at full time,
+        a few seconds after the siren (from the scoreboard's clock, the PlayHQ scorer's or yours; no extra PlayHQ calls). While it waits to start its card says <strong>Starting</strong>
+        with <strong>Start now</strong> and <strong>Cancel</strong>. <strong>Automatic sequences on</strong> above the cards turns all of
+        that off and on (remembered). <strong>Repeat</strong> plays it once, until stopped, until play resumes or until N minutes before the start (it finishes the step on screen, then ends), and
+        <strong>Then</strong> goes to a scene, turns off what it turned on, or leaves everything as it is; a sequence that plays on more than one output has a Then for each. A sequence only turns off sources it turned on itself.
+        While one plays, its card shows a dot per step, the step's time left and the whole sequence's <strong>Total</strong> (<strong>at least</strong> when part of it waits for Next, the game or a page; <strong>This time round</strong> when it repeats), with <strong>Next</strong> (end the step now), <strong>Pause</strong>
+        and <strong>Stop</strong> (ends it and does its Then). Going to a scene, playing another sequence or hiding everything stops it without its Then;
+        turning the step's source off by hand moves to the next step. One plays at a time, it keeps going with the Output page closed, and nothing is playing after Studio restarts.
+        Sequences belong to the competition in use (saved in its folder as <code>sequences.json</code>) and change with <strong>Use this one</strong>; the sources and scenes are shared.
+        Stream Deck: <code>/deck/sequence/&lt;name&gt;</code> plays one (<code>/toggle</code> stops it on a second press, <code>/stop</code> stops it),
+        <code>/deck/sequence/next</code>, <code>pause</code> and <code>stop</code> act on whatever is playing (<code>/deck/sequence/advance</code> is Next only when the step on now is <strong>Until I press Next</strong>, and does nothing otherwise), <code>/deck/sequence/now</code> and <code>cancel</code>
+        on one about to start, and <code>/deck/sequence/auto/on</code>, <code>off</code> or <code>toggle</code> set the switch.
+        The break lengths (Competitions setup, Game rules) let the editor say how many times a break sequence fits in each break.</li>
+      <li><strong>Run order:</strong> tonight's plan, above Scenes and Sequences: a numbered list of sequences and scenes for the picked output, in the order they play
+        (Run-up, Walk out, Live, Quarter time, Live, Half time…). <strong>Add…</strong> puts a scene or sequence at the end; rows drag, or move with their arrows, and <strong>×</strong> takes one out.
+        <strong>Play next</strong> plays the head now (a sequence starts, a scene is gone to) and <strong>Skip</strong> drops it without playing it; stepping through a sequence is the Sequences panel's Next. A sequence that ends looks at the run order first and plays what is queued after it;
+        its own <strong>Then</strong> runs only when nothing is queued, so a sequence built for one night still works alone on another. Whatever is at the head leaves the list as it starts, however it was started.
+        A game trigger puts its sequence at the head (with its few seconds and Start now / Cancel as usual) rather than starting it blind; Cancel takes it out again, and <strong>Next</strong> plays it when the ball is dead.
+        Playing a scene or sequence by hand leaves the list alone unless it was the head, and nothing in the list starts by itself. The status board's <strong>Next</strong> line and the bar's chip say what Next will do.
+        <strong>Saved…</strong> keeps tonight's order under a name (<strong>Save tonight's order as…</strong>), loads one in place of what is queued, deletes one or clears the list; the list and the saved orders live with the competition's sequences,
+        so a relaunch picks the night up where it was. Stream Deck: <code>/deck/runorder/next</code>, <code>skip</code>, <code>clear</code>, <code>add/&lt;sequence or scene&gt;</code> and <code>load/&lt;saved order&gt;</code>
+        (<code>/deck/output/&lt;output&gt;/runorder/…</code> for another output's list); the plugin's <strong>Run order</strong> key presses these, names what plays next in its colour and lights while something is queued. The existing <code>/deck/sequence/next</code> still ends the step on screen.</li>
+      <li><strong>Music:</strong> the Output page's <strong>Music</strong> player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF; use music you're licensed to stream, as Apple Music songs
+        are copy-protected), one song or a <strong>playlist</strong> (shuffled or not, starting again after the last or not). <strong>Add a song</strong> with <strong>Even out its loudness</strong> ticked
+        levels it to the same loudness as the others and keeps the original in the media folder's <code>originals</code>. It plays wherever video sound plays (the outputs, or
+        the Scene View while Video output is off), never twice. Play fades in over the <strong>fade in</strong> time; Pause and Stop fade out over the <strong>fade out</strong> time (slower by default); <strong>Duck</strong> (dip it low, keeping it running) goes down over the fade out time and back up over the fade in time (or half of each: a setting); <strong>Mute</strong> keeps it running. While a video with its
+        sound on plays, the music fades out and pauses, then fades back in from where it was (or lowers, or carries on: a setting).
+        A <strong>sequence</strong> can bring its own music: a song or playlist starting at one of its steps, from a <strong>start mark</strong> (type it, or <strong>Listen</strong> and press <strong>Mark here</strong>),
+        with a fade in; it fades out so it's gone as the sequence ends (when its last step has a set time; ended early, it fades from then), or cuts as it ends, or <strong>carries on into the next sequence</strong> when the sequence's Then plays another one (Run-up then Walk out
+        share one song). A sequence with no music of its own plays the music of a sequence inside it while that one plays, from its step, ending as that sequence's music ends. Going to a scene or another sequence fades a sequence's music out over its <strong>Music ends</strong> time (or cuts it, if set to cut). Tick <strong>Quiet the music</strong> on a scene (Edit scenes) or a sequence for an
+        interview on court: whatever music is playing (the player's or a sequence's) ducks and keeps playing until the next scene, sequence or sequence step without the tick.
+        A <strong>super shot song</strong> (a music setting, with its own volume) cuts in, no fade, when the super shot period starts in a division with super shots and fades out when the period ends.
+        Stream Deck: <code>/deck/music/toggle</code>, <code>play</code>, <code>pause</code>, <code>resume</code>, <code>stop</code>, <code>fade</code>, <code>next</code>, <code>prev</code>,
+        <code>/deck/music/mute/toggle</code>, <code>/deck/music/duck/toggle</code>, <code>/deck/music/load/&lt;song&gt;</code> and <code>/deck/music/playlist/&lt;name&gt;</code>
+        (<code>?play</code> starts it too); <code>?fade=2</code> on any of them fades over 2 seconds, <code>?fade=0</code> cuts.</li>
+      <li><strong>Mics:</strong> live mics plugged into the Mac (wireless receivers for effects mics on court or crowd mics, directly or through an audio interface) go out with the music and video sound.
+        Add each one in the Output page's <strong>Mics</strong> section: a name, the input (<strong>Find inputs</strong> lists the Mac's, in the Studio app) and the channel (both mixed to one, or left or right, so two receivers on one stereo input are two mics).
+        Each mic's <strong>Goes to</strong> ticks the outputs it's mixed into (Output 1 unless set, shown with more than one output), so a commentators' feed can take the effects mics and leave out the commentators' own; it's heard while those outputs are on, and never in the Scene View, so a speaker near a mic can't feed back. The first time, the Mac asks whether FirstPass Studio may use the microphone.
+        Each mic has a level (100% as it comes in, up to 200%), a mute, a <strong>Low cut</strong> for wind and rumble (on by default) and a meter; <strong>Level</strong> and <strong>Mute all</strong> are over all of them, and a limiter stops a shout clipping the stream.
+        Like the music's duck, the mics <strong>dip</strong> to the <strong>Dip to</strong> level (30% by default) while music plays, while a video with its sound on plays, and while a scene or sequence with <strong>Quiet the music</strong> is on (each a tick box), going down over 1 second and back up over 2; <strong>Dip</strong> dips them by hand.
+        A mic marked <strong>Has an external mixer</strong> never dips, since the mixer does the fading, and stays at its level. A device that isn't plugged in says so on its card.
+        A mic can be plugged into the <strong>switcher</strong> instead (an ATEM Mini's Mic 1 or Mic 2): pick <strong>Plugged into: The switcher</strong> and its input. The switcher mixes it, and Studio moves its fader for the same level, mutes and dips (fading in small steps), changing nothing else on it: set its On, EQ and dynamics in ATEM Software Control.
+        Moving its fader on the switcher or in ATEM Software Control makes that the mic's level, and Studio takes the faders as it finds them when it connects. Left and Right need the input split into two mono channels in ATEM Software Control. These mics are heard whatever Studio's outputs are doing.
+        Stream Deck: <code>/deck/mics/mute/toggle</code> (<code>on</code>, <code>off</code>), <code>/deck/mics/dip/toggle</code>, <code>/deck/mics/up</code> and <code>/deck/mics/down</code> (10% a press, <code>?by=5</code> for another step), <code>/deck/mics/level/80</code>,
+        and one mic by name or number: <code>/deck/mic/court-mic/mute/toggle</code>, <code>/deck/mic/1/up</code>, <code>/deck/mic/1/down</code>.</li>
+      <li><strong>Scene View:</strong> the Output page shows the scene as it is right now (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick <strong>Live View</strong> when the Mac is busy.
+        The Scene View plays the scene's sound only while <strong>Video output</strong> is off (for testing); with a display, Blackmagic or NDI output on, the output carries the sound and the Scene View is silent, so it never plays twice. <strong>Pop out</strong> shows the Scene View in its own window to resize, move to another screen
+        or make full screen while testing (with the same sound), with a floating Sources list to show or hide each source from there; the Output page's own Scene View turns off while it's open and comes back when it closes.</li>
+      <li><strong>Display output (Mac app):</strong> sends the scene full screen to the Mac's extra displays (HDMI into a switcher).
+        <strong>Chroma</strong> puts it over a solid colour on one display (green, blue or any colour) for a switcher that keys on that colour.
+        <strong>Fill and key</strong> uses two extra displays: fill is the scene over black, key is white where the scene shows and black where it's see-through,
+        for the switcher's fill and key inputs. It's only offered with two extra displays connected (a plain M1 drives one; Pro and Max chips drive more).
+        Set those displays to exactly 1920 × 1080 (not HiDPI or scaled) in System Settings, Displays, or the scene looks soft; the Output page warns when they aren't.
+        Turn the switcher's <strong>Pre Multiplied Key</strong> on for clean edges (with the switcher set up, Into the switcher as checks it and can set it).
+        Each output opens full screen in its own window; leave full screen (green button or ⌃⌘F) to move it to another display or use other apps.
+        While the output is on, its settings are locked: turn it off to change them.
+        <strong>Output on/off</strong>, Esc on an output window, closing it, or <code>/deck/output/on</code>, <code>off</code> and <code>toggle</code> show or blank the displays without changing the setup.</li>
+      <li><strong>Blackmagic output (Mac app):</strong> sends the scene out of a Blackmagic UltraStudio or DeckLink:
+        <strong>fill and key</strong> with the device's external keyer (fill on one SDI out, key on the other) or <strong>fill only</strong>, in the video format you pick
+        (1080p only; pick the one the switcher runs at, usually 1080p50). A format marked <i>(device says it can't)</i> is one the device
+        reports it can't send (older UltraStudios with HD-SDI rather than 3G-SDI stop at 1080p30); you can still try it, and the Output page says if it fails. The fill is premultiplied: turn the switcher's
+        <strong>Pre Multiplied Key</strong> on for clean edges (clip and gain aren't used then), and leave <strong>Straight</strong> off: straight fill into a Pre Multiplied Key
+        leaves a light fringe round logos and text. Tick Straight only for a switcher that can't do a premultiplied key (every ATEM can); ticking it asks if you're sure.
+        <strong>Sound</strong> goes in the SDI as 48 kHz stereo, in time with the picture (with fill and key, on the fill), so on the switcher turn on the sound of the input the fill comes into (On, or AFV to follow the picture); an SDI to HDMI converter passes it on. It can go on the Mac's sound output instead, or both.
+        It needs Blackmagic Desktop Video installed (the Output page says if it isn't, with where to get it; quit and reopen Studio after installing) and the device free, so quit any other app using it first. Output on/off and the
+        <code>/deck/output</code> links work the same.</li>
+      <li><strong>NDI® output (Mac app):</strong> sends the scene over the network as NDI sources, in the video format you pick (1080p at 23.98 to 120 fps, the same rates as a Blackmagic device, or 720p at 25 to 60 fps):
+        <strong>fill and key</strong> as two sources (<i>Source name Fill</i> and <i>Source name Key</i>) for a switcher's fill and key inputs,
+        <strong>chroma</strong> as one source over a solid colour (the same colour setting as the chroma display), or <strong>with transparency</strong> as one source with alpha
+        for receivers that key on NDI's own transparency. They show up on the network as this Mac's name with the <strong>Source name</strong> in brackets
+        (the output's name, for example <i>Output 2 Fill</i>, and it follows the output when it's renamed; tick <strong>Use my own name</strong> to type another;
+        a source that changes name has to be picked again on the receiver). Each source only sends while something is receiving it, and the Output page says how many are.
+        It needs NDI's runtime for Mac installed (free, the libNDI installer from <a href="https://ndi.link/NDIRedistV6Apple" target="_blank" rel="noopener">ndi.link/NDIRedistV6Apple</a>; Studio also uses the copy inside NDI Tools' apps if it finds one, as long as that copy is signed by NDI's makers, Vizrt or NewTek: a library runs inside Studio, so an unsigned file by that name is left alone and the log says so);
+        the Output page says if it isn't, with where to get it, and finds it as soon as it's installed. Use a wired network: each 1080p source is roughly 100 to 150 Mbit/s at 50 or 60 fps and about twice that at 100 or 120 (fill and key is two of them), more than Wi-Fi carries steadily, so over Wi-Fi the receiver loses frames and moving graphics such as the ticker stutter. Pick the frame rate your switcher or stream runs at (1080p30 for a 30 fps stream): a higher one costs more of the network, and the receiver drops the extra frames anyway. Once a minute while something is receiving, the app log says how many frames a second went out and how many new pictures the scene drew; both at the full rate with a choppy picture means the network lost them. Sound plays through the Mac's audio output, not over NDI.
+        Output on/off and the <code>/deck/output</code> links work the same. NDI® is a registered trademark of Vizrt NDI AB.</li>
+      <li><strong>Picture, HD or 4K (Mac app):</strong> the <strong>HD</strong> and <strong>4K</strong> buttons at the top of Video output set the picture for every output at once.
+        In 4K each NDI and Blackmagic output sends 2160p at the frame rate picked for it (2160p50 for 1080p50) and keeps everything else: its scenes, sources, NDI source names,
+        Stream Deck keys and links, and its switcher key. Press HD and it's exactly as before. The graphics keep their 1920 × 1080 layout and are drawn at twice the density,
+        so Studio's text, shapes and logos come out sharp; pictures and videos are only as sharp as their files (a 1080p video or a small logo looks softer).
+        A Blackmagic device without that 2160p format (an HD UltraStudio), or a 720p NDI format, stays as it is and its card says so; displays are left alone,
+        as a 4K screen set to look like 1920 × 1080 already draws at 4K. In 4K a Blackmagic output's video format list also has the device's own 4K formats (2160p50 and so on, as the device lists them) to pick directly; HD hides them again and sends the 1080p format at the same rate. Use 4K only with 4K gear: an HD switcher can't take 2160p.
+        Any graphic's own link also draws sharp at 4K: in a browser source or window set to 3840 × 2160 it draws itself at twice the size, with nothing added to the link.</li>
+      <li><strong>More than one output (Mac app):</strong> <strong>Add an output</strong> sends different graphics to up to four outputs at once, for example the
+        downstream key on the Blackmagic and an upstream key on a camera over NDI, so those graphics switch with the camera. Each output is set up
+        like the first (a chroma display, fill and key displays, the Blackmagic device or NDI) and has a name, a number and a colour: 1 orange, 2 pink, 3 blue, 4 green.
+        Two outputs can't share a display, the Blackmagic device (one output) or an NDI source name: the earlier output keeps it and the Output page says so.
+        Several outputs can each send NDI, each under its own source name (its own output name unless one is typed), and two chroma outputs can go to two displays over HDMI, each with its own key colour.
+        <strong>Output 1 is the primary</strong>: the plain <code>/deck/layer</code> links act on it.
+        <strong>Every output plays its own sound</strong>: the videos and animations on it, the music when <strong>Music plays on</strong> ticks it (Output 1 unless set; a sequence's music plays on every output playing the sequence), and the mics whose <strong>Goes to</strong> ticks it. <strong>Scenes and sequences are shared by every output</strong>, and each output plays its own: a click on a scene or
+        sequence plays it on the output picked over the Scene View. Each output has its own current scene and plays one sequence at a time, so the same scene or
+        sequence can be on two outputs at once; coloured dots on scene cards, and on sequence cards each output's tick in its colour with how it is there (Playing, Paused, Starting or Stopped (it ended there, played out or cut short); a hollow dot and "off" while that output isn't sending, as it still plays there for when it's turned on), show where. <strong>Hide all</strong> (under Sources) clears one output only and its label names it: the one the list shows when <strong>Show</strong> is set to one output, else the picked output. A sequence's <strong>Plays on</strong> ticks (on its card, in each output's colour, and in its editor) pick the outputs it plays on together: started by itself, or played on any of them (a click with that output's tab picked, or its Stream Deck key), it starts on all of them at once, and each output has its own <strong>Then</strong> for when it ends there (Output 1 back to the live scene, a camera's keyer output off, say). Played on an output it isn't ticked for, it plays there alone, and <code>/deck/output/&lt;output&gt;/sequence/&lt;name&gt;/only</code> plays it on that output alone even when it's ticked for more. Stop on a card, <code>/deck/…/sequence/stop</code> and Next act on one output; <code>/toggle</code> and <code>/deck/…/sequence/&lt;name&gt;/stop</code> stop it on every output it plays on, each doing its own Then. A sequence plays on its outputs whether or not they're sending, so turning one on mid-sequence shows it where it's up to; an output it wasn't started on doesn't join in until it's played again. An output it plays on that is removed is left out (stopping what played there); with all of them removed, the sequence doesn't start by itself (rather than going to air on Output 1) until another is ticked, and the log says so. A Sponsor ads step off Output 1 plays its ads in that output's own Sponsor ad sources (named after it, and removed with it). Only Output 1 and outputs with <strong>Counts for sponsors</strong> ticked (on the output's card, off to start) go in the sponsor report, as Studio can't tell whether a camera's keyer or a commentary monitor is on the stream; time on a ticked output is listed as "Ladder (Wide camera)", and a sponsor on two outputs at once counts once. A Sponsor ads step on an output that doesn't count shows whose turn it is without taking it, so the ads on air keep their order.
+        <code>/deck/scene/&lt;name&gt;</code> and <code>/deck/sequence/&lt;name&gt;</code> play on Output 1; <code>/deck/output/&lt;output&gt;/scene/&lt;name&gt;</code>,
+        <code>next</code>, <code>prev</code> and <code>again</code>, and <code>/deck/output/&lt;output&gt;/sequence/&lt;name&gt;</code> (with <code>/play</code>, <code>/toggle</code>,
+        <code>/stop</code> or <code>/only</code>), <code>next</code>, <code>advance</code>, <code>pause</code>, <code>stop</code>, <code>now</code> and <code>cancel</code> play on that output. Sources are built once and shared; each output has its own on and off for every source, as coloured
+        numbered buttons in the Sources list (a new output starts with everything off). <strong>Show</strong> above the list narrows it to one output, the tabs over the Scene View
+        show each output, and <strong>Pop out</strong> opens the one picked. Stream Deck: <code>/deck/output/&lt;output&gt;/on</code>, <code>off</code> and <code>toggle</code>
+        for one output (its name as a link, or its number), <code>/deck/output/all/…</code> for every one, and <code>/deck/output/&lt;output&gt;/layer/&lt;source&gt;/on</code>,
+        <code>off</code>, <code>toggle</code> and <code>/deck/output/&lt;output&gt;/layers/off</code> for one output's sources (the Source settings list them).
+        Each output with its own graphics runs its pages once more, so watch the Mac's load with three or four: while an output is on, its card
+        shows its CPU (a percentage of one processor core), memory and the frame rate its pages draw at against what they should (in amber
+        when it falls under 90%), with Studio's total and the graphics processor under the status, and the log has a <i>Performance</i> line once a minute.</li>
+      <li><strong>Chroma key safe:</strong> a chroma key cuts out one colour, so anything half see-through (see-through panels, soft shadows and glows,
+        fades, soft edges) mixes with that colour and keys with a fringe or holes. With <strong>Chroma</strong> (a display, or NDI's chroma signal) picked,
+        <strong>Chroma key safe</strong> is ticked unless you untick it, and the Output page warns that the sources are switched to it: every graphic and animation
+        goes out with solid panels, no soft shadows, glows, light rays or flashes (hard shadows stay, made solid), and nothing half see-through, so
+        fades become cuts (sources cut instead of fading) and soft edges are hard. Options that only fade, like the countdown's fade and the ad's glow,
+        are skipped, and the source's options say so. Titles, logos, light and dark modes and every other setting work as usual. It never changes a
+        saved setting: pick another output, or untick it, and everything is back as it was. The Scene View shows the scene chroma key safe while it's on.
+        The Output page also lists any competition or club colour close to the key colour (a keyer would cut holes in it); logos can't be checked, so look at those.
+        For a graphic used on its own at its link and keyed on a colour, add <code>?chromaKey=true</code> to its link.</li>
+      <li id="ref-switcher"><strong>Switcher (a Blackmagic ATEM):</strong> the <strong>Switcher</strong> card under Video output controls an ATEM over the network: the Mac and the
+        switcher on the same network, ideally wired. <strong>Set up</strong>, then <strong>Look for switchers</strong>, finds every ATEM on the network the way ATEM Software Control
+        does (the first time, macOS asks to let Studio use the local network: say Allow); pick one and Studio connects and remembers it by name, so it finds it again
+        if the venue's router gives it another address. <strong>Or type its address</strong> (as set in ATEM Setup; an ATEM ships as 192.168.10.240) works too.
+        The card shows the switcher's inputs by the names set in ATEM Software Control, red on program and green on preview: click one to put it on preview,
+        then <strong>Cut</strong> or <strong>Auto</strong> (the switcher's own transition) to take it. <strong>Fade to black</strong>, and each upstream and downstream key on and off (red while on air;
+        a downstream key's <strong>Auto</strong> takes it at its own rate), are there too. Studio reads what the switcher has and offers only that:
+        <ul>
+          <li><strong>ATEM Mini and Mini Pro:</strong> 4 inputs, one upstream key, one downstream key. Fill and key into the downstream key takes two inputs and leaves two cameras; a chroma key needs the upstream key (one input, three cameras left).</li>
+          <li><strong>ATEM Mini Extreme:</strong> 8 inputs, four upstream keys, two downstream keys.</li>
+        </ul>
+        A link or button for something the switcher doesn't have (a second downstream key on a Mini Pro, say) is refused with what it does have.
+        <br><strong>Into the switcher as:</strong> each output's setup (under Video output) says which of the switcher's keys its graphics come into and which inputs
+        its fill and key are plugged into (a chroma output needs just one). The usual key is downstream key 1 for Output 1 and upstream keys 2 to 4 for
+        Outputs 2 to 4; a chroma output goes on an upstream key, as only those key on a colour. Pick another key, or <i>Not keyed by the switcher</i>.
+        Studio then checks that key's settings in the switcher, read only, and lists what doesn't suit the output: its fill and key sources, its type
+        (Chroma for a chroma output, Luma for fill and key) and <strong>Pre Multiplied Key</strong> (on), and asks for a Blackmagic device's <strong>Straight</strong> to be off. It also says when
+        the output can't be keyed as it is: a chroma output on a downstream key, NDI with transparency or fill only (an ATEM needs a key signal or a colour),
+        two outputs on the same key, or a key the switcher hasn't got. <strong>Set up this key for me</strong> changes just those settings on the switcher (and unticks Straight, which restarts the Blackmagic output for a moment), after asking;
+        it leaves the key's clip, gain, mask, position and whether it's on air alone, and the log says what it changed. For a chroma key, pick the key colour
+        in ATEM Software Control with its sample picker. Nothing is sent to the switcher until it's pressed.
+        <br><strong>Cameras per output:</strong> an output on an upstream key can say which cameras its graphics <strong>go with</strong> (ticked under Into the switcher as; the
+        outputs' own fill and key inputs aren't offered). Studio's cuts, autos and stingers, from the Switcher card, a Stream Deck key or a sequence or scene,
+        then take that key on with those cameras and off with the others in the same transition, so the camera and its graphics change on the same frame
+        (Studio picks the keys in the switcher's next transition and puts the BKGD and KEY buttons back as they were afterwards). A straight-to-program press
+        brings the key straight after. With <strong>Keys follow the camera</strong> on (the Switcher card, on unless turned off), a cut made on the switcher itself or in
+        ATEM Software Control brings the keys a frame or two later. It only acts on a change of camera, so a key turned on or off by hand stays as it is, and it
+        sends nothing on connecting. An output with no cameras ticked, on a downstream key (over every camera), or whose key check shows a problem is left
+        alone. The output's card says <i>On air with Bench</i> or <i>Waiting for Bench</i>, and the Switcher card underlines each key in its output's colour.
+        The switcher's own buttons, ATEM Software Control and other controllers keep working alongside Studio, and the card follows what they do.
+        Studio sends nothing to the switcher by itself: not when it connects, and not when it reconnects. If the switcher stops answering (a pulled cable, a power
+        cut), or is off when Studio connects, the card turns red within about five seconds and Studio keeps trying; anything pressed meanwhile is refused, not saved up for later, and the log says so.
+        Studio connects when it goes on air and lets go when it goes off air. Stream Deck: <code>/deck/switcher/cut</code>, <code>auto</code> and <code>ftb</code>;
+        <code>/deck/switcher/preview/&lt;input&gt;</code> and <code>program/&lt;input&gt;</code> (its number, or its name such as <code>Camera%202</code>);
+        <code>/deck/switcher/usk/&lt;n&gt;/on</code>, <code>off</code> or <code>toggle</code>; <code>/deck/switcher/dsk/&lt;n&gt;/on</code>, <code>off</code>, <code>toggle</code> or
+        <code>auto</code>; and <code>/deck/switcher/macro/&lt;n&gt;</code> (a macro saved on the switcher, numbered from 1 as in ATEM Software Control).
+        The Stream Deck plugin's <strong>Switcher</strong> key presses any of these and shows the tally: a camera's key lights red while it's on program and green on preview,
+        a key or Fade to black red while on air, and every key goes dark with a yellow dot while the switcher isn't answering.
+        <br><strong>Stinger:</strong> with the Stinger page as a source in the scene, the card's <strong>Stinger</strong> button (and <code>/deck/switcher/stinger</code>,
+        <code>/deck/switcher/stinger/&lt;input&gt;</code>) plays it on the output on a downstream key (Output 1, unless another output that's switched on is Into the switcher as a downstream key,
+        as only a downstream key covers the whole picture) and cuts to the preview input underneath it. The stinger tells Studio when it starts
+        and when it covers the frame, from its own settings, and the cut lands in the middle of the cover (0.72 s in with the usual half second hold), so the cut
+        comes about a second and a half after the press, once the page has loaded. That output's picture reaches the switcher a few frames late (more over NDI than HDMI):
+        set its <strong>line-up</strong> in frames (each output keeps its own, so moving the stinger to another output keeps both) (−25 to 25, at the switcher's own frame rate) to move the cut, and press <strong>Test the line-up</strong> before you're live: it cuts
+        just 2 frames after the bands cover the frame, so if the old picture flashes before them, add frames (run it two or three times and go by what you see
+        each time: one run can be a frame out either way). Only that output's own video output starts the timing, not a preview or another output, so a stinger needs that output on.
+        With no stinger in the scene, a stinger is an auto; if the page doesn't start within 3 s, it's a plain cut, and the log says which. A second stinger while
+        one plays is left out (a press, a Stream Deck key, or a sequence or scene's own Stinger to), so a double tap never makes two cuts. <strong>Stinger to</strong> a camera that's already on program plays the stinger with no cut
+        (for a change of graphics under it). In a sequence or scene, actions at the same moment as a stinger wait for its cut, so a key change lands under the bands too.
+        <br><strong>Switcher actions in sequences and scenes:</strong> once a switcher is set up, a sequence's sources or scene step has a 🎥 button, and each scene has
+        <strong>🎥 Switcher</strong> under Edit scenes. Each adds up to eight actions: <strong>Cut to</strong>, <strong>Auto to</strong> or <strong>Stinger to</strong> an input (or what's on preview), <strong>Put on preview</strong>,
+        an <strong>Upstream key</strong> or <strong>Downstream key</strong> on, off or toggled (a downstream key can go <strong>at its rate</strong>), <strong>Fade to black</strong> or back, and <strong>Run macro</strong>,
+        each as the step starts or the scene is picked, or up to 60 s in (in tenths of a second). Actions at the same moment go in order, so a preview then a cut works.
+        A step's actions still to come are called off when the step ends or the sequence stops; a scene's when another scene is picked. A scene step does the scene's actions too.
+        They happen only when the scene or sequence plays on Output 1 (its picture is the one going into the switcher); on another output it plays without touching the switcher.
+        The editor offers the inputs and keys the connected switcher has; one it hasn't got (upstream key 2 on a Mini Pro, say) is shown in red and skipped, with a line in the log.
+        If the switcher isn't answering when an action's moment comes, it's skipped and logged, never done late. Scenes and sequences with switcher actions show 🎥 by their name.</li>
+    </ul>
+    <p>The scene only changes when you change it, so it adds no PlayHQ requests beyond those of the pages in it.</p>
+
+  <h3 id="sr-12">Scoreboard control in detail</h3>
+    <p>Every graphic uses the game night, game and court set on the Scoreboard control.
+      That page is laid out for the operator: the game on the board in one bar with <strong>Follow PlayHQ</strong> or <strong>Manual</strong> and the next game the board will switch to,
+      then the two scores and the clock as the biggest things on the page, with their keys printed on the buttons (<strong>A</strong>/<strong>Z</strong> and <strong>K</strong>/<strong>M</strong>, <strong>Shift</strong> for a super shot, <strong>Space</strong> for the clock);
+      the graphics, team lists, finals and the rest are tabs beneath, with a preview of the board beside them, and the game's own set-up (night, court, automatic selection, how often PlayHQ is read)
+      is the <strong>Game</strong> section at the bottom, which <strong>Change game…</strong> opens and which folds to its title.
+      A setting added to a page's own link (like <code>?division=2</code> or <code>?round=6</code>) overrides it for that page only.</p>
+    <ul>
+      <li><strong>Game night:</strong> the games list has every division's games on one date, whatever round each division is up to, so one
+        division on Round 10 and another on Finals Round 1 the same night are listed together, each game with its own round.
+        <strong>Automatic</strong> picks the first game night in the next 5 days, counting today, so a Tuesday night is picked from the
+        Friday before (the number of days is on the competition setup page). Otherwise it's the last night played. Each night in the
+        list names its rounds. Pick a night to use it, then set it back to <strong>Automatic</strong>. Pages that show one round (like the
+        fixture) use each division's round on that night. On a day with several rounds, it moves on to each round as its first game comes up.</li>
+      <li><strong>Always a game on:</strong> when Studio starts, or the scoreboard is cleared, it puts a game on straight away with
+        <strong>Follow PlayHQ</strong> on: the game for now on the court, otherwise this game night's first game on that court, otherwise
+        its first game. The board is only left empty if PlayHQ can't be reached or the competition isn't found (check the PlayHQ
+        link and competition on the competition setup page).</li>
+      <li><strong>Game:</strong> tick <strong>Pick the game automatically for court</strong> and set the court (it starts on the court set on the competition
+        setup page, e.g. <code>Indoor 01</code> or just <code>1</code>). It shows the first game of the day on that court,
+        then switches to each next game when its electronic scoring starts (10 minutes before by default, set on the setup page), with the quarter back to Q1 and a full clock. A final
+        (a round with "Final" in its name) stays on until PlayHQ marks it finished, in case of extra time. With a game night picked
+        by hand, it follows that night's games on the court by their time: the game due now, otherwise the next one
+        to come, otherwise (a night already played) its last game.</li>
+      <li id="ref-planner"><strong>Production Planner:</strong> the Production Planner plans the court Studio streams each game night and who is on the mic for each game. When it has a court for tonight (the game night picked by hand,
+        otherwise today), that court is set here once when the night arrives, which also ticks automatic selection, and again if the plan's court changes. The <strong>Commentators</strong> graphic and <strong>Commentator stats</strong> show whoever is planned for the game on the scoreboard, and a night that hasn't been planned takes the plan of the night before it.
+        It says <i>from the Production Planner</i> beside the court. A court changed or a game picked by hand afterwards stays, and the Planner flags it.</li>
+      <li><strong>Overrides:</strong> picking a game from the list turns automatic selection off until you tick it again or change the court. Pressing a score
+        button switches scores to manual, and any clock button switches the clock to manual.</li>
+      <li><strong>Follow PlayHQ:</strong> the score and quarter come from PlayHQ's live scoring every 5 seconds, and
+        <strong>Follow the PlayHQ scorer's clock</strong> runs the clock from the scorer's clock too. Switching scores between
+        <strong>Follow PlayHQ</strong> and <strong>Manual</strong> (on Scoreboard control, the Stream Deck, by pressing a score button or by picking a game)
+        turns the clock option on or off to match, and Scoreboard control says so. Changing the clock after that still wins:
+        untick the box or press a clock button to run the clock by hand while scores follow PlayHQ.</li>
+      <li><strong>Pages that use the picked game's division:</strong> ladder and finals (without <code>?division=</code>), ladder bar, top shooters,
+        title, match up, The Clash, winner celebration, team lists, shooting stats and full time. The fixture, results, ticker and up next use the round.</li>
+      <li><strong>Stream Deck:</strong> <code>/deck/auto/on</code>, <code>/deck/auto/off</code>, <code>/deck/auto/toggle</code>,
+        <code>/deck/court/2</code>, <code>/deck/clock/playhq/on</code> and <code>/deck/ticker/faster</code> / <code>slower</code>. The Stream Deck page has the rest, with Copy buttons and the plugin.
+        A score key switches scoring to Manual (Follow PlayHQ stops for the score and the clock), and a clock key stops the clock following the PlayHQ scorer.</li>
+    </ul>
+
+  <h3 id="sr-13">Socials in detail</h3>
+    <p>The Socials tab makes pictures of a game night for Instagram and other social media,
+      from the fixture, results and ladders Studio already has. Pick the <strong>game night</strong> (by date, so every division playing that night is in it), then
+      <strong>Upcoming</strong> (before the night) or <strong>Results</strong> (after it; a night with results opens on Results) and the sizes:
+      <strong>Square</strong> 1080 x 1080, <strong>Portrait</strong> 1080 x 1350 and <strong>Story</strong> 1080 x 1920. Upcoming pictures:</p>
+    <ul>
+      <li><strong>Game night fixture:</strong> every game of the night on every court, by time, with the logos, division and court.</li>
+      <li><strong>Match up:</strong> one per game, the two logos big with the date, time, court and venue.</li>
+      <li><strong>On the stream:</strong> the court Studio streams that night, each game's division and who is calling it, from the Production Planner (plan the night first).</li>
+      <li><strong>Commentary team:</strong> a picture for each game someone calls, with that game's commentators (up to three) side by side and its time and teams once under the headshots, so the social team can post them one by one or group them; each commentator has their headshot, to share before the livestream. Add each commentator's headshot on the
+        Production Planner (click the circle beside their name); their initials show until then, and a guest gets a Special guest pill.</li>
+      <li><strong>Polaroid:</strong> a tilted white print for a match photo. Drop a photo on it, drag the preview to frame it and set the zoom; with no photo its window is
+        see-through, so your social team can put a photo under it in Canva or a phone app.</li>
+    </ul>
+    <p>Results pictures (games show once PlayHQ has their final score):</p>
+    <ul>
+      <li><strong>Results:</strong> every finished game's final score, division by division, the winner in the highlight colour.</li>
+      <li><strong>Full time:</strong> one per game, the two logos and the score big, with who won and by how much.</li>
+      <li><strong>Ladder:</strong> one per division that played, as PlayHQ has it now ("after Round 5" when it is that division's latest night with results), with the finals line.</li>
+      <li><strong>Top shooters:</strong> one per division, its top six shooters that night, from each finished game's line ups (goals, plus super goals and points where there are super shots).</li>
+      <li><strong>Tournament top shooters</strong> (<strong>Season top shooters</strong> when the fixture runs 15 days or more, or as picked under Game night in Competitions setup): one per division, its top eight shooters over every finished game so far, labelled after this night's latest round, or after an earlier round that night (<strong>As at</strong>, for a carnival day with several rounds). With <strong>Highlight movers</strong> ticked (kept for the competition), each shows the places they climbed (green ▲) or fell (red ▼) since the round before, even on the same day (the day before for games with no round), and NEW for anyone new to the top eight. It reads the same kept line ups as Top shooters.</li>
+      <li><strong>Polaroid:</strong> one per game, with the score under the photo ("Blizzardz win 31–26") and the opponent, division, round and date under that.</li>
+      <li><strong>Finals bound:</strong> after a division's last home and away round (when it has a finals format in Competitions setup), the teams in its finals in ladder order, each with what their place earned: Double chance, Week off, Elimination final.</li>
+      <li><strong>Finals draw:</strong> with Finals bound, and again on each finals night (under Upcoming too, to post before the games): the division's finals week by week, who plays who ("Winner minor semi final" until a team is known), with the scores and winners filled in as the games finish, from PlayHQ or entered by hand on Scoreboard control. The grand final is outlined.</li>
+      <li><strong>Champions</strong> (or <strong>Premiers</strong>, as picked under Finals in Competitions setup): once the grand final (or a best of three) has a winner, the winners' logo lit in their colour, their name, and the grand final's score.</li>
+    </ul>
+    <p>On a finals night, the Match up, Full time and Results pictures name each final (Major semi final, Grand final) instead of the round.</p>
+    <p>Each picture has a <strong>Sponsor strip</strong> tick (your naming, elite and major sponsors along the bottom), remembered for next week, and
+      Under <strong>Options</strong>, <strong>FirstPass Studio mark</strong> (bottom right) and <strong>PIVT logo</strong> (bottom left) turn those on or off for every picture.
+      <strong>Template</strong> picks the look of every picture: <strong>Default</strong> (the stream's own), Dynamic, Junior, Retro, Professional,
+      Thunder, Gradient, High contrast, Neon, Poster, Splash, Game Day, Hero or Final (these two stand a picked athlete in front of the title; cut-out PNGs look best), the netball sets Court, Bib and Goal, or the sporting sets Bottle, Cones, Sneakers, Stadium and Locker room, each with its own shapes and lettering. A star beside a template makes it a favourite, and <strong>Favourites only</strong> lists just those (and the one in use), remembered for the competition. Any template works with any colour set. Every picture's title stays on one line beside the competition logo, shrinking a little at a size where it would otherwise wrap. A short ladder or a couple of games grow to fill the picture, and a Story keeps its words and logos out of the top and bottom, where Instagram puts its own bar and reply box. A long team name shrinks to stay on one line in its row.
+      Athletes' photos come from the Athletes tab, and only for athletes ticked <strong>Approved for photo use</strong>: Top shooters shows each shooter's photo,
+      and on a Match up, Full time or Polaroid card you can pick an athlete by name, narrowed by division and team.
+      <strong>Colours</strong> picks a colour set for every picture: <strong>Competition colours</strong> (the stream's own look), or a set made from the competition's main,
+      highlight and accent colours (Accent first, Highlight ground, Accent ground, Night, Day, Two colours), or your own with <strong>New colour set</strong>.
+      A set whose titles would be hard to read says <i>low contrast</i>. The choice and your own sets are kept per competition. <strong>Select all</strong> and <strong>Select none</strong> tick or untick every picture at once. <strong>Save pictures</strong> saves the ticked ones as PNGs in
+      <strong>Pictures/FirstPass Studio/&lt;competition&gt; &lt;date&gt; Upcoming</strong> (or <strong>Results</strong>) and opens the folder; with <strong>As a zip</strong> ticked it also saves them as one .zip beside the folder, and Share sends that zip; <strong>Share…</strong> saves them too and opens the Mac's Share menu
+      (AirDrop to your phone, Messages, Mail). Saving needs the Mac app. Each picture is also a page of its own,
+      <code>/social.html?kind=fixtures&amp;size=square</code> (kinds <code>fixtures</code>, <code>matchup</code>,
+      <code>onstream</code>, <code>commentators</code>, <code>polaroid</code>, <code>results</code>, <code>fulltime</code>,
+      <code>ladder</code> with <code>&amp;division=</code>, <code>topshooters</code> with <code>&amp;division=</code>, <code>tournament</code> with <code>&amp;division=</code> (and <code>&amp;after=HH:MM</code>, <code>&amp;movers=0|1</code>); <code>&amp;date=</code>, <code>&amp;game=</code>, <code>&amp;sponsor=0|1</code>, <code>&amp;mark=0|1</code>, <code>&amp;pivt=0|1</code>, <code>&amp;colours=</code>, <code>&amp;template=</code>, <code>&amp;home=</code>, <code>&amp;away=</code>, <code>&amp;athlete=</code>, <code>&amp;title=</code>).
+      Photos dropped on a polaroid stay on this Mac (the newest 40), never in a backup or iCloud.</p>
+
+  <h3 id="sr-14">Recordings in detail</h3>
+    <p>For each PlayHQ game on the scoreboard while on air, Studio keeps a recording of what PlayHQ said and what went to air, timed:
+      PlayHQ's answers (live score, clock, quarter, line ups, fixtures, ladders), each scoreboard press and Stream Deck press, and every change to the scene,
+      the board and the answers the graphics read. There's no video or sound in it, only what the graphics need, a megabyte or so a game.
+      Each recording follows a PlayHQ game: it starts when the game is due on the scoreboard (as many minutes before its scheduled start as
+      <strong>automatic game selection</strong> on the competition setup page says, 10 by default) and stops a set time after PlayHQ says it's finished
+      (<strong>Keep recording for … minutes after full time</strong>, 10 by default, 0 to 60), when the scoreboard moves on to another game, or when Studio goes off air.
+      Being on air with no PlayHQ game due records nothing, and a game PlayHQ already says is finished isn't recorded. Each recording starts with the last
+      of everything Studio already knew (the fixtures and ladders PlayHQ gave, the scene, the board), so it stands on its own.
+      The Recordings tab lists each game's recording (named after when it started and the teams), its length and size, with
+      <strong>Download</strong> (the .jsonl.gz file, to keep or send in as test data) and <strong>Remove</strong>, and says when the next one starts. <strong>Record each PlayHQ game on air</strong> is on unless you turn it off;
+      turning it off stops the recording being made. The Output page's status board (Show) has the same switch as <strong>Record</strong> and <strong>Stop</strong>, so a recording can be stopped or started without leaving it. A recording older than 60 days is removed when Studio starts, and so is an old one with no game in it.
+      Recordings stay on this Mac (in <strong>Recordings/</strong> of the data folder), never in a backup or iCloud, and hold nothing secret: no keys, devices, cookies or private answers.
+      A recording also replays a game's graphics at 4K (below).</p>
+    <p><strong>4K replay:</strong> <strong>Replay</strong> beside a game puts that game's graphics back on every output exactly as they went to air: the scene,
+      the scoreboard and what each graphic read, from the recording. Turn on <strong>4K</strong> on the Output page and the outputs send it at 2160p, sharp, to key over the
+      4K camera recording of the game in a 4K switcher or recorder; Studio doesn't play the video. It starts paused at the game. To sync, pause the video on a
+      moment you can see (the first centre pass), pick the same moment in the list of what went on air (<i>Scoreboard on</i>, <i>Q1</i>…) and <strong>Jump there</strong>, then
+      press <strong>Play</strong> on both together; <strong>Nudge</strong> moves the graphics a frame (40 ms) or a second either way. While it runs the live scene and scoreboard are
+      kept as they were and can't be changed (the outputs can), nothing counts for the sponsors and the replay isn't recorded, and a red strip on every
+      Studio page says so, with Stop. Stop puts the live graphics back.</p>
+    <p><strong>Following a HyperDeck:</strong> with the 4K video on a HyperDeck, set <strong>Follow</strong> to <i>A HyperDeck's timecode</i> and type its IP
+      address (on its setup page). The replay then goes where the HyperDeck's timecode says, as a time of day on the game's night: play, stop and scrub the
+      HyperDeck and the graphics go with it, so they never drift, and Studio's own Play is the HyperDeck's. Studio only reads its timecode over the
+      network (its control protocol, port 9993) and never plays, stops or records anything on it. If the HyperDeck's clock and this Mac's differed on the
+      night, sync once: stop the HyperDeck on a moment you can see, pick the same moment in the list and press <strong>Jump there</strong>. <strong>Nudge</strong> then moves the
+      graphics against the video. The sync is kept for each recording. The recording needs time-of-day timecode (the HyperDeck's timecode set to Time of day, or timecode from the switcher).</p>
+    <p><strong>Following the SDI input:</strong> any player can drive the replay through the UltraStudio instead. Send its SDI into the
+      UltraStudio's SDI input (a HyperDeck's monitor or SDI output is enough; the 4K picture can go to the switcher as usual) and set <strong>Follow</strong> to
+      <i>Timecode into the UltraStudio (SDI)</i>. Studio reads the timecode that comes with each frame (only the timecode, not the picture) and follows it
+      the same way: playing, stopped and scrubbing, with <strong>Jump there</strong> and <strong>Nudge</strong> to sync. HDMI carries no timecode, so the HDMI input can't be
+      used. If the UltraStudio can't read its input while it sends the graphics, Studio says so beside Follow. Only in the Mac app.</p>
+    <p><strong>Stream Deck:</strong> the plugin's <strong>Replay</strong> key plays or pauses, jumps to the next or previous moment, nudges or stops the 4K replay or
+      practice game, whichever is running, and lights while one runs; or the links <code>/deck/replay/toggle</code>, <code>next</code>, <code>prev</code>,
+      <code>nudge/-40</code>, <code>stop</code> and <code>/deck/practice/toggle</code>, <code>next</code>, <code>prev</code>, <code>stop</code> (the Stream Deck page has them all).</p>
+    <p><strong>Practice games:</strong> <strong>Practise</strong> beside a game on the Recordings tab plays it back as if it were live. Studio asks PlayHQ nothing;
+      the recording answers instead, with the game's date and times moved to now, so the game starts a few minutes from now: as many as <strong>A practice game starts in</strong> says (5 to begin with, 0 to 60). Everything runs as on a real night:
+      the scoreboard follows the score, clock and quarter, sequences and game triggers fire, and the outputs can be on. <strong>Jump to</strong> Start, each quarter or Full time,
+      <strong>Pause</strong> (the clock stands still) and <strong>Stop</strong> are at the top of the Recordings tab, and a red strip on every Studio page says a practice game is running,
+      with Stop. Nothing it does counts for the sponsors' reports, it isn't recorded as a game, and Stop puts the scoreboard back as it was. Use it to rehearse a night,
+      try a new sequence or show Studio to someone.</p>
+    <p><strong>Demo games:</strong> <strong>Demo</strong> beside a recorded game plays it as one of the competition in use's games, for showing Studio to a
+      league in their own colours. Pick a <strong>division</strong> and one of its finished <strong>games</strong>: Studio takes that game's two teams (with their logos and colours) and
+      athletes, and the division's other teams, and everything else (the score, clock, quarters, moments and timing) comes from the recording.
+      Athletes are matched by position, so the recorded GS's goals are their GS's; anyone with no match is left unnamed and their goals go to the team.
+      A game with no line up (or a short one) takes the team's season squad, by the position each played most. While the demo runs, its <strong>Athletes</strong> table
+      shows who each recorded athlete is shown as, and any of them can be changed. <strong>Save demo</strong> keeps it by name (teams, athletes, Swap) under <strong>Saved demos</strong>,
+      to start again in one click; saved demos stay on this Mac.
+      <strong>Swap home and away</strong> puts the teams the other way round, so either can be the winner. The competition's setup comes from PlayHQ, so a demo needs the internet.
+      Studio never plays video: play the recorded game wherever you like and lay Studio's output over it. A red strip says a demo game is running, as for practice.</p>
 </section>
 </main>
 </div>
