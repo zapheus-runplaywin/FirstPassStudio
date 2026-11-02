@@ -68,7 +68,7 @@ test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
   scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot
   sequence.test.ts     Sequence key views (playing, paused, Next, off air, gone, time left), links, settings panel time list
-  runorder.test.ts     Run order key views (head, more queued, gone items, another output, Load), links, manifest and panel
+  runorder.test.ts     Run order key views (head, more queued, gone items, Output 1's alone, Load), links, manifest and panel
   switcher.test.ts     Switcher key views (tally, on air, not answering, not on it), links
   playback.test.ts     Replay key views (replay, practice, demo, following the video, nothing running), links, manifest and panel; one shared read for all Replay keys
   colours.test.ts      kinds' colours, output discs, key images and contrast, no colour in the settings panels

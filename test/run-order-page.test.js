@@ -86,3 +86,35 @@ test('Run order panel: add, Next, the queue after a sequence ends, the board and
   await orderIs(page, ['Live *', 'Promo']);
   assert.deepEqual(page.errors, []);
 });
+
+test('Run order panel: it is Output 1\'s whichever output tab is picked, and acts on Output 1 from any tab', async t => {
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const r = await studio.request('POST', '/api/outputs', { add: true });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  const two = (await studio.get('/api/outputs')).outputs[1];
+  const page = await openPage(t, studio, '/output.html');
+  if (!page) return;
+  await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }] });
+  const ladder = (await studio.get('/api/scene')).sources.find(s => s.name === 'Ladder');
+  await studio.post('/api/scene', { type: 'seqAdd', changes: { name: 'Promo', then: { type: 'off' }, steps: [{ sources: [ladder.id], length: { type: 'time', sec: 30 } }] } });
+  await studio.post('/api/scene', { type: 'seqAdd', changes: { name: 'Walk out', then: { type: 'off' }, steps: [{ sources: [ladder.id], length: { type: 'time', sec: 30 } }] } });
+  await studio.post('/api/scene', { type: 'roAdd', kind: 'sequence', name: 'Promo' });
+  await orderIs(page, ['Promo *']);
+  // Another output's tab: the run order still lists Output 1's, and its heading says so.
+  await page.click(`.outTab:has-text("${two.name}")`);
+  await page.waitForFunction(n => document.querySelector('#seqHead .outChip')?.textContent === n, two.name);
+  await orderIs(page, ['Promo *']);
+  assert.equal(await page.$eval('#roHead .outChip', c => c.textContent), 'Output 1');
+  // Added and played from there, it's Output 1's run order that changes and Output 1 that plays.
+  const walk = (await studio.get('/api/scene')).sequences.find(s => s.name === 'Walk out');
+  await page.selectOption('#roAdd', `sequence:${walk.id}`);
+  await orderIs(page, ['Promo *', 'Walk out']);
+  await page.click('#roNext');
+  await orderIs(page, ['Walk out *']);
+  const after = await studio.get('/api/scene');
+  assert.equal(after.sequences.find(s => s.id === after.playing?.id)?.name, 'Promo', 'playing on Output 1');
+  assert.equal((after.playingOut || {})[two.id], undefined, 'not on the other output');
+  await page.waitForFunction(() => /Promo/.test(document.querySelector('#roPlayed li.air')?.textContent || ''), null, { timeout: 5000 });
+  await studio.post('/api/scene', { type: 'seqStop' });
+  assert.deepEqual(page.errors, []);
+});

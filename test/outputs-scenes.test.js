@@ -287,3 +287,31 @@ test('the run order plays a sequence on every output it plays on; when it moves 
   link('sequence/stop');
   ok({ type: 'seqStop', output: two() });
 });
+
+test('the run order is Output 1\'s alone: changes for another output act on it, its links answer 404, and a start there doesn\'t queue', () => {
+  outputs.apply({ add: true });
+  const two = outputs.state().outputs[outputs.state().outputs.length - 1].id;
+  link('sequence/stop');
+  ok({ type: 'roClear' });
+  ok({ type: 'seqAdd', changes: { name: 'RO Only two', playsOn: [two], then: { type: 'off' }, start: { type: 'before', min: 10 }, steps: [step(['Ladder'], 20)] } });
+  ok({ type: 'seqAdd', changes: { name: 'RO Main', then: { type: 'off' }, steps: [step(['Worm'], 20)] } });
+  // A change that names another output (an older page or key) acts on Output 1's run order.
+  ok({ type: 'roAdd', kind: 'sequence', name: 'RO Main', output: two });
+  assert.deepEqual(st().runOrder.map(it => it.name), ['RO Main']);
+  assert.equal(st().runOrderOut, undefined, 'no run order for other outputs');
+  assert.equal(st().runOrderPlayedOut, undefined);
+  const r = scene.deck(['output', st().outputs.find(o => o.id === two).link, 'runorder', 'next']);
+  assert.equal(r.status, 404);
+  assert.match(r.body.error, /Output 1/);
+  // Its moment comes on the other output: it starts there by itself, and Output 1's run order is left alone.
+  ok({ type: 'seqAuto', value: 'on' });
+  const game = { id: 'g-ro-two', label: 'Stormz v Titans', startAt: Date.now() + 30 * 60000, period: 1, last: 4, left: 600, running: false, onBreak: false, finished: false };
+  scene.game(game);
+  wait(21 * 60);
+  scene.game(game);
+  assert.equal(st().playingOut[two]?.id, st().sequences.find(s => s.name === 'RO Only two').id);
+  assert.deepEqual(st().runOrder.map(it => it.name), ['RO Main']);
+  scene.game(null);
+  ok({ type: 'seqStop', output: two });
+  ok({ type: 'roClear' });
+});

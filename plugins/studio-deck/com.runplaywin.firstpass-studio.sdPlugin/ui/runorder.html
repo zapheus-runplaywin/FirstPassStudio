@@ -32,12 +32,6 @@
 </style>
 </head>
 <body>
-  <div class="row" id="outputRow" style="display:none">
-    <label for="output">Output</label>
-    <div class="field"><select id="output"></select></div>
-  </div>
-  <p class="note" id="outputNote" style="display:none">Acts on this output's run order.</p>
-
   <div class="row">
     <label for="press">Press</label>
     <div class="field">
@@ -60,7 +54,7 @@
   </div>
   <p class="note" id="note"></p>
 
-  <p class="note">The key is yellow and lights up while something is queued, naming what plays next. The disc in its corner is the output's number and colour.</p>
+  <p class="note">The key is yellow and lights up while something is queued, naming what plays next. The run order is Output 1's, the production feed, so the key always acts on it.</p>
 
   <div class="row">
     <label>Title</label>
@@ -79,7 +73,6 @@
   let websocket = null;
   let uuid = null;
   let settings = {};
-  let outputs = [];
   let orders = [];
 
   const $ = (id) => document.getElementById(id);
@@ -90,7 +83,6 @@
     uuid = propertyInspectorUUID;
     const ai = JSON.parse(actionInfo);
     settings = (ai.payload && ai.payload.settings) || {};
-    fillOutputs();
     $("press").value = settings.press || "next";
     $("keepTitle").checked = !!settings.keepTitle;
     $("host").value = settings.host || "";
@@ -104,7 +96,6 @@
     };
     websocket.onmessage = (evt) => {
       const msg = JSON.parse(evt.data);
-      if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.outputs) { outputs = msg.payload.outputs; fillOutputs(); }
       if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.type === "orders") {
         orders = msg.payload.orders || [];
         const note = $("note");
@@ -141,21 +132,6 @@
     select.value = settings.order || "";
   }
 
-  // The Output list shows once Studio has more than one output (or the key is already set to another one).
-  function fillOutputs() {
-    const select = $("output");
-    select.innerHTML = "";
-    const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; select.appendChild(o); };
-    const list = outputs.length ? outputs : [{ id: "main", name: "Output 1" }];
-    for (const o of list) add(o.id === "main" ? "" : o.id, o.name);
-    const mine = settings.output || "";
-    if (mine && !list.some((o) => o.id === mine)) add(mine, (settings.outputName || "Output") + " (not in Studio now)");
-    select.value = mine;
-    const show = list.length > 1 || !!mine;
-    $("outputRow").style.display = show ? "" : "none";
-    $("outputNote").style.display = show ? "" : "none";
-  }
-
   function send(obj) {
     if (websocket && websocket.readyState === 1) websocket.send(JSON.stringify(obj));
   }
@@ -169,8 +145,9 @@
       press: $("press").value,
       keepTitle: $("keepTitle").checked,
       host: $("host").value.trim(),
-      output: $("output").value,
-      outputName: $("output").value ? $("output").selectedOptions[0].textContent.replace(/ \(not in Studio now\)$/, "") : "",
+      // A key set to another output before the run order became Output 1's alone acts on Output 1 now.
+      output: "",
+      outputName: "",
     });
     send({ event: "setSettings", context: uuid, payload: settings });
   }
@@ -178,7 +155,6 @@
   $("order").addEventListener("change", save);
   $("press").addEventListener("change", () => { showOrderPick(); save(); if ($("press").value === "load") askForOrders(); });
   $("keepTitle").addEventListener("change", save);
-  $("output").addEventListener("change", save);
   $("host").addEventListener("change", () => { save(); askForOrders(); });
   $("refresh").addEventListener("click", askForOrders);
 </script>

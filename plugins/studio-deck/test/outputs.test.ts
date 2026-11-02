@@ -119,10 +119,11 @@ test("a key's disc shows its output's number and colour, kept while Studio is of
 	}
 });
 
-test("every settings panel has the Output list", () => {
-	for (const f of ["source", "scene", "sequence", "runorder"]) {
+test("every settings panel has the Output list, except the run order's (it is Output 1's alone)", () => {
+	for (const f of ["source", "scene", "sequence"]) {
 		const html = fs.readFileSync(path.join(ROOT, "ui", `${f}.html`), "utf8");
 		assert.match(html, /<select id="output">/, f);
 		assert.match(html, /output: \$\("output"\)\.value/, f);
 	}
+	assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "ui", "runorder.html"), "utf8"), /<select id="output">/);
 });

@@ -71,9 +71,8 @@ export type Scene = {
 	changedOut?: Record<string, string[]>;
 	playingOut?: Record<string, Playing>;
 	pendingOut?: Record<string, Pending>;
-	/** The run order (missing from a Studio older than it): Output 1's queue, the other outputs' by id, and the saved orders. */
+	/** The run order (missing from a Studio older than it): Output 1's queue (the only one), and the saved orders. */
 	runOrder?: RunOrderItem[];
-	runOrderOut?: Record<string, RunOrderItem[]>;
 	runOrders?: RunOrder[];
 };
 
@@ -93,7 +92,6 @@ export function forOutput(scene: Scene | null, output?: string): Scene | null {
 		changed: scene.changedOut?.[id] ?? [],
 		playing: scene.playingOut?.[id] ?? null,
 		pending: scene.pendingOut?.[id] ?? null,
-		runOrder: scene.runOrderOut?.[id] ?? [],
 	};
 }
 

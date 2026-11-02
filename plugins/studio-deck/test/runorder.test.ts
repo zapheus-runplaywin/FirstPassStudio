@@ -30,12 +30,12 @@ test("Play next key: dark and (empty) with nothing queued, lit with the head's n
 	assert.deepEqual(runOrderViewOf({}, studio([qb])), { state: 1, title: "Play next ▶\nQuarter\nbreak" });
 	assert.deepEqual(runOrderViewOf({}, studio([live, qb, run])), { state: 1, title: "Play next ▶\nLive game\n+2 more" });
 	assert.equal(runOrderLinkFor({}), "/deck/runorder/next");
-	assert.equal(runOrderLinkFor({ press: "next", output: "commentary" }), "/deck/output/commentary/runorder/next");
+	// A key set to another output before the run order became Output 1's alone acts on Output 1.
+	assert.equal(runOrderLinkFor({ press: "next", output: "commentary" }), "/deck/runorder/next");
 });
 
-test("Play next key: off air, no output, a Studio from before the run order", () => {
+test("Play next key: off air, a Studio from before the run order", () => {
 	assert.equal(runOrderViewOf({}, null).title, "Play next ▶\n(off air)");
-	assert.equal(runOrderViewOf({ output: "old" }, studio([qb], { outputs: [{ id: "main", name: "Output 1" }] })).title, "Play next ▶\n(no output)");
 	assert.equal(runOrderViewOf({}, { rev: 1, sources: [] }).title, "Play next ▶\n(empty)");
 });
 
@@ -46,12 +46,11 @@ test("items that have gone are left out: the head is the first that still exists
 	assert.equal(runOrderViewOf({}, studio([gone])).title, "Play next ▶\n(empty)");
 });
 
-test("another output's run order: the key follows that output's queue", () => {
-	const scene = studio([qb], { outputs: [{ id: "main", name: "Output 1" }, { id: "commentary", name: "Commentary", colour: "#f24f91" }], runOrderOut: { commentary: [live] } });
-	assert.equal(runOrderViewOf({ output: "commentary" }, scene).title, "Play next ▶\nLive game");
+test("the run order is Output 1's: a key set to another output (or one that has gone) shows Output 1's queue", () => {
+	const scene = studio([qb], { outputs: [{ id: "main", name: "Output 1" }, { id: "commentary", name: "Commentary", colour: "#f24f91" }] });
+	assert.equal(runOrderViewOf({ output: "commentary" }, scene).title, "Play next ▶\nQuarter\nbreak");
+	assert.equal(runOrderViewOf({ output: "old" }, scene).title, "Play next ▶\nQuarter\nbreak");
 	assert.equal(runOrderViewOf({}, scene).title, "Play next ▶\nQuarter\nbreak");
-	// Nothing queued there.
-	assert.equal(runOrderViewOf({ output: "commentary" }, studio([qb], { outputs: scene.outputs })).title, "Play next ▶\n(empty)");
 });
 
 test("Skip and Clear keys: lit while something is queued, naming the head", () => {
@@ -68,7 +67,7 @@ test("Load key: names its saved order and how many items it holds; gone, off air
 	const s = { press: "load" as const, order: "thu", orderName: "Thursday night" };
 	assert.deepEqual(runOrderViewOf(s, studio()), { state: 0, title: "Thursday\nnight\nload 5" });
 	assert.equal(runOrderLinkFor(s), "/deck/runorder/load/thu");
-	assert.equal(runOrderLinkFor({ ...s, output: "commentary" }), "/deck/output/commentary/runorder/load/thu");
+	assert.equal(runOrderLinkFor({ ...s, output: "commentary" }), "/deck/runorder/load/thu");
 	assert.equal(runOrderViewOf(s, null).title, "Thursday\nnight\n(off air)");
 	assert.equal(runOrderViewOf({ press: "load", order: "fri", orderName: "Friday" }, studio()).title, "Friday\n(gone)");
 	assert.equal(runOrderViewOf({ press: "load" }, studio()).title, "Pick a saved\norder");
