@@ -5,76 +5,37 @@
 <title>Lower Third</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="lowerthird.css">
 <style>
-  /* Laid out for 1920 x 1080 at 1x, on whole pixels. By default the bar's left edge lines up with the
+  /* Laid out for 1920 x 1080 at 1x, on whole pixels. The bar itself is lowerthird.css (shared with the commentators'
+     lower thirds); this places it. By default the bar's left edge lines up with the
      scoreboard's (the scoreboard is 1335px wide and centred on whole pixels, so its left edge is at 293px and its right edge 292px from the right) and its bottom
      sits 8px above the scoreboard's PlayHQ Live tab (top 930px), like the ladder lower third. ?position=right
-     mirrors it (badge on the right, words right-aligned) with its right edge on the scoreboard's, for a second
+     mirrors it (.l3--right: badge on the right, words right-aligned) with its right edge on the scoreboard's, for a second
      person on screen at the same time. */
-  :root { --left: 293px; --right: 292px; --bottom: 158px; --height: 120px; --width: 900px; }
+  :root { --left: 293px; --right: 292px; --bottom: 158px; }
   /* One fixed width, so every person's bar is the same size whatever their name (a photo adds its own width). */
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
   [hidden] { display: none !important; }
   body.bottom, body.bottom-center, body.bottom-right { --bottom: 80px; }
 
-  .l3 { position: absolute; left: var(--left); bottom: var(--bottom); display: flex; flex-direction: column; align-items: flex-start; }
+  .l3 { position: absolute; left: var(--left); bottom: var(--bottom); }
   body.center .l3, body.bottom-center .l3 { left: 50%; transform: translateX(-50%); transform: translateX(round(-50%, 1px)); align-items: center; }
+  body.center .l3__tag, body.bottom-center .l3__tag { margin-left: 0; }
 
-  body.right .l3, body.bottom-right .l3 { left: auto; right: var(--right); align-items: flex-end; }
+  body.right .l3, body.bottom-right .l3 { left: auto; right: var(--right); }
   /* Two people on screen: the right one and a left-half one share the scoreboard's width with a 15px gap. */
   body.right, body.bottom-right, body.left-half, body.bottom-left-half { --width: 660px; }
   body.bottom-left-half { --bottom: 80px; }
-  .l3__tag {
-    background: var(--pink); color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
-    padding: 6px 18px; border-radius: 6px 6px 0 0; margin-left: 150px; white-space: nowrap;
-  }
-  body.center .l3__tag, body.bottom-center .l3__tag { margin-left: 0; }
-  .l3__tag:empty { display: none; }
-  body.right .l3__tag, body.bottom-right .l3__tag { margin-left: 0; margin-right: 150px; }
-  body.right .l3__bar, body.bottom-right .l3__bar { flex-direction: row-reverse; }
-  body.right .l3__text, body.bottom-right .l3__text { padding: 0 30px 0 40px; text-align: right; }
-  .l3__bar {
-    display: flex; height: var(--height); width: var(--width); box-sizing: border-box;
-    background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
-    border-bottom: 5px solid var(--pink);
-  }
-  .l3__badge {
-    width: var(--height); flex: none; background: radial-gradient(circle at 50% 45%, var(--purple) 0%, var(--purple-dark) 80%);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .l3__logo { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
-  .l3__logo.logo-fallback { box-sizing: border-box; font-size: 28px; }
-  .l3__photo { width: var(--height); flex: none; object-fit: cover; object-position: center 20%; background: var(--purple-dark); }
-  .l3__text { padding: 0 40px 0 30px; display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1; }
-  /* Names keep one font size: a name too long for the bar is squeezed narrower (fitText below), like TV
-     sports graphics, and only made smaller once it's squeezed as far as it reads well. */
-  .l3__name { font-size: 50px; line-height: 58px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; }
-  .l3__name span, .l3__line span { display: inline-block; transform-origin: left center; }
-  .l3__name span, .l3__line span { flex: none; }
-  /* Right-aligned with flex, so a squeezed name shrinks towards the right edge instead of running off it. */
-  body.right .l3__name, body.right .l3__line, body.bottom-right .l3__name, body.bottom-right .l3__line { display: flex; justify-content: flex-end; }
-  body.right .l3__name span, body.right .l3__line span, body.bottom-right .l3__name span, body.bottom-right .l3__line span { transform-origin: right center; }
   /* The half-width bars use a slightly smaller name for everyone, so two people side by side match. */
   body.right .l3__name, body.bottom-right .l3__name, body.left-half .l3__name, body.bottom-left-half .l3__name { font-size: 44px; }
-  .l3__line { font-size: 24px; line-height: 30px; font-weight: 700; color: var(--yellow); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
-  .l3__line:empty { display: none; }
   .l3__bar.has-photo { width: calc(var(--width) + var(--height)); }
 
-  /* In: the badge pops, the bar opens out from it, then the words come up. Out (?out=) runs it backwards. */
-  .go .l3__badge, .go .l3__photo { animation: pop .45s cubic-bezier(.3,1.5,.5,1) both; }
-  .go .l3__bar { animation: open .55s cubic-bezier(.2,.9,.2,1) .15s both; }
-  .go .l3__name { animation: up .45s ease-out .45s both; }
-  .go .l3__line { animation: up .45s ease-out .6s both; }
-  .go .l3__tag { animation: up .4s ease-out .7s both; }
+  /* Out (?out=) slides it away. */
   .away .l3 { animation: leave .5s ease-in both; }
-  @keyframes pop { from { scale: .4; opacity: 0; } to { scale: 1; opacity: 1; } }
-  @keyframes open { from { clip-path: inset(0 calc(100% - var(--height)) 0 0 round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
-  @keyframes up { from { opacity: 0; translate: 0 18px; } to { opacity: 1; translate: 0 0; } }
   @keyframes leave { to { opacity: 0; translate: -60px 0; } }
   body.center .away .l3, body.bottom-center .away .l3 { animation-name: leave-down; }
-  body.right .go .l3__bar, body.bottom-right .go .l3__bar { animation-name: open-left; }
-  @keyframes open-left { from { clip-path: inset(0 0 0 calc(100% - var(--height)) round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
   body.right .away .l3, body.bottom-right .away .l3 { animation-name: leave-right; }
   @keyframes leave-right { to { opacity: 0; translate: 60px 0; } }
   body.right .message, body.bottom-right .message { left: auto; right: var(--right); }
@@ -125,6 +86,7 @@
     const title = (params.get('title') || '').trim();
     const position = params.get('position');
     if (['center', 'bottom', 'bottom-center', 'right', 'bottom-right', 'left-half', 'bottom-left-half'].includes(position)) document.body.classList.add(position);
+    if (position === 'right' || position === 'bottom-right') $('l3').classList.add('l3--right');
 
     // Puts the words in el, squeezed narrower to fit its width (down to `squeeze`, 0.7 is 70% of their width).
     // Only words still too wide squeezed that far get a smaller font, never below `smallest` px.

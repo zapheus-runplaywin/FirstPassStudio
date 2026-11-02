@@ -215,7 +215,7 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
  ['Guest or commentator lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator',
   'The same bar with a guest\'s or commentator\'s name, their title under it (<code>?title=Special%20guest</code>) and the competition logo from the competition setup page ' +
   '(the dark mode logo for the dark bar; <code>?mode=light</code> uses the light mode one). Takes the same <code>?tag=</code>, <code>?position=</code> and <code>?out=</code> options. ' +
-  'Add one source per person to the Output page and change the name and title there. For the commentary team together, use <b>Commentators</b> below.'],
+  'Add one source per person to the Output page and change the name and title there. For the commentary team, <b>Commentators: lower thirds</b> below puts up a bar for each person the Production Planner has on the mic, from one link.'],
  ['Commentators: thin line', '/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter',
   'Names the people on the mic in one thin line: the words in a pink tab, then the names, like <b>SPECIAL GUEST COMMENTATORS</b> Honey Harrington and Will Linter. ' +
   '<code>?name=</code>, <code>?name2=</code>, <code>?name3=</code> and <code>?name4=</code> are the people (joined with commas and a yellow "and"). With no names it shows whoever the <a href="/planner.html" target="_blank">Production Planner</a> has on the mic for the game on the scoreboard. <code>?label=</code> is the tab (Commentators without it, Commentator for one name, Special guest commentators when everyone planned is a guest, <code>?label=0</code> leaves it off). ' +
@@ -224,7 +224,13 @@ const INTRO_HELP = 'The competition logo and name, the organisation, and the log
  ['Commentators: box', '/commentators.html?style=box&label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter',
   'The same names as an upper third (<code>?style=box</code>): a box with the pink tab across its top and each name on a line of its own, in the top right corner beside the competition logo and lined up with it. ' +
   '<code>?position=under-left</code> and <code>under-right</code> put it just under the title banner and the logos, lined up with the scoreboard\'s left or right edge, and <code>?position=center</code> centres it there; away from the corner the box shows the competition logo itself. ' +
-  '<code>?logo=1</code> always shows it and <code>?logo=0</code> never does; <code>?mode=light</code> uses the light mode one. Takes the same names, <code>?label=</code> and <code>?out=</code>.']]
+  '<code>?logo=1</code> always shows it and <code>?logo=0</code> never does; <code>?mode=light</code> uses the light mode one. Takes the same names, <code>?label=</code> and <code>?out=</code>.'],
+ ['Commentators: lower thirds', '/commentators.html?style=lowerthirds&photo=1',
+  'A person lower third for each commentator (<code>?style=lowerthirds</code>), in the same bar as the guest lower third, side by side across the scoreboard\'s width: one person gets the full bar on the left, two sit left and right (the right one mirrored), and three share the width. ' +
+  'With no names it shows whoever the <a href="/planner.html" target="_blank">Production Planner</a> has on the mic for the game on the scoreboard, a planned special guest with a <b>Special guest</b> tab; typed names (<code>?name=</code> to <code>?name3=</code>) are used instead. ' +
+  '<code>?title=</code> is the yellow line under each name (Commentator without it, <code>?title=0</code> leaves it off), and <code>?label=</code> puts the same tab over every bar (<code>?label=0</code> none). ' +
+  '<code>?photo=1</code> shows each commentator\'s headshot from the Production Planner in place of the competition logo; anyone without one keeps the logo. ' +
+  'They sit low, for when the scoreboard is off; <code>?position=above</code> puts them just above it. <code>?mode=light</code> uses the light mode logo, <code>?out=8</code> animates them away after 8 seconds. Loads once; it plays in again each time it\'s turned on.']]
   .forEach(([n, p, h]) => add('personPages', n, p, h));
 [['PIVT and FirstPass Studio ad', '/ad.html',
   'The PIVT and FirstPass Studio logos animated together for 10 seconds: PIVT slams in, FirstPass Studio wipes in below it, they hold, then sweep away. ' +
