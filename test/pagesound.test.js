@@ -109,8 +109,10 @@ test('cut to a sequence with music of its own, the scene plays the old song fadi
   await page.waitForTimeout(1500);
   await act({ type: 'seqPlay', sequence: 'Walk' });
   await page.waitForFunction(() => { const p = window.musicPlayers(); return p.music.src === 'Walk.wav' && p.music.playing && p.tail.src === 'Bed.wav' && p.tail.playing; }, null, { timeout: 10000 });
+  // The old song starts at its full volume (80%) and eases down over its 6 s.
+  await page.waitForFunction(() => { const v = window.musicPlayers().tail.volume; return v > 0 && v < 0.6; }, null, { timeout: 6000 });
   const mid = await page.evaluate(() => window.musicPlayers());
-  assert.ok(mid.tail.volume > 0 && mid.tail.volume < 0.8, `the old song is fading (${mid.tail.volume})`);
+  assert.ok(mid.tail.playing, 'still playing as it fades');
   assert.ok(mid.tail.at > 1, 'it carries on from where it was, on the same player');
   await page.waitForFunction(() => !window.musicPlayers().tail.playing, null, { timeout: 12000 });
   assert.equal((await page.evaluate(() => window.musicPlayers())).music.src, 'Walk.wav');

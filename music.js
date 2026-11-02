@@ -20,7 +20,9 @@
 //     sequence it hands over to. Going to a scene or another sequence fades it out over its Music ends time (or
 //     cuts it, when that's Cut). Cut to a sequence with music of its own, the old song fades out under the new one
 //     (tail: a crossfade). A sequence playing on several outputs that stops on one of them, while the others
-//     carry on, fades its music out on that output alone (leaving), and the others keep it.
+//     carry on, fades its music out on that output alone (leaving), and the others keep it. There's one song at a
+//     time: a sequence's music starting while another sequence's still plays elsewhere takes over, and the old song
+//     fades out under it there by its own Music ends.
 //   - "Quiet the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
 //     or a sequence's) ducks low and keeps playing until the next scene, sequence or step without it.
 //   - A stinger with ?music=quiet or ?music=dip (stinger.html): the music ducks quickly as it sweeps in, so it's down
@@ -351,6 +353,12 @@ function playFor(seqId, m) {
   if (p.status === 'playing' && !p.after && (pl ? p.playlist === pl.id : p.playlist === null && track() === file)) { p.owner = seqId; return; }
   // The music before is fading out (its sequence ended or was cut away from): it fades on under this one.
   if (p.status === 'playing' && p.after === 'stop' && p.gain.to === 0) startTail();
+  // Another sequence's music still playing (that sequence plays on elsewhere): there's one song at a time, so this one
+  // takes over and that one fades out under it over its Music ends time (or cuts, when that's Cut).
+  else if (p.status === 'playing' && !p.after && p.owner && p.owner !== seqId && p.owner !== SUPER) {
+    const sec = api.musicEndSec ? api.musicEndSec(p.owner) : STOP_FADE_SEC;
+    if (sec > 0) { fadeTo(0, sec); startTail(); }
+  }
   if (pl) loadPlaylist(pl, seqId); else loadTrack(file, seqId, true);
   start(Number(m.startAtSec) || 0, Number(m.fadeInSec) || 0);
 }

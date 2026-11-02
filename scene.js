@@ -1369,6 +1369,7 @@ function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
     changed: () => save(),
     quiet: on => mics.quiet(on),
     playingOn: id => sequences.playingOn(id),
+    musicEndSec: id => sequences.musicEndSec(id),
   });
   mics.init(log, { changed: () => notify() });
   sequences.init(log, {

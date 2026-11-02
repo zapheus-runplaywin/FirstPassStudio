@@ -144,6 +144,11 @@ function playingOn(id) {
   each(() => { if (run && run.id === id) out.push(here); });
   return out;
 }
+// How long a sequence's music fades out when something else takes over: its Music ends time (0 when it cuts).
+function musicEndSec(id) {
+  const end = find(id)?.musicEnd;
+  return !end || end.type === 'cut' ? 0 : end.type === 'fade' ? end.sec : music.STOP_FADE_SEC;
+}
 // Whether this output's runner drives the music: the first output, in the sequence's playsOn order, playing it
 // now (the primary with nothing playing). The others play the same music without touching it.
 function leads() {
@@ -1273,4 +1278,4 @@ function init(logger, hooks, sequencesFile) {
   reload();
 }
 
-module.exports = { init, playingOn, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
+module.exports = { init, playingOn, musicEndSec, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
