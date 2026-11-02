@@ -37,7 +37,8 @@ function writeFileSync(file, data, options) {
 // out of order and leave the older contents on disk (the scoreboard's clock coming back stopped
 // after a restart). A save asked for while one is being written waits for it; if several wait,
 // only the newest is written, and each of their callbacks gets that save's result.
-// file -> { current: { data, options }, next: { data, options, callbacks } | null, flushed } while a save is being written
+// file -> { current: { data, options }, next: { data, options, callbacks } | null, flushed, renaming: the temporary
+// file a rename has been asked for, or null } while a save is being written
 const saving = new Map();
 
 function writeFile(file, data, options, callback) {
@@ -50,7 +51,7 @@ function writeFile(file, data, options, callback) {
     busy.next = { data, options, callbacks };
     return;
   }
-  saving.set(file, { current: null, next: null, flushed: false });
+  saving.set(file, { current: null, next: null, flushed: false, renaming: null });
   writeNow(file, data, options, [done]);
 }
 
@@ -71,8 +72,11 @@ function writeNow(file, data, options, callbacks) {
     fs.writeFile(tmp, data, options, errWrite => {
       if (errWrite) return fs.rm(tmp, { force: true }, () => finish(errWrite));
       if (state.flushed) return fs.rm(tmp, { force: true }, () => finish(null)); // flushSync already wrote the newest
+      // Once asked for, the rename can't be called back: flushSync takes its temporary file away instead (renaming).
+      state.renaming = tmp;
       fs.rename(tmp, file, errRename => {
-        if (errRename) return fs.rm(tmp, { force: true }, () => finish(errRename));
+        state.renaming = null;
+        if (errRename) return fs.rm(tmp, { force: true }, () => finish(state.flushed ? null : errRename));
         finish(null);
       });
     });
@@ -82,12 +86,16 @@ function writeNow(file, data, options, callbacks) {
 // Writes every save still waiting or being written by writeFile, now, newest contents only. For
 // Studio stopping (process exit): exiting doesn't wait for a save in the background, so without
 // this the last change before going off air could be missing after a restart. The background
-// writes already under way are dropped, so they can't land over what this wrote.
+// writes already under way are dropped, so they can't land over what this wrote. A rename already asked of the
+// operating system can still finish after this returns and would put the older contents back (the scoreboard's clock
+// coming back at 10:00 after a restart), so its temporary file is removed first: the rename then fails harmlessly, or
+// had already happened and is written over here.
 function flushSync() {
   for (const [file, state] of saving) {
     const latest = state.next || state.current;
     state.flushed = true;
     saving.delete(file);
+    if (state.renaming) { try { fs.rmSync(state.renaming, { force: true }); } catch { /* gone already */ } }
     try { writeFileSync(file, latest.data, latest.options); } catch { /* as a failed background save: the old file stays */ }
   }
 }
