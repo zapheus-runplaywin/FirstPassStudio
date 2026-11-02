@@ -26,6 +26,13 @@
   .preview figcaption { position: absolute; right: 6px; top: 8px; font-size: 11px; font-weight: 700; background: rgba(15,23,42,.75); color: #fff; padding: 2px 7px; border-radius: 999px; }
   .preview .drag { position: absolute; inset: 0; cursor: grab; }
   .preview .drag:active { cursor: grabbing; }
+  .preview { cursor: zoom-in; }
+  /* A click on a preview opens it as big as the window allows (never over its own 1080 wide); ← → step, Esc closes. */
+  dialog.big { max-width: none; width: fit-content; margin: auto; outline: none; padding: 0; border: 0; background: transparent; box-shadow: none; overflow: visible; }
+  dialog.big:focus, dialog.big:focus-visible { outline: none; box-shadow: none; }
+  dialog.big::backdrop { background: rgba(0,0,0,.85); }
+  dialog.big .preview { cursor: zoom-out; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  dialog.big p { margin: 8px 0 0; color: #fff; font-size: 13px; text-align: center; }
 
   /* The photo drop on the polaroid. */
   .drop { border: 2px dashed var(--fp-line-strong); border-radius: 10px; padding: 12px; text-align: center; font-size: 13px; color: var(--fp-muted); cursor: pointer; }
@@ -64,7 +71,7 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main class="wide">
   <h1>Socials</h1>
-  <p class="sub">Pictures of a game night for Instagram and other social media, before it (Upcoming) or after it (Results), to <b>Save</b> as PNGs or <b>Share</b> to your phone. <a href="/guide/#s3-12">More in the guide</a></p>
+  <p class="sub">Pictures of a game night for Instagram and other social media, before it (Upcoming) or after it (Results), to <b>Save</b> as PNGs or <b>Share</b> to your phone. Click a preview to see it bigger. <a href="/guide/#s3-12">More in the guide</a></p>
   <p class="fp-callout" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
   <p class="error" id="err" hidden></p>
   <section>
@@ -215,7 +222,40 @@
     frame.loading = 'lazy'; frame.src = link(p, size); frame.title = `${p.name}, ${SIZE_LABELS[size]}`;
     fig.append(frame, el('figcaption', '', SIZE_LABELS[size]));
     if (p.kind === 'polaroid' && photos[p.key] && photos[p.key].file) fig.append(dragger(p.key));
+    fig.title = 'Click to see it bigger';
+    fig.onclick = () => enlarge(p, size);
     return fig;
+  }
+  // The bigger view: the picture at the largest size that fits the window, up to its own 1080 wide.
+  // ← and → step through every preview on the page, Esc or a click closes it.
+  function enlarge(p, size) {
+    const [w, h] = { square: [1080, 1080], portrait: [1080, 1350], story: [1080, 1920] }[size];
+    const scale = Math.min(1, (innerWidth - 64) / w, (innerHeight - 90) / h);
+    const fig = el('figure', 'preview');
+    fig.style.margin = 0; fig.style.width = `${Math.round(w * scale)}px`; fig.style.height = `${Math.round(h * scale)}px`;
+    const frame = el('iframe');
+    frame.width = w; frame.height = h; frame.style.transform = `scale(${scale})`;
+    frame.src = link(p, size); frame.title = `${p.name}, ${SIZE_LABELS[size]}`;
+    frame.tabIndex = -1; // keys stay with the page (the picture would take ← → and Esc otherwise)
+    fig.append(frame, el('figcaption', '', SIZE_LABELS[size]));
+    let d = $('big');
+    if (!d) {
+      d = document.body.appendChild(el('dialog', 'big'));
+      d.id = 'big';
+      d.tabIndex = -1;
+      d.onclick = () => d.close();
+      document.addEventListener('keydown', e => {
+        if (!d.open || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+        e.preventDefault();
+        const all = [...document.querySelectorAll('#pics .preview')];
+        const next = all[(all.indexOf(d.from) + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
+        if (next) next.click();
+      });
+    }
+    d.from = [...document.querySelectorAll('#pics .preview')].find(f => f.querySelector('iframe').src === frame.src);
+    d.replaceChildren(fig, el('p', '', `${p.name} · ${SIZE_LABELS[size]} · ← → for the others, Esc to close`));
+    if (!d.open) d.showModal();
+    d.focus();
   }
   // Dragging a polaroid preview moves the photo in its window; the previews redraw on letting go.
   function dragger(key) {
@@ -230,7 +270,14 @@
         photo.px = Math.max(0, Math.min(100, start.px - (m.clientX - start.x) / (PREVIEW_W / 3) * 100 / photo.zoom));
         photo.py = Math.max(0, Math.min(100, start.py - (m.clientY - start.y) / (PREVIEW_W / 3) * 100 / photo.zoom));
       };
-      d.onpointerup = () => { d.onpointermove = null; redraw(key); };
+      d.onpointerup = m => {
+        d.onpointermove = null;
+        // A click without a drag opens the bigger view (the figure's own click) instead of redrawing.
+        if (Math.abs(m.clientX - start.x) + Math.abs(m.clientY - start.y) < 4) return;
+        d.moved = true;
+        redraw(key);
+      };
+      d.onclick = e => { if (d.moved) { d.moved = false; e.stopPropagation(); } };
     };
     return d;
   }
