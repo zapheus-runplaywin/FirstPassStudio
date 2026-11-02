@@ -333,6 +333,7 @@ export async function press(host: string, path: string): Promise<boolean> {
  * What Studio is playing back from the Recordings tab (Replay keys): the 4K replay and the practice game in one read
  * of /api/playback; null if Studio can't be reached. A Studio from before that read answers 404 there, so the two are
  * then read apart (/api/replay and /api/practice), and one older than replays answers 404 to those, taken as none running.
+ * The Replay keys share one such read a second (PlaybackPoll, below).
  */
 export async function fetchPlayback(host: string): Promise<Playback> {
 	const get = async (path: string) => {
@@ -347,6 +348,74 @@ export async function fetchPlayback(host: string): Promise<Playback> {
 	} catch {
 		return null;
 	}
+}
+
+/** How often the Replay keys ask Studio what's playing back (Studio sends no events for it). */
+export const PLAYBACK_POLL_MS = 1000;
+
+/**
+ * What one Studio is playing back, read once a second however many Replay keys point at it, and handed to all of them
+ * (one read per key flooded Studio's log, Matt 2 Nov 2026). It only reads while a key listens, and never starts a read
+ * while one is still out; refresh() reads now (a press), sharing a read already out unless asked for a fresh one
+ * (after a press, so the keys show what the press did).
+ */
+export class PlaybackPoll {
+	playback: Playback = null;
+	/** A read has come back, so playback is Studio's answer rather than not known yet. */
+	private heard = false;
+	private readonly listeners = new Set<Listener<NonNullable<Playback>>>();
+	private timer: ReturnType<typeof setInterval> | null = null;
+	private reading: Promise<Playback> | null = null;
+
+	constructor(
+		readonly host: string,
+		private readonly read: (host: string) => Promise<Playback> = fetchPlayback,
+		private readonly every = PLAYBACK_POLL_MS,
+	) {}
+
+	subscribe(listener: Listener<NonNullable<Playback>>): () => void {
+		this.listeners.add(listener);
+		if (this.heard) listener(this.playback);
+		if (this.listeners.size === 1) {
+			this.timer = setInterval(() => void this.refresh(), this.every);
+			void this.refresh();
+		}
+		return () => {
+			this.listeners.delete(listener);
+			if (!this.listeners.size && this.timer) {
+				clearInterval(this.timer);
+				this.timer = null;
+			}
+		};
+	}
+
+	get listening(): number {
+		return this.listeners.size;
+	}
+
+	refresh(fresh = false): Promise<Playback> {
+		if (fresh && this.reading) return this.reading.then(() => this.refresh());
+		this.reading ??= this.read(this.host).then((pb) => {
+			this.reading = null;
+			this.heard = true;
+			this.playback = pb;
+			for (const listener of this.listeners) listener(pb);
+			return pb;
+		});
+		return this.reading;
+	}
+}
+
+const playbackPolls = new Map<string, PlaybackPoll>();
+
+/** The shared playback read for a Studio address. */
+export function playbackPollFor(host: string): PlaybackPoll {
+	let poll = playbackPolls.get(host);
+	if (!poll) {
+		poll = new PlaybackPoll(host);
+		playbackPolls.set(host, poll);
+	}
+	return poll;
 }
 
 /** The whole scene, for the key settings' lists; null if Studio can't be reached. */

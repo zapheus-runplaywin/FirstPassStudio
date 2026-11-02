@@ -49,3 +49,39 @@ test("Replay key: in the manifest, with its images and settings panel", () => {
 	const panel = fs.readFileSync(path.join(PLUGIN, a.PropertyInspectorPath), "utf8");
 	for (const press of ["toggle", "next", "prev", "frameBack", "frameOn", "secondBack", "secondOn", "stop"]) assert.match(panel, new RegExp(`value="${press}"`));
 });
+
+test("Replay keys: one read a second for every key on an address, never one per key", async () => {
+	const { PlaybackPoll } = await import("../src/lib/studio");
+	let reads = 0;
+	let answer: Playback = none;
+	const poll = new PlaybackPoll("http://studio", async () => {
+		reads++;
+		await new Promise((r) => setTimeout(r, 5));
+		return answer;
+	}, 40);
+	const seen: Playback[][] = [[], [], [], [], [], [], [], []];
+	const offs = seen.map((list) => poll.subscribe((pb) => list.push(pb)));
+	await new Promise((r) => setTimeout(r, 30));
+	// Eight keys, one read so far, and every key has the answer (nothing shown before Studio answered).
+	assert.equal(reads, 1);
+	for (const list of seen) assert.deepEqual(list, [none]);
+	await new Promise((r) => setTimeout(r, 100));
+	assert.ok(reads >= 2 && reads <= 4, `about one read per tick, not per key (${reads})`);
+	// A key arriving later is told the last answer straight away.
+	const late: Playback[] = [];
+	const offLate = poll.subscribe((pb) => late.push(pb));
+	assert.deepEqual(late, [none]);
+	// A press reads again; reads already out are shared, and a fresh one waits for it and reads after.
+	answer = replay();
+	const before = reads;
+	const [a, b] = await Promise.all([poll.refresh(), poll.refresh()]);
+	assert.deepEqual(a, b);
+	assert.ok(reads - before <= 1);
+	assert.deepEqual(await poll.refresh(true), replay());
+	// The last key gone stops the reads.
+	for (const off of [...offs, offLate]) off();
+	assert.equal(poll.listening, 0);
+	const stopped = reads;
+	await new Promise((r) => setTimeout(r, 100));
+	assert.equal(reads, stopped);
+});
