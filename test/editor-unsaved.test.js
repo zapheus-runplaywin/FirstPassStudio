@@ -79,7 +79,7 @@ test('editors in a dialog ask before losing changes', async t => {
   assert.ok(await page.$('#plDialog[open]'));
   await page.click('#plCancel');
 
-  // A scene's switcher actions (the Edit scenes grid's Switcher button): changed, Escape asks;
+  // A scene's switcher actions (the Switcher button in the scene's settings): changed, Escape asks;
   // Save keeps them on the scene.
   await page.click('#addScene');
   await page.fill('dialog.fp-ask input', 'Live');

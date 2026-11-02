@@ -76,9 +76,9 @@ const SHOTS = [
   { name: 's-output-scenes', async take({ page, studio, out }) { await go(page, studio, '/output.html'); await part(page, page.locator('#scenesSection'), out); } },
   { name: 's-output-scenes-edit', async take({ page, studio, out }) {
     await go(page, studio, '/output.html');
-    await page.click('#editScenes');
+    await page.locator('#scenes .sceneTile', { has: page.locator('button.scene b', { hasText: /^Live game/ }) }).locator('.sceneActs .edit').click();
     await page.waitForTimeout(800);
-    await part(page, page.locator('#scenesSection'), out);
+    await dialogShot(page, 'sceneDialog', out);
   } },
   { name: 's-output-sequences', async take({ page, studio, out }) { await go(page, studio, '/output.html'); await part(page, page.locator('#seqSection'), out); } },
   { name: 's-sequence-editor-halftime', async take({ page, studio, out }) {

@@ -87,7 +87,7 @@
   .sboard .line button { display: block; justify-self: start; margin: 2px 0 0; padding: 3px 10px; font-size: 12px; font-family: var(--fp-font, inherit); }
   /* The console: the Sources down the left, and to their right scenes beside sequences, music beside mics, the
      switcher, then the media folder. Set-up waits behind a button in each section's header: each source's settings
-     under its row (the pencil), Edit scenes, Music and Mics Settings, the switcher's Set up. */
+     under its row (the pencil), each scene's pencil, Music and Mics Settings, the switcher's Set up. */
   .console { display: grid; grid-template-columns: minmax(300px, 2fr) minmax(0, 5fr); gap: 14px; align-items: start; }
   .console > section, .stack section { margin-bottom: 0; }
   .stack { display: grid; gap: 14px; min-width: 0; }
@@ -97,7 +97,7 @@
   .seq.run { grid-column: 1 / -1; }
   .seqs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 8px; }
   .scenes { gap: 12px 8px; }
-  .scene { min-width: 0; flex: 1 1 120px; }
+  .sceneTile { min-width: 0; flex: 1 1 120px; }
   .addRow { margin-bottom: 10px; }
   .addRow button { padding: 4px 10px; font-size: 13px; }
   button.cfg[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
@@ -127,7 +127,7 @@
   .sources li .name small { font-weight: 400; color: var(--fp-muted); margin-left: 6px; }
   .sources li button { padding: 4px 9px; }
   /* The page's own kinds of button sit on the kit's: no blue border on them. */
-  .eye, .pill, .cell, button.fold, .drift button, .outCard .onBtn { border-color: transparent; }
+  .eye, .pill, button.fold, .drift button, .outCard .onBtn { border-color: transparent; }
   .eye { background: var(--fp-line); color: var(--fp-muted); min-width: 46px; }
   .eye:hover { background: var(--fp-line-strong); }
   .eye.on, .eye.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
@@ -189,6 +189,12 @@
 
   /* Scenes: saved looks for the sources. The strip along each card's bottom is its colour group (pre-game, live stream, quarter time, post-game, ads). */
   .scenes { display: flex; flex-wrap: wrap; gap: 14px 8px; padding-top: 6px; }
+  /* A scene tile: the button goes to the scene; the pencil, copy and bin sit along its foot, above the colour band. */
+  .sceneTile { position: relative; display: grid; flex: 1 1 140px; min-width: 140px; }
+  .sceneTile .sceneActs { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 4px; }
+  .sceneTile .sceneActs .ico { display: inline-flex; align-items: center; padding: 3px 6px; }
+  .sceneTile .sceneActs svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .sceneTile .scene { padding-bottom: 42px; }
   .scene { position: relative; display: grid; gap: 1px; text-align: left; min-width: 120px; padding: 8px 12px 12px; border: 2px solid var(--fp-line-strong);
            border-radius: 10px; background: var(--fp-white); color: var(--fp-navy); font-weight: 400; overflow: visible; }
   .scene:hover { background: var(--fp-gray); border-color: var(--fp-blue); }
@@ -210,20 +216,6 @@
   .drift .back { background: var(--fp-orange); color: var(--fp-navy); }
   .drift .back:hover { background: #E05200; }
   .chg { font-size: 11px; font-weight: 800; color: var(--fp-warn-ink); background: var(--fp-warn-bg); padding: 1px 6px; border-radius: 6px; margin-left: 6px; }
-  .sceneGrid { overflow-x: auto; margin-top: 12px; border: 1px solid var(--fp-line); border-radius: 8px; }
-  .sceneGrid table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  .sceneGrid th, .sceneGrid td { padding: 6px 8px; border-top: 1px solid var(--fp-line); text-align: center; white-space: nowrap; }
-  .sceneGrid th:first-child, .sceneGrid td:first-child { text-align: left; position: sticky; left: 0; background: var(--fp-white); }
-  .sceneGrid thead th { border-top: 0; background: var(--fp-gray); vertical-align: top; }
-  .sceneGrid thead th:first-child { background: var(--fp-gray); }
-  .sceneGrid thead input { width: 130px; font-weight: 700; padding: 4px 6px; }
-  .sceneGrid thead select { padding: 3px 4px; font-size: 13px; }
-  .sceneGrid thead .row { justify-content: center; gap: 4px; margin-top: 4px; flex-wrap: nowrap; }
-  .sceneGrid thead button { padding: 3px 7px; font-size: 12px; }
-  .sceneGrid td.cur { background: rgba(247, 92, 3, .07); }
-  .cell { min-width: 58px; padding: 4px 8px; font-size: 12px; }
-  .cell.on, .cell.on:hover { background: var(--fp-orange); color: var(--fp-navy); }
-  .cell.off, .cell.off:hover { background: var(--fp-line); color: var(--fp-muted); }
   /* Sequences: cards like the scenes', the playing one with a dot per step, the step's time left and the whole sequence's. */
   .seqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px 10px; padding-top: 6px; }
   .seq { position: relative; display: grid; gap: 6px; align-content: start; padding: 9px 12px 12px; border: 2px solid var(--fp-line-strong); border-radius: 10px; background: var(--fp-white); min-width: 0; }
@@ -352,9 +344,8 @@
   .swAct .note, .swActs .note { margin: 0; font-size: 12px; }
   .swAct .swProblem { flex-basis: 100%; font-size: 12px; margin: 0; }
   .swMark.bad { filter: grayscale(1); }
-  #sceneGrid .swEdit { font-size: 12px; padding: 3px 8px; margin-top: 4px; }
+  #sceneDialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 40px); }
   @media (max-width: 620px) { .stepRow { grid-template-columns: 26px minmax(0, 1fr); } .stepRow .len { grid-column: 1 / -1; justify-content: flex-start; } }
-  .cell.leave, .cell.leave:hover { background: transparent; color: var(--fp-muted); border: 1px dashed var(--fp-line-strong); }
   .health { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 13px; color: var(--fp-muted); margin: -6px 0 14px; }
   .health .hdot { width: 10px; height: 10px; border-radius: 50%; background: var(--fp-ok); flex: none; }
   .health .hdot.warn { background: var(--fp-orange); }
@@ -753,12 +744,25 @@
   <section id="scenesSection" data-fold="scenes">
     <div class="secHead">
       <h2 id="scenesHead">Scenes</h2>
-      <span class="row"><button class="alt" id="editScenes">Edit scenes</button><button class="alt" id="addScene" title="Save what's on now as a new scene">Add scene</button></span>
+      <button class="alt" id="addScene" title="Save what's on now as a new scene">Add scene</button>
     </div>
     <div class="scenes" id="scenes"></div>
     <div class="drift hidden" id="drift"></div>
-    <div class="sceneGrid hidden" id="sceneGrid"></div>
     <p class="fp-empty" id="scenesEmpty"></p>
+    <!-- One scene's settings, from the pencil on its tile (output/scenes.js). -->
+    <dialog id="sceneDialog">
+      <h2 id="sdTitle">Scene</h2>
+      <div class="form" style="grid-template-columns:auto minmax(0,1fr)">
+        <label for="sdName">Name</label><input id="sdName" maxlength="60">
+        <label for="sdColour">Colour</label><select id="sdColour"></select>
+      </div>
+      <label style="display:block;margin-top:10px;font-weight:400"><input type="checkbox" id="sdQuiet"> Quiet the music <small class="note">(going to this scene ducks the music, or fades out a sequence's music, for an interview on court)</small></label>
+      <button class="alt hidden" id="sdSwitcher" style="margin-top:8px"></button>
+      <div class="row" style="margin-top:12px;justify-content:space-between">
+        <div class="row"><button class="danger" id="sdDelete">Delete</button><button class="alt" id="sdCopy">Copy</button></div>
+        <div class="row"><button class="alt" id="sdCancel">Cancel</button><button id="sdSave">Save</button></div>
+      </div>
+    </dialog>
   </section>
 
   <section id="seqSection" data-fold="sequences">
