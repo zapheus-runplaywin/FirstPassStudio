@@ -19,6 +19,16 @@ test('/api/playback answers the replay and the practice game together', async t 
   assert.equal(pb.practice.active, (await studio.get('/api/practice')).active);
 });
 
+test('the polled reads of every page and the Replay keys stay out of the log while they work', async t => {
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  for (let i = 0; i < 3; i++) { await studio.get('/api/playback'); await studio.get('/api/health'); }
+  await studio.get('/api/replay');
+  await new Promise(r => setTimeout(r, 200));
+  const log = studio.log();
+  assert.match(log, /GET \/api\/replay 200/, 'other reads are still logged');
+  assert.doesNotMatch(log, /GET \/api\/(playback|health) /);
+});
+
 test('the strip is styled by studio.css and hidden while nothing plays back', async t => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'studiobar.js'), 'utf8');
   assert.doesNotMatch(js, /style\.cssText|style="/, 'studiobar.js carries no inline styles');
