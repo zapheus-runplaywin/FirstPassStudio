@@ -10,21 +10,18 @@ import streamDeck, {
 
 import { keyImageUrl } from "../lib/colours";
 import { type Playback, playbackLinkFor, type PlaybackSettings, playbackViewOf } from "../lib/playback-key";
-import { cleanHost, fetchPlayback, press } from "../lib/studio";
+import { cleanHost, fetchPlayback, playbackPollFor, press } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("Replay");
 const log = (message: string) => logger.info(message);
 
-// Studio sends no events for these, so the key asks every second while it's on screen (two small reads).
-const POLL_MS = 1000;
-
-/** One Replay key on screen: asks Studio what's playing back and redraws when that changes. */
+/** One Replay key on screen: follows what Studio is playing back (one read a second shared by every Replay key on
+ * that address, PlaybackPoll) and redraws when that changes. */
 class PlaybackKey {
 	private host = "";
-	private timer: ReturnType<typeof setInterval> | null = null;
+	private unsubscribe: (() => void) | null = null;
 	private drawn = "";
 	private painted = false;
-	private stopped = false;
 	playback: Playback = null;
 
 	constructor(
@@ -43,20 +40,14 @@ class PlaybackKey {
 
 	private follow(): void {
 		const host = cleanHost(this.settings.host);
-		if (host === this.host && this.timer) return;
+		if (host === this.host && this.unsubscribe) return;
+		this.unsubscribe?.();
 		this.host = host;
 		this.drawn = "";
-		if (this.timer) clearInterval(this.timer);
-		this.timer = setInterval(() => void this.ask(), POLL_MS);
-		void this.ask();
-	}
-
-	private async ask(): Promise<void> {
-		const host = this.host;
-		const pb = await fetchPlayback(host);
-		if (this.stopped || host !== this.host) return;
-		this.playback = pb;
-		this.draw();
+		this.unsubscribe = playbackPollFor(host).subscribe((pb) => {
+			this.playback = pb;
+			this.draw();
+		});
 	}
 
 	private draw(): void {
@@ -76,7 +67,7 @@ class PlaybackKey {
 
 	async press(): Promise<void> {
 		// What's running now, not as of the last second, so a press never goes to one that has just stopped.
-		this.playback = await fetchPlayback(this.host);
+		this.playback = await playbackPollFor(this.host).refresh();
 		const link = playbackLinkFor(this.settings, this.playback);
 		if (!link) {
 			this.draw();
@@ -87,13 +78,12 @@ class PlaybackKey {
 			log(`Studio at ${this.host} didn't accept ${link}`);
 			void this.key.showAlert();
 		}
-		await this.ask();
+		await playbackPollFor(this.host).refresh(true);
 	}
 
 	stop(): void {
-		this.stopped = true;
-		if (this.timer) clearInterval(this.timer);
-		this.timer = null;
+		this.unsubscribe?.();
+		this.unsubscribe = null;
 	}
 }
 

@@ -45,7 +45,7 @@ src/
   actions/sequence.ts  SDK action: one SequenceKey per key on screen, redrawn each second while it counts down
   actions/runorder.ts  SDK action: one RunOrderKey per key on screen; answers the settings panel's saved orders request
   actions/switcher.ts  SDK action: one SwitcherKey per key on screen; answers the settings panel's cameras and keys request
-  actions/playback.ts  SDK action: one PlaybackKey per key on screen, asking what's playing back each second
+  actions/playback.ts  SDK action: one PlaybackKey per key on screen, all following one shared read of what's playing back
   lib/source-key.ts    what a key shows (lit, title) and which link a press opens (no SDK)
   lib/scene-key.ts     what a Scene key shows (lit, changed dot, title) and which link a press opens (no SDK)
   lib/sequence-key.ts  what a Sequence key shows (lit, step and time left) and which link a press opens (no SDK)
@@ -54,7 +54,7 @@ src/
   lib/playback-key.ts  what a Replay key shows (lit while a replay or practice game runs, Play or Pause) and which link a press opens (no SDK)
   lib/colours.ts       each kind's colour and picture, the output disc, tally colours, and the key images drawn from them
   lib/identity.ts      the plugin's Ed25519 key pair (in the global settings), pairing with a Studio, and signing presses
-  lib/studio.ts        one live scene (and switcher) connection per Studio address, shared by its keys; presses and the lists
+  lib/studio.ts        one live scene (and switcher) connection per Studio address, shared by its keys, and one playback read a second (PlaybackPoll) for its Replay keys; presses and the lists
 com.runplaywin.firstpass-studio.sdPlugin/
   manifest.json
   ui/source.html       Source key settings panel (plain HTML/JS)
@@ -70,7 +70,7 @@ test/
   sequence.test.ts     Sequence key views (playing, paused, Next, off air, gone, time left), links, settings panel time list
   runorder.test.ts     Run order key views (head, more queued, gone items, another output, Load), links, manifest and panel
   switcher.test.ts     Switcher key views (tally, on air, not answering, not on it), links
-  playback.test.ts     Replay key views (replay, practice, demo, following the video, nothing running), links, manifest and panel
+  playback.test.ts     Replay key views (replay, practice, demo, following the video, nothing running), links, manifest and panel; one shared read for all Replay keys
   colours.test.ts      kinds' colours, output discs, key images and contrast, no colour in the settings panels
   plugin.e2e.test.ts   real SDK + real Studio + fake Stream Deck app (+ Studio's stand-in ATEM for the Switcher key)
 ```
