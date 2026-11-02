@@ -140,7 +140,9 @@
   .outCard small { color: var(--fp-muted); }
   .outDots { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: 1px; }
   .outDots i { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(15, 23, 42, .25); }
-  h2.forOutput::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--c); margin-right: 8px; vertical-align: 1px; }
+  /* Which output a panel plays on, once there's more than one: a chip after the heading, with a dot in the output's colour. */
+  h2 .outChip { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; padding: 2px 9px; border-radius: 999px; background: var(--fp-gray); color: var(--fp-ink); font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; vertical-align: 2px; }
+  h2 .outChip::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
   .perf.slow, .outCard small .slow { color: var(--fp-warn-ink); font-weight: 600; }
   .outCard .onBtn { background: var(--c); color: var(--fp-bar); }
   .outTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
@@ -284,6 +286,21 @@
   .ro li .what small.also::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c); margin-right: 5px; vertical-align: 1px; }
   .ro li.head { border-color: var(--fp-btn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--fp-btn) 22%, transparent); } /* the head waits its turn: blue, not the on-air orange */
   .ro li.head .what b { font-weight: 800; }
+  /* What the run order has played (greyed, ✓) and, under them, what's on air now in the on-air orange: the list reads like a playlist. */
+  .ro.played { margin-bottom: 4px; }
+  .ro.played li { cursor: default; }
+  .ro li.done { opacity: .5; }
+  .ro li.done .what b { font-weight: 600; }
+  .ro li.earlier { display: block; padding: 0; border-style: dashed; opacity: .8; }
+  .ro li.earlier button { width: 100%; background: none; border: 0; color: var(--fp-muted); font-size: 12px; font-weight: 600; padding: 4px; }
+  .ro li.air { border: 2px solid var(--fp-orange); background: color-mix(in srgb, var(--fp-orange) 9%, var(--fp-white)); box-shadow: 0 0 0 3px rgba(247, 92, 3, .22); padding-top: 8px; padding-bottom: 8px; }
+  .ro li.air .n { background: var(--fp-orange); color: var(--fp-navy); width: 32px; font-size: 15px; }
+  .ro li.air .what b { font-size: 16px; font-weight: 800; }
+  .ro li.air .tag { display: inline-block; margin-right: 7px; padding: 1px 6px; border-radius: 5px; background: var(--fp-orange); color: var(--fp-navy); font-size: 10px; font-weight: 800; letter-spacing: .06em; vertical-align: 2px; }
+  .ro li.air .dots { margin-top: 3px; max-width: 220px; }
+  .ro li.air .airLeft { display: grid; justify-items: end; font-variant-numeric: tabular-nums; }
+  .ro li.air .airLeft b { font-size: 22px; font-weight: 800; line-height: 1.1; }
+  .ro li.air .airLeft small { font-size: 11px; color: var(--fp-muted); white-space: nowrap; }
   .ro li.gone .what b { text-decoration: line-through; color: var(--fp-muted); }
   .ro li .row { gap: 2px; flex-wrap: nowrap; }
   .ro li .row button { padding: 2px 7px; font-size: 12px; line-height: 1.3; }
@@ -644,7 +661,7 @@
     </section>
 
   <div class="stack">
-  <!-- The run order: what plays next tonight on the picked output, sequences and scenes in order (output/runorder.js), above Scenes and Sequences. -->
+  <!-- The run order: what it has played tonight on the picked output, what's on air, then what plays next, sequences and scenes in order (output/runorder.js), above Scenes and Sequences. -->
   <section id="roSection" data-fold="runorder">
     <div class="secHead">
       <h2 id="roHead">Run order</h2>
@@ -658,6 +675,7 @@
       <button class="alt" id="roSkip" title="Drop the head item without playing it">Skip</button>
       <small id="roNote"></small>
     </div>
+    <ol class="ro played" id="roPlayed" aria-label="Played and on air"></ol>
     <ol class="ro" id="roList"></ol>
     <p class="fp-empty" id="roEmpty"></p>
     <dialog id="swSceneDialog">

@@ -339,7 +339,7 @@ queued after it before falling back to its own Then.
 |---|---|
 | Play what's next | http://localhost:8080/deck/runorder/next |
 | Skip what's next without playing it | http://localhost:8080/deck/runorder/skip |
-| Clear the run order | http://localhost:8080/deck/runorder/clear |
+| Clear the run order (and what it has played) | http://localhost:8080/deck/runorder/clear |
 | Add a sequence or scene to the end | http://localhost:8080/deck/runorder/add/quarter-break |
 | Load a saved order in place of what's queued | http://localhost:8080/deck/runorder/load/thursday-night |
 
