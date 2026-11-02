@@ -1,135 +1,134 @@
 /**
- * Colour groups for keys, so a page of keys can be sorted by the part of the stream they belong to.
- * Every key keeps the same two looks: a dark body while it's off, and its output's colour while it's on (Output 1
- * orange, 2 pink, 3 blue, 4 green, as on Studio's Output page; the manifest makes the title black on it). The band
- * along the bottom carries the group's colour in both, so a lit key still shows which group it's in.
- * Source, Scene, Sequence and Switcher keys each add their own faint picture and band shape on top (see keyImage).
- * Switcher keys light in the switcher's tally colours instead: red on program (or on air), green on preview.
+ * How keys look. Colour says what kind of key it is, so a page of keys sorts itself by job: Sources teal, Scenes blue,
+ * Sequences purple, Run order yellow, Switcher (ATEM) red, Replay grey, and a Source key that turns a video's sound on
+ * and off pink. Each kind is dark in its colour while it's off and lit in its full colour while it's on (the manifest
+ * makes the title black on it); a Switcher key lights in the switcher's tally colours instead: red on program (or on
+ * air), green on preview.
+ *
+ * Which output a key acts on is the numbered disc in its top right corner, in that output's colour (Output 1 orange,
+ * 2 pink, 3 blue, 4 green, as on Studio's Output page). Switcher and Replay keys have none: they act on the switcher
+ * and the replay, not an output. The kind's picture sits in the top left, and the title along the bottom.
  */
 
-export type ColourGroup = "blue" | "green" | "grey" | "yellow" | "purple";
+/** The seven kinds of key. A Source key that turns a video's sound on and off is a "sound" key. */
+export type KeyKind = "source" | "sound" | "scene" | "sequence" | "runorder" | "switcher" | "playback";
 
-export type Colours = {
-	/** Shown in the settings panel. */
+export type KindColours = {
+	/** What the kind is called in the docs. */
 	label: string;
-	/** The key's body while its source is off: dark, so the white title reads and the lit colour stands out. */
+	/** The body while off: dark, so the white title reads and the lit colour stands out. */
 	off: string;
-	/** The band along the bottom, off and on. */
-	band: string;
+	/** The body while on (black title), and the picture's colour while off. */
+	on: string;
 };
 
-/** Body of a lit key for Output 1 (orange), and for any key when Studio doesn't say its output's colour. */
-export const ON = "#ea9a38";
+export const KINDS: Record<KeyKind, KindColours> = {
+	source: { label: "Source", off: "#0b3533", on: "#14b8a6" },
+	sound: { label: "Sound", off: "#3a1440", on: "#e879f9" },
+	scene: { label: "Scene", off: "#0f2147", on: "#3b82f6" },
+	sequence: { label: "Sequence", off: "#2e1350", on: "#b07cf7" },
+	runorder: { label: "Run order", off: "#3d3305", on: "#facc15" },
+	switcher: { label: "Switcher", off: "#3b1010", on: "#ff4d4d" },
+	playback: { label: "Replay", off: "#2a2a2e", on: "#a1a1aa" },
+};
 
-/** Each output's colour by its number (Studio's outputs.js COLOURS): the body of a lit key for that output. */
+/** Each output's colour by its number (Studio's outputs.js COLOURS): the disc on a key for that output. */
 export const OUTPUT_COLOURS = ["#ea9a38", "#f24f91", "#4ec1e6", "#95ba45"];
 
-/** In the order the settings panel lists them; blue first as the default. */
-export const GROUPS: Record<ColourGroup, Colours> = {
-	blue: { label: "Blue: live stream", off: "#0f172a", band: "#3b82f6" },
-	green: { label: "Green: pre-game", off: "#0b3a1e", band: "#22c55e" },
-	grey: { label: "Grey: post-game", off: "#3f3f46", band: "#a1a1aa" },
-	yellow: { label: "Yellow: ads", off: "#4a3b00", band: "#facc15" },
-	purple: { label: "Purple: quarter time", off: "#3b0764", band: "#a855f7" },
-};
-
-export function groupOf(colour?: string): ColourGroup {
-	return colour && Object.hasOwn(GROUPS, colour) ? (colour as ColourGroup) : "blue";
-}
+/** The output a key acts on, as its disc shows it: the output's number and colour. */
+export type OutputMark = { slot: number; colour: string };
 
 /** A Switcher key's lit body: red for program and anything on air, green for preview, as on the switcher's own panel. */
 export const TALLY = { program: "#ff4d4d", preview: "#22c55e" } as const;
 
-/** The dot a Scene key shows in its top corner while sources differ from the scene as saved (a Switcher key: while the switcher isn't answering). */
+/** The dot a Scene key shows at its top while sources differ from the scene as saved (a Switcher key: while the switcher isn't answering). */
 export const DOT = "#facc15";
 
-/** The six kinds of key. Each draws its own picture and band, so they can be told apart across a page. */
-export type KeyKind = "source" | "scene" | "sequence" | "switcher" | "playback" | "runorder";
-
 /**
- * The big faint picture behind a key's title: an eye for a Source (shows or hides one thing), stacked layers for
- * a Scene (a set of sources), a play button for a Sequence (plays in order), a camera for a Switcher key, play and
- * pause together for a Replay key (a recorded game played back), and a list with a play button at its head for a Run
- * order key (what plays next tonight). White at low opacity so the title still reads over it, on every dark body and
- * every lit colour.
+ * The kind's picture, drawn in a 36 by 36 box: an eye for a Source (shows or hides one thing), a speaker for a sound
+ * key, stacked layers for a Scene (a set of sources), a film strip for a Sequence (steps in order), a numbered list for
+ * a Run order key (what plays next tonight), a camera for a Switcher key and a replay arrow for a Replay key.
  */
-const PICTURE: Record<KeyKind, string> = {
-	source:
-		`<path d="M18 60Q72 6 126 60Q72 114 18 60Z" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>` +
-		`<circle cx="72" cy="60" r="19" fill="#fff"/>`,
-	scene:
-		`<path d="M72 14L124 40L72 66L20 40Z" fill="#fff"/>` +
-		`<path d="M20 62L72 88L124 62M20 82L72 108L124 82" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>`,
-	sequence: `<path d="M44 16L112 60L44 104Z" fill="#fff" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>`,
-	switcher: `<rect x="14" y="34" width="84" height="56" rx="10" fill="#fff"/>` + `<path d="M104 52L130 36V88L104 72Z" fill="#fff"/>`,
-	playback:
-		`<path d="M20 22L76 60L20 98Z" fill="#fff" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>` +
-		`<rect x="90" y="22" width="14" height="76" rx="3" fill="#fff"/><rect x="114" y="22" width="14" height="76" rx="3" fill="#fff"/>`,
-	runorder:
-		`<path d="M18 16L46 32L18 48Z" fill="#fff"/><rect x="58" y="24" width="68" height="14" rx="5" fill="#fff"/>` +
-		`<circle cx="30" cy="66" r="8" fill="#fff"/><rect x="58" y="59" width="68" height="14" rx="5" fill="#fff"/>` +
-		`<circle cx="30" cy="100" r="8" fill="#fff"/><rect x="58" y="93" width="68" height="14" rx="5" fill="#fff"/>`,
+export function picture(kind: KeyKind, c: string): string {
+	switch (kind) {
+		case "source":
+			return `<path d="M2 18Q18 3 34 18Q18 33 2 18Z" fill="none" stroke="${c}" stroke-width="3.5" stroke-linejoin="round"/><circle cx="18" cy="18" r="6" fill="${c}"/>`;
+		case "sound":
+			return `<path d="M3 13H10L19 5V31L10 23H3Z" fill="${c}"/><path d="M24 11Q29 18 24 25M28 7Q36 18 28 29" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
+		case "scene":
+			return `<path d="M18 3L33 11L18 19L3 11Z" fill="${c}"/><path d="M3 18L18 26L33 18M3 25L18 33L33 25" fill="none" stroke="${c}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+		case "sequence":
+			// A strip with three frames cut out of it, so the body shows through.
+			return `<path fill-rule="evenodd" fill="${c}" d="M4 7H32A3 3 0 0 1 35 10V26A3 3 0 0 1 32 29H4A3 3 0 0 1 1 26V10A3 3 0 0 1 4 7Z${[4, 15, 26].map((x) => `M${x} 12H${x + 8}V24H${x}Z`).join("")}"/>`;
+		case "runorder":
+			return (
+				`<path d="M2 4L10 8.5L2 13Z" fill="${c}"/>` +
+				`<circle cx="6" cy="20" r="3" fill="${c}"/><circle cx="6" cy="31" r="3" fill="${c}"/>` +
+				[5, 17, 28].map((y) => `<rect x="14" y="${y}" width="21" height="6" rx="2" fill="${c}"/>`).join("")
+			);
+		case "switcher":
+			return `<rect x="1" y="9" width="23" height="18" rx="3" fill="${c}"/><path d="M26 14L35 9V27L26 22Z" fill="${c}"/>`;
+		case "playback":
+			return (
+				`<path d="M9 9A12 12 0 1 1 6 23" fill="none" stroke="${c}" stroke-width="3.5" stroke-linecap="round"/>` +
+				`<path d="M3 3L12 4L6 12Z" fill="${c}"/><path d="M15 12L24 18L15 24Z" fill="${c}"/>`
+			);
+	}
+}
+
+/** The digits 1 to 4 as strokes, centred on (0, 0), so the disc needs no font. */
+const DIGITS: Record<number, string> = {
+	1: "M-5 -8L1 -13V13",
+	2: "M-7 -6Q-7 -13 0 -13Q7 -13 7 -6Q7 -1 0 4L-7 13H8",
+	3: "M-7 -10Q-4 -13 0 -13Q7 -13 7 -6.5Q7 0 -1 0Q7 0 7 6.5Q7 13 0 13Q-4 13 -7 10",
+	4: "M4 13V-13L-8 6H9",
+};
+
+/** The output's disc in the top right corner: its colour, ringed in black so it shows on every body, with its number. */
+function disc(o: OutputMark): string {
+	const colour = /^#[0-9a-f]{6}$/i.test(o.colour) ? o.colour : OUTPUT_COLOURS[0];
+	const digit = DIGITS[o.slot];
+	return (
+		`<circle cx="112" cy="32" r="22" fill="${colour}" stroke="#000" stroke-width="4"/>` +
+		(digit
+			? `<path transform="translate(112 32)" d="${digit}" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`
+			: "")
+	);
+}
+
+export type KeyLook = {
+	/** The output it acts on, for the disc; none for a Switcher or Replay key. */
+	output?: OutputMark | null;
+	/** The yellow dot at the top: a scene changed since saved, or the switcher not answering. */
+	dot?: boolean;
+	/** A Switcher key's lit body (its tally colour); every other kind lights in its own colour. */
+	lit?: string;
 };
 
 /**
- * The band along the bottom in the group's colour: one solid strip for a Source, the same with a frame up the
- * sides and over the top for a Scene (a whole screen), four steps with gaps for a Sequence, two halves for a
- * Switcher key (program and preview), a timeline with its playhead for a Replay key, and a queue for a Run order key:
- * the head block full height, the ones behind it lower.
+ * The key image for a kind and state, as an SVG Stream Deck draws at the key's own size. Stream Deck draws the
+ * title over it, along the bottom.
  */
-function band(kind: KeyKind, colour: string): string {
-	if (kind === "runorder")
-		return (
-			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +
-			`<rect y="124" width="33" height="20" fill="${colour}"/>` +
-			[1, 2, 3].map((i) => `<rect x="${i * 37}" y="131" width="33" height="13" fill="${colour}"/>`).join("")
-		);
-	if (kind === "playback")
-		return (
-			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +
-			`<rect y="130" width="144" height="8" fill="${colour}"/><rect x="58" y="124" width="10" height="20" fill="${colour}"/>`
-		);
-	if (kind === "switcher")
-		return (
-			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +
-			`<rect y="124" width="69" height="20" fill="${colour}"/><rect x="75" y="124" width="69" height="20" fill="${colour}"/>`
-		);
-	if (kind === "sequence")
-		return (
-			`<rect y="124" width="144" height="20" fill="#000" fill-opacity="0.35"/>` +
-			[0, 1, 2, 3].map((i) => `<rect x="${i * 37}" y="124" width="33" height="20" fill="${colour}"/>`).join("")
-		);
-	const strip = `<rect y="124" width="144" height="20" fill="${colour}"/>`;
-	if (kind === "source") return strip;
-	return `<path d="M0 0H144V124H138V6H6V124H0Z" fill="${colour}"/>` + strip;
-}
-
-/**
- * The key image for a kind, group and state, as an SVG Stream Deck draws at the key's own size. A thin dark line
- * sits between the body and the band so the band keeps its edge against the lit colour. dot adds the
- * changed dot, ringed in navy so it shows on every lit colour and every dark body. lit: the body while on, the
- * key's output's colour.
- */
-export function keyImage(kind: KeyKind, colour: string | undefined, state: 0 | 1, dot = false, lit = ON): string {
-	const g = GROUPS[groupOf(colour)];
-	const body = state ? (/^#[0-9a-f]{6}$/i.test(lit) ? lit : ON) : g.off;
+export function keyImage(kind: KeyKind, state: 0 | 1, look: KeyLook = {}): string {
+	const k = KINDS[kind];
+	const lit = kind === "switcher" && look.lit && /^#[0-9a-f]{6}$/i.test(look.lit) ? look.lit : k.on;
+	const body = state ? lit : k.off;
 	return (
 		`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">` +
 		`<rect width="144" height="144" fill="${body}"/>` +
-		`<g opacity="${state ? 0.26 : 0.2}">${PICTURE[kind]}</g>` +
-		`<rect y="120" width="144" height="4" fill="#000" fill-opacity="0.35"/>` +
-		band(kind, g.band) +
-		(dot ? `<circle cx="124" cy="20" r="11" fill="${DOT}" stroke="#0f172a" stroke-width="4"/>` : "") +
+		`<g transform="translate(12 12) scale(1.1)">${picture(kind, state ? "#000" : k.on)}</g>` +
+		(look.output ? disc(look.output) : "") +
+		(look.dot ? `<circle cx="72" cy="26" r="10" fill="${DOT}" stroke="#000" stroke-width="4"/>` : "") +
 		`</svg>`
 	);
 }
 
 /**
  * The key image as Stream Deck's setImage takes an SVG: a data URL. Sent as a bare SVG string, the app ignores it
- * and the key keeps the manifest's blue image.
+ * and the key keeps the manifest's image.
  */
-export function keyImageUrl(kind: KeyKind, colour: string | undefined, state: 0 | 1, dot = false, lit = ON): string {
-	return `data:image/svg+xml,${encodeURIComponent(keyImage(kind, colour, state, dot, lit))}`;
+export function keyImageUrl(kind: KeyKind, state: 0 | 1, look: KeyLook = {}): string {
+	return `data:image/svg+xml,${encodeURIComponent(keyImage(kind, state, look))}`;
 }
 
 /** WCAG contrast ratio between two #rrggbb colours (1 to 21). */

@@ -19,17 +19,14 @@ export type RunOrderSettings = {
 	orderName?: string;
 	/** The output whose run order it acts on (an output's id); Output 1 when not set. */
 	output?: string;
-	/** Colour group; empty means the head item's own colour from the Output page. */
-	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
 	keepTitle?: boolean;
 };
 
 export type RunOrderView = {
-	/** 0 = dark, 1 = lit (in its output's colour): something is queued to play next. */
+	/** 0 = dark, 1 = lit: something is queued to play next. */
 	state: 0 | 1;
 	title: string;
-	colour: string;
 };
 
 const PRESS: RunOrderPress[] = ["next", "skip", "load", "clear"];
@@ -43,11 +40,6 @@ export function queueOf(scene: Scene | null): RunOrderItem[] {
 	return (scene?.runOrder ?? []).filter((it) => !it.gone);
 }
 
-/** The head item's own colour, set in its editor on the Output page (a scene's or a sequence's). */
-export function itemColour(scene: Scene, it: RunOrderItem): string | undefined {
-	return it.kind === "scene" ? scene.scenes?.find((s) => s.id === it.id)?.colour : scene.sequences?.find((s) => s.id === it.id)?.colour;
-}
-
 const LABEL: Record<RunOrderPress, string> = { next: "Play next ▶", skip: "Skip ⏭", load: "Load", clear: "Clear" };
 
 /**
@@ -57,8 +49,7 @@ const LABEL: Record<RunOrderPress, string> = { next: "Play next ▶", skip: "Ski
 export function runOrderViewOf(settings: RunOrderSettings, all: Scene | null): RunOrderView {
 	const press = pressOf(settings);
 	const scene = forOutput(all, settings.output);
-	const own = settings.colour || "";
-	const view = (title: string, colour?: string, state: 0 | 1 = 0): RunOrderView => ({ state, title, colour: own || colour || "blue" });
+	const view = (title: string, state: 0 | 1 = 0): RunOrderView => ({ state, title });
 	const label = LABEL[press];
 	if (press === "load") {
 		if (!settings.order) return view("Pick a saved\norder");
@@ -76,7 +67,7 @@ export function runOrderViewOf(settings: RunOrderSettings, all: Scene | null): R
 	if (!head) return view(`${label}\n(empty)`);
 	const more = queue.length - 1;
 	const name = wrapTitle(head.name, 9).split("\n").slice(0, 2).join("\n");
-	return view(`${label}\n${name}${more ? `\n+${more} more` : ""}`, itemColour(scene, head), 1);
+	return view(`${label}\n${name}${more ? `\n+${more} more` : ""}`, 1);
 }
 
 /** The Studio link a press opens. */

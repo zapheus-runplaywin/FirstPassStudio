@@ -47,12 +47,12 @@ src/
   actions/switcher.ts  SDK action: one SwitcherKey per key on screen; answers the settings panel's cameras and keys request
   actions/playback.ts  SDK action: one PlaybackKey per key on screen, asking what's playing back each second
   lib/source-key.ts    what a key shows (lit, title) and which link a press opens (no SDK)
-  lib/scene-key.ts     what a Scene key shows (lit, changed dot, title, colour) and which link a press opens (no SDK)
-  lib/sequence-key.ts  what a Sequence key shows (lit, step and time left, colour) and which link a press opens (no SDK)
-  lib/runorder-key.ts  what a Run order key shows (what plays next, its colour, lit while queued) and which link a press opens (no SDK)
+  lib/scene-key.ts     what a Scene key shows (lit, changed dot, title) and which link a press opens (no SDK)
+  lib/sequence-key.ts  what a Sequence key shows (lit, step and time left) and which link a press opens (no SDK)
+  lib/runorder-key.ts  what a Run order key shows (what plays next, lit while queued) and which link a press opens (no SDK)
   lib/switcher-key.ts  what a Switcher key shows (tally red or green, on air, not answering) and which link a press opens (no SDK)
   lib/playback-key.ts  what a Replay key shows (lit while a replay or practice game runs, Play or Pause) and which link a press opens (no SDK)
-  lib/colours.ts       colour groups (blue, green, grey, yellow, purple), tally colours, and the key images drawn for each
+  lib/colours.ts       each kind's colour and picture, the output disc, tally colours, and the key images drawn from them
   lib/identity.ts      the plugin's Ed25519 key pair (in the global settings), pairing with a Studio, and signing presses
   lib/studio.ts        one live scene (and switcher) connection per Studio address, shared by its keys; presses and the lists
 com.runplaywin.firstpass-studio.sdPlugin/
@@ -63,21 +63,22 @@ com.runplaywin.firstpass-studio.sdPlugin/
   ui/runorder.html     Run order key settings panel
   ui/switcher.html     Switcher key settings panel
   ui/playback.html     Replay key settings panel
-  imgs/                plugin, category, action and key images per kind (the default blue group: off navy, on Output 1's orange)
+  imgs/                plugin, category, action and key images per kind (each kind's colour off and on, with Output 1's disc)
 test/
   source.test.ts       parsing, key views, links, and the feed reconnecting
-  scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot, settings panel list
-  sequence.test.ts     Sequence key views (playing, paused, Next, off air, gone, time left), links, settings panel lists
+  scene.test.ts        Scene key views (current, changed, next/previous at the ends), links, the dot
+  sequence.test.ts     Sequence key views (playing, paused, Next, off air, gone, time left), links, settings panel time list
   runorder.test.ts     Run order key views (head, more queued, gone items, another output, Load), links, manifest and panel
   switcher.test.ts     Switcher key views (tally, on air, not answering, not on it), links
-  playback.test.ts     Replay key views (replay, practice, demo, following the video, none on), links, manifest and panel
-  colours.test.ts      colour groups, key images and contrast (on vs off in every colour), settings panel list
+  playback.test.ts     Replay key views (replay, practice, demo, following the video, nothing running), links, manifest and panel
+  colours.test.ts      kinds' colours, output discs, key images and contrast, no colour in the settings panels
   plugin.e2e.test.ts   real SDK + real Studio + fake Stream Deck app (+ Studio's stand-in ATEM for the Switcher key)
 ```
 
 Each key has an Output setting (an output's id; Output 1 when empty): it follows that output's view of the scene
-(`forOutput` in `lib/studio.ts`), presses that output's `/deck/output/<id>/...` links, and lights in its colour from the
-scene feed's `outputs`. The manifest sets the titles white on the dark off state and black on the lit one.
+(`forOutput` in `lib/studio.ts`), presses that output's `/deck/output/<id>/...` links, and shows its number and colour in
+the disc from the scene feed's `outputs` (`outputMark`, which remembers them while Studio is off air). The manifest sets the
+titles along the bottom, white on the dark off state and black on the lit one.
 
 A key follows its source by id, so renaming the source on the Output page keeps the key working. Keys off screen
 (another page or profile) stop following, so a page nobody can see keeps no connection open.

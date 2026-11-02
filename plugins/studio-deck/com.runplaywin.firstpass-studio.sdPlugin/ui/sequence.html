@@ -36,7 +36,7 @@
     <label for="output">Output</label>
     <div class="field"><select id="output"></select></div>
   </div>
-  <p class="note" id="outputNote" style="display:none">Plays the sequence (and Next, Pause and Stop act) on this output. The key lights in its colour.</p>
+  <p class="note" id="outputNote" style="display:none">Plays the sequence (and Next, Pause and Stop act) on this output.</p>
 
   <div class="row">
     <label for="press">Press</label>
@@ -61,20 +61,7 @@
   </div>
   <p class="note" id="note"></p>
 
-  <div class="row">
-    <label for="colour">Colour</label>
-    <div class="field">
-      <select id="colour">
-        <option value="">The sequence's own colour</option>
-        <option value="blue">Blue: live stream</option>
-        <option value="green">Green: pre-game</option>
-        <option value="grey">Grey: post-game</option>
-        <option value="yellow">Yellow: ads</option>
-        <option value="purple">Purple: quarter time</option>
-      </select>
-    </div>
-  </div>
-  <p class="note">The sequence's own colour is the one set in its editor on Studio's Output page. The key lights in its output's colour while its sequence plays there (for Next, Pause and Stop, while any plays) and shows the step and the time left (set below).</p>
+  <p class="note">The key is purple and lights up while its sequence plays on its output (for Next, Pause and Stop, while any plays), showing the step and the time left (set below). The disc in its corner is the output's number and colour.</p>
 
   <div class="row">
     <label for="time">Time left</label>
@@ -119,7 +106,6 @@
     settings = (ai.payload && ai.payload.settings) || {};
     fillOutputs();
     $("press").value = settings.press || "play";
-    $("colour").value = settings.colour || "";
     $("keepTitle").checked = !!settings.keepTitle;
     $("time").value = settings.time || "step";
     $("host").value = settings.host || "";
@@ -193,7 +179,6 @@
       sequence: id,
       sequenceName: picked ? picked.name : (id === settings.sequence ? settings.sequenceName : ""),
       press: $("press").value,
-      colour: $("colour").value,
       keepTitle: $("keepTitle").checked,
       time: $("time").value,
       host: $("host").value.trim(),
@@ -205,7 +190,6 @@
 
   $("sequence").addEventListener("change", save);
   $("press").addEventListener("change", () => { showSequencePick(); save(); });
-  $("colour").addEventListener("change", save);
   $("keepTitle").addEventListener("change", save);
   $("output").addEventListener("change", save);
   $("time").addEventListener("change", save);

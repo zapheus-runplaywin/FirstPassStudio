@@ -11,7 +11,7 @@ import streamDeck, {
 
 import { keyImageUrl } from "../lib/colours";
 import { sequenceLinkFor, type SequenceSettings, sequenceViewOf } from "../lib/sequence-key";
-import { cleanHost, feedFor, fetchScene, outputColour, outputsOf, press, type Scene } from "../lib/studio";
+import { cleanHost, feedFor, fetchScene, outputMark, outputsOf, press, type Scene } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("Sequence");
 const log = (message: string) => logger.info(message);
@@ -66,12 +66,13 @@ class SequenceKey {
 			clearInterval(this.ticker);
 			this.ticker = null;
 		}
-		// Both states' images in the colour group; only sent again when it changes.
-		const lit = outputColour(this.scene, this.settings.output);
-		if (`${view.colour}|${lit}` !== this.painted) {
-			this.painted = `${view.colour}|${lit}`;
-			void this.key.setImage(keyImageUrl("sequence", view.colour, 0), { state: 0 });
-			void this.key.setImage(keyImageUrl("sequence", view.colour, 1, false, lit), { state: 1 });
+		// Both states' images with the output's disc; only sent again when it changes.
+		const output = outputMark(this.scene, this.settings.output);
+		const paint = `${output?.slot}|${output?.colour}`;
+		if (paint !== this.painted) {
+			this.painted = paint;
+			void this.key.setImage(keyImageUrl("sequence", 0, { output }), { state: 0 });
+			void this.key.setImage(keyImageUrl("sequence", 1, { output }), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;
@@ -138,7 +139,7 @@ export class SequenceAction extends SingletonAction<SequenceSettings> {
 			type: "sequences",
 			host,
 			ok: scene !== null,
-			sequences: (scene?.sequences ?? []).map((s) => ({ id: s.id, name: s.name, colour: s.colour ?? "blue" })),
+			sequences: (scene?.sequences ?? []).map((s) => ({ id: s.id, name: s.name })),
 			outputs: outputsOf(scene).map((o) => ({ id: o.id, name: o.name })),
 		} as unknown as PiPayload);
 	}

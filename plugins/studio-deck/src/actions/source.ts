@@ -10,8 +10,8 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 
 import { keyImageUrl } from "../lib/colours";
-import { linkFor, type SourceSettings, viewOf } from "../lib/source-key";
-import { cleanHost, feedFor, fetchScene, outputColour, outputsOf, press, type Scene } from "../lib/studio";
+import { linkFor, pressOf, type SourceSettings, viewOf } from "../lib/source-key";
+import { cleanHost, feedFor, fetchScene, outputMark, outputsOf, press, type Scene } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("Source");
 const log = (message: string) => logger.info(message);
@@ -65,14 +65,16 @@ class SourceKey {
 		void this.key.setTitle(title as string);
 	}
 
-	/** Both states' images in the key's colour group, lit in its output's colour; only sent again when those change. */
+	/** Both states' images, teal (pink for a sound key) with its output's disc; only sent again when those change. */
 	private paint(): void {
-		const colour = this.settings.colour ?? "";
-		const lit = outputColour(this.scene, this.settings.output);
-		if (`${colour}|${lit}` === this.painted) return;
-		this.painted = `${colour}|${lit}`;
-		void this.key.setImage(keyImageUrl("source", colour, 0), { state: 0 });
-		void this.key.setImage(keyImageUrl("source", colour, 1, false, lit), { state: 1 });
+		const kind = pressOf(this.settings) === "sound" ? "sound" : "source";
+		// Sound is Output 1's, so its disc is too.
+		const output = outputMark(this.scene, kind === "sound" ? undefined : this.settings.output);
+		const paint = `${kind}|${output?.slot}|${output?.colour}`;
+		if (paint === this.painted) return;
+		this.painted = paint;
+		void this.key.setImage(keyImageUrl(kind, 0, { output }), { state: 0 });
+		void this.key.setImage(keyImageUrl(kind, 1, { output }), { state: 1 });
 	}
 
 	async press(): Promise<void> {

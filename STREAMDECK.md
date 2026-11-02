@@ -171,21 +171,20 @@ For Studio's scene, built on the Output page (http://localhost:8080/output.html)
 (**Install the Stream Deck plugin**) or the button on the Output page; the Stream Deck app opens it and installs it (do the same after an
 app update to update the plugin). Then drag **FirstPass Studio > Source** onto a key and pick the source in its settings.
 
-The six kinds of key look different at a glance: a **Source** key has a faint eye behind its title and one strip along the bottom, a
-**Scene** key has stacked layers and a frame in its colour round the whole key, a **Sequence** key has a play button and its strip
-split into four steps, a **Run order** key (see **Run order** below) has a list with a play button at its head and a strip whose first
-block stands taller than the ones queued behind it, a **Switcher** key (see **Switcher** below) has a camera and its strip in two halves,
-and a **Replay** key (see **4K replay and practice games** below) has play and pause with a timeline and its playhead. For a Source key:
+Every key says what it does and which output it does it on at a glance. Its **colour is its kind**, with the kind's picture in the
+top left corner: **Source** keys are teal (an eye), sound keys pink (a speaker), **Scene** keys blue (stacked layers), **Sequence**
+keys purple (a film strip), **Run order** keys yellow (a numbered list, see **Run order** below), **Switcher** keys red (a camera,
+see **Switcher** below) and **Replay** keys grey (a replay arrow, see **4K replay and practice games** below). A key is dark in its
+colour while off and lit in its full colour, with a black title, while on. The **disc in the top right corner** is the output the
+key acts on: its number in its colour (Output 1 orange, 2 pink, 3 blue, 4 green, as on the Output page). Switcher and Replay keys
+have no disc: they act on the switcher and the replay. The title runs along the bottom. For a Source key:
 
 
 - **Press:** show or hide (default), fade in, fade out, refresh the page or restart the video, or turn the video's sound on or off.
-- The key shows the source's name and lights up in its output's colour while the source is on, whether it was turned on from this key, another key, the
-  Output page or a link. A sound key lights while the video's sound is on.
-- **Colour:** group keys by the part of the stream they belong to: **blue** for the live stream (default), **green** for pre-game,
-  **grey** for post-game, **yellow** (dark gold) for ads and **purple** for the quarter time break. The key is dark in its colour while the
-  source is off and lights in its output's colour while it's on, in every colour; the strip along the bottom keeps the group's colour either way.
-- **Output:** with more than one output in Studio, pick the output the key shows and hides the source on. It lights in that output's
-  colour (Output 1 orange, 2 pink, 3 blue, 4 green) with a black title. A key for an output that has been removed says **no output**.
+- The key shows the source's name and lights up while the source is on, whether it was turned on from this key, another key, the
+  Output page or a link. A sound key is pink and lights while the video's sound is on; sound is Output 1's, so its disc says 1.
+- **Output:** with more than one output in Studio, pick the output the key shows and hides the source on; its disc shows that
+  output's number and colour. A key for an output that has been removed loses its disc and says **no output**.
 - It follows the source itself, so renaming it on the Output page doesn't break the key. If the source is removed the key says **gone**;
   while Studio isn't running it says **off air**, and a press shows a warning.
 - Tick **Use my own title** to show the title you type in Stream Deck instead of the source's name.
@@ -194,10 +193,9 @@ and a **Replay** key (see **4K replay and practice games** below) has play and p
 **Scene key.** Drag **FirstPass Studio > Scene** onto a key for the scenes (see **Scenes** below):
 
 - **Press:** go to a scene picked in its settings (default), go to the **next** or **previous** scene, or go **back to the current scene as saved**.
-- A scene's key lights up in its output's colour while its scene is on there, with a yellow dot in the corner when sources have been turned on or off since; press it
+- A scene's key lights up while its scene is on its output, with a yellow dot at the top when sources have been turned on or off since; press it
   again to put them back. Next and Previous show the name of the scene they'll go to (and *last* or *first* at the ends, where they do nothing).
   Back to saved names the current scene and shows the dot when there's something to put back.
-- **Colour:** the scene's own colour (set in **Edit scenes** on the Output page), or one of the five groups.
 - **Output:** with more than one output, the output it plays the scene on. Every output shares the scenes and has its own current
   scene, so a key for Commentary lights while Commentary is on that scene, whatever Output 1 shows; Next, Previous and Back to saved
   go from that output's own current scene.
@@ -207,14 +205,13 @@ and a **Replay** key (see **4K replay and practice games** below) has play and p
 
 - **Press:** play the sequence picked in its settings, or stop it while it plays (default); always play it from the first step; or, for
   whatever sequence is playing, **Next**, **Next when waiting**, **Pause / carry on** or **Stop**.
-- A sequence's key lights up in its output's colour while it plays there and shows its step and the time left, like **3/5 0:12** (or **paused**, or **Next**
+- A sequence's key lights up while it plays on its output and shows its step and the time left, like **3/5 0:12** (or **paused**, or **Next**
   while the step waits for a press). The Next, Pause and Stop keys light while any sequence plays.
 - **Time left:** what the key counts down while the sequence plays: the step's (default), the whole sequence's (**all 1:40**, with
   **+** when part of it waits for Next, the game or a page, and **↻** when it repeats, for the time left this time round), both (one
   line each), or none (just the step number).
 - **Next when waiting** is one key for every sequence: it moves on only when the step on now (the innermost, in a sequence inside
   another) is **Until I press Next**, and lights only then; at any other time a press does nothing.
-- **Colour:** the sequence's own colour (set in its editor on the Output page), or one of the five groups.
 - **Output:** with more than one output, the output it plays the sequence on; Next, Pause and Stop keys act on what that output is playing.
 - When a sequence is about to start by itself after the siren, its key counts down to it (**in 0:04**).
 - It follows the sequence by id, so renaming it doesn't break the key; a deleted sequence's key says **gone**.
@@ -223,12 +220,10 @@ and a **Replay** key (see **4K replay and practice games** below) has play and p
 
 - **Press:** **Play next** (default) plays what's at the head of the run order, a sequence or a scene; **Skip** drops it without
   playing it; **Load** puts a saved order picked in its settings in place of what's queued; **Clear** empties the list.
-- Play next, Skip and Clear light up in their output's colour while something is queued and name what plays next (**Play next ▶ /
+- Play next, Skip and Clear light up while something is queued and name what plays next (**Play next ▶ /
   Quarter break / +2 more**), so the key says what a press will do before you press it; with nothing queued they say **empty**, and
   Play next then ends the sequence playing (its Then runs), as the Output page's button does. A Load key names its saved order and how
   many items it holds (**Thursday night / load 5**).
-- **Colour:** what's next's own colour (the scene's or sequence's, set in its editor on the Output page), so the key changes colour
-  as the night moves on, or one of the five groups.
 - **Output:** with more than one output, the output whose run order it acts on; each output has its own list.
 - It follows the saved order by id, so renaming it doesn't break a Load key; a deleted order's key says **gone**.
 
@@ -244,7 +239,6 @@ and a **Replay** key (see **4K replay and practice games** below) has play and p
 - While the switcher isn't answering, every Switcher key goes dark with a yellow dot and says **offline**; a press is refused (nothing
   is saved up for later) and the key shows a warning. With no switcher picked it says **not set up**; a camera or key this switcher
   hasn't got says **not on it**.
-- **Colour:** one of the five groups, for the dark body and the strip.
 
 **Links.** The plugin isn't needed: these links work in a **Website** action (tick **GET request in background**), but the key
 doesn't light up. Copied from the Output page they carry the Stream Deck key (see the top of this page).
@@ -422,7 +416,7 @@ and does nothing. Practice links are refused while a 4K replay runs.
 **Replay key.** Drag **FirstPass Studio > Replay** onto a key. It acts on whichever is running (the 4K replay, or a practice or demo
 game) and lights while one runs. **Press:** play or pause (one key; it says Pause while it plays), the next or previous moment, a
 nudge of a frame or a second either way (the replay's only), or Stop. It names what it acts on (**4K replay**, **Practice**,
-**Demo**), says **none on** when nothing is running, and **follows video** on the play key while a replay follows a player's
+**Demo**), shows just what it presses, dark, when nothing is running, and **follows video** on the play key while a replay follows a player's
 timecode. With the video's own play on another key, one **Multi Action** starts both.
 
 ## Timed buttons (Timed Sequence plugin)

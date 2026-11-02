@@ -60,7 +60,7 @@ export function playbackViewOf(settings: PlaybackSettings, pb: Playback): Playba
 	let label = LABEL[press];
 	if (!pb) return { state: 0, title: `${label}\n(off air)` };
 	const what = running(pb);
-	if (!what) return { state: 0, title: `${label}\n(none on)` };
+	if (!what) return { state: 0, title: label };
 	const now = what === "replay" ? pb.replay : pb.practice;
 	const name = what === "replay" ? "4K replay" : pb.practice.demo ? "Demo" : "Practice";
 	if (NUDGE[press] !== undefined && what !== "replay") return { state: 0, title: `${label}\n(replay only)` };

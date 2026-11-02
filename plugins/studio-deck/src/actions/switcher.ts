@@ -56,11 +56,11 @@ class SwitcherKey {
 	private draw(): void {
 		const view = switcherViewOf(this.settings, this.switcher);
 		// The lit image is in the tally colour (red or green), so it's sent again when that changes, not on every cut.
-		const paint = `${this.settings.colour}|${view.dot}|${view.lit}`;
+		const paint = `${view.dot}|${view.lit}`;
 		if (paint !== this.painted) {
 			this.painted = paint;
-			void this.key.setImage(keyImageUrl("switcher", this.settings.colour, 0, view.dot), { state: 0 });
-			void this.key.setImage(keyImageUrl("switcher", this.settings.colour, 1, view.dot, view.lit), { state: 1 });
+			void this.key.setImage(keyImageUrl("switcher", 0, { dot: view.dot }), { state: 0 });
+			void this.key.setImage(keyImageUrl("switcher", 1, { dot: view.dot, lit: view.lit }), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;

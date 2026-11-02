@@ -11,7 +11,7 @@ import streamDeck, {
 
 import { keyImageUrl } from "../lib/colours";
 import { runOrderLinkFor, type RunOrderSettings, runOrderViewOf } from "../lib/runorder-key";
-import { cleanHost, feedFor, fetchScene, outputColour, outputsOf, press, type Scene } from "../lib/studio";
+import { cleanHost, feedFor, fetchScene, outputMark, outputsOf, press, type Scene } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("RunOrder");
 const log = (message: string) => logger.info(message);
@@ -58,12 +58,13 @@ class RunOrderKey {
 
 	private draw(): void {
 		const view = runOrderViewOf(this.settings, this.scene);
-		// Both states' images in the colour group; only sent again when it changes.
-		const lit = outputColour(this.scene, this.settings.output);
-		if (`${view.colour}|${lit}` !== this.painted) {
-			this.painted = `${view.colour}|${lit}`;
-			void this.key.setImage(keyImageUrl("runorder", view.colour, 0), { state: 0 });
-			void this.key.setImage(keyImageUrl("runorder", view.colour, 1, false, lit), { state: 1 });
+		// Both states' images with the output's disc; only sent again when it changes.
+		const output = outputMark(this.scene, this.settings.output);
+		const paint = `${output?.slot}|${output?.colour}`;
+		if (paint !== this.painted) {
+			this.painted = paint;
+			void this.key.setImage(keyImageUrl("runorder", 0, { output }), { state: 0 });
+			void this.key.setImage(keyImageUrl("runorder", 1, { output }), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;

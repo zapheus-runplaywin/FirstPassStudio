@@ -42,14 +42,14 @@
 				{
 					"Image": "imgs/actions/source/off",
 					"Name": "Off",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/source/on",
 					"Name": "On",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#000000",
 					"FontSize": 12
 				}
@@ -70,14 +70,14 @@
 				{
 					"Image": "imgs/actions/scene/off",
 					"Name": "Off",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/scene/on",
 					"Name": "On",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#000000",
 					"FontSize": 12
 				}
@@ -98,14 +98,14 @@
 				{
 					"Image": "imgs/actions/sequence/off",
 					"Name": "Off",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/sequence/on",
 					"Name": "Playing",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#000000",
 					"FontSize": 12
 				}
@@ -126,14 +126,14 @@
 				{
 					"Image": "imgs/actions/runorder/off",
 					"Name": "Off",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/runorder/on",
 					"Name": "Queued",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#000000",
 					"FontSize": 12
 				}
@@ -154,14 +154,14 @@
 				{
 					"Image": "imgs/actions/switcher/off",
 					"Name": "Off",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/switcher/on",
 					"Name": "On air",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#000000",
 					"FontSize": 12
 				}
@@ -182,14 +182,14 @@
 				{
 					"Image": "imgs/actions/playback/off",
 					"Name": "Off",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#ffffff",
 					"FontSize": 12
 				},
 				{
 					"Image": "imgs/actions/playback/on",
 					"Name": "Running",
-					"TitleAlignment": "middle",
+					"TitleAlignment": "bottom",
 					"TitleColor": "#000000",
 					"FontSize": 12
 				}

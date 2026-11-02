@@ -173,7 +173,7 @@
   .links code { flex: 1; }
   .links button { padding: 4px 10px; }
 
-  /* Scenes: saved looks for the sources. The strip along each card's bottom is its Stream Deck colour group. */
+  /* Scenes: saved looks for the sources. The strip along each card's bottom is its colour group (pre-game, live stream, quarter time, post-game, ads). */
   .scenes { display: flex; flex-wrap: wrap; gap: 14px 8px; padding-top: 6px; }
   .scene { position: relative; display: grid; gap: 1px; text-align: left; min-width: 120px; padding: 8px 12px 12px; border: 2px solid var(--fp-line-strong);
            border-radius: 10px; background: var(--fp-white); color: var(--fp-navy); font-weight: 400; overflow: visible; }
@@ -663,7 +663,7 @@
       <p class="note hidden" id="sqOutNote" style="margin-bottom:12px"></p>
       <div class="form">
         <label for="sqName">Name</label><input id="sqName" maxlength="60" placeholder="Quarter break">
-        <label for="sqColour">Stream Deck colour</label><select id="sqColour"></select>
+        <label for="sqColour">Colour</label><select id="sqColour"></select>
         <label for="sqStart">Starts</label>
         <div class="row" style="gap:8px">
           <select id="sqStart"><option value="hand">By hand</option><option value="before">Before the game starts</option><option value="break">At a break</option><option value="fulltime">At full time</option></select>
