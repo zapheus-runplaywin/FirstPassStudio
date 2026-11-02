@@ -154,8 +154,10 @@ function show(s) {
     // The output named in a chip after the heading, so the heading never reads as what's playing.
     $(h).textContent = word;
     if (scene.viewMany) {
-      const chip = Object.assign(document.createElement('span'), { className: 'outChip', textContent: scene.viewName, title: `Clicks here play on ${scene.viewName}` });
-      chip.style.setProperty('--c', scene.viewColour || 'var(--fp-muted)');
+      // The run order is Output 1's, whatever tab is picked.
+      const v = h === 'roHead' ? viewFor(s, 'main') : scene;
+      const chip = Object.assign(document.createElement('span'), { className: 'outChip', textContent: v.viewName, title: h === 'roHead' ? `The run order plays on ${v.viewName}, whichever output is picked` : `Clicks here play on ${v.viewName}` });
+      chip.style.setProperty('--c', v.viewColour || 'var(--fp-muted)');
       $(h).append(chip);
     }
   }

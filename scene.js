@@ -593,6 +593,8 @@ function change(a) {
   }
   // Scenes and sequences: a.output says which output they're played on (Go, Next, Play, Stop and the like).
   if (/^(scene|seq)/.test(a.type)) return applyScene({ ...a, output: out });
+  // The run order is Output 1's alone, whatever output a change names.
+  if (/^ro[A-Z]/.test(a.type)) return applyScene({ ...a, output: null });
   if (out) return `"${a.type}" is for the primary output only.`;
   switch (a.type) {
     case 'add': {
@@ -775,6 +777,7 @@ function deck(parts, q = {}) {
     if (!o) return { status: 404, body: { error: `No output "${parts[1]}". Use its name or number, as on the Output page.` } };
     if (o.id === PRIMARY) return deck(parts.slice(2), q);
     // /deck/output/<output>/scene/<name>|next|prev|again, /deck/output/<output>/sequence/... and /deck/output/<output>/runorder/...
+    // (the run order is Output 1's: a /deck/output/<output>/runorder/... link answers 404 saying so)
     if (parts[2] === 'scene') {
       if (!parts[3] || parts.length !== 4) return { status: 404, body: { error: `Use /deck/output/${parts[1]}/scene/<name>, next, prev or again.` } };
       const type = { next: 'sceneNext', prev: 'scenePrev', previous: 'scenePrev', again: 'sceneAgain' }[parts[3]];

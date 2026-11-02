@@ -38,13 +38,15 @@
 // or full time comes), and a sequence can repeat until play resumes or until N minutes before the start:
 // it finishes the step on screen, then ends.
 //
-// The run order: each output has a queue of what plays next tonight, sequences and scenes, built on the Output
-// page (or loaded from a saved order) and added to on the fly. Next (the panel's, or /deck/runorder/next) plays
+// The run order: Output 1 (the production feed) has a queue of what plays next tonight, sequences and scenes, built
+// on the Output page (or loaded from a saved order) and added to on the fly. It is Output 1's alone (Matt, 2 Nov 2026:
+// one run to follow): the other outputs have none, and a sequence it starts that plays on them too starts there as
+// well and does its own Then there. Next (the panel's, or /deck/runorder/next) plays
 // the head; a sequence that ends looks at the queue first and plays its head instead of its own Then, which is
 // the fallback when nothing is queued. Whatever is at the head leaves the queue as it starts, however it was
 // started. A game trigger puts its sequence at the head (with its few seconds' countdown as usual) rather than
 // starting it blind; Cancel takes it out again. Playing a scene or sequence by hand leaves the queue as it is
-// (unless it was the head). Queues are saved with the competition's sequences (runOrder), and named orders
+// (unless it was the head). The queue is saved with the competition's sequences (runOrder), and named orders
 // (runOrders) can be loaded for the night.
 
 'use strict';
@@ -92,7 +94,7 @@ let fadeTimer = null; // starts a music fade out early, so it's done as the step
 let pending = null;   // a triggered start waiting its few seconds: { id, reason, at, afterEnd }
 let pendTimer = null;
 let cut = null;       // the sequence that last ended here (played out or cut short), until it plays again
-let queue = [];       // the run order here: [{ key, kind: 'sequence' | 'scene', id }], the head first
+let queue = [];       // the run order here (Output 1's; always empty on the others): [{ key, kind: 'sequence' | 'scene', id }], the head first
 let played = [];      // what the run order has played here tonight, oldest first: [{ key, kind, id, at }] (not saved: a relaunch starts it again)
 let orders = [];      // the saved run orders of the competition in use: [{ id, name, items }]
 const PRIMARY = 'main';
@@ -336,11 +338,10 @@ function load() {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     list = [];
     for (const s of Array.isArray(saved.sequences) ? saved.sequences : []) if (s && typeof s === 'object') list.push(clean(s));
-    // The run order of each output as it was (a relaunch picks the night up where it was), and the saved orders.
-    for (const [o, items] of Object.entries(saved.runOrder && typeof saved.runOrder === 'object' ? saved.runOrder : {})) {
-      const out = cleanId(o, '');
-      if (out) within(out, () => { queue = cleanItems(items); });
-    }
+    // Output 1's run order as it was (a relaunch picks the night up where it was), and the saved orders. One kept for
+    // another output from when each had its own is dropped.
+    const ro = saved.runOrder && typeof saved.runOrder === 'object' ? saved.runOrder : {};
+    if (ro[PRIMARY]) within(PRIMARY, () => { queue = cleanItems(ro[PRIMARY]); });
     for (const o of Array.isArray(saved.runOrders) ? saved.runOrders : []) if (o && typeof o === 'object') orders.push(cleanOrder(o));
     orders = orders.slice(0, MAX_ORDERS);
   } catch (err) {
@@ -352,7 +353,7 @@ function save() {
   if (file) {
     try {
       const runOrder = {};
-      each(() => { if (queue.length) runOrder[here] = queue.map(({ kind, id }) => ({ kind, id })); });
+      within(PRIMARY, () => { if (queue.length) runOrder[PRIMARY] = queue.map(({ kind, id }) => ({ kind, id })); });
       savefile.writeJsonSync(file, { sequences: list, ...(Object.keys(runOrder).length ? { runOrder } : {}), ...(orders.length ? { runOrders: orders } : {}) });
     } catch (err) { log('error', 'sequence', `Could not save ${file}: ${err.message}`); }
   }
@@ -766,14 +767,16 @@ function trigger(sq, reason, afterSec) {
   if (run && run.id === sq.id) return;
   // The sequence on screen repeats until the next trigger: this is it.
   if (playing()?.repeat === 'until') finishSoon(`"${sq.name}" is next`);
-  // Its place in the run order is the head now: it moves up if it was further down, or joins the order if it wasn't in it (and leaves as it starts).
-  const was = queue.findIndex(it => it.kind === 'sequence' && it.id === sq.id);
+  // On Output 1 its place in the run order is the head now: it moves up if it was further down, or joins the order if it
+  // wasn't in it (and leaves as it starts). Another output has no run order: it just starts there.
+  const main = here === PRIMARY;
+  const was = main ? queue.findIndex(it => it.kind === 'sequence' && it.id === sq.id) : 0;
   if (was !== 0) {
     queue.unshift(was > 0 ? queue.splice(was, 1)[0] : { key: newId(), kind: 'sequence', id: sq.id });
     queueChanged();
   }
   // queued: the trigger put it in the order, so Cancel takes it out again (one queued by hand stays, at the head).
-  pending = { id: sq.id, reason, at: now() + afterSec * 1000, afterEnd: false, queued: was < 0 };
+  pending = { id: sq.id, reason, at: now() + afterSec * 1000, afterEnd: false, queued: main && was < 0 };
   log('info', 'sequence', `${reason}: "${sq.name}" starts${afterSec ? ` in ${afterSec} s` : ''}`);
   if (afterSec) schedulePending(); else startPending();
 }
@@ -925,10 +928,11 @@ function sourceRemoved(id) {
 // ─── Changes from the Output page and the Stream Deck ────────────────────
 // Returns an error, null when done, or undefined when the change isn't a sequence change. a.output (an
 // output's id, from scene.js; the primary without one) is the output to play on, and the one Next, Stop,
-// Pause and the like act on.
+// Pause and the like act on. Run order changes (ro…) always act on Output 1's.
 function apply(a) {
   const sq = a.sequence ? find(a.sequence) : null;
-  return within(a.output || PRIMARY, () => applyHere(a, sq));
+  // The run order is Output 1's, whatever output a change names.
+  return within(/^ro[A-Z]/.test(a.type) ? PRIMARY : a.output || PRIMARY, () => applyHere(a, sq));
 }
 // The playing sequence (or one playing it inside) keeps going with its new steps, on every output.
 function refreshPlaying() {
@@ -1140,6 +1144,7 @@ function deck(parts, out = PRIMARY) {
   // The run order: /deck/runorder/next (play the head), skip, clear, add/<sequence or scene name>, load/<saved order>.
   if (what === 'runorder') {
     if (!name) return null;
+    if (out !== PRIMARY) return { error: 'The run order is Output 1\'s: use /deck/runorder/… instead.', status: 404 };
     const simple = { next: 'roNext', skip: 'roSkip', clear: 'roClear' };
     let action = null;
     if (simple[name] && !verb) action = { type: simple[name], output: out };
@@ -1233,15 +1238,13 @@ function state() {
   // The primary's at the top (playing, pending), as before there could be more than one output; the
   // others' by output id (playingOut, pendingOut), only while there's something to say.
   // stoppedOn: the sequence that last ended on each output (played out or cut short), until it plays again.
-  const playingOut = {}, pendingOut = {}, stoppedOn = {}, runOrderOut = {}, runOrderPlayedOut = {};
+  const playingOut = {}, pendingOut = {}, stoppedOn = {};
   each(() => {
     if (cut && (!run || run.id !== cut)) stoppedOn[here] = cut;
     if (here === PRIMARY) return;
     const p = playingHere(), w = pendingHere();
     if (p) playingOut[here] = p;
     if (w) pendingOut[here] = w;
-    if (queue.length) runOrderOut[here] = queueState();
-    if (played.length) runOrderPlayedOut[here] = playedState();
   });
   return {
     // goneOn: outputs in its playsOn that have been removed (kept for the editor to show); startGone: all of them.
@@ -1255,13 +1258,11 @@ function state() {
     pending: within(PRIMARY, pendingHere),
     pendingOut,
     stoppedOn,
-    // The run order: the primary's items (each with its name now, and gone when its sequence or scene was deleted),
-    // the other outputs' by output id while they have one, and the saved orders.
+    // The run order (Output 1's, the only one): its items, each with its name now and gone when its sequence or scene
+    // was deleted, and the saved orders.
     runOrder: within(PRIMARY, queueState),
-    runOrderOut,
-    // What the run order has played tonight, oldest first (the primary's, and the others' by output id while they have some).
+    // What the run order has played tonight, oldest first.
     runOrderPlayed: within(PRIMARY, playedState),
-    runOrderPlayedOut,
     runOrders: orders.map(o => ({ id: o.id, name: o.name, count: o.items.length })),
     nextAuto: nextAuto(),
     game: game ? { label: game.label || '', startAt: game.startAt || null, breaks: game.breaks || null, last: game.last || 4 } : null,

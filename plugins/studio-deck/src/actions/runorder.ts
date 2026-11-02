@@ -59,7 +59,8 @@ class RunOrderKey {
 	private draw(): void {
 		const view = runOrderViewOf(this.settings, this.scene);
 		// Both states' images with the output's disc; only sent again when it changes.
-		const output = outputMark(this.scene, this.settings.output);
+		// The run order is Output 1's: its disc, once there's more than one output.
+		const output = outputMark(this.scene, undefined);
 		const paint = `${output?.slot}|${output?.colour}`;
 		if (paint !== this.painted) {
 			this.painted = paint;
