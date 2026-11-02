@@ -84,3 +84,35 @@ test('an intro plays its sound in the scene until it goes off, and the Output pa
   assert.match(url, /style=court/);
   assert.match(url, /themefit=stretch/);
 });
+
+test('cut to a sequence with music of its own, the scene plays the old song fading out under the new one', async t => {
+  const browser = await launch(t);
+  if (!browser) return;
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
+  fs.writeFileSync(path.join(studio.dataDir, 'media', 'Bed.wav'), quiet(60));
+  fs.writeFileSync(path.join(studio.dataDir, 'media', 'Walk.wav'), quiet(60));
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  t.after(() => context.close());
+  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  await act({ type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }] });
+  const ladder = (await studio.get('/api/scene')).sources.find(s => s.name === 'Ladder').id;
+  const steps = [{ sources: [ladder], length: { type: 'time', sec: 60 } }];
+  await act({ type: 'seqAdd', changes: { name: 'Bed', music: { track: 'Bed.wav', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 6 }, steps } });
+  await act({ type: 'seqAdd', changes: { name: 'Walk', music: { track: 'Walk.wav', fadeInSec: 0 }, steps } });
+
+  const page = await context.newPage();
+  await page.goto(`${studio.base}/scene.html`, { waitUntil: 'load' });
+  await act({ type: 'seqPlay', sequence: 'Bed' });
+  await page.waitForFunction(() => window.musicPlayers().music.playing && window.musicPlayers().music.src === 'Bed.wav', null, { timeout: 10000 });
+  await page.waitForTimeout(1500);
+  await act({ type: 'seqPlay', sequence: 'Walk' });
+  await page.waitForFunction(() => { const p = window.musicPlayers(); return p.music.src === 'Walk.wav' && p.music.playing && p.tail.src === 'Bed.wav' && p.tail.playing; }, null, { timeout: 10000 });
+  const mid = await page.evaluate(() => window.musicPlayers());
+  assert.ok(mid.tail.volume > 0 && mid.tail.volume < 0.8, `the old song is fading (${mid.tail.volume})`);
+  assert.ok(mid.tail.at > 1, 'it carries on from where it was, on the same player');
+  await page.waitForFunction(() => !window.musicPlayers().tail.playing, null, { timeout: 12000 });
+  assert.equal((await page.evaluate(() => window.musicPlayers())).music.src, 'Walk.wav');
+  await act({ type: 'seqStop' });
+});

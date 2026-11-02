@@ -499,3 +499,30 @@ test('the super shot song cuts in when the super shot period starts and fades ou
   ok({ type: 'musicStop', fade: 0 });
   ok({ type: 'musicSettings', settings: { superShotSong: '' } });
 });
+
+test('cut to a sequence with music of its own, the old song fades out under the new one by its Music ends', () => {
+  reset();
+  const ladder = sec => ({ sources: [id('Ladder')], length: { type: 'time', sec } });
+  ok({ type: 'seqAdd', changes: { name: 'Pre-game', music: { track: 'Pre-game bed.mp3', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 4 }, steps: [ladder(60)] } });
+  ok({ type: 'seqAdd', changes: { name: 'Walk out', music: { track: 'Walk out.m4a', fadeInSec: 2 }, steps: [ladder(60)] } });
+  ok({ type: 'seqPlay', sequence: 'Pre-game' });
+  const old = m().playId;
+  wait(5);
+  ok({ type: 'seqPlay', sequence: 'Walk out' });
+  assert.equal(m().track, 'Walk out.m4a');
+  assert.equal(m().status, 'playing');
+  const tail = m().tail;
+  assert.equal(tail.track, 'Pre-game bed.mp3');
+  assert.equal(tail.playId, old, 'the same play carries on fading');
+  assert.equal(Math.round(tail.pos.sec), 5);
+  assert.deepEqual([tail.gain.to, tail.gain.ms], [0, 4000], "over Pre-game's 4 s");
+  assert.deepEqual(tail.outputs, ['main']);
+  wait(4);
+  assert.equal(m().tail, null, 'gone once faded');
+  assert.equal(m().track, 'Walk out.m4a');
+  // Set to Cut, there's nothing to fade under the new one.
+  ok({ type: 'seqUpdate', sequence: 'Walk out', changes: { musicEnd: { type: 'cut' } } });
+  ok({ type: 'seqPlay', sequence: 'Pre-game' });
+  assert.equal(m().tail, null);
+  ok({ type: 'seqStop' });
+});
