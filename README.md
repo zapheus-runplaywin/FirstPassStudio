@@ -499,6 +499,9 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Any graphic's link opened at 3840 x 2160 draws itself at twice the size too (`public/zoom.js`), with nothing added to the link.
 
 The scene is saved as `scene.json` in the data folder. http://localhost:8080/scene.html is the scene on its own, 1920 x 1080.
+**Output canvas:** `/scene.html?canvas=1` (`&output=<id>` for another output; the Devices tab's Links lists one per output) is another
+program's copy of an output: what the Output page's preview of it shows, live, including a 4K replay. It's silent unless `&sound=1`,
+never opens the Mac's mics or cues the switcher (only the app's own `?fit=1` windows do), and at 3840 x 2160 it's drawn at 2x (`zoom.js`).
 
 ## Example graphics
 

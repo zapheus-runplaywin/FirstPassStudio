@@ -4,7 +4,8 @@
 //
 // GRAPHIC_LINKS.GROUPS: [{ id, title, about }] in the order the list shows them. GRAPHIC_LINKS.LINKS: [{ group, name,
 // link, about }]: about is our own HTML. A group with perDivision gets one link per division of the competition in use
-// as well (the ladder, finals and top shooters), from /api/structure.
+// as well (the ladder, finals and top shooters), from /api/structure. A group with perOutput gives its link one row per
+// output (the output canvas), from /api/outputs: Output 1's link as it is, the others' with &output=<id>.
 (function () {
   'use strict';
   const LINKS = [];
@@ -17,8 +18,11 @@ add('scoreboard', 'Live scoreboard', '/scoreboard.html',
   'sweeping across it now and then. It sinks away when the quarter\'s clock runs out or is reset for the next quarter. It runs off the scoreboard\'s ' +
   'own clock, so it follows the PlayHQ scorer\'s clock when the scoreboard does. The minutes are set per competition on Competitions setup ' +
   '(Game rules, 0 leaves the tab off), and <code>?supershot=0</code> leaves it off this source.');
-add('scene', 'Studio scene (what the outputs show)', '/scene.html',
-  'Studio\'s own scene, built on the Output page: every source as a layer on one 1920 × 1080 frame. For using the whole scene at one link.');
+add('scene', 'Output canvas (what an output shows)', '/scene.html?canvas=1',
+  'Exactly what the Output page\'s picture of that output shows, live: its sources, scenes, sequences and run order, and a 4K replay. ' +
+  'For adding the whole of an output to another program as one web page source, for example over a 4K recording: set the source to ' +
+  '3840 × 2160 and it\'s drawn sharp at that size (at 1920 × 1080 it\'s the normal frame). ' +
+  'It\'s silent: <code>&amp;sound=1</code> plays the output\'s music and video sound too. There\'s one link per output; Output 1\'s is the one without <code>&amp;output=</code>.');
 [['Title banner', '/title.html',
   'Drawn at 80% size, centred between the logos page\'s logos; a long competition name shrinks further so it never runs into them. Options: <code>?emoji=%F0%9F%94%A5</code> puts an emoji either side of the title (any emoji; none without it). On the Output page, pick or type it in the source\'s options. ' +
   'The competition logo is off by default (the logos page shows it beside the title): <code>?logo=show</code> puts it above the banner, <code>?logo=hide</code> leaves it off.'], ['Logos beside the title (PIVT, FirstPass Studio, competition)', '/branding.html',
@@ -264,7 +268,7 @@ const FINALS_ABOUT = 'Who plays who in the division\'s finals, week by week, in 
 
   const GROUPS = [
     { id: 'scoreboard', title: 'Live scoreboard' },
-    { id: 'scene', title: 'The scene' },
+    { id: 'scene', title: 'The scene', perOutput: true },
     { id: 'gamePages', title: 'Game graphics (for the game picked on the scoreboard)', about: 'The cards (match up, team lists, fixtures, ladders and the rest) sit in the space between the title at the top and the scoreboard at the bottom, with room around them. ' +
       'A card with more in it than fits (a long team list, a big ladder) is shrunk to fit. The animations (The Clash, winner and the logo animations) play in that space too. The super shot is smaller, centred just under the title. The ladder lower third sits right above the scoreboard, the same width as it.' },
     { id: 'ladders', title: 'Ladders (one per division)', perDivision: { name: 'Ladder', link: '/ladder.html?division=' } },

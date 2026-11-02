@@ -2,7 +2,7 @@
 // what it does, the link, and Copy; Preview for a graphic, Try for a read). It is made from the two lists Studio
 // already keeps, so nothing here is written twice:
 //   - the graphics, from graphiclinks.js (what each one does) and pageoptions.js (the options its link takes, the
-//     same ones the Output page offers as fields), with a link per division for the ladder, finals and top shooters;
+//     same ones the Output page offers as fields), with a link per division for the ladder, finals and top shooters, and one per output for the output canvas;
 //   - the Stream Deck links and the status reads, from openapi.yaml (as /openapi.json): each one's summary, description,
 //     settings, and its x-links, the ready-made links to copy.
 // Stream Deck links are copied with the picked link set's key in front (linksets.js), as a key press needs it; the
@@ -120,15 +120,18 @@
   }
   const fileOf = link => link.replace(/^\//, '').split(/[?#]/)[0];
 
-  function graphics(structure) {
+  function graphics(structure, outputs) {
     const { GROUPS, LINKS } = window.GRAPHIC_LINKS;
+    // One row per output for the output canvas: Output 1's link as it is, the others' naming the output.
+    const perOutput = l => (outputs && outputs.length ? outputs : [{ id: 'main', name: 'Output 1' }])
+      .map(o => linkRow(o.name, o.id === 'main' ? l.link : `${l.link}&output=${encodeURIComponent(o.id)}`, { preview: true }));
     for (const g of GROUPS) {
       const rows = LINKS.filter(l => l.group === g.id);
       const divisions = g.perDivision && structure ? structure.grades.map(d => ({ name: `${g.perDivision.name}: ${d.name}`, link: g.perDivision.link + d.division })) : [];
       if (!rows.length && !divisions.length) continue;
       const s = group(slug(g.id), g.title, g.about);
       for (const l of rows) {
-        s.append(card({ title: l.name, about: l.about, rows: [linkRow('', l.link, { preview: true })], settings: options(fileOf(l.link)) }));
+        s.append(card({ title: l.name, about: l.about, rows: g.perOutput ? perOutput(l) : [linkRow('', l.link, { preview: true })], settings: options(fileOf(l.link)) }));
       }
       if (divisions.length) {
         s.append(card({ title: g.perDivision.name, about: '', rows: divisions.map(d => linkRow(d.name, d.link, { preview: true })),
@@ -190,13 +193,14 @@
     // linksets.js hands over the picked link set's start, key included.
     setDeckBase(base) { deckBase = base; redraw(); },
     ready: (async () => {
-      const [structure, doc, version] = await Promise.all([
+      const [structure, doc, version, outputs] = await Promise.all([
         fetch('/api/structure').then(r => r.ok ? r.json() : null).catch(() => null),
         fetch('/openapi.json').then(r => r.json()),
         fetch('/api/version').then(r => r.json()).catch(() => ({})),
+        fetch('/api/outputs').then(r => r.ok ? r.json() : null).then(o => o && o.outputs).catch(() => null),
       ]);
       if (version.base) { plainBase = version.base; if (deckBase === location.origin) deckBase = version.base; }
-      graphics(structure);
+      graphics(structure, outputs);
       api(doc);
       redraw();
     })(),
