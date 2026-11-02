@@ -14,6 +14,9 @@
   and ?key=1 (the key signal: white wherever the scene isn't see-through, grey where it's partly
   see-through, on black). The chroma outputs add ?chromaKey=true (chroma.js): every source drawn
   chroma key safe, with nothing half see-through, and sources cut instead of fading.
+  ?canvas=1 is another program's copy of an output (the canvas links on the Devices tab): it shows what the Output
+  page's preview of that output shows, silent unless ?sound=1. In a 3840 x 2160 window it's drawn at 2x (zoom.js), and
+  the pages inside at twice the density, so it goes sharp over a 4K recording (with 4K replay).
   ?output=<id> draws one of the outputs besides the primary (outputs.js): the sources turned on for that
   output, with their sound. The music plays on the outputs it's ticked for (music.js: a sequence's music on
   the outputs the sequence is playing on).
@@ -63,7 +66,11 @@
   const copyTo = copying ? params.get('sink') || '' : '';
   const copyMics = new Set(copying ? (params.get('mics') || '').split(',').filter(Boolean) : []);
   let sinkId = copying ? null : ''; // the copy's device once found ('' plays to the Mac's sound output, as every other window does)
-  let silent = params.get('mute') === '1' || copying; // the Output page's preview and the key output play no sound; a copy waits for its device
+  // Another program's copy of an output (?canvas=1, the canvas links on the Devices tab): it only watches, so it plays no
+  // sound unless ?sound=1 asks for it (the recording it goes over has its own). Like the Output page's preview, it never
+  // mixes in the Mac's mics or tells the switcher a stinger started (those are the app's own output windows, ?fit=1).
+  const canvas = params.get('canvas') === '1';
+  let silent = params.get('mute') === '1' || copying || (canvas && params.get('sound') !== '1'); // the Output page's preview and the key output play no sound; a copy waits for its device
   // A source as this window sees it: on the primary output its own visible and showSeq; on another output
   // whether it's on for that output, and that output's showSeq.
   const forOutput = s => !outputId ? s : { ...s, visible: !!(s.out && s.out[outputId]), showSeq: (s.outSeq && s.outSeq[outputId]) || 0 };
