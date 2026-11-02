@@ -30,6 +30,19 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
   assert.equal((await page.$$('.fp-chips a.chip')).length, 0, 'no chip is a link');
   assert.equal((await page.$$('.fp-chips .chip.atem')).length, 0, 'no switcher set up: no ATEM chip');
   assert.match(await page.textContent('#board .game'), /0 – 0/, 'the game row shows the score');
+  // The PlayHQ line above the score: status, ping, how often PlayHQ is checked (an icon, no word), bandwidth and data,
+  // always on one line, even with the longest words.
+  await page.waitForSelector('#board .pqrow .pqchip.rf');
+  assert.equal((await page.$$('#board .pqrow .pqchip')).length, 5);
+  assert.match(await page.textContent('#board .pqchip.rf'), /^\d+(\.\d)? s$/, 'the refresh chip is the icon and the seconds');
+  assert.equal(await page.$$eval('#board .pqchip.rf svg', s => s.length), 1);
+  const oneLine = await page.evaluate(() => {
+    lastHealth.playhq.state = 'bad'; lastHealth.playhq.net = { ...lastHealth.playhq.net, failed: true, bytesPerSec: 99999, bytes: 99e6 };
+    renderBoard();
+    const r = document.querySelector('#board .pqrow');
+    return new Set([...r.children].map(c => Math.round(c.getBoundingClientRect().top))).size === 1 && r.scrollWidth <= r.clientWidth + 1;
+  });
+  assert.equal(oneLine, true, 'the PlayHQ chips stay on one line');
   assert.doesNotMatch(await page.textContent('#board .game'), /Q1 \d+:\d\d/, 'the clock is the bar\'s PlayHQ chip, not the board\'s');
   assert.match(await page.textContent('.fp-chips .chip.playhq'), /Q1 \d+:\d\d/, 'the PlayHQ chip carries the quarter and clock');
   assert.equal(await page.isVisible('#boardRecord'), true, 'recording is controlled from the board');
