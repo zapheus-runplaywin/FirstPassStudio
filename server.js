@@ -149,6 +149,7 @@ const playhq = require('./playhq').create({
 });
 const { gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS, getGame, lineup, getLive, scoringNotYet, lastLive } = playhq;
 const { parsePlayhqUrl, startOf, isFinished } = require('./playhq');
+const playhqNet = require('./playhqnet');
 
 // ─── control.json ───────────────────────────────────────────────────────────
 // control.json holds the control page's lasting settings on this computer (git ignores it):
@@ -380,7 +381,10 @@ function health() {
     game: b.gameId ? { id: b.gameId, label: `${b.home.name} v ${b.away.name}`, court: b.court || '', division: b.division || '', time: b.time || '', phase, ended: phase === 'ended' || phase === 'over' } : null,
     source: b.source, autoSelect: !!b.autoSelect,
     playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
-      error: lastLive.error && lastLive.errorAt > lastLive.at ? lastLive.error : (b.playhqError || '') },
+      error: lastLive.error && lastLive.errorAt > lastLive.at ? lastLive.error : (b.playhqError || ''),
+      // What talking to PlayHQ costs (playhqnet.js), for the board's PlayHQ line: the ping, the last minute's
+      // download a second, and the bytes downloaded since Studio went on air.
+      net: playhqNet.snapshot() },
     clock: { following: following && !!b.followPlayhqClock, running: !!b.clock.running, period: b.period, periodLabel: rules(b.division).periodLabel, left: clockLeft(b) },
     output: { on: !!out.on && out.mode !== 'off', mode: out.on && out.mode !== 'off' ? out.mode : '', showing: (out.showing || []).length,
       // Every output that's sending (on, not off), by name and colour, for the on-air chip.

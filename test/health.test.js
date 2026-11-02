@@ -23,6 +23,12 @@ test('health names the game, follows PlayHQ and reports a recent reading', async
   assert.equal(h.playhq.waiting, '');
   assert.equal(h.playhq.state, 'ok');
   assert.ok(h.playhq.readAgoMs < 10000);
+  // The board's PlayHQ line (playhqnet.js): the ping and what has been downloaded so far.
+  assert.equal(typeof h.playhq.net.pingMs, 'number');
+  assert.ok(h.playhq.net.bytes > 0);
+  assert.ok(h.playhq.net.requests > 0);
+  assert.equal(h.playhq.net.failed, false);
+  assert.equal(typeof h.playhq.net.bytesPerSec, 'number');
   assert.equal(h.clock.following, true);
   assert.equal(h.output.on, false);
   assert.equal(typeof h.sources, 'number');
