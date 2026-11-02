@@ -5,6 +5,7 @@
 <title>Commentators</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="lowerthird.css">
 <style>
   /* Laid out for 1920 x 1080 at 1x, on whole pixels. Two looks for the people on the mic:
      the line (default): a thin single-line lower third, the label in a pink tab and the names beside it on one line.
@@ -15,7 +16,12 @@
        the top), smaller than under the title and centred on the logo's height, with clear space between the two (it
        starts 60px past the widest the logo usually is, about 1400px) and 80px to spare on the right. ?position=under-left and under-right line it up
        with the scoreboard's edges just under the title banner and the logos (their bottom edges are at about 162px), and
-       center centres it there; away from the competition logo the box shows it in a badge of its own. */
+       center centres it there; away from the competition logo the box shows it in a badge of its own.
+     the lower thirds (?style=lowerthirds): the person lower third's bar (lowerthird.css) for each commentator, side by
+       side across the scoreboard's width (293px from the left, 292px from the right): one person gets the full 900px bar
+       on the left, two get 660px bars on the left and right (the right one mirrored), like two lowerthird.html sources,
+       and three share the width equally. They sit low, 80px from the bottom, for when the scoreboard is off;
+       ?position=above puts them 8px above the scoreboard's PlayHQ Live tab. */
   :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; --corner: 80px; --corner-top: 36px; }
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
@@ -69,7 +75,7 @@
   .go .box__name { animation: up .4s ease-out both; }
   .go .box__name:nth-child(1) { animation-delay: .35s; } .go .box__name:nth-child(2) { animation-delay: .47s; }
   .go .box__name:nth-child(3) { animation-delay: .59s; } .go .box__name:nth-child(4) { animation-delay: .71s; }
-  .away .line, .away .box { animation: leave .5s ease-in both; }
+  .away .line, .away .box, .away .thirds { animation: leave .5s ease-in both; }
   body.box-style:not(.under-left):not(.center) .away .box { animation-name: leave-right; }
   @keyframes open { from { clip-path: inset(0 100% 0 0 round 10px); } to { clip-path: inset(0 0 0 0 round 10px); } }
   @keyframes drop { from { opacity: 0; translate: 0 -40px; } to { opacity: 1; translate: 0 0; } }
@@ -77,6 +83,19 @@
   @keyframes up { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
   @keyframes leave { to { opacity: 0; translate: -60px 0; } }
   @keyframes leave-right { to { opacity: 0; translate: 60px 0; } }
+  /* The lower thirds. */
+  body.lowerthirds-style { --bottom: 80px; }
+  body.lowerthirds-style.above { --bottom: 158px; }
+  .thirds { position: absolute; left: var(--left); right: var(--right); bottom: var(--bottom); display: flex; gap: 15px; align-items: flex-end; }
+  .thirds.two { justify-content: space-between; --width: 660px; }
+  .thirds.two .l3__name { font-size: 44px; }
+  .thirds.three { --width: 435px; --height: 110px; }
+  .thirds.three .l3__name { font-size: 34px; line-height: 42px; }
+  .thirds.three .l3__line { font-size: 19px; line-height: 26px; }
+  .thirds.three .l3__text { padding: 0 20px 0 22px; }
+  .thirds.three .l3__logo { width: 84px; height: 84px; }
+  .thirds.three .l3__tag { font-size: 16px; padding: 5px 14px; margin-left: 130px; }
+
   .message { position: absolute; left: var(--left); bottom: var(--bottom); color: var(--text); background: var(--purple-deep); padding: 16px 24px; border-radius: 8px; font-size: 22px; }
 </style>
 <script src="log.js"></script>
@@ -90,13 +109,22 @@
          a thin single-line lower third: SPECIAL GUEST COMMENTATORS  Honey Harrington and Will Linter
        http://localhost:8080/commentators.html?style=box&name=Honey%20Harrington&name2=Will%20Linter
          an upper third: a box in the top right corner beside the competition logo, with the label and a line per name
+       http://localhost:8080/commentators.html?style=lowerthirds&photo=1
+         a person lower third for each commentator, side by side, with their headshots from the Production Planner
        Options: &name= &name2= &name3= &name4=  up to four people (empty ones are left out). With none, the people the
                                 Production Planner (planner.html) has on the mic for the game on the scoreboard
                 &label=Commentators   the words in the pink tab (default Commentators, Commentator for one name, or Special
-                                guest commentators when every planned name is a special guest; 0 leaves it off)
+                                guest commentators when every planned name is a special guest; 0 leaves it off). In the
+                                lower thirds it is the tab over every bar; without it, a special guest from the Production
+                                Planner gets a Special guest tab
                 &position=center | bottom | bottom-center   for the line (default: left, lined up with the scoreboard, just above it)
                 &position=under-left | under-right | center   for the box (default: the top right corner, beside the
                                 competition logo; these put it just under the title, with the competition logo in it)
+                &position=above for the lower thirds (default: low, for when the scoreboard is off; this puts them
+                                just above the scoreboard)
+                &title=Commentator  the yellow line under each name in the lower thirds (default Commentator; 0 leaves it off)
+                &photo=1        each commentator's headshot from the Production Planner in their lower third, in place of
+                                the competition logo (anyone without one keeps the logo)
                 &logo=1 | 0     the competition logo in the box, or not (default: only away from the corner)
                 &mode=light     the light mode competition logo (default dark, for the dark box)
                 &out=8          animates away after 8 seconds
@@ -106,6 +134,7 @@
       <div class="line__label" id="lineLabel"></div>
       <div class="line__names" id="lineNames"></div>
     </div>
+    <div class="thirds" id="thirds" hidden></div>
     <div class="box" id="box" hidden>
       <div class="box__label" id="boxLabel"></div>
       <div class="box__body">
@@ -119,18 +148,20 @@
   <script>
     const params = new URLSearchParams(location.search);
     const $ = id => document.getElementById(id);
-    const style = params.get('style') === 'box' ? 'box' : 'line';
+    const style = ['box', 'lowerthirds'].includes(params.get('style')) ? params.get('style') : 'line';
     document.body.classList.add(style + '-style');
     // The names typed in its options, else whoever the Production Planner has on the mic for the game on the
     // scoreboard (see the start, below).
     let names = ['name', 'name2', 'name3', 'name4'].map(k => (params.get(k) || '').trim()).filter(Boolean);
+    // The same people as { name, guest, headshot }: only the Production Planner knows who is a guest and has their headshot.
+    let people = names.map(name => ({ name }));
     const rawLabel = params.get('label');
     let label = '';
     // The label typed in, else Commentator(s), or Special guest commentator(s) when every planned name is a special guest.
     const labelFor = guest => rawLabel === '0' ? '' : (rawLabel || '').trim()
       || `${guest ? 'Special guest commentator' : 'Commentator'}${names.length === 1 ? '' : 's'}`;
     const position = params.get('position');
-    const places = style === 'box' ? ['under-left', 'under-right', 'center'] : ['center', 'bottom', 'bottom-center'];
+    const places = { box: ['under-left', 'under-right', 'center'], lowerthirds: ['above'] }[style] || ['center', 'bottom', 'bottom-center'];
     if (places.includes(position)) document.body.classList.add(position);
     else if (style === 'box') document.body.classList.add('corner');
 
@@ -161,8 +192,41 @@
       return span;
     }
 
+    // A lower third for each person (up to three), side by side: the full bar for one, half width left and right for two,
+    // a third each for three. The pink tab is the label typed in, else Special guest for a planned special guest; the
+    // yellow line is ?title= (Commentator); with ?photo=1 a headshot takes the logo's place.
+    function showThirds(comp, competition) {
+      const shown = people.slice(0, 3);
+      if (people.length > 3) console.warn(`Commentators: the lower thirds fit three people, so ${people.slice(3).map(x => x.name).join(', ')} is left out`);
+      const tab = rawLabel === '0' ? null : (rawLabel || '').trim();
+      const rawTitle = params.get('title');
+      const title = rawTitle === '0' ? '' : (rawTitle || '').trim() || 'Commentator';
+      const photos = params.get('photo') === '1';
+      $('thirds').classList.add(['one', 'two', 'three'][shown.length - 1]);
+      shown.forEach((x, i) => {
+        const l3 = $('thirds').appendChild(document.createElement('div'));
+        l3.className = 'l3' + (shown.length === 2 && i === 1 ? ' l3--right' : '');
+        l3.style.setProperty('--delay', (i * 0.2) + 's');
+        l3.innerHTML = '<div class="l3__tag"></div><div class="l3__bar"><div class="l3__badge"></div><div class="l3__text"><div class="l3__name"></div><div class="l3__line"></div></div></div>';
+        l3.querySelector('.l3__tag').textContent = tab === null ? '' : tab || (x.guest ? 'Special guest' : '');
+        const badge = l3.querySelector('.l3__badge');
+        if (photos && x.headshot) {
+          const img = document.createElement('img');
+          img.className = 'l3__photo';
+          img.alt = '';
+          img.src = x.headshot;
+          badge.replaceWith(img);
+        } else badge.append(logoEl({ name: competition, logo: comp }, 'l3__logo'));
+        l3.querySelector('.l3__name').appendChild(document.createElement('span')).textContent = x.name;
+        if (title) l3.querySelector('.l3__line').appendChild(document.createElement('span')).textContent = title;
+      });
+      $('thirds').hidden = false;
+    }
+
     function show(d) {
-      if (style === 'line') {
+      const comp = params.get('mode') === 'light' ? d.competitionLogoLight || d.competitionLogoDark : d.competitionLogoDark || d.competitionLogoLight;
+      if (style === 'lowerthirds') showThirds(comp, d.competition);
+      else if (style === 'line') {
         $('lineLabel').textContent = label;
         $('lineNames').append(joined(names));
         $('line').hidden = false;
@@ -171,7 +235,6 @@
         // In the corner the competition logo is right beside the box, so the box doesn't repeat it unless asked to.
         const withLogo = params.get('logo') ? params.get('logo') !== '0' : places.includes(position);
         if (withLogo) {
-          const comp = params.get('mode') === 'light' ? d.competitionLogoLight || d.competitionLogoDark : d.competitionLogoDark || d.competitionLogoLight;
           if (comp || d.competition) $('badge').append(logoEl({ name: d.competition, logo: comp }, 'box__logo'));
         }
         for (const n of names) {
@@ -182,7 +245,10 @@
         $('box').hidden = false;
       }
       document.fonts.ready.then(() => {
-        if (style === 'line') fitText($('lineNames'), 0.75, 24);
+        if (style === 'lowerthirds') {
+          document.querySelectorAll('.l3__name').forEach(el => fitText(el, 0.7, Math.round(parseInt(getComputedStyle(el).fontSize, 10) * 0.75)));
+          document.querySelectorAll('.l3__line:not(:empty)').forEach(el => fitText(el, 0.8, 16));
+        } else if (style === 'line') fitText($('lineNames'), 0.75, 24);
         else document.querySelectorAll('.box__name, .box__label:not(:empty)').forEach(el => fitText(el, 0.7, el.classList.contains('box__label') ? 12 : 20));
         $('stage').classList.add('go');
         window.pageLog && window.pageLog('info', `Commentators (${style}): ${label ? label + ': ' : ''}${names.join(', ')}`);
@@ -196,7 +262,8 @@
       if (!names.length) {
         try {
           const on = await (await fetch('/api/planner/onair', { cache: 'no-store' })).json();
-          names = (on.names || []).slice(0, 4);
+          people = (on.people || []).slice(0, 4);
+          names = people.map(x => x.name);
           guest = !!on.guest;
           if (names.length) window.pageLog && window.pageLog('info', `Commentators: from the Production Planner for ${on.game}`);
         } catch (err) { console.warn('Commentators: the Production Planner is unavailable:', err.message); }
