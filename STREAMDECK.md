@@ -224,7 +224,8 @@ have no disc: they act on the switcher and the replay. The title runs along the 
   Quarter break / +2 more**), so the key says what a press will do before you press it; with nothing queued they say **empty**, and
   Play next then ends the sequence playing (its Then runs), as the Output page's button does. A Load key names its saved order and how
   many items it holds (**Thursday night / load 5**).
-- **Output:** with more than one output, the output whose run order it acts on; each output has its own list.
+- The run order is Output 1's alone, so the key has no Output setting: it always acts on Output 1's list (a key set to another
+  output before acts on Output 1 now).
 - It follows the saved order by id, so renaming it doesn't break a Load key; a deleted order's key says **gone**.
 
 **Switcher key.** Drag **FirstPass Studio > Switcher** onto a key for the ATEM switcher picked on the Output page (see **Switcher** below):
@@ -331,8 +332,9 @@ Output page with **+ New sequence**. Each one belongs to the competition in use.
 
 ## Run order (Output page)
 
-The run order is tonight's plan: a numbered list of sequences and scenes, in the order they play, kept per output with the competition's
-sequences. **Play next** plays the head (a sequence starts, a scene is gone to) and it leaves the list; a sequence that ends plays what is
+The run order is tonight's plan: a numbered list of sequences and scenes, in the order they play, kept for Output 1 (the production feed) with the
+competition's sequences. It is Output 1's alone: a sequence it starts that plays on other outputs too starts there as well, and
+each of those does its own Then. **Play next** plays the head (a sequence starts, a scene is gone to) and it leaves the list; a sequence that ends plays what is
 queued after it before falling back to its own Then.
 
 | Button | Link |
@@ -344,7 +346,7 @@ queued after it before falling back to its own Then.
 | Load a saved order in place of what's queued | http://localhost:8080/deck/runorder/load/thursday-night |
 
 - With nothing queued, `next` ends the sequence playing (its Then runs); with nothing playing either it answers 409.
-- `/deck/output/<output>/runorder/…` acts on another output's list.
+- There's no run order for another output: `/deck/output/<output>/runorder/…` answers 404.
 - The plugin's **Run order** key (above) presses these links and names what plays next.
 
 ## Music (Output page)
