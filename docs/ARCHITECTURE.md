@@ -19,7 +19,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
 
 - **The Mac app** (`desktop/main.js`) is an Electron menu bar app. It starts `server.js` as a child process when a
   Studio window opens ("on air"), stops it when the last window closes, and owns the outputs that need the Mac:
-  full-screen displays (`desktop/outputs.js`), NDI (`desktop/ndi.js`), Blackmagic (`desktop/decklink.js`, with its sound in the SDI heard from its window by `desktop/soundtap.js`), both fed
+  full-screen displays (`desktop/outputs.js`), NDI (`desktop/ndi.js`), Blackmagic (`desktop/decklink.js`, with its sound in the SDI heard from its window by `desktop/soundtap.js`), an output's sound sent to another of the Mac's sound outputs too (`desktop/soundcopy.js`, a hidden `scene.html?copy=1` window per output), the video outputs fed
   by an off-screen render of the scene (`desktop/scenewindow.js`; at 2160p it's 1920 x 1080 points at twice the density). `desktop/perf.js` measures each output's CPU, memory and frame
   rate every 5 s while one is showing; `outputs.js` shows it on the Output page and logs it once a minute. `desktop/windows.js` makes the app's own windows
   and menus from the tab list in `public/studiobar.js` (and the page zoom: one level for every Studio window, kept as `pageZoom`, shown in the View menu, told to each page as a `studio-zoom` event for the bar's chip, which asks for 100% with `#zoom=100`); `desktop/updates.js` and `desktop/whatsnew.js` handle updates.

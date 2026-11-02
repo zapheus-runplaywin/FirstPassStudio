@@ -8,7 +8,8 @@
 // at other apps, and the scene scales to fit whatever size it is. They aren't Studio windows: closing
 // them doesn't take Studio off air, and they close when Studio does. Closing one, or clicking it and
 // pressing Esc, turns the output off, in case it ends up over the screen you're working on.
-// A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js, NDI to desktop/ndi.js.
+// A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js, NDI to desktop/ndi.js, and an
+// output's sound sent to another of the Mac's sound outputs too (Also send the sound to) to desktop/soundcopy.js.
 
 'use strict';
 
@@ -21,6 +22,7 @@ module.exports = function outputs({ port, log }) {
   let helper = null;
   const decklink = require('./decklink')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }),
     onTimecode: t => helper?.postMessage({ type: 'sdiTimecode', ...t }) });
+  const soundCopy = require('./soundcopy')({ port, log });
   const ndi = require('./ndi')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'ndiStatus', status, output }) });
   // How hard each output is working (desktop/perf.js), while any output is showing.
   const perf = require('./perf')({
@@ -110,6 +112,7 @@ module.exports = function outputs({ port, log }) {
     decklink.stop();
     decklink.readInput(null);
     ndi.stop();
+    soundCopy.stop();
   }
 
   // Displays plugged in, unplugged or changed: tell the helper, and drop the windows of a display that's gone.
@@ -130,7 +133,7 @@ module.exports = function outputs({ port, log }) {
       child.on('message', msg => {
         if (msg?.type === 'ready') { sendDisplays(); sendDecklink(); sendNdi(); } // the helper is listening now
         if (msg?.type === 'scan') { sendDecklink(); sendNdi(); }
-        if (msg?.type === 'outputs') show(msg.windows || []);
+        if (msg?.type === 'outputs') { show(msg.windows || []); soundCopy.show(msg.copies || []); }
         if (msg?.type === 'readTimecode') decklink.readInput(msg.device === null || msg.device === undefined ? null : { device: String(msg.device) }); // a 4K replay following the SDI input
       });
     },

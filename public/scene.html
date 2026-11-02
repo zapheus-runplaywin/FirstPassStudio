@@ -19,6 +19,11 @@
   the outputs the sequence is playing on).
   An output's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
   Mac that go to that output (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
+  ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, the Output page's "Also send the sound to"):
+  a hidden window playing that output's sound to that one sound output of the Mac (setSinkId), such as the
+  commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it). It says nothing to Studio
+  (videos ending, the music ending, the mics' meters): the output's own window does that. It plays nothing until
+  it has found the device, so none of it is heard on the Mac's own speakers.
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -53,7 +58,12 @@
   const here = outputId || 'main';
   // The music and a mic play here when they're ticked for this output (Output 1 when nothing says).
   const ticked = x => (Array.isArray(x?.outputs) && x.outputs.length ? x.outputs : ['main']).includes(here);
-  let silent = params.get('mute') === '1'; // the Output page's preview and the key output play no sound
+  // An output's sound copy (see the top): the device it plays to, by the name macOS gives it.
+  const copying = params.get('copy') === '1';
+  const copyTo = copying ? params.get('sink') || '' : '';
+  const copyMics = new Set(copying ? (params.get('mics') || '').split(',').filter(Boolean) : []);
+  let sinkId = copying ? null : ''; // the copy's device once found ('' plays to the Mac's sound output, as every other window does)
+  let silent = params.get('mute') === '1' || copying; // the Output page's preview and the key output play no sound; a copy waits for its device
   // A source as this window sees it: on the primary output its own visible and showSeq; on another output
   // whether it's on for that output, and that output's showSeq.
   const forOutput = s => !outputId ? s : { ...s, visible: !!(s.out && s.out[outputId]), showSeq: (s.outSeq && s.outSeq[outputId]) || 0 };
@@ -64,7 +74,7 @@
   window.setSilent = on => {
     silent = !!on;
     for (const L of layers.values()) {
-      const v = L.el.querySelector('video');
+      const v = L.el.querySelector('video, audio');
       if (!v || !L.src) continue;
       const wasMuted = v.muted;
       v.muted = !L.src.sound || silent;
@@ -82,7 +92,7 @@
   // during a click, so start and stop the hidden ones too (muted as they are, so nothing is heard).
   window.unlockSound = () => {
     for (const L of layers.values()) {
-      const v = L.el.querySelector('video');
+      const v = L.el.querySelector('video, audio');
       if (v && L.src && !L.src.visible && v.paused) { v.play().then(() => v.pause()).catch(() => {}); }
     }
     if (audio.paused) audio.play().then(() => { if (!music || music.status !== 'playing') audio.pause(); }).catch(() => {});
@@ -130,6 +140,7 @@
   // A video finished, or a page animated away: the helper switches the source off (once, however many
   // scene windows say so). showSeq names the time it came on, so a late word can't turn off a new showing.
   function tellDone(src, showSeq) {
+    if (copying) return;
     fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'ended', id: src.id, loadSeq: src.loadSeq, showSeq, ...(outputId ? { output: outputId } : {}) }) }).catch(() => {});
   }
   // Pages that animate away say so with done.js (postMessage { studio: 'done' }); pages with sound (the intro and
@@ -162,11 +173,11 @@
     sfxOut.gain.setTargetAtTime(silent ? 0 : 1, t, .05);
   }
   function playPageSound(L, plan) {
-    if (typeof StudioSfx === 'undefined' || !plan) return;
+    if (typeof StudioSfx === 'undefined' || !plan || sinkId === null) return;
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return;
     if (!sfxCtx) {
-      sfxCtx = new Ctx();
+      sfxCtx = copying ? new Ctx({ sinkId }) : new Ctx();
       sfxOut = sfxCtx.createGain();
       sfxOut.gain.value = silent ? 0 : 1;
       sfxOut.connect(sfxCtx.destination);
@@ -191,7 +202,9 @@
       f.title = s.name;
       el.appendChild(f);
     } else if (s.type === 'video') {
-      const v = document.createElement('video');
+      // A sound copy only plays a video's sound: an audio element does that without drawing the picture.
+      const v = document.createElement(copying ? 'audio' : 'video');
+      if (sinkId) v.setSinkId(sinkId).catch(() => {});
       v.playsInline = true;
       v.preload = 'auto';
       v.muted = true;
@@ -212,6 +225,8 @@
   // Loads (or reloads) a browser source's page; resolves when it has loaded, or after LOAD_WAIT_MS.
   function loadPage(L, s) {
     const f = L.el.querySelector('iframe');
+    // A sound copy leaves out pages from other websites: their own sound would play on the Mac's speakers, not the copy's device.
+    if (copying && /^https?:\/\//i.test(s.url)) { L.loaded = `${addressOf(s)}#${s.loadSeq}`; L.pageShow = s.showSeq; return Promise.resolve(); }
     const want = `${addressOf(s)}#${s.loadSeq}`;
     L.loaded = want;
     L.pageShow = s.showSeq;
@@ -241,7 +256,7 @@
       el.style.width = s.width + 'px';
       el.style.height = s.height + 'px';
     } else {
-      const media = el.querySelector('img, video');
+      const media = el.querySelector('img, video, audio');
       const want = '/media/' + encodeURIComponent(s.file);
       if (media.getAttribute('src') !== want) media.src = want;
     }
@@ -271,7 +286,7 @@
   // Videos play while shown and pause once faded out. They start from the top each time
   // they're shown (unless restartOnShow is off) and on Restart; sound follows the source.
   function updateVideo(L, s, old) {
-    const v = L.el.querySelector('video'), el = L.el;
+    const v = L.el.querySelector('video, audio'), el = L.el;
     const token = ++L.token;
     v.loop = s.loop;
     v.muted = !s.sound || silent;
@@ -378,7 +393,7 @@
   }
   // Studio moves on when the track's length is up; this covers a track whose length it couldn't measure.
   for (const el of [audio, tail]) el.addEventListener('ended', () => {
-    if (el === audio && music && music.status === 'playing') fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'musicEnded', playId: music.playId }) }).catch(() => {});
+    if (el === audio && music && music.status === 'playing' && !copying) fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'musicEnded', playId: music.playId }) }).catch(() => {});
   });
 
   // ─── Mics (mics.js) ─────────────────────────────────────────────────────
@@ -387,7 +402,8 @@
   // near a mic would feed back, and never twice on one output. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
   // the master level, mutes and the dip on top); then all of them through a limiter. The browser's call
   // processing (echo cancelling, noise suppression, automatic level) is off: it would pump the crowd noise.
-  const micsHere = params.get('fit') === '1' && params.get('mute') !== '1' && params.get('key') !== '1';
+  // A sound copy opens only the mics ticked for it (?mics=), whichever outputs they go to.
+  const micsHere = copying || (params.get('fit') === '1' && params.get('mute') !== '1' && params.get('key') !== '1');
   let micCtx = null, micBus = null, micSet = null;
   const micDevices = new Map(); // device name -> { stream, source, splitter, error, opening }
   const micChains = new Map(); // mic id -> { device, channel, from, out, input, filter, gain, meter, data }
@@ -396,7 +412,7 @@
   function micContext() {
     if (micCtx) return micCtx;
     const Ctx = window.AudioContext || window.webkitAudioContext;
-    micCtx = new Ctx({ latencyHint: 'interactive' });
+    micCtx = new Ctx({ latencyHint: 'interactive', ...(copying ? { sinkId } : {}) });
     micBus = micCtx.createGain();
     const limiter = micCtx.createDynamicsCompressor();
     limiter.threshold.value = -6; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = .002; limiter.release.value = .15;
@@ -486,7 +502,7 @@
   }
   function renderMics(set) {
     micSet = set || null;
-    const want = micsHere && micSet ? micSet.mics.filter(m => m.on !== 'atem' && ticked(m)) : []; // the switcher mixes its own
+    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyMics.has(m.id) : ticked(m))) : []; // the switcher mixes its own
     const names = new Set(want.map(m => m.device));
     for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
     for (const [id, c] of micChains) {
@@ -519,7 +535,7 @@
     }, 25);
     // Tell Studio what this window hears, for the Output page: each mic's loudest moment (dBFS) in the last half second.
     setInterval(async () => {
-      if (!micSet || !micSet.mics.some(m => m.on !== 'atem' && ticked(m))) return;
+      if (copying || !micSet || !micSet.mics.some(m => m.on !== 'atem' && ticked(m))) return;
       const levels = {};
       for (const [id, c] of micChains) {
         levels[id] = c.peak > 0 ? 20 * Math.log10(c.peak) : -100;
@@ -534,6 +550,45 @@
       for (const [name, d] of [...micDevices]) if (d.error && !d.opening) micDevices.delete(name);
       renderMics(micSet);
     });
+  }
+
+  // ─── A sound copy's device ──────────────────────────────────────────────
+  // Finds the device by name (names show once the Mac has let Studio use the mics), moves every player to it, then
+  // lets the sound play. Says how it's doing every few seconds, for the Output page; a device plugged in or out looks again.
+  let copyError = '';
+  async function findSink() {
+    try {
+      const outs = async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
+      let list = await outs();
+      if (list.every(d => !d.label)) {
+        (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach(t => t.stop());
+        list = await outs();
+      }
+      const found = list.find(d => d.label === copyTo);
+      if (!found) throw new Error(`${copyTo} isn't plugged in`);
+      if (found.deviceId === sinkId) { copyError = ''; return; }
+      const players = [audio, tail, ...[...layers.values()].map(L => L.el.querySelector('video, audio')).filter(Boolean)];
+      await Promise.all(players.map(el => el.setSinkId(found.deviceId)));
+      const moving = sinkId !== null;
+      sinkId = found.deviceId;
+      // The page sounds and the mics play through their own mixers, made for the device: a new device makes them again.
+      if (sfxCtx) await sfxCtx.setSinkId(sinkId);
+      if (micCtx) await micCtx.setSinkId(sinkId);
+      copyError = '';
+      if (!moving) { renderMics(micSet); window.setSilent(false); }
+    } catch (err) {
+      copyError = err.name === 'NotAllowedError' ? 'The Mac hasn\'t let Studio use its sound devices: allow FirstPass Studio in System Settings, Privacy & Security, Microphone' : err.message;
+      console.warn('Sound copy:', copyError);
+      // Gone (unplugged): stop, rather than play on the Mac's own speakers, until it's back.
+      if (sinkId !== null) { sinkId = null; window.setSilent(true); renderMics(micSet); }
+    }
+    tellCopy();
+  }
+  const tellCopy = () => fetch('/api/outputs/copy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ output: here, device: copyTo, error: copyError || (sinkId === null ? 'Looking for the device' : '') }) }).catch(() => {});
+  if (copying) {
+    findSink();
+    setInterval(tellCopy, 5000);
+    navigator.mediaDevices?.addEventListener('devicechange', findSink);
   }
 
   function render(scene) {
