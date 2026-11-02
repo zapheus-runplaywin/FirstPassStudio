@@ -144,6 +144,11 @@ function playingOn(id) {
   each(() => { if (run && run.id === id) out.push(here); });
   return out;
 }
+// How long a sequence's music fades out when something else takes over: its Music ends time (0 when it cuts).
+function musicEndSec(id) {
+  const end = find(id)?.musicEnd;
+  return !end || end.type === 'cut' ? 0 : end.type === 'fade' ? end.sec : music.STOP_FADE_SEC;
+}
 // Whether this output's runner drives the music: the first output, in the sequence's playsOn order, playing it
 // now (the primary with nothing playing). The others play the same music without touching it.
 function leads() {
@@ -155,6 +160,9 @@ const SILENT = { stopFor() {}, quiet() {}, playFor() {}, handOver() {} };
 const sound = () => leads() ? music : SILENT;
 // As a run ends: only the last output still playing the sequence ends its music (with the next leading the rest).
 const soundAtEnd = () => run && playingOn(run.id).length > 1 ? SILENT : sound();
+// As a run ends or stops here while its sequence plays on elsewhere: its music fades out on this output alone, over
+// sec (0 cuts), and the others keep it.
+function leaveMusic(sec) { if (run && playingOn(run.id).length > 1) music.leave(run.id, here, sec); }
 
 function uniqueName(name, id) {
   const base = String(name || '').trim().slice(0, 60) || 'Sequence';
@@ -642,7 +650,10 @@ function finish(why) {
   else if (queued && next && !flatten(next).length) { queue.shift(); queueChanged(); }
   const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.STOP_FADE_SEC };
   if (next && end.type === 'continue') soundAtEnd().handOver(ended.id, next.id);
-  else soundAtEnd().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
+  else {
+    soundAtEnd().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
+    leaveMusic(end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
+  }
   if (next) {
     // Hands over to the next sequence: its own sources go off as the next one's first step comes on.
     const keep = new Set(firstOf(next));
@@ -696,7 +707,9 @@ function interrupt(keep, why) {
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
   const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
-  soundAtEnd().stopFor(run.id, end.type === 'cut' ? 0 : fadeLeft(run, end.type === 'fade' ? end.sec : music.STOP_FADE_SEC));
+  const sec = end.type === 'cut' ? 0 : fadeLeft(run, end.type === 'fade' ? end.sec : music.STOP_FADE_SEC);
+  soundAtEnd().stopFor(run.id, sec);
+  leaveMusic(sec);
   run = null;
   log('info', 'sequence', `Stopped "${sq ? sq.name : '?'}" because ${why}`);
   // One that was waiting for it to finish its step gives way too: something else was picked.
@@ -1265,4 +1278,4 @@ function init(logger, hooks, sequencesFile) {
   reload();
 }
 
-module.exports = { init, playingOn, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
+module.exports = { init, playingOn, musicEndSec, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };

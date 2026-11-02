@@ -17,7 +17,12 @@
 //     it paused once the video ends (or lowers to a level, or carries on: a player setting).
 //   - A sequence can bring its own music: a track or playlist that starts at one of its steps, from a
 //     start mark, with a fade in, and ends with the sequence (fading or cut) or carries on into the
-//     sequence it hands over to. Going to a scene or another sequence fades it out.
+//     sequence it hands over to. Going to a scene or another sequence fades it out over its Music ends time (or
+//     cuts it, when that's Cut). Cut to a sequence with music of its own, the old song fades out under the new one
+//     (tail: a crossfade). A sequence playing on several outputs that stops on one of them, while the others
+//     carry on, fades its music out on that output alone (leaving), and the others keep it. There's one song at a
+//     time: a sequence's music starting while another sequence's still plays elsewhere takes over, and the old song
+//     fades out under it there by its own Music ends.
 //   - "Quiet the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
 //     or a sequence's) ducks low and keeps playing until the next scene, sequence or step without it.
 //   - A stinger with ?music=quiet or ?music=dip (stinger.html): the music ducks quickly as it sweeps in, so it's down
@@ -40,7 +45,8 @@ const AUDIO_TYPES = { '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/
 const UNDER_VIDEO = ['pause', 'lower', 'leave'];
 // How long the music takes to get out of the way of a video's sound, and to come back.
 const VIDEO_FADE_SEC = 1;
-// A sequence's music fades out this long when something else stops the sequence.
+// A sequence's music fades out this long when something else stops it and its Music ends doesn't give a time
+// (it carries on into the next sequence).
 const STOP_FADE_SEC = 3;
 // A stinger with ?music=dip brings the music back up this fast as it leaves.
 const STINGER_UP_SEC = 0.5;
@@ -56,6 +62,12 @@ const SUPER = 'supershot';
 let superFired = null;
 let p = blank();
 let endTimer = null, fadeTimer = null;
+// The outputs a sequence's music is leaving: the sequence stopped there but plays on elsewhere, so there the music
+// fades out over its Music ends time, and then that output lets go of it. { [output]: { at, ms } }
+let leaving = {};
+const leaveTimers = new Map();
+// The song fading out under a sequence's new music (a crossfade): { track, pos, gain, playId, outputs, volume }.
+let tail = null, tailTimer = null;
 
 function blank() {
   return { queue: [], index: 0, playlist: null, loop: false, status: 'stopped', pos: { sec: 0, at: 0 }, gain: { from: 1, to: 1, at: 0, ms: 0 },
@@ -179,6 +191,10 @@ function halt() {
   p.after = null;
   p.video = null;
   p.owner = null;
+  p.stopOn = null;
+  for (const t of leaveTimers.values()) clearTimeout(t);
+  leaveTimers.clear();
+  leaving = {};
 }
 
 // When the track playing ends: the next in the queue, round again if it loops, else stop.
@@ -230,6 +246,8 @@ function play(fade, fromSec = 0) {
 function stop(fade) {
   if (p.status === 'stopped') return null;
   const sec = p.status === 'paused' ? 0 : fadeOut(fade);
+  // It fades out where it was heard as it stopped (its sequence has stopped playing anywhere by now).
+  if (p.after !== 'stop') p.stopOn = outputsNow();
   log('info', 'music', `Stopping ${track()}${sec ? `, fading out over ${sec} s` : ''}`);
   fadeTo(0, sec);
   afterFade(sec, 'stop');
@@ -333,6 +351,14 @@ function playFor(seqId, m) {
   if (!pl && !file) { log('warn', 'music', `The sequence's music (${m.playlist || m.track}) isn't there any more`); return; }
   // Its own music already playing (handed on from the sequence before): leave it.
   if (p.status === 'playing' && !p.after && (pl ? p.playlist === pl.id : p.playlist === null && track() === file)) { p.owner = seqId; return; }
+  // The music before is fading out (its sequence ended or was cut away from): it fades on under this one.
+  if (p.status === 'playing' && p.after === 'stop' && p.gain.to === 0) startTail();
+  // Another sequence's music still playing (that sequence plays on elsewhere): there's one song at a time, so this one
+  // takes over and that one fades out under it over its Music ends time (or cuts, when that's Cut).
+  else if (p.status === 'playing' && !p.after && p.owner && p.owner !== seqId && p.owner !== SUPER) {
+    const sec = api.musicEndSec ? api.musicEndSec(p.owner) : STOP_FADE_SEC;
+    if (sec > 0) { fadeTo(0, sec); startTail(); }
+  }
   if (pl) loadPlaylist(pl, seqId); else loadTrack(file, seqId, true);
   start(Number(m.startAtSec) || 0, Number(m.fadeInSec) || 0);
 }
@@ -342,6 +368,36 @@ function stopFor(seqId, sec) {
   stop(sec);
   return true;
 }
+// The song fading out now carries on as the tail, to the end of its fade, while the new music starts.
+function startTail() {
+  const left = p.gain.at + p.gain.ms - now();
+  if (left <= 0 || !track()) return;
+  clearTimeout(tailTimer);
+  tail = { track: track(), pos: { sec: position(), at: now() }, gain: p.gain, playId: p.playId, outputs: outputsNow(),
+    volume: p.owner === SUPER ? settings.superShotVolume : settings.volume };
+  tailTimer = setTimeout(() => { tailTimer = null; tail = null; api.changed(); }, left);
+  log('info', 'music', `${tail.track} fades out under the new music`);
+}
+// A sequence playing on several outputs stopped on out (the others carry on): its music fades out there over sec,
+// then that output lets go of it. Cut (0) lets go at once. Whether there was music of its to fade there.
+function leave(seqId, out, sec) {
+  if (!p.owner || p.owner !== seqId || p.status === 'stopped') return false;
+  clearTimeout(leaveTimers.get(out));
+  leaveTimers.delete(out);
+  delete leaving[out];
+  if (!(sec > 0)) return true;
+  leaving[out] = { at: now(), ms: Math.round(sec * 1000) };
+  leaveTimers.set(out, setTimeout(() => { leaveTimers.delete(out); delete leaving[out]; api.changed(); }, sec * 1000));
+  log('info', 'music', `${track()} fades out over ${sec} s on one output, and plays on where its sequence does`);
+  return true;
+}
+// The outputs still fading the music out: not the ones playing its sequence again.
+function leavingNow(playing) {
+  const out = {};
+  for (const [o, f] of Object.entries(leaving)) if (!playing.includes(o)) out[o] = f;
+  return out;
+}
+
 // The music carries on into the next sequence.
 function handOver(fromId, toId) { if (p.owner === fromId) p.owner = toId; }
 
@@ -460,9 +516,13 @@ function deck(parts, q = {}) {
 }
 
 // The outputs the music plays on now: a sequence's music on the outputs playing that sequence, else Music plays on.
+// Fading out after it stopped: where it was heard then. An output it's leaving keeps it until its fade is done.
 function outputsNow() {
+  if (p.after === 'stop' && p.stopOn) return p.stopOn;
   const seq = p.owner && p.owner !== SUPER && api.playingOn ? api.playingOn(p.owner) : [];
-  return seq.length ? seq : settings.outputs;
+  const outs = seq.length ? seq : settings.outputs;
+  const left = Object.keys(leavingNow(seq)).filter(o => !outs.includes(o));
+  return left.length ? [...outs, ...left] : outs;
 }
 
 function state() {
@@ -472,6 +532,7 @@ function state() {
       // Paused for a video's sound counts as playing for the buttons: it comes back by itself.
       status: p.status, after: p.after, pos: p.pos, gain: p.gain, playId: p.playId,
       muted: p.muted, ducked: !!p.ducked, duckedBy: p.ducked || null, duck: p.duck, video: p.video, owner: p.owner, outputs: outputsNow(),
+      leaving: leavingNow(p.owner && p.owner !== SUPER && api.playingOn ? api.playingOn(p.owner) : []), tail,
       volume: p.owner === SUPER ? settings.superShotVolume : settings.volume, level: p.video === 'lower' ? settings.lowerTo : 100, duckTo: settings.duckTo,
       length: track() ? api.duration(track()) : null,
     },
@@ -508,4 +569,4 @@ function init(logger, hooks) {
   load();
 }
 
-module.exports = { init, apply, uses, forget, deck, state, videoSound, quiet, stinger, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };
+module.exports = { init, apply, uses, forget, deck, state, videoSound, quiet, stinger, playFor, stopFor, leave, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };

@@ -11,7 +11,7 @@ const path = require('node:path');
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-output-sound-'));
 const MEDIA = path.join(process.env.FIRSTPASS_DATA_DIR, 'media');
 fs.mkdirSync(MEDIA, { recursive: true });
-for (const f of ['Walk out.m4a', 'Ad.mp4']) fs.writeFileSync(path.join(MEDIA, f), '');
+for (const f of ['Walk out.m4a', 'Bed.mp3', 'Ad.mp4']) fs.writeFileSync(path.join(MEDIA, f), '');
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
 const outputs = require('../outputs');
 const scene = require('../scene');
@@ -66,6 +66,47 @@ test('a sequence played on another output alone brings its music there, not to O
   wait(10);
   assert.equal(m().status, 'stopped', 'it ends with the sequence');
   assert.deepEqual(m().outputs, ['main'], 'back to Music plays on');
+});
+
+test('cut away from on Output 1 while it plays on elsewhere, a sequence\'s music fades out there by its Music ends', () => {
+  ok({ type: 'sceneSave', name: 'Game' });
+  ok({ type: 'seqAdd', changes: { name: 'Pre-game', playsOn: ['main', two()], music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 4 },
+    steps: [step(['Ladder'], 60), step(['Worm'], 60)] } });
+  ok({ type: 'seqPlay', sequence: 'Pre-game' });
+  wait(5);
+  ok({ type: 'sceneGo', scene: 'Game' });
+  assert.equal(st().playing, null, 'stopped on Output 1');
+  assert.equal(m().status, 'playing', 'still playing for Commentary');
+  assert.deepEqual(m().leaving, { main: { at: Date.now(), ms: 4000 } }, 'fading out on Output 1 over its 4 s');
+  assert.deepEqual(m().outputs.sort(), ['main', two()].sort(), 'Output 1 keeps it while it fades');
+  assert.equal(m().gain.to, 1, 'Commentary hears it as before');
+  wait(4);
+  assert.deepEqual(m().leaving, {});
+  assert.deepEqual(m().outputs, [two()]);
+  // A sequence with music of its own on Output 1 now: one song at a time, so it takes over, and the old song fades out
+  // on Commentary by Pre-game's Music ends rather than stopping dead.
+  ok({ type: 'seqAdd', changes: { name: 'Main only', playsOn: ['main'], music: { track: 'Bed.mp3', fadeInSec: 0 }, steps: [step(['Ladder'], 60)] } });
+  ok({ type: 'seqPlay', sequence: 'Main only' });
+  assert.equal(m().track, 'Bed.mp3');
+  assert.deepEqual(m().outputs, ['main']);
+  assert.equal(m().tail.track, 'Walk out.m4a');
+  assert.deepEqual(m().tail.outputs, [two()]);
+  assert.deepEqual([m().tail.gain.to, m().tail.gain.ms], [0, 4000]);
+  wait(4);
+  assert.equal(m().tail, null);
+  ok({ type: 'seqStop' });
+  ok({ type: 'seqStop', output: two() });
+  ok({ type: 'musicStop', fade: 0 });
+  assert.equal(m().status, 'stopped');
+  // Set to Cut, it goes from Output 1 at once.
+  ok({ type: 'seqUpdate', sequence: 'Pre-game', changes: { musicEnd: { type: 'cut' } } });
+  ok({ type: 'seqPlay', sequence: 'Pre-game' });
+  wait(5);
+  ok({ type: 'sceneGo', scene: 'Game' });
+  assert.deepEqual(m().leaving, {});
+  assert.deepEqual(m().outputs, [two()]);
+  ok({ type: 'seqStop', output: two() });
+  assert.equal(m().status, 'stopped');
 });
 
 test('the music makes way for a video with sound only on an output it plays on', () => {
