@@ -43,7 +43,8 @@
     { file: 'lowerthird.html', name: 'Person lower third (athlete or guest)', group: 'personPages', examples: [['Guest lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator', 2500]] },
     { file: 'commentators.html', name: 'Commentators', group: 'personPages', examples: [
       ['Commentators: thin line', '/commentators.html?label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000],
-      ['Commentators: box', '/commentators.html?style=box&label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000]] },
+      ['Commentators: box', '/commentators.html?style=box&label=Special%20guest%20commentators&name=Honey%20Harrington&name2=Will%20Linter', 2000],
+      ['Commentators: lower thirds', '/commentators.html?style=lowerthirds&name=Honey%20Harrington&name2=Will%20Linter', 2500]] },
     { file: 'finals.html', name: 'Finals', group: 'finalsPages' }, // one example per division
     { file: 'fixtures.html', name: 'Round fixture', group: 'fixturePages', examples: [['Round fixture', '/fixtures.html', 3000], ['Next round fixture', '/fixtures.html?round=next', 3000]] },
     { file: 'results.html', name: 'Results', group: 'fixturePages', examples: [['Round results', '/results.html', 3000]] },

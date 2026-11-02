@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 6 of 16: The run order: what plays next tonight, in order.
+// FirstPass Studio - the Output page, part 6 of 16: The run order: what has played tonight, what's on air, and what plays next, in order.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -8,10 +8,19 @@
 // Then, so the list is the night's plan and each sequence's Then is the fallback when the list runs out. Add… puts a
 // scene or sequence at the end; rows drag to reorder (or use their arrows); Saved… loads an order kept under a name
 // or saves tonight's. The runner (sequences.js in Studio) owns the list; this only draws it and sends changes.
+// Above the queue, like a playlist: the last of what the run order has played tonight, greyed with a tick, then
+// what's on air now in the on-air orange (the sequence playing with its step and time left, else the scene on),
+// so a glance says where the night is (Matt, 2 Nov 2026).
 const roItems = () => {
   const o = scene.viewOutput || 'main';
   return (o === 'main' ? scene.runOrder : (scene.runOrderOut || {})[o]) || [];
 };
+const roPlayedItems = () => {
+  const o = scene.viewOutput || 'main';
+  return (o === 'main' ? scene.runOrderPlayed : (scene.runOrderPlayedOut || {})[o]) || [];
+};
+const RO_PLAYED_SHOWN = 2; // played rows shown above what's on air; the rest fold behind "N earlier"
+let roAllPlayed = false;
 const roColourOf = it => {
   const x = it.kind === 'scene' ? (scene.scenes || []).find(s => s.id === it.id) : sequences().find(s => s.id === it.id);
   return x ? x.colour : 'grey';
@@ -31,8 +40,72 @@ function roAlsoOn(sq) {
     return line;
   });
 }
+// The played rows and the ON AIR row. What's on air is the sequence playing on the picked output, else its scene;
+// when the run order played it, its own played row becomes the ON AIR row.
+function renderPlayed() {
+  const box = $('roPlayed'), p = scene.playing, sc = !p ? currentScene() : null;
+  const air = p ? { kind: 'sequence', id: p.id } : sc ? { kind: 'scene', id: sc.id } : null;
+  const played = roPlayedItems(), last = played[played.length - 1];
+  const fromOrder = !!(air && last && last.kind === air.kind && last.id === air.id);
+  const done = fromOrder ? played.slice(0, -1) : played;
+  box.innerHTML = '';
+  const row = (cls, n, colour) => {
+    const li = document.createElement('li');
+    li.className = cls;
+    li.innerHTML = '<span class="n"></span><span class="what"><b></b><small></small></span><span></span>';
+    li.querySelector('.n').textContent = n;
+    if (colour) li.querySelector('.n').classList.add(colour);
+    box.append(li);
+    return li;
+  };
+  if (done.length > RO_PLAYED_SHOWN) {
+    const li = document.createElement('li');
+    li.className = 'earlier';
+    const b = document.createElement('button');
+    b.textContent = roAllPlayed ? 'Show only the last two played' : `${done.length - RO_PLAYED_SHOWN} played earlier tonight: show`;
+    b.onclick = () => { roAllPlayed = !roAllPlayed; renderPlayed(); };
+    li.append(b);
+    box.append(li);
+  }
+  for (const it of roAllPlayed ? done : done.slice(-RO_PLAYED_SHOWN)) {
+    const li = row('done', '✓', roColourOf(it));
+    li.querySelector('b').textContent = it.name;
+    li.querySelector('small').textContent = `${it.kind} · played ${clockTime(it.at)}`;
+  }
+  if (!air) return;
+  const li = row('air', '●');
+  const b = li.querySelector('b');
+  b.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: p && p.paused ? 'ON AIR · PAUSED' : 'ON AIR' }));
+  b.append(p ? (sequences().find(s => s.id === p.id)?.name || 'A sequence') : sc.name);
+  b.title = b.textContent;
+  const when = fromOrder ? ` · since ${clockTime(last.at)}` : '';
+  if (p) {
+    const ssc = p.scene && (scene.scenes || []).find(x => x.id === p.scene);
+    const names = ssc ? ssc.name : p.ad !== undefined ? (p.ad ? `ad: ${p.ad}` : 'no ad to play') : (p.sources || []).map(nameOf).filter(Boolean).join(', ');
+    li.querySelector('small').textContent = `step ${p.step + 1} of ${p.steps}${names ? ` · ${names}` : ''}${when}`;
+    const dots = document.createElement('div');
+    dots.className = 'dots';
+    for (let i = 0; i < p.steps; i++) dots.appendChild(Object.assign(document.createElement('i'), { className: i < p.step ? 'done' : i === p.step ? 'now' : '' }));
+    li.querySelector('.what').append(dots);
+    li.lastChild.className = 'airLeft';
+    li.lastChild.innerHTML = '<b></b><small></small>';
+  } else li.querySelector('small').textContent = `scene${when}`;
+  roTick();
+}
+// The ON AIR row's time left: the step's, big, and the whole sequence's under it (like its card's).
+function roTick() {
+  const p = scene.playing, el = document.querySelector('#roPlayed li.air .airLeft');
+  if (!p || !el) return;
+  const since = p.paused || p.leftMs === null || p.leftMs === undefined ? 0 : performance.now() - heardAt;
+  const left = p.leftMs === null || p.leftMs === undefined ? (p.length === 'next' ? 'waits' : p.length === 'game' ? 'game' : '') : fmt(p.leftMs - since);
+  el.firstChild.textContent = left;
+  const total = totalText(p, since);
+  el.lastChild.textContent = total ? `${p.repeats ? 'This time round' : 'Total'} ${total}` : '';
+}
+setInterval(roTick, 250);
 let roDrag = null;
 function renderRunOrder() {
+  renderPlayed();
   const items = roItems(), list = $('roList');
   const head = items.find(it => !it.gone) || null;
   list.innerHTML = '';
@@ -78,7 +151,7 @@ function renderRunOrder() {
   $('roNext').title = head ? `Play ${head.name} now` : p ? 'Nothing queued: ends the sequence playing (its Then)' : 'Nothing queued and nothing playing';
   const second = head ? items.slice(items.indexOf(head) + 1).find(it => !it.gone) : null;
   $('roNote').textContent = head ? `▶ ${head.name}${second ? `  ⏭ ${second.name}` : '  ⏭ each sequence\'s own Then'}` : p ? 'Nothing queued: when this sequence ends it does its own Then' : '';
-  $('roEmpty').hidden = !!items.length;
+  $('roEmpty').hidden = !!items.length || !!roPlayedItems().length;
   $('roEmpty').innerHTML = 'Tonight\'s order: <b>Add…</b> puts a scene or sequence at the end (Run-up, Walk out, Live, Quarter time, Live…), or load a saved order. '
     + '<b>Play next</b> plays the head now, and a sequence that ends plays what is queued after it. With nothing here, each sequence does its own <b>Then</b>.';
   // The pickers: Add… lists the scenes and sequences; Saved… the saved orders, with Save as… at the end.
@@ -92,7 +165,7 @@ function renderRunOrder() {
   for (const o of scene.runOrders || []) saved.append(new Option(`${o.name} (${o.count})`, `load:${o.id}`));
   if (items.length) saved.append(new Option('Save tonight\'s order as…', 'save'));
   if ((scene.runOrders || []).length) saved.append(new Option('Delete a saved order…', 'delete'));
-  if (items.length) saved.append(new Option('Clear the run order', 'clear'));
+  if (items.length || roPlayedItems().length) saved.append(new Option('Clear the run order', 'clear'));
 }
 $('roNext').onclick = () => act({ type: 'roNext' });
 $('roSkip').onclick = () => act({ type: 'roSkip' });
@@ -118,6 +191,7 @@ $('roSaved').onchange = async () => {
     const pick = await askChoice('Delete which saved run order?', 'Tonight\'s list stays as it is.', [...orders.map(o => ({ value: o.id, label: o.name, danger: true })), { value: '', label: 'Cancel', alt: true }]);
     if (pick) act({ type: 'roDeleteOrder', order: pick });
   } else if (v === 'clear') {
-    if (await askConfirm(`Clear the ${items.length} item${items.length === 1 ? '' : 's'} in the run order?`, 'The sequence playing carries on and does its own Then when it ends.', { ok: 'Clear', danger: true })) act({ type: 'roClear' });
+    const what = items.length ? `the ${items.length} item${items.length === 1 ? '' : 's'} queued and what has played` : 'what the run order has played tonight';
+    if (await askConfirm(`Clear ${what}?`, 'What\'s on air carries on; a sequence playing does its own Then when it ends.', { ok: 'Clear', danger: true })) act({ type: 'roClear' });
   }
 };

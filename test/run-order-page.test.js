@@ -50,7 +50,13 @@ test('Run order panel: add, Next, the queue after a sequence ends, the board and
   await page.click('#roNext');
   await page.waitForSelector('#seqs .seq.run');
   await orderIs(page, ['Live *', 'Promo']);
+  // What's playing is the ON AIR row above the queue, with its step and time left.
+  await page.waitForFunction(() => /ON AIR\s*Promo/.test(document.querySelector('#roPlayed li.air b')?.textContent || ''));
+  assert.match(await page.textContent('#roPlayed li.air small'), /^step 1 of 1/);
   await orderIs(page, ['Promo *']);
+  // Promo ended and the Live scene is on: Promo is greyed as played, Live is on air.
+  await page.waitForFunction(() => /ON AIR\s*Live/.test(document.querySelector('#roPlayed li.air b')?.textContent || ''));
+  assert.deepEqual(await page.$$eval('#roPlayed li.done b', bs => bs.map(b => b.textContent)), ['Promo']);
   await page.waitForFunction(() => !document.querySelector('#seqs .seq.run'));
   const after = await studio.get('/api/scene');
   assert.equal(after.current, sceneId, 'the queued Live scene is on');
@@ -59,6 +65,7 @@ test('Run order panel: add, Next, the queue after a sequence ends, the board and
   await page.waitForFunction(() => [...document.querySelectorAll('.fp-chips .chip')].some(c => /^Run order\s*▶\s*Promo$/.test(c.textContent.trim())), null, { timeout: 6000 });
   await page.click('#roSkip');
   await orderIs(page, []);
+  assert.deepEqual(await page.$$eval('#roPlayed li.done b', bs => bs.map(b => b.textContent)), ['Promo'], 'a skipped item isn\'t played');
   // Save tonight's order under a name and load it again; the arrows reorder.
   await page.selectOption('#roAdd', `sequence:${seqId}`);
   await page.selectOption('#roAdd', `scene:${sceneId}`);
