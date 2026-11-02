@@ -146,6 +146,7 @@ function openMic(m) {
   $('mxChannel').value = mxDraft.channel;
   $('mxLowCut').checked = mxDraft.lowCut;
   $('mxMixer').checked = !mxDraft.follow; // an external mixer does the fading
+  mixerNote();
   $('mxDelete').classList.toggle('hidden', !m);
   $('mxErr').textContent = '';
   routeFields();
@@ -209,6 +210,9 @@ async function findInputs(ask = true) {
   }
 }
 $('mxFind').onclick = () => findInputs(true);
+// A mic through an external mixer: the music sent to that mixer (Also send the sound to) can come back in through it.
+const mixerNote = () => $('mxMixerNote').classList.toggle('hidden', !$('mxMixer').checked);
+$('mxMixer').addEventListener('change', mixerNote);
 const mxChanges = () => {
   const atem = $('mxOn').value === 'atem';
   return { name: $('mxName').value.trim(), on: atem ? 'atem' : 'mac', ...(atem ? { input: Number($('mxDevice').value) || 0 } : { device: $('mxDevice').value }),

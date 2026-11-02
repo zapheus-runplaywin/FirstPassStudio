@@ -77,7 +77,7 @@ const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false, decklinkSound: 'sdi',
   ndiSignal: 'fillkey', ndiOwnName: false, ndiName: '', ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
-  keyer: '', swFill: 0, swKey: 0, swCameras: [],
+  keyer: '', swFill: 0, swKey: 0, swCameras: [], copySound: '', copyMics: [],
 };
 
 let log = () => {};
@@ -158,6 +158,12 @@ function clean(s, old = DEFAULTS) {
     // The cameras this output's graphics go with (switcher inputs), for an output on an upstream key: Studio's cuts
     // take its key on with them and off with any other camera (switcher.js). None: Studio leaves its key alone.
     swCameras: [...new Set((Array.isArray(pick('swCameras')) ? pick('swCameras') : []).map(swInput).filter(Boolean))].sort((a, b) => a - b).slice(0, 20),
+    // Also send the sound to: one of the Mac's sound outputs (its name as macOS gives it; '' for nowhere else), such as
+    // the commentators' mixer, played by a hidden window of its own while the output is on (desktop/soundcopy.js). It
+    // carries what the output plays (videos, the music, page sounds) and only the Mac's mics ticked for it (copyMics, mic
+    // ids), so the commentators can hear the music without hearing themselves back late (Studio's half of a mix-minus).
+    copySound: String(pick('copySound', '')).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 200),
+    copyMics: [...new Set((Array.isArray(pick('copyMics')) ? pick('copyMics') : []).map(id => String(id).replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8),
   };
 }
 // NDI shows sources as "MAC NAME (this name)", so brackets in it would confuse things.
@@ -345,9 +351,36 @@ function nearKey(colours, key) {
 }
 
 
-// Tells the Mac app which windows to open.
+// The sound copies to play while their outputs are on: [{ output, device, mics }] (copySound, copyMics).
+function copies() {
+  const showing = new Set(outputWindows().map(w => w.output));
+  return list.filter(o => o.copySound && showing.has(o.id)).map(o => ({ output: o.id, device: o.copySound, mics: o.copyMics }));
+}
+// How each copy is doing, from its window (POST /api/outputs/copy) every few seconds: output id -> { at, device, error }.
+const copyHeard = new Map();
+const COPY_STALE_MS = 15000;
+function copyReport({ output, device, error } = {}) {
+  const o = list.find(x => x.id === output);
+  if (!o) return;
+  const was = copyHeard.get(o.id);
+  const now = { at: Date.now(), device: String(device || '').slice(0, 200), error: String(error || '').slice(0, 300) };
+  copyHeard.set(o.id, now);
+  if (!was || was.error !== now.error || was.device !== now.device) {
+    log(now.error ? 'warn' : 'info', 'outputs', now.error ? `${o.name}'s sound copy: ${now.error}` : `${o.name}'s sound also goes to ${now.device}`);
+  }
+}
+// What the Output page shows under Also send the sound to: { state: 'off' | 'waiting' | 'sending' | 'problem', error }.
+function copyState(o, showing) {
+  if (!o.copySound) return { state: 'off', error: '' };
+  if (!showing.some(w => w.output === o.id)) return { state: 'off', error: '' };
+  const h = copyHeard.get(o.id);
+  if (!h || Date.now() - h.at > COPY_STALE_MS || h.device !== o.copySound) return { state: 'waiting', error: '' };
+  return h.error ? { state: 'problem', error: h.error } : { state: 'sending', error: '' };
+}
+
+// Tells the Mac app which windows to open, and the sound copies.
 function send() {
-  if (port) port.postMessage({ type: 'outputs', windows: windows() });
+  if (port) port.postMessage({ type: 'outputs', windows: windows(), copies: copies() });
 }
 
 // What an output sends at in 4K, for its card and status: { uhd, format, why }. uhd: it goes out at 2160p;
@@ -385,6 +418,7 @@ function outputState(o, clash, showing) {
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
     perf: perfNow()?.outputs[o.id] || null,
+    copy: copyState(o, mine),
     picture: pictureOf(o),
     // Colours in the graphics a chroma key on chromaColor would cut into.
     nearKey: nearKey(competitionColours(), o.chromaColor),
@@ -504,6 +538,12 @@ function listen({ id, on, take, output } = {}) {
 async function route(req, res, url, { send: reply, readBody }) {
   if (url.pathname === '/api/outputs/listen' && req.method === 'POST') {
     reply(res, 200, listen(await readBody(req).catch(() => ({}))));
+    return true;
+  }
+  // A sound copy's window saying how it's doing (scene.html?copy=1).
+  if (url.pathname === '/api/outputs/copy' && req.method === 'POST') {
+    copyReport(await readBody(req).catch(() => ({})));
+    reply(res, 200, { ok: true });
     return true;
   }
   if (url.pathname !== '/api/outputs') return false;
@@ -653,4 +693,4 @@ function sponsorsOnAir() {
   return windows().some(w => counting.has(w.output));
 }
 
-module.exports = { init, route, deck, state, apply, windows, listen, message, summary, switcherPlan, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };
+module.exports = { init, route, deck, state, apply, windows, copies, listen, message, summary, switcherPlan, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };

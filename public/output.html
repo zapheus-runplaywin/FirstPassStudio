@@ -380,6 +380,7 @@
   .swKeys button.outKey { box-shadow: inset 0 -4px 0 var(--c); }
   .swKeyCheck .okText { color: var(--fp-ok); font-weight: 600; }
   .swKeyCheck .badText { color: var(--fp-danger); font-weight: 600; }
+  #outCopyStatus.badText { color: var(--fp-danger); font-weight: 600; }
 </style>
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
@@ -497,6 +498,21 @@
           clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key (every ATEM can).</p>
         <p class="note forDecklink hidden" id="outDlStraightWarn" style="grid-column:1/-1"><b style="color:var(--fp-danger)">Straight is ticked:</b> into a Pre Multiplied Key
           it leaves a light fringe round logos and text. Untick it and turn the switcher's Pre Multiplied Key on.</p>
+        <label for="outCopy" class="forCopy">Also send the sound to</label>
+        <div class="forCopy">
+          <div class="row"><select id="outCopy" title="Another of the Mac's sound outputs that gets this output's sound too, such as the commentators' mixer"></select>
+            <button class="alt small" id="outCopyFind" title="List the Mac's sound outputs (the Mac asks once to let Studio use its sound devices)">Find sound outputs</button></div>
+          <div class="hidden" id="outCopyMicsRow" style="margin-top:6px"><span class="note" style="margin:0">Mics in it</span> <span id="outCopyMics" class="swCams"></span></div>
+          <p class="note hidden" id="outCopyStatus" style="margin:4px 0 0"></p>
+          <details class="info"><summary>Expand for info</summary><p class="note">While this output is on, its sound also plays on the device picked here, as well as
+          wherever it goes now (the display's sound, the SDI, the Mac's sound output), which carry on as they are. Use it to give the commentators the music in their
+          headphones through their mixer: it carries this output's videos, music and page sounds, at the levels and fades they go out at, and only the mics ticked here, so
+          the commentators don't hear themselves back late. Tick a crowd mic to give them the crowd. Mics on the switcher are mixed there, so they're never in it.
+          <b>On the mixer:</b> keep what comes in from the Mac out of what the mixer sends back to it (its mix-minus, or the USB return left out of the USB send),
+          or the music comes back into Studio through the commentators' mics and goes out twice, a little late. To check: play some music and watch the
+          commentators' mic meters in Mics; they should stay still while nobody talks. Pages from other websites aren't in it.
+          It can be changed while the output is on.</p></details>
+        </div>
         <label for="outKeyer" class="forSw">Into the switcher as</label>
         <div class="forSw">
           <div class="row"><select id="outKeyer" title="The switcher key this output's graphics come into"></select>
@@ -883,6 +899,7 @@
           <label class="inline" id="mxLowCutRow"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>
           <label class="inline" title="The mixer does the fading, so Studio never ducks this mic; its level and mute still work"><input type="checkbox" id="mxMixer"> Has an external mixer (doesn't duck)</label>
         </div>
+        <p class="note hidden" id="mxMixerNote" style="grid-column:1/-1;margin:0"><b>On the mixer, not in Studio:</b> consider if you need mix minus on the mixer's audio out. If you hear two lots of music or effects echoing, then this might be the culprit.</p>
       </div>
       <p class="note" id="mxFindNote"></p>
       <p class="error" id="mxErr"></p>
