@@ -4,7 +4,6 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { GROUPS } from "../src/lib/colours";
 import { clock, sequenceLinkFor, sequenceViewOf, timeOf } from "../src/lib/sequence-key";
 import type { Playing, Scene } from "../src/lib/studio";
 
@@ -23,29 +22,28 @@ const playingQb = (more: Partial<Playing> = {}): Playing => ({ id: "qb", step: 2
 
 test("play key: shows ▶ until its sequence plays, then lights with the step and the time left", () => {
 	const s = { sequence: "qb", sequenceName: "Quarter break" };
-	assert.deepEqual(sequenceViewOf(s, studio()), { state: 0, title: "Quarter\nbreak\n▶", colour: "purple", ticking: false });
-	assert.deepEqual(sequenceViewOf(s, studio(playingQb())), { state: 1, title: "Quarter\nbreak\n3/5 0:05", colour: "purple", ticking: true });
+	assert.deepEqual(sequenceViewOf(s, studio()), { state: 0, title: "Quarter\nbreak\n▶", ticking: false });
+	assert.deepEqual(sequenceViewOf(s, studio(playingQb())), { state: 1, title: "Quarter\nbreak\n3/5 0:05", ticking: true });
 	// Counts down from when Studio sent it.
 	assert.equal(sequenceViewOf(s, studio(playingQb()), 1300).title, "Quarter\nbreak\n3/5 0:03");
 	assert.equal(sequenceViewOf(s, studio(playingQb()), 9000).title, "Quarter\nbreak\n3/5 0:00");
-	assert.deepEqual(sequenceViewOf(s, studio(playingQb({ paused: true }))), { state: 1, title: "Quarter\nbreak\n3/5 paused", colour: "purple", ticking: false });
+	assert.deepEqual(sequenceViewOf(s, studio(playingQb({ paused: true }))), { state: 1, title: "Quarter\nbreak\n3/5 paused", ticking: false });
 	assert.equal(sequenceViewOf(s, studio(playingQb({ leftMs: null }))).title, "Quarter\nbreak\n3/5 Next");
 	// Another sequence playing: this key stays dark.
 	assert.equal(sequenceViewOf(s, studio({ ...playingQb(), id: "run" })).state, 0);
 });
 
-test("play key: off air, gone, not picked, own colour", () => {
+test("play key: off air, gone, not picked", () => {
 	assert.equal(sequenceViewOf({ sequence: "qb", sequenceName: "Quarter break" }, null).title, "Quarter\nbreak\n(off air)");
 	assert.equal(sequenceViewOf({ sequence: "old", sequenceName: "Old" }, studio()).title, "Old\n(gone)");
 	assert.equal(sequenceViewOf({}, studio()).title, "Pick a\nsequence");
-	assert.equal(sequenceViewOf({ sequence: "run", colour: "yellow" }, studio()).colour, "yellow");
 	// A Studio from before sequences sends none.
 	assert.equal(sequenceViewOf({ sequence: "run", sequenceName: "Run-up" }, { rev: 1, sources: [] }).title, "Run-up\n(gone)");
 });
 
 test("next, pause and stop keys: light while anything plays and show where it is", () => {
-	assert.deepEqual(sequenceViewOf({ press: "next" }, studio()), { state: 0, title: "Next ⏭\n(none on)", colour: "blue", ticking: false });
-	assert.deepEqual(sequenceViewOf({ press: "next" }, studio(playingQb())), { state: 1, title: "Next ⏭\n3/5 0:05", colour: "purple", ticking: true });
+	assert.deepEqual(sequenceViewOf({ press: "next" }, studio()), { state: 0, title: "Next ⏭\n(none on)", ticking: false });
+	assert.deepEqual(sequenceViewOf({ press: "next" }, studio(playingQb())), { state: 1, title: "Next ⏭\n3/5 0:05", ticking: true });
 	assert.equal(sequenceViewOf({ press: "pause" }, studio(playingQb())).title, "Pause\n3/5 0:05");
 	assert.equal(sequenceViewOf({ press: "pause" }, studio(playingQb({ paused: true }))).title, "Carry on\n3/5 paused");
 	assert.equal(sequenceViewOf({ press: "stop" }, null).title, "Stop\n(off air)");
@@ -57,7 +55,7 @@ test("next when waiting: lights only while the step on now waits for Next", () =
 	assert.equal(timed.title, "Next ⏭\nnot waiting");
 	assert.equal(timed.state, 0);
 	const waiting = sequenceViewOf({ press: "advance" }, studio(playingQb({ length: "next", leftMs: null })));
-	assert.deepEqual(waiting, { state: 1, title: "Next ⏭\n3/5 Next", colour: "purple", ticking: false });
+	assert.deepEqual(waiting, { state: 1, title: "Next ⏭\n3/5 Next", ticking: false });
 	assert.equal(sequenceLinkFor({ press: "advance" }), "/deck/sequence/advance");
 });
 
@@ -76,10 +74,10 @@ test("time left setting: the step's (default), the whole sequence's, both or non
 	const s = { sequence: "qb", sequenceName: "Quarter break" };
 	const p = playingQb({ totalLeftMs: 100200, totalOpen: false, repeats: false });
 	assert.equal(sequenceViewOf(s, studio(p)).title, "Quarter\nbreak\n3/5 0:05");
-	assert.deepEqual(sequenceViewOf({ ...s, time: "total" }, studio(p), 1300), { state: 1, title: "Quarter\nbreak\nall 1:39", colour: "purple", ticking: true });
+	assert.deepEqual(sequenceViewOf({ ...s, time: "total" }, studio(p), 1300), { state: 1, title: "Quarter\nbreak\nall 1:39", ticking: true });
 	// Both: one line of name, then the step's and the whole sequence's.
 	assert.equal(sequenceViewOf({ ...s, time: "both" }, studio(p), 1300).title, "Quarter\n3/5 0:03\nall 1:39");
-	assert.deepEqual(sequenceViewOf({ ...s, time: "none" }, studio(p)), { state: 1, title: "Quarter\nbreak\n3/5", colour: "purple", ticking: false });
+	assert.deepEqual(sequenceViewOf({ ...s, time: "none" }, studio(p)), { state: 1, title: "Quarter\nbreak\n3/5", ticking: false });
 	assert.equal(sequenceViewOf({ press: "next", time: "both" }, studio(p)).title, "Next ⏭\n3/5 0:05\nall 1:41");
 	// Part of it waits: at least that; it repeats: this time round; all that's left waits.
 	assert.equal(sequenceViewOf({ ...s, time: "total" }, studio({ ...p, totalOpen: true })).title, "Quarter\nbreak\nall 1:41+");
@@ -115,11 +113,4 @@ test("clock rounds up so it reaches 0:00 as the step ends", () => {
 	assert.equal(clock(4200), "0:05");
 	assert.equal(clock(60000), "1:00");
 	assert.equal(clock(-5), "0:00");
-});
-
-test("sequence settings panel lists the sequence's own colour first, then every group with the same labels", () => {
-	const html = fs.readFileSync(PANEL, "utf8");
-	const select = html.match(/<select id="colour">([\s\S]*?)<\/select>/)?.[1] ?? "";
-	const options = [...select.matchAll(/<option value="([^"]*)">([^<]+)<\/option>/g)].map((m) => [m[1], m[2]]);
-	assert.deepEqual(options, [["", "The sequence's own colour"], ...Object.entries(GROUPS).map(([g, c]) => [g, c.label])]);
 });

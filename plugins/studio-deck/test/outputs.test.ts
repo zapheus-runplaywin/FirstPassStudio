@@ -4,11 +4,11 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { contrast, GROUPS, keyImage, ON, OUTPUT_COLOURS } from "../src/lib/colours";
+import { OUTPUT_COLOURS } from "../src/lib/colours";
 import { sceneLinkFor, sceneViewOf } from "../src/lib/scene-key";
 import { sequenceLinkFor, sequenceViewOf } from "../src/lib/sequence-key";
 import { linkFor, viewOf } from "../src/lib/source-key";
-import { deckBase, forOutput, outputColour, outputGone, outputsOf, type Scene } from "../src/lib/studio";
+import { deckBase, forOutput, outputGone, outputMark, outputsOf, type Scene } from "../src/lib/studio";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "com.runplaywin.firstpass-studio.sdPlugin");
 
@@ -56,7 +56,7 @@ test("keys follow their own output", () => {
 	assert.equal(viewOf({ source: "stats" }, s).state, 0);
 	assert.equal(viewOf({ source: "stats", output: "com" }, s).state, 1);
 	assert.equal(viewOf({ source: "ladder", output: "com" }, s).state, 0);
-	assert.deepEqual(sceneViewOf({ scene: "desk", output: "com" }, s), { state: 1, title: "Desk", dot: true, colour: "green" });
+	assert.deepEqual(sceneViewOf({ scene: "desk", output: "com" }, s), { state: 1, title: "Desk", dot: true });
 	assert.equal(sceneViewOf({ scene: "desk" }, s).state, 0);
 	assert.equal(sceneViewOf({ scene: "live" }, s).state, 1);
 	assert.equal(sequenceViewOf({ sequence: "loop", output: "com" }, s).state, 1);
@@ -94,22 +94,23 @@ test("links go to the key's output; sound stays Output 1's", () => {
 	assert.equal(sequenceLinkFor({ press: "pause", output: "com" }), "/deck/output/com/sequence/pause");
 });
 
-test("a lit key takes its output's colour, with black titles that read on every one", () => {
+test("a key's disc shows its output's number and colour, kept while Studio is off air", () => {
 	const s = studio();
-	assert.equal(outputColour(s, undefined), OUTPUT_COLOURS[0]);
-	assert.equal(outputColour(s, "com"), OUTPUT_COLOURS[1]);
-	assert.equal(outputColour({ rev: 1, sources: [] }, "com"), undefined);
-	assert.equal(ON, OUTPUT_COLOURS[0]);
-	assert.ok(keyImage("scene", "blue", 1, false, OUTPUT_COLOURS[2]).includes(`fill="${OUTPUT_COLOURS[2]}"`));
-	assert.equal(keyImage("scene", "blue", 1, false, "nonsense"), keyImage("scene", "blue", 1));
-	assert.equal(keyImage("scene", "blue", 0, false, OUTPUT_COLOURS[2]), keyImage("scene", "blue", 0));
-	for (const lit of OUTPUT_COLOURS) {
-		assert.ok(contrast(lit, "#000000") >= 4.5, `black title on ${lit}`);
-		for (const [g, { off }] of Object.entries(GROUPS)) assert.ok(contrast(off, lit) >= 3, `${g} off vs ${lit} on`);
-	}
-	// Stream Deck draws the titles: white on the dark off keys, black on the lit ones.
+	assert.deepEqual(outputMark(s, undefined), { slot: 1, colour: OUTPUT_COLOURS[0] });
+	assert.deepEqual(outputMark(s, "com"), { slot: 2, colour: OUTPUT_COLOURS[1] });
+	// Off air: the last heard. A removed output has none; one never heard of has none.
+	assert.deepEqual(outputMark(null, "com"), { slot: 2, colour: OUTPUT_COLOURS[1] });
+	assert.equal(outputMark({ ...s, outputs: s.outputs!.filter((o) => o.id !== "com") }, "com"), null);
+	assert.equal(outputMark(null, "never"), null);
+	// Output 1 from the start, and from a Studio older than outputs.
+	assert.deepEqual(outputMark(null, "main"), { slot: 1, colour: OUTPUT_COLOURS[0] });
+	assert.deepEqual(outputMark({ rev: 1, sources: [] }, undefined), { slot: 1, colour: OUTPUT_COLOURS[0] });
+	// No slot from Studio: its place in the list.
+	assert.deepEqual(outputMark({ rev: 1, sources: [], outputs: [{ id: "main", name: "Output 1" }, { id: "x", name: "X" }] }, "x"), { slot: 2, colour: OUTPUT_COLOURS[1] });
+	// Stream Deck draws the titles along the bottom, under the picture and the disc: white on the dark off keys, black on the lit ones.
 	const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
 	for (const a of manifest.Actions) assert.deepEqual(a.States.map((st: { TitleColor: string }) => st.TitleColor), ["#ffffff", "#000000"], a.Name);
+	for (const a of manifest.Actions) assert.ok(a.States.every((st: { TitleAlignment: string }) => st.TitleAlignment === "bottom"), a.Name);
 	// One naming for every kind's two states: Off, then the kind's own word for on (On, Playing, On air, Running, Queued).
 	for (const a of manifest.Actions) {
 		const names = a.States.map((st: { Name: string }) => st.Name);

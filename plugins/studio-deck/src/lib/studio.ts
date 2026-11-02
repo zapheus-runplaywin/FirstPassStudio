@@ -7,6 +7,7 @@
  */
 
 import { forget, getIdentity, pair, signedHeaders } from "./identity";
+import { OUTPUT_COLOURS, type OutputMark } from "./colours";
 import type { Playback } from "./playback-key";
 
 export const DEFAULT_HOST = "http://localhost:8080";
@@ -101,9 +102,22 @@ export function outputGone(scene: Scene | null, output?: string): boolean {
 	return !!scene && !isPrimary(output) && !(scene.outputs ?? []).some((o) => o.id === output);
 }
 
-/** The colour a key for an output lights in: the output's colour from Studio, or undefined to use the default. */
-export function outputColour(scene: Scene | null, output?: string): string | undefined {
-	return scene?.outputs?.find((o) => o.id === (output || PRIMARY))?.colour;
+// Every output's disc as last heard from Studio, so a key keeps its number while Studio is off air.
+const marks = new Map<string, OutputMark>([[PRIMARY, { slot: 1, colour: OUTPUT_COLOURS[0] }]]);
+
+/**
+ * The disc a key for an output shows: the output's number and colour from Studio (Output 1 orange, 2 pink, 3 blue,
+ * 4 green). While Studio can't be reached, the last ones heard (Output 1's from the start); null for an output
+ * Studio doesn't list, or one not heard of yet.
+ */
+export function outputMark(scene: Scene | null, output?: string): OutputMark | null {
+	const id = output || PRIMARY;
+	scene?.outputs?.forEach((o, i) => {
+		const slot = o.slot ?? i + 1;
+		marks.set(o.id, { slot, colour: o.colour || OUTPUT_COLOURS[slot - 1] || OUTPUT_COLOURS[0] });
+	});
+	if (scene?.outputs?.length && !scene.outputs.some((o) => o.id === id)) return null;
+	return marks.get(id) ?? null;
 }
 
 /** Where an output's Stream Deck links start: /deck for Output 1, /deck/output/<id> for the others. */

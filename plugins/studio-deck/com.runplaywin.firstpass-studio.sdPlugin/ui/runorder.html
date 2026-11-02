@@ -36,7 +36,7 @@
     <label for="output">Output</label>
     <div class="field"><select id="output"></select></div>
   </div>
-  <p class="note" id="outputNote" style="display:none">Acts on this output's run order. The key lights in its colour.</p>
+  <p class="note" id="outputNote" style="display:none">Acts on this output's run order.</p>
 
   <div class="row">
     <label for="press">Press</label>
@@ -60,20 +60,7 @@
   </div>
   <p class="note" id="note"></p>
 
-  <div class="row">
-    <label for="colour">Colour</label>
-    <div class="field">
-      <select id="colour">
-        <option value="">What's next's own colour</option>
-        <option value="blue">Blue: live stream</option>
-        <option value="green">Green: pre-game</option>
-        <option value="grey">Grey: post-game</option>
-        <option value="yellow">Yellow: ads</option>
-        <option value="purple">Purple: quarter time</option>
-      </select>
-    </div>
-  </div>
-  <p class="note">What's next's own colour is the one set for that scene or sequence in its editor on Studio's Output page, so the key changes colour as the night moves on. The key lights in its output's colour while something is queued and names what plays next.</p>
+  <p class="note">The key is yellow and lights up while something is queued, naming what plays next. The disc in its corner is the output's number and colour.</p>
 
   <div class="row">
     <label>Title</label>
@@ -105,7 +92,6 @@
     settings = (ai.payload && ai.payload.settings) || {};
     fillOutputs();
     $("press").value = settings.press || "next";
-    $("colour").value = settings.colour || "";
     $("keepTitle").checked = !!settings.keepTitle;
     $("host").value = settings.host || "";
     showOrderPick();
@@ -181,7 +167,6 @@
       order: id,
       orderName: picked ? picked.name : (id === settings.order ? settings.orderName : ""),
       press: $("press").value,
-      colour: $("colour").value,
       keepTitle: $("keepTitle").checked,
       host: $("host").value.trim(),
       output: $("output").value,
@@ -192,7 +177,6 @@
 
   $("order").addEventListener("change", save);
   $("press").addEventListener("change", () => { showOrderPick(); save(); if ($("press").value === "load") askForOrders(); });
-  $("colour").addEventListener("change", save);
   $("keepTitle").addEventListener("change", save);
   $("output").addEventListener("change", save);
   $("host").addEventListener("change", () => { save(); askForOrders(); });

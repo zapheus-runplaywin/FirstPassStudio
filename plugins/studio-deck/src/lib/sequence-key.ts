@@ -18,8 +18,6 @@ export type SequenceSettings = {
 	press?: SequencePress;
 	/** The output it plays on (an output's id); Output 1 when not set. */
 	output?: string;
-	/** Colour group; empty means the sequence's own colour from the Output page. */
-	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
 	keepTitle?: boolean;
 	/** Which time left the key shows while its sequence plays; step when not set. */
@@ -30,10 +28,9 @@ export type SequenceSettings = {
 export type SequenceTime = "step" | "total" | "both" | "none";
 
 export type SequenceView = {
-	/** 0 = dark, 1 = lit (in its output's colour): its sequence is playing (or, for the playing keys, any is). */
+	/** 0 = dark, 1 = lit: its sequence is playing (or, for the playing keys, any is). */
 	state: 0 | 1;
 	title: string;
-	colour: string;
 	/** The title changes each second (it shows the time left), so the key redraws while this is true. */
 	ticking: boolean;
 };
@@ -99,13 +96,7 @@ export function progress(scene: Scene, sinceMs: number, time: SequenceTime = "st
 export function sequenceViewOf(settings: SequenceSettings, all: Scene | null, sinceMs = 0): SequenceView {
 	const press = pressOf(settings);
 	const scene = forOutput(all, settings.output);
-	const own = settings.colour || "";
-	const view = (title: string, target?: Sequence, state: 0 | 1 = 0, ticking = false): SequenceView => ({
-		state,
-		title,
-		colour: own || target?.colour || "blue",
-		ticking,
-	});
+	const view = (title: string, state: 0 | 1 = 0, ticking = false): SequenceView => ({ state, title, ticking });
 	if (press === "play" || press === "start") {
 		if (!settings.sequence) return view("Pick a\nsequence");
 		const name = settings.sequenceName || "Sequence";
@@ -115,13 +106,13 @@ export function sequenceViewOf(settings: SequenceSettings, all: Scene | null, si
 		if (!sq) return view(`${wrapTitle(name)}\n(gone)`);
 	const pend = scene.pending;
 	if (pend && pend.id === sq.id && scene.playing?.id !== sq.id) {
-		return view(`${wrapTitle(sq.name)}\n${pend.leftMs === null ? "next" : `in ${clock(pend.leftMs - sinceMs)}`}`, sq, 0, pend.leftMs !== null);
+		return view(`${wrapTitle(sq.name)}\n${pend.leftMs === null ? "next" : `in ${clock(pend.leftMs - sinceMs)}`}`, 0, pend.leftMs !== null);
 	}
-		if (scene.playing?.id !== sq.id) return view(`${wrapTitle(sq.name)}\n▶`, sq);
+		if (scene.playing?.id !== sq.id) return view(`${wrapTitle(sq.name)}\n▶`);
 		const { text, ticking } = progress(scene, sinceMs, timeOf(settings));
 		// Two lines of time leave room for one of the name.
 		const lines = text.includes("\n") ? 1 : 2;
-		return view(`${wrapTitle(sq.name, 9).split("\n").slice(0, lines).join("\n")}\n${text}`, sq, 1, ticking);
+		return view(`${wrapTitle(sq.name, 9).split("\n").slice(0, lines).join("\n")}\n${text}`, 1, ticking);
 	}
 	const label = { next: "Next ⏭", advance: "Next ⏭", pause: "Pause", stop: "Stop" }[press];
 	if (!scene) return view(`${label}\n(off air)`);
@@ -129,9 +120,9 @@ export function sequenceViewOf(settings: SequenceSettings, all: Scene | null, si
 	const sq = playingOf(scene);
 	if (!sq) return view(`${label}\n(none on)`);
 	const { text, ticking } = progress(scene, sinceMs, timeOf(settings));
-	if (press === "advance" && scene.playing!.length !== "next") return view(`${label}\nnot waiting`, sq, 0, false);
-	if (press === "pause") return view(`${scene.playing!.paused ? "Carry on" : "Pause"}\n${text}`, sq, 1, ticking);
-	return view(`${label}\n${text}`, sq, 1, ticking);
+	if (press === "advance" && scene.playing!.length !== "next") return view(`${label}\nnot waiting`, 0, false);
+	if (press === "pause") return view(`${scene.playing!.paused ? "Carry on" : "Pause"}\n${text}`, 1, ticking);
+	return view(`${label}\n${text}`, 1, ticking);
 }
 
 /** The Studio link a press opens. */

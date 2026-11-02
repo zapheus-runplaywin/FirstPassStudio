@@ -36,7 +36,7 @@
     <label for="output">Output</label>
     <div class="field"><select id="output"></select></div>
   </div>
-  <p class="note" id="outputNote" style="display:none">Plays the scene on this output. The key lights in its colour.</p>
+  <p class="note" id="outputNote" style="display:none">Plays the scene on this output.</p>
 
   <div class="row">
     <label for="press">Press</label>
@@ -59,20 +59,7 @@
   </div>
   <p class="note" id="note"></p>
 
-  <div class="row">
-    <label for="colour">Colour</label>
-    <div class="field">
-      <select id="colour">
-        <option value="">The scene's own colour</option>
-        <option value="blue">Blue: live stream</option>
-        <option value="green">Green: pre-game</option>
-        <option value="grey">Grey: post-game</option>
-        <option value="yellow">Yellow: ads</option>
-        <option value="purple">Purple: quarter time</option>
-      </select>
-    </div>
-  </div>
-  <p class="note">The scene's own colour is the one set in Edit scenes on Studio's Output page. The key lights in its output's colour while its scene is on there, with a yellow dot when sources have changed since.</p>
+  <p class="note">The key is blue and lights up while its scene is on its output, with a yellow dot when sources have changed since. The disc in its corner is the output's number and colour.</p>
 
   <div class="row">
     <label>Title</label>
@@ -104,7 +91,6 @@
     settings = (ai.payload && ai.payload.settings) || {};
     fillOutputs();
     $("press").value = settings.press || "go";
-    $("colour").value = settings.colour || "";
     $("keepTitle").checked = !!settings.keepTitle;
     $("host").value = settings.host || "";
     showScenePick();
@@ -177,7 +163,6 @@
       scene: id,
       sceneName: picked ? picked.name : (id === settings.scene ? settings.sceneName : ""),
       press: $("press").value,
-      colour: $("colour").value,
       keepTitle: $("keepTitle").checked,
       host: $("host").value.trim(),
       output: $("output").value,
@@ -188,7 +173,6 @@
 
   $("scene").addEventListener("change", save);
   $("press").addEventListener("change", () => { showScenePick(); save(); });
-  $("colour").addEventListener("change", save);
   $("keepTitle").addEventListener("change", save);
   $("output").addEventListener("change", save);
   $("host").addEventListener("change", () => { save(); askForScenes(); });

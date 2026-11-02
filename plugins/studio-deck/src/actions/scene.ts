@@ -11,7 +11,7 @@ import streamDeck, {
 
 import { keyImageUrl } from "../lib/colours";
 import { sceneLinkFor, type SceneSettings, sceneViewOf } from "../lib/scene-key";
-import { cleanHost, feedFor, fetchScene, outputColour, outputsOf, press, type Scene } from "../lib/studio";
+import { cleanHost, feedFor, fetchScene, outputMark, outputsOf, press, type Scene } from "../lib/studio";
 
 const logger = streamDeck.logger.createScope("Scene");
 const log = (message: string) => logger.info(message);
@@ -55,14 +55,13 @@ class SceneKey {
 
 	private draw(): void {
 		const view = sceneViewOf(this.settings, this.scene);
-		// Both states' images in the colour group, with or without the changed dot, lit in the output's colour; only
-		// sent again when those change.
-		const lit = outputColour(this.scene, this.settings.output);
-		const paint = `${view.colour}|${view.dot}|${lit}`;
+		// Both states' images with the output's disc, with or without the changed dot; only sent again when those change.
+		const output = outputMark(this.scene, this.settings.output);
+		const paint = `${view.dot}|${output?.slot}|${output?.colour}`;
 		if (paint !== this.painted) {
 			this.painted = paint;
-			void this.key.setImage(keyImageUrl("scene", view.colour, 0, view.dot), { state: 0 });
-			void this.key.setImage(keyImageUrl("scene", view.colour, 1, view.dot, lit), { state: 1 });
+			void this.key.setImage(keyImageUrl("scene", 0, { output, dot: view.dot }), { state: 0 });
+			void this.key.setImage(keyImageUrl("scene", 1, { output, dot: view.dot }), { state: 1 });
 		}
 		const title = this.settings.keepTitle ? undefined : view.title;
 		const sig = `${view.state}|${title}`;
@@ -127,7 +126,7 @@ export class SceneAction extends SingletonAction<SceneSettings> {
 			type: "scenes",
 			host,
 			ok: scene !== null,
-			scenes: (scene?.scenes ?? []).map((s) => ({ id: s.id, name: s.name, colour: s.colour ?? "blue" })),
+			scenes: (scene?.scenes ?? []).map((s) => ({ id: s.id, name: s.name })),
 			outputs: outputsOf(scene).map((o) => ({ id: o.id, name: o.name })),
 		} as unknown as PiPayload);
 	}

@@ -16,8 +16,6 @@ export type SourceSettings = {
 	press?: PressAction;
 	/** The output it shows and hides the source on (an output's id); Output 1 when not set. */
 	output?: string;
-	/** Colour group (blue, green, grey, yellow or purple); blue when not set. */
-	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
 	keepTitle?: boolean;
 };

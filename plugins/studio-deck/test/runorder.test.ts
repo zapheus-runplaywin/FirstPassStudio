@@ -25,13 +25,10 @@ const qb: RunOrderItem = { key: "k1", kind: "sequence", id: "qb", name: "Quarter
 const live: RunOrderItem = { key: "k2", kind: "scene", id: "live", name: "Live game" };
 const run: RunOrderItem = { key: "k3", kind: "sequence", id: "run", name: "Run-up" };
 
-test("Play next key: dark and (empty) with nothing queued, lit with the head's name and colour, counting the rest", () => {
-	assert.deepEqual(runOrderViewOf({}, studio()), { state: 0, title: "Play next ▶\n(empty)", colour: "blue" });
-	assert.deepEqual(runOrderViewOf({}, studio([qb])), { state: 1, title: "Play next ▶\nQuarter\nbreak", colour: "purple" });
-	assert.deepEqual(runOrderViewOf({}, studio([live, qb, run])), { state: 1, title: "Play next ▶\nLive game\n+2 more", colour: "blue" });
-	// A scene's own colour too; a group picked in the settings wins.
-	assert.equal(runOrderViewOf({}, studio([{ ...live }], { scenes: [{ id: "live", name: "Live game", colour: "grey", states: {} }] })).colour, "grey");
-	assert.equal(runOrderViewOf({ colour: "yellow" }, studio([qb])).colour, "yellow");
+test("Play next key: dark and (empty) with nothing queued, lit with the head's name, counting the rest", () => {
+	assert.deepEqual(runOrderViewOf({}, studio()), { state: 0, title: "Play next ▶\n(empty)" });
+	assert.deepEqual(runOrderViewOf({}, studio([qb])), { state: 1, title: "Play next ▶\nQuarter\nbreak" });
+	assert.deepEqual(runOrderViewOf({}, studio([live, qb, run])), { state: 1, title: "Play next ▶\nLive game\n+2 more" });
 	assert.equal(runOrderLinkFor({}), "/deck/runorder/next");
 	assert.equal(runOrderLinkFor({ press: "next", output: "commentary" }), "/deck/output/commentary/runorder/next");
 });
@@ -58,10 +55,10 @@ test("another output's run order: the key follows that output's queue", () => {
 });
 
 test("Skip and Clear keys: lit while something is queued, naming the head", () => {
-	assert.deepEqual(runOrderViewOf({ press: "skip" }, studio([qb, live])), { state: 1, title: "Skip ⏭\nQuarter\nbreak\n+1 more", colour: "purple" });
+	assert.deepEqual(runOrderViewOf({ press: "skip" }, studio([qb, live])), { state: 1, title: "Skip ⏭\nQuarter\nbreak\n+1 more" });
 	assert.equal(runOrderViewOf({ press: "skip" }, studio()).title, "Skip ⏭\n(empty)");
 	assert.equal(runOrderLinkFor({ press: "skip" }), "/deck/runorder/skip");
-	assert.deepEqual(runOrderViewOf({ press: "clear" }, studio([run])), { state: 1, title: "Clear\nRun-up", colour: "green" });
+	assert.deepEqual(runOrderViewOf({ press: "clear" }, studio([run])), { state: 1, title: "Clear\nRun-up" });
 	assert.equal(runOrderLinkFor({ press: "clear" }), "/deck/runorder/clear");
 	// An unknown press is Play next.
 	assert.equal(runOrderLinkFor({ press: "dance" as never }), "/deck/runorder/next");
@@ -69,15 +66,13 @@ test("Skip and Clear keys: lit while something is queued, naming the head", () =
 
 test("Load key: names its saved order and how many items it holds; gone, off air, not picked", () => {
 	const s = { press: "load" as const, order: "thu", orderName: "Thursday night" };
-	assert.deepEqual(runOrderViewOf(s, studio()), { state: 0, title: "Thursday\nnight\nload 5", colour: "blue" });
+	assert.deepEqual(runOrderViewOf(s, studio()), { state: 0, title: "Thursday\nnight\nload 5" });
 	assert.equal(runOrderLinkFor(s), "/deck/runorder/load/thu");
 	assert.equal(runOrderLinkFor({ ...s, output: "commentary" }), "/deck/output/commentary/runorder/load/thu");
 	assert.equal(runOrderViewOf(s, null).title, "Thursday\nnight\n(off air)");
 	assert.equal(runOrderViewOf({ press: "load", order: "fri", orderName: "Friday" }, studio()).title, "Friday\n(gone)");
 	assert.equal(runOrderViewOf({ press: "load" }, studio()).title, "Pick a saved\norder");
 	assert.equal(runOrderLinkFor({ press: "load" }), null);
-	// Its own colour setting still applies.
-	assert.equal(runOrderViewOf({ ...s, colour: "grey" }, studio()).colour, "grey");
 });
 
 test("Run order key: in the manifest, with its images and settings panel", () => {
@@ -89,6 +84,5 @@ test("Run order key: in the manifest, with its images and settings panel", () =>
 	}
 	const panel = fs.readFileSync(path.join(PLUGIN, a.PropertyInspectorPath), "utf8");
 	for (const press of ["next", "skip", "load", "clear"]) assert.match(panel, new RegExp(`value="${press}"`));
-	for (const group of ["blue", "green", "grey", "yellow", "purple"]) assert.match(panel, new RegExp(`value="${group}"`));
 	assert.match(panel, /cmd: "orders"/);
 });

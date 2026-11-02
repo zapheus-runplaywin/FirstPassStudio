@@ -76,18 +76,6 @@
   </div>
   <p class="note" id="note"></p>
 
-  <div class="row">
-    <label for="colour">Colour</label>
-    <div class="field">
-      <select id="colour">
-        <option value="blue">Blue: live stream</option>
-        <option value="green">Green: pre-game</option>
-        <option value="grey">Grey: post-game</option>
-        <option value="yellow">Yellow: ads</option>
-        <option value="purple">Purple: quarter time</option>
-      </select>
-    </div>
-  </div>
   <p class="note">A camera key lights red while its camera is on program and green while it's on preview, like the switcher's own buttons. A key or Fade to black lights red while it's on air. A yellow dot means the switcher isn't answering.</p>
 
   <div class="row">
@@ -121,7 +109,6 @@
     $("press").value = settings.press || "preview";
     $("verb").value = settings.verb || "toggle";
     $("macro").value = settings.macro || "";
-    $("colour").value = settings.colour || "blue";
     $("keepTitle").checked = !!settings.keepTitle;
     $("host").value = settings.host || "";
     showRows();
@@ -203,7 +190,6 @@
       key: ["usk", "dsk"].includes(press) ? $("key").value : "",
       verb: $("verb").value,
       macro: $("macro").value.trim(),
-      colour: $("colour").value,
       keepTitle: $("keepTitle").checked,
       host: $("host").value.trim(),
     });
@@ -215,7 +201,6 @@
   $("key").addEventListener("change", save);
   $("verb").addEventListener("change", save);
   $("macro").addEventListener("change", save);
-  $("colour").addEventListener("change", save);
   $("keepTitle").addEventListener("change", save);
   $("host").addEventListener("change", () => { save(); askForSwitcher(); });
   $("refresh").addEventListener("click", askForSwitcher);

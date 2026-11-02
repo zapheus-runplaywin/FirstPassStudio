@@ -14,7 +14,7 @@ const practice = (more = {}): Playback => ({ replay: { active: false }, practice
 
 test("Replay key: Play or pause whichever is running, lit while one runs", () => {
 	assert.deepEqual(playbackViewOf({}, null), { state: 0, title: "Play ▶\n(off air)" });
-	assert.deepEqual(playbackViewOf({}, none), { state: 0, title: "Play ▶\n(none on)" });
+	assert.deepEqual(playbackViewOf({}, none), { state: 0, title: "Play ▶" });
 	assert.equal(playbackLinkFor({}, none), null);
 	assert.deepEqual(playbackViewOf({}, replay()), { state: 1, title: "Pause ⏸\n4K replay" });
 	assert.equal(playbackLinkFor({}, replay()), "/deck/replay/toggle");

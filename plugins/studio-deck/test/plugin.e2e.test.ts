@@ -15,7 +15,7 @@ import { test } from "node:test";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { DOT, GROUPS, ON, TALLY } from "../src/lib/colours";
+import { DOT, KINDS, OUTPUT_COLOURS, TALLY } from "../src/lib/colours";
 
 /** The SVG inside a setImage data URL; fails if the image isn't one. */
 const svgOf = (m: { payload?: { image?: string } }): string => {
@@ -183,21 +183,25 @@ test("real SDK and real Studio: key follows its source and toggles it", { timeou
 		deck.send(keyEvent("willAppear", "K1", settings));
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "K1" && m.payload?.title === "Up Next", "source title");
 		await deck.waitFor((m) => m.event === "setState" && m.payload?.state === 0, "off");
-		// No colour picked: both states drawn in blue, lit orange.
-		const blueOff = await deck.waitFor((m) => m.event === "setImage" && m.context === "K1" && m.payload?.state === 0, "blue off image");
-		assert.ok(svgOf(blueOff).includes(GROUPS.blue.off));
-		const blueOn = await deck.waitFor((m) => m.event === "setImage" && m.context === "K1" && m.payload?.state === 1, "blue on image");
-		assert.ok(svgOf(blueOn).includes(ON) && svgOf(blueOn).includes(GROUPS.blue.band));
+		// Both states drawn teal (a Source key), with Output 1's orange disc.
+		const tealOff = await deck.waitFor((m) => m.event === "setImage" && m.context === "K1" && m.payload?.state === 0, "teal off image");
+		assert.ok(svgOf(tealOff).includes(`fill="${KINDS.source.off}"`) && svgOf(tealOff).includes(`fill="${OUTPUT_COLOURS[0]}"`));
+		const tealOn = await deck.waitFor((m) => m.event === "setImage" && m.context === "K1" && m.payload?.state === 1, "teal on image");
+		assert.ok(svgOf(tealOn).includes(`fill="${KINDS.source.on}"`) && svgOf(tealOn).includes(`fill="${OUTPUT_COLOURS[0]}"`));
 
-		// Picking the yellow (ads) group in the settings panel redraws both states once.
+		// Set to turn the sound on and off in the settings panel: both states redrawn once, pink.
 		let mark = deck.received.length;
-		deck.send({ ...keyEvent("didReceiveSettings", "K1", { ...settings, colour: "yellow" }) });
-		const yellowOff = await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setImage" && m.payload?.state === 0, "yellow off image");
-		assert.ok(svgOf(yellowOff).includes(GROUPS.yellow.off));
-		const yellowOn = await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setImage" && m.payload?.state === 1, "yellow on image");
-		assert.ok(svgOf(yellowOn).includes(ON) && svgOf(yellowOn).includes(GROUPS.yellow.band));
+		deck.send({ ...keyEvent("didReceiveSettings", "K1", { ...settings, press: "sound" }) });
+		const pinkOff = await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setImage" && m.payload?.state === 0, "sound off image");
+		assert.ok(svgOf(pinkOff).includes(`fill="${KINDS.sound.off}"`));
+		const pinkOn = await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setImage" && m.payload?.state === 1, "sound on image");
+		assert.ok(svgOf(pinkOn).includes(`fill="${KINDS.sound.on}"`));
 		await new Promise((r) => setTimeout(r, 200));
-		assert.equal(deck.received.filter((m) => deck.received.indexOf(m) >= mark && m.event === "setImage").length, 2, "images sent once per group change");
+		assert.equal(deck.received.filter((m) => deck.received.indexOf(m) >= mark && m.event === "setImage").length, 2, "images sent once per change");
+		// Back to showing and hiding it.
+		mark = deck.received.length;
+		deck.send({ ...keyEvent("didReceiveSettings", "K1", settings) });
+		await deck.waitFor((m) => deck.received.indexOf(m) >= mark && m.event === "setImage" && m.payload?.state === 0 && svgOf(m).includes(`fill="${KINDS.source.off}"`), "teal again");
 
 		// Shown from somewhere else (the Output page, a link): the key lights.
 		mark = deck.received.length;
@@ -261,8 +265,8 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 		deck.send(keyEvent("willAppear", "S1", { host, scene: pre.id, sceneName: pre.name }, SCENE_ACTION));
 		deck.send(keyEvent("willAppear", "S2", { host, press: "next" }, SCENE_ACTION));
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "S1" && m.payload?.title === "Pre-game", "scene title");
-		// Drawn in the scene's own colour once Studio answers.
-		await deck.waitFor((m) => m.event === "setImage" && m.context === "S1" && m.payload?.state === 0 && svgOf(m).includes(GROUPS.green.off), "scene's own colour");
+		// Drawn blue, a Scene key.
+		await deck.waitFor((m) => m.event === "setImage" && m.context === "S1" && m.payload?.state === 0 && svgOf(m).includes(`fill="${KINDS.scene.off}"`), "scene blue");
 		// Live is current and last: Next has nowhere to go.
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "S2" && m.payload?.title === "▶\n(last)", "next at the end");
 
@@ -279,13 +283,13 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 		mark = deck.received.length;
 		await fetch(`${await deckBase(host)}/deck/layer/scoreboard/on`);
 		const dotted = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "S1" && m.payload?.state === 1, "changed dot");
-		assert.ok(svgOf(dotted).includes(`fill="${DOT}"`) && svgOf(dotted).includes("<circle"));
+		assert.ok(svgOf(dotted).includes(`fill="${DOT}"`));
 
 		// Pressing it again puts it back: the dot goes.
 		mark = deck.received.length;
 		deck.send(keyEvent("keyDown", "S1", { host, scene: pre.id, sceneName: pre.name }, SCENE_ACTION));
 		const clean = await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "S1" && m.payload?.state === 1, "dot gone");
-		assert.ok(!svgOf(clean).includes("<circle"));
+		assert.ok(!svgOf(clean).includes(`fill="${DOT}"`));
 		now = await scene();
 		assert.deepEqual(now.sources.filter((s) => s.visible).map((s) => s.name), ["Up Next"]);
 
@@ -299,7 +303,7 @@ test("real SDK and real Studio: Scene keys go to scenes, light for the current o
 		deck.send({ event: "propertyInspectorDidAppear", action: SCENE_ACTION, context: "S1", device: "DEV" });
 		deck.send({ event: "sendToPlugin", action: SCENE_ACTION, context: "S1", payload: { cmd: "scenes", host } });
 		const list = await deck.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "scenes", "scene list");
-		assert.deepEqual(list.payload.scenes, [{ id: pre.id, name: "Pre-game", colour: "green" }, { id: live.id, name: "Live", colour: "blue" }]);
+		assert.deepEqual(list.payload.scenes, [{ id: pre.id, name: "Pre-game" }, { id: live.id, name: "Live" }]);
 
 		// Deleted on the Output page: the key says gone.
 		mark = deck.received.length;
@@ -337,7 +341,7 @@ test("real SDK and real Studio: Sequence keys play and stop a sequence and show 
 		deck.send(keyEvent("willAppear", "Q1", settings, SEQUENCE_ACTION));
 		deck.send(keyEvent("willAppear", "Q2", { host, press: "next" }, SEQUENCE_ACTION));
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "Q1" && m.payload?.title === "Quarter\nbreak\n▶", "sequence title");
-		await deck.waitFor((m) => m.event === "setImage" && m.context === "Q1" && m.payload?.state === 0 && svgOf(m).includes(GROUPS.purple.off), "sequence's own colour");
+		await deck.waitFor((m) => m.event === "setImage" && m.context === "Q1" && m.payload?.state === 0 && svgOf(m).includes(`fill="${KINDS.sequence.off}"`), "sequence purple");
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "Q2" && m.payload?.title === "Next ⏭\n(none on)", "next with nothing playing");
 
 		// Pressing it plays it: it lights and shows the first step waiting for Next.
@@ -363,7 +367,7 @@ test("real SDK and real Studio: Sequence keys play and stop a sequence and show 
 		deck.send({ event: "propertyInspectorDidAppear", action: SEQUENCE_ACTION, context: "Q1", device: "DEV" });
 		deck.send({ event: "sendToPlugin", action: SEQUENCE_ACTION, context: "Q1", payload: { cmd: "sequences", host } });
 		const list = await deck.waitFor((m) => m.event === "sendToPropertyInspector" && m.payload?.type === "sequences", "sequence list");
-		assert.deepEqual(list.payload.sequences, [{ id: qb.id, name: "Quarter break", colour: "purple" }]);
+		assert.deepEqual(list.payload.sequences, [{ id: qb.id, name: "Quarter break" }]);
 	} finally {
 		plugin.kill();
 		studio.kill();
@@ -404,13 +408,14 @@ test("real SDK and real Studio: Run order keys name what plays next and play or 
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "N1" && m.payload?.title === "Play next ▶\n(empty)", "empty run order");
 		await deck.waitFor((m) => m.event === "setTitle" && m.context === "N2" && m.payload?.title === "Skip ⏭\n(empty)", "skip with nothing queued");
 
-		// The night's plan added on the Output page: both keys light and name the head, in its own colour.
+		// The night's plan added on the Output page: both keys light and name the head.
 		let mark = deck.received.length;
 		await post({ type: "roAdd", kind: "sequence", name: "Quarter break" });
 		await post({ type: "roAdd", kind: "scene", name: "Live game" });
 		await deck.waitFor((m) => after(mark)(m) && m.event === "setTitle" && m.context === "N1" && m.payload?.title === "Play next ▶\nQuarter\nbreak\n+1 more", "head named");
 		await deck.waitFor((m) => after(mark)(m) && m.event === "setState" && m.context === "N2" && m.payload?.state === 1, "skip key lit");
-		await deck.waitFor((m) => after(mark)(m) && m.event === "setImage" && m.context === "N1" && m.payload?.state === 0 && svgOf(m).includes(GROUPS.purple.off), "the head's own colour");
+		// Drawn yellow, a Run order key, from the start.
+		await deck.waitFor((m) => m.event === "setImage" && m.context === "N1" && m.payload?.state === 0 && svgOf(m).includes(`fill="${KINDS.runorder.off}"`), "run order yellow");
 
 		// Play next plays the head: the sequence starts and the key moves on to the scene behind it.
 		mark = deck.received.length;
@@ -469,7 +474,7 @@ test("real SDK and real Studio: Replay keys play, pause and stop a 4K replay", {
 
 		deck.send(keyEvent("willAppear", "R1", { host }, PLAYBACK_ACTION));
 		deck.send(keyEvent("willAppear", "R2", { host, press: "stop" }, PLAYBACK_ACTION));
-		await deck.waitFor((m) => m.event === "setTitle" && m.context === "R1" && m.payload?.title === "Play ▶\n(none on)", "nothing running");
+		await deck.waitFor((m) => m.event === "setTitle" && m.context === "R1" && m.payload?.title === "Play ▶", "nothing running");
 
 		// A replay started on the Recordings tab: the keys light, and the play key says Play (it starts paused).
 		let mark = deck.received.length;
@@ -526,7 +531,7 @@ test("real SDK and real Studio: Switcher keys show the tally and press the switc
 		deck.send(keyEvent("willAppear", "W3", dsk, SWITCHER_ACTION));
 		await deck.waitFor(title("W3", "Down key\n1"), "downstream key");
 		const off = await deck.waitFor((m) => m.event === "setImage" && m.context === "W2" && m.payload?.state === 0, "dark image");
-		assert.ok(svgOf(off).includes(GROUPS.blue.off));
+		assert.ok(svgOf(off).includes(`fill="${KINDS.switcher.off}"`));
 
 		// Court to preview from the key: it lights green.
 		let mark = deck.received.length;

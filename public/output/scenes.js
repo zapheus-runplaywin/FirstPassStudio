@@ -93,7 +93,7 @@ function renderGrid() {
     input.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { name: input.value } });
     input.onkeydown = e => { if (e.key === 'Enter') input.blur(); };
     const sel = th.querySelector('select');
-    sel.setAttribute('aria-label', 'Stream Deck colour');
+    sel.setAttribute('aria-label', 'Colour group');
     for (const [v, label] of COLOURS) sel.add(new Option(label, v, false, v === sc.colour));
     sel.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { colour: sel.value } });
     const quiet = th.querySelector('.quietMusic input');
@@ -134,6 +134,6 @@ function renderGrid() {
   note.className = 'note';
   note.style.margin = '8px';
   note.innerHTML = 'Click a cell to change it: <b>On</b>, <b>Off</b> or <b>Leave</b> (going to the scene doesn\'t touch that source). '
-    + 'This changes the saved scenes, not what\'s on now. The tinted column is the scene that\'s on now. The colour is the Stream Deck colour group for the scene\'s keys.';
+    + 'This changes the saved scenes, not what\'s on now. The tinted column is the scene that\'s on now. The colour groups the scenes in the list, and Next and Previous go in that order.';
   grid.appendChild(note);
 }

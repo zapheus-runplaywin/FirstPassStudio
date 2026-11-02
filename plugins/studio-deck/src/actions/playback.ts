@@ -62,8 +62,8 @@ class PlaybackKey {
 	private draw(): void {
 		if (!this.painted) {
 			this.painted = true;
-			void this.key.setImage(keyImageUrl("playback", "grey", 0), { state: 0 });
-			void this.key.setImage(keyImageUrl("playback", "grey", 1), { state: 1 });
+			void this.key.setImage(keyImageUrl("playback", 0), { state: 0 });
+			void this.key.setImage(keyImageUrl("playback", 1), { state: 1 });
 		}
 		const view = playbackViewOf(this.settings, this.playback);
 		const title = this.settings.keepTitle ? undefined : view.title;

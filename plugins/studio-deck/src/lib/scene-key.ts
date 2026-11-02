@@ -17,20 +17,16 @@ export type SceneSettings = {
 	press?: ScenePress;
 	/** The output it plays the scene on (an output's id); Output 1 when not set. */
 	output?: string;
-	/** Colour group; empty means the scene's own colour from the Output page. */
-	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
 	keepTitle?: boolean;
 };
 
 export type SceneView = {
-	/** 0 = dark, 1 = lit (in its output's colour): the key's scene is the current one. */
+	/** 0 = dark, 1 = lit: the key's scene is the current one. */
 	state: 0 | 1;
 	title: string;
 	/** Draw the changed dot: sources differ from the current scene as saved. */
 	dot: boolean;
-	/** The colour group to draw it in. */
-	colour: string;
 };
 
 const PRESS: ScenePress[] = ["go", "next", "prev", "again"];
@@ -59,13 +55,7 @@ export function stepTarget(scene: Scene | null, press: "next" | "prev"): SavedSc
 export function sceneViewOf(settings: SceneSettings, all: Scene | null): SceneView {
 	const press = pressOf(settings);
 	const scene = forOutput(all, settings.output);
-	const own = settings.colour || "";
-	const view = (title: string, target?: SavedScene, state: 0 | 1 = 0, dot = false): SceneView => ({
-		state,
-		title,
-		dot,
-		colour: own || target?.colour || "blue",
-	});
+	const view = (title: string, state: 0 | 1 = 0, dot = false): SceneView => ({ state, title, dot });
 	if (press === "go") {
 		if (!settings.scene) return view("Pick a\nscene");
 		const name = settings.sceneName || "Scene";
@@ -74,19 +64,19 @@ export function sceneViewOf(settings: SceneSettings, all: Scene | null): SceneVi
 		const sc = scenesOf(scene).find((s) => s.id === settings.scene);
 		if (!sc) return view(`${wrapTitle(name)}\n(gone)`);
 		const current = scene.current === sc.id;
-		return view(wrapTitle(sc.name), sc, current ? 1 : 0, current && isChanged(scene));
+		return view(wrapTitle(sc.name), current ? 1 : 0, current && isChanged(scene));
 	}
 	const label = { next: "Next", prev: "Previous", again: "Back to saved" }[press];
 	if (!scene) return view(`${label}\n(off air)`);
 	if (outputGone(all, settings.output)) return view(`${label}\n(no output)`);
 	if (press === "again") {
 		const cur = currentOf(scene);
-		return cur ? view(`Back to\n${wrapTitle(cur.name)}`, cur, 0, isChanged(scene)) : view("Back to\nsaved\n(no scene)");
+		return cur ? view(`Back to\n${wrapTitle(cur.name)}`, 0, isChanged(scene)) : view("Back to\nsaved\n(no scene)");
 	}
 	const target = stepTarget(scene, press);
 	const arrow = press === "next" ? "▶" : "◀";
 	if (!target) return view(scenesOf(scene).length ? `${arrow}\n(${press === "next" ? "last" : "first"})` : `${label}\n(no scenes)`);
-	return view(`${arrow}\n${wrapTitle(target.name)}`, target);
+	return view(`${arrow}\n${wrapTitle(target.name)}`);
 }
 
 /** The Studio link a press opens. */

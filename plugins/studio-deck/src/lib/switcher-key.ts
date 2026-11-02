@@ -25,8 +25,6 @@ export type SwitcherSettings = {
 	verb?: KeyVerb;
 	/** The macro's number, from 1. */
 	macro?: string;
-	/** Colour group for the dark body and the band; blue when not set. */
-	colour?: string;
 	/** Leave the title alone so the one typed in Stream Deck shows. */
 	keepTitle?: boolean;
 };
