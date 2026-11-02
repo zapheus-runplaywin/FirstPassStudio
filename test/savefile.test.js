@@ -129,3 +129,24 @@ test('readJson reads a good file', () => {
   fs.writeFileSync(file, '{"ok": 1}');
   assert.deepEqual(savefile.readJson(file, null), { ok: 1 });
 });
+
+test('an older save whose rename is already under way when Studio stops can\'t land over what flushSync wrote', async () => {
+  // The restart test's clock coming back at 10:00 (PR #463's CI): the save from before the clock was set had already
+  // asked for its rename when Studio stopped; flushSync wrote the newest, then that rename finished and put the older
+  // contents back. Here the rename is held until after flushSync, as the operating system may.
+  const dir = tmp();
+  const file = path.join(dir, 'scoreboard-state.json');
+  const realRename = fs.rename;
+  let held = null;
+  fs.rename = (from, to, cb) => { held = () => realRename(from, to, cb); };
+  try {
+    savefile.writeFile(file, '{"clock":600}');
+    await new Promise(resolve => { const check = () => (held ? resolve() : setTimeout(check, 5)); check(); });
+    savefile.writeFile(file, '{"clock":200}'); // waits behind the first
+    savefile.flushSync();
+    assert.equal(fs.readFileSync(file, 'utf8'), '{"clock":200}');
+  } finally { fs.rename = realRename; }
+  await new Promise(resolve => { const r = held; held = null; fs.rename = realRename; r(); setTimeout(resolve, 50); });
+  assert.equal(fs.readFileSync(file, 'utf8'), '{"clock":200}', 'the older save\'s rename doesn\'t put 600 back');
+  assert.deepEqual(fs.readdirSync(dir), ['scoreboard-state.json'], 'no temporary files left');
+});
