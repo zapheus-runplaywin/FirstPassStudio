@@ -751,8 +751,10 @@ function graphicRead(pathname, headers) {
 
 // Addresses already logged as refused a change (one line each, not one per press).
 const refusedFrom = new Set();
-// Requests that pages repeat every second or two are only logged when they fail.
-const QUIET = new Set(['/api/version', '/api/log', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live']);
+// Requests that pages repeat every second or two are only logged when they fail: among them the tab bar's reads on
+// every Studio page (/api/health every 2 s, /api/playback every 3 s) and the Stream Deck's Replay keys' (/api/playback
+// every second).
+const QUIET = new Set(['/api/version', '/api/log', '/api/health', '/api/playback', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live']);
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   // A Stream Deck link with this Mac's key in front (/k/<key>/deck/...) is the plain /deck/... link from here on.
