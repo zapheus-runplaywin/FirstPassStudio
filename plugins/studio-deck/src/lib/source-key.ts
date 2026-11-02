@@ -36,11 +36,15 @@ export function findSource(scene: Scene | null, id?: string): SceneSource | unde
 	return id ? scene?.sources.find((s) => s.id === id) : undefined;
 }
 
-/** Breaks a name over up to three short lines so it fits on a key. */
+/**
+ * Breaks a name over up to three short lines so it fits on a key. A word too long for a line (over 10 letters, which
+ * Stream Deck cuts off at both ends) is broken with a hyphen.
+ */
 export function wrapTitle(name: string, width = 9): string {
 	const lines: string[] = [];
 	let line = "";
-	for (const word of name.trim().split(/\s+/)) {
+	const words = name.trim().split(/\s+/).flatMap((w) => (w.length > 10 ? [`${w.slice(0, width - 1)}-`, w.slice(width - 1)] : [w]));
+	for (const word of words) {
 		if (line && (line + " " + word).length > width) {
 			lines.push(line);
 			line = word;

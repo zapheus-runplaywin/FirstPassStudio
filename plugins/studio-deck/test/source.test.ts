@@ -38,6 +38,9 @@ test("key view follows the source", () => {
 test("titles wrap to fit a key", () => {
 	assert.equal(wrapTitle("Travis' Disciples Score Bug"), "Travis'\nDisciples\nScore Bug");
 	assert.equal(wrapTitle("Scoreboard"), "Scoreboard");
+	// Too long for a key: broken with a hyphen rather than cut off at both ends.
+	assert.equal(wrapTitle("Commentators"), "Commenta-\ntors");
+	assert.equal(wrapTitle("Commentator stats"), "Commenta-\ntor stats");
 });
 
 test("press links", () => {
