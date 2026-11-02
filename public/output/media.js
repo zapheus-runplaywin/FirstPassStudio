@@ -151,9 +151,13 @@ function show(s) {
   scene = viewFor(s, previewOutput);
   // Which output clicks play them on, once there's more than one.
   for (const [h, word] of [['scenesHead', 'Scenes'], ['seqHead', 'Sequences'], ['roHead', 'Run order']]) {
-    $(h).textContent = scene.viewMany ? `${word}: playing on ${scene.viewName}` : word;
-    $(h).style.setProperty('--c', scene.viewMany ? scene.viewColour : 'transparent');
-    $(h).classList.toggle('forOutput', !!scene.viewMany);
+    // The output named in a chip after the heading, so the heading never reads as what's playing.
+    $(h).textContent = word;
+    if (scene.viewMany) {
+      const chip = Object.assign(document.createElement('span'), { className: 'outChip', textContent: scene.viewName, title: `Clicks here play on ${scene.viewName}` });
+      chip.style.setProperty('--c', scene.viewColour || 'var(--fp-muted)');
+      $(h).append(chip);
+    }
   }
   // A conversion started or finished: refresh the media lists.
   const now = (s.converting || []).join('|');

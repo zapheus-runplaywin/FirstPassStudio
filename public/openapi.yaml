@@ -842,7 +842,7 @@ paths:
       summary: Play what's next in the run order, skip it or clear the list
       description: |
         The run order is tonight's plan on the Output page, above Scenes and Sequences. `next` plays the head now (a sequence starts,
-        a scene is gone to), `skip` drops it without playing it, and `clear` empties the list. Nothing in the list starts by itself.
+        a scene is gone to), `skip` drops it without playing it, and `clear` empties the list, and what it has played tonight. Nothing in the list starts by itself.
         Every scene, sequence and run order link also works for another output with `/deck/output/<output>/` in front
         (`/deck/output/2/runorder/next`), the output's name as a link or its number.
       operationId: runOrder

@@ -53,7 +53,26 @@ const SHOTS = [
     await page.waitForTimeout(800);
     await part(page, row, out, 8, page.locator('#sources li.editor'));
   } },
-  { name: 's-output-runorder', async take({ page, studio, out }) { await go(page, studio, '/output.html'); await part(page, page.locator('#roSection'), out); } },
+  { name: 's-output-runorder', async take({ page, studio, out }) {
+    // Partway through the night: Run-up and the Live game scene have played, the Sponsor break is on air, Walk out is queued.
+    const sc = await studio.get('/api/scene'), id = n => sc.sequences.find(x => x.name === n).id;
+    await studio.post('/api/scene', { type: 'roClear' });
+    await studio.post('/api/scene', { type: 'roAdd', kind: 'sequence', id: id('Run-up') });
+    await studio.post('/api/scene', { type: 'roAdd', kind: 'scene', id: sc.scenes.find(x => x.name === 'Live game').id });
+    for (const n of ['Sponsor break', 'Walk out']) await studio.post('/api/scene', { type: 'roAdd', kind: 'sequence', id: id(n) });
+    for (let i = 0; i < 3; i++) await studio.post('/api/scene', { type: 'roNext' });
+    try {
+      await go(page, studio, '/output.html', 3000);
+      await part(page, page.locator('#roSection'), out);
+    } finally {
+      await studio.post('/api/scene', { type: 'seqStop' });
+      await studio.post('/api/scene', { type: 'musicStop' });
+      await studio.post('/api/scene', { type: 'sceneGo', scene: 'Live game' });
+      // Back to tonight's run order as it was.
+      await studio.post('/api/scene', { type: 'roClear' });
+      for (const n of ['Sponsor break', 'Walk out']) await studio.post('/api/scene', { type: 'roAdd', kind: 'sequence', id: id(n) });
+    }
+  } },
   { name: 's-output-scenes', async take({ page, studio, out }) { await go(page, studio, '/output.html'); await part(page, page.locator('#scenesSection'), out); } },
   { name: 's-output-scenes-edit', async take({ page, studio, out }) {
     await go(page, studio, '/output.html');

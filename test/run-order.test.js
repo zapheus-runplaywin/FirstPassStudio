@@ -232,3 +232,30 @@ test('Stream Deck links: /deck/runorder/next, skip, add/<name>, load/<order> and
   assert.equal(link('runorder/load/day').status, 404);
   assert.equal(link('runorder/bogus'), null, 'not a run order link');
 });
+
+test('what the run order has played stays listed tonight, oldest first, with when; Skip and × don\'t add to it and Clear empties it', () => {
+  reset();
+  const played = () => st().runOrderPlayed.map(it => `${it.kind}:${it.name}`);
+  make('Run-up', { then: { type: 'off' }, steps: [step(['Ladder'])] });
+  make('Promo', { then: { type: 'off' }, steps: [step(['Fixtures'])] });
+  add('sequence', 'Run-up'); add('sequence', 'Promo'); add('scene', 'Live'); add('sequence', 'Promo');
+  assert.deepEqual(played(), []);
+  ok({ type: 'roNext' });
+  assert.deepEqual(played(), ['sequence:Run-up'], 'played as it starts');
+  assert.equal(st().runOrderPlayed[0].at, Date.now());
+  ok({ type: 'roSkip' });
+  assert.deepEqual(played(), ['sequence:Run-up'], 'a skipped item never played');
+  // Run-up ends and the queue takes it to the Live scene.
+  wait(20);
+  assert.equal(currentScene(), 'Live');
+  assert.deepEqual(played(), ['sequence:Run-up', 'scene:Live']);
+  ok({ type: 'roRemove', key: st().runOrder[0].key });
+  assert.deepEqual(played(), ['sequence:Run-up', 'scene:Live'], 'one taken out never played');
+  // A sequence played by hand isn't from the run order, so it isn't listed.
+  ok({ type: 'seqPlay', sequence: seq('Promo').id });
+  assert.deepEqual(played(), ['sequence:Run-up', 'scene:Live']);
+  // Clear empties both, even with nothing queued.
+  assert.deepEqual(order(), []);
+  ok({ type: 'roClear' });
+  assert.deepEqual(played(), []);
+});
