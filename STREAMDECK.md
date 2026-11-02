@@ -282,8 +282,8 @@ The plugin's **Switcher** key (above) presses these and lights with the switcher
 ## Scenes (Output page)
 
 A scene is a saved look for the scene's sources: which are on, which are off, and which it leaves as they are. Make them on the
-Output page: set the sources up, press **Save what's on now** and name it (Pre-game, Live, Quarter time, Full time…). **Edit scenes**
-changes them without touching what's on.
+Output page: set the sources up, press **Save what's on now** and name it (Pre-game, Live, Quarter time, Full time…). The pencil on a scene's
+tile renames or recolours it, and the bin deletes it, without touching what's on.
 
 | Button | Link |
 |---|---|

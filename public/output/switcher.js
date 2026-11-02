@@ -331,7 +331,7 @@ function switcherEditor(list, redraw) {
   return box;
 }
 
-// A scene's switcher actions, from the Edit scenes grid.
+// A scene's switcher actions, from the scene's settings (the pencil on its tile).
 let swScene = null; // { id, list } being edited
 function editSceneSwitcher(sc) {
   swScene = { id: sc.id, list: JSON.parse(JSON.stringify(sc.switcher || [])) };

@@ -1,4 +1,4 @@
-// FirstPass Studio - the Output page, part 4 of 16: Scenes: saved looks for the sources, going to one, and the changed list.
+// FirstPass Studio - the Output page, part 4 of 16: Scenes: saved looks for the sources, going to one, the changed list, and each tile's settings, copy and delete.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
@@ -9,7 +9,8 @@
 const COLOURS = [['green', 'Green: pre-game'], ['blue', 'Blue: live stream'], ['purple', 'Purple: quarter time'], ['grey', 'Grey: post-game'], ['yellow', 'Yellow: ads']];
 const currentScene = () => (scene.scenes || []).find(s => s.id === scene.current) || null;
 const nameOf = id => scene.sources.find(s => s.id === id)?.name || '';
-let editing = false;
+const ICON_COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICON_BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
 function sceneCounts(sc) {
   const v = Object.values(sc.states);
   const on = v.filter(x => x === 'on').length, off = v.filter(x => x === 'off').length, left = scene.sources.length - on - off;
@@ -32,7 +33,22 @@ function renderScenes() {
     b.querySelector('.band').classList.add(sc.colour);
     b.title = sc.id === scene.current ? (changed.length ? `Go back to ${sc.name} as saved` : `${sc.name} is on now`) : `Go to ${sc.name}`;
     b.onclick = () => act({ type: 'sceneGo', scene: sc.id });
-    box.appendChild(b);
+    // Its actions, along the foot of the tile: settings, copy, delete.
+    const tile = document.createElement('div');
+    tile.className = 'sceneTile';
+    const acts = document.createElement('span');
+    acts.className = 'sceneActs';
+    acts.innerHTML = `<button class="alt ico edit" title="Settings: name, colour, quiet the music, switcher">${ICON_PEN}</button>`
+      + `<button class="alt ico copy" title="Copy this scene">${ICON_COPY}</button>`
+      + `<button class="alt ico del" title="Delete this scene">${ICON_BIN}</button>`;
+    acts.querySelector('.edit').setAttribute('aria-label', `Settings for ${sc.name}`);
+    acts.querySelector('.copy').setAttribute('aria-label', `Copy ${sc.name}`);
+    acts.querySelector('.del').setAttribute('aria-label', `Delete ${sc.name}`);
+    acts.querySelector('.edit').onclick = () => editScene(sc);
+    acts.querySelector('.copy').onclick = () => act({ type: 'sceneCopy', scene: sc.id });
+    acts.querySelector('.del').onclick = () => deleteScene(sc);
+    tile.append(b, acts);
+    box.appendChild(tile);
   }
   // What's different from the current scene, and the three ways out.
   const drift = $('drift');
@@ -54,11 +70,11 @@ function renderScenes() {
   $('scenesEmpty').hidden = !!scenes.length;
   $('scenesEmpty').innerHTML = 'A scene is a saved look: which sources are on and which are off. Set the sources up, then <b>Add scene</b> saves what\'s on now under a name '
     + '(Pre-game, Live, Quarter time, Full time…). Going to a scene, here or from the Stream Deck, puts the graphics back to that look.';
-  $('editScenes').classList.toggle('hidden', !scenes.length);
-  $('editScenes').textContent = editing ? 'Done' : 'Edit scenes';
-  if (!scenes.length) editing = false;
-  $('sceneGrid').classList.toggle('hidden', !editing);
-  if (editing) renderGrid();
+  // Keep an open settings dialog in step: its switcher button, or close it if its scene went (deleted elsewhere).
+  if ($('sceneDialog').open) {
+    const open = scenes.find(x => x.id === sdScene?.id);
+    if (open) sdSwitcherButton(open); else $('sceneDialog').close();
+  }
 }
 // 🤫 beside the name of a scene or sequence with Quiet the music ticked.
 function quietMark() {
@@ -70,70 +86,46 @@ async function saveNewScene() {
   const name = await askText('Name the new scene (what\'s on now is saved in it)', '');
   if (name) act({ type: 'sceneSave', name });
 }
-$('editScenes').onclick = () => { editing = !editing; renderScenes(); };
 $('addScene').onclick = saveNewScene;
 
-// The Edit scenes grid: sources down the side, scenes across. Each cell goes On, Off, Leave as is.
-// It changes the saved scenes only, never what's on now.
-const NEXT_STATE = { on: 'off', off: 'leave', leave: 'on' };
-function renderGrid() {
-  const scenes = scene.scenes || [];
-  const grid = $('sceneGrid');
-  // Keep a name box someone is typing in.
-  const typing = document.activeElement?.dataset?.scene;
-  if (typing && grid.contains(document.activeElement)) return;
-  const table = document.createElement('table');
-  const head = table.createTHead().insertRow();
-  head.appendChild(Object.assign(document.createElement('th'), { textContent: 'Source' }));
-  scenes.forEach((sc, i) => {
-    const th = document.createElement('th');
-    th.innerHTML = '<input maxlength="60"><div class="row"><select></select></div><div class="row"><button class="alt copy">Copy</button><button class="danger del">Delete</button></div><label class="quietMusic" style="font-weight:400;font-size:12px"><input type="checkbox"> Quiet the music</label><button class="alt swEdit hidden"></button>';
-    const input = th.querySelector('input');
-    input.value = sc.name; input.dataset.scene = sc.id; input.setAttribute('aria-label', 'Scene name');
-    input.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { name: input.value } });
-    input.onkeydown = e => { if (e.key === 'Enter') input.blur(); };
-    const sel = th.querySelector('select');
-    sel.setAttribute('aria-label', 'Colour group');
-    for (const [v, label] of COLOURS) sel.add(new Option(label, v, false, v === sc.colour));
-    sel.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { colour: sel.value } });
-    const quiet = th.querySelector('.quietMusic input');
-    quiet.checked = !!sc.quiet;
-    quiet.title = 'Going to this scene ducks the music (or fades out a sequence\'s music), for an interview on court';
-    quiet.onchange = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { quiet: quiet.checked } });
-    // Its switcher actions (once a switcher is set up, or it has some), in a dialog of their own.
-    const swb = th.querySelector('.swEdit');
-    swb.classList.toggle('hidden', !(sw?.setUp || sc.switcher?.length));
-    swb.textContent = sc.switcher?.length ? `🎥 Switcher (${sc.switcher.length})` : '🎥 Switcher';
-    swb.title = sc.switcher?.length ? `Switcher: ${sc.switcher.map(swActText).join(', ')}` : 'Cut to a camera, a key on or off, fade to black or a macro when this scene is picked';
-    swb.onclick = () => editSceneSwitcher(sc);
-    th.querySelector('.copy').onclick = () => act({ type: 'sceneCopy', scene: sc.id });
-    th.querySelector('.del').onclick = async () => {
-      if (await askConfirm(`Delete the scene "${sc.name}"?`, 'Its Stream Deck keys will say gone. The sources stay as they are.', { ok: 'Delete', danger: true })) act({ type: 'sceneRemove', scene: sc.id });
-    };
-    head.appendChild(th);
-  });
-  const body = table.createTBody();
-  for (const s of scene.sources) {
-    const tr = body.insertRow();
-    tr.insertCell().textContent = s.name;
-    for (const sc of scenes) {
-      const td = tr.insertCell();
-      if (sc.id === scene.current) td.className = 'cur';
-      const state = sc.states[s.id] || 'leave';
-      const b = document.createElement('button');
-      b.className = 'cell ' + state;
-      b.textContent = { on: 'On', off: 'Off', leave: 'Leave' }[state];
-      b.title = `${s.name} in ${sc.name}: ${{ on: 'turned on', off: 'turned off', leave: 'left as it is' }[state]}. Click to change.`;
-      b.onclick = () => act({ type: 'sceneUpdate', scene: sc.id, changes: { states: { [s.id]: NEXT_STATE[state] } } });
-      td.appendChild(b);
-    }
-  }
-  grid.innerHTML = '';
-  grid.appendChild(table);
-  const note = document.createElement('p');
-  note.className = 'note';
-  note.style.margin = '8px';
-  note.innerHTML = 'Click a cell to change it: <b>On</b>, <b>Off</b> or <b>Leave</b> (going to the scene doesn\'t touch that source). '
-    + 'This changes the saved scenes, not what\'s on now. The tinted column is the scene that\'s on now. The colour groups the scenes in the list, and Next and Previous go in that order.';
-  grid.appendChild(note);
+// Deleting a scene, from the bin on its tile or its settings.
+async function deleteScene(sc) {
+  if (!await askConfirm(`Delete the scene "${sc.name}"?`, 'Are you sure? Its Stream Deck keys will say gone. The sources stay as they are.', { ok: 'Delete', danger: true })) return false;
+  return !!await act({ type: 'sceneRemove', scene: sc.id });
 }
+
+// One scene's settings, from the pencil on its tile: name, colour, Quiet the music and its switcher actions.
+// What it turns on and off is changed by Save over (the bar under the scenes) instead.
+let sdScene = null;
+for (const [v, label] of COLOURS) $('sdColour').add(new Option(label, v));
+function editScene(sc) {
+  sdScene = sc;
+  $('sdTitle').textContent = sc.name;
+  $('sdName').value = sc.name;
+  $('sdColour').value = sc.colour;
+  $('sdQuiet').checked = !!sc.quiet;
+  sdSwitcherButton(sc);
+  $('sceneDialog').showModal();
+  sdGuard.opened();
+}
+// Its switcher actions (once a switcher is set up, or it has some), in a dialog of their own.
+function sdSwitcherButton(sc) {
+  const swb = $('sdSwitcher');
+  swb.classList.toggle('hidden', !(sw?.setUp || sc.switcher?.length));
+  swb.textContent = sc.switcher?.length ? `🎥 Switcher (${sc.switcher.length})` : '🎥 Switcher';
+  swb.title = sc.switcher?.length ? `Switcher: ${sc.switcher.map(swActText).join(', ')}` : 'Cut to a camera, a key on or off, fade to black or a macro when this scene is picked';
+}
+const sdValues = () => ({ name: $('sdName').value.trim() || sdScene.name, colour: $('sdColour').value, quiet: $('sdQuiet').checked });
+$('sdSwitcher').onclick = () => editSceneSwitcher((scene.scenes || []).find(x => x.id === sdScene.id) || sdScene);
+$('sdName').onkeydown = e => { if (e.key === 'Enter') $('sdSave').click(); };
+$('sdSave').onclick = async () => {
+  if (await act({ type: 'sceneUpdate', scene: sdScene.id, changes: sdValues() })) $('sceneDialog').close();
+};
+$('sdCancel').onclick = () => $('sceneDialog').close();
+$('sdCopy').onclick = async () => { if (await act({ type: 'sceneCopy', scene: sdScene.id })) $('sceneDialog').close(); };
+$('sdDelete').onclick = async () => { if (await deleteScene(sdScene)) $('sceneDialog').close(); };
+const sdGuard = unsavedDialog($('sceneDialog'), {
+  what: () => `${sdScene?.name || 'the scene'}'s settings`,
+  snapshot: () => sdScene && sdValues(),
+  save: async () => { await $('sdSave').onclick(); return !$('sceneDialog').open; },
+});

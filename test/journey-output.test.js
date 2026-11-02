@@ -151,43 +151,45 @@ test('scenes: save the looks, go between them, see what changed by hand, and go 
   assert.deepEqual(output.errors, []);
 });
 
-test('Edit scenes: a cell set to Leave keeps that source as it is, Copy makes a copy, and Delete asks first', async t => {
-  const { studio, control, output } = await setUp(t);
+test('a scene tile\'s own buttons: the pencil renames and recolours it, copy makes a copy, and the bin asks first', async t => {
+  const { studio, control } = await setUp(t);
   if (!control) return;
   await control.waitForSelector('#sources li.empty');
   await addPage(control, 'scoreboard.html');
-  await addPage(control, 'ladder.html');
   await source(control, 'Scoreboard').locator('.eye').click();
   await saveScene(control, 'Live');
-  await control.click('#editScenes');
-  await control.waitForSelector('#sceneGrid table');
-  // Live's Ladder cell is Off; one click makes it Leave (the grid changes the saved scene, not what's on now).
-  const ladderCell = control.locator('#sceneGrid tbody tr', { hasText: 'Ladder' }).locator('button.cell');
-  assert.equal(await ladderCell.textContent(), 'Off');
-  await ladderCell.click();
-  await control.waitForFunction(() => [...document.querySelectorAll('#sceneGrid tbody tr')].find(r => r.textContent.includes('Ladder'))?.querySelector('button.cell')?.textContent === 'Leave');
-  await outputShows(output, ['Scoreboard on', 'Ladder']);
-  // Now the ladder stays on when Live is picked.
-  await source(control, 'Ladder').locator('.eye').click();
-  await control.click('#scenes button.scene:has-text("Live")');
-  await wait(500);
-  await outputShows(output, ['Scoreboard on', 'Ladder on']);
-  // Copy, then Delete the copy: it asks in Studio's own dialog (asktext.js); Cancel keeps it, Delete deletes it.
-  await control.click('#sceneGrid th .copy');
-  await control.waitForSelector('#scenes button.scene:has-text("Live copy")');
-  await control.locator('#sceneGrid th').nth(2).locator('.del').click();
+  const tile = name => control.locator('#scenes .sceneTile', { has: control.locator('button.scene b', { hasText: new RegExp(`^${name}`) }) });
+  // The pencil: name, colour and Quiet the music, saved together; it doesn't change what's on now.
+  await tile('Live').locator('.sceneActs .edit').click();
+  await control.waitForSelector('#sceneDialog[open]');
+  assert.equal(await control.inputValue('#sdName'), 'Live');
+  await control.fill('#sdName', 'Live play');
+  await control.selectOption('#sdColour', 'purple');
+  await control.check('#sdQuiet');
+  await control.click('#sdSave');
+  await control.waitForSelector('#sceneDialog', { state: 'hidden' });
+  await control.waitForSelector('#scenes button.scene:has-text("Live play")');
+  const saved = (await studio.get('/api/scene')).scenes[0];
+  assert.deepEqual([saved.name, saved.colour, saved.quiet], ['Live play', 'purple', true]);
+  // Copy, then the bin on the copy: it asks in Studio's own dialog (asktext.js); Cancel keeps it, Delete deletes it.
+  await tile('Live play').locator('.sceneActs .copy').click();
+  await control.waitForSelector('#scenes button.scene:has-text("Live play copy")');
+  await tile('Live play copy').locator('.sceneActs .del').click();
   await control.waitForSelector('dialog.fp-ask[open]');
+  assert.match(await control.textContent('dialog.fp-ask'), /Delete the scene "Live play copy"\?/);
   await control.click('dialog.fp-ask button.alt');
   await control.waitForSelector('dialog.fp-ask', { state: 'detached' });
   assert.equal((await studio.get('/api/scene')).scenes.length, 2);
-  await control.locator('#sceneGrid th').nth(2).locator('.del').click();
+  await tile('Live play copy').locator('.sceneActs .del').click();
   await control.waitForSelector('dialog.fp-ask[open]');
   await control.click('dialog.fp-ask button.danger');
-  await control.waitForFunction(() => document.querySelectorAll('#scenes button.scene:not(.addScene)').length === 1);
-  // Renamed in the grid.
-  await control.fill('#sceneGrid th input', 'Live play');
-  await control.press('#sceneGrid th input', 'Enter');
-  await control.waitForSelector('#scenes button.scene:has-text("Live play")');
+  await control.waitForFunction(() => document.querySelectorAll('#scenes button.scene').length === 1);
+  // Delete in the pencil's dialog asks too, and closes it.
+  await tile('Live play').locator('.sceneActs .edit').click();
+  await control.click('#sdDelete');
+  await control.click('dialog.fp-ask button.danger');
+  await control.waitForSelector('#sceneDialog', { state: 'hidden' });
+  assert.equal((await studio.get('/api/scene')).scenes.length, 0);
   assert.deepEqual(control.errors, []);
 });
 

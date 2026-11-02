@@ -408,8 +408,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Scenes:** saved looks for the same sources. Each scene sets every source on or off, or leaves it as it is. **Save what's on now**
   makes one from the sources as they are; clicking a scene goes to it, turning sources on and off to match while one that's already on stays on
   (not reloaded). The sources are shared, so a source turned on or off by hand afterwards changes everywhere, is marked **changed**, and the bar
-  under the scenes offers **Back to saved**, **Save over** the scene, or **Save as new scene**. **Edit scenes** shows a grid (sources down, scenes
-  across) to set each one On, Off or Leave, rename, colour (the group it's listed in: pre-game, live stream, quarter time, post-game, ads), reorder, copy or delete scenes, without changing what's on.
+  under the scenes offers **Back to saved**, **Save over** the scene, or **Save as new scene**. Each scene tile has a pencil (rename, colour: the
+  group it's listed in, pre-game, live stream, quarter time, post-game, ads; Quiet the music; switcher actions), copy and a bin (asks first), none of which changes what's on.
   A source added later is off in every scene. Links: `/deck/scene/<name>`, `/deck/scene/next` and `/deck/scene/prev` (in the scenes' order,
   stopping at the ends) and `/deck/scene/again` (back to saved). The pop-out Scene View has the scenes as buttons too. Exports include the scenes.
 - **Sequences:** the scene's sources played one after another (run-up, quarter break, full time), built on the Output page with **+ New sequence**.
