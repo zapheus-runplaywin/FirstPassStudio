@@ -1,6 +1,6 @@
 // Operator journey for the Production Planner, against the stand-in PlayHQ (test/support/playhq.js): add the
 // commentators, plan tonight on a court, put people on the game being played, and see Scoreboard control follow the
-// planned court and the Commentators graphic name them; then change the court by hand and see the Planner flag it.
+// planned court and the Commentators graphic name them (as a line, and as lower thirds with a headshot); then change the court by hand and see the Planner flag it.
 // The browser: see test/support/browser.js.
 
 'use strict';
@@ -10,6 +10,8 @@ const assert = require('node:assert/strict');
 const { startStudio } = require('./support/studio');
 const { createWorld } = require('./support/playhq');
 const { openBrowser, openPage } = require('./support/browser');
+
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 test('plan tonight: the commentators, the court and who calls the game on now', async t => {
   const world = createWorld();
@@ -52,6 +54,20 @@ test('plan tonight: the commentators, the court and who calls the game on now', 
   await graphic.waitForFunction(() => /Will Linter and Honey Harrington/.test(document.querySelector('#lineNames').textContent));
   assert.equal(await graphic.textContent('#lineLabel'), 'Commentators', 'one of the two is not a guest');
 
+  // As lower thirds, a bar each: Will on the left, Honey mirrored on the right with a Special guest tab, and with
+  // ?photo=1 Will's headshot in place of the competition logo (Honey has none, so keeps the logo).
+  const will = (await studio.get('/api/planner')).pool.find(p => p.name === 'Will Linter');
+  assert.equal((await studio.request('POST', `/api/planner/headshot?id=${will.id}&ext=png`, PNG, { 'content-type': 'application/octet-stream' })).status, 200);
+  const thirds = await openPage(t, studio, '/commentators.html?style=lowerthirds&photo=1', { browser });
+  await thirds.waitForFunction(() => document.querySelectorAll('#thirds .l3').length === 2);
+  const bars = await thirds.$$eval('#thirds .l3', els => els.map(e => ({
+    name: e.querySelector('.l3__name').textContent, tag: e.querySelector('.l3__tag').textContent, line: e.querySelector('.l3__line').textContent,
+    right: e.classList.contains('l3--right'), photo: (e.querySelector('.l3__photo') || {}).src || null, logo: !!e.querySelector('.l3__logo') })));
+  assert.deepEqual(bars, [
+    { name: 'Will Linter', tag: '', line: 'Commentator', right: false, photo: `${studio.base}/headshots/${will.id}.png`, logo: false },
+    { name: 'Honey Harrington', tag: 'Special guest', line: 'Commentator', right: true, photo: null, logo: true },
+  ]);
+
   // A court changed by hand on Scoreboard control stays, and the Planner flags it.
   await control.fill('#autoCourt', 'Court 2');
   await control.press('#autoCourt', 'Tab');
@@ -62,4 +78,5 @@ test('plan tonight: the commentators, the court and who calls the game on now', 
   assert.deepEqual(planner.errors, []);
   assert.deepEqual(control.errors, []);
   assert.deepEqual(graphic.errors, []);
+  assert.deepEqual(thirds.errors, []);
 });

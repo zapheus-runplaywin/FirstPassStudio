@@ -1,0 +1,64 @@
+/* The person lower third's bar, shared by lowerthird.html (one person) and commentators.html's Lower thirds look
+   (?style=lowerthirds, a bar for each commentator), so the two always look the same.
+   Laid out for 1920 x 1080 at 1x. Each page places the .l3 blocks itself and sets their size with
+     --height  the bar's height, and the width of the square logo badge or photo at its end (120px)
+     --width   the bar's width, the same whatever the name (900px)
+   A .l3--right block is mirrored: the badge on the right, the words right-aligned, opening out leftwards.
+
+   <div class="l3">
+     <div class="l3__tag">Special guest</div>                 a small pink tab above the bar (hidden when empty)
+     <div class="l3__bar">
+       <div class="l3__badge"><img class="l3__logo"></div>    a logo, or instead <img class="l3__photo"> (a photo)
+       <div class="l3__text"><div class="l3__name"></div><div class="l3__line"></div></div>
+     </div>
+   </div>
+
+   In: add .go to a parent and the badge pops, the bar opens out from it, then the words come up. Each page has its
+   own way out. */
+:root { --height: 120px; --width: 900px; }
+.l3 { display: flex; flex-direction: column; align-items: flex-start; }
+.l3__tag {
+  background: var(--pink); color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  padding: 6px 18px; border-radius: 6px 6px 0 0; margin-left: 150px; white-space: nowrap;
+}
+.l3__tag:empty { display: none; }
+.l3__bar {
+  display: flex; height: var(--height); width: var(--width); box-sizing: border-box;
+  background: var(--purple-deep); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  border-bottom: 5px solid var(--pink);
+}
+.l3__badge {
+  width: var(--height); flex: none; background: radial-gradient(circle at 50% 45%, var(--purple) 0%, var(--purple-dark) 80%);
+  display: flex; align-items: center; justify-content: center;
+}
+.l3__logo { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
+.l3__logo.logo-fallback { box-sizing: border-box; font-size: 28px; }
+.l3__photo { width: var(--height); flex: none; object-fit: cover; object-position: center 20%; background: var(--purple-dark); }
+.l3__text { padding: 0 40px 0 30px; display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1; }
+/* Names keep one font size: a name too long for the bar is squeezed narrower (each page's fitText), like TV
+   sports graphics, and only made smaller once it's squeezed as far as it reads well. */
+.l3__name { font-size: 50px; line-height: 58px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; }
+.l3__name span, .l3__line span { display: inline-block; transform-origin: left center; flex: none; }
+.l3__line { font-size: 24px; line-height: 30px; font-weight: 700; color: var(--yellow); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+.l3__line:empty { display: none; }
+
+/* Mirrored, for the person on the right. Right-aligned with flex, so a squeezed name shrinks towards the right edge
+   instead of running off it. */
+.l3--right { align-items: flex-end; }
+.l3--right .l3__tag { margin-left: 0; margin-right: 150px; }
+.l3--right .l3__bar { flex-direction: row-reverse; }
+.l3--right .l3__text { padding: 0 30px 0 40px; text-align: right; }
+.l3--right .l3__name, .l3--right .l3__line { display: flex; justify-content: flex-end; }
+.l3--right .l3__name span, .l3--right .l3__line span { transform-origin: right center; }
+
+/* A page with several bars staggers them with --delay on each .l3. */
+.go .l3__badge, .go .l3__photo { animation: l3-pop .45s cubic-bezier(.3,1.5,.5,1) var(--delay, 0s) both; }
+.go .l3__bar { animation: l3-open .55s cubic-bezier(.2,.9,.2,1) calc(var(--delay, 0s) + .15s) both; }
+.go .l3__name { animation: l3-up .45s ease-out calc(var(--delay, 0s) + .45s) both; }
+.go .l3__line { animation: l3-up .45s ease-out calc(var(--delay, 0s) + .6s) both; }
+.go .l3__tag { animation: l3-up .4s ease-out calc(var(--delay, 0s) + .7s) both; }
+.go .l3--right .l3__bar { animation-name: l3-open-left; }
+@keyframes l3-pop { from { scale: .4; opacity: 0; } to { scale: 1; opacity: 1; } }
+@keyframes l3-open { from { clip-path: inset(0 calc(100% - var(--height)) 0 0 round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
+@keyframes l3-open-left { from { clip-path: inset(0 0 0 calc(100% - var(--height)) round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
+@keyframes l3-up { from { opacity: 0; translate: 0 18px; } to { opacity: 1; translate: 0 0; } }

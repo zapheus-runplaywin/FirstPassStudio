@@ -121,7 +121,8 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   }
 
   // Who is on the mic for the game on the scoreboard: its timeslot on its night's plan (or, when PlayHQ moved
-  // the game, the slot it was planned in). names in the slot's order; guest when every one is a special guest.
+  // the game, the slot it was planned in). names in the slot's order; people the same with { name, guest, headshot }
+  // (headshot a /headshots/ link or null, for the commentators' lower thirds); guest when every one is a special guest.
   async function onAir() {
     const b = board();
     const p = plan();
@@ -134,7 +135,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     let slot = Object.values(slots).find(s => s.game && s.game.id === b.gameId);
     if (!slot && sameCourt(b.court, pl.court)) slot = slots[slotOf(b)];
     const people = ((slot && slot.people) || []).map(id => p.pool.find(x => x.id === id)).filter(Boolean);
-    return { ...none, names: people.map(x => x.name), people: people.map(x => ({ name: x.name, guest: !!x.guest })),
+    return { ...none, names: people.map(x => x.name), people: people.map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })),
       guest: people.length > 0 && people.every(x => x.guest), court: pl.court, time: slotOf(b) };
   }
 
