@@ -40,14 +40,16 @@ const boardBytes = n => {
 };
 // The ping's light: green under half a second, amber to a second and a half, red slower or with no answer.
 const PING_OK_MS = 500, PING_SLOW_MS = 1500;
-// The four PlayHQ chips: status, ping, bandwidth, data. Status says the same as the bar's PlayHQ dot.
+// The PlayHQ chips, on one line: status, ping, how often it's checked, bandwidth and data (the last three as icons). Status says the same as the bar's PlayHQ dot.
 function boardPlayhq(h) {
   const p = h.playhq || {}, n = p.net || {};
-  const chip = (cls, dot, lbl, val, tip) => `<span class="pqchip ${cls}" title="${boardEsc(tip)}">${dot == null ? '' : `<span class="dot ${dot}"></span>`}<span class="k">${lbl}</span><b>${val}</b></span>`;
+  // lbl is a word, or an icon (ic) for the chips that are numbers alone, so the line fits on one row.
+  const chip = (cls, dot, lbl, val, tip) => `<span class="pqchip ${cls}" title="${boardEsc(tip)}">${dot == null ? '' : `<span class="dot ${dot}"></span>`}${lbl.startsWith('<svg') ? lbl : `<span class="k">${lbl}</span>`}<b>${val}</b></span>`;
+  const ic = (label, d) => `<svg class="ic" viewBox="0 0 16 16" aria-label="${label}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   let sDot = 'ok', sWord = 'Answering', sTip = p.readAgoMs != null ? `Last live score ${boardAgo(p.readAgoMs)}` : 'PlayHQ is answering';
   if (!h.game) { sDot = ''; sWord = 'No game'; sTip = 'No game picked, so the live score isn\'t read'; }
   else if (h.source !== 'playhq') { sDot = ''; sWord = 'By hand'; sTip = 'Scores are by hand, so the live score isn\'t read'; }
-  else if (p.waiting) { sDot = ''; sWord = 'Not scoring yet'; sTip = p.waiting; }
+  else if (p.waiting) { sDot = ''; sWord = 'Waiting'; sTip = `PlayHQ isn't scoring this game yet. ${p.waiting}`; }
   else if (p.state === 'bad') { sDot = 'bad'; sWord = 'Failing'; sTip = p.error || 'PlayHQ has been failing for a minute'; }
   else if (p.state === 'warn') { sDot = 'warn'; sWord = 'Overdue'; sTip = `A reading is overdue (last ${boardAgo(p.readAgoMs)})`; }
   let pDot = '', pVal = '–', pTip = 'Nothing asked of PlayHQ yet';
@@ -57,9 +59,17 @@ function boardPlayhq(h) {
     pVal = `${n.pingMs} ms`;
     pTip = `How long PlayHQ took to answer, ${boardAgo(n.pingAgoMs)}`;
   }
-  return `<span class="pqrow">${chip(`st ${sDot}`, sDot, 'PlayHQ', sWord, sTip)}${chip(`ping ${pDot}`, pDot, 'Ping', pVal, pTip)}`
-    + `${chip('bw', null, 'Bandwidth', `${boardBytes(n.bytesPerSec)}/s`, 'Downloaded from PlayHQ a second, over the last minute')}`
-    + `${chip('data', null, 'Data', boardBytes(n.bytes), `Downloaded from PlayHQ since Studio went on air (${n.requests || 0} requests)`)}</span>`;
+  // How often PlayHQ is checked (Check PlayHQ every, on Scoreboard control): an icon and the seconds, grey while
+  // nothing is being checked (by hand, no game, not scoring yet).
+  const checking = h.game && h.source === 'playhq' && !p.waiting;
+  const rSec = p.refreshSec;
+  const rVal = rSec == null ? '–' : `${rSec % 1 ? rSec.toFixed(1) : rSec} s`;
+  const refresh = `<span class="pqchip rf${checking ? '' : ' idle'}" title="${boardEsc(checking ? `Checks PlayHQ every ${rVal}` : `Would check PlayHQ every ${rVal}; nothing is being checked now`)}">`
+    + `<svg class="ic" viewBox="0 0 16 16" aria-label="Checks every"><path d="M13.5 8a5.5 5.5 0 0 1-9.6 3.7M2.5 8a5.5 5.5 0 0 1 9.6-3.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12.6 1.6v3h-3M3.4 14.4v-3h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><b>${rVal}</b></span>`;
+  return `<span class="pqrow">${chip(`st ${sDot}`, sDot, 'PlayHQ', sWord, sTip)}${chip(`ping ${pDot}`, pDot, 'Ping', pVal, pTip)}${refresh}`
+    // Bandwidth: a download arrow and the rate; data: a disc stack and the total since on air.
+    + `${chip('bw', null, ic('Bandwidth', 'M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10'), `${boardBytes(n.bytesPerSec)}/s`, 'Bandwidth: downloaded from PlayHQ a second, over the last minute')}`
+    + `${chip('data', null, ic('Data', 'M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2zM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2'), boardBytes(n.bytes), `Data: downloaded from PlayHQ since Studio went on air (${n.requests || 0} requests)`)}</span>`;
 }
 
 function renderBoard() {
