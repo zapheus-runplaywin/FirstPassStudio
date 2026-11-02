@@ -3,7 +3,7 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //
 // Like a switcher's multiview: one board, read from arm's length, that says what is on and what needs a hand. The game
-// row (the score, with the team names), then seven lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
+// row (the PlayHQ line, status, ping, bandwidth and data, over the score with the team names), then seven lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
 // next one armed (or the run order's head), the music and the mics (with their duck), the switcher and the recording (with Record games on or off),
 // and the next game across both columns. It draws from what the page already has: /api/health (common.js, every 2 s), the scene (sceneAll), the
 // outputs (out), the switcher (sw) and the mics' live levels (micLive), and counts the clocks down between reads.
@@ -31,6 +31,37 @@ const boardLine = (lbl, dot, main, sub, bar, tm, extra = '', { below = false, wr
   `<div class="line${full ? ' full' : ''}"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b${wrap ? ' class="wrap"' : ''}>${main}</b>${sub ? `<small>${sub}</small>` : ''}${more}${below && tm ? `<span class="tm under">${tm}</span>` : ''}${bar || ''}</span><span class="tm">${below ? '' : tm || ''}${extra}</span></div>`;
 const boardBar = (pct, cls = '') => pct == null ? '' : `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span>`;
 
+// Bytes as people read them: 820 B, 14.2 KB, 1.3 MB.
+const boardBytes = n => {
+  n = Math.max(0, Number(n) || 0);
+  if (n < 1000) return `${Math.round(n)} B`;
+  if (n < 1e6) return `${(n / 1000).toFixed(n < 1e4 ? 1 : 0)} KB`;
+  return `${(n / 1e6).toFixed(n < 1e7 ? 1 : 0)} MB`;
+};
+// The ping's light: green under half a second, amber to a second and a half, red slower or with no answer.
+const PING_OK_MS = 500, PING_SLOW_MS = 1500;
+// The four PlayHQ chips: status, ping, bandwidth, data. Status says the same as the bar's PlayHQ dot.
+function boardPlayhq(h) {
+  const p = h.playhq || {}, n = p.net || {};
+  const chip = (cls, dot, lbl, val, tip) => `<span class="pqchip ${cls}" title="${boardEsc(tip)}">${dot == null ? '' : `<span class="dot ${dot}"></span>`}<span class="k">${lbl}</span><b>${val}</b></span>`;
+  let sDot = 'ok', sWord = 'Answering', sTip = p.readAgoMs != null ? `Last live score ${boardAgo(p.readAgoMs)}` : 'PlayHQ is answering';
+  if (!h.game) { sDot = ''; sWord = 'No game'; sTip = 'No game picked, so the live score isn\'t read'; }
+  else if (h.source !== 'playhq') { sDot = ''; sWord = 'By hand'; sTip = 'Scores are by hand, so the live score isn\'t read'; }
+  else if (p.waiting) { sDot = ''; sWord = 'Not scoring yet'; sTip = p.waiting; }
+  else if (p.state === 'bad') { sDot = 'bad'; sWord = 'Failing'; sTip = p.error || 'PlayHQ has been failing for a minute'; }
+  else if (p.state === 'warn') { sDot = 'warn'; sWord = 'Overdue'; sTip = `A reading is overdue (last ${boardAgo(p.readAgoMs)})`; }
+  let pDot = '', pVal = '–', pTip = 'Nothing asked of PlayHQ yet';
+  if (n.failed) { pDot = 'bad'; pVal = 'No answer'; pTip = 'The last request to PlayHQ got no answer'; }
+  else if (n.pingMs != null) {
+    pDot = n.pingMs < PING_OK_MS ? 'ok' : n.pingMs < PING_SLOW_MS ? 'warn' : 'bad';
+    pVal = `${n.pingMs} ms`;
+    pTip = `How long PlayHQ took to answer, ${boardAgo(n.pingAgoMs)}`;
+  }
+  return `<span class="pqrow">${chip(`st ${sDot}`, sDot, 'PlayHQ', sWord, sTip)}${chip(`ping ${pDot}`, pDot, 'Ping', pVal, pTip)}`
+    + `${chip('bw', null, 'Bandwidth', `${boardBytes(n.bytesPerSec)}/s`, 'Downloaded from PlayHQ a second, over the last minute')}`
+    + `${chip('data', null, 'Data', boardBytes(n.bytes), `Downloaded from PlayHQ since Studio went on air (${n.requests || 0} requests)`)}</span>`;
+}
+
 function renderBoard() {
   const box = $('board');
   if (!box) return;
@@ -49,6 +80,9 @@ function renderBoard() {
     const sc = h.score || {};
     game = `<span class="score" title="${boardEsc(h.game.label)}${h.game.court ? ` · ${boardEsc(h.game.court)}` : ''}"><span class="tname">${boardEsc(sc.homeName || '')}</span><span class="num">${sc.home ?? ''} – ${sc.away ?? ''}</span><span class="tname away">${boardEsc(sc.awayName || '')}</span></span>`;
   }
+  // The PlayHQ line above the score: the link, the ping, the download a second over the last minute and the total
+  // since Studio went on air (/api/health playhq.net, from playhqnet.js).
+  const pqLine = h ? boardPlayhq(h) : '';
   // Sequence playing, and the next one armed.
   const pl = h && h.playing;
   const seqLine = pl
@@ -102,7 +136,7 @@ function renderBoard() {
       { wrap: true, full: true, more: an.switchAt ? `<small>switches at ${boardEsc(boardAt(an.switchAt))}</small>` : '' })
     : boardLine('Next game', '', auto ? boardEsc(auto.replace(/^Next:\s*/, '')) : h && h.game ? 'Picked by hand' : 'No game',
       auto ? '' : 'Scoreboard control picks the next one', null, '', '', { wrap: true, full: true });
-  box.innerHTML = `<div class="game">${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${swLine}${recLine}${nextGame}</div>`;
+  box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${swLine}${recLine}${nextGame}</div>`;
   const rb = $('boardRecord');
   if (rb) rb.onclick = async () => {
     rb.disabled = true;

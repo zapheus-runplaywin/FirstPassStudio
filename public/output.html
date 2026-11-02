@@ -47,6 +47,13 @@
   .sboard .game .pq.bad, .sboard .game .pq.warn { color: var(--fp-warn-ink); }
   .sboard .game .pq.bad { color: var(--fp-danger); }
 
+  /* The PlayHQ line above the score: status, ping, bandwidth and data, as chips (output/board.js boardPlayhq). */
+  .sboard .game .pqrow { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; min-width: 0; }
+  .sboard .pqchip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--fp-line); border-radius: 999px; white-space: nowrap; font-size: 13px; }
+  .sboard .pqchip .k { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--fp-muted); }
+  .sboard .pqchip b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--fp-navy); }
+  .sboard .pqchip.warn { border-color: var(--fp-gold); } .sboard .pqchip.warn b { color: var(--fp-warn-ink); }
+  .sboard .pqchip.bad { border-color: var(--fp-danger); } .sboard .pqchip.bad b { color: var(--fp-danger); }
   .sboard .game .score { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: baseline; }
   .sboard .game .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sboard .game .tname.away { text-align: right; }

@@ -58,6 +58,8 @@ function unreachable(err, what = 'PlayHQ') {
   return Object.assign(new Error(`Can't reach ${what}${why ? ` (${why})` : ''}. Is this Mac connected to the internet?`), { unreachable: true, cause: err });
 }
 
+const net = require('./playhqnet');
+
 function create(deps) {
   const { log, apiUrl, cacheMs, linkBase, config, leadMs, logoFor, positionOf } = deps;
   // recorder.js, for the game recording: every answer PlayHQ gives (record.playhq, record.live).
@@ -97,8 +99,10 @@ function create(deps) {
       try {
         for (const body of SESSION_QUERIES) {
           let res;
+          const started = Date.now();
           try { res = await fetch(apiUrl, { method: 'POST', headers: { ...HEADERS, tenant: TENANT, 'request-id': crypto.randomUUID() }, body: JSON.stringify(body) }); }
-          catch (err) { const e = unreachable(err); log('error', 'playhq', `Guest session: ${e.message}`); throw e; }
+          catch (err) { net.failed(); const e = unreachable(err); log('error', 'playhq', `Guest session: ${e.message}`); throw e; }
+          net.note({ ms: Date.now() - started, bytes: net.answerBytes(res, '') });
           const c = readCookies(res);
           if (c) { cookie = c; cookieAt = Date.now(); return cookie; }
         }
@@ -121,8 +125,9 @@ function create(deps) {
     const started = Date.now();
     let res;
     try { res = await fetch(apiUrl, { method: 'POST', headers, body: JSON.stringify({ operationName, query, variables }) }); }
-    catch (err) { const e = unreachable(err); log('error', 'playhq', `${operationName}: ${e.message}`, variables); throw e; }
+    catch (err) { net.failed(); const e = unreachable(err); log('error', 'playhq', `${operationName}: ${e.message}`, variables); throw e; }
     const text = await res.text();
+    net.note({ ms: Date.now() - started, bytes: net.answerBytes(res, text) });
     log(res.ok ? 'info' : 'warn', 'playhq', `${operationName} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`, variables);
     if (!res.ok) log('warn', 'playhq', `${operationName} answer`, text.slice(0, 500));
     if ((res.status === 401 || res.status === 403) && !retried) return gql(operationName, query, variables, true, tenant);
@@ -557,8 +562,9 @@ function create(deps) {
     const started = Date.now();
     let res;
     try { res = await fetch(SPECTATOR_URL, { method: 'POST', headers, body: JSON.stringify({ operationName: 'game', query: Q_LIVE, variables: { id: gameId } }) }); }
-    catch (err) { throw unreachable(err, 'PlayHQ\'s live scoring'); }
+    catch (err) { net.failed(); throw unreachable(err, 'PlayHQ\'s live scoring'); }
     const text = await res.text();
+    net.note({ ms: Date.now() - started, bytes: net.answerBytes(res, text), live: true });
     log(res.ok ? 'info' : 'warn', 'live', `game ${gameId} HTTP ${res.status} ${Date.now() - started}ms ${text.length}B`);
     if (!res.ok) { log('warn', 'live', 'answer', text.slice(0, 500)); throw new Error(`PlayHQ live feed answered HTTP ${res.status}`); }
     const json = JSON.parse(text);

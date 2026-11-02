@@ -58,6 +58,7 @@
       "server.js",
       "competitions.js",
       "playhq.js",
+      "playhqnet.js",
       "athletes.js",
       "teams.js",
       "lowerthird.js",

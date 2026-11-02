@@ -16,6 +16,7 @@
 //   sameTeam(a, b)                name matching, as server.js does it
 //   courtShown(board)             the court's name on the graphics: typed on Scoreboard control, else PlayHQ's (board.js)
 const fs = require('fs');
+const net = require('./playhqnet'); // counts what PlayHQ answers, for the board's PlayHQ line
 
 function create({ log, config, playhq, datadir, board, getUpNext, squadFor, withSquad, logoFor, competitionName, rules, defaultRefreshSec, sameTeam, courtShown = b => b.court }) {
   const { getGame, getLive } = playhq;
@@ -36,14 +37,17 @@ function create({ log, config, playhq, datadir, board, getUpNext, squadFor, with
     const headers = { accept: 'application/json', 'x-phq-tenant': config().apiTenant || playhq.organisation().tenant };
     if (config().apiKey) headers['x-api-key'] = config().apiKey;
     const other = /\/v2\//.test(SUMMARY_PATH) ? SUMMARY_PATH.replace('/v2/', '/v1/') : SUMMARY_PATH.replace('/v1/', '/v2/');
-    let url, res;
+    let url, res, started = 0;
     for (const p of [...new Set([SUMMARY_PATH, other])]) {
       url = SUMMARY_BASE + p.replace('{id}', encodeURIComponent(gameId));
-      res = await fetch(url, { headers });
+      started = Date.now();
+      try { res = await fetch(url, { headers }); } catch (err) { net.failed(); throw err; }
+      if (res.status === 404) net.note({ ms: Date.now() - started, bytes: net.answerBytes(res, '') });
       log(res.ok ? 'info' : 'warn', 'summary', `Game Summary HTTP ${res.status} ${url}${config().apiKey ? ' (with apiKey)' : ' (no apiKey)'}`);
       if (res.status !== 404) break;
     }
     const text = await res.text();
+    if (res.status !== 404) net.note({ ms: Date.now() - started, bytes: net.answerBytes(res, text) });
     if (res.status === 401 || res.status === 403) {
       throw new Error(`PlayHQ refused the Game Summary (HTTP ${res.status}).` +
         (config().apiKey ? ' Check the PlayHQ Client ID on the competition setup page.'
