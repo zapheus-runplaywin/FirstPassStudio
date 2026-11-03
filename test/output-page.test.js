@@ -81,6 +81,11 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
   // Music's Settings unfolds its form.
   await page.click('#musicCfg');
   assert.equal(await page.isVisible('#mFadeIn'), true);
+  // Its three fade times: Fade in, Fade out and Quick (1 s unless set), saved as they change.
+  assert.equal(await page.inputValue('#mQuick'), '1');
+  await page.fill('#mQuick', '1.5');
+  await page.dispatchEvent('#mQuick', 'change');
+  await studio.until(async () => (await studio.get('/api/scene')).musicSettings.quickSec === 1.5);
   await page.click('#musicCfg');
   assert.equal(await page.isVisible('#mFadeIn'), false);
   assert.deepEqual(page.errors, []);

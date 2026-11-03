@@ -43,20 +43,17 @@ const FILE = datadir.file('music.json');
 const AUDIO_TYPES = { '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.wav': 'audio/wav', '.aif': 'audio/aiff', '.aiff': 'audio/aiff' };
 // Under a video with sound the music pauses, or is left as it is (the Ducking card). An older 'lower' pauses.
 const UNDER_VIDEO = ['pause', 'leave'];
-// How long the music takes to get out of the way of a video's sound, and to come back.
-const VIDEO_FADE_SEC = 1;
-// A sequence's music fades out this long when something else stops it and its Music ends doesn't give a time
+// Three fade times, all in Music Settings: Fade in, Fade out, and Quick. Quick is how long the music takes to get out of
+// the way of a video's sound and to come back, and how fast a stinger with ?music=dip brings it back up as it leaves.
+// Fade out is also how long a sequence's music fades when something else stops it and its Music ends gives no time
 // (it carries on into the next sequence).
-const STOP_FADE_SEC = 3;
-// A stinger with ?music=dip brings the music back up this fast as it leaves.
-const STINGER_UP_SEC = 0.5;
 // A track whose length isn't known yet is checked again after this.
 const UNKNOWN_MS = 5000;
 
 let log = () => {};
 let api = null; // { duration(file), files(), changed(), quiet(on) }
 let playlists = [];
-let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', duckTo: 25, superShotSong: '', superShotVolume: 80 };
+let settings = { fadeInSec: 2, fadeOutSec: 4, quickSec: 1, volume: 80, underVideo: 'pause', duckTo: 25, superShotSong: '', superShotVolume: 80 };
 // The super shot song plays as this owner; superFired is the game and quarter it last started for.
 const SUPER = 'supershot';
 let superFired = null;
@@ -103,6 +100,7 @@ function cleanSettings(v) {
     // A music.json from before fade in and out were separate has one fadeSec: fade in over it, out over twice it.
     fadeInSec: clamp(s.fadeInSec ?? s.fadeSec, 0, 30, 2),
     fadeOutSec: clamp(s.fadeOutSec ?? (s.fadeSec === undefined ? undefined : Number(s.fadeSec) * 2), 0, 30, 4),
+    quickSec: clamp(s.quickSec, 0, 10, 1),
     volume: Math.round(clamp(s.volume, 0, 100, 80)),
     underVideo: UNDER_VIDEO.includes(s.underVideo) ? s.underVideo : 'pause',
     duckTo: Math.round(clamp(s.duckTo, 0, 100, 25)),
@@ -277,6 +275,9 @@ function skip(by, fade) {
   return null;
 }
 
+// How long a sequence's music fades when stopped with no Music ends time of its own: the Fade out time.
+const stopFadeSec = () => settings.fadeOutSec;
+
 // ─── What else changes the music ─────────────────────────────────────────
 // A video with its sound on is showing (or not any more).
 function videoSound(on) {
@@ -285,7 +286,7 @@ function videoSound(on) {
     if (settings.underVideo === 'leave') return false;
     p.video = 'pause';
     log('info', 'music', 'A video with sound is on: music fades out and pauses');
-    fadeTo(0, VIDEO_FADE_SEC); afterFade(VIDEO_FADE_SEC, 'video');
+    fadeTo(0, settings.quickSec); afterFade(settings.quickSec, 'video');
     return true;
   }
   if (!p.video) return false;
@@ -297,7 +298,7 @@ function videoSound(on) {
     fadeTimer = null;
     p.after = null;
     if (p.status === 'paused') { p.status = 'playing'; p.pos = { sec: p.pos.sec, at: now() }; }
-    fadeTo(1, VIDEO_FADE_SEC);
+    fadeTo(1, settings.quickSec);
     scheduleEnd();
   }
   return true;
@@ -312,7 +313,7 @@ function stinger(mode, on, sec) {
     return true;
   }
   if (p.ducked !== 'stinger') return false;
-  setDuck(null, STINGER_UP_SEC);
+  setDuck(null, settings.quickSec);
   log('info', 'music', 'Stinger ended: music back up');
   return true;
 }
@@ -522,4 +523,4 @@ function init(logger, hooks) {
   load();
 }
 
-module.exports = { init, apply, uses, forget, deck, state, videoSound, quiet, stinger, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, STOP_FADE_SEC };
+module.exports = { init, apply, uses, forget, deck, state, videoSound, quiet, stinger, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, stopFadeSec };

@@ -430,7 +430,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Run order key (`plugins/studio-deck`, `runorder-key.ts`, no Output setting) names the head from the scene's `runOrder` and lists `runOrders` for its Load press.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
-- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; Output 1's unmuted scene.html plays it
+- **Music:** music.js keeps one player (song or playlist, position, its three fade times (fade in, fade out, quick), mute, duck) in Studio; Output 1's unmuted scene.html plays it
   with an `<audio>` element, so it follows Output 1's video sound. The music is Output 1's: the other outputs' windows play without it,
   a sequence's music plays, fades and stops with the sequence on Output 1 (`sequences.sound()`, silent on the other outputs' runners),
   and a sequence played on another output alone plays without its music. Cut to a sequence with music of its own, the old song fades out under the new one on a

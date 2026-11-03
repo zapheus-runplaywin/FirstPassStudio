@@ -827,7 +827,9 @@
       <label for="mFadeIn">Fade in</label>
       <div class="row"><input type="number" id="mFadeIn" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Carry on and the duck coming back up</span></div>
       <label for="mFadeOut">Fade out</label>
-      <div class="row"><input type="number" id="mFadeOut" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Stop, Pause and the duck going down (<code>?fade=</code> on a link changes either per press)</span></div>
+      <div class="row"><input type="number" id="mFadeOut" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Stop, Pause, the duck going down, and a sequence's music stopped when its Music ends gives no time (<code>?fade=</code> on a link changes either per press)</span></div>
+      <label for="mQuick">Quick</label>
+      <div class="row"><input type="number" id="mQuick" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, for the music getting out of the way of a video's sound and coming back, and coming back up after a stinger</span></div>
       <label for="mSuperSong">Super shot song</label>
       <div class="row"><select id="mSuperSong"></select> <label class="inline">at <input type="number" id="mSuperVolume" min="0" max="100" style="width:64px"> % volume</label>
         <span>(cuts in when the super shot period starts, fades out when it ends)</span></div>
