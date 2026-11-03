@@ -104,6 +104,27 @@ test('keys and fade to black from the page: each button lights while its key is 
   assert.deepEqual(page.errors, []);
 });
 
+test('Music under the stinger, beside the Stinger button, is the stinger source\'s own Music option', async t => {
+  const { atem, studio, page } = await setUp(t);
+  if (!page) return;
+  await useAddress(page, atem);
+  await page.waitForFunction(() => document.querySelector('#swStingerMusic').disabled);
+  await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html?hold=0' }] });
+  await page.waitForFunction(() => !document.querySelector('#swStingerMusic').disabled);
+  assert.equal(await page.inputValue('#swStingerMusic'), '');
+  await page.selectOption('#swStingerMusic', 'quiet');
+  const url = () => studio.get('/api/scene').then(s => s.sources.find(x => x.name === 'Stinger').url);
+  await studio.until(async () => /music=quiet/.test(await url()), 5000, 50);
+  assert.equal(await url(), 'stinger.html?hold=0&music=quiet');
+  // Set in the source's options instead, the card follows.
+  const id = (await studio.get('/api/scene')).sources.find(x => x.name === 'Stinger').id;
+  await studio.post('/api/scene', { type: 'update', id, changes: { url: 'stinger.html?hold=0&music=duck' } });
+  await page.waitForFunction(() => document.querySelector('#swStingerMusic').value === 'duck');
+  await page.selectOption('#swStingerMusic', '');
+  await studio.until(async () => (await url()) === 'stinger.html?hold=0', 5000, 50);
+  assert.deepEqual(page.errors, []);
+});
+
 test('the switcher\'s cable pulled mid-stream: the page says so within seconds, then carries on by itself when it\'s back', async t => {
   const { atem, page } = await setUp(t);
   if (!page) return;

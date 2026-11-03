@@ -388,9 +388,9 @@ function notify() {
   tidySoundOut();
   notePlays();
   videoSound();
-  // The Switcher card names the scene's stinger: tell it when that changes.
-  const sting = stingerSource();
-  if ((sting ? sting.name : '') !== stingerName) { stingerName = sting ? sting.name : ''; publishSwitcher(); }
+  // The Switcher card names the scene's stinger and its Music under it: tell it when either changes.
+  const sting = stingerSource(), key = sting ? `${sting.name}\n${sting.url}` : '';
+  if (key !== stingerName) { stingerName = key; publishSwitcher(); }
   rev++;
   const st = state();
   const json = JSON.stringify(st);
@@ -515,7 +515,9 @@ function apply(a) {
 // ?theme=; its effects alone don't count), on an output the music plays on.
 const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
 // A stinger with ?music=quiet or duck ducks the music as it comes on, by the time it covers the frame (0.22 of its length);
-// duck (dip, its old name, still works) brings it back up when it goes off.
+// duck (dip, its old name, still works) brings it back up when it goes off. It's set on the Switcher card (Music under it)
+// or in the source's options, and goes by the output the stinger plays on (switcher.js stingerOutput: the one on a
+// downstream key, Output 1 unless another that's on is), so it works on a night Output 1 is off.
 const isStinger = s => s.type === 'browser' && /^\/?stinger\.html(\?|$)/.test(String(s.url || ''));
 function stingerMusic(s, on) {
   if (!isStinger(s)) return;
@@ -531,9 +533,19 @@ const videoOn = () => {
   return scene.sources.some(s => isOn(s, null) && ((s.type === 'video' && s.sound && !soundDone.has(s.id) && !soundFading(s, null)) || playsTheme(s)));
 };
 function videoSound() { music.videoSound(videoOn()); }
+// The output the stinger plays on: null for the primary, else its id.
+function stingerOut() {
+  let o;
+  try { o = switcher.stingerOutput().id; } catch { o = PRIMARY; }
+  return o && o !== PRIMARY && outputsApi.find(o) ? o : null;
+}
 function noteShowings() {
   videoSound();
-  for (const s of scene.sources) if (s.visible !== wasOn.has(s.id)) stingerMusic(s, s.visible);
+  const sting = stingerOut();
+  for (const s of scene.sources.filter(isStinger)) {
+    const now = sting ? !!s.out[sting] : s.visible, was = sting ? wasOnOut.has(`${s.id}|${sting}`) : wasOn.has(s.id);
+    if (now !== was) stingerMusic(s, now);
+  }
   for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;
   wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
   for (const s of scene.sources) for (const o of Object.keys(s.out)) if (!wasOnOut.has(`${s.id}|${o}`)) s.outSeq[o] = (s.outSeq[o] || 0) + 1;

@@ -66,6 +66,10 @@ function showSwitcher(s) {
       : s.stinger ? `"${s.stinger}" on ${on}, cut in the middle of its cover (from its own settings), at ${s.fps} frames a second`
       : 'Add the Stinger page as a source to cut under it; without one, a stinger is an auto.';
     if (document.activeElement !== $('swLineup')) $('swLineup').value = s.lineup || 0;
+    // Music under it: the stinger source's own Music option (?music=), set here beside the button that plays it.
+    $('swStingerMusic').disabled = !s.stingerId;
+    $('swStingerMusic').dataset.id = s.stingerId || '';
+    if (document.activeElement !== $('swStingerMusic')) $('swStingerMusic').value = s.stingerMusic || '';
     $('swFtb').classList.toggle('on', s.ftb);
     $('swFtb').textContent = s.ftb ? 'Faded to black' : 'Fade to black';
     $('swUskLabel').classList.toggle('hidden', !s.usk.length);
@@ -125,6 +129,15 @@ $('swRetry').onclick = () => swDo({ type: 'reconnect' });
 $('swCut').onclick = () => swDo({ type: 'cut' });
 $('swAuto').onclick = () => swDo({ type: 'auto' });
 $('swStinger').onclick = () => swDo({ type: 'stinger' });
+$('swStingerMusic').onchange = () => {
+  const src = scene && scene.sources.find(x => x.id === $('swStingerMusic').dataset.id);
+  if (!src) return;
+  const [path, query = ''] = String(src.url).split('?');
+  const q = new URLSearchParams(query);
+  if ($('swStingerMusic').value) q.set('music', $('swStingerMusic').value); else q.delete('music');
+  const qs = q.toString();
+  act({ type: 'update', id: src.id, changes: { url: path + (qs ? '?' + qs : '') } });
+};
 $('swLineup').onchange = () => swDo({ type: 'lineup', frames: Number($('swLineup').value) || 0 });
 $('swLineupTest').onclick = async () => {
   const on = (sw && sw.stingerOutput || {}).name || 'Output 1';
