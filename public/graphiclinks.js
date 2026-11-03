@@ -132,7 +132,8 @@ add('fixturePages', 'Round fixture', '/fixtures.html',
   'It shows this round (the one Scoreboard control has, picked by date unless set by hand) and loads once, getting the latest each time it\'s turned on on the Output page. ' +
   'Options: <code>?round=next</code> shows the round after this one (next week), <code>?round=prev</code> the one before, <code>?round=+2</code> or <code>?round=-1</code> counts from this round, ' +
   '<code>?round=6</code> shows round 6 (or a round by name, like <code>?round=Final</code>), and <code>?division=1</code> shows one division. Combine them with &amp;, e.g. <code>/fixtures.html?round=next&amp;division=1</code>. ' +
-  'A division without that round is left out. When divisions are on different rounds (one on Round 10, another on Finals Round 1), the heading says Fixture and each game shows its round under its division.');
+  'A division without that round is left out. When divisions are on different rounds (one on Round 10, another on Finals Round 1), the heading says Fixture and each game shows its round under its division. ' +
+  'When PlayHQ has a round but no games in it yet (next week\'s grand final waits on tonight\'s results), a finals round shows that week\'s games from the division\'s finals format on the competition setup page, with the time and court as TBC and a team not decided yet as, for example, Winner minor semi final. Any other round without games says its teams are to be decided.');
 add('fixturePages', 'Next round fixture (next week)', '/fixtures.html?round=next');
 add('fixturePages', 'Round results (finished games)', '/results.html', 'Only the finished games of this round, with their scores. Takes the same <code>?round=</code> and <code>?division=</code> options, e.g. <code>/results.html?round=prev</code> for last week.');
 add('fixturePages', 'Fixture board (Full Page, for a screen in the competition room or backstage)', '/fixtureboard.html',
