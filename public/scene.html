@@ -353,7 +353,7 @@
     const down = m.duck ? along(m.duck, t) : m.ducked ? 1 : 0;
     const low = Math.max(m.duckTo / 100, 0.01);
     const duck = down >= 1 ? m.duckTo / 100 : Math.pow(low, down);
-    return heard(along(m.gain, t)) * (m.volume / 100) * (m.level / 100) * duck * (m.muted ? 0 : 1);
+    return heard(along(m.gain, t)) * (m.volume / 100) * duck * (m.muted ? 0 : 1);
   }
   // The song fading out under the new one: its own fade, at the volume it played at, muted and ducked as the music is.
   function tailGain(tm) {

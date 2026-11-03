@@ -59,6 +59,15 @@ function renderMics() {
   for (const [id, key] of [['mxDipMusic', 'dipMusic'], ['mxDipVideo', 'dipVideo'], ['mxDipQuiet', 'dipQuiet']]) $(id).checked = !!set[key];
   $('mxProblem').textContent = micLive.status;
   renderMicList();
+  renderDuck();
+}
+
+// The Ducking card's line while it's folded: how low the music and the mics go, and what takes each down.
+function renderDuck() {
+  const m = scene.musicSettings || {}, x = scene.mics || {};
+  const mWhy = [m.underVideo !== 'leave' ? 'pauses under a video' : '', 'ducks for a scene or sequence'].filter(Boolean).join(', ');
+  const xWhy = [x.dipVideo ? 'a video' : '', x.dipQuiet ? 'a scene or sequence' : '', x.dipMusic ? 'music' : ''].filter(Boolean);
+  $('dkSummary').textContent = `Music to ${m.duckTo ?? 25}% (${mWhy}) · mics to ${x.dipTo ?? 30}%${xWhy.length ? ` for ${xWhy.join(', ')}` : ' by hand only'}`;
 }
 
 function renderMicList() {

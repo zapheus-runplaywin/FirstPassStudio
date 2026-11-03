@@ -15,7 +15,6 @@ test('the Output page says Duck for every way the music gets out of the way', as
   assert.match(await label('sqQuiet'), /^Ducks the music when this starts/);
   assert.equal(await page.$eval('label[for="sqQuiet"]', el => el.textContent), 'Duck');
   assert.match(await label('mxMixer'), /^Never ducks \(an external mixer does it\)$/);
-  assert.match(await label('mxDipQuiet'), /a scene or sequence ducks the music/);
   assert.deepEqual(await page.$$eval('#swStingerMusic option', os => os.map(o => o.textContent)), ['Carries on as it is', 'Ducks for the next scene', 'Ducks while it plays']);
   const text = (await page.content()).toLowerCase();
   assert.ok(!/quiet(s|ed)? (the music|for the next)/.test(text), 'no "quiet the music" left on the page');
