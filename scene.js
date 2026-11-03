@@ -510,6 +510,13 @@ function apply(a) {
   noteShowings();
   return error;
 }
+// A change Studio makes by itself (the Production Planner loading a game's run order, server.js): made, saved and
+// sent to the pages like one from the Output page. Returns the error, or null.
+function act(a) {
+  const error = apply(a);
+  if (!error) save();
+  return error;
+}
 // Music gets out of the way while a video with its sound on plays, or a page playing a theme song (the intro and outro's
 // ?theme=; its effects alone don't count), on an output the music plays on.
 const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
@@ -1431,4 +1438,4 @@ function videoSizes() {
     .filter(v => v.width && v.height).map(({ name, width, height }) => ({ name, width, height }));
 }
 
-module.exports = { replay, replayBoard, replaying, videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };
+module.exports = { act, replay, replayBoard, replaying, videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };

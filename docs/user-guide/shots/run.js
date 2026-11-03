@@ -129,6 +129,7 @@ async function setUp(browser) {
   const sc2 = await studio.get('/api/scene');
   const seqId = name => sc2.sequences.find(s => s.name === name).id;
   for (const n of ['Sponsor break', 'Walk out']) await scene({ type: 'roAdd', kind: 'sequence', id: seqId(n) });
+  await scene({ type: 'roSave', name: 'Game night' }); // a saved order, for the planner's Run order lists
 
   // Sponsors, with logos.
   const comp = (await studio.get('/api/setup')).active;
@@ -174,7 +175,8 @@ async function setUp(browser) {
   const tonight = plan.nights.find(n => n.date === world.today);
   const court1 = tonight.games.filter(g => g.court === 'Court 1').map(g => g.time.slice(0, 5)).sort();
   const people = [[sam.id, jordan.id], [sam.id, honey.id], [jordan.id], [sam.id]];
-  await studio.post('/api/planner/night', { date: world.today, court: 'Court 1', slots: Object.fromEntries(court1.map((t, i) => [t, people[i % people.length]])) });
+  const gameNight = (await studio.get('/api/scene')).runOrders.find(o => o.name === 'Game night').id;
+  await studio.post('/api/planner/night', { date: world.today, court: 'Court 1', slots: Object.fromEntries(court1.map((t, i) => [t, { people: people[i % people.length], runOrder: gameNight }])) });
 
   // Studio follows PlayHQ for the game on Court 1.
   await studio.until(async () => (await studio.get('/api/scoreboard'))?.home?.score > 0, 20000).catch(() => {});

@@ -47,7 +47,8 @@
 // started. A game trigger puts its sequence at the head (with its few seconds' countdown as usual) rather than
 // starting it blind; Cancel takes it out again. Playing a scene or sequence by hand leaves the queue as it is
 // (unless it was the head). The queue is saved with the competition's sequences (runOrder), and named orders
-// (runOrders) can be loaded for the night.
+// (runOrders) can be loaded for the night, renamed and deleted. The Production Planner can assign a saved order to a
+// game (planner.js); it loads, in place of what's queued, as the scoreboard moves to that game (server.js).
 
 'use strict';
 
@@ -100,6 +101,7 @@ let cut = null;       // the sequence that last ended here (played out or cut sh
 let queue = [];       // the run order here (Output 1's; always empty on the others): [{ key, kind: 'sequence' | 'scene', id }], the head first
 let played = [];      // what the run order has played here tonight, oldest first: [{ key, kind, id, at }] (not saved: a relaunch starts it again)
 let orders = [];      // the saved run orders of the competition in use: [{ id, name, items }]
+let roNotice = null;  // the Production Planner loaded a game's run order over items queued: { text, at }, until closed (not saved)
 const PRIMARY = 'main';
 let here = PRIMARY;
 const runners = new Map(); // output id -> { run, timer, fadeTimer, pending, pendTimer, cut, queue, played }
@@ -349,6 +351,7 @@ function musicOf(step) {
 function load() {
   each(() => { queue = []; played = []; });
   orders = [];
+  roNotice = null;
   try {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     list = [];
@@ -1210,6 +1213,7 @@ function applyHere(a, sq) {
     }
     case 'roClear':
       // Empties what's queued and what has played: a fresh list (what's on air carries on).
+      roNotice = null;
       if (!queue.length && !played.length) return null;
       queue = [];
       played = [];
@@ -1235,10 +1239,32 @@ function applyHere(a, sq) {
     case 'roLoad': {
       const o = orders.find(x => x.id === String(a.order || '')) || orders.find(x => slug(x.name) === slug(a.order));
       if (!o) return `No saved run order "${a.order || ''}".`;
-      // Loaded in place of what's queued (the Output page asks first when the queue isn't empty).
+      // Loaded in place of what's queued (the Output page asks first when the queue isn't empty). a.planner: the
+      // game the Production Planner loaded it for, as the scoreboard moved to it (server.js plannerRunOrder); nobody
+      // was asked then, so when that dropped anything queued, the run order panel says so until it's closed.
+      const had = queue.length;
       queue = cleanItems(o.items);
       queueChanged();
-      log('info', 'sequence', `Run order: loaded "${o.name}" (${queue.length} item${queue.length === 1 ? '' : 's'})`);
+      const planner = typeof a.planner === 'string' ? a.planner.slice(0, 120) : '';
+      roNotice = planner && had ? { text: `Cleared the ${had} item${had === 1 ? '' : 's'} queued: the Production Planner loaded "${o.name}" for ${planner}.`, at: now() } : null;
+      log('info', 'sequence', `Run order: loaded "${o.name}" (${queue.length} item${queue.length === 1 ? '' : 's'})${planner ? ` from the Production Planner for ${planner}` : ''}${had ? `, in place of ${had} queued` : ''}`);
+      return null;
+    }
+    case 'roNoticeClose':
+      roNotice = null;
+      return null;
+    case 'roRename': {
+      // A saved order under a new name. It keeps its id, so a game in the Production Planner it's assigned to keeps it.
+      const o = orders.find(x => x.id === String(a.order || '')) || orders.find(x => slug(x.name) === slug(a.order));
+      if (!o) return `No saved run order "${a.order || ''}".`;
+      const name = String(a.name || '').trim().slice(0, 60);
+      if (!name) return 'Give the run order a name, such as "Thursday night".';
+      if (orders.some(x => x !== o && slug(x.name) === slug(name))) return `There's already a saved run order called "${name}".`;
+      if (name === o.name) return null;
+      const was = o.name;
+      o.name = name;
+      save();
+      log('info', 'sequence', `Run order: renamed the saved order "${was}" to "${name}"`);
       return null;
     }
     case 'roDeleteOrder': {
@@ -1382,6 +1408,8 @@ function state() {
     // What the run order has played tonight, oldest first.
     runOrderPlayed: within(PRIMARY, playedState),
     runOrders: orders.map(o => ({ id: o.id, name: o.name, count: o.items.length })),
+    // The Production Planner cleared what was queued to load a game's run order: what to tell the operator, or null.
+    runOrderNotice: roNotice,
     nextAuto: nextAuto(),
     game: game ? { label: game.label || '', startAt: game.startAt || null, breaks: game.breaks || null, last: game.last || 4 } : null,
   };

@@ -55,6 +55,9 @@
   .seat select { border-style: dashed; border-radius: 999px; padding: 4px 10px; font-size: 14px; color: var(--fp-muted); }
   .flag { font-size: 13px; color: var(--fp-warn-ink); background: var(--fp-warn-bg); border-radius: 6px; padding: 2px 8px; display: inline-block; margin-top: 6px; }
   .flag.soft { background: var(--fp-gray); color: var(--fp-muted); }
+  /* The saved run order loaded into Output 1's run order when the scoreboard moves to the game. */
+  .runorder { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; color: var(--fp-muted); }
+  .runorder select { font-size: 14px; padding: 4px 10px; }
 </style>
 <script src="log.js"></script>
 <script src="asktext.js"></script>
@@ -63,7 +66,7 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Production Planner</h1>
-  <p class="sub">Plan the court Studio streams each game night and who is on the mic for each game; tonight's plan reaches <a href="/control.html">Scoreboard control</a> and the commentator graphics by itself. <a href="/guide/#s3-11">More in the guide</a></p>
+  <p class="sub">Plan the court Studio streams each game night and who is on the mic for each game, with a saved run order to load as each game comes up; tonight's plan reaches <a href="/control.html">Scoreboard control</a>, the run order and the commentator graphics by itself. <a href="/guide/#s3-11">More in the guide</a></p>
   <div id="flags"></div>
   <p class="sub" id="onair" hidden></p>
   <div class="layout">
@@ -150,6 +153,8 @@
     $('onair').innerHTML = '';
     if (on.game) {
       $('onair').append('On the scoreboard now: ', el('b', '', on.game), ' · ', on.names.length ? `on the mic ${on.names.join(', ')}` : 'nobody planned on the mic');
+      const ro = on.runOrder && data.runOrders.find(o => o.id === on.runOrder);
+      if (ro) $('onair').append(` · run order ${ro.name}`);
     }
 
     // The pool.
@@ -233,6 +238,8 @@
     if (slot.game) g.append(el('small', '', [slot.game.division, slot.game.round].filter(Boolean).join(', ')));
     if (slot.changed) right.append(el('div', 'flag', slot.game ? `Fixture changed: this was ${slot.changed.was}. Check the commentators still suit.` : `${slot.changed.was} has moved off this court or night. Move its commentators to its new slot, or take them out.`));
     else if (slot.game && !slot.people.length) right.append(el('div', 'flag soft', 'Nobody on the mic yet'));
+    const missing = slot.runOrder && !data.runOrders.some(o => o.id === slot.runOrder);
+    if (missing) right.append(el('div', 'flag', 'Its run order has been deleted. Pick another, or None.'));
     const seats = right.appendChild(el('div', 'seats'));
     for (const id of slot.people) {
       const p = person(id); if (!p) continue;
@@ -251,15 +258,29 @@
       pick.disabled = !data.pool.length;
       pick.onchange = () => { if (pick.value) saveNight(n, { slot: slot.time, people: [...slot.people, pick.value] }); };
     }
+    // The run order: a saved one (the Output page's Saved…) loads into Output 1's run order when the game loads.
+    if (slot.game) {
+      const ro = right.appendChild(el('label', 'runorder', 'Run order '));
+      const sel = ro.appendChild(el('select'));
+      sel.title = 'Loads into the Output page\'s run order when this game comes up on the scoreboard, in place of what is queued';
+      sel.append(new Option(data.runOrders.length ? 'None' : 'None (save one on the Output page)', ''));
+      for (const o of data.runOrders) sel.append(new Option(`${o.name} (${o.count})`, o.id));
+      if (missing) sel.append(new Option('Deleted run order', slot.runOrder));
+      sel.value = slot.runOrder || '';
+      sel.onchange = () => saveNight(n, { slot: slot.time, runOrder: sel.value });
+    }
     return r;
   }
 
-  // Saves a night whole: its court, and every slot's people (a changed slot from change).
+  // Saves a night whole: its court, and every slot's people and run order (a changed slot's from change).
   function saveNight(n, change) {
     const court = change.court !== undefined ? change.court : n.court;
     if (!court) return post('/api/planner/night', { date: n.date, clear: true });
     const slots = {};
-    if (court === n.court) for (const s of n.slots) slots[s.time] = s.time === change.slot ? change.people : s.people;
+    if (court === n.court) for (const s of n.slots) {
+      const mine = s.time === change.slot;
+      slots[s.time] = { people: mine && change.people ? change.people : s.people, runOrder: mine && change.runOrder !== undefined ? change.runOrder : s.runOrder || '' };
+    }
     opened.add(n.date);
     post('/api/planner/night', { date: n.date, court, slots });
   }
@@ -278,7 +299,10 @@
   load();
   // The game on the scoreboard changes through the night: look again (at most every few seconds) for the flags.
   let lastGame;
-  sceneEvents(null, { board: b => { const k = `${b.gameId}|${b.autoCourt}|${b.autoSelect}`; if (lastGame !== undefined && k !== lastGame) load({ quiet: true }); lastGame = k; } });
+  // A run order saved, renamed or deleted on the Output page shows in the games' Run order lists.
+  let lastOrders;
+  const ordersKey = sc => JSON.stringify((sc.runOrders || []).map(o => [o.id, o.name, o.count]));
+  sceneEvents(sc => { const k = ordersKey(sc); if (lastOrders !== undefined && k !== lastOrders) load({ quiet: true }); lastOrders = k; }, { board: b => { const k = `${b.gameId}|${b.autoCourt}|${b.autoSelect}`; if (lastGame !== undefined && k !== lastGame) load({ quiet: true }); lastGame = k; } });
   setInterval(() => load({ quiet: true }), 60000); // PlayHQ's fixture changes too
 </script>
 </body>
