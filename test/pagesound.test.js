@@ -119,7 +119,7 @@ test('cut to a sequence with music of its own, the scene plays the old song fadi
   await act({ type: 'seqStop' });
 });
 
-test("switching the Output page's Scene View to another output keeps the music going: the new view stands by until it plays", async t => {
+test("switching the Output page's Scene View to another output: the music is Output 1's, so the view goes quiet there and plays it again back on Output 1", async t => {
   const browser = await launch(t);
   if (!browser) return;
   const studio = await startStudio(t, { competition: 'Thunder League' });
@@ -139,36 +139,24 @@ test("switching the Output page's Scene View to another output keeps the music g
   page.on('pageerror', err => errors.push(err.message));
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   await act({ type: 'seqPlay', sequence: 'Bed' });
-  // What each Scene View frame on the page plays: its output, and the music's volume (0 when it isn't playing).
-  // Read in one go in the page: a frame the page removes between finding it and reading it would read as silent.
-  const frames = () => page.evaluate(() => [...document.querySelectorAll('#preview iframe')].map(f => {
+  // What the Scene View plays: its output, and the music's volume (0 when it isn't playing).
+  const view = () => page.evaluate(() => {
+    const f = document.getElementById('previewFrame');
     const src = f.getAttribute('src') || '';
     let p = null;
     try { p = f.contentWindow.musicPlayers?.(); } catch {}
-    return { id: f.id, output: (src.match(/output=([^&]+)/) || [])[1] || 'main', hidden: f.style.visibility === 'hidden', volume: p && p.music.playing ? p.music.volume : 0 };
-  }));
+    return { output: (src.match(/output=([^&]+)/) || [])[1] || 'main', volume: p && p.music.playing ? p.music.volume : 0 };
+  });
   await page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { const p = f.contentWindow.musicPlayers(); return p.music.playing && p.music.volume > 0.5; } catch { return false; } }, null, { timeout: 15000 });
+  // The sequence plays on both outputs, but its music is Output 1's: the view of Output 2 plays without it.
   await page.click(`#outTabs button:has-text("${two.name}")`);
-  // Until the new view takes over, the one showing keeps playing at its level; then the new one plays straight on at it.
-  const seen = [];
-  const end = Date.now() + 10000;
-  while (Date.now() < end) {
-    const f = await frames();
-    seen.push(f);
-    const showing = f.find(x => x.id === 'previewFrame');
-    assert.ok(showing && showing.volume > 0.5, `the Scene View's music never stops: ${JSON.stringify(f)}`);
-    if (f.length === 1 && showing.output === two.id) break;
-    await page.waitForTimeout(20);
-  }
-  const last = seen[seen.length - 1];
-  assert.equal(last.length, 1, 'the old view is gone once the new one took over');
-  assert.equal(last[0].output, two.id);
-  assert.ok(seen.some(f => f.length === 2 && f.some(x => x.hidden && x.output === two.id)), 'the new view stood by, hidden, beside the old one');
-  assert.equal(await page.evaluate(() => window.previewSwitching()), false);
-  // Back to Output 1 the same way.
+  await page.waitForFunction(id => previewOutput === id && !previewSwitching(), two.id, { timeout: 10000 });
+  await page.waitForTimeout(300);
+  assert.deepEqual(await view(), { output: two.id, volume: 0 }, 'no music in the view of Output 2');
+  // Back to Output 1, the music plays in the view again.
   await page.click('#outTabs button >> nth=0');
   await page.waitForFunction(() => !window.previewSwitching() && !/output=/.test(document.getElementById('previewFrame').getAttribute('src')), null, { timeout: 10000 });
-  assert.ok((await frames())[0].volume > 0.5);
+  await page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { const p = f.contentWindow.musicPlayers(); return p.music.playing && p.music.volume > 0.5; } catch { return false; } }, null, { timeout: 15000 });
   assert.deepEqual(errors, []);
   await act({ type: 'seqStop' });
 });

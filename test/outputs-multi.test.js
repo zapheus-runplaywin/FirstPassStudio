@@ -196,12 +196,12 @@ test('what\'s on for an output isn\'t saved run by run, and goes when the output
   assert.equal(st().outputs[3].colour, '#f24f91');
 });
 
-test('scene.html draws another output\'s sources with their sound, and the music and mics ticked for it; the pop-out and Output page know outputs', () => {
+test('scene.html draws another output\'s sources with their sound, without the music and mics (Output 1\'s); the pop-out and Output page know outputs', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'scene.html'), 'utf8');
   assert.match(html, /params\.get\('output'\)/);
   assert.doesNotMatch(html, /alwaysSilent/);
-  assert.match(html, /renderMusic\(ticked\(scene\.music\)/);
-  assert.match(html, /m\.on !== 'atem' && ticked\(m\)/);
+  assert.match(html, /renderMusic\(primary \? scene\.music : null\)/);
+  assert.match(html, /copying \? copyMics\.has\(m\.id\) : primary/);
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
   for (const id of ['outAdd', 'outList', 'outName', 'outRemove', 'outTabs']) assert.match(page, new RegExp(`id="${id}"`));
   assert.doesNotMatch(page, /id="outFilter"/, 'the Sources list follows the output tab');

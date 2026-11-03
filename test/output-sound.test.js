@@ -1,6 +1,7 @@
-// Sound on every output (music.js, sequences.js, mics.js, scene.js): the music plays on the outputs ticked in Music
-// plays on (Output 1 unless set), a sequence's music on every output playing that sequence (and the last of them to
-// end ends it), each mic goes to the outputs ticked for it, and the music makes way for a video only on its outputs.
+// Sound on every output (music.js, sequences.js, mics.js, scene.js): the music and the Mac's mics are Output 1's. Every
+// output plays its own video sound, but a sequence's music plays, fades and stops with the sequence on Output 1
+// whatever other outputs play it, a sequence on another output alone plays without its music, and the music makes
+// way for a video only on Output 1.
 const test = require('node:test');
 const { mock } = require('node:test');
 const assert = require('node:assert/strict');
@@ -32,43 +33,36 @@ const step = (names, sec = 10) => ({ sources: names.map(id), length: { type: 'ti
 ok({ type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }, { type: 'browser', name: 'Worm', url: 'worm.html' },
   { type: 'video', name: 'Ad', file: 'Ad.mp4', sound: true, loop: true }] });
 
-test('the player\'s music plays on Output 1 unless Music plays on says otherwise', () => {
-  assert.deepEqual(m().outputs, ['main']);
-  ok({ type: 'musicSettings', settings: { outputs: ['main', two()] } });
-  assert.deepEqual(m().outputs, ['main', two()]);
-  ok({ type: 'musicSettings', settings: { outputs: [] } });
-  assert.deepEqual(m().outputs, ['main'], 'never on no output at all');
-  ok({ type: 'musicSettings', settings: { fadeInSec: 0 } });
-  assert.deepEqual(m().outputs, ['main'], 'another setting leaves it as it was');
+test('the music has no outputs to pick: an older music.json\'s Music plays on is dropped', () => {
+  assert.equal(m().outputs, undefined);
+  ok({ type: 'musicSettings', settings: { outputs: ['main', two()], fadeInSec: 0 } });
+  assert.equal(m().outputs, undefined, 'the setting is gone');
+  assert.equal(st().musicSettings.fadeInSec, 0, 'the rest of the change is taken');
 });
 
-test('a sequence\'s music plays on the outputs playing it, and the last of them to end ends it', () => {
+test('a sequence\'s music plays with the sequence on Output 1, whatever other outputs play it', () => {
   ok({ type: 'seqAdd', changes: { name: 'Feature', playsOn: ['main', two()], music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'cut' },
     steps: [step(['Ladder']), step(['Worm'])] } });
   ok({ type: 'seqPlay', sequence: 'Feature' });
   assert.equal(m().status, 'playing');
-  assert.deepEqual(m().outputs.sort(), ['main', two()].sort());
-  // Stopped on Output 1 alone: Commentary carries on with the music.
+  assert.equal(m().track, 'Walk out.m4a');
+  // Stopped on Output 1: the music stops with it, though Commentary plays on.
   ok({ type: 'seqStop' });
   assert.equal(st().playing, null);
-  assert.equal(m().status, 'playing', 'still playing for Commentary');
-  assert.deepEqual(m().outputs, [two()]);
+  assert.equal(m().status, 'stopped', 'the music is Output 1\'s');
   ok({ type: 'seqStop', output: two() });
+});
+
+test('a sequence played on another output alone plays without its music', () => {
+  ok({ type: 'seqPlay', sequence: 'Feature', output: two(), only: true });
+  assert.equal(st().playing, null);
+  assert.equal(m().status, 'stopped', 'no music on Commentary');
+  wait(10);
+  wait(10);
   assert.equal(m().status, 'stopped');
 });
 
-test('a sequence played on another output alone brings its music there, not to Output 1', () => {
-  ok({ type: 'seqPlay', sequence: 'Feature', output: two(), only: true });
-  assert.equal(st().playing, null);
-  assert.equal(m().status, 'playing');
-  assert.deepEqual(m().outputs, [two()]);
-  wait(10);
-  wait(10);
-  assert.equal(m().status, 'stopped', 'it ends with the sequence');
-  assert.deepEqual(m().outputs, ['main'], 'back to Music plays on');
-});
-
-test('cut away from on Output 1 while it plays on elsewhere, a sequence\'s music fades out there by its Music ends', () => {
+test('cut away from on Output 1, a sequence\'s music fades out by its Music ends, though it plays on elsewhere', () => {
   ok({ type: 'sceneSave', name: 'Game' });
   ok({ type: 'seqAdd', changes: { name: 'Pre-game', playsOn: ['main', two()], music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 4 },
     steps: [step(['Ladder'], 60), step(['Worm'], 60)] } });
@@ -76,21 +70,29 @@ test('cut away from on Output 1 while it plays on elsewhere, a sequence\'s music
   wait(5);
   ok({ type: 'sceneGo', scene: 'Game' });
   assert.equal(st().playing, null, 'stopped on Output 1');
-  assert.equal(m().status, 'playing', 'still playing for Commentary');
-  assert.deepEqual(m().leaving, { main: { at: Date.now(), ms: 4000 } }, 'fading out on Output 1 over its 4 s');
-  assert.deepEqual(m().outputs.sort(), ['main', two()].sort(), 'Output 1 keeps it while it fades');
-  assert.equal(m().gain.to, 1, 'Commentary hears it as before');
+  assert.equal(m().status, 'playing', 'fading out');
+  assert.deepEqual([m().gain.to, m().gain.ms], [0, 4000], 'over its 4 s');
   wait(4);
-  assert.deepEqual(m().leaving, {});
-  assert.deepEqual(m().outputs, [two()]);
-  // A sequence with music of its own on Output 1 now: one song at a time, so it takes over, and the old song fades out
-  // on Commentary by Pre-game's Music ends rather than stopping dead.
+  assert.equal(m().status, 'stopped', 'gone, though Commentary still plays the sequence');
+  ok({ type: 'seqStop', output: two() });
+  // Set to Cut, it goes at once.
+  ok({ type: 'seqUpdate', sequence: 'Pre-game', changes: { musicEnd: { type: 'cut' } } });
+  ok({ type: 'seqPlay', sequence: 'Pre-game' });
+  wait(5);
+  ok({ type: 'sceneGo', scene: 'Game' });
+  assert.equal(m().status, 'stopped');
+  ok({ type: 'seqStop', output: two() });
+  ok({ type: 'seqUpdate', sequence: 'Pre-game', changes: { musicEnd: { type: 'fade', sec: 4 } } });
+});
+
+test('one song at a time: a sequence with music of its own takes over, and the old song fades out under it by its Music ends', () => {
+  ok({ type: 'seqPlay', sequence: 'Pre-game' });
+  wait(5);
   ok({ type: 'seqAdd', changes: { name: 'Main only', playsOn: ['main'], music: { track: 'Bed.mp3', fadeInSec: 0 }, steps: [step(['Ladder'], 60)] } });
   ok({ type: 'seqPlay', sequence: 'Main only' });
   assert.equal(m().track, 'Bed.mp3');
-  assert.deepEqual(m().outputs, ['main']);
+  assert.equal(m().status, 'playing');
   assert.equal(m().tail.track, 'Walk out.m4a');
-  assert.deepEqual(m().tail.outputs, [two()]);
   assert.deepEqual([m().tail.gain.to, m().tail.gain.ms], [0, 4000]);
   wait(4);
   assert.equal(m().tail, null);
@@ -98,77 +100,9 @@ test('cut away from on Output 1 while it plays on elsewhere, a sequence\'s music
   ok({ type: 'seqStop', output: two() });
   ok({ type: 'musicStop', fade: 0 });
   assert.equal(m().status, 'stopped');
-  // Set to Cut, it goes from Output 1 at once.
-  ok({ type: 'seqUpdate', sequence: 'Pre-game', changes: { musicEnd: { type: 'cut' } } });
-  ok({ type: 'seqPlay', sequence: 'Pre-game' });
-  wait(5);
-  ok({ type: 'sceneGo', scene: 'Game' });
-  assert.deepEqual(m().leaving, {});
-  assert.deepEqual(m().outputs, [two()]);
-  ok({ type: 'seqStop', output: two() });
-  assert.equal(m().status, 'stopped');
 });
 
-test('ended on Output 1 first, then on the other: the music faded out on Output 1 stays gone while it fades out on the other', () => {
-  ok({ type: 'seqAdd', changes: { name: 'Two-up', playsOn: ['main', two()], music: { track: 'Bed.mp3', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 6 },
-    steps: [step(['Ladder'], 60)] } });
-  ok({ type: 'seqPlay', sequence: 'Two-up' });
-  ok({ type: 'seqStop' });
-  assert.deepEqual(Object.keys(m().leaving), ['main'], 'fading out on Output 1 alone');
-  wait(3);
-  ok({ type: 'seqStop', output: two() });
-  assert.equal(m().status, 'playing', 'fading out on Commentary');
-  assert.ok(m().outputs.includes('main'), 'Output 1 still finishing its own fade');
-  wait(3);
-  assert.deepEqual(m().outputs, [two()], "Output 1's fade is done: it doesn't come back up to Commentary's fade");
-  assert.deepEqual(m().leaving, {});
-  wait(3);
-  assert.equal(m().status, 'stopped');
-  ok({ type: 'seqRemove', sequence: 'Two-up' });
-});
-
-test("outputs out of step: each fades a sequence's music out on its own time, and none cuts it while it's still up", () => {
-  const sequences = require('../sequences');
-  const secs = n => { for (let i = 0; i < n; i++) wait(1); };
-  ok({ type: 'seqAdd', changes: { name: 'Ad', steps: [{ sources: [id('Worm')], length: { type: 'done' } }] } });
-  ok({ type: 'seqAdd', changes: { name: 'QT', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 3 }, steps: [step(['Ladder'], 10)] } });
-  const [ad, qt] = ['Ad', 'QT'].map(n => st().sequences.find(x => x.name === n).id);
-  ok({ type: 'seqAdd', changes: { name: 'Break', playsOn: ['main', two()], steps: [{ kind: 'sequence', sequence: ad }, { kind: 'sequence', sequence: qt }] } });
-  const worm = () => st().sources.find(x => x.name === 'Worm');
-  // The ad finishes on one output 4 s before the other: the other output ahead of Output 1 (which drives the music), then
-  // Output 1 ahead.
-  for (const [ahead, behind] of [[two(), 'main'], ['main', two()]]) {
-    ok({ type: 'seqPlay', sequence: 'Break' });
-    secs(1);
-    sequences.ended(worm(), ahead);
-    wait(0);
-    secs(4);
-    sequences.ended(worm(), behind);
-    wait(0);
-    secs(1);
-    assert.equal(m().status, 'playing', 'the music started');
-    assert.deepEqual(m().leaving, {});
-    secs(2); // the output ahead is 3 s from the end of the music
-    assert.equal(m().leaving[ahead]?.ms, 3000, 'it fades out there over its own 3 s');
-    assert.equal(m().leaving[behind], undefined, 'still up on the output behind');
-    assert.equal(m().gain.to, 1);
-    assert.ok(m().outputs.includes(ahead));
-    secs(3); // the output ahead has ended it
-    assert.ok(!m().outputs.includes(ahead), 'that output has let go of it, faded out');
-    assert.equal(m().status, 'playing', 'still playing on the output behind');
-    assert.equal(m().gain.to, 1, 'not cut short there');
-    assert.deepEqual(Object.keys(m().leaving), []);
-    secs(1);
-    assert.equal(m().gain.to, 0, 'and fades out there over its own last 3 s');
-    assert.equal(m().gain.ms, 3000);
-    secs(3);
-    assert.equal(m().status, 'stopped');
-    assert.equal(st().playing, null);
-  }
-  for (const n of ['Break', 'QT', 'Ad']) ok({ type: 'seqRemove', sequence: n });
-});
-
-test('the music makes way for a video with sound only on an output it plays on', () => {
+test('the music makes way for a video with sound only on Output 1', () => {
   ok({ type: 'musicSettings', settings: { underVideo: 'pause' } });
   ok({ type: 'musicLoad', track: 'Walk out.m4a', play: true, fade: 0 });
   ok({ type: 'show', name: 'Ad', output: two() });
@@ -180,18 +114,17 @@ test('the music makes way for a video with sound only on an output it plays on',
   ok({ type: 'musicStop', fade: 0 });
 });
 
-test('each mic goes to the outputs ticked for it (Output 1 unless set), and the meters come from every window', () => {
-  ok({ type: 'micAdd', changes: { name: 'Court', device: 'USB Audio CODEC' } });
+test('the mics are Output 1\'s: an older Goes to is dropped, and the meters come from every window mixing them', () => {
+  ok({ type: 'micAdd', changes: { name: 'Court', device: 'USB Audio CODEC', outputs: ['main', two()] } });
   ok({ type: 'micAdd', changes: { name: 'Booth', device: 'USB Audio CODEC', channel: 'right' } });
   const court = () => st().mics.mics.find(x => x.name === 'Court'), booth = () => st().mics.mics.find(x => x.name === 'Booth');
-  assert.deepEqual(court().outputs, ['main']);
-  ok({ type: 'micUpdate', mic: court().id, changes: { outputs: ['main', two()] } });
-  assert.deepEqual(court().outputs, ['main', two()]);
-  assert.deepEqual(booth().outputs, ['main'], 'the commentators\' own mic stays off their feed');
-  ok({ type: 'micUpdate', mic: court().id, changes: { level: 90 } });
-  assert.deepEqual(court().outputs, ['main', two()], 'kept through another change');
+  assert.equal(court().outputs, undefined);
+  ok({ type: 'micUpdate', mic: court().id, changes: { outputs: [two()], level: 90 } });
+  assert.equal(court().outputs, undefined, 'the setting is gone');
+  assert.equal(court().level, 90, 'the rest of the change is taken');
+  // Output 1's window and a sound copy's both report: the louder reading shows.
   mics.report({ output: 'main', devices: ['USB Audio CODEC'], levels: { [court().id]: -30, [booth().id]: -12 } });
-  mics.report({ output: two(), devices: ['USB Audio CODEC'], levels: { [court().id]: -20 } });
+  mics.report({ output: 'copy', devices: ['USB Audio CODEC'], levels: { [court().id]: -20 } });
   const live = mics.live();
   assert.equal(live.mixing, true);
   assert.deepEqual(live.levels, { [court().id]: -20, [booth().id]: -12 });

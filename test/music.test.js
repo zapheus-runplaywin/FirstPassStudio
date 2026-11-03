@@ -636,7 +636,6 @@ test('cut to a sequence with music of its own, the old song fades out under the 
   assert.equal(tail.playId, old, 'the same play carries on fading');
   assert.equal(Math.round(tail.pos.sec), 5);
   assert.deepEqual([tail.gain.to, tail.gain.ms], [0, 4000], "over Pre-game's 4 s");
-  assert.deepEqual(tail.outputs, ['main']);
   wait(4);
   assert.equal(m().tail, null, 'gone once faded');
   assert.equal(m().track, 'Walk out.m4a');

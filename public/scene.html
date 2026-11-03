@@ -18,10 +18,10 @@
   page's preview of that output shows, silent unless ?sound=1. In a 3840 x 2160 window it's drawn at 2x (zoom.js), and
   the pages inside at twice the density, so it goes sharp over a 4K recording (with 4K replay).
   ?output=<id> draws one of the outputs besides the primary (outputs.js): the sources turned on for that
-  output, with their sound. The music plays on the outputs it's ticked for (music.js: a sequence's music on
-  the outputs the sequence is playing on).
-  An output's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
-  Mac that go to that output (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
+  output, with their sound. The music and the mics are Output 1's (music.js, mics.js): the primary's window plays
+  them, and the other outputs' windows play without them.
+  Output 1's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
+  Mac (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
   ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, the Output page's "Also send the sound to"):
   a hidden window playing that output's sound to that one sound output of the Mac (setSinkId), such as the
   commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it). It says nothing to Studio
@@ -59,8 +59,8 @@
   // An output other than the primary (?output=<id>): its own sources on and off, and their sound.
   const outputId = /^[a-z0-9]{1,20}$/i.test(params.get('output') || '') && params.get('output') !== 'main' ? params.get('output') : '';
   const here = outputId || 'main';
-  // The music and a mic play here when they're ticked for this output (Output 1 when nothing says).
-  const ticked = x => (Array.isArray(x?.outputs) && x.outputs.length ? x.outputs : ['main']).includes(here);
+  // The music and the mics play on Output 1 alone (or in its sound copy).
+  const primary = here === 'main';
   // An output's sound copy (see the top): the device it plays to, by the name macOS gives it.
   const copying = params.get('copy') === '1';
   const copyTo = copying ? params.get('sink') || '' : '';
@@ -130,7 +130,7 @@
     }
   };
   // Ready to take over: it has drawn the scene, and the music that plays here is loaded and playing.
-  window.standbyReady = () => !first && (!music || !music.track || music.status !== 'playing' || !ticked(music) || (audio.readyState >= 3 && !audio.paused));
+  window.standbyReady = () => !first && (!music || !music.track || music.status !== 'playing' || !primary || (audio.readyState >= 3 && !audio.paused));
   // For the tests: what the music and the song fading out under it (a crossfade) are playing here.
   window.musicPlayers = () => [audio, tail].map(el => ({ src: decodeURIComponent((el.getAttribute('src') || '').replace('/media/', '')), playing: !el.paused, volume: el.volume, at: el.currentTime }))
     .reduce((o, x, i) => Object.assign(o, { [i ? 'tail' : 'music']: x }), {});
@@ -353,8 +353,7 @@
 
   // ─── Music (music.js) ───────────────────────────────────────────────────
   // Studio keeps the player: the track, where it is (pos: sec at time at), and its fade (gain: from, to,
-  // at, ms). Each scene window of an output the music is ticked for plays it, unless it's silent, so music goes
-  // wherever that output's video sound goes.
+  // at, ms). Output 1's scene windows play it, unless silent, so the music goes wherever Output 1's video sound goes.
   // Two players: audio plays the music, tail the song fading out under it when one sequence's music takes over from
   // another's (a crossfade). As a crossfade starts the element playing the old song becomes tail, so it fades on without
   // a gap, and the other element picks up the new music.
@@ -376,10 +375,7 @@
     const down = m.duck ? along(m.duck, t) : m.ducked ? 1 : 0;
     const low = Math.max(m.duckTo / 100, 0.01);
     const duck = down >= 1 ? m.duckTo / 100 : Math.pow(low, down);
-    // A sequence that stopped on this output but plays on elsewhere: its music fades out here (leaving).
-    const leave = m.leaving && m.leaving[here];
-    const going = leave ? heard(along({ from: 1, to: 0, at: leave.at, ms: leave.ms }, t)) : 1;
-    return heard(along(m.gain, t)) * going * (m.volume / 100) * (m.level / 100) * duck * (m.muted ? 0 : 1);
+    return heard(along(m.gain, t)) * (m.volume / 100) * (m.level / 100) * duck * (m.muted ? 0 : 1);
   }
   // The song fading out under the new one: its own fade, at the volume it played at, muted and ducked as the music is.
   function tailGain(tm) {
@@ -446,12 +442,11 @@
   });
 
   // ─── Mics (mics.js) ─────────────────────────────────────────────────────
-  // Live mics plugged into the Mac, mixed into the sound here. Only an output's own window in the app (?fit=1, not
-  // silent, not the key) opens them, and only the mics that go to that output: never a Scene View, where a speaker
-  // near a mic would feed back, and never twice on one output. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
+  // Live mics plugged into the Mac, mixed into the sound here. Only Output 1's own window in the app (?fit=1, not
+  // silent, not the key) opens them: never a Scene View, where a speaker near a mic would feed back, and never twice. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
   // the master level, mutes and the dip on top); then all of them through a limiter. The browser's call
   // processing (echo cancelling, noise suppression, automatic level) is off: it would pump the crowd noise.
-  // A sound copy opens only the mics ticked for it (?mics=), whichever outputs they go to.
+  // A sound copy opens only the mics ticked for it (?mics=).
   const micsHere = copying || (params.get('fit') === '1' && params.get('mute') !== '1' && params.get('key') !== '1');
   let micCtx = null, micBus = null, micSet = null;
   const micDevices = new Map(); // device name -> { stream, source, splitter, error, opening }
@@ -551,7 +546,7 @@
   }
   function renderMics(set) {
     micSet = set || null;
-    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyMics.has(m.id) : ticked(m))) : []; // the switcher mixes its own
+    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyMics.has(m.id) : primary)) : []; // the switcher mixes its own
     const names = new Set(want.map(m => m.device));
     for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
     for (const [id, c] of micChains) {
@@ -584,7 +579,7 @@
     }, 25);
     // Tell Studio what this window hears, for the Output page: each mic's loudest moment (dBFS) in the last half second.
     setInterval(async () => {
-      if (copying || !micSet || !micSet.mics.some(m => m.on !== 'atem' && ticked(m))) return;
+      if (copying || !primary || !micSet || !micSet.mics.some(m => m.on !== 'atem')) return;
       const levels = {};
       for (const [id, c] of micChains) {
         levels[id] = c.peak > 0 ? 20 * Math.log10(c.peak) : -100;
@@ -651,8 +646,8 @@
     });
     for (const [id, L] of layers) if (!seen.has(id)) { stopPageSound(L, .1); L.el.remove(); layers.delete(id); }
     const tm = scene.music && scene.music.tail;
-    renderTail(tm && (tm.outputs || ['main']).includes(here) ? tm : null);
-    renderMusic(ticked(scene.music) ? scene.music : null);
+    renderTail(primary && tm ? tm : null);
+    renderMusic(primary ? scene.music : null);
     renderMics(scene.mics);
     first = false;
   }
