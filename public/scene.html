@@ -85,7 +85,7 @@
   window.setSilent = on => {
     silent = !!on;
     for (const L of layers.values()) {
-      const v = L.el.querySelector('video, audio');
+      const v = L.el.querySelector('video');
       if (!v || !L.src) continue;
       const wasMuted = v.muted;
       v.muted = !L.src.sound || silent;
@@ -93,7 +93,8 @@
       blocked = false;
       const fallBack = () => { blocked = true; v.muted = true; v.play().catch(() => {}); };
       if (v.paused) v.play().catch(err => { if (err.name === 'NotAllowedError') fallBack(); });
-      setTimeout(() => { if (L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
+      // A sound copy is allowed to play sound (the app opens it so), so a video still loading there isn't muted.
+      setTimeout(() => { if (!copying && L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
     }
     renderTail(tailMusic);
     renderMusic(music);
@@ -204,8 +205,9 @@
       f.title = s.name;
       el.appendChild(f);
     } else if (s.type === 'video') {
-      // A sound copy only plays a video's sound: an audio element does that without drawing the picture.
-      const v = document.createElement(copying ? 'audio' : 'video');
+      // A sound copy plays it in a video element too, as the output does: the Mac's sound-only player stayed silent
+      // for some video files (an AD on 3 Nov), with no error to say so.
+      const v = document.createElement('video');
       if (sinkId) v.setSinkId(sinkId).catch(() => {});
       v.playsInline = true;
       v.preload = 'auto';
@@ -258,7 +260,7 @@
       el.style.width = s.width + 'px';
       el.style.height = s.height + 'px';
     } else {
-      const media = el.querySelector('img, video, audio');
+      const media = el.querySelector('img, video');
       const want = '/media/' + encodeURIComponent(s.file);
       if (media.getAttribute('src') !== want) media.src = want;
     }
@@ -301,7 +303,7 @@
   // Videos play while shown and pause once faded out. They start from the top each time
   // they're shown (unless restartOnShow is off) and on Restart; sound follows the source.
   function updateVideo(L, s, old) {
-    const v = L.el.querySelector('video, audio'), el = L.el;
+    const v = L.el.querySelector('video'), el = L.el;
     const token = ++L.token;
     v.loop = s.loop;
     v.muted = !s.sound || silent;
@@ -320,6 +322,10 @@
         if (err.name === 'NotAllowedError' && !v.muted) { v.muted = true; blocked = true; v.play().catch(() => {}); console.warn(`Video "${s.name}" is playing muted: this browser blocks sound until the page is clicked`); }
         else console.warn(`Video "${s.name}" would not play: ${err.message}`);
       });
+      // A sound copy says in the log when a video's sound isn't playing there a moment later, as nothing else would show it.
+      if (copying && s.sound && !silent) setTimeout(() => {
+        if (token === L.token && L.src.visible && (v.paused || v.muted || !(v.currentTime > 0))) console.warn(`Sound copy: "${s.name}" isn't playing its sound to ${copyTo}${v.error ? ` (${v.error.message || `media error ${v.error.code}`})` : v.muted ? ' (muted)' : ''}`);
+      }, 2000);
       L.shown = true;
       nextFrame(() => { if (token === L.token) el.classList.add('on'); });
     } else {
@@ -589,7 +595,7 @@
       const found = list.find(d => d.label === copyTo);
       if (!found) throw new Error(`${copyTo} isn't plugged in`);
       if (found.deviceId === sinkId) { copyError = ''; return; }
-      const players = [audio, tail, ...[...layers.values()].map(L => L.el.querySelector('video, audio')).filter(Boolean)];
+      const players = [audio, tail, ...[...layers.values()].map(L => L.el.querySelector('video')).filter(Boolean)];
       await Promise.all(players.map(el => el.setSinkId(found.deviceId)));
       const moving = sinkId !== null;
       sinkId = found.deviceId;
