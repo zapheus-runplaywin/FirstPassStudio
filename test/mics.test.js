@@ -115,7 +115,7 @@ test('the mics dip while music plays, and come back up when it stops', () => {
   ok({ type: 'musicMute', value: 'off' });
 });
 
-test('the mics dip under a video with its sound on, and for a scene that quiets the music, even with no music', () => {
+test('the mics dip under a video with its sound on, and for a scene that ducks the music, even with no music', () => {
   reset();
   ok({ type: 'micAdd', changes: { name: 'Court mic' } });
   ok({ type: 'show', id: id('Ad') });
@@ -126,7 +126,7 @@ test('the mics dip under a video with its sound on, and for a scene that quiets 
   ok({ type: 'sceneUpdate', scene: 'Interview', changes: { quiet: true } });
   ok({ type: 'sceneSave', name: 'Live game' });
   ok({ type: 'sceneGo', scene: 'Interview' });
-  assert.deepEqual(x().why, ['a quiet scene']);
+  assert.deepEqual(x().why, ['a scene or sequence']);
   ok({ type: 'sceneGo', scene: 'Live game' });
   assert.equal(x().dipped, false);
 });

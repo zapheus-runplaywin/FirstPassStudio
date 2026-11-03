@@ -115,8 +115,8 @@ function renderBoard() {
   const musicOn = m.status === 'playing';
   // Playing, paused or stopped is a symbol by the time (▶ ❚❚ ■), as on the player, rather than a word.
   const mSym = musicOn ? '<span class="sym">▶</span>' : m.status === 'paused' ? '<span class="sym">❚❚</span>' : m.track ? '<span class="sym">■</span>' : '';
-  // Why the music is ducked, so it isn't mistaken for the mics' duck: a quiet scene or sequence, a stinger, or by hand.
-  const mDuck = m.ducked ? `ducked${({ quiet: ' · quiet scene', stinger: ' · stinger', hand: ' · by hand' })[m.duckedBy] || ''}` : '';
+  // Why the music is ducked, so it isn't mistaken for the mics' duck: a scene or sequence that ducks it, a stinger, or by hand.
+  const mDuck = m.ducked ? `ducked${({ quiet: ' · scene or sequence', stinger: ' · stinger', hand: ' · by hand' })[m.duckedBy] || ''}` : '';
   const mFlags = [m.muted ? 'muted' : '', mDuck].filter(Boolean).join(' · ');
   const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? mFlags : 'nothing loaded',
     m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, m.track && $('mTime') ? `${mSym}${boardEsc($('mTime').textContent)}` : '', '', { below: true, wrap: true });

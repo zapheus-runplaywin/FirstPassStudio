@@ -21,11 +21,11 @@
 //     cuts it, when that's Cut). Cut to a sequence with music of its own, the old song fades out under the new one
 //     (tail: a crossfade). A sequence's music plays while the sequence plays on Output 1; one playing on other
 //     outputs too has its music driven by Output 1's runner alone.
-//   - "Quiet the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
+//   - "Ducks the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
 //     or a sequence's) ducks low and keeps playing until the next scene, sequence or step without it.
 //   - A stinger with ?music=quiet or ?music=duck (stinger.html; the Switcher card's Music under it), on the output the stinger
 //     plays on (scene.js stingerMusic): the music ducks quickly as it sweeps in, so it's down
-//     by the time the frame is covered. quiet leaves it down for the scene cut to under it (as Quiet the music does,
+//     by the time the frame is covered. quiet leaves it down for the scene cut to under it (as a scene that ducks the music does,
 //     until the next scene, sequence or step without it); dip brings it back up as the stinger leaves.
 //   - The super shot song (a setting, with its own volume): when the scoreboard's super shot period starts
 //     (the last minutes of a quarter, in a division with super shots) it cuts in over whatever is playing,
@@ -317,18 +317,18 @@ function stinger(mode, on, sec) {
   return true;
 }
 
-// A scene or sequence with "Quiet the music" ticked started (quiet true), or one without it (false).
+// A scene or sequence with "Ducks the music" ticked started (quiet true), or one without it (false).
 function quiet(on) {
   api?.quiet?.(!!on); // the mics dip with it (mics.js)
   if (on) {
     // A stinger's dip becomes this scene's quiet, so the music stays down when the stinger ends.
     if (p.ducked === 'stinger') { p.ducked = 'quiet'; return true; }
-    if (p.status !== 'stopped' && !p.ducked) { setDuck('quiet'); log('info', 'music', 'Quiet the music: ducked'); return true; }
+    if (p.status !== 'stopped' && !p.ducked) { setDuck('quiet'); log('info', 'music', 'Ducked for the scene or sequence'); return true; }
     return false;
   }
   if (p.ducked !== 'quiet') return false;
   setDuck(null);
-  log('info', 'music', 'Music back up after the quiet scene');
+  log('info', 'music', 'Music back up after the scene or sequence that ducked it');
   return true;
 }
 
