@@ -389,7 +389,13 @@ function leave(seqId, out, sec) {
   delete leaving[out];
   if (!(sec > 0)) return true;
   leaving[out] = { at: now(), ms: Math.round(sec * 1000) };
-  leaveTimers.set(out, setTimeout(() => { leaveTimers.delete(out); delete leaving[out]; api.changed(); }, sec * 1000));
+  leaveTimers.set(out, setTimeout(() => {
+    leaveTimers.delete(out);
+    delete leaving[out];
+    // Faded out there while the music fades out to a stop elsewhere: it stays gone there, never back up to that fade.
+    if (p.after === 'stop' && p.stopOn) p.stopOn = p.stopOn.filter(o => o !== out);
+    api.changed();
+  }, sec * 1000));
   log('info', 'music', `${track()} fades out over ${sec} s on one output, and plays on where its sequence does`);
   return true;
 }

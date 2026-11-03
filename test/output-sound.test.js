@@ -109,6 +109,24 @@ test('cut away from on Output 1 while it plays on elsewhere, a sequence\'s music
   assert.equal(m().status, 'stopped');
 });
 
+test('ended on Output 1 first, then on the other: the music faded out on Output 1 stays gone while it fades out on the other', () => {
+  ok({ type: 'seqAdd', changes: { name: 'Two-up', playsOn: ['main', two()], music: { track: 'Bed.mp3', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 6 },
+    steps: [step(['Ladder'], 60)] } });
+  ok({ type: 'seqPlay', sequence: 'Two-up' });
+  ok({ type: 'seqStop' });
+  assert.deepEqual(Object.keys(m().leaving), ['main'], 'fading out on Output 1 alone');
+  wait(3);
+  ok({ type: 'seqStop', output: two() });
+  assert.equal(m().status, 'playing', 'fading out on Commentary');
+  assert.ok(m().outputs.includes('main'), 'Output 1 still finishing its own fade');
+  wait(3);
+  assert.deepEqual(m().outputs, [two()], "Output 1's fade is done: it doesn't come back up to Commentary's fade");
+  assert.deepEqual(m().leaving, {});
+  wait(3);
+  assert.equal(m().status, 'stopped');
+  ok({ type: 'seqRemove', sequence: 'Two-up' });
+});
+
 test('the music makes way for a video with sound only on an output it plays on', () => {
   ok({ type: 'musicSettings', settings: { underVideo: 'pause' } });
   ok({ type: 'musicLoad', track: 'Walk out.m4a', play: true, fade: 0 });
