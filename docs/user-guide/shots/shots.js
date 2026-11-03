@@ -108,6 +108,12 @@ const SHOTS = [
       await part(page, page.locator('#musicSection'), out);
     } finally { await studio.post('/api/scene', { type: 'musicStop' }); }
   } },
+  { name: 's-output-ducking', async take({ page, studio, out }) {
+    await go(page, studio, '/output.html', 3000);
+    await page.click('#duckCfg');
+    await page.waitForTimeout(400);
+    await part(page, page.locator('#duckSection'), out);
+  } },
   { name: 's-playlist-editor', async take({ page, studio, out }) {
     await go(page, studio, '/output.html');
     await page.locator('#playlists .seq', { has: page.locator('b', { hasText: /^Pre-game warm up$/ }) }).locator('.edit').click();

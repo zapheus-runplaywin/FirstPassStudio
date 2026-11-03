@@ -352,7 +352,7 @@ queued after it before falling back to its own Then.
 ## Music (Output page)
 
 The Output page's **Music** player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF), one at a time or from a
-playlist. Music plays wherever video sound plays (the outputs, or the Output page's Scene View while Video output is off) and is never heard twice.
+playlist. Music plays where Output 1's **Sound goes to** says, never in the Output page's Scene View.
 
 | Button | Link |
 |---|---|
@@ -369,16 +369,16 @@ playlist. Music plays wherever video sound plays (the outputs, or the Output pag
 
 - Add `?fade=2` to any of them for a 2 second fade, or `?fade=0` to cut. Without it they use the player's fade in time (play, resume, duck off) or fade out time (stop, pause, fade, duck on).
 - Songs are named like sources: lower case with dashes for spaces, without the file's ending (**Pre-game bed.mp3** is `pre-game-bed`).
-- While a video with its sound on plays, the music fades out and pauses, then fades back in from where it was (a player setting:
-  or lower it, or leave it).
-- A sequence can bring its own music; going to a scene or another sequence fades it out. A scene or sequence with **Quiet the music**
+- While a video with its sound on plays, the music fades out and pauses, then fades back in from where it was (or is left
+  playing: the Output page's Ducking card).
+- A sequence can bring its own music; going to a scene or another sequence fades it out. A scene or sequence with **Ducks the music**
   ticked (an interview on court) ducks whatever music is playing (over the fade time) until the next scene, sequence or sequence step without it.
 - The super shot song (a music setting, with its own volume) cuts in when the super shot period starts and fades out when it ends.
 
 ## Mics (Output page)
 
 The Output page's **Mics** are live mics plugged into the Mac (wireless effects mics, crowd mics), mixed into Output 1's sound
-while it's on, or plugged into the ATEM switcher, whose faders Studio moves. They duck while music or a video with sound plays, or a scene quiets the music (each a setting), and by hand.
+while it's on, or plugged into the ATEM switcher, whose faders Studio moves. They duck while music or a video with sound plays, or a scene ducks the music (each a tick on the Ducking card), and by hand.
 
 | Button | Link |
 |---|---|

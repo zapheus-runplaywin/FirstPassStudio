@@ -34,14 +34,14 @@
   .pgmUnder { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
   .pgmUnder .note { margin: 0; font-size: 13px; }
   .pgmView { gap: 10px; }
-  /* The status board (output/board.js): the game, then seven lines in two columns (the next game across both), each a
+  /* The status board (output/board.js): the game, then eight lines in two columns (the next game across both), each a
      light, a word, a bar or meter and a time, readable from arm's length. (The outputs, ATEM and REC are the bar's chips.) */
   /* The board fills the picture's height: the game row takes what it needs, and the lines
      share the rest, so on a big screen everything has room and on a small one nothing is cut. */
   .sboard { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; align-content: stretch; background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 14px 18px; font-size: 14px; min-width: 0; }
   .sboard .brow { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .sboard .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--fp-line-strong); flex: none; }
-  .sboard .dot.ok { background: var(--fp-ok); } .sboard .dot.warn { background: var(--fp-gold); } .sboard .dot.bad { background: var(--fp-danger); } .sboard .dot.live { background: var(--fp-orange); }
+  .sboard .dot.ok { background: var(--fp-ok); } .sboard .dot.warn { background: var(--fp-gold); } .sboard .dot.bad { background: var(--fp-danger); } .sboard .dot.notlive { background: var(--fp-notlive); } .sboard .dot.live { background: var(--fp-orange); }
   .sboard .game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; padding: 0 0 10px; border-bottom: 1px solid var(--fp-line); }
   .sboard .game .pq { display: flex; align-items: center; gap: 6px; color: var(--fp-muted); font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sboard .game .pq.bad, .sboard .game .pq.warn { color: var(--fp-warn-ink); }
@@ -59,6 +59,7 @@
   .sboard .pqchip b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--fp-navy); }
   .sboard .pqchip.warn { border-color: var(--fp-gold); } .sboard .pqchip.warn b { color: var(--fp-warn-ink); }
   .sboard .pqchip.bad { border-color: var(--fp-danger); } .sboard .pqchip.bad b { color: var(--fp-danger); }
+  .sboard .pqchip.notlive { border-color: var(--fp-notlive); } .sboard .pqchip.notlive b { color: var(--fp-notlive); }
   .sboard .game .score { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: baseline; }
   .sboard .game .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sboard .game .tname.away { text-align: right; }
@@ -85,14 +86,15 @@
   .sboard .tm .sym { font-family: var(--fp-font, inherit); font-size: 12px; margin-right: 6px; color: var(--fp-muted); }
   /* A line's button (Record) sits under its words, so they keep the column's width. */
   .sboard .line button { display: block; justify-self: start; margin: 2px 0 0; padding: 3px 10px; font-size: 12px; font-family: var(--fp-font, inherit); }
-  /* The console: the Sources down the left, and to their right scenes beside sequences, music beside mics, the
-     switcher, then the media folder. Set-up waits behind a button in each section's header: each source's settings
+  /* The console: the Sources down the left, and to their right the run order, then two columns that line up
+     all the way down: Scenes, Music and Ducking in the narrow one, Sequences, Mics, the switcher and the media folder in
+     the wide one. Set-up waits behind a button in each section's header: each source's settings
      under its row (the pencil), each scene's pencil, Music and Mics Settings, the switcher's Set up. */
   .console { display: grid; grid-template-columns: minmax(300px, 2fr) minmax(0, 5fr); gap: 14px; align-items: start; }
   .console > section, .stack section { margin-bottom: 0; }
   .stack { display: grid; gap: 14px; min-width: 0; }
-  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px; align-items: start; }
-  .pair.dock { grid-template-columns: 1fr 1fr; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px; align-items: start; }
+  .col { display: grid; gap: 14px; min-width: 0; }
   /* Scenes | Sequences | Run order; on a narrower window the run order drops under the two. */
   .seq.run { grid-column: 1 / -1; }
   .seqs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 8px; }
@@ -101,9 +103,15 @@
   .addRow { margin-bottom: 10px; }
   .addRow button { padding: 4px 10px; font-size: 13px; }
   button.cfg[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
-  #musicSection:not(.cfgOpen) > .form, #micsSection:not(.cfgOpen) > .form { display: none; }
+  #musicSection:not(.cfgOpen) > .form, #duckSection:not(.cfgOpen) > .form { display: none; }
+  #duckSection.cfgOpen #dkSummary { display: none; }
+  #duckSection .duckForm { display: block; margin-top: 8px; }
+  table.duck { border-collapse: collapse; width: 100%; font-size: 14px; }
+  table.duck th { text-align: left; font-weight: 600; color: var(--fp-muted, inherit); padding: 4px 8px; border-bottom: 1px solid var(--fp-line); }
+  table.duck td { padding: 5px 8px; border-bottom: 1px solid var(--fp-line); vertical-align: middle; }
+  table.duck td:first-child { width: 42%; }
   @media (max-width: 1100px) { .mv, .console { grid-template-columns: minmax(0, 1fr); } }
-  @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
 
   .sources { list-style: none; margin: 0 0 12px; padding: 0; border: 1px solid var(--fp-line); border-radius: 8px; overflow: hidden; }
   .sources li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-top: 1px solid var(--fp-line); cursor: pointer; }
@@ -227,9 +235,7 @@
   .seq .seqOuts label { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
   .seq .seqOuts label span { overflow: hidden; text-overflow: ellipsis; }
   .seq .seqOuts .seqSt:first-of-type { margin-left: auto; }
-  .seq .seqOuts i, .outTicks i { width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; flex: none; }
-  .outTicks { display: flex !important; flex-wrap: wrap; gap: 4px 14px !important; font-size: 13px !important; }
-  .outTicks label { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; font-weight: 400; }
+  .seq .seqOuts i { width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; flex: none; }
   .seq .seqOuts .seqSt { font-size: 11px; font-weight: 700; color: var(--fp-muted); }
   .seq .seqOuts .seqSt.playing { color: #16a34a; }
   .seq .seqOuts .seqSt.paused, .seq .seqOuts .seqSt.starting { color: #d97706; }
@@ -380,7 +386,9 @@
   .swKeys button.outKey { box-shadow: inset 0 -4px 0 var(--c); }
   .swKeyCheck .okText { color: var(--fp-ok); font-weight: 600; }
   .swKeyCheck .badText { color: var(--fp-danger); font-weight: 600; }
-  #outCopyStatus.badText { color: var(--fp-danger); font-weight: 600; }
+  .soundDest { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
+  .soundDest .sdStatus { flex-basis: 100%; margin: 0; }
+  .soundDest .sdStatus.badText { color: var(--fp-danger); font-weight: 600; }
 </style>
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
@@ -479,13 +487,6 @@
           <option value="external">Fill and key (the device's external keyer: fill on one SDI out, key on the other)</option>
           <option value="off">Fill only</option>
         </select>
-        <label for="outDlSound" class="forDecklink">Sound</label>
-        <select id="outDlSound" class="forDecklink" title="Where this output's sound goes">
-          <option value="sdi">In the SDI (with fill and key, on the fill)</option>
-          <option value="both">In the SDI and on the Mac's sound output</option>
-          <option value="mac">On the Mac's sound output only</option>
-        </select>
-        <p class="note forDecklink" id="outDlSoundNote" style="grid-column:1/-1">The sound goes into the SDI as 48 kHz stereo, in time with the picture. On the switcher, turn on the sound of the input the fill comes into (On, or AFV to follow the picture). An SDI to HDMI converter passes it on.</p>
         <label for="outNdiFormat" class="forNdi">Video format</label>
         <select id="outNdiFormat" class="forNdi"></select>
         <label for="outNdiName" class="forNdi">Source name</label>
@@ -498,20 +499,21 @@
           clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key (every ATEM can).</p>
         <p class="note forDecklink hidden" id="outDlStraightWarn" style="grid-column:1/-1"><b style="color:var(--fp-danger)">Straight is ticked:</b> into a Pre Multiplied Key
           it leaves a light fringe round logos and text. Untick it and turn the switcher's Pre Multiplied Key on.</p>
-        <label for="outCopy" class="forCopy">Also send the sound to</label>
-        <div class="forCopy">
-          <div class="row"><select id="outCopy" title="Another of the Mac's sound outputs that gets this output's sound too, such as the commentators' mixer"></select>
-            <button class="alt small" id="outCopyFind" title="List the Mac's sound outputs (the Mac asks once to let Studio use its sound devices)">Find sound outputs</button></div>
-          <div class="hidden" id="outCopyMicsRow" style="margin-top:6px"><span class="note" style="margin:0">Mics in it</span> <span id="outCopyMics" class="swCams"></span></div>
-          <p class="note hidden" id="outCopyStatus" style="margin:4px 0 0"></p>
-          <details class="info"><summary>Expand for info</summary><p class="note">While this output is on, its sound also plays on the device picked here, as well as
-          wherever it goes now (the display's sound, the SDI, the Mac's sound output), which carry on as they are. Use it to give the commentators the music in their
-          headphones through their mixer: it carries this output's videos, music and page sounds, at the levels and fades they go out at, and only the mics ticked here, so
+        <label class="forSound">Sound goes to</label>
+        <div class="forSound">
+          <div id="outSound"></div>
+          <div class="row"><button class="alt small" id="outSoundAdd" title="Send this output's sound somewhere else as well, such as the commentators' mixer">Add a destination</button>
+            <button class="alt small" id="outSoundFind" title="List the Mac's sound outputs (the Mac asks once to let Studio use its sound devices)">Find sound outputs</button></div>
+          <p class="note hidden" id="outSoundNote" style="margin:4px 0 0"></p>
+          <p class="note forDecklink" id="outDlSoundNote" style="margin:4px 0 0">In the SDI, the sound goes out as 48 kHz stereo, in time with the picture. On the switcher, turn on the sound of the input the fill comes into (On, or AFV to follow the picture). An SDI to HDMI converter passes it on.</p>
+          <details class="info"><summary>Expand for info</summary><p class="note">Where this output's sound plays: the first destination is where the output itself carries it (the SDI of a
+          Blackmagic output, or the Mac's sound output), and every Mac mic goes with it on Output 1. Add a destination to send the sound somewhere else as well, such as
+          the commentators' mixer: it carries this output's videos, music and page sounds, at the levels and fades they go out at, and only the mics ticked for it, so
           the commentators don't hear themselves back late. Tick a crowd mic to give them the crowd. Mics on the switcher are mixed there, so they're never in it.
           <b>On the mixer:</b> keep what comes in from the Mac out of what the mixer sends back to it (its mix-minus, or the USB return left out of the USB send),
           or the music comes back into Studio through the commentators' mics and goes out twice, a little late. To check: play some music and watch the
           commentators' mic meters in Mics; they should stay still while nobody talks. Pages from other websites aren't in it.
-          It can be changed while the output is on.</p></details>
+          Destinations can be added, removed and changed while the output is on, except the first, which changes how the output itself is sent.</p></details>
         </div>
         <label for="outKeyer" class="forSw">Into the switcher as</label>
         <div class="forSw">
@@ -527,8 +529,8 @@
       <p class="note" id="outStatus"></p>
       <p class="note perf hidden" id="outPerf" title="Checked every 5 seconds while an output is on. CPU is a percentage of one processor core. Studio writes these to its log once a minute."></p>
       <p class="note hidden" id="outExtraNote"><b>This output shows its own graphics:</b> turn sources on and off for it with its
-      coloured buttons in the Sources list (they start off), or its own Stream Deck links. It plays the sound of what it shows, the music if
-      <b>Music plays on</b> ticks it, and the mics that go to it. Scenes and sequences are shared by every output: pick its tab over the Scene View and a click plays them on this output.</p>
+      coloured buttons in the Sources list (they start off), or its own Stream Deck links. It plays the sound of what it shows; the music and the mics
+      are Output 1's. Scenes and sequences are shared by every output: pick its tab over the Scene View and a click plays them on this output.</p>
       <p class="note" id="viewersNow" hidden></p>
       <p class="note hidden" id="outLocked">Turn the output off to change these settings.</p>
       <details class="info"><summary>Expand for info</summary><p class="note">The scene fills each display full screen, scaled to fit. <b>Fill</b> is the scene over black; <b>key</b> is white wherever the scene
@@ -557,7 +559,7 @@
       <div class="pgmUnder">
         <span class="row pgmView"><label class="fp-switch" title="Draw the scene here as it is right now"><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt small" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></span>
         <p class="note" id="previewWhich"></p>
-        <p class="note" id="previewSoundNote" style="font-weight:600"></p>
+        <p class="note" id="previewSoundNote">Silent: an output's sound plays where its <b>Sound goes to</b> says, on or off air.</p>
       </div>
     </div>
     <aside class="sboard" id="board" aria-label="Status board"></aside>
@@ -657,7 +659,7 @@
           <label class="forVideo">Sound</label>
           <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
         </div>
-        <p class="note forVideo">Sound plays through this Mac's audio output, or in a Blackmagic output's SDI. The Scene View above plays it only while <b>Video output</b> is off.</p>
+        <p class="note forVideo">Sound plays where the output's <b>Sound goes to</b> says. The Scene View above never plays it.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
           <button class="alt" id="fPreview" title="Open this source on its own, the way the Devices tab's Preview does">Preview</button>
@@ -736,8 +738,8 @@
         </div>
         <label for="sqHidden">Hide</label>
         <label class="inline"><input type="checkbox" id="sqHidden"> Hide it from the sequence list (it still plays inside other sequences, when its start comes, and from the Stream Deck)</label>
-        <label for="sqQuiet">Quiet</label>
-        <label class="inline"><input type="checkbox" id="sqQuiet"> Quiet the music when this starts (an interview on court): whatever is playing ducks until the next scene or sequence without it</label>
+        <label for="sqQuiet">Duck</label>
+        <label class="inline"><input type="checkbox" id="sqQuiet"> Ducks the music when this starts (an interview on court): whatever is playing ducks until the next scene or sequence that doesn't</label>
       </div>
       <h2 style="margin:16px 0 4px">Steps</h2>
       <div class="steps" id="sqSteps"></div>
@@ -759,7 +761,11 @@
     </dialog>
   </section>
 
-  <div class="pair">
+  <!-- Two columns that line up all the way down, each stacking its sections tight: Scenes, Music and Ducking in the
+       narrow one, Sequences, Mics, the switcher and the media folder in the wide one. A section never changes column,
+       so nothing moves sides while it grows; folding one pulls the rest of its column up. -->
+  <div class="cols">
+  <div class="col">
   <section id="scenesSection" data-fold="scenes">
     <div class="secHead">
       <h2 id="scenesHead">Scenes</h2>
@@ -775,7 +781,7 @@
         <label for="sdName">Name</label><input id="sdName" maxlength="60">
         <label for="sdColour">Colour</label><select id="sdColour"></select>
       </div>
-      <label style="display:block;margin-top:10px;font-weight:400"><input type="checkbox" id="sdQuiet"> Quiet the music <small class="note">(going to this scene ducks the music, or fades out a sequence's music, for an interview on court)</small></label>
+      <label style="display:block;margin-top:10px;font-weight:400"><input type="checkbox" id="sdQuiet"> Ducks the music <small class="note">(going to this scene ducks the music, or fades out a sequence's music, for an interview on court)</small></label>
       <button class="alt hidden" id="sdSwitcher" style="margin-top:8px"></button>
       <div class="row" style="margin-top:12px;justify-content:space-between">
         <div class="row"><button class="danger" id="sdDelete">Delete</button><button class="alt" id="sdCopy">Copy</button></div>
@@ -784,24 +790,10 @@
     </dialog>
   </section>
 
-  <section id="seqSection" data-fold="sequences">
-    <div class="secHead">
-      <h2 id="seqHead">Sequences</h2>
-      <button class="alt" id="addSeq" title="Steps played one after another">Add sequence</button>
-    </div>
-    <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
-    <div class="seqs" id="seqs"></div>
-    <p class="fp-empty" id="seqEmpty"></p>
-  </section>
-
-
-  </div>
-
-  <div class="pair dock" id="dock">
   <section id="musicSection" data-fold="music">
     <div class="secHead">
       <h2>Music</h2>
-      <button class="alt cfg" id="musicCfg" aria-pressed="false" title="Where the music plays, its fades, ducking and the super shot song">Settings</button>
+      <button class="alt cfg" id="musicCfg" aria-pressed="false" title="The music's fades and the super shot song (what ducks it is under Ducking)">Settings</button>
     </div>
     <div class="player" id="player">
       <div class="np"><span><b id="mTrack">Nothing loaded</b> <small id="mWhere"></small></span><span class="t" id="mTime"></span></div>
@@ -826,18 +818,12 @@
     </div>
     <div class="seqs" id="playlists"></div>
     <div class="form" style="margin-top:12px">
-      <label class="mOutsRow">Music plays on</label>
-      <div class="row mOutsRow"><div id="mOuts"></div> <small>the player's music and the super shot song; a sequence's music plays on the outputs playing the sequence</small></div>
       <label for="mFadeIn">Fade in</label>
       <div class="row"><input type="number" id="mFadeIn" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Carry on and the duck coming back up</span></div>
       <label for="mFadeOut">Fade out</label>
-      <div class="row"><input type="number" id="mFadeOut" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Stop, Pause and the duck going down (<code>?fade=</code> on a link changes either per press)</span></div>
-      <label for="mUnder">While a video with sound plays</label>
-      <div class="row"><select id="mUnder"><option value="pause">Fade the music out and pause it, then fade it back in</option><option value="lower">Lower the music</option><option value="leave">Leave the music as it is</option></select>
-        <label class="inline mLowerTo">to <input type="number" id="mLowerTo" min="0" max="100" style="width:64px"> %</label></div>
-      <label for="mDuckTo">Duck to</label>
-      <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that quiets the music)</span>
-        <label class="inline"><input type="checkbox" id="mDuckHalf"> Duck over half the fade times</label></div>
+      <div class="row"><input type="number" id="mFadeOut" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Stop, Pause, the duck going down, and a sequence's music stopped when its Music ends gives no time (<code>?fade=</code> on a link changes either per press)</span></div>
+      <label for="mQuick">Quick</label>
+      <div class="row"><input type="number" id="mQuick" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, for the music getting out of the way of a video's sound and coming back, and coming back up after a stinger</span></div>
       <label for="mSuperSong">Super shot song</label>
       <div class="row"><select id="mSuperSong"></select> <label class="inline">at <input type="number" id="mSuperVolume" min="0" max="100" style="width:64px"> % volume</label>
         <span>(cuts in when the super shot period starts, fades out when it ends)</span></div>
@@ -859,10 +845,54 @@
     </dialog>
   </section>
 
+
+  <!-- Ducking: everything that takes the music and the mics down, in one place. The causes are the rows, the music and
+       the mics the columns; folded, its line says the levels and what ducks them. -->
+  <section id="duckSection" data-fold="ducking">
+    <div class="secHead">
+      <h2>Ducking</h2>
+      <span class="note" id="dkSummary" style="margin:0"></span>
+      <button class="alt cfg" id="duckCfg" aria-pressed="false" title="What ducks the music and the mics, how low and how fast">Settings</button>
+    </div>
+    <div class="form duckForm">
+      <table class="duck">
+        <thead><tr><th>What ducks them</th><th>Music</th><th>Mics</th></tr></thead>
+        <tbody>
+          <tr><td>A video with sound plays</td>
+            <td><label class="inline"><input type="checkbox" id="dkMusicVideo"> fades out and pauses, then back in</label></td>
+            <td><label class="inline"><input type="checkbox" id="mxDipVideo"> duck</label></td></tr>
+          <tr><td>A scene or sequence with <b>Ducks the music</b> ticked</td><td>ducks</td>
+            <td><label class="inline"><input type="checkbox" id="mxDipQuiet"> duck</label></td></tr>
+          <tr><td>Music plays</td><td>—</td>
+            <td><label class="inline"><input type="checkbox" id="mxDipMusic"> duck</label></td></tr>
+          <tr><td>The stinger, with <b>Music under it</b> set to duck (Switcher)</td><td>ducks, fast</td><td>—</td></tr>
+          <tr><td>The <b>Duck</b> button</td><td>the music's own</td><td>the mics' own</td></tr>
+          <tr><td>Duck to</td>
+            <td><input type="number" id="mDuckTo" min="0" max="100" style="width:64px" aria-label="Music duck to"> %</td>
+            <td><input type="number" id="mxDipTo" min="0" max="100" style="width:64px" aria-label="Mics duck to"> %</td></tr>
+          <tr><td>Down, then back up</td><td>over the music's Fade out and Fade in</td>
+            <td><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics duck down over"> s,
+              <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics back up over"> s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </div>
+
+  <div class="col">
+  <section id="seqSection" data-fold="sequences">
+    <div class="secHead">
+      <h2 id="seqHead">Sequences</h2>
+      <button class="alt" id="addSeq" title="Steps played one after another">Add sequence</button>
+    </div>
+    <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
+    <div class="seqs" id="seqs"></div>
+    <p class="fp-empty" id="seqEmpty"></p>
+  </section>
+
   <section id="micsSection" data-fold="mics">
     <div class="secHead">
       <h2>Mics</h2>
-      <button class="alt cfg" id="micsCfg" aria-pressed="false" title="The duck level, what ducks the mics and how fast">Settings</button>
     </div>
     <div class="player" id="mxBar">
       <div class="np"><span><b id="mxHeard">No mics yet</b> <small id="mxWhy"></small></span></div>
@@ -874,16 +904,6 @@
       <p class="error" id="mxProblem" style="margin:0"></p>
     </div>
     <div class="seqs" id="mxList"></div>
-    <div class="form" style="margin-top:12px">
-      <label for="mxDipTo">Duck to</label>
-      <div class="row"><input type="number" id="mxDipTo" min="0" max="100" style="width:70px"> <span>% while</span>
-        <label class="inline"><input type="checkbox" id="mxDipMusic"> music plays</label>
-        <label class="inline"><input type="checkbox" id="mxDipVideo"> a video with sound plays</label>
-        <label class="inline"><input type="checkbox" id="mxDipQuiet"> a scene or sequence quiets the music</label></div>
-      <label for="mxDown">Duck down over</label>
-      <div class="row"><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, and back up over</span>
-        <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:70px" aria-label="Back up over"> <span>seconds</span></div>
-    </div>
     <dialog id="mxDialog">
       <h2 id="mxTitle">Mic</h2>
       <div class="form">
@@ -895,12 +915,10 @@
         <label for="mxChannel">Channel</label>
         <div class="row"><select id="mxChannel"><option value="both">Both (mixed to one)</option><option value="left">Left (1)</option><option value="right">Right (2)</option></select>
           <small>two receivers on one stereo input are two mics, left and right</small></div>
-        <label class="mxOutsRow">Goes to</label>
-        <div class="row mxOutsRow"><div id="mxOuts"></div></div>
         <label>Sound</label>
         <div class="row" style="gap:12px">
           <label class="inline" id="mxLowCutRow"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>
-          <label class="inline" title="The mixer does the fading, so Studio never ducks this mic; its level and mute still work"><input type="checkbox" id="mxMixer"> Has an external mixer (doesn't duck)</label>
+          <label class="inline" title="The mixer does the fading, so Studio never ducks this mic; its level and mute still work"><input type="checkbox" id="mxMixer"> Never ducks (an external mixer does it)</label>
         </div>
         <p class="note hidden" id="mxMixerNote" style="grid-column:1/-1;margin:0"><b>On the mixer, not in Studio:</b> consider if you need mix minus on the mixer's audio out. If you hear two lots of music or effects echoing, then this might be the culprit.</p>
       </div>
@@ -912,7 +930,6 @@
       </div>
     </dialog>
   </section>
-  </div>
 
   <section id="swSection" data-fold="switcher">
     <div class="secHead">
@@ -935,7 +952,9 @@
       <div class="row swKeys swStingerRow" style="margin-top:10px"><span class="swLabel">Stinger</span><span class="note" id="swStingerName" style="margin:0"></span>
         <label class="inline" style="font-weight:400" title="Frames to cut later (or earlier, below 0) than the middle of the stinger, for the delay of that output's picture into the switcher. Each output keeps its own."><span id="swLineupLabel">line-up</span>
           <input type="number" id="swLineup" min="-25" max="25" step="1" style="width:64px"> frames</label>
-        <button class="alt" id="swLineupTest" title="Cuts to the preview input just 2 frames after the stinger covers the frame: if the old picture flashes before the bands, add frames">Test the line-up</button></div>
+        <button class="alt" id="swLineupTest" title="Cuts to the preview input just 2 frames after the stinger covers the frame: if the old picture flashes before the bands, add frames">Test the line-up</button>
+        <label class="inline" style="font-weight:400" title="What the music does under the stinger, on the output it plays on. Quieted: down by the time the frame is covered and kept down for the scene cut to, until a scene, sequence or step that doesn't quiet it. Ducks: down the same way and back up as the stinger leaves. Saved with the stinger source (the same choice as Music in its options).">Music under it
+          <select id="swStingerMusic"><option value="">Carries on as it is</option><option value="quiet">Ducks for the next scene</option><option value="duck">Ducks while it plays</option></select></label></div>
     </div>
     <div id="swForm" class="hidden" style="margin-top:12px">
       <div class="row"><button class="alt" id="swFind">Look for switchers</button><span class="note" id="swFindNote" style="margin:0"></span></div>
@@ -958,6 +977,8 @@
       <ul class="sources mediaList" id="mediaList"></ul>
       <p class="error" id="mediaErr"></p>
   </section>
+  </div>
+  </div>
   </div>
   </div>
 </main>

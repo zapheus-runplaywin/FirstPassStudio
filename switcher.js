@@ -319,9 +319,14 @@ function summary() {
     fps: fpsOf(st.settings && st.settings.videoMode),
   };
 }
+const stingerMusicOf = url => {
+  const m = new URLSearchParams(String(url || '').split('?')[1] || '').get('music');
+  return m === 'quiet' ? 'quiet' : m === 'duck' || m === 'dip' ? 'duck' : '';
+};
 function status() {
   const s = conn === 'connected' ? summary() : null;
   const where = stingerOutput();
+  const sting = stingerApi && stingerApi.find();
   return {
     rev,
     setUp: !!pick,
@@ -338,7 +343,10 @@ function status() {
     lineup: lineups[where.id] || 0,
     lineups,
     follow,
-    stinger: (stingerApi && stingerApi.find()) ? stingerApi.find().name : '',
+    stinger: sting ? sting.name : '',
+    // Music under it (the stinger's ?music=): '' carries on, quiet, or duck (dip, its old name, reads as duck).
+    stingerId: sting ? sting.id : '',
+    stingerMusic: sting ? stingerMusicOf(sting.url) : '',
     keys: s ? keyChecks(s) : [],
     ...(s || { model: '', inputs: [], program: null, preview: null, inTransition: false, usk: [], dsk: [], ftb: false }),
   };
@@ -923,4 +931,4 @@ function init(logger, { changed: onChanged, stinger, outputs, unstraight, mics }
 // The outputs changed: their key settings check may say something else now.
 const refresh = () => changed();
 
-module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, micInputs, setMicFader, FILE, parseBrowse, parseLookup, parseAddress };
+module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, micInputs, setMicFader, stingerOutput, FILE, parseBrowse, parseLookup, parseAddress };

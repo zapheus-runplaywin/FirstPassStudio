@@ -74,7 +74,7 @@ test('names are kept apart and usable in links; outputs are found by name or num
   assert.equal(outputs.find(two.id).id, two.id);
 });
 
-test('each output sends its own way out with its own sound, and a Scene View plays the sound of an output that isn\'t on', () => {
+test('each output sends its own way out with its own sound, never muted for the Scene View', () => {
   const big = byName('Big screen'), three = byName('Big Screen 2');
   outputs.apply({ output: 'main', mode: 'decklink', decklinkDevice: 'dl', on: true });
   outputs.apply({ output: big.id, mode: 'ndi', ndiSignal: 'fillkey', on: true });
@@ -82,15 +82,7 @@ test('each output sends its own way out with its own sound, and a Scene View pla
   const w = outputs.windows();
   assert.deepEqual(w.map(x => [x.output, x.kind]), [['main', 'decklink'], [big.id, 'ndi'], [three.id, 'chroma']]);
   assert.deepEqual(w.map(x => !!x.muted), [false, false, false], 'every output plays its own sound');
-  assert.equal(st().previewSound, false, 'the primary is on, so a Scene View of it is silent');
-  assert.deepEqual(st().outputs.filter(o => [big.id, three.id].includes(o.id)).map(o => o.previewSound), [false, false]);
-  outputs.apply({ output: big.id, on: false });
-  assert.equal(st().outputs.find(o => o.id === big.id).previewSound, true, 'Big screen is off, so a Scene View of it may play its sound');
-  assert.deepEqual(outputs.listen({ id: 'page', on: true, output: big.id }), { sound: true });
-  assert.equal(st().outputs.find(o => o.id === big.id).listening, true);
-  assert.deepEqual(outputs.listen({ id: 'page', on: true, output: three.id }), { sound: false }, 'not while that output is on');
-  outputs.listen({ id: 'page', on: false });
-  outputs.apply({ output: big.id, on: true });
+  assert.ok(st().outputs.every(o => !('previewSound' in o)), 'the Scene View never plays an output\'s sound, on or off');
 });
 
 test('two chroma outputs over HDMI on two displays, each with its own colour', () => {
@@ -196,18 +188,18 @@ test('what\'s on for an output isn\'t saved run by run, and goes when the output
   assert.equal(st().outputs[3].colour, '#f24f91');
 });
 
-test('scene.html draws another output\'s sources with their sound, and the music and mics ticked for it; the pop-out and Output page know outputs', () => {
+test('scene.html draws another output\'s sources with their sound, without the music and mics (Output 1\'s); the pop-out and Output page know outputs', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'scene.html'), 'utf8');
   assert.match(html, /params\.get\('output'\)/);
   assert.doesNotMatch(html, /alwaysSilent/);
-  assert.match(html, /renderMusic\(ticked\(scene\.music\)/);
-  assert.match(html, /m\.on !== 'atem' && ticked\(m\)/);
+  assert.match(html, /renderMusic\(primary \? scene\.music : null\)/);
+  assert.match(html, /copying \? copyAll \|\| copyMics\.has\(m\.id\) : primary/);
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
   for (const id of ['outAdd', 'outList', 'outName', 'outRemove', 'outTabs']) assert.match(page, new RegExp(`id="${id}"`));
   assert.doesNotMatch(page, /id="outFilter"/, 'the Sources list follows the output tab');
   const win = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'scenewindow.js'), 'utf8');
   assert.match(win, /&output=\$\{encodeURIComponent\(output\)\}`/);
-  assert.doesNotMatch(win, /mute=1/);
+  assert.match(win, /mute \? '&mute=1' : ''/, 'muted only when the output has no sound destination of its own');
 });
 
 test('sponsors are on air while Output 1 or an output that counts for them is sending', () => {

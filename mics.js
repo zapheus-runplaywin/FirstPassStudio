@@ -2,11 +2,11 @@
 //
 // A mic is one input of an audio device plugged into the Mac (a wireless receiver, a USB interface): the device by
 // the name macOS gives it, and which of its channels (both, left or right, so two receivers on one stereo interface
-// are two mics). Each mic goes to the outputs ticked for it (outputs, Output 1 unless set): a commentators' feed can
-// take the effects mics and leave out the commentators' own. Studio keeps the settings; each output's own window
-// (scene.html in the app's display, NDI or Blackmagic output) opens the devices of the mics going to it and mixes
-// them into its sound, so the mics go out with that output's music and video sound. They're never played in a
-// Scene View: a speaker in the room near a mic would feed back. With its outputs off, a mic is silent.
+// are two mics). The mics are Output 1's, like the music: Studio keeps the settings, and Output 1's own window
+// (scene.html in the app's display, NDI or Blackmagic output) opens their devices and mixes them into its sound, so
+// they go out with Output 1's music and video sound. Output 1's other sound destinations (the Output page's "Sound goes
+// to") each take the mics ticked for them. They're never played in a Scene View: a speaker in the room near a mic would
+// feed back. With Output 1 off, the mics are silent.
 //
 // Each mic has a level (0-200 %, 100 as it comes in), a mute and a low cut (on by default: takes out rumble and wind
 // below about 100 Hz). One master level and mute sit over all of them, and a limiter at the end stops a loud shout
@@ -15,9 +15,9 @@
 // Dips: like the music's duck, the mics come down to the Dip to level (and back up) while
 //   - music is playing (the player's, a sequence's or the super shot song), if ticked (it starts unticked),
 //   - a video with its sound on is showing (or a page playing a theme song),
-//   - a scene or sequence with "Quiet the music" ticked is on (an interview on court),
+//   - a scene or sequence with "Ducks the music" ticked is on (an interview on court),
 //   - the Dip button or /deck/mics/dip is on, by hand.
-// Each of the first three is a tick box; the Dip by hand always works. A mic marked "Has an external mixer"
+// Each of the first three is a tick box; the Dip by hand always works. A mic marked "Never ducks (an external mixer does it)"
 // (follow false) stays at its level whatever happens: the mixer does the fading. The dip goes down over dipDownSec
 // and back up over dipUpSec: dip { from, to, at, ms } goes from 0 (up) to 1 (down at dipTo), as the music's duck does.
 //
@@ -74,7 +74,7 @@ const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n)
 const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const newId = () => Math.random().toString(36).slice(2, 10);
 const now = () => Date.now();
-const outputIds = v => [...new Set((Array.isArray(v) ? v : []).map(x => String(x || '').replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8);
+const outputId = v => String(v || '').replace(/[^a-z0-9]/gi, '').slice(0, 20) || 'main';
 const text = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, max);
 const flag = (v, d) => v === undefined ? d : !!v;
 
@@ -92,8 +92,7 @@ function cleanMic(m, existing = {}) {
     muted: flag(s.muted, false),
     lowCut: flag(s.lowCut, true),
     follow: flag(s.follow, true), // follows the dips; false when an external mixer does the fading
-    // The outputs it goes to (on 'mac'): Output 1 unless set. One a removed output had is left out by the windows.
-    outputs: outputIds(s.outputs).length ? outputIds(s.outputs) : ['main'],
+    // An older mics.json's outputs (Goes to) is dropped: the mics are Output 1's.
   };
   const base = text(s.name, 40) || 'Mic';
   const taken = new Set(settings.mics.filter(x => x.id !== out.id).map(x => slug(x.name)));
@@ -151,7 +150,7 @@ function reasons() {
   if (hand) r.push('by hand');
   if (why.music && settings.dipMusic) r.push('music playing');
   if (why.video && settings.dipVideo) r.push('a video with sound');
-  if (why.quiet && settings.dipQuiet) r.push('a quiet scene');
+  if (why.quiet && settings.dipQuiet) r.push('a scene or sequence');
   return r;
 }
 function settle() {
@@ -247,7 +246,7 @@ function follow(m, videoOn) {
   why.video = !!videoOn;
   return settle();
 }
-// A scene or sequence with "Quiet the music" ticked started (true), or one without it (false).
+// A scene or sequence with "Ducks the music" ticked started (true), or one without it (false).
 function quiet(on) {
   why.quiet = !!on;
   return settle();
@@ -355,9 +354,9 @@ function deck(parts, q = {}) {
 
 // ─── What the windows hear ───────────────────────────────────────────────
 const cleanDevices = list => (Array.isArray(list) ? list : []).map(d => text(d, 200)).filter(Boolean).slice(0, 40);
-// An output window mixing mics: { output, devices: [name], levels: { micId: dBFS }, problems: { micId: words }, status }.
+// A window mixing mics (Output 1's, or a sound copy's): { output, devices: [name], levels: { micId: dBFS }, problems: { micId: words }, status }.
 function report(r) {
-  const out = outputIds([r?.output])[0] || 'main';
+  const out = outputId(r?.output);
   const was = seen.get(out)?.status;
   const levels = {}, problems = {};
   for (const m of settings.mics) {
@@ -372,7 +371,7 @@ function report(r) {
 // The Output page in the Mac app listing the Mac's audio inputs.
 function devicesListed(list) { listed = { at: now(), devices: cleanDevices(list) }; }
 function live() {
-  // Every window still reporting, together: a mic heard on two outputs shows its louder reading.
+  // Every window still reporting, together: a mic heard in two windows shows its louder reading.
   const fresh = [...seen.values()].filter(s => now() - s.at < REPORT_STALE_MS);
   const devices = [...new Set([...fresh.flatMap(s => s.devices), ...listed.devices])];
   const atem = onSwitcherLive();

@@ -149,10 +149,10 @@ FirstPass Studio installs as a normal Mac app on Apple silicon Macs (M1 and late
 the app to Applications and open it. It opens the Output page in its own window and lives in the menu bar (the **1P**
 icon). The Output page and the Stream Deck use the same links as the Devices tab's Links. It is one page laid out for the night: the
 picture with its output tabs and a status board, the sources down the left, scenes and sequences as tiles, with every
-setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics (with their duck), switcher,
+setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics (with their duck), where Output 1's sound is going, switcher,
 recording and next game, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
 every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
-sends, hollow while it doesn't) or Off air, the game on the board (orange before the clock starts, green until an hour after it ends, then grey), PlayHQ (the dot is the link: green, amber overdue, red failing, grey by hand; the words the quarter and clock or game completed), the sequence playing (step and time
+sends, hollow while it doesn't) or Off air, the game on the board (orange before the clock starts, green until an hour after it ends, then grey), PlayHQ (the dot is the link: green, amber overdue, red failing, purple not live (the scorebench off line), grey by hand; the words the quarter and clock or game completed), the sequence playing (step and time
 left) or armed to start, ATEM while a switcher is set up (answering or not) and REC while a game records; status, not links. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
 and Set up (Recordings, Competitions setup, Sponsors, Athletes, Devices), with Docs at the right; the ⌘ keys keep
 the order below.
@@ -388,7 +388,9 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   **Refresh page** reloads it now.
 - **Preview** opens the selected source on its own in a new window, like the Preview buttons in the Devices tab's Links; the eye beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
-  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (or in a Blackmagic output's SDI), and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
+  finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays where the output's **Sound goes to** says; the Output page's Scene View never plays it. **Restart video** starts it again from the top.
+  A page that opens part way through a showing (a Scene View) joins it where the output has got to (the source's
+  `playAt`, when each output's showing began, not saved).
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
   without alpha) gives an opaque WebM: the Output page and the log say so. This needs
@@ -409,7 +411,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   makes one from the sources as they are; clicking a scene goes to it, turning sources on and off to match while one that's already on stays on
   (not reloaded). The sources are shared, so a source turned on or off by hand afterwards changes everywhere, is marked **changed**, and the bar
   under the scenes offers **Back to saved**, **Save over** the scene, or **Save as new scene**. Each scene tile has a pencil (rename, colour: the
-  group it's listed in, pre-game, live stream, quarter time, post-game, ads; Quiet the music; switcher actions), copy and a bin (asks first), none of which changes what's on.
+  group it's listed in, pre-game, live stream, quarter time, post-game, ads; Ducks the music; switcher actions), copy and a bin (asks first), none of which changes what's on.
   A source added later is off in every scene. Links: `/deck/scene/<name>`, `/deck/scene/next` and `/deck/scene/prev` (in the scenes' order,
   stopping at the ends) and `/deck/scene/again` (back to saved). The pop-out Scene View has the scenes as buttons too. Exports include the scenes.
 - **Sequences:** the scene's sources played one after another (run-up, quarter break, full time), built on the Output page with **+ New sequence**.
@@ -430,24 +432,21 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   the scoreboard moves to that game, and when that drops queued items the scene's `runOrderNotice` shows above Play next until OK (`roNoticeClose`).
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
-- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; the unmuted scene.html of every output it
-  plays on plays it with an `<audio>` element, so it follows that output's video sound. **Music plays on** (shown with more than one output)
-  ticks those outputs, Output 1 unless set; a sequence's music plays on every output playing the sequence (one of them, the first in its
-  Plays on order, starts and stops it, and the last to end ends it; one that stops it while others play on fades it out there
-  alone over its Music ends time, `leaving`; a planned fade out on an output while others still play it is `leaving` with `early`, so outputs that drift apart each fade on their own time, and the last out of a part's music stops it). Cut to a sequence with music of its own, the old song fades out under the new one on a
-  second `<audio>` element (`tail`, a crossfade). One song at a time: a sequence's music starting while another sequence's plays
-  on elsewhere takes over, and the old fades out as the tail by its Music ends (`sequences.musicEndSec`). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
+- **Music:** music.js keeps one player (song or playlist, position, its three fade times (fade in, fade out, quick), mute, duck) in Studio; Output 1's unmuted scene.html plays it
+  with an `<audio>` element, so it follows Output 1's video sound. The music is Output 1's: the other outputs' windows play without it,
+  a sequence's music plays, fades and stops with the sequence on Output 1 (`sequences.sound()`, silent on the other outputs' runners),
+  and a sequence played on another output alone plays without its music. Cut to a sequence with music of its own, the old song fades out under the new one on a
+  second `<audio>` element (`tail`, a crossfade). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
-  pauses under a visible video with sound on, on an output it plays on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
+  pauses under a visible video with sound on, on Output 1 (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
   startAtSec, fadeInSec, underVideo: starts its fade in before a video with sound in the step before ends while that video's sound fades out (`soundOut` on the source, which scene.html follows); `musicEnd`: fade (planned to start early enough to last its whole time across short timed steps), cut, continue into a `then: { type: 'sequence' }`, or crossfade (plays to the end, then fades out as the tail under different music that starts on the next step or sequence; else a fade); with none, a sequence step's own
-  music plays while that step's sequence does), and scenes and sequences can be `quiet`.
+  music plays while that step's sequence does), and scenes and sequences can duck the music (`quiet`, its old name).
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
-  **Live View** when the Mac is busy. The Scene View plays the sound of the output it shows only while that output is off (for testing);
-  with its display, Blackmagic or NDI output on, the output carries its own sound and the Scene View is silent, so it never plays twice. Only one Output
-  page plays it at a time (click another page's Scene View to bring the sound there). A line under the Scene View says why it's silent, if it is.
+  **Live View** when the Mac is busy. The Scene View never plays sound: an output's sound plays where its **Sound goes to** says, whether the
+  output is on or off, so nothing plays twice and nothing plays from an Output page that happens to be open (a line under the Scene View says so).
   **Pop out** opens the Scene View in its own window (`/preview.html`) that you can resize, move to another screen or make full screen while
-  testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it plays the sound just as the Scene View does, and the Output page's Scene View turns off while it's open (so the scene only runs
+  testing, with a floating **Sources** list of On/Off buttons (and Hide all) to show or hide sources from there (its – button tucks it away); it is silent too, and the Output page's Scene View turns off while it's open (so the scene only runs
   once more) and comes back when the window closes.
 - **Display output (Mac app):** sends the scene full screen to the Mac's extra displays (HDMI into a switcher), scaled to fit.
   **Chroma** puts it over a solid colour (green #00b140 by default, blue, or any colour) on one display, for a switcher that keys on that
@@ -471,7 +470,11 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   rate (`desktop/decklink.js`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
   `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. **Sound**
   goes in the SDI as 48 kHz stereo (with fill and key, on the fill), so turn on the sound of the switcher input the fill comes into (On, or AFV);
-  an SDI to HDMI converter passes it on. It can go on the Mac's audio output instead, or both. `desktop/soundtap.js` hears the output's
+  an SDI to HDMI converter passes it on. **Sound goes to** (every output's settings; `outputs.js` `sound`) lists where the output's sound plays: the first destination is where
+  the output itself carries it (the SDI of a Blackmagic output, else the Mac's sound output; on Output 1 every Mac mic goes with it), a Blackmagic output can add the Mac's
+  sound output too, and any of the Mac's sound outputs by name (the commentators' mixer) is a hidden `scene.html?copy=1` window of its own (`desktop/soundcopy.js`, `?mics=`
+  the mics ticked for it, none to start) that plays only once it has found the device; with no destination of its own the output's window is muted (`?mute=1`). An older
+  outputs.json's Sound and Also send the sound to become the list. `desktop/soundtap.js` hears the output's
   scene window (a hidden page captures its sound the way Chromium captures a tab's) and the module schedules each 20 ms piece on the device's
   clock, as far ahead as the pictures queued, so they go out together; the log says if the sound runs dry or gets ahead. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
   in the app log.
@@ -593,7 +596,8 @@ follows the PlayHQ scorer too (you can still change it in between). The clock ma
 **Follow PlayHQ** and **Manual** (or a score press switching to manual) also turns **Follow the PlayHQ scorer's clock** on or off,
 and the control page says so. You can still change the clock afterwards (the tick box, `/deck/clock/playhq/on|off`, or
 any clock button, which switches it back to manual). Otherwise press +1 / +2 / -1 / -2 (or keys A/Z for home, K/M for away,
-with Shift for 2) and it switches to manual. The quarter and the countdown clock (Space starts and stops it) are run from the control page.
+with Shift for 2) and it switches to manual. Pressing **Follow PlayHQ** again while PlayHQ is behind your hand score (a scorebench
+still catching up) keeps your score, quarter and clock until PlayHQ catches up or has something new. The quarter and the countdown clock (Space starts and stops it) are run from the control page.
 Everything can also be run from a Stream Deck: see `STREAMDECK.md`, or the Devices tab at http://localhost:8080/api.html (the Devices list on top, the Stream Deck plugin, links and API reference under it). To line it up with the venue clock, type the venue's time (e.g. 12:34) in
 **Match venue clock** and press Enter. Studio runs one scoreboard: for a second court, run a second Studio on another Mac.
 Scoreboard position: by default it is centred at the bottom, just above the score ticker with a small gap, so both can be on screen together. `?position=top-center`, `bottom-center`, `top-left` or `bottom-left` moves it.
@@ -620,7 +624,8 @@ These follow the game picked on the scoreboard control page:
   then carry on off the other side. `?hold=` (seconds on the full frame, 0 to 1 in steps of 0.1, 0.5 by default; 0 is a quick 1 second stinger),
   `?length=` (how long the bands take, 0.5 to 3 seconds), `?logo=0` (colours only), `?mode=dark`, `?size=`
   (logo height) and `?sfx=` (whoosh volume in %, 80 by default). `?music=quiet` ducks the music by the time the frame is covered and
-  keeps it down for the scene cut to (until one without Quiet the music); `?music=duck` brings it back up as it leaves. For a switcher or player that plays stingers from a file,
+  keeps it down for the scene cut to (until one that doesn't duck the music); `?music=duck` brings it back up as it leaves (the Switcher card's **Music under it** sets the same option; it goes by the output the
+  stinger plays on). For a switcher or player that plays stingers from a file,
   `node docs/stinger/render.js "Thunder League"` renders it from a competition template to a 1080p50 ProRes 4444 `.mov`
   with alpha (`--fps`, `--length`, `--hold`, `--logo 0`; needs ffmpeg with ProRes). `docs/stinger/` has Thunder League's.
 - http://localhost:8080/introoutro.html: the intro (or `?type=outro`, the outro) for the start and end of the stream, full screen,
@@ -677,7 +682,8 @@ These follow the game picked on the scoreboard control page:
   up between its readings (every 5 seconds while following PlayHQ, split into goals and super goals by PlayHQ's goal
   counts) and from each +1 / +2 press. -1 / -2 takes that team's latest goal off. The list restarts when a game is picked or
   the scores are reset, builds only while the scoreboard (or this page) is open, and marks a gap with a dashed … when a
-  team's score jumps by more than 3 at once or the game was picked part way through. Lines starting `[goals]` in the log show each step.
+  team's score jumps by more than 3 at once, when PlayHQ catches up (more than one goal or super shot for a team in one
+  5 s check: a scorebench back on line; nothing plays for those goals) or the game was picked part way through. Lines starting `[goals]` in the log show each step.
 - http://localhost:8080/matchup.html: both team logos with the division, round, date, time, court and venue. It also shows each team's
   last five results as W/L/D dots and this season's head to head: the win tally under VS and the last three meetings
   (`?form=0` or `?h2h=0` hides them).
@@ -686,7 +692,8 @@ These follow the game picked on the scoreboard control page:
 - http://localhost:8080/gamestats.html: after the game, the score by quarter, then quarters won, best quarter, super shots made,
   3 and 5 goal runs and the longest run for each team. Studio works the quarters out from the scoreboard as the game goes
   (/api/stats), so keep it on air for the whole game; `?quarters=0`, `?won=0`, `?best=0`, `?supershots=0`, `?runs3=0`,
-  `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. Lines starting `[stats]` in the log say when a quarter isn't sure.
+  `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. A quarter isn't sure (and is left out of
+  quarters won and best quarter) when the score jumped in it, unless PlayHQ caught up while still on that quarter. Lines starting `[stats]` in the log say when a quarter isn't sure.
 - http://localhost:8080/commentatorstats.html: the whole screen, for a commentary desk monitor rather than the stream. Team lists
   on the left with scoring drought and games played this season (line-ups loaded at the start and each quarter break),
   the game stats big in the middle (each logo with ladder position, record and form under it, head to head under the names)

@@ -40,7 +40,6 @@ test('an output set to Web links only is off, whatever turns it on', () => {
   assert.equal(main().on, false, 'every output on leaves Output 1 off');
   assert.equal(outputs.find('wide-camera').on, true);
   assert.deepEqual(outputs.summary().map(o => o.sending), [false, true]);
-  assert.equal(outputs.state().previewSound, true, 'Output 1 isn\'t sending, so the Scene View has the sound');
   // Set up, it can be switched on; set to Web links only again, it's off.
   outputs.apply({ mode: 'ndi', on: true });
   assert.equal(main().on, true);

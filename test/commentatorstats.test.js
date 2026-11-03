@@ -43,3 +43,35 @@ test('team lists match the moments column and fill their width when scaled down'
     assert.deepEqual(f.cut, [], `${f.id}: no name is cut short`);
   }
 });
+
+// Every moment a goal makes is listed, not just the one the stream plays: a third in a row that also takes the lead shows
+// "Lead change" and "heating up" (Matt, 2026-11-03: heating up and the like weren't coming through). And a page opened part
+// way through a game starts with that game's moments so far.
+test('moments: every moment a goal makes, and the earlier ones after a reload', async t => {
+  const browser = await openBrowser(t);
+  if (!browser) return;
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+  await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+  await page.goto(`${studio.base}/commentatorstats.html?refresh=0`);
+  await page.waitForFunction(() => document.querySelectorAll('#home .player').length >= 1);
+  const moments = () => page.$$eval('#momentList .t', ts => ts.map(e => e.textContent));
+  for (const side of ['away', 'away', 'home', 'home', 'home']) await studio.post('/api/scoreboard', { type: 'score', side, delta: 1 });
+  await page.waitForFunction(() => document.querySelectorAll('#momentList .t').length >= 2);
+  const live = await moments();
+  assert.ok(live.some(m => /^Lead change: .+ hit the front$/.test(m)), `lead change listed: ${live}`);
+  assert.ok(live.some(m => /heating up: 3 in a row$/.test(m)), `heating up listed: ${live}`);
+
+  // A super shot (home's fourth in a row, no new moment), then a reload: the list comes back with this game's moments, each at its own game time.
+  await studio.post('/api/scoreboard', { type: 'score', side: 'home', delta: 2 });
+  await page.waitForFunction(() => [...document.querySelectorAll('#momentList .t')].some(e => /^Super shot/.test(e.textContent)));
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#momentList .t').length >= 3);
+  const after = await moments();
+  assert.equal(after.filter(m => /^Lead change/.test(m)).length, 1, `lead change once: ${after}`);
+  assert.equal(after.filter(m => /heating up/.test(m)).length, 1, `heating up once: ${after}`);
+  assert.equal(after.filter(m => /^Super shot/.test(m)).length, 1, `super shot once: ${after}`);
+  const when = await page.$$eval('#momentList .ago', e => e.map(x => x.textContent));
+  assert.ok(when.every(w => /^Q1 \d+:\d\d/.test(w)), `each has its quarter and game time: ${when}`);
+});

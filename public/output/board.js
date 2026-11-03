@@ -51,6 +51,8 @@ function boardPlayhq(h) {
   else if (h.source !== 'playhq') { sDot = ''; sWord = 'By hand'; sTip = 'Scores are by hand, so the live score isn\'t read'; }
   else if (p.waiting) { sDot = ''; sWord = 'Waiting'; sTip = `PlayHQ isn't scoring this game yet. ${p.waiting}`; }
   else if (p.state === 'bad') { sDot = 'bad'; sWord = 'Failing'; sTip = p.error || 'PlayHQ has been failing for a minute'; }
+  else if (p.trouble) { sDot = 'notlive'; sWord = 'Not live'; sTip = `${p.troubleSays || 'PlayHQ isn\'t scoring this game live'}${p.holding ? ' The board keeps your score until PlayHQ catches up.' : ''}`; }
+  else if (p.holding) { sDot = 'warn'; sWord = 'Holding'; sTip = 'PlayHQ is behind your score, so the board keeps yours until PlayHQ catches up or has something new'; }
   else if (p.state === 'warn') { sDot = 'warn'; sWord = 'Overdue'; sTip = `A reading is overdue (last ${boardAgo(p.readAgoMs)})`; }
   let pDot = '', pVal = '–', pTip = 'Nothing asked of PlayHQ yet';
   if (n.failed) { pDot = 'bad'; pVal = 'No answer'; pTip = 'The last request to PlayHQ got no answer'; }
@@ -115,8 +117,8 @@ function renderBoard() {
   const musicOn = m.status === 'playing';
   // Playing, paused or stopped is a symbol by the time (▶ ❚❚ ■), as on the player, rather than a word.
   const mSym = musicOn ? '<span class="sym">▶</span>' : m.status === 'paused' ? '<span class="sym">❚❚</span>' : m.track ? '<span class="sym">■</span>' : '';
-  // Why the music is ducked, so it isn't mistaken for the mics' duck: a quiet scene or sequence, a stinger, or by hand.
-  const mDuck = m.ducked ? `ducked${({ quiet: ' · quiet scene', stinger: ' · stinger', hand: ' · by hand' })[m.duckedBy] || ''}` : '';
+  // Why the music is ducked, so it isn't mistaken for the mics' duck: a scene or sequence that ducks it, a stinger, or by hand.
+  const mDuck = m.ducked ? `ducked${({ quiet: ' · scene or sequence', stinger: ' · stinger', hand: ' · by hand' })[m.duckedBy] || ''}` : '';
   const mFlags = [m.muted ? 'muted' : '', mDuck].filter(Boolean).join(' · ');
   const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? mFlags : 'nothing loaded',
     m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, m.track && $('mTime') ? `${mSym}${boardEsc($('mTime').textContent)}` : '', '', { below: true, wrap: true });
@@ -130,6 +132,17 @@ function renderBoard() {
   const micsLine = boardLine('Mics', mx.dipped && mb.dot === 'ok' ? 'warn' : mb.dot, boardEsc(mb.word), boardEsc(mb.why),
     level == null ? null : `<span class="bar meter"><i class="${hot ? 'hot' : warm ? 'warm' : ''}" style="width:${level}%"></i></span>`, '', '',
     { wrap: true, more: mx.dipped ? `<small class="dip">ducked to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
+  // Where Output 1's sound (with the music and the mics) is going: the destinations, and how they're doing.
+  const p1 = outs.find(x => x.primary);
+  let soundLine = boardLine('Sound', '', 'Checking', '', null, ''); // until the outputs have loaded
+  if (p1) {
+    const sw1 = soundWhere(p1);
+    const tickedTo = sw1.parts.filter(x => x.ticked.length).map(x => `${x.ticked.join(', ')} to ${x.name}`).join(' · ');
+    soundLine = p1.mode === 'off' ? boardLine('Sound', '', 'Web links only', 'sound in the output canvas link', null, '')
+      : sw1.worst === 'off' ? boardLine('Sound', '', 'Off', `no sound until Output 1 is on (${boardEsc(sw1.names)})`, null, '', '', { wrap: true })
+      : boardLine('Sound', { sending: 'ok', waiting: 'warn', problem: 'bad' }[sw1.worst], boardEsc(sw1.names),
+        boardEsc(sw1.worst === 'problem' ? sw1.why : sw1.worst === 'waiting' ? 'starting' : tickedTo), null, '', '', { wrap: true });
+  }
   const prg = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.program) : null, pvw = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.preview) : null;
   const swLine = boardLine('Switcher', swOn ? 'ok' : sw && sw.setUp ? 'bad' : '', swOn ? `PGM ${boardEsc(prg ? prg.name : '?')}` : sw && sw.setUp ? 'Not answering' : 'Not set up',
     swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(sw.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
@@ -146,7 +159,7 @@ function renderBoard() {
       { wrap: true, full: true, more: an.switchAt ? `<small>switches at ${boardEsc(boardAt(an.switchAt))}</small>` : '' })
     : boardLine('Next game', '', auto ? boardEsc(auto.replace(/^Next:\s*/, '')) : h && h.game ? 'Picked by hand' : 'No game',
       auto ? '' : 'Scoreboard control picks the next one', null, '', '', { wrap: true, full: true });
-  box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${swLine}${recLine}${nextGame}</div>`;
+  box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${soundLine}${swLine}${recLine}${nextGame}</div>`;
   const rb = $('boardRecord');
   if (rb) rb.onclick = async () => {
     rb.disabled = true;

@@ -18,15 +18,17 @@
   page's preview of that output shows, silent unless ?sound=1. In a 3840 x 2160 window it's drawn at 2x (zoom.js), and
   the pages inside at twice the density, so it goes sharp over a 4K recording (with 4K replay).
   ?output=<id> draws one of the outputs besides the primary (outputs.js): the sources turned on for that
-  output, with their sound. The music plays on the outputs it's ticked for (music.js: a sequence's music on
-  the outputs the sequence is playing on).
-  An output's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
-  Mac that go to that output (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
-  ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, the Output page's "Also send the sound to"):
-  a hidden window playing that output's sound to that one sound output of the Mac (setSinkId), such as the
-  commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it). It says nothing to Studio
-  (videos ending, the music ending, the mics' meters): the output's own window does that. It plays nothing until
-  it has found the device, so none of it is heard on the Mac's own speakers.
+  output, with their sound. The music and the mics are Output 1's (music.js, mics.js): the primary's window plays
+  them, and the other outputs' windows play without them.
+  Output 1's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
+  Mac (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
+  ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, a named device in the Output page's "Sound
+  goes to"): a hidden window playing that output's sound to that one sound output of the Mac (setSinkId), such as
+  the commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it; ?mics=all for every one, on
+  Output 1's main destination). It says nothing to Studio (videos ending, the music ending, the mics' meters): the
+  output's own window does that, unless ?main=1 says it is the output's main destination, when it reports the mics'
+  meters (the own window may be muted). It plays nothing until it has found the device, so none of it is heard on
+  the Mac's own speakers.
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -59,12 +61,14 @@
   // An output other than the primary (?output=<id>): its own sources on and off, and their sound.
   const outputId = /^[a-z0-9]{1,20}$/i.test(params.get('output') || '') && params.get('output') !== 'main' ? params.get('output') : '';
   const here = outputId || 'main';
-  // The music and a mic play here when they're ticked for this output (Output 1 when nothing says).
-  const ticked = x => (Array.isArray(x?.outputs) && x.outputs.length ? x.outputs : ['main']).includes(here);
+  // The music and the mics play on Output 1 alone (or in its sound copy).
+  const primary = here === 'main';
   // An output's sound copy (see the top): the device it plays to, by the name macOS gives it.
   const copying = params.get('copy') === '1';
   const copyTo = copying ? params.get('sink') || '' : '';
   const copyMics = new Set(copying ? (params.get('mics') || '').split(',').filter(Boolean) : []);
+  const copyAll = copying && params.get('mics') === 'all'; // every Mac mic (Output 1's main destination)
+  const copyMain = copying && params.get('main') === '1'; // the output's main destination: reports the mics' meters
   let sinkId = copying ? null : ''; // the copy's device once found ('' plays to the Mac's sound output, as every other window does)
   // Another program's copy of an output (?canvas=1, the canvas links on the Devices tab): it only watches, so it plays no
   // sound unless ?sound=1 asks for it (the recording it goes over has its own). Like the Output page's preview, it never
@@ -74,14 +78,14 @@
   // A source as this window sees it: on the primary output its own visible and showSeq; on another output
   // whether it's on for that output, and that output's showSeq.
   const forOutput = s => !outputId ? s : { ...s, visible: !!(s.out && s.out[outputId]), showSeq: (s.outSeq && s.outSeq[outputId]) || 0 };
-  // The Output page turns its preview's sound on and off with this (it plays only while no video output is on), without a reload.
+  // A sound copy (?copy=1) unmutes with this once its device is found, and mutes again if it goes, without a reload.
   // A browser that won't play sound until the page is clicked pauses a video as it's unmuted (or
   // refuses to play it): it then plays muted, and soundState() says so.
   let blocked = false;
   window.setSilent = on => {
     silent = !!on;
     for (const L of layers.values()) {
-      const v = L.el.querySelector('video, audio');
+      const v = L.el.querySelector('video');
       if (!v || !L.src) continue;
       const wasMuted = v.muted;
       v.muted = !L.src.sound || silent;
@@ -89,25 +93,14 @@
       blocked = false;
       const fallBack = () => { blocked = true; v.muted = true; v.play().catch(() => {}); };
       if (v.paused) v.play().catch(err => { if (err.name === 'NotAllowedError') fallBack(); });
-      setTimeout(() => { if (L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
+      // A sound copy is allowed to play sound (the app opens it so), so a video still loading there isn't muted.
+      setTimeout(() => { if (!copying && L.src.visible && v.paused && !v.ended) fallBack(); }, 300);
     }
     renderTail(tailMusic);
     renderMusic(music);
     pageSoundLevel();
   };
-  // Called by the Output page during a click: Safari lets a video play sound later only if it was played
-  // during a click, so start and stop the hidden ones too (muted as they are, so nothing is heard).
-  window.unlockSound = () => {
-    for (const L of layers.values()) {
-      const v = L.el.querySelector('video, audio');
-      if (v && L.src && !L.src.visible && v.paused) { v.play().then(() => v.pause()).catch(() => {}); }
-    }
-    if (audio.paused) audio.play().then(() => { if (!music || music.status !== 'playing') audio.pause(); }).catch(() => {});
-    if (tail.paused) tail.play().then(() => { if (!tailMusic) tail.pause(); }).catch(() => {});
-    if (sfxCtx && sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {});
-    window.setSilent(false);
-  };
-  // For the Output page: how many shown videos play sound here, and whether the browser blocks it.
+  // For the tests: how many shown videos play sound here, and whether the browser blocks it.
   window.soundState = () => {
     let videos = 0;
     for (const L of layers.values()) if (L.src && L.src.type === 'video' && L.src.visible && L.src.sound) videos++;
@@ -115,22 +108,8 @@
     return { videos, pages, blocked: blocked || (pages > 0 && !!sfxCtx && sfxCtx.state === 'suspended'), music: !!music && music.status === 'playing' };
   };
   // The Output page switching its Scene View to another output loads that output's page beside the one showing, standing
-  // by: its music loads and plays along at no volume, so when it takes over (setStandby(false), then setSilent) the
-  // sound carries straight on at its level instead of stopping while the page and the song load.
-  let standby = false;
-  window.setStandby = on => {
-    standby = !!on;
-    renderTail(tailMusic);
-    renderMusic(music);
-    // Taking over from the page it stood by for: straight to the level, as that one was playing it.
-    if (!standby && !silent) {
-      level = musicGain(music);
-      audio.volume = Math.max(0, Math.min(1, level));
-      tail.volume = Math.max(0, Math.min(1, tailGain(tailMusic)));
-    }
-  };
-  // Ready to take over: it has drawn the scene, and the music that plays here is loaded and playing.
-  window.standbyReady = () => !first && (!music || !music.track || music.status !== 'playing' || !ticked(music) || (audio.readyState >= 3 && !audio.paused));
+  // by, and swaps once it has drawn, so the picture carries straight on.
+  window.standbyReady = () => !first;
   // For the tests: what the music and the song fading out under it (a crossfade) are playing here.
   window.musicPlayers = () => [audio, tail].map(el => ({ src: decodeURIComponent((el.getAttribute('src') || '').replace('/media/', '')), playing: !el.paused, volume: el.volume, at: el.currentTime }))
     .reduce((o, x, i) => Object.assign(o, { [i ? 'tail' : 'music']: x }), {});
@@ -187,8 +166,8 @@
       if (L.src.visible && L.shown) tellDone(L.src, L.src.reloadOnShow ? L.pageShow : L.src.showSeq);
     }
   });
-  // Page sound (sfx.js): every scene window plays it, and a silent one (the preview, the key output) at no volume, so
-  // the Output page can turn its preview's sound on part way through. It stops when the source goes off.
+  // Page sound (sfx.js): every scene window plays it, and a silent one (the preview, the key output, a sound copy waiting
+  // for its device) at no volume, so a sound copy can unmute part way through. It stops when the source goes off.
   let sfxCtx = null, sfxOut = null;
   function pageSoundLevel() {
     if (!sfxOut) return;
@@ -226,8 +205,9 @@
       f.title = s.name;
       el.appendChild(f);
     } else if (s.type === 'video') {
-      // A sound copy only plays a video's sound: an audio element does that without drawing the picture.
-      const v = document.createElement(copying ? 'audio' : 'video');
+      // A sound copy plays it in a video element too, as the output does: the Mac's sound-only player stayed silent
+      // for some video files (an AD on 3 Nov), with no error to say so.
+      const v = document.createElement('video');
       if (sinkId) v.setSinkId(sinkId).catch(() => {});
       v.playsInline = true;
       v.preload = 'auto';
@@ -280,7 +260,7 @@
       el.style.width = s.width + 'px';
       el.style.height = s.height + 'px';
     } else {
-      const media = el.querySelector('img, video, audio');
+      const media = el.querySelector('img, video');
       const want = '/media/' + encodeURIComponent(s.file);
       if (media.getAttribute('src') !== want) media.src = want;
     }
@@ -307,10 +287,23 @@
     }
   }
 
+  // Where a video showing on this output since playAt has got to (sec): 0 for a page there as it started.
+  const playedFor = s => { const at = s.playAt && s.playAt[here]; const t = at ? (Date.now() - at) / 1000 : 0; return t > 1 ? t : 0; };
+  function joinAt(v, s) {
+    const go = () => {
+      let t = playedFor(s);
+      const d = v.duration;
+      if (t && isFinite(d) && d > 0) t = s.loop ? t % d : Math.min(t, d);
+      try { v.currentTime = t; } catch {}
+    };
+    go();
+    // Its length isn't known until it loads: place it again once it is.
+    if (playedFor(s) && !(v.readyState >= 1)) v.addEventListener('loadedmetadata', go, { once: true });
+  }
   // Videos play while shown and pause once faded out. They start from the top each time
   // they're shown (unless restartOnShow is off) and on Restart; sound follows the source.
   function updateVideo(L, s, old) {
-    const v = L.el.querySelector('video, audio'), el = L.el;
+    const v = L.el.querySelector('video'), el = L.el;
     const token = ++L.token;
     v.loop = s.loop;
     v.muted = !s.sound || silent;
@@ -320,13 +313,19 @@
     v.volume = videoVolume(L, s);
     const restarted = old.loadSeq !== undefined && old.loadSeq !== s.loadSeq;
     if (s.visible) {
-      if (restarted || (!L.shown && s.restartOnShow)) { try { v.currentTime = 0; } catch {} }
+      // From the top, or where the output has got to when this page joins part way through (a Scene View opened,
+      // or switched to this output, while it plays), so a view never restarts what the output is playing.
+      if (restarted || (!L.shown && s.restartOnShow)) joinAt(v, s);
       if (!L.shown) L.playShow = s.showSeq;
       if (v.paused || v.ended) v.play().catch(err => {
         // A browser that won't autoplay with sound still plays it muted.
         if (err.name === 'NotAllowedError' && !v.muted) { v.muted = true; blocked = true; v.play().catch(() => {}); console.warn(`Video "${s.name}" is playing muted: this browser blocks sound until the page is clicked`); }
         else console.warn(`Video "${s.name}" would not play: ${err.message}`);
       });
+      // A sound copy says in the log when a video's sound isn't playing there a moment later, as nothing else would show it.
+      if (copying && s.sound && !silent) setTimeout(() => {
+        if (token === L.token && L.src.visible && (v.paused || v.muted || !(v.currentTime > 0))) console.warn(`Sound copy: "${s.name}" isn't playing its sound to ${copyTo}${v.error ? ` (${v.error.message || `media error ${v.error.code}`})` : v.muted ? ' (muted)' : ''}`);
+      }, 2000);
       L.shown = true;
       nextFrame(() => { if (token === L.token) el.classList.add('on'); });
     } else {
@@ -338,8 +337,7 @@
 
   // ─── Music (music.js) ───────────────────────────────────────────────────
   // Studio keeps the player: the track, where it is (pos: sec at time at), and its fade (gain: from, to,
-  // at, ms). Each scene window of an output the music is ticked for plays it, unless it's silent, so music goes
-  // wherever that output's video sound goes.
+  // at, ms). Output 1's scene windows play it, unless silent, so the music goes wherever Output 1's video sound goes.
   // Two players: audio plays the music, tail the song fading out under it when one sequence's music takes over from
   // another's (a crossfade). As a crossfade starts the element playing the old song becomes tail, so it fades on without
   // a gap, and the other element picks up the new music.
@@ -361,10 +359,7 @@
     const down = m.duck ? along(m.duck, t) : m.ducked ? 1 : 0;
     const low = Math.max(m.duckTo / 100, 0.01);
     const duck = down >= 1 ? m.duckTo / 100 : Math.pow(low, down);
-    // A sequence that stopped on this output but plays on elsewhere: its music fades out here (leaving).
-    const leave = m.leaving && m.leaving[here];
-    const going = leave ? heard(along({ from: 1, to: 0, at: leave.at, ms: leave.ms }, t)) : 1;
-    return heard(along(m.gain, t)) * going * (m.volume / 100) * (m.level / 100) * duck * (m.muted ? 0 : 1);
+    return heard(along(m.gain, t)) * (m.volume / 100) * duck * (m.muted ? 0 : 1);
   }
   // The song fading out under the new one: its own fade, at the volume it played at, muted and ducked as the music is.
   function tailGain(tm) {
@@ -405,7 +400,7 @@
       musicPlayId = -1;
       level = 0;
     }
-    tailMusic = tm && (!silent || standby) ? tm : null;
+    tailMusic = tm && !silent ? tm : null;
     if (!tailMusic) { if (!tail.paused) tail.pause(); tail.removeAttribute('src'); tailPlayId = -1; return; }
     const want = '/media/' + encodeURIComponent(tailMusic.track);
     if (tail.getAttribute('src') !== want) tail.src = want;
@@ -416,7 +411,7 @@
   }
   function renderMusic(m) {
     music = m || null;
-    if (!music || !music.track || music.status === 'stopped' || (silent && !standby)) { if (!audio.paused) audio.pause(); if (!music || !music.track) audio.removeAttribute('src'); return; }
+    if (!music || !music.track || music.status === 'stopped' || silent) { if (!audio.paused) audio.pause(); if (!music || !music.track) audio.removeAttribute('src'); return; }
     const want = '/media/' + encodeURIComponent(music.track);
     if (audio.getAttribute('src') !== want) audio.src = want;
     const pos = musicPos(music);
@@ -431,12 +426,11 @@
   });
 
   // ─── Mics (mics.js) ─────────────────────────────────────────────────────
-  // Live mics plugged into the Mac, mixed into the sound here. Only an output's own window in the app (?fit=1, not
-  // silent, not the key) opens them, and only the mics that go to that output: never a Scene View, where a speaker
-  // near a mic would feed back, and never twice on one output. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
+  // Live mics plugged into the Mac, mixed into the sound here. Only Output 1's own window in the app (?fit=1, not
+  // silent, not the key) opens them: never a Scene View, where a speaker near a mic would feed back, and never twice. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
   // the master level, mutes and the dip on top); then all of them through a limiter. The browser's call
   // processing (echo cancelling, noise suppression, automatic level) is off: it would pump the crowd noise.
-  // A sound copy opens only the mics ticked for it (?mics=), whichever outputs they go to.
+  // A sound copy opens only the mics ticked for it (?mics=).
   const micsHere = copying || (params.get('fit') === '1' && params.get('mute') !== '1' && params.get('key') !== '1');
   let micCtx = null, micBus = null, micSet = null;
   const micDevices = new Map(); // device name -> { stream, source, splitter, error, opening }
@@ -536,7 +530,7 @@
   }
   function renderMics(set) {
     micSet = set || null;
-    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyMics.has(m.id) : ticked(m))) : []; // the switcher mixes its own
+    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyAll || copyMics.has(m.id) : primary)) : []; // the switcher mixes its own
     const names = new Set(want.map(m => m.device));
     for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
     for (const [id, c] of micChains) {
@@ -569,7 +563,7 @@
     }, 25);
     // Tell Studio what this window hears, for the Output page: each mic's loudest moment (dBFS) in the last half second.
     setInterval(async () => {
-      if (copying || !micSet || !micSet.mics.some(m => m.on !== 'atem' && ticked(m))) return;
+      if ((copying && !copyMain) || !primary || !micSet || !micSet.mics.some(m => m.on !== 'atem')) return;
       const levels = {};
       for (const [id, c] of micChains) {
         levels[id] = c.peak > 0 ? 20 * Math.log10(c.peak) : -100;
@@ -601,7 +595,7 @@
       const found = list.find(d => d.label === copyTo);
       if (!found) throw new Error(`${copyTo} isn't plugged in`);
       if (found.deviceId === sinkId) { copyError = ''; return; }
-      const players = [audio, tail, ...[...layers.values()].map(L => L.el.querySelector('video, audio')).filter(Boolean)];
+      const players = [audio, tail, ...[...layers.values()].map(L => L.el.querySelector('video')).filter(Boolean)];
       await Promise.all(players.map(el => el.setSinkId(found.deviceId)));
       const moving = sinkId !== null;
       sinkId = found.deviceId;
@@ -636,8 +630,8 @@
     });
     for (const [id, L] of layers) if (!seen.has(id)) { stopPageSound(L, .1); L.el.remove(); layers.delete(id); }
     const tm = scene.music && scene.music.tail;
-    renderTail(tm && (tm.outputs || ['main']).includes(here) ? tm : null);
-    renderMusic(ticked(scene.music) ? scene.music : null);
+    renderTail(primary && tm ? tm : null);
+    renderMusic(primary ? scene.music : null);
     renderMics(scene.mics);
     first = false;
   }

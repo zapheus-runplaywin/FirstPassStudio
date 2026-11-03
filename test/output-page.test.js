@@ -16,7 +16,7 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
   // One view: the board beside the picture, Output on and the add buttons in reach, the output's set-up folded away.
   await page.waitForSelector('#board .line');
   assert.equal((await page.$$('#board .lights')).length, 0, 'the outputs, ATEM and REC are the bar\'s chips, not a board row');
-  assert.equal((await page.$$('#board .line')).length, 7, 'the mics carry their dip, so it has no line of its own');
+  assert.equal((await page.$$('#board .line')).length, 8, 'the mics carry their dip, so it has no line of its own');
   assert.equal((await page.$$('#board .line.full')).length, 1, 'the next game spans the board');
   // Countdowns hours or days away read as such, not as thousands of minutes; a time on another day names the day.
   assert.deepEqual(await page.evaluate(() => [boardLeft(65e3), boardLeft(3600e3 + 125e3), boardLeft(2 * 86400e3 + 732e3), boardLeft(86400e3)]),
@@ -81,6 +81,11 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
   // Music's Settings unfolds its form.
   await page.click('#musicCfg');
   assert.equal(await page.isVisible('#mFadeIn'), true);
+  // Its three fade times: Fade in, Fade out and Quick (1 s unless set), saved as they change.
+  assert.equal(await page.inputValue('#mQuick'), '1');
+  await page.fill('#mQuick', '1.5');
+  await page.dispatchEvent('#mQuick', 'change');
+  await studio.until(async () => (await studio.get('/api/scene')).musicSettings.quickSec === 1.5);
   await page.click('#musicCfg');
   assert.equal(await page.isVisible('#mFadeIn'), false);
   assert.deepEqual(page.errors, []);

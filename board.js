@@ -19,7 +19,7 @@
 //   record                                 recorder.js (record.action: each action, for the game recording)
 const fs = require('fs');
 const path = require('path');
-const { isFinished } = require('./playhq');
+const { isFinished, startOf } = require('./playhq');
 
 function create({ log, datadir, savefile, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }) {
   const { getRoundGames, liveScore, scoringNotYet, PERIOD_NUMBER } = playhq;
@@ -125,8 +125,8 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // normal goals between checks and a scorer swapping a goal for a super shot don't count.
   // When the feed has no super shot count, a score jump of exactly 2 with the normal goal
   // count unchanged (or unknown) counts. The first reading after a game is picked or scores
-  // switch to PlayHQ only sets the starting point, so catching up never plays it, and nothing
-  // plays once the game is finished.
+  // switch to PlayHQ only sets the starting point, so catching up never plays it, nor does a reading that is
+  // PlayHQ catching up (catchUpIn: a scorebench back on line), and nothing plays once the game is finished.
   const superSeen = new WeakMap(); // board -> last PlayHQ reading compared against
   function superShot(b, side, how) {
     if (!competitions.superShotsFor(config(), b.division)) return;
@@ -134,12 +134,12 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     b.superShot = { n, side, at: Date.now(), how };
     log('info', 'supershot', `Super shot for ${b[side].name} (${side}, ${how}), number ${n}`);
   }
-  function watchSuperShots(b, game, live, kind) {
+  function watchSuperShots(b, game, live, kind, catchUp) {
     const read = k => ({ score: game[k].score, goals: live ? live[k].goals : null, superGoals: live ? live[k].superGoals : null });
     const now = { key: `${b.gameId} ${kind}`, home: read('home'), away: read('away') };
     const before = superSeen.get(b);
     superSeen.set(b, now);
-    if (!before || before.key !== now.key || isFinished(game)) return;
+    if (!before || before.key !== now.key || isFinished(game) || catchUp) return; // a catch-up's super shot was minutes ago
     for (const k of ['home', 'away']) {
       const was = before[k], is = now[k];
       if (was.score == null || is.score == null) continue;
@@ -153,6 +153,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   function applyOne(b, a) {
     trackPeriods(b); // anything PlayHQ put on the board before this goes to the period it came in
     applyOneAction(b, a);
+    if (b.followHold && (b.source !== 'playhq' || ['selectGame', 'reset', 'resetScores', 'setScore', 'score'].includes(a.type))) b.followHold = null;
     if (a.type === 'resetScores' || a.type === 'reset') b.periodTrack = null;
     trackPeriods(b);
   }
@@ -208,7 +209,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         break;
       case 'source': {
         const want = a.value === 'toggle' ? (b.source === 'playhq' ? 'manual' : 'playhq') : a.value;
+        const was = b.source;
         b.source = want === 'playhq' && b.gameId ? 'playhq' : 'manual';
+        // Back to following from a score kept by hand: hold it until PlayHQ catches up (see holdHandScore).
+        if (was !== 'playhq' && b.source === 'playhq') b.followHold = { at: Date.now() };
         break;
       }
       case 'resetScores': b.home.score = 0; b.away.score = 0; b.source = 'manual'; clearGoals(b, b.gameId); break;
@@ -267,20 +271,78 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     b.updatedAt = Date.now();
   }
 
+  // ─── PlayHQ not scoring live ────────────────────────────────────────────────
+  // A scorebench that has dropped off line looks like nothing at all to the board: the score just stops moving.
+  // So while the board follows PlayHQ, two signs are watched (playhqTrouble), and the status board and the bar's
+  // PlayHQ chip turn purple with the reason (red is PlayHQ failing), so the operator knows to fix the scorebench or score by hand:
+  //   not-live  the live feed says the game isn't being scored electronically, but it's under way (PlayHQ says it's
+  //             in progress, or it's NOT_LIVE_AFTER_MS past its start time)
+  //   quiet     the feed's reading (score, counts, clock, break) hasn't changed for QUIET_MS while the scorer's
+  //             clock is running; in a live game the longest stretch seen without one was about 2.5 minutes
+  const NOT_LIVE_AFTER_MS = 5 * 60000, QUIET_MS = 4 * 60000;
+  const RUNNING = /^(RESUME|RESUMED|START|STARTED|RUNNING)$/i;
+  const TROUBLE_SAYS = {
+    'not-live': 'PlayHQ says the game is under way, but its live scoring isn\'t coming through: the scorebench may be off line. Fix the scorebench, or score by hand (a score press switches to Manual).',
+    quiet: `Nothing new from PlayHQ's scorer for ${QUIET_MS / 60000} minutes while its clock runs: the scorebench may be off line. Fix the scorebench, or score by hand (a score press switches to Manual).`,
+  };
+  function playhqTrouble(b, now = Date.now()) {
+    if (b.source !== 'playhq' || !b.gameId || b.playhqWaiting || isFinished({ status: b.playhqStatus || '' }) || !playhq.liveSeenFor) return '';
+    const seen = playhq.liveSeenFor(b.gameId);
+    if (seen.notScoredAt > seen.okAt) {
+      const start = startOf(b);
+      const underWay = /PROGRESS|LIVE|STARTED/i.test(b.playhqStatus || '') || (start !== null && now - start > NOT_LIVE_AFTER_MS);
+      return underWay ? 'not-live' : '';
+    }
+    const live = seen.live;
+    if (seen.okAt && live && live.clock && RUNNING.test(live.clock.status || '') && !live.break && now - seen.changedAt > QUIET_MS) return 'quiet';
+    return '';
+  }
+  // Called each refresh: keeps b.playhqTrouble current (for /api/health) and logs when it starts and ends.
+  function watchTrouble(b) {
+    const t = playhqTrouble(b);
+    if (t === (b.playhqTrouble || '')) return;
+    if (t) log('warn', 'scoreboard', `PlayHQ not scoring live (${t}) for ${b.home.name} v ${b.away.name}: ${TROUBLE_SAYS[t]}`);
+    else log('info', 'scoreboard', `PlayHQ's live scoring for ${b.home.name} v ${b.away.name} is coming through again`);
+    b.playhqTrouble = t;
+  }
+  const troubleSays = t => TROUBLE_SAYS[t] || '';
+
+  // ─── Back to Follow PlayHQ from a score kept by hand ────────────────────────
+  // When the scorebench drops off line, the operator scores by hand and presses Follow PlayHQ once it's back. Pressed
+  // before PlayHQ has caught up, PlayHQ still has the old score (or none), and following it would take the board back
+  // and drop the goals scored by hand. So after Follow PlayHQ is pressed (b.followHold), the board keeps its own score,
+  // quarter and clock while PlayHQ's score is behind it and PlayHQ's live feed hasn't changed since the press. As soon
+  // as PlayHQ has caught up (level or ahead for both teams), or its feed has anything new (the scorebench is back, and
+  // PlayHQ is then the scorer's word, even a goal lower), the board follows PlayHQ as usual.
+  function holdHandScore(b, s) {
+    const h = b.followHold;
+    const seen = playhq.liveSeenFor ? playhq.liveSeenFor(b.gameId) : null;
+    const changed = !!(seen && seen.changedAt > h.at);
+    const behind = s.home < (Number(b.home.score) || 0) || s.away < (Number(b.away.score) || 0);
+    if (behind && !changed) {
+      if (!h.logged) { h.logged = true; log('info', 'scoreboard', `Follow PlayHQ: PlayHQ has ${s.home}-${s.away}, behind the board's ${b.home.score}-${b.away.score}, so the board keeps its score until PlayHQ catches up`); }
+      return true;
+    }
+    if (h.logged) log('info', 'scoreboard', `Follow PlayHQ: ${changed ? 'PlayHQ has something new' : 'PlayHQ has caught up'} (${s.home}-${s.away}), so the board follows it again`);
+    b.followHold = null;
+    return false;
+  }
+
   // While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5).
   // Called every second by refreshTick and by the scoreboard, goals, stats and worm requests; the
   // live feed is cached for playhqRefreshSec, so PlayHQ is asked once per period however often this runs.
   async function refreshFromPlayhq(b) {
     noteClock(b);
-    if (b.source !== 'playhq' || !b.roundId) return;
+    if (b.source !== 'playhq' || !b.roundId) { if (b.playhqTrouble) b.playhqTrouble = ''; return; }
     // Before electronic scoring starts there is nothing to read, so PlayHQ isn't asked.
     const wait = scoringNotYet(b);
     if (wait !== (b.playhqWaiting || '')) { if (wait) log('info', 'scoreboard', wait); b.playhqWaiting = wait; }
-    if (wait) { b.playhqError = ''; return; }
+    if (wait) { b.playhqError = ''; b.playhqTrouble = ''; return; }
     try {
       const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
       let game = null;
       const s = await liveScore({ id: b.gameId }, maxAge);
+      if (s && b.followHold && holdHandScore(b, s)) { b.playhqError = ''; watchTrouble(b); return; }
       if (s) {
         game = { id: b.gameId, status: s.status, home: { name: b.home.name, score: s.home }, away: { name: b.away.name, score: s.away } };
         // Follow the scorer's quarter when it changes (the Stream Deck can still set it in between).
@@ -299,24 +361,27 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         if (games.stale) throw new Error(games.stale);
         game = games.find(g => g.id === b.gameId);
       }
-      if (!game) return;
-      watchSuperShots(b, game, s && s.live, s ? (s.live ? 'live' : 'game') : 'fixture');
+      if (!game) { watchTrouble(b); return; }
+      const catchUp = catchUpIn(b, game, s && s.live);
+      watchSuperShots(b, game, s && s.live, s ? (s.live ? 'live' : 'game') : 'fixture', catchUp);
       // Log what PlayHQ reports each time it changes, including "no score yet", for debugging.
       const seen = `${game.id} ${game.status} ${game.home.score} ${game.away.score}`;
       if (b.playhqSeen !== seen) {
         log('info', 'scoreboard', `PlayHQ says ${game.home.name} ${game.home.score ?? 'no score'} - ${game.away.score ?? 'no score'} ${game.away.name} (${game.status})`);
         b.playhqSeen = seen;
       }
-      const goalsChanged = goalsFromPlayhq(b, game, s && s.live);
+      const goalsChanged = goalsFromPlayhq(b, game, s && s.live, catchUp);
       if (game.home.score !== null) b.home.score = game.home.score;
       if (game.away.score !== null) b.away.score = game.away.score;
-      trackPeriods(b);
+      // PlayHQ's own quarter for this reading: a jump on the quarter PlayHQ is still on is all that quarter's.
+      trackPeriods(b, null, s && s.live ? PERIOD_NUMBER[s.live.period] : null);
       if (goalsChanged) {
         if (!isFinished(game)) watchStreaks(b, 'playhq'); // after the score is on the board, which the moments read
         saveBoards();
       }
       b.playhqStatus = game.status;
       b.playhqError = '';
+      watchTrouble(b);
     } catch (err) {
       if (b.playhqError !== err.message) log('error', 'scoreboard', `Following PlayHQ failed: ${err.message}`);
       b.playhqError = err.message;
@@ -332,8 +397,29 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // super shot (two goals inside 5 seconds can't happen). The first reading of a game picked
   // part way through, or a jump of more than 3 points for one team at once (the helper was
   // closed, or nothing was polling), isn't split into goals: a gap is noted instead.
+  // A catch-up is noted as a gap for both teams too: a reading with more scoring for one team than can happen
+  // between two checks (more than one goal or super shot in a 5 s check; one per MIN_GOAL_SEC on longer ones), as
+  // when a scorebench back on line sends a quarter's goals at once. Its goals can't be placed in order or in time,
+  // so none are listed, and no super shot or moment plays for them (they happened minutes ago).
   const GOALS_KEPT = 400; // a whole game, so gamestats.html can count its runs
   const MAX_STEP = 3;
+  const MIN_GOAL_SEC = 10;
+  // Whether this reading is a catch-up (see above): false, or which team scored how many times at once.
+  function catchUpIn(b, game, live) {
+    if (!b.goalsBaseline || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId) return false; // the first reading has its own rule
+    const allowed = Math.max(1, Math.floor((b.playhqRefreshSec || DEFAULT_REFRESH_SEC) / MIN_GOAL_SEC));
+    for (const side of ['home', 'away']) {
+      const d = (game[side].score ?? b[side].score) - (Number(b[side].score) || 0);
+      if (d <= 0) continue;
+      const was = b.playhqCounts && b.playhqCounts[side], is = live && live[side];
+      const counted = was && is && [was.goals, was.superGoals, is.goals, is.superGoals].every(n => n != null);
+      // Each goal or super shot is 1 or 2 points, so a rise of d is between d/2 and d of them, whatever the counts say
+      // (after scoring by hand, PlayHQ's counts also hold goals already on the board).
+      const events = Math.min(d, Math.max(Math.ceil(d / 2), counted ? (is.goals - was.goals) + (is.superGoals - was.superGoals) : 0));
+      if (events > allowed) return { side, events, points: d };
+    }
+    return false;
+  }
   function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; momentsFrom(b); }
   function clockLeft(b) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
   function pushGoal(b, side, points, how) {
@@ -366,7 +452,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     for (let i = 0; i < goals; i++) pushGoal(b, side, 1, how);
   }
   // Called with each PlayHQ reading before it is put on the board. Returns true if goals changed.
-  function goalsFromPlayhq(b, game, live) {
+  function goalsFromPlayhq(b, game, live, catchUp) {
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
     const counts = live ? { home: { goals: live.home.goals, superGoals: live.home.superGoals, shots: live.home.shots }, away: { goals: live.away.goals, superGoals: live.away.superGoals, shots: live.away.shots } } : null;
     const before = b.goals.length, seq = b.goalsSeq;
@@ -381,6 +467,12 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         b.playhqCounts = counts;
         return true;
       }
+    }
+    if (catchUp) {
+      log('info', 'goals', `${b[catchUp.side].name} went up ${catchUp.points} points (at least ${catchUp.events} goals) between readings: PlayHQ catching up, so noted as a gap for both teams, with no goals listed`);
+      pushGap(b, { home: game.home.score ?? (Number(b.home.score) || 0), away: game.away.score ?? (Number(b.away.score) || 0) });
+      if (counts) b.playhqCounts = counts;
+      return true;
     }
     for (const side of ['home', 'away']) {
       const d = deltas[side];
@@ -415,19 +507,22 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // for goal stretch plays once however long it goes on, and a comeback has to go 5 down again
   // to replay. A run is known by the id of its first goal, so a -1 correction and the goal again
   // doesn't replay it. One goal plays one moment at most, the first of MOMENT_ORDER, so the
-  // stream isn't flooded (the rest are logged). A gap in the goal list (a game picked part way
-  // through, a jump too big to split) starts again from that score, so scores catching up never
-  // play, and nothing plays once the game is finished. Each one bumps b.streak.n and is added to
-  // b.streakLog, and streak.html plays the ones it hasn't seen.
+  // stream isn't flooded; the rest are logged and kept in its also list, which the Commentator
+  // stats page lists too. A gap in the goal list (a game picked part way through, a jump too big
+  // to split, PlayHQ catching up) starts again from that score, so scores catching up never play, and nothing plays
+  // once the game is finished. Each one bumps b.streak.n and is added to b.streakLog (with its
+  // gameId), and streak.html plays the ones it hasn't seen.
   const STREAK_GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
   const MOMENT_ORDER = ['siren', 'backToBack', 'fire', 'lead', 'comeback', 'level', 'goalForGoal', 'heating'];
   const STREAK_NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square',
     comeback: 'coming back', siren: 'on the siren', backToBack: 'back to back super shots' };
   const COMEBACK_DOWN = 5, COMEBACK_WITHIN = 2, LEVEL_LAST_SEC = 120, SIREN_LAST_SEC = 10, SIREN_STOPPED_MS = 15000;
   const leaderOf = (h, a) => (h > a ? 'home' : a > h ? 'away' : '');
-  function streak(b, ev, how) {
+  // also: the other moments the same goal made, which streak.html doesn't play (one per goal on air) but the
+  // Commentator stats page lists, so a goal that's a team's third in a row and puts them in front shows both.
+  function streak(b, ev, how, also = []) {
     const n = ((b.streak && b.streak.n) || 0) + 1;
-    b.streak = { n, side: '', goals: 0, from: '', ...ev, score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
+    b.streak = { n, side: '', goals: 0, from: '', ...ev, also, gameId: b.gameId || null, score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
       period: b.period, periodLabel: rules(b.division).periodLabel, clockLeft: clockLeft(b), at: Date.now(), how };
     b.streakLog = [...(b.streakLog || []), b.streak].slice(-6);
     log('info', 'streak', `${ev.side ? `${b[ev.side].name} (${ev.side}) ` : ''}${STREAK_NAMES[ev.kind]}${ev.goals ? `, ${ev.goals} goals` : ''}${ev.down ? `, was ${ev.down} down` : ''} (${how}), number ${n}`);
@@ -466,7 +561,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     else scoreMoments(b, m, found);
     found.sort((x, y) => MOMENT_ORDER.indexOf(x.kind) - MOMENT_ORDER.indexOf(y.kind));
     if (found.length > 1) log('info', 'streak', `Also ${found.slice(1).map(f => STREAK_NAMES[f.kind]).join(', ')}, not played (one moment per goal)`);
-    if (found.length) streak(b, found[0], how);
+    if (found.length) streak(b, found[0], how, found.slice(1));
   }
   function scoreMoments(b, m, found) {
     const fired = b.streakFired;
@@ -534,8 +629,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // when the next one starts, so the goals up to then are the last quarter's. A quarter is
   // "unsure" when its points can't be split out: the game was picked up part way through it, or
   // the score jumped by more than MAX_STEP for a team in one go (Studio was closed, or a score was
-  // typed in). Quarters before the one the game was picked up in aren't known at all.
-  function trackPeriods(b, score) {
+  // typed in). Quarters before the one the game was picked up in aren't known at all. A jump that comes from
+  // PlayHQ while PlayHQ is still on the quarter it's put on (playhqQuarter, as when a scorebench back on line
+  // catches up before the next quarter starts) is all that quarter's, so the quarter stays sure.
+  function trackPeriods(b, score, playhqQuarter = null) {
     const now = { home: Number(score && score.home != null ? score.home : b.home.score) || 0, away: Number(score && score.away != null ? score.away : b.away.score) || 0 };
     let t = b.periodTrack;
     if (!t || t.gameId !== (b.gameId || null)) {
@@ -549,7 +646,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     for (const side of ['home', 'away']) {
       const d = now[side] - t.base[side];
       if (!d) continue;
-      if (Math.abs(d) > MAX_STEP && p.sure) { p.sure = false; log('info', 'stats', `${b[side].name} went ${d > 0 ? 'up' : 'down'} ${Math.abs(d)} at once in ${rules(b.division).periodLabel}${t.period}, so that quarter's split isn't sure`); }
+      if (Math.abs(d) > MAX_STEP && p.sure && playhqQuarter !== t.period) { p.sure = false; log('info', 'stats', `${b[side].name} went ${d > 0 ? 'up' : 'down'} ${Math.abs(d)} at once in ${rules(b.division).periodLabel}${t.period}, so that quarter's split isn't sure`); }
       p[side] = Math.max(0, p[side] + d);
     }
     t.base = now;
@@ -807,6 +904,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   }
 
   return { snapshot, restore, board, newBoard, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
+    playhqTrouble, troubleSays,
     getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
 

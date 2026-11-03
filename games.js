@@ -184,7 +184,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   async function getFixtures(q) {
     const st = await getStructure();
     const grades = q.division ? [findGrade(st, q)].filter(Boolean) : st.grades;
-    const games = [], roundNames = [];
+    const games = [], roundNames = [], waiting = [];
     for (const grade of grades) {
       const round = await roundFor(grade, q.round);
       if (!round) {
@@ -192,10 +192,18 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         continue;
       }
       roundNames.push(round.name);
-      for (const game of await getRoundGames(round.id, 60 * 1000)) {
+      const roundGames = await getRoundGames(round.id, 60 * 1000);
+      for (const game of roundGames) {
         if (q.results && !isFinished(game)) continue;
         games.push({ ...game, division: grade.name, round: round.name,
           home: { ...game.home, logo: logoFor(game.home.name) }, away: { ...game.away, logo: logoFor(game.away.name) } });
+      }
+      // PlayHQ adds a finals round before its games: next week's grand final has none until tonight's
+      // qualifiers are played. Its games come from the division's finals format instead (see unplayedFinals).
+      if (!roundGames.length && !q.results) {
+        const tbd = await unplayedFinals(grade, round);
+        if (tbd.length) games.push(...tbd);
+        else waiting.push({ division: grade.name, round: round.name });
       }
     }
     const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
@@ -207,34 +215,61 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     if (q.round && !roundNames.length) return { error: `No round "${q.round}" in ${q.division ? 'that division' : 'any division'}` };
     log('info', 'fixtures', `Fixture${q.results ? ' results' : ''} for ${names.join(', ') || 'no round'}${q.round ? ` (asked for round=${q.round})` : ''}: ${games.length} games`);
     return { competition: st.competition, rules: rules(q.division && grades[0] ? grades[0].name : undefined), venueName: config().venueName || (games[0] && games[0].venue) || '',
-      division: q.division ? (grades[0] && grades[0].name) || '' : '', round, rounds: names, games };
+      division: q.division ? (grades[0] && grades[0].name) || '' : '', round, rounds: names, games, waiting };
   }
 
-  // The game after the one on the scoreboard: the next timeslot on the same court
-  // (any court if that court has nothing later). With no game picked, it assumes the
-  // stream is on the first timeslot and shows the game after it. With { wrap: true }, when
+  // A finals round PlayHQ has no games in yet, from the division's finals format: that week's games,
+  // with the teams known so far (from the ladder and finished finals) and the rest as "Winner ...".
+  // The time and court aren't known (TBC). None when it isn't a finals round or there's no format.
+  async function unplayedFinals(grade, round) {
+    if (!FINALS_ROUND.test(round.name || '') || !finalsFor(grade.name)) return [];
+    const week = (await getRounds(grade.id)).filter(r => FINALS_ROUND.test(r.name || '')).findIndex(r => r.id === round.id) + 1;
+    let f;
+    try { f = await getFinals({ division: String(grade.division) }); }
+    catch (err) { log('warn', 'fixtures', `${grade.name} ${round.name}: no finals games to show (${err.message})`); return []; }
+    const side = t => (t.name ? { name: t.name, logo: t.logo || logoFor(t.name), score: null } : { name: t.placeholder || 'TBC', logo: null, score: null, placeholder: true });
+    return (f.games || []).filter(g => g.week === week && !g.notNeeded).map(g => ({
+      id: `finals-${grade.name}-${g.id}`, date: '', time: '', court: '', status: 'TBD', toBeDecided: true, name: g.name,
+      division: grade.name, round: round.name, home: side(g.home), away: side(g.away) }));
+  }
+
+  // The game on the scoreboard and every division's games on its day, whatever round each is on (a finals
+  // night can have one division on Finals Round 1 and another on Round 9; a carnival day has several rounds).
+  // The day is the scoreboard game's own date, so it can't disagree with the game night list; with no game
+  // picked it is this game night (getCurrentGames) and the game is its first. A game on the scoreboard that
+  // isn't in PlayHQ's fixture (yet) still counts by its date, time and court.
+  const timeKey = g => `${g.date || ''} ${String(g.time || '').padStart(8, '0')}`;
+  async function boardDay() {
+    const b = board();
+    const date = b.gameId && isDate(b.date) ? b.date : await currentNight();
+    const games = [];
+    if (date) for (const grade of (await getStructure()).grades) {
+      for (const g of await getSeasonGames(grade)) if (g.date === date) games.push(g);
+    }
+    games.sort((x, y) => timeKey(x).localeCompare(timeKey(y)));
+    const current = (b.gameId && (games.find(g => g.id === b.gameId) || (b.date === date && b.time
+      ? { id: b.gameId, date, time: b.time, court: b.court, venue: b.venue, division: b.division, round: b.round,
+        home: { name: b.home.name }, away: { name: b.away.name } } : null))) || games[0] || null;
+    return { games, current };
+  }
+
+  // The game after the one on the scoreboard: the next timeslot that day on the same court (any court if
+  // that court has nothing later), by date, time and court, never by round. With no game picked, it assumes
+  // the stream is on the first timeslot and shows the game after it. With { wrap: true }, when
   // there's no later game (or with { wrap: 'force' } always) it adds the end of night card's
   // details as wrap (see endOfNight).
   async function getUpNext({ wrap = false } = {}) {
     const b = board();
-    const games = await getCurrentGames();
-    const key = g => `${g.date || ''} ${String(g.time || '').padStart(5, '0')}`;
-    games.sort((x, y) => key(x).localeCompare(key(y)));
-    let current = games.find(g => g.id === b.gameId) || games[0];
-    // A carnival day has several rounds: the next game may be in the next round, so add the rest of that day's games.
-    if (current && current.date) {
-      for (const grade of (await getStructure()).grades) {
-        for (const g of await getSeasonGames(grade)) if (g.date === current.date && !games.some(x => x.id === g.id)) games.push(g);
-      }
-      games.sort((x, y) => key(x).localeCompare(key(y)));
-      current = games.find(g => g.id === current.id);
-    }
-    if (!current) return { error: 'No games found in the current round' };
+    const { games, current } = await boardDay();
+    if (!current) return { error: 'No games found on this game night' };
     const court = b.court || current.court;
-    const later = games.filter(g => g.id !== current.id && key(g) > key(current));
-    const next = later.find(g => court && g.court === court) || later[0];
+    const later = games.filter(g => g.id !== current.id && timeKey(g) > timeKey(current));
+    const next = later.find(g => court && sameCourt(g.court, court)) || later[0];
     // The court's name as the scoreboard shows it (typed on Scoreboard control) for games on the court on air.
-    const shown = g => (b.court && g.court === b.court ? courtShown(b) : g.court);
+    const shown = g => (b.court && sameCourt(g.court, b.court) ? courtShown(b) : g.court);
+    log('info', 'upnext', `After ${current.home.name} v ${current.away.name} (${current.date} ${String(current.time || '').slice(0, 5)}, ${current.court || 'no court'}, ${[current.division, current.round].filter(Boolean).join(' ')}): ${next
+      ? `${next.home.name} v ${next.away.name} (${String(next.time || '').slice(0, 5)}, ${next.court || 'no court'}, ${[next.division, next.round].filter(Boolean).join(' ')})${court && !sameCourt(next.court, court) ? `, nothing later on ${court}` : ''}`
+      : 'no later game today'}`);
     const out = { competition: competitionName(), venueName: config().venueName || current.venue || '',
       after: { home: current.home.name, away: current.away.name, court: shown(current), time: current.time } };
     if (wrap && (!next || wrap === 'force')) {
@@ -281,10 +316,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   async function getIntroOutro(q = {}) {
     const st = await getStructure();
     const b = board();
-    const games = await getCurrentGames();
-    const key = g => `${g.date || ''} ${String(g.time || '').padStart(5, '0')}`;
-    games.sort((x, y) => key(x).localeCompare(key(y)));
-    const current = games.find(g => g.id === b.gameId) || games[0] || null;
+    const { current } = await boardDay();
     const all = String(q.division || '').toLowerCase() === 'all';
     const grades = all ? st.grades : [q.division ? findGrade(st, q) : st.grades.find(g => g.name === (b.division || (current && current.division))) || st.grades[0]].filter(Boolean);
     if (!grades.length) return { error: q.division ? `No division "${q.division}"` : 'This season has no divisions' };

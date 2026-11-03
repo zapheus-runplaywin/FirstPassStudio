@@ -1,5 +1,5 @@
 // Music (music.js, through scene.js): the player, playlists, fades, getting out of the way of a video's
-// sound, a sequence's own music, Quiet the music, and the /deck/music links.
+// sound, a sequence's own music, Ducks the music, and the /deck/music links.
 const test = require('node:test');
 const { mock } = require('node:test');
 const assert = require('node:assert/strict');
@@ -28,7 +28,7 @@ function reset() {
   ok({ type: 'musicStop', fade: 0 });
   ok({ type: 'musicDuck', value: 'off' });
   ok({ type: 'musicMute', value: 'off' });
-  ok({ type: 'musicSettings', settings: { fadeInSec: 2, fadeOutSec: 2, underVideo: 'pause', duckHalf: false } });
+  ok({ type: 'musicSettings', settings: { fadeInSec: 2, fadeOutSec: 2, underVideo: 'pause' } });
   for (const s of [...st().sequences]) ok({ type: 'seqRemove', sequence: s.id });
   for (const s of [...st().scenes]) ok({ type: 'sceneRemove', scene: s.id });
   for (const s of [...st().playlists]) ok({ type: 'playlistRemove', playlist: s.id });
@@ -146,13 +146,56 @@ test('a video with its sound on fades the music out and pauses it, then it fades
   assert.equal(Math.round(m().pos.sec), 21);
   wait(1);
   assert.equal(gain(), 1);
-  // Lower instead: it keeps playing at the lower level.
-  ok({ type: 'musicSettings', settings: { underVideo: 'lower', lowerTo: 30 } });
+  // Left as it is (unticked on the Ducking card): it keeps playing at its level.
+  ok({ type: 'musicSettings', settings: { underVideo: 'leave' } });
   ok({ type: 'show', name: 'Ad' });
   assert.equal(m().status, 'playing');
-  assert.equal(m().level, 30);
+  assert.equal(m().video, null);
+  assert.equal(gain(), 1);
   ok({ type: 'ended', id: id('Ad'), loadSeq: st().sources.find(s => s.name === 'Ad').loadSeq });
-  assert.equal(m().level, 100, 'the video ended and switched off');
+  // An older music.json's Lower the music (and its level, and Duck over half the fade times) pauses now.
+  ok({ type: 'musicSettings', settings: { underVideo: 'lower', lowerTo: 30, duckHalf: true } });
+  assert.equal(st().musicSettings.underVideo, 'pause');
+  assert.equal(st().musicSettings.lowerTo, undefined);
+  assert.equal(st().musicSettings.duckHalf, undefined);
+  assert.equal(m().level, undefined);
+});
+
+test('the three fade times: Quick for a video and a stinger leaving, Fade out for a sequence\'s music stopped with no time of its own', () => {
+  reset();
+  assert.equal(st().musicSettings.quickSec, 1, 'Quick is 1 s unless set');
+  ok({ type: 'musicSettings', settings: { quickSec: 2.5 } });
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  ok({ type: 'show', name: 'Ad' });
+  assert.equal(m().gain.ms, 2500, 'out of the video\'s way over Quick');
+  wait(2);
+  assert.equal(m().status, 'playing', 'still fading');
+  wait(1);
+  assert.equal(m().status, 'paused');
+  ok({ type: 'hide', name: 'Ad' });
+  assert.equal(m().gain.ms, 2500, 'back over Quick');
+  wait(3);
+  // A sequence's music that carries on, stopped by a scene with no Music ends time to go by: over Fade out.
+  ok({ type: 'musicSettings', settings: { fadeOutSec: 5, quickSec: 1 } });
+  ok({ type: 'show', name: 'Ladder' });
+  ok({ type: 'sceneSave', name: 'Quick game' });
+  ok({ type: 'hide', name: 'Ladder' });
+  ok({ type: 'seqAdd', changes: { name: 'Quick next', musicEnd: { type: 'continue' }, steps: [{ sources: [id('Ladder')], length: { type: 'next' } }] } });
+  const next = st().sequences.find(x => x.name === 'Quick next').id;
+  ok({ type: 'seqAdd', changes: { name: 'Quick run-up', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'continue' }, then: { type: 'sequence', sequence: next },
+    steps: [{ sources: [id('Ladder')], length: { type: 'time', sec: 10 } }] } });
+  ok({ type: 'seqPlay', sequence: 'Quick run-up' });
+  wait(10);
+  ok({ type: 'sceneGo', scene: 'Quick game' });
+  assert.equal(m().gain.to, 0);
+  assert.equal(m().gain.ms, 5000, 'over Fade out');
+  wait(5);
+  assert.equal(m().status, 'stopped');
+  ok({ type: 'musicSettings', settings: { fadeOutSec: 2 } });
+  // Out of range is kept in range.
+  ok({ type: 'musicSettings', settings: { quickSec: 99 } });
+  assert.equal(st().musicSettings.quickSec, 10);
+  ok({ type: 'musicSettings', settings: { quickSec: 1 } });
 });
 
 test('an intro or outro playing a theme song gets the music out of the way too; its sound effects alone do not', () => {
@@ -433,7 +476,7 @@ test('a second stop while the music fades out never makes the fade longer', () =
   assert.equal(m().status, 'stopped', 'sooner is fine');
 });
 
-test('Quiet the music: a scene ducks the player, the next scene brings it back; a sequence\'s music ducks too', () => {
+test('Ducks the music: a scene ducks the player, the next scene brings it back; a sequence\'s music ducks too', () => {
   reset();
   ok({ type: 'show', name: 'Interview' });
   ok({ type: 'sceneSave', name: 'Interview' });
@@ -495,13 +538,13 @@ test('a stinger with ?music=quiet ducks the music quickly and leaves it down for
   ok({ type: 'sceneGo', scene: 'Game' });
   assert.equal(m().ducked, false, 'the next scene without Quiet the music brings it back');
   wait(4);
-  // dip: down while it plays (0.44 s at twice the length), back up in half a second when it ends.
+  // dip: down while it plays (0.44 s at twice the length), back up over the Quick time (1 s) when it ends.
   ok({ type: 'show', name: 'Duck stinger' });
   assert.equal(m().ducked, true);
   assert.equal(m().duck.ms, 440);
   end('Duck stinger');
   assert.equal(m().ducked, false);
-  assert.equal(m().duck.ms, 500);
+  assert.equal(m().duck.ms, 1000);
   wait(1);
   // A dip that a quiet scene comes up under stays down.
   ok({ type: 'show', name: 'Duck stinger' });
@@ -559,17 +602,12 @@ test('the duck fades over the fade time, and ?fade sets its own', () => {
   ok({ type: 'sceneGo', scene: 'Interview' });
   assert.equal(m().duck.ms, 4000);
   assert.equal(m().duck.to, 1);
-  // Back up over the fade in time; over half the fade times when set; a link's ?fade still sets its own.
+  // Back up over the fade in time; a link's ?fade still sets its own.
   ok({ type: 'musicDuck', value: 'off' });
   assert.equal(m().duck.ms, 2000);
-  ok({ type: 'musicSettings', settings: { duckHalf: true } });
-  ok({ type: 'musicDuck', value: 'on' });
-  assert.equal(m().duck.ms, 2000);
-  ok({ type: 'musicDuck', value: 'off' });
-  assert.equal(m().duck.ms, 1000);
   link('music/duck/on', { fade: '3' });
   assert.equal(m().duck.ms, 3000);
-  ok({ type: 'musicSettings', settings: { duckHalf: false } });
+  ok({ type: 'musicDuck', value: 'off' });
 });
 
 test('separate fade in and fade out times', () => {
@@ -636,7 +674,6 @@ test('cut to a sequence with music of its own, the old song fades out under the 
   assert.equal(tail.playId, old, 'the same play carries on fading');
   assert.equal(Math.round(tail.pos.sec), 5);
   assert.deepEqual([tail.gain.to, tail.gain.ms], [0, 4000], "over Pre-game's 4 s");
-  assert.deepEqual(tail.outputs, ['main']);
   wait(4);
   assert.equal(m().tail, null, 'gone once faded');
   assert.equal(m().track, 'Walk out.m4a');

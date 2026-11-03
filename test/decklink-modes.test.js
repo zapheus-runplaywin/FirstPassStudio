@@ -33,13 +33,18 @@ test('an interlaced format saved earlier is still replaced by a 1080p one', () =
   assert.equal(sent(), 2);
 });
 
-test('the sound goes in the SDI unless picked otherwise, and anything else saved goes back to that', () => {
+test('the sound goes in the SDI unless Sound goes to says otherwise, and anything else saved goes back to that', () => {
   const sound = () => outputs.windows().find(w => w.kind === 'decklink')?.sound;
   assert.equal(sound(), 'sdi');
-  for (const v of ['mac', 'both']) {
-    assert.equal(outputs.apply({ decklinkSound: v }), null);
-    assert.equal(sound(), v);
+  for (const [list, want] of [[[{ device: 'own' }, { device: 'mac' }], 'both'], [[{ device: 'mac' }], 'mac'], [[{ device: 'Mixer' }], 'none'], [[{ device: 'Mixer' }, { device: 'own' }], 'sdi']]) {
+    assert.equal(outputs.apply({ sound: list }), null);
+    assert.equal(sound(), want, JSON.stringify(list));
   }
-  assert.equal(outputs.apply({ decklinkSound: 'speakers' }), null);
+  assert.equal(outputs.apply({ sound: 'speakers' }), null);
   assert.equal(sound(), 'sdi');
+  // Saved before Sound goes to was a list: the old Sound setting's words.
+  for (const [v, want] of [['mac', 'mac'], ['both', 'both'], ['speakers', 'sdi']]) {
+    assert.equal(outputs.apply({ decklinkSound: v }), null);
+    assert.equal(sound(), want, v);
+  }
 });

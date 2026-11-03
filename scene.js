@@ -18,7 +18,7 @@
 // sequences are shared by every output: going to a scene (a.output, the primary unless set) sets its
 // sources on that output, and each output has its own current scene (current for the primary, currentOut
 // for the others) and its own playing sequence. Sponsor ads stay with the primary. Each output plays the sound of
-// the sources on it; the music plays on the outputs it's ticked for (music.js). /deck/output/<output>/layer/<name>/on|off|toggle|restart,
+// the sources on it; the music and the mics are the primary's alone (music.js, mics.js). /deck/output/<output>/layer/<name>/on|off|toggle|restart,
 // /deck/output/<output>/layers/off, /deck/output/<output>/scene/<name>|next|prev|again and
 // /deck/output/<output>/sequence/... act on one output; the links above act on the primary.
 //
@@ -300,7 +300,7 @@ function cleanScene(sc, existing = {}) {
     name: '',
     colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
     states,
-    quiet: !!s.quiet,  // Quiet the music when this scene is picked (an interview on court)
+    quiet: !!s.quiet,  // Ducks the music when this scene is picked (an interview on court); the key keeps its old name
   };
   // Switcher actions (switcher.js) done as the scene is picked on the primary.
   const sw = switcher.cleanActions(s.switcher);
@@ -378,7 +378,7 @@ function load() {
 }
 
 function save() {
-  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, ...s }) => s), scenes: scene.scenes, current: scene.current, currentOut: scene.currentOut, ended: [...ended] }); }
+  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, playAt, ...s }) => s), scenes: scene.scenes, current: scene.current, currentOut: scene.currentOut, ended: [...ended] }); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }
@@ -386,10 +386,11 @@ function save() {
 let stingerName = '';
 function notify() {
   tidySoundOut();
+  notePlays();
   videoSound();
-  // The Switcher card names the scene's stinger: tell it when that changes.
-  const sting = stingerSource();
-  if ((sting ? sting.name : '') !== stingerName) { stingerName = sting ? sting.name : ''; publishSwitcher(); }
+  // The Switcher card names the scene's stinger and its Music under it: tell it when either changes.
+  const sting = stingerSource(), key = sting ? `${sting.name}\n${sting.url}` : '';
+  if (key !== stingerName) { stingerName = key; publishSwitcher(); }
   rev++;
   const st = state();
   const json = JSON.stringify(st);
@@ -521,7 +522,9 @@ function act(a) {
 // ?theme=; its effects alone don't count), on an output the music plays on.
 const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
 // A stinger with ?music=quiet or duck ducks the music as it comes on, by the time it covers the frame (0.22 of its length);
-// duck (dip, its old name, still works) brings it back up when it goes off.
+// duck (dip, its old name, still works) brings it back up when it goes off. It's set on the Switcher card (Music under it)
+// or in the source's options, and goes by the output the stinger plays on (switcher.js stingerOutput: the one on a
+// downstream key, Output 1 unless another that's on is), so it works on a night Output 1 is off.
 const isStinger = s => s.type === 'browser' && /^\/?stinger\.html(\?|$)/.test(String(s.url || ''));
 function stingerMusic(s, on) {
   if (!isStinger(s)) return;
@@ -531,21 +534,49 @@ function stingerMusic(s, on) {
   const length = Math.min(3, Math.max(.5, parseFloat(q.get('length')) || 1));
   music.stinger(mode, on, Math.max(.2, .22 * length));
 }
+// A video with its sound on (or a page playing a theme song) showing on the primary, where the music and mics are.
 const videoOn = () => {
-  const outs = music.state().music.outputs.map(o => o === PRIMARY ? null : o);
   // A video whose sound is fading out under the next music (soundOut) has made way already.
-  return scene.sources.some(s => outs.some(o => isOn(s, o) && ((s.type === 'video' && s.sound && !soundDone.has(s.id) && !soundFading(s, o)) || playsTheme(s))));
+  return scene.sources.some(s => isOn(s, null) && ((s.type === 'video' && s.sound && !soundDone.has(s.id) && !soundFading(s, null)) || playsTheme(s)));
 };
 function videoSound() { music.videoSound(videoOn()); }
+// The output the stinger plays on: null for the primary, else its id.
+function stingerOut() {
+  let o;
+  try { o = switcher.stingerOutput().id; } catch { o = PRIMARY; }
+  return o && o !== PRIMARY && outputsApi.find(o) ? o : null;
+}
 function noteShowings() {
   videoSound();
-  for (const s of scene.sources) if (s.visible !== wasOn.has(s.id)) stingerMusic(s, s.visible);
+  const sting = stingerOut();
+  for (const s of scene.sources.filter(isStinger)) {
+    const now = sting ? !!s.out[sting] : s.visible, was = sting ? wasOnOut.has(`${s.id}|${sting}`) : wasOn.has(s.id);
+    if (now !== was) stingerMusic(s, now);
+  }
   for (const s of scene.sources) if (s.visible && !wasOn.has(s.id)) s.showSeq++;
   wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
   for (const s of scene.sources) for (const o of Object.keys(s.out)) if (!wasOnOut.has(`${s.id}|${o}`)) s.outSeq[o] = (s.outSeq[o] || 0) + 1;
   wasOnOut = new Set(scene.sources.flatMap(s => Object.keys(s.out).map(o => `${s.id}|${o}`)));
 }
 let wasOnOut = new Set();
+// When each output's showing of a video began (playAt { [output]: ms }, not saved), from the top again on a
+// restart: a page that opens part way through, like a Scene View, joins it where the output has got to. Brought up
+// to date as the scene is sent (notify), whatever changed it.
+const playWas = new Map(); // `${id}|${output}` → the loadSeq and showing playAt was set for
+function notePlays() {
+  for (const s of scene.sources) {
+    if (s.type !== 'video') continue;
+    const at = {};
+    for (const o of [PRIMARY, ...Object.keys(s.out)]) {
+      const key = `${s.id}|${o}`;
+      if (!isOn(s, o === PRIMARY ? null : o)) { playWas.delete(key); continue; }
+      const now = `${s.loadSeq}:${o === PRIMARY ? s.showSeq : s.outSeq[o] || 0}`;
+      at[o] = (playWas.get(key) === now && s.playAt && s.playAt[o]) || Date.now();
+      playWas.set(key, now);
+    }
+    if (Object.keys(at).length) s.playAt = at; else delete s.playAt;
+  }
+}
 
 // For switcher.js's stinger cuts: the scene's stinger (a stinger.html source; ref is its id or name, else the
 // first), and playing it from the top on an output (the primary unless output names another; reloaded if it's on there already).
@@ -1168,7 +1199,7 @@ function sendMedia(req, res, file, type, send) {
 const VERSION = (() => { try { return require('./package.json').version; } catch { return ''; } })();
 
 function exportFiles(withMedia) {
-  const sources = scene.sources.map(({ loadSeq, showSeq, ...s }) => s);
+  const sources = scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, playAt, ...s }) => s);
   const files = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources, scenes: scene.scenes }, null, 2) + '\n') }];
   const missing = [];
   if (withMedia) {
@@ -1398,8 +1429,6 @@ function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
     files: () => mediaList().filter(m => m.kind === 'audio' && !m.converting).map(m => m.name),
     changed: () => save(),
     quiet: on => mics.quiet(on),
-    playingOn: id => sequences.playingOn(id),
-    musicEndSec: id => sequences.musicEndSec(id),
   });
   mics.init(log, { changed: () => notify() });
   sequences.init(log, {

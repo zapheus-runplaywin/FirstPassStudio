@@ -119,7 +119,7 @@ test('cut to a sequence with music of its own, the scene plays the old song fadi
   await act({ type: 'seqStop' });
 });
 
-test("switching the Output page's Scene View to another output keeps the music going: the new view stands by until it plays", async t => {
+test("the Output page's Scene View is silent on every output, with the music playing and after a click", async t => {
   const browser = await launch(t);
   if (!browser) return;
   const studio = await startStudio(t, { competition: 'Thunder League' });
@@ -137,68 +137,83 @@ test("switching the Output page's Scene View to another output keeps the music g
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
+  const asks = [];
+  page.on('request', r => { if (r.url().includes('/api/outputs/listen')) asks.push(r.url()); });
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   await act({ type: 'seqPlay', sequence: 'Bed' });
-  // What each Scene View frame on the page plays: its output, and the music's volume (0 when it isn't playing).
-  // Read in one go in the page: a frame the page removes between finding it and reading it would read as silent.
-  const frames = () => page.evaluate(() => [...document.querySelectorAll('#preview iframe')].map(f => {
+  await studio.until(async () => (await studio.get('/api/scene')).music?.status === 'playing');
+  // What the Scene View plays: its output, and its music player (never playing: the view is silent).
+  const view = () => page.evaluate(() => {
+    const f = document.getElementById('previewFrame');
     const src = f.getAttribute('src') || '';
     let p = null;
     try { p = f.contentWindow.musicPlayers?.(); } catch {}
-    return { id: f.id, output: (src.match(/output=([^&]+)/) || [])[1] || 'main', hidden: f.style.visibility === 'hidden', volume: p && p.music.playing ? p.music.volume : 0 };
-  }));
-  await page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { const p = f.contentWindow.musicPlayers(); return p.music.playing && p.music.volume > 0.5; } catch { return false; } }, null, { timeout: 15000 });
+    return { output: (src.match(/output=([^&]+)/) || [])[1] || 'main', muted: /mute=1/.test(src), playing: !!(p && p.music.playing) };
+  });
+  const drawn = () => page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { return !window.previewSwitching() && f.contentWindow.standbyReady(); } catch { return false; } }, null, { timeout: 15000 });
+  await drawn();
+  await page.waitForTimeout(500);
+  assert.deepEqual(await view(), { output: 'main', muted: true, playing: false }, 'the music plays through Output 1\'s Sound goes to, not in the view');
+  assert.match(await page.$eval('#previewSoundNote', el => el.textContent), /^Silent: an output's sound plays where its Sound goes to says/);
+  // A click used to bring the sound here: it no longer does.
+  await page.click('#preview');
+  await page.waitForTimeout(300);
+  assert.equal((await view()).playing, false, 'still silent after a click');
+  // The view of Output 2 is silent too.
   await page.click(`#outTabs button:has-text("${two.name}")`);
-  // Until the new view takes over, the one showing keeps playing at its level; then the new one plays straight on at it.
-  const seen = [];
-  const end = Date.now() + 10000;
-  while (Date.now() < end) {
-    const f = await frames();
-    seen.push(f);
-    const showing = f.find(x => x.id === 'previewFrame');
-    assert.ok(showing && showing.volume > 0.5, `the Scene View's music never stops: ${JSON.stringify(f)}`);
-    if (f.length === 1 && showing.output === two.id) break;
-    await page.waitForTimeout(20);
-  }
-  const last = seen[seen.length - 1];
-  assert.equal(last.length, 1, 'the old view is gone once the new one took over');
-  assert.equal(last[0].output, two.id);
-  assert.ok(seen.some(f => f.length === 2 && f.some(x => x.hidden && x.output === two.id)), 'the new view stood by, hidden, beside the old one');
-  assert.equal(await page.evaluate(() => window.previewSwitching()), false);
-  // Back to Output 1 the same way.
-  await page.click('#outTabs button >> nth=0');
-  await page.waitForFunction(() => !window.previewSwitching() && !/output=/.test(document.getElementById('previewFrame').getAttribute('src')), null, { timeout: 10000 });
-  assert.ok((await frames())[0].volume > 0.5);
+  await page.waitForFunction(id => previewOutput === id && !previewSwitching(), two.id, { timeout: 10000 });
+  await drawn();
+  await page.waitForTimeout(300);
+  assert.deepEqual(await view(), { output: two.id, muted: true, playing: false });
+  assert.deepEqual(asks, [], 'the page never asks to play the sound');
   assert.deepEqual(errors, []);
   await act({ type: 'seqStop' });
 });
 
-test("the Scene View goes silent as soon as the output it shows starts sending, not at its next check-in", async t => {
+test('a page that opens while a video plays joins it where the output has got to, and a restart is from the top', async t => {
   const browser = await launch(t);
   if (!browser) return;
   const studio = await startStudio(t, { competition: 'Thunder League' });
-  assert.equal((await studio.request('POST', '/api/outputs', { add: true })).status, 200);
-  const two = (await studio.get('/api/outputs')).outputs[1];
-  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
+  fs.copyFileSync(path.join(__dirname, 'fixtures', 'clip.webm'), path.join(studio.dataDir, 'media', 'clip.webm')); // 30 s
+  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  await act({ type: 'add', sources: [{ type: 'video', name: 'Highlights', file: 'clip.webm', restartOnShow: true }] });
+  const id = (await studio.get('/api/scene')).sources.find(s => s.name === 'Highlights').id;
+  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   t.after(() => context.close());
-  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
-  const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', err => errors.push(err.message));
-  await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
-  await page.click(`#outTabs button:has-text("${two.name}")`);
-  await page.waitForFunction(id => previewOutput === id && !previewSwitching(), two.id, { timeout: 10000 });
-  const note = () => page.$eval('#previewSoundNote', el => el.textContent);
-  assert.doesNotMatch(await note(), /this output is on/);
-  // Output 2 starts sending (Output 1 stays off): the Scene View showing it is told at once.
-  const asks = [];
-  page.on('request', r => { if (r.url().endsWith('/api/outputs/listen')) asks.push(JSON.parse(r.postData() || '{}')); });
-  await page.evaluate(id => showOut({ ...out, outputs: out.outputs.map(o => o.id === id ? { ...o, previewSound: false } : o) }), two.id);
-  await page.waitForFunction(() => /this output is on, so it plays its own sound/.test(document.getElementById('previewSoundNote').textContent), null, { timeout: 1500 });
-  assert.ok(asks.some(a => a.output === two.id && a.on === false), JSON.stringify(asks));
-  // And back off: it may play that output's sound again straight away.
-  await page.evaluate(id => showOut({ ...out, outputs: out.outputs.map(o => o.id === id ? { ...o, previewSound: true } : o) }), two.id);
-  await page.waitForFunction(() => !/this output is on/.test(document.getElementById('previewSoundNote').textContent), null, { timeout: 1500 });
-  assert.ok(asks.some(a => a.output === two.id && a.on === true), JSON.stringify(asks));
-  assert.deepEqual(errors, []);
+  const at = page => page.evaluate(() => document.querySelector('video').currentTime);
+  const playing = page => page.waitForFunction(() => { const v = document.querySelector('video'); return v && !v.paused && v.readyState >= 1; }, null, { timeout: 10000 });
+  const open = async () => {
+    const page = await context.newPage();
+    await page.goto(`${studio.base}/scene.html?mute=1`, { waitUntil: 'load' });
+    return page;
+  };
+  // The output's window is there as it comes on: from the top.
+  const first = await open();
+  await first.waitForTimeout(500);
+  await act({ type: 'show', id });
+  await playing(first);
+  assert.ok(await at(first) < 1.5, `the window there from the start plays it from the top: ${await at(first)}`);
+  await new Promise(r => setTimeout(r, 4000));
+  // A Scene View opened now joins it about 4 s in, not from the top.
+  const view = await open();
+  await playing(view);
+  const joined = await at(view), there = await at(first);
+  assert.ok(joined > 3 && Math.abs(joined - there) < 1, `joined at ${joined} s with the output at ${there} s`);
+  const st = await studio.get('/api/scene');
+  assert.ok(st.sources.find(s => s.id === id).playAt.main > 0, 'the scene says when its showing began');
+  // Restart: from the top everywhere, and a page opening just after joins near the top too.
+  await act({ type: 'restart', id });
+  await view.waitForFunction(() => document.querySelector('video').currentTime < 1.5, null, { timeout: 5000 });
+  const late = await open();
+  await playing(late);
+  assert.ok(await at(late) < 2.5, `a page opened after the restart starts near the top: ${await at(late)}`);
+  // Off and on again: a new showing, from the top.
+  await act({ type: 'hide', id });
+  await act({ type: 'show', id });
+  await view.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.currentTime < 1.5; }, null, { timeout: 5000 });
+  // Not saved with the scene.
+  const saved = JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'scene.json'), 'utf8'));
+  assert.equal(saved.sources.find(s => s.id === id).playAt, undefined);
 });
+

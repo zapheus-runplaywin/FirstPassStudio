@@ -147,7 +147,7 @@ const playhq = require('./playhq').create({
   log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE, record: recorder, practice,
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
 });
-const { gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS, getGame, lineup, getLive, scoringNotYet, lastLive } = playhq;
+const { gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS, getGame, lineup, getLive, scoringNotYet, lastLive, liveSeenFor } = playhq;
 const { parsePlayhqUrl, startOf, isFinished } = require('./playhq');
 const playhqNet = require('./playhqnet');
 
@@ -375,14 +375,21 @@ function health() {
   // The game itself (by PlayHQ or by hand): upcoming, live, ended (within the hour) or over. Studio keeps asking PlayHQ after
   // full time, so the state below (the link) is judged the same way whether or not the game is finished.
   const phase = theBoard.gamePhase(b);
-  const readAgoMs = lastLive.at ? now - lastLive.at : null;
-  // ok: fine or nothing to read; warn: a reading is overdue; bad: PlayHQ has been failing for a minute.
+  // The last answer about this game (a reading, or "not electronically scored"), not another game's: the fixture
+  // board reads the other courts' games too, which kept this looking fresh while this game's feed wasn't live.
+  const seen = b.gameId ? liveSeenFor(b.gameId) : { okAt: 0, notScoredAt: 0 };
+  const answeredAt = Math.max(seen.okAt, seen.notScoredAt);
+  const readAgoMs = answeredAt ? now - answeredAt : null;
+  // ok: fine or nothing to read; warn: a reading is overdue; bad: PlayHQ has been failing for a minute. Apart from
+  // these, trouble says PlayHQ answers but isn't scoring the game live (board.js playhqTrouble, the scorebench off line),
+  // which the pages show in purple, not red.
   // Overdue is measured from the later of the last answer and the switch to following PlayHQ (clockMatchedAt),
   // so the first seconds after a switch back from manual scores aren't a false alarm.
-  const since = Math.max(lastLive.at, b.clockMatchedAt || 0);
+  const since = Math.max(answeredAt, b.clockMatchedAt || 0);
+  const trouble = following && !waiting ? b.playhqTrouble || '' : '';
   let playhqState = 'ok';
   if (following && !waiting) {
-    if (lastLive.error && lastLive.errorAt > lastLive.at && now - since > 60000) playhqState = 'bad';
+    if (lastLive.error && lastLive.errorAt > answeredAt && now - since > 60000) playhqState = 'bad';
     else if (now - since > 2 * refreshMs + 2000) playhqState = 'warn';
   }
   const out = outputs.state();
@@ -402,7 +409,10 @@ function health() {
     game: b.gameId ? { id: b.gameId, label: `${b.home.name} v ${b.away.name}`, court: b.court || '', division: b.division || '', time: b.time || '', phase, ended: phase === 'ended' || phase === 'over' } : null,
     source: b.source, autoSelect: !!b.autoSelect,
     playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
-      error: lastLive.error && lastLive.errorAt > lastLive.at ? lastLive.error : (b.playhqError || ''),
+      error: lastLive.error && lastLive.errorAt > answeredAt ? lastLive.error : (b.playhqError || ''),
+      trouble, troubleSays: theBoard.troubleSays(trouble),
+      // Back to Follow PlayHQ from a hand score that PlayHQ hasn't caught up with yet: the board keeps it (board.js holdHandScore).
+      holding: following && !!b.followHold && !!b.followHold.logged,
       // What talking to PlayHQ costs (playhqnet.js), for the board's PlayHQ line: the ping, the last minute's
       // download a second, and the bytes downloaded since Studio went on air.
       net: playhqNet.snapshot() },
