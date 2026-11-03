@@ -411,7 +411,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   makes one from the sources as they are; clicking a scene goes to it, turning sources on and off to match while one that's already on stays on
   (not reloaded). The sources are shared, so a source turned on or off by hand afterwards changes everywhere, is marked **changed**, and the bar
   under the scenes offers **Back to saved**, **Save over** the scene, or **Save as new scene**. Each scene tile has a pencil (rename, colour: the
-  group it's listed in, pre-game, live stream, quarter time, post-game, ads; Quiet the music; switcher actions), copy and a bin (asks first), none of which changes what's on.
+  group it's listed in, pre-game, live stream, quarter time, post-game, ads; Ducks the music; switcher actions), copy and a bin (asks first), none of which changes what's on.
   A source added later is off in every scene. Links: `/deck/scene/<name>`, `/deck/scene/next` and `/deck/scene/prev` (in the scenes' order,
   stopping at the ends) and `/deck/scene/again` (back to saved). The pop-out Scene View has the scenes as buttons too. Exports include the scenes.
 - **Sequences:** the scene's sources played one after another (run-up, quarter break, full time), built on the Output page with **+ New sequence**.
@@ -438,7 +438,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
   pauses under a visible video with sound on, on Output 1 (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
   startAtSec, fadeInSec, underVideo: starts its fade in before a video with sound in the step before ends while that video's sound fades out (`soundOut` on the source, which scene.html follows); `musicEnd`: fade (planned to start early enough to last its whole time across short timed steps), cut, continue into a `then: { type: 'sequence' }`, or crossfade (plays to the end, then fades out as the tail under different music that starts on the next step or sequence; else a fade); with none, a sequence step's own
-  music plays while that step's sequence does), and scenes and sequences can be `quiet`.
+  music plays while that step's sequence does), and scenes and sequences can duck the music (`quiet`, its old name).
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick
   **Live View** when the Mac is busy. The Scene View plays the sound of the output it shows only while that output is off (for testing);
@@ -618,7 +618,7 @@ These follow the game picked on the scoreboard control page:
   then carry on off the other side. `?hold=` (seconds on the full frame, 0 to 1 in steps of 0.1, 0.5 by default; 0 is a quick 1 second stinger),
   `?length=` (how long the bands take, 0.5 to 3 seconds), `?logo=0` (colours only), `?mode=dark`, `?size=`
   (logo height) and `?sfx=` (whoosh volume in %, 80 by default). `?music=quiet` ducks the music by the time the frame is covered and
-  keeps it down for the scene cut to (until one without Quiet the music); `?music=duck` brings it back up as it leaves (the Switcher card's **Music under it** sets the same option; it goes by the output the
+  keeps it down for the scene cut to (until one that doesn't duck the music); `?music=duck` brings it back up as it leaves (the Switcher card's **Music under it** sets the same option; it goes by the output the
   stinger plays on). For a switcher or player that plays stingers from a file,
   `node docs/stinger/render.js "Thunder League"` renders it from a competition template to a 1080p50 ProRes 4444 `.mov`
   with alpha (`--fps`, `--length`, `--hold`, `--logo 0`; needs ffmpeg with ProRes). `docs/stinger/` has Thunder League's.

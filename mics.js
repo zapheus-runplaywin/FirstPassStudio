@@ -15,9 +15,9 @@
 // Dips: like the music's duck, the mics come down to the Dip to level (and back up) while
 //   - music is playing (the player's, a sequence's or the super shot song), if ticked (it starts unticked),
 //   - a video with its sound on is showing (or a page playing a theme song),
-//   - a scene or sequence with "Quiet the music" ticked is on (an interview on court),
+//   - a scene or sequence with "Ducks the music" ticked is on (an interview on court),
 //   - the Dip button or /deck/mics/dip is on, by hand.
-// Each of the first three is a tick box; the Dip by hand always works. A mic marked "Has an external mixer"
+// Each of the first three is a tick box; the Dip by hand always works. A mic marked "Never ducks (an external mixer does it)"
 // (follow false) stays at its level whatever happens: the mixer does the fading. The dip goes down over dipDownSec
 // and back up over dipUpSec: dip { from, to, at, ms } goes from 0 (up) to 1 (down at dipTo), as the music's duck does.
 //
@@ -150,7 +150,7 @@ function reasons() {
   if (hand) r.push('by hand');
   if (why.music && settings.dipMusic) r.push('music playing');
   if (why.video && settings.dipVideo) r.push('a video with sound');
-  if (why.quiet && settings.dipQuiet) r.push('a quiet scene');
+  if (why.quiet && settings.dipQuiet) r.push('a scene or sequence');
   return r;
 }
 function settle() {
@@ -246,7 +246,7 @@ function follow(m, videoOn) {
   why.video = !!videoOn;
   return settle();
 }
-// A scene or sequence with "Quiet the music" ticked started (true), or one without it (false).
+// A scene or sequence with "Ducks the music" ticked started (true), or one without it (false).
 function quiet(on) {
   why.quiet = !!on;
   return settle();

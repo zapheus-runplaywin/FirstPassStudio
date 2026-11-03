@@ -300,7 +300,7 @@ function cleanScene(sc, existing = {}) {
     name: '',
     colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
     states,
-    quiet: !!s.quiet,  // Quiet the music when this scene is picked (an interview on court)
+    quiet: !!s.quiet,  // Ducks the music when this scene is picked (an interview on court); the key keeps its old name
   };
   // Switcher actions (switcher.js) done as the scene is picked on the primary.
   const sw = switcher.cleanActions(s.switcher);

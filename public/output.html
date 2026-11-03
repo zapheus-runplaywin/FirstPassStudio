@@ -732,8 +732,8 @@
         </div>
         <label for="sqHidden">Hide</label>
         <label class="inline"><input type="checkbox" id="sqHidden"> Hide it from the sequence list (it still plays inside other sequences, when its start comes, and from the Stream Deck)</label>
-        <label for="sqQuiet">Quiet</label>
-        <label class="inline"><input type="checkbox" id="sqQuiet"> Quiet the music when this starts (an interview on court): whatever is playing ducks until the next scene or sequence without it</label>
+        <label for="sqQuiet">Duck</label>
+        <label class="inline"><input type="checkbox" id="sqQuiet"> Ducks the music when this starts (an interview on court): whatever is playing ducks until the next scene or sequence that doesn't</label>
       </div>
       <h2 style="margin:16px 0 4px">Steps</h2>
       <div class="steps" id="sqSteps"></div>
@@ -771,7 +771,7 @@
         <label for="sdName">Name</label><input id="sdName" maxlength="60">
         <label for="sdColour">Colour</label><select id="sdColour"></select>
       </div>
-      <label style="display:block;margin-top:10px;font-weight:400"><input type="checkbox" id="sdQuiet"> Quiet the music <small class="note">(going to this scene ducks the music, or fades out a sequence's music, for an interview on court)</small></label>
+      <label style="display:block;margin-top:10px;font-weight:400"><input type="checkbox" id="sdQuiet"> Ducks the music <small class="note">(going to this scene ducks the music, or fades out a sequence's music, for an interview on court)</small></label>
       <button class="alt hidden" id="sdSwitcher" style="margin-top:8px"></button>
       <div class="row" style="margin-top:12px;justify-content:space-between">
         <div class="row"><button class="danger" id="sdDelete">Delete</button><button class="alt" id="sdCopy">Copy</button></div>
@@ -830,7 +830,7 @@
       <div class="row"><select id="mUnder"><option value="pause">Fade the music out and pause it, then fade it back in</option><option value="lower">Lower the music</option><option value="leave">Leave the music as it is</option></select>
         <label class="inline mLowerTo">to <input type="number" id="mLowerTo" min="0" max="100" style="width:64px"> %</label></div>
       <label for="mDuckTo">Duck to</label>
-      <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that quiets the music)</span>
+      <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that ducks the music)</span>
         <label class="inline"><input type="checkbox" id="mDuckHalf"> Duck over half the fade times</label></div>
       <label for="mSuperSong">Super shot song</label>
       <div class="row"><select id="mSuperSong"></select> <label class="inline">at <input type="number" id="mSuperVolume" min="0" max="100" style="width:64px"> % volume</label>
@@ -873,7 +873,7 @@
       <div class="row"><input type="number" id="mxDipTo" min="0" max="100" style="width:70px"> <span>% while</span>
         <label class="inline"><input type="checkbox" id="mxDipMusic"> music plays</label>
         <label class="inline"><input type="checkbox" id="mxDipVideo"> a video with sound plays</label>
-        <label class="inline"><input type="checkbox" id="mxDipQuiet"> a scene or sequence quiets the music</label></div>
+        <label class="inline"><input type="checkbox" id="mxDipQuiet"> a scene or sequence ducks the music</label></div>
       <label for="mxDown">Duck down over</label>
       <div class="row"><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, and back up over</span>
         <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:70px" aria-label="Back up over"> <span>seconds</span></div>
@@ -892,7 +892,7 @@
         <label>Sound</label>
         <div class="row" style="gap:12px">
           <label class="inline" id="mxLowCutRow"><input type="checkbox" id="mxLowCut"> Low cut (takes out wind and rumble)</label>
-          <label class="inline" title="The mixer does the fading, so Studio never ducks this mic; its level and mute still work"><input type="checkbox" id="mxMixer"> Has an external mixer (doesn't duck)</label>
+          <label class="inline" title="The mixer does the fading, so Studio never ducks this mic; its level and mute still work"><input type="checkbox" id="mxMixer"> Never ducks (an external mixer does it)</label>
         </div>
         <p class="note hidden" id="mxMixerNote" style="grid-column:1/-1;margin:0"><b>On the mixer, not in Studio:</b> consider if you need mix minus on the mixer's audio out. If you hear two lots of music or effects echoing, then this might be the culprit.</p>
       </div>
@@ -929,7 +929,7 @@
           <input type="number" id="swLineup" min="-25" max="25" step="1" style="width:64px"> frames</label>
         <button class="alt" id="swLineupTest" title="Cuts to the preview input just 2 frames after the stinger covers the frame: if the old picture flashes before the bands, add frames">Test the line-up</button>
         <label class="inline" style="font-weight:400" title="What the music does under the stinger, on the output it plays on. Quieted: down by the time the frame is covered and kept down for the scene cut to, until a scene, sequence or step that doesn't quiet it. Ducks: down the same way and back up as the stinger leaves. Saved with the stinger source (the same choice as Music in its options).">Music under it
-          <select id="swStingerMusic"><option value="">Carries on as it is</option><option value="quiet">Quieted for the next scene</option><option value="duck">Ducks while it plays</option></select></label></div>
+          <select id="swStingerMusic"><option value="">Carries on as it is</option><option value="quiet">Ducks for the next scene</option><option value="duck">Ducks while it plays</option></select></label></div>
     </div>
     <div id="swForm" class="hidden" style="margin-top:12px">
       <div class="row"><button class="alt" id="swFind">Look for switchers</button><span class="note" id="swFindNote" style="margin:0"></span></div>

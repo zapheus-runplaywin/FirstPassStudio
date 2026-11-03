@@ -38,7 +38,7 @@ function renderScenes() {
     tile.className = 'sceneTile';
     const acts = document.createElement('span');
     acts.className = 'sceneActs';
-    acts.innerHTML = `<button class="alt ico edit" title="Settings: name, colour, quiet the music, switcher">${ICON_PEN}</button>`
+    acts.innerHTML = `<button class="alt ico edit" title="Settings: name, colour, ducks the music, switcher">${ICON_PEN}</button>`
       + `<button class="alt ico copy" title="Copy this scene">${ICON_COPY}</button>`
       + `<button class="alt ico del" title="Delete this scene">${ICON_BIN}</button>`;
     acts.querySelector('.edit').setAttribute('aria-label', `Settings for ${sc.name}`);
@@ -76,10 +76,10 @@ function renderScenes() {
     if (open) sdSwitcherButton(open); else $('sceneDialog').close();
   }
 }
-// 🤫 beside the name of a scene or sequence with Quiet the music ticked.
+// 🤫 beside the name of a scene or sequence with Ducks the music ticked.
 function quietMark() {
-  const m = Object.assign(document.createElement('span'), { textContent: ' 🤫', title: 'Quiets the music' });
-  m.setAttribute('role', 'img'); m.setAttribute('aria-label', 'Quiets the music');
+  const m = Object.assign(document.createElement('span'), { textContent: ' 🤫', title: 'Ducks the music' });
+  m.setAttribute('role', 'img'); m.setAttribute('aria-label', 'Ducks the music');
   return m;
 }
 async function saveNewScene() {
@@ -94,7 +94,7 @@ async function deleteScene(sc) {
   return !!await act({ type: 'sceneRemove', scene: sc.id });
 }
 
-// One scene's settings, from the pencil on its tile: name, colour, Quiet the music and its switcher actions.
+// One scene's settings, from the pencil on its tile: name, colour, Ducks the music and its switcher actions.
 // What it turns on and off is changed by Save over (the bar under the scenes) instead.
 let sdScene = null;
 for (const [v, label] of COLOURS) $('sdColour').add(new Option(label, v));
