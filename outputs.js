@@ -143,12 +143,6 @@ let perfLoggedAt = 0;
 const PERF_STALE_MS = 15000;
 const PERF_LOG_MS = 60000;
 const port = process.parentPort || null;
-// The Output page (or Scene View window) whose Scene View plays the sound: { id, output, until }, for the output
-// it's showing. Only while that output has no video output on (an output on carries its sound itself, so the
-// Scene View is silent and the same sound never plays twice), and only one at a time. It checks in every few seconds; if it stops (the page closed
-// without saying so) it lets go.
-let listener = null;
-const LISTEN_MS = 70000; // a hidden page's timers can slow to once a minute
 
 const hex = c => /^#?[0-9a-f]{6}$/i.test(String(c || '')) ? `#${String(c).replace('#', '').toLowerCase()}` : DEFAULT_CHROMA;
 
@@ -246,10 +240,6 @@ function save() {
   catch (err) { log('error', 'outputs', `Could not save outputs.json: ${err.message}`); }
   send();
 }
-
-// Whether a Scene View showing output out may play its sound: only with that output not showing.
-const sceneViewSound = (out = PRIMARY) => !outputWindows().some(w => w.output === out);
-const listening = () => !!(listener && sceneViewSound(listener.output) && listener.until > Date.now());
 
 // What each output should show now, every output's in one list, each tagged with its output id (output):
 // [{ display, kind: 'fill' | 'key' | 'chroma', color, safe }] on the Mac's displays,
@@ -455,8 +445,6 @@ function outputState(o, clash, showing) {
     // Into the switcher as: the key it comes into now (the usual one when not picked), and what it sends.
     keyerNow: keyerOf(o), signal: signalOf(o),
     clash: clash.get(o.id) ? clash.get(o.id).name : '',
-    // A Scene View showing this output may play its sound (it isn't sending), and whether one does now.
-    previewSound: sceneViewSound(o.id), listening: listening() && listener.output === o.id,
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
     perf: perfNow()?.outputs[o.id] || null,
@@ -474,9 +462,6 @@ function state() {
     // The primary output's settings at the top, as before there could be more than one.
     ...outputs[0], outputs, quality, soft: quality === 'uhd' ? softPictures() : [], max: MAX, app: !!displays, displays: displays || [], decklink: decklink || { ok: false, error: '' },
     ndi: ndi || { ok: false, error: '' }, ndiFormats: NDI_FORMATS, showing,
-    // previewSound: the primary output isn't on, so a Scene View showing it may play its sound (listening: a Scene View
-    // plays sound now, for any output; each output has its own previewSound and listening too).
-    previewSound: sceneViewSound(), listening: listening(),
     perfTotal: perfNow()?.total || null,
   };
 }
@@ -530,7 +515,6 @@ function apply(changes) {
   const error = change(changes || {});
   if (quality !== wasQuality) log('info', 'outputs', `Picture ${quality === 'uhd' ? '4K (2160p)' : 'HD'}`);
   if (quality !== wasQuality || list.length !== before.size || list.some(o => before.get(o.id) !== JSON.stringify(o))) {
-    listenChanged();
     const w = windows();
     // Log each output that changed.
     for (const o of list) {
@@ -552,36 +536,7 @@ const label = id => (displays || []).find(d => d.id === id)?.label || `display $
 const deviceName = id => decklink?.devices?.find(d => d.id === id)?.name || 'Blackmagic device';
 const modeName = (id, mode) => decklink?.devices?.find(d => d.id === id)?.modes.find(m => m.mode === mode)?.name || 'video format';
 
-// The sound moving to or from a Scene View (logged; an output plays its own whenever it's on).
-let wasListening = '';
-function listenChanged() {
-  if (listener && (!sceneViewSound(listener.output) || !list.some(o => o.id === listener.output))) listener = null;
-  const now = listening() ? listener.output : '';
-  if (now === wasListening) return;
-  wasListening = now;
-  const name = list.find(o => o.id === now)?.name || 'the output';
-  log('info', 'outputs', now ? `Sound from the Scene View (${name} is off)` : 'The Scene View is silent');
-}
-
-// POST /api/outputs/listen { id, on, take, output }: an Output page (or the Scene View window) asking to play the
-// sound of the output its Scene View shows (on; the primary without one), or letting go of it. take: someone clicked
-// that Scene View, so it takes the sound from another page. Answers { sound }: whether that Scene View should play
-// sound, which it never does while that output is on.
-function listen({ id, on, take, output } = {}) {
-  id = String(id || '');
-  const out = list.some(o => o.id === output) ? output : PRIMARY;
-  const mine = listener && listener.id === id;
-  if (on && id && sceneViewSound(out) && (mine || take || !listening())) listener = { id, output: out, until: Date.now() + LISTEN_MS };
-  else if (mine) listener = null;
-  listenChanged();
-  return { sound: listening() && listener.id === id };
-}
-
 async function route(req, res, url, { send: reply, readBody }) {
-  if (url.pathname === '/api/outputs/listen' && req.method === 'POST') {
-    reply(res, 200, listen(await readBody(req).catch(() => ({}))));
-    return true;
-  }
   // A sound copy's window saying how it's doing (scene.html?copy=1).
   if (url.pathname === '/api/outputs/copy' && req.method === 'POST') {
     copyReport(await readBody(req).catch(() => ({})));
@@ -617,7 +572,7 @@ function deck(parts) {
     if (on === undefined || parts.length > 3) return { status: 404, body: { error: 'Use /deck/output/all/on, off or toggle.' } };
     const before = JSON.stringify(list);
     for (const o of list) o.on = on && o.mode !== 'off'; // one set to Web links only stays off
-    if (JSON.stringify(list) !== before) { listenChanged(); log('info', 'outputs', `Every output ${on ? 'on' : 'off'}`); save(); }
+    if (JSON.stringify(list) !== before) { log('info', 'outputs', `Every output ${on ? 'on' : 'off'}`); save(); }
     return { status: 200, body: { ok: true, on } };
   }
   const o = find(parts[1]);
@@ -651,7 +606,6 @@ function message(msg) {
   if (msg.type === 'perf') notePerf(msg);
   // Esc on an output window turns that output off, in case it covers the screen you work on.
   if (msg.type === 'escape') apply({ output: msg.output || PRIMARY, on: false });
-  listenChanged(); // an output may have come or gone
 }
 
 const num = n => Number.isFinite(Number(n)) ? Math.max(0, Math.round(Number(n))) : 0;
@@ -700,7 +654,6 @@ function init(logger, { colours, removed, changed, soft } = {}) {
   if (colours) competitionColours = () => { try { return colours() || []; } catch { return []; } };
   if (removed) onRemove = id => { try { removed(id); } catch (err) { log('warn', 'outputs', `Removing an output: ${err.message}`); } };
   load();
-  setInterval(listenChanged, 5000).unref(); // a preview that stopped checking in
 
   if (port) {
     port.on('message', e => message(e.data || {}));
@@ -735,4 +688,4 @@ function sponsorsOnAir() {
   return windows().some(w => counting.has(w.output));
 }
 
-module.exports = { init, route, deck, state, apply, windows, copies, listen, message, summary, switcherPlan, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };
+module.exports = { init, route, deck, state, apply, windows, copies, message, summary, switcherPlan, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };

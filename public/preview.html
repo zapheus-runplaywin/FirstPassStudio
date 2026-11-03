@@ -8,20 +8,17 @@
 <!--
   The Output page's preview in its own window (Pop out on the Output page), to resize it, put it
   on another screen or watch it full screen while testing. It shows the scene on a checkerboard,
-  scaled to fit the window, and plays the scene's sound while Video output is off, exactly as
-  the preview on the Output page does (that one turns off while this window is open, so the scene
-  only runs once more). Closing this window puts the preview back on the Output page.
+  scaled to fit the window, silent like the preview on the Output page (an output's sound plays where its
+  Sound goes to says; that preview turns off while this window is open, so the scene only runs once more).
+  Closing this window puts the preview back on the Output page.
   A floating Sources panel shows or hides each source while you watch (its – button tucks it away, kept per
   browser), and follows the Output page and the Stream Deck live.
-  ?output=<id>: one of the outputs besides the primary, as picked on the Output page: its sources, silent.
+  ?output=<id>: one of the outputs besides the primary, as picked on the Output page: its sources.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #1E293B; }
   #box { position: absolute; overflow: hidden; background: repeating-conic-gradient(#E2E8F0 0 25%, #F8FAFC 0 50%) 0 0 / 24px 24px; }
   #box iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
-  #note { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100vw - 24px); padding: 6px 12px; border-radius: 8px;
-          background: rgba(15, 23, 42, .85); color: #fff; font: 600 13px system-ui, sans-serif; text-align: center; pointer-events: none; }
-  #note:empty { display: none; }
   #panel { position: fixed; top: 10px; right: 10px; width: 240px; max-height: calc(100vh - 20px); overflow: auto; border-radius: 10px;
            background: rgba(15, 23, 42, .88); color: #fff; font: 600 13px system-ui, sans-serif; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
   #panel header { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 8px 7px 12px; }
@@ -47,7 +44,6 @@
 </head>
 <body>
 <div id="box"><iframe id="frame" title="Scene View" src="/scene.html?mute=1"></iframe></div>
-<div id="note"></div>
 <div id="panel">
   <header><h2>Sources</h2><span><button id="hideAll" title="Hide every source">Hide all</button> <button id="fold" title="Hide or show this list">–</button></span></header>
   <div class="scenes" id="scenes"></div>
@@ -67,14 +63,11 @@
   addEventListener('resize', fit);
   fit();
 
-  // The Scene View's sound, the same way as the Output page's Scene View: the sound of the output it shows, only
-  // while that output isn't sending (with it on, the output carries its sound), ask the helper for it, check in every few seconds, let go on closing.
-  // Opening the window takes the sound, since the Output page's own preview has just turned off.
-  const listenId = 'popout-' + Math.random().toString(36).slice(2);
-  // Another output than the primary (?output=<id>): its sources, and its sound.
+  // The window follows the output it shows (its name, and chroma key safe while a chroma output is), checking every few
+  // seconds, and tells the Output page it's open. It never plays sound, like the Output page's own Scene View.
+  // Another output than the primary (?output=<id>): its sources.
   const outputId = /^[a-z0-9]{1,20}$/i.test(new URLSearchParams(location.search).get('output') || '') ? new URLSearchParams(location.search).get('output') : 'main';
-  let wanted = false, sound = false, note = '';
-  async function listen(take = false) {
+  async function follow() {
     try {
       const o = await (await fetch('/api/outputs')).json();
       // While a chroma output is chroma key safe, the Scene View shows the scene that way too.
@@ -82,38 +75,11 @@
       const src = `/scene.html?mute=1${outputId !== 'main' ? `&output=${outputId}` : ''}${mine.chromaSafeNow ? '&chromaKey=true' : ''}`;
       if (frame.getAttribute('src') !== src) frame.src = src;
       if (outputId !== 'main') document.title = `Scene View · ${mine.name || 'Output'} · FirstPass Studio`;
-      wanted = !!mine.previewSound;
-      const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on: wanted, take, output: outputId }) });
-      sound = !!(await r.json()).sound;
-      showNote(o);
-    } catch { sound = false; showNote(null); }
-  }
-  function showNote(o) {
-    const s = scene();
-    try { s?.setSilent?.(!sound); } catch {}
-    let st = null;
-    try { st = s?.soundState?.(); } catch {}
-    // The same line here ("here") and under the Output page's preview ("in the Scene View window").
-    const line = (here, there) => !o ? ''
-      : !wanted ? 'Silent: this output is on, so it plays its own sound.'
-      : !sound ? `Silent: another Output page is playing the sound. Click ${here ? 'here' : 'the Scene View window'} to bring it ${here ? 'to this window' : 'there'}.`
-      : st && st.blocked ? `Blocked by this browser until you click: click ${here ? 'here' : 'the Scene View window'} to hear it.`
-      : st && !st.videos && !st.pages ? `Sound plays ${there} once a video with Sound ticked, or an animation with sound, is on.`
-      : `Sound plays ${there}, through this Mac's sound output.`;
-    note = line(false, 'in the Scene View window');
-    // Only the reasons it's silent show over the picture; the Output page shows every line.
-    $('note').textContent = wanted && (!sound || (st && st.blocked)) ? line(true, 'here') : '';
+    } catch {}
     tell();
   }
-  frame.addEventListener('load', () => listen(true));
-  setInterval(() => listen(), 5000);
-  // A click brings the sound here, and is what a browser needs before it plays sound
-  // (Safari: unmute during the click itself, then take the sound properly).
-  addEventListener('click', () => {
-    if (!wanted) return;
-    try { scene()?.unlockSound?.(); } catch {}
-    listen(true);
-  });
+  frame.addEventListener('load', () => follow());
+  setInterval(() => follow(), 5000);
 
   // Sources: show or hide each one from here, following the scene live (the Output page, the Stream Deck).
   const act = action => fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) })
@@ -169,15 +135,14 @@
   // goodbye below ever arriving, and then the Output page puts its own preview back by itself.
   const channel = new BroadcastChannel('studio-preview');
   let closing = false;
-  const tell = (open = true) => { if (!closing || !open) channel.postMessage({ open, note }); };
+  const tell = (open = true) => { if (!closing || !open) channel.postMessage({ open }); };
   const goodbye = () => {
     if (closing) return;
     tell(false);
     closing = true;
-    navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false }));
   };
   channel.onmessage = e => {
-    if (e.data === 'ask') listen(); // and says it's open once it knows the sound
+    if (e.data === 'ask') follow(); // and says it's open
     if (e.data === 'focus') { focus(); tell(); }
     // Say goodbye before closing, not as the window goes, so the Output page always hears it.
     if (e.data === 'close') { goodbye(); setTimeout(close, 50); }

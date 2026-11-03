@@ -557,7 +557,7 @@
       <div class="pgmUnder">
         <span class="row pgmView"><label class="fp-switch" title="Draw the scene here as it is right now"><input id="previewOn" type="checkbox" checked> Live View</label> <button id="popOut" class="alt small" title="Show the Scene View in its own window, to resize it or move it to another screen">Pop out</button></span>
         <p class="note" id="previewWhich"></p>
-        <p class="note" id="previewSoundNote" style="font-weight:600"></p>
+        <p class="note" id="previewSoundNote">Silent: an output's sound plays where its <b>Sound goes to</b> says, on or off air.</p>
       </div>
     </div>
     <aside class="sboard" id="board" aria-label="Status board"></aside>
@@ -657,7 +657,7 @@
           <label class="forVideo">Sound</label>
           <div class="row forVideo"><label><input id="fSound" type="checkbox"> On</label> <input id="fVolume" type="range" min="0" max="100" style="flex:1;padding:0;border:0"> <span id="fVolumeText"></span></div>
         </div>
-        <p class="note forVideo">Sound plays through this Mac's audio output, or in a Blackmagic output's SDI. The Scene View above plays it only while <b>Video output</b> is off.</p>
+        <p class="note forVideo">Sound plays where the output's <b>Sound goes to</b> says. The Scene View above never plays it.</p>
         <div class="row" style="margin-top:12px">
           <button class="alt" id="fUp">Move up</button><button class="alt" id="fDown">Move down</button>
           <button class="alt" id="fPreview" title="Open this source on its own, the way the Devices tab's Preview does">Preview</button>
