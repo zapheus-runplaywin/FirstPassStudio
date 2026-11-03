@@ -22,11 +22,13 @@
   them, and the other outputs' windows play without them.
   Output 1's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
   Mac (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
-  ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, the Output page's "Also send the sound to"):
-  a hidden window playing that output's sound to that one sound output of the Mac (setSinkId), such as the
-  commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it). It says nothing to Studio
-  (videos ending, the music ending, the mics' meters): the output's own window does that. It plays nothing until
-  it has found the device, so none of it is heard on the Mac's own speakers.
+  ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, a named device in the Output page's "Sound
+  goes to"): a hidden window playing that output's sound to that one sound output of the Mac (setSinkId), such as
+  the commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it; ?mics=all for every one, on
+  Output 1's main destination). It says nothing to Studio (videos ending, the music ending, the mics' meters): the
+  output's own window does that, unless ?main=1 says it is the output's main destination, when it reports the mics'
+  meters (the own window may be muted). It plays nothing until it has found the device, so none of it is heard on
+  the Mac's own speakers.
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -65,6 +67,8 @@
   const copying = params.get('copy') === '1';
   const copyTo = copying ? params.get('sink') || '' : '';
   const copyMics = new Set(copying ? (params.get('mics') || '').split(',').filter(Boolean) : []);
+  const copyAll = copying && params.get('mics') === 'all'; // every Mac mic (Output 1's main destination)
+  const copyMain = copying && params.get('main') === '1'; // the output's main destination: reports the mics' meters
   let sinkId = copying ? null : ''; // the copy's device once found ('' plays to the Mac's sound output, as every other window does)
   // Another program's copy of an output (?canvas=1, the canvas links on the Devices tab): it only watches, so it plays no
   // sound unless ?sound=1 asks for it (the recording it goes over has its own). Like the Output page's preview, it never
@@ -546,7 +550,7 @@
   }
   function renderMics(set) {
     micSet = set || null;
-    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyMics.has(m.id) : primary)) : []; // the switcher mixes its own
+    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyAll || copyMics.has(m.id) : primary)) : []; // the switcher mixes its own
     const names = new Set(want.map(m => m.device));
     for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
     for (const [id, c] of micChains) {
@@ -579,7 +583,7 @@
     }, 25);
     // Tell Studio what this window hears, for the Output page: each mic's loudest moment (dBFS) in the last half second.
     setInterval(async () => {
-      if (copying || !primary || !micSet || !micSet.mics.some(m => m.on !== 'atem')) return;
+      if ((copying && !copyMain) || !primary || !micSet || !micSet.mics.some(m => m.on !== 'atem')) return;
       const levels = {};
       for (const [id, c] of micChains) {
         levels[id] = c.peak > 0 ? 20 * Math.log10(c.peak) : -100;

@@ -4,8 +4,8 @@
 // the name macOS gives it, and which of its channels (both, left or right, so two receivers on one stereo interface
 // are two mics). The mics are Output 1's, like the music: Studio keeps the settings, and Output 1's own window
 // (scene.html in the app's display, NDI or Blackmagic output) opens their devices and mixes them into its sound, so
-// they go out with Output 1's music and video sound. A sound copy of Output 1 (the Output page's "Also send the sound
-// to") takes the mics ticked for it. They're never played in a Scene View: a speaker in the room near a mic would
+// they go out with Output 1's music and video sound. Output 1's other sound destinations (the Output page's "Sound goes
+// to") each take the mics ticked for them. They're never played in a Scene View: a speaker in the room near a mic would
 // feed back. With Output 1 off, the mics are silent.
 //
 // Each mic has a level (0-200 %, 100 as it comes in), a mute and a low cut (on by default: takes out rumble and wind

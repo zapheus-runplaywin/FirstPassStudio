@@ -9,7 +9,7 @@
 // them doesn't take Studio off air, and they close when Studio does. Closing one, or clicking it and
 // pressing Esc, turns the output off, in case it ends up over the screen you're working on.
 // A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js, NDI to desktop/ndi.js, and an
-// output's sound sent to another of the Mac's sound outputs too (Also send the sound to) to desktop/soundcopy.js.
+// output's sound sent to the Mac's other sound outputs (Sound goes to) to desktop/soundcopy.js.
 
 'use strict';
 
@@ -61,7 +61,7 @@ module.exports = function outputs({ port, log }) {
 
   const pageFor = w => {
     const q = new URLSearchParams({ fit: '1' });
-    if (w.kind === 'key') q.set('mute', '1'); // the key is the fill's shape: the fill plays the sound
+    if (w.kind === 'key' || w.sound === 'none') q.set('mute', '1'); // the key is the fill's shape: the fill plays the sound; none: only its sound copies play it
     if (w.kind === 'key') q.set('key', '1');
     if (w.output && w.output !== 'main') q.set('output', w.output); // another output's sources and their sound
     q.set('bg', w.kind === 'chroma' ? w.color.replace('#', '') : '000000');

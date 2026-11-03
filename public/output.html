@@ -378,7 +378,9 @@
   .swKeys button.outKey { box-shadow: inset 0 -4px 0 var(--c); }
   .swKeyCheck .okText { color: var(--fp-ok); font-weight: 600; }
   .swKeyCheck .badText { color: var(--fp-danger); font-weight: 600; }
-  #outCopyStatus.badText { color: var(--fp-danger); font-weight: 600; }
+  .soundDest { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
+  .soundDest .sdStatus { flex-basis: 100%; margin: 0; }
+  .soundDest .sdStatus.badText { color: var(--fp-danger); font-weight: 600; }
 </style>
 <script src="log.js"></script>
 <script src="sceneevents.js"></script>
@@ -477,13 +479,6 @@
           <option value="external">Fill and key (the device's external keyer: fill on one SDI out, key on the other)</option>
           <option value="off">Fill only</option>
         </select>
-        <label for="outDlSound" class="forDecklink">Sound</label>
-        <select id="outDlSound" class="forDecklink" title="Where this output's sound goes">
-          <option value="sdi">In the SDI (with fill and key, on the fill)</option>
-          <option value="both">In the SDI and on the Mac's sound output</option>
-          <option value="mac">On the Mac's sound output only</option>
-        </select>
-        <p class="note forDecklink" id="outDlSoundNote" style="grid-column:1/-1">The sound goes into the SDI as 48 kHz stereo, in time with the picture. On the switcher, turn on the sound of the input the fill comes into (On, or AFV to follow the picture). An SDI to HDMI converter passes it on.</p>
         <label for="outNdiFormat" class="forNdi">Video format</label>
         <select id="outNdiFormat" class="forNdi"></select>
         <label for="outNdiName" class="forNdi">Source name</label>
@@ -496,20 +491,21 @@
           clip and gain cut into the soft edges and the fill's edges go dark. Tick Straight only if the switcher can't do a premultiplied key (every ATEM can).</p>
         <p class="note forDecklink hidden" id="outDlStraightWarn" style="grid-column:1/-1"><b style="color:var(--fp-danger)">Straight is ticked:</b> into a Pre Multiplied Key
           it leaves a light fringe round logos and text. Untick it and turn the switcher's Pre Multiplied Key on.</p>
-        <label for="outCopy" class="forCopy">Also send the sound to</label>
-        <div class="forCopy">
-          <div class="row"><select id="outCopy" title="Another of the Mac's sound outputs that gets this output's sound too, such as the commentators' mixer"></select>
-            <button class="alt small" id="outCopyFind" title="List the Mac's sound outputs (the Mac asks once to let Studio use its sound devices)">Find sound outputs</button></div>
-          <div class="hidden" id="outCopyMicsRow" style="margin-top:6px"><span class="note" style="margin:0">Mics in it</span> <span id="outCopyMics" class="swCams"></span></div>
-          <p class="note hidden" id="outCopyStatus" style="margin:4px 0 0"></p>
-          <details class="info"><summary>Expand for info</summary><p class="note">While this output is on, its sound also plays on the device picked here, as well as
-          wherever it goes now (the display's sound, the SDI, the Mac's sound output), which carry on as they are. Use it to give the commentators the music in their
-          headphones through their mixer: it carries this output's videos, music and page sounds, at the levels and fades they go out at, and only the mics ticked here, so
+        <label class="forSound">Sound goes to</label>
+        <div class="forSound">
+          <div id="outSound"></div>
+          <div class="row"><button class="alt small" id="outSoundAdd" title="Send this output's sound somewhere else as well, such as the commentators' mixer">Add a destination</button>
+            <button class="alt small" id="outSoundFind" title="List the Mac's sound outputs (the Mac asks once to let Studio use its sound devices)">Find sound outputs</button></div>
+          <p class="note hidden" id="outSoundNote" style="margin:4px 0 0"></p>
+          <p class="note forDecklink" id="outDlSoundNote" style="margin:4px 0 0">In the SDI, the sound goes out as 48 kHz stereo, in time with the picture. On the switcher, turn on the sound of the input the fill comes into (On, or AFV to follow the picture). An SDI to HDMI converter passes it on.</p>
+          <details class="info"><summary>Expand for info</summary><p class="note">Where this output's sound plays: the first destination is where the output itself carries it (the SDI of a
+          Blackmagic output, or the Mac's sound output), and every Mac mic goes with it on Output 1. Add a destination to send the sound somewhere else as well, such as
+          the commentators' mixer: it carries this output's videos, music and page sounds, at the levels and fades they go out at, and only the mics ticked for it, so
           the commentators don't hear themselves back late. Tick a crowd mic to give them the crowd. Mics on the switcher are mixed there, so they're never in it.
           <b>On the mixer:</b> keep what comes in from the Mac out of what the mixer sends back to it (its mix-minus, or the USB return left out of the USB send),
           or the music comes back into Studio through the commentators' mics and goes out twice, a little late. To check: play some music and watch the
           commentators' mic meters in Mics; they should stay still while nobody talks. Pages from other websites aren't in it.
-          It can be changed while the output is on.</p></details>
+          Destinations can be added, removed and changed while the output is on, except the first, which changes how the output itself is sent.</p></details>
         </div>
         <label for="outKeyer" class="forSw">Into the switcher as</label>
         <div class="forSw">

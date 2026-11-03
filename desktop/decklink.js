@@ -56,7 +56,9 @@ module.exports = function decklink({ port, log, onStatus, onTimecode = () => {} 
     if (addon) addon.stop();
   }
 
-  // w: { device, mode, keying, straight, sound, density, output } from outputs.js, or null to stop.
+  // w: { device, mode, keying, straight, sound, density, output } from outputs.js, or null to stop. sound: where the
+  // window's sound goes (outputs.js Sound goes to): 'sdi' (embedded, on the fill), 'mac' (the Mac's sound output),
+  // 'both', or 'none' (the window is muted: the sound goes only to the Mac's other sound outputs, by its copies).
   function show(w) {
     const key = w && JSON.stringify([w.device, w.mode, w.keying, w.straight, w.sound, w.density || 1, w.output]);
     if (key && running?.key === key) return;
@@ -69,7 +71,8 @@ module.exports = function decklink({ port, log, onStatus, onTimecode = () => {} 
     const list = devices();
     const device = list.ok && list.devices.find(d => d.id === w.device);
     const mode = device && device.modes.find(m => m.mode === w.mode);
-    const inSdi = w.sound !== 'mac';
+    const inSdi = w.sound === 'sdi' || w.sound === 'both';
+    const onMac = w.sound === 'mac' || w.sound === 'both';
     const r = addon.start({ device: w.device, mode: w.mode, keying: w.keying, straight: !!w.straight, audio: inSdi });
     if (!r.ok) {
       // A format the device said it can't send: say that rather than guess at another app holding it.
@@ -77,20 +80,20 @@ module.exports = function decklink({ port, log, onStatus, onTimecode = () => {} 
       log(`DeckLink output failed on ${device?.name || w.device}: ${error}`);
       return report();
     }
-    // The sound: in the SDI when asked and the device took it, else on the Mac.
-    const sound = inSdi && r.audio ? (w.sound === 'both' ? 'both' : 'sdi') : 'mac';
+    // The sound: in the SDI when asked and the device took it (else on the Mac, so it isn't lost), on the Mac, or none.
+    const sound = inSdi && r.audio ? (onMac ? 'both' : 'sdi') : inSdi || onMac ? 'mac' : 'none';
     running = { key, name: r.name, mode: mode?.name || '', sound };
     counts = { late: 0, dropped: 0 };
     gaps = { gaps: 0, skipped: 0 };
     log(`DeckLink output on ${r.name}: ${running.mode} (${r.width} x ${r.height}, ${r.frameRate} fps), ${w.keying === 'external' ? 'fill and key' : 'fill only'}${w.straight ? ', straight alpha' : ''}, `
-      + (sound === 'mac' ? `sound on the Mac${inSdi ? ` (${r.name} wouldn't take sound)` : ''}` : `sound in the SDI${w.keying === 'external' ? ' fill' : ''}${sound === 'both' ? ' and on the Mac' : ''}`));
+      + (sound === 'none' ? 'no sound from its window' : sound === 'mac' ? `sound on the Mac${inSdi ? ` (${r.name} wouldn't take sound)` : ''}` : `sound in the SDI${w.keying === 'external' ? ' fill' : ''}${sound === 'both' ? ' and on the Mac' : ''}`));
 
     running.frameRate = r.frameRate;
     win = sceneWindow({
-      port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output', output, density: w.density || 1,
+      port, width: r.width, height: r.height, frameRate: r.frameRate, log, label: 'DeckLink output', output, density: w.density || 1, mute: sound === 'none',
       onFrame: (bitmap, width, height) => addon.frame(bitmap, width, height),
     });
-    if (sound !== 'mac' && win.contents()) {
+    if ((sound === 'sdi' || sound === 'both') && win.contents()) {
       tap = soundTap({ contents: win.contents(), echo: sound === 'both', log, label: 'DeckLink output', onSound: pcm => addon.audio(pcm) });
     }
 

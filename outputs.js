@@ -49,7 +49,39 @@ const FILE = datadir.file('outputs.json');
 const MODES = ['off', 'chroma', 'fillkey', 'decklink', 'ndi'];
 const KEYING = ['external', 'off'];
 // Where a Blackmagic output's sound goes: embedded in the SDI (with fill and key, the fill), the Mac's sound output, or both.
-const DECKLINK_SOUND = ['sdi', 'mac', 'both'];
+// Sound goes to: where an output's sound plays (sound, a list of destinations). device is 'own' (where the output
+// itself carries its sound: the SDI, on the fill, of a Blackmagic output; the Mac's sound output for the rest), 'mac'
+// (the Mac's sound output as well, on a Blackmagic output), or one of the Mac's sound outputs by the name macOS gives
+// it, played by a hidden window of its own while the output is on (desktop/soundcopy.js). The first destination is the
+// main one and on Output 1 carries every Mac mic; each later one takes the Mac mics ticked for it (mics, mic ids), so
+// the commentators' mixer can have the crowd mic and leave out their own (Studio's half of a mix-minus).
+const SOUND_MAX = 4;
+const SOUND_DEFAULT = [{ device: 'own', mics: [] }];
+const soundDevice = v => String(v || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 200);
+const micIds = v => [...new Set((Array.isArray(v) ? v : []).map(id => String(id).replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8);
+function soundList(v) {
+  const seen = new Set(), out = [];
+  for (const d of Array.isArray(v) ? v : []) {
+    const device = soundDevice(d && typeof d === 'object' ? d.device : d);
+    if (!device || seen.has(device)) continue;
+    seen.add(device);
+    out.push({ device, mics: micIds(d && typeof d === 'object' ? d.mics : []) });
+  }
+  if (!out.length) out.push({ device: 'own', mics: [] });
+  return out.slice(0, SOUND_MAX);
+}
+// The destinations an older outputs.json set with Sound (decklinkSound: sdi, both or mac) and Also send the sound to
+// (copySound, with copyMics), as one list.
+function soundFromOld(s) {
+  const out = s.decklinkSound === 'mac' ? [{ device: 'mac' }] : s.decklinkSound === 'both' ? [{ device: 'own' }, { device: 'mac' }] : [{ device: 'own' }];
+  if (s.copySound) out.push({ device: s.copySound, mics: s.copyMics });
+  return out;
+}
+const hasSound = (o, device) => o.sound.some(d => d.device === device);
+// Where a Blackmagic output's own window's sound goes (desktop/decklink.js): the SDI, the Mac, both, or none (muted).
+const decklinkSoundOf = o => hasSound(o, 'own') ? (hasSound(o, 'mac') ? 'both' : 'sdi') : hasSound(o, 'mac') ? 'mac' : 'none';
+// Whether any other output's own window plays its sound (to the Mac's sound output) or is muted.
+const windowSoundOf = o => hasSound(o, 'own') || hasSound(o, 'mac') ? 'mac' : 'none';
 // Which of the switcher's keys an output comes into ('' for the usual one: Output 1 on downstream key 1, the others
 // on upstream keys 2 to 4, and a chroma output on an upstream key, as only those key on a colour), or none.
 const KEYERS = ['', 'none', 'dsk1', 'dsk2', 'usk1', 'usk2', 'usk3', 'usk4'];
@@ -75,9 +107,9 @@ const PRIMARY = 'main';
 const COLOURS = { 1: '#ea9a38', 2: '#f24f91', 3: '#4ec1e6', 4: '#95ba45' };
 const DEFAULTS = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
-  decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false, decklinkSound: 'sdi',
+  decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
   ndiSignal: 'fillkey', ndiOwnName: false, ndiName: '', ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
-  keyer: '', swFill: 0, swKey: 0, swCameras: [], copySound: '', copyMics: [],
+  keyer: '', swFill: 0, swKey: 0, swCameras: [], sound: SOUND_DEFAULT,
 };
 
 let log = () => {};
@@ -141,7 +173,8 @@ function clean(s, old = DEFAULTS) {
     decklinkMode: Number(pick('decklinkMode', 0)) || 0,
     decklinkKeying: KEYING.includes(pick('decklinkKeying')) ? pick('decklinkKeying') : 'external',
     decklinkStraight: pick('decklinkStraight', false) === true,
-    decklinkSound: DECKLINK_SOUND.includes(pick('decklinkSound')) ? pick('decklinkSound') : 'sdi',
+    // Sound goes to (see the top). Saved before there was a list: made from Sound and Also send the sound to.
+    sound: soundList(s.sound === undefined && (s.decklinkSound !== undefined || s.copySound !== undefined) ? soundFromOld(s) : pick('sound', SOUND_DEFAULT)),
     ndiSignal: NDI_SIGNALS.includes(pick('ndiSignal')) ? pick('ndiSignal') : 'fillkey',
     // The NDI sources take the output's name unless ndiOwnName is ticked: then ndiName, the name typed (see ndiSource).
     ndiOwnName: pick('ndiOwnName', false) === true,
@@ -158,12 +191,6 @@ function clean(s, old = DEFAULTS) {
     // The cameras this output's graphics go with (switcher inputs), for an output on an upstream key: Studio's cuts
     // take its key on with them and off with any other camera (switcher.js). None: Studio leaves its key alone.
     swCameras: [...new Set((Array.isArray(pick('swCameras')) ? pick('swCameras') : []).map(swInput).filter(Boolean))].sort((a, b) => a - b).slice(0, 20),
-    // Also send the sound to: one of the Mac's sound outputs (its name as macOS gives it; '' for nowhere else), such as
-    // the commentators' mixer, played by a hidden window of its own while the output is on (desktop/soundcopy.js). It
-    // carries what the output plays (videos, the music, page sounds) and only the Mac's mics ticked for it (copyMics, mic
-    // ids), so the commentators can hear the music without hearing themselves back late (Studio's half of a mix-minus).
-    copySound: String(pick('copySound', '')).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 200),
-    copyMics: [...new Set((Array.isArray(pick('copyMics')) ? pick('copyMics') : []).map(id => String(id).replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8),
   };
 }
 // NDI shows sources as "MAC NAME (this name)", so brackets in it would confuse things.
@@ -278,20 +305,20 @@ function windowsOf(o) {
     const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
     const sends = device && decklinkSends(device, o);
     if (!sends || !sends.mode) return [];
-    return [{ kind: 'decklink', device: device.id, mode: sends.mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: o.decklinkSound, density: sends.uhd ? 2 : 1 }];
+    return [{ kind: 'decklink', device: device.id, mode: sends.mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: decklinkSoundOf(o), density: sends.uhd ? 2 : 1 }];
   }
   if (o.mode === 'ndi') {
     if (!ndi?.ok) return [];
     const hd = NDI_FORMATS.find(f => f.id === o.ndiFormat);
     const uhd = quality === 'uhd' ? uhdNdi(hd) : null;
-    return [{ kind: 'ndi', signal: o.ndiSignal, name: ndiSource(o), format: uhd || hd, color: o.chromaColor, safe: chromaSafe(o), density: uhd ? 2 : 1 }];
+    return [{ kind: 'ndi', signal: o.ndiSignal, name: ndiSource(o), format: uhd || hd, color: o.chromaColor, safe: chromaSafe(o), sound: windowSoundOf(o), density: uhd ? 2 : 1 }];
   }
   if (!displays) return [];
   const have = id => displays.some(d => d.id === id);
-  if (o.mode === 'chroma' && have(o.chromaDisplay)) return [{ display: o.chromaDisplay, kind: 'chroma', color: o.chromaColor, safe: chromaSafe(o) }];
+  if (o.mode === 'chroma' && have(o.chromaDisplay)) return [{ display: o.chromaDisplay, kind: 'chroma', color: o.chromaColor, safe: chromaSafe(o), sound: windowSoundOf(o) }];
   if (o.mode === 'fillkey') {
     const out = [];
-    if (have(o.fillDisplay)) out.push({ display: o.fillDisplay, kind: 'fill' });
+    if (have(o.fillDisplay)) out.push({ display: o.fillDisplay, kind: 'fill', sound: windowSoundOf(o) });
     if (have(o.keyDisplay) && o.keyDisplay !== o.fillDisplay) out.push({ display: o.keyDisplay, kind: 'key' });
     return out;
   }
@@ -351,31 +378,46 @@ function nearKey(colours, key) {
 }
 
 
-// The sound copies to play while their outputs are on: [{ output, device, mics }] (copySound, copyMics).
+// A destination that is one of the Mac's sound outputs by name (not where the output itself plays).
+const named = d => d.device !== 'own' && d.device !== 'mac';
+// The sound copies to play while their outputs are on, one per named destination: [{ output, device, mics, main }].
+// mics: the mic ids to mix in, or 'all' for Output 1's main destination (every Mac mic); main: it's the output's
+// first destination, so its window also reports the mics' meters as the output's own window would.
 function copies() {
   const showing = new Set(outputWindows().map(w => w.output));
-  return list.filter(o => o.copySound && showing.has(o.id)).map(o => ({ output: o.id, device: o.copySound, mics: o.copyMics }));
+  return list.filter(o => showing.has(o.id)).flatMap(o => o.sound.map((d, i) => ({ d, i })).filter(x => named(x.d))
+    .map(({ d, i }) => ({ output: o.id, device: d.device, mics: i === 0 ? (o.id === PRIMARY ? 'all' : []) : o.id === PRIMARY ? d.mics : [], main: i === 0 })));
 }
-// How each copy is doing, from its window (POST /api/outputs/copy) every few seconds: output id -> { at, device, error }.
+// How each copy is doing, from its window (POST /api/outputs/copy) every few seconds: "output id|device" -> { at, error }.
 const copyHeard = new Map();
 const COPY_STALE_MS = 15000;
 function copyReport({ output, device, error } = {}) {
   const o = list.find(x => x.id === output);
-  if (!o) return;
-  const was = copyHeard.get(o.id);
-  const now = { at: Date.now(), device: String(device || '').slice(0, 200), error: String(error || '').slice(0, 300) };
-  copyHeard.set(o.id, now);
-  if (!was || was.error !== now.error || was.device !== now.device) {
-    log(now.error ? 'warn' : 'info', 'outputs', now.error ? `${o.name}'s sound copy: ${now.error}` : `${o.name}'s sound also goes to ${now.device}`);
+  device = soundDevice(device);
+  if (!o || !device) return;
+  const was = copyHeard.get(`${o.id}|${device}`);
+  const now = { at: Date.now(), error: String(error || '').slice(0, 300) };
+  copyHeard.set(`${o.id}|${device}`, now);
+  if (!was || was.error !== now.error) {
+    log(now.error ? 'warn' : 'info', 'outputs', now.error ? `${o.name}'s sound to ${device}: ${now.error}` : `${o.name}'s sound goes to ${device}`);
   }
 }
-// What the Output page shows under Also send the sound to: { state: 'off' | 'waiting' | 'sending' | 'problem', error }.
-function copyState(o, showing) {
-  if (!o.copySound) return { state: 'off', error: '' };
-  if (!showing.some(w => w.output === o.id)) return { state: 'off', error: '' };
-  const h = copyHeard.get(o.id);
-  if (!h || Date.now() - h.at > COPY_STALE_MS || h.device !== o.copySound) return { state: 'waiting', error: '' };
-  return h.error ? { state: 'problem', error: h.error } : { state: 'sending', error: '' };
+// How each of an output's destinations is doing, for the Output page: [{ device, mics, state, error }], state 'off'
+// (the output isn't on), 'waiting' (its window hasn't found the device yet), 'sending' or 'problem' (error says).
+function soundState(o, showing) {
+  const on = showing.some(w => w.output === o.id);
+  const dl = o.mode === 'decklink' && decklinkOutput === o.id ? decklinkStatus : null;
+  return o.sound.map(d => {
+    if (!on) return { ...d, state: 'off', error: '' };
+    if (!named(d)) {
+      // The SDI: the device may not take sound (an older driver), and then it plays on the Mac instead.
+      if (d.device === 'own' && o.mode === 'decklink' && dl?.running && dl.sound === 'mac') return { ...d, state: 'problem', error: `${dl.name} wouldn't take sound, so it plays on the Mac's sound output` };
+      return { ...d, state: o.mode === 'decklink' && d.device === 'own' && !dl?.running ? 'waiting' : 'sending', error: '' };
+    }
+    const h = copyHeard.get(`${o.id}|${d.device}`);
+    if (!h || Date.now() - h.at > COPY_STALE_MS) return { ...d, state: 'waiting', error: '' };
+    return h.error ? { ...d, state: 'problem', error: h.error } : { ...d, state: 'sending', error: '' };
+  });
 }
 
 // Tells the Mac app which windows to open, and the sound copies.
@@ -418,7 +460,7 @@ function outputState(o, clash, showing) {
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
     perf: perfNow()?.outputs[o.id] || null,
-    copy: copyState(o, mine),
+    soundState: soundState(o, mine),
     picture: pictureOf(o),
     // Colours in the graphics a chroma key on chromaColor would cut into.
     nearKey: nearKey(competitionColours(), o.chromaColor),
