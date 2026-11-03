@@ -373,7 +373,8 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       const goalsChanged = goalsFromPlayhq(b, game, s && s.live, catchUp);
       if (game.home.score !== null) b.home.score = game.home.score;
       if (game.away.score !== null) b.away.score = game.away.score;
-      trackPeriods(b);
+      // PlayHQ's own quarter for this reading: a jump on the quarter PlayHQ is still on is all that quarter's.
+      trackPeriods(b, null, s && s.live ? PERIOD_NUMBER[s.live.period] : null);
       if (goalsChanged) {
         if (!isFinished(game)) watchStreaks(b, 'playhq'); // after the score is on the board, which the moments read
         saveBoards();
@@ -628,8 +629,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // when the next one starts, so the goals up to then are the last quarter's. A quarter is
   // "unsure" when its points can't be split out: the game was picked up part way through it, or
   // the score jumped by more than MAX_STEP for a team in one go (Studio was closed, or a score was
-  // typed in). Quarters before the one the game was picked up in aren't known at all.
-  function trackPeriods(b, score) {
+  // typed in). Quarters before the one the game was picked up in aren't known at all. A jump that comes from
+  // PlayHQ while PlayHQ is still on the quarter it's put on (playhqQuarter, as when a scorebench back on line
+  // catches up before the next quarter starts) is all that quarter's, so the quarter stays sure.
+  function trackPeriods(b, score, playhqQuarter = null) {
     const now = { home: Number(score && score.home != null ? score.home : b.home.score) || 0, away: Number(score && score.away != null ? score.away : b.away.score) || 0 };
     let t = b.periodTrack;
     if (!t || t.gameId !== (b.gameId || null)) {
@@ -643,7 +646,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     for (const side of ['home', 'away']) {
       const d = now[side] - t.base[side];
       if (!d) continue;
-      if (Math.abs(d) > MAX_STEP && p.sure) { p.sure = false; log('info', 'stats', `${b[side].name} went ${d > 0 ? 'up' : 'down'} ${Math.abs(d)} at once in ${rules(b.division).periodLabel}${t.period}, so that quarter's split isn't sure`); }
+      if (Math.abs(d) > MAX_STEP && p.sure && playhqQuarter !== t.period) { p.sure = false; log('info', 'stats', `${b[side].name} went ${d > 0 ? 'up' : 'down'} ${Math.abs(d)} at once in ${rules(b.division).periodLabel}${t.period}, so that quarter's split isn't sure`); }
       p[side] = Math.max(0, p[side] + d);
     }
     t.base = now;

@@ -44,3 +44,20 @@ test('one super shot in a check is still a super shot, and goals one at a time a
   await settle(b => b.away.score === live.away);
   assert.equal((await studio.get('/api/goals')).totalGoals, goals + 2);
 });
+
+test('a catch-up while PlayHQ is still on the quarter keeps that quarter sure on the game stats; one that comes with the next quarter doesn\'t', async () => {
+  const q = (await board()).period;
+  const before = (await studio.get('/api/stats')).quarters.find(x => x.n === q);
+  assert.equal(before.sure, true);
+  Object.assign(live, { home: live.home + 5, homeGoals: live.homeGoals + 5 }); // still this quarter in PlayHQ
+  await settle(b => b.home.score === live.home);
+  let s = await studio.get('/api/stats');
+  const now = s.quarters.find(x => x.n === q);
+  assert.equal(now.home, before.home + 5);
+  assert.equal(now.sure, true, 'all five were this quarter\'s: PlayHQ was still on it');
+  // A catch-up that arrives with PlayHQ already in the next quarter may hold some of its goals: not sure.
+  Object.assign(live, { away: live.away + 5, awayGoals: live.awayGoals + 5, period: 'THIRD_QTR' });
+  await settle(b => b.away.score === live.away);
+  s = await studio.get('/api/stats');
+  assert.equal(s.quarters.find(x => x.n === q).sure, false);
+});
