@@ -146,6 +146,7 @@ async function copy(text, btn) {
 }
 
 let wasConverting = '';
+let cardMicNames = '';
 function show(s) {
   sceneAll = s;
   scene = viewFor(s, previewOutput);
@@ -164,6 +165,10 @@ function show(s) {
   // A conversion started or finished: refresh the media lists.
   const now = (s.converting || []).join('|');
   if (now !== wasConverting) { wasConverting = now; loadMedia(); }
+  // The output cards name the mics sent with the sound ("Sound: SDI + Mixer (Crowd mic)"): a mic added or renamed,
+  // or the scene arriving after the outputs, draws them again.
+  const micNames = micsOf().map(m => `${m.id}=${m.name}`).join('|');
+  if (micNames !== cardMicNames && out && out.outputs) { cardMicNames = micNames; renderOutputs(out, selectedOutput()); }
   if (selected && !current()) selected = null;
   renderList(); renderForm(); drawBox(); renderScenes(); renderSequences(); renderRunOrder(); renderMusic(); renderMics();
   // A source added, renamed or removed while the editor is open.
