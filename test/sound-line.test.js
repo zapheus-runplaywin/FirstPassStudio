@@ -42,6 +42,13 @@ test('the status board\'s Sound line and the output cards say where the sound go
   const cards = await page.$$eval('#outList .outCard small', cs => cs.map(c => c.textContent));
   assert.match(cards[0], /Sound: SDI \+ Mixer \(Crowd mic\)/);
   assert.match(cards[1], /Sound: Mac, not over NDI/);
+  // The cards follow the mics' names straight away (the outputs are only read every 5 s): a rename, or the scene
+  // arriving after the outputs, draws them again.
+  const cardSays = re => page.waitForFunction(r => new RegExp(r).test(document.querySelector('#outList .outCard small').textContent), re, { timeout: 1500 });
+  await ok({ type: 'micUpdate', mic, changes: { name: 'Bench mic' } });
+  await cardSays('Sound: SDI \\+ Mixer \\(Bench mic\\)');
+  await ok({ type: 'micUpdate', mic, changes: { name: 'Crowd mic' } });
+  await cardSays('Sound: SDI \\+ Mixer \\(Crowd mic\\)');
 
   // A destination that fails: red, with why.
   one = { ...one, soundState: [{ state: 'problem', error: 'The UltraStudio wouldn\'t take sound' }, { state: 'sending' }] };
