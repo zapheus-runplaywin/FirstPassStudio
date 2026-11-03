@@ -690,7 +690,8 @@ These follow the game picked on the scoreboard control page:
 - http://localhost:8080/gamestats.html: after the game, the score by quarter, then quarters won, best quarter, super shots made,
   3 and 5 goal runs and the longest run for each team. Studio works the quarters out from the scoreboard as the game goes
   (/api/stats), so keep it on air for the whole game; `?quarters=0`, `?won=0`, `?best=0`, `?supershots=0`, `?runs3=0`,
-  `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. Lines starting `[stats]` in the log say when a quarter isn't sure.
+  `?runs5=0` and `?longest=0` leave parts out, `?title=` changes the heading. A quarter isn't sure (and is left out of
+  quarters won and best quarter) when the score jumped in it, unless PlayHQ caught up while still on that quarter. Lines starting `[stats]` in the log say when a quarter isn't sure.
 - http://localhost:8080/commentatorstats.html: the whole screen, for a commentary desk monitor rather than the stream. Team lists
   on the left with scoring drought and games played this season (line-ups loaded at the start and each quarter break),
   the game stats big in the middle (each logo with ladder position, record and form under it, head to head under the names)
