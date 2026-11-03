@@ -152,7 +152,7 @@ picture with its output tabs and a status board, the sources down the left, scen
 setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics (with their duck), where Output 1's sound is going, switcher,
 recording and next game, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
 every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
-sends, hollow while it doesn't) or Off air, the game on the board (orange before the clock starts, green until an hour after it ends, then grey), PlayHQ (the dot is the link: green, amber overdue, red failing, grey by hand; the words the quarter and clock or game completed), the sequence playing (step and time
+sends, hollow while it doesn't) or Off air, the game on the board (orange before the clock starts, green until an hour after it ends, then grey), PlayHQ (the dot is the link: green, amber overdue, red failing, purple not live (the scorebench off line), grey by hand; the words the quarter and clock or game completed), the sequence playing (step and time
 left) or armed to start, ATEM while a switcher is set up (answering or not) and REC while a game records; status, not links. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
 and Set up (Recordings, Competitions setup, Sponsors, Athletes, Devices), with Docs at the right; the ⌘ keys keep
 the order below.

@@ -91,17 +91,18 @@
     parts.push(g ? chip('game', gtitle, gdot, `${esc(g.label)}${g.court ? ` · ${esc(g.court)}` : ''}`) : chip('game off', '', 'off', 'No game on the board'));
     if (g) {
       const p = h.playhq || {}, c = h.clock || {};
-      // The dot is the link to PlayHQ only (green answering, amber overdue, red failing, grey by hand or not scoring
-      // yet), whatever the game's state; the words carry the game: the quarter and clock, or that it's over.
+      // The dot is the link to PlayHQ only (green answering, amber overdue, red failing, purple not scoring live (the
+      // scorebench off line) with the reason on hover, grey by hand or not scoring yet), whatever the game's state; the words carry the game: the quarter and clock, or that it's over.
       const over = g.ended ? (h.source === 'playhq' ? 'game completed' : 'full time') : '';
       const clock = over ? ` · ${over}` : c.left != null ? ` · ${esc(c.periodLabel || 'Q')}${esc(c.period)} ${mmss(c.left * 1000 - (c.running ? since : 0))}` : '';
       let dot = 'ok', text;
       if (h.source !== 'playhq') { dot = 'off'; text = 'Scores by hand'; }
       else if (p.waiting) { dot = 'off'; text = 'PlayHQ · not scoring yet'; }
       else if (p.state === 'bad') { dot = 'bad'; text = 'PlayHQ failing'; }
+      else if (p.trouble) { dot = 'notlive'; text = 'PlayHQ not live'; }
       else if (p.state === 'warn') { dot = 'warn'; text = 'PlayHQ overdue'; }
       else text = over || c.following ? 'PlayHQ' : 'PlayHQ · clock by hand';
-      parts.push(chip(`playhq ${dot}`, '', dot, `${text}${clock}`));
+      parts.push(chip(`playhq ${dot}`, dot === 'notlive' ? p.troubleSays || '' : '', dot, `${text}${clock}`));
     }
     // The sequence playing, or the one a trigger armed and is counting down.
     if (h.playing) {

@@ -51,6 +51,7 @@ function boardPlayhq(h) {
   else if (h.source !== 'playhq') { sDot = ''; sWord = 'By hand'; sTip = 'Scores are by hand, so the live score isn\'t read'; }
   else if (p.waiting) { sDot = ''; sWord = 'Waiting'; sTip = `PlayHQ isn't scoring this game yet. ${p.waiting}`; }
   else if (p.state === 'bad') { sDot = 'bad'; sWord = 'Failing'; sTip = p.error || 'PlayHQ has been failing for a minute'; }
+  else if (p.trouble) { sDot = 'notlive'; sWord = 'Not live'; sTip = p.troubleSays || 'PlayHQ isn\'t scoring this game live'; }
   else if (p.state === 'warn') { sDot = 'warn'; sWord = 'Overdue'; sTip = `A reading is overdue (last ${boardAgo(p.readAgoMs)})`; }
   let pDot = '', pVal = '–', pTip = 'Nothing asked of PlayHQ yet';
   if (n.failed) { pDot = 'bad'; pVal = 'No answer'; pTip = 'The last request to PlayHQ got no answer'; }

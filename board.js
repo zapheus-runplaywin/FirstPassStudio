@@ -19,7 +19,7 @@
 //   record                                 recorder.js (record.action: each action, for the game recording)
 const fs = require('fs');
 const path = require('path');
-const { isFinished } = require('./playhq');
+const { isFinished, startOf } = require('./playhq');
 
 function create({ log, datadir, savefile, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }) {
   const { getRoundGames, liveScore, scoringNotYet, PERIOD_NUMBER } = playhq;
@@ -267,16 +267,52 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     b.updatedAt = Date.now();
   }
 
+  // ─── PlayHQ not scoring live ────────────────────────────────────────────────
+  // A scorebench that has dropped off line looks like nothing at all to the board: the score just stops moving.
+  // So while the board follows PlayHQ, two signs are watched (playhqTrouble), and the status board and the bar's
+  // PlayHQ chip turn purple with the reason (red is PlayHQ failing), so the operator knows to fix the scorebench or score by hand:
+  //   not-live  the live feed says the game isn't being scored electronically, but it's under way (PlayHQ says it's
+  //             in progress, or it's NOT_LIVE_AFTER_MS past its start time)
+  //   quiet     the feed's reading (score, counts, clock, break) hasn't changed for QUIET_MS while the scorer's
+  //             clock is running; in a live game the longest stretch seen without one was about 2.5 minutes
+  const NOT_LIVE_AFTER_MS = 5 * 60000, QUIET_MS = 4 * 60000;
+  const RUNNING = /^(RESUME|RESUMED|START|STARTED|RUNNING)$/i;
+  const TROUBLE_SAYS = {
+    'not-live': 'PlayHQ says the game is under way, but its live scoring isn\'t coming through: the scorebench may be off line. Fix the scorebench, or score by hand (a score press switches to Manual).',
+    quiet: `Nothing new from PlayHQ's scorer for ${QUIET_MS / 60000} minutes while its clock runs: the scorebench may be off line. Fix the scorebench, or score by hand (a score press switches to Manual).`,
+  };
+  function playhqTrouble(b, now = Date.now()) {
+    if (b.source !== 'playhq' || !b.gameId || b.playhqWaiting || isFinished({ status: b.playhqStatus || '' }) || !playhq.liveSeenFor) return '';
+    const seen = playhq.liveSeenFor(b.gameId);
+    if (seen.notScoredAt > seen.okAt) {
+      const start = startOf(b);
+      const underWay = /PROGRESS|LIVE|STARTED/i.test(b.playhqStatus || '') || (start !== null && now - start > NOT_LIVE_AFTER_MS);
+      return underWay ? 'not-live' : '';
+    }
+    const live = seen.live;
+    if (seen.okAt && live && live.clock && RUNNING.test(live.clock.status || '') && !live.break && now - seen.changedAt > QUIET_MS) return 'quiet';
+    return '';
+  }
+  // Called each refresh: keeps b.playhqTrouble current (for /api/health) and logs when it starts and ends.
+  function watchTrouble(b) {
+    const t = playhqTrouble(b);
+    if (t === (b.playhqTrouble || '')) return;
+    if (t) log('warn', 'scoreboard', `PlayHQ not scoring live (${t}) for ${b.home.name} v ${b.away.name}: ${TROUBLE_SAYS[t]}`);
+    else log('info', 'scoreboard', `PlayHQ's live scoring for ${b.home.name} v ${b.away.name} is coming through again`);
+    b.playhqTrouble = t;
+  }
+  const troubleSays = t => TROUBLE_SAYS[t] || '';
+
   // While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5).
   // Called every second by refreshTick and by the scoreboard, goals, stats and worm requests; the
   // live feed is cached for playhqRefreshSec, so PlayHQ is asked once per period however often this runs.
   async function refreshFromPlayhq(b) {
     noteClock(b);
-    if (b.source !== 'playhq' || !b.roundId) return;
+    if (b.source !== 'playhq' || !b.roundId) { if (b.playhqTrouble) b.playhqTrouble = ''; return; }
     // Before electronic scoring starts there is nothing to read, so PlayHQ isn't asked.
     const wait = scoringNotYet(b);
     if (wait !== (b.playhqWaiting || '')) { if (wait) log('info', 'scoreboard', wait); b.playhqWaiting = wait; }
-    if (wait) { b.playhqError = ''; return; }
+    if (wait) { b.playhqError = ''; b.playhqTrouble = ''; return; }
     try {
       const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
       let game = null;
@@ -299,7 +335,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         if (games.stale) throw new Error(games.stale);
         game = games.find(g => g.id === b.gameId);
       }
-      if (!game) return;
+      if (!game) { watchTrouble(b); return; }
       watchSuperShots(b, game, s && s.live, s ? (s.live ? 'live' : 'game') : 'fixture');
       // Log what PlayHQ reports each time it changes, including "no score yet", for debugging.
       const seen = `${game.id} ${game.status} ${game.home.score} ${game.away.score}`;
@@ -317,6 +353,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       }
       b.playhqStatus = game.status;
       b.playhqError = '';
+      watchTrouble(b);
     } catch (err) {
       if (b.playhqError !== err.message) log('error', 'scoreboard', `Following PlayHQ failed: ${err.message}`);
       b.playhqError = err.message;
@@ -810,6 +847,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   }
 
   return { snapshot, restore, board, newBoard, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
+    playhqTrouble, troubleSays,
     getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
 
