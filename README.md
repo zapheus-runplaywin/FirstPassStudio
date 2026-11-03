@@ -389,6 +389,8 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Preview** opens the selected source on its own in a new window, like the Preview buttons in the Devices tab's Links; the eye beside a source's On / Off in the list does the same. Previews open at half size (960 x 540, the page still laid out at 1080p and scaled down, on a checkerboard), so a few fit on one screen; resize the window to make one bigger.
 - **Videos:** play from the beginning each time they're shown (untick to carry on where they stopped), can loop, and fade out when they
   finish unless looping. **Sound** turns a video's sound on or off with a volume; it plays through the Mac's audio output (or in a Blackmagic output's SDI), and the Output page's Scene View plays it only while **Video output** is off. **Restart video** starts it again from the top.
+  A page that opens part way through a showing (a Scene View) joins it where the output has got to (the source's
+  `playAt`, when each output's showing began, not saved).
 - **ProRes:** Chromium (which draws the pages) can't play ProRes, so a .mov added to the media folder is converted to a WebM beside it
   (VP9, keeping a ProRes 4444 clip's transparency) and any source using it switches over when that's done. The original is kept. A .mov with no transparency (H.264, or ProRes exported
   without alpha) gives an opaque WebM: the Output page and the log say so. This needs

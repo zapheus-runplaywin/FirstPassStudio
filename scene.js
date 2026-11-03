@@ -378,7 +378,7 @@ function load() {
 }
 
 function save() {
-  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, ...s }) => s), scenes: scene.scenes, current: scene.current, currentOut: scene.currentOut, ended: [...ended] }); }
+  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, playAt, ...s }) => s), scenes: scene.scenes, current: scene.current, currentOut: scene.currentOut, ended: [...ended] }); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }
@@ -386,6 +386,7 @@ function save() {
 let stingerName = '';
 function notify() {
   tidySoundOut();
+  notePlays();
   videoSound();
   // The Switcher card names the scene's stinger: tell it when that changes.
   const sting = stingerSource();
@@ -539,6 +540,24 @@ function noteShowings() {
   wasOnOut = new Set(scene.sources.flatMap(s => Object.keys(s.out).map(o => `${s.id}|${o}`)));
 }
 let wasOnOut = new Set();
+// When each output's showing of a video began (playAt { [output]: ms }, not saved), from the top again on a
+// restart: a page that opens part way through, like a Scene View, joins it where the output has got to. Brought up
+// to date as the scene is sent (notify), whatever changed it.
+const playWas = new Map(); // `${id}|${output}` → the loadSeq and showing playAt was set for
+function notePlays() {
+  for (const s of scene.sources) {
+    if (s.type !== 'video') continue;
+    const at = {};
+    for (const o of [PRIMARY, ...Object.keys(s.out)]) {
+      const key = `${s.id}|${o}`;
+      if (!isOn(s, o === PRIMARY ? null : o)) { playWas.delete(key); continue; }
+      const now = `${s.loadSeq}:${o === PRIMARY ? s.showSeq : s.outSeq[o] || 0}`;
+      at[o] = (playWas.get(key) === now && s.playAt && s.playAt[o]) || Date.now();
+      playWas.set(key, now);
+    }
+    if (Object.keys(at).length) s.playAt = at; else delete s.playAt;
+  }
+}
 
 // For switcher.js's stinger cuts: the scene's stinger (a stinger.html source; ref is its id or name, else the
 // first), and playing it from the top on an output (the primary unless output names another; reloaded if it's on there already).
@@ -1161,7 +1180,7 @@ function sendMedia(req, res, file, type, send) {
 const VERSION = (() => { try { return require('./package.json').version; } catch { return ''; } })();
 
 function exportFiles(withMedia) {
-  const sources = scene.sources.map(({ loadSeq, showSeq, ...s }) => s);
+  const sources = scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, playAt, ...s }) => s);
   const files = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources, scenes: scene.scenes }, null, 2) + '\n') }];
   const missing = [];
   if (withMedia) {
