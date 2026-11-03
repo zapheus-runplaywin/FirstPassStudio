@@ -91,6 +91,9 @@ let list = [];
 let run = null;       // what's playing
 let timer = null;
 let fadeTimer = null; // starts a music fade out early, so it's done as the step (and the music with it) ends
+// Which music the player has now, from a sequence's part: { id, occ } (occ: which sequence inside, 0 its own), shared by
+// every output (there's one player), so the last output to leave a part ends that part's music and not the next one's.
+let musicPart = null;
 let pending = null;   // a triggered start waiting its few seconds: { id, reason, at, afterEnd }
 let pendTimer = null;
 let cut = null;       // the sequence that last ended here (played out or cut short), until it plays again
@@ -160,6 +163,13 @@ function leads() {
 }
 const SILENT = { stopFor() {}, quiet() {}, playFor() {}, handOver() {} };
 const sound = () => leads() ? music : SILENT;
+// The other outputs playing this sequence whose step now plays the music of part occ.
+function othersIn(occ) {
+  const id = run.id, me = here;
+  let n = 0;
+  each(() => { if (here !== me && run && run.id === id && musicOf(current())?.occ === occ) n++; });
+  return n;
+}
 // As a run ends: only the last output still playing the sequence ends its music (with the next leading the rest).
 const soundAtEnd = () => run && playingOn(run.id).length > 1 ? SILENT : sound();
 // As a run ends or stops here while its sequence plays on elsewhere: its music fades out on this output alone, over
@@ -585,7 +595,12 @@ function planFade() {
     fadeTimer = null;
     if (!run || run.paused || run.endsAt === null) return;
     run.fadeEndsAt = plan.endAt;
-    sound().stopFor(run.id, Math.max(0, plan.endAt - now()) / 1000);
+    const sec = Math.max(0, plan.endAt - now()) / 1000;
+    // Played on other outputs too, it fades out on this one alone, on this one's own time: the outputs drift apart
+    // when a step that waits for a video or a sponsor ad ends at different moments on each. The last output to end
+    // the music stops it.
+    if (playingOn(run.id).length > 1) music.leave(run.id, here, sec, true);
+    else sound().stopFor(run.id, sec);
   }), Math.max(0, plan.endAt - plan.sec * 1000 - now()));
 }
 // What's left of a fade out already under way, or the whole of it.
@@ -644,14 +659,18 @@ function enter(i) {
   const m = musicOf(step), was = before ? musicOf(before) : null;
   // Out of a sequence inside whose music was on: it ends as that sequence's music ends (fade or cut).
   if (was && was.occ && (!m || m.occ !== was.occ) && was.sq.musicEnd.type !== 'continue') {
-    sound().stopFor(run.id, was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || music.STOP_FADE_SEC));
+    const sec = was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || music.STOP_FADE_SEC);
+    // Other outputs still in that part keep its music: it fades out on this one alone. The last out of it ends it,
+    // unless the music has moved on to a later part already (an output ahead started it).
+    if (othersIn(was.occ)) music.leave(run.id, here, sec, true);
+    else if (!(musicPart && musicPart.id === run.id && musicPart.occ !== was.occ)) music.stopFor(run.id, sec);
   }
   // It starts at its step (the first one played from it). The sequence's own starts the first time through
   // only (the track itself loops); one inside starts each time that sequence plays.
   if (m) {
     const musicAt = Math.min(m.sq.music.startStep, m.sq.steps.length) - 1;
     const from = before && before.path.find(at => at.occ === m.occ);
-    if (m.i === musicAt && !(from && from.i === musicAt && run.step < i) && !(m.occ === 0 && run.loop)) sound().playFor(run.id, m.sq.music);
+    if (m.i === musicAt && !(from && from.i === musicAt && run.step < i) && !(m.occ === 0 && run.loop)) { if (leads()) musicPart = { id: run.id, occ: m.occ }; sound().playFor(run.id, m.sq.music); }
   }
   schedule();
 }
@@ -676,6 +695,8 @@ function start(sq, why) {
   if (pending && pending.id === sq.id) cancelPending(null);
   if (cut === sq.id) cut = null;
   consume('sequence', sq.id);
+  // A new time through on every output: the part the music came from last time doesn't count.
+  if (musicPart && musicPart.id === sq.id && !playingOn(sq.id).filter(o => o !== here).length) musicPart = null;
   run = { id: sq.id, steps: flatten(sq), step: -1, loop: 0, startedAt: now(), loopAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, ready: false, waiting: null, finishing: null };
   log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
   sound().quiet(sq.quiet);

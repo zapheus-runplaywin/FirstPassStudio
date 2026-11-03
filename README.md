@@ -432,7 +432,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   plays on plays it with an `<audio>` element, so it follows that output's video sound. **Music plays on** (shown with more than one output)
   ticks those outputs, Output 1 unless set; a sequence's music plays on every output playing the sequence (one of them, the first in its
   Plays on order, starts and stops it, and the last to end ends it; one that stops it while others play on fades it out there
-  alone over its Music ends time, `leaving`). Cut to a sequence with music of its own, the old song fades out under the new one on a
+  alone over its Music ends time, `leaving`; a planned fade out on an output while others still play it is `leaving` with `early`, so outputs that drift apart each fade on their own time, and the last out of a part's music stops it). Cut to a sequence with music of its own, the old song fades out under the new one on a
   second `<audio>` element (`tail`, a crossfade). One song at a time: a sequence's music starting while another sequence's plays
   on elsewhere takes over, and the old fades out as the tail by its Music ends (`sequences.musicEndSec`). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and

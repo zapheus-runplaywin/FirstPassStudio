@@ -127,6 +127,47 @@ test('ended on Output 1 first, then on the other: the music faded out on Output 
   ok({ type: 'seqRemove', sequence: 'Two-up' });
 });
 
+test("outputs out of step: each fades a sequence's music out on its own time, and none cuts it while it's still up", () => {
+  const sequences = require('../sequences');
+  const secs = n => { for (let i = 0; i < n; i++) wait(1); };
+  ok({ type: 'seqAdd', changes: { name: 'Ad', steps: [{ sources: [id('Worm')], length: { type: 'done' } }] } });
+  ok({ type: 'seqAdd', changes: { name: 'QT', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 3 }, steps: [step(['Ladder'], 10)] } });
+  const [ad, qt] = ['Ad', 'QT'].map(n => st().sequences.find(x => x.name === n).id);
+  ok({ type: 'seqAdd', changes: { name: 'Break', playsOn: ['main', two()], steps: [{ kind: 'sequence', sequence: ad }, { kind: 'sequence', sequence: qt }] } });
+  const worm = () => st().sources.find(x => x.name === 'Worm');
+  // The ad finishes on one output 4 s before the other: the other output ahead of Output 1 (which drives the music), then
+  // Output 1 ahead.
+  for (const [ahead, behind] of [[two(), 'main'], ['main', two()]]) {
+    ok({ type: 'seqPlay', sequence: 'Break' });
+    secs(1);
+    sequences.ended(worm(), ahead);
+    wait(0);
+    secs(4);
+    sequences.ended(worm(), behind);
+    wait(0);
+    secs(1);
+    assert.equal(m().status, 'playing', 'the music started');
+    assert.deepEqual(m().leaving, {});
+    secs(2); // the output ahead is 3 s from the end of the music
+    assert.equal(m().leaving[ahead]?.ms, 3000, 'it fades out there over its own 3 s');
+    assert.equal(m().leaving[behind], undefined, 'still up on the output behind');
+    assert.equal(m().gain.to, 1);
+    assert.ok(m().outputs.includes(ahead));
+    secs(3); // the output ahead has ended it
+    assert.ok(!m().outputs.includes(ahead), 'that output has let go of it, faded out');
+    assert.equal(m().status, 'playing', 'still playing on the output behind');
+    assert.equal(m().gain.to, 1, 'not cut short there');
+    assert.deepEqual(Object.keys(m().leaving), []);
+    secs(1);
+    assert.equal(m().gain.to, 0, 'and fades out there over its own last 3 s');
+    assert.equal(m().gain.ms, 3000);
+    secs(3);
+    assert.equal(m().status, 'stopped');
+    assert.equal(st().playing, null);
+  }
+  for (const n of ['Break', 'QT', 'Ad']) ok({ type: 'seqRemove', sequence: n });
+});
+
 test('the music makes way for a video with sound only on an output it plays on', () => {
   ok({ type: 'musicSettings', settings: { underVideo: 'pause' } });
   ok({ type: 'musicLoad', track: 'Walk out.m4a', play: true, fade: 0 });
