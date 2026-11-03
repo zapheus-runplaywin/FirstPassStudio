@@ -268,6 +268,36 @@ test('the sequence editor saves Music ends Crossfades into the next music, with 
   assert.deepEqual(control.errors, []);
 });
 
+test('the sequence editor saves music that crossfades from a video before it', async t => {
+  const { studio, control } = await setUp(t);
+  if (!control) return;
+  require('node:fs').mkdirSync(require('node:path').join(studio.dataDir, 'media'), { recursive: true });
+  require('node:fs').writeFileSync(require('node:path').join(studio.dataDir, 'media', 'Bed.mp3'), '');
+  await control.reload({ waitUntil: 'load' });
+  await control.waitForSelector('#sources li.empty');
+  await addPage(control, 'ladder.html');
+  await control.click('#addSeq');
+  await control.fill('#sqName', 'Break bed');
+  await control.click('#sqAddStep');
+  await control.selectOption('#sqSteps .stepRow >> nth=0 >> select[aria-label="Add a source"]', { label: 'Ladder' });
+  await control.waitForFunction(() => [...document.querySelectorAll('#sqMusic option')].some(o => o.value === 'track:Bed.mp3'));
+  await control.selectOption('#sqMusic', 'track:Bed.mp3');
+  await control.check('#sqMusicUnderVideo');
+  await control.fill('#sqMusicFade', '4');
+  await control.click('#sqSave');
+  await control.waitForSelector('#seqs .seq b:has-text("Break bed")');
+  const music = (await studio.get('/api/scene')).sequences[0].music;
+  assert.equal(music.underVideo, true);
+  assert.equal(music.fadeInSec, 4);
+  await control.click('#seqs .seq .edit');
+  assert.equal(await control.isChecked('#sqMusicUnderVideo'), true, 'shown again as saved');
+  await control.uncheck('#sqMusicUnderVideo');
+  await control.click('#sqSave');
+  await control.waitForFunction(() => !document.querySelector('#seqDialog[open]'));
+  assert.equal((await studio.get('/api/scene')).sequences[0].music.underVideo, undefined, 'off again');
+  assert.deepEqual(control.errors, []);
+});
+
 test('the sequence editor won\'t save a sequence without a name or steps, and says why', async t => {
   const { control } = await setUp(t);
   if (!control) return;

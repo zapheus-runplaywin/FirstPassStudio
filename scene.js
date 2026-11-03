@@ -138,6 +138,24 @@ function setOn(s, on, out) {
   if (!out) s.visible = on;
   else if (on) s.out[out] = true;
   else delete s.out[out];
+  // A video's sound fading out under the next music is done with once it goes off (or on again).
+  if (s.soundOut) { delete s.soundOut[out || PRIMARY]; if (!Object.keys(s.soundOut).length) delete s.soundOut; }
+}
+// A video's sound fading out on an output (out, or the primary) over sec, as the next step's music starts under the
+// end of it (sequences.js planCross): soundOut { [output]: { at, ms, showSeq } } on the source, for that showing.
+function fadeSound(id, out, sec) {
+  const s = scene.sources.find(x => x.id === id);
+  if (!s || s.type !== 'video') return;
+  s.soundOut = { ...(s.soundOut || {}), [out || PRIMARY]: { at: Date.now(), ms: Math.round(sec * 1000), showSeq: out ? (s.outSeq[out] || 0) : s.showSeq } };
+}
+const soundFading = (s, out) => !!(s.soundOut && s.soundOut[out || PRIMARY]);
+// The same for a video that went off some other way (finished and switched itself off).
+function tidySoundOut() {
+  for (const s of scene.sources) {
+    if (!s.soundOut) continue;
+    for (const o of Object.keys(s.soundOut)) if (!isOn(s, o === PRIMARY ? null : o)) delete s.soundOut[o];
+    if (!Object.keys(s.soundOut).length) delete s.soundOut;
+  }
 }
 // Videos that finished but stay on screen (not set to switch off when done): their sound has stopped.
 const soundDone = new Set();
@@ -360,13 +378,14 @@ function load() {
 }
 
 function save() {
-  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, ...s }) => s), scenes: scene.scenes, current: scene.current, currentOut: scene.currentOut, ended: [...ended] }); }
+  try { savefile.writeJsonSync(FILE, { sources: scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, ...s }) => s), scenes: scene.scenes, current: scene.current, currentOut: scene.currentOut, ended: [...ended] }); }
   catch (err) { log('error', 'scene', `Could not save scene.json: ${err.message}`); }
   notify();
 }
 // Sends the scene to every open scene.html and Output page.
 let stingerName = '';
 function notify() {
+  tidySoundOut();
   videoSound();
   // The Switcher card names the scene's stinger: tell it when that changes.
   const sting = stingerSource();
@@ -507,7 +526,8 @@ function stingerMusic(s, on) {
 }
 const videoOn = () => {
   const outs = music.state().music.outputs.map(o => o === PRIMARY ? null : o);
-  return scene.sources.some(s => outs.some(o => isOn(s, o)) && ((s.type === 'video' && s.sound && !soundDone.has(s.id)) || playsTheme(s)));
+  // A video whose sound is fading out under the next music (soundOut) has made way already.
+  return scene.sources.some(s => outs.some(o => isOn(s, o) && ((s.type === 'video' && s.sound && !soundDone.has(s.id) && !soundFading(s, o)) || playsTheme(s))));
 };
 function videoSound() { music.videoSound(videoOn()); }
 function noteShowings() {
@@ -1384,6 +1404,7 @@ function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
     sceneNamed: ref => scene.scenes.find(s => slug(s.name) === slug(ref)) || null,
     goTo: (sc, step, out) => goTo(sc, true, step, out === PRIMARY ? null : out),
     duration,
+    fadeSound: (id, out, sec) => fadeSound(id, out === PRIMARY ? null : out, sec),
     sponsorAd: (opts, out) => sponsorAd(opts, out === PRIMARY ? null : out),
     // A step's time ran out: sources it turned on are new showings too.
     changed: () => { noteShowings(); save(); },

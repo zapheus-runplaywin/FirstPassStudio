@@ -345,8 +345,9 @@ function quiet(on) {
   return true;
 }
 
-// A sequence's music: { track | playlist, startAtSec, fadeInSec } starting now.
-function playFor(seqId, m) {
+// A sequence's music: { track | playlist, startAtSec, fadeInSec } starting now (fading in over fadeSec instead, when
+// given: started under the end of a video, it fades in for what's left of the video).
+function playFor(seqId, m, fadeSec) {
   const files = api.files();
   const pl = m.playlist ? findPlaylist(m.playlist) : null;
   const file = !pl && m.track ? findTrack(m.track, files) : null;
@@ -362,7 +363,7 @@ function playFor(seqId, m) {
     if (sec > 0) { fadeTo(0, sec); startTail(); }
   }
   if (pl) loadPlaylist(pl, seqId); else loadTrack(file, seqId, true);
-  start(Number(m.startAtSec) || 0, Number(m.fadeInSec) || 0);
+  start(Number(m.startAtSec) || 0, fadeSec ?? (Number(m.fadeInSec) || 0));
 }
 // The sequence that owns the music ended or stopped: fade (sec) or cut (0).
 function stopFor(seqId, sec) {

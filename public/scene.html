@@ -314,7 +314,10 @@
     const token = ++L.token;
     v.loop = s.loop;
     v.muted = !s.sound || silent;
-    v.volume = s.volume / 100;
+    // Its sound fading out under the next music (sequences.js planCross), for this showing only.
+    const f = s.soundOut && s.soundOut[here];
+    L.soundOut = f && f.showSeq === s.showSeq ? f : null;
+    v.volume = videoVolume(L, s);
     const restarted = old.loadSeq !== undefined && old.loadSeq !== s.loadSeq;
     if (s.visible) {
       if (restarted || (!L.shown && s.restartOnShow)) { try { v.currentTime = 0; } catch {} }
@@ -369,8 +372,14 @@
     const m = music || {};
     return heard(along(tm.gain, Date.now())) * (tm.volume / 100) * (m.muted ? 0 : 1);
   }
+  // A video's volume: its own, down the fade when its sound is fading out under the next music (evenly in loudness).
+  function videoVolume(L, s) {
+    const f = L.soundOut;
+    return Math.max(0, Math.min(1, (s.volume / 100) * (f ? heard(along({ from: 1, to: 0, at: f.at, ms: f.ms }, Date.now())) : 1)));
+  }
   // The volume follows the fade, easing mute and the video lowering in and out.
   setInterval(() => {
+    for (const L of layers.values()) if (L.soundOut && L.src) { const v = L.el.querySelector('video'); if (v) v.volume = videoVolume(L, L.src); }
     const target = silent ? 0 : musicGain(music);
     level += (target - level) * 0.25;
     if (Math.abs(target - level) < 0.001) level = target;
