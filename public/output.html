@@ -41,7 +41,7 @@
   .sboard { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; align-content: stretch; background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: var(--fp-radius); padding: 14px 18px; font-size: 14px; min-width: 0; }
   .sboard .brow { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .sboard .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--fp-line-strong); flex: none; }
-  .sboard .dot.ok { background: var(--fp-ok); } .sboard .dot.warn { background: var(--fp-gold); } .sboard .dot.bad { background: var(--fp-danger); } .sboard .dot.live { background: var(--fp-orange); }
+  .sboard .dot.ok { background: var(--fp-ok); } .sboard .dot.warn { background: var(--fp-gold); } .sboard .dot.bad { background: var(--fp-danger); } .sboard .dot.notlive { background: var(--fp-notlive); } .sboard .dot.live { background: var(--fp-orange); }
   .sboard .game { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; padding: 0 0 10px; border-bottom: 1px solid var(--fp-line); }
   .sboard .game .pq { display: flex; align-items: center; gap: 6px; color: var(--fp-muted); font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sboard .game .pq.bad, .sboard .game .pq.warn { color: var(--fp-warn-ink); }
@@ -59,6 +59,7 @@
   .sboard .pqchip b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--fp-navy); }
   .sboard .pqchip.warn { border-color: var(--fp-gold); } .sboard .pqchip.warn b { color: var(--fp-warn-ink); }
   .sboard .pqchip.bad { border-color: var(--fp-danger); } .sboard .pqchip.bad b { color: var(--fp-danger); }
+  .sboard .pqchip.notlive { border-color: var(--fp-notlive); } .sboard .pqchip.notlive b { color: var(--fp-notlive); }
   .sboard .game .score { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: baseline; }
   .sboard .game .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sboard .game .tname.away { text-align: right; }
