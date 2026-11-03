@@ -113,7 +113,6 @@ going off air is kept.
 | `server.js` autoPick | 15 s (first after 3 s) | Game auto-select: sets tonight's court when a game night arrives (the Production Planner's, else the competition's fallback court; a court changed by hand lasts that night; a court name typed for the graphics is cleared too), then picks the next game on it when its scoring window opens. |
 | `server.js` scene.game | 1 s | Hands the game snapshot to the scene for game triggers (quarter breaks, full time) and the super shot song. |
 | `viewers.js` | 30 s per stream | Live viewer counts, only while a video output is on. |
-| `outputs.js` listenChanged | 5 s | Notices a preview that stopped checking in. |
 | `switcher.js` (atem-connection) | about 2 per second each way | The switcher's own heartbeat while connected; after about 5 s of silence it counts as lost and the library reconnects every second. A switcher found by name is looked for again every 15 s while lost, in case its address changed. |
 | `scene.js` SSE ping | 25 s | Keeps the plugin's event stream open. |
 | `scene.html` mics | 25 ms, 500 ms | In the primary output's window, while mics are set up: the mics' levels follow the settings and the duck; twice a second it reports their levels and trouble to the helper. The Output page reads that twice a second while its Mics section is open. |

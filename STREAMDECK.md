@@ -352,7 +352,7 @@ queued after it before falling back to its own Then.
 ## Music (Output page)
 
 The Output page's **Music** player plays songs from the media folder (MP3, M4A, AAC, WAV or AIFF), one at a time or from a
-playlist. Music plays wherever video sound plays (the outputs, or the Output page's Scene View while Video output is off) and is never heard twice.
+playlist. Music plays where Output 1's **Sound goes to** says, never in the Output page's Scene View.
 
 | Button | Link |
 |---|---|

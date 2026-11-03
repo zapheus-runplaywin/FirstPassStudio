@@ -78,7 +78,7 @@
   // A source as this window sees it: on the primary output its own visible and showSeq; on another output
   // whether it's on for that output, and that output's showSeq.
   const forOutput = s => !outputId ? s : { ...s, visible: !!(s.out && s.out[outputId]), showSeq: (s.outSeq && s.outSeq[outputId]) || 0 };
-  // The Output page turns its preview's sound on and off with this (it plays only while no video output is on), without a reload.
+  // A sound copy (?copy=1) unmutes with this once its device is found, and mutes again if it goes, without a reload.
   // A browser that won't play sound until the page is clicked pauses a video as it's unmuted (or
   // refuses to play it): it then plays muted, and soundState() says so.
   let blocked = false;
@@ -99,19 +99,7 @@
     renderMusic(music);
     pageSoundLevel();
   };
-  // Called by the Output page during a click: Safari lets a video play sound later only if it was played
-  // during a click, so start and stop the hidden ones too (muted as they are, so nothing is heard).
-  window.unlockSound = () => {
-    for (const L of layers.values()) {
-      const v = L.el.querySelector('video, audio');
-      if (v && L.src && !L.src.visible && v.paused) { v.play().then(() => v.pause()).catch(() => {}); }
-    }
-    if (audio.paused) audio.play().then(() => { if (!music || music.status !== 'playing') audio.pause(); }).catch(() => {});
-    if (tail.paused) tail.play().then(() => { if (!tailMusic) tail.pause(); }).catch(() => {});
-    if (sfxCtx && sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {});
-    window.setSilent(false);
-  };
-  // For the Output page: how many shown videos play sound here, and whether the browser blocks it.
+  // For the tests: how many shown videos play sound here, and whether the browser blocks it.
   window.soundState = () => {
     let videos = 0;
     for (const L of layers.values()) if (L.src && L.src.type === 'video' && L.src.visible && L.src.sound) videos++;
@@ -119,22 +107,8 @@
     return { videos, pages, blocked: blocked || (pages > 0 && !!sfxCtx && sfxCtx.state === 'suspended'), music: !!music && music.status === 'playing' };
   };
   // The Output page switching its Scene View to another output loads that output's page beside the one showing, standing
-  // by: its music loads and plays along at no volume, so when it takes over (setStandby(false), then setSilent) the
-  // sound carries straight on at its level instead of stopping while the page and the song load.
-  let standby = false;
-  window.setStandby = on => {
-    standby = !!on;
-    renderTail(tailMusic);
-    renderMusic(music);
-    // Taking over from the page it stood by for: straight to the level, as that one was playing it.
-    if (!standby && !silent) {
-      level = musicGain(music);
-      audio.volume = Math.max(0, Math.min(1, level));
-      tail.volume = Math.max(0, Math.min(1, tailGain(tailMusic)));
-    }
-  };
-  // Ready to take over: it has drawn the scene, and the music that plays here is loaded and playing.
-  window.standbyReady = () => !first && (!music || !music.track || music.status !== 'playing' || !primary || (audio.readyState >= 3 && !audio.paused));
+  // by, and swaps once it has drawn, so the picture carries straight on.
+  window.standbyReady = () => !first;
   // For the tests: what the music and the song fading out under it (a crossfade) are playing here.
   window.musicPlayers = () => [audio, tail].map(el => ({ src: decodeURIComponent((el.getAttribute('src') || '').replace('/media/', '')), playing: !el.paused, volume: el.volume, at: el.currentTime }))
     .reduce((o, x, i) => Object.assign(o, { [i ? 'tail' : 'music']: x }), {});
@@ -191,8 +165,8 @@
       if (L.src.visible && L.shown) tellDone(L.src, L.src.reloadOnShow ? L.pageShow : L.src.showSeq);
     }
   });
-  // Page sound (sfx.js): every scene window plays it, and a silent one (the preview, the key output) at no volume, so
-  // the Output page can turn its preview's sound on part way through. It stops when the source goes off.
+  // Page sound (sfx.js): every scene window plays it, and a silent one (the preview, the key output, a sound copy waiting
+  // for its device) at no volume, so a sound copy can unmute part way through. It stops when the source goes off.
   let sfxCtx = null, sfxOut = null;
   function pageSoundLevel() {
     if (!sfxOut) return;
@@ -420,7 +394,7 @@
       musicPlayId = -1;
       level = 0;
     }
-    tailMusic = tm && (!silent || standby) ? tm : null;
+    tailMusic = tm && !silent ? tm : null;
     if (!tailMusic) { if (!tail.paused) tail.pause(); tail.removeAttribute('src'); tailPlayId = -1; return; }
     const want = '/media/' + encodeURIComponent(tailMusic.track);
     if (tail.getAttribute('src') !== want) tail.src = want;
@@ -431,7 +405,7 @@
   }
   function renderMusic(m) {
     music = m || null;
-    if (!music || !music.track || music.status === 'stopped' || (silent && !standby)) { if (!audio.paused) audio.pause(); if (!music || !music.track) audio.removeAttribute('src'); return; }
+    if (!music || !music.track || music.status === 'stopped' || silent) { if (!audio.paused) audio.pause(); if (!music || !music.track) audio.removeAttribute('src'); return; }
     const want = '/media/' + encodeURIComponent(music.track);
     if (audio.getAttribute('src') !== want) audio.src = want;
     const pos = musicPos(music);

@@ -299,14 +299,10 @@ $('fRemove').onclick = async () => {
 // Hide all: every source off on one output (hideAllOn, which its label names: see renderList), never on every output
 // at once: clearing a monitor mustn't blank the one on air.
 $('hideAll').onclick = () => act({ type: 'hideAll', ...(hideAllOn !== 'main' ? { output: hideAllOn } : {}) });
-// The video output state (`out`), the Scene View's sound and listen() are in preview.js, which runs first.
+// The video output state (`out`) is in preview.js, which runs first.
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 let viewWas = '';
 const showOut = o => {
-  // Ask again when the output the Scene View shows starts or stops sending (Output 1 or any other), so its sound
-  // stops as that output takes it over rather than at the next check-in, a few seconds of both playing out of step.
-  const soundOf = x => { const y = x && x.outputs && x.outputs.find(z => z.id === previewOutput); return !!(y ? y.previewSound : x && x.previewSound); };
-  const relisten = !out || soundOf(out) !== soundOf(o);
   const hadExtras = extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join();
   // Which outputs are sending, for the sequence cards' "output off".
   const sendingOf = x => (x && x.outputs || []).filter(y => (y.showing || []).length).map(y => y.id).join();
@@ -321,7 +317,6 @@ const showOut = o => {
   renderQuality(o);
   if (hadExtras !== extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join()) { renderList(); renderForm(); renderTabs(); }
   if (wasSending !== sendingOf(o) && typeof renderSequences === 'function') renderSequences();
-  if (relisten) { listen(); if (popped) popChannel.postMessage('ask'); }
   $('outNoApp').classList.toggle('hidden', o.app);
   $('outForm').classList.toggle('hidden', !o.app);
   $('outOn').classList.toggle('hidden', !o.app);

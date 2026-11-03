@@ -1,61 +1,17 @@
-// FirstPass Studio - the Output page, part 2 of 16: Scene View: the live scene drawn in the page, its sound, and the pop-out window.
+// FirstPass Studio - the Output page, part 2 of 16: Scene View: the live scene drawn in the page (always silent) and the pop-out window.
 // The page's script is split by section into public/output/, loaded in order by output.html; the files share one
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
-// The video output state and the Scene View's sound live here rather than in settings.js because fitting the
-// preview calls listen() while this file loads, before a later file's functions exist.
+// The video output state lives here rather than in settings.js because fitting the preview reads it while this
+// file loads, before a later file's functions exist.
 // Display output (the Mac app opens the windows; outputs.js decides what goes where).
 let out = null;
-// The Scene View's sound: the sound of the output it shows, only while that output isn't sending (its previewSound);
-// with it on, the output carries its sound. This page asks the helper for it, and only the page it says yes to unmutes its Scene View. It checks
-// in every few seconds and lets go when it closes.
-const listenId = Math.random().toString(36).slice(2);
-let previewSound = false;
-let soundFor = null; // the output previewSound was last answered for
-// Whether a Scene View of the output it shows may play that output's sound now.
-const viewSound = () => { const o = out && out.outputs && out.outputs.find(x => x.id === previewOutput); return !!(o ? o.previewSound : out && out.previewSound); };
-const applySound = () => { try { $('previewFrame').contentWindow.setSilent?.(!previewSound); } catch {} soundNote(); };
-// Says why the preview is or isn't playing the sound, next to the tick box (and in the log when it changes).
-let lastNote = '';
-function soundNote() {
-  let st = null;
-  try { st = $('previewFrame').contentWindow.soundState?.(); } catch {}
-  const note = !out ? ''
-    : !viewSound() ? 'Silent: this output is on, so it plays its own sound.'
-    : popped ? popped.note
-    : !$('previewOn').checked ? 'Silent: turn Live View on.'
-    : !previewSound ? 'Silent: another Output page is playing the sound. Click the Scene View to bring it here.'
-    : st && st.blocked ? 'Blocked by this browser until you click: click the Scene View to hear it. (The Studio app\'s own window doesn\'t need this.)'
-    : st && !st.videos && !st.pages ? 'Sound plays here once a video with Sound ticked, or an animation with sound, is on.'
-    : 'Sound plays here, through this Mac\'s sound output.';
-  $('previewSoundNote').textContent = note;
-  if (note !== lastNote) { if (note) console.log(`Scene View sound: ${note}`); lastNote = note; }
-}
-// Clicking the preview brings the sound here from another Output page, and is what a browser needs
-// before it plays sound.
-// Safari only lets a video play sound if it's unmuted during the click itself, so unmute straight away
-// (that unlocks it for later), then take the sound properly.
-$('preview').addEventListener('click', () => {
-  if (popped) return popChannel.postMessage('focus');
-  if (!out || !viewSound()) return;
-  try { $('previewFrame').contentWindow.unlockSound?.(); } catch {}
-  listen(true);
-});
-$('previewFrame').addEventListener('load', applySound);
+// The Scene View never plays sound (scene.html?mute=1): an output's sound plays where its Sound goes to says, whether
+// the output is on or off, so nothing plays twice and nothing plays from a page that happens to be open.
+// Clicking the preview brings the pop-out window forward while it's open.
+$('preview').addEventListener('click', () => { if (popped) popChannel.postMessage('focus'); });
 // For the tests: whether a switch to another output is still standing by.
 window.previewSwitching = () => !!standby;
-async function listen(take = false) {
-  const on = !!(out && viewSound() && $('previewOn').checked && !popped);
-  const output = previewOutput;
-  try {
-    const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take, output }) });
-    previewSound = !!(await r.json()).sound;
-  } catch { previewSound = false; }
-  soundFor = output;
-  applySound();
-}
-setInterval(() => listen(), 5000);
-addEventListener('pagehide', () => navigator.sendBeacon('/api/outputs/listen', JSON.stringify({ id: listenId, on: false })));
 
 // ─── More than one output ─────────────────────────────────────────────
 // The output picked on the page (its card in Video output, its tab over the Scene View): the one being set
@@ -104,10 +60,9 @@ function setPreview(on) {
 }
 var chromaWas = false; // whether the chroma output is chroma key safe (var: showPreview can run before the outputs load)
 // The preview here runs only while it's on and not popped out into its own window (preview.html).
-// Switching the Scene View to another output: the new output's page loads beside the one showing, standing by (its music
-// playing along at no volume), and takes over once it has drawn and its music plays, or after STANDBY_MS. So the sound
-// and the picture carry straight on instead of stopping for a moment while the page loads. Anything else (turning Live
-// View on or off, popping out) just loads the page.
+// Switching the Scene View to another output: the new output's page loads beside the one showing, standing by, and
+// takes over once it has drawn, or after STANDBY_MS. So the picture carries straight on instead of going blank for a
+// moment while the page loads. Anything else (turning Live View on or off, popping out) just loads the page.
 const STANDBY_MS = 3000;
 let standby = null; // { frame, timer } while the next output's page stands by
 function frameTo(src) {
@@ -128,22 +83,18 @@ function frameTo(src) {
   cur.after(next);
   const started = Date.now();
   let loaded = false;
-  next.addEventListener('load', () => { loaded = true; try { next.contentWindow.setStandby?.(true); } catch {} }, { once: true });
+  next.addEventListener('load', () => { loaded = true; }, { once: true });
   standby = { frame: next, timer: setInterval(() => {
     let ready = false;
-    // Ready once it plays, and this page knows whether it may play that output's sound.
-    try { ready = loaded && soundFor === previewOutput && !!next.contentWindow.standbyReady?.(); } catch {}
+    // Ready once it has drawn the scene.
+    try { ready = loaded && !!next.contentWindow.standbyReady?.(); } catch {}
     if (!ready && Date.now() - started < STANDBY_MS) return;
     clearInterval(standby.timer);
     standby = null;
     cur.remove();
     next.id = 'previewFrame';
     next.style.visibility = '';
-    next.addEventListener('load', applySound);
     fitPreview();
-    // Its sound on first (it carries on from the music it played along with), then out of standby.
-    applySound();
-    try { next.contentWindow.setStandby?.(false); } catch {}
   }, 50) };
 }
 function showPreview() {
@@ -157,31 +108,29 @@ function showPreview() {
   $('previewOffText').textContent = popped ? 'The Scene View is in its own window' : 'Live View is off';
   $('popIn').classList.toggle('hidden', !popped);
   $('popOut').textContent = popped ? 'Show window' : 'Pop out';
-  listen();
 }
-// Pop out: the popped-out window says it's open (and why it's silent, if it is) on this channel,
-// and says so again when this page asks, so a reopened Output page knows too.
+// Pop out: the popped-out window says it's open on this channel, and says so again when this page asks, so a
+// reopened Output page knows too.
 // The window also says it's open every couple of seconds; if it goes quiet it has gone (the Mac
 // app's windows can close without saying so), and the preview comes back here.
-let popped = null; // { note } while the preview window is open
+let popped = null; // { heard } while the preview window is open
 let poppedHeard = 0;
 const popChannel = new BroadcastChannel('studio-preview');
 const setPopped = p => {
   const was = !!popped;
   popped = p;
   if (was !== !!popped) { console.log(popped ? 'Scene View popped out into its own window' : 'Scene View back on the Output page'); showPreview(); }
-  else soundNote();
 };
 popChannel.onmessage = e => {
   if (!e.data || typeof e.data !== 'object') return;
   poppedHeard = Date.now();
-  setPopped(e.data.open ? { note: e.data.note || '', heard: true } : null);
+  setPopped(e.data.open ? { heard: true } : null);
 };
 setInterval(() => { if (popped && popped.heard && Date.now() - poppedHeard > 6000) setPopped(null); }, 1000);
 popChannel.postMessage('ask');
 const openPopOut = () => {
   window.open(`/preview.html${previewOutput && previewOutput !== 'main' ? `?output=${encodeURIComponent(previewOutput)}` : ''}`, 'studio-preview', 'popup,width=1280,height=720');
-  popped = { note: '' };
+  popped = {};
   // A blocked pop-up never says it's open: put the preview back here.
   setTimeout(() => { if (popped && !popped.heard) { popped = null; showPreview(); $('err').textContent = 'The Scene View window didn\'t open: allow pop-ups for Studio in this browser.'; } }, 4000);
   $('previewOn').checked = true;
