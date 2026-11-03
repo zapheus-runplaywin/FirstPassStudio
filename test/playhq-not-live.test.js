@@ -12,7 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { startStudio } = require('./support/studio');
 
-test('the live feed not scoring a game PlayHQ says is under way turns the PlayHQ chip red, and it clears when scoring comes back', async t => {
+test('the live feed not scoring a game PlayHQ says is under way turns the PlayHQ chip purple, and it clears when scoring comes back', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });
   const game = studio.world.gameNow(0);
   await studio.until(async () => (await studio.get('/api/scoreboard')).gameId === game.id);
@@ -21,7 +21,7 @@ test('the live feed not scoring a game PlayHQ says is under way turns the PlayHQ
   delete studio.world.live[game.id]; // the scorebench never reached PlayHQ: "not electronically scored"
   const h = await studio.until(async () => { const h = await studio.get('/api/health'); return h.playhq.trouble && h; }, 10000, 250);
   assert.equal(h.playhq.trouble, 'not-live');
-  assert.equal(h.playhq.state, 'bad');
+  assert.equal(h.playhq.state, 'ok', 'PlayHQ itself answers: purple "not live", not red "failing"');
   assert.match(h.playhq.troubleSays, /scorebench may be off line/);
   assert.ok(h.playhq.readAgoMs !== null && h.playhq.readAgoMs < 10000, 'the "not scored" answer counts as PlayHQ answering');
   studio.world.live[game.id] = live; // back on line

@@ -359,8 +359,9 @@ function health() {
   const seen = b.gameId ? liveSeenFor(b.gameId) : { okAt: 0, notScoredAt: 0 };
   const answeredAt = Math.max(seen.okAt, seen.notScoredAt);
   const readAgoMs = answeredAt ? now - answeredAt : null;
-  // ok: fine or nothing to read; warn: a reading is overdue; bad: PlayHQ has been failing for a minute, or it isn't
-  // scoring the game live (trouble: board.js playhqTrouble, the scorebench off line).
+  // ok: fine or nothing to read; warn: a reading is overdue; bad: PlayHQ has been failing for a minute. Apart from
+  // these, trouble says PlayHQ answers but isn't scoring the game live (board.js playhqTrouble, the scorebench off line),
+  // which the pages show in purple, not red.
   // Overdue is measured from the later of the last answer and the switch to following PlayHQ (clockMatchedAt),
   // so the first seconds after a switch back from manual scores aren't a false alarm.
   const since = Math.max(answeredAt, b.clockMatchedAt || 0);
@@ -368,7 +369,6 @@ function health() {
   let playhqState = 'ok';
   if (following && !waiting) {
     if (lastLive.error && lastLive.errorAt > answeredAt && now - since > 60000) playhqState = 'bad';
-    else if (trouble) playhqState = 'bad';
     else if (now - since > 2 * refreshMs + 2000) playhqState = 'warn';
   }
   const out = outputs.state();

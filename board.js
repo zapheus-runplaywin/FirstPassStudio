@@ -270,7 +270,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // ─── PlayHQ not scoring live ────────────────────────────────────────────────
   // A scorebench that has dropped off line looks like nothing at all to the board: the score just stops moving.
   // So while the board follows PlayHQ, two signs are watched (playhqTrouble), and the status board and the bar's
-  // PlayHQ chip turn red with the reason, so the operator knows to fix the scorebench or score by hand:
+  // PlayHQ chip turn purple with the reason (red is PlayHQ failing), so the operator knows to fix the scorebench or score by hand:
   //   not-live  the live feed says the game isn't being scored electronically, but it's under way (PlayHQ says it's
   //             in progress, or it's NOT_LIVE_AFTER_MS past its start time)
   //   quiet     the feed's reading (score, counts, clock, break) hasn't changed for QUIET_MS while the scorer's

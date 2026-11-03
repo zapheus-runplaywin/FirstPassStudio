@@ -21,6 +21,7 @@
   --fp-line: #E2E8F0;        /* borders and dividers */
   --fp-line-strong: #CBD5E1; /* input borders */
   --fp-danger: #B42318;
+  --fp-notlive: #7C3AED;     /* PlayHQ answering but not scoring the game live (the scorebench off line): not red, which is PlayHQ failing */
   --fp-ok: #127A3E;
   --fp-font: "Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   --fp-radius: 12px;
@@ -51,6 +52,7 @@
     --fp-line: #334155;
     --fp-line-strong: #475569;
     --fp-danger: #F87171;
+    --fp-notlive: #A78BFA;
     --fp-ok: #4ADE80;
     --fp-btn: #2274A5;
     --fp-btn-hover: #2B86BE;
@@ -109,6 +111,7 @@
 .fp-chips .dot.warn { background: var(--fp-gold); }
 .fp-chips .dot.orange { background: var(--fp-orange); }
 .fp-chips .dot.bad { background: #EF4444; }
+.fp-chips .dot.notlive { background: var(--fp-notlive); }
 .fp-chips .dot.gold { background: var(--fp-gold); }
 .fp-chips .dot.rec { background: #EF4444; animation: fp-blink 1.2s steps(2, start) infinite; }
 @keyframes fp-blink { to { opacity: .25; } }
