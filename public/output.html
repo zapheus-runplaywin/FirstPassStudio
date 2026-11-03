@@ -86,14 +86,15 @@
   .sboard .tm .sym { font-family: var(--fp-font, inherit); font-size: 12px; margin-right: 6px; color: var(--fp-muted); }
   /* A line's button (Record) sits under its words, so they keep the column's width. */
   .sboard .line button { display: block; justify-self: start; margin: 2px 0 0; padding: 3px 10px; font-size: 12px; font-family: var(--fp-font, inherit); }
-  /* The console: the Sources down the left, and to their right scenes beside sequences, music beside mics, the
-     switcher, then the media folder. Set-up waits behind a button in each section's header: each source's settings
+  /* The console: the Sources down the left, and to their right the run order, then two columns that line up
+     all the way down: Scenes, Music and Ducking in the narrow one, Sequences, Mics, the switcher and the media folder in
+     the wide one. Set-up waits behind a button in each section's header: each source's settings
      under its row (the pencil), each scene's pencil, Music and Mics Settings, the switcher's Set up. */
   .console { display: grid; grid-template-columns: minmax(300px, 2fr) minmax(0, 5fr); gap: 14px; align-items: start; }
   .console > section, .stack section { margin-bottom: 0; }
   .stack { display: grid; gap: 14px; min-width: 0; }
-  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px; align-items: start; }
-  .pair.dock { grid-template-columns: 1fr 1fr; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px; align-items: start; }
+  .col { display: grid; gap: 14px; min-width: 0; }
   /* Scenes | Sequences | Run order; on a narrower window the run order drops under the two. */
   .seq.run { grid-column: 1 / -1; }
   .seqs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 8px; }
@@ -110,7 +111,7 @@
   table.duck td { padding: 5px 8px; border-bottom: 1px solid var(--fp-line); vertical-align: middle; }
   table.duck td:first-child { width: 42%; }
   @media (max-width: 1100px) { .mv, .console { grid-template-columns: minmax(0, 1fr); } }
-  @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
 
   .sources { list-style: none; margin: 0 0 12px; padding: 0; border: 1px solid var(--fp-line); border-radius: 8px; overflow: hidden; }
   .sources li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-top: 1px solid var(--fp-line); cursor: pointer; }
@@ -758,7 +759,11 @@
     </dialog>
   </section>
 
-  <div class="pair">
+  <!-- Two columns that line up all the way down, each stacking its sections tight: Scenes, Music and Ducking in the
+       narrow one, Sequences, Mics, the switcher and the media folder in the wide one. A section never changes column,
+       so nothing moves sides while it grows; folding one pulls the rest of its column up. -->
+  <div class="cols">
+  <div class="col">
   <section id="scenesSection" data-fold="scenes">
     <div class="secHead">
       <h2 id="scenesHead">Scenes</h2>
@@ -783,20 +788,6 @@
     </dialog>
   </section>
 
-  <section id="seqSection" data-fold="sequences">
-    <div class="secHead">
-      <h2 id="seqHead">Sequences</h2>
-      <button class="alt" id="addSeq" title="Steps played one after another">Add sequence</button>
-    </div>
-    <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
-    <div class="seqs" id="seqs"></div>
-    <p class="fp-empty" id="seqEmpty"></p>
-  </section>
-
-
-  </div>
-
-  <div class="pair dock" id="dock">
   <section id="musicSection" data-fold="music">
     <div class="secHead">
       <h2>Music</h2>
@@ -852,6 +843,51 @@
     </dialog>
   </section>
 
+
+  <!-- Ducking: everything that takes the music and the mics down, in one place. The causes are the rows, the music and
+       the mics the columns; folded, its line says the levels and what ducks them. -->
+  <section id="duckSection" data-fold="ducking">
+    <div class="secHead">
+      <h2>Ducking</h2>
+      <span class="note" id="dkSummary" style="margin:0"></span>
+      <button class="alt cfg" id="duckCfg" aria-pressed="false" title="What ducks the music and the mics, how low and how fast">Settings</button>
+    </div>
+    <div class="form duckForm">
+      <table class="duck">
+        <thead><tr><th>What ducks them</th><th>Music</th><th>Mics</th></tr></thead>
+        <tbody>
+          <tr><td>A video with sound plays</td>
+            <td><label class="inline"><input type="checkbox" id="dkMusicVideo"> fades out and pauses, then back in</label></td>
+            <td><label class="inline"><input type="checkbox" id="mxDipVideo"> duck</label></td></tr>
+          <tr><td>A scene or sequence with <b>Ducks the music</b> ticked</td><td>ducks</td>
+            <td><label class="inline"><input type="checkbox" id="mxDipQuiet"> duck</label></td></tr>
+          <tr><td>Music plays</td><td>—</td>
+            <td><label class="inline"><input type="checkbox" id="mxDipMusic"> duck</label></td></tr>
+          <tr><td>The stinger, with <b>Music under it</b> set to duck (Switcher)</td><td>ducks, fast</td><td>—</td></tr>
+          <tr><td>The <b>Duck</b> button</td><td>the music's own</td><td>the mics' own</td></tr>
+          <tr><td>Duck to</td>
+            <td><input type="number" id="mDuckTo" min="0" max="100" style="width:64px" aria-label="Music duck to"> %</td>
+            <td><input type="number" id="mxDipTo" min="0" max="100" style="width:64px" aria-label="Mics duck to"> %</td></tr>
+          <tr><td>Down, then back up</td><td>over the music's Fade out and Fade in</td>
+            <td><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics duck down over"> s,
+              <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics back up over"> s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </div>
+
+  <div class="col">
+  <section id="seqSection" data-fold="sequences">
+    <div class="secHead">
+      <h2 id="seqHead">Sequences</h2>
+      <button class="alt" id="addSeq" title="Steps played one after another">Add sequence</button>
+    </div>
+    <div class="seqAuto"><label class="fp-switch"><input type="checkbox" id="seqAuto"> <b>Automatic sequences on</b></label><small id="seqNext"></small><label id="seqShowHiddenRow" class="hidden" style="margin-left:auto;font-weight:400"><input type="checkbox" id="seqShowHidden"> <span></span></label></div>
+    <div class="seqs" id="seqs"></div>
+    <p class="fp-empty" id="seqEmpty"></p>
+  </section>
+
   <section id="micsSection" data-fold="mics">
     <div class="secHead">
       <h2>Mics</h2>
@@ -891,39 +927,6 @@
         <span class="row"><button class="alt" id="mxCancel">Cancel</button><button id="mxSave">Save</button></span>
       </div>
     </dialog>
-  </section>
-  </div>
-
-  <!-- Ducking: everything that takes the music and the mics down, in one place. The causes are the rows, the music and
-       the mics the columns; folded, its line says the levels and what ducks them. -->
-  <section id="duckSection" data-fold="ducking">
-    <div class="secHead">
-      <h2>Ducking</h2>
-      <span class="note" id="dkSummary" style="margin:0"></span>
-      <button class="alt cfg" id="duckCfg" aria-pressed="false" title="What ducks the music and the mics, how low and how fast">Settings</button>
-    </div>
-    <div class="form duckForm">
-      <table class="duck">
-        <thead><tr><th>What ducks them</th><th>Music</th><th>Mics</th></tr></thead>
-        <tbody>
-          <tr><td>A video with sound plays</td>
-            <td><label class="inline"><input type="checkbox" id="dkMusicVideo"> fades out and pauses, then back in</label></td>
-            <td><label class="inline"><input type="checkbox" id="mxDipVideo"> duck</label></td></tr>
-          <tr><td>A scene or sequence with <b>Ducks the music</b> ticked</td><td>ducks</td>
-            <td><label class="inline"><input type="checkbox" id="mxDipQuiet"> duck</label></td></tr>
-          <tr><td>Music plays</td><td>—</td>
-            <td><label class="inline"><input type="checkbox" id="mxDipMusic"> duck</label></td></tr>
-          <tr><td>The stinger, with <b>Music under it</b> set to duck (Switcher)</td><td>ducks, fast</td><td>—</td></tr>
-          <tr><td>The <b>Duck</b> button</td><td>the music's own</td><td>the mics' own</td></tr>
-          <tr><td>Duck to</td>
-            <td><input type="number" id="mDuckTo" min="0" max="100" style="width:64px" aria-label="Music duck to"> %</td>
-            <td><input type="number" id="mxDipTo" min="0" max="100" style="width:64px" aria-label="Mics duck to"> %</td></tr>
-          <tr><td>Down, then back up</td><td>over the music's Fade out and Fade in</td>
-            <td><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics duck down over"> s,
-              <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics back up over"> s</td></tr>
-        </tbody>
-      </table>
-    </div>
   </section>
 
   <section id="swSection" data-fold="switcher">
@@ -972,6 +975,8 @@
       <ul class="sources mediaList" id="mediaList"></ul>
       <p class="error" id="mediaErr"></p>
   </section>
+  </div>
+  </div>
   </div>
   </div>
 </main>
