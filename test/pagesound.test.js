@@ -172,3 +172,33 @@ test("switching the Output page's Scene View to another output keeps the music g
   assert.deepEqual(errors, []);
   await act({ type: 'seqStop' });
 });
+
+test("the Scene View goes silent as soon as the output it shows starts sending, not at its next check-in", async t => {
+  const browser = await launch(t);
+  if (!browser) return;
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  assert.equal((await studio.request('POST', '/api/outputs', { add: true })).status, 200);
+  const two = (await studio.get('/api/outputs')).outputs[1];
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  t.after(() => context.close());
+  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', err => errors.push(err.message));
+  await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
+  await page.click(`#outTabs button:has-text("${two.name}")`);
+  await page.waitForFunction(id => previewOutput === id && !previewSwitching(), two.id, { timeout: 10000 });
+  const note = () => page.$eval('#previewSoundNote', el => el.textContent);
+  assert.doesNotMatch(await note(), /this output is on/);
+  // Output 2 starts sending (Output 1 stays off): the Scene View showing it is told at once.
+  const asks = [];
+  page.on('request', r => { if (r.url().endsWith('/api/outputs/listen')) asks.push(JSON.parse(r.postData() || '{}')); });
+  await page.evaluate(id => showOut({ ...out, outputs: out.outputs.map(o => o.id === id ? { ...o, previewSound: false } : o) }), two.id);
+  await page.waitForFunction(() => /this output is on, so it plays its own sound/.test(document.getElementById('previewSoundNote').textContent), null, { timeout: 1500 });
+  assert.ok(asks.some(a => a.output === two.id && a.on === false), JSON.stringify(asks));
+  // And back off: it may play that output's sound again straight away.
+  await page.evaluate(id => showOut({ ...out, outputs: out.outputs.map(o => o.id === id ? { ...o, previewSound: true } : o) }), two.id);
+  await page.waitForFunction(() => !/this output is on/.test(document.getElementById('previewSoundNote').textContent), null, { timeout: 1500 });
+  assert.ok(asks.some(a => a.output === two.id && a.on === true), JSON.stringify(asks));
+  assert.deepEqual(errors, []);
+});
