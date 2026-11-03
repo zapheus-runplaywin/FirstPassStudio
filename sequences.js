@@ -601,6 +601,9 @@ function planFade() {
     // the music stops it.
     if (playingOn(run.id).length > 1) music.leave(run.id, here, sec, true);
     else sound().stopFor(run.id, sec);
+    // The output pages follow the fade from the scene they're sent: send it now, as the fade starts. (Without this
+    // they heard of it only at the step's end, by when it had finished, and the music cut.)
+    api.changed();
   }), Math.max(0, plan.endAt - plan.sec * 1000 - now()));
 }
 // What's left of a fade out already under way, or the whole of it.

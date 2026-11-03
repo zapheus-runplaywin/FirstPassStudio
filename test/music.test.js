@@ -313,6 +313,18 @@ test("with sequences inside sequences, the one playing the music (the outermost 
   assert.equal(m().status, 'stopped');
 });
 
+test("the output pages are sent the fade out as it starts, not only when the step ends", () => {
+  reset();
+  ok({ type: 'seqAdd', changes: { name: 'Told', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 4 }, steps: [{ sources: [id('Ladder')], length: { type: 'time', sec: 10 } }] } });
+  ok({ type: 'seqPlay', sequence: 'Told' });
+  wait(5.5);
+  const before = st().rev;
+  wait(0.5);
+  assert.equal(m().gain.to, 0, 'fading out over the last 4 s');
+  assert.ok(st().rev > before, 'and the scene was sent, so the pages fade with it');
+  ok({ type: 'seqStop' });
+});
+
 test("a sequence inside fades its music over the whole fade time, starting in an earlier step when its last steps are short", () => {
   reset();
   const ladder = sec => ({ sources: [id('Ladder')], length: { type: 'time', sec } });
