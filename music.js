@@ -246,6 +246,8 @@ function play(fade, fromSec = 0) {
 function stop(fade) {
   if (p.status === 'stopped') return null;
   const sec = p.status === 'paused' ? 0 : fadeOut(fade);
+  // Already fading out to a stop: a second stop can make it sooner, never later (the fade it's in keeps its time).
+  if (p.after === 'stop' && p.gain.to === 0 && sec * 1000 >= p.gain.at + p.gain.ms - now()) return null;
   // It fades out where it was heard as it stopped (its sequence has stopped playing anywhere by now).
   if (p.after !== 'stop') p.stopOn = outputsNow();
   log('info', 'music', `Stopping ${track()}${sec ? `, fading out over ${sec} s` : ''}`);
@@ -380,21 +382,31 @@ function startTail() {
 }
 // A sequence playing on several outputs stopped on out (the others carry on): its music fades out there over sec,
 // then that output lets go of it. Cut (0) lets go at once. Whether there was music of its to fade there.
-function leave(seqId, out, sec) {
+// early: the sequence still plays there, its music fading out on that output's own time as it ends there; it stays
+// down there (until new music starts, or the output lets go of it as the sequence ends there).
+function leave(seqId, out, sec, early = false) {
   if (!p.owner || p.owner !== seqId || p.status === 'stopped') return false;
   clearTimeout(leaveTimers.get(out));
   leaveTimers.delete(out);
   delete leaving[out];
-  if (!(sec > 0)) return true;
-  leaving[out] = { at: now(), ms: Math.round(sec * 1000) };
-  leaveTimers.set(out, setTimeout(() => { leaveTimers.delete(out); delete leaving[out]; api.changed(); }, sec * 1000));
+  if (!(sec > 0) && !early) return true;
+  leaving[out] = { at: now(), ms: Math.round(sec * 1000), ...(early ? { early: true } : {}) };
+  if (early) { log('info', 'music', `${track()} fades out over ${Math.round(sec * 10) / 10} s on one output, as its sequence's music ends there`); return true; }
+  leaveTimers.set(out, setTimeout(() => {
+    leaveTimers.delete(out);
+    delete leaving[out];
+    // Faded out there while the music fades out to a stop elsewhere: it stays gone there, never back up to that fade.
+    if (p.after === 'stop' && p.stopOn) p.stopOn = p.stopOn.filter(o => o !== out);
+    api.changed();
+  }, sec * 1000));
   log('info', 'music', `${track()} fades out over ${sec} s on one output, and plays on where its sequence does`);
   return true;
 }
-// The outputs still fading the music out: not the ones playing its sequence again.
+// The outputs still fading the music out: not the ones playing its sequence again, unless it's fading out there as
+// its music ends there (early).
 function leavingNow(playing) {
   const out = {};
-  for (const [o, f] of Object.entries(leaving)) if (!playing.includes(o)) out[o] = f;
+  for (const [o, f] of Object.entries(leaving)) if (!playing.includes(o) || f.early) out[o] = f;
   return out;
 }
 

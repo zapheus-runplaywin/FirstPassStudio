@@ -462,7 +462,7 @@ function showStartFields() {
   const chained = $('sqThen').value.startsWith('sequence:');
   [...$('sqMusicEnd').options].find(o => o.value === 'continue').disabled = !chained;
   if (!chained && $('sqMusicEnd').value === 'continue') $('sqMusicEnd').value = 'fade';
-  document.querySelector('.sqEndSec').classList.toggle('hidden', $('sqMusicEnd').value !== 'fade');
+  document.querySelector('.sqEndSec').classList.toggle('hidden', !['fade', 'crossfade'].includes($('sqMusicEnd').value));
   document.querySelector('.sqBefore').classList.toggle('hidden', type !== 'before');
   document.querySelector('.sqBreaks').classList.toggle('hidden', type !== 'break' || scene.game?.last === 2);
   document.querySelector('.sqAfter').classList.toggle('hidden', type !== 'break' && type !== 'fulltime');
@@ -512,7 +512,7 @@ function draftChanges() {
   const musicChoice = !mus ? null : { ...(mus.startsWith('playlist:') ? { playlist: mus.slice(9) } : { track: mus.slice(6) }),
     startStep: Number($('sqMusicStep').value) || 1, startAtSec: Number($('sqMusicMark').value) || 0, fadeInSec: Number($('sqMusicFade').value) || 0 };
   return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start, music: musicChoice, quiet: $('sqQuiet').checked, hidden: $('sqHidden').checked,
-    musicEnd: endType === 'fade' ? { type: 'fade', sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
+    musicEnd: endType === 'fade' || endType === 'crossfade' ? { type: endType, sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
     ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
     then: thenOf($('sqThen').value),
     // With one output it plays there (an output it played on that has since been removed is let go).

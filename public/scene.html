@@ -114,6 +114,23 @@
     const pages = [...layers.values()].filter(L => L.sound && L.src.visible).length;
     return { videos, pages, blocked: blocked || (pages > 0 && !!sfxCtx && sfxCtx.state === 'suspended'), music: !!music && music.status === 'playing' };
   };
+  // The Output page switching its Scene View to another output loads that output's page beside the one showing, standing
+  // by: its music loads and plays along at no volume, so when it takes over (setStandby(false), then setSilent) the
+  // sound carries straight on at its level instead of stopping while the page and the song load.
+  let standby = false;
+  window.setStandby = on => {
+    standby = !!on;
+    renderTail(tailMusic);
+    renderMusic(music);
+    // Taking over from the page it stood by for: straight to the level, as that one was playing it.
+    if (!standby && !silent) {
+      level = musicGain(music);
+      audio.volume = Math.max(0, Math.min(1, level));
+      tail.volume = Math.max(0, Math.min(1, tailGain(tailMusic)));
+    }
+  };
+  // Ready to take over: it has drawn the scene, and the music that plays here is loaded and playing.
+  window.standbyReady = () => !first && (!music || !music.track || music.status !== 'playing' || !ticked(music) || (audio.readyState >= 3 && !audio.paused));
   // For the tests: what the music and the song fading out under it (a crossfade) are playing here.
   window.musicPlayers = () => [audio, tail].map(el => ({ src: decodeURIComponent((el.getAttribute('src') || '').replace('/media/', '')), playing: !el.paused, volume: el.volume, at: el.currentTime }))
     .reduce((o, x, i) => Object.assign(o, { [i ? 'tail' : 'music']: x }), {});
@@ -325,6 +342,7 @@
   // a gap, and the other element picks up the new music.
   let audio = new Audio(), tail = new Audio();
   audio.preload = tail.preload = 'auto';
+  audio.volume = tail.volume = 0; // up as the fade says (a page standing by never plays a moment at full volume)
   let music = null, musicPlayId = -1, level = 0, tailMusic = null, tailPlayId = -1;
   const musicPos = m => m.status === 'playing' ? m.pos.sec + (Date.now() - m.pos.at) / 1000 : m.pos.sec;
   // Fades ease in and out (no sudden start or stop) and follow how loud they sound: a straight line in
@@ -378,7 +396,7 @@
       musicPlayId = -1;
       level = 0;
     }
-    tailMusic = tm && !silent ? tm : null;
+    tailMusic = tm && (!silent || standby) ? tm : null;
     if (!tailMusic) { if (!tail.paused) tail.pause(); tail.removeAttribute('src'); tailPlayId = -1; return; }
     const want = '/media/' + encodeURIComponent(tailMusic.track);
     if (tail.getAttribute('src') !== want) tail.src = want;
@@ -389,7 +407,7 @@
   }
   function renderMusic(m) {
     music = m || null;
-    if (!music || !music.track || music.status === 'stopped' || silent) { if (!audio.paused) audio.pause(); if (!music || !music.track) audio.removeAttribute('src'); return; }
+    if (!music || !music.track || music.status === 'stopped' || (silent && !standby)) { if (!audio.paused) audio.pause(); if (!music || !music.track) audio.removeAttribute('src'); return; }
     const want = '/media/' + encodeURIComponent(music.track);
     if (audio.getAttribute('src') !== want) audio.src = want;
     const pos = musicPos(music);
