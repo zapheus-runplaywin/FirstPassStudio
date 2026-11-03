@@ -184,7 +184,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   async function getFixtures(q) {
     const st = await getStructure();
     const grades = q.division ? [findGrade(st, q)].filter(Boolean) : st.grades;
-    const games = [], roundNames = [];
+    const games = [], roundNames = [], waiting = [];
     for (const grade of grades) {
       const round = await roundFor(grade, q.round);
       if (!round) {
@@ -192,10 +192,18 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         continue;
       }
       roundNames.push(round.name);
-      for (const game of await getRoundGames(round.id, 60 * 1000)) {
+      const roundGames = await getRoundGames(round.id, 60 * 1000);
+      for (const game of roundGames) {
         if (q.results && !isFinished(game)) continue;
         games.push({ ...game, division: grade.name, round: round.name,
           home: { ...game.home, logo: logoFor(game.home.name) }, away: { ...game.away, logo: logoFor(game.away.name) } });
+      }
+      // PlayHQ adds a finals round before its games: next week's grand final has none until tonight's
+      // qualifiers are played. Its games come from the division's finals format instead (see unplayedFinals).
+      if (!roundGames.length && !q.results) {
+        const tbd = await unplayedFinals(grade, round);
+        if (tbd.length) games.push(...tbd);
+        else waiting.push({ division: grade.name, round: round.name });
       }
     }
     const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
@@ -207,7 +215,22 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     if (q.round && !roundNames.length) return { error: `No round "${q.round}" in ${q.division ? 'that division' : 'any division'}` };
     log('info', 'fixtures', `Fixture${q.results ? ' results' : ''} for ${names.join(', ') || 'no round'}${q.round ? ` (asked for round=${q.round})` : ''}: ${games.length} games`);
     return { competition: st.competition, rules: rules(q.division && grades[0] ? grades[0].name : undefined), venueName: config().venueName || (games[0] && games[0].venue) || '',
-      division: q.division ? (grades[0] && grades[0].name) || '' : '', round, rounds: names, games };
+      division: q.division ? (grades[0] && grades[0].name) || '' : '', round, rounds: names, games, waiting };
+  }
+
+  // A finals round PlayHQ has no games in yet, from the division's finals format: that week's games,
+  // with the teams known so far (from the ladder and finished finals) and the rest as "Winner ...".
+  // The time and court aren't known (TBC). None when it isn't a finals round or there's no format.
+  async function unplayedFinals(grade, round) {
+    if (!FINALS_ROUND.test(round.name || '') || !finalsFor(grade.name)) return [];
+    const week = (await getRounds(grade.id)).filter(r => FINALS_ROUND.test(r.name || '')).findIndex(r => r.id === round.id) + 1;
+    let f;
+    try { f = await getFinals({ division: String(grade.division) }); }
+    catch (err) { log('warn', 'fixtures', `${grade.name} ${round.name}: no finals games to show (${err.message})`); return []; }
+    const side = t => (t.name ? { name: t.name, logo: t.logo || logoFor(t.name), score: null } : { name: t.placeholder || 'TBC', logo: null, score: null, placeholder: true });
+    return (f.games || []).filter(g => g.week === week && !g.notNeeded).map(g => ({
+      id: `finals-${grade.name}-${g.id}`, date: '', time: '', court: '', status: 'TBD', toBeDecided: true, name: g.name,
+      division: grade.name, round: round.name, home: side(g.home), away: side(g.away) }));
   }
 
   // The game after the one on the scoreboard: the next timeslot on the same court

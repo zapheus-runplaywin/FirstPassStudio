@@ -28,6 +28,7 @@
   .fixture__team { display: flex; align-items: center; gap: 14px; min-width: 0; text-transform: uppercase; }
   .fixture__team--home { flex-direction: row-reverse; text-align: right; }
   .fixture__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fixture__name--tbd { color: var(--muted); font-style: italic; }
   .fixture__logo { width: 58px; height: 58px; object-fit: contain; flex: none; }
   .fixture__logo.logo-fallback { font-size: 18px; border-width: 3px; box-sizing: border-box; }
   .fixture__vs {
@@ -67,12 +68,14 @@
     if (RESULTS) document.title = 'Round Results';
 
     function clock(time) {
-      const [h, m] = String(time || '').split(':').map(Number);
+      if (!time) return 'TBC';
+      const [h, m] = String(time).split(':').map(Number);
       return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : (time || 'TBC');
     }
     function team(t, side) {
       const box = el('div', `fixture__team fixture__team--${side}`);
-      box.append(logoEl(t, 'fixture__logo'), el('span', 'fixture__name', t.name));
+      // A finals team not decided yet ("Winner Qualifying final") has a question mark for a logo.
+      box.append(logoEl(t.placeholder ? { name: '?' } : t, 'fixture__logo'), el('span', 'fixture__name' + (t.placeholder ? ' fixture__name--tbd' : ''), t.name));
       return box;
     }
 
@@ -103,13 +106,20 @@
           where.append(el('span', 'fixture__court', g.court || ''));
           if (!oneDivision) where.append(el('span', 'fixture__division', g.division));
           if (mixed) where.append(el('span', 'fixture__division', g.round));
+          // A finals game PlayHQ has no fixture for yet: its name from the finals format (Grand Final).
+          if (g.toBeDecided && g.name && g.name !== g.round) where.append(el('span', 'fixture__division', g.name));
           row.append(where, team(g.home, 'home'));
           const played = (RESULTS || DONE.test(g.status || '')) && g.home.score !== null && g.away.score !== null;
           row.append(el('div', 'fixture__vs' + (played ? ' fixture__vs--score' : ''), played ? `${g.home.score} – ${g.away.score}` : 'VS'));
           row.append(team(g.away, 'away'));
           list.append(row);
         }
-        if (!data.games.length) list.append(el('div', 'fixture fixture--empty', RESULTS ? 'No results yet this round' : 'No games found for this round'));
+        // A round PlayHQ has added but has no games in yet (the teams come from tonight's results).
+        const waiting = (data.waiting || []).filter(w => !data.games.some(g => g.division === w.division));
+        if (waiting.length) {
+          const names = waiting.map(w => (oneDivision ? w.round : `${w.division} ${w.round}`)).join(', ');
+          list.append(el('div', 'fixture fixture--empty', `${names}: teams to be decided`));
+        } else if (!data.games.length) list.append(el('div', 'fixture fixture--empty', RESULTS ? 'No results yet this round' : 'No games found for this round'));
         msg.hidden = true;
         document.getElementById('card').hidden = false;
         // Shrink to fit 1080 high when there are a lot of games.
