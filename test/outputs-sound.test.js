@@ -1,6 +1,6 @@
-// Who plays the scene's sound (outputs.js): the Scene View on the Output page (or its pop-out window) only
-// while no video output is on; with one on, the output carries the sound and the Scene View is silent.
-// There's no tick box for it any more.
+// The Scene View (the Output page's, or its pop-out window) never plays sound (outputs.js, output.html): an output's
+// sound plays where its Sound goes to says, on or off, so nothing plays twice and nothing plays from a page that
+// happens to be open. There's no tick box for it, and no listen API, any more.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -14,52 +14,36 @@ outputs.init(() => {});
 // The Mac app telling Studio about its displays: the Mac's own and one more for a chroma output.
 outputs.message({ type: 'displays', displays: [{ id: 1, label: 'Built-in', primary: true }, { id: 2, label: 'HDMI' }] });
 
-test('the Scene View plays the sound only while Video output is off', () => {
+test('the Scene View never plays sound: no sound flags for it, and the outputs are never muted for it', async () => {
   outputs.apply({ mode: 'off' });
-  assert.equal(outputs.state().previewSound, true, 'no output on: the Scene View may play the sound');
-  assert.deepEqual(outputs.listen({ id: 'a', on: true }), { sound: true });
-  assert.equal(outputs.state().listening, true);
-
-  // Turning a video output on: the Scene View goes silent and the output plays the sound (never muted).
+  assert.equal('previewSound' in outputs.state(), false, 'no "the Scene View may play the sound" flag');
+  assert.equal('listening' in outputs.state(), false);
+  assert.equal(outputs.listen, undefined, 'no listen API');
+  // Turning a video output on: the output plays the sound (never muted), as it did before.
   outputs.apply({ mode: 'chroma', chromaDisplay: '2', on: true });
   assert.equal(outputs.windows().length, 1);
   assert.equal(outputs.windows()[0].muted, undefined, 'outputs are never muted for the Scene View');
-  assert.equal(outputs.state().previewSound, false);
-  assert.equal(outputs.state().listening, false);
-  assert.deepEqual(outputs.listen({ id: 'a', on: true }), { sound: false }, 'asking again gets no');
-  assert.deepEqual(outputs.listen({ id: 'b', on: true, take: true }), { sound: false }, 'clicking the Scene View gets no too');
-
-  // Blanking it (Stream Deck /deck/output/off) counts as off: the Scene View can have the sound back.
+  assert.deepEqual(outputs.state().outputs.map(o => 'previewSound' in o || 'listening' in o), [false]);
+  // Blanking it (Stream Deck /deck/output/off) changes nothing for the Scene View.
   outputs.deck(['output', 'off']);
-  assert.equal(outputs.state().previewSound, true);
-  assert.deepEqual(outputs.listen({ id: 'a', on: true }), { sound: true });
+  assert.equal('previewSound' in outputs.state(), false);
   outputs.deck(['output', 'on']);
-  assert.equal(outputs.state().listening, false);
-
-  // An output whose display has gone shows nothing, so the Scene View plays the sound.
-  outputs.message({ type: 'displays', displays: [{ id: 1, label: 'Built-in', primary: true }] });
-  assert.equal(outputs.windows().length, 0);
-  assert.deepEqual(outputs.listen({ id: 'a', on: true }), { sound: true });
+  // The old listen API is gone: the request falls through to whatever else answers.
+  const url = new URL('http://localhost/api/outputs/listen');
+  assert.equal(await outputs.route({ method: 'POST' }, {}, url, { send: () => assert.fail('answered'), readBody: async () => ({ id: 'a', on: true }) }), false);
   outputs.apply({ mode: 'off' });
 });
 
-test('one Scene View at a time, and a click takes it', () => {
-  outputs.apply({ mode: 'off' });
-  outputs.listen({ id: 'a', on: false });
-  assert.deepEqual(outputs.listen({ id: 'a', on: true }), { sound: true });
-  assert.deepEqual(outputs.listen({ id: 'b', on: true }), { sound: false }, 'another page waits its turn');
-  assert.deepEqual(outputs.listen({ id: 'b', on: true, take: true }), { sound: true }, 'clicking its Scene View takes it');
-  assert.deepEqual(outputs.listen({ id: 'a', on: true }), { sound: false });
-  outputs.listen({ id: 'b', on: false });
-  assert.equal(outputs.state().listening, false, 'letting go leaves nobody playing it');
-});
-
-test('an old Scene View sound setting is dropped and the tick box is gone', () => {
+test('an old Scene View sound setting is dropped, and the page says the Scene View is silent', () => {
   outputs.apply({ previewSound: false });
-  assert.equal(outputs.state().previewSound, true, 'the old setting no longer silences the Scene View');
+  assert.equal('previewSound' in outputs.state(), false);
   const saved = JSON.parse(fs.readFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'outputs.json'), 'utf8'));
   assert.equal('previewSound' in saved, false);
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
   assert.doesNotMatch(page, /id="previewSound"/);
-  assert.match(page, /only while <b>Video output<\/b> is off/);
+  assert.doesNotMatch(page, /only while <b>Video output<\/b> is off/);
+  assert.match(page, /id="previewSoundNote">Silent: an output's sound plays where its <b>Sound goes to<\/b> says/);
+  for (const f of ['public/output/preview.js', 'public/preview.html', 'public/output/settings.js', 'public/scene.html']) {
+    assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), /outputs\/listen|previewSound|unlockSound/, `${f} no longer asks to play the sound`);
+  }
 });

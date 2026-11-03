@@ -119,7 +119,7 @@ test('cut to a sequence with music of its own, the scene plays the old song fadi
   await act({ type: 'seqStop' });
 });
 
-test("switching the Output page's Scene View to another output: the music is Output 1's, so the view goes quiet there and plays it again back on Output 1", async t => {
+test("the Output page's Scene View is silent on every output, with the music playing and after a click", async t => {
   const browser = await launch(t);
   if (!browser) return;
   const studio = await startStudio(t, { competition: 'Thunder League' });
@@ -137,58 +137,37 @@ test("switching the Output page's Scene View to another output: the music is Out
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
+  const asks = [];
+  page.on('request', r => { if (r.url().includes('/api/outputs/listen')) asks.push(r.url()); });
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   await act({ type: 'seqPlay', sequence: 'Bed' });
-  // What the Scene View plays: its output, and the music's volume (0 when it isn't playing).
+  await studio.until(async () => (await studio.get('/api/scene')).music?.status === 'playing');
+  // What the Scene View plays: its output, and its music player (never playing: the view is silent).
   const view = () => page.evaluate(() => {
     const f = document.getElementById('previewFrame');
     const src = f.getAttribute('src') || '';
     let p = null;
     try { p = f.contentWindow.musicPlayers?.(); } catch {}
-    return { output: (src.match(/output=([^&]+)/) || [])[1] || 'main', volume: p && p.music.playing ? p.music.volume : 0 };
+    return { output: (src.match(/output=([^&]+)/) || [])[1] || 'main', muted: /mute=1/.test(src), playing: !!(p && p.music.playing) };
   });
-  await page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { const p = f.contentWindow.musicPlayers(); return p.music.playing && p.music.volume > 0.5; } catch { return false; } }, null, { timeout: 15000 });
-  // The sequence plays on both outputs, but its music is Output 1's: the view of Output 2 plays without it.
+  const drawn = () => page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { return !window.previewSwitching() && f.contentWindow.standbyReady(); } catch { return false; } }, null, { timeout: 15000 });
+  await drawn();
+  await page.waitForTimeout(500);
+  assert.deepEqual(await view(), { output: 'main', muted: true, playing: false }, 'the music plays through Output 1\'s Sound goes to, not in the view');
+  assert.match(await page.$eval('#previewSoundNote', el => el.textContent), /^Silent: an output's sound plays where its Sound goes to says/);
+  // A click used to bring the sound here: it no longer does.
+  await page.click('#preview');
+  await page.waitForTimeout(300);
+  assert.equal((await view()).playing, false, 'still silent after a click');
+  // The view of Output 2 is silent too.
   await page.click(`#outTabs button:has-text("${two.name}")`);
   await page.waitForFunction(id => previewOutput === id && !previewSwitching(), two.id, { timeout: 10000 });
+  await drawn();
   await page.waitForTimeout(300);
-  assert.deepEqual(await view(), { output: two.id, volume: 0 }, 'no music in the view of Output 2');
-  // Back to Output 1, the music plays in the view again.
-  await page.click('#outTabs button >> nth=0');
-  await page.waitForFunction(() => !window.previewSwitching() && !/output=/.test(document.getElementById('previewFrame').getAttribute('src')), null, { timeout: 10000 });
-  await page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { const p = f.contentWindow.musicPlayers(); return p.music.playing && p.music.volume > 0.5; } catch { return false; } }, null, { timeout: 15000 });
+  assert.deepEqual(await view(), { output: two.id, muted: true, playing: false });
+  assert.deepEqual(asks, [], 'the page never asks to play the sound');
   assert.deepEqual(errors, []);
   await act({ type: 'seqStop' });
-});
-
-test("the Scene View goes silent as soon as the output it shows starts sending, not at its next check-in", async t => {
-  const browser = await launch(t);
-  if (!browser) return;
-  const studio = await startStudio(t, { competition: 'Thunder League' });
-  assert.equal((await studio.request('POST', '/api/outputs', { add: true })).status, 200);
-  const two = (await studio.get('/api/outputs')).outputs[1];
-  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
-  t.after(() => context.close());
-  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
-  const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', err => errors.push(err.message));
-  await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
-  await page.click(`#outTabs button:has-text("${two.name}")`);
-  await page.waitForFunction(id => previewOutput === id && !previewSwitching(), two.id, { timeout: 10000 });
-  const note = () => page.$eval('#previewSoundNote', el => el.textContent);
-  assert.doesNotMatch(await note(), /this output is on/);
-  // Output 2 starts sending (Output 1 stays off): the Scene View showing it is told at once.
-  const asks = [];
-  page.on('request', r => { if (r.url().endsWith('/api/outputs/listen')) asks.push(JSON.parse(r.postData() || '{}')); });
-  await page.evaluate(id => showOut({ ...out, outputs: out.outputs.map(o => o.id === id ? { ...o, previewSound: false } : o) }), two.id);
-  await page.waitForFunction(() => /this output is on, so it plays its own sound/.test(document.getElementById('previewSoundNote').textContent), null, { timeout: 1500 });
-  assert.ok(asks.some(a => a.output === two.id && a.on === false), JSON.stringify(asks));
-  // And back off: it may play that output's sound again straight away.
-  await page.evaluate(id => showOut({ ...out, outputs: out.outputs.map(o => o.id === id ? { ...o, previewSound: true } : o) }), two.id);
-  await page.waitForFunction(() => !/this output is on/.test(document.getElementById('previewSoundNote').textContent), null, { timeout: 1500 });
-  assert.ok(asks.some(a => a.output === two.id && a.on === true), JSON.stringify(asks));
-  assert.deepEqual(errors, []);
 });
 
 test('a page that opens while a video plays joins it where the output has got to, and a restart is from the top', async t => {

@@ -74,7 +74,7 @@ test('names are kept apart and usable in links; outputs are found by name or num
   assert.equal(outputs.find(two.id).id, two.id);
 });
 
-test('each output sends its own way out with its own sound, and a Scene View plays the sound of an output that isn\'t on', () => {
+test('each output sends its own way out with its own sound, never muted for the Scene View', () => {
   const big = byName('Big screen'), three = byName('Big Screen 2');
   outputs.apply({ output: 'main', mode: 'decklink', decklinkDevice: 'dl', on: true });
   outputs.apply({ output: big.id, mode: 'ndi', ndiSignal: 'fillkey', on: true });
@@ -82,15 +82,7 @@ test('each output sends its own way out with its own sound, and a Scene View pla
   const w = outputs.windows();
   assert.deepEqual(w.map(x => [x.output, x.kind]), [['main', 'decklink'], [big.id, 'ndi'], [three.id, 'chroma']]);
   assert.deepEqual(w.map(x => !!x.muted), [false, false, false], 'every output plays its own sound');
-  assert.equal(st().previewSound, false, 'the primary is on, so a Scene View of it is silent');
-  assert.deepEqual(st().outputs.filter(o => [big.id, three.id].includes(o.id)).map(o => o.previewSound), [false, false]);
-  outputs.apply({ output: big.id, on: false });
-  assert.equal(st().outputs.find(o => o.id === big.id).previewSound, true, 'Big screen is off, so a Scene View of it may play its sound');
-  assert.deepEqual(outputs.listen({ id: 'page', on: true, output: big.id }), { sound: true });
-  assert.equal(st().outputs.find(o => o.id === big.id).listening, true);
-  assert.deepEqual(outputs.listen({ id: 'page', on: true, output: three.id }), { sound: false }, 'not while that output is on');
-  outputs.listen({ id: 'page', on: false });
-  outputs.apply({ output: big.id, on: true });
+  assert.ok(st().outputs.every(o => !('previewSound' in o)), 'the Scene View never plays an output\'s sound, on or off');
 });
 
 test('two chroma outputs over HDMI on two displays, each with its own colour', () => {
