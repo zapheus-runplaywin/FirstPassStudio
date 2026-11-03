@@ -59,3 +59,28 @@ test('the fixture has no one round heading when divisions are on different round
   assert.ok(f.games.every(g => g.round));
   assert.equal((await get('/api/fixtures?division=2')).round, 'Finals Round 1', 'one division still has its round');
 });
+
+test('up next follows the scoreboard game\'s own day and court, whatever night is picked and whatever round each game is in', async () => {
+  const pick = x => studio.post('/api/scoreboard', { type: 'selectGame', game: { id: x.id, roundId: x.roundId, division: x.division, court: x.court, date: x.date, time: x.time, home: { name: x.home }, away: { name: x.away } } });
+  const now = studio.world.gameNow(0); // Division 1 Round 3, Court 1, tonight
+  try {
+    await studio.post('/api/scoreboard', { type: 'autoSelect', value: false });
+    await pick(now);
+    // Tonight's next game on Court 1 is Division 2's, in Finals Round 1.
+    let u = await get('/api/upnext');
+    assert.equal(`${u.home.name} v ${u.away.name}`, 'Stormz v Semi Pro');
+    assert.equal(u.round, 'Finals Round 1');
+    // A different game night picked by hand doesn't move up next off the scoreboard's game.
+    await studio.post('/api/rounds', { night: studio.world.divisions[0].rounds[3].games[0].date });
+    await pick(now);
+    u = await get('/api/upnext');
+    assert.equal(u.after.home, 'Blizzardz', 'counts on from the game on the scoreboard');
+    assert.equal(`${u.home.name} v ${u.away.name}`, 'Stormz v Semi Pro');
+    assert.equal(u.date, studio.world.today);
+    // The intro and outro are about the scoreboard's game too.
+    assert.equal((await get('/api/introoutro')).round, 'Round 3');
+  } finally {
+    await studio.post('/api/rounds', { night: '' });
+    await studio.post('/api/scoreboard', { type: 'autoSelect', value: true });
+  }
+});
