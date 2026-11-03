@@ -140,7 +140,8 @@ test("switching the Output page's Scene View to another output keeps the music g
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   await act({ type: 'seqPlay', sequence: 'Bed' });
   // What each Scene View frame on the page plays: its output, and the music's volume (0 when it isn't playing).
-  const frames = () => page.$$eval('#preview iframe', els => els.map(f => {
+  // Read in one go in the page: a frame the page removes between finding it and reading it would read as silent.
+  const frames = () => page.evaluate(() => [...document.querySelectorAll('#preview iframe')].map(f => {
     const src = f.getAttribute('src') || '';
     let p = null;
     try { p = f.contentWindow.musicPlayers?.(); } catch {}
