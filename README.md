@@ -594,7 +594,8 @@ follows the PlayHQ scorer too (you can still change it in between). The clock ma
 **Follow PlayHQ** and **Manual** (or a score press switching to manual) also turns **Follow the PlayHQ scorer's clock** on or off,
 and the control page says so. You can still change the clock afterwards (the tick box, `/deck/clock/playhq/on|off`, or
 any clock button, which switches it back to manual). Otherwise press +1 / +2 / -1 / -2 (or keys A/Z for home, K/M for away,
-with Shift for 2) and it switches to manual. The quarter and the countdown clock (Space starts and stops it) are run from the control page.
+with Shift for 2) and it switches to manual. Pressing **Follow PlayHQ** again while PlayHQ is behind your hand score (a scorebench
+still catching up) keeps your score, quarter and clock until PlayHQ catches up or has something new. The quarter and the countdown clock (Space starts and stops it) are run from the control page.
 Everything can also be run from a Stream Deck: see `STREAMDECK.md`, or the Devices tab at http://localhost:8080/api.html (the Devices list on top, the Stream Deck plugin, links and API reference under it). To line it up with the venue clock, type the venue's time (e.g. 12:34) in
 **Match venue clock** and press Enter. Studio runs one scoreboard: for a second court, run a second Studio on another Mac.
 Scoreboard position: by default it is centred at the bottom, just above the score ticker with a small gap, so both can be on screen together. `?position=top-center`, `bottom-center`, `top-left` or `bottom-left` moves it.
