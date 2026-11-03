@@ -224,6 +224,9 @@ function cleanMusic(v) {
     startStep: Math.round(clamp(m.startStep, 1, 100, 1)),
     startAtSec: Math.round(clamp(m.startAtSec, 0, 3600, 0) * 10) / 10,
     fadeInSec: clamp(m.fadeInSec, 0, 30, 2),
+    // Starts under the end of a video with its sound on in the step before, its fade in long, while the video's sound
+    // fades out (a crossfade from the video).
+    ...(m.underVideo ? { underVideo: true } : {}),
   };
 }
 // How the music ends with the sequence: fade out (sec), cut, carry on into the sequence it hands over to, or
@@ -526,6 +529,7 @@ function schedule() {
   timer = null;
   if (run && !run.paused && run.endsAt !== null) timer = setTimeout(bound(tick), Math.max(0, run.endsAt - now()));
   planFade();
+  planCross();
 }
 // How long the music fades out over as step i ends, when it ends there: the sequence's music on its last
 // step (played once), or a sequence inside's music on that one's last step. 0 when it doesn't end, cuts, or
@@ -601,7 +605,43 @@ function planFade() {
     // the music stops it.
     if (playingOn(run.id).length > 1) music.leave(run.id, here, sec, true);
     else sound().stopFor(run.id, sec);
+    // The output pages follow the fade from the scene they're sent: send it now, as the fade starts. (Without this
+    // they heard of it only at the step's end, by when it had finished, and the music cut.)
+    api.changed();
   }), Math.max(0, plan.endAt - plan.sec * 1000 - now()));
+}
+// A step with a video playing its sound, before a step whose music crossfades from it (its music's underVideo): the
+// music starts its fade in time before the video ends, fading in while the video's sound fades out, so the two meet
+// as the video ends. With the video's length unknown (or a step that doesn't end with it) the music starts with the
+// next step as usual.
+function planCross() {
+  if (!run) return;
+  clearTimeout(run.crossTimer);
+  run.crossTimer = null;
+  const st = current(), nx = run.steps[run.step + 1];
+  if (run.paused || !st || !nx || run.crossed === run.step + 1) return;
+  const m = musicStartsOn(nx);
+  if (!m || !m.sq.music.underVideo || !(m.sq.music.fadeInSec > 0)) return;
+  if (musicOf(st)?.occ === m.occ) return;
+  const vids = st.sources.filter(id => { const s = source(id); return s && s.type === 'video' && s.sound && !s.loop && isOn(s); });
+  const lens = vids.map(id => api.duration(source(id).file)).filter(Boolean);
+  if (!lens.length) return;
+  let endAt = run.stepAt + Math.max(...lens) * 1000;
+  if (st.length.type === 'time') endAt = Math.min(endAt, run.endsAt);
+  else if (st.length.type !== 'done') return;
+  const r = run;
+  run.crossTimer = setTimeout(bound(() => {
+    if (run !== r) return;
+    run.crossTimer = null;
+    if (run.paused) return;
+    const sec = Math.max(0.1, (endAt - now()) / 1000);
+    run.crossed = run.step + 1;
+    for (const id of vids) api.fadeSound?.(id, here, sec);
+    if (leads()) musicPart = { id: run.id, occ: m.occ };
+    sound().playFor(run.id, m.sq.music, sec);
+    log('info', 'sequence', `"${m.sq.name}"'s music starts under the end of the video, crossfading over ${Math.round(sec * 10) / 10} s`);
+    api.changed();
+  }), Math.max(0, endAt - m.sq.music.fadeInSec * 1000 - now()));
 }
 // What's left of a fade out already under way, or the whole of it.
 const fadeLeft = (r, sec) => r.fadeEndsAt ? Math.max(0, r.fadeEndsAt - now()) / 1000 : sec;
@@ -630,6 +670,9 @@ function enter(i) {
   const step = run.steps[i];
   if (step.kind === 'ad') fillAd(step);
   const faded = { fadeEndsAt: run.fadeEndsAt };
+  // This step's music already started under the end of the video before it (planCross).
+  const crossed = run.crossed === i;
+  run.crossed = null;
   const sc = step.kind === 'scene' ? api.scene(step.scene) : null;
   // Sources of the step before that this step doesn't keep go off as these come on.
   const keep = new Set([...step.sources, ...(sc ? Object.keys(sc.states).filter(id => sc.states[id] === 'on') : [])]);
@@ -658,7 +701,7 @@ function enter(i) {
   // Music: the sequence's own, or with none, that of a sequence inside it while that one plays.
   const m = musicOf(step), was = before ? musicOf(before) : null;
   // Out of a sequence inside whose music was on: it ends as that sequence's music ends (fade or cut).
-  if (was && was.occ && (!m || m.occ !== was.occ) && was.sq.musicEnd.type !== 'continue') {
+  if (was && was.occ && (!m || m.occ !== was.occ) && was.sq.musicEnd.type !== 'continue' && !crossed) {
     const sec = was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || music.STOP_FADE_SEC);
     // Other outputs still in that part keep its music: it fades out on this one alone. The last out of it ends it,
     // unless the music has moved on to a later part already (an output ahead started it).
@@ -708,6 +751,7 @@ function finish(why) {
   const sq = playing();
   clearTimeout(timer);
   clearTimeout(fadeTimer);
+  clearTimeout(run.crossTimer);
   timer = fadeTimer = null;
   const ended = run;
   // The card says Stopped for it here until it plays again.
@@ -775,6 +819,7 @@ function interrupt(keep, why) {
   const sq = playing();
   clearTimeout(timer);
   clearTimeout(fadeTimer);
+  clearTimeout(run.crossTimer);
   timer = fadeTimer = null;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
   cut = sq ? sq.id : null;

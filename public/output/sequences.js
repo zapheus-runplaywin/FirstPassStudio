@@ -270,6 +270,7 @@ function openSequence(sq) {
   $('sqMusicStep').value = dm?.startStep || 1;
   $('sqMusicMark').value = dm?.startAtSec || 0;
   $('sqMusicFade').value = dm?.fadeInSec ?? 2;
+  $('sqMusicUnderVideo').checked = !!dm?.underVideo;
   const end = draft.musicEnd || { type: 'fade', sec: 3 };
   $('sqMusicEnd').value = end.type;
   $('sqMusicEndSec').value = end.sec || 3;
@@ -510,7 +511,8 @@ function draftChanges() {
     : type === 'fulltime' ? { type, afterSec: Number($('sqAfter').value) || 0 } : { type: 'hand' };
   const mus = $('sqMusic').value, endType = $('sqMusicEnd').value;
   const musicChoice = !mus ? null : { ...(mus.startsWith('playlist:') ? { playlist: mus.slice(9) } : { track: mus.slice(6) }),
-    startStep: Number($('sqMusicStep').value) || 1, startAtSec: Number($('sqMusicMark').value) || 0, fadeInSec: Number($('sqMusicFade').value) || 0 };
+    startStep: Number($('sqMusicStep').value) || 1, startAtSec: Number($('sqMusicMark').value) || 0, fadeInSec: Number($('sqMusicFade').value) || 0,
+    ...($('sqMusicUnderVideo').checked ? { underVideo: true } : {}) };
   return { name: $('sqName').value.trim(), colour: $('sqColour').value, repeat, start, music: musicChoice, quiet: $('sqQuiet').checked, hidden: $('sqHidden').checked,
     musicEnd: endType === 'fade' || endType === 'crossfade' ? { type: endType, sec: Number($('sqMusicEndSec').value) || 3 } : { type: endType },
     ...(repeat === 'until' ? { until: moment === 'before' ? { moment, min: Number($('sqUntilMin').value) || 0 } : { moment } } : {}),
