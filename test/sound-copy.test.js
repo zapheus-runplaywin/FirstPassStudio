@@ -142,3 +142,38 @@ test('the copy\'s window plays to its device only, opens only its own mics (or e
   await page.evaluate(() => document.querySelector('#outSound .soundDest:nth-child(2) button').click());
   await studio.until(async () => (await studio.get('/api/outputs')).sound.length === 1);
 });
+
+// 3 Nov: an AD's sound reached the SDI but not the commentators' mixer. The copy had played videos through a sound-only
+// player, which stayed silent on the Mac for that file; it now plays them as the output does, in a video element.
+test('the copy plays a video\'s sound the way the output does, to its device, and from the start when it was already on', async t => {
+  const browser = await launch(t);
+  if (!browser) return;
+  const studio = await startStudio(t);
+  fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
+  fs.copyFileSync(path.join(__dirname, 'fixtures', 'clip-sound.webm'), path.join(studio.dataDir, 'media', 'Ad.webm'));
+  const context = await browser.newContext();
+  t.after(() => context.close());
+  await context.grantPermissions(['microphone'], { origin: studio.base });
+  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
+  const id = (await act({ type: 'add', sources: [{ type: 'video', name: 'Ad', file: 'Ad.webm', sound: true, loop: true }] })).sources[0].id;
+  const playing = page => page.waitForFunction(() => [...layers.values()].some(L => {
+    const v = L.el.querySelector('video');
+    return v && v.tagName === 'VIDEO' && !v.paused && !v.muted && v.currentTime > 0.3 && v.sinkId === sinkId;
+  }), null, { timeout: 10000 }).catch(async err => {
+    console.log(await page.evaluate(() => [...layers.values()].map(L => { const v = L.el.querySelector('video'); return v && { tag: v.tagName, paused: v.paused, muted: v.muted, t: v.currentTime, sink: v.sinkId, want: sinkId, err: v.error && v.error.message, vis: L.src.visible }; })));
+    throw err;
+  });
+
+  // Shown after the copy found its device.
+  const copy = await context.newPage();
+  await copy.goto(`${studio.base}/scene.html?copy=1&sink=${encodeURIComponent('Fake Audio Output 1')}`, { waitUntil: 'load' });
+  await copy.waitForFunction(() => sinkId && !silent, null, { timeout: 10000 });
+  await act({ type: 'show', id });
+  await playing(copy);
+
+  // Already on when a copy opens (the output turned on part way through): it isn't left muted while it loads.
+  const late = await context.newPage();
+  await late.goto(`${studio.base}/scene.html?copy=1&sink=${encodeURIComponent('Fake Audio Output 2')}`, { waitUntil: 'load' });
+  await playing(late);
+  assert.doesNotMatch(studio.log(), /Sound copy: "Ad" isn't playing/);
+});
