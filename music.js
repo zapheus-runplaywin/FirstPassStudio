@@ -25,7 +25,8 @@
 //     fades out under it there by its own Music ends.
 //   - "Quiet the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
 //     or a sequence's) ducks low and keeps playing until the next scene, sequence or step without it.
-//   - A stinger with ?music=quiet or ?music=dip (stinger.html): the music ducks quickly as it sweeps in, so it's down
+//   - A stinger with ?music=quiet or ?music=duck (stinger.html; the Switcher card's Music under it), on the output the stinger
+//     plays on (scene.js stingerMusic): the music ducks quickly as it sweeps in, so it's down
 //     by the time the frame is covered. quiet leaves it down for the scene cut to under it (as Quiet the music does,
 //     until the next scene, sequence or step without it); dip brings it back up as the stinger leaves.
 //   - The super shot song (a setting, with its own volume): when the scoreboard's super shot period starts

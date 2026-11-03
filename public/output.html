@@ -933,7 +933,9 @@
       <div class="row swKeys swStingerRow" style="margin-top:10px"><span class="swLabel">Stinger</span><span class="note" id="swStingerName" style="margin:0"></span>
         <label class="inline" style="font-weight:400" title="Frames to cut later (or earlier, below 0) than the middle of the stinger, for the delay of that output's picture into the switcher. Each output keeps its own."><span id="swLineupLabel">line-up</span>
           <input type="number" id="swLineup" min="-25" max="25" step="1" style="width:64px"> frames</label>
-        <button class="alt" id="swLineupTest" title="Cuts to the preview input just 2 frames after the stinger covers the frame: if the old picture flashes before the bands, add frames">Test the line-up</button></div>
+        <button class="alt" id="swLineupTest" title="Cuts to the preview input just 2 frames after the stinger covers the frame: if the old picture flashes before the bands, add frames">Test the line-up</button>
+        <label class="inline" style="font-weight:400" title="What the music does under the stinger, on the output it plays on. Quieted: down by the time the frame is covered and kept down for the scene cut to, until a scene, sequence or step that doesn't quiet it. Ducks: down the same way and back up as the stinger leaves. Saved with the stinger source (the same choice as Music in its options).">Music under it
+          <select id="swStingerMusic"><option value="">Carries on as it is</option><option value="quiet">Quieted for the next scene</option><option value="duck">Ducks while it plays</option></select></label></div>
     </div>
     <div id="swForm" class="hidden" style="margin-top:12px">
       <div class="row"><button class="alt" id="swFind">Look for switchers</button><span class="note" id="swFindNote" style="margin:0"></span></div>
