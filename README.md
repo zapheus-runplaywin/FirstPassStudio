@@ -437,7 +437,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   on elsewhere takes over, and the old fades out as the tail by its Music ends (`sequences.musicEndSec`). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
   pauses under a visible video with sound on, on an output it plays on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
-  startAtSec, fadeInSec; `musicEnd`: fade, cut, or continue into a `then: { type: 'sequence' }`; with none, a sequence step's own
+  startAtSec, fadeInSec; `musicEnd`: fade (planned to start early enough to last its whole time across short timed steps), cut, continue into a `then: { type: 'sequence' }`, or crossfade (plays to the end, then fades out as the tail under different music that starts on the next step or sequence; else a fade); with none, a sequence step's own
   music plays while that step's sequence does), and scenes and sequences can be `quiet`.
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
 - **Scene View:** the scene as it is right now, on a checkerboard so see-through parts show (your switcher decides whether it's on air). It runs the scene's pages a second time, so untick

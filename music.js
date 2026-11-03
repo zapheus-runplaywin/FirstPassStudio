@@ -246,6 +246,8 @@ function play(fade, fromSec = 0) {
 function stop(fade) {
   if (p.status === 'stopped') return null;
   const sec = p.status === 'paused' ? 0 : fadeOut(fade);
+  // Already fading out to a stop: a second stop can make it sooner, never later (the fade it's in keeps its time).
+  if (p.after === 'stop' && p.gain.to === 0 && sec * 1000 >= p.gain.at + p.gain.ms - now()) return null;
   // It fades out where it was heard as it stopped (its sequence has stopped playing anywhere by now).
   if (p.after !== 'stop') p.stopOn = outputsNow();
   log('info', 'music', `Stopping ${track()}${sec ? `, fading out over ${sec} s` : ''}`);

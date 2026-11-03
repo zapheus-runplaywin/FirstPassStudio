@@ -313,6 +313,114 @@ test("with sequences inside sequences, the one playing the music (the outermost 
   assert.equal(m().status, 'stopped');
 });
 
+test("a sequence inside fades its music over the whole fade time, starting in an earlier step when its last steps are short", () => {
+  reset();
+  const ladder = sec => ({ sources: [id('Ladder')], length: { type: 'time', sec } });
+  // Hype's last step (2 s) is shorter than its 6 s fade: the fade starts 4 s before that step, so it isn't squeezed into 2 s.
+  ok({ type: 'seqAdd', changes: { name: 'Hype', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 6 }, steps: [ladder(10), ladder(2)] } });
+  const hype = st().sequences.find(s => s.name === 'Hype').id;
+  ok({ type: 'seqAdd', changes: { name: 'Break', musicEnd: { type: 'fade', sec: 6 }, steps: [ladder(5), { kind: 'sequence', sequence: hype }, ladder(10)] } });
+  ok({ type: 'seqPlay', sequence: 'Break' });
+  wait(5);
+  assert.equal(m().status, 'playing');
+  wait(5.5);
+  assert.equal(gain(), 1, 'full until 6 s before Hype ends');
+  wait(0.5);
+  assert.equal(st().playing.step, 1);
+  assert.equal(m().gain.to, 0);
+  assert.equal(m().gain.ms, 6000, 'over the whole 6 s');
+  wait(4);
+  assert.equal(st().playing.step, 2, 'into its 2 s last step, still fading');
+  assert.ok(gain() > 0 && gain() < 0.5);
+  assert.equal(m().gain.ms, 6000, 'the same fade carries on into the next step');
+  wait(2);
+  assert.equal(st().playing.step, 3);
+  assert.equal(m().status, 'stopped', 'gone as Hype ends');
+  ok({ type: 'seqStop' });
+  // The same on a sequence of its own, and a scene step (straight on) at the end counts as no time.
+  ok({ type: 'show', name: 'Interview' });
+  ok({ type: 'sceneSave', name: 'Game' });
+  ok({ type: 'hide', name: 'Interview' });
+  ok({ type: 'seqUpdate', sequence: 'Hype', changes: { steps: [ladder(10), ladder(1), { kind: 'scene', scene: st().scenes.find(s => s.name === 'Game').id }] } });
+  ok({ type: 'seqPlay', sequence: 'Hype' });
+  wait(5);
+  assert.equal(m().gain.to, 0, 'fading from 6 s before the end');
+  assert.equal(m().gain.ms, 6000);
+  wait(5);
+  wait(1);
+  wait(1);
+  assert.equal(st().playing, null);
+  assert.equal(m().status, 'stopped');
+});
+
+test("Music ends Crossfades into the next music: it plays to the end, then fades out under the next step's or sequence's different music", () => {
+  reset();
+  const ladder = sec => ({ sources: [id('Ladder')], length: { type: 'time', sec } });
+  const xf = { type: 'crossfade', sec: 6 };
+  ok({ type: 'seqAdd', changes: { name: 'Hype', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: xf, steps: [ladder(10)] } });
+  ok({ type: 'seqAdd', changes: { name: 'Bed', music: { track: 'Break.mp3', fadeInSec: 2 }, musicEnd: { type: 'fade', sec: 4 }, steps: [ladder(10)] } });
+  ok({ type: 'seqAdd', changes: { name: 'Same', music: { track: 'Walk out.m4a', fadeInSec: 0 }, steps: [ladder(10)] } });
+  const [hype, bed, same] = ['Hype', 'Bed', 'Same'].map(n => st().sequences.find(s => s.name === n).id);
+  assert.deepEqual(st().sequences.find(s => s.id === hype).musicEnd, xf, 'kept as set');
+  // Inside another sequence, followed by a sequence with different music.
+  ok({ type: 'seqAdd', changes: { name: 'Break', steps: [{ kind: 'sequence', sequence: hype }, { kind: 'sequence', sequence: bed }, ladder(10)] } });
+  ok({ type: 'seqPlay', sequence: 'Break' });
+  wait(9.5);
+  assert.equal(gain(), 1, 'no fade before the end');
+  assert.equal(m().track, 'Walk out.m4a');
+  wait(0.5);
+  assert.equal(st().playing.step, 1);
+  assert.equal(m().track, 'Break.mp3', 'the new music starts');
+  assert.equal(m().gain.to, 1, 'fading in');
+  assert.equal(m().tail?.track, 'Walk out.m4a', 'the old song fades out under it');
+  assert.equal(m().tail.gain.to, 0);
+  assert.equal(m().tail.gain.ms, 6000, "over Hype's 6 s");
+  wait(6);
+  assert.equal(m().tail, null, 'the crossfade is done');
+  ok({ type: 'seqStop' });
+  // With no new music straight after (or the same song), it fades out by the end as Fades out does.
+  ok({ type: 'seqAdd', changes: { name: 'Quiet end', steps: [{ kind: 'sequence', sequence: hype }, ladder(10)] } });
+  ok({ type: 'seqPlay', sequence: 'Quiet end' });
+  wait(4);
+  assert.equal(m().gain.to, 0, 'fading over its last 6 s');
+  wait(6);
+  assert.equal(m().status, 'stopped');
+  assert.equal(m().tail, null);
+  ok({ type: 'seqStop' });
+  ok({ type: 'seqAdd', changes: { name: 'Twice', steps: [{ kind: 'sequence', sequence: hype }, { kind: 'sequence', sequence: same }] } });
+  ok({ type: 'seqPlay', sequence: 'Twice' });
+  wait(4);
+  assert.equal(m().gain.to, 0, 'the same song next: no crossfade into itself');
+  ok({ type: 'seqStop' });
+  // A sequence of its own whose Then plays a sequence with different music.
+  ok({ type: 'seqUpdate', sequence: 'Hype', changes: { then: { type: 'sequence', sequence: bed } } });
+  ok({ type: 'seqPlay', sequence: 'Hype' });
+  wait(9.5);
+  assert.equal(gain(), 1);
+  wait(0.5);
+  assert.equal(st().sequences.find(s => s.id === st().playing.id).name, 'Bed');
+  assert.equal(m().track, 'Break.mp3');
+  assert.equal(m().tail?.track, 'Walk out.m4a');
+  assert.equal(m().tail.gain.ms, 6000);
+  ok({ type: 'seqStop' });
+});
+
+test('a second stop while the music fades out never makes the fade longer', () => {
+  reset();
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  ok({ type: 'musicStop', fade: 4 });
+  wait(3);
+  ok({ type: 'musicStop', fade: 6 });
+  assert.equal(m().gain.ms, 4000, 'the fade it was in keeps its time');
+  wait(1);
+  assert.equal(m().status, 'stopped');
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  ok({ type: 'musicStop', fade: 6 });
+  wait(1);
+  ok({ type: 'musicStop', fade: 0 });
+  assert.equal(m().status, 'stopped', 'sooner is fine');
+});
+
 test('Quiet the music: a scene ducks the player, the next scene brings it back; a sequence\'s music ducks too', () => {
   reset();
   ok({ type: 'show', name: 'Interview' });

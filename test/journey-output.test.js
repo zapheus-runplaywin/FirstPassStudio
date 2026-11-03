@@ -245,6 +245,29 @@ test('a quarter-break sequence built in the editor: Save and play runs its steps
   assert.deepEqual(output.errors, []);
 });
 
+test('the sequence editor saves Music ends Crossfades into the next music, with its time', async t => {
+  const { studio, control } = await setUp(t);
+  if (!control) return;
+  await control.waitForSelector('#sources li.empty');
+  await addPage(control, 'ladder.html');
+  await control.click('#addSeq');
+  await control.fill('#sqName', 'Hype');
+  await control.click('#sqAddStep');
+  await control.selectOption('#sqSteps .stepRow >> nth=0 >> select[aria-label="Add a source"]', { label: 'Ladder' });
+  await control.selectOption('#sqMusicEnd', 'cut');
+  assert.equal(await control.isVisible('#sqMusicEndSec'), false, 'no time for Cuts');
+  await control.selectOption('#sqMusicEnd', 'crossfade');
+  assert.equal(await control.isVisible('#sqMusicEndSec'), true, 'a time for the crossfade');
+  await control.fill('#sqMusicEndSec', '6');
+  await control.click('#sqSave');
+  await control.waitForSelector('#seqs .seq b:has-text("Hype")');
+  assert.deepEqual((await studio.get('/api/scene')).sequences[0].musicEnd, { type: 'crossfade', sec: 6 });
+  await control.click('#seqs .seq .edit');
+  assert.equal(await control.inputValue('#sqMusicEnd'), 'crossfade', 'shown again as saved');
+  assert.equal(await control.inputValue('#sqMusicEndSec'), '6');
+  assert.deepEqual(control.errors, []);
+});
+
 test('the sequence editor won\'t save a sequence without a name or steps, and says why', async t => {
   const { control } = await setUp(t);
   if (!control) return;
