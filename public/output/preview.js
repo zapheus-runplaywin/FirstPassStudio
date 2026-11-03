@@ -11,6 +11,7 @@ let out = null;
 // in every few seconds and lets go when it closes.
 const listenId = Math.random().toString(36).slice(2);
 let previewSound = false;
+let soundFor = null; // the output previewSound was last answered for
 // Whether a Scene View of the output it shows may play that output's sound now.
 const viewSound = () => { const o = out && out.outputs && out.outputs.find(x => x.id === previewOutput); return !!(o ? o.previewSound : out && out.previewSound); };
 const applySound = () => { try { $('previewFrame').contentWindow.setSilent?.(!previewSound); } catch {} soundNote(); };
@@ -41,12 +42,16 @@ $('preview').addEventListener('click', () => {
   listen(true);
 });
 $('previewFrame').addEventListener('load', applySound);
+// For the tests: whether a switch to another output is still standing by.
+window.previewSwitching = () => !!standby;
 async function listen(take = false) {
   const on = !!(out && viewSound() && $('previewOn').checked && !popped);
+  const output = previewOutput;
   try {
-    const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take, output: previewOutput }) });
+    const r = await fetch('/api/outputs/listen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: listenId, on, take, output }) });
     previewSound = !!(await r.json()).sound;
   } catch { previewSound = false; }
+  soundFor = output;
   applySound();
 }
 setInterval(() => listen(), 5000);
@@ -99,12 +104,54 @@ function setPreview(on) {
 }
 var chromaWas = false; // whether the chroma output is chroma key safe (var: showPreview can run before the outputs load)
 // The preview here runs only while it's on and not popped out into its own window (preview.html).
+// Switching the Scene View to another output: the new output's page loads beside the one showing, standing by (its music
+// playing along at no volume), and takes over once it has drawn and its music plays, or after STANDBY_MS. So the sound
+// and the picture carry straight on instead of stopping for a moment while the page loads. Anything else (turning Live
+// View on or off, popping out) just loads the page.
+const STANDBY_MS = 3000;
+let standby = null; // { frame, timer } while the next output's page stands by
+function frameTo(src) {
+  const cur = $('previewFrame');
+  if (standby) {
+    if (standby.frame.getAttribute('src') === src) return;
+    clearInterval(standby.timer);
+    standby.frame.remove();
+    standby = null;
+  }
+  const was = cur.getAttribute('src') || '';
+  if (was === src) return;
+  if (!was.startsWith('/scene.html') || !src.startsWith('/scene.html')) { cur.src = src; return; }
+  const next = cur.cloneNode(false);
+  next.removeAttribute('id');
+  next.style.visibility = 'hidden';
+  next.src = src;
+  cur.after(next);
+  const started = Date.now();
+  let loaded = false;
+  next.addEventListener('load', () => { loaded = true; try { next.contentWindow.setStandby?.(true); } catch {} }, { once: true });
+  standby = { frame: next, timer: setInterval(() => {
+    let ready = false;
+    // Ready once it plays, and this page knows whether it may play that output's sound.
+    try { ready = loaded && soundFor === previewOutput && !!next.contentWindow.standbyReady?.(); } catch {}
+    if (!ready && Date.now() - started < STANDBY_MS) return;
+    clearInterval(standby.timer);
+    standby = null;
+    cur.remove();
+    next.id = 'previewFrame';
+    next.style.visibility = '';
+    next.addEventListener('load', applySound);
+    fitPreview();
+    // Its sound on first (it carries on from the music it played along with), then out of standby.
+    applySound();
+    try { next.contentWindow.setStandby?.(false); } catch {}
+  }, 50) };
+}
 function showPreview() {
   const on = $('previewOn').checked, here = on && !popped;
   // While a chroma output is chroma key safe, the Live View shows the scene that way too.
   const which = previewOutput && previewOutput !== 'main' ? `&output=${encodeURIComponent(previewOutput)}` : '';
   const src = here ? `/scene.html?mute=1${which}${chromaWas ? '&chromaKey=true' : ''}` : 'about:blank';
-  if ($('previewFrame').getAttribute('src') !== src) $('previewFrame').src = src;
+  frameTo(src);
   $('previewOff').classList.toggle('hidden', here);
   $('preview').classList.toggle('picked', !!(out && out.outputs && out.outputs.length > 1));
   $('previewOffText').textContent = popped ? 'The Scene View is in its own window' : 'Live View is off';

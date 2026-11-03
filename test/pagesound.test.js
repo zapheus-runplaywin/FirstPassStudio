@@ -118,3 +118,56 @@ test('cut to a sequence with music of its own, the scene plays the old song fadi
   assert.equal((await page.evaluate(() => window.musicPlayers())).music.src, 'Walk.wav');
   await act({ type: 'seqStop' });
 });
+
+test("switching the Output page's Scene View to another output keeps the music going: the new view stands by until it plays", async t => {
+  const browser = await launch(t);
+  if (!browser) return;
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
+  fs.writeFileSync(path.join(studio.dataDir, 'media', 'Bed.wav'), quiet(120));
+  assert.equal((await studio.request('POST', '/api/outputs', { add: true })).status, 200);
+  const two = (await studio.get('/api/outputs')).outputs[1];
+  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  await act({ type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }] });
+  const ladder = (await studio.get('/api/scene')).sources.find(s => s.name === 'Ladder').id;
+  await act({ type: 'seqAdd', changes: { name: 'Bed', playsOn: ['main', two.id], music: { track: 'Bed.wav', fadeInSec: 0 }, steps: [{ sources: [ladder], length: { type: 'time', sec: 120 } }] } });
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  t.after(() => context.close());
+  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', err => errors.push(err.message));
+  await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
+  await act({ type: 'seqPlay', sequence: 'Bed' });
+  // What each Scene View frame on the page plays: its output, and the music's volume (0 when it isn't playing).
+  const frames = () => page.$$eval('#preview iframe', els => els.map(f => {
+    const src = f.getAttribute('src') || '';
+    let p = null;
+    try { p = f.contentWindow.musicPlayers?.(); } catch {}
+    return { id: f.id, output: (src.match(/output=([^&]+)/) || [])[1] || 'main', hidden: f.style.visibility === 'hidden', volume: p && p.music.playing ? p.music.volume : 0 };
+  }));
+  await page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { const p = f.contentWindow.musicPlayers(); return p.music.playing && p.music.volume > 0.5; } catch { return false; } }, null, { timeout: 15000 });
+  await page.click(`#outTabs button:has-text("${two.name}")`);
+  // Until the new view takes over, the one showing keeps playing at its level; then the new one plays straight on at it.
+  const seen = [];
+  const end = Date.now() + 10000;
+  while (Date.now() < end) {
+    const f = await frames();
+    seen.push(f);
+    const showing = f.find(x => x.id === 'previewFrame');
+    assert.ok(showing && showing.volume > 0.5, `the Scene View's music never stops: ${JSON.stringify(f)}`);
+    if (f.length === 1 && showing.output === two.id) break;
+    await page.waitForTimeout(20);
+  }
+  const last = seen[seen.length - 1];
+  assert.equal(last.length, 1, 'the old view is gone once the new one took over');
+  assert.equal(last[0].output, two.id);
+  assert.ok(seen.some(f => f.length === 2 && f.some(x => x.hidden && x.output === two.id)), 'the new view stood by, hidden, beside the old one');
+  assert.equal(await page.evaluate(() => window.previewSwitching()), false);
+  // Back to Output 1 the same way.
+  await page.click('#outTabs button >> nth=0');
+  await page.waitForFunction(() => !window.previewSwitching() && !/output=/.test(document.getElementById('previewFrame').getAttribute('src')), null, { timeout: 10000 });
+  assert.ok((await frames())[0].volume > 0.5);
+  assert.deepEqual(errors, []);
+  await act({ type: 'seqStop' });
+});
