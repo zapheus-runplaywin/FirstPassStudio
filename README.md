@@ -680,7 +680,8 @@ These follow the game picked on the scoreboard control page:
   up between its readings (every 5 seconds while following PlayHQ, split into goals and super goals by PlayHQ's goal
   counts) and from each +1 / +2 press. -1 / -2 takes that team's latest goal off. The list restarts when a game is picked or
   the scores are reset, builds only while the scoreboard (or this page) is open, and marks a gap with a dashed … when a
-  team's score jumps by more than 3 at once or the game was picked part way through. Lines starting `[goals]` in the log show each step.
+  team's score jumps by more than 3 at once, when PlayHQ catches up (more than one goal or super shot for a team in one
+  5 s check: a scorebench back on line; nothing plays for those goals) or the game was picked part way through. Lines starting `[goals]` in the log show each step.
 - http://localhost:8080/matchup.html: both team logos with the division, round, date, time, court and venue. It also shows each team's
   last five results as W/L/D dots and this season's head to head: the win tally under VS and the last three meetings
   (`?form=0` or `?h2h=0` hides them).

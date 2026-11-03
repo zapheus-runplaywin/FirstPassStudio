@@ -125,8 +125,8 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // normal goals between checks and a scorer swapping a goal for a super shot don't count.
   // When the feed has no super shot count, a score jump of exactly 2 with the normal goal
   // count unchanged (or unknown) counts. The first reading after a game is picked or scores
-  // switch to PlayHQ only sets the starting point, so catching up never plays it, and nothing
-  // plays once the game is finished.
+  // switch to PlayHQ only sets the starting point, so catching up never plays it, nor does a reading that is
+  // PlayHQ catching up (catchUpIn: a scorebench back on line), and nothing plays once the game is finished.
   const superSeen = new WeakMap(); // board -> last PlayHQ reading compared against
   function superShot(b, side, how) {
     if (!competitions.superShotsFor(config(), b.division)) return;
@@ -134,12 +134,12 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     b.superShot = { n, side, at: Date.now(), how };
     log('info', 'supershot', `Super shot for ${b[side].name} (${side}, ${how}), number ${n}`);
   }
-  function watchSuperShots(b, game, live, kind) {
+  function watchSuperShots(b, game, live, kind, catchUp) {
     const read = k => ({ score: game[k].score, goals: live ? live[k].goals : null, superGoals: live ? live[k].superGoals : null });
     const now = { key: `${b.gameId} ${kind}`, home: read('home'), away: read('away') };
     const before = superSeen.get(b);
     superSeen.set(b, now);
-    if (!before || before.key !== now.key || isFinished(game)) return;
+    if (!before || before.key !== now.key || isFinished(game) || catchUp) return; // a catch-up's super shot was minutes ago
     for (const k of ['home', 'away']) {
       const was = before[k], is = now[k];
       if (was.score == null || is.score == null) continue;
@@ -362,14 +362,15 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         game = games.find(g => g.id === b.gameId);
       }
       if (!game) { watchTrouble(b); return; }
-      watchSuperShots(b, game, s && s.live, s ? (s.live ? 'live' : 'game') : 'fixture');
+      const catchUp = catchUpIn(b, game, s && s.live);
+      watchSuperShots(b, game, s && s.live, s ? (s.live ? 'live' : 'game') : 'fixture', catchUp);
       // Log what PlayHQ reports each time it changes, including "no score yet", for debugging.
       const seen = `${game.id} ${game.status} ${game.home.score} ${game.away.score}`;
       if (b.playhqSeen !== seen) {
         log('info', 'scoreboard', `PlayHQ says ${game.home.name} ${game.home.score ?? 'no score'} - ${game.away.score ?? 'no score'} ${game.away.name} (${game.status})`);
         b.playhqSeen = seen;
       }
-      const goalsChanged = goalsFromPlayhq(b, game, s && s.live);
+      const goalsChanged = goalsFromPlayhq(b, game, s && s.live, catchUp);
       if (game.home.score !== null) b.home.score = game.home.score;
       if (game.away.score !== null) b.away.score = game.away.score;
       trackPeriods(b);
@@ -395,8 +396,29 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // super shot (two goals inside 5 seconds can't happen). The first reading of a game picked
   // part way through, or a jump of more than 3 points for one team at once (the helper was
   // closed, or nothing was polling), isn't split into goals: a gap is noted instead.
+  // A catch-up is noted as a gap for both teams too: a reading with more scoring for one team than can happen
+  // between two checks (more than one goal or super shot in a 5 s check; one per MIN_GOAL_SEC on longer ones), as
+  // when a scorebench back on line sends a quarter's goals at once. Its goals can't be placed in order or in time,
+  // so none are listed, and no super shot or moment plays for them (they happened minutes ago).
   const GOALS_KEPT = 400; // a whole game, so gamestats.html can count its runs
   const MAX_STEP = 3;
+  const MIN_GOAL_SEC = 10;
+  // Whether this reading is a catch-up (see above): false, or which team scored how many times at once.
+  function catchUpIn(b, game, live) {
+    if (!b.goalsBaseline || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId) return false; // the first reading has its own rule
+    const allowed = Math.max(1, Math.floor((b.playhqRefreshSec || DEFAULT_REFRESH_SEC) / MIN_GOAL_SEC));
+    for (const side of ['home', 'away']) {
+      const d = (game[side].score ?? b[side].score) - (Number(b[side].score) || 0);
+      if (d <= 0) continue;
+      const was = b.playhqCounts && b.playhqCounts[side], is = live && live[side];
+      const counted = was && is && [was.goals, was.superGoals, is.goals, is.superGoals].every(n => n != null);
+      // Each goal or super shot is 1 or 2 points, so a rise of d is between d/2 and d of them, whatever the counts say
+      // (after scoring by hand, PlayHQ's counts also hold goals already on the board).
+      const events = Math.min(d, Math.max(Math.ceil(d / 2), counted ? (is.goals - was.goals) + (is.superGoals - was.superGoals) : 0));
+      if (events > allowed) return { side, events, points: d };
+    }
+    return false;
+  }
   function clearGoals(b, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; momentsFrom(b); }
   function clockLeft(b) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
   function pushGoal(b, side, points, how) {
@@ -429,7 +451,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     for (let i = 0; i < goals; i++) pushGoal(b, side, 1, how);
   }
   // Called with each PlayHQ reading before it is put on the board. Returns true if goals changed.
-  function goalsFromPlayhq(b, game, live) {
+  function goalsFromPlayhq(b, game, live, catchUp) {
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
     const counts = live ? { home: { goals: live.home.goals, superGoals: live.home.superGoals, shots: live.home.shots }, away: { goals: live.away.goals, superGoals: live.away.superGoals, shots: live.away.shots } } : null;
     const before = b.goals.length, seq = b.goalsSeq;
@@ -444,6 +466,12 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         b.playhqCounts = counts;
         return true;
       }
+    }
+    if (catchUp) {
+      log('info', 'goals', `${b[catchUp.side].name} went up ${catchUp.points} points (at least ${catchUp.events} goals) between readings: PlayHQ catching up, so noted as a gap for both teams, with no goals listed`);
+      pushGap(b, { home: game.home.score ?? (Number(b.home.score) || 0), away: game.away.score ?? (Number(b.away.score) || 0) });
+      if (counts) b.playhqCounts = counts;
+      return true;
     }
     for (const side of ['home', 'away']) {
       const d = deltas[side];
@@ -480,7 +508,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // doesn't replay it. One goal plays one moment at most, the first of MOMENT_ORDER, so the
   // stream isn't flooded; the rest are logged and kept in its also list, which the Commentator
   // stats page lists too. A gap in the goal list (a game picked part way through, a jump too big
-  // to split) starts again from that score, so scores catching up never play, and nothing plays
+  // to split, PlayHQ catching up) starts again from that score, so scores catching up never play, and nothing plays
   // once the game is finished. Each one bumps b.streak.n and is added to b.streakLog (with its
   // gameId), and streak.html plays the ones it hasn't seen.
   const STREAK_GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
