@@ -47,14 +47,6 @@ function renderMusic() {
     ss.value = set.superShotSong || '';
   }
   if (document.activeElement !== $('mSuperVolume')) $('mSuperVolume').value = set.superShotVolume ?? 80;
-  // Music plays on: shown once there's more than one output.
-  const many = !!(out && out.outputs && out.outputs.length > 1);
-  for (const el of document.querySelectorAll('.mOutsRow')) el.classList.toggle('hidden', !many);
-  const ticks = JSON.stringify([set.outputs, (out?.outputs || []).map(o => [o.id, o.name, o.colour])]);
-  if (many && $('mOuts').dataset.look !== ticks) {
-    $('mOuts').dataset.look = ticks;
-    outputTicks($('mOuts'), set.outputs, ids => act({ type: 'musicSettings', settings: { outputs: ids } }));
-  }
   const busy = media.filter(x => x.kind === 'audio' && x.converting).map(x => x.name);
   $('mNote').textContent = busy.length ? `Evening out the loudness of ${busy.map(songName).join(', ')}…` : '';
   renderPlaylists();

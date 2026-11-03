@@ -50,20 +50,15 @@ test('an output\'s window mixes the mics that go to it, a Scene View and the key
   assert.equal(await view.evaluate('micChains.size + micDevices.size'), 0, 'a Scene View never opens the mics');
   assert.equal(await key.evaluate('micChains.size + micDevices.size'), 0, 'nor does the key output');
 
-  // Another output's window opens only the mics that go to it.
+  // Another output's window never opens the mics: they're Output 1's.
   const added2 = await studio.request('POST', '/api/outputs', { add: true });
   assert.equal(added2.status, 200, JSON.stringify(added2.json));
   const two = (await studio.get('/api/outputs')).outputs[1].id;
   const other = await context.newPage();
   await other.goto(`${studio.base}/scene.html?fit=1&bg=000000&output=${two}`, { waitUntil: 'load' });
   await other.waitForTimeout(500);
-  assert.equal(await other.evaluate('micChains.size + micDevices.size'), 0, 'Court mic goes to Output 1 only');
-  await act({ type: 'micUpdate', mic: id, changes: { outputs: ['main', two] } });
-  await other.waitForFunction(() => micChains.size === 1, null, { timeout: 15000 });
-  await act({ type: 'micUpdate', mic: id, changes: { outputs: [two] } });
-  await output.waitForFunction(() => micChains.size === 0, null, { timeout: 5000 });
-  await act({ type: 'micUpdate', mic: id, changes: { outputs: ['main'] } });
-  await output.waitForFunction(() => micChains.size === 1, null, { timeout: 15000 });
+  assert.equal(await other.evaluate('micChains.size + micDevices.size'), 0, 'the mics are Output 1\'s');
+  assert.equal(await output.evaluate('micChains.size'), 1, 'Output 1 keeps them');
   await other.close();
 
   // Its level follows the mute and the level.

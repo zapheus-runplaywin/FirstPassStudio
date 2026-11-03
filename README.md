@@ -430,15 +430,13 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   Run order key (`plugins/studio-deck`, `runorder-key.ts`, no Output setting) names the head from the scene's `runOrder` and lists `runOrders` for its Load press.
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
-- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; the unmuted scene.html of every output it
-  plays on plays it with an `<audio>` element, so it follows that output's video sound. **Music plays on** (shown with more than one output)
-  ticks those outputs, Output 1 unless set; a sequence's music plays on every output playing the sequence (one of them, the first in its
-  Plays on order, starts and stops it, and the last to end ends it; one that stops it while others play on fades it out there
-  alone over its Music ends time, `leaving`; a planned fade out on an output while others still play it is `leaving` with `early`, so outputs that drift apart each fade on their own time, and the last out of a part's music stops it). Cut to a sequence with music of its own, the old song fades out under the new one on a
-  second `<audio>` element (`tail`, a crossfade). One song at a time: a sequence's music starting while another sequence's plays
-  on elsewhere takes over, and the old fades out as the tail by its Music ends (`sequences.musicEndSec`). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
+- **Music:** music.js keeps one player (song or playlist, position, fades, mute, duck) in Studio; Output 1's unmuted scene.html plays it
+  with an `<audio>` element, so it follows Output 1's video sound. The music is Output 1's: the other outputs' windows play without it,
+  a sequence's music plays, fades and stops with the sequence on Output 1 (`sequences.sound()`, silent on the other outputs' runners),
+  and a sequence played on another output alone plays without its music. Cut to a sequence with music of its own, the old song fades out under the new one on a
+  second `<audio>` element (`tail`, a crossfade). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
-  pauses under a visible video with sound on, on an output it plays on (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
+  pauses under a visible video with sound on, on Output 1 (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
   startAtSec, fadeInSec, underVideo: starts its fade in before a video with sound in the step before ends while that video's sound fades out (`soundOut` on the source, which scene.html follows); `musicEnd`: fade (planned to start early enough to last its whole time across short timed steps), cut, continue into a `then: { type: 'sequence' }`, or crossfade (plays to the end, then fades out as the tail under different music that starts on the next step or sequence; else a fade); with none, a sequence step's own
   music plays while that step's sequence does), and scenes and sequences can be `quiet`.
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.

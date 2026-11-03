@@ -18,7 +18,7 @@
 // sequences are shared by every output: going to a scene (a.output, the primary unless set) sets its
 // sources on that output, and each output has its own current scene (current for the primary, currentOut
 // for the others) and its own playing sequence. Sponsor ads stay with the primary. Each output plays the sound of
-// the sources on it; the music plays on the outputs it's ticked for (music.js). /deck/output/<output>/layer/<name>/on|off|toggle|restart,
+// the sources on it; the music and the mics are the primary's alone (music.js, mics.js). /deck/output/<output>/layer/<name>/on|off|toggle|restart,
 // /deck/output/<output>/layers/off, /deck/output/<output>/scene/<name>|next|prev|again and
 // /deck/output/<output>/sequence/... act on one output; the links above act on the primary.
 //
@@ -527,10 +527,10 @@ function stingerMusic(s, on) {
   const length = Math.min(3, Math.max(.5, parseFloat(q.get('length')) || 1));
   music.stinger(mode, on, Math.max(.2, .22 * length));
 }
+// A video with its sound on (or a page playing a theme song) showing on the primary, where the music and mics are.
 const videoOn = () => {
-  const outs = music.state().music.outputs.map(o => o === PRIMARY ? null : o);
   // A video whose sound is fading out under the next music (soundOut) has made way already.
-  return scene.sources.some(s => outs.some(o => isOn(s, o) && ((s.type === 'video' && s.sound && !soundDone.has(s.id) && !soundFading(s, o)) || playsTheme(s))));
+  return scene.sources.some(s => isOn(s, null) && ((s.type === 'video' && s.sound && !soundDone.has(s.id) && !soundFading(s, null)) || playsTheme(s)));
 };
 function videoSound() { music.videoSound(videoOn()); }
 // The output the stinger plays on: null for the primary, else its id.
@@ -1422,8 +1422,6 @@ function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
     files: () => mediaList().filter(m => m.kind === 'audio' && !m.converting).map(m => m.name),
     changed: () => save(),
     quiet: on => mics.quiet(on),
-    playingOn: id => sequences.playingOn(id),
-    musicEndSec: id => sequences.musicEndSec(id),
   });
   mics.init(log, { changed: () => notify() });
   sequences.init(log, {
