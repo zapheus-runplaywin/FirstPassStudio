@@ -202,3 +202,51 @@ test("the Scene View goes silent as soon as the output it shows starts sending, 
   assert.ok(asks.some(a => a.output === two.id && a.on === true), JSON.stringify(asks));
   assert.deepEqual(errors, []);
 });
+
+test('a page that opens while a video plays joins it where the output has got to, and a restart is from the top', async t => {
+  const browser = await launch(t);
+  if (!browser) return;
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
+  fs.copyFileSync(path.join(__dirname, 'fixtures', 'clip.webm'), path.join(studio.dataDir, 'media', 'clip.webm')); // 30 s
+  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  await act({ type: 'add', sources: [{ type: 'video', name: 'Highlights', file: 'clip.webm', restartOnShow: true }] });
+  const id = (await studio.get('/api/scene')).sources.find(s => s.name === 'Highlights').id;
+  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  t.after(() => context.close());
+  const at = page => page.evaluate(() => document.querySelector('video').currentTime);
+  const playing = page => page.waitForFunction(() => { const v = document.querySelector('video'); return v && !v.paused && v.readyState >= 1; }, null, { timeout: 10000 });
+  const open = async () => {
+    const page = await context.newPage();
+    await page.goto(`${studio.base}/scene.html?mute=1`, { waitUntil: 'load' });
+    return page;
+  };
+  // The output's window is there as it comes on: from the top.
+  const first = await open();
+  await first.waitForTimeout(500);
+  await act({ type: 'show', id });
+  await playing(first);
+  assert.ok(await at(first) < 1.5, `the window there from the start plays it from the top: ${await at(first)}`);
+  await new Promise(r => setTimeout(r, 4000));
+  // A Scene View opened now joins it about 4 s in, not from the top.
+  const view = await open();
+  await playing(view);
+  const joined = await at(view), there = await at(first);
+  assert.ok(joined > 3 && Math.abs(joined - there) < 1, `joined at ${joined} s with the output at ${there} s`);
+  const st = await studio.get('/api/scene');
+  assert.ok(st.sources.find(s => s.id === id).playAt.main > 0, 'the scene says when its showing began');
+  // Restart: from the top everywhere, and a page opening just after joins near the top too.
+  await act({ type: 'restart', id });
+  await view.waitForFunction(() => document.querySelector('video').currentTime < 1.5, null, { timeout: 5000 });
+  const late = await open();
+  await playing(late);
+  assert.ok(await at(late) < 2.5, `a page opened after the restart starts near the top: ${await at(late)}`);
+  // Off and on again: a new showing, from the top.
+  await act({ type: 'hide', id });
+  await act({ type: 'show', id });
+  await view.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.currentTime < 1.5; }, null, { timeout: 5000 });
+  // Not saved with the scene.
+  const saved = JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'scene.json'), 'utf8'));
+  assert.equal(saved.sources.find(s => s.id === id).playAt, undefined);
+});
+

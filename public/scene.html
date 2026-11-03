@@ -307,6 +307,19 @@
     }
   }
 
+  // Where a video showing on this output since playAt has got to (sec): 0 for a page there as it started.
+  const playedFor = s => { const at = s.playAt && s.playAt[here]; const t = at ? (Date.now() - at) / 1000 : 0; return t > 1 ? t : 0; };
+  function joinAt(v, s) {
+    const go = () => {
+      let t = playedFor(s);
+      const d = v.duration;
+      if (t && isFinite(d) && d > 0) t = s.loop ? t % d : Math.min(t, d);
+      try { v.currentTime = t; } catch {}
+    };
+    go();
+    // Its length isn't known until it loads: place it again once it is.
+    if (playedFor(s) && !(v.readyState >= 1)) v.addEventListener('loadedmetadata', go, { once: true });
+  }
   // Videos play while shown and pause once faded out. They start from the top each time
   // they're shown (unless restartOnShow is off) and on Restart; sound follows the source.
   function updateVideo(L, s, old) {
@@ -320,7 +333,9 @@
     v.volume = videoVolume(L, s);
     const restarted = old.loadSeq !== undefined && old.loadSeq !== s.loadSeq;
     if (s.visible) {
-      if (restarted || (!L.shown && s.restartOnShow)) { try { v.currentTime = 0; } catch {} }
+      // From the top, or where the output has got to when this page joins part way through (a Scene View opened,
+      // or switched to this output, while it plays), so a view never restarts what the output is playing.
+      if (restarted || (!L.shown && s.restartOnShow)) joinAt(v, s);
       if (!L.shown) L.playShow = s.showSeq;
       if (v.paused || v.ended) v.play().catch(err => {
         // A browser that won't autoplay with sound still plays it muted.
