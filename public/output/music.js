@@ -30,7 +30,7 @@ function renderMusic() {
   $('mDuck').textContent = m.ducked ? 'Ducked' : 'Duck';
   if (document.activeElement !== $('mVolume')) $('mVolume').value = m.volume;
   const set = scene.musicSettings || {};
-  for (const [id, key] of [['mFadeIn', 'fadeInSec'], ['mFadeOut', 'fadeOutSec'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
+  for (const [id, key] of [['mFadeIn', 'fadeInSec'], ['mFadeOut', 'fadeOutSec'], ['mQuick', 'quickSec'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
   $('dkMusicVideo').checked = set.underVideo !== 'leave';
   if (typeof renderDuck === 'function') renderDuck();
   const pick = $('mTrackPick'), keep = pick.value;
@@ -71,10 +71,10 @@ $('mVolume').onchange = () => act({ type: 'musicVolume', value: Number($('mVolum
 $('mLoad').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value }); };
 $('mLoadPlay').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value, play: true }); };
 // The music's own settings, and its column of the Ducking card (under a video it pauses, or is left: dkMusicVideo; Duck to).
-const musicSettings = () => act({ type: 'musicSettings', settings: { fadeInSec: Number($('mFadeIn').value), fadeOutSec: Number($('mFadeOut').value),
+const musicSettings = () => act({ type: 'musicSettings', settings: { fadeInSec: Number($('mFadeIn').value), fadeOutSec: Number($('mFadeOut').value), quickSec: Number($('mQuick').value),
   underVideo: $('dkMusicVideo').checked ? 'pause' : 'leave', duckTo: Number($('mDuckTo').value),
   superShotSong: $('mSuperSong').value, superShotVolume: Number($('mSuperVolume').value) } });
-for (const id of ['mFadeIn', 'mFadeOut', 'dkMusicVideo', 'mDuckTo', 'mSuperSong', 'mSuperVolume']) $(id).onchange = musicSettings;
+for (const id of ['mFadeIn', 'mFadeOut', 'mQuick', 'dkMusicVideo', 'mDuckTo', 'mSuperSong', 'mSuperVolume']) $(id).onchange = musicSettings;
 $('mUpload').onchange = async () => {
   const file = $('mUpload').files[0];
   if (!file) return;

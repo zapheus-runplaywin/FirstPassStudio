@@ -665,7 +665,7 @@ function enter(i) {
   const m = musicOf(step), was = before ? musicOf(before) : null;
   // Out of a sequence inside whose music was on: it ends as that sequence's music ends (fade or cut).
   if (was && was.occ && (!m || m.occ !== was.occ) && was.sq.musicEnd.type !== 'continue' && !crossed) {
-    const sec = was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || music.STOP_FADE_SEC);
+    const sec = was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || music.stopFadeSec());
     sound().stopFor(run.id, sec);
   }
   // It starts at its step (the first one played from it). The sequence's own starts the first time through
@@ -724,9 +724,9 @@ function finish(why) {
   // A queued scene leaves the order now (it plays); a queued sequence as it starts (start() takes it), unless it can't.
   if (queued && sc) takeHead();
   else if (queued && next && !flatten(next).length) { queue.shift(); queueChanged(); }
-  const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.STOP_FADE_SEC };
+  const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.stopFadeSec() };
   if (next && end.type === 'continue') sound().handOver(ended.id, next.id);
-  else sound().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.STOP_FADE_SEC));
+  else sound().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.stopFadeSec()));
   if (next) {
     // Hands over to the next sequence: its own sources go off as the next one's first step comes on.
     const keep = new Set(firstOf(next));
@@ -781,7 +781,7 @@ function interrupt(keep, why) {
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
   const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
-  const sec = end.type === 'cut' ? 0 : fadeLeft(run, fades(end) ? end.sec : music.STOP_FADE_SEC);
+  const sec = end.type === 'cut' ? 0 : fadeLeft(run, fades(end) ? end.sec : music.stopFadeSec());
   sound().stopFor(run.id, sec);
   run = null;
   log('info', 'sequence', `Stopped "${sq ? sq.name : '?'}" because ${why}`);

@@ -161,6 +161,43 @@ test('a video with its sound on fades the music out and pauses it, then it fades
   assert.equal(m().level, undefined);
 });
 
+test('the three fade times: Quick for a video and a stinger leaving, Fade out for a sequence\'s music stopped with no time of its own', () => {
+  reset();
+  assert.equal(st().musicSettings.quickSec, 1, 'Quick is 1 s unless set');
+  ok({ type: 'musicSettings', settings: { quickSec: 2.5 } });
+  ok({ type: 'musicLoad', track: 'Break.mp3', play: true, fade: 0 });
+  ok({ type: 'show', name: 'Ad' });
+  assert.equal(m().gain.ms, 2500, 'out of the video\'s way over Quick');
+  wait(2);
+  assert.equal(m().status, 'playing', 'still fading');
+  wait(1);
+  assert.equal(m().status, 'paused');
+  ok({ type: 'hide', name: 'Ad' });
+  assert.equal(m().gain.ms, 2500, 'back over Quick');
+  wait(3);
+  // A sequence's music that carries on, stopped by a scene with no Music ends time to go by: over Fade out.
+  ok({ type: 'musicSettings', settings: { fadeOutSec: 5, quickSec: 1 } });
+  ok({ type: 'show', name: 'Ladder' });
+  ok({ type: 'sceneSave', name: 'Quick game' });
+  ok({ type: 'hide', name: 'Ladder' });
+  ok({ type: 'seqAdd', changes: { name: 'Quick next', musicEnd: { type: 'continue' }, steps: [{ sources: [id('Ladder')], length: { type: 'next' } }] } });
+  const next = st().sequences.find(x => x.name === 'Quick next').id;
+  ok({ type: 'seqAdd', changes: { name: 'Quick run-up', music: { track: 'Walk out.m4a', fadeInSec: 0 }, musicEnd: { type: 'continue' }, then: { type: 'sequence', sequence: next },
+    steps: [{ sources: [id('Ladder')], length: { type: 'time', sec: 10 } }] } });
+  ok({ type: 'seqPlay', sequence: 'Quick run-up' });
+  wait(10);
+  ok({ type: 'sceneGo', scene: 'Quick game' });
+  assert.equal(m().gain.to, 0);
+  assert.equal(m().gain.ms, 5000, 'over Fade out');
+  wait(5);
+  assert.equal(m().status, 'stopped');
+  ok({ type: 'musicSettings', settings: { fadeOutSec: 2 } });
+  // Out of range is kept in range.
+  ok({ type: 'musicSettings', settings: { quickSec: 99 } });
+  assert.equal(st().musicSettings.quickSec, 10);
+  ok({ type: 'musicSettings', settings: { quickSec: 1 } });
+});
+
 test('an intro or outro playing a theme song gets the music out of the way too; its sound effects alone do not', () => {
   reset();
   ok({ type: 'add', sources: [{ type: 'browser', name: 'Intro', url: 'introoutro.html?style=court&theme=Walk%20out.m4a' },
@@ -501,13 +538,13 @@ test('a stinger with ?music=quiet ducks the music quickly and leaves it down for
   ok({ type: 'sceneGo', scene: 'Game' });
   assert.equal(m().ducked, false, 'the next scene without Quiet the music brings it back');
   wait(4);
-  // dip: down while it plays (0.44 s at twice the length), back up in half a second when it ends.
+  // dip: down while it plays (0.44 s at twice the length), back up over the Quick time (1 s) when it ends.
   ok({ type: 'show', name: 'Duck stinger' });
   assert.equal(m().ducked, true);
   assert.equal(m().duck.ms, 440);
   end('Duck stinger');
   assert.equal(m().ducked, false);
-  assert.equal(m().duck.ms, 500);
+  assert.equal(m().duck.ms, 1000);
   wait(1);
   // A dip that a quiet scene comes up under stays down.
   ok({ type: 'show', name: 'Duck stinger' });
