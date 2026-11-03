@@ -3,9 +3,10 @@
 //
 // A hidden page (soundtap.html) captures the window's sound, as Chromium captures a tab's, and hands it over
 // as 48 kHz stereo, 16-bit interleaved, in 20 ms pieces: onSound(buffer). echo: the window still plays it on the
-// Mac's sound output too; without it the Mac goes quiet for that window while it's captured. If the capture
-// stops or can't start (it says why in the log), it tries again every few seconds, and the window's sound plays
-// on the Mac meanwhile, so it isn't lost.
+// Mac's sound output too; without it the Mac goes quiet for that window while it's captured. The sound is taken
+// as it plays, with none of the browser's call processing (automatic level, noise suppression), which squashes
+// music; the log says what the capture is when it starts. If the capture stops or can't start (it says why in
+// the log), it tries again every few seconds, and the window's sound plays on the Mac meanwhile, so it isn't lost.
 
 'use strict';
 
@@ -48,7 +49,10 @@ module.exports = function soundTap({ contents, echo = false, log, label, onSound
       if (data && data.byteLength) onSound(Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength));
     });
     win.webContents.ipc.on('soundtap:said', (e, text) => {
-      if (text === 'started') return log(`${label}: sound captured${echo ? ' (and still played on the Mac)' : ''}`);
+      if (text.startsWith('started')) {
+        const how = text.slice('started'.length).replace(/^:\s*/, '');
+        return log(`${label}: sound captured${how ? ` (${how})` : ''}${echo ? ', and still played on the Mac' : ''}`);
+      }
       log(`${label}: sound ${text === 'ended' ? 'capture stopped' : `capture ${text}`}; trying again`);
       again();
     });
