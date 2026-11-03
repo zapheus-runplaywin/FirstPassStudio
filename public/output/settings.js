@@ -303,7 +303,10 @@ $('hideAll').onclick = () => act({ type: 'hideAll', ...(hideAllOn !== 'main' ? {
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 let viewWas = '';
 const showOut = o => {
-  const relisten = !out || out.previewSound !== o.previewSound;
+  // Ask again when the output the Scene View shows starts or stops sending (Output 1 or any other), so its sound
+  // stops as that output takes it over rather than at the next check-in, a few seconds of both playing out of step.
+  const soundOf = x => { const y = x && x.outputs && x.outputs.find(z => z.id === previewOutput); return !!(y ? y.previewSound : x && x.previewSound); };
+  const relisten = !out || soundOf(out) !== soundOf(o);
   const hadExtras = extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join();
   // Which outputs are sending, for the sequence cards' "output off".
   const sendingOf = x => (x && x.outputs || []).filter(y => (y.showing || []).length).map(y => y.id).join();
