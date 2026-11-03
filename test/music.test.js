@@ -28,7 +28,7 @@ function reset() {
   ok({ type: 'musicStop', fade: 0 });
   ok({ type: 'musicDuck', value: 'off' });
   ok({ type: 'musicMute', value: 'off' });
-  ok({ type: 'musicSettings', settings: { fadeInSec: 2, fadeOutSec: 2, underVideo: 'pause', duckHalf: false } });
+  ok({ type: 'musicSettings', settings: { fadeInSec: 2, fadeOutSec: 2, underVideo: 'pause' } });
   for (const s of [...st().sequences]) ok({ type: 'seqRemove', sequence: s.id });
   for (const s of [...st().scenes]) ok({ type: 'sceneRemove', scene: s.id });
   for (const s of [...st().playlists]) ok({ type: 'playlistRemove', playlist: s.id });
@@ -146,13 +146,19 @@ test('a video with its sound on fades the music out and pauses it, then it fades
   assert.equal(Math.round(m().pos.sec), 21);
   wait(1);
   assert.equal(gain(), 1);
-  // Lower instead: it keeps playing at the lower level.
-  ok({ type: 'musicSettings', settings: { underVideo: 'lower', lowerTo: 30 } });
+  // Left as it is (unticked on the Ducking card): it keeps playing at its level.
+  ok({ type: 'musicSettings', settings: { underVideo: 'leave' } });
   ok({ type: 'show', name: 'Ad' });
   assert.equal(m().status, 'playing');
-  assert.equal(m().level, 30);
+  assert.equal(m().video, null);
+  assert.equal(gain(), 1);
   ok({ type: 'ended', id: id('Ad'), loadSeq: st().sources.find(s => s.name === 'Ad').loadSeq });
-  assert.equal(m().level, 100, 'the video ended and switched off');
+  // An older music.json's Lower the music (and its level, and Duck over half the fade times) pauses now.
+  ok({ type: 'musicSettings', settings: { underVideo: 'lower', lowerTo: 30, duckHalf: true } });
+  assert.equal(st().musicSettings.underVideo, 'pause');
+  assert.equal(st().musicSettings.lowerTo, undefined);
+  assert.equal(st().musicSettings.duckHalf, undefined);
+  assert.equal(m().level, undefined);
 });
 
 test('an intro or outro playing a theme song gets the music out of the way too; its sound effects alone do not', () => {
@@ -559,17 +565,12 @@ test('the duck fades over the fade time, and ?fade sets its own', () => {
   ok({ type: 'sceneGo', scene: 'Interview' });
   assert.equal(m().duck.ms, 4000);
   assert.equal(m().duck.to, 1);
-  // Back up over the fade in time; over half the fade times when set; a link's ?fade still sets its own.
+  // Back up over the fade in time; a link's ?fade still sets its own.
   ok({ type: 'musicDuck', value: 'off' });
   assert.equal(m().duck.ms, 2000);
-  ok({ type: 'musicSettings', settings: { duckHalf: true } });
-  ok({ type: 'musicDuck', value: 'on' });
-  assert.equal(m().duck.ms, 2000);
-  ok({ type: 'musicDuck', value: 'off' });
-  assert.equal(m().duck.ms, 1000);
   link('music/duck/on', { fade: '3' });
   assert.equal(m().duck.ms, 3000);
-  ok({ type: 'musicSettings', settings: { duckHalf: false } });
+  ok({ type: 'musicDuck', value: 'off' });
 });
 
 test('separate fade in and fade out times', () => {

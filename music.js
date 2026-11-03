@@ -41,7 +41,8 @@ const savefile = require('./savefile');
 
 const FILE = datadir.file('music.json');
 const AUDIO_TYPES = { '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.wav': 'audio/wav', '.aif': 'audio/aiff', '.aiff': 'audio/aiff' };
-const UNDER_VIDEO = ['pause', 'lower', 'leave'];
+// Under a video with sound the music pauses, or is left as it is (the Ducking card). An older 'lower' pauses.
+const UNDER_VIDEO = ['pause', 'leave'];
 // How long the music takes to get out of the way of a video's sound, and to come back.
 const VIDEO_FADE_SEC = 1;
 // A sequence's music fades out this long when something else stops it and its Music ends doesn't give a time
@@ -55,7 +56,7 @@ const UNKNOWN_MS = 5000;
 let log = () => {};
 let api = null; // { duration(file), files(), changed(), quiet(on) }
 let playlists = [];
-let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', lowerTo: 25, duckTo: 25, duckHalf: false, superShotSong: '', superShotVolume: 80 };
+let settings = { fadeInSec: 2, fadeOutSec: 4, volume: 80, underVideo: 'pause', duckTo: 25, superShotSong: '', superShotVolume: 80 };
 // The super shot song plays as this owner; superFired is the game and quarter it last started for.
 const SUPER = 'supershot';
 let superFired = null;
@@ -104,9 +105,8 @@ function cleanSettings(v) {
     fadeOutSec: clamp(s.fadeOutSec ?? (s.fadeSec === undefined ? undefined : Number(s.fadeSec) * 2), 0, 30, 4),
     volume: Math.round(clamp(s.volume, 0, 100, 80)),
     underVideo: UNDER_VIDEO.includes(s.underVideo) ? s.underVideo : 'pause',
-    lowerTo: Math.round(clamp(s.lowerTo, 0, 100, 25)),
     duckTo: Math.round(clamp(s.duckTo, 0, 100, 25)),
-    duckHalf: s.duckHalf === true, // the duck fades over half the fade in and out times
+    // An older music.json's lowerTo (Lower the music, now pause) and duckHalf (Duck over half the fade times) are dropped.
     superShotSong: cleanFile(s.superShotSong),
     superShotVolume: Math.round(clamp(s.superShotVolume, 0, 100, 80)),
     // An older music.json's outputs (Music plays on) is dropped: the music is Output 1's.
@@ -152,12 +152,12 @@ const gainNow = () => along(p.gain);
 function fadeTo(to, sec) { p.gain = { from: gainNow(), to, at: now(), ms: Math.round(sec * 1000) }; }
 const duckNow = () => along(p.duck);
 // Ducks (why: 'hand' or 'quiet') over the fade out time, or brings the music back up (null) over the fade in
-// time (or half of them, a setting), unless told otherwise.
+// time, unless told otherwise.
 function setDuck(why, fade) {
   p.ducked = why;
   const to = why ? 1 : 0;
   if (p.duck.to === to) return;
-  const sec = given(fade) ? (why ? fadeOut(fade) : fadeIn(fade)) : (why ? settings.fadeOutSec : settings.fadeInSec) * (settings.duckHalf ? 0.5 : 1);
+  const sec = given(fade) ? (why ? fadeOut(fade) : fadeIn(fade)) : (why ? settings.fadeOutSec : settings.fadeInSec);
   p.duck = { from: duckNow(), to, at: now(), ms: Math.round(sec * 1000) };
 }
 
@@ -283,9 +283,9 @@ function videoSound(on) {
   if (on) {
     if (p.video || p.status !== 'playing' || p.after) return false;
     if (settings.underVideo === 'leave') return false;
-    p.video = settings.underVideo;
-    log('info', 'music', settings.underVideo === 'pause' ? 'A video with sound is on: music fades out and pauses' : `A video with sound is on: music lowers to ${settings.lowerTo}%`);
-    if (settings.underVideo === 'pause') { fadeTo(0, VIDEO_FADE_SEC); afterFade(VIDEO_FADE_SEC, 'video'); }
+    p.video = 'pause';
+    log('info', 'music', 'A video with sound is on: music fades out and pauses');
+    fadeTo(0, VIDEO_FADE_SEC); afterFade(VIDEO_FADE_SEC, 'video');
     return true;
   }
   if (!p.video) return false;
@@ -486,7 +486,7 @@ function state() {
       // Paused for a video's sound counts as playing for the buttons: it comes back by itself.
       status: p.status, after: p.after, pos: p.pos, gain: p.gain, playId: p.playId,
       muted: p.muted, ducked: !!p.ducked, duckedBy: p.ducked || null, duck: p.duck, video: p.video, owner: p.owner, tail,
-      volume: p.owner === SUPER ? settings.superShotVolume : settings.volume, level: p.video === 'lower' ? settings.lowerTo : 100, duckTo: settings.duckTo,
+      volume: p.owner === SUPER ? settings.superShotVolume : settings.volume, duckTo: settings.duckTo,
       length: track() ? api.duration(track()) : null,
     },
     playlists,

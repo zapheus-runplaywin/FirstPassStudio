@@ -17,7 +17,7 @@ function renderMusic() {
   $('player').classList.toggle('on', m.status === 'playing');
   $('mTrack').textContent = m.track ? songName(m.track) : 'Nothing loaded';
   $('mWhere').textContent = [pl ? `${pl.name}, ${m.index + 1} of ${m.queue.length}` : '', owner ? (m.owner === 'supershot' ? `for ${owner.name}` : `for "${owner.name}"`) : '',
-    m.video === 'pause' ? 'paused while a video plays its sound' : m.video === 'lower' ? 'lowered while a video plays its sound' : '',
+    m.video === 'pause' ? 'paused while a video plays its sound' : '',
     m.status === 'paused' && !m.video ? 'paused' : m.status === 'stopped' && m.track ? 'stopped' : ''].filter(Boolean).join(' · ');
   const playing = m.status === 'playing' && m.after !== 'pause' && m.after !== 'stop';
   $('mPlay').textContent = playing ? '⏸ Pause' : m.status === 'paused' ? '▶ Carry on' : '▶ Play';
@@ -30,10 +30,9 @@ function renderMusic() {
   $('mDuck').textContent = m.ducked ? 'Ducked' : 'Duck';
   if (document.activeElement !== $('mVolume')) $('mVolume').value = m.volume;
   const set = scene.musicSettings || {};
-  for (const [id, key] of [['mFadeIn', 'fadeInSec'], ['mFadeOut', 'fadeOutSec'], ['mLowerTo', 'lowerTo'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
-  $('mDuckHalf').checked = !!set.duckHalf;
-  $('mUnder').value = set.underVideo || 'pause';
-  document.querySelector('.mLowerTo').classList.toggle('hidden', $('mUnder').value !== 'lower');
+  for (const [id, key] of [['mFadeIn', 'fadeInSec'], ['mFadeOut', 'fadeOutSec'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
+  $('dkMusicVideo').checked = set.underVideo !== 'leave';
+  if (typeof renderDuck === 'function') renderDuck();
   const pick = $('mTrackPick'), keep = pick.value;
   pick.innerHTML = '';
   if (!tracks().length) pick.add(new Option('No songs yet: add one', ''));
@@ -71,9 +70,11 @@ $('mDuck').onclick = () => act({ type: 'musicDuck', value: 'toggle' });
 $('mVolume').onchange = () => act({ type: 'musicVolume', value: Number($('mVolume').value) });
 $('mLoad').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value }); };
 $('mLoadPlay').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLoad', track: $('mTrackPick').value, play: true }); };
-const musicSettings = () => act({ type: 'musicSettings', settings: { fadeInSec: Number($('mFadeIn').value), fadeOutSec: Number($('mFadeOut').value), underVideo: $('mUnder').value, lowerTo: Number($('mLowerTo').value), duckTo: Number($('mDuckTo').value), duckHalf: $('mDuckHalf').checked,
+// The music's own settings, and its column of the Ducking card (under a video it pauses, or is left: dkMusicVideo; Duck to).
+const musicSettings = () => act({ type: 'musicSettings', settings: { fadeInSec: Number($('mFadeIn').value), fadeOutSec: Number($('mFadeOut').value),
+  underVideo: $('dkMusicVideo').checked ? 'pause' : 'leave', duckTo: Number($('mDuckTo').value),
   superShotSong: $('mSuperSong').value, superShotVolume: Number($('mSuperVolume').value) } });
-for (const id of ['mFadeIn', 'mFadeOut', 'mUnder', 'mLowerTo', 'mDuckTo', 'mDuckHalf', 'mSuperSong', 'mSuperVolume']) $(id).onchange = musicSettings;
+for (const id of ['mFadeIn', 'mFadeOut', 'dkMusicVideo', 'mDuckTo', 'mSuperSong', 'mSuperVolume']) $(id).onchange = musicSettings;
 $('mUpload').onchange = async () => {
   const file = $('mUpload').files[0];
   if (!file) return;

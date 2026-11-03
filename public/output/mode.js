@@ -19,8 +19,8 @@ if (location.hash === '#outSection') setOutCfg(true); // a link to the output's 
 // Done under a source's settings closes them (the pencil in its row does too).
 $('settingsDone').onclick = () => { editOpen = false; renderList(); };
 
-// Music and Mics: Settings in the header unfolds the section's form (output.html's styles key off cfgOpen).
-for (const [btn, sec] of [['musicCfg', 'musicSection'], ['micsCfg', 'micsSection']]) {
+// Music and Ducking: Settings in the header unfolds the section's form (output.html's styles key off cfgOpen).
+for (const [btn, sec] of [['musicCfg', 'musicSection'], ['duckCfg', 'duckSection']]) {
   $(btn).onclick = () => {
     const open = !$(sec).classList.contains('cfgOpen');
     $(sec).classList.toggle('cfgOpen', open);

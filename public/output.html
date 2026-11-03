@@ -101,7 +101,13 @@
   .addRow { margin-bottom: 10px; }
   .addRow button { padding: 4px 10px; font-size: 13px; }
   button.cfg[aria-pressed="true"] { background: var(--fp-btn); color: #fff; border-color: var(--fp-btn); }
-  #musicSection:not(.cfgOpen) > .form, #micsSection:not(.cfgOpen) > .form { display: none; }
+  #musicSection:not(.cfgOpen) > .form, #duckSection:not(.cfgOpen) > .form { display: none; }
+  #duckSection.cfgOpen #dkSummary { display: none; }
+  #duckSection .duckForm { display: block; margin-top: 8px; }
+  table.duck { border-collapse: collapse; width: 100%; font-size: 14px; }
+  table.duck th { text-align: left; font-weight: 600; color: var(--fp-muted, inherit); padding: 4px 8px; border-bottom: 1px solid var(--fp-line); }
+  table.duck td { padding: 5px 8px; border-bottom: 1px solid var(--fp-line); vertical-align: middle; }
+  table.duck td:first-child { width: 42%; }
   @media (max-width: 1100px) { .mv, .console { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
 
@@ -793,7 +799,7 @@
   <section id="musicSection" data-fold="music">
     <div class="secHead">
       <h2>Music</h2>
-      <button class="alt cfg" id="musicCfg" aria-pressed="false" title="Where the music plays, its fades, ducking and the super shot song">Settings</button>
+      <button class="alt cfg" id="musicCfg" aria-pressed="false" title="The music's fades and the super shot song (what ducks it is under Ducking)">Settings</button>
     </div>
     <div class="player" id="player">
       <div class="np"><span><b id="mTrack">Nothing loaded</b> <small id="mWhere"></small></span><span class="t" id="mTime"></span></div>
@@ -822,12 +828,6 @@
       <div class="row"><input type="number" id="mFadeIn" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Play, Carry on and the duck coming back up</span></div>
       <label for="mFadeOut">Fade out</label>
       <div class="row"><input type="number" id="mFadeOut" min="0" max="30" step="0.5" style="width:70px"> <span>seconds, for Stop, Pause and the duck going down (<code>?fade=</code> on a link changes either per press)</span></div>
-      <label for="mUnder">While a video with sound plays</label>
-      <div class="row"><select id="mUnder"><option value="pause">Fade the music out and pause it, then fade it back in</option><option value="lower">Lower the music</option><option value="leave">Leave the music as it is</option></select>
-        <label class="inline mLowerTo">to <input type="number" id="mLowerTo" min="0" max="100" style="width:64px"> %</label></div>
-      <label for="mDuckTo">Duck to</label>
-      <div class="row"><input type="number" id="mDuckTo" min="0" max="100" style="width:70px"> <span>% (the Duck button, and a scene or sequence that ducks the music)</span>
-        <label class="inline"><input type="checkbox" id="mDuckHalf"> Duck over half the fade times</label></div>
       <label for="mSuperSong">Super shot song</label>
       <div class="row"><select id="mSuperSong"></select> <label class="inline">at <input type="number" id="mSuperVolume" min="0" max="100" style="width:64px"> % volume</label>
         <span>(cuts in when the super shot period starts, fades out when it ends)</span></div>
@@ -852,7 +852,6 @@
   <section id="micsSection" data-fold="mics">
     <div class="secHead">
       <h2>Mics</h2>
-      <button class="alt cfg" id="micsCfg" aria-pressed="false" title="The duck level, what ducks the mics and how fast">Settings</button>
     </div>
     <div class="player" id="mxBar">
       <div class="np"><span><b id="mxHeard">No mics yet</b> <small id="mxWhy"></small></span></div>
@@ -864,16 +863,6 @@
       <p class="error" id="mxProblem" style="margin:0"></p>
     </div>
     <div class="seqs" id="mxList"></div>
-    <div class="form" style="margin-top:12px">
-      <label for="mxDipTo">Duck to</label>
-      <div class="row"><input type="number" id="mxDipTo" min="0" max="100" style="width:70px"> <span>% while</span>
-        <label class="inline"><input type="checkbox" id="mxDipMusic"> music plays</label>
-        <label class="inline"><input type="checkbox" id="mxDipVideo"> a video with sound plays</label>
-        <label class="inline"><input type="checkbox" id="mxDipQuiet"> a scene or sequence ducks the music</label></div>
-      <label for="mxDown">Duck down over</label>
-      <div class="row"><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:70px"> <span>seconds, and back up over</span>
-        <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:70px" aria-label="Back up over"> <span>seconds</span></div>
-    </div>
     <dialog id="mxDialog">
       <h2 id="mxTitle">Mic</h2>
       <div class="form">
@@ -901,6 +890,38 @@
     </dialog>
   </section>
   </div>
+
+  <!-- Ducking: everything that takes the music and the mics down, in one place. The causes are the rows, the music and
+       the mics the columns; folded, its line says the levels and what ducks them. -->
+  <section id="duckSection" data-fold="ducking">
+    <div class="secHead">
+      <h2>Ducking</h2>
+      <span class="note" id="dkSummary" style="margin:0"></span>
+      <button class="alt cfg" id="duckCfg" aria-pressed="false" title="What ducks the music and the mics, how low and how fast">Settings</button>
+    </div>
+    <div class="form duckForm">
+      <table class="duck">
+        <thead><tr><th>What ducks them</th><th>Music</th><th>Mics</th></tr></thead>
+        <tbody>
+          <tr><td>A video with sound plays</td>
+            <td><label class="inline"><input type="checkbox" id="dkMusicVideo"> fades out and pauses, then back in</label></td>
+            <td><label class="inline"><input type="checkbox" id="mxDipVideo"> duck</label></td></tr>
+          <tr><td>A scene or sequence with <b>Ducks the music</b> ticked</td><td>ducks</td>
+            <td><label class="inline"><input type="checkbox" id="mxDipQuiet"> duck</label></td></tr>
+          <tr><td>Music plays</td><td>—</td>
+            <td><label class="inline"><input type="checkbox" id="mxDipMusic"> duck</label></td></tr>
+          <tr><td>The stinger, with <b>Music under it</b> set to duck (Switcher)</td><td>ducks, fast</td><td>—</td></tr>
+          <tr><td>The <b>Duck</b> button</td><td>the music's own</td><td>the mics' own</td></tr>
+          <tr><td>Duck to</td>
+            <td><input type="number" id="mDuckTo" min="0" max="100" style="width:64px" aria-label="Music duck to"> %</td>
+            <td><input type="number" id="mxDipTo" min="0" max="100" style="width:64px" aria-label="Mics duck to"> %</td></tr>
+          <tr><td>Down, then back up</td><td>over the music's Fade out and Fade in</td>
+            <td><input type="number" id="mxDown" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics duck down over"> s,
+              <input type="number" id="mxUp" min="0" max="10" step="0.5" style="width:56px" aria-label="Mics back up over"> s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   <section id="swSection" data-fold="switcher">
     <div class="secHead">
