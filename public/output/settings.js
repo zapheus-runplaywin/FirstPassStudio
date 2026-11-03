@@ -654,7 +654,7 @@ function renderOutputs(o, so) {
     const small = card.querySelector('small');
     // With the switcher: "On air with Court" or "Waiting for Court" (output/switcher.js).
     const withCam = ((sw && sw.state === 'connected' && sw.keys) || []).find(k => k.output === x.id)?.withCamera;
-    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.picture && x.picture.uhd ? ' · 4K' : '') + (x.primary ? ' · primary, with sound' : '') + (withCam ? ` · ${withCam}` : '');
+    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.picture && x.picture.uhd ? ' · 4K' : '') + (x.mode !== 'off' && (x.sound || []).length ? ` · Sound: ${soundWhere(x).text}` : '') + (withCam ? ` · ${withCam}` : '');
     if (x.perf) {
       const p = document.createElement('span');
       p.textContent = ' · ' + perfText(x.perf);
@@ -705,6 +705,22 @@ function renderQuality(o) {
 }
 for (const b of $('outQuality').querySelectorAll('button')) b.onclick = () => { if (!b.classList.contains('on')) setOut({ quality: b.dataset.q }); };
 // What an output sends to, in a few words.
+// Where an output's sound goes, in a few words for its card and the status board: "SDI + Mixer (crowd mic)". The
+// first destination is named for what the output is (SDI on a Blackmagic output, else the Mac, which on NDI is
+// "Mac, not over NDI"); an added one by its device's name, with the Mac mics ticked for it. worst is how the
+// sound is doing ('off' while the output isn't on, else 'sending', 'waiting' or 'problem'), why the first problem.
+function soundWhere(x) {
+  const mics = micsOf();
+  const parts = (x.sound || []).map((d, i) => {
+    const name = d.device === 'own' ? (x.mode === 'decklink' ? 'SDI' : x.mode === 'ndi' ? 'Mac, not over NDI' : 'Mac') : d.device === 'mac' ? 'Mac' : d.device;
+    const ticked = i ? (d.mics || []).map(id => (mics.find(m => m.id === id) || {}).name).filter(Boolean) : [];
+    return { name, ticked, text: ticked.length ? `${name} (${ticked.join(', ')})` : name };
+  });
+  const st = x.soundState || [];
+  const problem = st.find(d => d.state === 'problem');
+  const worst = !st.length || st.every(d => d.state === 'off') ? 'off' : problem ? 'problem' : st.some(d => d.state === 'waiting') ? 'waiting' : 'sending';
+  return { text: parts.map(p => p.text).join(' + '), names: parts.map(p => p.name).join(' + '), parts, worst, why: problem ? problem.error : '' };
+}
 function outWhere(o, x) {
   const disp = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
   return x.mode === 'off' ? 'web links only'

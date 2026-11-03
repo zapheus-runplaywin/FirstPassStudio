@@ -130,6 +130,17 @@ function renderBoard() {
   const micsLine = boardLine('Mics', mx.dipped && mb.dot === 'ok' ? 'warn' : mb.dot, boardEsc(mb.word), boardEsc(mb.why),
     level == null ? null : `<span class="bar meter"><i class="${hot ? 'hot' : warm ? 'warm' : ''}" style="width:${level}%"></i></span>`, '', '',
     { wrap: true, more: mx.dipped ? `<small class="dip">ducked to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
+  // Where Output 1's sound (with the music and the mics) is going: the destinations, and how they're doing.
+  const p1 = outs.find(x => x.primary);
+  let soundLine = boardLine('Sound', '', 'Checking', '', null, ''); // until the outputs have loaded
+  if (p1) {
+    const sw1 = soundWhere(p1);
+    const tickedTo = sw1.parts.filter(x => x.ticked.length).map(x => `${x.ticked.join(', ')} to ${x.name}`).join(' · ');
+    soundLine = p1.mode === 'off' ? boardLine('Sound', '', 'Web links only', 'sound in the output canvas link', null, '')
+      : sw1.worst === 'off' ? boardLine('Sound', '', 'Off', `no sound until Output 1 is on (${boardEsc(sw1.names)})`, null, '', '', { wrap: true })
+      : boardLine('Sound', { sending: 'ok', waiting: 'warn', problem: 'bad' }[sw1.worst], boardEsc(sw1.names),
+        boardEsc(sw1.worst === 'problem' ? sw1.why : sw1.worst === 'waiting' ? 'starting' : tickedTo), null, '', '', { wrap: true });
+  }
   const prg = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.program) : null, pvw = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.preview) : null;
   const swLine = boardLine('Switcher', swOn ? 'ok' : sw && sw.setUp ? 'bad' : '', swOn ? `PGM ${boardEsc(prg ? prg.name : '?')}` : sw && sw.setUp ? 'Not answering' : 'Not set up',
     swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(sw.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
@@ -146,7 +157,7 @@ function renderBoard() {
       { wrap: true, full: true, more: an.switchAt ? `<small>switches at ${boardEsc(boardAt(an.switchAt))}</small>` : '' })
     : boardLine('Next game', '', auto ? boardEsc(auto.replace(/^Next:\s*/, '')) : h && h.game ? 'Picked by hand' : 'No game',
       auto ? '' : 'Scoreboard control picks the next one', null, '', '', { wrap: true, full: true });
-  box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${swLine}${recLine}${nextGame}</div>`;
+  box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${soundLine}${swLine}${recLine}${nextGame}</div>`;
   const rb = $('boardRecord');
   if (rb) rb.onclick = async () => {
     rb.disabled = true;
