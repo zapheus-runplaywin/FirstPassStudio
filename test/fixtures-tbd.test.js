@@ -58,7 +58,7 @@ test('the page says the teams are to be decided instead of "No games found"', as
     const text = await page.locator('#list').innerText();
     assert.match(text, /Division 1 Round 4: teams to be decided/i);
     assert.match(text, /TBC/);
-    assert.match(text, /Preliminary final/i);
+    assert.match(text, /Finals Round 2\s+·\s+Preliminary final/i, 'the round has a line of its own');
     assert.doesNotMatch(text, /No games found/);
     // An undecided team's name wraps rather than being cut off.
     const cut = await page.$$eval('.fixture__name--tbd', els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent));

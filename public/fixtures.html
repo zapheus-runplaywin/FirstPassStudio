@@ -26,6 +26,7 @@
   .fixture__time--same { visibility: hidden; }
   .fixture__where { display: flex; flex-direction: column; line-height: 1.15; }
   .fixture__court { font-size: 22px; text-transform: uppercase; white-space: nowrap; }
+  .fixture__round { grid-column: 1 / -1; grid-row: 1; text-align: center; font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: -10px; }
   .fixture__division { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
   .fixture__team { display: flex; align-items: center; gap: 14px; min-width: 0; text-transform: uppercase; }
   .fixture__team--home { flex-direction: row-reverse; text-align: right; }
@@ -109,9 +110,10 @@
           const where = el('div', 'fixture__where');
           where.append(el('span', 'fixture__court', g.court || ''));
           if (!oneDivision) where.append(el('span', 'fixture__division', g.division));
-          if (mixed) where.append(el('span', 'fixture__division', g.round));
-          // A finals game PlayHQ has no fixture for yet: its name from the finals format (Grand Final).
-          if (g.toBeDecided && g.name && g.name !== g.round) where.append(el('span', 'fixture__division', g.name));
+          // The game's round (when divisions differ) and a finals game's name from the finals format
+          // (Preliminary final, for a game PlayHQ has no fixture for yet) go on a line of their own above it.
+          const about = [mixed ? g.round : '', g.toBeDecided && g.name !== g.round ? g.name : ''].filter(Boolean);
+          if (about.length) row.prepend(el('div', 'fixture__round', about.join('  ·  ')));
           row.append(where, team(g.home, 'home'));
           const played = (RESULTS || DONE.test(g.status || '')) && g.home.score !== null && g.away.score !== null;
           row.append(el('div', 'fixture__vs' + (played ? ' fixture__vs--score' : ''), played ? `${g.home.score} – ${g.away.score}` : 'VS'));
