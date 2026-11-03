@@ -452,19 +452,22 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // for goal stretch plays once however long it goes on, and a comeback has to go 5 down again
   // to replay. A run is known by the id of its first goal, so a -1 correction and the goal again
   // doesn't replay it. One goal plays one moment at most, the first of MOMENT_ORDER, so the
-  // stream isn't flooded (the rest are logged). A gap in the goal list (a game picked part way
-  // through, a jump too big to split) starts again from that score, so scores catching up never
-  // play, and nothing plays once the game is finished. Each one bumps b.streak.n and is added to
-  // b.streakLog, and streak.html plays the ones it hasn't seen.
+  // stream isn't flooded; the rest are logged and kept in its also list, which the Commentator
+  // stats page lists too. A gap in the goal list (a game picked part way through, a jump too big
+  // to split) starts again from that score, so scores catching up never play, and nothing plays
+  // once the game is finished. Each one bumps b.streak.n and is added to b.streakLog (with its
+  // gameId), and streak.html plays the ones it hasn't seen.
   const STREAK_GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
   const MOMENT_ORDER = ['siren', 'backToBack', 'fire', 'lead', 'comeback', 'level', 'goalForGoal', 'heating'];
   const STREAK_NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square',
     comeback: 'coming back', siren: 'on the siren', backToBack: 'back to back super shots' };
   const COMEBACK_DOWN = 5, COMEBACK_WITHIN = 2, LEVEL_LAST_SEC = 120, SIREN_LAST_SEC = 10, SIREN_STOPPED_MS = 15000;
   const leaderOf = (h, a) => (h > a ? 'home' : a > h ? 'away' : '');
-  function streak(b, ev, how) {
+  // also: the other moments the same goal made, which streak.html doesn't play (one per goal on air) but the
+  // Commentator stats page lists, so a goal that's a team's third in a row and puts them in front shows both.
+  function streak(b, ev, how, also = []) {
     const n = ((b.streak && b.streak.n) || 0) + 1;
-    b.streak = { n, side: '', goals: 0, from: '', ...ev, score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
+    b.streak = { n, side: '', goals: 0, from: '', ...ev, also, gameId: b.gameId || null, score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
       period: b.period, periodLabel: rules(b.division).periodLabel, clockLeft: clockLeft(b), at: Date.now(), how };
     b.streakLog = [...(b.streakLog || []), b.streak].slice(-6);
     log('info', 'streak', `${ev.side ? `${b[ev.side].name} (${ev.side}) ` : ''}${STREAK_NAMES[ev.kind]}${ev.goals ? `, ${ev.goals} goals` : ''}${ev.down ? `, was ${ev.down} down` : ''} (${how}), number ${n}`);
@@ -503,7 +506,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     else scoreMoments(b, m, found);
     found.sort((x, y) => MOMENT_ORDER.indexOf(x.kind) - MOMENT_ORDER.indexOf(y.kind));
     if (found.length > 1) log('info', 'streak', `Also ${found.slice(1).map(f => STREAK_NAMES[f.kind]).join(', ')}, not played (one moment per goal)`);
-    if (found.length) streak(b, found[0], how);
+    if (found.length) streak(b, found[0], how, found.slice(1));
   }
   function scoreMoments(b, m, found) {
     const fired = b.streakFired;

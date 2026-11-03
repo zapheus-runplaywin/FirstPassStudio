@@ -169,7 +169,8 @@
        Right: the game clock with the super shot window, who the Production Planner has on the mic for this game (?mic=0
        leaves it out; it looks again each new game and every minute) and up next on this court (?next=0), then the moments
        list (lead changes, coming back, super shots, on fire and so on), newest at the top, each with its quarter and game
-       time and how long ago it happened; the last 6 show.
+       time and how long ago it happened; the last 6 show. Every moment a goal makes is listed (on air only one plays per
+       goal), and a page opened part way through a game starts with that game's moments so far.
        Bottom, across the screen: the last 10 goals (goals.html, horizontal, filling its tile), the current run and the
        score worm (?worm=0 leaves it out).
        The clock, moments, goals and run follow the board live. The stats update in place every 15 seconds and when the
@@ -576,8 +577,11 @@
     const KEEP = 6;
     const shown = [];
     const gameTime = () => (state && state.clock && state.showClock !== false ? `${state.period >= 5 ? 'ET' : `${state.periodLabel}${state.period}`} ${mmss(msLeft())}` : '');
-    function say(m) {
-      shown.push({ at: Date.now(), when: gameTime(), ...m, fresh: true });
+    // The quarter and game time a moment or goal happened at, from what Studio noted then (the clock as it is now otherwise).
+    const timeOf = x => (x && x.period && x.clockLeft != null && state.showClock !== false
+      ? `${x.period >= 5 ? 'ET' : `${x.periodLabel || state.periodLabel}${x.period}`} ${mmss(x.clockLeft * 1000)}` : gameTime());
+    function say(m, fresh = true) {
+      shown.push({ at: Date.now(), when: gameTime(), ...m, fresh });
       shown.sort((x, y) => y.at - x.at);
       shown.length = Math.min(shown.length, KEEP);
       drawMoments();
@@ -610,15 +614,30 @@
         default: return '';
       }
     }
+    // One goal can make more than one moment (a team's third in a row that also puts them in front). On air only the
+    // first plays; here every one is listed: the moment Studio played and the others it kept in its also list.
+    function sayStreak(ev, fresh = true) {
+      for (const m of [ev, ...(ev.also || [])]) {
+        const text = momentText(m);
+        // ev.at is Studio's clock: moved onto this one's.
+        if (text) say({ team: team(m.side), icon: '🔥', text, when: timeOf(ev), ...(ev.at ? { at: ev.at - clockOffset } : {}) }, fresh);
+      }
+    }
+    // Opened (or reloaded) part way through a game: the moments this game has had so far, from what Studio keeps (its
+    // last few moments, and the super shots in the goal list), so the list isn't empty until the next one.
+    function earlierMoments() {
+      for (const ev of (state.streakLog || []).filter(e => e.gameId && e.gameId === state.gameId)) sayStreak(ev, false);
+      const goals = Array.isArray(state.goals) && state.goalsGameId === state.gameId ? state.goals : [];
+      for (const g of goals.filter(g => !g.gap && g.points === 2 && g.at)) {
+        say({ team: team(g.side), text: `Super shot: ${state[g.side].name}`, when: timeOf({ ...g, periodLabel: state.periodLabel }), at: g.at - clockOffset }, false);
+      }
+    }
     let seenStreak = null, seenSuper = null;
     function moments() {
       const latest = state.streak || { n: 0 };
-      if (seenStreak === null || latest.n < seenStreak) seenStreak = latest.n; // first look: nothing old
-      for (const ev of (state.streakLog || []).filter(e => e.n > seenStreak)) {
-        const text = momentText(ev);
-        // ev.at is Studio's clock: moved onto this one's.
-        if (text) say({ team: team(ev.side), icon: '🔥', text, ...(ev.at ? { at: ev.at - clockOffset } : {}) });
-      }
+      if (seenStreak === null) earlierMoments();
+      if (seenStreak === null || latest.n < seenStreak) seenStreak = latest.n; // first look: the earlier ones are listed above
+      for (const ev of (state.streakLog || []).filter(e => e.n > seenStreak)) sayStreak(ev);
       seenStreak = latest.n;
       const sup = state.superShot || { n: 0 };
       if (seenSuper === null || sup.n < seenSuper) seenSuper = sup.n;
@@ -659,12 +678,13 @@
       state = b;
       clockOffset = b.serverNow - Date.now();
       drawClock();
+      if (newGame) { shown.length = 0; drawMoments(); } // before this game's moments are looked at
       if (!off('moments')) moments();
       if (!off('run')) drawRun();
       // A new game or a score change: the stats and team score catch up straight away when auto-refresh is on.
       if (scoreChanged && refresh > 0 && lastStats) loadStats();
       if (newGame || newPeriod) loadTeamLists();
-      if (newGame) { shown.length = 0; drawMoments(); loadGamesPlayed(); loadSeason(); loadMic(); }
+      if (newGame) { loadGamesPlayed(); loadSeason(); loadMic(); }
     }
 
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {

@@ -9,7 +9,7 @@
 <script>
   // Hidden page (desktop/soundtap.js): hears one output window's sound and hands it to the app as 48 kHz
   // stereo, 16-bit interleaved, in 20 ms pieces. The app answers the capture with that window's sound
-  // (no picture is kept), and starts it with studioTapStart().
+  // (no picture is kept), and starts it with studioTapStart(). It says 'started: <what the capture is>' to the log.
   const PIECE = 960; // 20 ms at 48 kHz
   const WORKLET = `
     const pcm = v => v >= 1 ? 32767 : v <= -1 ? -32768 : Math.round(v < 0 ? v * 32768 : v * 32767);
@@ -32,10 +32,16 @@
     });`;
   async function studioTapStart() {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      // The browser's call processing (automatic level, noise suppression, echo cancelling) is off: it's made for
+      // voices, and on music it pumps the level and dulls the sound.
+      const plain = { autoGainControl: false, noiseSuppression: false, echoCancellation: false };
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: { ...plain, channelCount: { ideal: 2 } } })
+        .catch(() => navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })); // a browser that won't take the ask
       for (const t of stream.getVideoTracks()) t.stop();
       const track = stream.getAudioTracks()[0];
       if (!track) throw new Error('no sound came with it');
+      // Turned off again on the track, in case the capture didn't take it from the ask.
+      await track.applyConstraints(plain).catch(() => {});
       const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
       await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
       const tap = new AudioWorkletNode(ctx, 'tap', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: 'explicit' });
@@ -47,7 +53,10 @@
       tap.connect(hush).connect(ctx.destination);
       if (ctx.state !== 'running') await ctx.resume();
       track.onended = () => studioTap.said('ended');
-      studioTap.said('started');
+      const got = track.getSettings();
+      const on = ['autoGainControl', 'noiseSuppression', 'echoCancellation'].filter(k => got[k] === true);
+      studioTap.said(`started: ${got.channelCount || '?'} channels, ${got.sampleRate || ctx.sampleRate} Hz, `
+        + (on.length ? `still on: ${on.join(', ')}` : 'no browser processing'));
     } catch (err) {
       studioTap.said(`failed: ${err.message}`);
     }

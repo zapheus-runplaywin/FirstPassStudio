@@ -130,3 +130,18 @@ test('game moments: lead, all square, comeback, siren, back to back', async t =>
   const log = (await post({ type: 'showClock', value: true })).streakLog;
   assert.deepEqual(log.slice(-2).map(e => e.kind), ['siren', 'backToBack']);
 });
+
+// One goal can make two moments: a team's third in a row that also puts them in front. The stream plays one (hits the
+// front, first in MOMENT_ORDER) and Studio keeps the other in its also list, for the Commentator stats page (Matt, 2026-11-03).
+test('a goal that makes two moments plays one and keeps the other', async t => {
+  const { post, goal, streak } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await goal('away'); await goal('away');
+  await goal('home'); await goal('home');
+  assert.equal((await streak()).n, 0);
+  await goal('home'); // 3-2: home in front, and three in a row
+  const s = await streak();
+  assert.deepEqual([s.n, s.kind, s.side], [1, 'lead', 'home'], 'the stream plays hits the front');
+  assert.deepEqual(s.also.map(a => [a.kind, a.side, a.goals]), [['heating', 'home', 3]], 'heating up is kept beside it');
+});
