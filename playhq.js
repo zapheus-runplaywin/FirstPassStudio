@@ -621,6 +621,18 @@ function create(deps) {
   const liveInFlight = new Map();
   // The last answer from PlayHQ's live feed, for /api/health: when, and the error if it failed.
   const lastLive = { at: 0, error: '', errorAt: 0 };
+  // Per game, what its live feed last said, for spotting a scorebench that has dropped off line (board.js
+  // playhqTrouble): okAt the last reading, notScoredAt the last "not electronically scored", changedAt when a
+  // reading last differed from the one before (the score, the counts, the clock or the break).
+  const liveSeen = new Map();
+  const seenOf = id => liveSeen.get(id) || liveSeen.set(id, { okAt: 0, notScoredAt: 0, changedAt: 0, sig: '' }).get(id);
+  function noteLive(id, live) {
+    const s = seenOf(id), now = Date.now(), sig = JSON.stringify(live);
+    if (sig !== s.sig) { s.sig = sig; s.changedAt = now; }
+    s.okAt = now;
+    s.live = live;
+  }
+  const liveSeenFor = id => ({ ...seenOf(id) });
   async function getLive(gameId, maxAgeMs) {
     const hit = liveCache.get(gameId);
     if (hit && Date.now() - hit.at < maxAgeMs) return hit.live;
@@ -628,8 +640,8 @@ function create(deps) {
     if (wait) throw Object.assign(new Error(wait), { notYet: true });
     if (!liveInFlight.has(gameId)) {
       liveInFlight.set(gameId, fetchLive(gameId)
-        .then(live => { liveCache.set(gameId, { at: Date.now(), live }); lastLive.at = Date.now(); lastLive.error = ''; return live; })
-        .catch(err => { if (!err.notScored) { lastLive.error = err.message; lastLive.errorAt = Date.now(); } throw err; })
+        .then(live => { liveCache.set(gameId, { at: Date.now(), live }); lastLive.at = Date.now(); lastLive.error = ''; noteLive(gameId, live); return live; })
+        .catch(err => { if (err.notScored) seenOf(gameId).notScoredAt = Date.now(); else { lastLive.error = err.message; lastLive.errorAt = Date.now(); } throw err; })
         .finally(() => liveInFlight.delete(gameId)));
     }
     return liveInFlight.get(gameId);
@@ -679,7 +691,7 @@ function create(deps) {
     return { tenant: TENANT, orgId: ORG_ID };
   }
   function resetCaches() {
-    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, gameStarts]) cache.clear();
+    for (const cache of [ladderCache, roundGamesCache, gameCache, liveCache, roundsCache, gameStarts, liveSeen]) cache.clear();
     tenantLabel = ''; cookie = null;
   }
 
@@ -689,7 +701,7 @@ function create(deps) {
     structureNow: () => structure,
     gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS,
     getRounds, getRoundGames, getGame, readGame, eachLimited, PLAYHQ_AT_ONCE, lineup, POSITION_RANK,
-    getLive, liveScore, scoringNotYet, PERIOD_NUMBER, lastLive,
+    getLive, liveScore, scoringNotYet, PERIOD_NUMBER, lastLive, liveSeenFor,
   };
 }
 
