@@ -201,13 +201,13 @@ test('scene.html draws another output\'s sources with their sound, without the m
   assert.match(html, /params\.get\('output'\)/);
   assert.doesNotMatch(html, /alwaysSilent/);
   assert.match(html, /renderMusic\(primary \? scene\.music : null\)/);
-  assert.match(html, /copying \? copyMics\.has\(m\.id\) : primary/);
+  assert.match(html, /copying \? copyAll \|\| copyMics\.has\(m\.id\) : primary/);
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
   for (const id of ['outAdd', 'outList', 'outName', 'outRemove', 'outTabs']) assert.match(page, new RegExp(`id="${id}"`));
   assert.doesNotMatch(page, /id="outFilter"/, 'the Sources list follows the output tab');
   const win = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'scenewindow.js'), 'utf8');
   assert.match(win, /&output=\$\{encodeURIComponent\(output\)\}`/);
-  assert.doesNotMatch(win, /mute=1/);
+  assert.match(win, /mute \? '&mute=1' : ''/, 'muted only when the output has no sound destination of its own');
 });
 
 test('sponsors are on air while Output 1 or an output that counts for them is sending', () => {

@@ -205,7 +205,7 @@ async function findInputs(ask = true) {
   }
 }
 $('mxFind').onclick = () => findInputs(true);
-// A mic through an external mixer: the music sent to that mixer (Also send the sound to) can come back in through it.
+// A mic through an external mixer: the music sent to that mixer (a destination in Sound goes to) can come back in through it.
 const mixerNote = () => $('mxMixerNote').classList.toggle('hidden', !$('mxMixer').checked);
 $('mxMixer').addEventListener('change', mixerNote);
 const mxChanges = () => {

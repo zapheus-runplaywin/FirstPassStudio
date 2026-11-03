@@ -367,11 +367,9 @@ const showOut = o => {
     || (savedUhd && modes.find(m => rateOf(m.name) === rateOf(savedUhd.name))) || defaultMode(modes);
   $('outDlMode').value = String((pickedMode || {}).mode || '');
   $('outDlKeying').value = so.decklinkKeying;
-  $('outDlSound').value = so.decklinkSound || 'sdi';
-  $('outDlSoundNote').classList.toggle('hidden', so.decklinkSound === 'mac');
   $('outDlStraight').checked = so.decklinkStraight;
   $('outDlStraightWarn').classList.toggle('hidden', !so.decklinkStraight);
-  showCopy(so);
+  showSound(so);
   // NDI: whether the NDI runtime is installed, and the formats it can send.
   const nd = o.ndi || {};
   $('outNdi').disabled = !nd.ok && so.mode !== 'ndi';
@@ -447,10 +445,11 @@ const showOut = o => {
     if (live) el.disabled = true;
     else if (el.name !== 'outMode') el.disabled = false;
   }
-  // Counts for sponsors changes nothing being sent, so it stays free while the output is on; so does Also send the
-  // sound to, which can be put right on the night.
+  // Counts for sponsors changes nothing being sent, so it stays free while the output is on; so do the sound's
+  // other destinations and their mics, which can be put right on the night (the first changes how the output itself
+  // is sent, so it waits).
   $('outSponsors').disabled = false;
-  for (const el of document.querySelectorAll('#outCopy, #outCopyFind, #outCopyMics input')) el.disabled = false;
+  for (const el of document.querySelectorAll('#outSound select:not(.sdMain), #outSound input, #outSound button, #outSoundAdd, #outSoundFind')) el.disabled = false;
   // The source name follows the output's name until Use my own name is ticked.
   if (!live) $('outNdiName').disabled = !so.ndiOwnName;
   swOutKey(); // Into the switcher as (output/switcher.js)
@@ -497,14 +496,17 @@ $('outSponsors').onchange = () => setOut({ sponsors: $('outSponsors').checked })
 $('outDlDevice').onchange = () => setOut({ decklinkDevice: $('outDlDevice').value, decklinkMode: 0 }).then(() => setOut({ decklinkMode: Number($('outDlMode').value) || 0 }));
 $('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').value) || 0 });
 $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
-$('outDlSound').onchange = () => setOut({ decklinkSound: $('outDlSound').value });
 
-// ─── Also send the sound to ─────────────────────────────────────────────
-// Another of the Mac's sound outputs that gets this output's sound too (outputs.js copySound), with the Mac's mics
-// ticked for it (copyMics). The Mac's sound outputs are listed here in the Mac app, by the names macOS gives them.
-let copyDevices = [];
-let copyMicsWas = '';
-async function findCopyDevices(ask) {
+// ─── Sound goes to ──────────────────────────────────────────────────────
+// Where the output's sound plays (outputs.js sound): a list of destinations. The first is where the output itself
+// carries it (the SDI of a Blackmagic output, else the Mac's sound output) and on Output 1 takes every Mac mic; a
+// Blackmagic output can add the Mac's sound output too; and any of the Mac's sound outputs by name is a hidden window
+// of its own (desktop/soundcopy.js) with the Mac mics ticked for it. The Mac's sound outputs are listed here in the
+// Mac app, by the names macOS gives them.
+let soundDevices = [];
+let soundWas = '';
+const soundNamed = device => device !== 'own' && device !== 'mac';
+async function findSoundDevices(ask) {
   if (!navigator.mediaDevices) return;
   const outs = async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
   try {
@@ -514,59 +516,89 @@ async function findCopyDevices(ask) {
       (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach(t => t.stop());
       list = await outs();
     }
-    copyDevices = [...new Set(list.map(d => d.label).filter(Boolean))];
-    $('outCopy').dataset.list = '';
+    soundDevices = [...new Set(list.map(d => d.label).filter(Boolean))];
+    $('outSoundNote').classList.add('hidden');
     if (out) showOut(out);
   } catch (err) {
-    $('outCopyStatus').textContent = err.name === 'NotAllowedError' ? 'The Mac hasn\'t let Studio use its sound devices: allow FirstPass Studio in System Settings, Privacy & Security, Microphone, then press Find sound outputs again.'
+    $('outSoundNote').textContent = err.name === 'NotAllowedError' ? 'The Mac hasn\'t let Studio use its sound devices: allow FirstPass Studio in System Settings, Privacy & Security, Microphone, then press Find sound outputs again.'
       : `Couldn't list the sound outputs: ${err.message}`;
-    $('outCopyStatus').classList.remove('hidden');
+    $('outSoundNote').classList.remove('hidden');
   }
 }
-function showCopy(so) {
-  const here = so.mode !== 'off' && (onThisMac || !!so.copySound);
-  for (const el of document.querySelectorAll('.forCopy')) el.classList.toggle('hidden', !here);
+const setSound = (so, sound) => setOut({ output: so.id, sound });
+function showSound(so) {
+  const here = so.mode !== 'off';
+  for (const el of document.querySelectorAll('.forSound')) el.classList.toggle('hidden', !here);
   if (!here) return;
-  $('outCopyFind').classList.toggle('hidden', !onThisMac);
-  // The devices: nowhere else, every one found, and the one picked even when it isn't found (unplugged).
-  const sel = $('outCopy');
-  const names = [...copyDevices, ...(so.copySound && !copyDevices.includes(so.copySound) ? [so.copySound] : [])];
-  const list = JSON.stringify([names, copyDevices.length]);
-  if (sel.dataset.list !== list && document.activeElement !== sel) {
-    sel.dataset.list = list;
-    sel.innerHTML = '<option value="">Nowhere else</option>' + names.map(n => `<option>${esc(n)}${copyDevices.length && !copyDevices.includes(n) ? ' (not plugged in)' : ''}</option>`).join('');
-    [...sel.options].forEach((op, i) => { if (i) op.value = names[i - 1]; });
-  }
-  if (document.activeElement !== sel) sel.value = so.copySound || '';
-  // The Mac's mics, each ticked to be in it (none to start with: the commentators don't hear themselves).
-  const mac = micsOf().filter(m => m.on !== 'atem');
-  $('outCopyMicsRow').classList.toggle('hidden', !so.copySound || !mac.length);
-  const key = JSON.stringify([so.id, so.copyMics, mac.map(m => [m.id, m.name])]);
-  if (key !== copyMicsWas) {
-    copyMicsWas = key;
-    $('outCopyMics').innerHTML = '';
-    for (const m of mac) {
-      const l = document.createElement('label');
-      l.innerHTML = '<input type="checkbox"> <span></span>';
-      const c = l.querySelector('input');
-      c.checked = so.copyMics.includes(m.id);
-      c.onchange = () => setOut({ copyMics: mac.filter(x => x.id === m.id ? c.checked : so.copyMics.includes(x.id)).map(x => x.id) });
-      l.querySelector('span').textContent = m.name;
-      $('outCopyMics').append(l);
+  $('outSoundFind').classList.toggle('hidden', !onThisMac);
+  const dl = so.mode === 'decklink';
+  const live = so.showing.length > 0;
+  // The Mac's mics, for the ticks on each added destination of Output 1 (none to start with: the commentators don't hear themselves).
+  const mac = so.primary ? micsOf().filter(m => m.on !== 'atem') : [];
+  const used = new Set(so.sound.map(d => d.device));
+  // A destination to add: the first of the Mac's sound outputs not used yet, else the Mac's sound output on a Blackmagic output.
+  const spare = soundDevices.find(n => !used.has(n)) || (dl && !used.has('mac') ? 'mac' : '');
+  $('outSoundAdd').disabled = !spare || so.sound.length >= 4;
+  $('outSoundAdd').title = so.sound.length >= 4 ? 'Four destinations at most' : !spare ? (onThisMac ? 'Press Find sound outputs to list the Mac\'s sound outputs' : 'Open this page in the Studio app to add one of the Mac\'s sound outputs') : 'Send this output\'s sound somewhere else as well, such as the commentators\' mixer';
+  $('outSoundAdd').onclick = () => { if (spare) setSound(so, [...so.sound, { device: spare, mics: [] }]); };
+  const key = JSON.stringify([so.id, so.mode, so.sound, so.soundState, soundDevices, mac.map(m => [m.id, m.name]), live]);
+  if (key === soundWas) return;
+  soundWas = key;
+  const box = $('outSound');
+  box.innerHTML = '';
+  so.sound.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'soundDest';
+    // The device: where the output itself plays, the Mac's sound output too (Blackmagic), every Mac sound output found,
+    // and the one picked even when it isn't found (unplugged). A device another destination has is greyed.
+    const sel = document.createElement('select');
+    sel.className = i ? 'sdDevice' : 'sdDevice sdMain';
+    sel.title = i ? 'Another of the Mac\'s sound outputs that gets this output\'s sound too' : 'Where this output\'s sound goes';
+    const opts = [['own', dl ? 'In the SDI, with the fill' : 'The Mac\'s sound output'], ...(dl || d.device === 'mac' ? [['mac', 'The Mac\'s sound output']] : [])];
+    for (const n of [...soundDevices, ...(soundNamed(d.device) && !soundDevices.includes(d.device) ? [d.device] : [])]) opts.push([n, n + (soundDevices.length && !soundDevices.includes(n) ? ' (not plugged in)' : '')]);
+    for (const [v, text] of opts) { const op = new Option(text, v); op.disabled = v !== d.device && used.has(v); sel.add(op); }
+    sel.value = d.device;
+    sel.disabled = live && !i;
+    sel.onchange = () => setSound(so, so.sound.map((x, j) => j === i ? { ...x, device: sel.value } : x));
+    row.append(sel);
+    if (i && mac.length) {
+      const ticks = document.createElement('span');
+      ticks.className = 'swCams';
+      ticks.innerHTML = '<span class="note" style="margin:0">Mics</span>';
+      for (const m of mac) {
+        const l = document.createElement('label');
+        l.innerHTML = '<input type="checkbox"> <span></span>';
+        const c = l.querySelector('input');
+        c.checked = d.mics.includes(m.id);
+        c.onchange = () => setSound(so, so.sound.map((x, j) => j === i ? { ...x, mics: mac.filter(y => y.id === m.id ? c.checked : x.mics.includes(y.id)).map(y => y.id) } : x));
+        l.querySelector('span').textContent = m.name;
+        ticks.append(l);
+      }
+      row.append(ticks);
     }
-  }
-  // How it's doing: from the copy's own window while the output is on.
-  const c = so.copy || {};
-  const sending = so.showing.length > 0;
-  const words = !so.copySound ? '' : !sending ? 'Starts when this output is on.'
-    : c.state === 'sending' ? `Sending to ${so.copySound}${so.copyMics.length ? '' : ', with no mics'}.` : c.state === 'problem' ? c.error : 'Starting…';
-  $('outCopyStatus').textContent = words;
-  $('outCopyStatus').classList.toggle('badText', c.state === 'problem' && sending);
-  $('outCopyStatus').classList.toggle('hidden', !words);
+    if (i) {
+      const rm = document.createElement('button');
+      rm.className = 'alt small';
+      rm.textContent = 'Remove';
+      rm.title = 'Stop sending the sound here';
+      rm.onclick = () => setSound(so, so.sound.filter((x, j) => j !== i));
+      row.append(rm);
+    }
+    // How it's doing, while the output is on: from the copy's own window, or the Blackmagic output.
+    const s = (so.soundState || [])[i] || {};
+    const words = s.state === 'problem' ? s.error : !soundNamed(d.device) ? '' : !live ? 'Starts when this output is on.'
+      : s.state === 'sending' ? `Sending${i && so.primary && mac.length && !d.mics.length ? ', with no mics' : ''}.` : 'Starting…';
+    if (words) {
+      const p = document.createElement('p');
+      p.className = `note sdStatus${s.state === 'problem' ? ' badText' : ''}`;
+      p.textContent = words;
+      row.append(p);
+    }
+    box.append(row);
+  });
 }
-$('outCopy').onchange = () => setOut({ copySound: $('outCopy').value });
-$('outCopyFind').onclick = () => findCopyDevices(true);
-if (onThisMac) findCopyDevices(false);
+$('outSoundFind').onclick = () => findSoundDevices(true);
+if (onThisMac) findSoundDevices(false);
 // Ticking Straight asks first: straight fill into a Pre Multiplied key leaves a light fringe round logos and text.
 $('outDlStraight').onchange = async () => {
   const on = $('outDlStraight').checked;
