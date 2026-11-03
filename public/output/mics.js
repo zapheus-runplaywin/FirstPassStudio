@@ -18,7 +18,7 @@ const channelName = c => ({ both: 'both channels', left: 'left', right: 'right' 
 const onAtem = m => m.on === 'atem';
 const atemInputName = id => ((micLive.switcher?.inputs || []).find(i => i.id === id) || {}).name || (id > 1300 && id < 1400 ? `Mic ${id - 1300}` : `input ${id}`);
 const micWhere = m => [`#${micsOf().indexOf(m) + 1}`, onAtem(m) ? `switcher: ${m.input ? atemInputName(m.input) : 'no input picked'}` : deviceName(m.device), channelName(m.channel),
-  !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'external mixer, doesn\'t duck'].filter(Boolean).join(' · ');
+  !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'never ducks (external mixer)'].filter(Boolean).join(' · ');
 const fmtDb = d => d <= -100 ? 'all the way down' : `${d > 0 ? '+' : ''}${d.toFixed(1)} dB`;
 
 // The status board's Mics line, short enough to read from arm's length: a word, why in grey under it, and its light

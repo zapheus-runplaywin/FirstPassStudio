@@ -1,5 +1,5 @@
 // Music (music.js, through scene.js): the player, playlists, fades, getting out of the way of a video's
-// sound, a sequence's own music, Quiet the music, and the /deck/music links.
+// sound, a sequence's own music, Ducks the music, and the /deck/music links.
 const test = require('node:test');
 const { mock } = require('node:test');
 const assert = require('node:assert/strict');
@@ -433,7 +433,7 @@ test('a second stop while the music fades out never makes the fade longer', () =
   assert.equal(m().status, 'stopped', 'sooner is fine');
 });
 
-test('Quiet the music: a scene ducks the player, the next scene brings it back; a sequence\'s music ducks too', () => {
+test('Ducks the music: a scene ducks the player, the next scene brings it back; a sequence\'s music ducks too', () => {
   reset();
   ok({ type: 'show', name: 'Interview' });
   ok({ type: 'sceneSave', name: 'Interview' });

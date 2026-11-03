@@ -644,7 +644,7 @@ function enter(i) {
   // A scene step goes to the scene (without stopping the sequence): the sources it sets are the scene's
   // now, the base the next steps play over, and they stay as the scene left them when the sequence ends.
   if (sc) { api.goTo(sc, true, here); for (const id of Object.keys(sc.states)) run.shown.delete(id); }
-  // A scene step with Quiet the music ducked it: the music comes back up as the sequence moves on.
+  // A scene step that ducks the music ducked it: the music comes back up as the sequence moves on.
   if (quietStep(before) && !(sc && sc.quiet)) sound().quiet(sq.quiet);
   // A fade out under way carries on into the next step of the same music (it started early to last its whole time).
   const going = before && i === run.step + 1 && musicOf(before) && musicOf(step)?.occ === musicOf(before).occ ? run.fadeEndsAt : null;
