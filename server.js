@@ -390,6 +390,8 @@ function health() {
     playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
       error: lastLive.error && lastLive.errorAt > answeredAt ? lastLive.error : (b.playhqError || ''),
       trouble, troubleSays: theBoard.troubleSays(trouble),
+      // Back to Follow PlayHQ from a hand score that PlayHQ hasn't caught up with yet: the board keeps it (board.js holdHandScore).
+      holding: following && !!b.followHold && !!b.followHold.logged,
       // What talking to PlayHQ costs (playhqnet.js), for the board's PlayHQ line: the ping, the last minute's
       // download a second, and the bytes downloaded since Studio went on air.
       net: playhqNet.snapshot() },

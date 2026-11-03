@@ -153,6 +153,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   function applyOne(b, a) {
     trackPeriods(b); // anything PlayHQ put on the board before this goes to the period it came in
     applyOneAction(b, a);
+    if (b.followHold && (b.source !== 'playhq' || ['selectGame', 'reset', 'resetScores', 'setScore', 'score'].includes(a.type))) b.followHold = null;
     if (a.type === 'resetScores' || a.type === 'reset') b.periodTrack = null;
     trackPeriods(b);
   }
@@ -208,7 +209,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         break;
       case 'source': {
         const want = a.value === 'toggle' ? (b.source === 'playhq' ? 'manual' : 'playhq') : a.value;
+        const was = b.source;
         b.source = want === 'playhq' && b.gameId ? 'playhq' : 'manual';
+        // Back to following from a score kept by hand: hold it until PlayHQ catches up (see holdHandScore).
+        if (was !== 'playhq' && b.source === 'playhq') b.followHold = { at: Date.now() };
         break;
       }
       case 'resetScores': b.home.score = 0; b.away.score = 0; b.source = 'manual'; clearGoals(b, b.gameId); break;
@@ -303,6 +307,27 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   }
   const troubleSays = t => TROUBLE_SAYS[t] || '';
 
+  // ─── Back to Follow PlayHQ from a score kept by hand ────────────────────────
+  // When the scorebench drops off line, the operator scores by hand and presses Follow PlayHQ once it's back. Pressed
+  // before PlayHQ has caught up, PlayHQ still has the old score (or none), and following it would take the board back
+  // and drop the goals scored by hand. So after Follow PlayHQ is pressed (b.followHold), the board keeps its own score,
+  // quarter and clock while PlayHQ's score is behind it and PlayHQ's live feed hasn't changed since the press. As soon
+  // as PlayHQ has caught up (level or ahead for both teams), or its feed has anything new (the scorebench is back, and
+  // PlayHQ is then the scorer's word, even a goal lower), the board follows PlayHQ as usual.
+  function holdHandScore(b, s) {
+    const h = b.followHold;
+    const seen = playhq.liveSeenFor ? playhq.liveSeenFor(b.gameId) : null;
+    const changed = !!(seen && seen.changedAt > h.at);
+    const behind = s.home < (Number(b.home.score) || 0) || s.away < (Number(b.away.score) || 0);
+    if (behind && !changed) {
+      if (!h.logged) { h.logged = true; log('info', 'scoreboard', `Follow PlayHQ: PlayHQ has ${s.home}-${s.away}, behind the board's ${b.home.score}-${b.away.score}, so the board keeps its score until PlayHQ catches up`); }
+      return true;
+    }
+    if (h.logged) log('info', 'scoreboard', `Follow PlayHQ: ${changed ? 'PlayHQ has something new' : 'PlayHQ has caught up'} (${s.home}-${s.away}), so the board follows it again`);
+    b.followHold = null;
+    return false;
+  }
+
   // While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5).
   // Called every second by refreshTick and by the scoreboard, goals, stats and worm requests; the
   // live feed is cached for playhqRefreshSec, so PlayHQ is asked once per period however often this runs.
@@ -317,6 +342,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
       let game = null;
       const s = await liveScore({ id: b.gameId }, maxAge);
+      if (s && b.followHold && holdHandScore(b, s)) { b.playhqError = ''; watchTrouble(b); return; }
       if (s) {
         game = { id: b.gameId, status: s.status, home: { name: b.home.name, score: s.home }, away: { name: b.away.name, score: s.away } };
         // Follow the scorer's quarter when it changes (the Stream Deck can still set it in between).
