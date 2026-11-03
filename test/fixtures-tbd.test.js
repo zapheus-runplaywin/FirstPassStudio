@@ -60,5 +60,11 @@ test('the page says the teams are to be decided instead of "No games found"', as
     assert.match(text, /TBC/);
     assert.match(text, /Preliminary final/i);
     assert.doesNotMatch(text, /No games found/);
+    // An undecided team's name wraps rather than being cut off.
+    const cut = await page.$$eval('.fixture__name--tbd', els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent));
+    assert.deepEqual(cut, []);
+    // VS sits on the centre line, under the heading.
+    const mid = await page.evaluate(() => { const c = r => { const b = document.querySelector(r).getBoundingClientRect(); return b.left + b.width / 2; }; return [c('.fixture__vs'), c('#round')]; });
+    assert.ok(Math.abs(mid[0] - mid[1]) < 2, `VS at ${mid[0]}, heading at ${mid[1]}`);
   } finally { await browser.close(); }
 });

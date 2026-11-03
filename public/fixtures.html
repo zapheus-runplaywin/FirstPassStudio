@@ -15,7 +15,9 @@
   .fixtures__venue { font-size: 22px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
   .fixtures__list { padding: 0 32px 28px; }
   .fixture {
-    display: grid; grid-template-columns: 150px 170px minmax(0, 1fr) 130px minmax(0, 1fr); align-items: center;
+    /* The last column mirrors the time and court on the left, so VS sits on the card's centre line under the
+       heading; the away team spans it, keeping its room. */
+    display: grid; grid-template-columns: 150px 170px minmax(0, 1fr) 130px minmax(0, 1fr) 336px; align-items: center;
     gap: 16px; padding: 10px 18px; border-radius: 8px; font-size: 26px; font-weight: 700;
   }
   .fixture:nth-child(odd) { background: var(--purple-deep-alt); }
@@ -27,8 +29,10 @@
   .fixture__division { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
   .fixture__team { display: flex; align-items: center; gap: 14px; min-width: 0; text-transform: uppercase; }
   .fixture__team--home { flex-direction: row-reverse; text-align: right; }
+  .fixture__team--away { grid-column: 5 / 7; }
   .fixture__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fixture__name--tbd { color: var(--muted); font-style: italic; }
+  /* "Winner minor semi final" wraps onto two lines rather than being cut off. */
+  .fixture__name--tbd { color: var(--muted); font-style: italic; white-space: normal; font-size: 0.8em; line-height: 1.1; }
   .fixture__logo { width: 58px; height: 58px; object-fit: contain; flex: none; }
   .fixture__logo.logo-fallback { font-size: 18px; border-width: 3px; box-sizing: border-box; }
   .fixture__vs {
