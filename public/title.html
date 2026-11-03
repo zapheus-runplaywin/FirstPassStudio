@@ -70,7 +70,8 @@
     if (params.get('position') === 'bottom') document.body.classList.add('bottom');
     let last = '';
 
-    // branding.html's logos start 320px either side of the centre; keep 20px clear of them.
+    // branding.html's logos sit 100px in from the frame's edges: the left pair's inside edge is about 660px from the centre, and the
+    // competition logo's about 750px (500px for the widest it allows). At most 600px wide keeps the banner well clear of both.
     const SCALE = 0.8, MAX_WIDTH = 600;
     function fitBetweenLogos() {
       const title = document.getElementById('title');

@@ -26,8 +26,8 @@ add('scene', 'Output canvas (what an output shows)', '/scene.html?canvas=1',
 [['Title banner', '/title.html',
   'Drawn at 80% size, centred between the logos page\'s logos; a long competition name shrinks further so it never runs into them. Options: <code>?emoji=%F0%9F%94%A5</code> puts an emoji either side of the title (any emoji; none without it). On the Output page, pick or type it in the source\'s options. ' +
   'The competition logo is off by default (the logos page shows it beside the title): <code>?logo=show</code> puts it above the banner, <code>?logo=hide</code> leaves it off.'], ['Logos beside the title (PIVT, FirstPass Studio, competition)', '/branding.html',
-  'Just the logos, placed either side of the title banner, so the other pages can be turned on and off around them. The competition logo comes from the competition setup. ' +
-  'Options: <code>?pivt=0</code>, <code>?studio=0</code> or <code>?comp=0</code> leave a logo off, <code>?gap=320</code> moves both sides in or out from the centre, ' +
+  'Just the logos, placed either side of the title banner, so the other pages can be turned on and off around them. Each side sits 100px in from its edge of the frame. The competition logo comes from the competition setup. ' +
+  'Options: <code>?pivt=0</code>, <code>?studio=0</code> or <code>?comp=0</code> leave a logo off, <code>?edge=100</code> moves both sides in or out from the edges, <code>?gap=320</code> places them from the centre instead (to the inside of each side), ' +
   '<code>?top=95</code> moves them up or down, and <code>?size=1.2</code> makes them bigger. ' +
   '<code>?mode=light</code> (the default) uses the FirstPass Studio and competition logos for a light picture behind them; <code>?mode=dark</code> uses the ones for a dark picture.'], ['Match up (with form and head to head)', '/matchup.html'], ['The Clash (animated match up)', '/clash.html',
   'Plays when the page loads, so it plays each time it\'s turned on on the Output page. ' +
