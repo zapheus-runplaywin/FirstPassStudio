@@ -69,8 +69,11 @@ const PAGE_OPTIONS = (() => {
       { key: 'fade', label: 'Fade out over the last', type: 'number', min: 2, max: 60, unit: 's', placeholder: 'no fade',
         chroma: 'no fade: the card goes at zero instead.' },
       show('teams', 'Teams', 'Clock only'),
-      { key: 'position', label: 'Position', type: 'select', choices: [['', 'Middle'], ['top', 'Top'], ['bottom', 'Bottom']] },
-      spot('naming rights sponsor, under the clock'),
+      { key: 'size', label: 'Size', type: 'select', choices: [['', 'Full'], ['mini', 'Mini (the size of the title)']],
+        help: 'Mini: the heading, the time and the teams in a small banner like the title, with no sponsor.' },
+      { key: 'position', label: 'Position', type: 'select', choices: [['top-left', 'Top left'], ['top', 'Top'], ['top-right', 'Top right'],
+        ['left', 'Left'], ['', 'Middle'], ['right', 'Right'], ['bottom-left', 'Bottom left'], ['bottom', 'Bottom'], ['bottom-right', 'Bottom right']] },
+      spot('naming rights sponsor, under the clock (Full only)'),
     ],
     'matchup.html': [show('form', 'Form'), show('h2h', 'Head to head')],
     'upnext.html': [
