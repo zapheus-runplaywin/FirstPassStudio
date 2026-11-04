@@ -2,7 +2,8 @@
 //
 // Scores, the clock and the period, by hand from the control page and the Stream Deck or following
 // PlayHQ's live feed (refreshFromPlayhq, followClock); the goal order the last goals and the score
-// worm are drawn from; super shots; hot streaks and game moments; the game stats card. Kept in
+// worm are drawn from; super shots; hot streaks and game moments; the game stats card; each streamed game's story
+// (game-stories/, for the Socials tab's Game story and Score worm). Kept in
 // scoreboard-state.json so a restart mid-game keeps the score, with the lasting settings (auto
 // select, the court, refresh seconds, the clock following, the ticker speed) also in control.json.
 //
@@ -75,7 +76,33 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     if (boardPushTimer) return;
     boardPushTimer = setImmediate(() => { boardPushTimer = null; try { scene.publishBoard(); } catch (err) { log('warn', 'scoreboard', `Board not pushed: ${err.message}`); } });
   }
+  // Each streamed game's story, kept once it has goals so the Socials tab's Game story and Score worm pictures can be
+  // made after the scoreboard moves on (clearGoals wipes the goal order for the next game): its Game stats and Score
+  // worm as the game left them, in game-stories/<game id>.json in the local folder. Written at most every STORY_EVERY
+  // while the game is on, and at once when it ends or the scoreboard picks another game.
+  const STORIES_DIR = datadir.local('game-stories');
+  const STORY_EVERY = 15 * 1000;
+  let storyAt = 0;
+  const storyFile = id => path.join(STORIES_DIR, `${String(id).replace(/[^\w.-]/g, '_')}.json`);
+  function keepStory(now) {
+    const b = boards['1'];
+    if (!b || !b.gameId || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.some(g => !g.gap)) return;
+    if (!now && Date.now() - storyAt < STORY_EVERY) return;
+    storyAt = Date.now();
+    try {
+      const story = { gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(), stats: getStats(), worm: getWorm() };
+      fs.mkdirSync(STORIES_DIR, { recursive: true });
+      savefile.writeFileSync(storyFile(b.gameId), JSON.stringify(story)); // at once, so an older write can't land after a newer one
+    } catch (err) { log('warn', 'stats', `The game's story wasn't kept: ${err.message}`); }
+  }
+  // A game's kept story, or null when Studio didn't stream it.
+  function gameStory(id) {
+    if (!id) return null;
+    try { return JSON.parse(fs.readFileSync(storyFile(id), 'utf8')); } catch { return null; }
+  }
+
   function saveBoards() {
+    keepStory(false);
     pushBoard();
     savefile.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), err => { if (err) log('warn', 'scoreboard', `scoreboard-state.json not saved: ${err.message}`); });
     if (boards['1']) controlFile.get().boards['1'] = Object.fromEntries(LASTING.map(k => [k, boards['1'][k]]));
@@ -224,7 +251,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       case 'selectGame':
         if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
-        if (b.gameId && b.gameId !== a.game.id) b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } };
+        if (b.gameId && b.gameId !== a.game.id) { b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } }; keepStory(true); }
         Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
           round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null, endedAt: null, breakFrom: null });
         b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
@@ -922,7 +949,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   function gamePhase(b = board()) {
     if (!b.gameId) return 'none';
     const ended = gameEnded(b);
-    if (ended && !b.endedAt) { b.endedAt = Date.now(); saveBoards(); }
+    if (ended && !b.endedAt) { b.endedAt = Date.now(); keepStory(true); saveBoards(); }
     else if (!ended && b.endedAt) { b.endedAt = null; saveBoards(); }
     if (b.endedAt) return Date.now() - b.endedAt > ENDED_FOR_MS ? 'over' : 'ended';
     return gameStarted(b) ? 'live' : 'upcoming';
@@ -930,7 +957,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
 
   return { snapshot, restore, board, newBoard, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
     playhqTrouble, troubleSays,
-    getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
+    getGoals, getStats, getWorm, gameStory, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
 
 module.exports = { create };

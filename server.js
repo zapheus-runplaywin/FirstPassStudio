@@ -252,6 +252,11 @@ const socials = require('./socials').create({
     return id ? sponsors.wall(id).flatMap(t => t.sponsors.map(x => ({ id: x.id, name: x.name, tier: t.name, tagline: x.tagline || '', website: x.website || '', logo: x.logoWhiteUrl || x.logoUrl }))) : [];
   },
   onScreen: date => Object.fromEntries(exposure.report({ nights: [date] }).sponsors.map(x => [x.id, x.seconds])),
+  // Game story and Score worm: each streamed game's story as the scoreboard kept it (board.js gameStory).
+  storyFor: id => theBoard.gameStory(id),
+  // Watch it back: a QR code for the replay's link, and the competition's streams to suggest one from (Live viewers).
+  qrFor: link => sponsors.qrSvg(link).svg,
+  streamsFor: () => { const id = competitions.activeId(); try { return id ? competitions.get(id).streams || [] : []; } catch { return []; } },
   milestonesFor: games => athleteRegister.milestones(games), // the night's first games and 50ths (athletes.js)
   tallyShooters: games => theGames.tallyShooters(games), superShots: division => !!rules(division).superShots,
   // A division's finals: whether it has a format (Competitions setup), and its finals as the Finals page has them.

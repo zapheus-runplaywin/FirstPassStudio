@@ -178,6 +178,19 @@
   .thanks__logos { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 36px 48px; margin-top: calc(18px + var(--spread, 0px));
     padding: 30px 36px; border-radius: 18px; background: rgba(255,255,255,.94); }
   .thanks__logos img { height: 120px; max-width: 300px; object-fit: contain; }
+  /* Score worm: the margin over the game, each team's side of the line in its colour. */
+  .worm { width: 100%; }
+  .worm svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .worm .axis { fill: var(--muted); font-size: 24px; font-weight: 800; letter-spacing: .1em; }
+  .worm .zero { stroke: var(--text); stroke-width: 3; opacity: .6; }
+  .worm .qline { stroke: var(--text); stroke-width: 2; opacity: .2; stroke-dasharray: 6 8; }
+  .worm .line { fill: none; stroke: var(--text); stroke-width: 6; stroke-linejoin: round; stroke-linecap: round; }
+  /* Watch it back: the QR code on white, beside what was streamed and the link. */
+  .watch { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 40px; align-items: center; }
+  .watch__qr { background: #fff; border-radius: 20px; padding: 18px; }
+  .watch__qr svg { display: block; width: 100%; height: auto; }
+  .watch__games .bound + .bound { margin-top: calc(10px + var(--spread, 0px)); }
+  .watch__link { margin-top: 18px; font-size: 26px; font-weight: 800; overflow-wrap: anywhere; }
   .thanks__logos span { color: #222; font-size: 34px; font-weight: 800; text-transform: uppercase; }
   .count { text-align: center; font-family: var(--dfont); text-transform: uppercase; }
   .count__big { font-size: 320px; font-weight: 800; line-height: .9; color: var(--yellow); }
@@ -340,6 +353,8 @@
               a run)  season (Team season card, &division=&team=)  wrap (Season wrap, &division=)  potm (Player of the
               match, &game=<id>&athlete=<name>, &medal=<a medal's name>)  teamround (Team of the round, &division=,
               &GS=<name> .. &GK=<name>)  thanks (Thanks for watching)
+              story (Game story, &game=<id>: a game Studio streamed, from its scoreboard)  worm (Score worm, &game=<id>)
+              watch (Watch it back, &link=<the replay's web link>: a QR code)
               Either: spotlight (Athlete spotlight, &athlete=<name>)  sponsorspot (Sponsor spotlight, &sponsor=<id>)
               results (the night's final scores)  review (Round in review: the biggest win, the closest game and
               the upsets)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as PlayHQ has it now; on the
@@ -395,7 +410,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['potm', 'teamround', 'spotlight', 'sponsorspot', 'thanks', 'accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
+    const KINDS = ['story', 'worm', 'watch', 'potm', 'teamround', 'spotlight', 'sponsorspot', 'thanks', 'accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -906,6 +921,93 @@
       for (const x of d.sponsors) { if (x.logo) { const img = el('img'); img.src = x.logo; img.alt = x.name; logos.append(img); } else logos.append(el('span', '', x.name)); }
     }
 
+    // Game story (?game=): a game Studio streamed, as its scoreboard kept it: the score quarter by quarter, then quarters
+    // won, the best quarter, the longest run, the biggest lead and the lead changes.
+    function storyHead(d, title) {
+      const x = d.story || {}, g = x.game;
+      head(d, title, [g ? [g.division, g.final || g.round].filter(Boolean).join('  ·  ') : dayLong(d.date), el('small', '', g ? `${g.home.name} ${g.home.score}–${g.away.score} ${g.away.name}` : '')]);
+      return x;
+    }
+    function drawStory(d) {
+      const x = storyHead(d, 'Game story');
+      if (x.error) return x.error;
+      const { game: g, stats } = x;
+      const quarters = (stats.quarters || []).filter(q => q.played);
+      const t = $('fit').appendChild(el('table', 'ladder story'));
+      const hr = t.appendChild(el('tr'));
+      for (const h of ['', 'Team', ...quarters.map(q => q.label), 'Total']) hr.append(el('th', '', h));
+      for (const side of ['home', 'away']) {
+        const tr = t.appendChild(el('tr'));
+        const logo = el('td'); logo.append(logoEl(g[side]));
+        tr.append(logo, el('td', 'team', g[side].name), ...quarters.map(q => el('td', '', q.sure ? String(q[side]) : '–')), el('td', '', String(g[side].score)));
+      }
+      const lines = $('fit').appendChild(el('div', 'card__lines'));
+      const line = (label, value) => lines.append(bound('bound--line', el('div', 'game__team', label), pill(value, 'final')));
+      const s = stats.stats || {}, name = k => g[k].name;
+      const both = (f, fmt) => ['home', 'away'].map(k => [k, f[k]]).filter(([, v]) => v).map(([k, v]) => fmt(k, v));
+      if (s.quartersWon && s.quartersWon.of) line('Quarters won', `${name('home')} ${s.quartersWon.home}  ·  ${name('away')} ${s.quartersWon.away}`);
+      const best = both(s.bestQuarter || {}, (k, v) => ({ k, v })).sort((a, b) => b.v.points - a.v.points)[0];
+      if (best) line('Best quarter', `${name(best.k)}  ·  ${best.v.points} in ${best.v.label}`);
+      const run = ['home', 'away'].map(k => ({ k, n: (s.longestRun || {})[k] || 0 })).sort((a, b) => b.n - a.n)[0];
+      if (run && run.n > 1) line('Longest run', `${name(run.k)}  ·  ${run.n} goals`);
+      const w = x.worm || {}, lead = ['home', 'away'].map(k => ({ k, v: (w.biggestLead || {})[k] })).filter(l => l.v).sort((a, b) => b.v.margin - a.v.margin)[0];
+      if (lead) line('Biggest lead', `${name(lead.k)} by ${lead.v.margin}`);
+      if (w.leadChanges !== undefined) line('Lead changes', String(w.leadChanges));
+      if (stats.superShots && s.superShots && (s.superShots.home || s.superShots.away)) line('Super shots', `${name('home')} ${s.superShots.home}  ·  ${name('away')} ${s.superShots.away}`);
+      if (!x.complete) $('fit').append(el('div', 'later', 'Studio didn\'t see every goal of this game'));
+    }
+    // Score worm (?game=): the margin over the game from its goals, above the line while the home team led.
+    function drawWorm(d) {
+      const st = storyHead(d, 'Score worm');
+      if (st.error) return st.error;
+      const { game: g, worm: w } = st;
+      const pts = (w.segments || []).flat();
+      if (!pts.length) return 'No goals were kept for this game.';
+      const W = 940, H = 520, X0 = 90, X1 = W - 10, Y0 = 20, Y1 = H - 50;
+      const span = Math.max(1, w.periods || 4, w.end || 0);
+      const top = Math.max(4, ...pts.map(p => Math.abs(p.margin)));
+      const mid = (Y0 + Y1) / 2, x = t => X0 + (X1 - X0) * t / span, y = m => mid - (Y1 - Y0) / 2 * m / top;
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent.append(e); return e; };
+      const box = $('fit').appendChild(el('div', 'worm'));
+      const chart = document.createElementNS(NS, 'svg'); chart.setAttribute('viewBox', `0 0 ${W} ${H}`); box.append(chart);
+      const colour = k => g[k].colour || (k === 'home' ? getComputedStyle(document.documentElement).getPropertyValue('--yellow') : getComputedStyle(document.documentElement).getPropertyValue('--pink')) || '#fff';
+      const defs = svg('defs', {}, chart);
+      const clip = (id, a, b) => { const c = svg('clipPath', { id }, defs); svg('rect', { x: 0, y: a, width: W, height: b - a }, c); };
+      clip('above', 0, mid); clip('below', mid, H);
+      for (let n = 1; n < span; n++) svg('line', { x1: x(n), x2: x(n), y1: Y0, y2: Y1, class: 'qline' }, chart);
+      for (let n = 1; n <= span; n++) { const t = svg('text', { x: (x(n - 1) + x(n)) / 2, y: H - 8, class: 'axis', 'text-anchor': 'middle' }, chart); t.textContent = n > (w.regularPeriods || span) ? 'ET' : `${w.periodLabel || 'Q'}${n}`; }
+      for (const m of [top, -top]) { const t = svg('text', { x: X0 - 14, y: y(m) + 8, class: 'axis', 'text-anchor': 'end' }, chart); t.textContent = `+${Math.abs(m)}`; }
+      svg('line', { x1: X0, x2: X1, y1: mid, y2: mid, class: 'zero' }, chart);
+      for (const seg of w.segments || []) {
+        if (!seg.length) continue;
+        const line = seg.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)} ${y(p.margin).toFixed(1)}`).join(' ');
+        const area = `${line} L${x(seg[seg.length - 1].t).toFixed(1)} ${mid} L${x(seg[0].t).toFixed(1)} ${mid} Z`;
+        for (const [half, k] of [['above', 'home'], ['below', 'away']]) {
+          const gEl = svg('g', { 'clip-path': `url(#${half})` }, chart);
+          svg('path', { d: area, fill: colour(k), opacity: .35 }, gEl);
+          svg('path', { d: line, class: 'line', stroke: colour(k) }, gEl);
+        }
+      }
+      const key = $('fit').appendChild(el('div', 'info'));
+      for (const k of ['home', 'away']) { const s = el('span'); s.append(el('b', '', g[k].name), ` ${k === 'home' ? 'above' : 'below'} the line`); key.append(s); }
+      if (!st.complete) $('fit').append(el('div', 'later', 'Studio didn\'t see every goal of this game'));
+    }
+    // Watch it back (?link=): the replay's link as a QR code, with what was streamed that night.
+    function drawWatch(d) {
+      head(d, 'Watch it back', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : d.venue)]);
+      const x = d.watch || {};
+      if (x.error) return x.error;
+      const box = $('fit').appendChild(el('div', 'watch'));
+      const qr = box.appendChild(el('div', 'watch__qr'));
+      qr.innerHTML = x.qr;
+      const right = box.appendChild(el('div', 'watch__games'));
+      for (const s of (d.stream ? d.stream.slots : []).filter(s => s.home && s.away).slice(0, 4)) {
+        right.append(bound('bound--line', el('div', 'game__team', `${s.home.name} v ${s.away.name}`), pill(clock(s.time))));
+      }
+      right.append(el('div', 'game__team', 'Scan to watch it back'), el('div', 'watch__link', x.shown));
+    }
+
     function drawOnStream(d) {
       head(d, 'On the stream', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
       if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
@@ -1246,7 +1348,7 @@
         // The Upcoming pictures worked out from the season, each with what it's for.
         const needs = { accuracy: ['accuracy', 'division'], supershots: ['supershots', 'division'], onfire: ['onfire', 'division'], numbers: ['numbers'],
           season: ['season', 'division', 'team'], wrap: ['wrap', 'division'],
-          potm: ['potm', 'game', 'athlete', 'medal'], teamround: ['teamround', 'division', 'GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'], spotlight: ['spotlight', 'athlete'], sponsorspot: ['sponsorspot', 'sponsor'], form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
+          potm: ['potm', 'game', 'athlete', 'medal'], story: ['story', 'game'], worm: ['story', 'game'], watch: ['watch', 'link'], teamround: ['teamround', 'division', 'GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'], spotlight: ['spotlight', 'athlete'], sponsorspot: ['sponsorspot', 'sponsor'], form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
         if (needs) { q.set('with', needs[0]); for (const k of needs.slice(1)) if (params.get(k)) q.set(k, params.get(k)); }
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
         if (['finalsbound', 'finalsdraw', 'champions'].includes(kind)) { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
@@ -1266,7 +1368,7 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
-          potm: drawPotm, teamround: drawTeamRound, spotlight: drawSpotlight, sponsorspot: drawSponsorSpot, thanks: drawThanks,
+          story: drawStory, worm: drawWorm, watch: drawWatch, potm: drawPotm, teamround: drawTeamRound, spotlight: drawSpotlight, sponsorspot: drawSponsorSpot, thanks: drawThanks,
           accuracy: drawAccuracy, supershots: drawSuperShots, onfire: drawOnFire, numbers: drawNumbers, club: drawClub, streaks: drawStreaks,
           season: drawSeason, wrap: drawWrap, form: drawForm, preview: drawPreview, byes: drawByes, milestones: drawMilestones,
           race: drawRace, countdown: drawCountdown, draw: drawDraw, results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,

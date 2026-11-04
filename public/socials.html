@@ -237,6 +237,20 @@
     pending('season', 'Team season card');
     for (const div of night.lastNights || []) list.push({ key: `wrap:${div}`, kind: 'wrap', division: div, name: `Season wrap ${div}`, missing: none,
       help: `${div}'s season on its last night: the ${night.winners.toLowerCase()} once known, top shooter, sharpest shooter, most super shots and biggest win.` });
+    // Game story and Score worm: a picture each per game Studio streamed (it keeps each one's goals and quarter scores).
+    const stories = done.filter(g => (night.stories || []).includes(g.id));
+    for (const g of stories) {
+      list.push({ key: `story:${g.id}`, kind: 'story', game: g.id, name: `Game story ${g.home.name} v ${g.away.name}`,
+        help: 'The game quarter by quarter as Studio\'s scoreboard kept it, with quarters won, the best quarter, the longest run, the biggest lead and the lead changes.' });
+      list.push({ key: `worm:${g.id}`, kind: 'worm', game: g.id, name: `Score worm ${g.home.name} v ${g.away.name}`,
+        help: 'The margin over the game from its goals, as on the stream\'s Score worm.' });
+    }
+    if (!stories.length) {
+      const why = none || 'Studio keeps the story of each game on its scoreboard: none of this night\'s games were streamed with it.';
+      list.push({ key: 'story', kind: 'story', name: 'Game story', missing: why, help: '' }, { key: 'worm', kind: 'worm', name: 'Score worm', missing: why, help: '' });
+    }
+    list.push({ key: 'watch', kind: 'watch', name: 'Watch it back', missing: none,
+      help: 'A QR code for the replay: paste the video\'s link (or your channel\'s), with the night\'s streamed games beside it.' });
     // Hand picks: a Player of the match per game and a Team of the round per division, picked from the line ups.
     for (const g of done) list.push({ key: `potm:${g.id}`, kind: 'potm', game: g.id, name: `Player of the match ${g.home.name} v ${g.away.name}`,
       help: 'Pick the player from either team\'s line up, with their photo when they approved its use. Give a medal\'s name for a special round.' });
@@ -477,6 +491,18 @@
     }
     return box;
   }
+  // Watch it back: the replay's link, typed or pasted; the first stream on Live viewers to start with.
+  function watchPicker(p) {
+    const l = el('label', 'picker');
+    l.append(el('b', '', 'Link to watch it back'));
+    const input = l.appendChild(el('input'));
+    input.type = 'text'; input.placeholder = 'https://youtube.com/…'; input.setAttribute('aria-label', 'Link to watch it back');
+    const first = (night.watchLinks || [])[0];
+    if (!(picks[p.key] || {}).link && first) picks[p.key] = { link: first.link };
+    input.value = (picks[p.key] || {}).link || '';
+    input.onchange = () => { picks[p.key] = { link: input.value.trim() }; redraw(p.key); };
+    return l;
+  }
   // Sponsor spotlight: any sponsor of the competition, the first to start with.
   function sponsorPicker(p) {
     const l = el('label', 'picker');
@@ -581,6 +607,7 @@
     if (p.kind === 'teamround' && p.division) left.append(teamRoundPicker(p));
     if (p.kind === 'spotlight') left.append(athletePicker(p.key, 'athlete', 'Athlete', {}));
     if (p.kind === 'sponsorspot') left.append(sponsorPicker(p));
+    if (p.kind === 'watch' && !p.missing) left.append(watchPicker(p));
     if (p.kind === 'matchup' || p.kind === 'fulltime') {
       const g = night.games.find(x => x.id === p.game);
       if (g) left.append(athletePicker(p.key, 'home', g.home.name, { division: g.division, team: g.home.name }),
