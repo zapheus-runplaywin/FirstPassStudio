@@ -216,3 +216,44 @@ test('a demo game wears the client\'s teams and athletes over the recorded game'
   assert.deepEqual([b.home.name, b.away.name], ['Knights', 'Blizzardz']);
   await studio.post('/api/practice', { stop: true });
 });
+
+// A recording PlayHQ had only one line up for (it happens: Game of Throws v Saddle Up, 3 Nov 2026, had none for
+// Saddle Up): the client's team on that side plays with its own line up, goals to the team, and the Athletes table
+// says so. A recorded fill-in keeps the name PlayHQ gives them.
+test('a demo game\'s side with no recorded line up shows the client\'s own line up', async t => {
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  await studio.post('/api/scoreboard', { type: 'playhqRefresh', value: 1 });
+  const historic = studio.world.divisions[0].rounds[0].games[0]; // Blizzardz v Knights
+  const recordedGame = { id: 'other-game', roundId: 'other-round', division: 'Open', court: 'Court 3', home: 'Red', away: 'Blue' };
+  const { name } = recording(studio.dataDir, recordedGame, lines => {
+    const T = lines[1].t;
+    const players = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'].map((pos, i) => ({ playerNumber: String(i + 1),
+      player: { __typename: 'DiscoverParticipant', id: `red-${i}`, profile: { firstName: 'Red', lastName: pos } },
+      statistics: i === 0 ? [{ type: { value: '1_POINT_SCORE' }, count: 4 }] : [], playerPosition: { shortName: pos } }));
+    players.push({ playerNumber: '8', player: { __typename: 'DiscoverRegularFillInPlayer', id: 'red-fill', name: 'Fill In' }, statistics: [], playerPosition: { shortName: 'INT' } });
+    const team = n => ({ __typename: 'DiscoverTeam', id: `team-${n}`, name: n });
+    lines.push({ t: T, k: 'playhq', op: 'discoverGame', vars: { gameID: 'other-game' }, tenant: 'na', data: { discoverGame: {
+      id: 'other-game', date: lines[2].board.date, status: { value: 'IN_PROGRESS' }, home: team('Red'), away: team('Blue'), result: null,
+      statistics: { home: { players, statistics: [] }, away: { players: [], statistics: [] } } } } });
+  });
+
+  for (const swap of [false, true]) {
+    const s = await studio.post('/api/practice', { start: { recording: name, game: 'other-game', demo: { game: historic.id, division: 'grade-div1', swap } } });
+    const [redAs, blueAs] = swap ? ['Knights', 'Blizzardz'] : ['Blizzardz', 'Knights'];
+    assert.equal(s.demo.sides.home.team, redAs);
+    assert.equal(s.demo.sides.home.missing, false);
+    assert.equal(s.demo.sides.home.pairs.find(r => r.id === 'red-fill').recorded, 'Fill In', 'a fill-in keeps their name');
+    assert.deepEqual([s.demo.sides.away.team, s.demo.sides.away.recordedTeam, s.demo.sides.away.missing], [blueAs, 'Blue', true]);
+
+    await studio.post('/api/practice', { jump: 'SECOND_QTR' });
+    const teams = await studio.until(async () => { const x = await studio.get('/api/teams'); return x.home.players.length && x.away.players.length && x; });
+    const red = teams.home.name === redAs ? teams.home : teams.away;
+    const blue = red === teams.home ? teams.away : teams.home;
+    assert.equal(blue.name, blueAs);
+    assert.equal(red.players.find(p => p.position === 'GS').name, `${redAs} GS`, 'the recorded side is paired as before');
+    assert.equal(blue.players.find(p => p.position === 'GS').name, `${blueAs} GS`, 'the other side has its own line up');
+    assert.ok(blue.players.every(p => !p.shooting.goals), 'with no goals to anyone');
+    await studio.post('/api/practice', { stop: true });
+  }
+});

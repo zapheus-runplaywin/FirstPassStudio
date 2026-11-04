@@ -187,7 +187,7 @@ function showPairs(d) {
     return `<table><tr><th colspan="2">${esc(s.team)}</th></tr>${s.pairs.map(r => `<tr><td>${esc(r.position || '')} ${esc(r.recorded)}</td>
       <td><select data-pair="${esc(r.id)}"><option value="">Unnamed (goals to the team)</option>${s.choices.map(c =>
         `<option value="${esc(c.name)}"${c.name === r.shown ? ' selected' : ''}>${esc(c.name)}${c.position ? ` (${esc(c.position)})` : ''}</option>`).join('')}</select></td></tr>`).join('')}
-      ${s.pairs.length ? '' : '<tr><td colspan="2" class="help">The recording has no line up for this team.</td></tr>'}</table>`;
+      ${s.missing ? `<tr><td colspan="2" class="help">${esc(s.recordedTeam)} has no line up in the recording, so ${esc(s.team)} play with their own line up and their goals go to the team.</td></tr>` : ''}</table>`;
   }).join('');
 }
 $('pairsSides').onchange = e => { const s = e.target.closest('[data-pair]'); if (s) practice({ pair: { id: s.dataset.pair, name: s.value } }); };
