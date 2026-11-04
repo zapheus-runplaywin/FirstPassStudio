@@ -243,6 +243,7 @@ const socials = require('./socials').create({
     const rows = (await getLadder(grade.id)).pools[0] || [];
     return { rows, finalsPlaces: finals.ladderMarks(finals.sized(finalsFor(grade.name), rows.length)).places };
   },
+  clubOf: team => competitions.clubFor(CONFIG, team), // the club a team belongs to (Competitions setup)
   milestonesFor: games => athleteRegister.milestones(games), // the night's first games and 50ths (athletes.js)
   tallyShooters: games => theGames.tallyShooters(games), superShots: division => !!rules(division).superShots,
   // A division's finals: whether it has a format (Competitions setup), and its finals as the Finals page has them.

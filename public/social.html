@@ -155,6 +155,19 @@
   .form__chips .stat { min-width: 84px; }
   .form__none { font-size: 24px; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
   .preview--pick { box-shadow: 0 0 0 4px var(--yellow); }
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(18px + var(--spread, 0px)) 18px; }
+  .tiles .stat { padding: 22px 10px; }
+  .tiles .stat b { font-size: 96px; }
+  .tiles .stat small { font-size: 22px; line-height: 1.2; }
+  .tiles .stat .stat__note { display: block; margin-top: 6px; opacity: .75; }
+  .card__head { display: flex; align-items: center; gap: 28px; margin-bottom: calc(20px + var(--spread, 0px)); }
+  .card__head .logo { width: 150px; height: 150px; }
+  .card__head .logo-fallback { font-size: 48px; }
+  .card__lines { margin-top: calc(18px + var(--spread, 0px)); }
+  .card__lines .bound + .bound { margin-top: calc(10px + var(--spread, 0px)); }
+  .bound.bound--team { grid-template-columns: var(--logo) minmax(0, 1fr) auto; }
+  .shooter.shooter--norank { grid-template-columns: 76px minmax(0, 1fr) auto; }
+  .bound.bound--line { grid-template-columns: minmax(0, 1fr) auto; font-size: 30px; }
   .count { text-align: center; font-family: var(--dfont); text-transform: uppercase; }
   .count__big { font-size: 320px; font-weight: 800; line-height: .9; color: var(--yellow); }
   .count__words { margin-top: 20px; font-size: 64px; font-weight: 800; line-height: 1; letter-spacing: .02em; }
@@ -311,7 +324,10 @@
               preview (Round preview, &division=<name>)  byes  milestones (&when=next: due that night; &when=played: on
               Results, played that night)  race (Finals race, &division=<name>)  countdown (to the finals or the grand
               final)  draw (Season draw, &division=<name>&team=<name>)
-              Results: results (the night's final scores)  review (Round in review: the biggest win, the closest game and
+              Results: accuracy (Sharpshooter, &division=)  supershots (Super shot leaders, &division=)  onfire
+              (&division=)  numbers (Night in numbers)  club (Club round up, &club=<name>)  streaks (teams unbeaten or on
+              a run)  season (Team season card, &division=&team=)  wrap (Season wrap, &division=)
+              results (the night's final scores)  review (Round in review: the biggest win, the closest game and
               the upsets)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as PlayHQ has it now; on the
               division's latest night, &movers=0|1 the places each moved since before the night)  topshooters (&division=<name>, that division's, else the
               night's, from each finished game's line ups)  tournament (&division=<name>: its top shooters over every
@@ -365,7 +381,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
+    const KINDS = ['accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -694,6 +710,113 @@
       }
     }
 
+    // A shooter's row: rank (none when null), face (or team logo), name and team, then the stats given.
+    function shooterRow(i, p, ...stats) {
+      const row = el('div', `shooter${i === null ? ' shooter--norank' : ''}`);
+      const s = el('div', 'shooter__stats'); s.append(...stats);
+      row.append(...(i === null ? [] : [el('div', 'shooter__rank', String(i + 1))]), p.photo ? face(p) : logoEl({ name: p.team, logo: p.logo }), who(p.name, p.team), s);
+      return row;
+    }
+    // Sharpshooter (?division=): the night's best accuracy, from its finished games' line ups.
+    function drawAccuracy(d) {
+      const a = d.accuracy || { players: [] };
+      head(d, 'Sharpshooter', [a.division || '', el('small', '', dayLong(d.date))]);
+      if (!a.gamesFinished) return `No results in ${a.division} for ${dayLong(d.date)} yet.`;
+      if (!a.players.length) return `Nobody in ${a.division} had ${a.minShots} or more shots at goal that night.`;
+      for (const [i, p] of a.players.entries()) $('fit').append(shooterRow(i, p, stat(`${p.goals + p.superGoals}/${p.shots}`, 'Shots'), stat(`${p.accuracy}%`, 'Accuracy', true)));
+    }
+    // Super shot leaders (?division=): the most super shots that night and over the season so far.
+    function drawSuperShots(d) {
+      const x = d.superShots || {};
+      head(d, 'Super shot leaders', [x.division || '', el('small', '', dayLong(d.date))]);
+      if (x.error) return x.error;
+      if (!(x.night || []).length && !(x.season || []).length) return `No super shots in ${x.division} yet.`;
+      for (const [label, list] of [['Tonight', x.night || []], ['Season', x.season || []]]) {
+        if (!list.length) continue;
+        const group = $('fit').appendChild(el('div', 'group'));
+        group.append(el('div', 'group__name', label));
+        for (const [i, p] of list.entries()) group.append(shooterRow(i, p, stat(p.points, 'Points'), stat(p.superGoals, 'Super', true)));
+      }
+    }
+    // On fire (?division=): the shooters who played that night whose goals a game have risen most over their last games.
+    function drawOnFire(d) {
+      const x = d.onFire || { players: [] };
+      head(d, 'On fire', [x.division || '', el('small', '', dayLong(d.date))]);
+      if (!x.players.length) return `Nobody in ${x.division} has more goals a game lately than before.`;
+      for (const [i, p] of x.players.entries()) {
+        const row = shooterRow(i, p, ...p.last.map(n => stat(n, 'Goals')), stat(`+${p.rise}`, 'A game', true));
+        row.querySelector('.shooter__team').textContent = `${p.team}  ·  was ${p.earlier} a game`;
+        $('fit').append(row);
+      }
+    }
+    // Night in numbers: the night's finished games added up.
+    function drawNumbers(d) {
+      const n = d.numbers || {};
+      head(d, 'Night in numbers', [dayLong(d.date), el('small', '', d.venue)]);
+      if (!n.games) return noResults(d);
+      const tile = (v, label, note) => { const x = stat(v, label); if (note) x.append(el('small', 'stat__note', note)); return x; };
+      const tiles = $('fit').appendChild(el('div', 'tiles'));
+      tiles.append(tile(n.games, n.games === 1 ? 'Game' : 'Games'), tile(n.points, n.superShots === null ? 'Goals' : 'Points'));
+      if (n.superShots !== null && n.superShots !== undefined) tiles.append(tile(n.superShots, 'Super shots'));
+      tiles.append(tile(n.close, `Within ${n.closeMargin} goals`), tile(n.biggest, 'Biggest win'));
+      if (n.highest) tiles.append(tile(n.highest.score, 'Highest score', n.highest.team));
+      if (n.draws) tiles.append(tile(n.draws, n.draws === 1 ? 'Draw' : 'Draws'));
+    }
+    // Club round up (?club=): every result that night of one club's teams, division by division.
+    function drawClub(d) {
+      const c = (d.clubs || []).find(x => x.club === params.get('club')) || (d.clubs || [])[0];
+      head(d, c ? c.club : 'Club round up', [dayLong(d.date), el('small', '', d.venue)], 'Club round up');
+      if (!c) return 'No club had more than one team playing that night.';
+      const mine = d.games.filter(g => c.games.includes(g.id));
+      for (const div of [...new Set(mine.map(g => g.division))]) {
+        const group = $('fit').appendChild(el('div', 'group'));
+        if (div) group.append(el('div', 'group__name', div));
+        for (const g of mine.filter(x => x.division === div)) group.append(resultRow(g));
+      }
+    }
+    // Still unbeaten: the teams unbeaten all season, or on a run of wins, once that night's results are in.
+    function drawStreaks(d) {
+      head(d, 'On a roll', [dayLong(d.date), el('small', '', d.venue)]);
+      const list = d.streaks || [];
+      if (!list.length) return 'No team is unbeaten or on a run of three wins or more.';
+      for (const t of list) {
+        const text = t.unbeaten && t.won === t.played ? `${t.won} from ${t.played}` : t.unbeaten ? `Unbeaten in ${t.played}` : `${t.run} wins in a row`;
+        $('fit').append(bound('bound--team', logoEl(t), who(t.team, `${t.division}  ·  ${t.unbeaten ? 'Still unbeaten' : 'On a run'}`), pill(text, 'final')));
+      }
+    }
+    // Team season card (?division= &team=): the season so far: its record, place, run, biggest win and top shooter.
+    function drawSeason(d) {
+      const c = d.season || {};
+      head(d, c.team || 'Season so far', [c.division || '', el('small', '', `after ${dayShort(d.date)}`)], 'Season so far');
+      if (c.error) return c.error;
+      if (!c.played) return `${c.team} hasn't played yet this season.`;
+      const tiles = $('fit').appendChild(el('div', 'tiles'));
+      tiles.append(stat(c.played, 'Played'), stat(c.won, 'Won', true), stat(c.lost, 'Lost'));
+      if (c.drawn) tiles.append(stat(c.drawn, 'Drawn'));
+      if (c.place) tiles.append(stat(nth(c.place), 'On the ladder'));
+      if (c.percentage !== null) tiles.append(stat(c.percentage, 'Percentage'));
+      const lines = $('fit').appendChild(el('div', 'card__lines'));
+      const line = (label, value) => lines.append(bound('bound--line', el('div', 'game__team', label), pill(value, 'final')));
+      if (c.run && c.run.games > 1) line('Current run', `${c.run.games} ${{ W: 'wins', L: 'losses', D: 'draws' }[c.run.result]} in a row`);
+      if (c.biggestWin) line('Biggest win', `by ${c.biggestWin.for - c.biggestWin.against} v ${c.biggestWin.opponent}`);
+      if (c.topShooter) line('Top shooter', `${c.topShooter.name}  ·  ${c.topShooter.points}`);
+    }
+    // Season wrap (?division=): the division's season in five lines: champions, top shooter, sharpest shooter, most super
+    // shots and the biggest win.
+    function drawWrap(d) {
+      const w = d.wrap || {};
+      head(d, 'Season wrap', [w.division || '', el('small', '', dayLong(d.date))]);
+      if (w.error) return w.error;
+      const lines = $('fit');
+      const add = (label, ...kids) => { const group = lines.appendChild(el('div', 'group')); group.append(el('div', 'group__name', label), ...kids); };
+      if (w.champion) add(d.winners || 'Champions', bound('bound--bye', logoEl(w.champion), el('div', 'game__team', w.champion.name)));
+      if (w.topShooter) add('Top shooter', shooterRow(null, w.topShooter, stat(w.topShooter.points, 'Points', true)));
+      if (w.accuracy) add('Sharpest shooter', shooterRow(null, w.accuracy, stat(`${w.accuracy.accuracy}%`, 'Accuracy', true)));
+      if (w.superShots) add('Most super shots', shooterRow(null, w.superShots, stat(w.superShots.superGoals, 'Super', true)));
+      if (w.biggestWin) add('Biggest win', resultRow({ ...w.biggestWin, winner: w.biggestWin.home.score > w.biggestWin.away.score ? 'home' : 'away' }));
+      if (!lines.children.length) return `${w.division} has no results yet.`;
+    }
+
     function drawOnStream(d) {
       head(d, 'On the stream', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
       if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
@@ -843,7 +966,10 @@
     function drawLadder(d) {
       const l = (d.ladders || []).find(x => x.division === params.get('division')) || (d.ladders || [])[0];
       if (!l) { head(d, 'Ladder', [dayLong(d.date)]); return `No games on ${dayLong(d.date)}.`; }
-      head(d, 'Ladder', [l.division, el('small', '', l.after ? `After ${l.after}` : 'As it stands')]);
+      // What it's after: this night's round, or (before this night's results, or on an older night) the division's latest
+      // night with results, by its round or else its date.
+      const asAt = l.after ? `After ${l.after}` : l.asAt ? (l.asAt.round ? `After ${l.asAt.round}` : `As at ${dayShort(l.asAt.date)}`) : 'Before the first round';
+      head(d, 'Ladder', [l.division, el('small', '', asAt)]);
       if (!l.rows.length) return l.error ? `No ladder from PlayHQ: ${l.error}` : `No ladder for ${l.division} yet.`;
       const drawn = l.rows.some(r => r.drawn);
       // With movers on, each team's move since before the night beside its place (the division's latest night only).
@@ -1029,7 +1155,8 @@
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'review') q.set('with', 'review');
         // The Upcoming pictures worked out from the season, each with what it's for.
-        const needs = { form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
+        const needs = { accuracy: ['accuracy', 'division'], supershots: ['supershots', 'division'], onfire: ['onfire', 'division'], numbers: ['numbers'],
+          season: ['season', 'division', 'team'], wrap: ['wrap', 'division'], form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
         if (needs) { q.set('with', needs[0]); for (const k of needs.slice(1)) if (params.get(k)) q.set(k, params.get(k)); }
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
         if (['finalsbound', 'finalsdraw', 'champions'].includes(kind)) { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
@@ -1049,7 +1176,8 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
-          form: drawForm, preview: drawPreview, byes: drawByes, milestones: drawMilestones,
+          accuracy: drawAccuracy, supershots: drawSuperShots, onfire: drawOnFire, numbers: drawNumbers, club: drawClub, streaks: drawStreaks,
+          season: drawSeason, wrap: drawWrap, form: drawForm, preview: drawPreview, byes: drawByes, milestones: drawMilestones,
           race: drawRace, countdown: drawCountdown, draw: drawDraw, results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
           finalsbound: drawFinalsBound, finalsdraw: drawFinalsDraw, champions: drawChampions }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));

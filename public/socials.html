@@ -175,6 +175,9 @@
       help: 'Athletes in the finished games\' line ups who played a first game (their team had played before without them), or their 50th, 100th or another 50, counting games typed in on the Athletes tab (Games).' });
     const score = g => `${g.home.name} ${g.home.score}-${g.away.score} ${g.away.name}`;
     for (const g of done) list.push({ key: `fulltime:${g.id}`, kind: 'fulltime', game: g.id, name: `Full time ${score(g)}`, help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
+    // A picture made from finished games with none yet shows once, saying so (pending), so the night's Results list is the same before and after.
+    const pending = (kind, name) => { if (!done.length) list.push({ key: kind, kind, name, missing: none, help: '' }); };
+    pending('fulltime', 'Full time');
     for (const div of [...new Set(night.games.map(g => g.division).filter(Boolean))]) {
       list.push({ key: `ladder:${div}`, kind: 'ladder', division: div, name: `Ladder ${div}`, help: 'The ladder as PlayHQ has it now: "after" the round when this is the division\'s latest night with results, when each team\'s move since before the night can show too.' });
     }
@@ -193,12 +196,39 @@
     const shot = [...new Set(done.map(g => g.division))];
     for (const div of shot) list.push({ key: `topshooters:${div}`, kind: 'topshooters', division: div, name: div ? `Top shooters ${div}` : 'Top shooters',
       help: `${div || 'The night'}'s top shooters, from each finished game's line ups (read once and kept).` });
-    if (!shot.length) list.push({ key: 'topshooters', kind: 'topshooters', name: 'Top shooters', missing: none, help: '' });
+    pending('topshooters', 'Top shooters');
     // Tournament (or Season) top shooters: a picture per division that played, its running totals over every finished game so far.
     for (const div of shot.filter(Boolean)) list.push({ key: `tournament:${div}`, kind: 'tournament', division: div, name: `${night.running} top shooters ${div}`,
       help: `${div}'s top shooters over every finished game so far, after this night's last round (or an earlier round that night).` });
+    pending('tournament', `${night.running} top shooters`);
+    // The night's stats, a picture per division that has finished games (Super shot leaders only where it plays them).
+    for (const div of shot.filter(Boolean)) {
+      list.push({ key: `accuracy:${div}`, kind: 'accuracy', division: div, name: `Sharpshooter ${div}`,
+        help: `${div}'s best shooting accuracy that night (goals over attempts), for shooters with 10 attempts or more.` });
+      if ((night.superShotDivisions || []).includes(div)) list.push({ key: `supershots:${div}`, kind: 'supershots', division: div, name: `Super shot leaders ${div}`,
+        help: `${div}'s most super shots that night and over the season so far, top three each.` });
+      list.push({ key: `onfire:${div}`, kind: 'onfire', division: div, name: `On fire ${div}`,
+        help: `${div}'s shooters who played that night with the biggest rise in goals a game over their last three games, on their games before.` });
+    }
+    pending('accuracy', 'Sharpshooter');
+    if (night.games.some(g => (night.superShotDivisions || []).includes(g.division))) pending('supershots', 'Super shot leaders');
+    pending('onfire', 'On fire');
+    list.push({ key: 'numbers', kind: 'numbers', name: 'Night in numbers', missing: none,
+      help: 'The night added up: games, goals (points where there are super shots), super shots, games within 3 goals, the biggest win and the highest score.' });
+    for (const c of night.clubs || []) list.push({ key: `club:${c.club}`, kind: 'club', club: c.club, name: `Club round up ${c.club}`,
+      help: `Every ${c.club} result that night, division by division. A club's teams are set under Clubs on Competitions setup.` });
+    pending('club', 'Club round up');
+    const runs = night.streaks || [];
+    list.push({ key: 'streaks', kind: 'streaks', name: 'On a roll', missing: none || (runs.length ? '' : 'No team is unbeaten (three games or more) or on a run of three wins or more.'),
+      help: runs.map(t => `${t.team} (${t.division})`).join(', ') });
+    if (done.length) list.push({ key: 'season', kind: 'season', name: 'Team season card',
+      help: 'One team\'s season so far: played, won, lost, its ladder place and percentage, its current run, biggest win and top shooter. Pick the team.' });
+    pending('season', 'Team season card');
+    for (const div of night.lastNights || []) list.push({ key: `wrap:${div}`, kind: 'wrap', division: div, name: `Season wrap ${div}`, missing: none,
+      help: `${div}'s season on its last night: the ${night.winners.toLowerCase()} once known, top shooter, sharpest shooter, most super shots and biggest win.` });
     for (const g of done) list.push({ key: `polaroid:${g.id}`, kind: 'polaroid', game: g.id, name: `Polaroid ${g.home.name} v ${g.away.name}`,
       help: 'The score goes under the photo. Drop a match photo on it, then drag the preview to frame it; with no photo the window is see-through.' });
+    pending('polaroid', 'Polaroid');
     return list;
   }
   function upcomingPictures() {
@@ -249,7 +279,7 @@
     const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours, template: info.settings.template });
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
-    for (const k of ['team', 'when']) if (p[k]) q.set(k, p[k]);
+    for (const k of ['team', 'when', 'club']) if (p[k]) q.set(k, p[k]);
     if (p.kind === 'tournament' || p.kind === 'ladder') q.set('movers', info.settings.movers ? '1' : '0');
     const photo = photos[p.key];
     for (const [k, v] of Object.entries(picks[p.key] || {})) if (v) q.set(k, v);
@@ -354,6 +384,21 @@
   }
   const twelve = t => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`; };
   // Movers: each shooter's places up or down since the night before, kept for the competition.
+  // The team for a Team season card: any team in that night's finished games, first one to start with.
+  function teamPicker(p) {
+    const l = el('label', 'picker');
+    l.append(el('b', '', 'Team'));
+    const pick = l.appendChild(el('select'));
+    const teams = [...new Map(night.games.filter(g => g.finished).flatMap(g => [g.home.name, g.away.name].map(t => [`${g.division}|${t}`, [g.division, t]]))).values()]
+      .sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true }) || a[1].localeCompare(b[1]));
+    pick.append(...teams.map(([div, t]) => new Option(`${t} (${div})`, `${div}|${t}`)));
+    const now = picks[p.key] || {};
+    pick.value = now.team ? `${now.division}|${now.team}` : pick.value;
+    const apply = () => { const [division, team] = pick.value.split('|'); picks[p.key] = { division, team }; };
+    if (!now.team) apply();
+    pick.onchange = () => { apply(); redraw(p.key); };
+    return l;
+  }
   function moversTick() {
     const l = el('label', 'picker movers');
     const c = el('input'); c.type = 'checkbox'; c.checked = info.settings.movers;
@@ -442,6 +487,7 @@
     if (p.kind === 'polaroid') left.append(photoControls(p.key), athletePicker(p.key, 'athlete', 'Or an athlete\'s photo', {}));
     if (p.kind === 'tournament') left.append(afterPicker(p), moversTick());
     if (p.kind === 'ladder') left.append(moversTick());
+    if (p.kind === 'season') left.append(teamPicker(p));
     if (p.kind === 'matchup' || p.kind === 'fulltime') {
       const g = night.games.find(x => x.id === p.game);
       if (g) left.append(athletePicker(p.key, 'home', g.home.name, { division: g.division, team: g.home.name }),

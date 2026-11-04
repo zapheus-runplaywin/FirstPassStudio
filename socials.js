@@ -36,6 +36,10 @@
 //                                        &with=race&division= its finals race; &with=draw&division=&team= that team's season;
 //                                        &with=milestones the night's first games and 50ths. Always: byes, countdown, raceOn
 //                                        (divisions in their finals race) and firstNights (divisions starting their season)
+//                                        Results: &with=accuracy|supershots|onfire&division= (Sharpshooter, Super shot leaders, On
+//                                        fire); &with=numbers (Night in numbers); &with=season&division=&team= (Team season card);
+//                                        &with=wrap&division= (Season wrap). Always: clubs (Club round up), streaks (Still unbeaten)
+//                                        and lastNights (divisions ending their season)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool,
@@ -69,8 +73,11 @@ const SIZES = {
 // team's season draw, on its division's first night), onstream, commentators (the commentary team's headshots) and a
 // polaroid; Results: results, review (Round in review: the
 // biggest win, the closest game and the upsets), fulltime, ladder, topshooters, tournament (each division's top shooters so
-// far, called Tournament or Season top shooters) and a polaroid per game.
-const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true };
+// far, called Tournament or Season top shooters), accuracy (Sharpshooter), supershots (Super shot leaders), onfire,
+// numbers (Night in numbers), club (Club round up), streaks (Still unbeaten), season (Team season card), wrap (Season
+// wrap) and a polaroid per game.
+const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true,
+  accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true };
 // Each kind of picture as a picture set's editor lists it (the Socials tab's Show row): its name and which list it's on
 // (upcoming, results or both). Every kind in KINDS needs one.
 const KIND_NAMES = [
@@ -81,6 +88,9 @@ const KIND_NAMES = [
   ['results', 'Results', 'results'], ['review', 'Round in review', 'results'], ['fulltime', 'Full time', 'results'],
   ['ladder', 'Ladder', 'results'], ['topshooters', 'Top shooters', 'results'], ['tournament', 'Tournament top shooters', 'results'],
   ['finalsbound', 'Finals bound', 'results'], ['champions', 'Champions', 'results'],
+  ['accuracy', 'Sharpshooter', 'results'], ['supershots', 'Super shot leaders', 'results'], ['onfire', 'On fire', 'results'],
+  ['numbers', 'Night in numbers', 'results'], ['club', 'Club round up', 'results'], ['streaks', 'On a roll', 'results'],
+  ['season', 'Team season card', 'results'], ['wrap', 'Season wrap', 'results'],
   ['milestones', 'Milestones', 'both'], ['finalsdraw', 'Finals draw', 'both'], ['polaroid', 'Polaroid', 'both'],
 ].map(([kind, name, when]) => ({ kind, name, when }));
 const MAX_PICTURE_SETS = 12;
@@ -131,7 +141,7 @@ const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
-  milestonesFor = async () => [], hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
+  milestonesFor = async () => [], clubOf = () => '', hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -335,6 +345,20 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('race')) out.race = await withLadder(division, (rows, fp) => stats.race(season, date, division, rows, fp));
     if (want.has('draw')) out.draw = { division, team: String(q.team || ''), logo: logoFor(String(q.team || '')), games: stats.draw(season, division, String(q.team || '')).map(g => ({ ...g, opponentLogo: logoFor(g.opponent) })) };
     if (want.has('milestones')) out.milestones = await milestones(games);
+    // The Results pictures worked out from the season and the line ups. Always: the clubs with more than one game, the
+    // teams on a run, and the divisions ending their season.
+    out.clubs = stats.clubs(games, clubOf);
+    out.streaks = stats.streaks(season, date, games).map(x => ({ ...x, logo: logoFor(x.team) }));
+    out.lastNights = stats.lastNights(season, date);
+    out.superShotDivisions = [...new Set(games.map(g => g.division))].filter(d => d && superShots(d));
+    const tonightIn = div => raw.filter((g, i) => games[i].finished && games[i].division === div);
+    const seasonIn = div => Object.keys(dates).filter(d => d <= date).sort().flatMap(d => dates[d]).filter(g => g.division === div && brief(g).finished);
+    if (want.has('accuracy')) out.accuracy = await accuracy(tonightIn(division), division);
+    if (want.has('supershots')) out.superShots = await superLeaders(tonightIn(division), seasonIn(division), division);
+    if (want.has('onfire')) out.onFire = await onFire(seasonIn(division), date, division);
+    if (want.has('numbers')) out.numbers = { ...stats.numbers(games), ...(await nightSupers(raw.filter((g, i) => games[i].finished))) };
+    if (want.has('season')) out.season = await seasonCard(season, date, division, String(q.team || ''), seasonIn(division));
+    if (want.has('wrap')) out.wrap = await wrap(season, date, division, seasonIn(division));
     if (want.has('shooters')) {
       const division = q.division ? String(q.division) : '';
       out.shooters = await shooters(raw.filter((g, i) => games[i].finished && (!division || games[i].division === division)));
@@ -444,7 +468,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // The ladder of each division that played that night, as PlayHQ has it now. after: the round, when this night is
-  // that division's latest with results (so "after Round 5" is true); else the ladder is simply today's. On the
+  // that division's latest with results (so "after Round 5" is true); else the ladder is simply today's. asAt: what the
+  // ladder is after either way, the division's latest night with results (its date and round; null before any). On the
   // division's latest night each row also has before (its place before this night's games) and moved (places up, or
   // down when below 0), and the ladder has movers: true, unless nobody had played before this night.
   async function ladders(dates, date, games) {
@@ -452,17 +477,89 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     for (const division of [...new Set(games.map(g => g.division).filter(Boolean))]) {
       const latest = Object.keys(dates).sort().filter(d => dates[d].some(g => g.division === division && isFinished(g))).pop();
       const round = (games.find(g => g.division === division) || {}).round || '';
+      const asAt = latest ? { date: latest, round: (dates[latest].filter(g => g.division === division && isFinished(g)).pop() || {}).round || '' } : null;
       try {
         const l = await ladderFor(division);
         const was = latest === date ? stats.placesBefore(l.rows, games.filter(g => g.division === division && g.finished)) : null;
         const rows = l.rows.map(r => ({ ...r, logo: logoFor(r.team), ...(was ? { before: was.get(r.team), moved: was.get(r.team) - r.position } : {}) }));
-        out.push({ division, after: latest === date ? round : '', rows, finalsPlaces: l.finalsPlaces || 0, movers: !!was });
+        out.push({ division, after: latest === date ? round : '', asAt, rows, finalsPlaces: l.finalsPlaces || 0, movers: !!was });
       } catch (err) {
         log('warn', 'socials', `No ladder for ${division}: ${err.message}`);
-        out.push({ division, after: '', rows: [], error: err.message });
+        out.push({ division, after: '', asAt, rows: [], error: err.message });
       }
     }
     return out;
+  }
+
+  // ─── Shooting for the Results pictures (each finished game's line ups, read once and kept) ───────────────────
+  const shooterOf = p => ({ name: p.name, team: p.team, logo: p.logo, photo: photoFor(p), games: p.games, goals: p.goals, superGoals: p.superGoals,
+    shots: p.shots, points: p.points, accuracy: p.shots ? Math.round((p.goals + p.superGoals) / p.shots * 1000) / 10 : null });
+  const ACCURACY_SHOTS = 10; // the attempts a shooter needs that night to count for Sharpshooter
+  // Sharpshooter: a division's best shooting accuracy that night (goals and super goals over attempts), ACCURACY_SHOTS
+  // attempts or more.
+  async function accuracy(finished, division) {
+    const t = finished.length ? await tallyShooters(finished) : { players: [], read: 0 };
+    const players = t.players.filter(p => p.shots >= ACCURACY_SHOTS).map(shooterOf).sort((a, b) => b.accuracy - a.accuracy || b.goals - a.goals).slice(0, SHOOTERS_SHOWN);
+    return { division, minShots: ACCURACY_SHOTS, players, gamesFinished: finished.length, gamesRead: t.read };
+  }
+  // Super shot leaders: a super shot division's most super shots that night and over the season so far, top 3 each.
+  const SUPER_SHOWN = 3;
+  async function superLeaders(finished, seasonGames, division) {
+    if (!superShots(division)) return { division, error: `${division} doesn't play super shots.` };
+    const top = async list => list.length ? (await tallyShooters(list)).players.filter(p => p.superGoals).map(shooterOf)
+      .sort((a, b) => b.superGoals - a.superGoals || b.points - a.points).slice(0, SUPER_SHOWN) : [];
+    return { division, night: await top(finished), season: await top(seasonGames), gamesFinished: finished.length };
+  }
+  // On fire: a division's shooters who played that night whose goals a game (super goals counted as goals) over their last
+  // three games rose most on their games before; rise: by how much (at least one earlier game needed).
+  const FIRE_RECENT = 3, FIRE_SHOWN = 5;
+  async function onFire(seasonGames, date, division) {
+    const per = new Map();
+    for (const g of seasonGames) {
+      for (const p of (await tallyShooters([g])).players) {
+        const k = `${p.name.toLowerCase()}|${p.team.toLowerCase()}`;
+        const x = per.get(k) || { ...shooterOf(p), list: [], tonight: false };
+        x.list.push(p.goals + p.superGoals);
+        x.tonight = x.tonight || g.date === date;
+        per.set(k, x);
+      }
+    }
+    const avg = l => l.reduce((a, b) => a + b, 0) / l.length;
+    const players = [...per.values()].filter(x => x.tonight && x.list.length > 1).map(x => {
+      const n = Math.min(FIRE_RECENT, x.list.length - 1), recent = x.list.slice(-n), earlier = x.list.slice(0, -n);
+      return { name: x.name, team: x.team, logo: x.logo, photo: x.photo, recent: Math.round(avg(recent) * 10) / 10, earlier: Math.round(avg(earlier) * 10) / 10,
+        last: recent, rise: Math.round((avg(recent) - avg(earlier)) * 10) / 10 };
+    }).filter(x => x.rise > 0).sort((a, b) => b.rise - a.rise || a.name.localeCompare(b.name)).slice(0, FIRE_SHOWN);
+    return { division, players };
+  }
+  // The night's super shots, for Night in numbers (only where a division that played has them).
+  async function nightSupers(finished) {
+    if (!finished.some(g => superShots(g.division))) return { superShots: null };
+    const t = await tallyShooters(finished);
+    return { superShots: t.players.reduce((n, p) => n + p.superGoals, 0) };
+  }
+  // Team season card (&division= &team=): socialstats.teamCard with its ladder place, logos, and its top shooter so far.
+  async function seasonCard(season, date, division, team, seasonGames) {
+    if (!division || !team) return { division, team, error: 'Pick a team.' };
+    let rows = [];
+    try { rows = (await ladderFor(division)).rows; } catch (err) { log('warn', 'socials', `No ladder for ${division}: ${err.message}`); }
+    const card = stats.teamCard(season, date, division, team, rows);
+    const mine = seasonGames.filter(g => sameName(g.home.name, team) || sameName(g.away.name, team));
+    const top = mine.length ? (await tallyShooters(mine)).players.filter(p => sameName(p.team, team)).sort((a, b) => b.points - a.points)[0] : null;
+    return { ...card, logo: logoFor(team), topShooter: top ? shooterOf(top) : null, results: card.results.map(r => ({ ...r, logo: logoFor(r.opponent) })) };
+  }
+  // Season wrap (&division=): its champions once known, the season's top shooter, best accuracy (ACCURACY_SHOTS
+  // attempts a game on average), most super shots (where it has them) and biggest win.
+  async function wrap(season, date, division, seasonGames) {
+    if (!division) return { division, error: 'Pick a division.' };
+    const all = seasonGames.length ? (await tallyShooters(seasonGames)).players.map(shooterOf) : [];
+    const best = (list, f) => [...list].sort((a, b) => f(b) - f(a))[0] || null;
+    const draw = hasFinals(division) ? await finalsDraw(division) : null;
+    const big = stats.biggestWin(season, date, division);
+    return { division, champion: (draw && draw.champion) ? { name: draw.champion.name, logo: logoFor(draw.champion.name) } : null,
+      topShooter: best(all, p => p.points), accuracy: best(all.filter(p => p.shots >= ACCURACY_SHOTS * p.games), p => p.accuracy),
+      superShots: superShots(division) ? best(all.filter(p => p.superGoals), p => p.superGoals) : null,
+      biggestWin: big && { ...big, home: { ...big.home, logo: logoFor(big.home.name) }, away: { ...big.away, logo: logoFor(big.away.name) } } };
   }
 
   // The top shooters of the finished games given (one division's, or the whole night's), most points first (goals where
