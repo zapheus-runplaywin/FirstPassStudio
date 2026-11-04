@@ -9,14 +9,16 @@
 // or the Mac's Share menu. Without the Mac app (npm start) the previews work and Export says it needs the app.
 //
 // Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
-// colourSets: [{ id, name, ground, highlight, accent }], template, favourites: [<template id>], favouritesOnly }: the
+// colourSets: [{ id, name, ground, highlight, accent }], template, favourites: [<template id>], favouritesOnly, movers,
+// pictureSets: [{ id, name, kinds: [<kind>] }], pictureSet: <set id or '' for all> }: the
 // FirstPass Studio mark and the PIVT logo in the corners, which graphics carry the sponsor strip, the colour set in use
 // and the ones made by hand, the template set, and the template sets starred (and whether the tab lists only those),
-// kept week to week. Photos dropped on a polaroid stay
+// and the picture sets (which kinds of picture the tab shows, picked on its Show row), kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
 // Routes (server.js hands every /api/socials and /socials/ request here):
-//   GET  /api/socials                    the game nights, the settings and whether pictures can be saved (the app)
+//   GET  /api/socials                    the game nights, the settings, the kinds of picture (KIND_NAMES) and whether
+//                                        pictures can be saved (the app)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
 //                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played
 //                                        (with each team's move since before the night, when the ladder is after it), &with=shooters
@@ -40,7 +42,8 @@
 //                                        and lastNights (divisions ending their season)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
-//                                        favourites: [<template id>], favouritesOnly: bool, movers: bool }
+//                                        favourites: [<template id>], favouritesOnly: bool, movers: bool,
+//                                        pictureSets: [{ id?, name, kinds }], pictureSet: <set id or ''> }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
 //   POST /api/socials/export             { date, set: upcoming|results, share, zip, items: [{ name, link, size }] }: the
@@ -75,6 +78,22 @@ const SIZES = {
 // wrap) and a polaroid per game.
 const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true,
   accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true };
+// Each kind of picture as a picture set's editor lists it (the Socials tab's Show row): its name and which list it's on
+// (upcoming, results or both). Every kind in KINDS needs one.
+const KIND_NAMES = [
+  ['fixtures', 'Game night fixture', 'upcoming'], ['matchup', 'Match up', 'upcoming'], ['form', 'Form guide', 'upcoming'],
+  ['preview', 'Round preview', 'upcoming'], ['byes', 'Byes', 'upcoming'], ['race', 'Finals race', 'upcoming'],
+  ['countdown', 'Countdown', 'upcoming'], ['draw', 'Season draw', 'upcoming'], ['onstream', 'On the stream', 'upcoming'],
+  ['commentators', 'Commentary team', 'upcoming'],
+  ['results', 'Results', 'results'], ['review', 'Round in review', 'results'], ['fulltime', 'Full time', 'results'],
+  ['ladder', 'Ladder', 'results'], ['topshooters', 'Top shooters', 'results'], ['tournament', 'Tournament top shooters', 'results'],
+  ['finalsbound', 'Finals bound', 'results'], ['champions', 'Champions', 'results'],
+  ['accuracy', 'Sharpshooter', 'results'], ['supershots', 'Super shot leaders', 'results'], ['onfire', 'On fire', 'results'],
+  ['numbers', 'Night in numbers', 'results'], ['club', 'Club round up', 'results'], ['streaks', 'On a roll', 'results'],
+  ['season', 'Team season card', 'results'], ['wrap', 'Season wrap', 'results'],
+  ['milestones', 'Milestones', 'both'], ['finalsdraw', 'Finals draw', 'both'], ['polaroid', 'Polaroid', 'both'],
+].map(([kind, name, when]) => ({ kind, name, when }));
+const MAX_PICTURE_SETS = 12;
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
@@ -136,11 +155,16 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const colourSets = Array.isArray(d.colourSets) ? d.colourSets.filter(ownSet) : [];
     const colours = typeof d.colours === 'string' && allSets(colourSets).some(x => x.id === d.colours) ? d.colours : 'competition';
     const template = templateOf(d.template)?.id || 'default';
+    const pictureSets = pictureSetsOf(d.pictureSets);
     return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template, favourites: favouritesOf(d.favourites), favouritesOnly: d.favouritesOnly === true,
-      movers: d.movers !== false };
+      movers: d.movers !== false, pictureSets, pictureSet: pictureSets.some(x => x.id === d.pictureSet) ? d.pictureSet : '' };
   }
   // Starred template sets, in the list's order; a retired one counts as the set it is now drawn as.
   const favouritesOf = list => Array.isArray(list) ? TEMPLATES.map(t => t.id).filter(id => list.some(x => templateOf(x)?.id === id)) : [];
+  // The picture sets made on the tab, each { id: pset-N, name, kinds: [<kind>] } with the kinds in KIND_NAMES' order; a
+  // kind no longer made is dropped.
+  const pictureSetsOf = list => Array.isArray(list) ? list.filter(x => x && /^pset-\d+$/.test(x.id) && typeof x.name === 'string' && Array.isArray(x.kinds))
+    .map(x => ({ id: x.id, name: x.name, kinds: KIND_NAMES.map(k => k.kind).filter(k => x.kinds.includes(k)) })) : [];
   const ownSet = x => x && /^own-\d+$/.test(x.id) && typeof x.name === 'string' && [x.ground, x.highlight, x.accent].every(c => HEX.test(c));
   function saveSettings(body) {
     const id = competitions.activeId();
@@ -170,6 +194,17 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     }
     if (typeof body.favouritesOnly === 'boolean') now.favouritesOnly = body.favouritesOnly;
     if (typeof body.movers === 'boolean') now.movers = body.movers;
+    if (Array.isArray(body.pictureSets)) {
+      if (body.pictureSets.length > MAX_PICTURE_SETS) throw new Error(`Keep it to ${MAX_PICTURE_SETS} picture sets.`);
+      if (!body.pictureSets.every(x => x && Array.isArray(x.kinds) && x.kinds.every(k => Object.hasOwn(KINDS, k)))) throw new Error('There is no such kind of picture.');
+      now.pictureSets = pictureSetsOf(body.pictureSets.map((x, i) => ({ id: /^pset-\d+$/.test(x.id) ? x.id : `pset-${Date.now()}${i}`,
+        name: String(x.name || '').trim().slice(0, 30) || 'My pictures', kinds: x.kinds })));
+    }
+    if (typeof body.pictureSet === 'string') {
+      if (body.pictureSet && !now.pictureSets.some(x => x.id === body.pictureSet)) throw new Error('There is no such picture set.');
+      now.pictureSet = body.pictureSet;
+    }
+    if (!now.pictureSets.some(x => x.id === now.pictureSet)) now.pictureSet = '';
     savefile.writeJsonSync(fileOf(id), now);
     return now;
   }
@@ -247,7 +282,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     });
     const next = (nights.find(n => n.date >= today) || nights[nights.length - 1] || {}).date || '';
     const s = settings();
-    return { nights, next, today, sizes: SIZES, settings: s, colourSets: allSets(s.colourSets), templates: TEMPLATES, app: !!appPort };
+    return { nights, next, today, sizes: SIZES, settings: s, colourSets: allSets(s.colourSets), templates: TEMPLATES, kinds: KIND_NAMES, app: !!appPort };
   }
 
   // One night, for social.html: every game (all courts, in time order) with its result once finished, the court
@@ -625,7 +660,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return false;
   }
 
-  return { route, list, night, settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS, TEMPLATES };
+  return { route, list, night, settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS, KIND_NAMES, TEMPLATES };
 }
 
-module.exports = { create, SIZES, KINDS };
+module.exports = { create, SIZES, KINDS, KIND_NAMES };
