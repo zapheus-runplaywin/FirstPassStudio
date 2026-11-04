@@ -8,6 +8,8 @@
 // formOf: a game's two teams' last results and their meetings this season (Form guide). preview: a division's games that
 // night with each team's place and what a win could do (Round preview). byes: who isn't playing. race: a division's
 // finals race (in, out, still a chance). countdown: how close the finals or the grand final are. draw: a team's season.
+// Results: numbers (Night in numbers), clubs (Club round up), streaks (Still unbeaten), teamCard (Team season card),
+// biggestWin and lastNights (Season wrap).
 
 'use strict';
 
@@ -166,8 +168,89 @@ function draw(season, division, team) {
       ...(g.finished ? { result: resultOf(g, team) } : {}) };
   });
 }
+// Night in numbers: the night's finished games added up. close: games decided by CLOSE goals or fewer (a draw included).
+const CLOSE = 3;
+function numbers(games) {
+  const done = games.filter(g => g.finished);
+  const margin = g => Math.abs(g.home.score - g.away.score);
+  const top = [...done].sort((a, b) => Math.max(b.home.score, b.away.score) - Math.max(a.home.score, a.away.score))[0];
+  return { games: done.length, points: done.reduce((n, g) => n + g.home.score + g.away.score, 0), close: done.filter(g => margin(g) <= CLOSE).length,
+    draws: done.filter(g => !margin(g)).length, biggest: done.length ? Math.max(...done.map(margin)) : 0,
+    highest: top ? { team: top.home.score >= top.away.score ? top.home.name : top.away.name, score: Math.max(top.home.score, top.away.score) } : null, closeMargin: CLOSE };
+}
+
+// The clubs with teams in more than one finished game that night (clubOf: the club a team belongs to, from Competitions
+// setup), each with those games' ids.
+function clubs(games, clubOf) {
+  const by = new Map();
+  for (const g of games.filter(x => x.finished)) {
+    for (const t of [g.home.name, g.away.name]) {
+      const c = clubOf(t);
+      if (!c) continue;
+      const list = by.get(c) || [];
+      if (!list.includes(g.id)) list.push(g.id);
+      by.set(c, list);
+    }
+  }
+  return [...by].filter(([, ids]) => ids.length > 1).map(([club, games]) => ({ club, games })).sort((a, b) => a.club.localeCompare(b.club));
+}
+
+// A team's results this season in one division up to and including a night, oldest first.
+const resultsTo = (season, date, division, team) => season.filter(g => g.finished && g.date <= date && g.division === division && plays(g, team)).map(g => resultOf(g, team));
+// Its current run: the same result over its latest games (wins, losses or draws) and how many.
+function runOf(results) {
+  const last = results[results.length - 1];
+  if (!last) return null;
+  let n = 0;
+  for (let i = results.length - 1; i >= 0 && results[i].result === last.result; i--) n++;
+  return { result: last.result, games: n };
+}
+// The teams of the divisions playing that night on a run once that night's results are in: unbeaten all season (STREAK
+// games or more), or STREAK wins or more in a row; longest first.
+const STREAK = 3;
+function streaks(season, date, games) {
+  const out = [];
+  for (const division of [...new Set(games.filter(g => g.finished).map(g => g.division).filter(Boolean))]) {
+    const teams = [...new Set(season.filter(g => g.division === division).flatMap(g => [g.home.name, g.away.name]))];
+    for (const team of teams) {
+      const r = resultsTo(season, date, division, team);
+      const run = runOf(r);
+      const unbeaten = r.length >= STREAK && !r.some(x => x.result === 'L');
+      if (unbeaten || (run && run.result === 'W' && run.games >= STREAK)) {
+        out.push({ division, team, played: r.length, won: r.filter(x => x.result === 'W').length, drawn: r.filter(x => x.result === 'D').length,
+          unbeaten, run: run.result === 'W' ? run.games : 0 });
+      }
+    }
+  }
+  return out.sort((a, b) => b.run - a.run || b.played - a.played || a.team.localeCompare(b.team));
+}
+
+// A team's season card up to a night: played, won, lost, drawn, scores for and against, its ladder place (rows), its
+// current run and its biggest win.
+function teamCard(season, date, division, team, rows) {
+  const r = resultsTo(season, date, division, team);
+  const count = k => r.filter(x => x.result === k).length;
+  const pf = r.reduce((n, x) => n + x.for, 0), pa = r.reduce((n, x) => n + x.against, 0);
+  const wins = r.filter(x => x.result === 'W').sort((a, b) => (b.for - b.against) - (a.for - a.against));
+  const row = rows.find(x => sameName(x.team, team));
+  return { division, team, played: r.length, won: count('W'), lost: count('L'), drawn: count('D'), for: pf, against: pa,
+    percentage: pa ? Math.round(pf / pa * 1000) / 10 : null, place: row ? row.position : null, points: row ? row.points : null,
+    run: runOf(r), biggestWin: wins[0] || null, results: r };
+}
+
+// The biggest win of a division's season up to a night.
+function biggestWin(season, date, division) {
+  const done = season.filter(g => g.finished && g.date <= date && g.division === division && g.home.score !== g.away.score);
+  const g = [...done].sort((a, b) => Math.abs(b.home.score - b.away.score) - Math.abs(a.home.score - a.away.score))[0];
+  return g ? { id: g.id, date: g.date, round: g.round, home: g.home, away: g.away } : null;
+}
+// The divisions ending their season that night: no games of theirs after it.
+const lastNights = (season, date) => [...new Set(season.filter(g => g.date === date).map(g => g.division))]
+  .filter(d => d && !season.some(g => g.division === d && g.date > date));
+
 // The divisions starting their season that night: their first night of games is this one.
 const firstNights = (season, date) => [...new Set(season.filter(g => g.date === date).map(g => g.division))]
   .filter(d => d && !season.some(g => g.division === d && g.date < date));
 
-module.exports = { sameName, winPoints, placesBefore, review, formOf, preview, byes, raceOn, race, countdown, draw, firstNights, FORM_SHOWN };
+module.exports = { sameName, winPoints, placesBefore, review, formOf, preview, byes, raceOn, race, countdown, draw, firstNights, lastNights, numbers, clubs, streaks,
+  teamCard, biggestWin, FORM_SHOWN, STREAK };
