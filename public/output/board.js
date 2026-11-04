@@ -221,7 +221,7 @@ function boardSound(outs) {
     const head = many ? `<span class="sout" style="--c:${boardEsc(o.colour)}">${boardEsc(o.name)}</span>` : '';
     if (o.mode === 'off') return `${head}<div class="srow"><span class="dot"></span><span class="sname"><b>Web links only</b><small>sound in the output canvas link</small></span><span class="sfmt">–</span>${soundMeter('', null)}</div>`;
     // No sound: one row saying so, with No Audio where the meter and level go.
-    if (!(o.sound || []).length) return `${head}<div class="srow"><span class="dot"></span><span class="sname"><b>Nowhere</b><small>Sound goes to: No sound</small></span><span class="sfmt">–</span><span class="snone">No Audio</span></div>`;
+    if (!(o.sound || []).length) return `${head}<div class="srow"><span class="dot"></span><span class="sname"><b>Nowhere</b><small>No sound</small></span><span class="sfmt">–</span><span class="snone">No Audio</span></div>`;
     const where = soundWhere(o);
     return head + (o.sound || []).map((d, i) => {
       const st = (o.soundState || [])[i] || { state: 'off' };

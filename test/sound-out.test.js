@@ -108,7 +108,7 @@ test('the status board\'s Sound out tile and the output cards say where the soun
   one = { ...one, sound: [], soundState: [] };
   await page.evaluate(() => loadOut());
   await says('No Audio');
-  assert.deepEqual((await rows())[0], ['', 'Nowhere', 'Sound goes to: No sound', '–', 'No Audio']);
+  assert.deepEqual((await rows())[0], ['', 'Nowhere', 'No sound', '–', 'No Audio']);
   assert.equal(await page.$$eval('#board .stile .srow .smeter', m => m.length), 1, 'no meter for it (only Output 2\'s)');
   await cardSays('Sound: none');
 
