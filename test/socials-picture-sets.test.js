@@ -74,3 +74,34 @@ test('the Show row lists only the kinds in the picked picture set', async t => {
   await page.waitForSelector('#show [aria-pressed="true"]:has-text("All")');
   assert.deepEqual((await studio.get('/api/socials')).settings.pictureSets, []);
 });
+
+test('Division lists one division\'s pictures, with the ones for the whole night', async t => {
+  let browser = null;
+  try { browser = chromium && await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); } catch { browser = null; }
+  if (!browser) {
+    if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail('no browser to test the Socials tab in');
+    t.skip('no browser to test the Socials tab in; run npx playwright install chromium');
+    return;
+  }
+  t.after(() => browser.close());
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
+  await page.goto(`${studio.base}/socials.html`);
+  await page.waitForSelector('.pic[data-key]');
+  await page.click('label:has([name=set][value=upcoming])');
+  await page.waitForSelector('#division');
+  const divisions = await page.$$eval('#division option', os => os.map(o => o.value));
+  assert.ok(divisions.length > 2 && divisions[0] === '', divisions.join());
+  const keys = () => page.$$eval('.pic[data-key]', ss => ss.map(s => s.dataset.key));
+  const all = await keys();
+  const div = divisions[1];
+  await page.selectOption('#division', div);
+  await page.waitForFunction(n => document.querySelectorAll('.pic[data-key]').length < n, all.length);
+  const some = await keys();
+  assert.ok(some.includes('fixtures') && some.includes('byes'), 'the whole night\'s pictures stay');
+  assert.ok(some.includes(`preview:${div}`) && !some.includes(`preview:${divisions[2]}`), some.join());
+  assert.equal(await page.$eval('#show [aria-pressed="true"] .count', c => c.textContent), String(some.length), 'All counts the division\'s');
+  await page.selectOption('#division', '');
+  await page.waitForFunction(n => document.querySelectorAll('.pic[data-key]').length === n, all.length);
+});
