@@ -47,7 +47,12 @@
 //                                        night); &with=sponsorlist every sponsor, to pick from. Always: nextNight (Thanks for watching)
 //                                        &with=story&game= the game's story as the scoreboard kept it (Game story, Score worm);
 //                                        &with=watch&link= a QR code for the replay's link (Watch it back). Always: stories (the
-//                                        night's games with a kept story) and watchLinks (links suggested from Live viewers)
+//                                        night's games with a kept story) and watchLinks (links suggested from Live viewers);
+//                                        the story's moments are Moments of the game's
+//                                        &with=gamestats&game= a finished game's team and shooter totals from its line ups (Game
+//                                        stats, Shooting duel), with the story's quarters, runs and leads when Studio streamed it;
+//                                        &with=teamsheet&game= both teams' season squads with games played (Team sheet). Head to
+//                                        head is the Form guide's meetings (&with=form&game=)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool,
@@ -89,7 +94,8 @@ const SIZES = {
 // polaroid per game; either set: spotlight (Athlete spotlight) and sponsorspot (Sponsor spotlight).
 const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true,
   accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true,
-  potm: true, teamround: true, spotlight: true, sponsorspot: false, thanks: false, story: true, worm: true, watch: true };
+  potm: true, teamround: true, spotlight: true, sponsorspot: false, thanks: false, story: true, worm: true, watch: true,
+  gamestats: true, shooting: true, moments: true, h2h: true, teamsheet: true };
 // The positions of Team of the round, in order.
 const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 // Each kind of picture as a picture set's editor lists it (the Socials tab's Show row): its name and which list it's on
@@ -98,7 +104,7 @@ const KIND_NAMES = [
   ['fixtures', 'Game night fixture', 'upcoming'], ['matchup', 'Match up', 'upcoming'], ['form', 'Form guide', 'upcoming'],
   ['preview', 'Round preview', 'upcoming'], ['byes', 'Byes', 'upcoming'], ['race', 'Finals race', 'upcoming'],
   ['countdown', 'Countdown', 'upcoming'], ['draw', 'Season draw', 'upcoming'], ['onstream', 'On the stream', 'upcoming'],
-  ['commentators', 'Commentary team', 'upcoming'],
+  ['commentators', 'Commentary team', 'upcoming'], ['h2h', 'Head to head', 'upcoming'], ['teamsheet', 'Team sheet', 'upcoming'],
   ['results', 'Results', 'results'], ['review', 'Round in review', 'results'], ['fulltime', 'Full time', 'results'],
   ['ladder', 'Ladder', 'results'], ['topshooters', 'Top shooters', 'results'], ['tournament', 'Tournament top shooters', 'results'],
   ['finalsbound', 'Finals bound', 'results'], ['champions', 'Champions', 'results'],
@@ -107,6 +113,7 @@ const KIND_NAMES = [
   ['season', 'Team season card', 'results'], ['wrap', 'Season wrap', 'results'],
   ['potm', 'Player of the match', 'results'], ['teamround', 'Team of the round', 'results'], ['thanks', 'Thanks for watching', 'results'],
   ['story', 'Game story', 'results'], ['worm', 'Score worm', 'results'], ['watch', 'Watch it back', 'results'],
+  ['gamestats', 'Game stats', 'results'], ['shooting', 'Shooting duel', 'results'], ['moments', 'Moments of the game', 'results'],
   ['milestones', 'Milestones', 'both'], ['finalsdraw', 'Finals draw', 'both'], ['polaroid', 'Polaroid', 'both'],
   ['spotlight', 'Athlete spotlight', 'both'], ['sponsorspot', 'Sponsor spotlight', 'both'],
 ].map(([kind, name, when]) => ({ kind, name, when }));
@@ -159,7 +166,7 @@ const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
-  milestonesFor = async () => [], clubOf = () => '', lineupsOf = async games => games.map(() => null), spotlightFor = async () => null,
+  milestonesFor = async () => [], clubOf = () => '', lineupsOf = async games => games.map(() => null), spotlightFor = async () => null, teamSheetFor = async () => [],
   sponsorList = () => [], onScreen = () => ({}), storyFor = () => null, qrFor = () => '', streamsFor = () => [], hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
@@ -359,6 +366,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     }
     out.firstNights = stats.firstNights(season, date);
     const division = String(q.division || '');
+    // How often each game's teams have met before this night this season (Head to head lists a game once they have).
+    out.met = games.map(g => ({ id: g.id, n: stats.formOf(season, date, g).meetings.length }));
     if (want.has('form')) out.form = games.filter(g => !q.game || g.id === q.game).map(g => stats.formOf(season, date, g));
     if (want.has('preview')) out.preview = await withLadder(division, (rows, fp) => stats.preview(games, division, rows, fp));
     if (want.has('race')) out.race = await withLadder(division, (rows, fp) => stats.race(season, date, division, rows, fp));
@@ -390,6 +399,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     // Game story and Score worm (the streamed games Studio kept a story of) and Watch it back.
     out.stories = games.filter(g => g.finished && storyFor(g.id)).map(g => g.id);
     if (want.has('story')) out.story = storyOf(games.find(g => g.id === q.game));
+    if (want.has('gamestats')) out.gameStats = await gameStats(raw.find((g, i) => games[i].id === q.game && games[i].finished));
+    if (want.has('teamsheet')) out.teamSheet = await teamSheet(games.find(g => g.id === q.game));
     out.watchLinks = watchLinks();
     if (want.has('watch')) out.watch = watchIt(String(q.link || ''));
     if (want.has('shooters')) {
@@ -604,7 +615,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (!s) return { error: `Studio didn't stream ${g.home.name} v ${g.away.name}, so it has no story of it.` };
     const side = k => ({ ...g[k], logo: logoFor(g[k].name), colour: (s.stats && s.stats[k] && s.stats[k].colour) || (s.worm && s.worm[k] && s.worm[k].colour) || null });
     const kept = { home: Number(s.stats.home.score) || 0, away: Number(s.stats.away.score) || 0 };
-    return { game: { ...g, home: side('home'), away: side('away') }, stats: s.stats, worm: s.worm,
+    return { game: { ...g, home: side('home'), away: side('away') }, stats: s.stats, worm: s.worm, moments: s.moments || [],
       complete: !s.stats.gapInHistory && g.finished && kept.home === g.home.score && kept.away === g.away.score };
   }
   // Links to suggest for Watch it back: each stream on Live viewers (Competitions setup), as a page where its videos stay.
@@ -627,6 +638,44 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (!/^https?:\/\/[^\s]+$/i.test(link)) return { error: 'That isn\'t a web link: it starts with https://.' };
     try { return { link, shown: link.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''), qr: qrFor(link) }; }
     catch (err) { return { error: `No QR code for that link: ${err.message}` }; }
+  }
+
+  // ─── Game stats, Shooting duel and Team sheet ──────────────────────────────────────────────────────────────
+  // A finished game's numbers from its line ups (every finished game, streamed or not): each team's goals, super goals,
+  // attempts, misses, accuracy and points, and its shooters best first; with the story's quarters won, longest run,
+  // biggest lead and lead changes when Studio streamed it (story, else null).
+  async function gameStats(g) {
+    if (!g) return { error: 'No result for that game yet.' };
+    const b = brief(g);
+    const [l] = await lineupsOf([g]);
+    const side = which => {
+      const players = l ? l[which].players.map(p => {
+        const sh = p.shooting || {}, scored = (sh.goals || 0) + (sh.superGoals || 0), shots = sh.shots || 0;
+        return { name: p.name, position: p.position, goals: sh.goals || 0, superGoals: sh.superGoals || 0, shots, points: sh.points || 0,
+          accuracy: shots ? Math.round(scored / shots * 1000) / 10 : null };
+      }).filter(p => p.shots || p.goals || p.superGoals).sort((x, y) => y.points - x.points || y.shots - x.shots || x.name.localeCompare(y.name)) : [];
+      const sum = k => players.reduce((n, p) => n + p[k], 0);
+      const goals = sum('goals'), superGoals = sum('superGoals'), shots = sum('shots');
+      return { ...b[which], logo: logoFor(b[which].name), goals, superGoals, shots, misses: Math.max(0, shots - goals - superGoals), points: sum('points'),
+        accuracy: shots ? Math.round((goals + superGoals) / shots * 1000) / 10 : null, shooters: players.map(p => ({ ...p, photo: photoFor({ name: p.name, team: b[which].name }) || null })) };
+    };
+    const story = storyFor(b.id);
+    const ss = story && story.stats && story.stats.stats;
+    const w = story && story.worm;
+    return { game: { ...b, home: side('home'), away: side('away') }, read: !!l, superShots: !!superShots(b.division),
+      error: l ? undefined : 'PlayHQ\'s line ups for this game couldn\'t be read.',
+      story: ss ? { quartersWon: ss.quartersWon, longestRun: ss.longestRun, biggestLead: w && w.biggestLead, leadChanges: w ? w.leadChanges : null } : null };
+  }
+  // Team sheet (&game=): both teams' squads this season (everyone in their line ups), each with the position they play
+  // most and their games played in the division.
+  async function teamSheet(b) {
+    if (!b) return { error: 'Pick a game.' };
+    const side = async which => {
+      let players = [];
+      try { players = await teamSheetFor(b[which].name, b.division); } catch (err) { log('warn', 'socials', `No squad for ${b[which].name}: ${err.message}`); }
+      return { ...b[which], logo: logoFor(b[which].name), players };
+    };
+    return { game: { ...b, home: await side('home'), away: await side('away') } };
   }
 
   // ─── Hand picks (Player of the match, Team of the round) and spotlights ───────────────────────────────────

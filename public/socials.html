@@ -203,9 +203,18 @@
       help: 'Athletes in the finished games\' line ups who played a first game (their team had played before without them), or their 50th, 100th or another 50, counting games typed in on the Athletes tab (Games).' });
     const score = g => `${g.home.name} ${g.home.score}-${g.away.score} ${g.away.name}`;
     for (const g of done) list.push({ key: `fulltime:${g.id}`, kind: 'fulltime', game: g.id, name: `Full time ${score(g)}`, help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
+    // Game stats and Shooting duel: a picture each per finished game, from its line ups (and its story when streamed).
+    for (const g of done) {
+      list.push({ key: `gamestats:${g.id}`, kind: 'gamestats', game: g.id, name: `Game stats ${g.home.name} v ${g.away.name}`,
+        help: 'Team against team from PlayHQ\'s line ups: goals (and super shots), attempts, misses and accuracy. When Studio streamed it, also quarters won, the longest run, the biggest lead and the lead changes.' });
+      list.push({ key: `shooting:${g.id}`, kind: 'shooting', game: g.id, name: `Shooting duel ${g.home.name} v ${g.away.name}`,
+        help: 'Each team\'s shooters that game, most points first, with goals from attempts and accuracy, under the team\'s total.' });
+    }
     // A picture made from finished games with none yet shows once, saying so (pending), so the night's Results list is the same before and after.
     const pending = (kind, name) => { if (!done.length) list.push({ key: kind, kind, name, missing: none, help: '' }); };
     pending('fulltime', 'Full time');
+    pending('gamestats', 'Game stats');
+    pending('shooting', 'Shooting duel');
     for (const div of [...new Set(night.games.map(g => g.division).filter(Boolean))]) {
       list.push({ key: `ladder:${div}`, kind: 'ladder', division: div, name: `Ladder ${div}`, help: 'The ladder as PlayHQ has it now: "after" the round when this is the division\'s latest night with results, when each team\'s move since before the night can show too.' });
     }
@@ -261,10 +270,13 @@
         help: 'The game quarter by quarter as Studio\'s scoreboard kept it, with quarters won, the best quarter, the longest run, the biggest lead and the lead changes.' });
       list.push({ key: `worm:${g.id}`, kind: 'worm', game: g.id, name: `Score worm ${g.home.name} v ${g.away.name}`,
         help: 'The margin over the game from its goals, as on the stream\'s Score worm.' });
+      list.push({ key: `moments:${g.id}`, kind: 'moments', game: g.id, name: `Moments of the game ${g.home.name} v ${g.away.name}`,
+        help: 'The lead changes, comebacks, runs and super shots Studio\'s scoreboard saw, in order, with the quarter, the time left and the score (the 8 that matter most when there are more).' });
     }
     if (!stories.length) {
       const why = none || 'Studio keeps the story of each game on its scoreboard: none of this night\'s games were streamed with it.';
-      list.push({ key: 'story', kind: 'story', name: 'Game story', missing: why, help: '' }, { key: 'worm', kind: 'worm', name: 'Score worm', missing: why, help: '' });
+      list.push({ key: 'story', kind: 'story', name: 'Game story', missing: why, help: '' }, { key: 'worm', kind: 'worm', name: 'Score worm', missing: why, help: '' },
+        { key: 'moments', kind: 'moments', name: 'Moments of the game', missing: why, help: '' });
     }
     list.push({ key: 'watch', kind: 'watch', name: 'Watch it back', missing: none,
       help: 'A QR code for the replay: paste the video\'s link (or your channel\'s), with the night\'s streamed games beside it.' });
@@ -296,6 +308,13 @@
     // Form guide: a picture per game, each team's last five results and their meetings this season.
     for (const g of night.games) list.push({ key: `form:${g.id}`, kind: 'form', game: g.id, name: `Form guide ${g.home.name} v ${g.away.name}`,
       help: 'Each team\'s last five results this season, oldest first, and how their meetings this season went.' });
+    // Head to head: a picture per game whose teams have met this season, each meeting's score and the wins each way.
+    const met = id => ((night.met || []).find(x => x.id === id) || {}).n || 0;
+    for (const g of night.games.filter(x => met(x.id))) list.push({ key: `h2h:${g.id}`, kind: 'h2h', game: g.id, name: `Head to head ${g.home.name} v ${g.away.name}`,
+      help: `Their ${met(g.id) === 1 ? 'meeting' : `${met(g.id)} meetings`} this season before this night, with each score.` });
+    // Team sheet: a picture per game, both squads this season with each player's position and games played.
+    for (const g of night.games) list.push({ key: `teamsheet:${g.id}`, kind: 'teamsheet', game: g.id, name: `Team sheet ${g.home.name} v ${g.away.name}`,
+      help: 'Both teams\' squads this season (everyone in their line ups), each player\'s usual position and their games played in the division, counting games typed in on the Athletes tab.' });
     const divisions = [...new Set(night.games.map(g => g.division).filter(Boolean))];
     for (const div of divisions) list.push({ key: `preview:${div}`, kind: 'preview', division: div, name: `Round preview ${div}`,
       help: `${div}'s games with each team's ladder place and points, the game of the round (the two best placed teams) outlined, and who a win could lift into the finals places.` });

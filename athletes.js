@@ -509,6 +509,18 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
     return out.sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
   }
 
+  // A team's squad for the Socials tab's Team sheet: everyone in its line ups this season (squadFor), each with the
+  // position they played most and their games in the division (career(), so games typed in on the athletes page count),
+  // in position order (GS first), the most games first in a position.
+  async function teamSheet(team, division) {
+    const squad = await squadFor(team, division);
+    let all = {};
+    try { all = await allAppearances(); } catch (err) { log('warn', 'athletes', `Appearances unavailable: ${err.message}`); }
+    const rank = p => { const i = POSITION_RANK.indexOf(p); return i === -1 ? 99 : i; };
+    return squad.map(a => ({ name: a.name, position: a.position, games: gamesIn(a.name, all[photoKey(a.name)], division, team) }))
+      .sort((x, y) => rank(x.position) - rank(y.position) || y.games - x.games || x.name.localeCompare(y.name));
+  }
+
   // An athlete's Athlete spotlight: their teams, the positions they play (typed in or from this season's line ups) and
   // their games per division (records plus this season), up to a night when date is given.
   async function spotlight(name, date) {
@@ -522,7 +534,7 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
   // A competition switch: the season's line ups are read again.
   function resetCaches() { appearanceCache.clear(); }
 
-  return { logoFor, colourFor, photoFor, photoFileFor, photoApproved, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, milestones, spotlight, athletesRoute, resetCaches };
+  return { logoFor, colourFor, photoFor, photoFileFor, photoApproved, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, milestones, spotlight, teamSheet, athletesRoute, resetCaches };
 }
 
 module.exports = { create };
