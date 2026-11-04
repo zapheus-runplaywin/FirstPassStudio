@@ -272,6 +272,23 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   assert.ok(!carousel.error, carousel.error);
   assert.deepEqual(carousel.files, ['01 Results (portrait).png', '02 Ladder Division 1 (portrait).png']);
   assert.equal(carousel.folder, path.join('Pictures', 'FirstPass Studio', `Thunder League ${played} Results carousel`));
+  // A picture that can't be made (a Spotlight with no athlete picked) is skipped and the rest saved; in a carousel the
+  // rest are numbered again without a gap.
+  const skipping = await studio.post('/api/socials/export', { date: played, set: 'results', carousel: true, items: [
+    { name: 'Results', link: `/social.html?kind=results&size=portrait&date=${played}`, size: 'portrait' },
+    { name: 'Spotlight', link: `/social.html?kind=spotlight&size=portrait&date=${played}`, size: 'portrait' },
+    { name: 'Ladder Division 1', link: `/social.html?kind=ladder&size=portrait&date=${played}&division=Division%201`, size: 'portrait' }] });
+  assert.ok(!skipping.error, skipping.error);
+  assert.deepEqual(skipping.files, ['01 Results (portrait).png', '02 Ladder Division 1 (portrait).png']);
+  assert.deepEqual(skipping.skipped.map(x => x.name), ['02 Spotlight (portrait)']);
+  assert.match(skipping.skipped[0].reason, /athlete/i);
+  const carouselDir = path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results carousel`);
+  assert.ok(!fs.existsSync(path.join(carouselDir, '03 Ladder Division 1 (portrait).png')), 'no gap left behind');
+  // Nothing at all to save is still an error.
+  const none = await fetch(`http://127.0.0.1:${studio.port}/api/socials/export`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ date: played, set: 'results', items: [{ name: 'Spotlight', link: `/social.html?kind=spotlight&size=square&date=${played}`, size: 'square' }] }) });
+  assert.equal(none.status, 500);
+  assert.match((await none.json()).error, /Spotlight \(square\) couldn't be made/);
   // Only the Socials tab's own picture is drawn.
   const r = await fetch(`http://127.0.0.1:${studio.port}/api/socials/export`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ date, items: [{ name: 'x', link: '/output.html', size: 'square' }] }) });

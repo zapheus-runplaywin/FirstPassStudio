@@ -50,22 +50,47 @@ async function take({ url, width, height }) {
 }
 
 module.exports = function socials({ log }) {
-  // msg: { type: 'socialsSave', id, folder, pictures: [{ file, url, width, height }], share, zip }. Answers
-  // { type: 'socialsSaved', id, folder, files, zip, shared } or { ..., error }.
+  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], share, zip }. Each
+  // picture is saved as "<NN> <label>.png", numbered in order. Answers
+  // { type: 'socialsSaved', id, folder, files, skipped: [{ name, reason }], zip, shared } or { ..., error }.
   async function save(child, msg) {
     const answer = m => child.postMessage({ type: 'socialsSaved', id: msg.id, ...m });
     try {
       const folder = path.join(app.getPath('pictures'), 'FirstPass Studio', path.basename(String(msg.folder || 'Socials')));
       fs.mkdirSync(folder, { recursive: true });
-      const files = [];
-      for (const p of msg.pictures || []) {
-        const file = path.join(folder, path.basename(String(p.file)));
+      const fileOf = (p, n) => path.join(folder, path.basename(`${String(n).padStart(2, '0')} ${p.label}.png`));
+      // A carousel picture draws its place (?page=2/6), so it needs the count of the pictures that are saved.
+      const urlOf = (p, n, of) => (msg.carousel ? `${p.url}&page=${n}/${of}` : p.url);
+      // A picture that can't be made (nothing to draw, or too slow to draw) is skipped and the rest are still saved.
+      const all = msg.pictures || [];
+      const files = [], skipped = [], kept = [];
+      for (const [i, p] of all.entries()) {
+        const file = fileOf(p, i + 1);
+        let image;
         try {
-          fs.writeFileSync(file, (await take(p)).toPNG());
+          image = await take({ ...p, url: urlOf(p, i + 1, all.length) });
         } catch (err) {
-          throw new Error(`${path.basename(file, '.png')} couldn't be saved: ${err.message}`);
+          skipped.push({ name: path.basename(file, '.png'), reason: err.message });
+          log(`Socials: skipped ${path.basename(file, '.png')}: ${err.message}`);
+          continue;
         }
+        fs.writeFileSync(file, image.toPNG());
         files.push(file);
+        kept.push(p);
+      }
+      if (!files.length) {
+        throw new Error(skipped.length === 1 ? `${skipped[0].name} couldn't be made: ${skipped[0].reason}`
+          : `None of the ${skipped.length} pictures could be made. ${skipped[0].name}: ${skipped[0].reason}`);
+      }
+      // A carousel with a picture skipped draws the rest again, so they're marked 1/5, 2/5... and numbered without a gap.
+      if (msg.carousel && skipped.length) {
+        for (const f of files) fs.rmSync(f, { force: true });
+        files.length = 0;
+        for (const [i, p] of kept.entries()) {
+          const file = fileOf(p, i + 1);
+          fs.writeFileSync(file, (await take({ ...p, url: urlOf(p, i + 1, kept.length) })).toPNG());
+          files.push(file);
+        }
       }
       log(`Socials: saved ${files.length} pictures in ${folder}`);
       // The zip: the folder's pictures in a folder of the same name, beside it (written to .part first, so a zip that
@@ -92,7 +117,7 @@ module.exports = function socials({ log }) {
         shell.openPath(folder);
       }
       const shown = f => path.join('Pictures', 'FirstPass Studio', path.basename(f));
-      answer({ folder: shown(folder), files, zip: zip && shown(zip), shared });
+      answer({ folder: shown(folder), files, skipped, zip: zip && shown(zip), shared });
     } catch (err) {
       log(`Socials: ${err.message}`);
       answer({ error: err.message });
