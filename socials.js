@@ -54,8 +54,10 @@
 //                                        pictureSets: [{ id?, name, kinds }], pictureSet: <set id or ''> }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
-//   POST /api/socials/export             { date, set: upcoming|results, share, zip, items: [{ name, link, size }] }: the
-//                                        app saves them (and a zip of them with zip: true)
+//   POST /api/socials/export             { date, set: upcoming|results, share, zip, carousel, items: [{ name, link, size }] }: the
+//                                        app saves them (and a zip of them with zip: true). carousel: true saves them as one
+//                                        Instagram carousel in their order: one size, up to 20, each marked 1/6, 2/6...
+//                                        (?page=), in a folder of its own
 
 'use strict';
 
@@ -149,6 +151,7 @@ const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'imag
 const PHOTOS_KEPT = 40;
 const MAX_PHOTO = 40 * 1024 * 1024;
 const MAX_ITEMS = 120;
+const CAROUSEL_MAX = 20; // Instagram's most pictures in one post
 const EXPORT_TIMEOUT_MS = 5 * 60 * 1000;
 
 const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
@@ -733,11 +736,20 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     done(m);
   });
   const SETS = { upcoming: 'Upcoming', results: 'Results' };
+  // The pictures to save. As a carousel they're one post: one size, at most 20, in the order given, each told its
+  // place (?page=2/6) so it draws the 2/6 mark and, on all but the last, the arrow to swipe on.
+  function carouselOf(body) {
+    const items = Array.isArray(body.items) ? body.items.slice(0, MAX_ITEMS) : [];
+    if (body.carousel !== true) return items;
+    if (new Set(items.map(it => it.size)).size > 1) throw Object.assign(new Error('A carousel is all one size: tick just one of Square, Portrait or Story.'), { status: 400 });
+    if (items.length > CAROUSEL_MAX) throw Object.assign(new Error(`Instagram takes ${CAROUSEL_MAX} pictures at most in a carousel: untick ${items.length - CAROUSEL_MAX}.`), { status: 400 });
+    return items.map((it, i) => ({ ...it, link: `${String(it.link || '')}&page=${i + 1}/${items.length}` }));
+  }
   // A file name from a picture's name: letters, digits, spaces and a few marks, never a path.
   const fileName = s => String(s || '').replace(/[^\p{L}\p{N} '&()+,.-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Picture';
   async function save(body, port) {
+    const items = carouselOf(body);
     if (!appPort) throw Object.assign(new Error('Saving the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.'), { status: 501 });
-    const items = Array.isArray(body.items) ? body.items.slice(0, MAX_ITEMS) : [];
     if (!items.length) throw Object.assign(new Error('Tick at least one picture to save.'), { status: 400 });
     const date = isDate(body.date) ? body.date : localDate();
     const set = SETS[body.set] || SETS.upcoming;
@@ -753,7 +765,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       return { file: `${name}.png`, url: `http://localhost:${port}${link}`, width: size.width, height: size.height };
     });
     const competition = fileName(about().competition || 'Studio');
-    const folder = `${competition} ${date} ${set}`;
+    const folder = `${competition} ${date} ${set}${body.carousel === true ? ' carousel' : ''}`;
     const id = crypto.randomUUID();
     const answer = new Promise(resolve => {
       waiting.set(id, resolve);

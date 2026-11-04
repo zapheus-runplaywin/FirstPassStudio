@@ -265,6 +265,13 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   assert.equal(await studio.app.evaluate(() => globalThis.shown), zipFile, 'Finder shows the zip');
   const list = await require('../zip').entries(zipFile);
   assert.deepEqual(list.map(e => e.name), [`Thunder League ${played} Results/01 Results (square).png`]);
+  // As a carousel: numbered in the order sent, in a folder of its own.
+  const carousel = await studio.post('/api/socials/export', { date: played, set: 'results', carousel: true, items: [
+    { name: 'Results', link: `/social.html?kind=results&size=portrait&date=${played}`, size: 'portrait' },
+    { name: 'Ladder Division 1', link: `/social.html?kind=ladder&size=portrait&date=${played}&division=Division%201`, size: 'portrait' }] });
+  assert.ok(!carousel.error, carousel.error);
+  assert.deepEqual(carousel.files, ['01 Results (portrait).png', '02 Ladder Division 1 (portrait).png']);
+  assert.equal(carousel.folder, path.join('Pictures', 'FirstPass Studio', `Thunder League ${played} Results carousel`));
   // Only the Socials tab's own picture is drawn.
   const r = await fetch(`http://127.0.0.1:${studio.port}/api/socials/export`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ date, items: [{ name: 'x', link: '/output.html', size: 'square' }] }) });

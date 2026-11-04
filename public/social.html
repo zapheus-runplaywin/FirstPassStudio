@@ -51,6 +51,11 @@
   .mark { position: absolute; right: 40px; bottom: 22px; width: 230px; opacity: .85; }
   .sponsors:not([hidden]) ~ .mark { bottom: auto; top: -46px; }
   .pivt { position: absolute; left: 40px; bottom: 18px; height: 52px; }
+  /* A carousel's place, top right: 2/6, with the arrow to swipe on (Swipe on the first) on all but the last. */
+  .page { position: absolute; top: 24px; right: 28px; z-index: 4; display: flex; align-items: center; gap: 10px; padding: 6px 16px;
+    border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
+  .page b { font-size: 30px; line-height: 1; }
+  .story .page { top: 120px; }
   .sponsors:not([hidden]) ~ .pivt { bottom: auto; top: -64px; }
 
   .logo { object-fit: contain; flex: none; }
@@ -374,6 +379,7 @@
                 highcontrast, neon, poster, splash, gameday, hero, final, court, bib, goal, bottle, cones,
                 sneakers, stadium or locker; else the one picked there)
                 ?mark=0|1 (the FirstPass Studio mark, bottom right; else as on the tab)  ?pivt=0|1 (the PIVT logo, bottom left)  ?title= (the heading)
+                ?page=2/6 (its place in a carousel, marked top right, with an arrow to swipe on until the last)
                 Match up, full time: &home=<athlete> &away=<athlete> (their photo over the team's logo, when they approved its use)
                 Top shooters: each shooter's photo, when they approved its use
                 Polaroid: ?athlete=<name> (their photo) or ?photo=<file from POST /api/socials/photo> &px=50&py=50 (the point of the photo kept in view, %)
@@ -397,6 +403,7 @@
       <img class="mark" id="mark" src="studio/firstpass-studio.svg" alt="FirstPass Studio" hidden>
       <img class="pivt" id="pivt" src="studio/pivt.svg" alt="PIVT" hidden>
     </footer>
+    <div class="page" id="page" hidden></div>
   </div>
   <script>
     const params = new URLSearchParams(location.search);
@@ -1323,6 +1330,12 @@
       }
       $('mark').hidden = !flag('mark', d.settings.mark);
       $('pivt').hidden = !flag('pivt', d.settings.pivt);
+      // Its place in a carousel (?page=2/6).
+      const pg = /^(\d{1,2})\/(\d{1,2})$/.exec(params.get('page') || '');
+      if (pg && +pg[1] >= 1 && +pg[1] <= +pg[2]) {
+        $('page').replaceChildren(...(+pg[1] === 1 && +pg[2] > 1 ? [el('span', '', 'Swipe')] : []), el('span', '', `${pg[1]}/${pg[2]}`), ...(+pg[1] < +pg[2] ? [el('b', '', '›')] : []));
+        $('page').hidden = false;
+      }
     }
 
     const loadCss = href => new Promise((ok, fail) => {
