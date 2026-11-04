@@ -53,7 +53,7 @@ test('a carousel is one size, up to 20, in order, and each picture is marked wit
   let sent = null;
   await tab.route(url => new URL(url).pathname === '/api/socials/export', route => {
     sent = route.request().postDataJSON();
-    route.fulfill({ json: { folder: 'x', files: [], zip: null } });
+    route.fulfill({ json: { folder: 'x', files: ['01 a.png'], skipped: [{ name: '02 Milestones (portrait)', reason: 'No milestones.' }], zip: null } });
   });
   await tab.goto(`${studio.base}/socials.html`);
   await tab.waitForSelector('.pic[data-key]');
@@ -69,6 +69,9 @@ test('a carousel is one size, up to 20, in order, and each picture is marked wit
   if (sizes.length !== 1) for (const s of sizes.slice(1)) await tab.uncheck(`[data-size="${s}"]`);
   await tab.click('#save');
   await tab.waitForFunction(() => /Saved/.test(document.getElementById('status').textContent));
+  // A skipped picture is a warning, not a failed save.
+  assert.match(await tab.textContent('#status'), /Skipped 1: 02 Milestones \(portrait\): No milestones\./);
+  assert.equal(await tab.$eval('#status', e => e.className), 'warn');
   assert.equal(sent.carousel, true);
   assert.deepEqual(sent.items.map(i => i.name), [second, first]);
 });

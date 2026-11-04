@@ -82,6 +82,7 @@
   .carousel .chip button { padding: 0 5px; font-size: 13px; line-height: 1.4; }
   .carousel .chip.past { border-color: var(--fp-danger); }
   .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
+  .bar #status.warn { color: var(--fp-warn-ink); background: var(--fp-warn-bg); padding: 4px 8px; border-radius: 6px; font-weight: 600; }
 </style>
 <script src="log.js"></script>
 </head>
@@ -839,7 +840,12 @@
     } catch (err) { showError(`Couldn't load the game nights: ${err.message}`); }
   }
 
-  function setStatus(text, bad) { $('status').textContent = text; $('status').classList.toggle('error', !!bad); }
+  // bad: true for an error, 'warn' for a save that skipped a picture or two.
+  function setStatus(text, bad) {
+    $('status').textContent = text;
+    $('status').classList.toggle('error', bad === true);
+    $('status').classList.toggle('warn', bad === 'warn');
+  }
   async function save(share) {
     const items = [];
     const carousel = $('carousel').checked;
@@ -856,7 +862,10 @@
       const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: set(), share, zip: $('zip').checked, carousel, items }) });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      setStatus(`Saved ${d.files.length} picture${d.files.length === 1 ? '' : 's'} in ${d.folder}${d.zip ? `, and ${d.zip}` : ''}${share ? `. Pick where to share ${d.zip ? 'the zip' : 'them'} in the menu.` : ''}`);
+      // A picture that couldn't be made (Milestones on a night with none, say) is skipped, not a failed save.
+      const skipped = d.skipped || [];
+      const why = skipped.length ? ` Skipped ${skipped.length}: ${skipped.map(x => `${x.name}: ${x.reason}`).join(' · ')}` : '';
+      setStatus(`Saved ${d.files.length} picture${d.files.length === 1 ? '' : 's'} in ${d.folder}${d.zip ? `, and ${d.zip}` : ''}${share ? `. Pick where to share ${d.zip ? 'the zip' : 'them'} in the menu.` : '.'}${why}`, skipped.length ? 'warn' : false);
     } catch (err) { setStatus(`Couldn't save the pictures: ${err.message}`, true); }
     $('save').disabled = $('share').disabled = !info.app;
   }

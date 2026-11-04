@@ -63,7 +63,8 @@
 //   POST /api/socials/export             { date, set: upcoming|results, share, zip, carousel, items: [{ name, link, size }] }: the
 //                                        app saves them (and a zip of them with zip: true). carousel: true saves them as one
 //                                        Instagram carousel in their order: one size, up to 20, each marked 1/6, 2/6...
-//                                        (?page=), in a folder of its own
+//                                        (?page=), in a folder of its own. A picture that can't be made is skipped and the
+//                                        rest saved: answers { folder, files, skipped: [{ name, reason }], zip, shared }
 
 'use strict';
 
@@ -811,14 +812,14 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     done(m);
   });
   const SETS = { upcoming: 'Upcoming', results: 'Results' };
-  // The pictures to save. As a carousel they're one post: one size, at most 20, in the order given, each told its
-  // place (?page=2/6) so it draws the 2/6 mark and, on all but the last, the arrow to swipe on.
+  // The pictures to save. As a carousel they're one post: one size, at most 20, in the order given; the app tells each
+  // its place (?page=2/6) so it draws the 2/6 mark and, on all but the last, the arrow to swipe on.
   function carouselOf(body) {
     const items = Array.isArray(body.items) ? body.items.slice(0, MAX_ITEMS) : [];
     if (body.carousel !== true) return items;
     if (new Set(items.map(it => it.size)).size > 1) throw Object.assign(new Error('A carousel is all one size: tick just one of Square, Portrait or Story.'), { status: 400 });
     if (items.length > CAROUSEL_MAX) throw Object.assign(new Error(`Instagram takes ${CAROUSEL_MAX} pictures at most in a carousel: untick ${items.length - CAROUSEL_MAX}.`), { status: 400 });
-    return items.map((it, i) => ({ ...it, link: `${String(it.link || '')}&page=${i + 1}/${items.length}` }));
+    return items;
   }
   // A file name from a picture's name: letters, digits, spaces and a few marks, never a path.
   const fileName = s => String(s || '').replace(/[^\p{L}\p{N} '&()+,.-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Picture';
@@ -828,16 +829,13 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (!items.length) throw Object.assign(new Error('Tick at least one picture to save.'), { status: 400 });
     const date = isDate(body.date) ? body.date : localDate();
     const set = SETS[body.set] || SETS.upcoming;
-    const used = new Set();
     const pictures = items.map((it, i) => {
       const size = SIZES[it.size];
       const link = String(it.link || '');
       // Only Studio's own social graphic is drawn, never another page or address.
       if (!size || !/^\/social\.html\?[^\s#]*$/.test(link)) throw Object.assign(new Error(`Picture ${i + 1} isn't one of the Socials tab's.`), { status: 400 });
-      let name = `${String(i + 1).padStart(2, '0')} ${fileName(it.name)} (${size.label.toLowerCase()})`;
-      while (used.has(name)) name += ' 2';
-      used.add(name);
-      return { file: `${name}.png`, url: `http://localhost:${port}${link}`, width: size.width, height: size.height };
+      // The app numbers the files (01, 02...) in this order.
+      return { label: `${fileName(it.name)} (${size.label.toLowerCase()})`, url: `http://localhost:${port}${link}`, width: size.width, height: size.height };
     });
     const competition = fileName(about().competition || 'Studio');
     const folder = `${competition} ${date} ${set}${body.carousel === true ? ' carousel' : ''}`;
@@ -847,11 +845,13 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       setTimeout(() => { if (waiting.delete(id)) resolve({ error: 'The Mac app took too long to save the pictures.' }); }, EXPORT_TIMEOUT_MS).unref();
     });
     log('info', 'socials', `Saving ${pictures.length} pictures for ${date} (${set})${body.share ? ' to share' : ''}`);
-    appPort.postMessage({ type: 'socialsSave', id, folder, pictures, share: body.share === true, zip: body.zip === true });
+    appPort.postMessage({ type: 'socialsSave', id, folder, carousel: body.carousel === true, pictures, share: body.share === true, zip: body.zip === true });
     const m = await answer;
     if (m.error) { log('warn', 'socials', `Saving the pictures for ${date}: ${m.error}`); throw Object.assign(new Error(m.error), { status: 500 }); }
+    const skipped = m.skipped || [];
     log('info', 'socials', `Saved ${m.files.length} pictures in ${m.folder}${m.zip ? `, and ${m.zip}` : ''}`);
-    return { folder: m.folder, files: m.files.map(f => path.basename(f)), zip: m.zip || null, shared: !!m.shared };
+    for (const x of skipped) log('warn', 'socials', `Skipped ${x.name}: ${x.reason}`);
+    return { folder: m.folder, files: m.files.map(f => path.basename(f)), skipped, zip: m.zip || null, shared: !!m.shared };
   }
 
   async function route(req, res, url, { send, readBody, readRaw, port }) {
