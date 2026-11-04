@@ -6,7 +6,9 @@
 // the latest one: as fill and key with the device's external keyer, or as fill only. With its sound in the
 // SDI (sound 'sdi', or 'both' to hear it on the Mac too), desktop/soundtap.js hears the window and the sound
 // goes out embedded, with the fill; 'mac' leaves it on the Mac's sound output only. Talks to the
-// Blackmagic Desktop Video driver; without it, or without the built module, devices() says why.
+// Blackmagic Desktop Video driver; without it, or without the built module, devices() says why. While the sound goes
+// into the SDI, onLevel({ peak, dry }) every half second gives its meter (the loudest moment of each side, 0 to 1)
+// and how many times the sound ran dry in the last minute, for the status board's Sound out.
 //
 // It also reads the timecode coming into the device's SDI input, while a 4K replay follows it (the helper's
 // sditimecode.js asks with readInput): the timecode goes to the helper each time it changes, and every half second
@@ -23,7 +25,7 @@ let addon = null;
 let loadError = '';
 try { addon = require(MODULE); } catch (err) { loadError = err.message; }
 
-module.exports = function decklink({ port, log, onStatus, onTimecode = () => {} }) {
+module.exports = function decklink({ port, log, onStatus, onLevel = () => {}, onTimecode = () => {} }) {
   let win = null;
   let running = null; // { key, name, mode } while sending
   let error = '';
@@ -94,7 +96,19 @@ module.exports = function decklink({ port, log, onStatus, onTimecode = () => {} 
       onFrame: (bitmap, width, height) => addon.frame(bitmap, width, height),
     });
     if ((sound === 'sdi' || sound === 'both') && win.contents()) {
-      tap = soundTap({ contents: win.contents(), echo: sound === 'both', log, label: 'DeckLink output', onSound: pcm => addon.audio(pcm) });
+      // When the sound ran dry (the device had nothing to play), over the last minute, for the meter's line.
+      const dry = [];
+      let gapsSeen = 0;
+      tap = soundTap({
+        contents: win.contents(), echo: sound === 'both', log, label: 'DeckLink output', onSound: pcm => addon.audio(pcm),
+        onLevel: peak => {
+          const now = Date.now(), g = addon.status().gaps || 0;
+          if (g > gapsSeen) dry.push(...Array(g - gapsSeen).fill(now));
+          gapsSeen = g;
+          while (dry.length && now - dry[0] > 60000) dry.shift();
+          onLevel({ peak, dry: dry.length }, output);
+        },
+      });
     }
 
     // Log when the device has to repeat or drop frames (the Mac falling behind).

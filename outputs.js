@@ -392,6 +392,31 @@ function copyReport({ output, device, error } = {}) {
     log(now.error ? 'warn' : 'info', 'outputs', now.error ? `${o.name}'s sound to ${device}: ${now.error}` : `${o.name}'s sound goes to ${device}`);
   }
 }
+// What each destination is sending now, for the status board's Sound out: "output id|where" -> { at, peak: [left,
+// right] (the loudest moment of each side in the last half second, 0 to 1), rate, channels, dry }. where is 'sdi'
+// (the Mac app's capture going into the Blackmagic SDI, every half second, with dry: how many times the sound ran
+// dry in the last minute), 'own' (an output's own window playing on the Mac's sound output) or a Mac device by name
+// (a sound copy); those two come from their windows (POST /api/outputs/level, scene.html), with the device's sample
+// rate and channels. A reading older than LEVEL_STALE_MS is left out: that window isn't sending.
+const soundLevels = new Map();
+const LEVEL_STALE_MS = 3000;
+const level = v => Math.max(0, Math.min(4, Number(v) || 0));
+function noteLevel({ output, device, peak, rate, channels, dry } = {}) {
+  const o = list.find(x => x.id === output);
+  const where = device === 'sdi' || device === 'own' ? device : soundDevice(device);
+  if (!o || !where || !Array.isArray(peak)) return;
+  soundLevels.set(`${o.id}|${where}`, { at: Date.now(), peak: [level(peak[0]), level(peak[1] ?? peak[0])], rate: num(rate), channels: num(channels), dry: num(dry) });
+}
+// The readings that are fresh: { "output id|where": { peak, rate, channels, dry } }.
+function soundLive() {
+  const now = Date.now(), live = {};
+  for (const [id, l] of soundLevels) {
+    if (now - l.at > LEVEL_STALE_MS) soundLevels.delete(id);
+    else live[id] = { peak: l.peak, rate: l.rate, channels: l.channels, dry: l.dry };
+  }
+  return live;
+}
+
 // How each of an output's destinations is doing, for the Output page: [{ device, mics, state, error }], state 'off'
 // (the output isn't on), 'waiting' (its window hasn't found the device yet), 'sending' or 'problem' (error says).
 function soundState(o, showing) {
@@ -543,6 +568,17 @@ async function route(req, res, url, { send: reply, readBody }) {
     reply(res, 200, { ok: true });
     return true;
   }
+  // Every window playing an output's sound saying how loud it is, and what it plays at; and the board reading them all.
+  if (url.pathname === '/api/outputs/level' && req.method === 'POST') {
+    const b = await readBody(req).catch(() => ({}));
+    if (b && b.device !== 'sdi') noteLevel(b);
+    reply(res, 200, { ok: true });
+    return true;
+  }
+  if (url.pathname === '/api/outputs/sound' && req.method === 'GET') {
+    reply(res, 200, { levels: soundLive() });
+    return true;
+  }
   if (url.pathname !== '/api/outputs') return false;
   if (req.method === 'POST') {
     const error = apply(await readBody(req));
@@ -596,6 +632,7 @@ function message(msg) {
     decklink = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), devices: Array.isArray(msg.devices) ? msg.devices : [] };
     if (JSON.stringify(windows()) !== before) send();
   }
+  if (msg.type === 'soundLevel') noteLevel({ ...msg, device: 'sdi' });
   if (msg.type === 'decklinkStatus') { decklinkStatus = msg.status || { running: false }; decklinkOutput = String(msg.output || PRIMARY); }
   if (msg.type === 'ndi') {
     const before = JSON.stringify(windows());

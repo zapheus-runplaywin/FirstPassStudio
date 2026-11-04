@@ -16,8 +16,9 @@ test('Output page: the status board draws, set-up waits behind Settings and the 
   // One view: the board beside the picture, Output on and the add buttons in reach, the output's set-up folded away.
   await page.waitForSelector('#board .line');
   assert.equal((await page.$$('#board .lights')).length, 0, 'the outputs, ATEM and REC are the bar\'s chips, not a board row');
-  assert.equal((await page.$$('#board .line')).length, 8, 'the mics carry their dip, so it has no line of its own');
+  assert.equal((await page.$$('#board .line')).length, 7, 'the mics carry their dip, so it has no line of its own');
   assert.equal((await page.$$('#board .line.full')).length, 1, 'the next game spans the board');
+  assert.equal((await page.$$('#board .stile.full')).length, 1, 'Sound out spans the board too');
   // Countdowns hours or days away read as such, not as thousands of minutes; a time on another day names the day.
   assert.deepEqual(await page.evaluate(() => [boardLeft(65e3), boardLeft(3600e3 + 125e3), boardLeft(2 * 86400e3 + 732e3), boardLeft(86400e3)]),
     ['1:05', '1:02:05', '2 days', '1 day']);
