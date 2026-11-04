@@ -103,7 +103,10 @@ Every change to a saved file uses `savefile.js` (write to a temporary file, then
 leaves a half-written settings file. Its async saves of one file go one at a time (the newest waiting one is written
 next), so saves started close together can't land out of order and leave older contents on disk. When Studio stops,
 `flushSync()` (run on process exit in `server.js`) writes any save still in the background, so the last change before
-going off air is kept.
+going off air is kept. A background save whose rename has already been asked of the operating system can't be called
+back and could finish after that write, putting older contents back (PR #467: the scoreboard's clock returning at 10:00
+after a restart); so `flushSync()` first removes that save's temporary file (`renaming`), and the late rename fails
+harmlessly or had already happened and is written over.
 
 ## What runs on a timer
 
