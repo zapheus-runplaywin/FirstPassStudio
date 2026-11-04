@@ -75,3 +75,31 @@ test('moments: every moment a goal makes, and the earlier ones after a reload', 
   const when = await page.$$eval('#momentList .ago', e => e.map(x => x.textContent));
   assert.ok(when.every(w => /^Q1 \d+:\d\d/.test(w)), `each has its quarter and game time: ${when}`);
 });
+
+// At a break the pill under the clock counts down for the commentary team (Matt, 2026-11-04): from when the clock hits
+// 0:00, by the setup's break minutes, through the quarter moving on, until the clock runs again.
+test('the pill under the clock counts down to the end of a break', async t => {
+  const browser = await openBrowser(t);
+  if (!browser) return;
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+  await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+  await page.goto(`${studio.base}/commentatorstats.html?refresh=0`);
+  const pill = () => page.$eval('#super', e => (e.hidden ? '' : e.textContent));
+
+  await studio.post('/api/scoreboard', { type: 'clockSet', secondsLeft: 0 });
+  await page.waitForFunction(() => /^Back in 2:5\d · Quarter time$/.test(document.getElementById('superText').textContent));
+  const b = await studio.get('/api/scoreboard');
+  assert.equal(b.countdown.kind, 'break');
+  assert.ok(Math.abs(b.countdown.at - b.breakFrom.at - 3 * 60000) < 1, 'three minutes from the clock hitting 0:00');
+
+  // The quarter moving on during the break keeps the countdown; the clock running ends it.
+  await studio.post('/api/scoreboard', { type: 'period', value: 'next' });
+  await studio.post('/api/scoreboard', { type: 'clockReset' });
+  assert.equal((await studio.get('/api/scoreboard')).countdown.at, b.countdown.at);
+  assert.match(await pill(), /^Back in /);
+  await studio.post('/api/scoreboard', { type: 'clockStart' });
+  await page.waitForFunction(() => !/Back in/.test(document.getElementById('superText').textContent) || document.getElementById('super').hidden);
+  assert.equal((await studio.get('/api/scoreboard')).countdown, null);
+});

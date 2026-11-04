@@ -39,7 +39,7 @@ const DEFAULTS = {
   quarterMinutes: 10,                  // minutes per quarter (or half)
   superShots: true,                    // 2-point super shots
   divisionSuperShots: {},              // { "division name or word": true/false }, for divisions that differ (superShotsFor)
-  quarterBreakMinutes: 3,              // break lengths, for the sequence editor's "plays about N times" hint
+  quarterBreakMinutes: 3,              // break lengths, for the sequence editor's "plays about N times" hint and Commentator stats' Back in countdown
   halfTimeMinutes: 5,
   threeQuarterBreakMinutes: 3,
   superShotMinutes: 3,                 // super shots count in the last N minutes of each quarter; the scoreboard shows a tab then (0 = no tab)
