@@ -71,4 +71,10 @@ test('Round in review and ladder movers: places before the night, the biggest wi
   assert.deepEqual(await texts('.ladder .move'), []);
   await draw('ladder', first, '&division=Division%201');
   assert.deepEqual(await texts('.ladder .move'), [], 'an older night\'s ladder is today\'s, so no movers');
+  // The ladder says what it's after: this night's round, else the division's latest round with results.
+  assert.deepEqual(old.ladders.map(l => [l.after, l.asAt]), [['', { date: second, round: 'Round 2' }], ['', { date: second, round: 'Round 2' }]]);
+  assert.match(await page.textContent('#when'), /After Round 2/);
+  const tonight = (await studio.get('/api/socials')).nights[2].date;
+  await draw('ladder', tonight, '&division=Division%201');
+  assert.match(await page.textContent('#when'), /After Round 2/, 'before tonight\'s results: after the last round played');
 });
