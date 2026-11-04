@@ -257,3 +257,32 @@ test('a demo game\'s side with no recorded line up shows the client\'s own line 
     await studio.post('/api/practice', { stop: true });
   }
 });
+
+// Run game-timed sequences again (the Recordings tab's tick box, on by default): each practice of a game fires its
+// pre-game sequence, even the second time; unticked, moments that have already fired are left alone.
+test('a practice game runs the game\'s pre-game sequence again each time, unless Run game-timed sequences again is off', async t => {
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const game = studio.world.divisions[1].rounds[2].games[1];
+  const { name } = recording(studio.dataDir, game);
+  const { sources } = await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', url: 'countdown.html' }] });
+  await studio.post('/api/scene', { type: 'seqAdd', changes: { name: 'Run-up', start: { type: 'before', min: 10 }, steps: [{ sources: [sources[0].id], length: { type: 'next' } }] } });
+  const playing = async () => { const s = await studio.get('/api/scene'); return s.playing ? s.sequences.find(q => q.id === s.playing.id).name : null; };
+  const practise = async rerun => {
+    const s = await studio.post('/api/practice', { start: { recording: name, game: game.id, lead: 10, ...(rerun === undefined ? {} : { rerun }) } });
+    assert.equal(s.rerun, rerun !== false);
+  };
+
+  await practise();
+  assert.equal(await studio.until(playing), 'Run-up', 'Starts in 10 minutes runs the 10 minute sequence');
+  await studio.post('/api/scene', { type: 'seqStop' });
+  await studio.post('/api/practice', { stop: true });
+
+  await practise();
+  assert.equal(await studio.until(playing), 'Run-up', 'and again for the same game');
+  await studio.post('/api/scene', { type: 'seqStop' });
+
+  await practise(false);
+  await new Promise(r => setTimeout(r, 2500));
+  assert.equal(await playing(), null, 'unticked, the moment that already fired stays fired');
+  await studio.post('/api/practice', { stop: true });
+});

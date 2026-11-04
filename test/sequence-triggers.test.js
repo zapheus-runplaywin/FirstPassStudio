@@ -249,3 +249,29 @@ test('with no game picked, the manual clock drives the breaks, and putting the q
   siren();
   assert.equal(playingName(), 'Quarter break');
 });
+
+// A practice game with Run game-timed sequences again (practice.js, scene.rearmGame()): each start and jump forgets the
+// game's moments, so the same game's pre-game sequence fires again; one due before the practice's start is skipped.
+test('a practice game run again fires the same game\'s pre-game sequence again, and skips one already due', () => {
+  reset();
+  make('Run-up', { start: { type: 'before', min: 10 }, steps: [step(['Countdown'], { type: 'next' })] });
+  make('Walk out', { start: { type: 'before', min: 2 }, steps: [step(['Ladder'], { type: 'next' })] });
+  tick(20 * 60);
+  assert.equal(playingName(), 'Run-up');
+  ok({ type: 'seqStop' });
+  // The same game again, starting in 10 minutes: without rearming, its moments have already fired.
+  set({ startAt: Date.now() + 10 * 60000 });
+  tick(5);
+  assert.equal(st().playing, null, 'not again by itself');
+  scene.rearmGame();
+  tick(1);
+  assert.equal(playingName(), 'Run-up', '"Starts in" equal to its minutes runs it');
+  ok({ type: 'seqStop' });
+  // Starting in 5 minutes: Run-up's moment came before the practice started, so only Walk out runs.
+  scene.rearmGame();
+  set({ startAt: Date.now() + 5 * 60000 });
+  tick(2 * 60);
+  assert.equal(st().playing, null, 'Run-up is skipped');
+  tick(60);
+  assert.equal(playingName(), 'Walk out');
+});

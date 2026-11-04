@@ -1456,6 +1456,8 @@ function game(snapshot) {
   sequences.game(snapshot);
   if (music.superShotPeriod(snapshot)) notify();
 }
+// A practice game with Run game-timed sequences again: the game's moments fire again from now (sequences.js rearm()).
+function rearmGame() { sequences.rearm(); notify(); }
 
 // The media folder's images, as files: [{ name, file }].
 const imageFiles = () => mediaList().filter(m => m.kind === 'image').map(m => ({ name: m.name, file: path.join(MEDIA_DIR, m.name) }));
@@ -1467,4 +1469,4 @@ function videoSizes() {
     .filter(v => v.width && v.height).map(({ name, width, height }) => ({ name, width, height }));
 }
 
-module.exports = { act, replay, replayBoard, replaying, videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };
+module.exports = { act, replay, replayBoard, replaying, videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, rearmGame, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };

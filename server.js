@@ -667,6 +667,7 @@ practice.init(log, {
     applyAction(b, { type: 'source', value: 'playhq' });
     saveBoards();
   },
+  rearm: () => scene.rearmGame(),
   paused: on => recorder.pause(on),
   positionOf: p => positionOf(p),
   demos: datadir.local('demos.json'),

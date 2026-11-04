@@ -1068,13 +1068,16 @@ helper (`sdiTimecode`) each time it changes and every half second. A timecode mo
 is stopped, a jump is scrubbing; between changes it runs on. The helper asks again every 3 s while nothing comes.
 
 **Practice games** (`practice.js`): *Practise* beside a game on the Recordings tab plays it back as if live
-(`POST /api/practice` `{ start: { recording, game, from } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
+(`POST /api/practice` `{ start: { recording, game, from, lead, rerun } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
 While it runs `playhq.js` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before
 the same point of the night, with every date and time moved by the gap to now (a game's `date` with its `time` or
 `allocation.time` as one moment, ISO times, `...At` millisecond times), so the game starts `lead` minutes from now (the Recordings tab's *A practice game starts in*, 0 to 60, 5 by
 default, also sent with `{ jump: 'start', lead }`). Paused, the
 gap grows, so the clock stands still. Starting keeps a copy of the scoreboard and picks the game by hand; Stop puts the
-copy back.
+copy back. `rerun` (the Recordings tab's *Run game-timed sequences again*, on unless `false`, with `start`, kept for the
+run's jumps) has each start and jump call `sequences.rearm()`: the game's fired moments are forgotten, so its pre-game,
+break and full time sequences queue on Output 1 again even for the same game id, and a pre-game moment more than a minute
+before the start or jump is skipped, as for one before Studio started.
 **Demo games**: `{ start: { ..., demo: { game, division, swap } } }` with a finished game of the competition in use (its
 division's PlayHQ id; `GET /api/practice/games?division=` lists the choices). `practice.js` `dress()` reads that game's line
 ups and the division's teams from PlayHQ, then maps the recording: its two teams to the game's (swapped with `swap`), the

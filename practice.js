@@ -3,8 +3,8 @@
 // While a practice game runs, PlayHQ isn't asked anything: playhq.js asks this module instead (answer() for the
 // GraphQL API, live() for live scoring), which gives what PlayHQ said at the same point of the recorded night.
 // Everything else in Studio runs as on a real night (the scoreboard follows the score and clock, sequences and
-// game triggers fire, the outputs can be on), so it's for rehearsing a night, trying a change and showing
-// Studio to someone. The recording is played in real time from a point picked on the Recordings tab (Start, a few
+// game triggers fire, afresh each start and jump with Run game-timed sequences again, the outputs can be on), so
+// it's for rehearsing a night, trying a change and showing Studio to someone. The recording is played in real time from a point picked on the Recordings tab (Start, a few
 // minutes before the game's scheduled start, as many as Starts in says, each quarter or full time), and can be paused.
 //
 // The recorded night's times are moved to now: every time in an answer (a fixture's date and time, the clock's
@@ -27,7 +27,8 @@
 // recording doesn't have (the client's competition, seasons and divisions) is asked of PlayHQ as usual.
 //
 // hooks (init): read(recording) the recording's lines, reset() forget what was read from PlayHQ, snapshot() and
-// restore(s) the scoreboard, select(game) pick the game on the scoreboard, paused(on) pause the night's recording,
+// restore(s) the scoreboard, select(game) pick the game on the scoreboard, rearm() the game's moments fire again from
+// now (sequences.js), paused(on) pause the night's recording,
 // choices(gradeId) the client's divisions and a division's finished games, for picking one,
 // competition() the competition in use's id, readJson(file) and writeJson(file, value) for the saved demos,
 // demo(gameId, gradeId) the client's historic game ({ division, gradeId, teams, home, away }, each side { name,
@@ -40,7 +41,7 @@ const leadMs = m => Math.max(0, Math.min(60, Number.isFinite(Number(m)) && m !==
 const PERIODS = { FIRST_QTR: 'Q1', SECOND_QTR: 'Q2', THIRD_QTR: 'Q3', FOURTH_QTR: 'Q4', FIRST_HALF: '1st half', SECOND_HALF: '2nd half' };
 
 let log = () => {};
-let hooks = { read: () => [], reset() {}, snapshot: () => null, restore() {}, select() {}, paused() {}, demo: async () => { throw new Error('Demo games need Studio.'); }, choices: async () => ({ divisions: [], games: [] }), competition: () => '', readJson: () => ({}), writeJson() {}, positionOf: p => (p.playerPosition && p.playerPosition.shortName) || '' };
+let hooks = { read: () => [], reset() {}, snapshot: () => null, restore() {}, select() {}, rearm() {}, paused() {}, demo: async () => { throw new Error('Demo games need Studio.'); }, choices: async () => ({ divisions: [], games: [] }), competition: () => '', readJson: () => ({}), writeJson() {}, positionOf: p => (p.playerPosition && p.playerPosition.shortName) || '' };
 let run = null; // the practice game running: see start()
 
 // h.demos: the saved demos' file.
@@ -330,23 +331,26 @@ function wear(value, d) {
 
 // ─── Running one ────────────────────────────────────────────────────────────
 // lead: Start's minutes before the scheduled start (0 to 60, else 5). demo: { game, division, swap }, the client's
-// historic game and its division's PlayHQ id, for a demo game.
+// historic game and its division's PlayHQ id, for a demo game. rerun (Run game-timed sequences again, on unless false):
+// the start and each jump forget the game's moments that have fired (hooks.rearm()), so its pre-game, break and full
+// time sequences fire again, even for a game practised before or played live tonight.
 async function start(opts = {}) {
   if (opts.saved) {
     const s = savedDemos()[opts.saved];
     if (!s) return `There's no demo ${opts.saved}.`;
     if (s.competition && s.competition !== hooks.competition()) return `That demo is for another competition (${s.competition}). Switch to it on Competitions setup first.`;
-    opts = { recording: s.recording, game: s.game, lead: opts.lead ?? s.lead, demo: s.demo };
+    opts = { recording: s.recording, game: s.game, lead: opts.lead ?? s.lead, demo: s.demo, rerun: opts.rerun };
   }
-  const { recording, game: gameId, from = 'start', lead, demo } = opts;
+  const { recording, game: gameId, from = 'start', lead, demo, rerun = true } = opts;
   if (run) stop();
   const loaded = load(recording, gameId, lead);
   if (demo) loaded.demo = await dress(loaded, demo);
   const jump = loaded.jumps.find(j => j.id === from) || loaded.jumps[0];
   const snap = hooks.snapshot();
   hooks.paused(true);
-  run = { ...loaded, snap, lead, from: jump.at, startedAt: Date.now(), pausedAt: null };
+  run = { ...loaded, snap, lead, rerun: rerun !== false, from: jump.at, startedAt: Date.now(), pausedAt: null };
   hooks.reset();
+  if (run.rerun) hooks.rearm();
   pick();
   log('info', 'practice', `${loaded.demo ? `Demo game ${loaded.demo.home} v ${loaded.demo.away} (${matched(loaded.demo)} athletes matched), playing` : 'Practice game'} ${loaded.game.home.name} v ${loaded.game.away.name} from ${recording}, at ${jump.label}`);
   return null;
@@ -369,6 +373,7 @@ function jump(id, lead) {
   run.startedAt = Date.now();
   if (run.pausedAt !== null) run.pausedAt = j.at;
   hooks.reset();
+  if (run.rerun) hooks.rearm();
   pick();
   log('info', 'practice', `Practice game moved to ${j.label}`);
   return null;
@@ -395,7 +400,7 @@ function state() {
   if (!run) return { active: false, saved: savedList() };
   const p = position();
   const d = run.demo;
-  return { active: true, recording: run.recording, game: d ? { ...run.game, division: d.division || run.game.division, home: { name: d.home }, away: { name: d.away } } : run.game,
+  return { active: true, recording: run.recording, rerun: run.rerun, game: d ? { ...run.game, division: d.division || run.game.division, home: { name: d.home }, away: { name: d.away } } : run.game,
     demo: d ? { recorded: { home: run.game.home.name, away: run.game.away.name }, swap: d.swap, athletes: matched(d), game: d.game,
       // The pairing table: each recorded athlete, who they are shown as, and who they could be.
       sides: Object.fromEntries(['home', 'away'].map(k => [k, {
@@ -429,7 +434,7 @@ function deck(parts) {
 }
 
 // /api/practice: GET where it is and the saved demos (/api/practice/games: the demo game picker's choices); POST
-// { start: { recording, game, from, lead, demo } | { saved, lead } } | { pair: { id, name } } | { save: name } | { forget: name } | { pause: true|false } | { jump, lead } | { stop: true }.
+// { start: { recording, game, from, lead, demo, rerun } | { saved, lead, rerun } } | { pair: { id, name } } | { save: name } | { forget: name } | { pause: true|false } | { jump, lead } | { stop: true }.
 async function route(req, res, url, { send: reply, readBody }) {
   // The client's divisions, and a division's finished games (?division=<PlayHQ id>), to pick a demo game's.
   if (url.pathname === '/api/practice/games') {

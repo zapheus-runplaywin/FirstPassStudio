@@ -114,8 +114,12 @@
   <section>
     <h2>Games</h2>
     <p class="help" style="margin:0 0 4px"><label>A practice game starts in <input type="number" id="lead" min="0" max="60" step="1" value="5" style="width:4.5em;font:inherit"> minutes</label> (0 to 60).</p>
+    <p class="help" style="margin:0 0 4px"><label><input type="checkbox" id="rerun" checked> Run game-timed sequences again</label></p>
     <details class="info" style="margin:0 0 10px"><summary>Expand for info</summary><p class="note"><b>Practise</b> and <b>Jump to Start</b> put the game this long
-      before its first centre pass, time for a pre-game sequence.</p></details>
+      before its first centre pass, time for a pre-game sequence. A pre-game sequence due before then is skipped, as on a night Studio was opened late.</p>
+      <p class="note"><b>Run game-timed sequences again</b> (Practise, Demo and saved demos): each start and jump forgets which of the game's moments have
+      already fired, so its pre-game, break and full time sequences go to the head of Output 1's run order again, even for a game you've practised before
+      or played live tonight. Untick it to leave moments that have already fired alone. A 4K replay doesn't run sequences: it plays what went to air.</p></details>
     <div id="nights"><p class="empty">Looking…</p></div>
   </section>
 </main>
@@ -204,7 +208,7 @@ function showSaved(list = []) {
 }
 $('savedList').onclick = async e => {
   const r = e.target.closest('[data-run]');
-  if (r) practice({ start: { saved: r.dataset.run, lead: lead() } });
+  if (r) practice({ start: { saved: r.dataset.run, lead: lead(), rerun: rerun() } });
   const f = e.target.closest('[data-forget]');
   if (f && await askConfirm(`Remove the saved demo ${f.dataset.forget}?`, '', { ok: 'Remove', danger: true })) practice({ forget: f.dataset.forget });
 };
@@ -221,6 +225,10 @@ async function practice(body) {
 const lead = () => Math.max(0, Math.min(60, Math.round(Number($('lead').value) || 0)));
 try { const saved = localStorage.getItem('practiceLead'); if (saved !== null) $('lead').value = saved; } catch { /* not kept */ }
 $('lead').onchange = () => { $('lead').value = lead(); try { localStorage.setItem('practiceLead', String(lead())); } catch { /* not kept */ } };
+// Run game-timed sequences again: on unless unticked, remembered on this computer. Chosen as a practice game starts.
+const rerun = () => $('rerun').checked;
+try { if (localStorage.getItem('practiceRerun') === 'off') $('rerun').checked = false; } catch { /* not kept */ }
+$('rerun').onchange = () => { try { localStorage.setItem('practiceRerun', rerun() ? 'on' : 'off'); } catch { /* not kept */ } };
 $('practiceJumps').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) practice({ jump: b.dataset.jump, lead: lead() }); };
 $('practicePause').onclick = () => practice({ pause: !$('practicePause').dataset.paused });
 $('practiceStop').onclick = () => practice({ stop: true });
@@ -316,7 +324,7 @@ $('demoStart').onclick = async () => {
   if (!demoOf) return;
   $('demoStart').disabled = true;
   $('demoStart').textContent = 'Starting…';
-  await practice({ start: { recording: demoOf.recording, game: demoOf.game, lead: lead(),
+  await practice({ start: { recording: demoOf.recording, game: demoOf.game, lead: lead(), rerun: rerun(),
     demo: { game: $('demoGame').value, division: $('demoDivision').value, swap: $('demoSwap').checked } } });
   $('demoStart').textContent = 'Start demo';
   $('demoStart').disabled = false;
@@ -331,7 +339,7 @@ $('nights').onclick = async e => {
   const d = e.target.closest('[data-demo]');
   if (d) { openDemo(d.dataset.demo, d.dataset.game, d.dataset.what); return; }
   const p = e.target.closest('[data-practise]');
-  if (p) { practice({ start: { recording: p.dataset.practise, game: p.dataset.game, lead: lead() } }); return; }
+  if (p) { practice({ start: { recording: p.dataset.practise, game: p.dataset.game, lead: lead(), rerun: rerun() } }); return; }
   const b = e.target.closest('[data-remove]');
   if (b && await askConfirm(`Remove the recording of ${b.closest('.night').querySelector('h3').textContent}?`, "This can't be undone.", { ok: 'Remove', danger: true })) call('DELETE', `/api/recordings/${encodeURIComponent(b.dataset.remove)}`);
 };

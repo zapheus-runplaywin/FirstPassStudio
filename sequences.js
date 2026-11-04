@@ -109,6 +109,11 @@ let settingsFile = null;
 let game = null;      // the latest scoreboard reading, from game()
 let watch = null;     // what's been seen of that game: { id, fired, ranIn, everRan, zeroAt, running, period, onBreak }
 let studioStartedAt = Date.now(); // when Studio started: a "before the start" moment passed before then is skipped
+// When a practice game last started or jumped with Run game-timed sequences again (rearm()), less a minute's
+// grace so "Starts in" set to a sequence's minutes still runs it: from then on a "before the start" moment passed before
+// it is skipped, in place of one passed before Studio started (a practice game's times are moved to now).
+const REARM_GRACE_MS = 60000;
+let rearmedAt = 0;
 
 const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -926,9 +931,10 @@ function gameTick(g) {
       const at = game.startAt - sq.start.min * 60000;
       if (sq.start.type !== 'before' || t < at || watch.fired.has(`before:${sq.id}`)) continue;
       watch.fired.add(`before:${sq.id}`);
-      // Its moment came while Studio wasn't running (it was opened inside the window): left to the operator.
-      if (at < studioStartedAt) {
-        log('info', 'sequence', `"${sq.name}" won't start by itself: Studio wasn't running ${sq.start.min} min before ${game.label || 'the game'}`);
+      // Its moment came while Studio wasn't running (it was opened inside the window), or before a practice game
+      // started: left to the operator.
+      if (at < (rearmedAt || studioStartedAt)) {
+        log('info', 'sequence', `"${sq.name}" won't start by itself: ${rearmedAt ? 'the practice game started after' : 'Studio wasn\'t running'} ${sq.start.min} min before ${game.label || 'the game'}`);
         continue;
       }
       if (gone(sq)) { goneNote(sq, `${sq.start.min} min before ${game.label || 'the game'}`); continue; }
@@ -937,6 +943,15 @@ function gameTick(g) {
     }
   }
   if (changed) api.changed();
+}
+
+// A practice game started or jumped with Run game-timed sequences again (practice.js): the game's moments
+// that have fired are forgotten, so its pre-game, break and full time sequences fire again, even for the same game id.
+// Like Studio starting, a pre-game moment that passed before now (give or take a minute) is skipped.
+function rearm() {
+  watch = null;
+  rearmedAt = now() - REARM_GRACE_MS;
+  log('info', 'sequence', 'Game-timed sequences run again from now (practice game)');
 }
 
 // The next start before the game, for the Output page: { id, at }.
@@ -1379,4 +1394,4 @@ function init(logger, hooks, sequencesFile) {
   reload();
 }
 
-module.exports = { init, reload, file: () => file, apply, deck, state, byColour, game: gameTick, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
+module.exports = { init, reload, file: () => file, apply, deck, state, byColour, game: gameTick, rearm, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
