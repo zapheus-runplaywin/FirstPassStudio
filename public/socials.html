@@ -71,6 +71,16 @@
   .kinds label { font-size: 13px; border: 1px solid var(--fp-line-strong); border-radius: 999px; padding: 3px 10px; }
   .set .count { font-size: 11px; color: var(--fp-muted); }
   #picSet .help { margin-left: 8px; }
+  /* As a carousel: the ticked pictures in the order they'll post, dragged (or ‹ ›) into place. */
+  .carousel { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .carousel[hidden] { display: none; }
+  .carousel > b { font-size: 14px; margin-right: 4px; }
+  .carousel .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; border: 1px solid var(--fp-line-strong); border-radius: 999px;
+    padding: 2px 4px 2px 10px; background: var(--fp-white); cursor: grab; }
+  .carousel .chip.over { border-color: var(--fp-blue); box-shadow: 0 0 0 2px var(--fp-blue); }
+  .carousel .chip i { font-style: normal; font-weight: 800; color: var(--fp-blue); }
+  .carousel .chip button { padding: 0 5px; font-size: 13px; line-height: 1.4; }
+  .carousel .chip.past { border-color: var(--fp-danger); }
   .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
 </style>
 <script src="log.js"></script>
@@ -125,15 +135,19 @@
       <b>Colours</b> change every picture in any template: sets made from the competition's main, highlight and accent colours (Competition colours
       is the stream's own look), or your own with <b>New colour set</b>. Under <b>Options</b>, the FirstPass Studio mark sits bottom right and the
       PIVT logo bottom left; untick either to leave it off. Whether each picture carries the sponsor strip (your naming, elite and major sponsors)
-      is remembered for next week. Who is on the stream comes from the Production Planner.</p></details>
+      is remembered for next week. Who is on the stream comes from the Production Planner. <b>As a carousel</b> saves the ticked
+      pictures as one Instagram post in the order shown above Save (drag one, or ‹ ›, to move it): one size, up to 20, each marked
+      1/6, 2/6… top right with an arrow to swipe on, in a folder of their own.</p></details>
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
   <div class="bar">
+    <div class="carousel" id="carouselOrder" hidden></div>
     <button class="alt" id="all" title="Tick every picture">Select all</button>
     <button class="alt" id="none" title="Untick every picture">Select none</button>
     <button id="save">Save pictures</button>
     <button class="alt" id="share">Share…</button>
     <label title="Also save the pictures as one .zip beside the folder; Share then sends the zip"><input type="checkbox" id="zip"> As a zip</label>
+    <label title="Save the ticked pictures as one Instagram carousel, in the order shown: one size, up to 20, each marked 1/6, 2/6…"><input type="checkbox" id="carousel"> As a carousel</label>
     <span id="status"></span>
   </div>
 </main>
@@ -145,6 +159,9 @@
   let info = null, night = null;
   // What's unticked, kept while the night or sizes change. Each polaroid's photo and framing, by its key.
   const off = new Set();
+  // As a carousel: the order the ticked pictures post in, by key (ones ticked later join the end).
+  const CAROUSEL_MAX = 20;
+  let carouselOrder = [];
   const photos = {};
   const photoOf = key => (photos[key] = photos[key] || { file: '', px: 50, py: 50, zoom: 1 });
   // Athletes picked for a picture, by its key: { home, away } on a match up or full time, { athlete } on a polaroid.
@@ -594,7 +611,7 @@
     const ticks = left.appendChild(el('div', 'pic__ticks'));
     const l = el('label');
     const c = el('input'); c.type = 'checkbox'; c.checked = !off.has(p.key) && !p.missing; c.disabled = !!p.missing;
-    c.onchange = () => { if (c.checked) off.delete(p.key); else off.add(p.key); s.classList.toggle('off', !c.checked); };
+    c.onchange = () => { if (c.checked) off.delete(p.key); else off.add(p.key); s.classList.toggle('off', !c.checked); drawCarousel(); };
     l.append(c, ' Save this one');
     ticks.append(l, sponsorTick(p.kind));
     if (p.help) left.append(el('p', 'help', p.help));
@@ -624,6 +641,40 @@
     const list = pictures(), ps = pictureSet();
     if (!list.length && ps) return $('pics').replaceChildren(el('p', 'fp-empty', `${ps.name} has no ${set() === 'results' ? 'Results' : 'Upcoming'} pictures: pick All, or ✎ to add some.`));
     $('pics').replaceChildren(...list.map(card));
+    drawCarousel();
+  }
+  // The ticked pictures in carousel order: the order kept, then any ticked since, as listed.
+  function carouselList() {
+    const ticked = pictures().filter(p => !off.has(p.key) && !p.missing);
+    const byKey = new Map(ticked.map(p => [p.key, p]));
+    carouselOrder = [...carouselOrder.filter(k => byKey.has(k)), ...ticked.map(p => p.key).filter(k => !carouselOrder.includes(k))];
+    return carouselOrder.map(k => byKey.get(k));
+  }
+  // The carousel's order above Save, while As a carousel is ticked: drag a picture (or ‹ ›) to move it.
+  function drawCarousel() {
+    const box = $('carouselOrder');
+    box.hidden = !$('carousel').checked;
+    if (box.hidden || !night) return;
+    const list = carouselList();
+    const move = (from, to) => { if (to < 0 || to >= carouselOrder.length) return; const [k] = carouselOrder.splice(from, 1); carouselOrder.splice(to, 0, k); drawCarousel(); };
+    let dragged = -1;
+    box.replaceChildren(el('b', '', 'Carousel order'), ...list.map((p, i) => {
+      const chip = el('span', `chip${i >= CAROUSEL_MAX ? ' past' : ''}`);
+      chip.draggable = true;
+      chip.title = i >= CAROUSEL_MAX ? `Instagram takes ${CAROUSEL_MAX} at most: untick this one or one before it` : 'Drag to move it';
+      const back = el('button', 'alt small', '‹'), on = el('button', 'alt small', '›');
+      back.type = on.type = 'button';
+      back.title = 'Earlier'; on.title = 'Later';
+      back.disabled = i === 0; on.disabled = i === list.length - 1;
+      back.onclick = () => move(i, i - 1); on.onclick = () => move(i, i + 1);
+      chip.append(el('i', '', String(i + 1)), ` ${p.name}`, back, on);
+      chip.ondragstart = e => { dragged = i; e.dataTransfer.effectAllowed = 'move'; };
+      chip.ondragover = e => { e.preventDefault(); chip.classList.add('over'); };
+      chip.ondragleave = () => chip.classList.remove('over');
+      chip.ondrop = e => { e.preventDefault(); if (dragged >= 0) move(dragged, i); };
+      return chip;
+    }));
+    if (!list.length) box.append(el('span', 'help', 'Tick the pictures to post together.'));
   }
   // The Show row: All, then each picture set (with how many of this list's pictures it shows), ✎ to change one.
   function drawShow() {
@@ -762,15 +813,18 @@
   function setStatus(text, bad) { $('status').textContent = text; $('status').classList.toggle('error', !!bad); }
   async function save(share) {
     const items = [];
-    for (const p of pictures()) {
+    const carousel = $('carousel').checked;
+    if (carousel && sizes().length !== 1) return setStatus('A carousel is all one size: tick just one of Square, Portrait or Story.', true);
+    for (const p of carousel ? carouselList() : pictures()) {
       if (off.has(p.key) || p.missing) continue;
       for (const size of sizes()) items.push({ name: p.name, link: link(p, size), size });
     }
     if (!items.length) return setStatus('Tick a picture and a size first.', true);
+    if (carousel && items.length > CAROUSEL_MAX) return setStatus(`Instagram takes ${CAROUSEL_MAX} pictures at most in a carousel: untick ${items.length - CAROUSEL_MAX}.`, true);
     $('save').disabled = $('share').disabled = true;
     setStatus(`Saving ${items.length} picture${items.length === 1 ? '' : 's'}…`);
     try {
-      const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: set(), share, zip: $('zip').checked, items }) });
+      const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: set(), share, zip: $('zip').checked, carousel, items }) });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
       setStatus(`Saved ${d.files.length} picture${d.files.length === 1 ? '' : 's'} in ${d.folder}${d.zip ? `, and ${d.zip}` : ''}${share ? `. Pick where to share ${d.zip ? 'the zip' : 'them'} in the menu.` : ''}`);
@@ -852,7 +906,9 @@
       if (c.disabled) continue;
       c.checked = on; s.classList.toggle('off', !on);
     }
+    drawCarousel();
   }
+  $('carousel').onchange = drawCarousel;
   $('all').onclick = () => tickAll(true);
   $('none').onclick = () => tickAll(false);
   $('save').onclick = () => save(false);

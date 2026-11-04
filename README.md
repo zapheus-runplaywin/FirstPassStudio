@@ -1021,7 +1021,8 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   whose highlight is under 3:1 against its ground says *low contrast*. Kept in `socials.json` (`colours`, `colourSets`).
 - **Saving:** *Select all* and *Select none* tick or untick every picture at once. *Save pictures* saves the ticked ones in `Pictures/FirstPass Studio/<competition> <date> Upcoming/` (or
   `Results/`), with *As a zip* also as `<competition> <date> Upcoming.zip` beside it (Share then sends the zip), and
-  opens the folder; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
+  opens the folder; *As a carousel* saves them in the order shown above Save (dragged, or ‹ ›) as one Instagram post, one size and
+  up to 20, each with `&page=N/M` (the 2/6 mark and swipe arrow), in `<competition> <date> Upcoming carousel/`; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
   picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.
 
 Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|commentators|polaroid|results|fulltime|ladder|topshooters|tournament&size=square|portrait|story`
