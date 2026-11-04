@@ -22,7 +22,8 @@
 // (Swap puts them the other way round, so the client's team can be the winner), the recorded division's other teams
 // become the client's division's others (so the ladder and fixtures are theirs), and the recorded athletes become
 // the historic game's by position (a recorded GS's goals are the client's GS's); one with no match is left unnamed,
-// so their goals go to the team. The division's PlayHQ id is translated to the recorded one, and anything the
+// so their goals go to the team. A side the recording has no line up for (PlayHQ sometimes has only one) plays with
+// the client's team's own line up, goals to the team. The division's PlayHQ id is translated to the recorded one, and anything the
 // recording doesn't have (the client's competition, seasons and divisions) is asked of PlayHQ as usual.
 //
 // hooks (init): read(recording) the recording's lines, reset() forget what was read from PlayHQ, snapshot() and
@@ -150,7 +151,9 @@ function answer(op, vars) {
     throw new Error(`The practice game's recording has no answer for ${op}.`);
   }
   const data = shift(at(list).data, gap());
-  return d ? wear(data, d) : data;
+  if (!d) return data;
+  const worn = wear(data, d);
+  return op === 'discoverGame' && asked && asked.gameID === run.game.id ? fillLineUps(worn, d) : worn;
 }
 // The live scoring answer ({ data } or { errors }), as PlayHQ sent it.
 function live(gameId) {
@@ -214,7 +217,8 @@ async function dress(loaded, { game: clientGame, division: clientGrade, swap, pa
       const id = p.player && p.player.id;
       if (!id) continue;
       const prof = p.player.profile || {};
-      list.push({ id, name: `${prof.firstName || ''} ${prof.lastName || ''}`.trim() || 'Private player', position: hooks.positionOf(p) });
+      // A fill-in player has a name and no profile.
+      list.push({ id, name: `${prof.firstName || ''} ${prof.lastName || ''}`.trim() || p.player.name || 'Private player', position: hooks.positionOf(p) });
       const pos = hooks.positionOf(p);
       const i = pos ? pool.findIndex(c => c.position === pos) : -1;
       if (i >= 0) players.set(id, pool.splice(i, 1)[0]);
@@ -228,7 +232,8 @@ async function dress(loaded, { game: clientGame, division: clientGrade, swap, pa
       if (!(r.id in pairs)) continue;
       players.set(r.id, pairs[r.id] ? all.find(c => c.name === pairs[r.id]) || null : null);
     }
-    sides[k] = { recorded: list, client: all };
+    // A side PlayHQ had no line up for (it happens): the client's team plays with its own line up, goals to the team.
+    sides[k] = { recorded: list, client: all, missing: !list.length };
   }
   const ids = new Map();
   if (client.gradeId && rec.gradeId) ids.set(client.gradeId, rec.gradeId);
@@ -236,6 +241,27 @@ async function dress(loaded, { game: clientGame, division: clientGrade, swap, pa
     home: client[side.home].name, away: client[side.away].name };
 }
 const matched = d => [...d.players.values()].filter(Boolean).length;
+
+// The recorded game's line ups, worn: a side the recording has no line up for gets the client's team's own (their
+// historic game's, or season squad), with no stats, so the team lists, positions and lower thirds have their names
+// while that side's goals stay with the team. Only once the recording has line ups at all (PlayHQ sends none before
+// the game is scored).
+function fillLineUps(data, d) {
+  const g = data && data.discoverGame;
+  if (!g || !g.statistics) return data;
+  const statistics = { ...g.statistics };
+  for (const k of ['home', 'away']) {
+    if (!d.sides[k].missing) continue;
+    const st = statistics[k] || {};
+    if ((st.players || []).length) continue;
+    statistics[k] = { ...st, players: d.sides[k].client.map((c, i) => {
+      const [firstName, ...rest] = c.name.split(' ');
+      return { playerNumber: '', statistics: [], playerPosition: c.position ? { shortName: c.position } : null, captain: null,
+        player: { __typename: 'DiscoverParticipant', id: c.playhqId || `demo-${k}-${i}`, profile: { firstName, lastName: rest.join(' '), gender: c.gender ? c.gender.toUpperCase() : null } } };
+    }) };
+  }
+  return { ...data, discoverGame: { ...g, statistics } };
+}
 
 // The pairing table: a recorded athlete (PlayHQ id) shown as one of the client's (by name), or unnamed ('').
 function pair(id, name) {
@@ -374,6 +400,7 @@ function state() {
       // The pairing table: each recorded athlete, who they are shown as, and who they could be.
       sides: Object.fromEntries(['home', 'away'].map(k => [k, {
         team: d.teams.get(run.game[k].name),
+        recordedTeam: run.game[k].name, missing: d.sides[k].missing,
         pairs: d.sides[k].recorded.map(r => ({ id: r.id, recorded: r.name, position: r.position, shown: (d.players.get(r.id) || {}).name || '' })),
         choices: d.sides[k].client.map(c => ({ name: c.name, position: c.position || '' })),
       }])) } : null,
