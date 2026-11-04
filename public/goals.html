@@ -26,6 +26,16 @@
     --home: var(--pink); --away: var(--yellow); --home-text: #fff; --away-text: var(--text-on-yellow); }
   .card::before { content: ""; position: absolute; inset: -50px; z-index: -1; pointer-events: none;
     background: radial-gradient(closest-side, rgba(var(--deep-rgb), .5), rgba(var(--deep-rgb), .3) 70%, rgba(var(--deep-rgb), 0)); }
+  /* Where it sits (?y= and ?x=, each layout's default set in the script): in the space between the title and the
+     scoreboard (fit.js sets --zone-* and scales the card down if it's too big), 60px in from the sides. Centred with
+     translate rounded to whole pixels, so its edges and letters don't land on half pixels. */
+  .card { --dx: 0px; --dy: 0px; transform: translate(var(--dx), var(--dy)) scale(calc(var(--fit, 1) * var(--size))); transform-origin: var(--ox) var(--oy); }
+  .card[data-x="left"] { left: 60px; --ox: left; }
+  .card[data-x="center"] { left: 50%; --dx: round(-50%, 1px); --ox: center; }
+  .card[data-x="right"] { right: 60px; --ox: right; }
+  .card[data-y="top"] { top: var(--zone-top, 244px); --oy: top; }
+  .card[data-y="middle"] { top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); --dy: round(-50%, 1px); --oy: center; }
+  .card[data-y="bottom"] { bottom: calc(1080px - var(--zone-bottom, 894px)); --oy: bottom; }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
   .head { display: flex; align-items: center; gap: 18px; padding: 16px 26px 6px; }
   .tab { background: var(--pink); color: var(--text); padding: 7px 18px; border-radius: 6px; font-size: 22px; font-weight: 800;
@@ -79,10 +89,7 @@
   .run .flame { font-size: 22px; }
 
   /* ── Horizontal: lanes for each team, oldest goal on the left ─────────────────────── */
-  /* Placed in the space between the title and the scoreboard (fit.js sets --zone-* and scales the card down if it's too big). */
-  .card--h { --ball: 72px; --slot: 104px; left: 50%; transform: translateX(-50%) scale(calc(var(--fit, 1) * var(--size))); transform: translateX(round(-50%, 1px)) scale(calc(var(--fit, 1) * var(--size))); bottom: calc(1080px - var(--zone-bottom, 894px)); transform-origin: bottom center; }
-  body.top .card--h { top: var(--zone-top, 244px); bottom: auto; transform-origin: top center; }
-  body.middle .card--h { top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); bottom: auto; transform: translate(-50%, -50%) scale(calc(var(--fit, 1) * var(--size))); transform: translate(round(-50%, 1px), round(-50%, 1px)) scale(calc(var(--fit, 1) * var(--size))); transform-origin: center; }
+  .card--h { --ball: 72px; --slot: 104px; }
   .card--h .grid { display: grid; grid-template-columns: 330px auto; padding: 6px 26px 14px; column-gap: 14px; }
   .card--h .team { display: grid; grid-template-columns: 64px minmax(0, 1fr) 58px; align-items: center; gap: 12px; height: 70px; margin: 8px 0;
     padding: 0 8px 0 4px; border-left: 6px solid var(--c); border-radius: 12px; background: linear-gradient(90deg, rgba(var(--deep-rgb), .8), rgba(var(--deep-rgb), .35)); }
@@ -110,8 +117,7 @@
   .card--h .worm { width: 100%; height: 50px; display: block; }
 
   /* ── Vertical: home goals on the left, away on the right, newest at the bottom ───── */
-  .card--v { --ball: 48px; width: 400px; right: 60px; top: calc(var(--zone-top, 244px) + var(--zone-height, 650px) / 2); transform: translateY(-50%) scale(calc(var(--fit, 1) * var(--size))); transform: translateY(round(-50%, 1px)) scale(calc(var(--fit, 1) * var(--size))); transform-origin: right center; }
-  body.left .card--v { right: auto; left: 60px; transform-origin: left center; }
+  .card--v { --ball: 48px; width: 400px; }
   .card--v .run { font-size: 18px; padding: 10px 14px; }
   .card--v .run .says { white-space: nowrap; overflow: hidden; min-width: 0; }
   .card--v .head { justify-content: center; padding: 18px 20px 8px; }
@@ -140,19 +146,18 @@
      of its own (commentatorstats.html, horizontal); no shade, as that box has its own background. */
   html.fill, html.fill body { width: 100%; height: 100%; }
   html.fill .card::before { display: none; }
-  html.fill .card--h { left: 50%; top: 0; bottom: auto; transform: translateX(-50%) scale(var(--fill, 1)); transform-origin: top center; }
-  html.fill .card--v { right: auto; left: 50%; top: 0; transform: translateX(-50%) scale(var(--fill, 1)); transform-origin: top center; }
+  html.fill .card { left: 50%; top: 0; transform: translateX(-50%) scale(var(--fill, 1)); transform-origin: top center; }
   .gap { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 </style>
 </head>
 <body>
   <!-- A 1920 x 1080 page for the Output page:
-       http://localhost:8080/goals.html               (horizontal, above the scoreboard)
-       http://localhost:8080/goals.html?layout=vertical  (down the right-hand side)
+       http://localhost:8080/goals.html               (horizontal, centred just above the scoreboard)
+       http://localhost:8080/goals.html?layout=vertical  (vertical, in the middle of the right-hand side)
        The last 10 goals of the game on the scoreboard, oldest to newest, with a momentum line and the current run.
        Like the scoreboard it updates itself (every 2 seconds), so it can stay on screen.
        Options: ?count=8 (3 to 30)  ?times=0 (no quarter and time under each goal)  ?run=0 (no current run line)
-                ?position=top|middle|bottom (horizontal)  ?position=left|right (vertical)  ?title=Momentum
+                ?y=top|middle|bottom  ?x=left|center|right (where it sits, either layout)  ?title=Momentum
        &fill=1 fills the window it's in rather than a 1920 x 1080 frame (horizontal spreads its goals to the window's
        shape): commentatorstats.html shows it that way. -->
   <main class="card" id="card" data-fit="var" hidden></main>
@@ -164,8 +169,13 @@
     const showRun = params.get('run') !== '0';
     const fill = params.get('fill') === '1';
     if (fill) document.documentElement.classList.add('fill');
-    if (params.get('position')) document.body.classList.add(params.get('position'));
     const card = document.getElementById('card');
+    // Where it sits; ?fill=1 has its own place in the window.
+    const pick = (value, allowed, dflt) => allowed.includes(value) ? value : dflt;
+    if (!fill) {
+      card.dataset.x = pick(params.get('x'), ['left', 'center', 'right'], vertical ? 'right' : 'center');
+      card.dataset.y = pick(params.get('y'), ['top', 'middle', 'bottom'], vertical ? 'middle' : 'bottom');
+    }
     card.classList.add(vertical ? 'card--v' : 'card--h');
     if (!vertical && count > 10) card.style.setProperty('--slot', `${Math.max(64, Math.floor(1040 / count))}px`);
     if (!vertical && count > 13) card.style.setProperty('--ball', `${Math.max(48, Math.floor(1040 / count) - 18)}px`);
