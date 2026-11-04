@@ -6,10 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="theme.css">
 <style>
-  /* Logos either side of the title banner, as in Matt's stream layout: PIVT and FirstPass Studio
-     on the left, the competition logo on the right. The page is transparent; only the logos show. */
+  /* Logos either side of the title banner: PIVT and FirstPass Studio on the left, the competition logo on the right.
+     Each side sits the same distance in from its edge of the frame (--edge), so the two corners match however wide
+     each side's logos are; ?gap= places them from the centre of the frame instead. The page is transparent; only the logos show. */
   :root {
-    --gap: 320px;         /* from the centre of the frame to the inner edge of each side */
+    --edge: 100px;        /* from each edge of the frame to the outside edge of that side's logos */
+    --gap: 320px;         /* with ?gap=: from the centre of the frame to the inner edge of each side instead */
     --mid: 95px;          /* height of the middle of the logos from the top of the frame */
     --pivt: 58px;         /* PIVT badge height */
     --studio: 200px;      /* FirstPass Studio width (the brand kit's minimum is 180px) */
@@ -19,8 +21,10 @@
   body { width: 1920px; height: 1080px; position: relative; overflow: hidden; }
   .side { position: absolute; top: var(--mid); transform: translateY(-50%); transform: translateY(round(-50%, 1px)); display: flex; flex-direction: column; gap: 16px;
           animation: fade-in .5s ease-out both; }
-  .side--left { right: calc(960px + var(--gap)); align-items: center; }
-  .side--right { left: calc(960px + var(--gap)); align-items: center; }
+  .side--left { left: var(--edge); align-items: center; }
+  .side--right { right: var(--edge); align-items: center; }
+  body.from-centre .side--left { left: auto; right: calc(960px + var(--gap)); }
+  body.from-centre .side--right { right: auto; left: calc(960px + var(--gap)); }
   .side[hidden], img[hidden] { display: none; }
   .pivt, .comp { filter: drop-shadow(0 4px 12px rgba(0,0,0,.45)); }  /* none on FirstPass Studio: the brand kit says no shadows */
   .pivt { height: var(--pivt); }
@@ -37,7 +41,8 @@
        http://localhost:8080/branding.html
        The competition logo comes from the competition setup page. Loads once.
        Options: ?pivt=0, ?studio=0 or ?comp=0 leave that logo off;
-                ?gap=320 moves both sides in or out (pixels from the centre of the frame);
+                ?edge=100 moves both sides in or out (pixels from each edge of the frame to the outside of its logos);
+                ?gap=320 places them from the centre of the frame instead (pixels from the centre to the inside of each side);
                 ?top=95 moves the logos up or down (pixels from the top to their middle);
                 ?size=1.2 makes every logo bigger or smaller;
                 ?mode=light (the default) uses the logos made for a light picture behind them (blue First, orange Pass,
@@ -56,7 +61,8 @@
       const $ = id => document.getElementById(id);
       const root = document.documentElement.style;
       const num = k => { const v = parseFloat(params.get(k)); return Number.isFinite(v) ? v : null; };
-      if (num('gap') !== null) root.setProperty('--gap', num('gap') + 'px');
+      if (num('edge') !== null) root.setProperty('--edge', num('edge') + 'px');
+      if (num('gap') !== null) { root.setProperty('--gap', num('gap') + 'px'); document.body.classList.add('from-centre'); }
       if (num('top') !== null) root.setProperty('--mid', num('top') + 'px');
       if (num('size') !== null && num('size') > 0) {
         const css = getComputedStyle(document.documentElement);

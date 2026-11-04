@@ -12,9 +12,9 @@
        Its left edge lines up with the scoreboard's (293px, like the person lower third) and its bottom sits 8px above
        the scoreboard's PlayHQ Live tab (top 930px).
      the box (?style=box): an upper third, a box with the label and each name on a line of its own. By default it sits
-       in the top right corner beside the competition logo (branding.html puts it 1280px from the left, centred 95px from
-       the top), smaller than under the title and centred on the logo's height, with clear space between the two (it
-       starts 60px past the widest the logo usually is, about 1400px) and 80px to spare on the right. ?position=under-left and under-right line it up
+       in the top right of the frame just left of the competition logo (branding.html puts the logo 100px in from the right
+       edge, centred 95px from the top, and about 110px wide for a square crest), smaller than under the title and centred
+       on the logo's height, with 40px clear before the logo, so it ends 250px from the right edge. ?position=under-left and under-right line it up
        with the scoreboard's edges just under the title banner and the logos (their bottom edges are at about 162px), and
        center centres it there; away from the competition logo the box shows it in a badge of its own.
      the lower thirds (?style=lowerthirds): the person lower third's bar (lowerthird.css) for each commentator, side by
@@ -22,7 +22,7 @@
        on the left, two get 660px bars on the left and right (the right one mirrored), like two lowerthird.html sources,
        and three share the width equally. They sit low, 80px from the bottom, for when the scoreboard is off;
        ?position=above puts them 8px above the scoreboard's PlayHQ Live tab. */
-  :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; --corner: 80px; --corner-top: 36px; }
+  :root { --left: 293px; --right: 292px; --bottom: 158px; --top: 190px; --corner: 250px; --corner-top: 36px; }
   html, body { margin: 0; background: transparent; }
   body { font-family: var(--font); color: var(--text); width: 1920px; height: 1080px; overflow: hidden; position: relative; }
   [hidden] { display: none !important; }

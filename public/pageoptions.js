@@ -56,7 +56,9 @@ const PAGE_OPTIONS = (() => {
     ],
     'branding.html': [
       show('pivt', 'PIVT logo'), show('studio', 'FirstPass Studio logo'), show('comp', 'Competition logo'),
-      { key: 'gap', label: 'Gap from centre', type: 'number', min: 0, max: 960, unit: 'px', placeholder: 'default' },
+      { key: 'edge', label: 'Gap from edges', type: 'number', min: 0, max: 960, unit: 'px', placeholder: '100' },
+      { key: 'gap', label: 'Gap from centre', type: 'number', min: 0, max: 960, unit: 'px', placeholder: 'off',
+        help: 'Places both sides this far from the centre of the frame instead, measured to the inside of each side\'s logos.' },
       { key: 'top', label: 'Height from top', type: 'number', min: 0, max: 1080, unit: 'px', placeholder: 'default' },
       { key: 'size', label: 'Size', type: 'number', min: 0.2, max: 5, step: 0.1, unit: '×', placeholder: '1' },
       mode(),
