@@ -58,7 +58,7 @@ test('the status board\'s Sound out tile and the output cards say where the soun
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   // Each row: [light, device, the line under it, format, level].
   const rows = () => page.$$eval('#board .stile .srow', rs => rs.map(r => [r.querySelector('.dot').className.replace('dot', '').trim(),
-    r.querySelector('.sname b').textContent, (r.querySelector('.sname small') || {}).textContent || '', r.querySelector('.sfmt').textContent, r.querySelector('.sdb').textContent]));
+    r.querySelector('.sname b').textContent, (r.querySelector('.sname small') || {}).textContent || '', r.querySelector('.sfmt').textContent, (r.querySelector('.sdb') || r.querySelector('.snone')).textContent]));
   const says = re => page.waitForFunction(r => new RegExp(r).test(document.querySelector('#board .stile')?.textContent || ''), re);
   await says('Mixer');
   await says('−6 dB');
@@ -103,6 +103,14 @@ test('the status board\'s Sound out tile and the output cards say where the soun
   await page.evaluate(() => loadOut());
   await says('when Output 1 is on');
   assert.deepEqual((await rows())[1], ['', 'Mixer', 'when Output 1 is on', '–', '–']);
+
+  // No sound: one row saying No Audio where the meter goes, and the card says none.
+  one = { ...one, sound: [], soundState: [] };
+  await page.evaluate(() => loadOut());
+  await says('No Audio');
+  assert.deepEqual((await rows())[0], ['', 'Nowhere', 'Sound goes to: No sound', '–', 'No Audio']);
+  assert.equal(await page.$$eval('#board .stile .srow .smeter', m => m.length), 1, 'no meter for it (only Output 2\'s)');
+  await cardSays('Sound: none');
 
   // Web links only: the sound is in the output canvas link.
   one = { ...one, mode: 'off' };

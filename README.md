@@ -473,7 +473,9 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   an SDI to HDMI converter passes it on. **Sound goes to** (every output's settings; `outputs.js` `sound`) lists where the output's sound plays: the first destination is where
   the output itself carries it (the SDI of a Blackmagic output, else the Mac's sound output; on Output 1 every Mac mic goes with it), a Blackmagic output can add the Mac's
   sound output too, and any of the Mac's sound outputs by name (the commentators' mixer) is a hidden `scene.html?copy=1` window of its own (`desktop/soundcopy.js`, `?mics=`
-  the mics ticked for it, none to start) that plays only once it has found the device; with no destination of its own the output's window is muted (`?mute=1`). An older
+  the mics ticked for it, none to start) that plays only once it has found the device; with no destination of its own the output's window is muted (`?mute=1`). **No sound**, last in
+  the first destination's list, saves an empty list: the output plays no sound anywhere (a screen with no speakers, such as a billboard over NDI), and the board's Sound out
+  says **No Audio** for it. An older
   outputs.json's Sound and Also send the sound to become the list. `desktop/soundtap.js` hears the output's
   scene window (a hidden page captures its sound the way Chromium captures a tab's) and the module schedules each 20 ms piece on the device's
   clock, as far ahead as the pictures queued, so they go out together; the log says if the sound runs dry or gets ahead. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
