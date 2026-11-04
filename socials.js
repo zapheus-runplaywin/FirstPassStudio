@@ -45,6 +45,9 @@
 //                                        &GS=..&GK= Team of the round; &with=spotlight&athlete= Athlete spotlight;
 //                                        &with=sponsorspot&sponsor=<id> Sponsor spotlight (with their time on screen that
 //                                        night); &with=sponsorlist every sponsor, to pick from. Always: nextNight (Thanks for watching)
+//                                        &with=story&game= the game's story as the scoreboard kept it (Game story, Score worm);
+//                                        &with=watch&link= a QR code for the replay's link (Watch it back). Always: stories (the
+//                                        night's games with a kept story) and watchLinks (links suggested from Live viewers)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool,
@@ -84,7 +87,7 @@ const SIZES = {
 // polaroid per game; either set: spotlight (Athlete spotlight) and sponsorspot (Sponsor spotlight).
 const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true,
   accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true,
-  potm: true, teamround: true, spotlight: true, sponsorspot: false, thanks: false };
+  potm: true, teamround: true, spotlight: true, sponsorspot: false, thanks: false, story: true, worm: true, watch: true };
 // The positions of Team of the round, in order.
 const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 // Each kind of picture as a picture set's editor lists it (the Socials tab's Show row): its name and which list it's on
@@ -101,6 +104,7 @@ const KIND_NAMES = [
   ['numbers', 'Night in numbers', 'results'], ['club', 'Club round up', 'results'], ['streaks', 'On a roll', 'results'],
   ['season', 'Team season card', 'results'], ['wrap', 'Season wrap', 'results'],
   ['potm', 'Player of the match', 'results'], ['teamround', 'Team of the round', 'results'], ['thanks', 'Thanks for watching', 'results'],
+  ['story', 'Game story', 'results'], ['worm', 'Score worm', 'results'], ['watch', 'Watch it back', 'results'],
   ['milestones', 'Milestones', 'both'], ['finalsdraw', 'Finals draw', 'both'], ['polaroid', 'Polaroid', 'both'],
   ['spotlight', 'Athlete spotlight', 'both'], ['sponsorspot', 'Sponsor spotlight', 'both'],
 ].map(([kind, name, when]) => ({ kind, name, when }));
@@ -153,7 +157,7 @@ const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() 
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
   milestonesFor = async () => [], clubOf = () => '', lineupsOf = async games => games.map(() => null), spotlightFor = async () => null,
-  sponsorList = () => [], onScreen = () => ({}), hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
+  sponsorList = () => [], onScreen = () => ({}), storyFor = () => null, qrFor = () => '', streamsFor = () => [], hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -380,6 +384,11 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('spotlight')) out.spotlight = await athleteSpotlight(String(q.athlete || ''), date, Object.keys(dates).filter(d => d <= date).sort().flatMap(d => dates[d]));
     if (want.has('sponsorlist')) out.sponsorList = sponsorList();
     if (want.has('sponsorspot')) out.sponsorSpot = sponsorSpotlight(String(q.sponsor || ''), date, out.today || date < today);
+    // Game story and Score worm (the streamed games Studio kept a story of) and Watch it back.
+    out.stories = games.filter(g => g.finished && storyFor(g.id)).map(g => g.id);
+    if (want.has('story')) out.story = storyOf(games.find(g => g.id === q.game));
+    out.watchLinks = watchLinks();
+    if (want.has('watch')) out.watch = watchIt(String(q.link || ''));
     if (want.has('shooters')) {
       const division = q.division ? String(q.division) : '';
       out.shooters = await shooters(raw.filter((g, i) => games[i].finished && (!division || games[i].division === division)));
@@ -581,6 +590,40 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       topShooter: best(all, p => p.points), accuracy: best(all.filter(p => p.shots >= ACCURACY_SHOTS * p.games), p => p.accuracy),
       superShots: superShots(division) ? best(all.filter(p => p.superGoals), p => p.superGoals) : null,
       biggestWin: big && { ...big, home: { ...big.home, logo: logoFor(big.home.name) }, away: { ...big.away, logo: logoFor(big.away.name) } } };
+  }
+
+  // ─── Game story, Score worm and Watch it back ────────────────────────────────────────────────────────────
+  // A streamed game's story (board.js keeps its Game stats and Score worm as the game left them), with the result from
+  // the fixture and the logos; whether it's sure: the goals were all seen, and the score at the end is the result.
+  function storyOf(g) {
+    if (!g) return { error: 'Pick a game.' };
+    const s = storyFor(g.id);
+    if (!s) return { error: `Studio didn't stream ${g.home.name} v ${g.away.name}, so it has no story of it.` };
+    const side = k => ({ ...g[k], logo: logoFor(g[k].name), colour: (s.stats && s.stats[k] && s.stats[k].colour) || (s.worm && s.worm[k] && s.worm[k].colour) || null });
+    const kept = { home: Number(s.stats.home.score) || 0, away: Number(s.stats.away.score) || 0 };
+    return { game: { ...g, home: side('home'), away: side('away') }, stats: s.stats, worm: s.worm,
+      complete: !s.stats.gapInHistory && g.finished && kept.home === g.home.score && kept.away === g.away.score };
+  }
+  // Links to suggest for Watch it back: each stream on Live viewers (Competitions setup), as a page where its videos stay.
+  function watchLinks() {
+    const out = [];
+    for (const st of streamsFor()) {
+      const w = String(st.where || '').trim();
+      if (!w) continue;
+      let link = '';
+      if (/^https?:\/\//i.test(w)) link = w;
+      else if (st.platform === 'youtube') link = /^@/.test(w) ? `https://www.youtube.com/${w}/streams` : /^UC[\w-]{20,}$/.test(w) ? `https://www.youtube.com/channel/${w}/streams` : '';
+      else if (st.platform === 'facebook') link = `https://www.facebook.com/${encodeURIComponent(w)}/live_videos`;
+      if (link) out.push({ name: st.name || st.platform, link });
+    }
+    return out;
+  }
+  // Watch it back (&link=): the replay's link as a QR code (an http or https link only), and the link shortened to show.
+  function watchIt(link) {
+    if (!link) return { error: 'Paste the link to watch it back on the Socials tab.' };
+    if (!/^https?:\/\/[^\s]+$/i.test(link)) return { error: 'That isn\'t a web link: it starts with https://.' };
+    try { return { link, shown: link.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''), qr: qrFor(link) }; }
+    catch (err) { return { error: `No QR code for that link: ${err.message}` }; }
   }
 
   // ─── Hand picks (Player of the match, Team of the round) and spotlights ───────────────────────────────────
