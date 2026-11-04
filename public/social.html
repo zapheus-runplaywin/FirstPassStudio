@@ -159,7 +159,7 @@
   .tiles .stat { padding: 22px 10px; }
   .tiles .stat b { font-size: 96px; }
   .tiles .stat small { font-size: 22px; line-height: 1.2; }
-  .tiles .stat em { display: block; margin-top: 6px; font-style: normal; font-size: 22px; font-weight: 700; color: inherit; opacity: .75; text-transform: uppercase; letter-spacing: .06em; }
+  .tiles .stat .stat__note { display: block; margin-top: 6px; opacity: .75; }
   .card__head { display: flex; align-items: center; gap: 28px; margin-bottom: calc(20px + var(--spread, 0px)); }
   .card__head .logo { width: 150px; height: 150px; }
   .card__head .logo-fallback { font-size: 48px; }
@@ -754,7 +754,7 @@
       const n = d.numbers || {};
       head(d, 'Night in numbers', [dayLong(d.date), el('small', '', d.venue)]);
       if (!n.games) return noResults(d);
-      const tile = (v, label, note) => { const x = stat(v, label); if (note) x.append(el('em', '', note)); return x; };
+      const tile = (v, label, note) => { const x = stat(v, label); if (note) x.append(el('small', 'stat__note', note)); return x; };
       const tiles = $('fit').appendChild(el('div', 'tiles'));
       tiles.append(tile(n.games, n.games === 1 ? 'Game' : 'Games'), tile(n.points, n.superShots === null ? 'Goals' : 'Points'));
       if (n.superShots !== null && n.superShots !== undefined) tiles.append(tile(n.superShots, 'Super shots'));
