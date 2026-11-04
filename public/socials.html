@@ -121,7 +121,7 @@
     <p class="help"><b>Upcoming</b> is for before the night: the fixture, a match up for each game, who is on the stream and a polaroid.
       <b>Results</b> is for after: final scores, a full time card for each game, the ladders and the top shooters.</p>
     <details class="info"><summary>Expand for info</summary><p class="note">A night with results opens on Results. <b>Template</b> is the look of every picture: Default is the stream's own,
-      and the others each bring their own shapes and lettering. Star (☆) the ones you use and tick <b>Favourites only</b> to list just those. <b>Show</b> lists every picture, or only the kinds of picture in a picture set you make (<b>New picture set</b>, ✎ to change one).
+      and the others each bring their own shapes and lettering. Star (☆) the ones you use and tick <b>Favourites only</b> to list just those. <b>Show</b> lists every picture, or only the kinds of picture in a picture set you make (<b>New picture set</b>, ✎ to change one). <b>Division</b> lists one division's pictures, with the ones for the whole night.
       <b>Colours</b> change every picture in any template: sets made from the competition's main, highlight and accent colours (Competition colours
       is the stream's own look), or your own with <b>New colour set</b>. Under <b>Options</b>, the FirstPass Studio mark sits bottom right and the
       PIVT logo bottom left; untick either to leave it off. Whether each picture carries the sponsor strip (your naming, elite and major sponsors)
@@ -161,9 +161,17 @@
   // The pictures for this night, each { key, kind, name, help, game?, division?, missing? }.
   // Only the kinds in the picture set picked on the Show row (all of them with All).
   function pictures() {
-    const list = set() === 'results' ? resultsPictures() : upcomingPictures();
+    const list = listed();
     const ps = pictureSet();
     return ps ? list.filter(p => ps.kinds.includes(p.kind)) : list;
+  }
+  // This list's pictures in the division picked on the Show row; a picture for the whole night (Fixture, Results, Byes and
+  // the like) is always listed. The pick lasts while the tab is open, as divisions differ from night to night.
+  let division = '';
+  const divisionOf = p => p.division || (night.games.find(g => g.id === p.game) || {}).division || '';
+  function listed() {
+    const list = set() === 'results' ? resultsPictures() : upcomingPictures();
+    return division ? list.filter(p => !divisionOf(p) || divisionOf(p) === division) : list;
   }
   const pictureSet = () => info && info.settings.pictureSets.find(x => x.id === info.settings.pictureSet);
   function resultsPictures() {
@@ -592,7 +600,9 @@
   }
   // The Show row: All, then each picture set (with how many of this list's pictures it shows), ✎ to change one.
   function drawShow() {
-    const all = set() === 'results' ? resultsPictures() : upcomingPictures();
+    const divisions = [...new Set(night.games.map(g => g.division).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    if (!divisions.includes(division)) division = '';
+    const all = listed();
     const button = (name, id, n) => {
       const b = el('button', 'set small', name);
       b.type = 'button';
@@ -613,6 +623,18 @@
     add.type = 'button';
     add.onclick = () => editPictureSet(null);
     $('show').append(add);
+    // With more than one division playing, pick one to list only its pictures.
+    if (divisions.length > 1) {
+      const l = el('label', 'favonly', 'Division ');
+      const pick = el('select');
+      pick.id = 'division';
+      pick.append(el('option', '', 'All divisions'), ...divisions.map(d => { const o = el('option', '', d); o.value = d; return o; }));
+      pick.options[0].value = '';
+      pick.value = division;
+      pick.onchange = () => { division = pick.value; draw(); };
+      l.append(pick);
+      $('show').append(l);
+    }
   }
   // Opens the editor on a picture set (null: a new one, starting with the kinds in this list).
   let editing = null;
