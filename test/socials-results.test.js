@@ -40,7 +40,7 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   assert.equal(n.clubs[0].games.length, 2);
   assert.deepEqual(n.streaks.map(x => [x.team, x.run, x.unbeaten]), [['Knights', 3, false], ['Titans', 3, false]]);
   assert.ok(n.streaks.every(x => x.logo));
-  assert.deepEqual({ ...n.numbers, highest: n.numbers.highest.team }, { games: 4, points: 228, close: 0, draws: 0, biggest: 9, highest: 'Knights', closeMargin: 3, superShots: 8 });
+  assert.deepEqual({ ...n.numbers, highest: n.numbers.highest.team }, { games: 4, points: 228, close: 0, draws: 0, biggest: 9, highest: 'Knights', closeMargin: 3, superShots: 8, notCounted: 0 });
 
   assert.equal(n.accuracy.minShots, 10);
   assert.ok(n.accuracy.players.every(p => p.shots >= 10));

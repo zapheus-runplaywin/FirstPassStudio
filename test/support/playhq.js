@@ -189,7 +189,9 @@ function answer(world, operationName, variables, query = '') {
 function liveAnswer(world, id) {
   const g = world.games[id], l = world.live[id];
   if (!g || (!l && !g.score)) return { errors: [{ message: 'The game could not be found or was not electronically scored' }] };
-  const s = l || { home: g.score.home, away: g.score.away, homeGoals: g.score.home - 2, awayGoals: g.score.away - 2, homeSuper: 1, awaySuper: 1, period: 'FOURTH_QTR', clock: null };
+  // A finished game: the same goals and attempts as its line ups (two shooters, each with 3 misses).
+  const s = l || { home: g.score.home, away: g.score.away, homeGoals: g.score.home - 2, awayGoals: g.score.away - 2, homeSuper: 1, awaySuper: 1,
+    homeShots: g.score.home - 1 + 6, awayShots: g.score.away - 1 + 6, period: 'FOURTH_QTR', clock: null };
   const side = k => ({ statisticsV2: [stat('TOTAL_SCORE', s[k]), stat('1_POINT_SCORE', s[`${k}Goals`]), stat('2_POINT_SCORE', s[`${k}Super`]),
     stat('GOAL_ATTEMPT', s[`${k}Shots`] ?? (Number(s[`${k}Goals`]) || 0) + (Number(s[`${k}Super`]) || 0) + 3)] });
   return { data: { game: {

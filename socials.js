@@ -580,11 +580,14 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     }).filter(x => x.rise > 0).sort((a, b) => b.rise - a.rise || a.name.localeCompare(b.name)).slice(0, FIRE_SHOWN);
     return { division, players };
   }
-  // The night's super shots, for Night in numbers (only where a division that played has them).
+  // The night's super shots, for Night in numbers (only where a division that played has them): each game's team
+  // counts added up (teamTotals). notCounted: the games among them whose line ups PlayHQ couldn't give.
   async function nightSupers(finished) {
-    if (!finished.some(g => superShots(g.division))) return { superShots: null };
-    const t = await tallyShooters(finished);
-    return { superShots: t.players.reduce((n, p) => n + p.superGoals, 0) };
+    const games = finished.filter(g => superShots(brief(g).division));
+    if (!games.length) return { superShots: null };
+    const read = await lineupsOf(games);
+    return { superShots: read.reduce((n, l) => n + (l ? teamTotals(l.home).superGoals + teamTotals(l.away).superGoals : 0), 0),
+      notCounted: read.filter(l => !l).length };
   }
   // Team season card (&division= &team=): socialstats.teamCard with its ladder place, logos, and its top shooter so far.
   async function seasonCard(season, date, division, team, seasonGames) {
@@ -667,6 +670,14 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // ─── Game stats, Shooting duel and Team sheet ──────────────────────────────────────────────────────────────
+  // A team's goals, super goals and shots in a game, from its line up (readLineups): PlayHQ's team counts, which include
+  // goals given to the team without a player; the players added up only when PlayHQ has no team counts.
+  function teamTotals(side) {
+    const players = side ? side.players : [];
+    const sum = k => players.reduce((n, p) => n + ((p.shooting && p.shooting[k]) || 0), 0);
+    const t = side && side.totals;
+    return { goals: t ? t.goals : sum('goals'), superGoals: t ? t.superGoals : sum('superGoals'), shots: t && t.shots != null ? t.shots : sum('shots') };
+  }
   // A finished game's numbers from its line ups (every finished game, streamed or not): each team's goals, super goals,
   // attempts, misses, accuracy and points, and its shooters best first; with the story's quarters won, longest run,
   // biggest lead and lead changes when Studio streamed it (story, else null).
@@ -680,9 +691,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
         return { name: p.name, position: p.position, goals: sh.goals || 0, superGoals: sh.superGoals || 0, shots, points: sh.points || 0,
           accuracy: shots ? Math.round(scored / shots * 1000) / 10 : null };
       }).filter(p => p.shots || p.goals || p.superGoals).sort((x, y) => y.points - x.points || y.shots - x.shots || x.name.localeCompare(y.name)) : [];
-      const sum = k => players.reduce((n, p) => n + p[k], 0);
-      const goals = sum('goals'), superGoals = sum('superGoals'), shots = sum('shots');
-      return { ...b[which], logo: logoFor(b[which].name), goals, superGoals, shots, misses: Math.max(0, shots - goals - superGoals), points: sum('points'),
+      const { goals, superGoals, shots } = teamTotals(l && l[which]);
+      return { ...b[which], logo: logoFor(b[which].name), goals, superGoals, shots, misses: Math.max(0, shots - goals - superGoals), points: goals + 2 * superGoals,
         accuracy: shots ? Math.round((goals + superGoals) / shots * 1000) / 10 : null, shooters: players.map(p => ({ ...p, photo: photoFor({ name: p.name, team: b[which].name }) || null })) };
     };
     const story = storyFor(b.id);
