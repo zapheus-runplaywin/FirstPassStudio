@@ -7,9 +7,12 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="graphics.css">
 <style>
-  /* Top and bottom of the space between the title and the scoreboard (graphics.css centres it in the middle). */
+  /* Position (?position=, a 3 x 3 grid): top and bottom of the space between the title and the scoreboard
+     (graphics.css centres it in the middle), left and right 100px in from the frame's edges like the branding logos. */
   body.top { align-items: flex-start; }
   body.bottom { align-items: flex-end; }
+  body.left { justify-content: flex-start; padding-left: 100px; }
+  body.right { justify-content: flex-end; padding-right: 100px; }
   /* backwards, not both: a held animation would override the fade and ?end=hide */
   .countdown { --card-width: 1000px; text-align: center; animation-fill-mode: backwards; transition: opacity .6s ease, transform .6s ease; }
   .countdown.is-gone { opacity: 0; transform: translateY(20px); }
@@ -52,6 +55,31 @@
     display: flex; justify-content: center; gap: 28px; flex-wrap: wrap; }
   .countdown__info:empty { display: none; }
   .countdown__sponsor { background: var(--purple-dark); color: var(--muted); padding: 10px 32px; font-size: 18px; }
+
+  /* ?size=mini: a small timer the size and look of the title banner (title.html), drawn at 80% like it. Its middle sits
+     95px from the top in the top row (level with the title and the branding logos), 95px from the bottom in the bottom
+     row and at the frame's middle in the middle row; left and right 100px in from the edges. No sponsor (no room). */
+  .mini { position: absolute; display: flex; flex-direction: column; align-items: center; text-transform: uppercase;
+          filter: drop-shadow(0 6px 16px rgba(0,0,0,.45)); scale: .8; transform-origin: center;
+          top: 540px; left: 50%; translate: -50% -50%; translate: round(-50%, 1px) round(-50%, 1px);
+          transition: opacity .6s ease; animation: mini-in .5s ease-out backwards; }
+  @keyframes mini-in { from { opacity: 0; } }
+  body.top .mini { top: 95px; }
+  body.bottom .mini { top: 985px; }
+  body.left .mini { left: 100px; translate: 0 -50%; translate: 0 round(-50%, 1px); transform-origin: left center; }
+  body.right .mini { left: auto; right: 100px; translate: 0 -50%; translate: 0 round(-50%, 1px); transform-origin: right center; }
+  .mini.is-gone { opacity: 0; }
+  .mini.is-fading { transition: none; }
+  .mini__label { background: var(--yellow); color: var(--text-on-yellow); font-weight: 800; font-size: 28px; letter-spacing: .04em;
+                 padding: 6px 64px 4px; min-width: 260px; text-align: center; border-radius: 22px 22px 0 0; white-space: nowrap; }
+  .mini__body { min-width: 620px; border-radius: 48px; overflow: hidden; text-align: center; }
+  .mini__time { background: radial-gradient(ellipse at center, var(--purple-light) 0%, var(--purple) 60%, var(--purple-shade) 100%);
+                color: var(--text); font-weight: 800; font-size: 56px; line-height: 1; padding: 10px 70px 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mini__time.is-end { font-size: 44px; padding: 14px 70px 12px; }
+  /* The last ten seconds: the time turns the highlight colour. */
+  .mini.is-final .mini__time { color: var(--yellow); }
+  .mini__teams { background: radial-gradient(ellipse at center, var(--purple-dark-light) 0%, var(--purple-dark) 100%);
+                 color: var(--text); font-weight: 700; font-size: 32px; letter-spacing: .02em; padding: 8px 70px 10px; white-space: nowrap; }
 </style>
 <script src="log.js"></script>
 <script src="chroma.js"></script>
@@ -67,8 +95,10 @@
        is picked, so a new game is picked up without refreshing. At zero it shows STARTING SOON.
        Options: ?label=Next%20game%20in for the heading, ?end=Game%20on for the
        text at zero (?end=hide fades the card away instead, ?fade=1 fades it out over the last 5 seconds, ?fade=8 over 8), ?teams=0 for the clock only,
-       ?position=top or bottom (the default is the middle of the screen).
-       Presented by the naming rights sponsor (Sponsors page) along the bottom: ?sponsor=0 leaves it off. -->
+       ?position= a spot on a 3 x 3 grid: top-left, top, top-right, left, right, bottom-left, bottom or bottom-right
+       (the default is the middle of the screen), ?size=mini for a small timer the size of the title banner
+       (heading, time and the two teams; at the top it sits where the title does).
+       Presented by the naming rights sponsor (Sponsors page) along the bottom: ?sponsor=0 leaves it off (Mini has none). -->
   <main class="card countdown" id="card" data-fit hidden>
     <div class="countdown__tabs"><div class="tab countdown__tab" id="label"></div><div class="tab" id="comp"></div></div>
     <div class="countdown__clock" id="clock">
@@ -89,16 +119,21 @@
     <footer class="countdown__info" id="info"></footer>
     <div class="countdown__sponsor" id="sponsor" hidden></div>
   </main>
+  <div class="mini" id="mini" hidden>
+    <div class="mini__label" id="miniLabel"></div>
+    <div class="mini__body"><div class="mini__time" id="miniTime"></div><div class="mini__teams" id="miniTeams"></div></div>
+  </div>
   <p class="message" id="message" hidden></p>
   <script src="teams.js"></script>
   <script src="sponsorspot.js"></script>
   <script>
+    const params = new URLSearchParams(location.search);
+    const mini = params.get('size') === 'mini';
     sponsorSpot.naming('countdown').then(s => {
-      if (!s) return;
+      if (!s || mini) return;
       document.getElementById('sponsor').replaceChildren(sponsorSpot.badge(s));
       document.getElementById('sponsor').hidden = false;
     });
-    const params = new URLSearchParams(location.search);
     const endText = params.get('end') || 'Starting soon';
     // ?fade=1 (or ?fade=8 for 8 seconds) fades the whole card out over the last 5 seconds and leaves it gone at zero.
     const fadeParam = params.get('fade');
@@ -107,14 +142,32 @@
     const fadeMs = !wantsFade || window.studioChroma ? 0 : 1000 * (Number(fadeParam) > 1 ? Math.min(60, Number(fadeParam)) : 5);
     const endHides = wantsFade || endText.toLowerCase() === 'hide';
     const showTeams = params.get('teams') !== '0';
-    if (['top', 'bottom'].includes(params.get('position'))) document.body.classList.add(params.get('position'));
-    document.getElementById('label').textContent = params.get('label') || 'Starting in';
+    // ?position=top-left … bottom-right: the row and the column, each left out for the middle.
+    const POSITIONS = ['top-left', 'top', 'top-right', 'left', 'right', 'bottom-left', 'bottom', 'bottom-right'];
+    if (POSITIONS.includes(params.get('position'))) document.body.classList.add(...params.get('position').split('-'));
+    const label = params.get('label') || 'Starting in';
+    document.getElementById('label').textContent = label;
+    document.getElementById('miniLabel').textContent = label;
     if (!showTeams) document.getElementById('teams').hidden = true;
+    document.getElementById('miniTeams').hidden = !showTeams;
 
-    const card = document.getElementById('card');
+    // What shows and fades: the card, or with ?size=mini the small timer.
+    const card = document.getElementById(mini ? 'mini' : 'card');
     const msg = document.getElementById('message');
     const $ = id => document.getElementById(id);
     let start = null, offset = 0, gameKey = '', shown = '';
+
+    // Mini: drawn at 80% like the title, and no wider than 600px (long team names scale it down further), so at the
+    // top it fits between the branding logos as the title does (title.html fitBetweenLogos).
+    const MINI_SCALE = 0.8, MINI_MAX_WIDTH = 600;
+    function fitMini() {
+      const box = $('mini');
+      const was = box.hidden;
+      box.hidden = false; // measured shown
+      box.style.scale = String(Math.floor(Math.min(MINI_SCALE, MINI_MAX_WIDTH / box.offsetWidth) * 1000) / 1000);
+      box.hidden = was;
+    }
+    if (mini && document.fonts) document.fonts.ready.then(() => fitMini());
 
     function clock(time) {
       const [h, m] = String(time || '').split(':').map(Number);
@@ -151,12 +204,16 @@
           $('label').hidden = true;
           card.classList.remove('is-final');
           if (endHides) card.classList.add('is-gone');
-          else { $('end').textContent = endText; $('end').hidden = false; }
+          else { $('end').textContent = endText; $('end').hidden = false; $('miniTime').textContent = endText; $('miniTime').classList.add('is-end'); }
         }
         return;
       }
-      if (shown !== 'counting') { shown = 'counting'; $('clock').hidden = false; $('label').hidden = false; $('end').hidden = true; card.classList.remove('is-gone'); }
+      if (shown !== 'counting') { shown = 'counting'; $('clock').hidden = false; $('label').hidden = false; $('end').hidden = true; $('miniTime').classList.remove('is-end'); card.classList.remove('is-gone'); }
       const d = Math.floor(left / 86400), h = Math.floor(left % 86400 / 3600), m = Math.floor(left % 3600 / 60), s = left % 60;
+      // Mini: one line, 4:32, 1:04:32, or 2 days 4:05:00.
+      const two = n => String(n).padStart(2, '0');
+      const miniTime = `${d ? `${d} ${d === 1 ? 'day' : 'days'} ` : ''}${d || h ? `${h}:${two(m)}` : m}:${two(s)}`;
+      if ($('miniTime').textContent !== miniTime) $('miniTime').textContent = miniTime;
       $('daysUnit').hidden = d === 0;
       $('daysLabel').textContent = d === 1 ? 'Day' : 'Days';
       $('hoursUnit').hidden = d === 0 && h === 0;
@@ -189,6 +246,8 @@
         $('comp').textContent = g.competition || '';
         $('homeName').textContent = g.home.name;
         $('awayName').textContent = g.away.name;
+        $('miniTeams').textContent = `${g.home.name} v ${g.away.name}`;
+        if (mini) fitMini();
         setLogo('homeLogo', g.home);
         setLogo('awayLogo', g.away);
         const info = $('info');
