@@ -151,6 +151,58 @@ test('the fixture board says which games are done, live and next, with live scor
   assert.equal((await fetch(`${studio.base}/roster.html`)).status, 404);
 });
 
+test('a game\'s run order loads into Output 1\'s run order as the scoreboard moves to it, saying what it cleared', async () => {
+  // Two saved run orders, made on the Output page.
+  const scene = () => get('/api/scene');
+  const act = a => post('/api/scene', a);
+  await act({ type: 'sceneSave', name: 'Planner test' });
+  const live = (await scene()).scenes.find(x => x.name === 'Planner test');
+  await act({ type: 'roClear' });
+  await act({ type: 'roAdd', kind: 'scene', id: live.id });
+  await act({ type: 'roSave', name: 'Big game' });
+  await act({ type: 'roAdd', kind: 'scene', id: live.id });
+  await act({ type: 'roSave', name: 'Two lives' });
+  const orders = (await scene()).runOrders;
+  const big = orders.find(o => o.name === 'Big game');
+  const p = await get('/api/planner');
+  assert.deepEqual(p.runOrders.map(o => o.name).sort(), ['Big game', 'Two lives'], 'the Planner lists the saved run orders');
+  const games = (await get('/api/games')).filter(g => g.court === 'Court 1' && g.date === studio.world.today).sort((a, b) => a.time.localeCompare(b.time));
+  const [first, second] = games.map(g => g.time.slice(0, 5));
+  let n = await post('/api/planner/night', { date: studio.world.today, court: 'Court 1', slots: { [first]: { people: [], runOrder: big.id }, [second]: [] } });
+  n = n.nights.find(x => x.date === studio.world.today);
+  assert.equal(n.slots.find(s => s.time === first).runOrder, big.id);
+  assert.equal(n.slots.find(s => s.time === second).runOrder, '', 'a slot sent as its people alone has none');
+
+  // Something queued, then the scoreboard moves to the game: its run order replaces the queue, with a notice.
+  await post('/api/scoreboard', { type: 'selectGame', game: games[1] });
+  await new Promise(r => setTimeout(r, 1500));
+  await act({ type: 'roClear' });
+  await act({ type: 'roAdd', kind: 'scene', id: live.id });
+  await act({ type: 'roAdd', kind: 'scene', id: live.id });
+  await post('/api/scoreboard', { type: 'selectGame', game: games[0] });
+  const s = await studio.until(async () => { const x = await scene(); return x.runOrderNotice && x; });
+  assert.equal(s.runOrder.length, 1, 'Big game in place of the two queued');
+  assert.match(s.runOrderNotice.text, /^Cleared the 2 items queued: the Production Planner loaded "Big game" for /);
+  assert.equal((await get('/api/planner/onair')).runOrder, big.id);
+  // The run order's own controls still work afterwards, and a game with none leaves the run order alone.
+  await act({ type: 'roNoticeClose' });
+  await act({ type: 'roAdd', kind: 'scene', id: live.id });
+  await post('/api/scoreboard', { type: 'selectGame', game: games[1] });
+  await new Promise(r => setTimeout(r, 1500));
+  assert.equal((await scene()).runOrder.length, 2, 'no run order planned: left as it was');
+  assert.equal((await scene()).runOrderNotice, null);
+  // Renamed, it stays assigned (by id); deleted, the slot keeps it for the Planner to flag.
+  await act({ type: 'roRename', order: big.id, name: 'Grand final' });
+  assert.equal((await get('/api/planner')).runOrders.find(o => o.id === big.id).name, 'Grand final');
+  await act({ type: 'roDeleteOrder', order: big.id });
+  const after = (await get('/api/planner')).nights.find(x => x.date === studio.world.today);
+  assert.equal(after.slots.find(x => x.time === first).runOrder, big.id);
+  await act({ type: 'roClear' });
+  await act({ type: 'roDeleteOrder', order: orders.find(o => o.name === 'Two lives').id });
+  await act({ type: 'sceneRemove', scene: live.id });
+  await post('/api/planner/night', { date: studio.world.today, clear: true });
+});
+
 test('the commentators graphics read who is on the mic', async () => {
   const page = await fetch(`${studio.base}/commentators.html`).then(r => r.text());
   assert.match(page, /\/api\/planner\/onair/, 'the Commentators graphic falls back to the plan');

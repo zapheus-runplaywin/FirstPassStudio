@@ -40,7 +40,7 @@ test('plan tonight: the commentators, the court and who calls the game on now', 
   const now = world.gameNow(0);
   const slot = () => planner.locator('details.night[open] .slot', { hasText: `${now.home} v ${now.away}` });
   for (const name of ['Will Linter', 'Honey Harrington (guest)']) {
-    await slot().locator('select').selectOption({ label: name });
+    await slot().locator('.seats select').selectOption({ label: name });
     await planner.waitForFunction(n => [...document.querySelectorAll('details.night[open] .seat')].some(e => e.textContent.startsWith(n)), name);
   }
 

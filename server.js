@@ -198,8 +198,28 @@ const { setNightChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, g
 const planner = require('./planner').create({
   log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt: theGames.sameCourt, night: theGames.nightChoice,
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '' }), logoFor: n => logoFor(n),
-  withLiveScores: theGames.withLiveScores, isLive: theGames.isLive,
+  withLiveScores: theGames.withLiveScores, isLive: theGames.isLive, runOrders: () => scene.state().runOrders || [],
 });
+// A game's run order from the Production Planner: loaded into Output 1's run order (in place of what's queued; the
+// Output page says so when that cleared anything) once, as the scoreboard moves to the game, picked automatically or
+// by hand. The game on the scoreboard when Studio starts doesn't load it again, so a relaunch mid-game leaves the run
+// order as it was. Checked each second with the game triggers.
+let plannerGame; // the game last seen on the scoreboard (undefined until the first look)
+let plannerBusy = false;
+async function plannerRunOrder() {
+  const id = board().gameId || null;
+  if (plannerGame === undefined || id === plannerGame || plannerBusy) { if (!plannerBusy) plannerGame = id; return; }
+  plannerGame = id;
+  if (!id) return;
+  plannerBusy = true;
+  try {
+    const on = await planner.onAir();
+    if (!on.runOrder || on.gameId !== id || (board().gameId || null) !== id) return;
+    const error = scene.act({ type: 'roLoad', order: on.runOrder, planner: on.game });
+    if (error) log('warn', 'planner', `Couldn't load the run order planned for ${on.game}: ${error}`);
+  } catch (err) { log('warn', 'planner', `Couldn't look up the run order planned for this game: ${err.message}`); }
+  finally { plannerBusy = false; }
+}
 
 // The Socials tab: a game night's pictures for social media, saved by the Mac app (socials.js).
 const socials = require('./socials').create({
@@ -267,6 +287,7 @@ function gameSnapshot() {
   };
 }
 setInterval(() => { try { scene.game(gameSnapshot()); } catch (err) { log('error', 'sequence', `Game triggers failed: ${err.message}`); } }, 1000);
+setInterval(() => { plannerRunOrder(); }, 1000);
 // The board to the pages following it over the scene socket: on every save (a press, a PlayHQ reading) and
 // each second while the clock runs, since what the pages show of it (elapsed time) moves on its own.
 scene.setBoardSource(() => scoreboardJson(board()));

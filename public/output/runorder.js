@@ -6,8 +6,9 @@
 // Above Scenes and Sequences: a numbered list of sequences and scenes for Output 1, the production feed, whichever output
 // tab is picked (Matt, 2 Nov 2026: one run order, on Output 1; other outputs follow each sequence's own Then). Play next plays the head, Skip drops it; a sequence that ends plays the head itself instead of its
 // Then, so the list is the night's plan and each sequence's Then is the fallback when the list runs out. Add… puts a
-// scene or sequence at the end; rows drag to reorder (or use their arrows); Saved… loads an order kept under a name
-// or saves tonight's. The runner (sequences.js in Studio) owns the list; this only draws it and sends changes.
+// scene or sequence at the end; rows drag to reorder (or use their arrows); Saved… loads an order kept under a name,
+// saves tonight's, or renames or deletes a saved one. The Production Planner can load a game's saved order as the
+// scoreboard moves to that game; when that cleared what was queued, a note above Play next says so until OK is pressed. The runner (sequences.js in Studio) owns the list; this only draws it and sends changes.
 // Above the queue, like a playlist: the last of what the run order has played tonight, greyed with a tick, then
 // what's on air now in the on-air orange (the sequence playing with its step and time left, else the scene on),
 // so a glance says where the night is (Matt, 2 Nov 2026).
@@ -140,6 +141,10 @@ function renderRunOrder() {
     };
     list.appendChild(li);
   });
+  // The Production Planner cleared the queue to load a game's run order.
+  const notice = scene.runOrderNotice;
+  $('roNotice').classList.toggle('hidden', !notice);
+  $('roNoticeText').textContent = notice ? notice.text : '';
   // Play next and Skip, and what Play next does right now (▶ the head, ⏭ what follows it).
   const p = roMain().playing;
   $('roNext').disabled = !head && !p;
@@ -160,9 +165,11 @@ function renderRunOrder() {
   saved.innerHTML = '<option value="">Saved…</option>';
   for (const o of scene.runOrders || []) saved.append(new Option(`${o.name} (${o.count})`, `load:${o.id}`));
   if (items.length) saved.append(new Option('Save tonight\'s order as…', 'save'));
+  if ((scene.runOrders || []).length) saved.append(new Option('Rename a saved order…', 'rename'));
   if ((scene.runOrders || []).length) saved.append(new Option('Delete a saved order…', 'delete'));
   if (items.length || roPlayedItems().length) saved.append(new Option('Clear the run order', 'clear'));
 }
+$('roNoticeClose').onclick = () => roAct({ type: 'roNoticeClose' });
 $('roNext').onclick = () => roAct({ type: 'roNext' });
 $('roSkip').onclick = () => roAct({ type: 'roSkip' });
 $('roAdd').onchange = () => {
@@ -182,6 +189,14 @@ $('roSaved').onchange = async () => {
   } else if (v === 'save') {
     const name = await askText('Name tonight\'s run order (an order of that name is replaced)', '');
     if (name) roAct({ type: 'roSave', name });
+  } else if (v === 'rename') {
+    // It keeps its id, so a game in the Production Planner it's assigned to keeps it.
+    const orders = scene.runOrders || [];
+    const pick = orders.length === 1 ? orders[0].id : await askChoice('Rename which saved run order?', 'Games it\'s assigned to in the Production Planner keep it.', [...orders.map(o => ({ value: o.id, label: o.name })), { value: '', label: 'Cancel', alt: true }]);
+    const o = orders.find(x => x.id === pick);
+    if (!o) return;
+    const name = await askText(`New name for "${o.name}"`, o.name);
+    if (name && name.trim() !== o.name) roAct({ type: 'roRename', order: o.id, name });
   } else if (v === 'delete') {
     const orders = scene.runOrders || [];
     const pick = await askChoice('Delete which saved run order?', 'Tonight\'s list stays as it is.', [...orders.map(o => ({ value: o.id, label: o.name, danger: true })), { value: '', label: 'Cancel', alt: true }]);

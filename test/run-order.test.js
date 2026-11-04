@@ -210,6 +210,39 @@ test('saved orders: Save as, load (in place of the queue), delete, and the file 
   assert.deepEqual(st().runOrders, []);
 });
 
+test('a saved order can be renamed and keeps its id; the Production Planner\'s load says what it cleared until closed', () => {
+  reset();
+  make('A', { steps: [step(['Ladder'])] });
+  make('B', { steps: [step(['Fixtures'])] });
+  add('sequence', 'A');
+  ok({ type: 'roSave', name: 'Thursday' });
+  ok({ type: 'roClear' });
+  add('sequence', 'B');
+  ok({ type: 'roSave', name: 'Friday' });
+  const thursday = st().runOrders.find(o => o.name === 'Thursday');
+  ok({ type: 'roRename', order: thursday.id, name: '  Grand final  ' });
+  assert.deepEqual(st().runOrders.map(o => [o.id === thursday.id, o.name]), [[true, 'Grand final'], [false, 'Friday']], 'same id, new name');
+  assert.equal(scene.apply({ type: 'roRename', order: thursday.id, name: 'friday' }), 'There\'s already a saved run order called "friday".');
+  assert.equal(scene.apply({ type: 'roRename', order: thursday.id, name: ' ' }), 'Give the run order a name, such as "Thursday night".');
+  assert.equal(scene.apply({ type: 'roRename', order: 'nope', name: 'X' }), 'No saved run order "nope".');
+  const saved = JSON.parse(fs.readFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'sequences.json'), 'utf8'));
+  assert.equal(saved.runOrders.find(o => o.id === thursday.id).name, 'Grand final', 'saved for a relaunch');
+
+  // Loaded by the Planner over something queued: the notice says what was cleared, until closed.
+  assert.deepEqual(order(), ['B']);
+  ok({ type: 'roLoad', order: thursday.id, planner: 'Stormz v Titans' });
+  assert.deepEqual(order(), ['A']);
+  assert.equal(st().runOrderNotice.text, 'Cleared the 1 item queued: the Production Planner loaded "Grand final" for Stormz v Titans.');
+  ok({ type: 'roNoticeClose' });
+  assert.equal(st().runOrderNotice, null);
+  // Over an empty queue, or loaded by hand: nothing to say.
+  ok({ type: 'roClear' });
+  ok({ type: 'roLoad', order: thursday.id, planner: 'Stormz v Titans' });
+  assert.equal(st().runOrderNotice, null);
+  ok({ type: 'roLoad', order: thursday.id });
+  assert.equal(st().runOrderNotice, null);
+});
+
 test('Stream Deck links: /deck/runorder/next, skip, add/<name>, load/<order> and clear', () => {
   reset();
   make('A', { steps: [step(['Ladder'])] });
