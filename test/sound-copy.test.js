@@ -68,12 +68,17 @@ test('the first destination is the output\'s own route; a named one is a copy se
     outputs.apply({ sound: [{ device: 'RODECaster Pro II' }] });
     assert.equal(outputs.windows()[0].sound, 'none');
     assert.deepEqual(outputs.copies(), [{ output: 'main', device: 'RODECaster Pro II', mics: 'all', main: true }]);
-    // Off again: no copy. Nothing given goes back to the output's own route.
+    // Off again: no copy. No sound (an empty list): the output's own window is muted and there's no copy.
     outputs.apply({ on: false });
     assert.deepEqual(outputs.copies(), []);
     outputs.apply({ on: true, sound: [] });
-    assert.deepEqual(main().sound, [{ device: 'own', mics: [] }]);
+    assert.deepEqual(main().sound, [], 'No sound is kept');
+    assert.equal(outputs.windows()[0].sound, 'none');
     assert.deepEqual(outputs.copies(), []);
+    assert.deepEqual(main().soundState, []);
+    // Picking a device again: the output's own route.
+    outputs.apply({ sound: [{ device: 'own' }] });
+    assert.deepEqual(main().sound, [{ device: 'own', mics: [] }]);
     assert.equal(main().soundState[0].state, 'sending');
     // Another output never carries the mics, whatever its destinations.
     outputs.apply({ add: true });
@@ -141,6 +146,15 @@ test('the copy\'s window plays to its device only, opens only its own mics (or e
   // Removed: back to the one.
   await page.evaluate(() => document.querySelector('#outSound .soundDest:nth-child(2) button').click());
   await studio.until(async () => (await studio.get('/api/outputs')).sound.length === 1);
+  // No sound, last in the first destination's list: nothing to add, and it says so.
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('#outSound select')[0].options].at(-1).textContent), 'No sound');
+  await page.evaluate(() => { const s = document.querySelector('#outSound select'); s.value = 'none'; s.dispatchEvent(new Event('change')); });
+  await studio.until(async () => (await studio.get('/api/outputs')).sound.length === 0);
+  await page.waitForFunction(() => document.getElementById('outSoundAdd').disabled && /plays no sound/.test(document.querySelector('#outSound .sdStatus')?.textContent || ''), null, { timeout: 5000 });
+  assert.match(await page.textContent('#outSound .sdStatus'), /music and the mics go out on Output 1 only, they're silent too/);
+  // Picking a device again starts the list again.
+  await page.evaluate(() => { const s = document.querySelector('#outSound select'); s.value = 'own'; s.dispatchEvent(new Event('change')); });
+  await studio.until(async () => (await studio.get('/api/outputs')).sound[0]?.device === 'own');
 });
 
 // 3 Nov: an AD's sound reached the SDI but not the commentators' mixer. The copy had played videos through a sound-only

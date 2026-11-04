@@ -444,7 +444,8 @@ const showOut = o => {
   // other destinations and their mics, which can be put right on the night (the first changes how the output itself
   // is sent, so it waits).
   $('outSponsors').disabled = false;
-  for (const el of document.querySelectorAll('#outSound select:not(.sdMain), #outSound input, #outSound button, #outSoundAdd, #outSoundFind')) el.disabled = false;
+  for (const el of document.querySelectorAll('#outSound select:not(.sdMain), #outSound input, #outSound button, #outSoundFind')) el.disabled = false;
+  $('outSoundAdd').disabled = soundAddOff; // as showSound left it
   // The source name follows the output's name until Use my own name is ticked.
   if (!live) $('outNdiName').disabled = !so.ndiOwnName;
   swOutKey(); // Into the switcher as (output/switcher.js)
@@ -497,10 +498,12 @@ $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').valu
 // carries it (the SDI of a Blackmagic output, else the Mac's sound output) and on Output 1 takes every Mac mic; a
 // Blackmagic output can add the Mac's sound output too; and any of the Mac's sound outputs by name is a hidden window
 // of its own (desktop/soundcopy.js) with the Mac mics ticked for it. The Mac's sound outputs are listed here in the
-// Mac app, by the names macOS gives them.
+// Mac app, by the names macOS gives them. No sound (an empty list) is picked in the first destination's list: the output
+// plays no sound anywhere, for a screen with no speakers.
 let soundDevices = [];
 let soundWas = '';
-const soundNamed = device => device !== 'own' && device !== 'mac';
+let soundAddOff = false; // Add a destination can't add one (No sound, nothing spare, or four already)
+const soundNamed = device => device !== 'own' && device !== 'mac' && device !== 'none';
 async function findSoundDevices(ask) {
   if (!navigator.mediaDevices) return;
   const outs = async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
@@ -533,15 +536,18 @@ function showSound(so) {
   const used = new Set(so.sound.map(d => d.device));
   // A destination to add: the first of the Mac's sound outputs not used yet, else the Mac's sound output on a Blackmagic output.
   const spare = soundDevices.find(n => !used.has(n)) || (dl && !used.has('mac') ? 'mac' : '');
-  $('outSoundAdd').disabled = !spare || so.sound.length >= 4;
-  $('outSoundAdd').title = so.sound.length >= 4 ? 'Four destinations at most' : !spare ? (onThisMac ? 'Press Find sound outputs to list the Mac\'s sound outputs' : 'Open this page in the Studio app to add one of the Mac\'s sound outputs') : 'Send this output\'s sound somewhere else as well, such as the commentators\' mixer';
+  const none = !so.sound.length;
+  soundAddOff = none || !spare || so.sound.length >= 4;
+  $('outSoundAdd').disabled = soundAddOff;
+  $('outSoundAdd').title = none ? 'No sound is picked: pick where the sound goes first' : so.sound.length >= 4 ? 'Four destinations at most' : !spare ? (onThisMac ? 'Press Find sound outputs to list the Mac\'s sound outputs' : 'Open this page in the Studio app to add one of the Mac\'s sound outputs') : 'Send this output\'s sound somewhere else as well, such as the commentators\' mixer';
   $('outSoundAdd').onclick = () => { if (spare) setSound(so, [...so.sound, { device: spare, mics: [] }]); };
   const key = JSON.stringify([so.id, so.mode, so.sound, so.soundState, soundDevices, mac.map(m => [m.id, m.name]), live]);
   if (key === soundWas) return;
   soundWas = key;
   const box = $('outSound');
   box.innerHTML = '';
-  so.sound.forEach((d, i) => {
+  // No sound shows as the first destination's list with No sound picked.
+  (none ? [{ device: 'none', mics: [] }] : so.sound).forEach((d, i) => {
     const row = document.createElement('div');
     row.className = 'soundDest';
     // The device: where the output itself plays, the Mac's sound output too (Blackmagic), every Mac sound output found,
@@ -551,10 +557,12 @@ function showSound(so) {
     sel.title = i ? 'Another of the Mac\'s sound outputs that gets this output\'s sound too' : 'Where this output\'s sound goes';
     const opts = [['own', dl ? 'In the SDI, with the fill' : 'The Mac\'s sound output'], ...(dl || d.device === 'mac' ? [['mac', 'The Mac\'s sound output']] : [])];
     for (const n of [...soundDevices, ...(soundNamed(d.device) && !soundDevices.includes(d.device) ? [d.device] : [])]) opts.push([n, n + (soundDevices.length && !soundDevices.includes(n) ? ' (not plugged in)' : '')]);
+    if (!i) opts.push(['none', 'No sound']);
     for (const [v, text] of opts) { const op = new Option(text, v); op.disabled = v !== d.device && used.has(v); sel.add(op); }
     sel.value = d.device;
     sel.disabled = live && !i;
-    sel.onchange = () => setSound(so, so.sound.map((x, j) => j === i ? { ...x, device: sel.value } : x));
+    // No sound drops every destination; picking a device after it starts the list again.
+    sel.onchange = () => setSound(so, sel.value === 'none' ? [] : none ? [{ device: sel.value, mics: [] }] : so.sound.map((x, j) => j === i ? { ...x, device: sel.value } : x));
     row.append(sel);
     if (i && mac.length) {
       const ticks = document.createElement('span');
@@ -581,7 +589,8 @@ function showSound(so) {
     }
     // How it's doing, while the output is on: from the copy's own window, or the Blackmagic output.
     const s = (so.soundState || [])[i] || {};
-    const words = s.state === 'problem' ? s.error : !soundNamed(d.device) ? '' : !live ? 'Starts when this output is on.'
+    const words = none ? (so.primary ? 'This output plays no sound, and as the music and the mics go out on Output 1 only, they\'re silent too.' : 'This output plays no sound.')
+      : s.state === 'problem' ? s.error : !soundNamed(d.device) ? '' : !live ? 'Starts when this output is on.'
       : s.state === 'sending' ? `Sending${i && so.primary && mac.length && !d.mics.length ? ', with no mics' : ''}.` : 'Starting…';
     if (words) {
       const p = document.createElement('p');
@@ -654,7 +663,7 @@ function renderOutputs(o, so) {
     const small = card.querySelector('small');
     // With the switcher: "On air with Court" or "Waiting for Court" (output/switcher.js).
     const withCam = ((sw && sw.state === 'connected' && sw.keys) || []).find(k => k.output === x.id)?.withCamera;
-    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.picture && x.picture.uhd ? ' · 4K' : '') + (x.mode !== 'off' && (x.sound || []).length ? ` · Sound: ${soundWhere(x).text}` : '') + (withCam ? ` · ${withCam}` : '');
+    small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.picture && x.picture.uhd ? ' · 4K' : '') + (x.mode !== 'off' ? ` · Sound: ${soundWhere(x).text}` : '') + (withCam ? ` · ${withCam}` : '');
     if (x.perf) {
       const p = document.createElement('span');
       p.textContent = ' · ' + perfText(x.perf);
@@ -709,6 +718,7 @@ for (const b of $('outQuality').querySelectorAll('button')) b.onclick = () => { 
 // first destination is named for what the output is (SDI on a Blackmagic output, else the Mac, which on NDI is
 // "Mac, not over NDI"); an added one by its device's name, with the Mac mics ticked for it. worst is how the
 // sound is doing ('off' while the output isn't on, else 'sending', 'waiting' or 'problem'), why the first problem.
+// No sound (an empty list) is "none".
 function soundWhere(x) {
   const mics = micsOf();
   const parts = (x.sound || []).map((d, i) => {
@@ -719,7 +729,7 @@ function soundWhere(x) {
   const st = x.soundState || [];
   const problem = st.find(d => d.state === 'problem');
   const worst = !st.length || st.every(d => d.state === 'off') ? 'off' : problem ? 'problem' : st.some(d => d.state === 'waiting') ? 'waiting' : 'sending';
-  return { text: parts.map(p => p.text).join(' + '), names: parts.map(p => p.name).join(' + '), parts, worst, why: problem ? problem.error : '' };
+  return { text: parts.map(p => p.text).join(' + ') || 'none', names: parts.map(p => p.name).join(' + '), parts, worst, why: problem ? problem.error : '' };
 }
 function outWhere(o, x) {
   const disp = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';

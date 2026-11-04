@@ -54,12 +54,15 @@ const KEYING = ['external', 'off'];
 // (the Mac's sound output as well, on a Blackmagic output), or one of the Mac's sound outputs by the name macOS gives
 // it, played by a hidden window of its own while the output is on (desktop/soundcopy.js). The first destination is the
 // main one and on Output 1 carries every Mac mic; each later one takes the Mac mics ticked for it (mics, mic ids), so
-// the commentators' mixer can have the crowd mic and leave out their own (Studio's half of a mix-minus).
+// the commentators' mixer can have the crowd mic and leave out their own (Studio's half of a mix-minus). An empty
+// list is No sound: the output plays no sound anywhere (a screen with no speakers, such as a billboard over NDI), its
+// windows muted and no copies.
 const SOUND_MAX = 4;
 const SOUND_DEFAULT = [{ device: 'own', mics: [] }];
 const soundDevice = v => String(v || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 200);
 const micIds = v => [...new Set((Array.isArray(v) ? v : []).map(id => String(id).replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8);
 function soundList(v) {
+  if (Array.isArray(v) && !v.length) return [];
   const seen = new Set(), out = [];
   for (const d of Array.isArray(v) ? v : []) {
     const device = soundDevice(d && typeof d === 'object' ? d.device : d);
@@ -78,7 +81,8 @@ function soundFromOld(s) {
   return out;
 }
 const hasSound = (o, device) => o.sound.some(d => d.device === device);
-// Where a Blackmagic output's own window's sound goes (desktop/decklink.js): the SDI, the Mac, both, or none (muted).
+// Where a Blackmagic output's own window's sound goes (desktop/decklink.js): the SDI, the Mac, both, or none (muted:
+// No sound, or only to the Mac's other sound outputs).
 const decklinkSoundOf = o => hasSound(o, 'own') ? (hasSound(o, 'mac') ? 'both' : 'sdi') : hasSound(o, 'mac') ? 'mac' : 'none';
 // Whether any other output's own window plays its sound (to the Mac's sound output) or is muted.
 const windowSoundOf = o => hasSound(o, 'own') || hasSound(o, 'mac') ? 'mac' : 'none';

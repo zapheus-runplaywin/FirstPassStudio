@@ -91,6 +91,7 @@
   .sboard .smeter i { position: absolute; inset: 0 auto 0 0; background: #22c55e; transition: width .12s linear; }
   .sboard .smeter i.warm { background: #f59e0b; } .sboard .smeter i.hot { background: #ff4d4d; }
   .sboard .smeter em { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: currentColor; }
+  .sboard .snone { grid-column: span 2; font-size: 12px; font-weight: 700; color: var(--fp-muted); white-space: nowrap; }
   .sboard .sdb { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
   .sboard .bar { height: 7px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
   .sboard .bar i { display: block; height: 100%; width: 0; background: var(--fp-orange); transition: width .3s linear; }
@@ -525,7 +526,8 @@
           <p class="note hidden" id="outSoundNote" style="margin:4px 0 0"></p>
           <p class="note forDecklink" id="outDlSoundNote" style="margin:4px 0 0">In the SDI, the sound goes out as 48 kHz stereo, in time with the picture. On the switcher, turn on the sound of the input the fill comes into (On, or AFV to follow the picture). An SDI to HDMI converter passes it on.</p>
           <details class="info"><summary>Expand for info</summary><p class="note">Where this output's sound plays: the first destination is where the output itself carries it (the SDI of a
-          Blackmagic output, or the Mac's sound output), and every Mac mic goes with it on Output 1. Add a destination to send the sound somewhere else as well, such as
+          Blackmagic output, or the Mac's sound output), and every Mac mic goes with it on Output 1. Pick <b>No sound</b> in it for a screen with no speakers, such as a
+          billboard over NDI: the output plays no sound anywhere (on Output 1 that silences the music and the mics too). Add a destination to send the sound somewhere else as well, such as
           the commentators' mixer: it carries this output's videos, music and page sounds, at the levels and fades they go out at, and only the mics ticked for it, so
           the commentators don't hear themselves back late. Tick a crowd mic to give them the crowd. Mics on the switcher are mixed there, so they're never in it.
           <b>On the mixer:</b> keep what comes in from the Mac out of what the mixer sends back to it (its mix-minus, or the USB return left out of the USB send),
