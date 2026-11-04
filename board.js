@@ -42,7 +42,32 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     const r = rules(b.division);
     // court is the name the graphics show (courtShown); courtPlayhq is PlayHQ's own name for it, courtName the one typed.
     return { ...b, court: courtShown(b), courtPlayhq: b.court, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: config().name, venueName, logos, teamColours,
-      clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now() };
+      clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now(), countdown: countdownFor(b) };
+  }
+
+  // ─── What the game is waiting for, for Commentator stats' pill under the clock ───
+  // Before the game, its scheduled start: { kind: 'start', at }. At a break, when play should be back: from when the
+  // clock first sat at 0:00 (or PlayHQ's scorer started the break), plus the setup's minutes for that break
+  // (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes): { kind: 'break', at, name }. Otherwise null.
+  // The break's start is kept on the board (breakFrom: { period, at }) so a page opened mid-break, or a relaunch,
+  // counts from the real start; it's cleared when the clock runs again or the period is wound back.
+  const BREAK_NAMES = { qt: 'Quarter time', ht: 'Half time', '3qt': 'Three quarter time' };
+  const BREAK_MINUTES = { qt: 'quarterBreakMinutes', ht: 'halfTimeMinutes', '3qt': 'threeQuarterBreakMinutes' };
+  function countdownFor(b) {
+    const last = config().periodType === 'halves' ? 2 : 4;
+    const period = Number(b.period) || 1;
+    const running = !!b.clock.running && clockLeft(b) > 0; // a clock left running reads 0:00 at the end, so that's stopped too
+    const atBreak = !running && period < last && (clockLeft(b) === 0 || (b.source === 'playhq' && b.followPlayhqClock && !!b.playhqBreak));
+    const from = b.breakFrom;
+    if (running || (from && period < from.period) || (from && period > from.period + 1)) { if (from) { b.breakFrom = null; saveBoards(); } }
+    else if (atBreak && !from) { b.breakFrom = { period, at: Date.now() }; saveBoards(); }
+    if (b.breakFrom) {
+      const which = last === 2 ? 'ht' : ['qt', 'ht', '3qt'][b.breakFrom.period - 1];
+      const minutes = Number(config()[BREAK_MINUTES[which]]) || 0;
+      return minutes > 0 ? { kind: 'break', at: b.breakFrom.at + minutes * 60000, name: BREAK_NAMES[which] } : null;
+    }
+    const start = b.gameId ? startOf(b) : null;
+    return start !== null && !gameStarted(b) ? { kind: 'start', at: start } : null;
   }
   // Pushes the board to the pages following it (scene.js), once the current change has finished.
   let boardPushTimer = null;
@@ -201,7 +226,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
         if (b.gameId && b.gameId !== a.game.id) b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } };
         Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
-          round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null, endedAt: null });
+          round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null, endedAt: null, breakFrom: null });
         b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
         b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
         if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);

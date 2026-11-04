@@ -127,6 +127,8 @@
   @keyframes blink { to { opacity: .25; } }
   .clock__super.is-soon { background: var(--purple); color: var(--text); }
   .clock__super.is-soon .dot { display: none; }
+  .clock__super.is-due { background: var(--pink); color: var(--text); }
+  .clock__super.is-due .dot { background: var(--yellow); }
   .clock__mic { margin-top: 10px; color: var(--muted); font-size: 18px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; overflow-wrap: anywhere; }
   .clock__mic b { color: var(--text); }
   .clock__next { margin-top: 6px; color: var(--muted); font-size: 16px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; }
@@ -559,15 +561,31 @@
       const on = win > 0 && left > 0 && left <= win && left < state.clock.lengthSec * 1000;
       return { on, minutes: Number(r.superShotMinutes ?? 3), startsIn: left > win ? left - win : 0 };
     }
+    // Before the game and at the breaks the same pill counts down for the commentary team (Matt, 2026-11-04):
+    // "Starts in 4:32" to the scheduled start, "Back in 2:15 · Quarter time" from when the clock hit 0:00 by the
+    // setup's break minutes, then "Due to start" / "Due back now" in pink until the clock runs, for half an hour at most
+    // (the board's countdown, board.js countdownFor).
+    const DUE_FOR_MS = 30 * 60000;
+    function waiting() {
+      const c = state && state.countdown;
+      if (!c) return null;
+      const left = c.at - (Date.now() + clockOffset);
+      if (left < -DUE_FOR_MS) return null; // a game picked long after its start, or a break long over: nothing to count
+      if (left <= 0) return { due: true, text: c.kind === 'start' ? 'Due to start' : 'Due back now' };
+      const s = Math.ceil(left / 1000), h = Math.floor(s / 3600);
+      const time = h ? `${h}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : mmss(left);
+      return { due: false, text: c.kind === 'start' ? `Starts in ${time}` : `Back in ${time} · ${c.name}` };
+    }
     const mmss = ms => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
     function drawClock() {
       if (!state) return;
       $('period').textContent = state.period >= 5 ? 'ET' : `${state.periodLabel}${state.period}`;
       $('clock').textContent = state.showClock === false || !state.clock ? '' : mmss(msLeft());
-      const w = superWindow(), tab = $('super');
-      tab.hidden = !(w.on || w.startsIn);
-      tab.classList.toggle('is-soon', !w.on);
-      $('superText').textContent = w.on ? `Super shot time · last ${w.minutes} min` : `Super shots in ${mmss(w.startsIn)}`;
+      const w = superWindow(), tab = $('super'), wait = waiting();
+      tab.hidden = !(w.on || w.startsIn || wait);
+      tab.classList.toggle('is-soon', !w.on && !(wait && wait.due));
+      tab.classList.toggle('is-due', !w.on && !!wait && wait.due);
+      $('superText').textContent = w.on ? `Super shot time · last ${w.minutes} min` : wait ? wait.text : `Super shots in ${mmss(w.startsIn)}`;
       if (superWas === false && w.on) say({ icon: '⏱', text: `Super shot time: the last ${w.minutes} minutes of ${state.periodLabel}${state.period}` });
       superWas = w.on;
     }

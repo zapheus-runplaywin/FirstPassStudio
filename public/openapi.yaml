@@ -1480,3 +1480,11 @@ components:
             running: { type: boolean }
         clockElapsedMs: { type: integer, description: 'Time gone in this quarter, in milliseconds, at serverNow' }
         serverNow: { type: integer, description: Server time in milliseconds since 1970 }
+        countdown:
+          type: object
+          nullable: true
+          description: 'What the game is waiting for, as Commentator stats counts it down: before the game its scheduled start, at a break when play should be back (from when the clock reached 0:00, by the setup''s break minutes) until the clock runs again; otherwise null'
+          properties:
+            kind: { type: string, enum: [start, break] }
+            at: { type: integer, description: 'When, in milliseconds since 1970 (server time)' }
+            name: { type: string, description: 'The break, for kind break', example: Quarter time }
