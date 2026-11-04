@@ -509,10 +509,20 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
     return out.sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
   }
 
+  // An athlete's Athlete spotlight: their teams, the positions they play (typed in or from this season's line ups) and
+  // their games per division (records plus this season), up to a night when date is given.
+  async function spotlight(name, date) {
+    const all = (await allAppearances())[photoKey(name)] || {}; // reading the line ups also fills in the register
+    const e = athletes()[photoKey(name)];
+    if (!e) return null;
+    const upTo = Object.fromEntries(Object.entries(all).map(([d, l]) => [d, l.filter(a => !date || !a.date || a.date <= date)]));
+    return { name: e.name, teams: athleteTeams(e.name), positions: positionsPlayed(e.name, upTo), career: career(e.name, upTo).map(c => ({ division: c.division, games: c.total, season: c.season })) };
+  }
+
   // A competition switch: the season's line ups are read again.
   function resetCaches() { appearanceCache.clear(); }
 
-  return { logoFor, colourFor, photoFor, photoFileFor, photoApproved, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, milestones, athletesRoute, resetCaches };
+  return { logoFor, colourFor, photoFor, photoFileFor, photoApproved, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, milestones, spotlight, athletesRoute, resetCaches };
 }
 
 module.exports = { create };
