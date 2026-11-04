@@ -966,7 +966,10 @@
     function drawLadder(d) {
       const l = (d.ladders || []).find(x => x.division === params.get('division')) || (d.ladders || [])[0];
       if (!l) { head(d, 'Ladder', [dayLong(d.date)]); return `No games on ${dayLong(d.date)}.`; }
-      head(d, 'Ladder', [l.division, el('small', '', l.after ? `After ${l.after}` : 'As it stands')]);
+      // What it's after: this night's round, or (before this night's results, or on an older night) the division's latest
+      // night with results, by its round or else its date.
+      const asAt = l.after ? `After ${l.after}` : l.asAt ? (l.asAt.round ? `After ${l.asAt.round}` : `As at ${dayShort(l.asAt.date)}`) : 'Before the first round';
+      head(d, 'Ladder', [l.division, el('small', '', asAt)]);
       if (!l.rows.length) return l.error ? `No ladder from PlayHQ: ${l.error}` : `No ladder for ${l.division} yet.`;
       const drawn = l.rows.some(r => r.drawn);
       // With movers on, each team's move since before the night beside its place (the division's latest night only).

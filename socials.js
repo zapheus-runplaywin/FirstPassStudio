@@ -433,7 +433,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // The ladder of each division that played that night, as PlayHQ has it now. after: the round, when this night is
-  // that division's latest with results (so "after Round 5" is true); else the ladder is simply today's. On the
+  // that division's latest with results (so "after Round 5" is true); else the ladder is simply today's. asAt: what the
+  // ladder is after either way, the division's latest night with results (its date and round; null before any). On the
   // division's latest night each row also has before (its place before this night's games) and moved (places up, or
   // down when below 0), and the ladder has movers: true, unless nobody had played before this night.
   async function ladders(dates, date, games) {
@@ -441,14 +442,15 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     for (const division of [...new Set(games.map(g => g.division).filter(Boolean))]) {
       const latest = Object.keys(dates).sort().filter(d => dates[d].some(g => g.division === division && isFinished(g))).pop();
       const round = (games.find(g => g.division === division) || {}).round || '';
+      const asAt = latest ? { date: latest, round: (dates[latest].filter(g => g.division === division && isFinished(g)).pop() || {}).round || '' } : null;
       try {
         const l = await ladderFor(division);
         const was = latest === date ? stats.placesBefore(l.rows, games.filter(g => g.division === division && g.finished)) : null;
         const rows = l.rows.map(r => ({ ...r, logo: logoFor(r.team), ...(was ? { before: was.get(r.team), moved: was.get(r.team) - r.position } : {}) }));
-        out.push({ division, after: latest === date ? round : '', rows, finalsPlaces: l.finalsPlaces || 0, movers: !!was });
+        out.push({ division, after: latest === date ? round : '', asAt, rows, finalsPlaces: l.finalsPlaces || 0, movers: !!was });
       } catch (err) {
         log('warn', 'socials', `No ladder for ${division}: ${err.message}`);
-        out.push({ division, after: '', rows: [], error: err.message });
+        out.push({ division, after: '', asAt, rows: [], error: err.message });
       }
     }
     return out;
