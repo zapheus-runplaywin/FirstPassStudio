@@ -142,6 +142,24 @@
   .result .game__team { overflow-wrap: normal; } /* breaks between words only; the score boxes leave less room */
   .later { margin-top: 18px; font-size: 22px; font-weight: 700; color: var(--muted); text-align: center; letter-spacing: .06em; text-transform: uppercase; }
 
+  /* Rows of the Upcoming pictures, drawn as Finals bound's rows (so every template set styles them): a team or athlete,
+     its logo, and what to say about it. */
+  .bound.bound--form { grid-template-columns: var(--logo) minmax(0, 1fr); }
+  .bound.bound--bye { grid-template-columns: var(--logo) minmax(0, 1fr); }
+  .bound.bound--ms { grid-template-columns: 96px minmax(0, 1fr) auto; }
+  .bound--ms .face { width: 96px; height: 96px; }
+  .bound.bound--draw { grid-template-columns: 250px var(--logo) minmax(0, 1fr) auto; font-size: 30px; }
+  .bound--draw .shooter__name { font-size: 28px; }
+  .bound--draw .shooter__team { font-size: 19px; white-space: nowrap; }
+  .form__chips { display: flex; gap: 10px; margin-top: 10px; }
+  .form__chips .stat { min-width: 84px; }
+  .form__none { font-size: 24px; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .preview--pick { box-shadow: 0 0 0 4px var(--yellow); }
+  .count { text-align: center; font-family: var(--dfont); text-transform: uppercase; }
+  .count__big { font-size: 320px; font-weight: 800; line-height: .9; color: var(--yellow); }
+  .count__words { margin-top: 20px; font-size: 64px; font-weight: 800; line-height: 1; letter-spacing: .02em; }
+  .story .count__big { font-size: 420px; }
+
   /* Round in review: each pick's label over its result row, and what made it one under it. */
   .review__note { margin-top: 10px; }
 
@@ -178,7 +196,7 @@
   .bound + .bound { margin-top: calc(10px + var(--spread, 0px)); }
   .bound .logo { width: var(--logo); height: var(--logo); }
   .bound .logo-fallback { font-size: 24px; border-width: 3px; }
-  .bound__earned { font-size: 22px; letter-spacing: .06em; border-radius: 8px; padding: 6px 14px; background: rgba(255,255,255,.08); color: var(--muted); white-space: nowrap; }
+  .bound__earned { font-size: 22px; letter-spacing: .06em; border-radius: 8px; padding: 6px 14px; background: rgba(127,127,127,.2); color: inherit; white-space: nowrap; } /* reads on a dark row or a white one */
   .bound__earned--final, .bound__earned--double, .bound__earned--bye { background: var(--yellow); color: var(--purple-dark); }
   .bound__earned--elim { background: var(--pink); color: var(--text); }
   .tag { display: inline-block; margin-bottom: 16px; font-size: 22px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
@@ -289,7 +307,10 @@
        http://localhost:8080/social.html?kind=fixtures&size=square
        kind:  Upcoming: fixtures (every game of the night)  matchup (one game, &game=<id>)  onstream (the court Studio
               streams and its commentators, from the Production Planner)  commentators (the commentary team's headshots,
-              from the Production Planner)  polaroid (a match photo in a white print)
+              from the Production Planner)  polaroid (a match photo in a white print)  form (Form guide, &game=<id>)
+              preview (Round preview, &division=<name>)  byes  milestones (&when=next: due that night; &when=played: on
+              Results, played that night)  race (Finals race, &division=<name>)  countdown (to the finals or the grand
+              final)  draw (Season draw, &division=<name>&team=<name>)
               Results: results (the night's final scores)  review (Round in review: the biggest win, the closest game and
               the upsets)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as PlayHQ has it now; on the
               division's latest night, &movers=0|1 the places each moved since before the night)  topshooters (&division=<name>, that division's, else the
@@ -344,7 +365,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
+    const KINDS = ['fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -359,6 +380,7 @@
       const [h, m] = String(time || '').split(':').map(Number);
       return Number.isFinite(h) ? `${(h % 12) || 12}:${String(m || 0).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}` : (time || 'TBC');
     }
+    const nth = n => `${n}${[, 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || 'th'}`;
     const dayLong = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
     const dayShort = d => { const x = new Date(`${d}T00:00:00`); return `${x.toLocaleDateString('en-AU', { weekday: 'short' })} ${x.getDate()} ${x.toLocaleDateString('en-AU', { month: 'short' })}`; };
 
@@ -554,6 +576,124 @@
       info.append(el('span', '', dayShort(d.date)), bit('', clock(g.time)), ...(g.court ? [el('span', '', g.court)] : []), ...(g.venue || d.venue ? [el('span', '', g.venue || d.venue)] : []));
     }
 
+    const bound = (cls, ...kids) => { const row = el('div', `bound ${cls}`); row.append(...kids); return row; };
+    const who = (name, line) => { const x = el('div'); x.append(el('div', 'shooter__name', name), el('div', 'shooter__team', line)); return x; };
+    const pill = (text, mark) => el('div', `bound__earned${mark ? ` bound__earned--${mark}` : ''}`, text);
+    const stat = (v, label, main) => { const x = el('div', `stat${main ? ' main' : ''}`); x.append(el('b', '', String(v)), el('small', '', label)); return x; };
+
+    // Form guide (?game=): each team's last five results this season (oldest first, a win in the main colour) and how
+    // their meetings this season went.
+    function drawForm(d) {
+      const g = d.games.find(x => x.id === params.get('game')) || d.games[0];
+      if (!g) { head(d, 'Form guide', [dayLong(d.date)]); return `No games on ${dayLong(d.date)}.`; }
+      head(d, 'Form guide', [[g.division, g.final || g.round].filter(Boolean).join('  ·  '), el('small', '', [dayShort(d.date), clock(g.time), g.court].filter(Boolean).join('  ·  '))]);
+      const f = (d.form || []).find(x => x.id === g.id) || { home: [], away: [], meetings: [], wins: {} };
+      for (const side of ['home', 'away']) {
+        const chips = el('div', 'form__chips');
+        for (const r of f[side]) chips.append(stat(r.result, `${r.for}–${r.against}`, r.result === 'W'));
+        if (!f[side].length) chips.append(el('div', 'form__none', 'First game of the season'));
+        const team = el('div'); team.append(el('div', 'game__team', g[side].name), chips);
+        $('fit').append(bound('bound--form', logoEl(g[side]), team));
+      }
+      const info = $('fit').appendChild(el('div', 'info'));
+      const m = f.meetings || [];
+      if (!m.length) info.append(el('span', '', 'First meeting this season'));
+      else {
+        const s = el('span');
+        s.append('This season: ', el('b', '', `${g.home.name} ${f.wins.home}`), ', ', el('b', '', `${g.away.name} ${f.wins.away}`), ...(f.wins.draws ? [`, ${f.wins.draws} drawn`] : []));
+        info.append(s);
+      }
+    }
+
+    // Round preview (?division=): the division's games that night with each team's ladder place and points, the game of
+    // the round outlined, and who a win could lift into the finals places.
+    function drawPreview(d) {
+      const p = d.preview || {};
+      const mine = d.games.filter(g => g.division === p.division);
+      const rounds = [...new Set(mine.map(g => g.final || g.round).filter(Boolean))];
+      head(d, 'Round preview', [p.division || '', el('small', '', [rounds.join(', '), dayShort(d.date)].filter(Boolean).join('  ·  '))]);
+      if (p.error) return p.error;
+      if (!mine.length) return `${p.division} doesn't play on ${dayLong(d.date)}.`;
+      for (const g of mine) {
+        const x = (p.games || []).find(y => y.id === g.id) || {};
+        const place = t => t ? `${nth(t.place)} (${t.points} pts)` : '';
+        if (p.pick === g.id) $('fit').append(el('div', 'result__final', p.topOfTable ? 'Top of the table' : 'Game of the round'));
+        const row = $('fit').appendChild(el('div', `game${p.pick === g.id ? ' preview--pick' : ''}`));
+        const info = x.home && x.away ? `${place(x.home)}  v  ${place(x.away)}  ·  ${clock(g.time)}` : [clock(g.time), g.court].filter(Boolean).join('  ·  ');
+        row.append(logoEl(g.home), el('div', 'game__team', g.home.name), el('div', 'game__v', 'v'), el('div', 'game__team away', g.away.name), logoEl(g.away),
+          el('div', 'game__info', info));
+        for (const t of x.climbs || []) $('fit').append(el('div', 'later', `A win can lift ${t} into the top ${p.finalsPlaces}`));
+      }
+    }
+
+    // Byes: the teams of each division playing that night that aren't.
+    function drawByes(d) {
+      head(d, 'Byes', [dayLong(d.date), el('small', '', d.venue)]);
+      if (!(d.byes || []).length) return `Every team plays on ${dayLong(d.date)}.`;
+      for (const b of d.byes) {
+        const group = $('fit').appendChild(el('div', 'group'));
+        group.append(el('div', 'group__name', b.division));
+        for (const t of b.teams) group.append(bound('bound--bye', logoEl(t), el('div', 'game__team', t.name)));
+      }
+    }
+
+    // Milestones: athletes playing a first game or a 50th, 100th... (?when=played: those who played it that night, from the
+    // finished games' line ups; ?when=next: those whose next game would be it, for before the night).
+    function drawMilestones(d) {
+      const when = params.get('when') === 'next' ? 'next' : 'played';
+      head(d, 'Milestones', [dayLong(d.date), el('small', '', d.venue)]);
+      const list = (d.milestones || []).filter(m => m.played === (when === 'played'));
+      if (!list.length) return when === 'played' ? `No milestones in ${dayLong(d.date)}'s line ups.` : `No milestones due on ${dayLong(d.date)}.`;
+      for (const m of list) {
+        const line = m.games === 1 ? `${m.team}  ·  first game` : `${m.team}  ·  ${when === 'played' ? 'played' : 'set to play'} their ${nth(m.games)}`;
+        $('fit').append(bound('bound--ms', m.photo ? face(m) : logoEl({ name: m.team, logo: m.logo }), who(m.name, line), stat(m.games === 1 ? '1st' : nth(m.games), 'Game', true)));
+      }
+    }
+
+    // Finals race (?division=): the ladder as it stands, each team in, out or still a chance, with its games left.
+    function drawRace(d) {
+      const r = d.race || {};
+      const on = (d.raceOn || []).find(x => x.division === r.division);
+      head(d, 'Finals race', [r.division || '', el('small', '', on ? (on.left === 1 ? 'Last round' : `${on.left} rounds to go`) : '')]);
+      if (r.error) return r.error;
+      if (!(r.rows || []).length) return `No ladder for ${r.division} yet.`;
+      const words = { in: ['In the finals', 'final'], chance: ['Still a chance', ''], out: ['Out', 'out'] };
+      for (const t of r.rows) {
+        const [text, mark] = words[t.status];
+        $('fit').append(bound('', el('div', 'shooter__rank', String(t.position)), logoEl({ name: t.team, logo: t.logo }),
+          who(t.team, `${t.points} pts  ·  ${t.left} to play`), pill(text, mark)));
+      }
+      const k = $('fit').appendChild(el('div', 'key')); k.append(`Top ${r.finalsPlaces} play finals`);
+    }
+
+    // Countdown: the rounds left before the finals, or on a finals night the days to the grand final.
+    function drawCountdown(d) {
+      const c = d.countdown || {};
+      head(d, 'Countdown', [dayLong(d.date), el('small', '', d.venue)]);
+      let big, words;
+      if (c.rounds === 1) [big, words] = ['Last', 'round before finals'];
+      else if (c.rounds) [big, words] = [String(c.rounds), 'rounds to go until finals'];
+      else if (c.grandFinal === 0) [big, words] = ['GF', 'Grand final night'];
+      else if (c.grandFinal % 7 === 0) [big, words] = [String(c.grandFinal / 7), c.grandFinal === 7 ? 'week to the grand final' : 'weeks to the grand final'];
+      else if (c.grandFinal) [big, words] = [String(c.grandFinal), 'days to the grand final'];
+      else return 'The finals are more than four rounds away.';
+      const box = $('fit').appendChild(el('div', 'count'));
+      box.append(el('div', 'count__big', big), el('div', 'count__words', words));
+    }
+
+    // Season draw (?division= &team=): every game of the team's season, with the result once played.
+    function drawDraw(d) {
+      const x = d.draw || {};
+      head(d, 'Season draw', [x.team || '', el('small', '', x.division || '')]);
+      if (!x.team) return 'Pick a team: there is a Season draw picture for each one on the Socials tab.';
+      if (!(x.games || []).length) return `${x.team} has no games in ${x.division}.`;
+      for (const g of x.games) {
+        const r = g.result;
+        $('fit').append(bound('bound--draw', who(dayShort(g.date), [clock(g.time), g.court].filter(Boolean).join('  ·  ')), logoEl({ name: g.opponent, logo: g.opponentLogo }), el('div', 'game__team', `v ${g.opponent}`),
+          r ? pill(`${r.result} ${r.for}–${r.against}`, r.result === 'W' ? 'final' : '') : pill(g.round || '')));
+      }
+    }
+
     function drawOnStream(d) {
       head(d, 'On the stream', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
       if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
@@ -669,7 +809,6 @@
       head(d, rounds.length === 1 ? 'Round in review' : 'Night in review', [rounds.length === 1 ? rounds[0] : dayLong(d.date), el('small', '', rounds.length === 1 ? dayShort(d.date) : d.venue)]);
       const r = d.review || {};
       const game = id => d.games.find(g => g.id === id);
-      const nth = n => `${n}${[, 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || 'th'}`;
       const by = g => { const m = Math.abs(g.home.score - g.away.score); return g.winner === 'draw' ? 'A draw' : `${(g.winner === 'home' ? g.home : g.away).name} by ${m}`; };
       // Each game once: an upset that was also the biggest win says both.
       const picks = new Map();
@@ -889,6 +1028,9 @@
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'review') q.set('with', 'review');
+        // The Upcoming pictures worked out from the season, each with what it's for.
+        const needs = { form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
+        if (needs) { q.set('with', needs[0]); for (const k of needs.slice(1)) if (params.get(k)) q.set(k, params.get(k)); }
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
         if (['finalsbound', 'finalsdraw', 'champions'].includes(kind)) { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
         if (kind === 'tournament') { q.set('with', 'tournament'); for (const k of ['division', 'after']) if (params.get(k)) q.set(k, params.get(k)); }
@@ -907,7 +1049,8 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
-          results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
+          form: drawForm, preview: drawPreview, byes: drawByes, milestones: drawMilestones,
+          race: drawRace, countdown: drawCountdown, draw: drawDraw, results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
           finalsbound: drawFinalsBound, finalsdraw: drawFinalsDraw, champions: drawChampions }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));
         await imagesLoaded();

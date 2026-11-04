@@ -29,7 +29,11 @@
 //                                        night (their last home and away round, or a finals round), and on a finals night each finals
 //                                        game's name (final) and each division's champion once known; winners: Champions or Premiers (Competitions setup);
 //                                        &with=finals&division= that division's finals (finalsDraw, as GET /api/finals);
-//                                        &with=review the night's biggest win, closest game and upsets (Round in review)
+//                                        &with=review the night's biggest win, closest game and upsets (Round in review);
+//                                        &with=form (&game=) each game's Form guide; &with=preview&division= its Round preview;
+//                                        &with=race&division= its finals race; &with=draw&division=&team= that team's season;
+//                                        &with=milestones the night's first games and 50ths. Always: byes, countdown, raceOn
+//                                        (divisions in their finals race) and firstNights (divisions starting their season)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool }
@@ -47,6 +51,8 @@ const uploads = require('./uploads');
 const { isFinished } = require('./playhq');
 const { TEMPLATE_FONTS } = require('./fonts');
 const { ROUND: FINALS_ROUND } = require('./finals');
+const stats = require('./socialstats');
+const { sameName } = stats;
 
 // The sizes Instagram takes: a square post, a portrait post (the most room in the feed) and a Story.
 const SIZES = {
@@ -55,10 +61,13 @@ const SIZES = {
   story: { width: 1080, height: 1920, label: 'Story' },
 };
 // Each graphic and whether it carries the sponsor strip until that's changed on the tab. Upcoming: fixtures, matchup,
-// onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, review (Round in review: the
+// form (Form guide: both teams' last results and meetings), preview (Round preview: a division's games with the ladder
+// places), byes, milestones (also on Results), race (Finals race), countdown (to the finals or the grand final), draw (a
+// team's season draw, on its division's first night), onstream, commentators (the commentary team's headshots) and a
+// polaroid; Results: results, review (Round in review: the
 // biggest win, the closest game and the upsets), fulltime, ladder, topshooters, tournament (each division's top shooters so
 // far, called Tournament or Season top shooters) and a polaroid per game.
-const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true };
+const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true };
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
@@ -106,7 +115,7 @@ const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
-  hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
+  milestonesFor = async () => [], hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -275,13 +284,63 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     }
     if (want.has('finals')) out.finalsDraw = await finalsDraw(String(q.division || ''));
     if (want.has('ladders') || want.has('review')) out.ladders = await ladders(dates, date, games);
-    if (want.has('review')) out.review = review(games, out.ladders);
+    if (want.has('review')) out.review = stats.review(games, out.ladders);
+    // The Upcoming pictures worked out from the season (socialstats.js). What the tab needs to list them comes every time
+    // (cheap, from the fixture): byes, the countdown, the divisions in their finals race, and those starting their season.
+    const season = seasonOf(dates);
+    const withFinals = [...new Set(season.map(g => g.division).filter(d => d && hasFinals(d)))];
+    out.byes = stats.byes(season, games).map(b => ({ ...b, teams: b.teams.map(name => ({ name, logo: logoFor(name) })) }));
+    out.countdown = stats.countdown(season, date, withFinals);
+    // A race only where some teams miss out: more teams on the ladder than finals places.
+    out.raceOn = [];
+    for (const r of stats.raceOn(season, date, [...new Set(games.map(g => g.division))].filter(d => withFinals.includes(d)))) {
+      try { const l = await ladderFor(r.division); if (l.finalsPlaces && l.rows.length > l.finalsPlaces) out.raceOn.push(r); } catch { /* no ladder, no race */ }
+    }
+    out.firstNights = stats.firstNights(season, date);
+    const division = String(q.division || '');
+    if (want.has('form')) out.form = games.filter(g => !q.game || g.id === q.game).map(g => stats.formOf(season, date, g));
+    if (want.has('preview')) out.preview = await withLadder(division, (rows, fp) => stats.preview(games, division, rows, fp));
+    if (want.has('race')) out.race = await withLadder(division, (rows, fp) => stats.race(season, date, division, rows, fp));
+    if (want.has('draw')) out.draw = { division, team: String(q.team || ''), logo: logoFor(String(q.team || '')), games: stats.draw(season, division, String(q.team || '')).map(g => ({ ...g, opponentLogo: logoFor(g.opponent) })) };
+    if (want.has('milestones')) out.milestones = await milestones(games);
     if (want.has('shooters')) {
       const division = q.division ? String(q.division) : '';
       out.shooters = await shooters(raw.filter((g, i) => games[i].finished && (!division || games[i].division === division)));
     }
     if (want.has('tournament')) out.tournament = await tournament(dates, date, String(q.division || ''), /^\d\d:\d\d$/.test(q.after) ? q.after : '');
     return out;
+  }
+
+  // Every game of the season in date and time order, as socialstats.js takes them.
+  function seasonOf(dates) {
+    return Object.keys(dates).sort().flatMap(d => dates[d].map(g => {
+      const b = brief(g);
+      return { id: b.id, date: d, time: b.time, court: b.court, division: b.division, round: b.round, finished: b.finished,
+        home: { name: b.home.name, score: b.home.score }, away: { name: b.away.name, score: b.away.score } };
+    }));
+  }
+  // A division's ladder as it stands (with each team's logo) handed to fn with its finals places, or { division, error }.
+  async function withLadder(division, fn) {
+    if (!division) return { division, error: 'Pick a division.' };
+    try {
+      const l = await ladderFor(division);
+      const out = fn(l.rows, l.finalsPlaces || 0);
+      for (const r of out.rows || []) r.logo = logoFor(r.team);
+      return out;
+    } catch (err) {
+      log('warn', 'socials', `No ladder for ${division}: ${err.message}`);
+      return { division, error: `No ladder from PlayHQ: ${err.message}` };
+    }
+  }
+  // The night's milestones (athletes.js: a first game, or a 50th, 100th...), each with their photo when approved and
+  // their team's logo; on a finished game they played it, on one to come their next game would be it.
+  async function milestones(games) {
+    try {
+      return (await milestonesFor(games)).map(m => ({ ...m, photo: photoFor(m.name), logo: logoFor(m.team) }));
+    } catch (err) {
+      log('warn', 'socials', `No milestones: ${err.message}`);
+      return [];
+    }
   }
 
   // The divisions playing this night that have a finals format and are at the finals: their last home and away round
@@ -307,7 +366,6 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       return { division, error: err.message };
     }
   }
-  const sameName = (a, b) => String(a || '').toLowerCase().replace(/[^a-z0-9]/g, '') === String(b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   // What the running top shooters are called: as the competition setup says, else Tournament when its fixture runs
   // under 15 days from first game to last (a carnival or nationals), Season when longer (a league).
@@ -364,7 +422,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       const round = (games.find(g => g.division === division) || {}).round || '';
       try {
         const l = await ladderFor(division);
-        const was = latest === date ? placesBefore(l.rows, games.filter(g => g.division === division && g.finished)) : null;
+        const was = latest === date ? stats.placesBefore(l.rows, games.filter(g => g.division === division && g.finished)) : null;
         const rows = l.rows.map(r => ({ ...r, logo: logoFor(r.team), ...(was ? { before: was.get(r.team), moved: was.get(r.team) - r.position } : {}) }));
         out.push({ division, after: latest === date ? round : '', rows, finalsPlaces: l.finalsPlaces || 0, movers: !!was });
       } catch (err) {
@@ -373,53 +431,6 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       }
     }
     return out;
-  }
-
-  // Where each team stood before the games given (this night's finished games in one division), from PlayHQ's ladder
-  // after them: each game taken back off (played, scores for and against, and the points it earned), then ranked again
-  // by points and percentage, ties as PlayHQ has them. A Map of team to place, or null when nobody had played before.
-  // PlayHQ doesn't say what a win is worth, so it's worked out from the ladder (points over wins for the teams with no
-  // draws or byes; 4 when no team shows it), a draw half that. A bye's points this night aren't known, so stay on.
-  function placesBefore(rows, played) {
-    if (!rows.length || !played.length) return null;
-    const each = rows.filter(r => r.won > 0 && !r.drawn && !r.byes && Number.isFinite(r.points)).map(r => r.points / r.won).sort((a, b) => a - b);
-    const win = each.length ? each[Math.floor(each.length / 2)] : 4;
-    const back = rows.map(r => {
-      let [p, points, pf, pa] = [r.played, r.points, r.pointsFor, r.pointsAgainst].map(v => Number(v) || 0);
-      for (const g of played) {
-        const side = sameName(g.home.name, r.team) ? 'home' : sameName(g.away.name, r.team) ? 'away' : null;
-        if (!side) continue;
-        const us = g[side].score, them = g[side === 'home' ? 'away' : 'home'].score;
-        p--; pf -= us; pa -= them; points -= us > them ? win : us === them ? win / 2 : 0;
-      }
-      return { team: r.team, position: r.position, played: p, points, pct: pa > 0 ? pf / pa : 0 };
-    });
-    if (!back.some(r => r.played > 0)) return null;
-    back.sort((a, b) => b.points - a.points || b.pct - a.pct || a.position - b.position);
-    return new Map(back.map((r, i) => [r.team, i + 1]));
-  }
-
-  // Round in review: the night's biggest win and closest game (a draw is the closest), and every upset: a winner that
-  // stood at least half the ladder lower before the night, or 4 places, whichever is fewer (2 places in a ladder of 4,
-  // 3 in 6, 4 in 10), biggest gap first. Upsets need the places before the night (ladders' before), so an older night
-  // has none.
-  const UPSET_MOST = 4;
-  function review(games, ladders) {
-    const done = games.filter(g => g.finished);
-    const margin = g => Math.abs(g.home.score - g.away.score);
-    const biggest = [...done].sort((a, b) => margin(b) - margin(a))[0] || null;
-    const closest = done.filter(g => g !== biggest).sort((a, b) => margin(a) - margin(b))[0] || null;
-    const upsets = [];
-    for (const g of done.filter(x => x.winner === 'home' || x.winner === 'away')) {
-      const l = ladders.find(x => x.division === g.division);
-      if (!l || !l.movers) continue;
-      const place = t => (l.rows.find(r => sameName(r.team, t.name)) || {}).before;
-      const [w, lo] = g.winner === 'home' ? [g.home, g.away] : [g.away, g.home];
-      const gap = place(w) - place(lo);
-      if (gap >= Math.min(Math.ceil(l.rows.length / 2), UPSET_MOST)) upsets.push({ id: g.id, winnerWas: place(w), loserWas: place(lo), gap });
-    }
-    upsets.sort((a, b) => b.gap - a.gap);
-    return { biggest: biggest && biggest.id, closest: closest && closest.id, upsets };
   }
 
   // The top shooters of the finished games given (one division's, or the whole night's), most points first (goals where

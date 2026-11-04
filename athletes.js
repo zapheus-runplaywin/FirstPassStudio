@@ -468,10 +468,51 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
   }
   const squadLogged = new Set();
 
+  // Milestones for the Socials tab: games played reaching a first game or a multiple of 50 (career(), so games typed in
+  // on the athletes page count). games: one night's, { id, division, home: { name }, away, finished }. For a finished
+  // game, each athlete in its line ups whose games, that one included, make a milestone (played: true); a first game only
+  // when their team had played before without them and nothing typed in says otherwise, as PlayHQ only knows this
+  // season. For a game still to come, each athlete of either team this season whose next game would be one (played:
+  // false), as line ups aren't known yet. Each { name, team, division, games, played, gameId }.
+  const isMilestone = n => n === 1 || (n > 0 && n % 50 === 0);
+  async function milestones(games) {
+    const st = await getStructure();
+    const all = await allAppearances();
+    const out = [];
+    for (const division of [...new Set(games.map(g => g.division).filter(Boolean))]) {
+      const grade = st.grades.find(g => g.name === division);
+      if (!grade) continue;
+      const map = await seasonAppearances(grade);
+      const mine = games.filter(g => g.division === division);
+      for (const [k, list] of map) {
+        const e = athletes()[k];
+        if (!e) continue;
+        for (const g of mine) {
+          const here = list.find(a => a.gameId === g.id);
+          if (g.finished && !here) continue;
+          const team = here ? here.team : [g.home.name, g.away.name].find(t => list.some(a => sameTeam(a.team, t)));
+          if (!team) continue;
+          // Their games up to that game (an older night's milestone isn't counted with the games since).
+          const upTo = Object.fromEntries(Object.entries(all[k] || {}).map(([d, l]) => [d, l.filter(x => g.finished ? x.date <= here.date : true)]));
+          const total = gamesIn(e.name, upTo, division, team);
+          const games = g.finished ? total : total + 1;
+          if (!isMilestone(games) || (!g.finished && games === 1)) continue;
+          if (games === 1) {
+            const typed = (e.records || []).some(r => r.division === division);
+            const before = [...map.values()].some(l => l.some(a => sameTeam(a.team, team) && a.date < here.date));
+            if (typed || !before) continue;
+          }
+          out.push({ name: e.name, team, division, games, played: !!g.finished, gameId: g.id });
+        }
+      }
+    }
+    return out.sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
+  }
+
   // A competition switch: the season's line ups are read again.
   function resetCaches() { appearanceCache.clear(); }
 
-  return { logoFor, colourFor, photoFor, photoFileFor, photoApproved, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, athletesRoute, resetCaches };
+  return { logoFor, colourFor, photoFor, photoFileFor, photoApproved, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, milestones, athletesRoute, resetCaches };
 }
 
 module.exports = { create };
