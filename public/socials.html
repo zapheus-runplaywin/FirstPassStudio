@@ -153,6 +153,8 @@
       help: `Every finished game's final score, division by division.${later && done.length ? ` ${later} game${later === 1 ? '' : 's'} still to finish.` : ''}` }];
     list.push({ key: 'review', kind: 'review', name: 'Round in review', missing: done.length > 1 ? '' : none || 'Only one result this night: Round in review needs two or more.',
       help: 'The biggest win, the closest game and every upset: a winner at least half the ladder lower before the night, or 4 places, whichever is fewer.' });
+    list.push({ key: 'milestones:played', kind: 'milestones', when: 'played', name: 'Milestones', missing: none,
+      help: 'Athletes in the finished games\' line ups who played a first game (their team had played before without them), or their 50th, 100th or another 50, counting games typed in on the Athletes tab (Games).' });
     const score = g => `${g.home.name} ${g.home.score}-${g.away.score} ${g.away.name}`;
     for (const g of done) list.push({ key: `fulltime:${g.id}`, kind: 'fulltime', game: g.id, name: `Full time ${score(g)}`, help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
     for (const div of [...new Set(night.games.map(g => g.division).filter(Boolean))]) {
@@ -185,6 +187,28 @@
     const list = [{ key: 'fixtures', kind: 'fixtures', name: 'Game night fixture', help: 'Every game of the night, on every court, by time.' }];
     for (const g of night.games) list.push({ key: `matchup:${g.id}`, kind: 'matchup', game: g.id, name: `Match up ${g.home.name} v ${g.away.name}`,
       help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
+    // Form guide: a picture per game, each team's last five results and their meetings this season.
+    for (const g of night.games) list.push({ key: `form:${g.id}`, kind: 'form', game: g.id, name: `Form guide ${g.home.name} v ${g.away.name}`,
+      help: 'Each team\'s last five results this season, oldest first, and how their meetings this season went.' });
+    const divisions = [...new Set(night.games.map(g => g.division).filter(Boolean))];
+    for (const div of divisions) list.push({ key: `preview:${div}`, kind: 'preview', division: div, name: `Round preview ${div}`,
+      help: `${div}'s games with each team's ladder place and points, the game of the round (the two best placed teams) outlined, and who a win could lift into the finals places.` });
+    const byes = night.byes || [];
+    list.push({ key: 'byes', kind: 'byes', name: 'Byes', missing: byes.length ? '' : 'Every team plays this night.',
+      help: byes.length ? byes.map(b => `${b.division}: ${b.teams.map(t => t.name).join(', ')}`).join('. ') : '' });
+    list.push({ key: 'milestones:next', kind: 'milestones', when: 'next', name: 'Milestones coming up',
+      help: 'Athletes whose next game would be their 50th, 100th or another 50, from their games played this season plus any typed in on the Athletes tab (Games). Line ups aren\'t known before the night, so it\'s anyone in the team this season.' });
+    for (const r of night.raceOn || []) list.push({ key: `race:${r.division}`, kind: 'race', division: r.division, name: `Finals race ${r.division}`,
+      help: `${r.left === 1 ? 'The last round' : `${r.left} rounds to go`}: each team in the finals, out, or still a chance, from the ladder as it stands and the games left.` });
+    if (night.countdown) list.push({ key: 'countdown', kind: 'countdown', name: 'Countdown',
+      help: night.countdown.rounds ? 'The rounds left before the finals, tonight\'s included.' : 'The days to the grand final.' });
+    // A division's first night: a season draw for each of its teams.
+    for (const div of night.firstNights || []) {
+      const teams = [...new Set([...night.games.filter(g => g.division === div).flatMap(g => [g.home.name, g.away.name]),
+        ...byes.filter(b => b.division === div).flatMap(b => b.teams.map(t => t.name))])].sort((a, b) => a.localeCompare(b));
+      for (const t of teams) list.push({ key: `draw:${div}:${t}`, kind: 'draw', division: div, team: t, name: `Season draw ${t} (${div})`,
+        help: `Every ${t} game this season in ${div}, shown on the division's first night.` });
+    }
     // A finals night: each division's finals draw, to post before the games.
     for (const f of (night.finals || []).filter(x => x.finalsNight)) list.push({ key: `finalsdraw:${f.division}`, kind: 'finalsdraw', division: f.division,
       name: `Finals draw ${f.division}`, help: `${f.division}'s finals week by week: who plays who this night, and the winners so far.` });
@@ -207,6 +231,7 @@
     const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours, template: info.settings.template });
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
+    for (const k of ['team', 'when']) if (p[k]) q.set(k, p[k]);
     if (p.kind === 'tournament' || p.kind === 'ladder') q.set('movers', info.settings.movers ? '1' : '0');
     const photo = photos[p.key];
     for (const [k, v] of Object.entries(picks[p.key] || {})) if (v) q.set(k, v);

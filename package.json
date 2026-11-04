@@ -66,6 +66,7 @@
       "games.js",
       "planner.js",
       "socials.js",
+      "socialstats.js",
       "finals.js",
       "scene.js",
       "zip.js",
