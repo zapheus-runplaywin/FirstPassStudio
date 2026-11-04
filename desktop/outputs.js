@@ -21,6 +21,7 @@ module.exports = function outputs({ port, log }) {
   app.on('before-quit', () => { quitting = true; });
   let helper = null;
   const decklink = require('./decklink')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }),
+    onLevel: (level, output) => helper?.postMessage({ type: 'soundLevel', output, device: 'sdi', ...level }),
     onTimecode: t => helper?.postMessage({ type: 'sdiTimecode', ...t }) });
   const soundCopy = require('./soundcopy')({ port, log });
   const ndi = require('./ndi')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'ndiStatus', status, output }) });

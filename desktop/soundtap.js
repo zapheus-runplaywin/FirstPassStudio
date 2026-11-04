@@ -7,6 +7,8 @@
 // as it plays, with none of the browser's call processing (automatic level, noise suppression), which squashes
 // music; the log says what the capture is when it starts. If the capture stops or can't start (it says why in
 // the log), it tries again every few seconds, and the window's sound plays on the Mac meanwhile, so it isn't lost.
+// Every half second onLevel([left, right]) gives the loudest moment of each side since the last (0 to 1), for the
+// status board's Sound out meters.
 
 'use strict';
 
@@ -32,7 +34,7 @@ function handle() {
   });
 }
 
-module.exports = function soundTap({ contents, echo = false, log, label, onSound }) {
+module.exports = function soundTap({ contents, echo = false, log, label, onSound, onLevel = () => {} }) {
   handle();
   let win = null, tap = null, retry = null, stopped = false;
 
@@ -48,6 +50,7 @@ module.exports = function soundTap({ contents, echo = false, log, label, onSound
     win.webContents.ipc.on('soundtap:sound', (e, data) => {
       if (data && data.byteLength) onSound(Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength));
     });
+    win.webContents.ipc.on('soundtap:level', (e, l, r) => onLevel([Number(l) || 0, Number(r) || 0]));
     win.webContents.ipc.on('soundtap:said', (e, text) => {
       if (text.startsWith('started')) {
         const how = text.slice('started'.length).replace(/^:\s*/, '');

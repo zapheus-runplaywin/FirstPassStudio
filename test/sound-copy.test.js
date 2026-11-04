@@ -170,6 +170,13 @@ test('the copy plays a video\'s sound the way the output does, to its device, an
   await copy.waitForFunction(() => sinkId && !silent, null, { timeout: 10000 });
   await act({ type: 'show', id });
   await playing(copy);
+  // It says how loud it plays and what its device plays at, for the status board's Sound out (heard from a copy of
+  // the video's sound, so the video plays on as it was).
+  await studio.until(async () => {
+    const l = (await studio.get('/api/outputs/sound')).levels['main|Fake Audio Output 1'];
+    return l && l.peak[0] > 0.01 && l.rate > 0 && l.channels > 0;
+  }, 10000);
+  await playing(copy);
 
   // Already on when a copy opens (the output turned on part way through): it isn't left muted while it loads.
   const late = await context.newPage();

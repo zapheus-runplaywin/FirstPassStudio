@@ -29,6 +29,8 @@
   output's own window does that, unless ?main=1 says it is the output's main destination, when it reports the mics'
   meters (the own window may be muted). It plays nothing until it has found the device, so none of it is heard on
   the Mac's own speakers.
+  Every window that plays sound (an output's own window, a sound copy) tells Studio how loud it is and what its device
+  plays at, for the status board's Sound out (see "How loud this window plays" below).
 -->
 <style>
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
@@ -184,6 +186,7 @@
       sfxOut = sfxCtx.createGain();
       sfxOut.gain.value = silent ? 0 : 1;
       sfxOut.connect(sfxCtx.destination);
+      meterFrom(sfxCtx, sfxOut);
     }
     if (sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {});
     stopPageSound(L, .1);
@@ -446,6 +449,7 @@
     limiter.threshold.value = -6; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = .002; limiter.release.value = .15;
     micBus.connect(limiter);
     limiter.connect(micCtx.destination);
+    meterFrom(micCtx, limiter);
     return micCtx;
   }
   async function audioInputs() {
@@ -580,6 +584,104 @@
     });
   }
 
+  // ─── How loud this window plays, for the status board's Sound out ────────
+  // An output's own window playing on the Mac's sound output, and every sound copy once it has found its device, say every
+  // half second how loud they are (each side's loudest moment, 0 to 1) and what the device plays at (its sample rate
+  // and channels): POST /api/outputs/level. The meter only listens, so it never changes what plays: each video and
+  // music player is heard through a copy of its sound (captureStream), at the volume it plays at now (nothing while it's
+  // paused or muted), and the page sounds and the mics through a copy of their mixers'. Not the Output page's preview,
+  // the key output, a window muted for its sound copies, or another program's canvas: they play nothing.
+  const meterOn = !canvas && (copying || params.get('mute') !== '1');
+  let meterCtx = null, meterBus = null, meterSides = null;
+  const meterTaps = new Map(); // player -> { stream, track, source, gain }
+  const meterPeak = [0, 0];
+  let meterRate = 0, meterChannels = 0;
+  function meterContext() {
+    if (meterCtx || !meterOn) return meterCtx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    meterCtx = new Ctx({ latencyHint: 'playback' });
+    meterBus = meterCtx.createGain();
+    meterBus.channelCount = 2; meterBus.channelCountMode = 'explicit'; // a mono player counts on both sides
+    const split = meterCtx.createChannelSplitter(2);
+    meterBus.connect(split);
+    meterSides = [0, 1].map(i => {
+      const a = meterCtx.createAnalyser();
+      a.fftSize = 1024;
+      split.connect(a, i);
+      return { a, data: new Float32Array(a.fftSize) };
+    });
+    // Kept running by a silent path to the speakers (a node that goes nowhere isn't run).
+    const hush = meterCtx.createGain();
+    hush.gain.value = 0;
+    meterBus.connect(hush).connect(meterCtx.destination);
+    return meterCtx;
+  }
+  // A mixer's sound (the page sounds', the mics') into the meter as well.
+  function meterFrom(ctx, node) {
+    if (!meterContext()) return;
+    const copy = ctx.createMediaStreamDestination();
+    node.connect(copy);
+    meterCtx.createMediaStreamSource(copy.stream).connect(meterBus);
+  }
+  // The players playing now (the music, the song fading out under it, the videos), each heard at its volume.
+  function meterPlayers() {
+    if (!meterContext()) return;
+    const players = new Set([audio, tail, ...[...layers.values()].map(L => L.el.querySelector('video')).filter(Boolean)]);
+    for (const [el, t] of meterTaps) if (!players.has(el)) { if (t.source) t.source.disconnect(); meterTaps.delete(el); }
+    for (const el of players) {
+      if (typeof el.captureStream !== 'function') continue;
+      let t = meterTaps.get(el);
+      // A player is first heard once it plays, on its device: a copy taken while its device is still being set left
+      // the player on the Mac's sound output now and then.
+      if (!t && (el.paused || (copying && el.sinkId !== sinkId))) continue;
+      if (!t) {
+        t = { stream: el.captureStream(), track: null, source: null, gain: meterCtx.createGain() };
+        t.gain.connect(meterBus);
+        meterTaps.set(el, t);
+      }
+      // A new file is a new track on the same copy.
+      const track = t.stream.getAudioTracks()[0] || null;
+      if (track !== t.track) {
+        if (t.source) t.source.disconnect();
+        t.track = track;
+        t.source = track ? meterCtx.createMediaStreamSource(new MediaStream([track])) : null;
+        if (t.source) t.source.connect(t.gain);
+      }
+      t.gain.gain.value = el.muted || el.paused ? 0 : el.volume;
+    }
+  }
+  // What the device plays at: a moment's mixer made for it says its sample rate and how many channels it has.
+  function meterDevice() {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!meterOn || !Ctx || (copying && sinkId === null)) return;
+    try {
+      const probe = new Ctx(sinkId ? { sinkId } : {});
+      meterRate = probe.sampleRate;
+      meterChannels = probe.destination.maxChannelCount;
+      probe.close().catch(() => {});
+    } catch {}
+  }
+  if (meterOn) {
+    meterDevice();
+    navigator.mediaDevices?.addEventListener('devicechange', () => setTimeout(meterDevice, 500)); // the Mac's sound output may have changed
+    setInterval(meterPlayers, 250);
+    setInterval(() => {
+      if (!meterSides) return;
+      meterSides.forEach((side, i) => {
+        side.a.getFloatTimeDomainData(side.data);
+        for (const v of side.data) if (Math.abs(v) > meterPeak[i]) meterPeak[i] = Math.abs(v);
+      });
+    }, 25);
+    setInterval(() => {
+      const peak = [...meterPeak];
+      meterPeak[0] = meterPeak[1] = 0;
+      if (copying ? sinkId === null : silent) return;
+      fetch('/api/outputs/level', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ output: here, device: copying ? copyTo : 'own', peak, rate: meterRate, channels: meterChannels }) }).catch(() => {});
+    }, 500);
+  }
+
   // ─── A sound copy's device ──────────────────────────────────────────────
   // Finds the device by name (names show once the Mac has let Studio use the mics), moves every player to it, then
   // lets the sound play. Says how it's doing every few seconds, for the Output page; a device plugged in or out looks again.
@@ -599,9 +701,12 @@
       await Promise.all(players.map(el => el.setSinkId(found.deviceId)));
       const moving = sinkId !== null;
       sinkId = found.deviceId;
+      // A video made while those were being moved (the scene arriving meanwhile) missed both: it's moved now.
+      for (const v of [...layers.values()].map(L => L.el.querySelector('video')).filter(Boolean)) if (v.sinkId !== sinkId) v.setSinkId(sinkId).catch(() => {});
       // The page sounds and the mics play through their own mixers, made for the device: a new device makes them again.
       if (sfxCtx) await sfxCtx.setSinkId(sinkId);
       if (micCtx) await micCtx.setSinkId(sinkId);
+      meterDevice();
       copyError = '';
       if (!moving) { renderMics(micSet); window.setSilent(false); }
     } catch (err) {

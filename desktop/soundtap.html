@@ -9,7 +9,8 @@
 <script>
   // Hidden page (desktop/soundtap.js): hears one output window's sound and hands it to the app as 48 kHz
   // stereo, 16-bit interleaved, in 20 ms pieces. The app answers the capture with that window's sound
-  // (no picture is kept), and starts it with studioTapStart(). It says 'started: <what the capture is>' to the log.
+  // (no picture is kept), and starts it with studioTapStart(). It says 'started: <what the capture is>' to the log,
+  // and every half second the loudest moment of each side since the last time (0 to 1), for the board's meters.
   const PIECE = 960; // 20 ms at 48 kHz
   const WORKLET = `
     const pcm = v => v >= 1 ? 32767 : v <= -1 ? -32768 : Math.round(v < 0 ? v * 32768 : v * 32767);
@@ -45,7 +46,18 @@
       const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
       await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
       const tap = new AudioWorkletNode(ctx, 'tap', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: 'explicit' });
-      tap.port.onmessage = e => studioTap.sound(e.data);
+      // The loudest moment of each side, from the pieces as they go (a sample is 16-bit, so 32768 is full scale).
+      const peak = [0, 0];
+      tap.port.onmessage = e => {
+        const pcm = new Int16Array(e.data);
+        for (let i = 0; i < pcm.length; i += 2) {
+          const l = Math.abs(pcm[i]), r = Math.abs(pcm[i + 1]);
+          if (l > peak[0]) peak[0] = l;
+          if (r > peak[1]) peak[1] = r;
+        }
+        studioTap.sound(e.data);
+      };
+      setInterval(() => { studioTap.level(peak[0] / 32768, peak[1] / 32768); peak[0] = peak[1] = 0; }, 500);
       ctx.createMediaStreamSource(new MediaStream([track])).connect(tap);
       // Kept running by a silent path to the speakers (a node that goes nowhere isn't run).
       const hush = ctx.createGain();

@@ -3,8 +3,9 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 //
 // Like a switcher's multiview: one board, read from arm's length, that says what is on and what needs a hand. The game
-// row (the PlayHQ line, status, ping, bandwidth and data, over the score with the team names), then seven lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
-// next one armed (or the run order's head), the music and the mics (with their duck), the switcher and the recording (with Record games on or off),
+// row (the PlayHQ line, status, ping, bandwidth and data, over the score with the team names), then lines in two columns, each a light, a word, a bar or meter and a time: the sequence playing and the
+// next one armed (or the run order's head), the music and the mics (with their duck), then the Sound out tile across both columns (every
+// output's sound: where it goes, what it plays at and how loud), the switcher and the recording (with Record games on or off),
 // and the next game across both columns. It draws from what the page already has: /api/health (common.js, every 2 s), the scene (sceneAll), the
 // outputs (out), the switcher (sw) and the mics' live levels (micLive), and counts the clocks down between reads.
 const boardEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -132,17 +133,8 @@ function renderBoard() {
   const micsLine = boardLine('Mics', mx.dipped && mb.dot === 'ok' ? 'warn' : mb.dot, boardEsc(mb.word), boardEsc(mb.why),
     level == null ? null : `<span class="bar meter"><i class="${hot ? 'hot' : warm ? 'warm' : ''}" style="width:${level}%"></i></span>`, '', '',
     { wrap: true, more: mx.dipped ? `<small class="dip">ducked to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
-  // Where Output 1's sound (with the music and the mics) is going: the destinations, and how they're doing.
-  const p1 = outs.find(x => x.primary);
-  let soundLine = boardLine('Sound', '', 'Checking', '', null, ''); // until the outputs have loaded
-  if (p1) {
-    const sw1 = soundWhere(p1);
-    const tickedTo = sw1.parts.filter(x => x.ticked.length).map(x => `${x.ticked.join(', ')} to ${x.name}`).join(' · ');
-    soundLine = p1.mode === 'off' ? boardLine('Sound', '', 'Web links only', 'sound in the output canvas link', null, '')
-      : sw1.worst === 'off' ? boardLine('Sound', '', 'Off', `no sound until Output 1 is on (${boardEsc(sw1.names)})`, null, '', '', { wrap: true })
-      : boardLine('Sound', { sending: 'ok', waiting: 'warn', problem: 'bad' }[sw1.worst], boardEsc(sw1.names),
-        boardEsc(sw1.worst === 'problem' ? sw1.why : sw1.worst === 'waiting' ? 'starting' : tickedTo), null, '', '', { wrap: true });
-  }
+  // Every output's sound, where it goes and how loud: the Sound out tile, across the board.
+  const soundTile = boardSound(outs);
   const prg = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.program) : null, pvw = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.preview) : null;
   const swLine = boardLine('Switcher', swOn ? 'ok' : sw && sw.setUp ? 'bad' : '', swOn ? `PGM ${boardEsc(prg ? prg.name : '?')}` : sw && sw.setUp ? 'Not answering' : 'Not set up',
     swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(sw.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
@@ -159,7 +151,7 @@ function renderBoard() {
       { wrap: true, full: true, more: an.switchAt ? `<small>switches at ${boardEsc(boardAt(an.switchAt))}</small>` : '' })
     : boardLine('Next game', '', auto ? boardEsc(auto.replace(/^Next:\s*/, '')) : h && h.game ? 'Picked by hand' : 'No game',
       auto ? '' : 'Scoreboard control picks the next one', null, '', '', { wrap: true, full: true });
-  box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${soundLine}${swLine}${recLine}${nextGame}</div>`;
+  box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${soundTile}${swLine}${recLine}${nextGame}</div>`;
   const rb = $('boardRecord');
   if (rb) rb.onclick = async () => {
     rb.disabled = true;
@@ -167,5 +159,88 @@ function renderBoard() {
     catch (err) { studioStatus(`Couldn't change recording: ${err.message}`, 'error'); }
   };
 }
+// ─── Sound out ──────────────────────────────────────────────────────────────
+// One row for each place every output's sound goes (its "Sound goes to"), under the output's name when there's more than
+// one: a light, the device, what it plays at, a meter for each side and the louder side's level. The levels and the
+// devices' sample rates come from GET /api/outputs/sound every half second (outputs.js soundLive): the Blackmagic SDI's
+// from the Mac app's capture of the sound going into it, the rest from the windows playing it. The SDI's format is
+// what Studio sends it (16-bit, 48 kHz, stereo, uncompressed: 1.5 Mbps); a Mac device's is its sample rate and
+// channels (macOS doesn't tell a page its bit depth).
+let soundLevels = {};
+const soundHold = new Map(); // "output|where" -> [{ v, at }, { v, at }]: each side's highest in the last SOUND_HOLD_MS
+const SOUND_HOLD_MS = 3000;
+// A meter's scale is -60 to 0 dBFS; amber from -12 and red from -3, as on the mics' meters.
+const SOUND_FLOOR_DB = -60, SOUND_WARM_DB = -12, SOUND_HOT_DB = -3;
+const soundDb = v => v > 0 ? 20 * Math.log10(v) : -Infinity;
+const soundPct = db => Math.max(0, Math.min(100, (db - SOUND_FLOOR_DB) / -SOUND_FLOOR_DB * 100));
+async function pollSound() {
+  if (document.hidden) return;
+  try { soundLevels = (await (await fetch('/api/outputs/sound', { cache: 'no-store' })).json()).levels || {}; } catch { return; }
+  const now = Date.now();
+  for (const [id, l] of Object.entries(soundLevels)) {
+    const h = soundHold.get(id) || [{ v: 0, at: 0 }, { v: 0, at: 0 }];
+    l.peak.forEach((v, i) => { if (v >= h[i].v || now - h[i].at > SOUND_HOLD_MS) h[i] = { v, at: now }; });
+    soundHold.set(id, h);
+  }
+  renderBoard();
+}
+setInterval(pollSound, 500);
+
+// Which reading a destination shows: the SDI's capture for a Blackmagic output's own sound (and the Mac's, which hears
+// the same sound), the window's for the Mac's sound output, a sound copy's by its device's name.
+function soundKey(o, d) {
+  if (d.device === 'own' || d.device === 'mac') {
+    if (o.mode === 'decklink' && soundLevels[`${o.id}|sdi`]) return `${o.id}|sdi`;
+    return `${o.id}|own`;
+  }
+  return `${o.id}|${d.device}`;
+}
+const SDI_FORMAT = '<b>PCM 16-bit</b> · 48 kHz · stereo · 1.5 Mbps';
+function soundFormat(o, d, l) {
+  if (o.mode === 'decklink' && d.device === 'own' && ['sdi', 'both'].includes(o.decklinkStatus?.sound)) return SDI_FORMAT;
+  if (!l || !l.rate) return '–';
+  const ch = l.channels === 1 ? 'mono' : l.channels === 2 || !l.channels ? 'stereo' : `${l.channels} channels`;
+  return `<b>${l.rate % 1000 ? (l.rate / 1000).toFixed(1) : l.rate / 1000} kHz</b> · ${ch}`;
+}
+function soundMeter(id, l) {
+  const h = soundHold.get(id);
+  const side = i => {
+    if (!l) return '<span></span>';
+    const db = soundDb(l.peak[i]), hold = h ? soundDb(h[i].v) : -Infinity;
+    const cls = db >= SOUND_HOT_DB ? 'hot' : db >= SOUND_WARM_DB ? 'warm' : '';
+    return `<span><i class="${cls}" style="width:${soundPct(db)}%"></i>${hold > SOUND_FLOOR_DB ? `<em style="left:${soundPct(hold)}%"></em>` : ''}</span>`;
+  };
+  const loud = l ? soundDb(Math.max(...l.peak)) : null;
+  const dbText = loud == null ? '–' : loud <= SOUND_FLOOR_DB ? 'quiet' : `${Math.round(loud)} dB`.replace('-', '−');
+  return `<span class="smeter" title="Each side's loudest moment in the last half second; the tick is the highest in the last 3 s">${side(0)}${side(1)}</span><span class="sdb">${dbText}</span>`;
+}
+function boardSound(outs) {
+  if (!outs.length) return `<div class="stile full"><span class="lbl">Sound out</span><div class="srow"><span class="dot"></span><span class="sname"><b>Checking</b></span><span class="sfmt"></span>${soundMeter('', null)}</div></div>`; // until the outputs have loaded
+  const many = outs.length > 1;
+  const rows = outs.map(o => {
+    const head = many ? `<span class="sout" style="--c:${boardEsc(o.colour)}">${boardEsc(o.name)}</span>` : '';
+    if (o.mode === 'off') return `${head}<div class="srow"><span class="dot"></span><span class="sname"><b>Web links only</b><small>sound in the output canvas link</small></span><span class="sfmt">–</span>${soundMeter('', null)}</div>`;
+    const where = soundWhere(o);
+    return head + (o.sound || []).map((d, i) => {
+      const st = (o.soundState || [])[i] || { state: 'off' };
+      const part = where.parts[i] || { name: d.device, ticked: [] };
+      const id = soundKey(o, d);
+      const l = st.state === 'sending' || st.state === 'problem' ? soundLevels[id] : null;
+      const sdi = o.mode === 'decklink' && d.device === 'own';
+      const dry = l && l.dry ? `ran dry ${l.dry} time${l.dry === 1 ? '' : 's'} in the last minute` : '';
+      const dot = st.state === 'off' ? '' : st.state === 'problem' ? 'bad' : st.state === 'waiting' || dry ? 'warn' : 'ok';
+      const name = sdi ? 'SDI' : part.name;
+      const sub = st.state === 'problem' ? `<small class="bad">${boardEsc(st.error)}</small>`
+        : dry ? `<small class="dip">${dry}</small>`
+        : st.state === 'off' ? `<small>when ${boardEsc(o.name)} is on</small>`
+        : st.state === 'waiting' ? '<small>starting</small>'
+        : part.ticked.length ? `<small>with ${boardEsc(part.ticked.join(', '))}</small>`
+        : sdi ? `<small>${boardEsc(o.decklinkStatus?.name || 'Blackmagic')} · embedded${o.decklinkKeying === 'external' ? ' in the fill' : ''}</small>` : '';
+      return `<div class="srow"><span class="dot ${dot}"></span><span class="sname"><b>${boardEsc(name)}</b>${sub}</span><span class="sfmt">${soundFormat(o, d, l)}</span>${soundMeter(id, l)}</div>`;
+    }).join('');
+  }).join('');
+  return `<div class="stile full"><span class="lbl">Sound out</span>${rows}</div>`;
+}
+
 // The clocks count down between reads, and the music bar follows its player.
 setInterval(() => { if (!document.hidden) renderBoard(); }, 1000);
