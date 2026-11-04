@@ -168,6 +168,17 @@
   .bound.bound--team { grid-template-columns: var(--logo) minmax(0, 1fr) auto; }
   .shooter.shooter--norank { grid-template-columns: 76px minmax(0, 1fr) auto; }
   .bound.bound--line { grid-template-columns: minmax(0, 1fr) auto; font-size: 30px; }
+  /* The hand picks and spotlights: a big photo (or logo) with a team badge, as the Champions picture lays it out. */
+  .champ__logo .champ__photo { position: relative; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 12px 26px rgba(0,0,0,.5)); }
+  .champ__logo .logo.champ__badge { position: absolute; width: 120px; height: 120px; right: -24px; bottom: -8px; }
+  .champ .tiles { margin-top: calc(26px + var(--spread, 0px)); width: 100%; }
+  .champ .tiles .stat b { font-size: 76px; }
+  .bound.bound--pos { grid-template-columns: 86px var(--logo) minmax(0, 1fr); }
+  /* Thanks for watching's sponsors on a light panel, as the sponsor strip shows them. */
+  .thanks__logos { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 36px 48px; margin-top: calc(18px + var(--spread, 0px));
+    padding: 30px 36px; border-radius: 18px; background: rgba(255,255,255,.94); }
+  .thanks__logos img { height: 120px; max-width: 300px; object-fit: contain; }
+  .thanks__logos span { color: #222; font-size: 34px; font-weight: 800; text-transform: uppercase; }
   .count { text-align: center; font-family: var(--dfont); text-transform: uppercase; }
   .count__big { font-size: 320px; font-weight: 800; line-height: .9; color: var(--yellow); }
   .count__words { margin-top: 20px; font-size: 64px; font-weight: 800; line-height: 1; letter-spacing: .02em; }
@@ -326,7 +337,10 @@
               final)  draw (Season draw, &division=<name>&team=<name>)
               Results: accuracy (Sharpshooter, &division=)  supershots (Super shot leaders, &division=)  onfire
               (&division=)  numbers (Night in numbers)  club (Club round up, &club=<name>)  streaks (teams unbeaten or on
-              a run)  season (Team season card, &division=&team=)  wrap (Season wrap, &division=)
+              a run)  season (Team season card, &division=&team=)  wrap (Season wrap, &division=)  potm (Player of the
+              match, &game=<id>&athlete=<name>, &medal=<a medal's name>)  teamround (Team of the round, &division=,
+              &GS=<name> .. &GK=<name>)  thanks (Thanks for watching)
+              Either: spotlight (Athlete spotlight, &athlete=<name>)  sponsorspot (Sponsor spotlight, &sponsor=<id>)
               results (the night's final scores)  review (Round in review: the biggest win, the closest game and
               the upsets)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as PlayHQ has it now; on the
               division's latest night, &movers=0|1 the places each moved since before the night)  topshooters (&division=<name>, that division's, else the
@@ -381,7 +395,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
+    const KINDS = ['potm', 'teamround', 'spotlight', 'sponsorspot', 'thanks', 'accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -409,7 +423,8 @@
       inner.style.scale = ''; inner.style.width = ''; inner.style.alignSelf = ''; inner.style.removeProperty('--spread');
       // The body's own padding is 36 + 60; a template that pads it more (to clear its decoration) gets less room.
       const cs = getComputedStyle(box), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) - 96;
-      const room = { w: box.clientWidth, h: box.clientHeight - 72 - pad }, need = { w: inner.scrollWidth, h: inner.scrollHeight };
+      // With the sponsor strip, the PIVT logo and the mark sit in the body's bottom padding, so nothing runs into it.
+      const room = { w: box.clientWidth, h: box.clientHeight - ($('sponsors').hidden ? 72 : 108) - pad }, need = { w: inner.scrollWidth, h: inner.scrollHeight };
       const s = Math.min(1, room.w / need.w, room.h / need.h);
       if (s < 1) { inner.style.scale = String(Math.floor(s * 1000) / 1000); return; }
       // How tall it comes out at g times, laid out at the width that g brings back to full; no good if anything is too
@@ -817,6 +832,80 @@
       if (!lines.children.length) return `${w.division} has no results yet.`;
     }
 
+    // A big picture in the middle: an athlete's approved photo with their team's logo as a badge, else the logo alone;
+    // the name under it in the title's colour, then a line of what they are.
+    function bigCard(who, what) {
+      const box = $('fit').appendChild(el('div', 'champ'));
+      const pic = box.appendChild(el('div', 'champ__logo'));
+      if (who.photo) {
+        const img = pic.appendChild(el('img', 'champ__photo')); img.src = who.photo; img.alt = who.name;
+        if (who.logo || who.team) pic.append(logoEl({ name: who.team, logo: who.logo }, 'champ__badge'));
+      } else pic.append(logoEl({ name: who.team || who.name, logo: who.logo }));
+      const name = box.appendChild(el('h2', 'champ__name', who.name));
+      const tc = getComputedStyle($('title')).color;
+      if (!/rgba\(.*,\s*0\)$|transparent/.test(tc)) name.style.color = tc;
+      if (what) box.append(el('div', 'champ__what', what));
+      return box;
+    }
+    // Player of the match (?game= &athlete=, &medal= a medal's name, its title): the player picked on the tab, with their
+    // shooting that game and the score.
+    function drawPotm(d) {
+      const x = d.potm || {};
+      const g = x.game;
+      head(d, x.medal || 'Player of the match', [g ? [g.division, g.final || g.round].filter(Boolean).join('  ·  ') : dayLong(d.date),
+        el('small', '', g ? `${g.home.name} ${g.home.score}–${g.away.score} ${g.away.name}` : '')], x.medal ? 'Player of the match' : undefined);
+      if (x.error) return x.error === 'Pick the player of the match.' ? 'Pick the player of the match on the Socials tab.' : x.error;
+      const p = x.player;
+      const box = bigCard(p, [p.team, p.position].filter(Boolean).join('  ·  '));
+      const sh = p.shooting;
+      if (sh && sh.shots) {
+        const tiles = box.appendChild(el('div', 'tiles'));
+        tiles.append(stat(sh.goals + sh.superGoals, sh.superGoals ? `Goals (${sh.superGoals} super)` : 'Goals', true), stat(`${sh.goals + sh.superGoals}/${sh.shots}`, 'Shots'));
+        if (sh.accuracy !== null) tiles.append(stat(`${sh.accuracy}%`, 'Accuracy'));
+      }
+    }
+    // Team of the round (?division=, &GS= .. &GK=): an athlete a position, picked on the tab from that night's line ups.
+    function drawTeamRound(d) {
+      const t = d.teamRound || {};
+      head(d, 'Team of the round', [t.division || '', el('small', '', dayLong(d.date))]);
+      if (t.error) return t.error;
+      const named = (t.players || []).filter(p => p.name);
+      if (!named.length) return 'Pick the team on the Socials tab.';
+      for (const p of named) $('fit').append(bound('bound--pos', el('div', 'shooter__rank', p.position), p.photo ? face(p) : logoEl({ name: p.team || p.name, logo: p.logo }), who(p.name, p.team || '')));
+    }
+    // Athlete spotlight (?athlete=): one athlete from the Athletes tab: their photo, teams, positions, games played per
+    // division and this season's goals.
+    function drawSpotlight(d) {
+      const a = d.spotlight || {};
+      head(d, 'Athlete spotlight', [a.teams ? a.teams.map(t => t.team).filter((x, i, l) => l.indexOf(x) === i).join('  ·  ') : '', el('small', '', (a.positions || []).join('  ·  '))]);
+      if (a.error) return a.error === 'Pick an athlete.' ? 'Pick the athlete on the Socials tab.' : a.error;
+      const team = a.teams[0] || {};
+      const box = bigCard({ name: a.name, photo: a.photo, team: team.team, logo: team.logo }, a.teams.map(t => t.division).filter((x, i, l) => l.indexOf(x) === i).join('  ·  '));
+      const tiles = box.appendChild(el('div', 'tiles'));
+      for (const c of (a.career || []).slice(0, 2)) tiles.append(stat(c.games, a.career.length > 1 ? `Games · ${c.division}` : 'Games played'));
+      if (a.shooting && (a.shooting.goals || a.shooting.superGoals)) tiles.append(stat(a.shooting.goals + a.shooting.superGoals, 'Goals this season', true));
+      if (!tiles.children.length) tiles.remove();
+    }
+    // Sponsor spotlight (?sponsor=): one sponsor's logo big, their tagline and website, and after the night how long they
+    // were on screen.
+    function drawSponsorSpot(d) {
+      const x = d.sponsorSpot || {};
+      head(d, 'Thank you', [x.tier ? `Our ${x.tier.toLowerCase()} partner` : '', el('small', '', x.website || '')], 'Sponsor spotlight');
+      if (x.error) return x.error;
+      const box = bigCard({ name: x.name, logo: x.logo }, x.tagline || '');
+      const mins = Math.round((x.seconds || 0) / 60);
+      if (mins >= 1) box.append(el('div', 'later', `On screen for ${mins} minute${mins === 1 ? '' : 's'} of the stream ${d.today ? 'tonight' : `on ${dayShort(d.date)}`}`));
+    }
+    // Thanks for watching: a thank you with the competition's sponsors, and the next game night.
+    function drawThanks(d) {
+      head(d, 'Thanks for watching', [dayLong(d.date), el('small', '', d.venue)]);
+      if (d.nextNight) $('fit').append(bound('bound--line', el('div', 'game__team', 'See you next time'), pill(dayLong(d.nextNight), 'final')));
+      if (!d.sponsors.length) return;
+      $('fit').append(el('div', 'later', 'Proudly supported by'));
+      const logos = $('fit').appendChild(el('div', 'thanks__logos'));
+      for (const x of d.sponsors) { if (x.logo) { const img = el('img'); img.src = x.logo; img.alt = x.name; logos.append(img); } else logos.append(el('span', '', x.name)); }
+    }
+
     function drawOnStream(d) {
       head(d, 'On the stream', [dayLong(d.date), el('small', '', d.stream ? [d.stream.court, d.venue].filter(Boolean).join('  ·  ') : '')]);
       if (!d.stream) return `No plan for ${dayLong(d.date)} yet: plan the court and commentators on the Production Planner tab.`;
@@ -1156,7 +1245,8 @@
         if (kind === 'review') q.set('with', 'review');
         // The Upcoming pictures worked out from the season, each with what it's for.
         const needs = { accuracy: ['accuracy', 'division'], supershots: ['supershots', 'division'], onfire: ['onfire', 'division'], numbers: ['numbers'],
-          season: ['season', 'division', 'team'], wrap: ['wrap', 'division'], form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
+          season: ['season', 'division', 'team'], wrap: ['wrap', 'division'],
+          potm: ['potm', 'game', 'athlete', 'medal'], teamround: ['teamround', 'division', 'GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'], spotlight: ['spotlight', 'athlete'], sponsorspot: ['sponsorspot', 'sponsor'], form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
         if (needs) { q.set('with', needs[0]); for (const k of needs.slice(1)) if (params.get(k)) q.set(k, params.get(k)); }
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
         if (['finalsbound', 'finalsdraw', 'champions'].includes(kind)) { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
@@ -1176,6 +1266,7 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
+          potm: drawPotm, teamround: drawTeamRound, spotlight: drawSpotlight, sponsorspot: drawSponsorSpot, thanks: drawThanks,
           accuracy: drawAccuracy, supershots: drawSuperShots, onfire: drawOnFire, numbers: drawNumbers, club: drawClub, streaks: drawStreaks,
           season: drawSeason, wrap: drawWrap, form: drawForm, preview: drawPreview, byes: drawByes, milestones: drawMilestones,
           race: drawRace, countdown: drawCountdown, draw: drawDraw, results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,

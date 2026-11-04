@@ -702,6 +702,17 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     return { players: [...players.values()], read, failed, lastError };
   }
 
+  // Each game's line ups (read once and kept, as tallyShooters reads them): { home: { name, players }, away } per game,
+  // or null when PlayHQ couldn't give it. Private players are left out, since they can't be told apart.
+  async function readLineups(games) {
+    const lineups = await eachLimited(games, PLAYHQ_AT_ONCE, g => readGame(g, 60 * 60 * 1000));
+    return lineups.map((x, i) => {
+      if (x.error) { log('warn', 'shooters', `Game ${games[i].id} could not be read: ${x.error.message}`); return null; }
+      const side = s => ({ name: s.name, players: s.players.filter(p => !p.private).map(p => ({ name: p.name, position: p.position || '', playhqId: p.playhqId || '', shooting: p.shooting })) });
+      return { home: side(x.value.home), away: side(x.value.away) };
+    });
+  }
+
   // Season shooting totals over every finished game in a division.
   async function getTopShooters(q) {
     const st = await getStructure();
@@ -726,7 +737,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
 
   return { nightChoice: () => nightChoice, setNightChoice, leadMs: () => AUTO_LEAD_MS, configure, resetCaches, sameCourt,
     getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
-    getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, withLiveScores, isLive, getTopShooters, tallyShooters };
+    getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, withLiveScores, isLive, getTopShooters, tallyShooters, readLineups };
 }
 
 module.exports = { create };

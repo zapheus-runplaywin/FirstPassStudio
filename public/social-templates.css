@@ -310,6 +310,8 @@
 .t-hero .score.won { background: var(--purple); color: #fff; }
 .t-hero .stat { background: color-mix(in srgb, var(--sky), #fff 65%); }
 .t-hero .stat :is(b, small) { color: var(--ink); }
+/* A big name (Champions, the hand picks) sits on Hero's pale ground, not the title's: the ink colour, whatever the title's. */
+.t-hero .champ__name { color: var(--ink) !important; }
 .t-hero .stat.main { background: var(--purple); }
 .t-hero .stat.main :is(b, small) { color: #fff; }
 .t-hero :is(.slot__time, .group__name, .verdict, .call__div) { background: var(--ink); color: #fff; border-radius: 0; font-weight: 400; transform: skewX(-9deg); }

@@ -38,6 +38,11 @@
 //                                        fire); &with=numbers (Night in numbers); &with=season&division=&team= (Team season card);
 //                                        &with=wrap&division= (Season wrap). Always: clubs (Club round up), streaks (Still unbeaten)
 //                                        and lastNights (divisions ending their season)
+//                                        Hand picks: &with=lineups (&division=) each finished game's line ups, to pick from;
+//                                        &with=potm&game=&athlete= (&medal=) Player of the match; &with=teamround&division=
+//                                        &GS=..&GK= Team of the round; &with=spotlight&athlete= Athlete spotlight;
+//                                        &with=sponsorspot&sponsor=<id> Sponsor spotlight (with their time on screen that
+//                                        night); &with=sponsorlist every sponsor, to pick from. Always: nextNight (Thanks for watching)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool }
@@ -72,9 +77,13 @@ const SIZES = {
 // biggest win, the closest game and the upsets), fulltime, ladder, topshooters, tournament (each division's top shooters so
 // far, called Tournament or Season top shooters), accuracy (Sharpshooter), supershots (Super shot leaders), onfire,
 // numbers (Night in numbers), club (Club round up), streaks (Still unbeaten), season (Team season card), wrap (Season
-// wrap) and a polaroid per game.
+// wrap), the hand picks potm (Player of the match) and teamround (Team of the round), thanks (Thanks for watching) and a
+// polaroid per game; either set: spotlight (Athlete spotlight) and sponsorspot (Sponsor spotlight).
 const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true,
-  accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true };
+  accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true,
+  potm: true, teamround: true, spotlight: true, sponsorspot: false, thanks: false };
+// The positions of Team of the round, in order.
+const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
@@ -122,7 +131,8 @@ const slotOf = g => String(g.time || '').slice(0, 5);
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
-  milestonesFor = async () => [], clubOf = () => '', hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
+  milestonesFor = async () => [], clubOf = () => '', lineupsOf = async games => games.map(() => null), spotlightFor = async () => null,
+  sponsorList = () => [], onScreen = () => ({}), hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -324,6 +334,15 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('numbers')) out.numbers = { ...stats.numbers(games), ...(await nightSupers(raw.filter((g, i) => games[i].finished))) };
     if (want.has('season')) out.season = await seasonCard(season, date, division, String(q.team || ''), seasonIn(division));
     if (want.has('wrap')) out.wrap = await wrap(season, date, division, seasonIn(division));
+    // The hand picks and spotlights (picked on the tab), and the next night for Thanks for watching.
+    out.nextNight = all.find(d => d > date) || null;
+    const finishedIn = div => raw.filter((g, i) => games[i].finished && (!div || games[i].division === div));
+    if (want.has('lineups')) out.lineups = await lineups(finishedIn(division));
+    if (want.has('potm')) out.potm = await playerOfMatch(raw.find((g, i) => games[i].id === q.game && games[i].finished), String(q.athlete || ''), String(q.medal || ''));
+    if (want.has('teamround')) out.teamRound = await teamOfRound(finishedIn(division), division, q);
+    if (want.has('spotlight')) out.spotlight = await athleteSpotlight(String(q.athlete || ''), date, Object.keys(dates).filter(d => d <= date).sort().flatMap(d => dates[d]));
+    if (want.has('sponsorlist')) out.sponsorList = sponsorList();
+    if (want.has('sponsorspot')) out.sponsorSpot = sponsorSpotlight(String(q.sponsor || ''), date, out.today || date < today);
     if (want.has('shooters')) {
       const division = q.division ? String(q.division) : '';
       out.shooters = await shooters(raw.filter((g, i) => games[i].finished && (!division || games[i].division === division)));
@@ -525,6 +544,75 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       topShooter: best(all, p => p.points), accuracy: best(all.filter(p => p.shots >= ACCURACY_SHOTS * p.games), p => p.accuracy),
       superShots: superShots(division) ? best(all.filter(p => p.superGoals), p => p.superGoals) : null,
       biggestWin: big && { ...big, home: { ...big.home, logo: logoFor(big.home.name) }, away: { ...big.away, logo: logoFor(big.away.name) } } };
+  }
+
+  // ─── Hand picks (Player of the match, Team of the round) and spotlights ───────────────────────────────────
+  // The finished games' line ups to pick from: each game with both sides' players (name, position).
+  async function lineups(finished) {
+    const read = finished.length ? await lineupsOf(finished) : [];
+    return finished.map((g, i) => {
+      const b = brief(g), l = read[i];
+      const side = which => ({ name: b[which].name, logo: logoFor(b[which].name), players: l ? l[which].players.map(p => ({ name: p.name, position: p.position })) : [] });
+      return { id: b.id, division: b.division, read: !!l, home: side('home'), away: side('away') };
+    });
+  }
+  // A player in a game's line ups (by name, either side), with their team, position, shooting that game and photo.
+  function inLineup(l, b, name) {
+    for (const which of ['home', 'away']) {
+      const p = l && l[which].players.find(x => sameName(x.name, name));
+      if (!p) continue;
+      const sh = p.shooting || {};
+      const shots = sh.shots || 0, scored = (sh.goals || 0) + (sh.superGoals || 0);
+      return { name: p.name, team: b[which].name, logo: logoFor(b[which].name), photo: photoFor({ name: p.name, team: b[which].name, playhqIds: p.playhqId ? [String(p.playhqId)] : [] }) || photoFor(p.name),
+        position: p.position, shooting: scored || shots ? { goals: sh.goals || 0, superGoals: sh.superGoals || 0, shots, points: sh.points || 0,
+          accuracy: shots ? Math.round(scored / shots * 1000) / 10 : null } : null };
+    }
+    return null;
+  }
+  // Player of the match (&game=&athlete=, &medal= a medal's name for a special round): the athlete picked from either
+  // team's line up, with that game's score.
+  async function playerOfMatch(g, name, medal) {
+    if (!g) return { error: 'No result for that game yet.' };
+    const b = { ...brief(g) };
+    b.home = { ...b.home, logo: logoFor(b.home.name) }; b.away = { ...b.away, logo: logoFor(b.away.name) };
+    const medalName = medal.trim().slice(0, 60);
+    if (!name) return { game: b, medal: medalName, error: 'Pick the player of the match.' };
+    const [l] = await lineupsOf([g]);
+    const who = inLineup(l, b, name);
+    return { game: b, medal: medalName, player: who || { name: name.trim(), team: '', logo: null, photo: photoFor(name), position: '', shooting: null } };
+  }
+  // Team of the round (&division=, &GS= .. &GK=): an athlete a position, each from that night's line ups in the division.
+  async function teamOfRound(finished, division, q) {
+    if (!division) return { error: 'Pick a division.' };
+    const read = finished.length ? await lineupsOf(finished) : [];
+    const players = POSITIONS.map(position => {
+      const name = String(q[position] || '');
+      if (!name) return { position, name: '' };
+      for (const [i, g] of finished.entries()) { const who = inLineup(read[i], brief(g), name); if (who) return { ...who, position }; }
+      return { position, name: name.trim(), team: '', logo: null, photo: photoFor(name) };
+    });
+    return { division, players, positions: POSITIONS };
+  }
+  // Athlete spotlight (&athlete=): one athlete from the register, with their photo when approved, teams, positions, games
+  // played per division and this season's shooting.
+  async function athleteSpotlight(name, date, seasonGames) {
+    if (!name) return { error: 'Pick an athlete.' };
+    const a = await spotlightFor(name, date);
+    if (!a) return { error: `${name} isn't on the Athletes tab.` };
+    const teams = a.teams.map(t => ({ ...t, logo: logoFor(t.team) }));
+    const mine = seasonGames.filter(g => isFinished(g) && teams.some(t => t.division === brief(g).division && [brief(g).home.name, brief(g).away.name].some(n => sameName(n, t.team))));
+    const shot = mine.length ? (await tallyShooters(mine)).players.find(p => sameName(p.name, a.name)) : null;
+    return { name: a.name, photo: photoFor(a.name), teams, positions: a.positions, career: a.career,
+      shooting: shot ? { games: shot.games, goals: shot.goals, superGoals: shot.superGoals, points: shot.points } : null };
+  }
+  // Sponsor spotlight (&sponsor=<id>): one sponsor big, with how long they were on screen that night once it has happened.
+  function sponsorSpotlight(id, date, past) {
+    const list = sponsorList();
+    const x = list.find(s => s.id === id) || list[0];
+    if (!x) return { error: 'No sponsors yet: add them on the Sponsors tab.' };
+    let seconds = 0;
+    if (past) try { seconds = onScreen(date)[x.id] || 0; } catch (err) { log('warn', 'socials', `No time on screen for ${date}: ${err.message}`); }
+    return { ...x, seconds };
   }
 
   // The top shooters of the finished games given (one division's, or the whole night's), most points first (goals where

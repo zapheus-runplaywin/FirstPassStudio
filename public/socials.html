@@ -60,6 +60,8 @@
   .picker { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-top: 10px; max-width: 240px; }
   .picker select { font: inherit; padding: 3px 6px; }
   .picker.movers { flex-direction: row; align-items: center; }
+  .picker input[type=text] { font: inherit; padding: 3px 6px; }
+  .picker--positions label { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 6px; }
   .newset { margin-top: 10px; padding: 10px; border: 1px dashed var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=text] { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=color] { width: 36px; height: 28px; padding: 0; border: 1px solid var(--fp-line-strong); border-radius: 6px; vertical-align: middle; }
@@ -135,6 +137,7 @@
   // Only athletes with a photo they approved the use of can be picked (GET /api/socials/athletes).
   const picks = {};
   let athletesList = [];
+  let lineups = null; // the night's finished games' line ups (loadLineups), null until read
   const set = () => document.querySelector('[name=set]:checked').value;
 
   const dayName = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -208,10 +211,26 @@
     pending('season', 'Team season card');
     for (const div of night.lastNights || []) list.push({ key: `wrap:${div}`, kind: 'wrap', division: div, name: `Season wrap ${div}`, missing: none,
       help: `${div}'s season on its last night: the ${night.winners.toLowerCase()} once known, top shooter, sharpest shooter, most super shots and biggest win.` });
+    // Hand picks: a Player of the match per game and a Team of the round per division, picked from the line ups.
+    for (const g of done) list.push({ key: `potm:${g.id}`, kind: 'potm', game: g.id, name: `Player of the match ${g.home.name} v ${g.away.name}`,
+      help: 'Pick the player from either team\'s line up, with their photo when they approved its use. Give a medal\'s name for a special round.' });
+    pending('potm', 'Player of the match');
+    for (const div of shot.filter(Boolean)) list.push({ key: `teamround:${div}`, kind: 'teamround', division: div, name: `Team of the round ${div}`,
+      help: `Pick an athlete for each position from that night's ${div} line ups.` });
+    pending('teamround', 'Team of the round');
+    spotlights(list);
+    list.push({ key: 'thanks', kind: 'thanks', name: 'Thanks for watching', help: 'A thank you for watching, with the sponsors and the next game night.' });
     for (const g of done) list.push({ key: `polaroid:${g.id}`, kind: 'polaroid', game: g.id, name: `Polaroid ${g.home.name} v ${g.away.name}`,
       help: 'The score goes under the photo. Drop a match photo on it, then drag the preview to frame it; with no photo the window is see-through.' });
     pending('polaroid', 'Polaroid');
     return list;
+  }
+  // On both lists: an Athlete spotlight and a Sponsor spotlight, each picked on its card.
+  function spotlights(list) {
+    list.push({ key: 'spotlight', kind: 'spotlight', name: 'Athlete spotlight', missing: athletesList.length ? '' : 'No athletes with an approved photo yet: add photos and tick Approved for photo use on the Athletes tab.',
+      help: 'One athlete: their photo, teams, positions, games played and goals this season. Pick the athlete.' });
+    list.push({ key: 'sponsorspot', kind: 'sponsorspot', name: 'Sponsor spotlight', missing: (night.sponsorList || []).length ? '' : 'No sponsors yet: add them on the Sponsors tab.',
+      help: 'One sponsor big, with a thank you, and after the night how long they were on screen. Pick the sponsor.' });
   }
   function upcomingPictures() {
     const list = [{ key: 'fixtures', kind: 'fixtures', name: 'Game night fixture', help: 'Every game of the night, on every court, by time.' }];
@@ -254,6 +273,7 @@
       list.push({ key: `commentators:${s.id}`, kind: 'commentators', game: s.id, name: `Commentary team ${s.home.name} v ${s.away.name}`,
         help: `${s.people.map(p => p.name).join(', ').replace(/, ([^,]*)$/, ' and $1')}, with ${s.people.length > 1 ? 'their headshots' : 'their headshot'}, calling the ${s.time} game.${noShot.length ? ` No headshot yet for ${noShot.join(', ')}: add one on the Production Planner (their initials show until then).` : ''}` });
     }
+    spotlights(list);
     list.push({ key: 'polaroid', kind: 'polaroid', name: 'Polaroid', help: 'Drop a match photo on it, then drag the preview to frame it. With no photo the window is see-through, for your social team to put a photo under in Canva or on a phone.' });
     return list;
   }
@@ -381,6 +401,67 @@
     pick.onchange = () => { apply(); redraw(p.key); };
     return l;
   }
+  // A select of a game's (or a division's) line ups, grouped by team; a picked name no longer listed stays on.
+  function lineupSelect(games, now, position) {
+    const pick = el('select');
+    pick.append(new Option(position ? '–' : 'Pick the player', ''));
+    for (const g of games) for (const side of [g.home, g.away]) {
+      const players = side.players.filter(x => !position || !x.position || x.position === position);
+      if (!players.length) continue;
+      const group = el('optgroup'); group.label = games.length > 1 ? `${side.name} (v ${(side === g.home ? g.away : g.home).name})` : side.name;
+      group.append(...players.map(x => new Option(x.position && !position ? `${x.name} (${x.position})` : x.name, x.name)));
+      pick.append(group);
+    }
+    if (now && ![...pick.options].some(o => o.value === now)) pick.append(new Option(now, now));
+    pick.value = now || '';
+    return pick;
+  }
+  const lineupNote = () => el('p', 'help', lineups ? 'PlayHQ has no line ups for these games.' : 'Reading the line ups from PlayHQ…');
+  // Player of the match: a name from either team's line up, and a medal's name (optional).
+  function potmPicker(p) {
+    const box = el('div', 'picker');
+    box.append(el('b', '', 'Player'));
+    const g = (lineups || []).find(x => x.id === p.game);
+    const now = picks[p.key] || {};
+    if (!g || !g.read) box.append(lineupNote());
+    else {
+      const pick = box.appendChild(lineupSelect([g], now.athlete));
+      pick.setAttribute('aria-label', 'Player of the match');
+      pick.onchange = () => { picks[p.key] = { ...(picks[p.key] || {}), athlete: pick.value }; redraw(p.key); };
+    }
+    const medal = el('input'); medal.type = 'text'; medal.placeholder = 'Medal name (optional)'; medal.maxLength = 60; medal.value = now.medal || '';
+    medal.setAttribute('aria-label', 'Medal name');
+    medal.onchange = () => { picks[p.key] = { ...(picks[p.key] || {}), medal: medal.value.trim() }; redraw(p.key); };
+    box.append(medal);
+    return box;
+  }
+  // Team of the round: an athlete for each position, from the division's line ups that night (those who played it there
+  // first, then anyone without a position).
+  const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
+  function teamRoundPicker(p) {
+    const box = el('div', 'picker picker--positions');
+    const games = (lineups || []).filter(x => x.division === p.division && x.read);
+    if (!games.length) { box.append(el('b', '', 'Team'), lineupNote()); return box; }
+    for (const pos of POSITIONS) {
+      const l = box.appendChild(el('label'));
+      const pick = lineupSelect(games, (picks[p.key] || {})[pos], pos);
+      pick.setAttribute('aria-label', pos);
+      pick.onchange = () => { picks[p.key] = { ...(picks[p.key] || {}), [pos]: pick.value }; redraw(p.key); };
+      l.append(el('b', '', pos), pick);
+    }
+    return box;
+  }
+  // Sponsor spotlight: any sponsor of the competition, the first to start with.
+  function sponsorPicker(p) {
+    const l = el('label', 'picker');
+    l.append(el('b', '', 'Sponsor'));
+    const pick = l.appendChild(el('select'));
+    pick.append(...(night.sponsorList || []).map(x => new Option(`${x.name} (${x.tier})`, x.id)));
+    const now = (picks[p.key] || {}).sponsor;
+    if (now) pick.value = now;
+    pick.onchange = () => { picks[p.key] = { sponsor: pick.value }; redraw(p.key); };
+    return l;
+  }
   function moversTick() {
     const l = el('label', 'picker movers');
     const c = el('input'); c.type = 'checkbox'; c.checked = info.settings.movers;
@@ -470,6 +551,10 @@
     if (p.kind === 'tournament') left.append(afterPicker(p), moversTick());
     if (p.kind === 'ladder') left.append(moversTick());
     if (p.kind === 'season') left.append(teamPicker(p));
+    if (p.kind === 'potm' && p.game) left.append(potmPicker(p));
+    if (p.kind === 'teamround' && p.division) left.append(teamRoundPicker(p));
+    if (p.kind === 'spotlight') left.append(athletePicker(p.key, 'athlete', 'Athlete', {}));
+    if (p.kind === 'sponsorspot') left.append(sponsorPicker(p));
     if (p.kind === 'matchup' || p.kind === 'fulltime') {
       const g = night.games.find(x => x.id === p.game);
       if (g) left.append(athletePicker(p.key, 'home', g.home.name, { division: g.division, team: g.home.name }),
@@ -502,13 +587,26 @@
 
   async function loadNight(date) {
     try {
-      const d = await (await fetch(`/api/socials/night?date=${encodeURIComponent(date)}`, { cache: 'no-store' })).json();
+      const d = await (await fetch(`/api/socials/night?date=${encodeURIComponent(date)}&with=sponsorlist`, { cache: 'no-store' })).json();
       if (d.error) throw new Error(d.error);
       night = d;
+      lineups = null;
       // A night with results opens on Results, one still to come on Upcoming; either can be picked.
       document.querySelector(`[name=set][value=${d.games.some(g => g.finished) ? 'results' : 'upcoming'}]`).checked = true;
       showError(''); draw();
+      loadLineups(d);
     } catch (err) { showError(`Couldn't load that night: ${err.message}`); }
+  }
+  // The finished games' line ups, for Player of the match and Team of the round to pick from (read after the night, so
+  // the tab doesn't wait on PlayHQ).
+  async function loadLineups(d) {
+    if (!d.games.some(g => g.finished)) return;
+    try {
+      const x = await (await fetch(`/api/socials/night?date=${encodeURIComponent(d.date)}&with=lineups`, { cache: 'no-store' })).json();
+      if (night !== d || x.error) return;
+      lineups = x.lineups || [];
+      for (const p of pictures().filter(p => p.kind === 'potm' || p.kind === 'teamround')) redraw(p.key);
+    } catch { /* the pickers say the line ups aren't in */ }
   }
   async function load() {
     try {

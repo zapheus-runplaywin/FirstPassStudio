@@ -244,6 +244,14 @@ const socials = require('./socials').create({
     return { rows, finalsPlaces: finals.ladderMarks(finals.sized(finalsFor(grade.name), rows.length)).places };
   },
   clubOf: team => competitions.clubFor(CONFIG, team), // the club a team belongs to (Competitions setup)
+  // The hand picks: each finished game's line ups, an athlete's spotlight, every sponsor and their time on screen that night.
+  lineupsOf: games => theGames.readLineups(games),
+  spotlightFor: (name, date) => athleteRegister.spotlight(name, date),
+  sponsorList: () => {
+    const id = competitions.activeId();
+    return id ? sponsors.wall(id).flatMap(t => t.sponsors.map(x => ({ id: x.id, name: x.name, tier: t.name, tagline: x.tagline || '', website: x.website || '', logo: x.logoWhiteUrl || x.logoUrl }))) : [];
+  },
+  onScreen: date => Object.fromEntries(exposure.report({ nights: [date] }).sponsors.map(x => [x.id, x.seconds])),
   milestonesFor: games => athleteRegister.milestones(games), // the night's first games and 50ths (athletes.js)
   tallyShooters: games => theGames.tallyShooters(games), superShots: division => !!rules(division).superShots,
   // A division's finals: whether it has a format (Competitions setup), and its finals as the Finals page has them.
