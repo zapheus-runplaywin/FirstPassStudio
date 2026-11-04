@@ -40,7 +40,7 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Recordings</h1>
-  <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what went to air (the graphics, not video or sound), to play back as a practice game or replay at 4K. <a href="/guide/#s3-13">More in the guide</a></p>
+  <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what PlayHQ said and what went to air (the graphics, not video or sound), to play the game back. <a href="/guide/#s3-13">More in the guide</a></p>
 
   <section id="practice" hidden>
     <h2>Practice game</h2>
@@ -113,6 +113,11 @@
 
   <section>
     <h2>Games</h2>
+    <ul class="help" id="kinds" style="margin:0 0 10px;padding-left:18px">
+      <li><b>Replay</b>: the game's graphics exactly as they went to air, to key over a 4K recording of the game (turn on 4K on the Output page).</li>
+      <li><b>Practise</b>: the game again as if it were live now, with today's scenes and sequences, to redo the production, rehearse or try a sequence. Your presses on the night aren't replayed.</li>
+      <li><b>Demo</b>: a practice game dressed as one of the competition in use's games, to show Studio to another league. Needs the internet.</li>
+    </ul>
     <p class="help" style="margin:0 0 4px"><label>A practice game starts in <input type="number" id="lead" min="0" max="60" step="1" value="5" style="width:4.5em;font:inherit"> minutes</label> (0 to 60).</p>
     <p class="help" style="margin:0 0 4px"><label><input type="checkbox" id="rerun" checked> Run game-timed sequences again</label></p>
     <details class="info" style="margin:0 0 10px"><summary>Expand for info</summary><p class="note"><b>Practise</b> and <b>Jump to Start</b> put the game this long

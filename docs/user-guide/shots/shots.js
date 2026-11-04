@@ -165,6 +165,20 @@ const SHOTS = [
     await page.waitForTimeout(1000);
     await dialogShot(page, 'statsDialog', out);
   } },
+  { name: 's-recordings', async take({ page, studio, out }) {
+    // Recording on (tonight's game is due, so it records), last week's games listed under it; off again after, and
+    // tonight's recording removed, so the next theme's shot has just one.
+    const before = new Set((await studio.get('/api/recordings')).recordings.map(r => r.name));
+    await studio.post('/api/recordings', { record: true });
+    try {
+      await go(page, studio, '/recordings.html', 3500);
+      await page.addStyleTag({ content: 'header.fp-bar { position: static !important; }' });
+      await full(page, out);
+    } finally {
+      await studio.post('/api/recordings', { record: false });
+      for (const r of (await studio.get('/api/recordings')).recordings) if (!before.has(r.name)) await studio.request('DELETE', `/api/recordings/${encodeURIComponent(r.name)}`);
+    }
+  } },
   { name: 's-devices', async take({ page, studio, out }) {
     await go(page, studio, '/api.html', 3000);
     await page.screenshot({ path: out, ...JPEG, clip: { x: 0, y: 0, width: 1440, height: 1900 }, fullPage: true });

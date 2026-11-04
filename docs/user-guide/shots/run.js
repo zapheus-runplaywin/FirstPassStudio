@@ -12,6 +12,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const { execFileSync } = require('node:child_process');
 const { chromium } = require('playwright');
 const { startStudio, wait } = require('../../../test/support/studio');
@@ -166,8 +167,24 @@ async function setUp(browser) {
   fs.mkdirSync(exp, { recursive: true });
   fs.writeFileSync(path.join(exp, `${world.today}.jsonl`), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
 
-  // Game recording stays off for the pictures.
+  // Game recording stays off for the pictures (the Recordings tab's shot turns it on for itself). Last week's Court 1
+  // Premier games were recorded, for the Recordings tab: each recording's game, its board, and its start and end.
   await studio.post('/api/recordings', { record: false });
+  for (const r of (await studio.get('/api/recordings')).recordings) await studio.request('DELETE', `/api/recordings/${encodeURIComponent(r.name)}`);
+  const two = n => String(n).padStart(2, '0');
+  const lastWeek = world.divisions[0].rounds.find(r => r.current).number - 2;
+  for (const g of world.divisions[0].rounds[lastWeek].games.filter(x => x.court === 'Court 1')) {
+    const t0 = new Date(`${g.date}T${g.time.length === 5 ? `${g.time}:00` : g.time}`).getTime();
+    const from = t0 - 10 * 60000, d = new Date(from);
+    const rec = [
+      { t: from, k: 'start', version: 'guide', competition: comp },
+      { t: from, k: 'game', id: g.id, home: g.home, away: g.away, division: g.division, round: `Round ${lastWeek + 1}`, court: g.court },
+      { t: from, k: 'board', board: { gameId: g.id, roundId: g.roundId, division: g.division, court: g.court, date: g.date, time: g.time, home: { name: g.home, score: 0 }, away: { name: g.away, score: 0 } } },
+      { t: t0 + 70 * 60000, k: 'end', why: 'full time' },
+    ];
+    fs.mkdirSync(path.join(dataDir, 'Recordings'), { recursive: true });
+    fs.writeFileSync(path.join(dataDir, 'Recordings', `${g.date} ${two(d.getHours())}${two(d.getMinutes())}.jsonl.gz`), zlib.gzipSync(rec.map(l => JSON.stringify(l)).join('\n') + '\n'));
+  }
 
   // The planner: tonight's commentators.
   const plan = await studio.post('/api/planner/pool', { pool: [{ name: 'Sam Lee' }, { name: 'Jordan Ellis' }, { name: 'Honey Harrington', guest: true }] });
