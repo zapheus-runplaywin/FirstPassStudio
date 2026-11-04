@@ -18,7 +18,8 @@
 // Routes (server.js hands every /api/socials and /socials/ request here):
 //   GET  /api/socials                    the game nights, the settings and whether pictures can be saved (the app)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
-//                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played, &with=shooters
+//                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played
+//                                        (with each team's move since before the night, when the ladder is after it), &with=shooters
 //                                        the night's top shooters (each with their photo when approved; &division= one
 //                                        division's, as on the Socials tab's Top shooters picture per division); &with=tournament&division=
 //                                        that division's running totals over every finished game up to this night (&after=HH:MM: only
@@ -27,7 +28,8 @@
 //                                        top shooters are called (Tournament or Season); finals: the divisions at their finals that
 //                                        night (their last home and away round, or a finals round), and on a finals night each finals
 //                                        game's name (final) and each division's champion once known; winners: Champions or Premiers (Competitions setup);
-//                                        &with=finals&division= that division's finals (finalsDraw, as GET /api/finals)
+//                                        &with=finals&division= that division's finals (finalsDraw, as GET /api/finals);
+//                                        &with=review the night's biggest win, closest game and upsets (Round in review)
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool }
@@ -53,9 +55,10 @@ const SIZES = {
   story: { width: 1080, height: 1920, label: 'Story' },
 };
 // Each graphic and whether it carries the sponsor strip until that's changed on the tab. Upcoming: fixtures, matchup,
-// onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, fulltime, ladder, topshooters,
-// tournament (each division's top shooters so far, called Tournament or Season top shooters) and a polaroid per game.
-const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true };
+// onstream, commentators (the commentary team's headshots) and a polaroid; Results: results, review (Round in review: the
+// biggest win, the closest game and the upsets), fulltime, ladder, topshooters, tournament (each division's top shooters so
+// far, called Tournament or Season top shooters) and a polaroid per game.
+const KINDS = { fixtures: true, matchup: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true };
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
@@ -271,7 +274,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       }
     }
     if (want.has('finals')) out.finalsDraw = await finalsDraw(String(q.division || ''));
-    if (want.has('ladders')) out.ladders = await ladders(dates, date, games);
+    if (want.has('ladders') || want.has('review')) out.ladders = await ladders(dates, date, games);
+    if (want.has('review')) out.review = review(games, out.ladders);
     if (want.has('shooters')) {
       const division = q.division ? String(q.division) : '';
       out.shooters = await shooters(raw.filter((g, i) => games[i].finished && (!division || games[i].division === division)));
@@ -350,7 +354,9 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // The ladder of each division that played that night, as PlayHQ has it now. after: the round, when this night is
-  // that division's latest with results (so "after Round 5" is true); else the ladder is simply today's.
+  // that division's latest with results (so "after Round 5" is true); else the ladder is simply today's. On the
+  // division's latest night each row also has before (its place before this night's games) and moved (places up, or
+  // down when below 0), and the ladder has movers: true, unless nobody had played before this night.
   async function ladders(dates, date, games) {
     const out = [];
     for (const division of [...new Set(games.map(g => g.division).filter(Boolean))]) {
@@ -358,13 +364,62 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       const round = (games.find(g => g.division === division) || {}).round || '';
       try {
         const l = await ladderFor(division);
-        out.push({ division, after: latest === date ? round : '', rows: l.rows.map(r => ({ ...r, logo: logoFor(r.team) })), finalsPlaces: l.finalsPlaces || 0 });
+        const was = latest === date ? placesBefore(l.rows, games.filter(g => g.division === division && g.finished)) : null;
+        const rows = l.rows.map(r => ({ ...r, logo: logoFor(r.team), ...(was ? { before: was.get(r.team), moved: was.get(r.team) - r.position } : {}) }));
+        out.push({ division, after: latest === date ? round : '', rows, finalsPlaces: l.finalsPlaces || 0, movers: !!was });
       } catch (err) {
         log('warn', 'socials', `No ladder for ${division}: ${err.message}`);
         out.push({ division, after: '', rows: [], error: err.message });
       }
     }
     return out;
+  }
+
+  // Where each team stood before the games given (this night's finished games in one division), from PlayHQ's ladder
+  // after them: each game taken back off (played, scores for and against, and the points it earned), then ranked again
+  // by points and percentage, ties as PlayHQ has them. A Map of team to place, or null when nobody had played before.
+  // PlayHQ doesn't say what a win is worth, so it's worked out from the ladder (points over wins for the teams with no
+  // draws or byes; 4 when no team shows it), a draw half that. A bye's points this night aren't known, so stay on.
+  function placesBefore(rows, played) {
+    if (!rows.length || !played.length) return null;
+    const each = rows.filter(r => r.won > 0 && !r.drawn && !r.byes && Number.isFinite(r.points)).map(r => r.points / r.won).sort((a, b) => a - b);
+    const win = each.length ? each[Math.floor(each.length / 2)] : 4;
+    const back = rows.map(r => {
+      let [p, points, pf, pa] = [r.played, r.points, r.pointsFor, r.pointsAgainst].map(v => Number(v) || 0);
+      for (const g of played) {
+        const side = sameName(g.home.name, r.team) ? 'home' : sameName(g.away.name, r.team) ? 'away' : null;
+        if (!side) continue;
+        const us = g[side].score, them = g[side === 'home' ? 'away' : 'home'].score;
+        p--; pf -= us; pa -= them; points -= us > them ? win : us === them ? win / 2 : 0;
+      }
+      return { team: r.team, position: r.position, played: p, points, pct: pa > 0 ? pf / pa : 0 };
+    });
+    if (!back.some(r => r.played > 0)) return null;
+    back.sort((a, b) => b.points - a.points || b.pct - a.pct || a.position - b.position);
+    return new Map(back.map((r, i) => [r.team, i + 1]));
+  }
+
+  // Round in review: the night's biggest win and closest game (a draw is the closest), and every upset: a winner that
+  // stood at least half the ladder lower before the night, or 4 places, whichever is fewer (2 places in a ladder of 4,
+  // 3 in 6, 4 in 10), biggest gap first. Upsets need the places before the night (ladders' before), so an older night
+  // has none.
+  const UPSET_MOST = 4;
+  function review(games, ladders) {
+    const done = games.filter(g => g.finished);
+    const margin = g => Math.abs(g.home.score - g.away.score);
+    const biggest = [...done].sort((a, b) => margin(b) - margin(a))[0] || null;
+    const closest = done.filter(g => g !== biggest).sort((a, b) => margin(a) - margin(b))[0] || null;
+    const upsets = [];
+    for (const g of done.filter(x => x.winner === 'home' || x.winner === 'away')) {
+      const l = ladders.find(x => x.division === g.division);
+      if (!l || !l.movers) continue;
+      const place = t => (l.rows.find(r => sameName(r.team, t.name)) || {}).before;
+      const [w, lo] = g.winner === 'home' ? [g.home, g.away] : [g.away, g.home];
+      const gap = place(w) - place(lo);
+      if (gap >= Math.min(Math.ceil(l.rows.length / 2), UPSET_MOST)) upsets.push({ id: g.id, winnerWas: place(w), loserWas: place(lo), gap });
+    }
+    upsets.sort((a, b) => b.gap - a.gap);
+    return { biggest: biggest && biggest.id, closest: closest && closest.id, upsets };
   }
 
   // The top shooters of the finished games given (one division's, or the whole night's), most points first (goals where

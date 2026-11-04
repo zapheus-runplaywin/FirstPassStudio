@@ -151,10 +151,12 @@
     const later = night.games.length - done.length;
     const list = [{ key: 'results', kind: 'results', name: 'Results', missing: none,
       help: `Every finished game's final score, division by division.${later && done.length ? ` ${later} game${later === 1 ? '' : 's'} still to finish.` : ''}` }];
+    list.push({ key: 'review', kind: 'review', name: 'Round in review', missing: done.length > 1 ? '' : none || 'Only one result this night: Round in review needs two or more.',
+      help: 'The biggest win, the closest game and every upset: a winner at least half the ladder lower before the night, or 4 places, whichever is fewer.' });
     const score = g => `${g.home.name} ${g.home.score}-${g.away.score} ${g.away.name}`;
     for (const g of done) list.push({ key: `fulltime:${g.id}`, kind: 'fulltime', game: g.id, name: `Full time ${score(g)}`, help: [g.time, g.court, g.division].filter(Boolean).join(' · ') });
     for (const div of [...new Set(night.games.map(g => g.division).filter(Boolean))]) {
-      list.push({ key: `ladder:${div}`, kind: 'ladder', division: div, name: `Ladder ${div}`, help: 'The ladder as PlayHQ has it now: "after" the round when this is the division\'s latest night with results.' });
+      list.push({ key: `ladder:${div}`, kind: 'ladder', division: div, name: `Ladder ${div}`, help: 'The ladder as PlayHQ has it now: "after" the round when this is the division\'s latest night with results, when each team\'s move since before the night can show too.' });
     }
     // Finals: after a division's last home and away round, who made the finals and the draw; on a finals night, the draw.
     for (const f of night.finals || []) {
@@ -205,7 +207,7 @@
     const q = new URLSearchParams({ kind: p.kind, size, date: night.date, sponsor: info.settings.sponsor[p.kind] ? '1' : '0', mark: info.settings.mark ? '1' : '0', pivt: info.settings.pivt ? '1' : '0', colours: info.settings.colours, template: info.settings.template });
     if (p.game) q.set('game', p.game);
     if (p.division) q.set('division', p.division);
-    if (p.kind === 'tournament') q.set('movers', info.settings.movers ? '1' : '0');
+    if (p.kind === 'tournament' || p.kind === 'ladder') q.set('movers', info.settings.movers ? '1' : '0');
     const photo = photos[p.key];
     for (const [k, v] of Object.entries(picks[p.key] || {})) if (v) q.set(k, v);
     if (p.kind === 'polaroid' && photo && photo.file) { q.set('photo', photo.file); q.set('px', Math.round(photo.px)); q.set('py', Math.round(photo.py)); q.set('zoom', photo.zoom); }
@@ -396,6 +398,7 @@
     if (p.missing) left.append(el('p', 'fp-callout warn', p.missing));
     if (p.kind === 'polaroid') left.append(photoControls(p.key), athletePicker(p.key, 'athlete', 'Or an athlete\'s photo', {}));
     if (p.kind === 'tournament') left.append(afterPicker(p), moversTick());
+    if (p.kind === 'ladder') left.append(moversTick());
     if (p.kind === 'matchup' || p.kind === 'fulltime') {
       const g = night.games.find(x => x.id === p.game);
       if (g) left.append(athletePicker(p.key, 'home', g.home.name, { division: g.division, team: g.home.name }),

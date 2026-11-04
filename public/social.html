@@ -142,6 +142,9 @@
   .result .game__team { overflow-wrap: normal; } /* breaks between words only; the score boxes leave less room */
   .later { margin-top: 18px; font-size: 22px; font-weight: 700; color: var(--muted); text-align: center; letter-spacing: .06em; text-transform: uppercase; }
 
+  /* Round in review: each pick's label over its result row, and what made it one under it. */
+  .review__note { margin-top: 10px; }
+
   /* Full time: one result, big. */
   .vs__score { margin-top: 10px; font-size: 150px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--muted); }
   .vs__score.won { color: var(--text); text-shadow: 0 6px 22px rgba(0,0,0,.45); }
@@ -164,6 +167,8 @@
   .ladder tr.cut td { border-bottom: 4px dashed var(--pink); }
   .story .ladder { font-size: 36px; border-spacing: 0 calc(12px + var(--spread, 0px)); }
   .story .ladder td { padding: 18px 10px; }
+  .ladder td.mv { background: transparent; padding: 0 6px; width: 84px; }
+  .ladder td.mv .move { display: inline-block; }
   .key { margin-top: 10px; font-size: 22px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
   .key i { display: inline-block; width: 40px; border-top: 4px dashed var(--pink); vertical-align: middle; margin-right: 10px; }
 
@@ -285,8 +290,9 @@
        kind:  Upcoming: fixtures (every game of the night)  matchup (one game, &game=<id>)  onstream (the court Studio
               streams and its commentators, from the Production Planner)  commentators (the commentary team's headshots,
               from the Production Planner)  polaroid (a match photo in a white print)
-              Results: results (the night's final scores)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as
-              PlayHQ has it now)  topshooters (&division=<name>, that division's, else the
+              Results: results (the night's final scores)  review (Round in review: the biggest win, the closest game and
+              the upsets)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as PlayHQ has it now; on the
+              division's latest night, &movers=0|1 the places each moved since before the night)  topshooters (&division=<name>, that division's, else the
               night's, from each finished game's line ups)  tournament (&division=<name>: its top shooters over every
               finished game so far, &after=HH:MM counting only this night's games starting by then, &movers=0|1 the
               places each moved since the round before; else as on the tab)  polaroid&game=<id> (the
@@ -338,7 +344,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
+    const KINDS = ['fixtures', 'matchup', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -631,22 +637,51 @@
 
     const score = (t, won) => el('div', `score${won ? ' won' : ''}`, String(t.score));
 
+    // A finished game's row: both logos and names, the scores between them, the winner in the highlight colour.
+    function resultRow(g) {
+      const row = el('div', 'result');
+      row.append(logoEl(g.home), el('div', `game__team${g.winner === 'home' ? ' won' : ''}`, g.home.name), score(g.home, g.winner === 'home'),
+        score(g.away, g.winner === 'away'), el('div', `game__team away${g.winner === 'away' ? ' won' : ''}`, g.away.name), logoEl(g.away));
+      return row;
+    }
+    const noResults = d => d.games.length ? `No results for ${dayLong(d.date)} yet: they show once PlayHQ has each final score.` : `No games on ${dayLong(d.date)}.`;
+
     function drawResults(d) {
       head(d, 'Results', [dayLong(d.date), el('small', '', d.venue)]);
       const done = d.games.filter(g => g.finished);
-      if (!done.length) return d.games.length ? `No results for ${dayLong(d.date)} yet: they show once PlayHQ has each final score.` : `No games on ${dayLong(d.date)}.`;
+      if (!done.length) return noResults(d);
       for (const div of [...new Set(done.map(g => g.division))]) {
         const group = $('fit').appendChild(el('div', 'group'));
         if (div) group.append(el('div', 'group__name', div));
         for (const g of done.filter(x => x.division === div)) {
           if (g.final) group.append(el('div', 'result__final', g.final)); // a finals night: which final
-          const row = group.appendChild(el('div', 'result'));
-          row.append(logoEl(g.home), el('div', `game__team${g.winner === 'home' ? ' won' : ''}`, g.home.name), score(g.home, g.winner === 'home'),
-            score(g.away, g.winner === 'away'), el('div', `game__team away${g.winner === 'away' ? ' won' : ''}`, g.away.name), logoEl(g.away));
+          group.append(resultRow(g));
         }
       }
       const left = d.games.length - done.length;
       if (left) $('fit').append(el('div', 'later', `${left} more game${left === 1 ? '' : 's'} still to finish`));
+    }
+
+    // Round in review: the night's biggest win, closest game and upsets (a winner that stood well below its opponent on
+    // the ladder before the night), each a result row with what made it one under it.
+    function drawReview(d) {
+      const rounds = [...new Set(d.games.map(g => g.round).filter(Boolean))];
+      head(d, rounds.length === 1 ? 'Round in review' : 'Night in review', [rounds.length === 1 ? rounds[0] : dayLong(d.date), el('small', '', rounds.length === 1 ? dayShort(d.date) : d.venue)]);
+      const r = d.review || {};
+      const game = id => d.games.find(g => g.id === id);
+      const nth = n => `${n}${[, 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || 'th'}`;
+      const by = g => { const m = Math.abs(g.home.score - g.away.score); return g.winner === 'draw' ? 'A draw' : `${(g.winner === 'home' ? g.home : g.away).name} by ${m}`; };
+      // Each game once: an upset that was also the biggest win says both.
+      const picks = new Map();
+      const add = (id, label, note) => { const g = game(id); if (!g) return; const p = picks.get(id) || picks.set(id, { g, labels: [], notes: [] }).get(id); p.labels.push(label); p.notes.push(note); };
+      for (const u of r.upsets || []) add(u.id, 'Upset', `${nth(u.winnerWas)} beat ${nth(u.loserWas)}`);
+      if (r.biggest) add(r.biggest, 'Biggest win', by(game(r.biggest)));
+      if (r.closest) add(r.closest, 'Closest game', by(game(r.closest)));
+      if (!picks.size) return noResults(d);
+      for (const { g, labels, notes } of picks.values()) {
+        const group = $('fit').appendChild(el('div', 'group review'));
+        group.append(el('div', 'group__name', labels.join('  ·  ')), resultRow(g), el('div', 'later review__note', [...notes, g.division].filter(Boolean).join('  ·  ')));
+      }
     }
 
     function drawFulltime(d) {
@@ -672,15 +707,18 @@
       head(d, 'Ladder', [l.division, el('small', '', l.after ? `After ${l.after}` : 'As it stands')]);
       if (!l.rows.length) return l.error ? `No ladder from PlayHQ: ${l.error}` : `No ladder for ${l.division} yet.`;
       const drawn = l.rows.some(r => r.drawn);
-      const t = $('fit').appendChild(el('table', 'ladder'));
+      // With movers on, each team's move since before the night beside its place (the division's latest night only).
+      const movers = flag('movers', d.settings.movers) && l.movers;
+      const t = $('fit').appendChild(el('table', `ladder${movers ? ' movers' : ''}`));
       const hr = t.appendChild(el('tr'));
-      for (const h of ['', 'Team', 'P', 'W', 'L', ...(drawn ? ['D'] : []), '%', 'Pts']) hr.append(el('th', '', h));
+      for (const h of ['', ...(movers ? [''] : []), 'Team', 'P', 'W', 'L', ...(drawn ? ['D'] : []), '%', 'Pts']) hr.append(el('th', '', h));
       for (const r of l.rows) {
         const tr = t.appendChild(el('tr', l.finalsPlaces && r.position === l.finalsPlaces && l.rows.length > l.finalsPlaces ? 'cut' : ''));
         const team = el('td', 'team'), inner = team.appendChild(el('div'));
         inner.append(logoEl({ name: r.team, logo: r.logo }), el('span', '', r.team));
         const pct = r.percentage === null || r.percentage === undefined ? '' : Number(r.percentage).toFixed(1);
-        tr.append(el('td', '', String(r.position)), team, ...[r.played, r.won, r.lost, ...(drawn ? [r.drawn] : [])].map(v => el('td', '', String(v ?? 0))),
+        const move = () => { const m = r.moved > 0 ? ['up', `▲${r.moved}`] : r.moved < 0 ? ['down', `▼${-r.moved}`] : ['same', '–']; const c = el('td', 'mv'); c.append(el('span', `move move--${m[0]}`, m[1])); return c; };
+        tr.append(el('td', '', String(r.position)), ...(movers ? [move()] : []), team, ...[r.played, r.won, r.lost, ...(drawn ? [r.drawn] : [])].map(v => el('td', '', String(v ?? 0))),
           el('td', 'pct', pct), el('td', '', String(r.points ?? 0)));
       }
       if (l.finalsPlaces && l.rows.length > l.finalsPlaces) { const k = $('fit').appendChild(el('div', 'key')); k.append(el('i'), `Top ${l.finalsPlaces} play finals`); }
@@ -850,6 +888,7 @@
         for (const k of ['home', 'away', 'athlete']) if (params.get(k)) q.set(k, params.get(k));
         // Only the Results pictures that need them ask for the ladders or the night's shooting.
         if (kind === 'ladder') q.set('with', 'ladders');
+        if (kind === 'review') q.set('with', 'review');
         if (kind === 'topshooters') { q.set('with', 'shooters'); if (params.get('division')) q.set('division', params.get('division')); }
         if (['finalsbound', 'finalsdraw', 'champions'].includes(kind)) { q.set('with', 'finals'); if (params.get('division')) q.set('division', params.get('division')); }
         if (kind === 'tournament') { q.set('with', 'tournament'); for (const k of ['division', 'after']) if (params.get(k)) q.set(k, params.get(k)); }
@@ -868,7 +907,7 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
-          results: drawResults, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
+          results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
           finalsbound: drawFinalsBound, finalsdraw: drawFinalsDraw, champions: drawChampions }[kind](d);
         if (missing) $('fit').append(el('p', 'message', missing));
         await imagesLoaded();
