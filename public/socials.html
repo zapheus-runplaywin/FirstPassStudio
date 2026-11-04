@@ -65,6 +65,12 @@
   .newset { margin-top: 10px; padding: 10px; border: 1px dashed var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=text] { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; }
   .newset input[type=color] { width: 36px; height: 28px; padding: 0; border: 1px solid var(--fp-line-strong); border-radius: 6px; vertical-align: middle; }
+  /* The picture sets' editor: a tick per kind of picture, grouped by the list it's on. */
+  .kinds { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .kinds .grp { width: 100%; font-size: 12px; font-weight: 700; color: var(--fp-muted); margin-top: 4px; }
+  .kinds label { font-size: 13px; border: 1px solid var(--fp-line-strong); border-radius: 999px; padding: 3px 10px; }
+  .set .count { font-size: 11px; color: var(--fp-muted); }
+  #picSet .help { margin-left: 8px; }
   .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
 </style>
 <script src="log.js"></script>
@@ -89,6 +95,14 @@
         <label><input type="checkbox" data-size="story"> Story 1080 × 1920</label>
       </span>
     </div>
+    <div class="row colours" id="show" role="group" aria-label="Picture sets"></div>
+    <form class="newset" id="picSet" hidden>
+      <input type="text" id="picSetName" placeholder="Name, e.g. Weekly basics" aria-label="Picture set name" maxlength="30">
+      <span class="help">Tick the kinds of picture this set shows, on Upcoming and Results.</span>
+      <div class="kinds" id="picSetKinds"></div>
+      <div class="row"><button type="submit">Save set</button> <button type="button" class="alt" id="picSetCancel">Cancel</button>
+        <button type="button" class="alt" id="picSetDelete">Delete set</button></div>
+    </form>
     <div class="row colours" role="group" aria-label="Options">
       <b>Options</b>
       <label><input type="checkbox" id="mark"> FirstPass Studio mark</label>
@@ -107,7 +121,7 @@
     <p class="help"><b>Upcoming</b> is for before the night: the fixture, a match up for each game, who is on the stream and a polaroid.
       <b>Results</b> is for after: final scores, a full time card for each game, the ladders and the top shooters.</p>
     <details class="info"><summary>Expand for info</summary><p class="note">A night with results opens on Results. <b>Template</b> is the look of every picture: Default is the stream's own,
-      and the others each bring their own shapes and lettering. Star (☆) the ones you use and tick <b>Favourites only</b> to list just those.
+      and the others each bring their own shapes and lettering. Star (☆) the ones you use and tick <b>Favourites only</b> to list just those. <b>Show</b> lists every picture, or only the kinds of picture in a picture set you make (<b>New picture set</b>, ✎ to change one).
       <b>Colours</b> change every picture in any template: sets made from the competition's main, highlight and accent colours (Competition colours
       is the stream's own look), or your own with <b>New colour set</b>. Under <b>Options</b>, the FirstPass Studio mark sits bottom right and the
       PIVT logo bottom left; untick either to leave it off. Whether each picture carries the sponsor strip (your naming, elite and major sponsors)
@@ -145,9 +159,13 @@
   const sizes = () => [...document.querySelectorAll('[data-size]')].filter(c => c.checked).map(c => c.dataset.size);
 
   // The pictures for this night, each { key, kind, name, help, game?, division?, missing? }.
+  // Only the kinds in the picture set picked on the Show row (all of them with All).
   function pictures() {
-    return set() === 'results' ? resultsPictures() : upcomingPictures();
+    const list = set() === 'results' ? resultsPictures() : upcomingPictures();
+    const ps = pictureSet();
+    return ps ? list.filter(p => ps.kinds.includes(p.kind)) : list;
   }
+  const pictureSet = () => info && info.settings.pictureSets.find(x => x.id === info.settings.pictureSet);
   function resultsPictures() {
     const done = night.games.filter(g => g.finished);
     const none = done.length ? '' : 'No results for this night yet: they show once PlayHQ has each final score.';
@@ -567,8 +585,69 @@
   }
   function draw() {
     if (!night) return;
-    $('pics').replaceChildren(...pictures().map(card));
+    drawShow();
+    const list = pictures(), ps = pictureSet();
+    if (!list.length && ps) return $('pics').replaceChildren(el('p', 'fp-empty', `${ps.name} has no ${set() === 'results' ? 'Results' : 'Upcoming'} pictures: pick All, or ✎ to add some.`));
+    $('pics').replaceChildren(...list.map(card));
   }
+  // The Show row: All, then each picture set (with how many of this list's pictures it shows), ✎ to change one.
+  function drawShow() {
+    const all = set() === 'results' ? resultsPictures() : upcomingPictures();
+    const button = (name, id, n) => {
+      const b = el('button', 'set small', name);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(info.settings.pictureSet === id));
+      b.append(el('span', 'count', String(n)));
+      b.onclick = () => saveSettings({ pictureSet: id });
+      return b;
+    };
+    $('show').replaceChildren(el('b', '', 'Show'), button('All', '', all.length), ...info.settings.pictureSets.map(ps => {
+      const b = button(ps.name, ps.id, all.filter(p => ps.kinds.includes(p.kind)).length);
+      const edit = el('span', 'rm', '✎');
+      edit.title = `Change ${ps.name}`;
+      edit.onclick = e => { e.stopPropagation(); editPictureSet(ps); };
+      b.append(edit);
+      return b;
+    }));
+    const add = el('button', 'alt small', 'New picture set');
+    add.type = 'button';
+    add.onclick = () => editPictureSet(null);
+    $('show').append(add);
+  }
+  // Opens the editor on a picture set (null: a new one, starting with the kinds in this list).
+  let editing = null;
+  function editPictureSet(ps) {
+    editing = ps;
+    const on = ps ? ps.kinds : [...new Set((set() === 'results' ? resultsPictures() : upcomingPictures()).map(p => p.kind))];
+    $('picSetName').value = ps ? ps.name : '';
+    const groups = { upcoming: 'Upcoming', results: 'Results', both: 'On both' };
+    $('picSetKinds').replaceChildren(...Object.entries(groups).flatMap(([when, label]) => [el('span', 'grp', label),
+      ...info.kinds.filter(k => k.when === when).map(k => {
+        const l = el('label'), c = el('input');
+        c.type = 'checkbox'; c.value = k.kind; c.checked = on.includes(k.kind);
+        l.append(c, ` ${k.name}`);
+        return l;
+      })]));
+    $('picSetDelete').hidden = !ps;
+    $('picSet').hidden = false;
+    $('picSetName').focus();
+  }
+  $('picSet').onsubmit = e => {
+    e.preventDefault();
+    const made = { id: editing ? editing.id : undefined, name: $('picSetName').value.trim() || 'My pictures',
+      kinds: [...$('picSetKinds').querySelectorAll('input:checked')].map(c => c.value) };
+    const sets = editing ? info.settings.pictureSets.map(x => x.id === editing.id ? made : x) : [...info.settings.pictureSets, made];
+    $('picSet').hidden = true;
+    saveSettings({ pictureSets: sets }).then(() => {
+      const ps = editing ? editing : info.settings.pictureSets[info.settings.pictureSets.length - 1];
+      if (ps) saveSettings({ pictureSet: ps.id });
+    });
+  };
+  $('picSetCancel').onclick = () => { $('picSet').hidden = true; };
+  $('picSetDelete').onclick = () => {
+    $('picSet').hidden = true;
+    if (editing) saveSettings({ pictureSets: info.settings.pictureSets.filter(x => x.id !== editing.id) });
+  };
   // Redraws one picture's card (a polaroid's, after its photo changes).
   function redraw(key) {
     const old = [...document.querySelectorAll('[data-key]')].find(x => x.dataset.key === key);
