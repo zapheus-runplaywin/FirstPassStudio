@@ -10,7 +10,8 @@ the made-up **Elite Netball League**, so they can be taken again whenever Studio
 - `assets/` holds the team logos, the competition logo and the sponsors' logos (SVGs, drawn to PNGs as the run starts).
 - `run.js` starts Studio and the stand-in PlayHQ on this computer, in a data folder of their own, and sets the night up
   through Studio's own API: 32 sources, six scenes, the sequences (with Half time's scene step and two mini sequences),
-  a run order, two playlists, the six sponsors with two and a half hours of exposure, and the planner's commentators.
+  a run order, two playlists, the six sponsors with two and a half hours of exposure, the planner's commentators, and
+  recordings of last week's Court 1 Premier games for the Recordings tab.
 - `shots.js` lists every shot: its name and how it's taken (a whole page, one section, or a dialog).
 
 Run it from the repository folder (needs Playwright's Chromium, ffmpeg and python3 with Pillow):
