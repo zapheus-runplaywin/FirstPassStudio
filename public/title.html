@@ -22,6 +22,7 @@
     border-radius: 22px 22px 0 0;
   }
   .title__round:empty { display: none; }
+  .title__bar { display: flex; flex-direction: column; align-items: center; }
   .title__body { min-width: 620px; border-radius: 48px; overflow: hidden; text-align: center; }
   .title__comp {
     background: radial-gradient(ellipse at center, var(--purple-light) 0%, var(--purple) 60%, var(--purple-shade) 100%);
@@ -34,9 +35,24 @@
     padding: 8px 70px 10px; white-space: nowrap;
   }
   .title__venue:empty { display: none; }
+  body.wide .title__round:empty, body.wide .title__venue:empty { display: flex; }
   .fire { font-size: .9em; }
   .title__sponsor { margin-top: 10px; background: var(--purple-dark); color: var(--text); font-size: 22px; padding: 6px 18px; border-radius: 22px; }
   .title__sponsor[hidden] { display: none; }
+  /* The wide shape (?layout=wide): twice as wide and half as high, one bar with the round, the competition and the venue
+     side by side. Its middle is still 95px from the top (53px + half the 84px bar). The two ends share the width left
+     over equally, so the competition's name is in the middle of the frame, and they match (dark with yellow words, or
+     ?ends=yellow both yellow) so neither side looks heavier. An empty round or venue keeps its end, just blank. */
+  body.wide { padding-top: 53px; }
+  body.wide.bottom { padding-top: 0; }
+  body.wide .title__bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; height: 84px; min-width: 1240px; border-radius: 42px; overflow: hidden; }
+  body.wide .title__body { display: contents; }
+  body.wide .title__round, body.wide .title__comp, body.wide .title__venue { display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+  body.wide .title__round { border-radius: 0; min-width: 0; padding: 0 30px; font-size: 28px;
+    background: radial-gradient(ellipse at center, var(--purple-dark-light) 0%, var(--purple-dark) 100%); color: var(--yellow); }
+  body.wide .title__comp { padding: 0 48px; }
+  body.wide .title__venue { padding: 0 30px; font-size: 28px; font-weight: 800; color: var(--yellow); }
+  body.wide.yellow-ends .title__round, body.wide.yellow-ends .title__venue { background: var(--yellow); color: var(--text-on-yellow); }
   .title__logo { height: 150px; max-width: 520px; object-fit: contain; margin-bottom: 10px; filter: drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
 </style>
 <script src="log.js"></script>
@@ -50,16 +66,20 @@
        Round comes from the game picked on the scoreboard control page; the venue from
        the competition setup page (or PlayHQ's venue if that is blank), and so does the competition
        logo, shown above the banner only with ?logo=show.
-       Options: ?position=bottom, ?emoji=🔥 for an emoji either side of the title (none without it),
+       Options: ?layout=wide for the wide shape: one bar twice as wide and half as high, round | competition | venue, with
+       dark ends and yellow words (?ends=yellow makes both ends yellow);
+       ?position=bottom, ?emoji=🔥 for an emoji either side of the title (none without it),
        ?logo=show to put the competition logo above the banner (off by default; ?logo=hide also leaves it off),
        ?mode=dark to use the setup's dark mode competition logo instead of the light mode one,
        ?sponsor=0 to leave off "presented by" the naming rights sponsor (Sponsors page) under the banner. -->
   <div class="title" id="title" hidden>
     <img class="title__logo" id="logo" alt="" hidden>
-    <div class="title__round" id="round"></div>
-    <div class="title__body">
-      <div class="title__comp" id="comp"></div>
-      <div class="title__venue" id="venue"></div>
+    <div class="title__bar">
+      <div class="title__round" id="round"></div>
+      <div class="title__body">
+        <div class="title__comp" id="comp"></div>
+        <div class="title__venue" id="venue"></div>
+      </div>
     </div>
     <div class="title__sponsor" id="sponsor" hidden></div>
   </div>
@@ -68,11 +88,15 @@
     const params = new URLSearchParams(location.search);
     let emoji = '';
     if (params.get('position') === 'bottom') document.body.classList.add('bottom');
+    const wide = params.get('layout') === 'wide';
+    if (wide) document.body.classList.add('wide');
+    if (wide && params.get('ends') === 'yellow') document.body.classList.add('yellow-ends');
     let last = '';
 
     // branding.html's logos sit 100px in from the frame's edges: the left pair's inside edge is about 660px from the centre, and the
-    // competition logo's about 750px (500px for the widest it allows). At most 600px wide keeps the banner well clear of both.
-    const SCALE = 0.8, MAX_WIDTH = 600;
+    // competition logo's about 750px (500px for the widest it allows). At most 600px wide keeps the banner well clear of both;
+    // the wide shape may take 1200px, 60px clear of the left pair and of a square competition logo.
+    const SCALE = 0.8, MAX_WIDTH = wide ? 1200 : 600;
     function fitBetweenLogos() {
       const title = document.getElementById('title');
       const s = Math.min(SCALE, MAX_WIDTH / title.offsetWidth);
