@@ -36,8 +36,8 @@
 //                                        &with=race&division= its finals race; &with=draw&division=&team= that team's season;
 //                                        &with=milestones the night's first games and 50ths. Always: byes, countdown, raceOn
 //                                        (divisions in their finals race) and firstNights (divisions starting their season)
-//                                        Results: &with=accuracy|supershots|onfire&division= (Sharpshooter, Super shot leaders, On
-//                                        fire); &with=numbers (Night in numbers); &with=season&division=&team= (Team season card);
+//                                        Results: &with=accuracy|supershots|teamsupers|onfire&division= (Sharpshooter, Super shot
+//                                        leaders, Team super shots, On fire); &with=numbers (Night in numbers); &with=season&division=&team= (Team season card);
 //                                        &with=wrap&division= (Season wrap). Always: clubs (Club round up), streaks (Still unbeaten)
 //                                        and lastNights (divisions ending their season)
 //                                        Hand picks: &with=lineups (&division=) each finished game's line ups, to pick from;
@@ -90,12 +90,13 @@ const SIZES = {
 // team's season draw, on its division's first night), onstream, commentators (the commentary team's headshots) and a
 // polaroid; Results: results, review (Round in review: the
 // biggest win, the closest game and the upsets), fulltime, ladder, topshooters, tournament (each division's top shooters so
-// far, called Tournament or Season top shooters), accuracy (Sharpshooter), supershots (Super shot leaders), onfire,
+// far, called Tournament or Season top shooters), accuracy (Sharpshooter), supershots (Super shot leaders), teamsupers (Team super
+// shots), onfire,
 // numbers (Night in numbers), club (Club round up), streaks (Still unbeaten), season (Team season card), wrap (Season
 // wrap), the hand picks potm (Player of the match) and teamround (Team of the round), thanks (Thanks for watching) and a
 // polaroid per game; either set: spotlight (Athlete spotlight) and sponsorspot (Sponsor spotlight).
 const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true,
-  accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true,
+  accuracy: true, supershots: true, teamsupers: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true,
   potm: true, teamround: true, spotlight: true, sponsorspot: false, thanks: false, story: true, worm: true, watch: true,
   gamestats: true, shooting: true, moments: true, h2h: true, teamsheet: true,
   runs: true, supershottime: true, comeback: true };
@@ -111,7 +112,8 @@ const KIND_NAMES = [
   ['results', 'Results', 'results'], ['review', 'Round in review', 'results'], ['fulltime', 'Full time', 'results'],
   ['ladder', 'Ladder', 'results'], ['topshooters', 'Top shooters', 'results'], ['tournament', 'Tournament top shooters', 'results'],
   ['finalsbound', 'Finals bound', 'results'], ['champions', 'Champions', 'results'],
-  ['accuracy', 'Sharpshooter', 'results'], ['supershots', 'Super shot leaders', 'results'], ['onfire', 'On fire', 'results'],
+  ['accuracy', 'Sharpshooter', 'results'], ['supershots', 'Super shot leaders', 'results'], ['teamsupers', 'Team super shots', 'results'],
+  ['onfire', 'On fire', 'results'],
   ['numbers', 'Night in numbers', 'results'], ['club', 'Club round up', 'results'], ['streaks', 'On a roll', 'results'],
   ['season', 'Team season card', 'results'], ['wrap', 'Season wrap', 'results'],
   ['potm', 'Player of the match', 'results'], ['teamround', 'Team of the round', 'results'], ['thanks', 'Thanks for watching', 'results'],
@@ -387,6 +389,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const seasonIn = div => Object.keys(dates).filter(d => d <= date).sort().flatMap(d => dates[d]).filter(g => g.division === div && brief(g).finished);
     if (want.has('accuracy')) out.accuracy = await accuracy(tonightIn(division), division);
     if (want.has('supershots')) out.superShots = await superLeaders(tonightIn(division), seasonIn(division), division);
+    if (want.has('teamsupers')) out.teamSupers = await teamSupers(tonightIn(division), seasonIn(division), division);
     if (want.has('onfire')) out.onFire = await onFire(seasonIn(division), date, division);
     if (want.has('numbers')) out.numbers = { ...stats.numbers(games), ...(await nightSupers(raw.filter((g, i) => games[i].finished))) };
     if (want.has('season')) out.season = await seasonCard(season, date, division, String(q.team || ''), seasonIn(division));
@@ -558,6 +561,28 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const top = async list => list.length ? (await tallyShooters(list)).players.filter(p => p.superGoals).map(shooterOf)
       .sort((a, b) => b.superGoals - a.superGoals || b.points - a.points).slice(0, SUPER_SHOWN) : [];
     return { division, night: await top(finished), season: await top(seasonGames), gamesFinished: finished.length };
+  }
+  // Team super shots: every team in a super shot division that has played, with its super shots that night (null when it
+  // didn't play) and over the season so far, most first. From each game's team counts (teamTotals), so a super shot
+  // PlayHQ gave the team without naming the shooter counts too. notCounted: games whose line ups PlayHQ couldn't give.
+  async function teamSupers(finished, seasonGames, division) {
+    if (!superShots(division)) return { division, error: `${division} doesn't play super shots.` };
+    const tonight = new Set(finished.map(g => g.id));
+    const read = seasonGames.length ? await lineupsOf(seasonGames) : [];
+    const by = new Map();
+    for (const [i, g] of seasonGames.entries()) {
+      const b = brief(g), l = read[i];
+      for (const which of ['home', 'away']) {
+        const name = b[which].name, k = name.toLowerCase();
+        const t = by.get(k) || { team: name, logo: logoFor(name), tonight: null, season: 0, games: 0 };
+        const n = l ? teamTotals(l[which]).superGoals : 0;
+        t.season += n; t.games++;
+        if (tonight.has(g.id)) t.tonight = (t.tonight || 0) + n;
+        by.set(k, t);
+      }
+    }
+    const teams = [...by.values()].sort((a, b) => b.season - a.season || (b.tonight || 0) - (a.tonight || 0) || a.team.localeCompare(b.team));
+    return { division, teams, gamesFinished: finished.length, notCounted: read.filter(l => !l).length };
   }
   // On fire: a division's shooters who played that night whose goals a game (super goals counted as goals) over their last
   // three games rose most on their games before; rise: by how much (at least one earlier game needed).

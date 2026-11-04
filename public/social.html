@@ -373,7 +373,8 @@
               Results, played that night)  race (Finals race, &division=<name>)  countdown (to the finals or the grand
               final)  draw (Season draw, &division=<name>&team=<name>)  h2h (Head to head, &game=<id>: the teams' meetings
               this season)  teamsheet (Team sheet, &game=<id>: both squads with games played)
-              Results: accuracy (Sharpshooter, &division=)  supershots (Super shot leaders, &division=)  onfire
+              Results: accuracy (Sharpshooter, &division=)  supershots (Super shot leaders, &division=)  teamsupers (Team super
+              shots, &division=)  onfire
               (&division=)  numbers (Night in numbers)  club (Club round up, &club=<name>)  streaks (teams unbeaten or on
               a run)  season (Team season card, &division=&team=)  wrap (Season wrap, &division=)  potm (Player of the
               match, &game=<id>&athlete=<name>, &medal=<a medal's name>)  teamround (Team of the round, &division=,
@@ -440,7 +441,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['story', 'worm', 'watch', 'gamestats', 'shooting', 'moments', 'h2h', 'teamsheet', 'runs', 'supershottime', 'comeback', 'potm', 'teamround', 'spotlight', 'sponsorspot', 'thanks', 'accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
+    const KINDS = ['story', 'worm', 'watch', 'gamestats', 'shooting', 'moments', 'h2h', 'teamsheet', 'runs', 'supershottime', 'comeback', 'potm', 'teamround', 'spotlight', 'sponsorspot', 'thanks', 'accuracy', 'supershots', 'teamsupers', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -797,6 +798,19 @@
         group.append(el('div', 'group__name', label));
         for (const [i, p] of list.entries()) group.append(shooterRow(i, p, stat(p.points, 'Points'), stat(p.superGoals, 'Super', true)));
       }
+    }
+    // Team super shots (?division=): every team's super shots that night and over the season so far, from PlayHQ's team
+    // counts, most first; a team that didn't play that night shows a dash.
+    function drawTeamSupers(d) {
+      const x = d.teamSupers || {};
+      head(d, 'Team super shots', [x.division || '', el('small', '', dayLong(d.date))]);
+      if (x.error) return x.error;
+      if (!x.gamesFinished) return `No results in ${x.division} for ${dayLong(d.date)} yet.`;
+      for (const [i, t] of (x.teams || []).entries()) {
+        $('fit').append(shooterRow(i, { name: t.team, team: `${t.games} ${t.games === 1 ? 'game' : 'games'}`, logo: t.logo },
+          stat(t.tonight === null ? '–' : t.tonight, 'Tonight'), stat(t.season, 'Season', true)));
+      }
+      if (x.notCounted) $('fit').append(el('p', 'message', `${x.notCounted} ${x.notCounted === 1 ? 'game' : 'games'} not counted: PlayHQ couldn't give ${x.notCounted === 1 ? 'its' : 'their'} stats.`));
     }
     // On fire (?division=): the shooters who played that night whose goals a game have risen most over their last games.
     function drawOnFire(d) {
@@ -1549,7 +1563,7 @@
         if (kind === 'ladder') q.set('with', 'ladders');
         if (kind === 'review') q.set('with', 'review');
         // The Upcoming pictures worked out from the season, each with what it's for.
-        const needs = { accuracy: ['accuracy', 'division'], supershots: ['supershots', 'division'], onfire: ['onfire', 'division'], numbers: ['numbers'],
+        const needs = { accuracy: ['accuracy', 'division'], supershots: ['supershots', 'division'], teamsupers: ['teamsupers', 'division'], onfire: ['onfire', 'division'], numbers: ['numbers'],
           season: ['season', 'division', 'team'], wrap: ['wrap', 'division'],
           potm: ['potm', 'game', 'athlete', 'medal'], story: ['story', 'game'], worm: ['story', 'game'], moments: ['story', 'game'], gamestats: ['gamestats', 'game'], shooting: ['gamestats', 'game'], h2h: ['form', 'game'], teamsheet: ['teamsheet', 'game'], watch: ['watch', 'link'], teamround: ['teamround', 'division', 'GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'], spotlight: ['spotlight', 'athlete'], sponsorspot: ['sponsorspot', 'sponsor'], form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] }[kind];
         if (needs) { q.set('with', needs[0]); for (const k of needs.slice(1)) if (params.get(k)) q.set(k, params.get(k)); }
@@ -1572,7 +1586,7 @@
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
           story: drawStory, worm: drawWorm, watch: drawWatch, moments: drawMoments, gamestats: drawGameStats, shooting: drawShooting, h2h: drawH2H, teamsheet: drawTeamSheet, runs: drawRuns, supershottime: drawSuperShotTime, comeback: drawComeback, potm: drawPotm, teamround: drawTeamRound, spotlight: drawSpotlight, sponsorspot: drawSponsorSpot, thanks: drawThanks,
-          accuracy: drawAccuracy, supershots: drawSuperShots, onfire: drawOnFire, numbers: drawNumbers, club: drawClub, streaks: drawStreaks,
+          accuracy: drawAccuracy, supershots: drawSuperShots, teamsupers: drawTeamSupers, onfire: drawOnFire, numbers: drawNumbers, club: drawClub, streaks: drawStreaks,
           season: drawSeason, wrap: drawWrap, form: drawForm, preview: drawPreview, byes: drawByes, milestones: drawMilestones,
           race: drawRace, countdown: drawCountdown, draw: drawDraw, results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
           finalsbound: drawFinalsBound, finalsdraw: drawFinalsDraw, champions: drawChampions }[kind](d);
