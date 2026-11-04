@@ -247,6 +247,7 @@ const socials = require('./socials').create({
   // The hand picks: each finished game's line ups, an athlete's spotlight, every sponsor and their time on screen that night.
   lineupsOf: games => theGames.readLineups(games),
   spotlightFor: (name, date) => athleteRegister.spotlight(name, date),
+  teamSheetFor: (team, division) => athleteRegister.teamSheet(team, division),
   sponsorList: () => {
     const id = competitions.activeId();
     return id ? sponsors.wall(id).flatMap(t => t.sponsors.map(x => ({ id: x.id, name: x.name, tier: t.name, tagline: x.tagline || '', website: x.website || '', logo: x.logoWhiteUrl || x.logoUrl }))) : [];

@@ -3,7 +3,7 @@
 // Scores, the clock and the period, by hand from the control page and the Stream Deck or following
 // PlayHQ's live feed (refreshFromPlayhq, followClock); the goal order the last goals and the score
 // worm are drawn from; super shots; hot streaks and game moments; the game stats card; each streamed game's story
-// (game-stories/, for the Socials tab's Game story and Score worm). Kept in
+// (game-stories/, for the Socials tab's Game story, Score worm and Moments of the game). Kept in
 // scoreboard-state.json so a restart mid-game keeps the score, with the lasting settings (auto
 // select, the court, refresh seconds, the clock following, the ticker speed) also in control.json.
 //
@@ -77,8 +77,8 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     boardPushTimer = setImmediate(() => { boardPushTimer = null; try { scene.publishBoard(); } catch (err) { log('warn', 'scoreboard', `Board not pushed: ${err.message}`); } });
   }
   // Each streamed game's story, kept once it has goals so the Socials tab's Game story and Score worm pictures can be
-  // made after the scoreboard moves on (clearGoals wipes the goal order for the next game): its Game stats and Score
-  // worm as the game left them, in game-stories/<game id>.json in the local folder. Written at most every STORY_EVERY
+  // made after the scoreboard moves on (clearGoals wipes the goal order for the next game): its Game stats, Score
+  // worm and every moment (b.gameMoments) as the game left them, in game-stories/<game id>.json in the local folder. Written at most every STORY_EVERY
   // while the game is on, and at once when it ends or the scoreboard picks another game.
   const STORIES_DIR = datadir.local('game-stories');
   const STORY_EVERY = 15 * 1000;
@@ -90,7 +90,8 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     if (!now && Date.now() - storyAt < STORY_EVERY) return;
     storyAt = Date.now();
     try {
-      const story = { gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(), stats: getStats(), worm: getWorm() };
+      const story = { gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(), stats: getStats(), worm: getWorm(),
+        moments: b.gameMomentsId === b.gameId ? b.gameMoments || [] : [] };
       fs.mkdirSync(STORIES_DIR, { recursive: true });
       savefile.writeFileSync(storyFile(b.gameId), JSON.stringify(story)); // at once, so an older write can't land after a newer one
     } catch (err) { log('warn', 'stats', `The game's story wasn't kept: ${err.message}`); }
@@ -565,6 +566,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   // once the game is finished. Each one bumps b.streak.n and is added to b.streakLog (with its
   // gameId), and streak.html plays the ones it hasn't seen.
   const STREAK_GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
+  const GAME_MOMENTS_KEPT = 80;
   const MOMENT_ORDER = ['siren', 'backToBack', 'fire', 'lead', 'comeback', 'level', 'goalForGoal', 'heating'];
   const STREAK_NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square',
     comeback: 'coming back', siren: 'on the siren', backToBack: 'back to back super shots' };
@@ -577,6 +579,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     b.streak = { n, side: '', goals: 0, from: '', ...ev, also, gameId: b.gameId || null, score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
       period: b.period, periodLabel: rules(b.division).periodLabel, clockLeft: clockLeft(b), at: Date.now(), how };
     b.streakLog = [...(b.streakLog || []), b.streak].slice(-6);
+    // Every moment of this game, for the Socials tab's Moments of the game (the log above keeps only the last few).
+    if (b.gameMomentsId !== b.gameId) { b.gameMoments = []; b.gameMomentsId = b.gameId; }
+    b.gameMoments = [...b.gameMoments, { kind: ev.kind, side: ev.side || '', goals: ev.goals || 0, down: ev.down || 0, also: also.map(x => ({ kind: x.kind, side: x.side || '' })),
+      score: b.streak.score, period: b.period, periodLabel: b.streak.periodLabel, clockLeft: b.streak.clockLeft }].slice(-GAME_MOMENTS_KEPT);
     log('info', 'streak', `${ev.side ? `${b[ev.side].name} (${ev.side}) ` : ''}${STREAK_NAMES[ev.kind]}${ev.goals ? `, ${ev.goals} goals` : ''}${ev.down ? `, was ${ev.down} down` : ''} (${how}), number ${n}`);
   }
   // The score moments start from here: on a new game, after a gap, and the first time they're looked at.
@@ -877,7 +883,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       }
       const inWindow = entries.filter(e => !e.g.gap && !e.spread && e.g.clockLeft != null && e.g.clockLeft <= ssSec && e.period <= r.periods);
       const pts = side => inWindow.filter(e => e.g.side === side).reduce((t, e) => t + e.g.points, 0);
-      superShot = { minutes: r.superShotMinutes, windows, points: { home: pts('home'), away: pts('away') }, timed: entries.some(e => !e.g.gap && !e.spread) };
+      // byPeriod: each quarter's super shot period on its own, for the Socials tab's Super shot time.
+      const ptsIn = (side, n) => inWindow.filter(e => e.g.side === side && e.period === n).reduce((t, e) => t + e.g.points, 0);
+      superShot = { minutes: r.superShotMinutes, windows, points: { home: pts('home'), away: pts('away') },
+        byPeriod: windows.map(w => ({ n: w.n, home: ptsIn('home', w.n), away: ptsIn('away', w.n) })), timed: entries.some(e => !e.g.gap && !e.spread) };
     }
     return {
       gameId: b.gameId, division: b.division, court: courtShown(b), round: b.round, period: b.period, competition: competitionName(),
