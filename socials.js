@@ -52,7 +52,8 @@
 //                                        &with=gamestats&game= a finished game's team and shooter totals from its line ups (Game
 //                                        stats, Shooting duel), with the story's quarters, runs and leads when Studio streamed it;
 //                                        &with=teamsheet&game= both teams' season squads with games played (Team sheet). Head to
-//                                        head is the Form guide's meetings (&with=form&game=)
+//                                        head is the Form guide's meetings (&with=form&game=). Always: ofNight, the streamed
+//                                        games' Runs of the night, Super shot time and Comeback of the night
 //   GET  /api/socials/athletes           the athletes with a photo they approved the use of, to pick for a picture
 //   POST /api/socials/settings           { mark, pivt, sponsor: { kind: bool }, colours: <set id>, colourSets: [...], template: <id>,
 //                                        favourites: [<template id>], favouritesOnly: bool, movers: bool,
@@ -95,7 +96,8 @@ const SIZES = {
 const KINDS = { fixtures: true, matchup: true, form: true, preview: true, byes: true, milestones: true, race: true, countdown: true, draw: true, onstream: true, commentators: true, polaroid: false, results: true, review: true, fulltime: true, ladder: true, topshooters: true, tournament: true, finalsbound: true, finalsdraw: true, champions: true,
   accuracy: true, supershots: true, onfire: true, numbers: true, club: true, streaks: true, season: true, wrap: true,
   potm: true, teamround: true, spotlight: true, sponsorspot: false, thanks: false, story: true, worm: true, watch: true,
-  gamestats: true, shooting: true, moments: true, h2h: true, teamsheet: true };
+  gamestats: true, shooting: true, moments: true, h2h: true, teamsheet: true,
+  runs: true, supershottime: true, comeback: true };
 // The positions of Team of the round, in order.
 const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 // Each kind of picture as a picture set's editor lists it (the Socials tab's Show row): its name and which list it's on
@@ -114,6 +116,7 @@ const KIND_NAMES = [
   ['potm', 'Player of the match', 'results'], ['teamround', 'Team of the round', 'results'], ['thanks', 'Thanks for watching', 'results'],
   ['story', 'Game story', 'results'], ['worm', 'Score worm', 'results'], ['watch', 'Watch it back', 'results'],
   ['gamestats', 'Game stats', 'results'], ['shooting', 'Shooting duel', 'results'], ['moments', 'Moments of the game', 'results'],
+  ['runs', 'Runs of the night', 'results'], ['supershottime', 'Super shot time', 'results'], ['comeback', 'Comeback of the night', 'results'],
   ['milestones', 'Milestones', 'both'], ['finalsdraw', 'Finals draw', 'both'], ['polaroid', 'Polaroid', 'both'],
   ['spotlight', 'Athlete spotlight', 'both'], ['sponsorspot', 'Sponsor spotlight', 'both'],
 ].map(([kind, name, when]) => ({ kind, name, when }));
@@ -399,6 +402,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     // Game story and Score worm (the streamed games Studio kept a story of) and Watch it back.
     out.stories = games.filter(g => g.finished && storyFor(g.id)).map(g => g.id);
     if (want.has('story')) out.story = storyOf(games.find(g => g.id === q.game));
+    out.ofNight = ofTheNight(games.filter(g => out.stories.includes(g.id)));
     if (want.has('gamestats')) out.gameStats = await gameStats(raw.find((g, i) => games[i].id === q.game && games[i].finished));
     if (want.has('teamsheet')) out.teamSheet = await teamSheet(games.find(g => g.id === q.game));
     out.watchLinks = watchLinks();
@@ -617,6 +621,28 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const kept = { home: Number(s.stats.home.score) || 0, away: Number(s.stats.away.score) || 0 };
     return { game: { ...g, home: side('home'), away: side('away') }, stats: s.stats, worm: s.worm, moments: s.moments || [],
       complete: !s.stats.gapInHistory && g.finished && kept.home === g.home.score && kept.away === g.away.score };
+  }
+  // Runs of the night, Super shot time and Comeback of the night, from the night's streamed games' stories (read from
+  // the local folder, so cheap): each game's longest run and its runs of 3 and 5, the longest first; each super shot
+  // game's points in each quarter's super shot period (timed goals only); and the winner who came back from furthest
+  // behind (the most the losing team led by), with that game's worm.
+  function ofTheNight(streamed) {
+    const told = streamed.map(storyOf).filter(x => !x.error);
+    const runs = told.map(x => {
+      const st = (x.stats && x.stats.stats) || {}, lr = st.longestRun || {};
+      const side = (lr.home || 0) >= (lr.away || 0) ? 'home' : 'away';
+      return { game: x.game, longest: { side, n: lr[side] || 0 }, runs3: st.runs3 || { home: 0, away: 0 }, runs5: st.runs5 || { home: 0, away: 0 }, complete: x.complete };
+    }).filter(r => r.longest.n > 1).sort((a, b) => b.longest.n - a.longest.n);
+    const supers = told.filter(x => superShots(x.game.division) && x.worm && x.worm.superShot && x.worm.superShot.timed)
+      .map(x => ({ game: x.game, points: x.worm.superShot.points, byPeriod: x.worm.superShot.byPeriod || [], periodLabel: x.worm.periodLabel || 'Q' }));
+    let comeback = null;
+    for (const x of told) {
+      const g = x.game, win = g.home.score > g.away.score ? 'home' : g.away.score > g.home.score ? 'away' : '';
+      const lose = win === 'home' ? 'away' : 'home';
+      const down = win && x.worm && x.worm.biggestLead && x.worm.biggestLead[lose] ? x.worm.biggestLead[lose].margin : 0;
+      if (down > 0 && (!comeback || down > comeback.down)) comeback = { game: g, side: win, down, worm: x.worm, complete: x.complete };
+    }
+    return { runs, supers, comeback };
   }
   // Links to suggest for Watch it back: each stream on Live viewers (Competitions setup), as a page where its videos stay.
   function watchLinks() {

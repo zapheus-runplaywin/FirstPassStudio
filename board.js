@@ -883,7 +883,10 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
       }
       const inWindow = entries.filter(e => !e.g.gap && !e.spread && e.g.clockLeft != null && e.g.clockLeft <= ssSec && e.period <= r.periods);
       const pts = side => inWindow.filter(e => e.g.side === side).reduce((t, e) => t + e.g.points, 0);
-      superShot = { minutes: r.superShotMinutes, windows, points: { home: pts('home'), away: pts('away') }, timed: entries.some(e => !e.g.gap && !e.spread) };
+      // byPeriod: each quarter's super shot period on its own, for the Socials tab's Super shot time.
+      const ptsIn = (side, n) => inWindow.filter(e => e.g.side === side && e.period === n).reduce((t, e) => t + e.g.points, 0);
+      superShot = { minutes: r.superShotMinutes, windows, points: { home: pts('home'), away: pts('away') },
+        byPeriod: windows.map(w => ({ n: w.n, home: ptsIn('home', w.n), away: ptsIn('away', w.n) })), timed: entries.some(e => !e.g.gap && !e.spread) };
     }
     return {
       gameId: b.gameId, division: b.division, court: courtShown(b), round: b.round, period: b.period, competition: competitionName(),

@@ -381,7 +381,8 @@
               story (Game story, &game=<id>: a game Studio streamed, from its scoreboard)  worm (Score worm, &game=<id>)
               watch (Watch it back, &link=<the replay's web link>: a QR code)  moments (Moments of the game, &game=<id>:
               a game Studio streamed)  gamestats (Game stats, &game=<id>: team against team from the line ups)  shooting
-              (Shooting duel, &game=<id>)
+              (Shooting duel, &game=<id>)  runs (Runs of the night)  supershottime (Super shot time)  comeback (Comeback
+              of the night): the night's streamed games
               Either: spotlight (Athlete spotlight, &athlete=<name>)  sponsorspot (Sponsor spotlight, &sponsor=<id>)
               results (the night's final scores)  review (Round in review: the biggest win, the closest game and
               the upsets)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as PlayHQ has it now; on the
@@ -439,7 +440,7 @@
     if (params.get('fit') === '1' && innerWidth && innerWidth < W) document.documentElement.style.zoom = String(innerWidth / W);
     document.documentElement.style.setProperty('--w', `${W}px`);
     document.documentElement.style.setProperty('--h', `${H}px`);
-    const KINDS = ['story', 'worm', 'watch', 'gamestats', 'shooting', 'moments', 'h2h', 'teamsheet', 'potm', 'teamround', 'spotlight', 'sponsorspot', 'thanks', 'accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
+    const KINDS = ['story', 'worm', 'watch', 'gamestats', 'shooting', 'moments', 'h2h', 'teamsheet', 'runs', 'supershottime', 'comeback', 'potm', 'teamround', 'spotlight', 'sponsorspot', 'thanks', 'accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap', 'fixtures', 'matchup', 'form', 'preview', 'byes', 'milestones', 'race', 'countdown', 'draw', 'onstream', 'commentators', 'polaroid', 'results', 'review', 'fulltime', 'ladder', 'topshooters', 'tournament', 'finalsbound', 'finalsdraw', 'champions'];
     const kind = KINDS.includes(params.get('kind')) ? params.get('kind') : 'fixtures';
     document.body.classList.add(`k-${kind}`);
     const flag = (name, saved) => (params.has(name) ? params.get(name) !== '0' : saved);
@@ -1111,10 +1112,13 @@
     function drawWorm(d) {
       const st = storyHead(d, 'Score worm');
       if (st.error) return st.error;
-      const { game: g, worm: w } = st;
+      return wormChart(st.game, st.worm, st.complete);
+    }
+    // A game's worm drawn into the picture (Score worm, Comeback of the night); short: a lower chart, under other rows.
+    function wormChart(g, w, complete, short) {
       const pts = (w.segments || []).flat();
       if (!pts.length) return 'No goals were kept for this game.';
-      const W = 940, H = 520, X0 = 90, X1 = W - 10, Y0 = 20, Y1 = H - 50;
+      const W = 940, H = short ? 380 : 520, X0 = 90, X1 = W - 10, Y0 = 20, Y1 = H - 50;
       const span = Math.max(1, w.periods || 4, w.end || 0);
       const top = Math.max(4, ...pts.map(p => Math.abs(p.margin)));
       const mid = (Y0 + Y1) / 2, x = t => X0 + (X1 - X0) * t / span, y = m => mid - (Y1 - Y0) / 2 * m / top;
@@ -1142,7 +1146,47 @@
       }
       const key = $('fit').appendChild(el('div', 'info'));
       for (const k of ['home', 'away']) { const s = el('span'); s.append(el('b', '', g[k].name), ` ${k === 'home' ? 'above' : 'below'} the line`); key.append(s); }
-      if (!st.complete) $('fit').append(el('div', 'later', 'Studio didn\'t see every goal of this game'));
+      if (!complete) $('fit').append(el('div', 'later', 'Studio didn\'t see every goal of this game'));
+    }
+    // Runs of the night: every streamed game's longest run of goals (longest first), with each team's runs of 3 and 5.
+    const nightHead = (d, title) => { head(d, title, [dayLong(d.date), el('small', '', d.venue)]); return d.ofNight || {}; };
+    const notStreamed = 'Studio keeps the goals of each game on its scoreboard: none of this night\'s finished games were streamed with it.';
+    function drawRuns(d) {
+      const o = nightHead(d, 'Runs of the night');
+      if (!(o.runs || []).length) return (d.stories || []).length ? 'No team scored two goals in a row this night.' : notStreamed;
+      for (const r of o.runs.slice(0, 6)) {
+        const g = r.game, t = g[r.longest.side];
+        const runs = ['home', 'away'].map(k => `${g[k].name} ${r.runs3[k]}`).join('  ·  ');
+        $('fit').append(bound('bound--team', logoEl(t), who(t.name, `v ${g[r.longest.side === 'home' ? 'away' : 'home'].name}  ·  runs of 3: ${runs}`), stat(r.longest.n, 'In a row', true)));
+      }
+    }
+    // Super shot time: each streamed super shot game's points in the super shot period, quarter by quarter.
+    function drawSuperShotTime(d) {
+      const o = nightHead(d, 'Super shot time');
+      if (!(o.supers || []).length) return (d.stories || []).length ? 'None of this night\'s streamed games had their super shot period timed.' : notStreamed;
+      for (const x of o.supers.slice(0, 3)) {
+        const g = x.game;
+        const group = $('fit').appendChild(el('div', 'group'));
+        group.append(el('div', 'group__name', [g.division, g.final || g.round].filter(Boolean).join('  ·  ')));
+        const t = group.appendChild(el('table', 'ladder story'));
+        const hr = t.appendChild(el('tr'));
+        for (const h of ['', 'Team', ...x.byPeriod.map(q => `${x.periodLabel}${q.n}`), 'Total']) hr.append(el('th', '', h));
+        for (const k of ['home', 'away']) {
+          const tr = t.appendChild(el('tr'));
+          const logo = el('td'); logo.append(logoEl(g[k]));
+          tr.append(logo, el('td', 'team', g[k].name), ...x.byPeriod.map(q => el('td', '', String(q[k]))), el('td', '', String(x.points[k])));
+        }
+      }
+      $('fit').append(el('div', 'later', 'Points scored in the last minutes of each quarter'));
+    }
+    // Comeback of the night: the streamed game whose winner came back from furthest behind, with its worm.
+    function drawComeback(d) {
+      const o = nightHead(d, 'Comeback of the night');
+      const c = o.comeback;
+      if (!c) return (d.stories || []).length ? 'No team came from behind to win this night.' : notStreamed;
+      const g = c.game, t = g[c.side], other = g[c.side === 'home' ? 'away' : 'home'];
+      $('fit').append(bound('bound--team', logoEl(t), who(t.name, `beat ${other.name} ${t.score}–${other.score}`), stat(c.down, 'Down by', true)));
+      return wormChart(g, c.worm, c.complete, true);
     }
     // Watch it back (?link=): the replay's link as a QR code, with what was streamed that night.
     function drawWatch(d) {
@@ -1525,7 +1569,7 @@
         if (markLight) $('mark').src = 'studio/firstpass-studio-light.svg';
         foot(d);
         const missing = { fixtures: drawFixtures, matchup: drawMatchup, onstream: drawOnStream, commentators: drawCommentators, polaroid: drawPolaroid,
-          story: drawStory, worm: drawWorm, watch: drawWatch, moments: drawMoments, gamestats: drawGameStats, shooting: drawShooting, h2h: drawH2H, teamsheet: drawTeamSheet, potm: drawPotm, teamround: drawTeamRound, spotlight: drawSpotlight, sponsorspot: drawSponsorSpot, thanks: drawThanks,
+          story: drawStory, worm: drawWorm, watch: drawWatch, moments: drawMoments, gamestats: drawGameStats, shooting: drawShooting, h2h: drawH2H, teamsheet: drawTeamSheet, runs: drawRuns, supershottime: drawSuperShotTime, comeback: drawComeback, potm: drawPotm, teamround: drawTeamRound, spotlight: drawSpotlight, sponsorspot: drawSponsorSpot, thanks: drawThanks,
           accuracy: drawAccuracy, supershots: drawSuperShots, onfire: drawOnFire, numbers: drawNumbers, club: drawClub, streaks: drawStreaks,
           season: drawSeason, wrap: drawWrap, form: drawForm, preview: drawPreview, byes: drawByes, milestones: drawMilestones,
           race: drawRace, countdown: drawCountdown, draw: drawDraw, results: drawResults, review: drawReview, fulltime: drawFulltime, ladder: drawLadder, topshooters: drawTopShooters, tournament: drawTournament,
