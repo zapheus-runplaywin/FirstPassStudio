@@ -36,9 +36,10 @@ function parsePlayhqUrl(url) {
 
 // PlayHQ's status names aren't documented, so a game counts as finished when its
 // status says so, or when it has scores, isn't marked live and its date has passed.
+const saysFinished = st => /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(st || '');
 function isFinished(g) {
   const st = g.status || '';
-  if (/COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(st)) return true;
+  if (saysFinished(st)) return true;
   if (/PROGRESS|LIVE|STARTED|UPCOMING|SCHEDULED/i.test(st)) return false;
   const today = new Date().toISOString().slice(0, 10);
   return g.home.score !== null && g.away.score !== null && !!g.date && g.date < today;
@@ -436,7 +437,12 @@ function create(deps) {
       const rank = p => { const i = POSITION_RANK.indexOf(p.position); return i === -1 ? 99 : i; };
       players.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
       const name = (g[k] && g[k].name) || '';
-      return { name, logo: logoFor(name), score, players };
+      // The team's own counts: PlayHQ can give a goal to the team without a player (and private players are left out
+      // above), so a team or night total is never the players added up. null when PlayHQ has no team counts.
+      const teamGoals = statCount(teamStats, '1_POINT_SCORE'), teamSupers = statCount(teamStats, '2_POINT_SCORE');
+      const totals = teamGoals == null && teamSupers == null ? null
+        : { goals: teamGoals || 0, superGoals: teamSupers || 0, shots: statCount(teamStats, 'GOAL_ATTEMPT') };
+      return { name, logo: logoFor(name), score, totals, players };
     };
     return { id: g.id, status: g.status && g.status.value, home: side('home'), away: side('away') };
   }
@@ -450,6 +456,8 @@ function create(deps) {
   // A game id is PlayHQ's own, so the file serves every competition.
   const GAME_CACHE_FILE = datadir.local('game-cache.json');
   const GAME_CACHE_MAX = 3000, GAME_CACHE_DAYS = 120;
+  // Bumped when what is kept for a game changes (2: each team's own counts, totals), so older copies are read again once.
+  const GAME_CACHE_VERSION = 2;
   const finishedSummaries = new Map(); // game id -> parsed game
   const finishedAt = new Map();        // game id -> when it was kept
   try {
@@ -457,7 +465,7 @@ function create(deps) {
     const i = GENDER_FIELDS.indexOf(saved.genderField);
     if (i > 0) genderField = i;
     const oldest = Date.now() - GAME_CACHE_DAYS * 24 * 60 * 60 * 1000;
-    for (const [id, e] of Object.entries(saved.games || {})) {
+    for (const [id, e] of Object.entries(saved.version === GAME_CACHE_VERSION ? saved.games || {} : {})) {
       if (e && e.game && e.at > oldest) { finishedSummaries.set(id, e.game); finishedAt.set(id, e.at); }
     }
     log('info', 'playhq', `${finishedSummaries.size} finished games' line ups loaded from game-cache.json`);
@@ -468,7 +476,7 @@ function create(deps) {
     gameCacheTimer = setTimeout(() => {
       gameCacheTimer = null;
       const games = Object.fromEntries([...finishedSummaries].map(([id, game]) => [id, { at: finishedAt.get(id) || Date.now(), game }]));
-      savefile.writeFile(GAME_CACHE_FILE, JSON.stringify({ genderField: GENDER_FIELDS[genderField], games }), err => {
+      savefile.writeFile(GAME_CACHE_FILE, JSON.stringify({ version: GAME_CACHE_VERSION, genderField: GENDER_FIELDS[genderField], games }), err => {
         if (err) log('warn', 'playhq', `game-cache.json not saved: ${err.message}`);
       });
     }, 2000);
@@ -502,9 +510,22 @@ function create(deps) {
   async function readGame(g, maxAgeMs) {
     const kept = finishedSummaries.get(g.id);
     if (kept) return kept;
-    const parsed = await getGame(g.id, maxAgeMs);
+    let parsed = await getGame(g.id, maxAgeMs);
+    if (!isFinished(g)) return parsed;
+    // A copy read while the game was still on (the scoreboard and ticker read it as it's played) is short of the last
+    // goals, so a finished game is read again until PlayHQ's own game page says it's finished, and only kept then.
+    if (!saysFinished(parsed.status)) parsed = await getGame(g.id, 60 * 1000);
+    if (!saysFinished(parsed.status)) return parsed;
+    // No team counts on the game page: the live feed's (asked directly, so an old game doesn't touch the PlayHQ status).
+    if (!parsed.home.totals || !parsed.away.totals) {
+      try {
+        const l = await fetchLive(g.id);
+        const totals = k => (l[k].goals == null && l[k].superGoals == null ? null : { goals: l[k].goals || 0, superGoals: l[k].superGoals || 0, shots: l[k].shots });
+        parsed = { ...parsed, home: { ...parsed.home, totals: parsed.home.totals || totals('home') }, away: { ...parsed.away, totals: parsed.away.totals || totals('away') } };
+      } catch (err) { log('info', 'playhq', `No team counts for game ${g.id} from the live feed: ${err.message}`); }
+    }
     // A finished game with no line up at all may still get one entered, so it isn't kept.
-    if (isFinished(g) && (parsed.home.players.length || parsed.away.players.length)) keepFinished(g.id, parsed);
+    if (parsed.home.players.length || parsed.away.players.length) keepFinished(g.id, parsed);
     return parsed;
   }
   async function getGame(gameId, maxAgeMs) {

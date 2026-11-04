@@ -817,8 +817,10 @@
       const tile = (v, label, note) => { const x = stat(v, label); if (note) x.append(el('small', 'stat__note', note)); return x; };
       const tiles = $('fit').appendChild(el('div', 'tiles'));
       tiles.append(tile(n.games, n.games === 1 ? 'Game' : 'Games'), tile(n.points, n.superShots === null ? 'Goals' : 'Points'));
-      if (n.superShots !== null && n.superShots !== undefined) tiles.append(tile(n.superShots, 'Super shots'));
-      tiles.append(tile(n.close, `Within ${n.closeMargin} goals`), tile(n.biggest, 'Biggest win'));
+      // Super shots from PlayHQ's team counts; a game whose line ups couldn't be read is said, not counted as none.
+      if (n.superShots !== null && n.superShots !== undefined) tiles.append(tile(n.superShots, 'Super shots', n.notCounted ? `${n.notCounted} ${n.notCounted === 1 ? 'game' : 'games'} not counted` : ''));
+      // Margins are in points where super shots count (a super shot is 2).
+      tiles.append(tile(n.close, `Within ${n.closeMargin} ${n.superShots === null ? 'goals' : 'points'}`), tile(n.biggest, 'Biggest win'));
       if (n.highest) tiles.append(tile(n.highest.score, 'Highest score', n.highest.team));
       if (n.draws) tiles.append(tile(n.draws, n.draws === 1 ? 'Draw' : 'Draws'));
     }
