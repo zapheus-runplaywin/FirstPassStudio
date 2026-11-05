@@ -63,6 +63,11 @@ test('Round in review and ladder movers: places before the night, the biggest wi
   assert.deepEqual(await texts('.review .group__name'), ['Upset  ·  Closest game', 'Biggest win']);
   assert.match((await texts('.review__note'))[0], /^4th beat 2nd\s+·\s+Blizzardz by 5\s+·\s+Division 1$/);
   assert.match((await texts('.review__note'))[1], /^Titans by 13\s+·\s+Division 2$/);
+  // Night in numbers counts the night's upsets by the same rule.
+  assert.equal((await studio.get(`/api/socials/night?date=${second}&with=numbers`)).numbers.upsets, 1);
+  await draw('numbers', second);
+  assert.ok((await texts('.tiles .stat small')).includes('Upset'));
+  assert.ok(!(await texts('.tiles .stat small')).includes('Average margin'), 'the average winning margin only shows on a night without an upset');
 
   // Ladder movers: on the division's latest night, unless turned off.
   await draw('ladder', second, '&division=Division%201');

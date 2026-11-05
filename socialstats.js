@@ -169,13 +169,16 @@ function draw(season, division, team) {
   });
 }
 // Night in numbers: the night's finished games added up. close: games decided by CLOSE goals or fewer (a draw included).
+// averageWin: the average margin of the games with a winner, rounded to a whole goal (null when every game was drawn).
 const CLOSE = 3;
 function numbers(games) {
   const done = games.filter(g => g.finished);
   const margin = g => Math.abs(g.home.score - g.away.score);
   const top = [...done].sort((a, b) => Math.max(b.home.score, b.away.score) - Math.max(a.home.score, a.away.score))[0];
+  const won = done.filter(margin);
   return { games: done.length, points: done.reduce((n, g) => n + g.home.score + g.away.score, 0), close: done.filter(g => margin(g) <= CLOSE).length,
-    draws: done.filter(g => !margin(g)).length, biggest: done.length ? Math.max(...done.map(margin)) : 0,
+    draws: done.length - won.length, biggest: done.length ? Math.max(...done.map(margin)) : 0,
+    averageWin: won.length ? Math.round(won.reduce((n, g) => n + margin(g), 0) / won.length) : null,
     highest: top ? { team: top.home.score >= top.away.score ? top.home.name : top.away.name, score: Math.max(top.home.score, top.away.score) } : null, closeMargin: CLOSE };
 }
 

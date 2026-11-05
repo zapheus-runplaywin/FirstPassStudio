@@ -40,7 +40,13 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   assert.equal(n.clubs[0].games.length, 2);
   assert.deepEqual(n.streaks.map(x => [x.team, x.run, x.unbeaten]), [['Knights', 3, false], ['Titans', 3, false]]);
   assert.ok(n.streaks.every(x => x.logo));
-  assert.deepEqual({ ...n.numbers, highest: n.numbers.highest.team }, { games: 4, points: 228, close: 0, draws: 0, biggest: 9, highest: 'Knights', closeMargin: 3, superShots: 8, notCounted: 0 });
+  assert.deepEqual({ ...n.numbers, highest: n.numbers.highest.team }, { games: 4, points: 228, close: 0, draws: 0, biggest: 9, highest: 'Knights', closeMargin: 3,
+    superShots: 8, notCounted: 0, accuracy: 82, averageWin: 9, upsets: 0 });
+  // The night's shooting % is every game's team counts added up: goals and super goals over attempts.
+  const sides = (await Promise.all(n.games.map(g => studio.get(`/api/socials/night?date=${last}&with=gamestats&game=${g.id}`))))
+    .flatMap(x => [x.gameStats.game.home, x.gameStats.game.away]);
+  const sum = k => sides.reduce((a, x) => a + x[k], 0);
+  assert.equal(n.numbers.accuracy, Math.round((sum('goals') + sum('superGoals')) / sum('shots') * 100));
 
   assert.equal(n.accuracy.minShots, 10);
   assert.ok(n.accuracy.players.every(p => p.shots >= 10));
@@ -99,6 +105,9 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   assert.match((await texts('.shooter__team'))[0], /was \d/);
   await draw('numbers', last);
   assert.ok((await texts('.tiles .stat b')).includes('228'));
+  // No upsets that night, so the average winning margin takes their tile.
+  assert.deepEqual((await texts('.tiles .stat small')).slice(-2), ['Shooting', 'Average margin']);
+  assert.ok((await texts('.tiles .stat b')).includes('82%'));
   await draw('club', last);
   assert.equal(await page.textContent('#title'), 'Thunder');
   assert.equal((await texts('.result')).length, 2);
@@ -122,7 +131,9 @@ test('Results stats: runs, numbers and clubs from the games alone', () => {
   assert.deepEqual(stats.streaks(season, 'c', season.filter(x => x.date === 'c')).map(x => [x.team, x.unbeaten, x.run, x.played]), [['A', true, 1, 3]]);
   const num = stats.numbers(season.filter(x => x.date === 'c'));
   assert.deepEqual([num.games, num.points, num.close, num.biggest, num.highest.team], [2, 111, 1, 30, 'C']);
-  assert.equal(stats.numbers([g(5, 'd', 'A', 20, 'B', 20)]).draws, 1);
+  assert.equal(num.averageWin, 16, 'the average margin of the games with a winner, to a whole goal (15.5)');
+  assert.equal(stats.numbers([...season.filter(x => x.date === 'c'), g(6, 'c', 'B', 22, 'D', 20)]).averageWin, 11, '11 exactly');
+  assert.deepEqual([stats.numbers([g(5, 'd', 'A', 20, 'B', 20)]).draws, stats.numbers([g(5, 'd', 'A', 20, 'B', 20)]).averageWin], [1, null], 'a draw has no winning margin');
   assert.deepEqual(stats.clubs(season.filter(x => x.date === 'c'), t => ({ A: 'Club', D: 'Club' })[t] || ''), [{ club: 'Club', games: [3, 4] }]);
   assert.deepEqual(stats.lastNights(season, 'c'), ['D']);
 });
