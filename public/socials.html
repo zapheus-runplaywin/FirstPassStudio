@@ -207,7 +207,7 @@
     // Game stats and Shooting duel: a picture each per finished game, from its line ups (and its story when streamed).
     for (const g of done) {
       list.push({ key: `gamestats:${g.id}`, kind: 'gamestats', game: g.id, name: `Game stats ${g.home.name} v ${g.away.name}`,
-        help: 'Team against team from PlayHQ\'s line ups: goals (and super shots), attempts, misses and accuracy. When Studio streamed it, also quarters won, the longest run, the biggest lead and the lead changes.' });
+        help: 'Team against team from PlayHQ\'s line ups: goals (and super shots), attempts and accuracy. When Studio streamed it, also quarters won, the longest run, the 3 and 5 goal runs and the biggest lead.' });
       list.push({ key: `shooting:${g.id}`, kind: 'shooting', game: g.id, name: `Shooting duel ${g.home.name} v ${g.away.name}`,
         help: 'Each team\'s shooters that game, most points first, with goals from attempts and accuracy, under the team\'s total.' });
     }

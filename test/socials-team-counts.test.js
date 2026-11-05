@@ -35,7 +35,7 @@ test('Night in numbers and Game stats count the super shots PlayHQ gave a team w
   const h = n.gameStats.game.home;
   assert.deepEqual([h.goals, h.superGoals, h.shots], [home.goals + 1, home.superGoals + 2, home.shots + 4]);
   assert.equal(h.points, h.goals + 2 * h.superGoals);
-  assert.equal(h.misses, h.shots - h.goals - h.superGoals);
+  assert.equal(h.misses, undefined, 'no misses: having the most isn\'t a win');
   assert.ok(!h.shooters.some(p => /Private/.test(p.name)), 'a private player is never named');
 });
 

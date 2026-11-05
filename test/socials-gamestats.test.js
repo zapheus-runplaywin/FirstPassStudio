@@ -34,12 +34,13 @@ test('game stats, shooting duel, moments of the game, head to head and team shee
     const sum = f => side.shooters.reduce((x, p) => x + p[f], 0);
     assert.equal(side.goals, sum('goals'));
     assert.equal(side.shots, sum('shots'));
-    assert.equal(side.misses, side.shots - side.goals - side.superGoals);
+    assert.equal(side.misses, undefined, 'no misses: having the most isn\'t a win');
     assert.deepEqual(side.shooters.map(p => p.points), [...side.shooters.map(p => p.points)].sort((a, b) => b - a), 'most points first');
   }
   assert.equal(gs.superShots, true, 'Thunder League plays super shots');
   assert.deepEqual([gs.story.longestRun.home, gs.story.longestRun.away], [3, 5]);
-  assert.equal(gs.story.leadChanges, 1);
+  assert.deepEqual([gs.story.runs3.home, gs.story.runs3.away, gs.story.runs5.home, gs.story.runs5.away], [1, 1, 0, 1], 'a run of 5 is a 3 goal run too');
+  assert.equal(gs.story.leadChanges, undefined);
   assert.equal((await studio.get(`/api/socials/night?date=${second}&with=gamestats&game=game-d2-r2-1`)).gameStats.story, null, 'not streamed');
   assert.match((await studio.get(`/api/socials/night?date=${nights[2]}&with=gamestats&game=game-d1-r3-1`)).gameStats.error, /No result/);
 
@@ -74,7 +75,21 @@ test('game stats, shooting duel, moments of the game, head to head and team shee
   };
   const texts = sel => page.$$eval(sel, els => els.map(e => e.textContent));
   assert.equal(await draw('gamestats', second, '&game=game-d1-r2-1'), true);
-  assert.deepEqual(await texts('.bound--cmp .game__team'), ['Super shots', 'Goals', 'Attempts', 'Misses', 'Accuracy', 'Quarters won', 'Longest run', 'Biggest lead']);
+  assert.deepEqual(await texts('.bound--cmp .game__team'), ['Super shots', 'Goals', 'Attempts', 'Accuracy', 'Quarters won', 'Longest run', '3 goal runs', '5 goal runs', 'Biggest lead']);
+  assert.equal(await page.$$eval('.bound--line', els => els.length), 0, 'no lead changes line');
+  // The team ahead on a row is lit up, a drawn row stays plain: 3 goal runs 1 all, 5 goal runs to the Mavericks.
+  const lit = label => page.$$eval('.bound--cmp', (rows, l) => {
+    const r = rows.find(x => x.querySelector('.game__team').textContent === l);
+    return [...r.children].filter(c => c.classList.contains('stat')).map(c => c.classList.contains('main'));
+  }, label);
+  assert.deepEqual(await lit('3 goal runs'), [false, false]);
+  assert.deepEqual(await lit('5 goal runs'), [false, true]);
+  // The division, round and date under the title are never covered by the rows, at every size.
+  for (const size of ['square', 'portrait', 'story']) {
+    assert.equal(await draw('gamestats', second, `&game=game-d1-r2-1&size=${size}`), true);
+    const [when, fit] = await page.evaluate(() => ['when', 'fit'].map(id => document.getElementById(id).getBoundingClientRect()));
+    assert.ok(fit.top >= when.bottom, `${size}: the rows start below the title's lines`);
+  }
   assert.equal(await draw('shooting', second, '&game=game-d1-r2-1'), true);
   assert.equal((await texts('.group__name')).length, 2);
   assert.equal(await draw('moments', second, '&game=game-d1-r2-1'), true);
