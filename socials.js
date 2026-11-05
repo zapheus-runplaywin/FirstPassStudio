@@ -391,7 +391,10 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('supershots')) out.superShots = await superLeaders(tonightIn(division), seasonIn(division), division);
     if (want.has('teamsupers')) out.teamSupers = await teamSupers(tonightIn(division), seasonIn(division), division);
     if (want.has('onfire')) out.onFire = await onFire(seasonIn(division), date, division);
-    if (want.has('numbers')) out.numbers = { ...stats.numbers(games), ...(await nightSupers(raw.filter((g, i) => games[i].finished))) };
+    if (want.has('numbers')) {
+      const upsets = stats.review(games, out.ladders || await ladders(dates, date, games)).upsets.length;
+      out.numbers = { ...stats.numbers(games), ...(await nightShooting(raw.filter((g, i) => games[i].finished))), upsets };
+    }
     if (want.has('season')) out.season = await seasonCard(season, date, division, String(q.team || ''), seasonIn(division));
     if (want.has('wrap')) out.wrap = await wrap(season, date, division, seasonIn(division));
     // The hand picks and spotlights (picked on the tab), and the next night for Thanks for watching.
@@ -606,14 +609,19 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     }).filter(x => x.rise > 0).sort((a, b) => b.rise - a.rise || a.name.localeCompare(b.name)).slice(0, FIRE_SHOWN);
     return { division, players };
   }
-  // The night's super shots, for Night in numbers (only where a division that played has them): each game's team
-  // counts added up (teamTotals). notCounted: the games among them whose line ups PlayHQ couldn't give.
-  async function nightSupers(finished) {
-    const games = finished.filter(g => superShots(brief(g).division));
-    if (!games.length) return { superShots: null };
-    const read = await lineupsOf(games);
-    return { superShots: read.reduce((n, l) => n + (l ? teamTotals(l.home).superGoals + teamTotals(l.away).superGoals : 0), 0),
-      notCounted: read.filter(l => !l).length };
+  // The night's shooting, for Night in numbers, from each finished game's team counts (teamTotals). accuracy: goals and
+  // super goals over attempts, as a whole percent, over the games PlayHQ gave attempts for (null when none). superShots:
+  // only where a division that played has them (else null); notCounted: the games among those whose line ups PlayHQ
+  // couldn't give.
+  async function nightShooting(finished) {
+    const read = await lineupsOf(finished);
+    const sides = read.filter(Boolean).flatMap(l => [teamTotals(l.home), teamTotals(l.away)]);
+    const shots = sides.reduce((n, t) => n + (t.shots || 0), 0);
+    const scored = sides.filter(t => t.shots).reduce((n, t) => n + t.goals + t.superGoals, 0);
+    const supers = read.filter((l, i) => superShots(brief(finished[i]).division));
+    return { accuracy: shots ? Math.round(scored / shots * 100) : null,
+      superShots: supers.length ? supers.reduce((n, l) => n + (l ? teamTotals(l.home).superGoals + teamTotals(l.away).superGoals : 0), 0) : null,
+      notCounted: supers.filter(l => !l).length };
   }
   // Team season card (&division= &team=): socialstats.teamCard with its ladder place, logos, and its top shooter so far.
   async function seasonCard(season, date, division, team, seasonGames) {

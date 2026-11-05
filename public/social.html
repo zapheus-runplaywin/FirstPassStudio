@@ -836,6 +836,10 @@
       // Margins are in points where super shots count (a super shot is 2).
       tiles.append(tile(n.close, `Within ${n.closeMargin} ${n.superShots === null ? 'goals' : 'points'}`), tile(n.biggest, 'Biggest win'));
       if (n.highest) tiles.append(tile(n.highest.score, 'Highest score', n.highest.team));
+      if (n.accuracy !== null && n.accuracy !== undefined) tiles.append(tile(`${n.accuracy}%`, 'Shooting'));
+      // Upsets (Round in review's rule); a night without one shows the average winning margin instead.
+      if (n.upsets) tiles.append(tile(n.upsets, n.upsets === 1 ? 'Upset' : 'Upsets'));
+      else if (n.averageWin !== null && n.averageWin !== undefined) tiles.append(tile(n.averageWin, 'Average win'));
       if (n.draws) tiles.append(tile(n.draws, n.draws === 1 ? 'Draw' : 'Draws'));
     }
     // Club round up (?club=): every result that night of one club's teams, division by division.
