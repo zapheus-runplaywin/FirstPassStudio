@@ -227,7 +227,7 @@ function switcherChanged() {
 // What the Output page shows about the mics on the switcher: each one's fader and any trouble.
 function onSwitcherLive() {
   const inputs = sw ? sw.inputs() : [];
-  const faders = {}, problems = {};
+  const faders = {}, levels = {}, problems = {};
   for (const m of onSwitcher()) {
     const inp = inputs.find(i => i.id === m.input), srcs = sourcesOf(m, inputs);
     if (!inputs.length) problems[m.id] = 'The switcher isn\'t connected (or has no mic inputs)';
@@ -235,8 +235,11 @@ function onSwitcherLive() {
     else if (!srcs.length) problems[m.id] = `${inp.name} isn't split into two mono channels on the switcher: pick Both, or split it in ATEM Software Control`;
     else if (srcs.some(x => x.off)) problems[m.id] = `${inp.name} is Off on the switcher: turn it On in ATEM Software Control`;
     if (srcs.length) faders[m.id] = srcs[0].fader;
+    // What comes into it (before its fader), when the switcher sends its levels: the louder of its sources.
+    const heard = srcs.map(x => sw && sw.level ? sw.level(m.input, x.id) : undefined).filter(v => v !== undefined);
+    if (heard.length) levels[m.id] = Math.round(Math.max(...heard));
   }
-  return { inputs: inputs.map(i => ({ id: i.id, name: i.name, split: i.sources.length > 1 })), connected: inputs.length > 0, faders, problems };
+  return { inputs: inputs.map(i => ({ id: i.id, name: i.name, split: i.sources.length > 1 })), connected: inputs.length > 0, faders, levels, problems };
 }
 
 // scene.js, each time the scene changes: whether music is being heard and whether a video plays its sound.
@@ -381,7 +384,8 @@ function live() {
     for (const [id, v] of Object.entries(s.levels)) if (mac.has(id)) levels[id] = Math.max(levels[id] ?? -100, v);
     for (const [id, v] of Object.entries(s.problems)) if (mac.has(id)) problems[id] = v;
   }
-  return { mixing: fresh.length > 0, devices, levels, problems: { ...problems, ...atem.problems }, status: fresh.map(s => s.status).find(Boolean) || '',
+  // levels: what comes into each mic, the Mac's from Output 1's window, the switcher's from the switcher when it sends them.
+  return { mixing: fresh.length > 0, devices, levels: { ...levels, ...atem.levels }, problems: { ...problems, ...atem.problems }, status: fresh.map(s => s.status).find(Boolean) || '',
     switcher: { connected: atem.connected, inputs: atem.inputs }, faders: atem.faders };
 }
 

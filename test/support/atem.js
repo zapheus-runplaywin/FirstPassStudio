@@ -11,6 +11,9 @@
 //                                                           // Mic 2 1302, beside camera 1's embedded sound); startAtem({ split: [1302] }) splits
 //                                                           // Mic 2 into two mono channels (-256 left, -255 right); { micOff: [1301] } sets Mic 1 Off
 //   atem.setFader('1301:-65280', -1000)                     // as if someone moved that fader on the switcher
+//   atem.setLevel('1301:-65280', -2000)                     // the sound coming into that source (hundredths of a dB); sent every
+//                                                           // 100 ms to a client that asked for levels (SFLN), as the real one does;
+//                                                           // atem.state.sendLevels says whether one asked (SFLN isn't in received)
 //   await atem.close();
 
 'use strict';
@@ -51,11 +54,12 @@ async function startAtem(opts = {}) {
     ...(opts.keys || {}),
     names: Array.from({ length: inputCount }, (_, i) => (opts.names || [])[i] || `Camera ${i + 1}`),
     faders: {},
+    levels: {}, sendLevels: false,
   };
   // Fairlight audio: camera 1's embedded sound (not a mic) and the two mic jacks, each one stereo source, or two mono.
   const audioInputs = [[1, 0, 2], [1301, 2, 2048], [1302, 2, 2048]]; // input, type (0 embedded, 2 audio in), port (2 HDMI, 2048 TRS jack)
   const sourcesOf = id => (opts.split || []).includes(id) ? ['-256', '-255'] : ['-65280'];
-  for (const [id] of audioInputs) for (const src of sourcesOf(id)) state.faders[`${id}:${src}`] = 0;
+  for (const [id] of audioInputs) for (const src of sourcesOf(id)) { state.faders[`${id}:${src}`] = 0; state.levels[`${id}:${src}`] = -10000; }
   const received = []; // { name, data, at } for every command a client sent, oldest first
   const socket = dgram.createSocket('udp4');
   const clients = new Map(); // "address:port" -> { address, port, session, nextId }
@@ -98,6 +102,12 @@ async function startAtem(opts = {}) {
     b.writeUInt16BE(Number(id), 0); b.writeBigInt64BE(BigInt(src), 8); b.writeUInt8(1, 16);
     b.writeInt32BE(state.faders[key], 44); b.writeUInt8(7, 48); b.writeUInt8((opts.micOff || []).includes(Number(id)) ? 1 : 2, 49);
   }));
+  // A source's levels (FMLv): the input's level left and right, the rest of its meters at the same.
+  const fmlv = key => command('FMLv', bytes(40, b => {
+    const [id, src] = key.split(':');
+    b.writeBigInt64BE(BigInt(src), 0); b.writeUInt16BE(Number(id), 8);
+    for (let at = 10; at < 40; at += 2) b.writeInt16BE(Math.max(-32768, state.levels[key]), at);
+  }));
   const dump = () => Buffer.concat([
     command('_ver', bytes(4, b => b.writeUInt32BE(VERSION, 0))),
     command('_pin', bytes(44, b => { b.write(productName, 0); b.writeUInt8(modelNo, 40); })),
@@ -130,6 +140,9 @@ async function startAtem(opts = {}) {
     return out;
   };
   const handle = (name, d) => {
+    // Asking for the audio levels (SFLN) is listening, not doing: it changes nothing on the switcher, so it isn't in
+    // received, which the tests read as what Studio did to the switcher (state.sendLevels says whether it asked).
+    if (name === 'SFLN') { state.sendLevels = d[0] === 1; return []; }
     received.push({ name, data: d, at: Date.now() });
     if (name === 'DAut' && opts.autoMs) {
       // A mix: the switcher says it has started (after answering the command), then takes it at the end.
@@ -194,6 +207,7 @@ async function startAtem(opts = {}) {
   });
   // The real switcher keeps talking while nothing changes; a client gives up after a few seconds of silence.
   const beat = setInterval(() => toAll(Buffer.alloc(0)), 500);
+  const levelBeat = setInterval(() => { if (state.sendLevels) toAll(Buffer.concat(Object.keys(state.levels).map(fmlv))); }, 100);
   await new Promise(r => socket.bind(opts.port || 0, '127.0.0.1', r));
 
   return {
@@ -209,7 +223,8 @@ async function startAtem(opts = {}) {
         ...state.uskKeys.flatMap((_, k) => [keBP(k), keLm(k)]), ...state.dskKeys.flatMap((_, k) => [dskB(k), dskP(k)])]));
     },
     setFader(key, gain) { state.faders[key] = gain; toAll(fasp(key)); },
-    close: () => new Promise(r => { clearInterval(beat); socket.close(r); }),
+    setLevel(key, level) { state.levels[key] = level; },
+    close: () => new Promise(r => { clearInterval(beat); clearInterval(levelBeat); socket.close(r); }),
   };
 }
 

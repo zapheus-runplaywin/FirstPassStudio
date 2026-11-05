@@ -281,8 +281,10 @@
   .player button.lit { background: var(--fp-orange); color: var(--fp-navy); }
   .player small { color: var(--fp-muted); }
   /* Mics: each mic's level as it comes in (green, amber near the top, red at the top), and a lit Mute or Duck. */
-  .mxMeter { height: 6px; border-radius: 3px; background: var(--fp-line); overflow: hidden; }
-  .mxMeter i { display: block; height: 100%; width: 0; background: #22c55e; transition: width .12s linear; }
+  .mxMeter { position: relative; height: 6px; border-radius: 3px; background: var(--fp-line); }
+  .mxMeter i { display: block; height: 100%; width: 0; border-radius: 3px; background: #22c55e; transition: width .12s linear; }
+  /* A switcher mic's fader, over the sound coming in. */
+  .mxMeter b { position: absolute; top: -4px; width: 3px; height: 14px; border-radius: 2px; background: currentColor; box-shadow: 0 0 0 1px var(--fp-line-strong); transition: left .12s linear; }
   .mxMeter i.warm { background: #f59e0b; }
   .mxMeter i.hot { background: #ff4d4d; }
   .seq[data-mic] { grid-template-columns: minmax(0, 1fr); }

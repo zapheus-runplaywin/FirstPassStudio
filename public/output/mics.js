@@ -113,15 +113,22 @@ function meters() {
     const id = card.dataset.mic, problem = micLive.problems[id];
     const m = micsOf().find(x => x.id === id);
     if (!m) continue;
-    const bar = card.querySelector('.mxMeter i'), fader = micLive.faders?.[id];
-    // The Mac's mics: what comes in, -60 dBFS to 0 across the bar. The switcher's: where its fader is, -60 to +6 dB.
-    const db = onAtem(m) ? fader : micLive.levels[id];
-    const pct = db === undefined ? 0 : Math.max(0, Math.min(100, onAtem(m) ? (db + 60) / 66 * 100 : (db + 60) / 60 * 100));
+    const bar = card.querySelector('.mxMeter i'), fader = micLive.faders?.[id], heard = micLive.levels[id];
+    // What comes in, -60 dBFS to 0 across the bar: the Mac's mics from Output 1's window, the switcher's from the switcher.
+    // A switcher mic also shows where its fader is, as a mark (-60 to +6 dB); a switcher that sends no levels shows
+    // the fader as the bar, as before.
+    const atem = onAtem(m), levelOf = atem ? (heard !== undefined ? heard : fader) : heard, asFader = atem && heard === undefined;
+    const pct = levelOf === undefined ? 0 : Math.max(0, Math.min(100, asFader ? (levelOf + 60) / 66 * 100 : (levelOf + 60) / 60 * 100));
     bar.style.width = pct + '%';
-    bar.className = onAtem(m) ? '' : db >= -3 ? 'hot' : db >= -12 ? 'warm' : '';
+    bar.className = asFader ? '' : levelOf >= -3 ? 'hot' : levelOf >= -12 ? 'warm' : '';
+    let mark = card.querySelector('.mxMeter b');
+    if (atem && heard !== undefined && fader !== undefined) {
+      if (!mark) { mark = document.createElement('b'); mark.title = 'Its fader on the switcher'; card.querySelector('.mxMeter').append(mark); }
+      mark.style.left = `calc(${Math.max(0, Math.min(100, (fader + 60) / 66 * 100))}% - 1px)`;
+    } else if (mark) mark.remove();
     const where = card.querySelector('.where');
     where.classList.toggle('badText', !!problem);
-    where.textContent = problem || micWhere(m) + (onAtem(m) && fader !== undefined ? ` · fader ${fmtDb(fader)}` : '');
+    where.textContent = problem || micWhere(m) + (atem && heard !== undefined ? ` · hearing ${fmtDb(heard)}` : '') + (atem && fader !== undefined ? ` · fader ${fmtDb(fader)}` : '');
   }
 }
 

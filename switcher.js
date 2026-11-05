@@ -256,6 +256,17 @@ async function connect() {
     log('info', 'switcher', `Connected to ${s.model} at ${target} (${s.inputs.length} inputs, ${s.usk.length} upstream keys, ${s.dsk.length} downstream keys)`);
     lastProgram = s.program; // what's on now isn't a cut to follow: nothing is sent on connecting
     setConn('connected');
+    // The sound coming into its audio inputs, for the mics' meters (as ATEM Software Control asks for it): it
+    // changes nothing on the switcher.
+    levels.clear();
+    if (a.state && a.state.fairlight) a.startFairlightMixerSendLevels().catch(err => log('warn', 'switcher', `Couldn't ask for the audio levels: ${err.message}`));
+  });
+  a.on('levelChanged', l => {
+    if (atem !== a || !l || l.type !== 'source' || !l.levels) return;
+    const key = `${l.index}:${l.source}`, db = Math.max(l.levels.inputLeftLevel, l.levels.inputRightLevel) / 100, now = Date.now();
+    const was = levels.get(key);
+    // The loudest moment over the last half second, as the Mac's mics report theirs.
+    if (!was || db >= was.db || now - was.at > LEVEL_HOLD_MS) levels.set(key, { db, at: now });
   });
   a.on('disconnected', () => {
     if (atem !== a) return;
@@ -908,6 +919,14 @@ function micInputs() {
     })
     .sort((a, b) => a.id - b.id);
 }
+// The sound coming into one source of an audio input (dBFS, its loudest over the last half second), or undefined
+// when the switcher isn't sending levels (not connected, or not lately).
+const levels = new Map(); // "input:source" -> { db, at }
+const LEVEL_HOLD_MS = 500, LEVEL_STALE_MS = 2000;
+function micLevel(input, source) {
+  const l = conn === 'connected' && levels.get(`${input}:${source}`);
+  return l && Date.now() - l.at < LEVEL_STALE_MS ? Math.max(-100, Math.min(0, l.db)) : undefined;
+}
 // Moves one source's fader to dB (-100 is all the way down). Resolves false when the switcher isn't connected.
 async function setMicFader(input, source, dB) {
   if (!atem || conn !== 'connected') return false;
@@ -931,4 +950,4 @@ function init(logger, { changed: onChanged, stinger, outputs, unstraight, mics }
 // The outputs changed: their key settings check may say something else now.
 const refresh = () => changed();
 
-module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, micInputs, setMicFader, stingerOutput, FILE, parseBrowse, parseLookup, parseAddress };
+module.exports = { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, micInputs, micLevel, setMicFader, stingerOutput, FILE, parseBrowse, parseLookup, parseAddress };
