@@ -67,7 +67,7 @@ test('Round in review and ladder movers: places before the night, the biggest wi
   assert.equal((await studio.get(`/api/socials/night?date=${second}&with=numbers`)).numbers.upsets, 1);
   await draw('numbers', second);
   assert.ok((await texts('.tiles .stat small')).includes('Upset'));
-  assert.ok(!(await texts('.tiles .stat small')).includes('Average margin'), 'the average winning margin only shows on a night without an upset');
+  assert.ok(!(await texts('.tiles .stat small')).includes('Average win'), 'the average winning margin only shows on a night without an upset');
 
   // Ladder movers: on the division's latest night, unless turned off.
   await draw('ladder', second, '&division=Division%201');

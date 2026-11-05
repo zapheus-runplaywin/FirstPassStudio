@@ -106,7 +106,7 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   await draw('numbers', last);
   assert.ok((await texts('.tiles .stat b')).includes('228'));
   // No upsets that night, so the average winning margin takes their tile.
-  assert.deepEqual((await texts('.tiles .stat small')).slice(-2), ['Shooting', 'Average margin']);
+  assert.deepEqual((await texts('.tiles .stat small')).slice(-2), ['Shooting', 'Average win']);
   assert.ok((await texts('.tiles .stat b')).includes('82%'));
   await draw('club', last);
   assert.equal(await page.textContent('#title'), 'Thunder');
