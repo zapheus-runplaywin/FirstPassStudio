@@ -13,7 +13,7 @@
 // world.fail[operationName] (or .live) answers that request with an HTTP error status instead, and
 // world.answers[operationName] (or .live) answers it with whatever the function gives:
 //   world.answers.gradeLadder = ({ query }) => /byes/.test(query) && { status: 400, body: { errors: [...] } };
-// (a falsy result answers as usual).
+// (a falsy result answers as usual). world.delay[operationName] (or .live) holds that answer back so many milliseconds.
 
 'use strict';
 
@@ -44,7 +44,7 @@ function createWorld({ now = Date.now() } = {}) {
   const today = dateAt(now);
   const dayOf = days => dateAt(now + days * 86400000);
 
-  const world = { now, today, orgId: ORG_ID, orgUrl: ORG_URL, divisions: DIVISIONS, calls: [], live: {}, games: {}, rounds: {}, fail: {}, answers: {} };
+  const world = { now, today, orgId: ORG_ID, orgUrl: ORG_URL, divisions: DIVISIONS, calls: [], live: {}, games: {}, rounds: {}, fail: {}, answers: {}, delay: {} };
 
   for (const [d, div] of DIVISIONS.entries()) {
     const rounds = [];
@@ -218,8 +218,12 @@ async function startPlayhq(world = createWorld()) {
       const custom = (world.answers || {})[spectator ? 'live' : operationName];
       const own = custom && custom({ variables, query: parsed.query || '', calls: world.calls });
       if (own) { res.writeHead(own.status || 200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(own.body)); }
-      res.writeHead(200, { 'content-type': 'application/json', 'set-cookie': 'phq_session=test; Path=/' });
-      res.end(JSON.stringify(spectator ? liveAnswer(world, variables.id) : answer(world, operationName, variables, parsed.query)));
+      const send = () => {
+        res.writeHead(200, { 'content-type': 'application/json', 'set-cookie': 'phq_session=test; Path=/' });
+        res.end(JSON.stringify(spectator ? liveAnswer(world, variables.id) : answer(world, operationName, variables, parsed.query)));
+      };
+      const wait = (world.delay || {})[spectator ? 'live' : operationName];
+      if (wait) setTimeout(send, wait); else send();
     });
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
