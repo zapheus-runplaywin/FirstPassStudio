@@ -60,7 +60,9 @@ function renderMics() {
   $('mxDip').textContent = set.hand ? 'Ducked' : 'Duck';
   if (document.activeElement !== $('mxLevel')) $('mxLevel').value = set.level;
   for (const [id, key] of [['mxDipTo', 'dipTo'], ['mxDown', 'dipDownSec'], ['mxUp', 'dipUpSec']]) if (document.activeElement !== $(id)) $(id).value = set[key];
-  for (const [id, key] of [['mxDipMusic', 'dipMusic'], ['mxDipVideo', 'dipVideo'], ['mxDipQuiet', 'dipQuiet']]) $(id).checked = !!set[key];
+  // A tick just clicked keeps what was clicked until its own save comes back, so an update already on its way (from
+  // the box changed a moment before) can't untick it.
+  if (Date.now() - mxTicked > 1500) for (const [id, key] of [['mxDipMusic', 'dipMusic'], ['mxDipVideo', 'dipVideo'], ['mxDipQuiet', 'dipQuiet']]) $(id).checked = !!set[key];
   $('mxProblem').textContent = micLive.status;
   renderMicList();
   renderDuck();
@@ -154,7 +156,7 @@ $('mxDip').onclick = () => act({ type: 'micsDip', value: 'toggle' });
 $('mxLevel').onchange = () => act({ type: 'micsLevel', value: Number($('mxLevel').value) });
 const micsSettings = () => act({ type: 'micsSettings', settings: { dipTo: Number($('mxDipTo').value), dipDownSec: Number($('mxDown').value), dipUpSec: Number($('mxUp').value),
   dipMusic: $('mxDipMusic').checked, dipVideo: $('mxDipVideo').checked, dipQuiet: $('mxDipQuiet').checked } });
-for (const id of ['mxDipTo', 'mxDown', 'mxUp', 'mxDipMusic', 'mxDipVideo', 'mxDipQuiet']) $(id).onchange = micsSettings;
+for (const id of ['mxDipTo', 'mxDown', 'mxUp', 'mxDipMusic', 'mxDipVideo', 'mxDipQuiet']) $(id).onchange = () => { if ($(id).type === 'checkbox') mxTicked = Date.now(); micsSettings(); };
 
 // ─── The mic editor ─────────────────────────────────────────────────────
 let mxDraft = null;
