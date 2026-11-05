@@ -1032,8 +1032,9 @@
     }
 
     // Game stats (?game=): a finished game's numbers from PlayHQ's line ups, team against team (points and super shots
-    // where they're played, goals, attempts, misses, accuracy), and when Studio streamed it, quarters won, the longest
-    // run, the biggest lead and the lead changes.
+    // where they're played, goals, attempts, accuracy), and when Studio streamed it, quarters won, the longest run, the
+    // 3 and 5 goal runs (a run of 5 counts as a 3 goal run too) and the biggest lead. The team ahead on a row is lit up;
+    // a drawn row stays plain. No misses: having the most isn't a win.
     function gameHead(d, title) {
       const x = d.gameStats || {}, g = x.game;
       head(d, title, [g ? [g.division, g.final || g.round].filter(Boolean).join('  ·  ') : dayLong(d.date), el('small', '', g ? [dayShort(d.date), g.court].filter(Boolean).join('  ·  ') : '')]);
@@ -1056,7 +1057,6 @@
         else row('Goals', g.home.goals + g.home.superGoals, g.away.goals + g.away.superGoals);
         if (g.home.shots || g.away.shots) {
           row('Attempts', g.home.shots, g.away.shots);
-          row('Misses', g.home.misses, g.away.misses, 'fewer');
           row('Accuracy', pct(g.home.accuracy), pct(g.away.accuracy));
         }
       }
@@ -1064,8 +1064,9 @@
       if (s) {
         if (s.quartersWon && s.quartersWon.of) row('Quarters won', s.quartersWon.home, s.quartersWon.away);
         if (s.longestRun) row('Longest run', s.longestRun.home || 0, s.longestRun.away || 0);
+        if (s.runs3) row('3 goal runs', s.runs3.home || 0, s.runs3.away || 0);
+        if (s.runs5) row('5 goal runs', s.runs5.home || 0, s.runs5.away || 0);
         if (s.biggestLead) row('Biggest lead', (s.biggestLead.home || {}).margin || 0, (s.biggestLead.away || {}).margin || 0);
-        if (s.leadChanges !== null && s.leadChanges !== undefined) $('fit').append(bound('bound--line', el('div', 'game__team', 'Lead changes'), pill(String(s.leadChanges), 'final')));
       }
       if (!x.read && !s) return x.error;
     }
