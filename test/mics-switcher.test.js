@@ -98,3 +98,19 @@ test('without the switcher connected, a switcher mic says so and Studio sends no
   assert.match((await studio.get('/api/scene/mics/live')).problems[m.id], /switcher isn't connected/);
   assert.equal((await studio.request('GET', '/deck/mics/dip/on')).status, 200);
 });
+
+test('a switcher mic shows the sound coming into it, from the levels the switcher sends, louder side of a split input', async t => {
+  const { atem, studio, act, live } = await setUp(t, { split: [1302] });
+  await studio.until(() => atem.state.sendLevels, 5000, 50); // Studio asked for them on connecting, as ATEM Software Control does
+  const one = (await act({ type: 'micAdd', changes: { name: 'Commentator 1', on: 'atem', input: 1301 } })).mics.mics[0].id;
+  const two = (await act({ type: 'micAdd', changes: { name: 'Commentator 2', on: 'atem', input: 1302, channel: 'both' } })).mics.mics[1];
+  atem.setLevel(MIC1, -2000);
+  atem.setLevel('1302:-256', -3500);
+  atem.setLevel('1302:-255', -1800);
+  const l = await studio.until(async () => { const x = await live(); return x.levels[one] === -20 && x; });
+  assert.equal(l.faders[one], 0, 'the fader is still there beside it');
+  assert.equal(l.levels[two.id], -18, 'the louder of its two halves');
+  // Quiet now: the meter follows it down once the half second it holds the loudest moment has passed.
+  atem.setLevel(MIC1, -10000);
+  await studio.until(async () => (await live()).levels[one] === -100, 5000, 100);
+});

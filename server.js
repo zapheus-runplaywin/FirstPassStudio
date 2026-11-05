@@ -140,7 +140,7 @@ scene.setSwitcherSource(switcher.status);
 // Mics plugged into the switcher (mics.js): Studio moves their faders, and follows a fader moved on the switcher.
 switcher.init(log, { changed: () => { scene.publishSwitcher(); mics.switcherChanged(); }, stinger: { find: scene.stingerSource, play: scene.playStinger }, outputs: outputs.switcherPlan,
   unstraight: id => outputs.apply({ output: id, decklinkStraight: false }), mics: () => mics.switcherChanged() });
-mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader });
+mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader, level: switcher.micLevel });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
 const playhq = require('./playhq').create({
