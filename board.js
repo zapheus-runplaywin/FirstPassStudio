@@ -20,7 +20,7 @@
 //   record                                 recorder.js (record.action: each action, for the game recording)
 const fs = require('fs');
 const path = require('path');
-const { isFinished, startOf } = require('./playhq');
+const { isFinished, startOf, localDate } = require('./playhq');
 
 function create({ log, datadir, savefile, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }) {
   const { getRoundGames, liveScore, scoringNotYet, PERIOD_NUMBER } = playhq;
@@ -251,6 +251,7 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         break;
       case 'selectGame':
         if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
+        if (!a.auto) b.handPickedOn = localDate(); // a new night turns automatic selection back on, but not over a pick made that night
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
         if (b.gameId && b.gameId !== a.game.id) { b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } }; keepStory(true); }
         Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
@@ -274,10 +275,11 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         b.autoSelect = a.value === 'toggle' ? !b.autoSelect : !!a.value && a.value !== 'off';
         b.autoHold = '';
         break;
-      case 'autoCourt': // choosing a court means "follow this court", so it also turns automatic selection on
+      case 'autoCourt': // choosing a court means "follow this court", so it also turns automatic selection on (a court
+        // from the plan or the fallback doesn't, over a game picked by hand that night)
         b.autoCourt = String(a.value || '').trim(); b.autoHold = '';
         b.courtFrom = a.from !== undefined ? a.from : 'hand'; // by hand (control page, Stream Deck) lasts the night
-        if (b.autoCourt && !b.autoSelect) { b.autoSelect = true; log('info', 'auto', `Court set to ${b.autoCourt}, so automatic game selection is on`); }
+        if (b.autoCourt && !b.autoSelect && (b.courtFrom === 'hand' || b.handPickedOn !== localDate())) { b.autoSelect = true; log('info', 'auto', `Court set to ${b.autoCourt}, so automatic game selection is on`); }
         break;
       case 'followPlayhqClock': {
         b.followPlayhqClock = a.value === 'toggle' ? !b.followPlayhqClock : !!a.value && a.value !== 'off';
