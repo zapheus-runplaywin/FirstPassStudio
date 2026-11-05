@@ -3,6 +3,9 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 const $ = id => document.getElementById(id);
+// When a Ducking card tick box (the music's or the mics') was last clicked: for a moment after, an update already on its
+// way can't untick it (music.js, mics.js).
+let mxTicked = 0;
 // Studio's graphics, offered when adding a page. Page size is what the page is drawn at.
 // The graphics Add a page offers, from the one list in pages.js.
 const PAGES = STUDIO_GRAPHICS.map(p => [p.name, p.file]);

@@ -31,7 +31,7 @@ function renderMusic() {
   if (document.activeElement !== $('mVolume')) $('mVolume').value = m.volume;
   const set = scene.musicSettings || {};
   for (const [id, key] of [['mFadeIn', 'fadeInSec'], ['mFadeOut', 'fadeOutSec'], ['mQuick', 'quickSec'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
-  $('dkMusicVideo').checked = set.underVideo !== 'leave';
+  if (Date.now() - mxTicked > 1500) $('dkMusicVideo').checked = set.underVideo !== 'leave'; // as the mics' ticks (mics.js)
   if (typeof renderDuck === 'function') renderDuck();
   const pick = $('mTrackPick'), keep = pick.value;
   pick.innerHTML = '';
@@ -74,7 +74,8 @@ $('mLoadPlay').onclick = () => { if ($('mTrackPick').value) act({ type: 'musicLo
 const musicSettings = () => act({ type: 'musicSettings', settings: { fadeInSec: Number($('mFadeIn').value), fadeOutSec: Number($('mFadeOut').value), quickSec: Number($('mQuick').value),
   underVideo: $('dkMusicVideo').checked ? 'pause' : 'leave', duckTo: Number($('mDuckTo').value),
   superShotSong: $('mSuperSong').value, superShotVolume: Number($('mSuperVolume').value) } });
-for (const id of ['mFadeIn', 'mFadeOut', 'mQuick', 'dkMusicVideo', 'mDuckTo', 'mSuperSong', 'mSuperVolume']) $(id).onchange = musicSettings;
+for (const id of ['mFadeIn', 'mFadeOut', 'mQuick', 'mDuckTo', 'mSuperSong', 'mSuperVolume']) $(id).onchange = musicSettings;
+$('dkMusicVideo').onchange = () => { mxTicked = Date.now(); musicSettings(); };
 $('mUpload').onchange = async () => {
   const file = $('mUpload').files[0];
   if (!file) return;

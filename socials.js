@@ -713,8 +713,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return { goals: t ? t.goals : sum('goals'), superGoals: t ? t.superGoals : sum('superGoals'), shots: t && t.shots != null ? t.shots : sum('shots') };
   }
   // A finished game's numbers from its line ups (every finished game, streamed or not): each team's goals, super goals,
-  // attempts, misses, accuracy and points, and its shooters best first; with the story's quarters won, longest run,
-  // biggest lead and lead changes when Studio streamed it (story, else null).
+  // attempts, accuracy and points, and its shooters best first; with the story's quarters won, longest run, 3 and 5 goal
+  // runs and biggest lead when Studio streamed it (story, else null).
   async function gameStats(g) {
     if (!g) return { error: 'No result for that game yet.' };
     const b = brief(g);
@@ -726,7 +726,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
           accuracy: shots ? Math.round(scored / shots * 1000) / 10 : null };
       }).filter(p => p.shots || p.goals || p.superGoals).sort((x, y) => y.points - x.points || y.shots - x.shots || x.name.localeCompare(y.name)) : [];
       const { goals, superGoals, shots } = teamTotals(l && l[which]);
-      return { ...b[which], logo: logoFor(b[which].name), goals, superGoals, shots, misses: Math.max(0, shots - goals - superGoals), points: goals + 2 * superGoals,
+      return { ...b[which], logo: logoFor(b[which].name), goals, superGoals, shots, points: goals + 2 * superGoals,
         accuracy: shots ? Math.round((goals + superGoals) / shots * 1000) / 10 : null, shooters: players.map(p => ({ ...p, photo: photoFor({ name: p.name, team: b[which].name }) || null })) };
     };
     const story = storyFor(b.id);
@@ -734,7 +734,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const w = story && story.worm;
     return { game: { ...b, home: side('home'), away: side('away') }, read: !!l, superShots: !!superShots(b.division),
       error: l ? undefined : 'PlayHQ\'s line ups for this game couldn\'t be read.',
-      story: ss ? { quartersWon: ss.quartersWon, longestRun: ss.longestRun, biggestLead: w && w.biggestLead, leadChanges: w ? w.leadChanges : null } : null };
+      story: ss ? { quartersWon: ss.quartersWon, longestRun: ss.longestRun, runs3: ss.runs3, runs5: ss.runs5, biggestLead: w && w.biggestLead } : null };
   }
   // Team sheet (&game=): both teams' squads this season (everyone in their line ups), each with the position they play
   // most and their games played in the division.
