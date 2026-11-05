@@ -28,6 +28,10 @@ function micsBoard() {
   const mics = (set && set.mics) || [];
   if (!mics.length) return { word: 'No mics', why: 'add them in the Mics section', dot: '' };
   if (set.muted) return { word: 'Muted', why: 'all mics', dot: 'warn' };
+  // A mic that's heard nothing for a while (a flat battery, a receiver turned off) outranks the rest: it's the one to fix.
+  const silent = mics.filter(m => micLive.silent?.[m.id] !== undefined);
+  if (silent.length) return { word: 'Silent', why: silent.length > 1 ? `${silent.length} mics · nothing for ${Math.max(...silent.map(m => micLive.silent[m.id]))} s`
+    : `${silent[0].name} · nothing for ${micLive.silent[silent[0].id]} s`, dot: 'warn' };
   const mac = mics.filter(m => !onAtem(m)), atem = mics.filter(onAtem);
   const level = set.level !== 100 ? ` · level ${set.level}%` : '';
   const swWhy = atem.length ? (micLive.switcher?.connected ? 'switcher mics on its faders' : 'switcher not connected') : '';
@@ -56,7 +60,9 @@ function renderMics() {
   $('mxDip').textContent = set.hand ? 'Ducked' : 'Duck';
   if (document.activeElement !== $('mxLevel')) $('mxLevel').value = set.level;
   for (const [id, key] of [['mxDipTo', 'dipTo'], ['mxDown', 'dipDownSec'], ['mxUp', 'dipUpSec']]) if (document.activeElement !== $(id)) $(id).value = set[key];
-  for (const [id, key] of [['mxDipMusic', 'dipMusic'], ['mxDipVideo', 'dipVideo'], ['mxDipQuiet', 'dipQuiet']]) $(id).checked = !!set[key];
+  // A tick just clicked keeps what was clicked until its own save comes back, so an update already on its way (from
+  // the box changed a moment before) can't untick it.
+  if (Date.now() - mxTicked > 1500) for (const [id, key] of [['mxDipMusic', 'dipMusic'], ['mxDipVideo', 'dipVideo'], ['mxDipQuiet', 'dipQuiet']]) $(id).checked = !!set[key];
   $('mxProblem').textContent = micLive.status;
   renderMicList();
   renderDuck();
@@ -126,14 +132,18 @@ function meters() {
       if (!mark) { mark = document.createElement('b'); mark.title = 'Its fader on the switcher'; card.querySelector('.mxMeter').append(mark); }
       mark.style.left = `calc(${Math.max(0, Math.min(100, (fader + 60) / 66 * 100))}% - 1px)`;
     } else if (mark) mark.remove();
-    const where = card.querySelector('.where');
+    const where = card.querySelector('.where'), silent = !problem && micLive.silent?.[id];
     where.classList.toggle('badText', !!problem);
-    where.textContent = problem || micWhere(m) + (atem && heard !== undefined ? ` · hearing ${fmtDb(heard)}` : '') + (atem && fader !== undefined ? ` · fader ${fmtDb(fader)}` : '');
+    where.classList.toggle('warnText', !!silent);
+    where.textContent = problem || (silent ? `Silent for ${silent} s · check its receiver and battery` : '') || micWhere(m) + (atem && heard !== undefined ? ` · hearing ${fmtDb(heard)}` : '') + (atem && fader !== undefined ? ` · fader ${fmtDb(fader)}` : '');
   }
 }
 
+// Folded, the section still asks every 2 s, so the board's Mics line can say when a mic goes silent.
+let micPolls = 0;
 async function pollMics() {
-  if (isFolded($('micsSection')) || document.hidden || !micsOf().length && !$('mxDialog').open) return;
+  if (document.hidden || !micsOf().length && !$('mxDialog').open) return;
+  if (isFolded($('micsSection')) && micPolls++ % 4) return;
   try { micLive = await (await fetch('/api/scene/mics/live', { cache: 'no-store' })).json(); } catch { return; }
   renderMics();
   if ($('mxDialog').open) fillDevices();
@@ -146,7 +156,7 @@ $('mxDip').onclick = () => act({ type: 'micsDip', value: 'toggle' });
 $('mxLevel').onchange = () => act({ type: 'micsLevel', value: Number($('mxLevel').value) });
 const micsSettings = () => act({ type: 'micsSettings', settings: { dipTo: Number($('mxDipTo').value), dipDownSec: Number($('mxDown').value), dipUpSec: Number($('mxUp').value),
   dipMusic: $('mxDipMusic').checked, dipVideo: $('mxDipVideo').checked, dipQuiet: $('mxDipQuiet').checked } });
-for (const id of ['mxDipTo', 'mxDown', 'mxUp', 'mxDipMusic', 'mxDipVideo', 'mxDipQuiet']) $(id).onchange = micsSettings;
+for (const id of ['mxDipTo', 'mxDown', 'mxUp', 'mxDipMusic', 'mxDipVideo', 'mxDipQuiet']) $(id).onchange = () => { if ($(id).type === 'checkbox') mxTicked = Date.now(); micsSettings(); };
 
 // ─── The mic editor ─────────────────────────────────────────────────────
 let mxDraft = null;

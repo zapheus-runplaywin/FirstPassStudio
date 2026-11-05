@@ -52,6 +52,11 @@ const STEP_MS = 50;            // fades on the switcher's faders move in steps t
 const OWN_ECHO_MS = 1000;      // a fader reading this soon after Studio moved it is Studio's own move coming back
 // A report older than this means that window isn't mixing the mics any more (its output is off, or the window stopped).
 const REPORT_STALE_MS = 3000;
+// Silent: a mic that's heard nothing above SILENT_DB for SILENT_MS while it's being listened to (a flat battery, a
+// receiver turned off, a pulled cable), for its card and the board. A muted mic is never silent.
+const SILENT_DB = -55;
+const SILENT_MS = 10000;
+const heardAt = new Map(); // mic id -> { since: first reading of this run, loud: last reading above SILENT_DB, last: last reading }
 
 let log = () => {};
 let settings = defaults();
@@ -367,9 +372,30 @@ function report(r) {
     if (Number.isFinite(v)) levels[m.id] = Math.max(-100, Math.min(0, Math.round(v)));
     if (r?.problems?.[m.id]) problems[m.id] = text(r.problems[m.id], 200);
   }
+  for (const [id, db] of Object.entries(levels)) noteLevel(id, db);
   const s = { at: now(), devices: cleanDevices(r?.devices), levels, problems, status: text(r?.status, 200) };
   seen.set(out, s);
   if (s.status !== was && s.status) log('warn', 'mics', s.status);
+}
+// A reading of what comes into a mic (dBFS): when it was last loud enough to count as heard. Readings that stopped
+// for a while start a new run, so a mic isn't called silent for the time nobody was listening.
+function noteLevel(id, db, t = now()) {
+  let h = heardAt.get(id);
+  if (!h || t - h.last > REPORT_STALE_MS) h = { since: t, loud: 0, last: t };
+  h.last = t;
+  if (db > SILENT_DB) h.loud = t;
+  heardAt.set(id, h);
+}
+// { micId: seconds } for each mic that's been silent SILENT_MS or more, while its readings keep coming.
+function silences(t = now()) {
+  const out = {};
+  for (const m of settings.mics) {
+    const h = heardAt.get(m.id);
+    if (!h || t - h.last > REPORT_STALE_MS || m.muted || settings.muted) continue;
+    const quiet = t - Math.max(h.loud, h.since);
+    if (quiet >= SILENT_MS) out[m.id] = Math.floor(quiet / 1000);
+  }
+  return out;
 }
 // The Output page in the Mac app listing the Mac's audio inputs.
 function devicesListed(list) { listed = { at: now(), devices: cleanDevices(list) }; }
@@ -385,7 +411,8 @@ function live() {
     for (const [id, v] of Object.entries(s.problems)) if (mac.has(id)) problems[id] = v;
   }
   // levels: what comes into each mic, the Mac's from Output 1's window, the switcher's from the switcher when it sends them.
-  return { mixing: fresh.length > 0, devices, levels: { ...levels, ...atem.levels }, problems: { ...problems, ...atem.problems }, status: fresh.map(s => s.status).find(Boolean) || '',
+  for (const [id, db] of Object.entries(atem.levels)) noteLevel(id, db);
+  return { mixing: fresh.length > 0, devices, levels: { ...levels, ...atem.levels }, silent: silences(), problems: { ...problems, ...atem.problems }, status: fresh.map(s => s.status).find(Boolean) || '',
     switcher: { connected: atem.connected, inputs: atem.inputs }, faders: atem.faders };
 }
 
