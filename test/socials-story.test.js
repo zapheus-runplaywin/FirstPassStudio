@@ -30,7 +30,10 @@ test('a streamed game keeps its story for Game story and Score worm, and Watch i
   const n = await studio.get(`/api/socials/night?date=${second}&with=story&game=game-d1-r2-1`);
   assert.deepEqual(n.stories, ['game-d1-r2-1']);
   const s = n.story;
-  assert.equal(s.complete, true, 'every goal seen, and the kept score is the result');
+  // On failure, what made it incomplete (it has failed only on the Mac build, so the message is all there is to go on).
+  const why = () => JSON.stringify({ gap: s.stats.gapInHistory, kept: [s.stats.home.score, s.stats.away.score], result: [s.game.home.score, s.game.away.score],
+    finished: s.game.finished, goals: s.stats.totalGoals, log: studio.log().split('\n').filter(l => /\[(auto|goals|scoreboard)\]/.test(l)).slice(-25) }, null, 1);
+  assert.equal(s.complete, true, `every goal seen, and the kept score is the result: ${s.complete ? '' : why()}`);
   assert.deepEqual(s.stats.quarters.map(q => [q.home, q.away]), quarters);
   assert.deepEqual([s.stats.stats.quartersWon.home, s.stats.stats.quartersWon.away], [3, 1]);
   assert.equal(s.worm.segments.flat().at(-1).margin, 5);

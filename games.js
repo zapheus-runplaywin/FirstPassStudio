@@ -417,7 +417,8 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       log('info', 'auto', planned ? `The Production Planner streams ${planned.court} on ${night}, so Scoreboard control follows it`
         : court ? `No plan for ${night} in the Production Planner, so Scoreboard control follows the fallback court, ${court}` : `No plan for ${night} in the Production Planner and no fallback court`);
       applyAction(b, { type: 'autoCourt', value: court, from: planned ? 'plan' : court ? 'fallback' : '' });
-      if (!b.autoSelect) { b.autoSelect = true; log('info', 'auto', 'A new night, so automatic game selection is on'); }
+      // A game picked by hand that night (say in the moments after Studio started) stays picked by hand.
+      if (!b.autoSelect && b.handPickedOn !== night) { b.autoSelect = true; log('info', 'auto', 'A new night, so automatic game selection is on'); }
       saveBoards();
       return;
     }
@@ -435,6 +436,9 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       try { await followPlan(b); } catch (err) { log('warn', 'auto', `Couldn't read the Production Planner's court: ${err.message}`); }
       // Runs while automatic selection is on, and whenever the board has no game at all.
       if (!b.autoSelect && b.gameId) return;
+      // A game picked by hand while PlayHQ was being read wins: this run's pick is from before it, so it's dropped.
+      const gameBefore = b.gameId;
+      const pickedByHand = () => b.gameId !== gameBefore || (gameBefore && !b.autoSelect);
       const court = b.autoCourt || '';
       const games = court && b.autoSelect ? await todaysGames(court) : [];
       if (!games.length) {
@@ -447,12 +451,14 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         if (!pool.length) { b.autoNote = 'PlayHQ has no games on this game night yet.'; return; }
         if (b.autoSelect) b.autoNote = !court ? `Set a court to follow its games through the night. Showing this game night's first game.`
           : `No games on ${court} ${nightChoice ? 'that night' : 'today'}. Showing this game night's first game${onCourt.length ? ` on ${court}` : ''}.`;
+        if (pickedByHand()) return;
         if (!b.gameId || (b.autoSelect && !pool.some(g => g.id === b.gameId))) {
           switchTo(b, pool[0], !court ? 'no court set, so starting with this game night\'s first game:'
             : onCourt.length ? `no games on ${court} today, so starting with its first game this game night:` : `no games on ${court} this game night, so starting with its first game:`);
         }
         return;
       }
+      if (pickedByHand()) return;
       const now = Date.now();
       const due = games.filter(g => startOf(g) - AUTO_LEAD_MS <= now);
       const pick = due.length ? due[due.length - 1] : games[0];
@@ -471,6 +477,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       if (current && isFinalsRound(current)) {
         let status = current.status;
         try { status = (await getLive(current.id, 20000)).status || status; } catch { /* use the fixture's status */ }
+        if (pickedByHand()) return;
         if (!isFinished({ ...current, status })) {
           const hold = `Keeping the final on until PlayHQ marks it finished. To move on sooner, pick the next game from the list, then tick this again.`;
           if (b.autoHold !== hold) log('info', 'auto', hold);
