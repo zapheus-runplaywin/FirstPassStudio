@@ -113,4 +113,7 @@ test('a switcher mic shows the sound coming into it, from the levels the switche
   // Quiet now: the meter follows it down once the half second it holds the loudest moment has passed.
   atem.setLevel(MIC1, -10000);
   await studio.until(async () => (await live()).levels[one] === -100, 5000, 100);
+  // Nothing for 10 s: it's silent (a flat battery, a receiver turned off), while the other one is still heard.
+  const quiet = await studio.until(async () => { const x = await live(); return x.silent[one] >= 10 && x; }, 15000, 250);
+  assert.equal(quiet.silent[two.id], undefined);
 });

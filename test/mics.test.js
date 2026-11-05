@@ -187,3 +187,26 @@ test('what the output window hears: devices, levels and trouble, forgotten once 
   mics.devicesListed(['Scarlett 2i2 USB']);
   assert.deepEqual(mics.live().devices, ['Scarlett 2i2 USB']);
 });
+
+test('a mic that hears nothing for 10 s is silent; sound, a mute or no readings clear it', () => {
+  reset();
+  ok({ type: 'micAdd', changes: { name: 'Court mic', device: 'USB Audio CODEC' } });
+  ok({ type: 'micAdd', changes: { name: 'Crowd mic', device: 'USB Audio CODEC' } });
+  const [a, b] = x().mics;
+  const hear = (da, db, sec) => { for (let i = 0; i < sec; i++) { mics.report({ levels: { [a.id]: da, [b.id]: db } }); wait(1); } };
+  hear(-80, -20, 9);
+  assert.deepEqual(mics.live().silent, {}, 'not yet 10 s');
+  hear(-80, -20, 3);
+  assert.deepEqual(mics.live().silent, { [a.id]: 12 }, 'the crowd mic is heard');
+  hear(-30, -20, 1);
+  assert.deepEqual(mics.live().silent, {}, 'sound came back');
+  hear(-80, -20, 11);
+  ok({ type: 'micMute', mic: a.id, value: 'on' });
+  assert.deepEqual(mics.live().silent, {}, 'a muted mic is never silent');
+  ok({ type: 'micMute', mic: a.id, value: 'off' });
+  assert.deepEqual(Object.keys(mics.live().silent), [a.id]);
+  wait(4);
+  assert.deepEqual(mics.live().silent, {}, 'nobody is listening (Output 1 stopped reporting)');
+  hear(-80, -20, 5);
+  assert.deepEqual(mics.live().silent, {}, 'a new run of readings starts the count again');
+});
