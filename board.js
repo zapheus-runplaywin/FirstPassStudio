@@ -391,13 +391,18 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
     const wait = scoringNotYet(b);
     if (wait !== (b.playhqWaiting || '')) { if (wait) log('info', 'scoreboard', wait); b.playhqWaiting = wait; }
     if (wait) { b.playhqError = ''; b.playhqTrouble = ''; return; }
+    // A reading that comes back after scores were switched to Manual or another game was picked belongs to before
+    // then, so it's dropped: it would otherwise put PlayHQ's score over the one being scored by hand.
+    const gameId = b.gameId;
+    const stillFollowing = () => b.source === 'playhq' && b.gameId === gameId;
     try {
       const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
       let game = null;
-      const s = await liveScore({ id: b.gameId }, maxAge);
+      const s = await liveScore({ id: gameId }, maxAge);
+      if (!stillFollowing()) return;
       if (s && b.followHold && holdHandScore(b, s)) { b.playhqError = ''; watchTrouble(b); return; }
       if (s) {
-        game = { id: b.gameId, status: s.status, home: { name: b.home.name, score: s.home }, away: { name: b.away.name, score: s.away } };
+        game = { id: gameId, status: s.status, home: { name: b.home.name, score: s.home }, away: { name: b.away.name, score: s.away } };
         // Follow the scorer's quarter when it changes (the Stream Deck can still set it in between).
         const q = s.live && PERIOD_NUMBER[s.live.period];
         if (q && b.playhqPeriodSeen !== s.live.period) {
@@ -411,8 +416,9 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
         // Last resort: the round fixture, which only has scores once a game is final. One kept from before PlayHQ
         // failed isn't a reading: the board keeps its score and says why.
         const games = await getRoundGames(b.roundId, maxAge);
+        if (!stillFollowing()) return;
         if (games.stale) throw new Error(games.stale);
-        game = games.find(g => g.id === b.gameId);
+        game = games.find(g => g.id === gameId);
       }
       if (!game) { watchTrouble(b); return; }
       const catchUp = catchUpIn(b, game, s && s.live);
