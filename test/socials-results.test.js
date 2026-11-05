@@ -29,11 +29,11 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   tpl.settings.teamClubs = { Knights: 'Thunder', Titans: 'Thunder' };
   await studio.post('/api/setup-template', Buffer.from(JSON.stringify(tpl)));
   const socials = await studio.get('/api/socials');
-  for (const k of ['accuracy', 'supershots', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap']) assert.equal(socials.settings.sponsor[k], true, `${k} carries the sponsor strip`);
+  for (const k of ['accuracy', 'supershots', 'teamsupers', 'onfire', 'numbers', 'club', 'streaks', 'season', 'wrap']) assert.equal(socials.settings.sponsor[k], true, `${k} carries the sponsor strip`);
   const nights = socials.nights.map(n => n.date);
   const last = nights[3];
 
-  const n = await studio.get(`/api/socials/night?date=${last}&with=numbers,accuracy,onfire,supershots,season,wrap&division=Division%201&team=Blizzardz`);
+  const n = await studio.get(`/api/socials/night?date=${last}&with=numbers,accuracy,onfire,supershots,teamsupers,season,wrap&division=Division%201&team=Blizzardz`);
   assert.deepEqual(n.lastNights, ['Division 1', 'Division 2']);
   assert.deepEqual(n.superShotDivisions, ['Division 1', 'Division 2']);
   assert.deepEqual(n.clubs, [{ club: 'Thunder', games: n.games.filter(g => [g.home.name, g.away.name].some(x => x === 'Knights' || x === 'Titans')).map(g => g.id) }]);
@@ -48,6 +48,12 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   assert.ok(n.onFire.players.length && n.onFire.players.every(p => p.rise > 0 && p.recent - p.earlier > 0));
   assert.equal(n.superShots.night.length, 3);
   assert.ok(n.superShots.season.every(p => p.superGoals > 0));
+  // Team super shots: every Division 1 team, its night and season from the team counts (one each a game here), most first.
+  const ts = n.teamSupers;
+  assert.equal(ts.teams.length, 4);
+  assert.ok(ts.teams.every(t => t.season === t.games && t.tonight === 1 && t.logo !== undefined));
+  assert.deepEqual(ts.teams.map(t => t.season), [...ts.teams.map(t => t.season)].sort((a, b) => b - a), 'most first');
+  assert.equal(ts.notCounted, 0);
 
   const s = n.season;
   assert.deepEqual([s.played, s.won, s.lost, s.drawn, s.place, s.percentage], [4, 3, 1, 0, 2, 108.3]);
@@ -87,6 +93,8 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   assert.equal((await texts('.shooter__name')).length, n.accuracy.players.length);
   await draw('supershots', last, '&division=Division%201');
   assert.deepEqual(await texts('.group__name'), ['Tonight', 'Season']);
+  await draw('teamsupers', last, '&division=Division%201');
+  assert.equal((await texts('.shooter__name')).length, ts.teams.length);
   await draw('onfire', last, '&division=Division%201');
   assert.match((await texts('.shooter__team'))[0], /was \d/);
   await draw('numbers', last);

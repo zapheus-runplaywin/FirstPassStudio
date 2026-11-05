@@ -245,11 +245,13 @@
         help: `${div}'s best shooting accuracy that night (goals over attempts), for shooters with 10 attempts or more.` });
       if ((night.superShotDivisions || []).includes(div)) list.push({ key: `supershots:${div}`, kind: 'supershots', division: div, name: `Super shot leaders ${div}`,
         help: `${div}'s most super shots that night and over the season so far, top three each.` });
+      if ((night.superShotDivisions || []).includes(div)) list.push({ key: `teamsupers:${div}`, kind: 'teamsupers', division: div, name: `Team super shots ${div}`,
+        help: `Every ${div} team's super shots that night and over the season so far, from PlayHQ's team counts (a super shot without a named shooter counts too).` });
       list.push({ key: `onfire:${div}`, kind: 'onfire', division: div, name: `On fire ${div}`,
         help: `${div}'s shooters who played that night with the biggest rise in goals a game over their last three games, on their games before.` });
     }
     pending('accuracy', 'Sharpshooter');
-    if (night.games.some(g => (night.superShotDivisions || []).includes(g.division))) pending('supershots', 'Super shot leaders');
+    if (night.games.some(g => (night.superShotDivisions || []).includes(g.division))) { pending('supershots', 'Super shot leaders'); pending('teamsupers', 'Team super shots'); }
     pending('onfire', 'On fire');
     list.push({ key: 'numbers', kind: 'numbers', name: 'Night in numbers', missing: none,
       help: 'The night added up: games, goals (points where there are super shots), super shots, games within 3 goals, the biggest win and the highest score.' });
