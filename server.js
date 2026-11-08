@@ -883,6 +883,14 @@ http.createServer(async (req, res) => {
       const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), body.publicKey, body.browser === true);
       return send(res, asked.error ? 409 : 202, asked);
     }
+    // A QR code that opens one of Studio's pages on a phone (Open on your phone): the pair page by this Mac's link, which
+    // goes on to the page once the phone is paired (or at once when it is already). Only Studio's own pages.
+    if (url.pathname === '/api/phone-link' && req.method === 'GET') {
+      const page = url.searchParams.get('page') || '/socials.html';
+      if (!/^\/[a-z]+\.html$/.test(page)) return send(res, 400, { error: 'Only one of Studio\'s own pages opens on a phone.' });
+      const link = `${LINK_BASE}/pair.html?then=${encodeURIComponent(page)}`;
+      return send(res, 200, { link, svg: sponsors.qrSvg(link).svg });
+    }
     // The pair page asks whether this browser is paired already (its cookie), and as what.
     if (url.pathname === '/api/pair/me') {
       const me = devices.fromCookie(req.headers.cookie);

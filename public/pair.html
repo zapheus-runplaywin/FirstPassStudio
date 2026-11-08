@@ -52,9 +52,12 @@
 <script>
   'use strict';
   const $ = id => document.getElementById(id);
+  // ?then=/socials.html (from a QR code on the Mac): the Studio page to go on to once this device is paired.
+  const then = (() => { const t = new URLSearchParams(location.search).get('then') || ''; return /^\/[a-z]+\.html$/.test(t) ? t : ''; })();
   const show = which => { for (const id of ['mac', 'ask', 'waiting', 'paired']) $(id).hidden = id !== which; };
 
   function paired(name, level) {
+    if (then) return location.replace(then);
     $('pairedAs').textContent = level === 'scoring'
       ? `Paired as ${name}: this device can change the scores, clock, quarter and game.`
       : `Paired as ${name}: this device can change everything, like the Mac.`;
