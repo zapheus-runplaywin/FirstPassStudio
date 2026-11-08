@@ -284,6 +284,26 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   assert.match(skipping.skipped[0].reason, /athlete/i);
   const carouselDir = path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results carousel`);
   assert.ok(!fs.existsSync(path.join(carouselDir, '03 Ladder Division 1 (portrait).png')), 'no gap left behind');
+  // Saved for a phone: made in a temporary folder, nothing opens on the Mac, and the phone fetches each picture (and the zip) from
+  // the links in the answer.
+  await studio.app.evaluate(() => { globalThis.opened = globalThis.shown = null; });
+  const inPictures = () => fs.readdirSync(path.join(pictures, 'FirstPass Studio'), { recursive: true }).map(f => [f, fs.statSync(path.join(pictures, 'FirstPass Studio', f)).mtimeMs].join()).sort();
+  const before = inPictures();
+  const phone = await studio.post('/api/socials/export', { date: played, set: 'results', toDevice: true, zip: true, share: true, items: [
+    { name: 'Results', link: `/social.html?kind=results&size=square&date=${played}`, size: 'square' }] });
+  assert.ok(!phone.error, phone.error);
+  assert.equal(phone.shared, false, 'the Mac\'s Share menu stays shut');
+  assert.equal(phone.folder, null);
+  assert.deepEqual(inPictures(), before, 'nothing is kept in Pictures');
+  assert.equal(await studio.app.evaluate(() => globalThis.opened || globalThis.shown), null, 'Finder stays shut');
+  assert.deepEqual(phone.made.pictures.map(p => p.name), ['01 Results (square).png']);
+  const got = await fetch(`http://127.0.0.1:${studio.port}${phone.made.pictures[0].url}`);
+  assert.equal(got.status, 200);
+  assert.equal(got.headers.get('content-type'), 'image/png');
+  assert.deepEqual(size(Buffer.from(await got.arrayBuffer())), [1080, 1080]);
+  const gotZip = await fetch(`http://127.0.0.1:${studio.port}${phone.made.zip.url}`);
+  assert.equal(gotZip.headers.get('content-type'), 'application/zip');
+  assert.match(gotZip.headers.get('content-disposition'), /^attachment; filename="Thunder League .* Results\.zip"/);
   // Nothing at all to save is still an error.
   const none = await fetch(`http://127.0.0.1:${studio.port}/api/socials/export`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ date: played, set: 'results', items: [{ name: 'Spotlight', link: `/social.html?kind=spotlight&size=square&date=${played}`, size: 'square' }] }) });

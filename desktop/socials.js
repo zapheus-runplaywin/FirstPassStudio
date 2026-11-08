@@ -49,14 +49,30 @@ async function take({ url, width, height }) {
   }
 }
 
+// Pictures made for a phone: one folder per save under the Mac's temporary folder, each removed an hour after it was
+// made (the helper serves them that long), checked whenever another is made.
+const TEMP_KEPT_MS = 60 * 60 * 1000;
+const tempRoot = () => path.join(app.getPath('temp'), 'FirstPass Studio socials');
+function clearOldTemp() {
+  let dirs = [];
+  try { dirs = fs.readdirSync(tempRoot()); } catch { return; }
+  for (const d of dirs) {
+    const dir = path.join(tempRoot(), d);
+    try { if (Date.now() - fs.statSync(dir).mtimeMs > TEMP_KEPT_MS) fs.rmSync(dir, { recursive: true, force: true }); } catch { /* gone already */ }
+  }
+}
+
 module.exports = function socials({ log }) {
-  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], share, zip }. Each
-  // picture is saved as "<NN> <label>.png", numbered in order. Answers
-  // { type: 'socialsSaved', id, folder, files, skipped: [{ name, reason }], zip, shared } or { ..., error }.
+  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], share, zip, quiet }.
+  // Each picture is saved as "<NN> <label>.png", numbered in order. quiet (saved for a phone, which fetches them) makes
+  // them in a temporary folder instead, cleared after an hour, and opens neither Finder nor the Share menu. Answers
+  // { type: 'socialsSaved', id, folder, files, skipped: [{ name, reason }], zip, zipFile, shared } or { ..., error }.
   async function save(child, msg) {
     const answer = m => child.postMessage({ type: 'socialsSaved', id: msg.id, ...m });
     try {
-      const folder = path.join(app.getPath('pictures'), 'FirstPass Studio', path.basename(String(msg.folder || 'Socials')));
+      const name = path.basename(String(msg.folder || 'Socials'));
+      const folder = msg.quiet ? path.join(tempRoot(), String(msg.id).replace(/[^\w-]/g, ''), name) : path.join(app.getPath('pictures'), 'FirstPass Studio', name);
+      if (msg.quiet) clearOldTemp();
       fs.mkdirSync(folder, { recursive: true });
       const fileOf = (p, n) => path.join(folder, path.basename(`${String(n).padStart(2, '0')} ${p.label}.png`));
       // A carousel picture draws its place (?page=2/6), so it needs the count of the pictures that are saved.
@@ -108,7 +124,9 @@ module.exports = function socials({ log }) {
       }
       let shared = false;
       const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows().find(w => w.isVisible());
-      if (msg.share && ShareMenu && process.platform === 'darwin' && win) {
+      if (msg.quiet) {
+        // Saved for a phone: nothing opens on the Mac.
+      } else if (msg.share && ShareMenu && process.platform === 'darwin' && win) {
         new ShareMenu({ filePaths: zip ? [zip] : files }).popup({ window: win });
         shared = true;
       } else if (zip) {
@@ -117,7 +135,7 @@ module.exports = function socials({ log }) {
         shell.openPath(folder);
       }
       const shown = f => path.join('Pictures', 'FirstPass Studio', path.basename(f));
-      answer({ folder: shown(folder), files, skipped, zip: zip && shown(zip), shared });
+      answer({ folder: msg.quiet ? null : shown(folder), files, skipped, zip: zip && (msg.quiet ? path.basename(zip) : shown(zip)), zipFile: zip, shared });
     } catch (err) {
       log(`Socials: ${err.message}`);
       answer({ error: err.message });

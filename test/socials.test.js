@@ -274,3 +274,12 @@ test('saving says it needs the Mac app when Studio runs without it', async () =>
   assert.equal(r.status, 501);
   assert.match(r.json.error, /needs the FirstPass Studio app/);
 });
+
+test('the tab knows whether it is open on this Mac, and pictures saved for a phone are private and go after a while', async () => {
+  assert.equal((await studio.get('/api/socials')).here, true, 'a page on this Mac');
+  assert.equal((await studio.request('GET', '/api/socials/made/00000000-0000-4000-8000-000000000000/1')).status, 404);
+  assert.equal((await studio.request('GET', '/api/socials/made/not-an-id/1')).status, 404);
+  const access = require('../access');
+  assert.equal(access.privateRead('GET', '/api/socials/made/00000000-0000-4000-8000-000000000000/1'), true);
+  assert.equal(access.privateRead('GET', '/api/socials'), false, 'the tab itself stays open to read');
+});

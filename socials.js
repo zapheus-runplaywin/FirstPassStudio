@@ -6,7 +6,8 @@
 // once and kept, as for Top shooters), the Production Planner's court and commentators, the competition's sponsors
 // and logos. Two sets: Upcoming (before the night) and Results (after it). The Mac app takes the pictures (desktop/socials.js): the helper asks it over the app's message port, it
 // draws each link off screen at its full size and saves the PNGs in Pictures/FirstPass Studio/, then opens the folder
-// or the Mac's Share menu. Without the Mac app (npm start) the previews work and Export says it needs the app.
+// or the Mac's Share menu. Saved from a phone (or another computer), the Mac makes them in a temporary folder and the
+// phone fetches them to keep. Without the Mac app (npm start) the previews work and Export says it needs the app.
 //
 // Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
 // colourSets: [{ id, name, ground, highlight, accent }], template, favourites: [<template id>], favouritesOnly, movers,
@@ -18,7 +19,7 @@
 //
 // Routes (server.js hands every /api/socials and /socials/ request here):
 //   GET  /api/socials                    the game nights, the settings, the kinds of picture (KIND_NAMES) and whether
-//                                        pictures can be saved (the app)
+//                                        pictures can be saved (app: the Mac app) and here (the page is open on this Mac)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
 //                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played
 //                                        (with each team's move since before the night, when the ladder is after it), &with=shooters
@@ -65,7 +66,11 @@
 //                                        app saves them (and a zip of them with zip: true). carousel: true saves them as one
 //                                        Instagram carousel in their order: one size, up to 20, each marked 1/6, 2/6...
 //                                        (?page=), in a folder of its own. A picture that can't be made is skipped and the
-//                                        rest saved: answers { folder, files, skipped: [{ name, reason }], zip, shared }
+//                                        rest saved: answers { folder, files, skipped: [{ name, reason }], zip, shared }.
+//                                        toDevice: true (a phone) makes them in a temporary folder on the Mac (folder: null),
+//                                        opening nothing, and adds made: { pictures: [{ name, url }], zip: { name, url } | null }
+//   GET  /api/socials/made/<id>/<n|zip>  a picture (or the zip) saved for a phone, for an hour; private like the
+//                                        settings (access.js), so with the lock on only a paired device gets it
 
 'use strict';
 
@@ -73,6 +78,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const uploads = require('./uploads');
+const access = require('./access');
 const { isFinished } = require('./playhq');
 const { TEMPLATE_FONTS } = require('./fonts');
 const { ROUND: FINALS_ROUND } = require('./finals');
@@ -167,6 +173,10 @@ const MAX_PHOTO = 40 * 1024 * 1024;
 const MAX_ITEMS = 120;
 const CAROUSEL_MAX = 20; // Instagram's most pictures in one post
 const EXPORT_TIMEOUT_MS = 5 * 60 * 1000;
+// Pictures saved for another device (a paired phone): it fetches them from /api/socials/made/<id>/<n> for this long,
+// and only the newest few saves are kept.
+const MADE_KEPT_MS = 60 * 60 * 1000;
+const MADE_KEPT = 5;
 
 const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
 const slotOf = g => String(g.time || '').slice(0, 5);
@@ -868,6 +878,19 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
   // A file name from a picture's name: letters, digits, spaces and a few marks, never a path.
   const fileName = s => String(s || '').replace(/[^\p{L}\p{N} '&()+,.-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Picture';
+  // Saves made for another device: id -> { files, zip, at } (paths in the Mac app's temporary folder).
+  const made = new Map();
+  function keepMade(files, zip) {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    for (const [k, v] of made) if (now - v.at > MADE_KEPT_MS) made.delete(k);
+    made.set(id, { files, zip, at: now });
+    while (made.size > MADE_KEPT) made.delete(made.keys().next().value);
+    return id;
+  }
+  // body.toDevice: the pictures are for the device that asked (a phone), not this Mac: the app makes them in a temporary
+  // folder (cleared after an hour) without opening Finder or the Share menu, and the answer lists links the device
+  // fetches them from.
   async function save(body, port) {
     const items = carouselOf(body);
     if (!appPort) throw Object.assign(new Error('Saving the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.'), { status: 501 });
@@ -890,20 +913,34 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       setTimeout(() => { if (waiting.delete(id)) resolve({ error: 'The Mac app took too long to save the pictures.' }); }, EXPORT_TIMEOUT_MS).unref();
     });
     log('info', 'socials', `Saving ${pictures.length} pictures for ${date} (${set})${body.share ? ' to share' : ''}`);
-    appPort.postMessage({ type: 'socialsSave', id, folder, carousel: body.carousel === true, pictures, share: body.share === true, zip: body.zip === true });
+    const toDevice = body.toDevice === true;
+    appPort.postMessage({ type: 'socialsSave', id, folder, carousel: body.carousel === true, pictures, share: !toDevice && body.share === true, zip: body.zip === true, quiet: toDevice });
     const m = await answer;
     if (m.error) { log('warn', 'socials', `Saving the pictures for ${date}: ${m.error}`); throw Object.assign(new Error(m.error), { status: 500 }); }
     const skipped = m.skipped || [];
-    log('info', 'socials', `Saved ${m.files.length} pictures in ${m.folder}${m.zip ? `, and ${m.zip}` : ''}`);
+    log('info', 'socials', toDevice ? `Made ${m.files.length} pictures for another device` : `Saved ${m.files.length} pictures in ${m.folder}${m.zip ? `, and ${m.zip}` : ''}`);
     for (const x of skipped) log('warn', 'socials', `Skipped ${x.name}: ${x.reason}`);
-    return { folder: m.folder, files: m.files.map(f => path.basename(f)), skipped, zip: m.zip || null, shared: !!m.shared };
+    const saved = { folder: m.folder, files: m.files.map(f => path.basename(f)), skipped, zip: m.zip || null, shared: !!m.shared };
+    if (!toDevice) return saved;
+    const got = keepMade(m.files, m.zipFile || null);
+    return { ...saved, made: { pictures: m.files.map((f, i) => ({ name: path.basename(f), url: `/api/socials/made/${got}/${i + 1}` })),
+      zip: m.zipFile ? { name: path.basename(m.zipFile), url: `/api/socials/made/${got}/zip` } : null } };
+  }
+  // A picture (or the zip) saved for another device, as a download named like the file on the Mac.
+  function madeFile(id, which) {
+    const m = made.get(id);
+    if (!m || Date.now() - m.at > MADE_KEPT_MS) return null;
+    const file = which === 'zip' ? m.zip : /^\d+$/.test(which) ? m.files[Number(which) - 1] : null;
+    return file && fs.existsSync(file) ? file : null;
   }
 
   async function route(req, res, url, { send, readBody, readRaw, port }) {
     const p = url.pathname;
     const q = Object.fromEntries(url.searchParams);
     try {
-      if (p === '/api/socials' && req.method === 'GET') return send(res, 200, await list()), true;
+      // here: the page is open on this Mac (Save puts the pictures in its Pictures folder) rather than on a phone or
+      // another computer (Save hands them to that device).
+      if (p === '/api/socials' && req.method === 'GET') return send(res, 200, { ...await list(), here: access.isLocal(req.socket.remoteAddress) }), true;
       if (p === '/api/socials/night' && req.method === 'GET') return send(res, 200, await night(q)), true;
       // The athletes to pick for a picture: those with a photo they approved, with their teams and divisions.
       if (p === '/api/socials/athletes' && req.method === 'GET') return send(res, 200, { athletes: athletesWithPhotos() }), true;
@@ -913,6 +950,16 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       }
       if (p === '/api/socials/photo' && req.method === 'POST') return send(res, 200, { photo: savePhoto(q.name, await readRaw(req, MAX_PHOTO)) }), true;
       if (p === '/api/socials/export' && req.method === 'POST') return send(res, 200, await save(await readBody(req), port)), true;
+      const got = /^\/api\/socials\/made\/([0-9a-f-]{36})\/(\d+|zip)$/.exec(p);
+      if (got && req.method === 'GET') {
+        const file = madeFile(got[1], got[2]);
+        if (!file) return send(res, 404, { error: 'Those pictures are gone: save them again.' }), true;
+        const zip = got[2] === 'zip';
+        // ASCII file name plus the full one (RFC 6266), so Safari keeps the name the Mac gave it.
+        const name = path.basename(file);
+        const disposition = `${zip ? 'attachment' : 'inline'}; filename="${name.replace(/[^\x20-\x7e]|"/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+        return send(res, 200, fs.readFileSync(file), zip ? 'application/zip' : 'image/png', { ...uploads.SERVE_HEADERS, 'content-disposition': disposition, 'cache-control': 'no-store' }), true;
+      }
       const photo = /^\/socials\/photos\/([^/]+)$/.exec(p);
       if (photo && req.method === 'GET') {
         const file = photoFile(photo[1]);

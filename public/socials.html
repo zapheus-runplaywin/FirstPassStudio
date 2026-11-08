@@ -81,6 +81,22 @@
   .carousel .chip i { font-style: normal; font-weight: 800; color: var(--fp-blue); }
   .carousel .chip button { padding: 0 5px; font-size: 13px; line-height: 1.4; }
   .carousel .chip.past { border-color: var(--fp-danger); }
+  /* On a phone: the night's pick takes the width it has, and long names are cut rather than pushing the page wide. */
+  @media (max-width: 600px) {
+    label:has(> #night) { display: flex; align-items: center; gap: 8px; width: 100%; }
+    #night { flex: 1; min-width: 0; }
+  }
+  .bar #share[hidden] { display: none; }
+  /* Pictures saved for this phone: press and hold one to keep it in Photos. */
+  dialog.made { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 16px; border: 0; border-radius: 12px; background: var(--fp-white); color: var(--fp-navy); }
+  dialog.made::backdrop { background: rgba(0,0,0,.6); }
+  dialog.made h2 { margin: 0 0 4px; font-size: 18px; }
+  dialog.made .list { display: grid; gap: 14px; margin: 12px 0; }
+  dialog.made figure { margin: 0; }
+  dialog.made img { display: block; width: 100%; height: auto; border-radius: 6px; background: repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 0 0 / 16px 16px; -webkit-touch-callout: default; }
+  dialog.made a { color: var(--fp-blue); }
+  dialog.made figcaption { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-top: 4px; color: var(--fp-muted); }
+  dialog.made .row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; position: sticky; bottom: -16px; background: var(--fp-white); padding: 8px 0; }
   .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
   .bar #status.warn { color: var(--fp-warn-ink); background: var(--fp-warn-bg); padding: 4px 8px; border-radius: 6px; font-weight: 600; }
 </style>
@@ -834,6 +850,13 @@
       try { athletesList = (await (await fetch('/api/socials/athletes', { cache: 'no-store' })).json()).athletes || []; } catch { athletesList = []; }
       $('noApp').hidden = d.app;
       $('save').disabled = $('share').disabled = !d.app;
+      // On a phone (or another computer) Save hands the pictures to it, and Share is the phone's own share sheet, which
+      // the browser offers only on a secure (https) link.
+      if (d.here === false) {
+        $('save').textContent = 'Save to this device';
+        $('save').title = 'Then press and hold a picture to add it to Photos';
+        $('share').hidden = !canShareFiles();
+      }
       $('mark').checked = d.settings.mark;
       $('pivt').checked = d.settings.pivt;
       drawTemplates();
@@ -855,6 +878,47 @@
     $('status').classList.toggle('error', bad === true);
     $('status').classList.toggle('warn', bad === 'warn');
   }
+  // The browser's share sheet with files: only on a secure link (https or this Mac), and not on every browser.
+  function canShareFiles() {
+    try { return !!(navigator.canShare && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] })); } catch { return false; }
+  }
+  // The pictures the Mac made for this device: each as itself, to press and hold and Add to Photos, with a Download
+  // link each (and the zip's).
+  function showMade(made, skipped) {
+    let d = $('madeBox');
+    if (!d) {
+      d = document.body.appendChild(el('dialog', 'made'));
+      d.id = 'madeBox';
+      d.onclick = e => { if (e.target === d) d.close(); };
+    }
+    const list = el('div', 'list');
+    for (const p of made.pictures) {
+      const f = el('figure'), img = el('img'), cap = el('figcaption'), a = el('a', '', 'Download');
+      img.src = p.url; img.alt = p.name;
+      a.href = p.url; a.download = p.name;
+      cap.append(el('span', '', p.name), a);
+      f.append(img, cap);
+      list.append(f);
+    }
+    const row = el('div', 'row');
+    if (made.zip) { const z = el('a', 'btn alt', `Download ${made.zip.name}`); z.href = made.zip.url; z.download = made.zip.name; row.append(z); }
+    const close = el('button', '', 'Done'); close.type = 'button'; close.onclick = () => d.close();
+    row.append(close);
+    const n = made.pictures.length;
+    d.replaceChildren(el('h2', '', `${n} picture${n === 1 ? '' : 's'} ready`),
+      el('p', 'help', 'Press and hold a picture, then Add to Photos.'),
+      ...(skipped.length ? [el('p', 'help', `Skipped ${skipped.length}: ${skipped.map(x => `${x.name}: ${x.reason}`).join(' · ')}`)] : []),
+      list, row);
+    if (!d.open) d.showModal();
+  }
+  // Shares the made pictures through the phone's share sheet; false when it couldn't (the list shows them instead).
+  async function shareMade(made) {
+    try {
+      const files = await Promise.all(made.pictures.map(async p => new File([await (await fetch(p.url)).blob()], p.name, { type: 'image/png' })));
+      await navigator.share({ files });
+      return true;
+    } catch { return false; }
+  }
   async function save(share) {
     const items = [];
     const carousel = $('carousel').checked;
@@ -868,12 +932,19 @@
     $('save').disabled = $('share').disabled = true;
     setStatus(`Saving ${items.length} picture${items.length === 1 ? '' : 's'}…`);
     try {
-      const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: set(), share, zip: $('zip').checked, carousel, items }) });
+      const toDevice = info.here === false;
+      const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: set(), share, zip: $('zip').checked, carousel, toDevice, items }) });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
       // A picture that couldn't be made (Milestones on a night with none, say) is skipped, not a failed save.
       const skipped = d.skipped || [];
       const why = skipped.length ? ` Skipped ${skipped.length}: ${skipped.map(x => `${x.name}: ${x.reason}`).join(' · ')}` : '';
+      if (d.made) {
+        setStatus(`Made ${d.files.length} picture${d.files.length === 1 ? '' : 's'}.${why}`, skipped.length ? 'warn' : false);
+        if (!(share && await shareMade(d.made))) showMade(d.made, skipped);
+        $('save').disabled = $('share').disabled = false;
+        return;
+      }
       setStatus(`Saved ${d.files.length} picture${d.files.length === 1 ? '' : 's'} in ${d.folder}${d.zip ? `, and ${d.zip}` : ''}${share ? `. Pick where to share ${d.zip ? 'the zip' : 'them'} in the menu.` : '.'}${why}`, skipped.length ? 'warn' : false);
     } catch (err) { setStatus(`Couldn't save the pictures: ${err.message}`, true); }
     $('save').disabled = $('share').disabled = !info.app;
