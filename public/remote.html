@@ -11,7 +11,8 @@
 <!--
   FirstPass Studio - the Remote: the Output page's status and the hands of a Stream Deck, sized for a phone (Add to
   Home Screen and it opens like an app). At the top, what's on at a glance: the outputs on air, the game and the
-  PlayHQ line, the sequence playing and the run order. Under it, Play next and Skip for the run order, Next step,
+  PlayHQ line, the sequence playing and the run order. While the scoreboard is on Manual, the scores' keys, the clock
+  and the quarter (POST /api/scoreboard, so a phone allowed to score only may use them). Under it, Play next and Skip for the run order, Next step,
   Pause and Stop for the sequence playing, and a key for every sequence, lit in its colour while it plays (press to
   play it, press again to stop it). It reads /api/health every 2 s and the scene from /api/scene/events, and changes
   things with POST /api/scene like the Output page, so a phone needs pairing with Allow everything
@@ -48,6 +49,13 @@
   .keys button.green { --k: #16a34a; } .keys button.blue { --k: var(--fp-btn); } .keys button.purple { --k: #7c3aed; }
   .keys button.grey { --k: #64748b; } .keys button.yellow { --k: #ca8a04; }
   .keys button.yellow.on { color: #111; }
+  /* Scoring by hand: each team's score with its keys, then the clock and quarter. */
+  .team { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; margin-bottom: 10px; }
+  .team .nm { font-weight: 700; overflow-wrap: anywhere; } .team .pts { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .team .row { grid-column: 1 / -1; margin-top: 0; }
+  .clock { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  #scoreCard[hidden], #scoreCard [hidden] { display: none; }
+  .keys p { grid-column: 1 / -1; margin: 0; }
   .error { color: var(--fp-danger); font-weight: 600; }
   .help { color: var(--fp-muted); font-size: 13px; margin: 6px 0 0; }
   @media (max-width: 360px) { .keys { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -64,6 +72,17 @@
 
   <section class="card" aria-label="Status">
     <div class="st" id="status"><span class="dot"></span><span class="lbl">Studio</span><b>Looking for Studio…</b></div>
+  </section>
+
+  <section class="card" aria-label="Scoring by hand" id="scoreCard" hidden>
+    <h2>Scoring by hand</h2>
+    <div class="team"><span class="nm" id="homeName">Home</span><span class="pts" id="homePts">0</span>
+      <div class="row"><button class="big" data-side="home" data-delta="1">+1</button><button class="big super" data-side="home" data-delta="2">+2</button><button class="alt" data-side="home" data-delta="-1">−1</button></div></div>
+    <div class="team"><span class="nm" id="awayName">Away</span><span class="pts" id="awayPts">0</span>
+      <div class="row"><button class="big" data-side="away" data-delta="1">+1</button><button class="big super" data-side="away" data-delta="2">+2</button><button class="alt" data-side="away" data-delta="-1">−1</button></div></div>
+    <div class="head"><span class="clock" id="clock">10:00</span> <span id="period"></span></div>
+    <div class="row"><button id="clockToggle">Start clock</button><button class="alt" id="nextPeriod">Next quarter</button></div>
+    <p class="help">The scoreboard is on Manual. These show while it is, and hide once it follows PlayHQ again.</p>
   </section>
 
   <section class="card" aria-label="Run order">
@@ -183,9 +202,44 @@
   $('seqPause').onclick = () => act({ type: 'seqPauseToggle' });
   $('seqStop').onclick = () => act({ type: 'seqStop' });
 
+  // ─── Scoring by hand ────────────────────────────────────────────────
+  // Only while the scoreboard is on Manual (a score press on the Mac or a Stream Deck switches it): the scores, the
+  // clock and the quarter, through POST /api/scoreboard like Scoreboard control, which a phone allowed to score only
+  // may do too. Its rules (super shots worth 2, quarters or halves) come from the scoreboard, read once on Manual.
+  let rules = null, scoreOk = true;
+  async function score(action) {
+    showError('');
+    try {
+      const res = await fetch('/api/scoreboard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(action) });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 403) return showError(`This phone can't change the score yet. <a href="/pair.html?then=%2Fremote.html">Pair it with the Mac</a>.`);
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      if (body.rules) rules = body.rules;
+      readHealth();
+    } catch (err) { showError(esc(err.message)); }
+  }
+  function drawScoring() {
+    const h = health, manual = !!(h && h.game && h.source === 'manual');
+    $('scoreCard').hidden = !manual;
+    if (!manual) { rules = null; return; }
+    if (!rules && scoreOk) { scoreOk = false; fetch('/api/scoreboard', { cache: 'no-store' }).then(r => r.json()).then(b => { rules = b.rules || {}; drawScoring(); }).catch(() => {}).finally(() => { scoreOk = true; }); }
+    const s = h.score, c = h.clock || {};
+    $('homeName').textContent = s.homeName; $('awayName').textContent = s.awayName;
+    $('homePts').textContent = s.home; $('awayPts').textContent = s.away;
+    for (const b of document.querySelectorAll('#scoreCard .super')) b.hidden = !(rules && rules.superShots);
+    $('clock').textContent = c.left != null ? mmss(c.left * 1000) : '';
+    $('period').textContent = `${c.periodLabel || 'Q'}${c.period || ''}`;
+    $('clockToggle').textContent = c.running ? 'Stop clock' : 'Start clock';
+    $('nextPeriod').textContent = (c.periodLabel || 'Q') === 'H' ? 'Next half' : 'Next quarter';
+  }
+  for (const b of document.querySelectorAll('#scoreCard [data-delta]')) b.onclick = () => score({ type: 'score', side: b.dataset.side, delta: Number(b.dataset.delta) });
+  $('clockToggle').onclick = () => score({ type: health && health.clock && health.clock.running ? 'clockStop' : 'clockStart' });
+  $('nextPeriod').onclick = () => score({ type: 'period', value: 'next' });
+
   async function readHealth() {
     try { health = await (await fetch('/api/health', { cache: 'no-store' })).json(); } catch { health = null; }
     drawStatus();
+    drawScoring();
   }
   readHealth(); setInterval(readHealth, 2000);
   // The scene as it changes (the Stream Deck plugin's feed), redrawn at once.
