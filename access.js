@@ -36,9 +36,9 @@ function privateRead(method, pathname) {
   return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || pathname.startsWith('/api/socials/made/') || macOnly(pathname);
 }
 
-// Who may change things from another device (the Devices… window, devices.js): read and changed only on this Mac,
-// whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
-const MAC_ONLY = ['/api/devices'];
+// Who may change things from another device (the Devices… window, devices.js), and the secure phone link's settings and
+// key (securelink.js): read and changed only on this Mac, whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
+const MAC_ONLY = ['/api/devices', '/api/securelink'];
 const macOnly = pathname => MAC_ONLY.some(p => pathname === p || pathname.startsWith(p + '/'));
 // The 403 message for one of those asked for from another address, or null.
 function notThisMac(method, pathname, remoteAddress, own) {
@@ -133,9 +133,10 @@ function foreignHost(method, pathname, headers, hosts) {
 }
 
 // The 403 message when a changing request came from another web page, or null when it may go
-// ahead. headers are the request's; port is Studio's; hosts from ownHosts(). A request with no
+// ahead. headers are the request's; port is Studio's; hosts from ownHosts(); secure is the secure phone link
+// (securelink.js), { host, port }, when it's on: its https pages are Studio's own too. A request with no
 // browser headers at all (the Stream Deck plugin, a Website key, curl) always passes.
-function crossSite(method, pathname, headers, port, hosts) {
+function crossSite(method, pathname, headers, port, hosts, secure = null) {
   const h = headers || {};
   const foreign = foreignHost(method, pathname, h, hosts);
   if (foreign) return foreign;
@@ -145,7 +146,8 @@ function crossSite(method, pathname, headers, port, hosts) {
   }
   if (h.origin !== undefined) {
     const origin = String(h.origin).trim().toLowerCase();
-    const ok = /^http:\/\//.test(origin) && isOwnHost(hostOf(origin), hosts) && portOf(origin) === Number(port);
+    const ok = (/^http:\/\//.test(origin) && isOwnHost(hostOf(origin), hosts) && portOf(origin) === Number(port))
+      || (!!secure && /^https:\/\//.test(origin) && hostOf(origin) === secure.host && portOf(origin) === Number(secure.port));
     if (!ok) return `Studio refused ${method} ${pathname}: it came from a web page on ${origin || 'an unknown site'}, not from Studio's own pages. Only Studio's pages, the Stream Deck and other programs may change things.`;
   }
   return null;

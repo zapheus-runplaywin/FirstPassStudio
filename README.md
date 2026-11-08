@@ -220,6 +220,16 @@ This Mac's key, so they too need the lock unticked from another device for now. 
 pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
 CORS header, so another site can't read its answers.
 
+**Secure phone link** (Devices tab, off until set up; `securelink.js`): a phone's browser gives a page its microphone
+or the share sheet only over https, so Studio can also answer on https (port 8443, `config.json` `securePort`) at a
+name of its own, `<6 random letters>.studio.firstpass.pivt.com.au`. The zone is a Route 53 hosted zone delegated from
+GoDaddy by 4 NS records; each Mac is given the zone ID and one access key that may change only that zone (secret kept
+in the Keychain). Studio points its name at the Mac's LAN address (an A record, updated when the address changes;
+`route53.js`, Signature Version 4 with Node's crypto), gets a Let's Encrypt certificate by the DNS-01 check and renews
+it with 30 days left (`acme.js`, no dependencies), and serves the same pages and rules on https; `/api/phone-link`
+then gives the https link, and changes from those https pages count as Studio's own. Settings, account and
+certificate live in `securelink.json` in the local data folder (never backed up); `/api/securelink` answers this Mac only.
+
 The menu bar icon has: Stop Studio (only while on air), Open Studio, Scoreboard control, Competitions setup, Copy the
 Studio link, Devices, Install the Stream Deck plugin, Open the settings folder, Open the debug log, Open the app log, Restart Studio, Open at
 login, Only this Mac can change things, Check for updates and Quit.
