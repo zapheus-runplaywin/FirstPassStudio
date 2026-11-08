@@ -50,9 +50,10 @@ async function take({ url, width, height }) {
 }
 
 module.exports = function socials({ log }) {
-  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], share, zip }. Each
-  // picture is saved as "<NN> <label>.png", numbered in order. Answers
-  // { type: 'socialsSaved', id, folder, files, skipped: [{ name, reason }], zip, shared } or { ..., error }.
+  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], share, zip, quiet }.
+  // Each picture is saved as "<NN> <label>.png", numbered in order. quiet (saved for a phone, which fetches them) opens
+  // neither Finder nor the Share menu. Answers
+  // { type: 'socialsSaved', id, folder, files, skipped: [{ name, reason }], zip, zipFile, shared } or { ..., error }.
   async function save(child, msg) {
     const answer = m => child.postMessage({ type: 'socialsSaved', id: msg.id, ...m });
     try {
@@ -108,7 +109,9 @@ module.exports = function socials({ log }) {
       }
       let shared = false;
       const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows().find(w => w.isVisible());
-      if (msg.share && ShareMenu && process.platform === 'darwin' && win) {
+      if (msg.quiet) {
+        // Saved for a phone: nothing opens on the Mac.
+      } else if (msg.share && ShareMenu && process.platform === 'darwin' && win) {
         new ShareMenu({ filePaths: zip ? [zip] : files }).popup({ window: win });
         shared = true;
       } else if (zip) {
@@ -117,7 +120,7 @@ module.exports = function socials({ log }) {
         shell.openPath(folder);
       }
       const shown = f => path.join('Pictures', 'FirstPass Studio', path.basename(f));
-      answer({ folder: shown(folder), files, skipped, zip: zip && shown(zip), shared });
+      answer({ folder: shown(folder), files, skipped, zip: zip && shown(zip), zipFile: zip, shared });
     } catch (err) {
       log(`Socials: ${err.message}`);
       answer({ error: err.message });

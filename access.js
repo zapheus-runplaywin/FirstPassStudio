@@ -27,13 +27,13 @@ const os = require('os');
 
 // Reads of private data rather than graphics: the settings and scene backups (every photo, logo and
 // media file), the athlete register, the debug log, the sponsor exposure report, the Stream Deck key,
-// the Production Planner's commentators and nights (who is on the mic now and the fixture board, /api/planner/onair and
+// the Socials pictures saved for a phone, the Production Planner's commentators and nights (who is on the mic now and the fixture board, /api/planner/onair and
 // /api/planner/fixtureboard, stay open for the graphics) and the competition setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
 // the scene and the media files stay open so the Output page, OBS and the Stream Deck work from anywhere.
 const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key', '/api/planner'];
 function privateRead(method, pathname) {
   if (method !== 'GET' && method !== 'HEAD') return false;
-  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || macOnly(pathname);
+  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || pathname.startsWith('/api/socials/made/') || macOnly(pathname);
 }
 
 // Who may change things from another device (the Devices… window, devices.js): read and changed only on this Mac,
