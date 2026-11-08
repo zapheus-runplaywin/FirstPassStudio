@@ -886,7 +886,7 @@
   }
   // Open on your phone: a QR code for this tab by the Mac's network link. The phone's camera opens the pair page, which
   // asks the Mac first if the phone isn't paired yet, then goes on to this tab.
-  async function showPhone() {
+  async function showPhone(page = '/socials.html') {
     let d = $('phoneBox');
     if (!d) {
       d = document.body.appendChild(el('dialog', 'made qr'));
@@ -894,19 +894,30 @@
       d.onclick = e => { if (e.target === d) d.close(); };
     }
     try {
-      const got = await (await fetch('/api/phone-link?page=/socials.html', { cache: 'no-store' })).json();
+      const got = await (await fetch(`/api/phone-link?page=${encodeURIComponent(page)}`, { cache: 'no-store' })).json();
       if (got.error) throw new Error(got.error);
+      // Socials, or the Remote (the Output page's status, run order and sequences, for a phone).
+      const pick = el('span', 'fp-seg');
+      pick.setAttribute('role', 'radiogroup');
+      for (const [p, name] of [['/socials.html', 'Socials'], ['/remote.html', 'Remote']]) {
+        const l = el('label'), r = el('input');
+        r.type = 'radio'; r.name = 'phonePage'; r.checked = p === page;
+        r.onchange = () => showPhone(p);
+        l.append(r, ` ${name}`);
+        pick.append(l);
+      }
       const code = el('div', 'code');
       code.innerHTML = got.svg;
       const close = el('button', '', 'Done'); close.type = 'button'; close.onclick = () => d.close();
       const row = el('div', 'row'); row.append(close);
-      d.replaceChildren(el('h2', '', 'Open Socials on your phone'),
-        el('p', 'help', 'Scan this with the phone\'s camera, on the same Wi-Fi as this Mac. The first time, the phone asks this Mac: press Allow everything.'),
+      d.replaceChildren(el('h2', '', 'Open on your phone'), pick,
+        el('p', 'help', page === '/remote.html' ? 'The Remote: what\'s on air, the run order and a key for every sequence. Scan this with the phone\'s camera, on the same Wi-Fi as this Mac. The first time, the phone asks this Mac: press Allow everything.'
+          : 'Scan this with the phone\'s camera, on the same Wi-Fi as this Mac. The first time, the phone asks this Mac: press Allow everything.'),
         code, el('code', '', got.link), row);
       if (!d.open) d.showModal();
     } catch (err) { showError(`Couldn't make the QR code: ${err.message}`); }
   }
-  $('phone').onclick = showPhone;
+  $('phone').onclick = () => showPhone();
   // The browser's share sheet with files: only on a secure link (https or this Mac), and not on every browser.
   function canShareFiles() {
     try { return !!(navigator.canShare && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] })); } catch { return false; }

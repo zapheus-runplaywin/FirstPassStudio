@@ -37,6 +37,9 @@ test('Open on your phone shows the QR code on the Mac, and a paired phone goes s
   await mac.waitForSelector('#phoneBox[open] .code svg');
   assert.match(await mac.textContent('#phoneBox code'), /\/pair\.html\?then=%2Fsocials\.html$/);
   assert.match(await mac.textContent('#phoneBox'), /press Allow everything/);
+  // The Remote has its own QR code.
+  await mac.click('#phoneBox .fp-seg label >> nth=1');
+  await mac.waitForFunction(() => /then=%2Fremote\.html$/.test(document.querySelector('#phoneBox code').textContent));
 
   // The phone: not this Mac, and paired already.
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });

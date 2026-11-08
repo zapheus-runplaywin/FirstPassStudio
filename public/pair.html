@@ -46,7 +46,7 @@
 
   <section id="paired" hidden>
     <b id="pairedAs"></b>
-    <div class="links"><a href="/control.html">Scoreboard control</a><a href="/output.html" id="outputLink">Output</a></div>
+    <div class="links"><a href="/control.html">Scoreboard control</a><a href="/remote.html" id="remoteLink">Remote</a><a href="/socials.html" id="socialsLink">Socials</a><a href="/output.html" id="outputLink">Output</a></div>
   </section>
 </main>
 <script>
@@ -61,7 +61,7 @@
     $('pairedAs').textContent = level === 'scoring'
       ? `Paired as ${name}: this device can change the scores, clock, quarter and game.`
       : `Paired as ${name}: this device can change everything, like the Mac.`;
-    $('outputLink').hidden = level === 'scoring';
+    for (const id of ['outputLink', 'remoteLink', 'socialsLink']) $(id).hidden = level === 'scoring';
     show('paired');
   }
 

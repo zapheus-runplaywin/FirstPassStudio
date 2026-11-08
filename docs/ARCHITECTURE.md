@@ -26,6 +26,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
 - **The helper** is plain Node, no framework: `server.js` routes every request by hand and the modules beside it each
   own one subject. Everything it saves goes in the data folder (`datadir.js`), never inside the app.
 - **The user guide** (`docs/user-guide/index.html` and its `img/` pictures) is packed into the app and served at `/guide/` by `server.js` (`sendGuide`, with Studio's own Montserrat in place of Google's, so it reads offline); Help > FirstPass Studio User Guide and User guide in the menu bar icon open it in a window of its own (`windows.openGuide`).
+- **The Remote** (`public/remote.html`) is a phone page on its own, without the bar: the Output page's status from `/api/health`, the scene from `/api/scene/events`, and Play next, Skip, the sequence playing's buttons and a key per sequence through `POST /api/scene`, so a phone pairs with Allow everything.
 - **The pages** are static HTML in `public/`. The Studio pages (Output, Production Planner, Scoreboard control, Recordings, Socials,
   Competitions setup, Sponsors, Athletes, Devices, Docs; the keyboard order, ⌘1 to ⌘0; the bar shows them grouped Run, Plan, Set up, Docs apart,
   with status chips from `/api/health`) share `studio.css` and `studiobar.js`: the page kit in `studio.css`

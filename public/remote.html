@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Studio Remote">
+<title>Remote · FirstPass Studio</title>
+<link rel="stylesheet" href="studio.css">
+<!--
+  FirstPass Studio - the Remote: the Output page's status and the hands of a Stream Deck, sized for a phone (Add to
+  Home Screen and it opens like an app). At the top, what's on at a glance: the outputs on air, the game and the
+  PlayHQ line, the sequence playing and the run order. Under it, Play next and Skip for the run order, Next step,
+  Pause and Stop for the sequence playing, and a key for every sequence, lit in its colour while it plays (press to
+  play it, press again to stop it). It reads /api/health every 2 s and the scene from /api/scene/events, and changes
+  things with POST /api/scene like the Output page, so a phone needs pairing with Allow everything
+  (/pair.html?then=/remote.html: the QR code under Open on your phone on the Socials tab). Sequences play on Output 1.
+-->
+<style>
+  body.fp { background: var(--fp-gray); padding-bottom: env(safe-area-inset-bottom); }
+  main.remote { max-width: 560px; margin: 0 auto; padding: 12px 16px 24px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .top h1 { font-size: 20px; margin: 0; }
+  .top nav { display: flex; gap: 12px; font-size: 14px; }
+  .card { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+  .card h2 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--fp-muted); margin: 0 0 8px; }
+  /* The status lines: a light, a word and what it says, read at a glance. */
+  .st { display: grid; grid-template-columns: 12px 84px 1fr; gap: 6px 8px; align-items: baseline; font-size: 15px; }
+  .st .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--fp-line-strong); align-self: center; }
+  .st .dot.live { background: #dc2626; } .st .dot.ok { background: #16a34a; } .st .dot.warn { background: #f59e0b; } .st .dot.bad { background: #dc2626; }
+  .st .lbl { color: var(--fp-muted); font-size: 13px; }
+  .st b { font-weight: 700; overflow-wrap: anywhere; }
+  .st small { display: block; color: var(--fp-muted); font-size: 13px; }
+  .score { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  /* Big buttons for one thumb. */
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+  .row button, .keys button { min-height: 52px; font-size: 16px; touch-action: manipulation; }
+  .row button.big { min-height: 64px; font-size: 18px; }
+  .head { font-size: 15px; } .head small { color: var(--fp-muted); display: block; font-size: 13px; }
+  /* The sequence keys: like a Stream Deck, each in its colour, lit while it plays. */
+  .keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .keys button { min-height: 76px; padding: 6px; border-radius: 12px; border: 2px solid var(--k); background: var(--fp-white); color: var(--fp-navy);
+    font-size: 14px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .keys button:hover { background: var(--fp-white); color: var(--fp-navy); border-color: var(--k); }
+  .keys button.on, .keys button.on:hover { background: var(--k); color: #fff; }
+  .keys button small { font-size: 11px; font-weight: 600; opacity: .85; }
+  .keys button.green { --k: #16a34a; } .keys button.blue { --k: var(--fp-btn); } .keys button.purple { --k: #7c3aed; }
+  .keys button.grey { --k: #64748b; } .keys button.yellow { --k: #ca8a04; }
+  .keys button.yellow.on { color: #111; }
+  .error { color: var(--fp-danger); font-weight: 600; }
+  .help { color: var(--fp-muted); font-size: 13px; margin: 6px 0 0; }
+  @media (max-width: 360px) { .keys { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<main class="remote">
+  <div class="top">
+    <h1>Studio Remote</h1>
+    <nav><a href="/socials.html">Socials</a><a href="/control.html">Scoreboard</a></nav>
+  </div>
+  <p class="error" id="err" hidden></p>
+
+  <section class="card" aria-label="Status">
+    <div class="st" id="status"><span class="dot"></span><span class="lbl">Studio</span><b>Looking for Studio…</b></div>
+  </section>
+
+  <section class="card" aria-label="Run order">
+    <h2>Run order</h2>
+    <div class="head" id="roHead">Empty</div>
+    <div class="row">
+      <button class="big" id="roNext">Play next ▶</button>
+      <button class="alt" id="roSkip">Skip</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Sequence playing" id="seqCard">
+    <h2>Sequence</h2>
+    <div class="head" id="seqHead">Nothing playing</div>
+    <div class="row" id="seqButtons">
+      <button id="seqNext">Next step</button>
+      <button class="alt" id="seqPause">Pause</button>
+      <button class="danger" id="seqStop">Stop</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Sequences">
+    <h2>Sequences</h2>
+    <div class="keys" id="keys"></div>
+    <p class="help">Press a key to play its sequence on Output 1, and again to stop it.</p>
+  </section>
+</main>
+<script>
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const mmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  let health = null, scene = null;
+
+  function showError(msg) { $('err').innerHTML = msg || ''; $('err').hidden = !msg; }
+
+  // A change, as the Output page makes it (POST /api/scene). A phone that isn't allowed to is pointed at pairing.
+  async function act(action) {
+    showError('');
+    try {
+      const res = await fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...action, output: 'main' }) });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        showError(`This phone can't change things yet. <a href="/pair.html?then=%2Fremote.html">Pair it with the Mac</a> and choose Allow everything.`);
+        return;
+      }
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      if (body.sources) { scene = body; draw(); }
+    } catch (err) { showError(esc(err.message)); }
+  }
+
+  // ─── The status at a glance ─────────────────────────────────────────
+  const line = (dot, lbl, main, sub = '') => `<span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}</span>`;
+  function drawStatus() {
+    const h = health;
+    if (!h) return void ($('status').innerHTML = line('bad', 'Studio', 'Not answering', 'Is the Mac on the same Wi-Fi, with Studio open?'));
+    const o = h.output || {};
+    const onAir = (o.onAir || []).map(x => esc(x.name)).join(', ');
+    let html = line(o.on ? 'live' : '', 'Studio', o.on ? 'On air' : 'Off air', o.on ? onAir : 'no output is sending');
+    if (h.game) {
+      const s = h.score, c = h.clock || {};
+      const p = h.playhq || {};
+      const src = h.source === 'playhq' ? (p.trouble ? 'PlayHQ isn\'t scoring live' : p.state === 'bad' ? 'PlayHQ not answering' : p.state === 'warn' ? 'PlayHQ slow' : 'Following PlayHQ') : 'Scored by hand';
+      const dot = h.source === 'playhq' ? (p.state === 'ok' && !p.trouble ? 'ok' : p.state === 'bad' ? 'bad' : 'warn') : 'warn';
+      html += line(dot, 'Game', `<span class="score">${esc(s.homeName)} ${s.home} – ${s.away} ${esc(s.awayName)}</span>`,
+        `${esc(c.periodLabel || 'Q')}${c.period || ''} · ${c.left != null ? mmss(c.left * 1000) : ''}${c.running ? ' running' : ' stopped'} · ${src}`);
+    } else html += line('', 'Game', 'No game on the board');
+    const pl = h.playing;
+    html += pl ? line(pl.paused ? 'warn' : 'live', 'Sequence', esc(pl.name || 'Sequence'), `step ${pl.step} of ${pl.steps}${pl.paused ? ' · paused' : ''}${pl.totalLeftMs != null && (pl.totalLeftMs || !pl.totalOpen) ? ` · ${mmss(pl.totalLeftMs)}${pl.totalOpen ? '+' : ''} in all` : ''}`)
+      : line('', 'Sequence', 'Nothing playing');
+    if (h.armed) html += line('ok', 'Armed', esc(h.armed.name), h.armed.leftMs != null ? `starts in ${mmss(h.armed.leftMs)}` : 'after the one playing');
+    if (h.recording && h.recording.on) html += line('bad', 'Recording', 'Recording');
+    $('status').innerHTML = html;
+  }
+
+  // ─── Run order, the sequence playing and the keys ───────────────────
+  function draw() {
+    drawStatus();
+    const sc = scene;
+    const ro = (sc && sc.runOrder || []).filter(it => !it.gone);
+    const playing = sc && sc.playing;
+    $('roHead').innerHTML = ro.length ? `<b>▶ ${esc(ro[0].name)}</b><small>${ro[1] ? `then ${esc(ro[1].name)}${ro.length > 2 ? ` · ${ro.length - 2} more` : ''}` : 'last in the run order'}</small>`
+      : `Empty<small>${playing ? 'Play next ends the sequence playing (its Then)' : 'Add to it on the Output page'}</small>`;
+    $('roNext').disabled = !ro.length && !playing;
+    $('roSkip').disabled = !ro.length;
+    const seqs = sc && sc.sequences || [];
+    const on = playing && seqs.find(s => s.id === playing.id);
+    $('seqHead').innerHTML = on ? `<b>${esc(on.name)}</b><small>step ${playing.step + 1} of ${playing.steps}${playing.paused ? ' · paused' : ''}</small>` : 'Nothing playing';
+    for (const id of ['seqNext', 'seqPause', 'seqStop']) $(id).disabled = !on;
+    $('seqPause').textContent = playing && playing.paused ? 'Carry on' : 'Pause';
+    const keys = $('keys');
+    const want = seqs.map(s => s.id).join();
+    if (keys.dataset.ids !== want) {
+      keys.dataset.ids = want;
+      keys.replaceChildren(...seqs.map(s => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.dataset.id = s.id;
+        // Read at the press: the key may have been made before this sequence started.
+        b.onclick = () => act(scene && scene.playing && scene.playing.id === s.id ? { type: 'seqStop' } : { type: 'seqPlay', sequence: s.id });
+        return b;
+      }));
+      if (!seqs.length) keys.innerHTML = '<p class="help">No sequences yet: make them on the Output page.</p>';
+    }
+    for (const b of keys.querySelectorAll('button')) {
+      const s = seqs.find(x => x.id === b.dataset.id);
+      const lit = !!(playing && playing.id === s.id);
+      b.className = `${['blue', 'green', 'grey', 'yellow', 'purple'].includes(s.colour) ? s.colour : 'blue'}${lit ? ' on' : ''}`;
+      b.setAttribute('aria-pressed', String(lit));
+      b.innerHTML = `${esc(s.name)}${lit ? `<small>ON · ${playing.step + 1}/${playing.steps}</small>` : ''}`;
+    }
+  }
+
+  $('roNext').onclick = () => act({ type: 'roNext' });
+  $('roSkip').onclick = () => act({ type: 'roSkip' });
+  $('seqNext').onclick = () => act({ type: 'seqNext' });
+  $('seqPause').onclick = () => act({ type: 'seqPauseToggle' });
+  $('seqStop').onclick = () => act({ type: 'seqStop' });
+
+  async function readHealth() {
+    try { health = await (await fetch('/api/health', { cache: 'no-store' })).json(); } catch { health = null; }
+    drawStatus();
+  }
+  readHealth(); setInterval(readHealth, 2000);
+  // The scene as it changes (the Stream Deck plugin's feed), redrawn at once.
+  const events = new EventSource('/api/scene/events');
+  events.onmessage = e => { try { scene = JSON.parse(e.data); draw(); } catch { /* the next one */ } };
+</script>
+</body>
+</html>
