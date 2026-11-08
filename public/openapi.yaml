@@ -424,6 +424,30 @@ paths:
             application/json:
               schema: { type: object, properties: { error: { type: string } } }
 
+  /api/phone-link:
+    get:
+      tags: [Pairing]
+      summary: The QR code that opens a Studio page on a phone
+      description: The pair page by this Mac's network link, which goes on to the page once the phone is paired (at once when it already is). The Socials tab's Open on your phone shows it.
+      operationId: phoneLink
+      parameters:
+        - { name: page, in: query, required: false, description: 'One of Studio''s own pages; /socials.html when left out', schema: { type: string, example: /socials.html } }
+      responses:
+        '200':
+          description: The link and its QR code
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  link: { type: string, example: 'http://matts-macbook-pro.local:8080/pair.html?then=%2Fsocials.html' }
+                  svg: { type: string, description: The QR code as an SVG }
+        '400':
+          description: Not one of Studio's pages
+          content:
+            application/json:
+              schema: { type: object, properties: { error: { type: string } } }
+
   /api/pair/{id}:
     get:
       tags: [Pairing]

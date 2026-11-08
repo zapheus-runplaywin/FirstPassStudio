@@ -86,7 +86,11 @@
     label:has(> #night) { display: flex; align-items: center; gap: 8px; width: 100%; }
     #night { flex: 1; min-width: 0; }
   }
-  .bar #share[hidden] { display: none; }
+  .bar #share[hidden], #phone[hidden] { display: none; }
+  /* Open on your phone: the QR code to scan, and its link. */
+  dialog.qr .code { width: 240px; height: 240px; margin: 12px auto; }
+  dialog.qr .code svg { width: 100%; height: 100%; display: block; }
+  dialog.qr code { display: block; word-break: break-all; font-size: 12px; text-align: center; }
   /* Pictures saved for this phone: press and hold one to keep it in Photos. */
   dialog.made { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 16px; border: 0; border-radius: 12px; background: var(--fp-white); color: var(--fp-navy); }
   dialog.made::backdrop { background: rgba(0,0,0,.6); }
@@ -107,6 +111,7 @@
 <main class="wide">
   <h1>Socials</h1>
   <p class="sub">Pictures of a game night for Instagram and other social media, before it (Upcoming) or after it (Results), to <b>Save</b> as PNGs or <b>Share</b> to your phone. Click a preview to see it bigger. <a href="/guide/#s3-12">More in the guide</a></p>
+  <p><button type="button" class="alt small" id="phone" hidden>Open on your phone</button></p>
   <p class="fp-callout" id="noApp" hidden>Saving and sharing the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.</p>
   <p class="error" id="err" hidden></p>
   <section>
@@ -852,6 +857,7 @@
       $('save').disabled = $('share').disabled = !d.app;
       // On a phone (or another computer) Save hands the pictures to it, and Share is the phone's own share sheet, which
       // the browser offers only on a secure (https) link.
+      $('phone').hidden = d.here === false;
       if (d.here === false) {
         $('save').textContent = 'Save to this device';
         $('save').title = 'Then press and hold a picture to add it to Photos';
@@ -878,6 +884,29 @@
     $('status').classList.toggle('error', bad === true);
     $('status').classList.toggle('warn', bad === 'warn');
   }
+  // Open on your phone: a QR code for this tab by the Mac's network link. The phone's camera opens the pair page, which
+  // asks the Mac first if the phone isn't paired yet, then goes on to this tab.
+  async function showPhone() {
+    let d = $('phoneBox');
+    if (!d) {
+      d = document.body.appendChild(el('dialog', 'made qr'));
+      d.id = 'phoneBox';
+      d.onclick = e => { if (e.target === d) d.close(); };
+    }
+    try {
+      const got = await (await fetch('/api/phone-link?page=/socials.html', { cache: 'no-store' })).json();
+      if (got.error) throw new Error(got.error);
+      const code = el('div', 'code');
+      code.innerHTML = got.svg;
+      const close = el('button', '', 'Done'); close.type = 'button'; close.onclick = () => d.close();
+      const row = el('div', 'row'); row.append(close);
+      d.replaceChildren(el('h2', '', 'Open Socials on your phone'),
+        el('p', 'help', 'Scan this with the phone\'s camera, on the same Wi-Fi as this Mac. The first time, the phone asks this Mac: press Allow everything.'),
+        code, el('code', '', got.link), row);
+      if (!d.open) d.showModal();
+    } catch (err) { showError(`Couldn't make the QR code: ${err.message}`); }
+  }
+  $('phone').onclick = showPhone;
   // The browser's share sheet with files: only on a secure link (https or this Mac), and not on every browser.
   function canShareFiles() {
     try { return !!(navigator.canShare && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] })); } catch { return false; }
