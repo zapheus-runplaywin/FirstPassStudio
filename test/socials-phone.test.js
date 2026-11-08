@@ -33,7 +33,7 @@ test('on a phone the Socials tab fits the screen and Save brings the pictures to
   let sent = null;
   await page.route(url => new URL(url).pathname === '/api/socials/export', route => {
     sent = JSON.parse(route.request().postData());
-    route.fulfill({ json: { folder: 'Pictures/FirstPass Studio/Thunder League Upcoming', files: ['01 Game night fixture (square).png'], skipped: [],
+    route.fulfill({ json: { folder: null, files: ['01 Game night fixture (square).png'], skipped: [],
       zip: null, shared: false, made: { pictures: [{ name: '01 Game night fixture (square).png', url: '/api/socials/made/x/1' }], zip: null } } });
   });
   await page.route(url => new URL(url).pathname === '/api/socials/made/x/1', route => route.fulfill({ body: PNG, contentType: 'image/png' }));

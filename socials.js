@@ -6,8 +6,8 @@
 // once and kept, as for Top shooters), the Production Planner's court and commentators, the competition's sponsors
 // and logos. Two sets: Upcoming (before the night) and Results (after it). The Mac app takes the pictures (desktop/socials.js): the helper asks it over the app's message port, it
 // draws each link off screen at its full size and saves the PNGs in Pictures/FirstPass Studio/, then opens the folder
-// or the Mac's Share menu. Saved from a phone (or another computer), the Mac keeps them in the same folder and the phone
-// fetches them to keep. Without the Mac app (npm start) the previews work and Export says it needs the app.
+// or the Mac's Share menu. Saved from a phone (or another computer), the Mac makes them in a temporary folder and the
+// phone fetches them to keep. Without the Mac app (npm start) the previews work and Export says it needs the app.
 //
 // Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
 // colourSets: [{ id, name, ground, highlight, accent }], template, favourites: [<template id>], favouritesOnly, movers,
@@ -67,8 +67,8 @@
 //                                        Instagram carousel in their order: one size, up to 20, each marked 1/6, 2/6...
 //                                        (?page=), in a folder of its own. A picture that can't be made is skipped and the
 //                                        rest saved: answers { folder, files, skipped: [{ name, reason }], zip, shared }.
-//                                        toDevice: true (a phone) saves them on the Mac without opening Finder or Share
-//                                        and adds made: { pictures: [{ name, url }], zip: { name, url } | null }
+//                                        toDevice: true (a phone) makes them in a temporary folder on the Mac (folder: null),
+//                                        opening nothing, and adds made: { pictures: [{ name, url }], zip: { name, url } | null }
 //   GET  /api/socials/made/<id>/<n|zip>  a picture (or the zip) saved for a phone, for an hour; private like the
 //                                        settings (access.js), so with the lock on only a paired device gets it
 
@@ -878,7 +878,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
   // A file name from a picture's name: letters, digits, spaces and a few marks, never a path.
   const fileName = s => String(s || '').replace(/[^\p{L}\p{N} '&()+,.-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Picture';
-  // Saves made for another device: id -> { files, zip, at } (paths on this Mac, under Pictures/FirstPass Studio).
+  // Saves made for another device: id -> { files, zip, at } (paths in the Mac app's temporary folder).
   const made = new Map();
   function keepMade(files, zip) {
     const id = crypto.randomUUID();
@@ -888,8 +888,9 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     while (made.size > MADE_KEPT) made.delete(made.keys().next().value);
     return id;
   }
-  // body.toDevice: the pictures are for the device that asked (a phone), not this Mac: the app saves them in the same
-  // folder without opening Finder or the Share menu, and the answer lists links the device fetches them from.
+  // body.toDevice: the pictures are for the device that asked (a phone), not this Mac: the app makes them in a temporary
+  // folder (cleared after an hour) without opening Finder or the Share menu, and the answer lists links the device
+  // fetches them from.
   async function save(body, port) {
     const items = carouselOf(body);
     if (!appPort) throw Object.assign(new Error('Saving the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.'), { status: 501 });
@@ -917,7 +918,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const m = await answer;
     if (m.error) { log('warn', 'socials', `Saving the pictures for ${date}: ${m.error}`); throw Object.assign(new Error(m.error), { status: 500 }); }
     const skipped = m.skipped || [];
-    log('info', 'socials', `Saved ${m.files.length} pictures in ${m.folder}${m.zip ? `, and ${m.zip}` : ''}`);
+    log('info', 'socials', toDevice ? `Made ${m.files.length} pictures for another device` : `Saved ${m.files.length} pictures in ${m.folder}${m.zip ? `, and ${m.zip}` : ''}`);
     for (const x of skipped) log('warn', 'socials', `Skipped ${x.name}: ${x.reason}`);
     const saved = { folder: m.folder, files: m.files.map(f => path.basename(f)), skipped, zip: m.zip || null, shared: !!m.shared };
     if (!toDevice) return saved;

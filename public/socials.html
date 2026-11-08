@@ -854,7 +854,7 @@
       // the browser offers only on a secure (https) link.
       if (d.here === false) {
         $('save').textContent = 'Save to this device';
-        $('save').title = 'The Mac makes the pictures (and keeps a copy); then press and hold one to add it to Photos';
+        $('save').title = 'Then press and hold a picture to add it to Photos';
         $('share').hidden = !canShareFiles();
       }
       $('mark').checked = d.settings.mark;
@@ -906,7 +906,7 @@
     row.append(close);
     const n = made.pictures.length;
     d.replaceChildren(el('h2', '', `${n} picture${n === 1 ? '' : 's'} ready`),
-      el('p', 'help', 'Press and hold a picture, then Add to Photos (or Save Image). A copy is also kept on the Mac.'),
+      el('p', 'help', 'Press and hold a picture, then Add to Photos.'),
       ...(skipped.length ? [el('p', 'help', `Skipped ${skipped.length}: ${skipped.map(x => `${x.name}: ${x.reason}`).join(' · ')}`)] : []),
       list, row);
     if (!d.open) d.showModal();
@@ -940,7 +940,7 @@
       const skipped = d.skipped || [];
       const why = skipped.length ? ` Skipped ${skipped.length}: ${skipped.map(x => `${x.name}: ${x.reason}`).join(' · ')}` : '';
       if (d.made) {
-        setStatus(`Made ${d.files.length} picture${d.files.length === 1 ? '' : 's'}, and kept a copy on the Mac in ${d.folder}.${why}`, skipped.length ? 'warn' : false);
+        setStatus(`Made ${d.files.length} picture${d.files.length === 1 ? '' : 's'}.${why}`, skipped.length ? 'warn' : false);
         if (!(share && await shareMade(d.made))) showMade(d.made, skipped);
         $('save').disabled = $('share').disabled = false;
         return;
