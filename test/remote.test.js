@@ -71,3 +71,51 @@ test('the Remote shows the status, plays and stops sequences by their keys and d
   await page.waitForSelector('#err:not([hidden])');
   assert.equal(await page.getAttribute('#err a', 'href'), '/pair.html?then=%2Fremote.html');
 });
+
+test('on Manual the Remote has the scores, clock and quarter keys, and hides them while following PlayHQ', async t => {
+  let browser = null;
+  try { browser = chromium && await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); } catch { browser = null; }
+  if (!browser) {
+    if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail('no browser to test the Remote in');
+    t.skip('no browser to test the Remote in; run npx playwright install chromium');
+    return;
+  }
+  t.after(() => browser.close());
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const g = studio.world.divisions[0].rounds[0].games[0];
+  const sb = a => studio.post('/api/scoreboard', a);
+  await sb({ type: 'selectGame', game: { id: g.id, roundId: g.roundId, division: g.division, court: g.court, date: g.date, time: g.time, home: { name: g.home }, away: { name: g.away } } });
+  await sb({ type: 'source', value: 'playhq' });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
+  await page.goto(`${studio.base}/remote.html`);
+  await page.waitForFunction(() => /Following PlayHQ|PlayHQ/.test(document.getElementById('status').textContent));
+  assert.equal(await page.isHidden('#scoreCard'), true, 'no scoring keys while following PlayHQ');
+
+  await sb({ type: 'source', value: 'manual' });
+  await sb({ type: 'resetScores' });
+  await page.waitForSelector('#scoreCard:not([hidden])');
+  assert.equal(await page.textContent('#homeName'), g.home);
+  await page.waitForSelector('#scoreCard .super:not([hidden])'); // Thunder League's super shots are worth 2
+  const board = () => studio.get('/api/scoreboard');
+  await page.click('#scoreCard [data-side=home][data-delta="2"]');
+  await page.click('#scoreCard [data-side=away][data-delta="1"]');
+  await page.click('#scoreCard [data-side=away][data-delta="1"]');
+  await page.click('#scoreCard [data-side=away][data-delta="-1"]');
+  let b = await board();
+  assert.deepEqual([Number(b.home.score), Number(b.away.score)], [2, 1]);
+  await page.waitForFunction(() => document.getElementById('homePts').textContent === '2');
+  await page.click('#clockToggle');
+  assert.equal((await board()).clock.running, true);
+  await page.waitForFunction(() => document.getElementById('clockToggle').textContent === 'Stop clock');
+  await page.click('#clockToggle');
+  assert.equal((await board()).clock.running, false);
+  const was = (await board()).period;
+  await page.click('#nextPeriod');
+  assert.equal((await board()).period, was + 1);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, 'nothing sticks out sideways');
+  if (process.env.SHOT2) await page.screenshot({ path: process.env.SHOT2, fullPage: true });
+
+  await sb({ type: 'source', value: 'playhq' });
+  await page.waitForSelector('#scoreCard[hidden]', { state: 'attached' });
+});
