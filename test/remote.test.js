@@ -98,21 +98,28 @@ test('on Manual the Remote has the scores, clock and quarter keys, and hides the
   assert.equal(await page.textContent('#homeName'), g.home);
   await page.waitForSelector('#scoreCard .super:not([hidden])'); // Thunder League's super shots are worth 2
   const board = () => studio.get('/api/scoreboard');
+  // A tap sends its request without waiting, so read the scoreboard until the change lands.
+  const until = async (ok, what) => {
+    let b;
+    for (let i = 0; i < 50; i++) { b = await board(); if (ok(b)) return b; await new Promise(r => setTimeout(r, 100)); }
+    assert.fail(`${what}: the scoreboard is ${JSON.stringify({ home: b.home.score, away: b.away.score, clock: b.clock, period: b.period })}`);
+  };
   await page.click('#scoreCard [data-side=home][data-delta="2"]');
+  await until(b => Number(b.home.score) === 2, 'home super shot');
   await page.click('#scoreCard [data-side=away][data-delta="1"]');
+  await until(b => Number(b.away.score) === 1, 'away goal');
   await page.click('#scoreCard [data-side=away][data-delta="1"]');
+  await until(b => Number(b.away.score) === 2, 'second away goal');
   await page.click('#scoreCard [data-side=away][data-delta="-1"]');
-  let b = await board();
-  assert.deepEqual([Number(b.home.score), Number(b.away.score)], [2, 1]);
+  await until(b => Number(b.home.score) === 2 && Number(b.away.score) === 1, 'away goal taken off');
   await page.waitForFunction(() => document.getElementById('homePts').textContent === '2');
   await page.click('#clockToggle');
-  assert.equal((await board()).clock.running, true);
+  await until(b => b.clock.running === true, 'clock started');
   await page.waitForFunction(() => document.getElementById('clockToggle').textContent === 'Stop clock');
   await page.click('#clockToggle');
-  assert.equal((await board()).clock.running, false);
-  const was = (await board()).period;
+  const was = (await until(b => b.clock.running === false, 'clock stopped')).period;
   await page.click('#nextPeriod');
-  assert.equal((await board()).period, was + 1);
+  await until(b => b.period === was + 1, 'next quarter');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, 'nothing sticks out sideways');
   if (process.env.SHOT2) await page.screenshot({ path: process.env.SHOT2, fullPage: true });
 
