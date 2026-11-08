@@ -3,13 +3,14 @@
 // Scores, the clock and the period, by hand from the control page and the Stream Deck or following
 // PlayHQ's live feed (refreshFromPlayhq, followClock); the goal order the last goals and the score
 // worm are drawn from; super shots; hot streaks and game moments; the game stats card; each streamed game's story
-// (game-stories/, for the Socials tab's Game story, Score worm and Moments of the game). Kept in
+// (kept by stories.js, for the Socials tab's Game story, Score worm and Moments of the game). Kept in
 // scoreboard-state.json so a restart mid-game keeps the score, with the lasting settings (auto
 // select, the court, refresh seconds, the clock following, the ticker speed) also in control.json.
 //
 // create(deps) gives the one board. deps:
 //   log(level, source, message, detail)   the debug log
 //   datadir, savefile                      where the state file lives; atomic writes
+//   stories                                stories.js: where each streamed game's story is kept (keep, read)
 //   machine                                config.json's machine settings (playhqRefreshSeconds)
 //   config()                               the competition setup in use (CONFIG in server.js)
 //   competitions                           competitions.js (super shots per division)
@@ -22,7 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const { isFinished, startOf, localDate } = require('./playhq');
 
-function create({ log, datadir, savefile, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }) {
+function create({ log, datadir, savefile, stories = { keep() {}, read: () => null }, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }) {
   const { getRoundGames, liveScore, scoringNotYet, PERIOD_NUMBER } = playhq;
   const MACHINE = machine;
   const { LASTING } = controlFile;
@@ -78,29 +79,23 @@ function create({ log, datadir, savefile, machine, config, competitions, scene, 
   }
   // Each streamed game's story, kept once it has goals so the Socials tab's Game story and Score worm pictures can be
   // made after the scoreboard moves on (clearGoals wipes the goal order for the next game): its Game stats, Score
-  // worm and every moment (b.gameMoments) as the game left them, in game-stories/<game id>.json in the local folder. Written at most every STORY_EVERY
-  // while the game is on, and at once when it ends or the scoreboard picks another game.
-  const STORIES_DIR = datadir.local('game-stories');
+  // worm and every moment (b.gameMoments) as the game left them, in game-stories/<game id>.json in the local folder
+  // (stories.js, which also shares the finished ones with the other Studio Macs). Written at most every STORY_EVERY
+  // while the game is on, and at once when it ends or the scoreboard picks another game (final).
   const STORY_EVERY = 15 * 1000;
   let storyAt = 0;
-  const storyFile = id => path.join(STORIES_DIR, `${String(id).replace(/[^\w.-]/g, '_')}.json`);
   function keepStory(now) {
     const b = boards['1'];
     if (!b || !b.gameId || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.some(g => !g.gap)) return;
     if (!now && Date.now() - storyAt < STORY_EVERY) return;
     storyAt = Date.now();
     try {
-      const story = { gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(), stats: getStats(), worm: getWorm(),
-        moments: b.gameMomentsId === b.gameId ? b.gameMoments || [] : [] };
-      fs.mkdirSync(STORIES_DIR, { recursive: true });
-      savefile.writeFileSync(storyFile(b.gameId), JSON.stringify(story)); // at once, so an older write can't land after a newer one
+      stories.keep({ gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(), stats: getStats(), worm: getWorm(),
+        moments: b.gameMomentsId === b.gameId ? b.gameMoments || [] : [] }, { final: now });
     } catch (err) { log('warn', 'stats', `The game's story wasn't kept: ${err.message}`); }
   }
-  // A game's kept story, or null when Studio didn't stream it.
-  function gameStory(id) {
-    if (!id) return null;
-    try { return JSON.parse(fs.readFileSync(storyFile(id), 'utf8')); } catch { return null; }
-  }
+  // A game's kept story (this Mac's own, or a copy from another Studio), or null when no Studio streamed it.
+  const gameStory = id => stories.read(id);
 
   function saveBoards() {
     keepStory(false);
