@@ -47,7 +47,8 @@
 //                                        night); &with=sponsorlist every sponsor, to pick from. Always: nextNight (Thanks for watching)
 //                                        &with=story&game= the game's story as the scoreboard kept it (Game story, Score worm);
 //                                        &with=watch&link= a QR code for the replay's link (Watch it back). Always: stories (the
-//                                        night's games with a kept story) and watchLinks (links suggested from Live viewers);
+//                                        night's games with a kept story, this Mac's or copied from another Studio Mac; storiesFrom:
+//                                        [{ studio, via: network|icloud, games }] the copies) and watchLinks (links suggested from Live viewers);
 //                                        the story's moments are Moments of the game's
 //                                        &with=gamestats&game= a finished game's team and shooter totals from its line ups (Game
 //                                        stats, Shooting duel), with the story's quarters, runs and leads when Studio streamed it;
@@ -173,7 +174,7 @@ const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() 
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,
   milestonesFor = async () => [], clubOf = () => '', lineupsOf = async games => games.map(() => null), spotlightFor = async () => null, teamSheetFor = async () => [],
-  sponsorList = () => [], onScreen = () => ({}), storyFor = () => null, qrFor = () => '', streamsFor = () => [], hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
+  sponsorList = () => [], onScreen = () => ({}), storyFor = () => null, storySources = () => [], qrFor = () => '', streamsFor = () => [], hasFinals = () => false, finalsOf = async () => null, theme, photoFor = () => null, athletesWithPhotos = () => [], appPort = process.parentPort || null }) {
   const PHOTOS = photosDir;
 
   // ─── Settings ─────────────────────────────────────────────────────────────
@@ -408,6 +409,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('sponsorspot')) out.sponsorSpot = sponsorSpotlight(String(q.sponsor || ''), date, out.today || date < today);
     // Game story and Score worm (the streamed games Studio kept a story of) and Watch it back.
     out.stories = games.filter(g => g.finished && storyFor(g.id)).map(g => g.id);
+    out.storiesFrom = storySources(out.stories); // the stories copied from other Studio Macs (stories.js): [{ studio, via, games }]
     if (want.has('story')) out.story = storyOf(games.find(g => g.id === q.game));
     out.ofNight = ofTheNight(games.filter(g => out.stories.includes(g.id)));
     if (want.has('gamestats')) out.gameStats = await gameStats(raw.find((g, i) => games[i].id === q.game && games[i].finished));

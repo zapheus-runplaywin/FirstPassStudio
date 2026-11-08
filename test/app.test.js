@@ -51,7 +51,7 @@ async function launch(t, env = {}) {
   const start = async () => {
     studio.port = await freePort();
     fs.writeFileSync(path.join(local, 'config.json'), JSON.stringify({ port: studio.port, linkHost: 'localhost' }));
-    studio.app = await electron.launch({ executablePath, args: [ROOT, '--no-sandbox'], cwd: ROOT, env: { ...process.env, XDG_CONFIG_HOME: home, ...env } });
+    studio.app = await electron.launch({ executablePath, args: [ROOT, '--no-sandbox'], cwd: ROOT, env: { ...process.env, XDG_CONFIG_HOME: home, FIRSTPASS_NO_BONJOUR: '1', FIRSTPASS_STORIES_CLOUD: 'off', ...env } });
   };
   const quit = async () => {
     // Quit without asking, then make sure nothing is left on the port.

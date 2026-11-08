@@ -1,0 +1,245 @@
+// FirstPass Studio - each streamed game's story, and sharing the stories between Studio Macs.
+//
+// The board (board.js) keeps the story of the game on Output 1's scoreboard: its Game stats, Score worm and moments,
+// in game-stories/<game id>.json in the local folder. The Socials tab's Game stats, Game story, Score worm, Moments
+// of the game and "of the night" pictures are drawn from them. With two courts each streamed by its own Mac, each
+// Mac only has its own court's stories, so the stories are shared, two ways:
+//
+//   1. On the same network: every Studio announces itself with Bonjour (macOS's dns-sd, SERVICE) and looks for the
+//      others. Every SYNC_EVERY it asks each one it finds for its finished stories (GET /api/stories, then
+//      GET /api/stories/<game id> for each one it doesn't have or has an older copy of) and keeps a copy. Asking is
+//      a plain read: nothing on the other Mac changes, so no pairing is needed (access.js lets reads through).
+//   2. iCloud Drive, for the nights the Macs never saw each other: each finished story is also written to
+//      iCloud Drive/FirstPass Studio/game-stories/ (CLOUD_FOLDER) when iCloud Drive is on, whether or not the settings
+//      are kept there, and every SYNC_EVERY the stories other Macs put there are copied in.
+//
+// A copy carries from: { studio, via: 'network'|'icloud' }, and every story says which Studio kept it (studio, studioId). A
+// copy never replaces this Mac's own story, and replaces another copy only when it was saved later, so it doesn't
+// matter which way a story arrives first. Only finished stories are shared: the game ended, or the scoreboard moved
+// on to another game (DONE_AFTER without a new save covers a Studio quit mid-game). Stories go back SHARE_DAYS.
+//
+// create(deps) gives the store. deps:
+//   log(level, source, message)  the debug log
+//   dir                          the local game-stories folder
+//   savefile                     atomic writes
+//   studio                       this Mac's name (datalocation.computerName()), shown on the Socials tab beside copies
+//   studioId                     this Mac's random id (datalocation.computerId()), which tells its own stories from copies
+//   port                         Studio's port, announced with Bonjour
+//   cloudDir                     the shared iCloud folder, or '' when there is none (FIRSTPASS_STORIES_CLOUD for tests)
+//   peers                        extra Studios to ask, as http://host:port (FIRSTPASS_OTHER_STUDIOS for tests)
+//   bonjour                      false turns the announcing and looking off (anywhere but a Mac it is off anyway)
+//   firstSync                    ms after start up before the first look (FIRST_SYNC; FIRSTPASS_STORIES_FIRST_SYNC_MS for tests)
+//
+// Routes (server.js hands /api/stories here):
+//   GET /api/stories             this Mac's own finished stories of the last SHARE_DAYS: { studio, studioId, stories: [{ gameId, savedAt }] }
+//   GET /api/stories/<game id>   one of them, as kept (404 when it isn't this Mac's own and finished)
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+const SERVICE = '_firstpass-studio._tcp';
+const DNS_SD = '/usr/bin/dns-sd';
+const SYNC_EVERY = 3 * 60 * 1000;
+const FIRST_SYNC = 20 * 1000; // after start up, once Bonjour has had time to hear the others
+const DONE_AFTER = 30 * 60 * 1000;
+const SHARE_DAYS = 30;
+const ASK_TIMEOUT = 5000;
+const MAX_STORY = 2 * 1024 * 1024; // a story is tens of KB; anything this big isn't one
+const CLOUD_FOLDER = ['FirstPass Studio', 'game-stories'];
+
+const fileName = id => `${String(id).replace(/[^\w.-]/g, '_')}.json`;
+const isStory = s => !!s && typeof s === 'object' && typeof s.gameId === 'string' && !!s.gameId && Number.isFinite(s.savedAt)
+  && !!s.stats && typeof s.stats === 'object' && (!s.moments || Array.isArray(s.moments));
+
+// One line of dns-sd -B: a Studio announced (add) or gone, by its name, or null for the other lines. For example
+//   12:00:01.123  Add        2   4 local.               _firstpass-studio._tcp. Court-2-MacBook
+function browsed(line) {
+  const m = /\s(Add|Rmv)\s+\d+\s+\d+\s+\S+\s+_firstpass-studio\._tcp\.\s+(.+?)\s*$/.exec(line);
+  return m ? { add: m[1] === 'Add', name: m[2] } : null;
+}
+// dns-sd -L's answer as http://host:port, or null: "Court-2-MacBook._firstpass-studio._tcp.local. can be reached at
+// Court-2-MacBook.local.:8080 (interface 4)".
+function reached(out) {
+  const m = /can be reached at (\S+?)\.?:(\d+)/.exec(out);
+  return m ? `http://${m[1]}:${m[2]}` : null;
+}
+
+function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId = studio, port = 8080, cloudDir = '', peers = [], bonjour = true, firstSync = FIRST_SYNC }) {
+  const fileOf = id => path.join(dir, fileName(id));
+  const readFile = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
+  const read = id => (id ? readFile(fileOf(id)) : null);
+  const done = s => !!s && (s.ended || s.final || Date.now() - s.savedAt > DONE_AFTER);
+  const recent = s => Date.now() - s.savedAt < SHARE_DAYS * 86400000;
+
+  // The board keeping this Mac's own story. final: the game ended or the scoreboard moved on, so it goes to iCloud too.
+  function keep(story, { final = false } = {}) {
+    const s = { ...story, studio, studioId, final: final || undefined };
+    fs.mkdirSync(dir, { recursive: true });
+    savefile.writeFileSync(fileOf(s.gameId), JSON.stringify(s)); // at once, so an older write can't land after a newer one
+    if (final && cloudDir) {
+      try {
+        fs.mkdirSync(cloudDir, { recursive: true });
+        savefile.writeFileSync(path.join(cloudDir, fileName(s.gameId)), JSON.stringify(s));
+      } catch (err) { log('warn', 'stories', `The game's story wasn't put in iCloud Drive: ${err.message}`); }
+    }
+  }
+
+  // A story from another Studio: kept when this Mac has none, or has an older copy. Answers true when kept.
+  function accept(s, via) {
+    if (!isStory(s) || !done(s) || !s.studio || !s.studioId || s.studioId === studioId) return false;
+    const have = read(s.gameId);
+    if (have && (!have.from || have.savedAt >= s.savedAt)) return false;
+    const rest = { ...s };
+    delete rest.from; // a copy says only where this Mac got it
+    fs.mkdirSync(dir, { recursive: true });
+    savefile.writeFileSync(fileOf(s.gameId), JSON.stringify({ ...rest, from: { studio: s.studio, via } }));
+    return true;
+  }
+
+  // This Mac's own finished stories, for the other Studios.
+  function own() {
+    let names; try { names = fs.readdirSync(dir).filter(n => n.endsWith('.json')); } catch { return []; }
+    return names.map(n => readFile(path.join(dir, n))).filter(s => isStory(s) && !s.from && done(s) && recent(s));
+  }
+
+  // Where the night's stories came from, for the Socials tab: the copies, by Studio and way. [{ studio, via, games }]
+  function sources(ids) {
+    const by = new Map();
+    for (const id of ids) {
+      const f = (read(id) || {}).from;
+      if (!f) continue;
+      const k = `${f.studio}\n${f.via}`;
+      by.set(k, { studio: f.studio, via: f.via, games: ((by.get(k) || {}).games || 0) + 1 });
+    }
+    return [...by.values()];
+  }
+
+  // ── Bonjour: announce this Studio and keep the list of the others (dns-sd -R and -B, which run until killed) ──
+  const found = new Map(); // instance name -> true while announced
+  const kids = [];
+  const canBonjour = bonjour && process.platform === 'darwin' && fs.existsSync(DNS_SD);
+  function startBonjour() {
+    if (!canBonjour) return;
+    const run = args => {
+      const p = spawn(DNS_SD, args, { stdio: ['ignore', 'pipe', 'ignore'] });
+      p.on('error', err => log('warn', 'stories', `Bonjour (dns-sd ${args[0]}) didn't start: ${err.message}`));
+      kids.push(p);
+      return p;
+    };
+    run(['-R', studio, SERVICE, 'local', String(port)]);
+    let rest = '';
+    run(['-B', SERVICE, 'local']).stdout.on('data', chunk => {
+      const lines = (rest + chunk).split('\n');
+      rest = lines.pop();
+      for (const line of lines) {
+        const seen = browsed(line);
+        if (!seen || seen.name === studio) continue;
+        if (seen.add) found.set(seen.name, true); else found.delete(seen.name);
+      }
+    });
+  }
+  // Where a Studio found with Bonjour answers: http://host:port, or null.
+  function resolve(name) {
+    return new Promise(done => {
+      const p = spawn(DNS_SD, ['-L', name, SERVICE, 'local'], { stdio: ['ignore', 'pipe', 'ignore'] });
+      let out = '';
+      const end = v => { clearTimeout(t); p.kill(); done(v); };
+      const t = setTimeout(() => end(null), ASK_TIMEOUT);
+      p.on('error', () => end(null));
+      p.stdout.on('data', chunk => {
+        out += chunk;
+        const at = reached(out);
+        if (at) end(at);
+      });
+    });
+  }
+
+  async function ask(url) {
+    const res = await fetch(url, { signal: AbortSignal.timeout(ASK_TIMEOUT), headers: { accept: 'application/json' } });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const text = await res.text();
+    if (text.length > MAX_STORY) throw new Error('too big');
+    return JSON.parse(text);
+  }
+
+  // Copies a Studio's finished stories that this Mac doesn't have (or has older). Answers how many were copied.
+  async function fromStudio(base) {
+    const list = await ask(`${base}/api/stories`);
+    if (!list || list.studioId === studioId || !Array.isArray(list.stories)) return 0;
+    let copied = 0;
+    for (const { gameId, savedAt } of list.stories) {
+      const have = read(gameId);
+      if (have && (!have.from || have.savedAt >= savedAt)) continue;
+      try { if (accept(await ask(`${base}/api/stories/${encodeURIComponent(gameId)}`), 'network')) copied++; } catch { /* asked again next time */ }
+    }
+    if (copied) log('info', 'stories', `Copied ${copied} game stor${copied === 1 ? 'y' : 'ies'} from ${list.studio}'s Studio`);
+    return copied;
+  }
+
+  // Copies the stories other Macs put in iCloud Drive, and asks iCloud to download the ones only listed so far.
+  let cloudSeen = 0;
+  function fromCloud() {
+    if (!cloudDir) return 0;
+    let list; try { list = fs.readdirSync(cloudDir); } catch { return 0; }
+    const since = cloudSeen;
+    cloudSeen = Date.now();
+    let copied = 0;
+    for (const n of list) {
+      const file = path.join(cloudDir, n);
+      if (/^\..+\.json\.icloud$/.test(n)) {
+        if (process.platform === 'darwin') spawn('/usr/bin/brctl', ['download', file], { stdio: 'ignore' }).on('error', () => {});
+        cloudSeen = Math.min(cloudSeen, since); // look at every file again once it's downloaded
+        continue;
+      }
+      if (!n.endsWith('.json')) continue;
+      try { if (fs.statSync(file).mtimeMs < since - 60000) continue; } catch { continue; }
+      if (accept(readFile(file), 'icloud')) copied++;
+    }
+    if (copied) log('info', 'stories', `Copied ${copied} game stor${copied === 1 ? 'y' : 'ies'} from iCloud Drive`);
+    return copied;
+  }
+
+  let busy = false;
+  async function sync() {
+    if (busy) return 0;
+    busy = true;
+    let copied = 0;
+    try {
+      const bases = [...peers];
+      for (const name of found.keys()) { const b = await resolve(name); if (b) bases.push(b); }
+      for (const base of bases) {
+        try { copied += await fromStudio(base); } catch (err) { log('debug', 'stories', `${base} didn't share its game stories: ${err.message}`); }
+      }
+      copied += fromCloud();
+    } finally { busy = false; }
+    return copied;
+  }
+
+  let timers = [];
+  function start() {
+    startBonjour();
+    timers = [setTimeout(sync, firstSync), setInterval(sync, SYNC_EVERY)];
+    for (const t of timers) t.unref?.();
+  }
+  function stop() {
+    for (const t of timers) { clearTimeout(t); clearInterval(t); }
+    for (const p of kids.splice(0)) p.kill();
+  }
+
+  // GET /api/stories and /api/stories/<game id>. Answers true when it was one of them.
+  function route(req, res, url, { send }) {
+    if (url.pathname !== '/api/stories' && !url.pathname.startsWith('/api/stories/')) return false;
+    if (req.method !== 'GET') return send(res, 405, { error: 'Only GET' }), true;
+    if (url.pathname === '/api/stories') return send(res, 200, { studio, studioId, stories: own().map(s => ({ gameId: s.gameId, savedAt: s.savedAt })) }), true;
+    const s = read(decodeURIComponent(url.pathname.slice('/api/stories/'.length)));
+    if (!isStory(s) || s.from || !done(s)) return send(res, 404, { error: 'No finished story of that game on this Mac' }), true;
+    return send(res, 200, { studio, studioId, ...s }), true; // stories kept before sharing came in don't say whose they are
+  }
+
+  return { dir, keep, read, accept, own, sources, sync, start, stop, route, found: () => [...found.keys()] };
+}
+
+module.exports = { create, browsed, reached, SERVICE, CLOUD_FOLDER, SYNC_EVERY };

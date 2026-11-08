@@ -278,7 +278,7 @@
     }
     // Of the night, from the streamed games: their runs, their super shot periods and the comeback of the night.
     const o = night.ofNight || {};
-    const why = none || (stories.length ? '' : 'Studio keeps the story of each game on its scoreboard: none of this night\'s games were streamed with it.');
+    const why = none || (stories.length ? '' : 'Studio keeps the story of each game on its scoreboard: none of this night\'s games were streamed by this Mac, or by another Studio Mac on the same network or iCloud Drive.');
     list.push({ key: 'runs', kind: 'runs', name: 'Runs of the night', missing: why || ((o.runs || []).length ? '' : 'No team scored two goals in a row in a streamed game.'),
       help: 'Every streamed game\'s longest run of goals, longest first, with each team\'s runs of 3.' });
     if (night.games.some(g => (night.superShotDivisions || []).includes(g.division))) list.push({ key: 'supershottime', kind: 'supershottime', name: 'Super shot time',
@@ -287,7 +287,7 @@
     list.push({ key: 'comeback', kind: 'comeback', name: 'Comeback of the night', missing: why || (o.comeback ? '' : 'No team came from behind to win a streamed game.'),
       help: o.comeback ? `${o.comeback.game[o.comeback.side].name} came back from ${o.comeback.down} down, with the game's worm.` : 'The winner who came back from furthest behind, with the game\'s worm.' });
     if (!stories.length) {
-      const why = none || 'Studio keeps the story of each game on its scoreboard: none of this night\'s games were streamed with it.';
+      const why = none || 'Studio keeps the story of each game on its scoreboard: none of this night\'s games were streamed by this Mac, or by another Studio Mac on the same network or iCloud Drive.';
       list.push({ key: 'story', kind: 'story', name: 'Game story', missing: why, help: '' }, { key: 'worm', kind: 'worm', name: 'Score worm', missing: why, help: '' },
         { key: 'moments', kind: 'moments', name: 'Moments of the game', missing: why, help: '' });
     }
@@ -667,12 +667,19 @@
     if (!sizes().length) previews.append(el('p', 'help', 'Tick a size above.'));
     return s;
   }
+  // Where the night's game stories came from when another Studio Mac streamed some of the games (stories.js).
+  function storiesNote() {
+    const from = night.storiesFrom || [];
+    if (set() !== 'results' || !from.length) return null;
+    const way = { network: 'over the network', icloud: 'from iCloud Drive' };
+    return el('p', 'help', `Game stories from other Studio Macs: ${from.map(f => `${f.games} game${f.games === 1 ? '' : 's'} from ${f.studio} (${way[f.via] || f.via})`).join(', ')}.`);
+  }
   function draw() {
     if (!night) return;
     drawShow();
     const list = pictures(), ps = pictureSet();
     if (!list.length && ps) return $('pics').replaceChildren(el('p', 'fp-empty', `${ps.name} has no ${set() === 'results' ? 'Results' : 'Upcoming'} pictures: pick All, or ✎ to add some.`));
-    $('pics').replaceChildren(...list.map(card));
+    $('pics').replaceChildren(...[storiesNote()].filter(Boolean), ...list.map(card));
     drawCarousel();
   }
   // The ticked pictures in carousel order: the order kept, then any ticked since, as listed.
