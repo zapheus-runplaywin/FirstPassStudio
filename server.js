@@ -174,9 +174,22 @@ function saveControl() {
   controlSaved = next;
   savefile.writeJsonSync(CONTROL_FILE, control);
 }
+// ─── Each streamed game's story (stories.js), shared with the other Studio Macs on the network and through iCloud Drive ──
+// The tests turn both off (FIRSTPASS_NO_BONJOUR, FIRSTPASS_STORIES_CLOUD=off) so test Studios never share with each other
+// or write to the iCloud Drive of the Mac running them; FIRSTPASS_STORIES_CLOUD=<folder> and FIRSTPASS_OTHER_STUDIOS=
+// http://host:port,... stand in for them.
+const stories = require('./stories').create({
+  log, savefile, dir: datadir.local('game-stories'), studio: datalocation.computerName(), studioId: datalocation.computerId(datadir.LOCAL_DIR), port: PORT,
+  cloudDir: process.env.FIRSTPASS_STORIES_CLOUD === 'off' ? '' : process.env.FIRSTPASS_STORIES_CLOUD
+    || (process.platform === 'darwin' && fs.existsSync(datalocation.PROVIDERS.icloud.root()) ? path.join(datalocation.PROVIDERS.icloud.root(), ...require('./stories').CLOUD_FOLDER) : ''),
+  peers: String(process.env.FIRSTPASS_OTHER_STUDIOS || '').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean),
+  bonjour: !process.env.FIRSTPASS_NO_BONJOUR, firstSync: Number(process.env.FIRSTPASS_STORIES_FIRST_SYNC_MS) || undefined,
+});
+process.on('exit', () => stories.stop()); // Bonjour's dns-sd stops announcing this Studio
+
 // ─── The board (board.js): scores, clock, goals, streaks, stats and the worm ──
 const theBoard = require('./board').create({
-  log, datadir, savefile, machine: MACHINE, config: () => CONFIG, competitions, scene, playhq,
+  log, datadir, savefile, stories, machine: MACHINE, config: () => CONFIG, competitions, scene, playhq,
   control: { get: () => control, save: () => saveControl(), LASTING, exists: () => fs.existsSync(CONTROL_FILE), markUnsaved: () => { controlSaved = ''; } },
   logoFor: n => logoFor(n), colourFor: n => colourFor(n), rules: d => rules(d), competitionName: () => competitionName(), warmTeamLists: why => warmTeamLists(why),
   record: recorder,
@@ -255,6 +268,7 @@ const socials = require('./socials').create({
   onScreen: date => Object.fromEntries(exposure.report({ nights: [date] }).sponsors.map(x => [x.id, x.seconds])),
   // Game story and Score worm: each streamed game's story as the scoreboard kept it (board.js gameStory).
   storyFor: id => theBoard.gameStory(id),
+  storySources: ids => stories.sources(ids), // the copies from other Studio Macs among them
   // Watch it back: a QR code for the replay's link, and the competition's streams to suggest one from (Live viewers).
   qrFor: link => sponsors.qrSvg(link).svg,
   streamsFor: () => { const id = competitions.activeId(); try { return id ? competitions.get(id).streams || [] : []; } catch { return []; } },
@@ -968,6 +982,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
     // A saved plan can change tonight's court, so automatic game selection looks again straight away.
     if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, readRaw, changed: () => autoPick() })) return;
+    if (stories.route(req, res, url, { send })) return;
     if (url.pathname.startsWith('/api/socials') || url.pathname.startsWith('/socials/')) {
       if (await socials.route(req, res, url, { send, readBody, readRaw, port: PORT })) return;
     }
@@ -1118,6 +1133,7 @@ http.createServer(async (req, res) => {
   log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${playhq.organisation().orgId || '(not set)'} on ${playhq.organisation().tenant}`);
   console.log(`Debug log: ${LOG_FILE}`);
   setTimeout(() => warmTeamLists('start up'), 2000);
+  stories.start(); // announce this Studio and copy the other Studios' game stories (stories.js)
   console.log(`FirstPass Studio is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });

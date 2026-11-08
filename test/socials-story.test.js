@@ -29,6 +29,14 @@ test('a streamed game keeps its story for Game story and Score worm, and Watch i
 
   const n = await studio.get(`/api/socials/night?date=${second}&with=story&game=game-d1-r2-1`);
   assert.deepEqual(n.stories, ['game-d1-r2-1']);
+  assert.deepEqual(n.storiesFrom, [], 'this Mac\'s own story');
+  // The finished story is shared with the other Studio Macs (stories.js): a second Studio copies it on its first look.
+  assert.deepEqual((await studio.get('/api/stories')).stories.map(x => x.gameId), ['game-d1-r2-1']);
+  const court2 = await startStudio(t, { competition: 'Thunder League', world, env: { FIRSTPASS_OTHER_STUDIOS: studio.base, FIRSTPASS_STORIES_FIRST_SYNC_MS: '500' } });
+  const copied = await court2.until(async () => { const x = await court2.get(`/api/socials/night?date=${second}`); return x.storiesFrom.length && x; });
+  assert.deepEqual(copied.stories, ['game-d1-r2-1']);
+  assert.equal(copied.storiesFrom[0].via, 'network');
+  assert.equal(copied.storiesFrom[0].games, 1);
   const s = n.story;
   // On failure, what made it incomplete (it has failed only on the Mac build, so the message is all there is to go on).
   const why = () => JSON.stringify({ gap: s.stats.gapInHistory, kept: [s.stats.home.score, s.stats.away.score], result: [s.game.home.score, s.game.away.score],
@@ -67,4 +75,13 @@ test('a streamed game keeps its story for Game story and Score worm, and Watch i
   assert.equal(await draw('watch', '&link=https://www.youtube.com/@thunderleague/streams'), true);
   assert.ok(await page.$('.watch__qr svg'));
   assert.equal(await page.textContent('.watch__link'), 'youtube.com/@thunderleague/streams');
+
+  // The second Studio's Socials tab lists the copied game's pictures and says where its story came from.
+  await page.unrouteAll();
+  await page.route(url => !String(url).startsWith(court2.base), route => route.fulfill({ status: 200, body: '' }));
+  await page.goto(`${court2.base}/socials.html`);
+  await page.waitForSelector('#night option', { state: 'attached' });
+  await page.selectOption('#night', second);
+  await page.waitForSelector('[data-key="story:game-d1-r2-1"]');
+  assert.match(await page.textContent('#pics > p.help'), /Game stories from other Studio Macs: 1 game from .+ \(over the network\)\./);
 });
