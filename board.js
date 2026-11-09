@@ -1033,9 +1033,9 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       readFollowed(f).catch(err => log('error', 'follow', `Following ${f.home.name} v ${f.away.name} failed: ${err.message}`)).finally(() => reading.delete(f.gameId));
     }
   }
-  // What Scoreboard control lists under the switch: each followed game and where it's up to.
+  // What Scoreboard control lists under the switch: each followed game and where it's up to (recorder.js records them from it).
   function followedGames() {
-    return Object.values(followed).map(f => ({ gameId: f.gameId, home: f.home.name, away: f.away.name, court: f.court, time: f.time, division: f.division,
+    return Object.values(followed).map(f => ({ gameId: f.gameId, home: f.home.name, away: f.away.name, court: f.court, date: f.date, time: f.time, division: f.division, round: f.round,
       score: { home: Number(f.home.score) || 0, away: Number(f.away.score) || 0 }, period: f.period, done: !!f.done, waiting: !!(f.wait && f.wait.n),
       started: !!f.goalsBaseline, goals: Array.isArray(f.goals) ? f.goals.filter(g => !g.gap).length : 0 }))
       .sort((x, y) => String(x.time).localeCompare(String(y.time)) || String(x.court).localeCompare(String(y.court)));

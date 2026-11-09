@@ -1,11 +1,18 @@
 // FirstPass Studio - practice games: a recorded game (recorder.js) played back as if it were live.
 //
-// While a practice game runs, PlayHQ isn't asked anything: playhq.js asks this module instead (answer() for the
+// While a practice game runs, PlayHQ isn't asked anything (but see a followed game below): playhq.js asks this module instead (answer() for the
 // GraphQL API, live() for live scoring), which gives what PlayHQ said at the same point of the recorded night.
 // Everything else in Studio runs as on a real night (the scoreboard follows the score and clock, sequences and
 // game triggers fire, afresh each start and jump with Run game-timed sequences again, the outputs can be on), so
 // it's for rehearsing a night, trying a change and showing Studio to someone. The recording is played in real time from a point picked on the Recordings tab (Start, a few
-// minutes before the game's scheduled start, as many as Starts in says, each quarter or full time), and can be paused.
+// minutes before the game's scheduled start, as many as Starts in says, each quarter or full time), and can be paused
+// and nudged (+ or - ms).
+//
+// A game Studio followed in the background (another court's: recorder.js records it as "... (followed)") plays the
+// same way, which is how graphics are put over someone else's video of that game: jump to the quarter the video is
+// on and Pause, cue the video on that quarter's first centre pass, press Play on both together, and nudge until the
+// score changes with the goals. Its recording has only what Studio asked PlayHQ that night, so anything else the
+// graphics ask is asked of PlayHQ (the one exception to the line above).
 //
 // The recorded night's times are moved to now: every time in an answer (a fixture's date and time, the clock's
 // lastUpdatedAt, any other date and time) gets the gap between now and that point in the recording added, so the
@@ -67,6 +74,7 @@ const two = n => String(n).padStart(2, '0');
 const dateOf = ms => { const d = new Date(ms); return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`; };
 const timeOf = (ms, like) => { const d = new Date(ms); const hm = `${two(d.getHours())}:${two(d.getMinutes())}`; return /^\d{1,2}:\d{2}:\d{2}$/.test(like) ? `${hm}:${two(d.getSeconds())}` : hm; };
 const periodOf = g => (g && ((g.clock && (g.clock.periodValue || g.clock.period)) || (g.result && g.result.currentPeriod && g.result.currentPeriod.value))) || '';
+const RUNNING = /^(RESUME|RESUMED|START|STARTED|RUNNING)$/i;
 const finished = s => /FINAL|COMPLETE|RESULT|FINISH|ENDED/i.test(String((s && s.value) || s || ''));
 
 // A recording's game, ready to play: its answers by question, its live answers, and where it can be played from.
@@ -86,20 +94,28 @@ function load(recording, gameId, lead) {
   }
   const b = (lines.find(l => l.k === 'board' && l.board && l.board.gameId === gameId) || {}).board || {};
   const game = { id: gameId, roundId: b.roundId || '', division: chapter.division || b.division || '', court: chapter.court || b.court || '',
-    round: chapter.round || b.round || '', date: b.date || '', time: b.time || '', venue: b.venue || '',
+    round: chapter.round || b.round || '', date: b.date || chapter.date || '', time: b.time || chapter.time || '', venue: b.venue || '',
     home: { name: chapter.home || (b.home || {}).name || 'Home' }, away: { name: chapter.away || (b.away || {}).name || 'Away' } };
   const scheduled = (game.date && localMs(game.date, game.time)) || chapter.t;
-  // Where it can be played from: Start, each period as the scorer started it, and full time.
+  // Where it can be played from: Start, each period as the scorer started it, and full time. A period's jump is the
+  // moment its play started: when the scorer first ran its clock (the clock's lastUpdatedAt, when PlayHQ says, as Studio
+  // read it up to a few seconds later), else when PlayHQ first said it was on. So a video cued on that quarter's first
+  // centre pass lines up with Play.
   const jumps = [{ id: 'start', label: 'Start', at: scheduled - leadMs(lead) }];
-  const seen = new Set();
+  const seen = new Set(), ran = new Set();
   for (const a of live.get(gameId) || []) {
     const g = a.json.data && a.json.data.game;
     if (!g) continue;
     const p = periodOf(g);
     if (p && !seen.has(p)) { seen.add(p); jumps.push({ id: p, label: PERIODS[p] || p, at: a.t }); }
+    if (p && !ran.has(p) && g.clock && RUNNING.test(g.clock.status || '') && !g.break) {
+      ran.add(p);
+      const u = Number(g.clock.lastUpdatedAt) || Date.parse(g.clock.lastUpdatedAt) || 0;
+      jumps.find(j => j.id === p).at = u && u <= a.t && a.t - u < 30000 ? u : a.t;
+    }
     if (finished(g.status)) { jumps.push({ id: 'end', label: 'Full time', at: a.t }); break; }
   }
-  return { recording, game, chapter, answers, live, jumps, scheduled, started: lines.length ? lines[0].t : chapter.t };
+  return { recording, game, chapter, answers, live, jumps, scheduled, started: lines.length ? lines[0].t : chapter.t, followed: !!chapter.followed };
 }
 
 // ─── Moving the recorded night to now ───────────────────────────────────────
@@ -142,13 +158,15 @@ function at(list) {
 
 // ─── What playhq.js asks while a practice game runs ─────────────────────────
 // The GraphQL answer's data. When the recording never asked that: an error, or, in a demo game, undefined, and
-// PlayHQ is asked (the client's competition, seasons and divisions).
+// PlayHQ is asked (the client's competition, seasons and divisions). A followed game's recording (recorder.js: a game
+// Studio followed in the background) has only what Studio asked PlayHQ that night, not what the graphics would have,
+// so for it too anything else is asked of PlayHQ (as it is now: a finished game's line ups have its final numbers).
 function answer(op, vars) {
   const d = run.demo;
   const asked = d ? Object.fromEntries(Object.entries(vars || {}).map(([k, v]) => [k, d.ids.get(v) || v])) : vars;
   const list = run.answers.get(`${op} ${JSON.stringify(asked || {})}`);
   if (!list) {
-    if (d) return undefined;
+    if (d || run.followed) return undefined;
     throw new Error(`The practice game's recording has no answer for ${op}.`);
   }
   const data = shift(at(list).data, gap());
@@ -379,6 +397,14 @@ function jump(id, lead) {
   return null;
 }
 
+// Moves the game by ms against the clock (the nudge, while lining it up with a video): + further on, - back.
+function nudge(ms) {
+  const n = Math.round(Number(ms));
+  if (!Number.isFinite(n) || !n || Math.abs(n) > 3600000) return 'Nudge by a number of milliseconds, + or -.';
+  if (run.pausedAt !== null) run.pausedAt += n; else run.from += n;
+  return null;
+}
+
 function pause(on) {
   if (on && run.pausedAt === null) run.pausedAt = position();
   if (!on && run.pausedAt !== null) { run.from = run.pausedAt; run.startedAt = Date.now(); run.pausedAt = null; }
@@ -400,7 +426,7 @@ function state() {
   if (!run) return { active: false, saved: savedList() };
   const p = position();
   const d = run.demo;
-  return { active: true, recording: run.recording, rerun: run.rerun, game: d ? { ...run.game, division: d.division || run.game.division, home: { name: d.home }, away: { name: d.away } } : run.game,
+  return { active: true, recording: run.recording, rerun: run.rerun, followed: run.followed, game: d ? { ...run.game, division: d.division || run.game.division, home: { name: d.home }, away: { name: d.away } } : run.game,
     demo: d ? { recorded: { home: run.game.home.name, away: run.game.away.name }, swap: d.swap, athletes: matched(d), game: d.game,
       // The pairing table: each recorded athlete, who they are shown as, and who they could be.
       sides: Object.fromEntries(['home', 'away'].map(k => [k, {
@@ -414,15 +440,16 @@ function state() {
     jumps: run.jumps.map(({ id, label, at: t }) => ({ id, label, at: t })) };
 }
 
-// A Stream Deck key (/deck/practice/...): play, pause, toggle, stop, and next and prev (the next or previous jump: the
-// start, each quarter, full time). { status, body } or null when it isn't a practice link.
+// A Stream Deck key (/deck/practice/...): play, pause, toggle, stop, next and prev (the next or previous jump: the
+// start, each quarter, full time), and nudge/<ms> (+ or -). { status, body } or null when it isn't a practice link.
 function deck(parts) {
   if (parts[0] !== 'practice') return null;
   const verb = parts[1];
-  if (!['play', 'pause', 'toggle', 'stop', 'next', 'prev'].includes(verb)) return { status: 404, body: { error: `Unknown practice link /deck/practice/${verb || ''}. Use play, pause, toggle, stop, next or prev.` } };
+  if (!['play', 'pause', 'toggle', 'stop', 'next', 'prev', 'nudge'].includes(verb)) return { status: 404, body: { error: `Unknown practice link /deck/practice/${verb || ''}. Use play, pause, toggle, stop, next, prev or nudge/<ms>.` } };
   if (!run) return { status: 409, body: { error: 'No practice game is running.', ...state() } };
   let error = null;
   if (verb === 'stop') error = stop();
+  else if (verb === 'nudge') error = nudge(parts[2]);
   else if (verb === 'play' || verb === 'pause' || verb === 'toggle') error = pause(verb === 'toggle' ? run.pausedAt === null : verb === 'pause');
   else {
     // Back goes to the start of the part it's in, or the one before when it's only just begun.
@@ -434,7 +461,7 @@ function deck(parts) {
 }
 
 // /api/practice: GET where it is and the saved demos (/api/practice/games: the demo game picker's choices); POST
-// { start: { recording, game, from, lead, demo, rerun } | { saved, lead, rerun } } | { pair: { id, name } } | { save: name } | { forget: name } | { pause: true|false } | { jump, lead } | { stop: true }.
+// { start: { recording, game, from, lead, demo, rerun } | { saved, lead, rerun } } | { pair: { id, name } } | { save: name } | { forget: name } | { pause: true|false } | { jump, lead } | { nudge: ms } | { stop: true }.
 async function route(req, res, url, { send: reply, readBody }) {
   // The client's divisions, and a division's finished games (?division=<PlayHQ id>), to pick a demo game's.
   if (url.pathname === '/api/practice/games') {
@@ -455,7 +482,8 @@ async function route(req, res, url, { send: reply, readBody }) {
       else if (body.pair) error = pair(String(body.pair.id || ''), String(body.pair.name || ''));
       else if (body.save !== undefined) error = save(body.save);
       else if (body.jump) error = jump(String(body.jump), body.lead);
-      else error = 'Send { start }, { pause }, { jump } or { stop }.';
+      else if (body.nudge !== undefined) error = nudge(body.nudge);
+      else error = 'Send { start }, { pause }, { jump }, { nudge } or { stop }.';
     } catch (err) { error = err.message; }
     if (error) { reply(res, 400, { error, ...state() }); return true; }
   }
@@ -463,4 +491,4 @@ async function route(req, res, url, { send: reply, readBody }) {
   return true;
 }
 
-module.exports = { init, active, answer, live, start, stop, pause, jump, state, route, deck, shift, load };
+module.exports = { init, active, answer, live, start, stop, pause, jump, nudge, state, route, deck, shift, load };

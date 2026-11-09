@@ -27,6 +27,13 @@
 // Lines are kept in memory and written every few seconds as a gzip member of their own, so a recording is always
 // readable up to its last write, even if Studio stopped suddenly. A recording with no game in it (made before
 // recordings followed the game) is removed when Studio next starts, and one older than KEEP_DAYS days too.
+// The night's other games Studio follows in the background (board.js followGames) each get a recording of their own
+// too, named "... (followed)": from Studio's first reading of the game to afterMinutes after PlayHQ says it's finished,
+// or until it's no longer followed (the scoreboard picked it, following turned off) or off air. It holds what PlayHQ
+// said (the same playhq lines as the scoreboard's recording, from the last of each already known, and that game's
+// live lines) and no scene, board or graphics, since none of it went to air; its game line says followed: true and
+// carries its date and time. A practice game (practice.js) plays it back as if live, to put graphics over someone
+// else's video of that game (server.js feeds the list each second: followGames).
 // Recording can be turned off, and the minutes after full time set, on the Recordings page (recordings.json in the
 // local data folder, as the recordings are this Mac's: { record, afterMinutes }).
 
@@ -155,6 +162,9 @@ function changed(k, key, data, same = JSON.stringify(data)) {
   latest.delete(key);
   latest.set(key, { k, data, same });
   if (latest.size > LATEST_MAX) latest.delete(latest.keys().next().value);
+  // The followed games' recordings: every PlayHQ answer, and each one's own live scoring.
+  if (k === 'playhq') for (const o of others.values()) noteOther(o, key, k, data, same);
+  if (k === 'live' && others.has(data.id)) noteOther(others.get(data.id), key, k, data, same);
   if (!file || last.get(key) === same) return;
   last.set(key, same);
   note(k, data);
@@ -167,6 +177,61 @@ function flush() {
   try { fs.appendFileSync(file, zlib.gzipSync(lines)); }
   catch (err) { log('warn', 'recorder', `Could not write the recording: ${err.message}`); }
 }
+
+// ─── The night's other games ────────────────────────────────────────────────
+const others = new Map();     // game id -> { gameId, file, name, pending, last, finishedAt, label, flushedAt }
+const othersDone = new Set(); // followed games whose recording has stopped (full time, too long), not started again
+function noteOther(o, key, k, data, same) {
+  if (key !== null) { if (o.last.get(key) === same) return; o.last.set(key, same); }
+  o.pending.push(JSON.stringify({ t: Date.now(), k, ...data }));
+}
+function flushOther(o) {
+  o.flushedAt = Date.now();
+  if (!o.pending.length) return;
+  const lines = o.pending.join('\n') + '\n';
+  o.pending = [];
+  try { fs.appendFileSync(o.file, zlib.gzipSync(lines)); }
+  catch (err) { log('warn', 'recorder', `Could not write the recording of ${o.label}: ${err.message}`); }
+}
+function beginOther(g) {
+  const label = `${g.home || 'Home'} v ${g.away || 'Away'}`;
+  const base = `${stamp(new Date())} ${fileLabel({ home: { name: g.home }, away: { name: g.away } })} (followed)`.trim();
+  let n = `${base}.jsonl.gz`;
+  for (let i = 2; fs.existsSync(path.join(dir, n)); i++) n = `${base}-${i}.jsonl.gz`;
+  const o = { gameId: g.gameId, file: path.join(dir, n), name: n, pending: [], last: new Map(), finishedAt: 0, label, flushedAt: Date.now() };
+  others.set(g.gameId, o);
+  const start = startLine() || {};
+  noteOther(o, null, 'start', { version: start.version || '', competition: start.competition || '', zone: Intl.DateTimeFormat().resolvedOptions().timeZone, followed: true });
+  noteOther(o, null, 'game', { id: g.gameId, home: g.home || '', away: g.away || '', division: g.division || '', round: g.round || '', court: g.court || '',
+    date: g.date || '', time: g.time || '', competition: start.competition || '', followed: true });
+  // What PlayHQ last said (the fixture, ladders, line ups), and this game's live scoring.
+  for (const [key, l] of latest) if (l.k === 'playhq' || (l.k === 'live' && l.data.id === g.gameId)) noteOther(o, key, l.k, l.data, l.same);
+  flushOther(o);
+  log('info', 'recorder', `Recording ${label}, followed in the background, to Recordings/${n}`);
+}
+function closeOther(o, why) {
+  noteOther(o, null, 'end', { why });
+  flushOther(o);
+  others.delete(o.gameId);
+  log('info', 'recorder', `Recording of ${o.label} stopped (${why}): Recordings/${o.name}`);
+}
+// The night's followed games, each second (board.js followedGames): a recording starts once Studio has read a game,
+// and stops afterMinutes after it's done, or when it's no longer followed.
+function followGames(list, now = Date.now()) {
+  const by = new Map((list || []).map(g => [g.gameId, g]));
+  for (const o of [...others.values()]) {
+    const g = by.get(o.gameId);
+    if (!record || !g) { closeOther(o, !record ? 'recording off' : 'no longer followed'); continue; }
+    if (g.done && !o.finishedAt) o.finishedAt = now;
+    if (o.finishedAt && now >= o.finishedAt + afterMinutes * 60000) { othersDone.add(o.gameId); closeOther(o, 'full time'); continue; }
+    if (now - o.flushedAt >= FLUSH_MS) flushOther(o);
+  }
+  if (!record || paused || !dir) return;
+  for (const g of by.values()) if (g.started && !g.done && !others.has(g.gameId) && !othersDone.has(g.gameId)) beginOther(g);
+}
+// Off air: every followed game's recording stops.
+function closeFollowed(why = 'off air') { for (const o of [...others.values()]) closeOther(o, why); }
+const openFiles = () => new Set([file, ...[...others.values()].map(o => o.file)].filter(Boolean));
 
 // A practice game started (on) or stopped: nothing it does is recorded, and after it everything is recorded afresh.
 function pause(on) {
@@ -223,6 +288,7 @@ function sameness(json, text) {
 function read(recording) {
   const f = path.join(dir, recording);
   if (f === file) flush();
+  for (const o of others.values()) if (o.file === f) flushOther(o);
   const text = zlib.gunzipSync(fs.readFileSync(f), { finishFlush: zlib.constants.Z_SYNC_FLUSH }).toString('utf8');
   const out = [];
   for (const line of text.split('\n')) {
@@ -236,6 +302,7 @@ function read(recording) {
 function summary(recording) {
   const f = path.join(dir, recording);
   if (f === file) flush();
+  for (const o of others.values()) if (o.file === f) flushOther(o);
   const st = fs.statSync(f);
   const k = listed.get(recording);
   let s = k && k.mtimeMs === st.mtimeMs && k.size === st.size ? k.summary : null;
@@ -246,7 +313,7 @@ function summary(recording) {
       games: lines.filter(l => l.k === 'game').map(({ t, k: kind, ...g }) => ({ ...g, at: t })), lines: lines.length };
     listed.set(recording, { mtimeMs: st.mtimeMs, size: st.size, summary: s });
   }
-  return { name: recording, size: st.size, recording: path.join(dir, recording) === file, ...s };
+  return { name: recording, size: st.size, recording: openFiles().has(path.join(dir, recording)), followed: s.games.some(g => g.followed), ...s };
 }
 
 function names() {
@@ -265,7 +332,7 @@ function list() {
 function tidy(now = Date.now()) {
   for (const n of names()) {
     const f = path.join(dir, n);
-    if (f === file) continue;
+    if (openFiles().has(f)) continue;
     try {
       const old = now - fs.statSync(f).mtimeMs > KEEP_DAYS * 86400000;
       if (old || !summary(n).games.length) { fs.unlinkSync(f); listed.delete(n); log('info', 'recorder', `Removed Recordings/${n} (${old ? `older than ${KEEP_DAYS} days` : 'no game in it'})`); }
@@ -275,7 +342,7 @@ function tidy(now = Date.now()) {
 
 function remove(recording) {
   if (!NAME.test(recording) || !names().includes(recording)) return `There's no recording ${recording}.`;
-  if (path.join(dir, recording) === file) return 'That recording is still being made. It can be removed once it stops, after the game.';
+  if (openFiles().has(path.join(dir, recording))) return 'That recording is still being made. It can be removed once it stops, after the game.';
   fs.unlinkSync(path.join(dir, recording));
   listed.delete(recording);
   log('info', 'recorder', `Removed Recordings/${recording}`);
@@ -291,6 +358,7 @@ function setRecord(on) {
   record = !!on;
   save();
   if (!record && file) { close('recording off'); log('info', 'recorder', 'Recording turned off'); }
+  if (!record) closeFollowed('recording off');
   if (record) check();
 }
 
@@ -301,10 +369,11 @@ function setAfter(m) {
   check();
 }
 
-// waiting: the board's game when it isn't recording yet ({ game, from (ms, when it's due), why }).
+// waiting: the board's game when it isn't recording yet ({ game, from (ms, when it's due), why }); followed: the followed
+// games' recordings being made.
 function state() {
   const w = !file && record && onBoard && onBoard.gameId ? dueOf(onBoard) : null;
-  return { record, recording: file ? name : '', keepDays: KEEP_DAYS, afterMinutes, leadMinutes: Math.round(lead() / 60000),
+  return { record, recording: file ? name : '', followed: [...others.values()].map(o => o.name), keepDays: KEEP_DAYS, afterMinutes, leadMinutes: Math.round(lead() / 60000),
     waiting: w && !w.due ? { game: teams(onBoard), from: w.from || null, why: w.why } : null, recordings: list() };
 }
 
@@ -335,6 +404,7 @@ async function route(req, res, url, { send: reply, readBody }) {
     const f = fileOf(recording);
     if (!f) { reply(res, 404, { error: `There's no recording ${recording}.` }); return true; }
     if (f === file) flush();
+    for (const o of others.values()) if (o.file === f) flushOther(o);
     reply(res, 200, fs.readFileSync(f), 'application/gzip', { 'content-disposition': `attachment; filename="${recording}"` });
     return true;
   }
@@ -346,4 +416,4 @@ async function route(req, res, url, { send: reply, readBody }) {
   return false;
 }
 
-module.exports = { route, init, close, flush, pause, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, setAfter, state, check, fileOf, KEEP_DAYS };
+module.exports = { route, init, close, flush, followGames, closeFollowed, pause, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, setAfter, state, check, fileOf, KEEP_DAYS };

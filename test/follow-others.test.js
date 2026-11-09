@@ -53,6 +53,13 @@ test('the other game being scored is followed in the background, goal by goal, w
   assert.equal(story.stats.gapInHistory, false, 'followed from 0-0, so no gap');
 });
 
+test('the followed game gets a recording of its own, marked followed', async () => {
+  const r = await studio.until(async () => (await studio.get('/api/recordings')).recordings.find(x => x.followed && x.games.some(g => g.id === other.id)));
+  assert.match(r.name, / \(followed\)\.jsonl\.gz$/);
+  assert.equal(r.recording, true);
+  assert.equal(r.games[0].court, other.court);
+});
+
 test('picking the followed game takes over its goals, and the game left goes on being followed', async () => {
   Object.assign(studio.world.live[main.id], { away: 1, awayGoals: 1 });
   await settle(b => b.away.score === 1);
@@ -109,4 +116,26 @@ test('turning it off on Scoreboard control lets the other games go', async () =>
   b = await act({ type: 'followOthers', value: true });
   assert.equal(b.followOthers, true);
   await settle(b => (b.followedGames || []).length > 0);
+});
+
+test('a followed game\'s recording plays back as a practice game, asks PlayHQ for what it doesn\'t have, and nudges', async () => {
+  const r = (await studio.get('/api/recordings')).recordings.find(x => x.followed && x.games.some(g => g.id === other.id));
+  const before = (await board()).gameId;
+  let p = await studio.post('/api/practice', { start: { recording: r.name, game: other.id, from: 'FIRST_QTR' } });
+  assert.equal(p.active, true);
+  assert.equal(p.followed, true);
+  assert.ok(p.jumps.some(j => j.id === 'FIRST_QTR'));
+  const b = await settle(b => b.gameId === other.id && b.home.score === 0 && b.source === 'playhq');
+  assert.equal(b.home.name, other.home);
+  // The line ups were never asked that night: read from PlayHQ instead of failing.
+  const teams = await studio.get('/api/teams');
+  assert.equal(teams.error, undefined);
+  p = await studio.post('/api/practice', { pause: true });
+  const at = p.position;
+  p = await studio.post('/api/practice', { nudge: 1000 });
+  assert.equal(p.position, at + 1000);
+  p = (await studio.request('GET', '/deck/practice/nudge/-1000')).json;
+  assert.equal(p.position, at);
+  await studio.post('/api/practice', { stop: true });
+  assert.equal((await board()).gameId, before, 'the scoreboard back as it was');
 });
