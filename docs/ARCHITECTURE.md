@@ -139,4 +139,4 @@ with its own data folder; `test/support/playhq.js` is a stand-in PlayHQ with a m
 (`world.fail` and `world.answers` make one request fail or answer oddly, for the PlayHQ outage tests). A
 Chromium page-load test runs when a browser is available, and `test/app.test.js` runs the Mac app itself (Electron, on
 Linux under `xvfb-run`, with Electron's binary from `node node_modules/electron/install.js`). The Tests workflow runs
-them on every pull request and before each Mac app build; `test/packaging.test.js` checks that every root module is in the app's file list.
+them on every pull request and before each Mac app build; `test/packaging.test.js` checks that every root module is in the app's file list. Both workflows keep Electron's download (and the Mac build electron-builder's tools) in the Actions cache under their version, so a newer version is downloaded fresh, and try the download again for a few minutes when GitHub answers 504.

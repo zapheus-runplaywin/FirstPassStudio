@@ -74,7 +74,38 @@ jobs:
       # Install scripts don't run (a package's postinstall is code from outside this repository running next
       # to the signing certificate); Electron's own download, the one script the build needs, runs on purpose.
       - run: npm ci --ignore-scripts
-      - run: node node_modules/electron/install.js
+      # Electron's download, and electron-builder's own tools (the DMG and 7-Zip bundles, the icon set), come from
+      # GitHub releases, which sometimes answer 504 for a while. A copy of each is kept between builds under its
+      # version, so a newer Electron or electron-builder isn't found and is downloaded fresh. Each copy is kept as
+      # soon as it's downloaded, so a build that fails later still has it next time.
+      - name: Versions of Electron and electron-builder
+        id: versions
+        run: |
+          echo "electron=$(node -p 'require("electron/package.json").version')" >> "$GITHUB_OUTPUT"
+          echo "builder=$(node -p 'require("electron-builder/package.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Restore Electron's download
+        id: electron
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/electron
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron }}
+      # Tries again after 30 s, 1 and 2 minutes while GitHub doesn't hand it over.
+      - name: Download Electron
+        run: |
+          for wait in 30 60 120 0; do
+            node node_modules/electron/install.js && exit 0
+            [ "$wait" = 0 ] && break
+            echo "::warning::Couldn't download Electron from GitHub. Trying again in $wait s."
+            sleep "$wait"
+          done
+          echo "::error::Couldn't download Electron from GitHub four times. See the log above."
+          exit 1
+      - name: Keep Electron's download
+        if: steps.electron.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/electron
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron }}
       # The same tests as on pull requests (tests.yml), so a manual build of a broken commit stops here.
       # A test file still going after 8 minutes fails with its name (--test-timeout in package.json's test:ci),
       # inside this step's 10: a test that fails and leaves a connection open would otherwise hold the run for ever.
@@ -223,6 +254,12 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN"
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Developer ID Application" \
             || { echo "::error::No Developer ID Application certificate with its private key in MAC_CERTIFICATE."; exit 1; }
+      - name: Restore electron-builder's tools
+        id: buildertools
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/electron-builder
+          key: electron-builder-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.builder }}
       - name: Build, sign and notarise
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -239,6 +276,13 @@ jobs:
           done
           echo "::error::The build failed three times. See the log above."
           exit 1
+      # Kept even when the build failed, as long as the tools came down.
+      - name: Keep electron-builder's tools
+        if: always() && steps.buildertools.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/electron-builder
+          key: electron-builder-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.builder }}
       # Published here in one step rather than by electron-builder: its .zip and .dmg uploads
       # each tried to create the release at the same moment, and the second one failed
       # ("Published releases must have a valid tag"), leaving a release without the .dmg.
