@@ -105,7 +105,7 @@ test('the copy\'s window plays to its device only, opens only its own mics (or e
   await lost.goto(`${studio.base}/scene.html?copy=1&sink=${encodeURIComponent('Mixer that is not here')}&mics=${crowd}`, { waitUntil: 'load' });
   await lost.waitForFunction(() => copyError, null, { timeout: 10000 });
   assert.match(await lost.evaluate('copyError'), /Mixer that is not here isn't plugged in/);
-  assert.equal(await lost.evaluate('silent && sinkId === null && micDevices.size === 0'), true, 'silent until its device is found');
+  assert.equal(await lost.evaluate('silent && sinkId === null && micDevices.size === 0 && playCtx === null'), true, 'silent until its device is found (no mixer on the Mac\'s speakers)');
   await lost.close();
 
   // Found: every player goes to the device, and only the ticked mic (the crowd) is opened, to the same device.
@@ -113,7 +113,7 @@ test('the copy\'s window plays to its device only, opens only its own mics (or e
   await copy.goto(`${studio.base}/scene.html?copy=1&sink=${encodeURIComponent('Fake Audio Output 1')}&mics=${crowd}`, { waitUntil: 'load' });
   await copy.waitForFunction(() => sinkId && !silent, null, { timeout: 10000 });
   const sink = await copy.evaluate('sinkId');
-  assert.equal(await copy.evaluate('audio.sinkId === sinkId && tail.sinkId === sinkId'), true, 'the music plays to the device');
+  assert.equal(await copy.evaluate('playCtx.sinkId === sinkId'), true, 'the players\' mixer (the music, the videos) plays to the device');
   await copy.waitForFunction(id => micChains.size === 1 && micChains.has(id), crowd, { timeout: 15000 });
   assert.equal(await copy.evaluate('micCtx.sinkId'), sink, 'the mics play to the device too');
   // It never tells Studio what the mics hear: the output's own window does.
@@ -172,9 +172,9 @@ test('the copy plays a video\'s sound the way the output does, to its device, an
   const id = (await act({ type: 'add', sources: [{ type: 'video', name: 'Ad', file: 'Ad.webm', sound: true, loop: true }] })).sources[0].id;
   const playing = page => page.waitForFunction(() => [...layers.values()].some(L => {
     const v = L.el.querySelector('video');
-    return v && v.tagName === 'VIDEO' && !v.paused && !v.muted && v.currentTime > 0.3 && v.sinkId === sinkId;
+    return v && v.tagName === 'VIDEO' && !v.paused && !v.muted && v.currentTime > 0.3 && playCtx && playCtx.sinkId === sinkId;
   }), null, { timeout: 10000 }).catch(async err => {
-    console.log(await page.evaluate(() => [...layers.values()].map(L => { const v = L.el.querySelector('video'); return v && { tag: v.tagName, paused: v.paused, muted: v.muted, t: v.currentTime, sink: v.sinkId, want: sinkId, err: v.error && v.error.message, vis: L.src.visible }; })));
+    console.log(await page.evaluate(() => [...layers.values()].map(L => { const v = L.el.querySelector('video'); return v && { tag: v.tagName, paused: v.paused, muted: v.muted, t: v.currentTime, sink: playCtx && playCtx.sinkId, want: sinkId, err: v.error && v.error.message, vis: L.src.visible }; })));
     throw err;
   });
 
@@ -184,8 +184,8 @@ test('the copy plays a video\'s sound the way the output does, to its device, an
   await copy.waitForFunction(() => sinkId && !silent, null, { timeout: 10000 });
   await act({ type: 'show', id });
   await playing(copy);
-  // It says how loud it plays and what its device plays at, for the status board's Sound out (heard from a copy of
-  // the video's sound, so the video plays on as it was).
+  // It says how loud it plays and what its device plays at, for the status board's Sound out (heard in the mixer the
+  // video plays through).
   await studio.until(async () => {
     const l = (await studio.get('/api/outputs/sound')).levels['main|Fake Audio Output 1'];
     return l && l.peak[0] > 0.01 && l.rate > 0 && l.channels > 0;
