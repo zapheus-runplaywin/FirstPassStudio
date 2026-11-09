@@ -40,6 +40,10 @@ test('Open on your phone shows the QR code on the Mac, and a paired phone goes s
   // The Remote has its own QR code.
   await mac.click('#phoneBox .fp-seg label >> nth=1');
   await mac.waitForFunction(() => /then=%2Fremote\.html$/.test(document.querySelector('#phoneBox code').textContent));
+  // And the Commentator mic.
+  await mac.click('#phoneBox .fp-seg label >> nth=2');
+  await mac.waitForFunction(() => /then=%2Fcommentator\.html$/.test(document.querySelector('#phoneBox code').textContent));
+  assert.match(await mac.textContent('#phoneBox'), /backup commentator headset/);
 
   // The phone: not this Mac, and paired already.
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
@@ -59,4 +63,6 @@ test('Open on your phone shows the QR code on the Mac, and a paired phone goes s
   await phone.goto(`${studio.base}/pair.html?then=https%3A%2F%2Fexample.com%2F`);
   await phone.waitForSelector('#paired:not([hidden])');
   assert.match(phone.url(), /\/pair\.html/);
+  // Paired for everything, the links are the phone pages.
+  assert.deepEqual(await phone.$$eval('#paired .links a:not([hidden])', els => els.map(e => e.textContent)), ['Socials', 'Remote', 'Commentator']);
 });

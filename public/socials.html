@@ -896,10 +896,11 @@
     try {
       const got = await (await fetch(`/api/phone-link?page=${encodeURIComponent(page)}`, { cache: 'no-store' })).json();
       if (got.error) throw new Error(got.error);
-      // Socials, or the Remote (the Output page's status, run order and sequences, for a phone).
+      // The phone pages: Socials, the Remote (the Output page's status, run order and sequences, for a phone) or the
+      // Commentator mic (a phone as a backup commentator headset).
       const pick = el('span', 'fp-seg');
       pick.setAttribute('role', 'radiogroup');
-      for (const [p, name] of [['/socials.html', 'Socials'], ['/remote.html', 'Remote']]) {
+      for (const [p, name] of [['/socials.html', 'Socials'], ['/remote.html', 'Remote'], ['/commentator.html', 'Commentator']]) {
         const l = el('label'), r = el('input');
         r.type = 'radio'; r.name = 'phonePage'; r.checked = p === page;
         r.onchange = () => showPhone(p);
@@ -911,8 +912,7 @@
       const close = el('button', '', 'Done'); close.type = 'button'; close.onclick = () => d.close();
       const row = el('div', 'row'); row.append(close);
       d.replaceChildren(el('h2', '', 'Open on your phone'), pick,
-        el('p', 'help', page === '/remote.html' ? 'The Remote: what\'s on air, the run order and a key for every sequence. Scan this with the phone\'s camera, on the same Wi-Fi as this Mac. The first time, the phone asks this Mac: press Allow everything.'
-          : 'Scan this with the phone\'s camera, on the same Wi-Fi as this Mac. The first time, the phone asks this Mac: press Allow everything.'),
+        el('p', 'help', `${{ '/remote.html': 'The Remote: what\'s on air, the run order and a key for every sequence. ', '/commentator.html': 'The Commentator mic: a phone as a backup commentator headset, heard on Output 1. ' }[page] || ''}Scan this with the phone\'s camera, on the same Wi-Fi as this Mac. The first time, the phone asks this Mac: press Allow everything.`),
         code, el('code', '', got.link), row);
       if (!d.open) d.showModal();
     } catch (err) { showError(`Couldn't make the QR code: ${err.message}`); }
