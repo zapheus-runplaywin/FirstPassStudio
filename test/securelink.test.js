@@ -67,7 +67,9 @@ test('turned on, Studio points its name at the Mac, gets a certificate and answe
   // The stand-in Route 53: checks each request is signed with the key, keeps the records.
   const records = new Map(); // "name TYPE" -> [values]
   const changes = [];
+  let asked = 0; // every request to Route 53
   const r53 = await listen(async (req, res) => {
+    asked++;
     const text = await body(req);
     const want = route53.sign({ method: req.method, path: req.url, host: req.headers.host, body: text }, { keyId: 'AKIATESTKEY000000001', secret: 'test/secret+key0123456789abcdefghijklmn' }, new Date(Date.UTC(
       ...(m => [m[1], m[2] - 1, m[3], m[4], m[5], m[6]])(/^(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z$/.exec(req.headers['x-amz-date'])))));
@@ -179,6 +181,24 @@ test('turned on, Studio points its name at the Mac, gets a certificate and answe
   assert.deepEqual(records.get(`${moved.host} A`), ['127.0.0.1']);
   const other = await new Promise((resolve, reject) => https.get({ host: '127.0.0.1', port: securePort, servername: moved.host, path: '/api/version', headers: { host: `${moved.host}:${securePort}` }, rejectUnauthorized: false }, res => { resolve(res.socket.getPeerCertificate()); res.resume(); }).on('error', reject));
   assert.match(other.subjectaltname, /studio\.example\.org/);
+
+  // Studio starting again on the same network (a copy of its settings, beside this one): https answers at once with
+  // the saved certificate, and nothing is asked of Route 53 (the name already points here).
+  const again = fs.mkdtempSync(path.join(os.tmpdir(), 'securelink-again-'));
+  fs.copyFileSync(path.join(studio.dataDir, 'securelink.json'), path.join(again, 'securelink.json'));
+  const asking = asked;
+  const securePort2 = await freePort();
+  const restarted = await startStudio(t, { dataDir: again, removeDataDir: true, env: {
+    SECURELINK_ROUTE53_URL: `http://127.0.0.1:${r53.address().port}`, SECURELINK_ACME_DIRECTORY: `${base}/directory`,
+    SECURELINK_ADDRESS: '127.0.0.1', SECURELINK_KEYCHAIN: '0', SECURELINK_POLL_MS: '50', SECURE_PORT: String(securePort2),
+  } });
+  const at = await restarted.until(async () => { const st = await restarted.get('/api/securelink'); return st.state === 'ready' && st; }, 3000);
+  assert.equal(at.host, moved.host);
+  const quick = await new Promise((resolve, reject) => https.get({ host: '127.0.0.1', port: securePort2, servername: moved.host, path: '/api/version', headers: { host: `${moved.host}:${securePort2}` }, rejectUnauthorized: false }, res => { resolve(res.statusCode); res.resume(); }).on('error', reject));
+  assert.equal(quick, 200);
+  await new Promise(r => setTimeout(r, 500));
+  assert.equal(asked, asking, 'nothing sent to Route 53');
+  await restarted.stop();
 
   // Turned off: no https, the http link again; the certificate is kept for next time.
   const stopped = await studio.post('/api/securelink', { on: false });

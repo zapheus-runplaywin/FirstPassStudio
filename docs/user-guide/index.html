@@ -967,7 +967,7 @@
     <p>The <strong>Secure phone link</strong> (Devices tab, on this Mac only) adds an https link beside the http one, at <code>&lt;name&gt;.studio.firstpass.pivt.au</code> on port 8443
         (<code>"securePort"</code> in <code>config.json</code> changes it); Studio reads the zone's name from the Route 53 hosted zone it's given, so nothing is built in. Each Mac picks its own random name once, so two Macs on one night each have their own. Studio points the name at the Mac's
         address on the network in Route 53 (again whenever the address changes), proves it owns the name to Let's Encrypt with a TXT record there, and gets a certificate that lasts 90 days,
-        renewed with 30 left. The https link serves the same pages under the same rules (pairing, levels, the lock), and its own pages may change things like the http ones. A step that fails is
+        renewed with 30 left. When Studio starts, a certificate it already has is used straight away, so the https link opens within moments; the address is sent to Route 53 only when it has changed. The https link serves the same pages under the same rules (pairing, levels, the lock), and its own pages may change things like the http ones. A step that fails is
         tried again after 5, 15 and then 60 minutes; a link already working keeps working until its certificate runs out. Its settings, Let's Encrypt account and certificate are in
         <code>securelink.json</code>, the access key's secret in the Keychain.</p>
     <p>On a network you don't control, leave <strong>Only this Mac can change things</strong> ticked, or block incoming connections to FirstPass Studio in the Mac's firewall.</p>

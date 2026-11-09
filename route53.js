@@ -89,7 +89,7 @@ async function change(key, zoneId, c, waitMs = 120000) {
   let id = tag(answer, 'Id').replace(/^\/change\//, '');
   let status = tag(answer, 'Status');
   const until = Date.now() + waitMs;
-  while (status !== 'INSYNC' && id) {
+  while (waitMs > 0 && status !== 'INSYNC' && id) {
     if (Date.now() > until) throw new Error('Route 53 took the change but its name servers haven\'t all got it yet. Studio tries again in a few minutes.');
     await new Promise(r => setTimeout(r, Number(process.env.SECURELINK_POLL_MS || 3000)));
     status = tag(await call(key, 'GET', `/change/${encodeURIComponent(id)}`), 'Status');
