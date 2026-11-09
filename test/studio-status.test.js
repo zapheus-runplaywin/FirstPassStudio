@@ -49,3 +49,24 @@ test('studioStatus shows Saved briefly and keeps an error until the next status'
   await page.waitForFunction(() => document.querySelector('.fp-status').textContent === 'Saved' && !document.querySelector('.fp-status').hidden);
   assert.deepEqual(page.errors, []);
 });
+
+test('on another device, the reads only the Mac may make show no banner; another refused read still does', async t => {
+  const studio = await startStudio(t);
+  const browser = await openBrowser(t);
+  if (!browser) return;
+  // Studio's answer to another device for the Devices list, the link sets and the secure link (access.notThisMac()).
+  const macOnly = path => JSON.stringify({ error: `The devices allowed to change Studio can only be seen and changed on the Mac running Studio, so GET ${path} from 192.168.4.85 was refused. Choose Devices… in the menu bar icon on that Mac.`, macOnly: true });
+  for (const path of ['/output.html', '/api.html']) {
+    const page = await openPage(t, studio, path, { browser });
+    if (!page) return;
+    await page.route(u => /\/api\/(devices|securelink)(\/|$)/.test(new URL(String(u)).pathname), route => route.fulfill({ status: 403, contentType: 'application/json', body: macOnly(new URL(route.request().url()).pathname) }));
+    await page.reload();
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
+    assert.equal(await page.isVisible('.fp-refused'), false, `${path}: no banner for what only the Mac may see`);
+  }
+  const page = await openPage(t, studio, '/recordings.html', { browser });
+  await page.route(u => /\/api\/recordings$/.test(String(u)), route => route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ error: REFUSED }) }));
+  await page.evaluate(() => fetch('/api/recordings'));
+  await page.waitForSelector('.fp-refused:not([hidden])');
+});
