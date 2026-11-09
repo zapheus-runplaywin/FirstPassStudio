@@ -848,14 +848,17 @@ const handle = async (req, res) => {
     const signed = devices.signed(req.method, req.url, req.headers);
     const keyDevice = keyed ? devices.match(keyed[1]) : null;
     const device = keyDevice || (signed === 'ok' && devices.byId(req.headers['x-studio-device'])) || devices.fromCookie(req.headers.cookie);
+    const notMac = access.notThisMac(req.method, url.pathname, req.socket.remoteAddress);
     const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts(), secureOrigin()))
       || (access.privateRead(req.method, url.pathname) && access.foreignHost(req.method, url.pathname, req.headers, ownHosts()))
-      || access.notThisMac(req.method, url.pathname, req.socket.remoteAddress)
+      || notMac
       || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress, undefined, device ? device.level : null);
     if (refused) {
       const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
       if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
-      return send(res, 403, { error: refused });
+      // macOnly: nothing on that device can fix it, so a page asking just to find out (the Devices list, the link
+      // sets) doesn't show it as a problem (studio.js).
+      return send(res, 403, refused === notMac ? { error: refused, macOnly: true } : { error: refused });
     }
     // A 4K replay (replay.js) is on the pages: a graphic's read gets what it was answered on the night, and the scene
     // and scoreboard can't be changed (nor a practice game started) until it's stopped, so the live setup is left as it
