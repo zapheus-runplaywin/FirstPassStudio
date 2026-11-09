@@ -13,7 +13,7 @@
 //   2. points <name>.<zone> at this Mac's address on the network (an A record), and again whenever the address changes,
 //   3. gets a certificate for the name from Let's Encrypt (acme.js, by a TXT record in the zone), and a new one when it
 //      has under 30 days left (they last 90),
-//   4. answers on https with it.
+//   4. answers on https with it. At the next launch a certificate still good is served at once, before any of the above.
 // Each step that fails says why in the Devices tab's Secure phone link card and tries again later. The graphics,
 // the Stream Deck and everything else carry on over http whatever happens here.
 //
@@ -158,9 +158,12 @@ async function runOnce() {
     step = 'Finding this Mac\'s address';
     const addr = address();
     if (!addr) throw new Error('This Mac isn\'t on a network. Join the venue\'s Wi-Fi (or plug in Ethernet) and Studio tries again.');
+    // Unchanged since Studio last pointed it (a restart on the same network): nothing to send. A change isn't waited
+    // for: Route 53 has it at once, and phones see it within the minute the record lasts.
+    if (addr !== recordSet && addr === saved.address && saved.cert && certInfo(saved.cert)?.names.includes(host())) recordSet = addr;
     if (addr !== recordSet) {
       step = `Pointing ${host()} at ${addr}`;
-      await route53.change(key, saved.zoneId, { action: 'UPSERT', name: host(), type: 'A', ttl: 60, values: [addr] });
+      await route53.change(key, saved.zoneId, { action: 'UPSERT', name: host(), type: 'A', ttl: 60, values: [addr] }, 0);
       recordSet = addr;
       if (saved.address !== addr) { log('info', 'securelink', `${host()} now points at ${addr}`); saved.address = addr; save(); }
     }
@@ -192,6 +195,19 @@ async function runOnce() {
 }
 function needsCertExpired() { const info = certInfo(saved.cert); return !info || info.expires <= Date.now(); }
 
+// At launch: a certificate still good for the name is served at once, before anything is asked of Route 53 (on
+// another network, or none yet, the name is pointed at the Mac as soon as it has an address); then the steps run.
+async function launch() {
+  if (saved.domain && saved.cert && saved.key && !needsCertExpired() && certInfo(saved.cert).names.includes(host())) {
+    try {
+      await serve();
+      state = 'ready';
+      log('info', 'securelink', `Ready: https://${host()}:${port} (the saved certificate)`);
+    } catch (err) { problem = err.message; }
+  }
+  run();
+}
+
 // Runs the steps, one run at a time (a run asked for during one goes once it ends).
 function run() {
   if (running) { again = true; return running; }
@@ -207,7 +223,7 @@ function start(opts = {}) {
   upgrade = opts.upgrade || upgrade;
   const read = savefile.readJson(FILE, null, (err, movedTo) => log('error', 'securelink', `securelink.json couldn't be read (${err.message})${movedTo ? `; moved aside as ${movedTo}` : ''}`));
   saved = { ...defaults(), ...(read && typeof read === 'object' ? read : {}) };
-  if (saved.on) run();
+  if (saved.on) launch();
   setInterval(() => { if (saved.on && !running && address() !== recordSet) run(); }, ADDRESS_EVERY).unref();
   setInterval(() => { if (saved.on && !running) run(); }, CHECK_EVERY).unref();
 }
