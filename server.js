@@ -38,6 +38,7 @@ const switcher = require('./switcher');
 const mics = require('./mics');
 const { linkHost, bonjourName } = require('./linkhost');
 const access = require('./access');
+const securelink = require('./securelink');
 const uploads = require('./uploads');
 
 const ROOT = __dirname;
@@ -59,7 +60,11 @@ const PORT = Number(process.env.PORT || MACHINE.port || 8080);
 const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
 // The names a browser may call Studio by when changing something (access.crossSite): read when asked,
 // since the Mac's addresses come and go.
-const ownHosts = () => access.ownHosts([linkHost(MACHINE.linkHost), bonjourName()]);
+const ownHosts = () => access.ownHosts([linkHost(MACHINE.linkHost), bonjourName(), securelink.host()]);
+// The secure phone link (securelink.js): Studio on https as well, by this Mac's own name on the internet, once it's set
+// up on the Devices tab. Its pages may change things like the http ones (access.crossSite's secure origin).
+const SECURE_PORT = Number(process.env.SECURE_PORT || MACHINE.securePort || 8443);
+const secureOrigin = () => (securelink.host() ? { host: securelink.host(), port: SECURE_PORT } : null);
 // This Mac's Stream Deck key (access.js deckPress()): kept with the devices list on this Mac only (devices.js), never in
 // a backup or iCloud. Links copied from Studio carry it as /k/<key>/deck/...; a link without it is refused. Read when
 // asked, since the Devices… window can give it a new one.
@@ -817,7 +822,7 @@ const refusedFrom = new Set();
 // every Studio page (/api/health every 2 s, /api/playback every 3 s) and the Stream Deck's Replay keys' (/api/playback
 // every second).
 const QUIET = new Set(['/api/version', '/api/log', '/api/health', '/api/playback', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live', '/api/outputs/level', '/api/outputs/sound']);
-http.createServer(async (req, res) => {
+const handle = async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   // A Stream Deck link with this Mac's key in front (/k/<key>/deck/...) is the plain /deck/... link from here on.
   const keyed = /^\/k\/([^/]+)(\/deck(?:\/.*)?)$/.exec(url.pathname);
@@ -841,7 +846,7 @@ http.createServer(async (req, res) => {
     const signed = devices.signed(req.method, req.url, req.headers);
     const keyDevice = keyed ? devices.match(keyed[1]) : null;
     const device = keyDevice || (signed === 'ok' && devices.byId(req.headers['x-studio-device'])) || devices.fromCookie(req.headers.cookie);
-    const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts()))
+    const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts(), secureOrigin()))
       || (access.privateRead(req.method, url.pathname) && access.foreignHost(req.method, url.pathname, req.headers, ownHosts()))
       || access.notThisMac(req.method, url.pathname, req.socket.remoteAddress)
       || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress, undefined, device ? device.level : null);
@@ -888,7 +893,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/phone-link' && req.method === 'GET') {
       const page = url.searchParams.get('page') || '/socials.html';
       if (!/^\/[a-z]+\.html$/.test(page)) return send(res, 400, { error: 'Only one of Studio\'s own pages opens on a phone.' });
-      const link = `${LINK_BASE}/pair.html?then=${encodeURIComponent(page)}`;
+      // The secure link when it's working (a phone page that needs the mic or the share sheet works only there).
+      const link = `${securelink.link() || LINK_BASE}/pair.html?then=${encodeURIComponent(page)}`;
       return send(res, 200, { link, svg: sponsors.qrSvg(link).svg });
     }
     // The pair page asks whether this browser is paired already (its cookie), and as what.
@@ -900,9 +906,17 @@ http.createServer(async (req, res) => {
     if (pair && req.method === 'GET') {
       const { cookie, ...got } = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair']);
       // A browser's key goes only in its cookie: HttpOnly, so no page script can read it, and SameSite=Strict, so no
-      // other site's page can send it. 400 days is as long as browsers keep one; unused for 90 days it stops counting.
-      const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000` } : {};
+      // other site's page can send it (and Secure on the secure link, so it never goes over http from there). 400 days is
+      // as long as browsers keep one; unused for 90 days it stops counting.
+      const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000${req.socket.encrypted ? '; Secure' : ''}` } : {};
       return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${got.key}` } : got, undefined, headers);
+    }
+    // The secure phone link (securelink.js), set up on the Devices tab, on this Mac only (access.notThisMac()): where it is,
+    // and its settings ({ zoneId, keyId, secret, on }; the secret is never read back).
+    if (url.pathname === '/api/securelink' && req.method === 'GET') return send(res, 200, await securelink.status());
+    if (url.pathname === '/api/securelink' && req.method === 'POST') {
+      const done = await securelink.set(await readBody(req));
+      return send(res, done.error ? 400 : 200, done);
     }
     // The Devices list at the top of the Devices tab (api.html), on this Mac only (access.notThisMac()).
     if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
@@ -1110,11 +1124,12 @@ http.createServer(async (req, res) => {
     log('error', 'http', `${req.method} ${url.pathname}${url.search} failed: ${err.message}`, err.stack ? err.stack.split('\n').slice(1, 4).join(' | ') : undefined);
     send(res, 502, { error: err.message });
   }
-}).on('upgrade', (req, socket) => {
+};
+function handleUpgrade(req, socket) {
   // WebSockets: the scene's live updates for Studio's pages (scene.js). A page on another site gets
   // no socket (it could read the scene and the board through one; there is no CORS check on sockets).
   const url = new URL(req.url, 'http://localhost');
-  const refused = access.crossSite('WEBSOCKET', url.pathname, req.headers, PORT, ownHosts());
+  const refused = access.crossSite('WEBSOCKET', url.pathname, req.headers, PORT, ownHosts(), secureOrigin());
   if (refused) {
     const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
     if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
@@ -1125,7 +1140,8 @@ http.createServer(async (req, res) => {
     return;
   }
   if (!scene.upgrade(req, socket)) socket.destroy();
-}).on('error', err => {
+}
+http.createServer(handle).on('upgrade', handleUpgrade).on('error', err => {
   // Without this Node throws, the helper dies with a stack trace and the Mac app restarts it
   // five times before giving up with a generic message. Say what is wrong instead.
   if (err.code === 'EADDRINUSE') {
@@ -1141,6 +1157,7 @@ http.createServer(async (req, res) => {
   log('info', 'helper', `Started on port ${PORT} (links ${LINK_BASE}), Node ${process.version}, competition ${CONFIG.name}, organisation ${playhq.organisation().orgId || '(not set)'} on ${playhq.organisation().tenant}`);
   console.log(`Debug log: ${LOG_FILE}`);
   setTimeout(() => warmTeamLists('start up'), 2000);
+  securelink.start({ log, port: SECURE_PORT, handler: handle, upgrade: handleUpgrade });
   stories.start(); // announce this Studio and copy the other Studios' game stories (stories.js)
   console.log(`FirstPass Studio is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);

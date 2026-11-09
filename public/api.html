@@ -44,6 +44,16 @@
   .asking h2 { margin: 0 0 6px; font-size: 18px; }
   .asking .row { display: flex; gap: 8px; margin-top: 12px; }
   .devices th { text-align: left; }
+  /* The secure phone link card (securelink.js), on this Mac only. */
+  .secure { margin-top: 28px; }
+  .secure .state { display: flex; align-items: baseline; gap: 8px; font-size: 15px; margin: 6px 0 12px; }
+  .secure .state .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--fp-line-strong); flex: none; align-self: center; }
+  .secure .state .dot.ok { background: #16a34a; } .secure .state .dot.warn { background: #f59e0b; } .secure .state .dot.bad { background: #dc2626; }
+  .secure .state code { overflow-wrap: anywhere; }
+  .secure .fields { display: grid; grid-template-columns: minmax(150px, 26%) minmax(0, 420px); gap: 8px 12px; align-items: center; font-size: 14px; }
+  .secure .fields input { font: inherit; padding: 7px 10px; border: 1px solid var(--fp-line-strong); border-radius: 8px; background: var(--fp-white); color: var(--fp-navy); min-width: 0; }
+  .secure .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  @media (max-width: 640px) { .secure .fields { grid-template-columns: 1fr; } }
   #linkSet { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
 </style>
 <script src="log.js"></script>
@@ -78,6 +88,22 @@
         (it is each time Studio opens), only the devices in this list can as well. A device unused for 90 days drops off the list and has to ask again.</p>
     </section>
     <p class="note" id="devicesElsewhere" hidden>The list of devices shows only on the Mac running Studio.</p>
+
+    <section class="secure" id="secureSection" hidden>
+      <h2>Secure phone link</h2>
+      <p class="sub">A phone's browser lets a page use its microphone or share sheet only over https. Turned on, Studio also answers at its own
+        name on the internet (<code id="secureHost">…studio.firstpass.pivt.com.au</code>) with a Let's Encrypt certificate, and the phone QR codes use it.
+        Set up once for PIVT, then paste the same three things into each Studio Mac. <a href="/guide/#s10-6">How to set it up</a></p>
+      <div class="state" id="secureState"><span class="dot"></span><span id="secureSays">Off</span></div>
+      <div class="fields">
+        <label for="secureZone">Route 53 hosted zone ID</label><input id="secureZone" placeholder="Z0123456789ABCDEFGHIJ" autocomplete="off" spellcheck="false">
+        <label for="secureKeyId">Access key ID</label><input id="secureKeyId" placeholder="AKIA…" autocomplete="off" spellcheck="false">
+        <label for="secureSecret">Secret access key</label><input id="secureSecret" type="password" placeholder="Paste the secret" autocomplete="new-password" spellcheck="false">
+      </div>
+      <div class="row"><button id="secureOn">Turn on</button><button class="alt" id="secureTry" hidden>Try again now</button></div>
+      <p class="help">The key may change only that one zone. The secret stays in this Mac's Keychain and never shows again; leave the box empty to keep it.
+        The graphics, the Stream Deck and the http links work the same whether this is on or not.</p>
+    </section>
 
     <h2 id="streamdeck" style="margin-top:28px">Stream Deck</h2>
     <p class="sub">Run the scene and the scoreboard from a Stream Deck; Studio has to be on air, so keep a Studio window open.</p>
@@ -209,6 +235,51 @@
   };
 
   load().catch(err => say(`Couldn't load the devices: ${err.message}`, true));
+
+  // The secure phone link card (securelink.js): on this Mac only, like the Devices list.
+  const sec = id => document.getElementById(id);
+  let secure = null;
+  function drawSecure(s) {
+    secure = s;
+    sec('secureSection').hidden = false;
+    sec('secureHost').textContent = s.host || `…${s.domain}`;
+    const dot = sec('secureState').querySelector('.dot');
+    dot.className = 'dot ' + (s.state === 'ready' ? (s.problem ? 'warn' : 'ok') : s.state === 'problem' ? 'bad' : s.state === 'starting' ? 'warn' : '');
+    const says = sec('secureSays');
+    says.replaceChildren();
+    if (s.state === 'ready') {
+      const code = document.createElement('code'); code.textContent = s.link;
+      says.append('Ready: ', code, s.expires ? `. Certificate good until ${new Date(s.expires).toLocaleDateString([], { dateStyle: 'medium' })}, renewed by itself.` : '');
+      if (s.problem) says.append(` ${s.problem}`);
+    } else if (s.state === 'starting') says.textContent = `${s.step || 'Starting'}…`;
+    else if (s.state === 'problem') says.textContent = s.problem;
+    else says.textContent = 'Off. The phone QR codes use the http link.';
+    for (const [id, key] of [['secureZone', 'zoneId'], ['secureKeyId', 'keyId']]) if (document.activeElement !== sec(id)) sec(id).value = s[key] || '';
+    sec('secureSecret').placeholder = s.hasSecret ? 'Kept in the Keychain (paste a new one to change it)' : 'Paste the secret';
+    sec('secureOn').textContent = s.on ? 'Turn off' : 'Turn on';
+    sec('secureTry').hidden = !s.on || s.state === 'starting';
+  }
+  async function loadSecure() {
+    const r = await fetch('/api/securelink');
+    if (r.status === 403) return false;
+    if (r.ok) drawSecure(await r.json());
+    return true;
+  }
+  async function setSecure(body) {
+    const r = await fetch('/api/securelink', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(j.error || 'Studio didn\'t answer.', true); return; }
+    sec('secureSecret').value = '';
+    drawSecure(j);
+  }
+  const secureFields = () => ({ zoneId: sec('secureZone').value, keyId: sec('secureKeyId').value, secret: sec('secureSecret').value });
+  sec('secureOn').onclick = () => setSecure(secure && secure.on ? { on: false } : { ...secureFields(), on: true });
+  sec('secureTry').onclick = () => setSecure(secureFields());
+  for (const id of ['secureZone', 'secureKeyId', 'secureSecret']) sec(id).addEventListener('change', () => { if (secure && secure.on) setSecure(secureFields()); });
+  loadSecure().then(onMac => {
+    // Every couple of seconds while it's starting (a certificate takes about a minute), every half minute otherwise.
+    if (onMac) (function again() { setTimeout(() => { (document.hidden ? Promise.resolve() : loadSecure()).catch(() => {}).finally(again); }, secure && secure.state === 'starting' ? 2000 : 30000); })();
+  }).catch(() => {});
   // Devices in the menu bar icon and /devices.html land here.
   </script>
   <script src="pageoptions.js"></script>
