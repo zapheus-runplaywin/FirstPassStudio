@@ -39,21 +39,21 @@ test('the certificate request carries the name and checks out', { skip: !openssl
   const key = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'csr-'));
   try {
-    fs.writeFileSync(path.join(dir, 'r.csr'), pem(acme.csr('k3f9x2.studio.firstpass.pivt.com.au', key), 'CERTIFICATE REQUEST'));
+    fs.writeFileSync(path.join(dir, 'r.csr'), pem(acme.csr('k3f9x2.studio.firstpass.pivt.au', key), 'CERTIFICATE REQUEST'));
     const out = execFileSync('openssl', ['req', '-in', path.join(dir, 'r.csr'), '-noout', '-verify', '-text'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    assert.match(out, /DNS:k3f9x2\.studio\.firstpass\.pivt\.com\.au/);
+    assert.match(out, /DNS:k3f9x2\.studio\.firstpass\.pivt\.au/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('the secure link\'s https pages are Studio\'s own; its settings answer this Mac only', () => {
-  const hosts = access.ownHosts(['matts-mac.local', 'k3f9x2.studio.firstpass.pivt.com.au'], new Set(['127.0.0.1']));
-  const secure = { host: 'k3f9x2.studio.firstpass.pivt.com.au', port: 8443 };
-  const check = (origin, s = secure) => access.crossSite('POST', '/api/scene', { origin, host: 'k3f9x2.studio.firstpass.pivt.com.au:8443' }, 8080, hosts, s);
-  assert.equal(check('https://k3f9x2.studio.firstpass.pivt.com.au:8443'), null);
-  assert.match(check('https://k3f9x2.studio.firstpass.pivt.com.au:8443', null), /another site|refused/, 'not while it\'s off');
-  assert.match(check('https://k3f9x2.studio.firstpass.pivt.com.au:9999'), /refused/);
-  assert.match(check('https://evil.studio.firstpass.pivt.com.au:8443'), /refused/);
-  assert.match(check('http://k3f9x2.studio.firstpass.pivt.com.au:8443'), /refused/);
+  const hosts = access.ownHosts(['matts-mac.local', 'k3f9x2.studio.firstpass.pivt.au'], new Set(['127.0.0.1']));
+  const secure = { host: 'k3f9x2.studio.firstpass.pivt.au', port: 8443 };
+  const check = (origin, s = secure) => access.crossSite('POST', '/api/scene', { origin, host: 'k3f9x2.studio.firstpass.pivt.au:8443' }, 8080, hosts, s);
+  assert.equal(check('https://k3f9x2.studio.firstpass.pivt.au:8443'), null);
+  assert.match(check('https://k3f9x2.studio.firstpass.pivt.au:8443', null), /another site|refused/, 'not while it\'s off');
+  assert.match(check('https://k3f9x2.studio.firstpass.pivt.au:9999'), /refused/);
+  assert.match(check('https://evil.studio.firstpass.pivt.au:8443'), /refused/);
+  assert.match(check('http://k3f9x2.studio.firstpass.pivt.au:8443'), /refused/);
   assert.match(access.notThisMac('GET', '/api/securelink', '192.168.1.50', new Set(['127.0.0.1'])), /only be seen and changed on the Mac/);
 });
 
@@ -72,8 +72,11 @@ test('turned on, Studio points its name at the Mac, gets a certificate and answe
     const want = route53.sign({ method: req.method, path: req.url, host: req.headers.host, body: text }, { keyId: 'AKIATESTKEY000000001', secret: 'test/secret+key0123456789abcdefghijklmn' }, new Date(Date.UTC(
       ...(m => [m[1], m[2] - 1, m[3], m[4], m[5], m[6]])(/^(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z$/.exec(req.headers['x-amz-date'])))));
     if (req.headers.authorization !== want.authorization) { res.writeHead(403); return res.end('<ErrorResponse><Error><Code>SignatureDoesNotMatch</Code><Message>no</Message></Error></ErrorResponse>'); }
+    const zones = { ZTESTZONE123: 'studio.firstpass.pivt.au.', ZOTHERZONE99: 'studio.example.org.' };
+    const list = /^\/2013-04-01\/hostedzone\/(\w+)\/rrset\?maxitems=1$/.exec(req.url);
+    if (req.method === 'GET' && list) { res.writeHead(200); return res.end(`<ListResourceRecordSetsResponse><ResourceRecordSets><ResourceRecordSet><Name>${zones[list[1]]}</Name><Type>NS</Type></ResourceRecordSet></ResourceRecordSets></ListResourceRecordSetsResponse>`); }
     if (req.method === 'GET') { res.writeHead(200); return res.end('<GetChangeResponse><ChangeInfo><Id>/change/C1</Id><Status>INSYNC</Status></ChangeInfo></GetChangeResponse>'); }
-    assert.match(req.url, /^\/2013-04-01\/hostedzone\/ZTESTZONE123\/rrset$/);
+    assert.match(req.url, /^\/2013-04-01\/hostedzone\/(ZTESTZONE123|ZOTHERZONE99)\/rrset$/);
     const tag = n => [...text.matchAll(new RegExp(`<${n}>([^<]*)</${n}>`, 'g'))].map(m => m[1]);
     const [action] = tag('Action'), [name] = tag('Name'), [type] = tag('Type');
     const values = tag('Value').map(v => v.replace(/^"|"$/g, ''));
@@ -144,7 +147,8 @@ test('turned on, Studio points its name at the Mac, gets a certificate and answe
   assert.equal(JSON.stringify(started).includes('test/secret'), false, 'the secret is never read back');
   const ready = await studio.until(async () => { const s = await studio.get('/api/securelink'); assert.notEqual(s.state, 'problem', s.problem); return s.state === 'ready' && s; }, 20000);
   const host = ready.host;
-  assert.match(host, /^[a-z0-9]{6}\.studio\.firstpass\.pivt\.com\.au$/);
+  assert.match(host, /^[a-z0-9]{6}\.studio\.firstpass\.pivt\.au$/, 'the name is in the zone, read from Route 53');
+  assert.equal(ready.domain, 'studio.firstpass.pivt.au');
   assert.equal(ready.link, `https://${host}:${securePort}`);
   assert.deepEqual(records.get(`${host} A`), ['127.0.0.1'], 'the name points at the Mac');
   assert.ok(changes.some(c => c.type === 'TXT' && c.action === 'UPSERT') && !records.has(`_acme-challenge.${host} TXT`), 'the check record went up and came down');
@@ -167,6 +171,14 @@ test('turned on, Studio points its name at the Mac, gets a certificate and answe
   const change = origin => get('/api/scoreboard', { origin, 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' }, 'POST', JSON.stringify({ type: 'noop' }));
   assert.notEqual((await change(`https://${host}:${securePort}`)).status, 403);
   assert.equal((await change('https://example.com')).status, 403);
+
+  // Another zone: Studio reads its name, and the Mac's name moves into it with a new certificate.
+  await studio.post('/api/securelink', { zoneId: 'ZOTHERZONE99' });
+  const moved = await studio.until(async () => { const s = await studio.get('/api/securelink'); assert.notEqual(s.state, 'problem', s.problem); return s.state === 'ready' && s.host !== host && s; }, 20000);
+  assert.equal(moved.host, host.replace('studio.firstpass.pivt.au', 'studio.example.org'));
+  assert.deepEqual(records.get(`${moved.host} A`), ['127.0.0.1']);
+  const other = await new Promise((resolve, reject) => https.get({ host: '127.0.0.1', port: securePort, servername: moved.host, path: '/api/version', headers: { host: `${moved.host}:${securePort}` }, rejectUnauthorized: false }, res => { resolve(res.socket.getPeerCertificate()); res.resume(); }).on('error', reject));
+  assert.match(other.subjectaltname, /studio\.example\.org/);
 
   // Turned off: no https, the http link again; the certificate is kept for next time.
   const stopped = await studio.post('/api/securelink', { on: false });

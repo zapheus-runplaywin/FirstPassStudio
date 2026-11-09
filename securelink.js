@@ -2,12 +2,13 @@
 //
 // Studio's links are plain http (http://<mac>.local:8080), and a phone's browser keeps some things for https pages:
 // the microphone (a phone as a backup commentator headset), the share sheet with files, and installing a page as an
-// app. So each Mac can have a name of its own on the internet, <name>.studio.firstpass.pivt.com.au, pointing at its
+// app. So each Mac can have a name of its own on the internet, <name>.studio.firstpass.pivt.au, pointing at its
 // address on the venue network, with a real certificate for it from Let's Encrypt; Studio answers on https on that
 // name as well (port 8443, config.json "securePort"), with the same pages and the same rules as on http.
 //
 // It's off until it's set up on the Devices tab: the Route 53 hosted zone ID and an access key that may change only
 // that zone (made once for PIVT, shared by every Studio Mac; route53.js). Studio then
+//   0. reads the zone's name from Route 53 (studio.firstpass.pivt.au), so the name is never built in here,
 //   1. picks a random name for this Mac, once (k3f9x2), so two Macs at a two-court night each have their own,
 //   2. points <name>.<zone> at this Mac's address on the network (an A record), and again whenever the address changes,
 //   3. gets a certificate for the name from Let's Encrypt (acme.js, by a TXT record in the zone), and a new one when it
@@ -20,7 +21,7 @@
 // address on their own network ("DNS rebinding protection"); then the https link doesn't open on that network and
 // the http one still does.
 //
-// Saved as securelink.json in the local data folder (never in iCloud or a backup): the settings, the name, the Let's
+// Saved as securelink.json in the local data folder (never in iCloud or a backup): the settings, the zone's name, the Mac's name, the Let's
 // Encrypt account and the certificate. The access key's secret goes in the Mac's Keychain when Studio runs in the app
 // (in the file otherwise: npm start, the tests).
 
@@ -37,7 +38,6 @@ const route53 = require('./route53');
 const acme = require('./acme');
 
 const FILE = datadir.local('securelink.json');
-const DOMAIN = process.env.SECURELINK_DOMAIN || 'studio.firstpass.pivt.com.au';
 const KEYCHAIN = process.env.SECURELINK_KEYCHAIN ? process.env.SECURELINK_KEYCHAIN === '1' : (process.platform === 'darwin' && !!process.parentPort);
 const KEYCHAIN_SERVICE = 'FirstPass Studio secure link';
 const RENEW_DAYS = 30;
@@ -62,9 +62,9 @@ let retryTimer = null;
 let recordSet = '';     // the address the A record was set to by this run of Studio
 let secretCache = null;
 
-function defaults() { return { v: 1, on: false, zoneId: '', keyId: '', secret: '', name: '', address: '', account: null, cert: '', key: '' }; }
+function defaults() { return { v: 1, on: false, zoneId: '', domain: '', keyId: '', secret: '', name: '', address: '', account: null, cert: '', key: '' }; }
 
-const host = () => (saved.name ? `${saved.name}.${DOMAIN}` : '');
+const host = () => (saved.name && saved.domain ? `${saved.name}.${saved.domain}` : '');
 const link = () => (state === 'ready' ? `https://${host()}:${port}` : null);
 const save = () => { try { savefile.writeJsonSync(FILE, saved); } catch (err) { log('error', 'securelink', `Couldn't save securelink.json: ${err.message}`); } };
 
@@ -149,6 +149,12 @@ async function runOnce() {
   const key = { keyId: saved.keyId, secret };
   if (state !== 'ready') state = 'starting';
   try {
+    if (!saved.domain) {
+      step = 'Reading the hosted zone\'s name';
+      saved.domain = await route53.zoneName(key, saved.zoneId);
+      log('info', 'securelink', `The hosted zone is ${saved.domain}`);
+      save();
+    }
     step = 'Finding this Mac\'s address';
     const addr = address();
     if (!addr) throw new Error('This Mac isn\'t on a network. Join the venue\'s Wi-Fi (or plug in Ethernet) and Studio tries again.');
@@ -211,7 +217,7 @@ async function status() {
   const info = saved.cert ? certInfo(saved.cert) : null;
   return {
     on: saved.on, zoneId: saved.zoneId, keyId: saved.keyId, hasSecret: !!(await readSecret()),
-    domain: DOMAIN, host: host() || null, port, link: link(), state, step: state === 'starting' ? step : '', problem,
+    domain: saved.domain || null, host: host() || null, port, link: link(), state, step: state === 'starting' ? step : '', problem,
     address: saved.address || null, expires: info ? info.expires.toISOString() : null,
   };
 }
@@ -236,7 +242,7 @@ async function set(body = {}) {
   if (secret && !(await writeSecret(secret))) return { error: 'Studio couldn\'t keep the secret in the Mac\'s Keychain.' };
   const keyChanged = (next.zoneId !== undefined && next.zoneId !== saved.zoneId) || (next.keyId !== undefined && next.keyId !== saved.keyId) || !!secret;
   Object.assign(saved, next);
-  if (keyChanged) recordSet = '';
+  if (keyChanged) { recordSet = ''; saved.domain = ''; } // read the zone's name again: it may be another zone
   save();
   if (next.on !== undefined) log('info', 'securelink', `Secure phone link turned ${saved.on ? 'on' : 'off'}`);
   failures = 0;
@@ -246,4 +252,4 @@ async function set(body = {}) {
   return status();
 }
 
-module.exports = { start, status, set, host: () => (saved.on ? host() : ''), link, DOMAIN };
+module.exports = { start, status, set, host: () => (saved.on ? host() : ''), link };

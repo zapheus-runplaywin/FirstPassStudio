@@ -1,6 +1,6 @@
 // FirstPass Studio - a certificate from Let's Encrypt, for the secure phone link (securelink.js).
 //
-// ACME (RFC 8555) with the DNS-01 challenge: Studio proves it owns <name>.studio.firstpass.pivt.com.au by putting a TXT
+// ACME (RFC 8555) with the DNS-01 challenge: Studio proves it owns <name>.studio.firstpass.pivt.au by putting a TXT
 // record in the zone (route53.js), so nothing on the internet has to reach the Mac, which sits on a venue network with
 // a private address. It needs nothing but Node's crypto: P-256 keys, ES256-signed requests, and a certificate signing
 // request built here (csr()), since Node can read certificates but not write a request for one.
