@@ -16,6 +16,8 @@
   A phone's browser gives a page the mic only over https, so this opens by the Secure phone link (the Devices tab), from
   the QR code under + Phone mic in Mics; the phone pairs once (any level). The screen stays awake while it's on, and
   when the connection drops the page says so, beeps in the commentator's ears and starts again by itself.
+  Hear Studio plays Output 1's sound back on the same connection: the program and the other mics, never the
+  commentator's own voice (which would come back late). Its volume is the phone's own; Off sends nothing back.
 -->
 <style>
   body.fp { background: var(--fp-gray); padding-bottom: env(safe-area-inset-bottom); }
@@ -34,6 +36,12 @@
   .meter { height: 14px; border-radius: 7px; background: var(--fp-gray); overflow: hidden; margin-top: 12px; }
   .meter i { display: block; height: 100%; width: 0; background: #16a34a; transition: width .08s linear; }
   .meter i.warm { background: #f59e0b; } .meter i.hot { background: #dc2626; }
+  .meter.back i { background: var(--fp-btn); }
+  .hear { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 14px; }
+  .hear input[type=range] { width: 100%; }
+  .seg { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; }
+  .seg button { min-height: 40px; border: 0; border-radius: 0; padding: 0 14px; font-size: 15px; background: var(--fp-white); color: var(--fp-navy); }
+  .seg button[aria-pressed="true"] { background: var(--fp-btn); color: #fff; }
   .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
   .row button { min-height: 64px; font-size: 18px; touch-action: manipulation; }
   button.lit { background: #dc2626; border-color: #dc2626; color: #fff; }
@@ -62,6 +70,18 @@
     </div>
   </section>
 
+  <section class="card" aria-label="Hear Studio">
+    <h2>Hear Studio</h2>
+    <div class="hear">
+      <span class="seg"><button id="hearOn" aria-pressed="true">On</button><button id="hearOff" aria-pressed="false">Off</button></span>
+      <input type="range" id="hearVol" min="0" max="100" value="80" aria-label="Volume">
+      <small id="hearPct">80%</small>
+    </div>
+    <div class="meter back" aria-hidden="true"><i id="backMeter"></i></div>
+    <p class="help">Output 1's sound and the other mics, without your own voice. Use headphones: on the phone's speaker it comes back in through your mic.
+      It's a moment behind the stream's picture (more on Bluetooth headphones), so use it to hear your co-commentator and the music, not to watch along.</p>
+  </section>
+
   <section class="card" aria-label="Mic">
     <label class="pick">Mic <select id="input"><option value="">The phone's mic, or what's plugged in</option></select></label>
     <p class="help">A <b>wired or USB-C mic</b> sounds best. A Bluetooth headset's mic drops to phone-call quality and arrives about a fifth of a second late,
@@ -85,6 +105,11 @@
   let muted = false, retryTimer = null, wakeLock = null, tries = 0;
   let audioCtx = null, analyser = null, meterData = null;
   let studioMic = null;    // this phone's mic as Studio has it (its mute), from the scene
+  // Hear Studio: on or off and its volume, kept on this phone.
+  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  let hearOn = store.get('commentator.hear') !== 'off';
+  let hearVol = Math.max(0, Math.min(100, Number(store.get('commentator.volume') ?? 80) || 0));
+  let backGain = null, backAnalyser = null, backData = null, backSource = null, backPlayer = null;
 
   function say(word, why, dot) {
     $('word').textContent = word;
@@ -165,15 +190,18 @@
     else say('On air', `Studio hears you as ${micName}.`, 'live');
   }
   function dropPc() {
-    if (pc) { pc.onconnectionstatechange = null; try { pc.close(); } catch {} }
+    if (pc) { pc.onconnectionstatechange = null; pc.ontrack = null; try { pc.close(); } catch {} }
     pc = null; session = '';
+    if (backSource) { backSource.disconnect(); backSource = null; }
   }
   async function connect() {
     clearTimeout(retryTimer);
     dropPc();
     say('Connecting…', 'Finding Studio on this Wi-Fi.', 'warn');
     const me = pc = new RTCPeerConnection({ iceServers: [] });
-    stream.getAudioTracks().forEach(t => me.addTransceiver(t, { direction: 'sendonly', streams: [stream] }));
+    // Both ways when Hear Studio is on: the mic out, Studio's sound back.
+    stream.getAudioTracks().forEach(t => me.addTransceiver(t, { direction: hearOn ? 'sendrecv' : 'sendonly', streams: [stream] }));
+    me.ontrack = e => { if (pc === me) hearBack(e.streams[0] || new MediaStream([e.track])); };
     me.onconnectionstatechange = () => {
       if (pc !== me) return;
       const s = me.connectionState;
@@ -183,7 +211,9 @@
     await me.setLocalDescription(await me.createOffer());
     // Every address in the offer (on one network they're there at once).
     await new Promise(r => { if (me.iceGatheringState === 'complete') return r(); me.addEventListener('icegatheringstatechange', () => me.iceGatheringState === 'complete' && r()); setTimeout(r, 1500); });
-    const res = await fetch('/api/phonemic/offer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sdp: me.localDescription.sdp }) });
+    // Studio's sound back in stereo, at a bit rate music sounds right at.
+    const sdp = me.localDescription.sdp.replace(/a=fmtp:(\d+) ([^\r\n]*useinbandfec=1[^\r\n]*)/g, (all, pt, rest) => `a=fmtp:${pt} ${rest.replace(/;?(maxaveragebitrate|stereo)=\d+/g, '')};stereo=1;maxaveragebitrate=128000`);
+    const res = await fetch('/api/phonemic/offer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sdp }) });
     const made = await res.json().catch(() => ({}));
     if (res.status === 403) { stop(); showError(`This phone isn't paired with the Mac yet. <a href="/pair.html?then=%2Fcommentator.html">Pair it</a> (any level), then press Start again.`); return; }
     if (!res.ok) throw new Error(made.error || res.statusText);
@@ -212,6 +242,60 @@
       } catch (err) { tries++; say('Not connected', `${err.message} Trying again…`, 'bad'); restart(Math.min(10000, 2000 * tries)); }
     }, ms);
   }
+
+  // ─── Hear Studio ────────────────────────────────────────────────────
+  // Studio's sound coming back, through this page's mixer for its volume. (Chromium passes a network stream to a mixer
+  // only while a player plays it, so a silent one does.)
+  function hearBack(st) {
+    if (!audioCtx) return;
+    if (backSource) backSource.disconnect();
+    if (!backGain) {
+      backGain = audioCtx.createGain();
+      backAnalyser = audioCtx.createAnalyser();
+      backAnalyser.fftSize = 512;
+      backData = new Float32Array(backAnalyser.fftSize);
+      backGain.connect(audioCtx.destination);
+    }
+    if (!backPlayer) { backPlayer = new Audio(); backPlayer.muted = true; }
+    backPlayer.srcObject = st;
+    backPlayer.play().catch(() => {});
+    backSource = audioCtx.createMediaStreamSource(st);
+    backSource.connect(backGain);
+    backSource.connect(backAnalyser);
+    setVolume();
+  }
+  function setVolume() { if (backGain) backGain.gain.value = hearOn ? Math.pow(hearVol / 100, 2) * 1.5 : 0; }
+  function drawHear() {
+    $('hearOn').setAttribute('aria-pressed', String(hearOn));
+    $('hearOff').setAttribute('aria-pressed', String(!hearOn));
+    $('hearVol').value = hearVol;
+    $('hearVol').disabled = !hearOn;
+    $('hearPct').textContent = hearOn ? `${hearVol}%` : 'Off';
+  }
+  function setHear(v) {
+    if (v === hearOn) return;
+    hearOn = v;
+    store.set('commentator.hear', v ? 'on' : 'off');
+    drawHear(); setVolume();
+    // Turned on while connected with nothing coming back: connect again both ways.
+    if (on && v && !backSource) restart(0);
+  }
+  $('hearOn').onclick = () => setHear(true);
+  $('hearOff').onclick = () => setHear(false);
+  $('hearVol').oninput = () => { hearVol = Number($('hearVol').value); store.set('commentator.volume', String(hearVol)); drawHear(); setVolume(); };
+  // How loud Studio's sound comes back (before the volume).
+  window.backLevel = () => {
+    if (!backAnalyser) return -100;
+    backAnalyser.getFloatTimeDomainData(backData);
+    let peak = 0;
+    for (const v of backData) peak = Math.max(peak, Math.abs(v));
+    return peak > 0 ? 20 * Math.log10(peak) : -100;
+  };
+  setInterval(() => {
+    const db = hearOn ? window.backLevel() : -100;
+    $('backMeter').style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + '%';
+  }, 80);
+  drawHear();
 
   // ─── Start and stop ─────────────────────────────────────────────────
   async function keepAwake() {

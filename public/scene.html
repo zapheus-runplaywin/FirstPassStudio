@@ -186,7 +186,7 @@
       sfxOut = sfxCtx.createGain();
       sfxOut.gain.value = silent ? 0 : 1;
       sfxOut.connect(sfxCtx.destination);
-      meterFrom(sfxCtx, sfxOut);
+      meterFrom(sfxCtx, sfxOut, true);
     }
     if (sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {});
     stopPageSound(L, .1);
@@ -441,7 +441,7 @@
   let micCtx = null, micBus = null, micSet = null;
   const micDevices = new Map(); // device name -> { stream, source, splitter, error, opening }
   const micChains = new Map(); // mic id -> { src, channel, from, out, input, filter, gain, meter, data }
-  const phones = new Map(); // phone mic id -> { session, pc, stream, player, source, splitter, error, state }
+  const phones = new Map(); // phone mic id -> { session, pc, stream, player, source, splitter, error, state, back, wired }
   const micProblem = {};
   let micStatus = '';
   function micContext() {
@@ -560,6 +560,7 @@
       micChains.get(m.id).filter.frequency.value = m.lowCut ? 100 : 10;
     }
     micStatus = Object.values(micProblem)[0] || '';
+    wireReturns();
   }
   // ─── Phone mics (phonemic.js) ───
   // Takes each phone's offer, answers it, and mixes the sound that comes in. The answer has every address in it (on one
@@ -572,6 +573,20 @@
     try { p.pc.close(); } catch {}
     if (p.source) p.source.disconnect();
     if (p.player) { p.player.srcObject = null; }
+    if (p.back) for (const n of p.wired) try { n.disconnect(p.back); } catch {}
+  }
+  // What each phone hears back: Output 1's program (the players and page sounds, as this window plays them) and every
+  // other mic at its level, never the phone's own voice (it would come back late). Wired again whenever the mics change.
+  let progIn = null;
+  function wireReturns() {
+    if (!micCtx) return;
+    if (!progIn) { const st = programStream(); if (st) progIn = micCtx.createMediaStreamSource(st); }
+    for (const [id, p] of phones) {
+      if (!p.back) continue;
+      const want = new Set([...(progIn ? [progIn] : []), ...[...micChains].filter(([cid]) => cid !== id).map(([, c]) => c.gain)]);
+      for (const n of p.wired) if (!want.has(n)) { try { n.disconnect(p.back); } catch {} p.wired.delete(n); }
+      for (const n of want) if (!p.wired.has(n)) { n.connect(p.back); p.wired.add(n); }
+    }
   }
   // Asks for the Opus sound a voice wants: one channel, a steady 96 kb/s, nothing dropped between words.
   const opusFor = sdp => sdp.replace(/a=fmtp:(\d+) ([^\r\n]*useinbandfec=1[^\r\n]*)/g, (all, pt, rest) => `a=fmtp:${pt} ${rest.replace(/;?(maxaveragebitrate|usedtx|stereo)=\d+/g, '')};stereo=0;maxaveragebitrate=96000;usedtx=0`);
@@ -580,8 +595,12 @@
     if (!m) return;
     closePhone(o.mic);
     const pc = new RTCPeerConnection({ iceServers: [] });
-    const p = { session: o.session, pc, stream: null, player: null, source: null, splitter: null, error: '', state: 'connecting' };
+    const p = { session: o.session, pc, stream: null, player: null, source: null, splitter: null, error: '', state: 'connecting', back: null, wired: new Set() };
     phones.set(o.mic, p);
+    // The sound going back to the phone.
+    p.back = micContext().createMediaStreamDestination();
+    p.back.channelCount = 2;
+    wireReturns();
     pc.ontrack = e => {
       if (phones.get(o.mic) !== p) return;
       const stream = e.streams[0] || new MediaStream([e.track]);
@@ -612,6 +631,12 @@
     };
     try {
       await pc.setRemoteDescription({ type: 'offer', sdp: o.sdp });
+      // A phone that wants to hear Studio offers both ways: send it the program back on the same connection.
+      const tr = pc.getTransceivers()[0];
+      if (tr && /sendrecv|recvonly/.test(o.sdp.match(/a=(sendrecv|sendonly|recvonly)/)?.[1] || '')) {
+        tr.direction = 'sendrecv';
+        await tr.sender.replaceTrack(p.back.stream.getAudioTracks()[0]);
+      }
       const answer = await pc.createAnswer();
       await pc.setLocalDescription({ type: 'answer', sdp: opusFor(answer.sdp) });
       // Every address, then the answer (a second at most: on one network they're there at once).
@@ -673,6 +698,8 @@
   // the key output, a window muted for its sound copies, or another program's canvas: they play nothing.
   const meterOn = !canvas && (copying || params.get('mute') !== '1');
   let meterCtx = null, meterBus = null, meterSides = null;
+  // The program without the mics (the players and the page sounds), for what a phone mic hears back (phonemic.js).
+  let progBus = null, progOut = null;
   const meterTaps = new Map(); // player -> { stream, track, source, gain }
   const meterPeak = [0, 0];
   let meterRate = 0, meterChannels = 0;
@@ -695,15 +722,23 @@
     const hush = meterCtx.createGain();
     hush.gain.value = 0;
     meterBus.connect(hush).connect(meterCtx.destination);
+    progBus = meterCtx.createGain();
+    progBus.channelCount = 2; progBus.channelCountMode = 'explicit';
+    progBus.connect(meterBus);
+    progOut = meterCtx.createMediaStreamDestination();
+    progBus.connect(progOut);
     return meterCtx;
   }
-  // A mixer's sound (the page sounds', the mics') into the meter as well.
-  function meterFrom(ctx, node) {
+  // A mixer's sound (the page sounds', the mics') into the meter as well; program: it's part of the program a phone
+  // mic hears back (the page sounds), not a mic.
+  function meterFrom(ctx, node, program = false) {
     if (!meterContext()) return;
     const copy = ctx.createMediaStreamDestination();
     node.connect(copy);
-    meterCtx.createMediaStreamSource(copy.stream).connect(meterBus);
+    meterCtx.createMediaStreamSource(copy.stream).connect(program ? progBus : meterBus);
   }
+  // This window's program without its mics, as a stream (null where nothing plays: no meter here).
+  const programStream = () => (meterContext() ? progOut.stream : null);
   // The players playing now (the music, the song fading out under it, the videos), each heard at its volume.
   function meterPlayers() {
     if (!meterContext()) return;
@@ -717,7 +752,7 @@
       if (!t && (el.paused || (copying && el.sinkId !== sinkId))) continue;
       if (!t) {
         t = { stream: el.captureStream(), track: null, source: null, gain: meterCtx.createGain() };
-        t.gain.connect(meterBus);
+        t.gain.connect(progBus);
         meterTaps.set(el, t);
       }
       // A new file is a new track on the same copy.

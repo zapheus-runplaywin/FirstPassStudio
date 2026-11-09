@@ -1,6 +1,6 @@
 // A phone as a backup commentator headset (phonemic.js, commentator.html, scene.html): the phone's first offer adds a
-// mic for it, Output 1's window answers and mixes what it sends, and a dropped connection says so on its card and the
-// board. Chromium's stand-in microphone plays a beep; the "phone" here is this Mac (localhost is a secure page too).
+// mic for it, Output 1's window answers and mixes what it sends and sends Output 1's sound back (without the phone's
+// own voice), and a dropped connection says so on its card and the board. Chromium's stand-in microphone plays a beep; the "phone" here is this Mac (localhost is a secure page too).
 // The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -67,7 +67,7 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
   assert.match(await phone.textContent('#why'), /Studio hears you as This Mac/);
 
   // Output 1 mixes it: the beep comes through to its meter.
-  const id = (await studio.get('/api/scene')).mics.mics[0].id;
+  const id = (await studio.get('/api/scene')).mics.mics[0].id; // the phone's
   const heard = await studio.until(async () => { const l = await studio.get('/api/scene/mics/live'); return l.levels[id] > -60 && l; }, 15000);
   assert.equal(heard.problems[id], undefined);
   assert.equal(await output.evaluate(m => micChains.has(m), id), true);
@@ -76,6 +76,19 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
   await studio.post('/api/scene', { type: 'micMute', mic: id, value: 'on' });
   await phone.waitForFunction(() => document.getElementById('word').textContent === 'Muted in Studio', null, { timeout: 5000 });
   await studio.post('/api/scene', { type: 'micMute', mic: id, value: 'off' });
+
+  // Hear Studio: the phone hears Output 1 back, never its own voice. Alone, nothing comes back; a mic on the Mac does.
+  await phone.waitForFunction(() => typeof backLevel === 'function' && document.getElementById('hearOn').getAttribute('aria-pressed') === 'true');
+  // The stand-in mic beeps once a second: listen for the loudest moment over a few seconds.
+  const loudest = () => phone.evaluate(() => new Promise(r => { let max = -100; const t = setInterval(() => { max = Math.max(max, backLevel()); }, 5); setTimeout(() => { clearInterval(t); r(max); }, 3000); }));
+  await phone.waitForTimeout(1000);
+  assert.ok(await loudest() < -60, 'its own voice doesn\'t come back');
+  await studio.post('/api/scene', { type: 'micAdd', changes: { name: 'Court mic', device: '' } });
+  await studio.until(async () => await loudest() > -60, 20000, 0);
+  // Off: the volume goes to nothing.
+  await phone.click('#hearOff');
+  assert.equal(await phone.textContent('#hearPct'), 'Off');
+  await phone.click('#hearOn');
 
   // The Output page: the phone's card, and + Phone mic's QR code (which warns that it needs the secure link here, on http).
   const page = await context.newPage();
