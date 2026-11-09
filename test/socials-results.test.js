@@ -40,7 +40,10 @@ test('Results stats: sharpshooter, super shots, on fire, numbers, clubs, runs, s
   assert.equal(n.clubs[0].games.length, 2);
   assert.deepEqual(n.streaks.map(x => [x.team, x.run, x.unbeaten]), [['Knights', 3, false], ['Titans', 3, false]]);
   assert.ok(n.streaks.every(x => x.logo));
-  assert.deepEqual({ ...n.numbers, highest: n.numbers.highest.team }, { games: 4, points: 228, close: 0, draws: 0, biggest: 9, highest: 'Knights', closeMargin: 3,
+  const { goalOrder, ...numbers } = n.numbers;
+  assert.deepEqual(goalOrder, { complete: 0, of: 4, missing: n.games.map(g => `${g.home.name} v ${g.away.name}`) }, 'no stories, so no goal order tiles');
+  assert.deepEqual(n.goalOrder, goalOrder);
+  assert.deepEqual({ ...numbers, highest: numbers.highest.team }, { games: 4, points: 228, close: 0, draws: 0, biggest: 9, highest: 'Knights', closeMargin: 3,
     superShots: 8, notCounted: 0, accuracy: 82, averageWin: 9, upsets: 0 });
   // The night's shooting % is every game's team counts added up: goals and super goals over attempts.
   const sides = (await Promise.all(n.games.map(g => studio.get(`/api/socials/night?date=${last}&with=gamestats&game=${g.id}`))))
