@@ -25,12 +25,24 @@
   ];
   // The groups in the order the bar shows them; Docs is drawn apart, at the right.
   const GROUPS = ['Run', 'Plan', 'Set up'];
+  // On a phone the bar is just the phone pages (Matt, 9 Nov 2026): Socials, the Remote and the Commentator mic. The
+  // Remote and Commentator pages have no bar of their own and link to the other two the same way. A phone is a touch
+  // screen up to 700 px wide; the Mac and an iPad keep the full bar. The other pages still open at their links.
+  const PHONE_PAGES = [
+    { href: '/socials.html', label: 'Socials' },
+    { href: '/remote.html', label: 'Remote' },
+    { href: '/commentator.html', label: 'Commentator' },
+  ];
+  const PHONE = '(pointer: coarse) and (max-width: 700px)';
 
-  if (typeof module !== 'undefined' && module.exports) { module.exports = { STUDIO_PAGES, GROUPS }; return; }
+  if (typeof module !== 'undefined' && module.exports) { module.exports = { STUDIO_PAGES, GROUPS, PHONE_PAGES, PHONE }; return; }
 
   const bar = document.querySelector('header.fp-bar');
   if (!bar || bar.children.length) return;
   const here = location.pathname;
+  const phone = matchMedia(PHONE).matches;
+  // Studio's own link (/, the Output page on the Mac) opens Socials on a phone.
+  if (phone && here === '/') { location.replace('/socials.html'); return; }
   const current = p => p.href === here || (p.also || []).includes(here);
   const tab = p => {
     const a = document.createElement('a');
@@ -42,10 +54,13 @@
   // The brand: the 1P mark (the logo without STUDIO, shown whole) and the FirstPass STUDIO wordmark (public/studio/),
   // both for the navy bar.
   const brand = document.createElement('a');
-  brand.className = 'fp-brand'; brand.href = '/'; brand.setAttribute('aria-label', 'FirstPass Studio home');
+  brand.className = 'fp-brand'; brand.href = phone ? '/socials.html' : '/'; brand.setAttribute('aria-label', 'FirstPass Studio home');
   brand.innerHTML = '<img class="fp-mark" src="/studio/1p-mark-dark.svg" alt=""><img class="fp-word" src="/studio/firstpass-studio.svg" alt="FirstPass Studio">';
   const nav = document.createElement('nav');
-  for (const g of GROUPS) {
+  if (phone) {
+    bar.classList.add('fp-phone');
+    for (const p of PHONE_PAGES) nav.appendChild(tab(p));
+  } else for (const g of GROUPS) {
     const label = document.createElement('span');
     label.className = 'fp-grp'; label.textContent = g;
     nav.appendChild(label);
@@ -59,7 +74,9 @@
   const docs = document.createElement('nav');
   docs.className = 'fp-docs';
   for (const p of STUDIO_PAGES) if (p.group === 'Docs') docs.appendChild(tab(p));
-  bar.append(brand, nav, chips, docs); // the zoom chip joins after chips below
+  // A phone has no room for the chips (the Remote shows what's on air) or Docs.
+  if (phone) bar.append(brand, nav);
+  else bar.append(brand, nav, chips, docs); // the zoom chip joins after chips below
 
   // ─── Status chips ───────────────────────────────────────────────────────
   // What's on air, at a glance, from any page: ON AIR like a tally light (orange while any output sends) with a dot per
@@ -144,9 +161,11 @@
   });
   const read = () => fetch('/api/health', { cache: 'no-store' }).then(r => r.json()).then(h => { health = h; heardAt = Date.now(); render(); })
     .catch(() => { health = null; render(); });
-  read();
-  setInterval(() => { if (!document.hidden) read(); }, 2000);
-  setInterval(() => { if (!document.hidden && health) render(); }, 1000);
+  if (!phone) {
+    read();
+    setInterval(() => { if (!document.hidden) read(); }, 2000);
+    setInterval(() => { if (!document.hidden && health) render(); }, 1000);
+  }
 
   // While a practice game or a 4K replay runs (practice.js, replay.js), a red strip under the bar on every Studio page
   // says so, with Stop. One read of /api/playback (both at once) every 3 s while the page is in view; styled by

@@ -7,9 +7,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { STUDIO_PAGES, GROUPS } = require('../public/studiobar.js');
+const { STUDIO_PAGES, GROUPS, PHONE_PAGES } = require('../public/studiobar.js');
 const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { openPage, openBrowser } = require('./support/browser');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
@@ -54,6 +54,36 @@ test('the bar draws the brand, the grouped tabs and the status chips, and the ch
   // The practice strip and the refused banner keep their places under the bar.
   assert.equal(await page.$eval('header.fp-bar', h => h.nextElementSibling.className), 'fp-practice');
   assert.deepEqual(page.errors, []);
+});
+
+test('on a phone the bar is Socials, Remote and Commentator, and Studio\'s own link opens Socials; the Remote and Commentator link to the other two', async t => {
+  assert.deepEqual(PHONE_PAGES.map(p => p.label), ['Socials', 'Remote', 'Commentator']);
+  const browser = await openBrowser(t);
+  if (!browser) return;
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  t.after(() => context.close());
+  await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', err => errors.push(err.message));
+  await page.goto(`${studio.base}/`);
+  await page.waitForURL(/\/socials\.html$/);
+  await page.waitForSelector('.fp-bar.fp-phone nav a');
+  assert.deepEqual(await page.$$eval('.fp-bar nav a', els => els.map(e => e.textContent)), ['Socials', 'Remote', 'Commentator']);
+  assert.equal(await page.$eval('.fp-bar nav a[aria-current="page"]', a => a.textContent), 'Socials');
+  assert.equal(await page.$('.fp-bar .fp-grp, .fp-bar .fp-chips, .fp-bar .fp-docs'), null, 'no groups, chips or Docs on a phone');
+  assert.equal(await page.$eval('.fp-bar .fp-brand', a => a.getAttribute('href')), '/socials.html');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, 'the bar fits the phone');
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+  // Another page at its own link still opens, with the phone bar.
+  await page.goto(`${studio.base}/control.html`);
+  assert.deepEqual(await page.$$eval('.fp-bar nav a', els => els.map(e => e.textContent)), ['Socials', 'Remote', 'Commentator']);
+  for (const [path, links] of [['/remote.html', ['/socials.html', '/commentator.html']], ['/commentator.html', ['/socials.html', '/remote.html']]]) {
+    await page.goto(studio.base + path);
+    assert.deepEqual(await page.$$eval('.top nav a', els => els.map(e => e.getAttribute('href'))), links, path);
+  }
+  assert.deepEqual(errors, []);
 });
 
 test('every Studio page has the empty bar and loads studiobar.js straight after it, and no page keeps a copy of the tabs', () => {
