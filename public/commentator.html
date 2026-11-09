@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Studio Mic">
+<title>Commentator mic · FirstPass Studio</title>
+<link rel="stylesheet" href="studio.css">
+<!--
+  FirstPass Studio - the Commentator page: a phone as a backup commentator headset. Plug a USB-C interface or a wired
+  headset into the phone (or pair Bluetooth headphones), press Start, and the phone sends that mic straight to the Mac
+  over the venue Wi-Fi (WebRTC, phonemic.js). Output 1's window mixes it like a mic plugged into the Mac: it's a card in
+  Mics on the Output page, named after the phone, with its level, mute, low cut, ducking and Silent warning.
+  A phone's browser gives a page the mic only over https, so this opens by the Secure phone link (the Devices tab), from
+  the QR code under + Phone mic in Mics; the phone pairs once (any level). The screen stays awake while it's on, and
+  when the connection drops the page says so, beeps in the commentator's ears and starts again by itself.
+-->
+<style>
+  body.fp { background: var(--fp-gray); padding-bottom: env(safe-area-inset-bottom); }
+  main.mic { max-width: 560px; margin: 0 auto; padding: 12px 16px 24px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .top h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .top nav { font-size: 14px; }
+  .pill { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; }
+  .card { background: var(--fp-white); border: 1px solid var(--fp-line); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+  .card h2 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--fp-muted); margin: 0 0 8px; }
+  .state { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; }
+  .state .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--fp-line-strong); flex: none; }
+  .state .dot.live { background: #dc2626; box-shadow: 0 0 8px #dc2626; } .state .dot.warn { background: #f59e0b; } .state .dot.bad { background: #dc2626; }
+  .state small { display: block; font-size: 14px; font-weight: 500; color: var(--fp-muted); }
+  .card.dropped { border-color: #dc2626; background: #fef2f2; }
+  .meter { height: 14px; border-radius: 7px; background: var(--fp-gray); overflow: hidden; margin-top: 12px; }
+  .meter i { display: block; height: 100%; width: 0; background: #16a34a; transition: width .08s linear; }
+  .meter i.warm { background: #f59e0b; } .meter i.hot { background: #dc2626; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .row button { min-height: 64px; font-size: 18px; touch-action: manipulation; }
+  button.lit { background: #dc2626; border-color: #dc2626; color: #fff; }
+  label.pick { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+  label.pick select { font: inherit; font-weight: 400; padding: 9px 10px; border: 1px solid var(--fp-line-strong); border-radius: 8px; background: var(--fp-white); color: var(--fp-navy); }
+  .help { color: var(--fp-muted); font-size: 13px; margin: 8px 0 0; line-height: 1.45; }
+  .error { color: var(--fp-danger); font-weight: 600; }
+  [hidden] { display: none !important; }
+</style>
+<script src="log.js"></script>
+</head>
+<body class="fp">
+<main class="mic">
+  <div class="top">
+    <h1>Commentator mic <span class="pill">Backup</span></h1>
+    <nav><a href="/remote.html">Remote</a></nav>
+  </div>
+  <p class="error" id="err" hidden></p>
+
+  <section class="card" id="stateCard" aria-label="Your mic">
+    <div class="state"><span class="dot" id="dot"></span><span><span id="word">Off</span><small id="why">Press Start to send your mic to Studio.</small></span></div>
+    <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+    <div class="row">
+      <button id="start">Start</button>
+      <button class="alt" id="mute" hidden>Mute</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Mic">
+    <label class="pick">Mic <select id="input"><option value="">The phone's mic, or what's plugged in</option></select></label>
+    <p class="help">A <b>wired or USB-C mic</b> sounds best. A Bluetooth headset's mic drops to phone-call quality and arrives about a fifth of a second late,
+      so use it only when there's nothing else. Plug in before pressing Start.</p>
+  </section>
+
+  <section class="card" aria-label="Keep in mind">
+    <h2>While you're on</h2>
+    <p class="help" style="margin-top:0">Keep this page open with the screen on (it stays awake by itself): the phone stops the mic when you switch apps or lock it.
+      Put the phone on Do Not Disturb, since a call takes the mic. Your level and mute are on the Mac in Mics, where you're named after this phone.</p>
+  </section>
+</main>
+<script>
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const showError = html => { $('err').innerHTML = html || ''; $('err').hidden = !html; };
+  const POLL_MS = 500, ANSWER_WAIT_MS = 30000;
+
+  let on = false;          // the commentator pressed Start
+  let stream = null, pc = null, session = '', micName = '';
+  let muted = false, retryTimer = null, wakeLock = null, tries = 0;
+  let audioCtx = null, analyser = null, meterData = null;
+  let studioMic = null;    // this phone's mic as Studio has it (its mute), from the scene
+
+  function say(word, why, dot) {
+    $('word').textContent = word;
+    $('why').textContent = why || '';
+    $('dot').className = 'dot ' + (dot || '');
+    $('stateCard').classList.toggle('dropped', dot === 'bad');
+  }
+  function drawButtons() {
+    $('start').textContent = on ? 'Stop' : 'Start';
+    $('start').className = on ? 'alt' : '';
+    $('mute').hidden = !on;
+    $('mute').textContent = muted ? 'Muted' : 'Mute';
+    $('mute').classList.toggle('lit', muted);
+  }
+
+  // Two short beeps in the commentator's ears (and a buzz where the phone can) when Studio stops hearing them.
+  function alarm() {
+    try {
+      if (!audioCtx) return;
+      for (const at of [0, .25]) {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = 880; g.gain.value = .15;
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(audioCtx.currentTime + at); o.stop(audioCtx.currentTime + at + .12);
+      }
+      navigator.vibrate?.([120, 80, 120]);
+    } catch { /* nothing to beep with */ }
+  }
+
+  // ─── The mic ────────────────────────────────────────────────────────
+  async function listInputs() {
+    try {
+      const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default');
+      const sel = $('input'), want = sel.value;
+      sel.replaceChildren(new Option('The phone\'s mic, or what\'s plugged in', ''), ...list.map((d, i) => new Option(d.label || `Mic ${i + 1}`, d.deviceId)));
+      if ([...sel.options].some(o => o.value === want)) sel.value = want;
+    } catch { /* listed once the phone allows the mic */ }
+  }
+  async function openMic() {
+    const id = $('input').value;
+    stream = await navigator.mediaDevices.getUserMedia({ audio: {
+      ...(id ? { deviceId: { exact: id } } : {}), echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 1 } } });
+    const track = stream.getAudioTracks()[0];
+    track.enabled = !muted;
+    // The phone took the mic away (a call, another app, a headset pulled out).
+    track.addEventListener('ended', () => { if (on) { alarm(); say('Mic stopped', 'The phone stopped the mic (a call, another app, or the mic was unplugged). Starting again…', 'bad'); restart(1500); } });
+    track.addEventListener('mute', () => { if (on) say('Mic paused by the phone', 'Something else has the mic (a call?). It comes back when that ends.', 'warn'); });
+    track.addEventListener('unmute', () => { if (on && pc && pc.connectionState === 'connected') onAir(); });
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume().catch(() => {});
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    meterData = new Float32Array(analyser.fftSize);
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    listInputs();
+  }
+  function closeMic() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null; analyser = null;
+  }
+  // The level as it leaves the phone: green, amber near the top, red at the top.
+  setInterval(() => {
+    const bar = $('meter');
+    if (!analyser || muted) { bar.style.width = '0'; return; }
+    analyser.getFloatTimeDomainData(meterData);
+    let peak = 0;
+    for (const v of meterData) peak = Math.max(peak, Math.abs(v));
+    const db = peak > 0 ? 20 * Math.log10(peak) : -100;
+    bar.style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + '%';
+    bar.className = db >= -3 ? 'hot' : db >= -12 ? 'warm' : '';
+  }, 60);
+
+  // ─── The connection to Studio ───────────────────────────────────────
+  function onAir() {
+    tries = 0;
+    if (studioMic && studioMic.muted) say('Muted in Studio', `Studio hears you as ${micName}, but has you muted on the Mac.`, 'warn');
+    else if (muted) say('Muted', 'Studio hears nothing from you until you press Mute again.', 'warn');
+    else say('On air', `Studio hears you as ${micName}.`, 'live');
+  }
+  function dropPc() {
+    if (pc) { pc.onconnectionstatechange = null; try { pc.close(); } catch {} }
+    pc = null; session = '';
+  }
+  async function connect() {
+    clearTimeout(retryTimer);
+    dropPc();
+    say('Connecting…', 'Finding Studio on this Wi-Fi.', 'warn');
+    const me = pc = new RTCPeerConnection({ iceServers: [] });
+    stream.getAudioTracks().forEach(t => me.addTransceiver(t, { direction: 'sendonly', streams: [stream] }));
+    me.onconnectionstatechange = () => {
+      if (pc !== me) return;
+      const s = me.connectionState;
+      if (s === 'connected') onAir();
+      else if (s === 'disconnected' || s === 'failed') { alarm(); say('Dropped', 'Studio stopped hearing you. Trying again…', 'bad'); restart(2000); }
+    };
+    await me.setLocalDescription(await me.createOffer());
+    // Every address in the offer (on one network they're there at once).
+    await new Promise(r => { if (me.iceGatheringState === 'complete') return r(); me.addEventListener('icegatheringstatechange', () => me.iceGatheringState === 'complete' && r()); setTimeout(r, 1500); });
+    const res = await fetch('/api/phonemic/offer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sdp: me.localDescription.sdp }) });
+    const made = await res.json().catch(() => ({}));
+    if (res.status === 403) { stop(); showError(`This phone isn't paired with the Mac yet. <a href="/pair.html?then=%2Fcommentator.html">Pair it</a> (any level), then press Start again.`); return; }
+    if (!res.ok) throw new Error(made.error || res.statusText);
+    if (pc !== me) return;
+    session = made.session; micName = made.mic;
+    const until = Date.now() + ANSWER_WAIT_MS;
+    for (;;) {
+      if (pc !== me) return;
+      const got = await (await fetch(`/api/phonemic/${encodeURIComponent(session)}`, { cache: 'no-store' })).json().catch(() => ({}));
+      if (got.answer) { await me.setRemoteDescription({ type: 'answer', sdp: got.answer }); return; }
+      if (got.error) throw new Error(got.error);
+      say('Waiting for Studio', got.why || 'Studio is picking up…', 'warn');
+      if (Date.now() > until) throw new Error('Studio didn\'t pick up. Is Output 1 on?');
+      await new Promise(r => setTimeout(r, POLL_MS));
+    }
+  }
+  // Starts again after ms, a little longer each time it doesn't work (up to 10 s).
+  function restart(ms) {
+    clearTimeout(retryTimer);
+    if (!on) return;
+    retryTimer = setTimeout(async () => {
+      if (!on) return;
+      try {
+        if (!stream || stream.getAudioTracks().every(t => t.readyState === 'ended')) { closeMic(); await openMic(); }
+        await connect();
+      } catch (err) { tries++; say('Not connected', `${err.message} Trying again…`, 'bad'); restart(Math.min(10000, 2000 * tries)); }
+    }, ms);
+  }
+
+  // ─── Start and stop ─────────────────────────────────────────────────
+  async function keepAwake() {
+    try { if (on && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch { /* not allowed now */ }
+  }
+  async function start() {
+    showError('');
+    on = true; tries = 0;
+    drawButtons();
+    keepAwake();
+    try {
+      await openMic();
+      await connect();
+    } catch (err) {
+      if (err.name === 'NotAllowedError') { stop(); showError('The phone didn\'t let this page use the mic. Allow the microphone for this site in the browser\'s settings, then press Start again.'); return; }
+      if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') { stop(); showError('That mic isn\'t plugged in. Pick another, or plug it in and press Start again.'); return; }
+      tries++; say('Not connected', `${err.message} Trying again…`, 'bad'); restart(2000);
+    }
+  }
+  function stop() {
+    on = false;
+    clearTimeout(retryTimer);
+    dropPc();
+    closeMic();
+    if (wakeLock) wakeLock.release().catch(() => {});
+    say('Off', 'Press Start to send your mic to Studio.', '');
+    drawButtons();
+  }
+  $('start').onclick = () => (on ? stop() : start());
+  $('mute').onclick = () => {
+    muted = !muted;
+    if (stream) stream.getAudioTracks().forEach(t => { t.enabled = !muted; });
+    drawButtons();
+    if (pc && pc.connectionState === 'connected') onAir();
+  };
+  $('input').onchange = () => { if (on) { closeMic(); restart(0); } };
+  navigator.mediaDevices?.addEventListener('devicechange', listInputs);
+
+  // Back on the page after the phone was locked or another app was in front: the phone may have stopped the mic.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !on) return;
+    keepAwake();
+    if (!stream || stream.getAudioTracks().some(t => t.readyState === 'ended') || !pc || pc.connectionState !== 'connected') {
+      say('Starting again', 'The phone stopped the mic while this page was away.', 'bad');
+      restart(0);
+    }
+  });
+
+  // Studio's side of this phone's mic (its mute on the Mac), from the scene as it changes.
+  const events = new EventSource('/api/scene/events');
+  events.onmessage = e => {
+    try {
+      const sc = JSON.parse(e.data);
+      studioMic = ((sc.mics && sc.mics.mics) || []).find(m => m.on === 'phone' && m.name === micName) || null;
+      if (on && pc && pc.connectionState === 'connected') onAir();
+    } catch { /* the next one */ }
+  };
+
+  if (!window.isSecureContext || !navigator.mediaDevices || !window.RTCPeerConnection) {
+    $('start').disabled = true;
+    showError(`A phone lets a page use its mic only over the secure link. On the Mac, turn on <b>Secure phone link</b> on the Devices tab, then open this page from the QR code under <b>+ Phone mic</b> in Mics on the Output page${location.protocol === 'http:' ? '' : ' (this browser has no WebRTC: use Safari or Chrome)'}.`);
+  }
+  drawButtons();
+</script>
+</body>
+</html>

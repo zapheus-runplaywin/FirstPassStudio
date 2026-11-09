@@ -434,10 +434,14 @@
   // the master level, mutes and the dip on top); then all of them through a limiter. The browser's call
   // processing (echo cancelling, noise suppression, automatic level) is off: it would pump the crowd noise.
   // A sound copy opens only the mics ticked for it (?mics=).
+  // A phone mic (on: 'phone', the Commentator page) comes over the network instead (phonemic.js): the window mixing
+  // Output 1's main sound (its own, or its main sound copy's) answers the phone and mixes it like a Mac input.
   const micsHere = copying || (params.get('fit') === '1' && params.get('mute') !== '1' && params.get('key') !== '1');
+  const phoneHost = micsHere && primary && (copying ? copyMain : true);
   let micCtx = null, micBus = null, micSet = null;
   const micDevices = new Map(); // device name -> { stream, source, splitter, error, opening }
-  const micChains = new Map(); // mic id -> { device, channel, from, out, input, filter, gain, meter, data }
+  const micChains = new Map(); // mic id -> { src, channel, from, out, input, filter, gain, meter, data }
+  const phones = new Map(); // phone mic id -> { session, pc, stream, player, source, splitter, error, state }
   const micProblem = {};
   let micStatus = '';
   function micContext() {
@@ -519,7 +523,7 @@
     const gain = ctx.createGain();
     gain.gain.value = 0;
     input.connect(filter); filter.connect(meter); filter.connect(gain); gain.connect(micBus);
-    return { device: m.device, channel: m.channel, from, out, input, filter, gain, meter, data: new Float32Array(meter.fftSize) };
+    return { src: d, channel: m.channel, from, out, input, filter, gain, meter, data: new Float32Array(meter.fftSize) };
   }
   // How far down the dip is now, 0 (up) to 1 (down at dipTo), easing as the music's duck does.
   function micGain(set, m) {
@@ -532,18 +536,23 @@
     }
     return g;
   }
+  // Where a mic's sound comes from here: its Mac device, or its phone's connection.
+  const micSource = m => m.on === 'phone' ? phones.get(m.id) : micDevices.get(m.device);
   function renderMics(set) {
     micSet = set || null;
-    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (copying ? copyAll || copyMics.has(m.id) : primary)) : []; // the switcher mixes its own
-    const names = new Set(want.map(m => m.device));
+    // The switcher mixes its own; a phone mic only in the window that answers it.
+    const want = micsHere && micSet && sinkId !== null ? micSet.mics.filter(m => m.on !== 'atem' && (m.on !== 'phone' || phoneHost) && (copying ? copyAll || copyMics.has(m.id) : primary)) : [];
+    const names = new Set(want.filter(m => m.on !== 'phone').map(m => m.device));
+    for (const id of [...phones.keys()]) if (!want.some(m => m.id === id && m.on === 'phone')) closePhone(id);
     for (const name of [...micDevices.keys()]) if (!names.has(name)) closeDevice(name);
     for (const [id, c] of micChains) {
       const m = want.find(x => x.id === id);
-      if (!m || m.device !== c.device || m.channel !== c.channel || !micDevices.get(m.device)?.source) dropChain(id);
+      if (!m || micSource(m) !== c.src || m.channel !== c.channel || !c.src?.source) dropChain(id);
     }
     for (const k of Object.keys(micProblem)) delete micProblem[k];
     for (const m of want) {
-      const d = micDevices.get(m.device);
+      const d = micSource(m);
+      if (m.on === 'phone' && !d?.source) { micProblem[m.id] = d?.error || (d ? 'Connecting to the phone…' : 'Waiting for the phone: open the Commentator page on it and press Start'); continue; }
       if (!d) { openDevice(m.device); continue; }
       if (d.error) { micProblem[m.id] = d.error; continue; }
       if (!d.source) continue;
@@ -552,6 +561,77 @@
     }
     micStatus = Object.values(micProblem)[0] || '';
   }
+  // ─── Phone mics (phonemic.js) ───
+  // Takes each phone's offer, answers it, and mixes the sound that comes in. The answer has every address in it (on one
+  // network they're there at once), so nothing else goes back and forth. A dropped connection says so on the mic's card
+  // (and the board); the phone starts again by itself.
+  function closePhone(id) {
+    const p = phones.get(id);
+    if (!p) return;
+    phones.delete(id);
+    try { p.pc.close(); } catch {}
+    if (p.source) p.source.disconnect();
+    if (p.player) { p.player.srcObject = null; }
+  }
+  // Asks for the Opus sound a voice wants: one channel, a steady 96 kb/s, nothing dropped between words.
+  const opusFor = sdp => sdp.replace(/a=fmtp:(\d+) ([^\r\n]*useinbandfec=1[^\r\n]*)/g, (all, pt, rest) => `a=fmtp:${pt} ${rest.replace(/;?(maxaveragebitrate|usedtx|stereo)=\d+/g, '')};stereo=0;maxaveragebitrate=96000;usedtx=0`);
+  async function answerPhone(o) {
+    const m = micSet && micSet.mics.find(x => x.id === o.mic && x.on === 'phone');
+    if (!m) return;
+    closePhone(o.mic);
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    const p = { session: o.session, pc, stream: null, player: null, source: null, splitter: null, error: '', state: 'connecting' };
+    phones.set(o.mic, p);
+    pc.ontrack = e => {
+      if (phones.get(o.mic) !== p) return;
+      const stream = e.streams[0] || new MediaStream([e.track]);
+      // A little less buffering than the browser keeps by default: it's a voice going to air.
+      try { e.receiver.jitterBufferTarget = 40; } catch {}
+      // Chromium hands a network stream to Web Audio only while something plays it: a silent player does.
+      p.player = new Audio();
+      p.player.muted = true;
+      p.player.srcObject = stream;
+      p.player.play().catch(() => {});
+      const ctx = micContext();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      p.stream = stream;
+      p.source = ctx.createMediaStreamSource(stream);
+      p.splitter = ctx.createChannelSplitter(2);
+      p.source.connect(p.splitter);
+      renderMics(micSet);
+    };
+    pc.onconnectionstatechange = () => {
+      if (phones.get(o.mic) !== p) return;
+      p.state = pc.connectionState;
+      if (p.state === 'connected') p.error = '';
+      if (p.state === 'disconnected' || p.state === 'failed' || p.state === 'closed') {
+        p.error = 'Dropped: the phone lost Studio (it tries again by itself; check it is still on the Commentator page and the Wi-Fi)';
+        if (p.source) { p.source.disconnect(); p.source = null; }
+      }
+      renderMics(micSet);
+    };
+    try {
+      await pc.setRemoteDescription({ type: 'offer', sdp: o.sdp });
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription({ type: 'answer', sdp: opusFor(answer.sdp) });
+      // Every address, then the answer (a second at most: on one network they're there at once).
+      await new Promise(r => { if (pc.iceGatheringState === 'complete') return r(); pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && r()); setTimeout(r, 1000); });
+      await fetch(`/api/phonemic/${encodeURIComponent(o.session)}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sdp: pc.localDescription.sdp }) });
+    } catch (err) {
+      p.error = `Couldn't connect to the phone: ${err.message}`;
+      console.warn('Phone mic:', p.error);
+      renderMics(micSet);
+    }
+  }
+  if (phoneHost && window.RTCPeerConnection) {
+    setInterval(async () => {
+      if (!micSet || sinkId === null) return;
+      let offers = [];
+      try { offers = (await (await fetch('/api/phonemic/offers', { cache: 'no-store' })).json()).offers || []; } catch { return; }
+      for (const o of offers) if (phones.get(o.mic)?.session !== o.session) answerPhone(o);
+    }, 1000);
+  }
+
   if (micsHere) {
     // The levels follow the settings and the dip.
     setInterval(() => {

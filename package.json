@@ -88,6 +88,7 @@
       "securelink.js",
       "route53.js",
       "acme.js",
+      "phonemic.js",
       "unpacked.js",
       "uploads.js",
       "sequences.js",

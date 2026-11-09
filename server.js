@@ -39,6 +39,7 @@ const mics = require('./mics');
 const { linkHost, bonjourName } = require('./linkhost');
 const access = require('./access');
 const securelink = require('./securelink');
+const phonemic = require('./phonemic');
 const uploads = require('./uploads');
 
 const ROOT = __dirname;
@@ -142,6 +143,7 @@ devices.load(log);
 viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.viewers });
 // The ATEM switcher, if one is set up: its state goes to the Output page over the scene's socket.
 scene.setSwitcherSource(switcher.status);
+phonemic.init(log, mics, changes => scene.act({ type: 'micAdd', changes }));
 // Mics plugged into the switcher (mics.js): Studio moves their faders, and follows a fader moved on the switcher.
 switcher.init(log, { changed: () => { scene.publishSwitcher(); mics.switcherChanged(); }, stinger: { find: scene.stingerSource, play: scene.playStinger }, outputs: outputs.switcherPlan,
   unstraight: id => outputs.apply({ output: id, decklinkStraight: false }), mics: () => mics.switcherChanged() });
@@ -821,7 +823,7 @@ const refusedFrom = new Set();
 // Requests that pages repeat every second or two are only logged when they fail: among them the tab bar's reads on
 // every Studio page (/api/health every 2 s, /api/playback every 3 s) and the Stream Deck's Replay keys' (/api/playback
 // every second).
-const QUIET = new Set(['/api/version', '/api/log', '/api/health', '/api/playback', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live', '/api/outputs/level', '/api/outputs/sound']);
+const QUIET = new Set(['/api/version', '/api/log', '/api/health', '/api/playback', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live', '/api/phonemic/offers', '/api/outputs/level', '/api/outputs/sound']);
 const handle = async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   // A Stream Deck link with this Mac's key in front (/k/<key>/deck/...) is the plain /deck/... link from here on.
@@ -896,6 +898,30 @@ const handle = async (req, res) => {
       // The secure link when it's working (a phone page that needs the mic or the share sheet works only there).
       const link = `${securelink.link() || LINK_BASE}/pair.html?then=${encodeURIComponent(page)}`;
       return send(res, 200, { link, svg: sponsors.qrSvg(link).svg });
+    }
+    // A phone as a backup commentator headset (phonemic.js): the Commentator page's offer (a paired phone, or this Mac),
+    // the phone collecting the answer, and Output 1's window (this Mac only) taking the offers and answering them.
+    if (url.pathname === '/api/phonemic/offer' && req.method === 'POST') {
+      const local = access.isLocal(req.socket.remoteAddress);
+      const phone = device && device.kind === 'browser' ? { id: device.id, name: device.name } : local ? { id: 'this-mac', name: 'This Mac' } : null;
+      if (!phone) return send(res, 403, { error: 'Pair this phone first: open the Commentator page from its QR code on the Output page, and press Allow on the Mac.' });
+      const made = phonemic.offer(phone, (await readBody(req)).sdp);
+      return send(res, made.error ? 409 : 200, made);
+    }
+    if (url.pathname === '/api/phonemic/offers' && req.method === 'GET') return send(res, 200, { offers: phonemic.waiting() });
+    const phoneSession = /^\/api\/phonemic\/([\w-]+)(\/answer)?$/.exec(url.pathname);
+    if (phoneSession && phoneSession[1] !== 'offer' && phoneSession[1] !== 'offers') {
+      const id = phoneSession[1];
+      if (phoneSession[2] && req.method === 'POST') {
+        if (!access.isLocal(req.socket.remoteAddress)) return send(res, 403, { error: 'Only Output 1\'s window on the Mac answers a phone.' });
+        const done = phonemic.answer(id, (await readBody(req)).sdp);
+        return send(res, done.error ? 404 : 200, done);
+      }
+      if (!phoneSession[2] && req.method === 'GET') {
+        const phoneId = device && device.kind === 'browser' ? device.id : access.isLocal(req.socket.remoteAddress) ? 'this-mac' : '';
+        const got = phonemic.collect(id, phoneId, mics.live().mixing);
+        return send(res, got.gone ? 404 : 200, got);
+      }
     }
     // The pair page asks whether this browser is paired already (its cookie), and as what.
     if (url.pathname === '/api/pair/me') {
