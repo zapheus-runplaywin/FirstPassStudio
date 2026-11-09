@@ -38,7 +38,7 @@ function privateRead(method, pathname) {
 
 // Who may change things from another device (the Devices… window, devices.js), and the secure phone link's settings and
 // key (securelink.js): read and changed only on this Mac, whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
-const MAC_ONLY = ['/api/devices', '/api/securelink'];
+const MAC_ONLY = ['/api/devices', '/api/securelink', '/api/phonemic/offers'];
 const macOnly = pathname => MAC_ONLY.some(p => pathname === p || pathname.startsWith(p + '/'));
 // The 403 message for one of those asked for from another address, or null.
 function notThisMac(method, pathname, remoteAddress, own) {
@@ -72,6 +72,9 @@ function isLocal(remoteAddress, own = ownAddresses()) {
 const ASK = ['/api/pair'];
 const asking = pathname => ASK.some(p => pathname === p || pathname.startsWith(p + '/'));
 
+// What every allowed device may do, whatever its level: start a phone mic (the Commentator page, phonemic.js).
+const ANY_LEVEL = ['/api/phonemic/offer'];
+
 // What a device allowed to score only may change (devices.js level 'scoring'): the scoreboard control page (the score,
 // clock, quarter, game and round pick) and the Stream Deck's score, clock, quarter and game links.
 const SCORING_POSTS = ['/api/scoreboard', '/api/rounds'];
@@ -90,7 +93,7 @@ function refusal(setting, method, pathname, remoteAddress, own, level = null) {
   const change = changes(method, pathname);
   if (!change && !privateRead(method, pathname)) return null;
   if (isLocal(remoteAddress, own)) return null;
-  if (level === 'full' || (level === 'scoring' && change && scoring(method, pathname))) return null;
+  if (level === 'full' || (level === 'scoring' && change && scoring(method, pathname)) || (level && method === 'POST' && ANY_LEVEL.includes(pathname))) return null;
   if (level === 'scoring') return `This device is allowed to score only, so ${method} ${pathname} was refused. To let it change everything, change it in Devices… in the menu bar icon on the Mac.`;
   const what = change ? 'take changes' : 'keep its private data (settings, backups, the athlete register, the Production Planner, the log and sponsor reports)';
   return `Studio is set to ${what} only ${change ? 'from' : 'on'} this computer, so ${method} ${pathname} from ${strip(remoteAddress)} was refused. To let this device in, open Studio's /pair.html on it and press Allow on the Mac; or, to let every device on this network change things and read them, untick "Only this Mac can change things" in the menu bar icon (it is ticked again each time Studio opens).`;

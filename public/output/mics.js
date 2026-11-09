@@ -16,8 +16,9 @@ const primaryOn = () => { const o = out && out.outputs && out.outputs.find(x => 
 const deviceName = d => d || 'The Mac\'s own input';
 const channelName = c => ({ both: 'both channels', left: 'left', right: 'right' })[c] || c;
 const onAtem = m => m.on === 'atem';
+const onPhone = m => m.on === 'phone';
 const atemInputName = id => ((micLive.switcher?.inputs || []).find(i => i.id === id) || {}).name || (id > 1300 && id < 1400 ? `Mic ${id - 1300}` : `input ${id}`);
-const micWhere = m => [`#${micsOf().indexOf(m) + 1}`, onAtem(m) ? `switcher: ${m.input ? atemInputName(m.input) : 'no input picked'}` : deviceName(m.device), channelName(m.channel),
+const micWhere = m => [`#${micsOf().indexOf(m) + 1}`, onAtem(m) ? `switcher: ${m.input ? atemInputName(m.input) : 'no input picked'}` : onPhone(m) ? 'phone (backup), on the Commentator page' : deviceName(m.device), onPhone(m) ? '' : channelName(m.channel),
   !onAtem(m) && m.lowCut ? 'low cut' : '', m.follow ? '' : 'never ducks (external mixer)'].filter(Boolean).join(' · ');
 const fmtDb = d => d <= -100 ? 'all the way down' : `${d > 0 ? '+' : ''}${d.toFixed(1)} dB`;
 
@@ -28,6 +29,9 @@ function micsBoard() {
   const mics = (set && set.mics) || [];
   if (!mics.length) return { word: 'No mics', why: 'add them in the Mics section', dot: '' };
   if (set.muted) return { word: 'Muted', why: 'all mics', dot: 'warn' };
+  // A phone mic that's lost its connection: the commentator on it is off air until it's back.
+  const dropped = mics.filter(m => onPhone(m) && /^Dropped/.test(micLive.problems?.[m.id] || ''));
+  if (dropped.length && primaryOn()) return { word: 'Dropped', why: `${dropped.map(m => m.name).join(', ')} · phone lost Studio`, dot: 'bad' };
   // A mic that's heard nothing for a while (a flat battery, a receiver turned off) outranks the rest: it's the one to fix.
   const silent = mics.filter(m => micLive.silent?.[m.id] !== undefined);
   if (silent.length) return { word: 'Silent', why: silent.length > 1 ? `${silent.length} mics · nothing for ${Math.max(...silent.map(m => micLive.silent[m.id]))} s`
@@ -109,6 +113,14 @@ function renderMicList() {
     add.onclick = () => openMic(null);
     add.disabled = micsOf().length >= 8;
     box.appendChild(add);
+    // A phone as a backup commentator mic: its QR code. The phone adds itself when it starts.
+    const phone = document.createElement('button');
+    phone.className = 'seq addSeq';
+    phone.id = 'mxPhone';
+    phone.innerHTML = '+ Phone mic<small>backup: a commentator\'s phone as their headset</small>';
+    phone.onclick = showPhoneMic;
+    phone.disabled = micsOf().length >= 8;
+    box.appendChild(phone);
   }
   meters();
 }
@@ -160,8 +172,27 @@ for (const id of ['mxDipTo', 'mxDown', 'mxUp', 'mxDipMusic', 'mxDipVideo', 'mxDi
 
 // ─── The mic editor ─────────────────────────────────────────────────────
 let mxDraft = null;
+// The Commentator page's QR code, by the secure link: a phone's browser gives a page the mic only over https.
+async function showPhoneMic() {
+  try {
+    const got = await (await fetch('/api/phone-link?page=%2Fcommentator.html', { cache: 'no-store' })).json();
+    if (got.error) throw new Error(got.error);
+    const secure = /^https:/.test(got.link);
+    $('pmSecure').hidden = secure;
+    $('pmSecure').innerHTML = secure ? '' : 'Turn on the <b>Secure phone link</b> on the <a href="/api.html">Devices tab</a> first: a phone lets a page use its mic only over https. This QR code works once it says Ready.';
+    $('pmCode').innerHTML = got.svg;
+    $('pmLink').textContent = got.link;
+    if (!$('pmDialog').open) $('pmDialog').showModal();
+  } catch (err) { $('err').textContent = `Couldn't make the QR code: ${err.message}`; }
+}
+$('pmDone').onclick = () => $('pmDialog').close();
+$('pmDialog').addEventListener('click', e => { if (e.target === $('pmDialog')) $('pmDialog').close(); });
+
 function openMic(m) {
   mxDraft = m ? { ...m } : { name: '', on: 'mac', device: micLive.devices[0] || '', input: 0, channel: 'both', lowCut: true, follow: true };
+  // A phone mic stays a phone's (it comes from the Commentator page); the others pick the Mac or the switcher.
+  $('mxOn').querySelector('[value="phone"]').hidden = mxDraft.on !== 'phone';
+  $('mxOn').disabled = mxDraft.on === 'phone';
   $('mxOn').value = mxDraft.on || 'mac';
   $('mxTitle').textContent = m ? 'Edit mic' : 'Add a mic';
   $('mxName').value = mxDraft.name;
@@ -180,10 +211,11 @@ function openMic(m) {
 }
 // The fields for where the mic is plugged in: the Mac (its devices, Find inputs, low cut) or the switcher (its inputs).
 function routeFields() {
-  const atem = $('mxOn').value === 'atem';
+  const atem = $('mxOn').value === 'atem', phone = $('mxOn').value === 'phone';
+  for (const e of document.querySelectorAll('#mxDialog .mxPlug')) e.classList.toggle('hidden', phone);
   $('mxFind').classList.toggle('hidden', atem || !onThisMac);
   $('mxLowCutRow').classList.toggle('hidden', atem);
-  $('mxFindNote').textContent = atem ? (micLive.switcher?.connected ? 'Studio moves this input\'s fader on the switcher; set its On, EQ and dynamics in ATEM Software Control. For Left or Right, split the input into two mono channels there.' : 'The switcher isn\'t connected: connect it in the Switcher section to list its inputs.')
+  $('mxFindNote').textContent = phone ? 'The phone sends its mic over the network to Output 1. To use another phone, press + Phone mic and scan the code with it.' : atem ? (micLive.switcher?.connected ? 'Studio moves this input\'s fader on the switcher; set its On, EQ and dynamics in ATEM Software Control. For Left or Right, split the input into two mono channels there.' : 'The switcher isn\'t connected: connect it in the Switcher section to list its inputs.')
     : onThisMac ? '' : 'The inputs listed are the ones Output 1 can see. To list them before Output 1 is on, open this page in the Studio app and press Find inputs.';
 }
 $('mxOn').onchange = () => { $('mxDevice').innerHTML = ''; delete $('mxDevice').dataset.list; routeFields(); fillDevices(); };
@@ -236,6 +268,7 @@ const mixerNote = () => $('mxMixerNote').classList.toggle('hidden', !$('mxMixer'
 $('mxMixer').addEventListener('change', mixerNote);
 const mxChanges = () => {
   const atem = $('mxOn').value === 'atem';
+  if ($('mxOn').value === 'phone') return { name: $('mxName').value.trim(), lowCut: $('mxLowCut').checked, follow: !$('mxMixer').checked };
   return { name: $('mxName').value.trim(), on: atem ? 'atem' : 'mac', ...(atem ? { input: Number($('mxDevice').value) || 0 } : { device: $('mxDevice').value }),
     channel: $('mxChannel').value, lowCut: $('mxLowCut').checked, follow: !$('mxMixer').checked };
 };

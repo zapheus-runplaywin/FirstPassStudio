@@ -34,6 +34,11 @@
 // it takes the fader as it finds it. Everything else on the input (On, Off or AFV, EQ, dynamics) stays the
 // switcher's. These mics are heard whatever Studio's outputs are doing, since the switcher carries them.
 //
+// A phone can be a mic too (on: 'phone'), as a backup commentator headset: the Commentator page on a paired phone sends
+// whatever mic the phone has (a USB-C interface, a wired headset or Bluetooth) to Output 1's window over the network
+// (phonemic.js), which mixes it like a mic plugged into the Mac. Studio adds the mic the first time the phone starts,
+// named after it (phone: the paired device's id). Its card says when the phone's connection drops.
+//
 // Saved as mics.json in the data folder: one set of mics for the Mac (the devices are this Mac's), not per competition.
 
 'use strict';
@@ -45,7 +50,7 @@ const savefile = require('./savefile');
 const FILE = datadir.file('mics.json');
 const MAX_MICS = 8;
 const CHANNELS = ['both', 'left', 'right'];
-const ROUTES = ['mac', 'atem'];
+const ROUTES = ['mac', 'atem', 'phone'];
 // The switcher's fader: Studio's level as dB, from all the way down to +6 (200 % is about +6 dB).
 const FLOOR_DB = -100, LOW_DB = -60, TOP_DB = 6;
 const STEP_MS = 50;            // fades on the switcher's faders move in steps this often
@@ -89,10 +94,11 @@ function cleanMic(m, existing = {}) {
   const out = {
     id: String(existing.id || s.id || newId()).replace(/[^a-z0-9]/gi, '').slice(0, 20) || newId(),
     name: '',
-    on: ROUTES.includes(s.on) ? s.on : 'mac', // plugged into the Mac or the switcher
+    on: ROUTES.includes(s.on) ? s.on : 'mac', // plugged into the Mac or the switcher, or a phone
     device: text(s.device, 200), // the device's name as macOS gives it; '' is the Mac's default input
     input: Math.round(clamp(s.input, 0, 65535, 0)), // the switcher's audio input (on 'atem')
-    channel: CHANNELS.includes(s.channel) ? s.channel : 'both',
+    phone: s.on === 'phone' ? text(s.phone, 40) : '', // the paired phone's device id (on 'phone')
+    channel: s.on !== 'phone' && CHANNELS.includes(s.channel) ? s.channel : 'both', // a phone sends one channel
     level: Math.round(clamp(s.level, 0, 200, 100)),
     muted: flag(s.muted, false),
     lowCut: flag(s.lowCut, true),
@@ -136,6 +142,9 @@ function save() {
   try { savefile.writeJsonSync(FILE, settings); }
   catch (err) { log('error', 'mics', `Could not save mics.json: ${err.message}`); }
 }
+
+// The mic of a paired phone (its device id), or null.
+const phoneMic = id => (id && settings.mics.find(m => m.on === 'phone' && m.phone === id)) || null;
 
 function find(ref) {
   const r = String(ref || '');
@@ -274,7 +283,7 @@ function change(a) {
       const m = cleanMic({ ...(a.changes || {}), id: undefined }, { id: newId() });
       settings.mics.push(m);
       save();
-      log('info', 'mics', `Added the mic "${m.name}" (${m.on === 'atem' ? `the switcher's input ${m.input}` : m.device || 'the Mac\'s default input'}, ${m.channel})`);
+      log('info', 'mics', `Added the mic "${m.name}" (${m.on === 'atem' ? `the switcher's input ${m.input}` : m.on === 'phone' ? 'a phone on the Commentator page' : m.device || 'the Mac\'s default input'}, ${m.channel})`);
       switcherChanged();
       return null;
     }
@@ -432,4 +441,4 @@ function init(logger, { changed } = {}) {
   load();
 }
 
-module.exports = { init, apply, deck, state, follow, quiet, report, devicesListed, live, useSwitcher, switcherChanged, MAX_MICS };
+module.exports = { init, apply, phoneMic, deck, state, follow, quiet, report, devicesListed, live, useSwitcher, switcherChanged, MAX_MICS };
