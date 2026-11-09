@@ -531,10 +531,11 @@ paths:
       tags: [Status]
       summary: List this Mac's finished game stories
       description: >-
-        The games this Mac's scoreboard streamed and kept a story of (Game stats, Score worm and moments), once each one
-        finished, from the last 30 days. Other Studio Macs on the same network ask for these (they find each other with
-        Bonjour) and keep a copy, so the Socials tab on any of them has every court's games. Copies from other Macs aren't
-        listed. Reading only: nothing changes.
+        The games this Mac streamed or followed in the background and kept a story of (Game stats, Score worm and
+        moments), once each one finished, from the last 30 days. Other Studio Macs on the same network ask for these (they
+        find each other with Bonjour) and keep a copy, or fill the gaps in their own story of a game with its goals, so the
+        Socials tab on any of them has every court's games. Copies from other Macs aren't listed. Reading only: nothing
+        changes.
       operationId: listStories
       x-links:
         - ["This Mac's game stories", "/api/stories"]
@@ -555,6 +556,8 @@ paths:
                       properties:
                         gameId: { type: string }
                         savedAt: { type: integer, description: When it was last saved, in ms }
+                        gaps: { type: integer, description: 'How many stretches of the game Studio didn''t see goal by goal' }
+                        followed: { type: boolean, description: 'Only followed in the background, not streamed' }
 
   /api/stories/{gameId}:
     get:
@@ -562,8 +565,9 @@ paths:
       summary: Read one finished game story
       description: >-
         One game's story as this Mac's scoreboard kept it: gameId, date, division, round, ended, savedAt, stats (as
-        /api/stats), worm (as /api/worm), moments, and studio and studioId (which Mac kept it). 404 when this Mac didn't
-        stream that game or it hasn't finished.
+        /api/stats), worm (as /api/worm), moments, goalOrder (the goals, quarters and score they were worked out from,
+        for filling another Mac's gaps), followed, filled (the Macs whose stories filled gaps in it), and studio and
+        studioId (which Mac kept it). 404 when this Mac didn't stream or follow that game or it hasn't finished.
       operationId: getStory
       parameters:
         - { name: gameId, in: path, required: true, schema: { type: string } }

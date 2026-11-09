@@ -49,7 +49,7 @@
 //                                        &with=story&game= the game's story as the scoreboard kept it (Game story, Score worm);
 //                                        &with=watch&link= a QR code for the replay's link (Watch it back). Always: stories (the
 //                                        night's games with a kept story, this Mac's or copied from another Studio Mac; storiesFrom:
-//                                        [{ studio, via: network|icloud, games }] the copies) and watchLinks (links suggested from Live viewers);
+//                                        [{ studio, via: network|icloud|filled, games }] the copies, and the Macs whose stories filled gaps in this one's) and watchLinks (links suggested from Live viewers);
 //                                        the story's moments are Moments of the game's
 //                                        &with=gamestats&game= a finished game's team and shooter totals from its line ups (Game
 //                                        stats, Shooting duel), with the story's quarters, runs and leads when Studio streamed or followed it;
@@ -419,7 +419,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('sponsorspot')) out.sponsorSpot = sponsorSpotlight(String(q.sponsor || ''), date, out.today || date < today);
     // Game story and Score worm (the games Studio streamed or followed and kept a story of) and Watch it back.
     out.stories = games.filter(g => g.finished && storyFor(g.id)).map(g => g.id);
-    out.storiesFrom = storySources(out.stories); // the stories copied from other Studio Macs (stories.js): [{ studio, via, games }]
+    out.storiesFrom = storySources(out.stories); // the stories copied from other Studio Macs, or whose gaps they filled (stories.js): [{ studio, via, games }]
     if (want.has('story')) out.story = storyOf(games.find(g => g.id === q.game));
     out.ofNight = ofTheNight(games.filter(g => out.stories.includes(g.id)));
     if (want.has('gamestats')) out.gameStats = await gameStats(raw.find((g, i) => games[i].id === q.game && games[i].finished));

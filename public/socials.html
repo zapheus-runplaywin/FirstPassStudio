@@ -692,7 +692,7 @@
   function storiesNote() {
     const from = night.storiesFrom || [];
     if (set() !== 'results' || !from.length) return null;
-    const way = { network: 'over the network', icloud: 'from iCloud Drive' };
+    const way = { network: 'over the network', icloud: 'from iCloud Drive', filled: 'filling gaps in this Mac\'s own' };
     return el('p', 'help', `Game stories from other Studio Macs: ${from.map(f => `${f.games} game${f.games === 1 ? '' : 's'} from ${f.studio} (${way[f.via] || f.via})`).join(', ')}.`);
   }
   function draw() {

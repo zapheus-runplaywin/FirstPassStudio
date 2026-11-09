@@ -48,6 +48,7 @@ test('the other game being scored is followed in the background, goal by goal, w
   const file = path.join(studio.dataDir, 'game-stories', `${other.id}.json`);
   const story = await studio.until(() => { try { const s = JSON.parse(fs.readFileSync(file, 'utf8')); return s.worm.totalGoals === 3 && s; } catch { return null; } }, 20000, 250);
   assert.equal(story.followed, true);
+  assert.equal(story.goalOrder.goals.length, 3, 'with its goal order, so another Mac\'s story can fill a gap in it');
   assert.equal(story.stats.stats.longestRun.home, 3);
   assert.deepEqual(story.moments.map(m => m.kind), ['heating']);
   assert.equal(story.stats.gapInHistory, false, 'followed from 0-0, so no gap');
