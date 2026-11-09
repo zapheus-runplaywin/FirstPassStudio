@@ -46,7 +46,33 @@ jobs:
       # Chromium for the page test (test/pages.test.js), which fails here rather than skipping without it.
       - run: npx playwright install --with-deps chromium
       # Electron's own binary, for the Mac app's test (test/app.test.js), which runs the app on a virtual display.
-      - run: node node_modules/electron/install.js
+      # From GitHub releases, which sometimes answer 504 for a while: a copy is kept under its version (a newer
+      # Electron isn't found and is downloaded fresh), and the download tries again after 30 s, 1 and 2 minutes.
+      - name: Electron's version
+        id: electron-version
+        run: echo "version=$(node -p 'require("electron/package.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Restore Electron's download
+        id: electron
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/electron
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.electron-version.outputs.version }}
+      - name: Download Electron
+        run: |
+          for wait in 30 60 120 0; do
+            node node_modules/electron/install.js && exit 0
+            [ "$wait" = 0 ] && break
+            echo "::warning::Couldn't download Electron from GitHub. Trying again in $wait s."
+            sleep "$wait"
+          done
+          echo "::error::Couldn't download Electron from GitHub four times. See the log above."
+          exit 1
+      - name: Keep Electron's download
+        if: steps.electron.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/electron
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.electron-version.outputs.version }}
       - run: xvfb-run -a npm run test:ci
         env:
           STUDIO_TEST_REQUIRE_BROWSER: '1'
