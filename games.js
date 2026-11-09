@@ -395,12 +395,14 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
   const isFinalsRound = g => /final/i.test(g.round || '');
   let autoBusy = false;
-  // Put a game on the board, following PlayHQ, at Q1 with a full clock.
+  // Put a game on the board, following PlayHQ, at Q1 with a full clock (or where it is, when it was followed in the background).
   function switchTo(b, pick, why) {
     log('info', 'auto', `${why} ${pick.home.name} v ${pick.away.name} (${pick.date} ${pick.time}, ${pick.court}, ${pick.division})`);
     applyAction(b, { type: 'selectGame', game: pick, auto: true });
-    applyAction(b, { type: 'period', value: 1 });
-    b.clock = { ...b.clock, lengthSec: b.clock.baseSec || theBoard.quarterSec(), elapsedMs: 0, running: false, startedAt: null };
+    if (b.takenOver !== pick.id) { // a game followed in the background carries on where it is (board.js takeOver)
+      applyAction(b, { type: 'period', value: 1 });
+      b.clock = { ...b.clock, lengthSec: b.clock.baseSec || theBoard.quarterSec(), elapsedMs: 0, running: false, startedAt: null };
+    }
     saveBoards();
   }
   const byStart = (x, y) => `${x.date || ''} ${String(x.time || '').padStart(8, '0')}`.localeCompare(`${y.date || ''} ${String(y.time || '').padStart(8, '0')}`);

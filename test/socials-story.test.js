@@ -45,7 +45,7 @@ test('a streamed game keeps its story for Game story and Score worm, and Watch i
   assert.deepEqual(s.stats.quarters.map(q => [q.home, q.away]), quarters);
   assert.deepEqual([s.stats.stats.quartersWon.home, s.stats.stats.quartersWon.away], [3, 1]);
   assert.equal(s.worm.segments.flat().at(-1).margin, 5);
-  assert.match((await studio.get(`/api/socials/night?date=${second}&with=story&game=game-d2-r2-1`)).story.error, /didn't stream/);
+  assert.match((await studio.get(`/api/socials/night?date=${second}&with=story&game=game-d2-r2-1`)).story.error, /didn't stream or follow/);
 
   assert.match((await studio.get(`/api/socials/night?date=${second}&with=watch`)).watch.error, /Paste the link/);
   assert.match((await studio.get(`/api/socials/night?date=${second}&with=watch&link=javascript:alert(1)`)).watch.error, /isn't a web link/);

@@ -167,7 +167,7 @@ const playhqNet = require('./playhqnet');
 // starts on automatic, on the Production Planner's court for tonight or the competition's fallback court. The game itself, scores and the clock stay
 // in scoreboard-state.json.
 const CONTROL_FILE = DATA('control.json');
-const LASTING = ['autoSelect', 'autoCourt', 'courtFrom', 'courtNight', 'planCourt', 'followPlayhqClock', 'playhqRefreshSec', 'showClock', 'tickerSpeed'];
+const LASTING = ['autoSelect', 'autoCourt', 'courtFrom', 'courtNight', 'planCourt', 'followPlayhqClock', 'playhqRefreshSec', 'followOthers', 'showClock', 'tickerSpeed'];
 let control = savefile.readJson(CONTROL_FILE, {}, (err, movedTo) => log('warn', 'helper', `Could not read control.json, starting from the defaults: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
 if (control.round === undefined) { // the round used to be kept in round-choice.json
   try { control.round = String(JSON.parse(fs.readFileSync(DATA('round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }
@@ -302,6 +302,23 @@ async function refreshTick() {
   finally { refreshBusy = false; }
 }
 setInterval(refreshTick, 1000);
+
+// The night's other games, followed in the background so each has a story (board.js followGames, refreshFollowed): the
+// game night's games are looked at every FOLLOW_LIST_MS (PlayHQ's fixture, through its cache; FIRSTPASS_FOLLOW_LIST_MS for
+// tests), and each followed game is read each second through the live feed's cache, so PlayHQ is asked once per
+// playhqRefreshSec per game while its scoring is open. Not while a practice game runs: PlayHQ isn't asked then.
+const FOLLOW_LIST_MS = Number(process.env.FIRSTPASS_FOLLOW_LIST_MS) || 15 * 1000;
+let followListBusy = false;
+async function followNight() {
+  if (followListBusy || practice.active()) return;
+  followListBusy = true;
+  try { theBoard.followGames(board().followOthers === false ? [] : await theGames.getCurrentGames()); }
+  catch (err) { log('warn', 'follow', `Couldn't read this game night's games to follow: ${err.message}`); }
+  finally { followListBusy = false; }
+}
+setInterval(followNight, FOLLOW_LIST_MS);
+setTimeout(followNight, 5000);
+setInterval(() => { if (!practice.active()) theBoard.refreshFollowed(); }, 1000);
 
 
 // The game, each second, for sequences that start by themselves (scene.js, sequences.js): the picked

@@ -44,7 +44,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     const r = rules(b.division);
     // court is the name the graphics show (courtShown); courtPlayhq is PlayHQ's own name for it, courtName the one typed.
     return { ...b, court: courtShown(b), courtPlayhq: b.court, periodLabel: r.periodLabel, rules: r, competition: competitionName(), competitionSetup: config().name, venueName, logos, teamColours,
-      clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now(), countdown: countdownFor(b) };
+      clockElapsedMs: clockElapsed(b.clock), serverNow: Date.now(), countdown: countdownFor(b), followedGames: followedGames() };
   }
 
   // ─── What the game is waiting for, for Commentator stats' pill under the clock ───
@@ -77,24 +77,26 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     if (boardPushTimer) return;
     boardPushTimer = setImmediate(() => { boardPushTimer = null; try { scene.publishBoard(); } catch (err) { log('warn', 'scoreboard', `Board not pushed: ${err.message}`); } });
   }
-  // Each streamed game's story, kept once it has goals so the Socials tab's Game story and Score worm pictures can be
-  // made after the scoreboard moves on (clearGoals wipes the goal order for the next game): its Game stats, Score
-  // worm and every moment (b.gameMoments) as the game left them, in game-stories/<game id>.json in the local folder
-  // (stories.js, which also shares the finished ones with the other Studio Macs). Written at most every STORY_EVERY
-  // while the game is on, and at once when it ends or the scoreboard picks another game (final).
+  // Each game's story, kept once it has goals so the Socials tab's Game story and Score worm pictures can be made after
+  // the scoreboard moves on (clearGoals wipes the goal order for the next game): its Game stats, Score worm and every
+  // moment (b.gameMoments) as the game left them, in game-stories/<game id>.json in the local folder (stories.js, which
+  // also shares the finished ones with the other Studio Macs). Written at most every STORY_EVERY while the game is on,
+  // and at once when it ends or the scoreboard picks another game (final). The board's game is a streamed story; a game
+  // only followed in the background (see "The night's other games") is marked followed, and stories.js prefers a
+  // streamed story of the same game from another Mac over it.
   const STORY_EVERY = 15 * 1000;
-  let storyAt = 0;
-  function keepStory(now) {
-    const b = boards['1'];
+  const storyAt = new Map(); // game id -> when its story was last kept
+  function keepStory(now, b = boards['1']) {
     if (!b || !b.gameId || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.some(g => !g.gap)) return;
-    if (!now && Date.now() - storyAt < STORY_EVERY) return;
-    storyAt = Date.now();
+    if (!now && Date.now() - (storyAt.get(b.gameId) || 0) < STORY_EVERY) return;
+    storyAt.set(b.gameId, Date.now());
     try {
-      stories.keep({ gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(), stats: getStats(), worm: getWorm(),
+      stories.keep({ gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(),
+        followed: b.followed && !b.streamed ? true : undefined, stats: getStats(b), worm: getWorm(b),
         moments: b.gameMomentsId === b.gameId ? b.gameMoments || [] : [] }, { final: now });
-    } catch (err) { log('warn', 'stats', `The game's story wasn't kept: ${err.message}`); }
+    } catch (err) { log('warn', 'stats', `The story of ${b.home.name} v ${b.away.name} wasn't kept: ${err.message}`); }
   }
-  // A game's kept story (this Mac's own, or a copy from another Studio), or null when no Studio streamed it.
+  // A game's kept story (this Mac's own, or a copy from another Studio), or null when no Studio streamed or followed it.
   const gameStory = id => stories.read(id);
 
   function saveBoards() {
@@ -128,6 +130,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       courtFrom: config().defaultCourt ? 'fallback' : '', // where it came from: 'plan', 'fallback' or 'hand'
       courtNight: '',            // "<competition>|<night>" the court was set for
       playhqRefreshSec: DEFAULT_REFRESH_SEC,
+      followOthers: true,        // also follow the night's other games in the background, for their stories
       tickerSpeed: TICKER_SPEED,  // how fast ticker.html scrolls, in pixels per second
       updatedAt: Date.now(),
     };
@@ -248,12 +251,15 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
         if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
         if (!a.auto) b.handPickedOn = localDate(); // a new night turns automatic selection back on, but not over a pick made that night
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
-        if (b.gameId && b.gameId !== a.game.id) { b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } }; keepStory(true); }
+        if (b.gameId && b.gameId !== a.game.id) { b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } }; keepStory(true); handOn(b); }
         Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
           round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null, endedAt: null, breakFrom: null });
         b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
         b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
         if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);
+        // A game followed in the background: the board carries on from its goals, quarters and clock (takenOver says so,
+        // so games.js switchTo doesn't put it back to Q1 with a full clock).
+        b.takenOver = takeOver(b, a.game.id) ? a.game.id : null;
         setImmediate(() => warmTeamLists(a.auto ? 'game picked automatically' : 'game picked'));
         break;
       case 'source': {
@@ -307,6 +313,10 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
         applyAction(b, { type: 'clockSet', secondsLeft: Math.max(0, leftMs / 1000 + Number(a.deltaSec || 0)) });
         break;
       }
+      case 'followOthers': b.followOthers = a.value === 'toggle' ? b.followOthers === false : !!a.value && a.value !== 'off';
+        log('info', 'follow', `Following the night's other games in the background ${b.followOthers ? 'on' : 'off'}`);
+        if (!b.followOthers) setImmediate(() => followGames([])); // let them go now (their stories kept); on, they come with the next look at the night
+        break;
       case 'playhqRefresh': b.playhqRefreshSec = Math.max(1, Math.min(120, Math.round(Number(a.value) || DEFAULT_REFRESH_SEC))); break;
       case 'showClock': b.showClock = !!a.value; break;
       case 'tickerSpeed': { // a speed in pixels per second, or 'faster', 'slower', 'normal'
@@ -736,8 +746,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     }
     return runs;
   }
-  function getStats() {
-    const b = board();
+  function getStats(b = board()) {
     trackPeriods(b);
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
     const r = rules(b.division);
@@ -804,8 +813,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // evenly across it. Each gap (the game picked up part way, a score typed in or a jump of
   // more than 3) ends a line: the next one starts from the score after the gap, and the gap
   // is listed so the page can show Studio wasn't watching then.
-  function getWorm() {
-    const b = board();
+  function getWorm(b = board()) {
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
     const r = rules(b.division);
     const defaultSec = (Number(r.periodMinutes) || 10) * 60;
@@ -903,6 +911,136 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   }
 
 
+  // ─── The night's other games, followed in the background ────────────────────
+  // So every game of the night has a story (Game stats, Score worm, moments), not only the one on the stream, Studio
+  // also follows the night's other games while it's on air (followOthers, the switch on Scoreboard control, on by
+  // default). Each one's live feed is read every playhqRefreshSec from when its scoring opens until PlayHQ says it's
+  // finished, and goes through the same goal order, quarters, clock and moments as the board, on a board of its own that
+  // no page shows (followed: true), so nothing plays on air for it: no super shot song, no moments, no scorebench
+  // warnings. Its story is kept as the board's is, marked followed. A game the scoreboard picks takes over its followed
+  // board's goals (takeOver), and a game the scoreboard leaves before it ends goes on being followed from where the board
+  // left it (handOn), so a game seen by both is one story, and a streamed one. A reading that fails makes that game wait
+  // longer before the next (BACKOFF_MS, doubling up to BACKOFF_MAX_MS), so a PlayHQ that is struggling, or asking Studio
+  // to slow down, isn't asked more. Kept in followed-games.json in the local folder, so a restart mid-game carries on.
+  const FOLLOWED_FILE = datadir.local('followed-games.json');
+  const BACKOFF_MS = 10 * 1000, BACKOFF_MAX_MS = 5 * 60 * 1000;
+  // What a game's goal order is made of: what a followed board and the scoreboard hand each other.
+  const GOAL_STATE = ['home', 'away', 'period', 'clock', 'goals', 'goalsSeq', 'goalsGameId', 'goalsBaseline', 'playhqCounts', 'periodTrack',
+    'moments', 'streakFired', 'gameMoments', 'gameMomentsId', 'playhqPeriodSeen', 'playhqStatus', 'endedAt', 'streamed'];
+  const goalState = b => JSON.parse(JSON.stringify(Object.fromEntries(GOAL_STATE.filter(k => b[k] !== undefined).map(k => [k, b[k]]))));
+  let followed = savefile.readJson(FOLLOWED_FILE, {}, (err, movedTo) => log('warn', 'follow', `Could not read followed-games.json, starting fresh: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
+  if (!followed || typeof followed !== 'object' || Array.isArray(followed)) followed = {};
+  {
+    const yesterday = localDate(new Date(Date.now() - 86400000)); // a late night's games carry on past midnight
+    for (const [id, f] of Object.entries(followed)) if (!f || typeof f !== 'object' || !f.gameId || String(f.date || '') < yesterday) delete followed[id];
+  }
+  const saveFollowed = () => savefile.writeFile(FOLLOWED_FILE, JSON.stringify(followed), err => { if (err) log('warn', 'follow', `followed-games.json not saved: ${err.message}`); });
+  const followOthers = () => board().followOthers !== false;
+  function followedBoard(game) {
+    return { followed: true, source: 'playhq', followPlayhqClock: true, gameId: game.id, roundId: game.roundId || null,
+      division: game.division || '', court: game.court || '', round: game.round || '', date: game.date || '', time: game.time || '', venue: game.venue || '',
+      home: { name: game.home.name, score: 0 }, away: { name: game.away.name, score: 0 }, period: 1,
+      clock: { lengthSec: QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null }, playhqStatus: game.status || '', wait: { n: 0, until: 0 } };
+  }
+  // The scoreboard picked a game that was being followed: it takes over its goals, quarters, clock and moments.
+  function takeOver(b, id) {
+    const f = followed[id];
+    if (!f) return false;
+    delete followed[id];
+    saveFollowed();
+    if (b.gameId !== id || !Array.isArray(f.goals) || f.goalsGameId !== id) return false;
+    Object.assign(b, goalState(f));
+    log('info', 'follow', `The scoreboard takes over ${b.home.name} v ${b.away.name} at ${b.home.score}-${b.away.score} from following it in the background, with its ${f.goals.filter(g => !g.gap).length} goals`);
+    return true;
+  }
+  // The scoreboard left a game before it ended: it goes on being followed from where the board was.
+  function handOn(b) {
+    if (!b.gameId || b.source !== 'playhq' || b.endedAt || isFinished({ status: b.playhqStatus || '', date: b.date, home: b.home, away: b.away }) || !followOthers()) return;
+    if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.length) return;
+    const f = followedBoard({ id: b.gameId, roundId: b.roundId, division: b.division, court: b.court, round: b.round, date: b.date, time: b.time, venue: b.venue, home: b.home, away: b.away, status: b.playhqStatus });
+    followed[b.gameId] = Object.assign(f, goalState(b), { streamed: true, followPlayhqClock: true, playhqClockKey: null });
+    saveFollowed();
+    log('info', 'follow', `${b.home.name} v ${b.away.name} goes on being followed in the background at ${b.home.score}-${b.away.score}`);
+  }
+  // The night's games (games.js, every so often): the ones not on the scoreboard and not finished are followed. Games no
+  // longer on the night (another night picked, the setting off) are let go, their stories kept.
+  function followGames(games) {
+    const want = new Map();
+    if (followOthers()) for (const g of games || []) if (g && g.id && g.id !== board().gameId && !g.toBeDecided && g.home && g.away) want.set(g.id, g);
+    let changed = false;
+    for (const [id, f] of Object.entries(followed)) {
+      if (want.has(id)) continue;
+      delete followed[id];
+      changed = true;
+      if (id === board().gameId) continue; // the scoreboard has it (put back by a practice game ending, say): its story is the board's
+      keepStory(true, f);
+      log('info', 'follow', `Stopped following ${f.home.name} v ${f.away.name} in the background${followOthers() ? ' (no longer on this game night)' : ''}`);
+    }
+    for (const [id, g] of want) {
+      if (followed[id] || isFinished(g)) continue;
+      followed[id] = followedBoard(g);
+      changed = true;
+      log('info', 'follow', `Following ${g.home.name} v ${g.away.name} (${String(g.time || '').slice(0, 5)}, ${g.court || 'no court'}, ${g.division || ''}) in the background for its stats`);
+    }
+    if (changed) saveFollowed();
+  }
+  // One reading for a followed game: as refreshFromPlayhq does for the board, with nothing played on air.
+  async function readFollowed(f) {
+    const now = Date.now();
+    if (f.done || now < (f.wait.until || 0) || scoringNotYet(f)) return;
+    const maxAge = (board().playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
+    let live;
+    try { live = await playhq.getLive(f.gameId, maxAge); }
+    catch (err) {
+      if (err.notYet || err.notScored) return; // the scorer hasn't started: asked again next time, as the board does
+      f.wait = { n: f.wait.n + 1, until: Date.now() + Math.min(BACKOFF_MAX_MS, BACKOFF_MS * 2 ** f.wait.n) };
+      log('warn', 'follow', `Reading ${f.home.name} v ${f.away.name} failed (${err.message}), so it waits ${Math.round((f.wait.until - Date.now()) / 1000)} s`);
+      return;
+    }
+    if (followed[f.gameId] !== f) return; // let go, or taken over by the scoreboard, while it was being read
+    if (f.wait.n) f.wait = { n: 0, until: 0 };
+    noteClock(f);
+    const score = { home: live.home.score, away: live.away.score };
+    if (score.home == null && score.away == null) return;
+    const q = PERIOD_NUMBER[live.period];
+    if (q && f.playhqPeriodSeen !== live.period) {
+      if (f.period !== q) { trackPeriods(f, { home: score.home ?? f.home.score, away: score.away ?? f.away.score }); f.period = q; }
+      f.playhqPeriodSeen = live.period;
+    }
+    if (live.clock) followClock(f, live);
+    const game = { id: f.gameId, status: live.status, home: { name: f.home.name, score: score.home }, away: { name: f.away.name, score: score.away } };
+    const catchUp = catchUpIn(f, game, live);
+    const goalsChanged = goalsFromPlayhq(f, game, live, catchUp);
+    if (score.home != null) f.home.score = score.home;
+    if (score.away != null) f.away.score = score.away;
+    trackPeriods(f, null, q || null);
+    if (goalsChanged && !isFinished(game)) watchStreaks(f, 'followed');
+    f.playhqStatus = live.status;
+    if (isFinished(game)) {
+      f.done = true; f.endedAt = f.endedAt || Date.now();
+      log('info', 'follow', `${f.home.name} v ${f.away.name} finished ${f.home.score}-${f.away.score}: its story is kept`);
+    }
+    keepStory(!!f.done, f); // at most every STORY_EVERY, as the board's is
+    if (goalsChanged || f.done) { saveFollowed(); pushBoard(); } // Scoreboard control lists where it's up to
+  }
+  // Each second (server.js): every followed game due a reading. Each is read through the live feed's cache, so PlayHQ is
+  // asked once per playhqRefreshSec per game, and a game still being read is left alone.
+  const reading = new Set();
+  function refreshFollowed() {
+    for (const f of Object.values(followed)) {
+      if (reading.has(f.gameId) || f.gameId === board().gameId) continue; // the scoreboard reads its own game
+      reading.add(f.gameId);
+      readFollowed(f).catch(err => log('error', 'follow', `Following ${f.home.name} v ${f.away.name} failed: ${err.message}`)).finally(() => reading.delete(f.gameId));
+    }
+  }
+  // What Scoreboard control lists under the switch: each followed game and where it's up to.
+  function followedGames() {
+    return Object.values(followed).map(f => ({ gameId: f.gameId, home: f.home.name, away: f.away.name, court: f.court, time: f.time, division: f.division,
+      score: { home: Number(f.home.score) || 0, away: Number(f.away.score) || 0 }, period: f.period, done: !!f.done, waiting: !!(f.wait && f.wait.n),
+      started: !!f.goalsBaseline, goals: Array.isArray(f.goals) ? f.goals.filter(g => !g.gap).length : 0 }))
+      .sort((x, y) => String(x.time).localeCompare(String(y.time)) || String(x.court).localeCompare(String(y.court)));
+  }
+
   // The scorer's game clock from PlayHQ's live feed. Seen so far (one finished game):
   // { period: "4th Quarter", periodValue: "FOURTH_QTR", status: "RESUME", time: "00:00", lastUpdatedAt: "<ms>" }.
   // Read as: `time` is the time left when the scorer last touched the clock (lastUpdatedAt),
@@ -918,7 +1056,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     const running = /^(RESUME|RESUMED|START|STARTED|RUNNING)$/i.test(c.status || '') && !live.break;
     const updated = Number(c.lastUpdatedAt) || Date.parse(c.lastUpdatedAt) || 0;
     const lagMs = running && updated ? Math.max(0, Math.min(120000, Date.now() - updated)) : 0;
-    log('info', 'clock', `PlayHQ clock ${c.periodValue || c.period || '?'} ${c.status || '?'} ${c.time ?? '?'} (updated ${updated ? Math.round((Date.now() - updated) / 1000) + 's ago' : '?'})${live.break ? ' break ' + live.break : ''}${b.followPlayhqClock ? '' : ' (not followed)'}`);
+    if (!b.followed) log('info', 'clock', `PlayHQ clock ${c.periodValue || c.period || '?'} ${c.status || '?'} ${c.time ?? '?'} (updated ${updated ? Math.round((Date.now() - updated) / 1000) + 's ago' : '?'})${live.break ? ' break ' + live.break : ''}${b.followPlayhqClock ? '' : ' (not followed)'}`);
     if (!b.followPlayhqClock || secs === null) return;
     if (secs > b.clock.lengthSec) b.clock.lengthSec = secs;
     const leftMs = Math.max(0, secs * 1000 - lagMs);
@@ -968,7 +1106,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   }
 
   return { snapshot, restore, board, newBoard, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
-    playhqTrouble, troubleSays,
+    playhqTrouble, troubleSays, followGames, refreshFollowed, followedGames,
     getGoals, getStats, getWorm, gameStory, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
 

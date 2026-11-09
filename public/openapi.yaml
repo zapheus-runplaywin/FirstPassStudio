@@ -1542,6 +1542,24 @@ components:
         period: { type: integer, description: 'Quarter, 1 to 4, or 5 for extra time', example: 2 }
         showClock: { type: boolean }
         tickerSpeed: { type: integer, description: 'How fast ticker.html scrolls, in pixels a second', example: 120 }
+        followOthers: { type: boolean, description: 'Also follow the night''s other games in the background, for their stories (Scoreboard control); set with the action { type: followOthers, value: true or false }' }
+        followedGames:
+          type: array
+          description: 'The night''s other games followed in the background, and where each is up to'
+          items:
+            type: object
+            properties:
+              gameId: { type: string }
+              home: { type: string, example: Stormz }
+              away: { type: string, example: Semi Pro }
+              court: { type: string, example: Court 2 }
+              time: { type: string, example: '19:30:00' }
+              score: { type: object, properties: { home: { type: integer }, away: { type: integer } } }
+              period: { type: integer, example: 2 }
+              started: { type: boolean, description: 'Studio has had a reading of it' }
+              goals: { type: integer, description: 'Goals in its goal order so far' }
+              waiting: { type: boolean, description: 'A read failed, so it waits longer before the next' }
+              done: { type: boolean, description: 'PlayHQ says it''s finished; its story is kept' }
         clock:
           type: object
           properties:
