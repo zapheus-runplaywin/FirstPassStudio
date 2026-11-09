@@ -52,7 +52,7 @@
 //                                        [{ studio, via: network|icloud, games }] the copies) and watchLinks (links suggested from Live viewers);
 //                                        the story's moments are Moments of the game's
 //                                        &with=gamestats&game= a finished game's team and shooter totals from its line ups (Game
-//                                        stats, Shooting duel), with the story's quarters, runs and leads when Studio streamed it;
+//                                        stats, Shooting duel), with the story's quarters, runs and leads when Studio streamed or followed it;
 //                                        &with=teamsheet&game= both teams' season squads with games played (Team sheet). Head to
 //                                        head is the Form guide's meetings (&with=form&game=). Always: ofNight, the streamed
 //                                        games' Runs of the night, Super shot time and Comeback of the night
@@ -417,7 +417,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('spotlight')) out.spotlight = await athleteSpotlight(String(q.athlete || ''), date, Object.keys(dates).filter(d => d <= date).sort().flatMap(d => dates[d]));
     if (want.has('sponsorlist')) out.sponsorList = sponsorList();
     if (want.has('sponsorspot')) out.sponsorSpot = sponsorSpotlight(String(q.sponsor || ''), date, out.today || date < today);
-    // Game story and Score worm (the streamed games Studio kept a story of) and Watch it back.
+    // Game story and Score worm (the games Studio streamed or followed and kept a story of) and Watch it back.
     out.stories = games.filter(g => g.finished && storyFor(g.id)).map(g => g.id);
     out.storiesFrom = storySources(out.stories); // the stories copied from other Studio Macs (stories.js): [{ studio, via, games }]
     if (want.has('story')) out.story = storyOf(games.find(g => g.id === q.game));
@@ -660,18 +660,18 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // ─── Game story, Score worm and Watch it back ────────────────────────────────────────────────────────────
-  // A streamed game's story (board.js keeps its Game stats and Score worm as the game left them), with the result from
+  // A streamed or followed game's story (board.js keeps its Game stats and Score worm as the game left them), with the result from
   // the fixture and the logos; whether it's sure: the goals were all seen, and the score at the end is the result.
   function storyOf(g) {
     if (!g) return { error: 'Pick a game.' };
     const s = storyFor(g.id);
-    if (!s) return { error: `Studio didn't stream ${g.home.name} v ${g.away.name}, so it has no story of it.` };
+    if (!s) return { error: `Studio didn't stream or follow ${g.home.name} v ${g.away.name}, so it has no story of it.` };
     const side = k => ({ ...g[k], logo: logoFor(g[k].name), colour: (s.stats && s.stats[k] && s.stats[k].colour) || (s.worm && s.worm[k] && s.worm[k].colour) || null });
     const kept = { home: Number(s.stats.home.score) || 0, away: Number(s.stats.away.score) || 0 };
     return { game: { ...g, home: side('home'), away: side('away') }, stats: s.stats, worm: s.worm, moments: s.moments || [],
       complete: !s.stats.gapInHistory && g.finished && kept.home === g.home.score && kept.away === g.away.score };
   }
-  // Runs of the night, Super shot time and Comeback of the night, from the night's streamed games' stories (read from
+  // Runs of the night, Super shot time and Comeback of the night, from the stories of the night's games Studio streamed or followed (read from
   // the local folder, so cheap): each game's longest run and its runs of 3 and 5, the longest first; each super shot
   // game's points in each quarter's super shot period (timed goals only); and the winner who came back from furthest
   // behind (the most the losing team led by), with that game's worm.
@@ -726,7 +726,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
   // A finished game's numbers from its line ups (every finished game, streamed or not): each team's goals, super goals,
   // attempts, accuracy and points, and its shooters best first; with the story's quarters won, longest run, 3 and 5 goal
-  // runs and biggest lead when Studio streamed it (story, else null).
+  // runs and biggest lead when Studio streamed or followed it (story, else null).
   async function gameStats(g) {
     if (!g) return { error: 'No result for that game yet.' };
     const b = brief(g);

@@ -1,21 +1,28 @@
-// FirstPass Studio - each streamed game's story, and sharing the stories between Studio Macs.
+// FirstPass Studio - each game's story, and sharing the stories between Studio Macs.
 //
-// The board (board.js) keeps the story of the game on Output 1's scoreboard: its Game stats, Score worm and moments,
-// in game-stories/<game id>.json in the local folder. The Socials tab's Game stats, Game story, Score worm, Moments
-// of the game and "of the night" pictures are drawn from them. With two courts each streamed by its own Mac, each
-// Mac only has its own court's stories, so the stories are shared, two ways:
+// The board (board.js) keeps the story of the game on Output 1's scoreboard, and of each of the night's other games it
+// follows in the background: its Game stats, Score worm and moments, in game-stories/<game id>.json in the local
+// folder. The Socials tab's Game stats, Game story, Score worm, Moments of the game and "of the night" pictures are
+// drawn from them. A Mac that was off air for part of the night, or had following the other games turned off, lacks
+// some, so the stories are shared, two ways:
 //
 //   1. On the same network: every Studio announces itself with Bonjour (macOS's dns-sd, SERVICE) and looks for the
 //      others. Every SYNC_EVERY it asks each one it finds for its finished stories (GET /api/stories, then
-//      GET /api/stories/<game id> for each one it doesn't have or has an older copy of) and keeps a copy. Asking is
+//      GET /api/stories/<game id> for each one it doesn't have or has a worse copy of) and keeps a copy. Asking is
 //      a plain read: nothing on the other Mac changes, so no pairing is needed (access.js lets reads through).
 //   2. iCloud Drive, for the nights the Macs never saw each other: each finished story is also written to
 //      iCloud Drive/FirstPass Studio/game-stories/ (CLOUD_FOLDER) when iCloud Drive is on, whether or not the settings
 //      are kept there, and every SYNC_EVERY the stories other Macs put there are copied in.
 //
-// A copy carries from: { studio, via: 'network'|'icloud' }, and every story says which Studio kept it (studio, studioId). A
-// copy never replaces this Mac's own story, and replaces another copy only when it was saved later, so it doesn't
-// matter which way a story arrives first. Only finished stories are shared: the game ended, or the scoreboard moved
+// A copy carries from: { studio, via: 'network'|'icloud' }, and every story says which Studio kept it (studio, studioId).
+// A Studio keeps a story of the game it streams, and of the night's other games it follows in the background (marked
+// followed: true), so two Macs can each have one of the same game. Both read the same PlayHQ feed, so they differ only
+// where one missed something (a gap: its internet or PlayHQ dropped, or the scoreboard picked the game part way
+// through) or the stream scored goals by hand that PlayHQ never had. So the better one is kept (better()): the one
+// with fewer gaps; on the same gaps the streamed one; then, for two copies, the one saved later. A copy replaces this
+// Mac's own story only when it is better than it without counting when it was saved, and this Mac doesn't write its
+// own over a better copy (nor a story it only followed over a better one it streamed: a game it left part way through
+// by hand), so it doesn't matter which way a story arrives first. Only finished stories are shared: the game ended, or the scoreboard moved
 // on to another game (DONE_AFTER without a new save covers a Studio quit mid-game). Stories go back SHARE_DAYS.
 //
 // create(deps) gives the store. deps:
@@ -31,7 +38,7 @@
 //   firstSync                    ms after start up before the first look (FIRST_SYNC; FIRSTPASS_STORIES_FIRST_SYNC_MS for tests)
 //
 // Routes (server.js hands /api/stories here):
-//   GET /api/stories             this Mac's own finished stories of the last SHARE_DAYS: { studio, studioId, stories: [{ gameId, savedAt }] }
+//   GET /api/stories             this Mac's own finished stories of the last SHARE_DAYS: { studio, studioId, stories: [{ gameId, savedAt, gaps, followed }] }
 //   GET /api/stories/<game id>   one of them, as kept (404 when it isn't this Mac's own and finished)
 
 'use strict';
@@ -50,6 +57,16 @@ const ASK_TIMEOUT = 5000;
 const MAX_STORY = 2 * 1024 * 1024; // a story is tens of KB; anything this big isn't one
 const CLOUD_FOLDER = ['FirstPass Studio', 'game-stories'];
 
+// How many gaps a story has: the score worm's (each a stretch Studio wasn't watching), else 1 when its stats say there was one.
+const gapsOf = s => (s && s.worm && Array.isArray(s.worm.gaps) ? s.worm.gaps.length : s && s.stats && s.stats.gapInHistory ? 1 : 0);
+// Whether story a is better than story b (b may be null): fewer gaps, then streamed over followed, then (byTime) saved later.
+function better(a, b, { byTime = true } = {}) {
+  if (!b) return true;
+  const ga = gapsOf(a), gb = gapsOf(b);
+  if (ga !== gb) return ga < gb;
+  if (!a.followed !== !b.followed) return !a.followed;
+  return byTime && a.savedAt > b.savedAt;
+}
 const fileName = id => `${String(id).replace(/[^\w.-]/g, '_')}.json`;
 const isStory = s => !!s && typeof s === 'object' && typeof s.gameId === 'string' && !!s.gameId && Number.isFinite(s.savedAt)
   && !!s.stats && typeof s.stats === 'object' && (!s.moments || Array.isArray(s.moments));
@@ -77,6 +94,9 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
   // The board keeping this Mac's own story. final: the game ended or the scoreboard moved on, so it goes to iCloud too.
   function keep(story, { final = false } = {}) {
     const s = { ...story, studio, studioId, final: final || undefined };
+    const have = read(s.gameId);
+    // Another Studio's copy of this game, or this Mac's streamed story of it, that is better than one only followed here.
+    if (have && (have.from || (!have.followed && s.followed)) && better(have, s, { byTime: false })) return;
     fs.mkdirSync(dir, { recursive: true });
     savefile.writeFileSync(fileOf(s.gameId), JSON.stringify(s)); // at once, so an older write can't land after a newer one
     if (final && cloudDir) {
@@ -87,11 +107,12 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     }
   }
 
-  // A story from another Studio: kept when this Mac has none, or has an older copy. Answers true when kept.
+  // Whether a story from another Studio should replace what this Mac has (see better()).
+  const wanted = (s, have) => better(s, have, { byTime: !!(have && have.from) });
+  // A story from another Studio: kept when this Mac has none, or it is better than what this Mac has. Answers true when kept.
   function accept(s, via) {
     if (!isStory(s) || !done(s) || !s.studio || !s.studioId || s.studioId === studioId) return false;
-    const have = read(s.gameId);
-    if (have && (!have.from || have.savedAt >= s.savedAt)) return false;
+    if (!wanted(s, read(s.gameId))) return false;
     const rest = { ...s };
     delete rest.from; // a copy says only where this Mac got it
     fs.mkdirSync(dir, { recursive: true });
@@ -170,9 +191,8 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     const list = await ask(`${base}/api/stories`);
     if (!list || list.studioId === studioId || !Array.isArray(list.stories)) return 0;
     let copied = 0;
-    for (const { gameId, savedAt } of list.stories) {
-      const have = read(gameId);
-      if (have && (!have.from || have.savedAt >= savedAt)) continue;
+    for (const { gameId, savedAt, gaps = 0, followed } of list.stories) {
+      if (!wanted({ savedAt, followed, worm: { gaps: Array(Math.max(0, Number(gaps) || 0)).fill(null) } }, read(gameId))) continue;
       try { if (accept(await ask(`${base}/api/stories/${encodeURIComponent(gameId)}`), 'network')) copied++; } catch { /* asked again next time */ }
     }
     if (copied) log('info', 'stories', `Copied ${copied} game stor${copied === 1 ? 'y' : 'ies'} from ${list.studio}'s Studio`);
@@ -233,7 +253,7 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
   function route(req, res, url, { send }) {
     if (url.pathname !== '/api/stories' && !url.pathname.startsWith('/api/stories/')) return false;
     if (req.method !== 'GET') return send(res, 405, { error: 'Only GET' }), true;
-    if (url.pathname === '/api/stories') return send(res, 200, { studio, studioId, stories: own().map(s => ({ gameId: s.gameId, savedAt: s.savedAt })) }), true;
+    if (url.pathname === '/api/stories') return send(res, 200, { studio, studioId, stories: own().map(s => ({ gameId: s.gameId, savedAt: s.savedAt, gaps: gapsOf(s), followed: s.followed || undefined })) }), true;
     const s = read(decodeURIComponent(url.pathname.slice('/api/stories/'.length)));
     if (!isStory(s) || s.from || !done(s)) return send(res, 404, { error: 'No finished story of that game on this Mac' }), true;
     return send(res, 200, { studio, studioId, ...s }), true; // stories kept before sharing came in don't say whose they are
@@ -242,4 +262,4 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
   return { dir, keep, read, accept, own, sources, sync, start, stop, route, found: () => [...found.keys()] };
 }
 
-module.exports = { create, browsed, reached, SERVICE, CLOUD_FOLDER, SYNC_EVERY };
+module.exports = { create, browsed, reached, better, gapsOf, SERVICE, CLOUD_FOLDER, SYNC_EVERY };

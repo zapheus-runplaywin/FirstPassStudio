@@ -8,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const http = require('http');
 const savefile = require('../savefile');
-const { create, browsed, reached } = require('../stories');
+const { create, browsed, reached, better } = require('../stories');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'studio-stories-'));
 const story = (id, extra = {}) => ({ gameId: id, date: '2026-11-03', division: 'Div 1', round: 'Round 4', ended: true, savedAt: Date.now(),
@@ -42,7 +42,7 @@ test('a Studio shares only its own finished stories', async () => {
   } finally { close(); }
 });
 
-test('the other Studio\'s stories are copied over the network, and never replace this Mac\'s own', async () => {
+test('the other Studio\'s stories are copied over the network, and one no better never replaces this Mac\'s own', async () => {
   const court2 = store('Court-2');
   court2.keep(story('g2'), { final: true });
   court2.keep(story('g1', { stats: { theirs: true } }), { final: true });
@@ -89,6 +89,42 @@ test('a later copy replaces an older one, whichever way it came', () => {
   assert.ok(!s.accept({ ...story('g10', { ended: false }), studio: 'Court-2', studioId: 'c2' }, 'network'), 'a game still being played is left out');
 });
 
+
+// A story of a game this Mac only followed in the background, and the same game streamed by another Mac.
+const gaps = n => ({ worm: { points: [], gaps: Array.from({ length: n }, (_, i) => ({ from: i, to: i + 0.1 })) } });
+test('the better story of a game is kept: fewer gaps, then streamed over followed, then the later copy', () => {
+  const at = Date.now();
+  assert.ok(better(story('g', gaps(0)), story('g', gaps(1))), 'fewer gaps wins');
+  assert.ok(!better(story('g', { ...gaps(1) }), story('g', { ...gaps(0), followed: true })), 'a gap loses even to a followed story');
+  assert.ok(better(story('g'), story('g', { followed: true })), 'streamed beats followed on the same gaps');
+  assert.ok(!better(story('g', { followed: true, savedAt: at + 1 }), story('g', { savedAt: at })), 'a later followed copy doesn\'t beat a streamed one');
+  assert.ok(better(story('g', { savedAt: at + 1 }), story('g', { savedAt: at })), 'then the later one');
+  assert.ok(!better(story('g', { savedAt: at + 1 }), story('g', { savedAt: at }), { byTime: false }), 'unless time doesn\'t count (this Mac\'s own)');
+});
+
+test('a streamed story from the other court\'s Mac replaces the one this Mac only followed, and this Mac doesn\'t write over it', async () => {
+  const court2 = store('Court-2');
+  court2.keep(story('g2'), { final: true }); // streamed on court 2
+  court2.keep(story('g1', { followed: true, stats: { court2: true } }), { final: true }); // followed on court 2, streamed here
+  const { base, close } = await serve(court2);
+  try {
+    const list = await (await fetch(`${base}/api/stories`)).json();
+    assert.deepStrictEqual(list.stories.map(s => [s.gameId, s.gaps, !!s.followed]).sort(), [['g1', 0, true], ['g2', 0, false]]);
+    const court1 = store('Court-1', { peers: [base] });
+    court1.keep(story('g1', { stats: { court1: true } }), { final: true });
+    court1.keep(story('g2', { followed: true, stats: { court1: true } }));
+    assert.strictEqual(await court1.sync(), 1, 'only the better story is copied');
+    assert.deepStrictEqual(court1.read('g2').stats, { quarters: [] }, 'court 2\'s streamed story of its game');
+    assert.deepStrictEqual(court1.read('g2').from, { studio: 'Court-2', via: 'network' });
+    assert.deepStrictEqual(court1.read('g1').stats, { court1: true }, 'this Mac\'s streamed story stays');
+    court1.keep(story('g2', { followed: true, stats: { court1: 'again' } }), { final: true }); // still following it here
+    assert.deepStrictEqual(court1.read('g2').from, { studio: 'Court-2', via: 'network' }, 'the followed story doesn\'t write over the streamed copy');
+    // A followed story with no gaps beats a streamed one that picked the game up part way through.
+    const court3 = store('Court-3');
+    court3.keep(story('g3', gaps(1)), { final: true });
+    assert.ok(court3.accept({ ...story('g3', { followed: true }), studio: 'Court-2', studioId: 'c2' }, 'network'));
+  } finally { close(); }
+});
 
 test('Bonjour\'s answers are read (dns-sd -B and -L)', () => {
   assert.deepStrictEqual(browsed('12:00:01.123  Add        2   4 local.               _firstpass-studio._tcp. Court 2 MacBook'), { add: true, name: 'Court 2 MacBook' });

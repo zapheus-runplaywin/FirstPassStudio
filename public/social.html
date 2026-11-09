@@ -379,11 +379,11 @@
               a run)  season (Team season card, &division=&team=)  wrap (Season wrap, &division=)  potm (Player of the
               match, &game=<id>&athlete=<name>, &medal=<a medal's name>)  teamround (Team of the round, &division=,
               &GS=<name> .. &GK=<name>)  thanks (Thanks for watching)
-              story (Game story, &game=<id>: a game Studio streamed, from its scoreboard)  worm (Score worm, &game=<id>)
+              story (Game story, &game=<id>: a game Studio streamed or followed)  worm (Score worm, &game=<id>)
               watch (Watch it back, &link=<the replay's web link>: a QR code)  moments (Moments of the game, &game=<id>:
-              a game Studio streamed)  gamestats (Game stats, &game=<id>: team against team from the line ups)  shooting
+              a game Studio streamed or followed)  gamestats (Game stats, &game=<id>: team against team from the line ups)  shooting
               (Shooting duel, &game=<id>)  runs (Runs of the night)  supershottime (Super shot time)  comeback (Comeback
-              of the night): the night's streamed games
+              of the night): the night's streamed or followed games
               Either: spotlight (Athlete spotlight, &athlete=<name>)  sponsorspot (Sponsor spotlight, &sponsor=<id>)
               results (the night's final scores)  review (Round in review: the biggest win, the closest game and
               the upsets)  fulltime (one game's, &game=<id>)  ladder (&division=<name>, as PlayHQ has it now; on the
@@ -971,7 +971,7 @@
       for (const x of d.sponsors) { if (x.logo) { const img = el('img'); img.src = x.logo; img.alt = x.name; logos.append(img); } else logos.append(el('span', '', x.name)); }
     }
 
-    // Game story (?game=): a game Studio streamed, as its scoreboard kept it: the score quarter by quarter, then quarters
+    // Game story (?game=): a game Studio streamed or followed, as Studio kept it: the score quarter by quarter, then quarters
     // won, the best quarter, the longest run, the biggest lead and the lead changes.
     function storyHead(d, title) {
       const x = d.story || {}, g = x.game;
@@ -1006,7 +1006,7 @@
       if (stats.superShots && s.superShots && (s.superShots.home || s.superShots.away)) line('Super shots', `${name('home')} ${s.superShots.home}  ·  ${name('away')} ${s.superShots.away}`);
       if (!x.complete) $('fit').append(el('div', 'later', 'Studio didn\'t see every goal of this game'));
     }
-    // Moments of the game (?game=): every moment Studio's scoreboard saw in a game it streamed (lead changes, comebacks,
+    // Moments of the game (?game=): every moment Studio saw in a game it streamed or followed (lead changes, comebacks,
     // runs, super shots), oldest first, each with its quarter, the time left in it (when the clock ran) and the score then.
     // The 8 that matter most when there are more.
     const MOMENT_WORDS = { heating: 'Heating up', fire: 'On fire', goalForGoal: 'Goal for goal', lead: 'Hits the front', level: 'All square',
