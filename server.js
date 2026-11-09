@@ -109,11 +109,12 @@ process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(er
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
 // The game recordings (recorder.js): each PlayHQ game on the scoreboard while on air, from when it's due (the
-// automatic game selection's minutes before its start) to a while after full time.
+// automatic game selection's minutes before its start) to a while after full time, and each of the night's other games
+// Studio follows in the background, from its first reading.
 const RECORDING_START = () => ({ version: require('./package.json').version, competition: competitions.activeId() || '' });
 recorder.init(log, { dir: datadir.local('Recordings'), settings: datadir.local('recordings.json'), start: RECORDING_START,
   lead: () => theGames.leadMs() }); // theGames is made below; this is only asked once a board has been sent
-process.on('exit', () => { savefile.flushSync(); recorder.close(); }); // saves still in the background (the scoreboard) are written first
+process.on('exit', () => { savefile.flushSync(); recorder.close(); recorder.closeFollowed(); }); // saves still in the background (the scoreboard) are written first
 process.on('SIGTERM', () => process.exit(0)); // the Mac app taking Studio off air: the exit above ends the recording
 // Sequences belong to the competition in use, in its folder.
 scene.init(log, { ffmpeg: MACHINE.ffmpegPath, outputs: { find: outputs.find, summary: outputs.summary }, record: recorder,
@@ -318,7 +319,8 @@ async function followNight() {
 }
 setInterval(followNight, FOLLOW_LIST_MS);
 setTimeout(followNight, 5000);
-setInterval(() => { if (!practice.active()) theBoard.refreshFollowed(); }, 1000);
+// And each one Studio has read gets a recording of its own (recorder.js followGames), to play back later.
+setInterval(() => { if (!practice.active()) theBoard.refreshFollowed(); recorder.followGames(theBoard.followedGames()); }, 1000);
 
 
 // The game, each second, for sequences that start by themselves (scene.js, sequences.js): the picked

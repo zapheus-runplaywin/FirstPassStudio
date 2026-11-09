@@ -408,6 +408,7 @@ and does nothing. Practice links are refused while a 4K replay runs.
 | Practice game: next quarter | http://localhost:8080/deck/practice/next |
 | Practice game: back a quarter | http://localhost:8080/deck/practice/prev |
 | Practice game: stop | http://localhost:8080/deck/practice/stop |
+| Practice game: nudge a second back / on | http://localhost:8080/deck/practice/nudge/-1000, http://localhost:8080/deck/practice/nudge/1000 |
 
 - A replay's next and back go to what went on air (a source coming on, a quarter, a game picked) and pause there, as **Jump there**
   does, to sync with the video. Back goes past the one just gone, so pressing it again goes further back.

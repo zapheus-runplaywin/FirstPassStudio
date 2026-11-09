@@ -181,3 +181,56 @@ test('a PlayHQ game on air is recorded, a graphic\'s reads but not a Studio page
   lines = read(file);
   assert.equal(lines.at(-1).k, 'end', 'off air ends the recording');
 });
+
+test('each game followed in the background gets a recording of its own: what PlayHQ said, from its first reading to after full time', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-recorder-'));
+  const recorder = require('../recorder');
+  try {
+    const recordings = path.join(dir, 'Recordings');
+    recorder.init(() => {}, { dir: recordings, settings: path.join(dir, 'recordings.json'), start: { version: '9.9.9', competition: 'thunder' } });
+    recorder.setRecord(true);
+    recorder.setAfter(10);
+    recorder.playhq('discoverFixtureByRound', { roundID: 'r3' }, 'na', { games: 1 }); // known before the game is read
+    recorder.live('g9', { data: { game: { id: 'g9', n: 0 } } });
+    const g = { gameId: 'g9', home: 'Titans', away: 'Tsunamiz', court: 'Court 2', division: 'Division 2', round: 'Round 3', date: '2026-11-09', time: '19:30:00' };
+    const now = Date.now();
+    recorder.followGames([{ ...g, started: false }], now);
+    assert.equal(recorder.state().followed.length, 0, 'nothing until Studio has read the game');
+    recorder.followGames([{ ...g, started: true }], now);
+    const [name] = recorder.state().followed;
+    assert.match(name, /^\d{4}-\d{2}-\d{2} \d{4} Titans v Tsunamiz \(followed\)\.jsonl\.gz$/);
+    recorder.live('g9', { data: { game: { id: 'g9', n: 1 } } });
+    recorder.live('g9', { data: { game: { id: 'g9', n: 1 } } }); // the same again: not recorded twice
+    recorder.live('other', { data: { game: { id: 'other' } } }); // another game's isn't in it
+    recorder.playhq('gradeLadder', { gradeID: 'x' }, 'na', { ladder: 'new' });
+    const listed = recorder.list().find(r => r.name === name);
+    assert.equal(listed.followed, true);
+    assert.equal(listed.recording, true);
+    assert.deepEqual(listed.games.map(x => [x.id, x.court, x.date, x.time, x.followed]), [['g9', 'Court 2', '2026-11-09', '19:30:00', true]]);
+    let lines = recorder.read(name);
+    assert.deepEqual(lines.slice(0, 2).map(l => l.k), ['start', 'game']);
+    assert.equal(lines[0].followed, true);
+    assert.ok(lines.some(l => l.k === 'playhq' && l.op === 'discoverFixtureByRound'), 'starts with what PlayHQ already said');
+    assert.deepEqual(lines.at(-1).data, { ladder: 'new' }, 'and every PlayHQ answer from then on');
+    assert.deepEqual(lines.filter(l => l.k === 'live').map(l => l.data.game.n), [0, 1]);
+    assert.match(recorder.remove(name), /still being made/);
+    // Finished: kept going for the minutes after full time, then stopped, and not started again.
+    recorder.followGames([{ ...g, started: true, done: true }], now);
+    recorder.followGames([{ ...g, started: true, done: true }], now + 9 * 60000);
+    assert.equal(recorder.state().followed.length, 1);
+    recorder.followGames([{ ...g, started: true, done: true }], now + 10 * 60000);
+    assert.equal(recorder.state().followed.length, 0);
+    recorder.followGames([{ ...g, started: true }], now + 11 * 60000);
+    assert.equal(recorder.state().followed.length, 0, 'not started again');
+    lines = recorder.read(name);
+    assert.deepEqual(lines.at(-1), { t: lines.at(-1).t, k: 'end', why: 'full time' });
+    // A game no longer followed (picked for the scoreboard) stops at once; off air stops the rest.
+    recorder.followGames([{ ...g, gameId: 'g10', started: true }, { ...g, gameId: 'g11', started: true }]);
+    assert.equal(recorder.state().followed.length, 2);
+    recorder.followGames([{ ...g, gameId: 'g11', started: true }]);
+    assert.equal(recorder.state().followed.length, 1);
+    recorder.closeFollowed();
+    assert.equal(recorder.state().followed.length, 0);
+    assert.equal(recorder.list().filter(r => r.followed).length, 3);
+  } finally { recorder.closeFollowed(); recorder.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+});

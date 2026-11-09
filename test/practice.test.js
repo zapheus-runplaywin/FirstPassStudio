@@ -286,3 +286,24 @@ test('a practice game runs the game\'s pre-game sequence again each time, unless
   assert.equal(await playing(), null, 'unticked, the moment that already fired stays fired');
   await studio.post('/api/practice', { stop: true });
 });
+
+test('a quarter\'s jump is when the scorer started its clock, and a followed game\'s recording gives its date and time', () => {
+  const t = Date.parse('2026-11-09T19:31:00');
+  const live = (at, period, status, lastUpdatedAt) => ({ t: at, k: 'live', id: 'g', data: { game: { id: 'g', status: 'IN_PROGRESS', break: null,
+    clock: { period, periodValue: period, status, time: '10:00', lastUpdatedAt: String(lastUpdatedAt) } } } });
+  const lines = [
+    { t: t - 600000, k: 'start', followed: true },
+    { t: t - 600000, k: 'game', id: 'g', home: 'Titans', away: 'Tsunamiz', court: 'Court 2', date: '2026-11-09', time: '19:30:00', followed: true },
+    live(t, 'FIRST_QTR', 'PAUSE', t - 60000), // the scorer set the quarter before the centre pass
+    live(t + 5000, 'FIRST_QTR', 'RESUME', t + 2000), // and started the clock 3 seconds before this reading
+    live(t + 900000, 'SECOND_QTR', 'RESUME', t + 840000), // too long before the reading to be its start: the reading's time
+  ];
+  practice.init(() => {}, { read: () => lines });
+  const loaded = practice.load('x', 'g', 5);
+  assert.equal(loaded.followed, true);
+  assert.equal(loaded.game.date, '2026-11-09');
+  assert.equal(loaded.game.time, '19:30:00');
+  assert.equal(loaded.jumps.find(j => j.id === 'start').at, Date.parse('2026-11-09T19:25:00'));
+  assert.equal(loaded.jumps.find(j => j.id === 'FIRST_QTR').at, t + 2000);
+  assert.equal(loaded.jumps.find(j => j.id === 'SECOND_QTR').at, t + 900000);
+});

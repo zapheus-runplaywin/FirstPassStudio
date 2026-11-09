@@ -40,13 +40,15 @@
 <header class="fp-bar"></header><script src="studiobar.js"></script><script src="studio.js"></script>
 <main>
   <h1>Recordings</h1>
-  <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what PlayHQ said and what went to air (the graphics, not video or sound), to play the game back. <a href="/guide/#s3-13">More in the guide</a></p>
+  <p class="sub">For each PlayHQ game on the scoreboard while on air, Studio records what PlayHQ said and what went to air (the graphics, not video or sound), to play the game back; and for the night's other games it follows, what PlayHQ said, to put graphics over a video of them later. <a href="/guide/#s3-13">More in the guide</a></p>
 
   <section id="practice" hidden>
     <h2>Practice game</h2>
     <p id="practiceWhat" style="margin:0"></p>
     <div class="row" id="practiceJumps"></div>
-    <div class="row"><button id="practicePause">Pause</button><button class="danger" id="practiceStop">Stop</button></div>
+    <div class="row"><button id="practicePause">Pause</button><button class="danger" id="practiceStop">Stop</button>
+      <span class="help" style="margin:0">Nudge</span><button class="alt" data-pnudge="-1000">−1 s</button><button class="alt" data-pnudge="1000">+1 s</button></div>
+    <p class="help" id="practiceSync">To put the graphics over a video of the game: jump to the quarter the video is on and Pause, cue the video on that quarter's first centre pass, press Play on both together, then nudge until the score changes with the goals.</p>
     <div id="pairs" hidden>
       <h3 style="margin:14px 0 4px;font-size:15px">Athletes</h3>
       <p class="help" style="margin:0 0 8px">Who each recorded athlete is shown as. Matched by position to begin with; change any of them here.</p>
@@ -152,7 +154,7 @@ function show(s) {
         <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
         <span class="acts"><a class="btn alt small" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
           <button class="danger small" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once it stops, after the game"' : ''}>Remove</button></span></div>
-      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}<button class="alt small" data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button class="alt small" data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button><button class="alt small" data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button></li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
+      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}${g.followed ? ' · <span class="help" style="margin:0" title="Studio followed this game in the background: no graphics went to air for it, so it plays back as a practice game, to put graphics over a video of it">followed, not streamed</span>' : ''}<button class="alt small" data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button class="alt small" data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button>${g.followed ? '' : `<button class="alt small" data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button>`}</li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
     </div>`).join('') : '<p class="fp-empty">No recordings yet. The next PlayHQ game on air is recorded.</p>';
 }
 
@@ -237,6 +239,7 @@ $('rerun').onchange = () => { try { localStorage.setItem('practiceRerun', rerun(
 $('practiceJumps').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) practice({ jump: b.dataset.jump, lead: lead() }); };
 $('practicePause').onclick = () => practice({ pause: !$('practicePause').dataset.paused });
 $('practiceStop').onclick = () => practice({ stop: true });
+$('practice').addEventListener('click', e => { const b = e.target.closest('[data-pnudge]'); if (b) practice({ nudge: Number(b.dataset.pnudge) }); });
 
 // 4K replay: Play / Pause, the nudge, what went on air to jump to, and Stop.
 const tod = t => new Date(t).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', second: '2-digit' }) + `.${String(Math.floor((t % 1000) / 100))}`;

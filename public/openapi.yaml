@@ -1405,6 +1405,25 @@ paths:
         '404': { $ref: '#/components/responses/UnknownLink' }
         '409': { description: No practice game is running, or a 4K replay is }
 
+  /deck/practice/nudge/{ms}:
+    get:
+      tags: [Recordings]
+      summary: Nudge the practice game
+      description: Moves the practice game by this many milliseconds against the clock, back with a minus, up to an hour either way, to line it up with a video of the game (a game followed in the background, played over someone's video of it).
+      operationId: practiceNudge
+      x-links:
+        - ["Back a second", "/deck/practice/nudge/-1000"]
+        - ["On a second", "/deck/practice/nudge/1000"]
+      parameters:
+        - name: ms
+          in: path
+          required: true
+          schema: { type: integer, example: -1000 }
+      responses:
+        '200': { description: Done. Returns the practice game's state (as GET /api/practice). }
+        '400': { description: Not a number of milliseconds, or more than an hour }
+        '409': { description: No practice game is running, or a 4K replay is }
+
   /api/scene/media:
     get:
       tags: [Scene]
