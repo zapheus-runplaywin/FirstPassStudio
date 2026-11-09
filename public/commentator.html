@@ -37,8 +37,7 @@
   .meter i { display: block; height: 100%; width: 0; background: #16a34a; transition: width .08s linear; }
   .meter i.warm { background: #f59e0b; } .meter i.hot { background: #dc2626; }
   .meter.back i { background: var(--fp-btn); }
-  .hear { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 14px; }
-  .hear input[type=range] { width: 100%; }
+  .hear { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; font-size: 14px; }
   .seg { display: inline-flex; border: 1px solid var(--fp-line-strong); border-radius: 8px; overflow: hidden; }
   .seg button { min-height: 40px; border: 0; border-radius: 0; padding: 0 14px; font-size: 15px; background: var(--fp-white); color: var(--fp-navy); }
   .seg button[aria-pressed="true"] { background: var(--fp-btn); color: #fff; }
@@ -74,8 +73,7 @@
     <h2>Hear Studio</h2>
     <div class="hear">
       <span class="seg"><button id="hearOn" aria-pressed="true">On</button><button id="hearOff" aria-pressed="false">Off</button></span>
-      <input type="range" id="hearVol" min="0" max="100" value="80" aria-label="Volume">
-      <small id="hearPct">80%</small>
+      <small id="hearPct">Set the level with the phone's volume buttons</small>
     </div>
     <div class="meter back" aria-hidden="true"><i id="backMeter"></i></div>
     <p class="help">Output 1's sound and the other mics, without your own voice. Use headphones: on the phone's speaker it comes back in through your mic.
@@ -105,11 +103,10 @@
   let muted = false, retryTimer = null, wakeLock = null, tries = 0;
   let audioCtx = null, analyser = null, meterData = null;
   let studioMic = null;    // this phone's mic as Studio has it (its mute), from the scene
-  // Hear Studio: on or off and its volume, kept on this phone.
+  // Hear Studio: on or off, kept on this phone.
   const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   let hearOn = store.get('commentator.hear') !== 'off';
-  let hearVol = Math.max(0, Math.min(100, Number(store.get('commentator.volume') ?? 80) || 0));
-  let backGain = null, backAnalyser = null, backData = null, backSource = null, backPlayer = null;
+  let backPlayer = null, backReceiver = null;
 
   function say(word, why, dot) {
     $('word').textContent = word;
@@ -192,7 +189,8 @@
   function dropPc() {
     if (pc) { pc.onconnectionstatechange = null; pc.ontrack = null; try { pc.close(); } catch {} }
     pc = null; session = '';
-    if (backSource) { backSource.disconnect(); backSource = null; }
+    if (backPlayer) backPlayer.srcObject = null;
+    backReceiver = null;
   }
   async function connect() {
     clearTimeout(retryTimer);
@@ -201,7 +199,7 @@
     const me = pc = new RTCPeerConnection({ iceServers: [] });
     // Both ways when Hear Studio is on: the mic out, Studio's sound back.
     stream.getAudioTracks().forEach(t => me.addTransceiver(t, { direction: hearOn ? 'sendrecv' : 'sendonly', streams: [stream] }));
-    me.ontrack = e => { if (pc === me) hearBack(e.streams[0] || new MediaStream([e.track])); };
+    me.ontrack = e => { if (pc === me) hearBack(e.streams[0] || new MediaStream([e.track]), e.receiver); };
     me.onconnectionstatechange = () => {
       if (pc !== me) return;
       const s = me.connectionState;
@@ -244,52 +242,37 @@
   }
 
   // ─── Hear Studio ────────────────────────────────────────────────────
-  // Studio's sound coming back, through this page's mixer for its volume. (Chromium passes a network stream to a mixer
-  // only while a player plays it, so a silent one does.)
-  function hearBack(st) {
-    if (!audioCtx) return;
-    if (backSource) backSource.disconnect();
-    if (!backGain) {
-      backGain = audioCtx.createGain();
-      backAnalyser = audioCtx.createAnalyser();
-      backAnalyser.fftSize = 512;
-      backData = new Float32Array(backAnalyser.fftSize);
-      backGain.connect(audioCtx.destination);
-    }
-    if (!backPlayer) { backPlayer = new Audio(); backPlayer.muted = true; }
+  // Studio's sound coming back, played straight to what the phone plays to (the headphones, or the interface plugged
+  // in), so the phone's own volume buttons set it. Not through a mixer on the page: iPhone Safari passes nothing from a
+  // network stream through one, and doesn't let a page set a player's volume either. Off mutes it.
+  function hearBack(st, receiver) {
+    if (!backPlayer) { backPlayer = document.createElement('audio'); backPlayer.autoplay = true; backPlayer.setAttribute('playsinline', ''); document.body.append(backPlayer); }
     backPlayer.srcObject = st;
+    backPlayer.muted = !hearOn;
+    backReceiver = receiver || null;
     backPlayer.play().catch(() => {});
-    backSource = audioCtx.createMediaStreamSource(st);
-    backSource.connect(backGain);
-    backSource.connect(backAnalyser);
-    setVolume();
   }
-  function setVolume() { if (backGain) backGain.gain.value = hearOn ? Math.pow(hearVol / 100, 2) * 1.5 : 0; }
   function drawHear() {
     $('hearOn').setAttribute('aria-pressed', String(hearOn));
     $('hearOff').setAttribute('aria-pressed', String(!hearOn));
-    $('hearVol').value = hearVol;
-    $('hearVol').disabled = !hearOn;
-    $('hearPct').textContent = hearOn ? `${hearVol}%` : 'Off';
+    $('hearPct').textContent = hearOn ? 'Set the level with the phone\'s volume buttons' : 'Off';
   }
   function setHear(v) {
     if (v === hearOn) return;
     hearOn = v;
     store.set('commentator.hear', v ? 'on' : 'off');
-    drawHear(); setVolume();
+    drawHear();
+    if (backPlayer) { backPlayer.muted = !hearOn; if (hearOn) backPlayer.play().catch(() => {}); }
     // Turned on while connected with nothing coming back: connect again both ways.
-    if (on && v && !backSource) restart(0);
+    if (on && v && !backReceiver) restart(0);
   }
   $('hearOn').onclick = () => setHear(true);
   $('hearOff').onclick = () => setHear(false);
-  $('hearVol').oninput = () => { hearVol = Number($('hearVol').value); store.set('commentator.volume', String(hearVol)); drawHear(); setVolume(); };
-  // How loud Studio's sound comes back (before the volume).
+  // How loud Studio's sound comes back (before the phone's volume), in dB: the level the connection reports for what
+  // arrives, so it needs no mixer on the page either.
   window.backLevel = () => {
-    if (!backAnalyser) return -100;
-    backAnalyser.getFloatTimeDomainData(backData);
-    let peak = 0;
-    for (const v of backData) peak = Math.max(peak, Math.abs(v));
-    return peak > 0 ? 20 * Math.log10(peak) : -100;
+    const level = backReceiver && backReceiver.getSynchronizationSources ? (backReceiver.getSynchronizationSources()[0] || {}).audioLevel : 0;
+    return level > 0 ? 20 * Math.log10(level) : -100;
   };
   setInterval(() => {
     const db = hearOn ? window.backLevel() : -100;

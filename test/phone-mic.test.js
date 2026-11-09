@@ -4,11 +4,23 @@
 // The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { startStudio } = require('./support/studio');
 const access = require('../access');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+
+// A minute of a 440 Hz tone, for the music.
+function toneWav(sec) {
+  const rate = 48000, n = rate * sec, b = Buffer.alloc(44 + n * 2);
+  b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin(2 * Math.PI * 440 * i / rate) * 12000), 44 + i * 2);
+  return b;
+}
 
 const SDP = 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n';
 
@@ -49,7 +61,10 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
     return;
   }
   t.after(() => browser.close());
-  const studio = await startStudio(t);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-phone-'));
+  fs.mkdirSync(path.join(dataDir, 'media'));
+  fs.writeFileSync(path.join(dataDir, 'media', 'Tone.wav'), toneWav(60));
+  const studio = await startStudio(t, { dataDir, removeDataDir: true });
   const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
   t.after(() => context.close());
   await context.grantPermissions(['microphone'], { origin: studio.base });
@@ -83,12 +98,23 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
   const loudest = () => phone.evaluate(() => new Promise(r => { let max = -100; const t = setInterval(() => { max = Math.max(max, backLevel()); }, 5); setTimeout(() => { clearInterval(t); r(max); }, 3000); }));
   await phone.waitForTimeout(1000);
   assert.ok(await loudest() < -60, 'its own voice doesn\'t come back');
+  // It plays straight to the phone's output (no mixer on the page), so the phone's volume buttons set it.
+  assert.deepEqual(await phone.evaluate(() => { const a = document.querySelector('audio'); return a && [!!a.srcObject, a.muted, a.paused]; }), [true, false, false]);
+  assert.match(await phone.textContent('#hearPct'), /volume buttons/);
+  // The music comes back.
+  await studio.post('/api/scene', { type: 'musicLoad', track: 'Tone.wav', play: true, fade: 0 });
+  await studio.until(async () => await loudest() > -60, 20000, 0);
+  await studio.post('/api/scene', { type: 'musicStop', fade: 0 });
+  await studio.until(async () => await loudest() < -60, 20000, 0);
+  // And so does a mic on the Mac.
   await studio.post('/api/scene', { type: 'micAdd', changes: { name: 'Court mic', device: '' } });
   await studio.until(async () => await loudest() > -60, 20000, 0);
-  // Off: the volume goes to nothing.
+  // Off mutes it.
   await phone.click('#hearOff');
   assert.equal(await phone.textContent('#hearPct'), 'Off');
+  assert.equal(await phone.evaluate(() => document.querySelector('audio').muted), true);
   await phone.click('#hearOn');
+  assert.equal(await phone.evaluate(() => document.querySelector('audio').muted), false);
 
   // The Output page: the phone's card, and + Phone mic's QR code (which warns that it needs the secure link here, on http).
   const page = await context.newPage();
