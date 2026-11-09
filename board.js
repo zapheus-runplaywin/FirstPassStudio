@@ -955,7 +955,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   }
   // The scoreboard left a game before it ended: it goes on being followed from where the board was.
   function handOn(b) {
-    if (!b.gameId || b.source !== 'playhq' || b.endedAt || isFinished({ status: b.playhqStatus || '' }) || !followOthers()) return;
+    if (!b.gameId || b.source !== 'playhq' || b.endedAt || isFinished({ status: b.playhqStatus || '', date: b.date, home: b.home, away: b.away }) || !followOthers()) return;
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.length) return;
     const f = followedBoard({ id: b.gameId, roundId: b.roundId, division: b.division, court: b.court, round: b.round, date: b.date, time: b.time, venue: b.venue, home: b.home, away: b.away, status: b.playhqStatus });
     followed[b.gameId] = Object.assign(f, goalState(b), { streamed: true, followPlayhqClock: true, playhqClockKey: null });
