@@ -38,7 +38,8 @@
 //                                        &with=milestones the night's first games and 50ths. Always: byes, countdown, raceOn
 //                                        (divisions in their finals race) and firstNights (divisions starting their season)
 //                                        Results: &with=accuracy|supershots|teamsupers|onfire&division= (Sharpshooter, Super shot
-//                                        leaders, Team super shots, On fire); &with=numbers (Night in numbers); &with=season&division=&team= (Team season card);
+//                                        leaders, Team super shots, On fire); &with=numbers (Night in numbers, with lead changes, goals in a row and runs of
+//                                        5 goals only when every finished game has a complete story; goalOrder, always: { complete, of, missing }); &with=season&division=&team= (Team season card);
 //                                        &with=wrap&division= (Season wrap). Always: clubs (Club round up), streaks (Still unbeaten)
 //                                        and lastNights (divisions ending their season)
 //                                        Hand picks: &with=lineups (&division=) each finished game's line ups, to pick from;
@@ -402,9 +403,11 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (want.has('supershots')) out.superShots = await superLeaders(tonightIn(division), seasonIn(division), division);
     if (want.has('teamsupers')) out.teamSupers = await teamSupers(tonightIn(division), seasonIn(division), division);
     if (want.has('onfire')) out.onFire = await onFire(seasonIn(division), date, division);
+    const nightOrder = goalOrderNumbers(games);
+    out.goalOrder = nightOrder.goalOrder; // for the Socials tab's note on Night in numbers
     if (want.has('numbers')) {
       const upsets = stats.review(games, out.ladders || await ladders(dates, date, games)).upsets.length;
-      out.numbers = { ...stats.numbers(games), ...(await nightShooting(raw.filter((g, i) => games[i].finished))), upsets };
+      out.numbers = { ...stats.numbers(games), ...(await nightShooting(raw.filter((g, i) => games[i].finished))), upsets, ...nightOrder };
     }
     if (want.has('season')) out.season = await seasonCard(season, date, division, String(q.team || ''), seasonIn(division));
     if (want.has('wrap')) out.wrap = await wrap(season, date, division, seasonIn(division));
@@ -670,6 +673,24 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const kept = { home: Number(s.stats.home.score) || 0, away: Number(s.stats.away.score) || 0 };
     return { game: { ...g, home: side('home'), away: side('away') }, stats: s.stats, worm: s.worm, moments: s.moments || [],
       complete: !s.stats.gapInHistory && g.finished && kept.home === g.home.score && kept.away === g.away.score };
+  }
+  // Night in numbers' goal order tiles: lead changes, the longest run and the runs of 5 goals across the night, only when
+  // every finished game has a complete story (streamed or followed, no gap, and its kept score PlayHQ's final), so a
+  // night-wide number never leaves a game out. goalOrder: { complete, of, missing: [the games short of it] } either way.
+  function goalOrderNumbers(games) {
+    const done = games.filter(g => g.finished);
+    const told = done.map(g => ({ g, x: storyOf(g) }));
+    const missing = told.filter(t => t.x.error || !t.x.complete).map(t => `${t.g.home.name} v ${t.g.away.name}`);
+    const goalOrder = { complete: done.length - missing.length, of: done.length, missing };
+    if (!done.length || missing.length) return { goalOrder };
+    let leadChanges = 0, runs5 = 0, longestRun = null;
+    for (const { x } of told) {
+      const st = (x.stats && x.stats.stats) || {}, lr = st.longestRun || {}, r5 = st.runs5 || {};
+      leadChanges += Number(x.worm && x.worm.leadChanges) || 0;
+      runs5 += (Number(r5.home) || 0) + (Number(r5.away) || 0);
+      for (const side of ['home', 'away']) if ((lr[side] || 0) > (longestRun ? longestRun.n : 1)) longestRun = { n: lr[side], team: x.game[side].name };
+    }
+    return { goalOrder, leadChanges, runs5, longestRun };
   }
   // Runs of the night, Super shot time and Comeback of the night, from the stories of the night's games Studio streamed or followed (read from
   // the local folder, so cheap): each game's longest run and its runs of 3 and 5, the longest first; each super shot

@@ -275,7 +275,7 @@
     if (night.games.some(g => (night.superShotDivisions || []).includes(g.division))) { pending('supershots', 'Super shot leaders'); pending('teamsupers', 'Team super shots'); }
     pending('onfire', 'On fire');
     list.push({ key: 'numbers', kind: 'numbers', name: 'Night in numbers', missing: none,
-      help: 'The night added up: games, goals (points where there are super shots), super shots, games within 3 goals, the biggest win and the highest score.' });
+      help: `The night added up: games, goals (points where there are super shots), super shots, games within 3 goals, the biggest win and the highest score. ${orderNote()}` });
     for (const c of night.clubs || []) list.push({ key: `club:${c.club}`, kind: 'club', club: c.club, name: `Club round up ${c.club}`,
       help: `Every ${c.club} result that night, division by division. A club's teams are set under Clubs on Competitions setup.` });
     pending('club', 'Club round up');
@@ -687,6 +687,13 @@
     for (const size of sizes()) previews.append(preview(p, size));
     if (!sizes().length) previews.append(el('p', 'help', 'Tick a size above.'));
     return s;
+  }
+  // Whether Night in numbers has its goal order tiles: only when Studio has every finished game's whole story.
+  function orderNote() {
+    const o = night.goalOrder;
+    if (!o || !o.of) return '';
+    if (!o.missing.length) return 'Every game\'s whole story is here, so it also has the lead changes, the most goals in a row and the runs of 5 goals.';
+    return `Lead changes, goals in a row and runs of 5 goals join it once Studio has every game's whole story: ${o.complete} of ${o.of} now (not yet: ${o.missing.join(', ')}).`;
   }
   // Where the night's game stories came from when another Studio Mac streamed some of the games (stories.js).
   function storiesNote() {

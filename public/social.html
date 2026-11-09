@@ -841,6 +841,10 @@
       if (n.upsets) tiles.append(tile(n.upsets, n.upsets === 1 ? 'Upset' : 'Upsets'));
       else if (n.averageWin !== null && n.averageWin !== undefined) tiles.append(tile(n.averageWin, 'Average win'));
       if (n.draws) tiles.append(tile(n.draws, n.draws === 1 ? 'Draw' : 'Draws'));
+      // From the goal order, only when Studio has every game's whole story (socials.js goalOrderNumbers).
+      if (n.leadChanges) tiles.append(tile(n.leadChanges, n.leadChanges === 1 ? 'Lead change' : 'Lead changes'));
+      if (n.longestRun) tiles.append(tile(n.longestRun.n, 'Goals in a row', n.longestRun.team));
+      if (n.runs5) tiles.append(tile(n.runs5, n.runs5 === 1 ? 'Run of 5 goals' : 'Runs of 5 goals'));
     }
     // Club round up (?club=): every result that night of one club's teams, division by division.
     function drawClub(d) {
