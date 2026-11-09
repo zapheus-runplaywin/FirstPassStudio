@@ -147,8 +147,11 @@
   }
   async function openMic() {
     const id = $('input').value;
+    // Tells iPhone Safari this page plays and records sound, not a call (the Audio Session API, where there is one),
+    // and asks for the mic at full rate: call mode squashes what the commentator hears (Hear Studio).
+    try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch {}
     stream = await navigator.mediaDevices.getUserMedia({ audio: {
-      ...(id ? { deviceId: { exact: id } } : {}), echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 1 } } });
+      ...(id ? { deviceId: { exact: id } } : {}), echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 1 }, sampleRate: { ideal: 48000 } } });
     const track = stream.getAudioTracks()[0];
     track.enabled = !muted;
     // The phone took the mic away (a call, another app, a headset pulled out).
@@ -209,8 +212,9 @@
     await me.setLocalDescription(await me.createOffer());
     // Every address in the offer (on one network they're there at once).
     await new Promise(r => { if (me.iceGatheringState === 'complete') return r(); me.addEventListener('icegatheringstatechange', () => me.iceGatheringState === 'complete' && r()); setTimeout(r, 1500); });
-    // Studio's sound back in stereo, at a bit rate music sounds right at.
-    const sdp = me.localDescription.sdp.replace(/a=fmtp:(\d+) ([^\r\n]*useinbandfec=1[^\r\n]*)/g, (all, pt, rest) => `a=fmtp:${pt} ${rest.replace(/;?(maxaveragebitrate|stereo)=\d+/g, '')};stereo=1;maxaveragebitrate=128000`);
+    // Studio's sound back as music: stereo, full bandwidth (48 kHz), at a bit rate music sounds right at, never thinned
+    // out in the quiet moments.
+    const sdp = me.localDescription.sdp.replace(/a=fmtp:(\d+) ([^\r\n]*useinbandfec=1[^\r\n]*)/g, (all, pt, rest) => `a=fmtp:${pt} ${rest.replace(/;?(maxaveragebitrate|stereo|maxplaybackrate|usedtx)=\d+/g, '')};stereo=1;maxaveragebitrate=128000;maxplaybackrate=48000;usedtx=0`);
     const res = await fetch('/api/phonemic/offer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sdp }) });
     const made = await res.json().catch(() => ({}));
     if (res.status === 403) { stop(); showError(`This phone isn't paired with the Mac yet. <a href="/pair.html?then=%2Fcommentator.html">Pair it</a> (any level), then press Start again.`); return; }
