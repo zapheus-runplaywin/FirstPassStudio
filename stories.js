@@ -22,7 +22,11 @@
 // with fewer gaps; on the same gaps the streamed one; then, for two copies, the one saved later. A copy replaces this
 // Mac's own story only when it is better than it without counting when it was saved, and this Mac doesn't write its
 // own over a better copy (nor a story it only followed over a better one it streamed: a game it left part way through
-// by hand), so it doesn't matter which way a story arrives first. Only finished stories are shared: the game ended, or the scoreboard moved
+// by hand), so it doesn't matter which way a story arrives first. Where one story has a gap the other saw goal by goal,
+// the two are made into one (combined(), with board.js mergeStories given through useMerge): the better one with that gap
+// filled, kept as this Mac's own (filled: the Studios whose stories filled it), so it is shared on and the other Mac takes
+// it too. A Mac whose story has gaps asks for the other's story of the game even when it isn't better, once for each
+// save of it. Only finished stories are shared: the game ended, or the scoreboard moved
 // on to another game (DONE_AFTER without a new save covers a Studio quit mid-game). Stories go back SHARE_DAYS.
 //
 // create(deps) gives the store. deps:
@@ -91,15 +95,35 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
   const done = s => !!s && (s.ended || s.final || Date.now() - s.savedAt > DONE_AFTER);
   const recent = s => Date.now() - s.savedAt < SHARE_DAYS * 86400000;
 
-  // The board keeping this Mac's own story. final: the game ended or the scoreboard moved on, so it goes to iCloud too.
-  function keep(story, { final = false } = {}) {
-    const s = { ...story, studio, studioId, final: final || undefined };
-    const have = read(s.gameId);
-    // Another Studio's copy of this game, or this Mac's streamed story of it, that is better than one only followed here.
-    if (have && (have.from || (!have.followed && s.followed)) && better(have, s, { byTime: false })) return;
+  // Filling gaps (board.js mergeStories, handed over with useMerge): the better of two stories of a game with its gaps
+  // filled from the other, as this Mac's own (so it is shared on, and the other Mac takes it too: it has fewer gaps),
+  // saying whose stories filled it (filled: [studio names]); or null when no gap could be filled.
+  let merge = null;
+  const useMerge = fn => { merge = fn; };
+  function combined(a, b) {
+    if (!merge || !a || !b || !a.goalOrder || !b.goalOrder) return null;
+    // From the better one first; the other way round too (this Mac's story going on after a better one filled before).
+    const pairs = better(a, b, { byTime: false }) ? [[a, b], [b, a]] : [[b, a], [a, b]];
+    let base, m;
+    for (const [x, y] of pairs) {
+      let got;
+      try { got = merge(x, y); } catch (err) { log('warn', 'stories', `Gaps in a game's story weren't filled: ${err.message}`); return null; }
+      const made = got && { ...x, ...got };
+      if (made && !better(a, made, { byTime: false }) && !better(b, made, { byTime: false })) { base = x; m = got; break; }
+    }
+    if (!m) return null;
+    const whose = x => (x.from ? [x.from.studio] : x.studioId && x.studioId !== studioId ? [x.studio] : []);
+    const filled = [...new Set([...(a.filled || []), ...(b.filled || []), ...whose(a), ...whose(b)])];
+    const { filledGaps, ...made } = m;
+    const s = { ...base, ...made, studio, studioId, savedAt: Math.max(a.savedAt || 0, b.savedAt || 0), ended: !!(a.ended || b.ended), filled: filled.length ? filled : undefined };
+    delete s.from;
+    if (gapsOf(s) < Math.min(gapsOf(a), gapsOf(b))) log('info', 'stories', `Filled ${filledGaps} gap${filledGaps === 1 ? '' : 's'} in game ${s.gameId}'s story from ${filled.join(' and ') || 'this Mac\'s other story of it'}`);
+    return s;
+  }
+  function write(s, toCloud) {
     fs.mkdirSync(dir, { recursive: true });
     savefile.writeFileSync(fileOf(s.gameId), JSON.stringify(s)); // at once, so an older write can't land after a newer one
-    if (final && cloudDir) {
+    if (toCloud && cloudDir) {
       try {
         fs.mkdirSync(cloudDir, { recursive: true });
         savefile.writeFileSync(path.join(cloudDir, fileName(s.gameId)), JSON.stringify(s));
@@ -107,16 +131,31 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     }
   }
 
+  // The board keeping this Mac's own story. final: the game ended or the scoreboard moved on, so it goes to iCloud too.
+  function keep(story, { final = false } = {}) {
+    let s = { ...story, studio, studioId, final: final || undefined };
+    const have = read(s.gameId);
+    const m = have && have.gameId === s.gameId ? combined(s, have) : null;
+    if (m) s = { ...m, final: final || undefined }; // gaps filled from what this Mac had (another Mac's story, or one filled before)
+    // Another Studio's copy of this game, or this Mac's streamed story of it, that is better than one only followed here.
+    else if (have && (have.from || (!have.followed && s.followed)) && better(have, s, { byTime: false })) return;
+    write(s, final);
+  }
+
   // Whether a story from another Studio should replace what this Mac has (see better()).
   const wanted = (s, have) => better(s, have, { byTime: !!(have && have.from) });
-  // A story from another Studio: kept when this Mac has none, or it is better than what this Mac has. Answers true when kept.
+  // A story from another Studio: kept when this Mac has none, or it is better than what this Mac has; or, when one fills
+  // the other's gaps, the two made into one. Answers true when anything was kept.
   function accept(s, via) {
     if (!isStory(s) || !done(s) || !s.studio || !s.studioId || s.studioId === studioId) return false;
-    if (!wanted(s, read(s.gameId))) return false;
     const rest = { ...s };
     delete rest.from; // a copy says only where this Mac got it
-    fs.mkdirSync(dir, { recursive: true });
-    savefile.writeFileSync(fileOf(s.gameId), JSON.stringify({ ...rest, from: { studio: s.studio, via } }));
+    const copy = { ...rest, from: { studio: s.studio, via } };
+    const have = read(s.gameId);
+    const m = combined(copy, have);
+    if (m) { write({ ...m, final: done(have) || undefined }, done(have)); return true; }
+    if (!wanted(s, have)) return false;
+    write(copy, false);
     return true;
   }
 
@@ -129,11 +168,14 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
   // Where the night's stories came from, for the Socials tab: the copies, by Studio and way. [{ studio, via, games }]
   function sources(ids) {
     const by = new Map();
+    const add = (who, via) => {
+      const k = `${who}\n${via}`;
+      by.set(k, { studio: who, via, games: ((by.get(k) || {}).games || 0) + 1 });
+    };
     for (const id of ids) {
-      const f = (read(id) || {}).from;
-      if (!f) continue;
-      const k = `${f.studio}\n${f.via}`;
-      by.set(k, { studio: f.studio, via: f.via, games: ((by.get(k) || {}).games || 0) + 1 });
+      const s = read(id) || {};
+      if (s.from) add(s.from.studio, s.from.via);
+      else for (const who of s.filled || []) add(who, 'filled');
     }
     return [...by.values()];
   }
@@ -187,13 +229,21 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
   }
 
   // Copies a Studio's finished stories that this Mac doesn't have (or has older). Answers how many were copied.
+  const tried = new Set(); // game id, Studio id and save time of the stories already asked for to fill gaps
   async function fromStudio(base) {
     const list = await ask(`${base}/api/stories`);
     if (!list || list.studioId === studioId || !Array.isArray(list.stories)) return 0;
     let copied = 0;
     for (const { gameId, savedAt, gaps = 0, followed } of list.stories) {
-      if (!wanted({ savedAt, followed, worm: { gaps: Array(Math.max(0, Number(gaps) || 0)).fill(null) } }, read(gameId))) continue;
-      try { if (accept(await ask(`${base}/api/stories/${encodeURIComponent(gameId)}`), 'network')) copied++; } catch { /* asked again next time */ }
+      const have = read(gameId);
+      // Asked for when it's better than this Mac's, or this Mac's has gaps it might fill (once for each save of it).
+      const tryFill = !!merge && gapsOf(have) > 0 && !tried.has(`${gameId}\n${list.studioId}\n${savedAt}`);
+      if (!tryFill && !wanted({ savedAt, followed, worm: { gaps: Array(Math.max(0, Number(gaps) || 0)).fill(null) } }, have)) continue;
+      try {
+        const got = await ask(`${base}/api/stories/${encodeURIComponent(gameId)}`);
+        tried.add(`${gameId}\n${list.studioId}\n${savedAt}`);
+        if (accept(got, 'network')) copied++;
+      } catch { /* asked again next time */ }
     }
     if (copied) log('info', 'stories', `Copied ${copied} game stor${copied === 1 ? 'y' : 'ies'} from ${list.studio}'s Studio`);
     return copied;
@@ -259,7 +309,7 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     return send(res, 200, { studio, studioId, ...s }), true; // stories kept before sharing came in don't say whose they are
   }
 
-  return { dir, keep, read, accept, own, sources, sync, start, stop, route, found: () => [...found.keys()] };
+  return { dir, keep, read, accept, own, sources, sync, start, stop, route, useMerge, found: () => [...found.keys()] };
 }
 
 module.exports = { create, browsed, reached, better, gapsOf, SERVICE, CLOUD_FOLDER, SYNC_EVERY };

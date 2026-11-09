@@ -93,11 +93,16 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     try {
       stories.keep({ gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(),
         followed: b.followed && !b.streamed ? true : undefined, stats: getStats(b), worm: getWorm(b),
-        moments: b.gameMomentsId === b.gameId ? b.gameMoments || [] : [] }, { final: now });
+        moments: b.gameMomentsId === b.gameId ? b.gameMoments || [] : [], goalOrder: goalOrderOf(b) }, { final: now });
     } catch (err) { log('warn', 'stats', `The story of ${b.home.name} v ${b.away.name} wasn't kept: ${err.message}`); }
   }
   // A game's kept story (this Mac's own, or a copy from another Studio), or null when no Studio streamed or followed it.
   const gameStory = id => stories.read(id);
+  // What a story's stats, worm and moments were worked out from, so a gap in it can be filled from another Mac's story of
+  // the same game (mergeStories) and they worked out again.
+  const goalOrderOf = b => ({ home: { name: b.home.name, score: Number(b.home.score) || 0 }, away: { name: b.away.name, score: Number(b.away.score) || 0 },
+    court: courtShown(b), period: b.period, clock: b.clock ? { lengthSec: b.clock.lengthSec, elapsedMs: clockElapsed(b.clock) } : null,
+    goals: b.goals, counts: b.playhqCounts || null, periodTrack: b.periodTrack && b.periodTrack.gameId === b.gameId ? b.periodTrack : null });
 
   function saveBoards() {
     keepStory(false);
@@ -596,7 +601,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     if (b.gameMomentsId !== b.gameId) { b.gameMoments = []; b.gameMomentsId = b.gameId; }
     b.gameMoments = [...b.gameMoments, { kind: ev.kind, side: ev.side || '', goals: ev.goals || 0, down: ev.down || 0, also: also.map(x => ({ kind: x.kind, side: x.side || '' })),
       score: b.streak.score, period: b.period, periodLabel: b.streak.periodLabel, clockLeft: b.streak.clockLeft }].slice(-GAME_MOMENTS_KEPT);
-    log('info', 'streak', `${ev.side ? `${b[ev.side].name} (${ev.side}) ` : ''}${STREAK_NAMES[ev.kind]}${ev.goals ? `, ${ev.goals} goals` : ''}${ev.down ? `, was ${ev.down} down` : ''} (${how}), number ${n}`);
+    if (!b.replay) log('info', 'streak', `${ev.side ? `${b[ev.side].name} (${ev.side}) ` : ''}${STREAK_NAMES[ev.kind]}${ev.goals ? `, ${ev.goals} goals` : ''}${ev.down ? `, was ${ev.down} down` : ''} (${how}), number ${n}`);
   }
   // The score moments start from here: on a new game, after a gap, and the first time they're looked at.
   function momentsFrom(b) {
@@ -631,7 +636,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     if (!m || b.goals.some(g => g.gap && g.id > m.lastId)) momentsFrom(b);
     else scoreMoments(b, m, found);
     found.sort((x, y) => MOMENT_ORDER.indexOf(x.kind) - MOMENT_ORDER.indexOf(y.kind));
-    if (found.length > 1) log('info', 'streak', `Also ${found.slice(1).map(f => STREAK_NAMES[f.kind]).join(', ')}, not played (one moment per goal)`);
+    if (found.length > 1 && !b.replay) log('info', 'streak', `Also ${found.slice(1).map(f => STREAK_NAMES[f.kind]).join(', ')}, not played (one moment per goal)`);
     if (found.length) streak(b, found[0], how, found.slice(1));
   }
   function scoreMoments(b, m, found) {
@@ -910,6 +915,94 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     };
   }
 
+  // ─── Filling a story's gaps from another Mac's story of the same game ───────
+  // Two Studio Macs following the same game (one streaming it, the other following it in the background, or both
+  // following it) each read PlayHQ's feed, so where one has a gap (its internet or PlayHQ dropped, or it picked the game
+  // up part way) the other may have seen those goals one by one. mergeStories(base, other) fills each of base's gaps
+  // whose score before and after the other story passes through, with no gap of its own in between, with the other's
+  // goals there, and works the stats, worm and moments out again from the goal order (a board of its own, on no page,
+  // whose moments are played through again without logging). Quarters a filled gap could have covered (from the last
+  // goal before it to the reading after it) are worked out from the goals once no gap is left in them; the rest are as
+  // base had them. Answers null when no gap was filled. stories.js does the choosing (see better()) and the keeping.
+  function goalWalk(goals) { // the score before each entry, and which gap-free stretch it's in
+    const score = { home: 0, away: 0 }, at = [];
+    let stretch = 0;
+    for (const g of goals) {
+      at.push({ home: score.home, away: score.away, stretch });
+      if (g.gap) { for (const side of ['home', 'away']) if (g.set && g.set[side] != null) score[side] = Number(g.set[side]) || 0; stretch++; }
+      else score[g.side] += Number(g.points) || 0;
+    }
+    at.push({ home: score.home, away: score.away, stretch });
+    return at;
+  }
+  // The periods each run of gaps could have hidden goals in: from the last goal's before it (1 at the start) to its own.
+  function gapPeriods(goals) {
+    const out = new Set();
+    let last = 1;
+    for (const g of goals) {
+      if (!g.gap) { last = Number(g.period) || last; continue; }
+      for (let p = last; p <= (Number(g.period) || last); p++) out.add(p);
+    }
+    return out;
+  }
+  function mergeStories(base, other) {
+    const A = base && base.goalOrder, B = other && other.goalOrder;
+    if (!A || !B || !Array.isArray(A.goals) || !Array.isArray(B.goals) || !A.goals.some(g => g.gap) || !B.goals.some(g => !g.gap)) return null;
+    if (base.gameId !== other.gameId) return null;
+    const theirs = goalWalk(B.goals);
+    const same = (x, y) => x.home === y.home && x.away === y.away;
+    // B's goals from score `from` to score `to`, none of them a gap, or null.
+    const stretchOf = (from, to) => {
+      for (let i = 0; i < theirs.length; i++) {
+        if (!same(theirs[i], from)) continue;
+        for (let j = i + 1; j < theirs.length && theirs[j].stretch === theirs[i].stretch; j++) if (same(theirs[j], to)) return B.goals.slice(i, j);
+      }
+      return null;
+    };
+    const goals = [], score = { home: 0, away: 0 };
+    let filled = 0;
+    for (let i = 0; i < A.goals.length;) {
+      const g = A.goals[i];
+      if (!g.gap) { goals.push(g); score[g.side] += Number(g.points) || 0; i++; continue; }
+      const from = { ...score };
+      let j = i;
+      for (; j < A.goals.length && A.goals[j].gap; j++) for (const side of ['home', 'away']) if (A.goals[j].set && A.goals[j].set[side] != null) score[side] = Number(A.goals[j].set[side]) || 0;
+      const fill = !same(from, score) && stretchOf(from, score);
+      if (fill) { goals.push(...fill); filled++; } else goals.push(...A.goals.slice(i, j));
+      i = j;
+    }
+    if (!filled) return null;
+    goals.forEach((g, k) => { goals[k] = { ...g, id: k + 1 }; });
+    // The quarters: the ones a filled gap could have covered are added up from the goals, once no gap is left in them.
+    const before = gapPeriods(A.goals), after = gapPeriods(goals);
+    const periods = { ...((A.periodTrack && A.periodTrack.periods) || {}) };
+    for (const p of before) {
+      if (after.has(p)) continue;
+      const mine = goals.filter(g => !g.gap && (Number(g.period) || 1) === p);
+      periods[p] = { home: 0, away: 0, sure: true };
+      for (const g of mine) periods[p][g.side] += Number(g.points) || 0;
+    }
+    const b = { replay: true, gameId: base.gameId, division: base.division || '', round: base.round || '', court: A.court || '',
+      home: { ...A.home }, away: { ...A.away }, period: A.period || 1,
+      clock: A.clock ? { lengthSec: A.clock.lengthSec, elapsedMs: A.clock.elapsedMs, running: false, startedAt: null } : null,
+      goals, goalsSeq: goals.length, goalsGameId: base.gameId, goalsBaseline: true, playhqCounts: A.counts || B.counts || null,
+      periodTrack: { gameId: base.gameId, period: A.period || 1, base: { home: A.home.score, away: A.away.score }, periods } };
+    // The moments, played through again goal by goal, each at its own clock time.
+    const r = { ...b, home: { ...b.home, score: 0 }, away: { ...b.away, score: 0 }, goals: [], goalsSeq: 0, streakFired: {}, gameMoments: [], gameMomentsId: b.gameId };
+    momentsFrom(r);
+    for (const g of goals) {
+      r.goals.push(g);
+      r.goalsSeq = g.id;
+      if (g.gap) { for (const side of ['home', 'away']) if (g.set && g.set[side] != null) r[side].score = Number(g.set[side]) || 0; }
+      else r[g.side].score += Number(g.points) || 0;
+      r.period = g.period;
+      const len = Number(g.periodSec) || QUARTER_SEC;
+      r.clock = g.clockLeft == null ? null : { lengthSec: len, elapsedMs: Math.max(0, len - g.clockLeft) * 1000, running: true, startedAt: null };
+      watchStreaks(r, 'merged');
+    }
+    return { stats: getStats(b), worm: getWorm(b), moments: r.gameMoments, goalOrder: { ...A, goals, periodTrack: b.periodTrack }, filledGaps: filled };
+  }
+  if (stories.useMerge) stories.useMerge(mergeStories);
 
   // ─── The night's other games, followed in the background ────────────────────
   // So every game of the night has a story (Game stats, Score worm, moments), not only the one on the stream, Studio
@@ -1105,7 +1198,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     return gameStarted(b) ? 'live' : 'upcoming';
   }
 
-  return { snapshot, restore, board, newBoard, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
+  return { snapshot, restore, board, newBoard, mergeStories, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
     playhqTrouble, troubleSays, followGames, refreshFollowed, followedGames,
     getGoals, getStats, getWorm, gameStory, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }
