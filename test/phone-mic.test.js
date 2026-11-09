@@ -64,6 +64,7 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-phone-'));
   fs.mkdirSync(path.join(dataDir, 'media'));
   fs.writeFileSync(path.join(dataDir, 'media', 'Tone.wav'), toneWav(60));
+  fs.writeFileSync(path.join(dataDir, 'media', 'Short.wav'), toneWav(3));
   const studio = await startStudio(t, { dataDir, removeDataDir: true });
   const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
   t.after(() => context.close());
@@ -101,9 +102,14 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
   // It plays straight to the phone's output (no mixer on the page), so the phone's volume buttons set it.
   assert.deepEqual(await phone.evaluate(() => { const a = document.querySelector('audio'); return a && [!!a.srcObject, a.muted, a.paused]; }), [true, false, false]);
   assert.match(await phone.textContent('#hearPct'), /volume buttons/);
-  // The music comes back.
-  await studio.post('/api/scene', { type: 'musicLoad', track: 'Tone.wav', play: true, fade: 0 });
+  // The music comes back, and goes on coming back as a playlist moves to its next song (on 9 Nov the next song went
+  // missing on the phone, and played twice on the Mac's speakers).
+  await studio.post('/api/scene', { type: 'playlistAdd', changes: { name: 'Night', tracks: ['Short.wav', 'Tone.wav'] } });
+  await studio.post('/api/scene', { type: 'musicPlaylist', playlist: 'Night', play: true, fade: 0 });
   await studio.until(async () => await loudest() > -60, 20000, 0);
+  await output.waitForFunction(() => musicPlayers().music.src === 'Tone.wav' && musicPlayers().music.playing, null, { timeout: 15000 });
+  await phone.waitForTimeout(500);
+  assert.ok(await loudest() > -60, 'the next song comes back too');
   await studio.post('/api/scene', { type: 'musicStop', fade: 0 });
   await studio.until(async () => await loudest() < -60, 20000, 0);
   // And so does a mic on the Mac.
