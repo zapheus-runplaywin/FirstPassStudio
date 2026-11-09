@@ -1,7 +1,8 @@
 // FirstPass Studio - Amazon Route 53, for the secure phone link (securelink.js).
 //
-// The secure link's names live in a Route 53 hosted zone (studio.firstpass.pivt.com.au, handed over from GoDaddy by
-// its NS records). Studio changes two kinds of record in it, with a key that may change only that zone:
+// The secure link's names live in a Route 53 hosted zone (PIVT's is studio.firstpass.pivt.au, handed over from GoDaddy
+// by its NS records). Studio reads the zone's name from the zone itself (zoneName()), and changes two kinds of record
+// in it, with a key that may change only that zone:
 //   - an A record, <name>.<zone> -> this Mac's address on the venue network, kept up to date as the address changes,
 //   - a TXT record, _acme-challenge.<name>.<zone>, for a minute while Let's Encrypt checks Studio owns the name.
 // Each change waits until Route 53 says every one of its name servers has it (INSYNC).
@@ -68,6 +69,15 @@ async function call(key, method, path, body = '') {
 // A hosted zone ID as pasted: Z..., or /hostedzone/Z... as some AWS pages show it.
 const zoneIdOf = s => String(s || '').trim().replace(/^\/?hostedzone\//i, '');
 
+// The zone's name (studio.firstpass.pivt.au), from its first record: Route 53 lists a zone's records by name, so the
+// first is always one of the zone's own (its NS or SOA). Needs only route53:ListResourceRecordSets on the zone.
+async function zoneName(key, zoneId) {
+  const answer = await call(key, 'GET', `/hostedzone/${encodeURIComponent(zoneIdOf(zoneId))}/rrset?maxitems=1`);
+  const name = tag(answer, 'Name').replace(/\.$/, '').toLowerCase();
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(name)) throw new Error('Studio couldn\'t read the hosted zone\'s name from Route 53.');
+  return name;
+}
+
 // Changes one record set and waits until every Route 53 name server has it (up to waitMs).
 // change: { action: 'UPSERT' | 'DELETE', name, type: 'A' | 'TXT', ttl, values: [...] }.
 async function change(key, zoneId, c, waitMs = 120000) {
@@ -86,4 +96,4 @@ async function change(key, zoneId, c, waitMs = 120000) {
   }
 }
 
-module.exports = { sign, change, zoneIdOf, explain };
+module.exports = { sign, change, zoneName, zoneIdOf, explain };

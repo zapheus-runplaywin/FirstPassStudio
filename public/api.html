@@ -92,7 +92,7 @@
     <section class="secure" id="secureSection" hidden>
       <h2>Secure phone link</h2>
       <p class="sub">A phone's browser lets a page use its microphone or share sheet only over https. Turned on, Studio also answers at its own
-        name on the internet (<code id="secureHost">…studio.firstpass.pivt.com.au</code>) with a Let's Encrypt certificate, and the phone QR codes use it.
+        name on the internet (<code id="secureHost">…studio.firstpass.pivt.au</code>) with a Let's Encrypt certificate, and the phone QR codes use it.
         Set up once for PIVT, then paste the same three things into each Studio Mac. <a href="/guide/#s10-6">How to set it up</a></p>
       <div class="state" id="secureState"><span class="dot"></span><span id="secureSays">Off</span></div>
       <div class="fields">
@@ -242,7 +242,7 @@
   function drawSecure(s) {
     secure = s;
     sec('secureSection').hidden = false;
-    sec('secureHost').textContent = s.host || `…${s.domain}`;
+    sec('secureHost').textContent = s.host || (s.domain ? `…${s.domain}` : '…studio.firstpass.pivt.au');
     const dot = sec('secureState').querySelector('.dot');
     dot.className = 'dot ' + (s.state === 'ready' ? (s.problem ? 'warn' : 'ok') : s.state === 'problem' ? 'bad' : s.state === 'starting' ? 'warn' : '');
     const says = sec('secureSays');
