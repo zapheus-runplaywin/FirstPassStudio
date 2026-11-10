@@ -86,10 +86,15 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // streamed story of the same game from another Mac over it.
   const STORY_EVERY = 15 * 1000;
   const storyAt = new Map(); // game id -> when its story was last kept
+  // Games with a change not yet in their story (it came within STORY_EVERY of the last save): kept once that's passed
+  // (keepOwedStories, each second from server.js), so the story a late Mac asks for (stories.js liveFrom) isn't left behind.
+  const storyOwed = new Map(); // game id -> its board
+  function keepOwedStories() { for (const [id, b] of [...storyOwed]) { if (b.gameId === id) keepStory(false, b); else storyOwed.delete(id); } }
   function keepStory(now, b = boards['1']) {
     if (!b || !b.gameId || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.some(g => !g.gap)) return;
-    if (!now && Date.now() - (storyAt.get(b.gameId) || 0) < STORY_EVERY) return;
+    if (!now && Date.now() - (storyAt.get(b.gameId) || 0) < STORY_EVERY) { storyOwed.set(b.gameId, b); return; }
     storyAt.set(b.gameId, Date.now());
+    storyOwed.delete(b.gameId);
     try {
       stories.keep({ gameId: b.gameId, date: b.date || '', division: b.division || '', round: b.round || '', ended: !!b.endedAt, savedAt: Date.now(),
         followed: b.followed && !b.streamed ? true : undefined, stats: getStats(b), worm: getWorm(b),
@@ -1000,9 +1005,50 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       r.clock = g.clockLeft == null ? null : { lengthSec: len, elapsedMs: Math.max(0, len - g.clockLeft) * 1000, running: true, startedAt: null };
       watchStreaks(r, 'merged');
     }
-    return { stats: getStats(b), worm: getWorm(b), moments: r.gameMoments, goalOrder: { ...A, goals, periodTrack: b.periodTrack }, filledGaps: filled };
+    return { stats: getStats(b), worm: getWorm(b), moments: r.gameMoments, goalOrder: { ...A, goals, periodTrack: b.periodTrack }, filledGaps: filled, streakFired: r.streakFired };
   }
   if (stories.useMerge) stories.useMerge(mergeStories);
+
+  // A game this Mac picked up part way (turned on late, or its internet dropped), on the scoreboard or followed in the
+  // background: while its goal order has a gap, every PEER_FILL_EVERY it asks the other Studio Macs for their story of the
+  // game so far (stories.js liveFrom) and fills the gap from it (mergeStories) there and then, so the worm, runs,
+  // streaks and Commentator stats have the whole game while it's still on, and it carries on by itself from there. The
+  // moments already played aren't played again (the streaks fired come with the goals). Another Mac's story is kept at
+  // most every STORY_EVERY, so a gap only just made waits for its next save.
+  const PEER_FILL_EVERY = 30 * 1000;
+  const peerAsked = new Map(); // game id -> when it last asked
+  async function fillFromPeers(b) {
+    if (!stories.liveFrom || !b || !b.gameId || b.source !== 'playhq' || b.endedAt || b.done || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.some(g => g.gap)) return false;
+    if (Date.now() - (peerAsked.get(b.gameId) || 0) < PEER_FILL_EVERY) return false;
+    peerAsked.set(b.gameId, Date.now());
+    const id = b.gameId, seq = b.goalsSeq;
+    const theirs = await stories.liveFrom(id);
+    if (b.gameId !== id || b.goalsSeq !== seq) return false; // moved on, or new goals while it asked: next time
+    const mine = { gameId: id, goalOrder: goalOrderOf(b) };
+    let best = null;
+    for (const other of theirs) {
+      const m = mergeStories(mine, other);
+      if (m && (!best || m.goalOrder.goals.filter(g => g.gap).length < best.m.goalOrder.goals.filter(g => g.gap).length)) best = { m, studio: other.studio };
+    }
+    if (!best) return false;
+    const { m } = best;
+    b.goals = m.goalOrder.goals;
+    b.goalsSeq = b.goals.length;
+    b.periodTrack = m.goalOrder.periodTrack;
+    b.gameMoments = m.moments;
+    b.gameMomentsId = id;
+    b.streakFired = m.streakFired || {};
+    momentsFrom(b);
+    log('info', b.followed ? 'follow' : 'goals', `${b.home.name} v ${b.away.name}: filled ${m.filledGaps} gap${m.filledGaps === 1 ? '' : 's'} in the goal order from ${best.studio}'s Studio, ${b.goals.filter(g => !g.gap).length} goals now`);
+    storyAt.delete(id); // its story kept again at the next save, filled
+    if (b.followed) saveFollowed(); else saveBoards();
+    pushBoard();
+    return true;
+  }
+  // Each second (server.js): the scoreboard's game and every followed one.
+  function fillGapsFromPeers() {
+    for (const b of [board(), ...Object.values(followed)]) fillFromPeers(b).catch(err => log('warn', 'goals', `Filling a gap from another Studio failed: ${err.message}`));
+  }
 
   // ─── The night's other games, followed in the background ────────────────────
   // So every game of the night has a story (Game stats, Score worm, moments), not only the one on the stream, Studio
@@ -1198,7 +1244,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     return gameStarted(b) ? 'live' : 'upcoming';
   }
 
-  return { snapshot, restore, board, newBoard, mergeStories, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
+  return { snapshot, restore, board, newBoard, mergeStories, fillGapsFromPeers, keepOwedStories, courtShown, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock, gamePhase, gameEnded,
     playhqTrouble, troubleSays, followGames, refreshFollowed, followedGames,
     getGoals, getStats, getWorm, gameStory, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED, quarterSec, setQuarterSec };
 }

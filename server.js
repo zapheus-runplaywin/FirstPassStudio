@@ -320,7 +320,7 @@ async function followNight() {
 setInterval(followNight, FOLLOW_LIST_MS);
 setTimeout(followNight, 5000);
 // And each one Studio has read gets a recording of its own (recorder.js followGames), to play back later.
-setInterval(() => { if (!practice.active()) theBoard.refreshFollowed(); recorder.followGames(theBoard.followedGames()); }, 1000);
+setInterval(() => { if (!practice.active()) { theBoard.refreshFollowed(); theBoard.fillGapsFromPeers(); } theBoard.keepOwedStories(); recorder.followGames(theBoard.followedGames()); }, 1000);
 
 
 // The game, each second, for sequences that start by themselves (scene.js, sequences.js): the picked

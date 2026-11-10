@@ -45,7 +45,8 @@
 //
 // Routes (server.js hands /api/stories here):
 //   GET /api/stories             this Mac's own finished stories of the last SHARE_DAYS: { studio, studioId, stories: [{ gameId, savedAt, gaps, followed }] }
-//   GET /api/stories/<game id>   one of them, as kept (404 when it isn't this Mac's own and finished)
+//   GET /api/stories/<game id>   one of them, as kept (404 when it isn't this Mac's own and finished; ?live=1 gives one
+//                                still being played too, for a Mac that picked the game up part way)
 
 'use strict';
 
@@ -297,6 +298,20 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     return n;
   }
 
+  // A Mac that picked a game up part way (board.js fillFromPeers): the other Studios' stories of it so far, game still
+  // being played or not, from the Studios the last look found. [story]
+  let seenAt = [];
+  async function liveFrom(gameId) {
+    const out = [];
+    for (const base of new Set([...peers, ...seenAt])) {
+      try {
+        const s = await ask(`${base}/api/stories/${encodeURIComponent(gameId)}?live=1`);
+        if (isStory(s) && s.gameId === gameId && s.studioId !== studioId && s.goalOrder) out.push(s);
+      } catch { /* not there, or it has no story of the game */ }
+    }
+    return out;
+  }
+
   let busy = false;
   async function sync() {
     if (busy) return 0;
@@ -305,6 +320,7 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     try {
       const bases = [...peers];
       for (const name of found.keys()) { const b = await resolve(name); if (b) bases.push(b); }
+      seenAt = bases;
       for (const base of bases) {
         try { copied += await fromStudio(base); } catch (err) { log('debug', 'stories', `${base} didn't share its game stories: ${err.message}`); }
       }
@@ -331,11 +347,12 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     if (req.method !== 'GET') return send(res, 405, { error: 'Only GET' }), true;
     if (url.pathname === '/api/stories') return send(res, 200, { studio, studioId, stories: own().map(s => ({ gameId: s.gameId, savedAt: s.savedAt, gaps: gapsOf(s), followed: s.followed || undefined })) }), true;
     const s = read(decodeURIComponent(url.pathname.slice('/api/stories/'.length)));
-    if (!isStory(s) || s.from || !done(s)) return send(res, 404, { error: 'No finished story of that game on this Mac' }), true;
+    // ?live=1: a game still being played too (liveFrom on a Mac that picked it up part way).
+    if (!isStory(s) || s.from || (!done(s) && url.searchParams.get('live') !== '1')) return send(res, 404, { error: 'No finished story of that game on this Mac' }), true;
     return send(res, 200, { studio, studioId, ...s }), true; // stories kept before sharing came in don't say whose they are
   }
 
-  return { dir, keep, read, accept, own, sources, sync, start, stop, route, useMerge, found: () => [...found.keys()] };
+  return { dir, keep, read, accept, own, sources, sync, start, stop, route, useMerge, liveFrom, found: () => [...found.keys()] };
 }
 
 module.exports = { create, browsed, reached, better, gapsOf, SERVICE, CLOUD_FOLDER, SYNC_EVERY };

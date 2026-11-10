@@ -567,10 +567,12 @@ paths:
         One game's story as this Mac's scoreboard kept it: gameId, date, division, round, ended, savedAt, stats (as
         /api/stats), worm (as /api/worm), moments, goalOrder (the goals, quarters and score they were worked out from,
         for filling another Mac's gaps), followed, filled (the Macs whose stories filled gaps in it), and studio and
-        studioId (which Mac kept it). 404 when this Mac didn't stream or follow that game or it hasn't finished.
+        studioId (which Mac kept it). 404 when this Mac didn't stream or follow that game or it hasn't finished; with
+        live=1, a game still being played too (for a Mac that picked the game up part way).
       operationId: getStory
       parameters:
         - { name: gameId, in: path, required: true, schema: { type: string } }
+        - { name: live, in: query, required: false, schema: { type: string, enum: ['1'] }, description: 'A game still being played too' }
       responses:
         '200': { description: The story }
         '404': { description: Not a finished story of this Mac's }
