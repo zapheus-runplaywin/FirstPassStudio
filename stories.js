@@ -13,6 +13,8 @@
 //   2. iCloud Drive, for the nights the Macs never saw each other: each finished story is also written to
 //      iCloud Drive/FirstPass Studio/game-stories/ (CLOUD_FOLDER) when iCloud Drive is on, whether or not the settings
 //      are kept there, and every SYNC_EVERY the stories other Macs put there are copied in.
+//      A story finished some other way (Studio quit part way through a game, so it is finished DONE_AFTER later) or
+//      whose write failed is put there at the next look (toCloud).
 //
 // A copy carries from: { studio, via: 'network'|'icloud' }, and every story says which Studio kept it (studio, studioId).
 // A Studio keeps a story of the game it streams, and of the night's other games it follows in the background (marked
@@ -272,6 +274,29 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     return copied;
   }
 
+  // Puts in iCloud Drive this Mac's finished stories that aren't there yet, or are there older: a game is put there at
+  // once when it ends or the scoreboard moves on (keep, final), but one left part way when Studio was quit only becomes
+  // finished DONE_AFTER later, and a write may have failed. pushed: game id -> the savedAt already there.
+  const pushed = new Map();
+  function toCloud() {
+    if (!cloudDir) return 0;
+    let n = 0;
+    for (const s of own()) {
+      if (pushed.get(s.gameId) === s.savedAt) continue;
+      const there = readFile(path.join(cloudDir, fileName(s.gameId)));
+      if (!there || (there.studioId === studioId ? there.savedAt < s.savedAt : better(s, there, { byTime: false }))) { // never over another Mac's better story
+        try {
+          fs.mkdirSync(cloudDir, { recursive: true });
+          savefile.writeFileSync(path.join(cloudDir, fileName(s.gameId)), JSON.stringify(s));
+          n++;
+        } catch (err) { log('warn', 'stories', `The game's story wasn't put in iCloud Drive: ${err.message}`); continue; }
+      }
+      pushed.set(s.gameId, s.savedAt);
+    }
+    if (n) log('info', 'stories', `Put ${n} finished game stor${n === 1 ? 'y' : 'ies'} in iCloud Drive`);
+    return n;
+  }
+
   let busy = false;
   async function sync() {
     if (busy) return 0;
@@ -283,6 +308,7 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
       for (const base of bases) {
         try { copied += await fromStudio(base); } catch (err) { log('debug', 'stories', `${base} didn't share its game stories: ${err.message}`); }
       }
+      toCloud();
       copied += fromCloud();
     } finally { busy = false; }
     return copied;
