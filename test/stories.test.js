@@ -134,3 +134,22 @@ test('Bonjour\'s answers are read (dns-sd -B and -L)', () => {
     'http://Court-2.local:8080');
   assert.strictEqual(reached('Lookup Court-2'), null);
 });
+
+test('a game left part way (Studio quit) goes to iCloud Drive once it counts as finished, never over another Mac\'s better story', async () => {
+  const cloud = tmp();
+  const court2 = store('Court-2', { cloudDir: cloud, studioId: 'c2' });
+  court2.keep(story('left', { ended: false, savedAt: Date.now() - 31 * 60 * 1000 })); // quit mid-game 31 minutes ago: never final
+  court2.keep(story('playing', { ended: false })); // still going
+  assert.deepStrictEqual(fs.readdirSync(cloud), []);
+  await court2.sync();
+  assert.deepStrictEqual(fs.readdirSync(cloud), ['left.json'], 'only the finished one');
+  // Another Mac's story of a game, with fewer gaps, already there: left alone.
+  const theirs = { ...story('both', gaps(0)), studio: 'Court-1', studioId: 'c1' };
+  fs.writeFileSync(path.join(cloud, 'both.json'), JSON.stringify(theirs));
+  court2.keep(story('both', { ...gaps(2), ended: false, savedAt: Date.now() - 31 * 60 * 1000 }));
+  await court2.sync();
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(cloud, 'both.json'), 'utf8')).studioId, 'c1');
+  const court1 = store('Court-1', { cloudDir: cloud, studioId: 'c1b' });
+  await court1.sync();
+  assert.deepStrictEqual(court1.read('left').from, { studio: 'Court-2', via: 'icloud' });
+});
