@@ -13,3 +13,4 @@ node_modules/
 /vendor/ffmpeg/ffmpeg
 /vendor/ffmpeg/.build/
 /desktop/whatsnew.json
+/out/
