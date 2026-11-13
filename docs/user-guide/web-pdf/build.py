@@ -62,7 +62,7 @@ cards += '<div class="c wide"><h4>The sample league</h4><p>Every screenshot come
 
 intro = f'''<div class="page intro" data-title="About this guide">
   <div class="kick">About this guide</div>
-  <h2>Graphics that <em>follow the game.</em></h2>
+  <h2>Graphics for the stream, <em>from the first whistle to the last.</em></h2>
   <div class="lede">
     <div><p>FirstPass Studio is a Mac app that draws broadcast graphics for a netball livestream and sends them to your vision switcher. The scores, clocks, ladders, fixtures and line-ups come from PlayHQ's public data, so there is nothing to type in during the game.</p></div>
     <div><p>This guide starts with the way most nights run, one operator and Studio doing the rest, then covers running it by hand, setting up a competition, sponsors, athletes and the Stream Deck.</p></div>
