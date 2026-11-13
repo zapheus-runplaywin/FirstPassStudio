@@ -20,3 +20,12 @@ export type Body = { [key: string]: unknown };
 export type Send = (res: import('node:http').ServerResponse, status: number, body: unknown, type?: string, headers?: import('node:http').OutgoingHttpHeaders) => void;
 export type ReadBody = (req: import('node:http').IncomingMessage) => Promise<Body>;
 export type ReadRaw = (req: import('node:http').IncomingMessage, max: number) => Promise<Buffer>;
+
+// config.json: this computer's settings (the app's defaults, then the data folder's own).
+export interface Machine {
+  port?: number; securePort?: number; linkHost?: string; cacheSeconds?: number; logMaxMB?: number; playhqRefreshSeconds?: number;
+  remoteChanges?: boolean; ffmpegPath?: string; apiBaseUrl?: string; gameSummaryPath?: string;
+  [key: string]: unknown;
+}
+// CONFIG in server.ts: the machine settings and the competition in use's settings together (none before one is in use).
+export type Config = Machine & Partial<import('./competitions').Settings> & { id?: string };
