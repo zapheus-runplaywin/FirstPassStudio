@@ -1,4 +1,4 @@
-// The tab bar on every Studio page comes from one list (public/studiobar.js): each Studio page has
+// The tab bar on every Studio page comes from one list (public/studiobar.ts): each Studio page has
 // the empty header and loads the script, the list is in Matt's keyboard order (⌘1 to ⌘0), the bar shows
 // it in three groups (Run, Plan, Set up) with Docs apart, and the Mac app's Go menu reads the same list.
 // The bar also carries the status chips from /api/health. The page test (pages.test.js) checks the bar
@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { STUDIO_PAGES, GROUPS, PHONE_PAGES } = require('../public/studiobar.js');
+const { STUDIO_PAGES, GROUPS, PHONE_PAGES } = require('../out/public/studiobar.js');
 const { startStudio } = require('./support/studio');
 const { openPage, openBrowser } = require('./support/browser');
 

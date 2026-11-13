@@ -1,4 +1,4 @@
-// Sponsor spots on the existing graphics (public/sponsorspot.js): the naming rights sponsor on the scoreboard,
+// Sponsor spots on the existing graphics (public/sponsorspot.ts): the naming rights sponsor on the scoreboard,
 // title and countdown, the next sponsor in rotation in the stat card footers and the ticker, and the sponsor
 // strip on the end of night card, each left off with ?sponsor=0 (?sponsors=0 for the strip), in a real browser.
 // Skipped without one, like pages.test.js.

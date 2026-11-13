@@ -19,6 +19,8 @@
 //   <div class="stage" data-fit-box="60 1000">
 // A small animation can instead be shrunk and hung just under the title banner, centred across the frame:
 //   <div class="stage" data-fit-box="188 780" data-fit-scale=".3" data-fit-place="under-title">
+var fitBox: (el: HTMLElement) => void;
+
 (function () {
   const ZONE = { top: 244, bottom: 894, width: 1800 };
   // Where data-fit-place="under-title" puts the top of a graphic: a small gap below the title banner's bottom edge (about 162px).
@@ -28,7 +30,7 @@
   root.setProperty('--zone-bottom', ZONE.bottom + 'px');
   root.setProperty('--zone-height', (ZONE.bottom - ZONE.top) + 'px');
 
-  function fit(el) {
+  function fit(el: HTMLElement) {
     // offsetWidth/Height are the unscaled layout size, so scaling doesn't feed back into itself.
     const w = el.offsetWidth, h = el.offsetHeight;
     if (!w || !h) return;
@@ -44,8 +46,8 @@
 
   // Maps the box's middle onto the middle of the space, scaled down if the box is taller than it.
   // data-fit-scale shrinks it further (.3 is 30% of its full size); data-fit-place="under-title" puts its top just under the title.
-  function fitBox(el) {
-    const [top, bottom] = el.dataset.fitBox.split(/[\s,]+/).map(Number);
+  function fitOne(el: HTMLElement) {
+    const [top, bottom] = (el.dataset.fitBox || '').split(/[\s,]+/).map(Number);
     if (!(bottom > top)) return;
     const extra = Number(el.dataset.fitScale) > 0 ? Math.min(1, Number(el.dataset.fitScale)) : 1;
     const s = Math.min(1, (ZONE.bottom - ZONE.top) / (bottom - top)) * extra;
@@ -62,11 +64,11 @@
   }
 
   // A page can change its box later (logo.html does once it knows the logo size) and call this again.
-  window.fitBox = fitBox;
+  fitBox = fitOne;
 
   function start() {
-    document.querySelectorAll('[data-fit-box]').forEach(fitBox);
-    const items = document.querySelectorAll('[data-fit]');
+    document.querySelectorAll<HTMLElement>('[data-fit-box]').forEach(fitOne);
+    const items = document.querySelectorAll<HTMLElement>('[data-fit]');
     items.forEach(el => {
       fit(el);
       new ResizeObserver(() => fit(el)).observe(el);

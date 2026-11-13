@@ -9,12 +9,16 @@
 // 2. studioStatus(text, kind) is the one status line: studioStatus('Saved') shows for 2.5 seconds at the foot of
 //    the page; studioStatus(why, 'error') stays until the next status. Pages with a Save bar of their own
 //    (Competitions setup, Socials) keep their own line next to the button; everything else uses this.
+// studioRefused(message): the red banner, for a page that was refused some other way; studioStatus: see 2 above.
+var studioRefused: (message: string) => void;
+var studioStatus: (text: string, kind?: string) => void;
+
 (function () {
   'use strict';
   const bar = document.querySelector('header.fp-bar');
 
-  let banner = null;
-  function refused(message) {
+  let banner: HTMLDivElement | null = null;
+  function refused(message: string) {
     if (!bar) return;
     if (!banner) {
       banner = document.createElement('div');
@@ -24,31 +28,32 @@
       const strip = bar.nextElementSibling && bar.nextElementSibling.classList.contains('fp-practice') ? bar.nextElementSibling : bar;
       strip.after(banner);
     }
-    banner.replaceChildren();
+    const b = banner;
+    b.replaceChildren();
     const text = document.createElement('span');
     text.textContent = message;
-    banner.append(text);
+    b.append(text);
     if (/pair\.html/.test(message)) {
       const a = document.createElement('a');
       a.href = '/pair.html'; a.textContent = 'Pair this device';
-      banner.append(a);
+      b.append(a);
     }
     const close = document.createElement('button');
     close.type = 'button'; close.textContent = 'Dismiss'; close.setAttribute('aria-label', 'Dismiss');
     close.onclick = clearRefused;
-    banner.append(close);
-    banner.hidden = false;
+    b.append(close);
+    b.hidden = false;
   }
   function clearRefused() { if (banner) banner.hidden = true; }
-  window.studioRefused = refused;
+  studioRefused = refused;
 
   const realFetch = window.fetch.bind(window);
-  window.fetch = async function studioFetch(input, init) {
+  window.fetch = async function studioFetch(input: RequestInfo | URL, init?: RequestInit) {
     const res = await realFetch(input, init);
     try {
-      const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, location.href);
       if (url.origin === location.origin) {
-        const method = String((init && init.method) || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
+        const method = String((init && init.method) || (input instanceof Request && input.method) || 'GET').toUpperCase();
         if (res.status === 403) {
           const read = method === 'GET' || method === 'HEAD';
           res.clone().json().then(b => { if (!(read && b && b.macOnly)) refused((b && b.error) || 'Studio refused that.'); }, () => refused('Studio refused that.'));
@@ -58,19 +63,21 @@
     return res;
   };
 
-  let status = null, timer = null;
-  window.studioStatus = function studioStatus(text, kind) {
+  let line: HTMLDivElement | null = null, timer: ReturnType<typeof setTimeout> | undefined;
+  studioStatus = function show(text, kind) {
+    let status = line;
     if (!status) {
-      status = document.createElement('div');
+      status = line = document.createElement('div');
       status.className = 'fp-status';
       status.setAttribute('role', 'status');
       status.setAttribute('aria-live', 'polite');
       document.body.append(status);
     }
+    const shown = status;
     clearTimeout(timer);
-    status.textContent = text || '';
-    status.classList.toggle('error', kind === 'error');
-    status.hidden = !text;
-    if (text && kind !== 'error') timer = setTimeout(() => { status.hidden = true; }, 2500);
+    shown.textContent = text || '';
+    shown.classList.toggle('error', kind === 'error');
+    shown.hidden = !text;
+    if (text && kind !== 'error') timer = setTimeout(() => { shown.hidden = true; }, 2500);
   };
 })();

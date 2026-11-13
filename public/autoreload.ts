@@ -2,11 +2,11 @@
 // always shows the latest version without a manual refresh.
 // Add &reload=30 to a page link to also force a full reload every 30 minutes.
 (function () {
-  let known = null;
+  let known: unknown = null;
   async function check() {
     try {
       const res = await fetch('/api/version', { cache: 'no-store' });
-      const { version } = await res.json();
+      const { version }: { version?: unknown } = await res.json();
       if (known && version !== known) location.reload();
       known = version;
     } catch { /* helper not running yet; the next check will catch it */ }

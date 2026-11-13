@@ -13,23 +13,28 @@
 // timing) shows under it how the theme's length compares with the animation's. chroma: what happens to the option
 // while the chroma output is chroma key safe (chroma.js), shown under it then; the option itself is kept.
 
-/* exported PAGE_OPTIONS */
-const PAGE_OPTIONS = (() => {
-  const show = (key, label, hideLabel = 'Hide') => ({ key, label, type: 'select', choices: [['', 'Show'], ['0', hideLabel]] });
-  const division = { key: 'division', label: 'Division', type: 'text', placeholder: 'the picked game\'s division', help: 'A division number, like 1.' };
-  const round = { key: 'round', label: 'Round', type: 'text', placeholder: 'this round', help: 'next, prev, +2, -1, a round number like 6, or a name like Final.' };
-  const mode = (dflt = 'light') => ({ key: 'mode', label: 'Logo', type: 'select', choices: dflt === 'light'
+// One option a page's link takes, as the Output page's source options show it.
+interface PageOption {
+  key: string, label: string, type: string, choices?: [string, string][], placeholder?: string, help?: string,
+  min?: number, max?: number, step?: number, unit?: string, picks?: [string, string][], [more: string]: unknown,
+}
+
+const PAGE_OPTIONS = ((): Record<string, PageOption[]> => {
+  const show = (key: string, label: string, hideLabel = 'Hide'): PageOption => ({ key, label, type: 'select', choices: [['', 'Show'], ['0', hideLabel]] });
+  const division: PageOption = { key: 'division', label: 'Division', type: 'text', placeholder: 'the picked game\'s division', help: 'A division number, like 1.' };
+  const round: PageOption = { key: 'round', label: 'Round', type: 'text', placeholder: 'this round', help: 'next, prev, +2, -1, a round number like 6, or a name like Final.' };
+  const mode = (dflt = 'light'): PageOption => ({ key: 'mode', label: 'Logo', type: 'select', choices: dflt === 'light'
     ? [['', 'Light mode logo (for a light picture behind)'], ['dark', 'Dark mode logo (for a dark picture behind)']]
     : [['', 'Dark mode logo (default)'], ['light', 'Light mode logo']] });
-  const out = (stays = 'Stays on screen') => ({ key: 'out', label: 'Animate away after', type: 'number', min: 0, max: 600, unit: 's', placeholder: stays.toLowerCase() });
-  const title = placeholder => ({ key: 'title', label: 'Heading', type: 'text', placeholder });
-  const background = [
+  const out = (stays = 'Stays on screen'): PageOption => ({ key: 'out', label: 'Animate away after', type: 'number', min: 0, max: 600, unit: 's', placeholder: stays.toLowerCase() });
+  const title = (placeholder: string): PageOption => ({ key: 'title', label: 'Heading', type: 'text', placeholder });
+  const background: PageOption[] = [
     { key: 'bg', label: 'Background', type: 'text', placeholder: 'none (see-through)', help: 'gradient, a colour like 7f4092 (a gradient from it), or solid-7f4092 for a flat colour.' },
     { key: 'bg2', label: 'Background edge', type: 'text', placeholder: 'a darker shade', help: 'The gradient\'s edge colour, like 1e293b.' },
     { key: 'bgimage', label: 'Background picture', type: 'text', placeholder: 'none', help: 'A file in the competition\'s brand folder, like court.jpg, or a full link.' },
   ];
   // A sponsor spot (sponsorspot.js): the competition's sponsor by default, 0 for none, or a sponsor's name.
-  const spot = (placeholder, picks = [['', 'From the Sponsors page'], ['0', 'None']]) => ({ key: 'sponsor', label: 'Sponsor', type: 'text', placeholder, picks,
+  const spot = (placeholder: string, picks: [string, string][] = [['', 'From the Sponsors page'], ['0', 'None']]): PageOption => ({ key: 'sponsor', label: 'Sponsor', type: 'text', placeholder, picks,
     help: 'A sponsor\'s name as on the Sponsors page to always show that one, or 0 for no sponsor.' });
   const LOGO_TEMPLATES = ['fun', 'pro', 'coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net'];
 
@@ -47,7 +52,7 @@ const PAGE_OPTIONS = (() => {
     ],
     'title.html': [
       { key: 'emoji', label: 'Emoji either side', type: 'text', placeholder: 'None',
-        picks: [...['🔥', '⚡', '🌩️', '🏆', '⭐', '👑', '💥', '🏐', '💜'].map(e => [e, e]), ['', 'None']],
+        picks: [...['🔥', '⚡', '🌩️', '🏆', '⭐', '👑', '💥', '🏐', '💜'].map((e): [string, string] => [e, e]), ['', 'None']],
         help: 'Type or paste any emoji, pick one here, or open your computer\'s emoji picker in the box (Mac: Control + Command + Space, Windows: Windows key + full stop). Leave it empty for none.' },
       { key: 'layout', label: 'Shape', type: 'select', choices: [['', 'Stacked'], ['wide', 'Wide (one bar)']],
         help: 'Wide is twice as wide and half as high: the round, the competition and the venue side by side in one bar.' },
@@ -96,7 +101,7 @@ const PAGE_OPTIONS = (() => {
       { key: 'loop', label: 'When done', type: 'select', choices: [['', 'Stop'], ['1', 'Keep going round']] },
       { key: 'end', label: 'At the end', type: 'select', choices: [['', 'All seven stay on'], ['out', 'Animate away']] },
       { key: 'show', label: 'Start with', type: 'select', choices: [['', 'One pairing at a time'], ['all', 'All seven at once']] },
-      { key: 'pair', label: 'Pairing', type: 'select', choices: [['', 'All of them'], ...['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'].map(p => [p, `${p} only`])] },
+      { key: 'pair', label: 'Pairing', type: 'select', choices: [['', 'All of them'], ...['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'].map((p): [string, string] => [p, `${p} only`])] },
       show('games', 'Games played'),
       show('waiting', 'Message before live scoring'),
     ],
@@ -271,7 +276,7 @@ const PAGE_OPTIONS = (() => {
       { key: 'volume', label: 'Theme volume', type: 'number', min: 0, max: 100, unit: '%', placeholder: '100' },
     ],
     'logo.html': [
-      { key: 'template', label: 'Animation', type: 'select', choices: [['', 'fun (default)'], ...LOGO_TEMPLATES.slice(1).map(t => [t, t]), ['random', 'A different one each time']] },
+      { key: 'template', label: 'Animation', type: 'select', choices: [['', 'fun (default)'], ...LOGO_TEMPLATES.slice(1).map((t): [string, string] => [t, t]), ['random', 'A different one each time']] },
       { key: 'text', label: 'Words', type: 'text', placeholder: 'the competition name', help: 'For the badge and title animations.' },
       { key: 'sub', label: 'Smaller line', type: 'text', placeholder: 'none', help: 'For the title animation.' },
       { key: 'out', label: 'At the end', type: 'select', choices: [['', 'Animates away'], ['0', 'Stays on screen']] },

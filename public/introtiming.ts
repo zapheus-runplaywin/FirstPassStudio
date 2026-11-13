@@ -3,9 +3,8 @@
 // animation's, so the two never disagree.
 //   introTiming(style, n)        { ct, wt }: when the competition logo lands (the big moment) and when the words come in
 //   introLength(style, n, hold, out)  the whole animation: in, held for hold seconds, then out (0.8 s) unless out is false
-/* exported introTiming, introLength, INTRO_OUT_SEC */
 const INTRO_OUT_SEC = 0.8; // the content-out animation
-function introTiming(style, teams) {
+function introTiming(style: string, teams: number): { ct: number, wt: number } {
   const n = Math.max(teams || 0, 1);
   switch (style) {
     case 'parade': { const done = n * Math.min(.14, 1.6 / n) + .6; return { ct: done, wt: done + .5 }; }
@@ -21,7 +20,7 @@ function introTiming(style, teams) {
   }
 }
 // The words are all in about a second after they start; then it holds, then animates away.
-function introLength(style, teams, hold = 5, out = true) {
+function introLength(style: string, teams: number, hold = 5, out = true): number {
   const { wt } = introTiming(style, teams);
   return out ? wt + 1 + hold + INTRO_OUT_SEC : wt + 1;
 }

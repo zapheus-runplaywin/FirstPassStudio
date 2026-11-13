@@ -151,7 +151,7 @@ icon). The Output page and the Stream Deck use the same links as the Devices tab
 picture with its output tabs and a status board, the sources down the left, scenes and sequences as tiles, with every
 setting a click away in its section. The status board (from `/api/health`) shows the score, the sequence playing and armed, the music, mics (with their duck), where Output 1's sound is going, switcher,
 recording and next game, so a problem Studio keeps off the stream still shows on the page that stays open all night. The bar at the top of
-every Studio page (`public/studiobar.js`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
+every Studio page (`public/studiobar.ts`) carries the same answer as status chips: ON AIR like a tally light with a dot per output (solid in its colour while it
 sends, hollow while it doesn't) or Off air, the game on the board (orange before the clock starts, green until an hour after it ends, then grey), PlayHQ (the dot is the link: green, amber overdue, red failing, purple not live (the scorebench off line), grey by hand; the words the quarter and clock or game completed), the sequence playing (step and time
 left) or armed to start, ATEM while a switcher is set up (answering or not) and REC while a game records; status, not links. Its tabs are in three groups, Run (Output, Scoreboard control), Plan (Production Planner, Socials)
 and Set up (Recordings, Competitions setup, Sponsors, Athletes, Devices), with Docs at the right; the ⌘ keys keep
@@ -208,7 +208,7 @@ lists what may change things from another device, starting with This Mac's links
 **Make a new key** there gives up a set's old key, so every link copied with it stops working (`devices.ts`; the list and
 its buttons answer only the Mac itself, whether or not the lock is ticked). **New link set…** (there, or in the picker on
 the Output page and the Devices tab) makes a named set such as "Office Stream Deck" with its own key; on the Mac
-those pages copy links for the set picked (`public/linksets.js`, remembered in the browser), so one Stream Deck's
+those pages copy links for the set picked (`public/linksets.ts`, remembered in the browser), so one Stream Deck's
 Website keys can be given a new key or removed without touching the others. Link sets never run out. A program on another device can ask for a
 key of its own: `POST /api/pair` with `{"name": "Office Stream Deck"}` (allowed while the lock is ticked) opens an
 Allow / Deny dialog on the Mac, Deny the default, naming the device and its address; the request also shows on the
@@ -391,7 +391,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   sources use that). Media that's in neither the zip nor the media folder is listed as missing on the Output page, and an imported .mov
   that hasn't been converted yet converts. `/api/scene/export` (`?media=0` without media) and `POST /api/scene/import` (the file as the body) do the same.
 - **Page options:** a Studio graphic's link options (position, heading, division, round, animate away and so on) show as fields under its
-  **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.js`, and the Devices
+  **Address**, so there's no need to look them up; they're saved in the address. The list is `public/pageoptions.ts`, and the Devices
   tab's Links list the same options under each graphic, so a new option goes there only.
 - **On / Off** fades a source in or out, with its own **Fade** time in milliseconds (0 is a cut).
 - **Position and scale** place it on the frame (**Full frame** fits it to 1920 x 1080). A page's **Page size** is the size it's drawn at
@@ -513,10 +513,10 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Picture, HD or 4K (Mac app):** the HD and 4K buttons at the top of Video output set the picture for every output. In 4K each
   NDI and Blackmagic output sends the 2160p version of the format picked for it, at the same rate (2160p50 for 1080p50), with
   everything else unchanged (scenes, sources, NDI names, links, the switcher key); HD is exactly as before. The graphics keep their
-  1920 x 1080 layout and are drawn at twice the density (`desktop/scenewindow.ts`), and the canvases are sized for it (`public/zoom.js`).
+  1920 x 1080 layout and are drawn at twice the density (`desktop/scenewindow.ts`), and the canvases are sized for it (`public/zoom.ts`).
   A Blackmagic device without that 2160p format, or a 720p NDI format, stays as it is and says so; displays are left alone.
   In 4K a Blackmagic output can also have one of the device's own 2160p formats picked; HD hides them and sends the 1080p one at its rate.
-  Any graphic's link opened at 3840 x 2160 draws itself at twice the size too (`public/zoom.js`), with nothing added to the link.
+  Any graphic's link opened at 3840 x 2160 draws itself at twice the size too (`public/zoom.ts`), with nothing added to the link.
 
 The scene is saved as `scene.json` in the data folder. http://localhost:8080/scene.html is the scene on its own, 1920 x 1080.
 **Output canvas:** `/scene.html?canvas=1` (`&output=<id>` for another output; the Devices tab's Links lists one per output) is another
@@ -525,9 +525,9 @@ never opens the Mac's mics or cues the switcher (only the app's own `?fit=1` win
 
 ## Example graphics
 
-The graphics are listed once, in `public/pages.js` (link, name, Links group, example pictures): the Output page's
+The graphics are listed once, in `public/pages.ts` (link, name, Links group, example pictures): the Output page's
 **Add a page** and the Make Examples script read it, and a test checks every graphic in `public/`, every page in
-`pageoptions.js` and `public/graphiclinks.js` (what each graphic's link does, for the Devices tab's Links) against it. A new
+`pageoptions.js` and `public/graphiclinks.ts` (what each graphic's link does, for the Devices tab's Links) against it. A new
 graphic goes there first.
 
 From a copy of the repository, double-click `Make Examples (Mac).command` (or run `npm run examples`, after `npm install`) to save a
@@ -743,7 +743,7 @@ These follow the game picked on the scoreboard control page:
 
 The cards (match up, up next, countdown, position match ups, team lists, shooting stats, full time, fixtures, ladders,
 top shooters, finals and last 10 goals) sit in the space between the title at the top and the scoreboard at the bottom,
-with room around them. public/fit.js sets that space and shrinks a card that has more in it than fits. The Clash, the
+with room around them. public/fit.ts sets that space and shrinks a card that has more in it than fits. The Clash, the
 winner celebration and the logo animations are moved and scaled into the same space (`data-fit-box` on their
 stage gives the part of the frame their content uses); a logo animation's `?bg=` background still fills the screen.
 The super shot plays at 30% of its full size, centred just under the title (`data-fit-scale=".3"` and

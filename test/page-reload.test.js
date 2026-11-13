@@ -1,4 +1,4 @@
-// Every page reloads itself when /api/version changes (public/autoreload.js), the output on air included. It
+// Every page reloads itself when /api/version changes (public/autoreload.ts), the output on air included. It
 // changes when the pages or the competition's setup change, and never for the other files Studio saves as the
 // night goes on: a sequence saved on the Output page, or the athlete register growing as PlayHQ's line-ups
 // are read mid-game, must not reload the graphics on air.

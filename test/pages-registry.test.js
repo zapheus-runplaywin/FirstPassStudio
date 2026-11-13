@@ -1,11 +1,11 @@
-// The one list of graphics pages (public/pages.js): every graphic in public/ is in it, every page with
+// The one list of graphics pages (public/pages.ts): every graphic in public/ is in it, every page with
 // link options (pageoptions.js) is in it, graphiclinks.js (the Devices tab's Links) describes every page in it, and the Output page
 // and examples.ts read it rather than keeping lists of their own.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { STUDIO_GRAPHICS } = require('../public/pages.js');
+const { STUDIO_GRAPHICS } = require('../out/public/pages.js');
 
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -29,19 +29,19 @@ test('every page in the list exists, once, with a name and a Links group', () =>
 
 test('every graphic in public/ is in the list', () => {
   const graphics = fs.readdirSync(PUBLIC).filter(n => n.endsWith('.html') && !NOT_GRAPHICS.has(n));
-  for (const n of graphics) assert.ok(files.has(n), `${n} is in public/pages.js`);
+  for (const n of graphics) assert.ok(files.has(n), `${n} is in public/pages.ts`);
   for (const n of NOT_GRAPHICS) assert.ok(!files.has(n), `${n} isn't a graphic`);
 });
 
 test('every page with link options is in the list', () => {
-  const src = read('pageoptions.js');
+  const src = read('pageoptions.ts');
   const keys = [...src.matchAll(/^    '([a-z]+\.html)': \[/gm)].map(m => m[1]);
   assert.ok(keys.length > 20, `found ${keys.length} pages with options`);
-  for (const k of keys) assert.ok(files.has(k), `${k} (pageoptions.js) is in public/pages.js`);
+  for (const k of keys) assert.ok(files.has(k), `${k} (pageoptions.js) is in public/pages.ts`);
 });
 
 test('the Devices tab\'s Links (graphiclinks.js) describe every page in the list, in the group the list names', () => {
-  const { GROUPS, LINKS } = require('../public/graphiclinks.js');
+  const { GROUPS, LINKS } = require('../out/public/graphiclinks.js');
   const ids = new Set(GROUPS.map(g => g.id));
   for (const p of STUDIO_GRAPHICS) {
     assert.ok(ids.has(p.group), `graphiclinks.js has a ${p.group} group for ${p.file}`);

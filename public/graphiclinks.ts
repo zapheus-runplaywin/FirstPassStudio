@@ -6,10 +6,15 @@
 // link, about }]: about is our own HTML. A group with perDivision gets one link per division of the competition in use
 // as well (the ladder, finals and top shooters), from /api/structure. A group with perOutput gives its link one row per
 // output (the output canvas), from /api/outputs: Output 1's link as it is, the others' with &output=<id>.
+// A group of links (perDivision: one more link per division; perOutput: one row per output), and one link.
+interface LinkGroup { id: string, title: string, about?: string, perDivision?: { name: string, link: string }, perOutput?: boolean }
+interface GraphicLink { group: string, name: string, link: string, about: string }
+var GRAPHIC_LINKS: { GROUPS: LinkGroup[], LINKS: GraphicLink[] };
+
 (function () {
   'use strict';
-  const LINKS = [];
-  const add = (group, name, link, about) => LINKS.push({ group, name, link, about: about || '' });
+  const LINKS: GraphicLink[] = [];
+  const add = (group: string, name: string, link: string, about?: string) => LINKS.push({ group, name, link, about: about || '' });
 add('scoreboard', 'Live scoreboard', '/scoreboard.html',
   'Sits centred at the bottom, just above the score ticker with a small gap, so both can be on together. ' +
   '<code>?position=top-center</code>, <code>bottom-center</code>, <code>top-left</code> or <code>bottom-left</code> moves it. ' +
@@ -288,6 +293,6 @@ const FINALS_ABOUT = 'Who plays who in the division\'s finals, week by week, in 
     { id: 'shooterPages', title: 'Top shooters (season, one per division)', perDivision: { name: 'Top shooters', link: '/topshooters.html?division=' } },
   ];
   const api = { GROUPS, LINKS };
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof module !== 'undefined' && module) module.exports = api;
   else window.GRAPHIC_LINKS = api;
 })();

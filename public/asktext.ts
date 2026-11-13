@@ -10,7 +10,7 @@
 
 'use strict';
 
-window.askText = function askText(question, value = '') {
+function askText(question: string, value = ''): Promise<string | null> {
   return new Promise(resolve => {
     const dlg = document.createElement('dialog');
     dlg.className = 'fp-ask';
@@ -42,12 +42,13 @@ window.askText = function askText(question, value = '') {
     input.focus();
     input.select();
   });
-};
+}
 
 // askChoice(question, detail, buttons) shows a question with a button for each of buttons
 // ([{ label, value, alt, danger }], the last one the default) and resolves to the value of the one
 // pressed, or null when the dialog is closed with Escape.
-window.askChoice = function askChoice(question, detail, buttons) {
+interface AskButton { label: string, value: string, alt?: boolean, danger?: boolean }
+function askChoice(question: string, detail: string, buttons: AskButton[]): Promise<string | null> {
   return new Promise(resolve => {
     const dlg = document.createElement('dialog');
     dlg.className = 'fp-ask';
@@ -60,7 +61,7 @@ window.askChoice = function askChoice(question, detail, buttons) {
     if (detail) { const p = document.createElement('p'); p.className = 'fp-ask__detail'; p.textContent = detail; form.append(p); }
     const row = document.createElement('div');
     row.className = 'fp-ask__buttons';
-    let last = null;
+    let last: HTMLButtonElement | null = null;
     for (const b of buttons) {
       const btn = document.createElement('button');
       btn.type = 'submit'; btn.value = b.value; btn.textContent = b.label;
@@ -80,15 +81,15 @@ window.askChoice = function askChoice(question, detail, buttons) {
     dlg.showModal();
     if (last) last.focus();
   });
-};
+}
 
 // askConfirm(question, detail, { ok, danger }) asks yes or no: Cancel, or the ok button ("OK" unless
 // named, drawn red with danger: true when it deletes or stops something). Resolves to true or false.
-window.askConfirm = async function askConfirm(question, detail = '', { ok = 'OK', danger = false } = {}) {
+async function askConfirm(question: string, detail = '', { ok = 'OK', danger = false } = {}): Promise<boolean> {
   return (await askChoice(question, detail, [{ label: 'Cancel', value: 'cancel', alt: true }, { label: ok, value: 'ok', danger }])) === 'ok';
-};
+}
 
 // tell(question, detail) says something that needs no answer, with one OK button.
-window.tell = function tell(question, detail = '') {
+function tell(question: string, detail = ''): Promise<string | null> {
   return askChoice(question, detail, [{ label: 'OK', value: 'ok' }]);
-};
+}

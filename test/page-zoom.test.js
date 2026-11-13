@@ -1,4 +1,4 @@
-// Graphics at 4K (public/zoom.js): a graphic opened bigger than 1920 x 1080, such as a browser source set to
+// Graphics at 4K (public/zoom.ts): a graphic opened bigger than 1920 x 1080, such as a browser source set to
 // 3840 x 2160, zooms by the whole number of times the frame fits, so it's laid out again sharp rather than stretched;
 // at 1920 x 1080, in the scene's own frames or with ?fit=1 nothing changes. A 4K output draws the scene at twice the
 // density instead, and the canvases (The Clash, winner, streaks) are sized for every real pixel either way.

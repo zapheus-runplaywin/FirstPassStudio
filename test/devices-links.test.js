@@ -12,7 +12,7 @@ const { openPage } = require('./support/browser');
 
 const doc = YAML.parse(fs.readFileSync(path.join(ROOT, 'public', 'openapi.yaml'), 'utf8'));
 const ops = Object.entries(doc.paths).flatMap(([p, item]) => Object.entries(item).map(([method, op]) => ({ path: p, method, op })));
-const { LINKS } = require('../public/graphiclinks.js');
+const { LINKS } = require('../out/public/graphiclinks.js');
 
 test('every ready-made link in openapi.yaml fits its own path, and every operation has a tag and a summary', () => {
   for (const { path: p, op } of ops) {

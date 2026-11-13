@@ -1,0 +1,20 @@
+{
+  // The pages' scripts (public/*.ts), compiled into out/public/ by npm run build. They're plain browser scripts,
+  // loaded by script tags with no bundler, as they always were: Studio serves out/public/ first, so a page's links
+  // don't change. What one script puts on window (a top-level function or var) the others can use. The output is
+  // strict mode, where setting a name nobody declared fails, so a script that fills in a global declares it with a
+  // plain top-level `var name: Type;` (not `declare var`, which leaves nothing in the output).
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "types": [],
+    "module": "preserve",
+    "moduleDetection": "legacy",
+    "rootDir": ".",
+    "outDir": "../out/public",
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  },
+  "include": ["*.ts"]
+}

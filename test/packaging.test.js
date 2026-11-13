@@ -93,7 +93,8 @@ test('every script, stylesheet and image a page links to exists', () => {
       for (const [, ref] of src.matchAll(/\b(?:src|href)=["']([^"'#?]+)/g)) {
         if (/^[a-z]+:/i.test(ref) || ref.includes('${') || made.test(ref)) continue;
         const file = ref.startsWith('/') ? path.join(ROOT, 'public', ref) : path.join(ROOT, dir, ref);
-        if (!fs.existsSync(file)) missing.push(`${dir}/${page} links to ${ref}`);
+        // A page script written in TypeScript is public/<name>.ts, served compiled as <name>.js.
+        if (!fs.existsSync(file) && !(dir === 'public' && fs.existsSync(file.replace(/\.js$/, '.ts')))) missing.push(`${dir}/${page} links to ${ref}`);
       }
     }
   }
