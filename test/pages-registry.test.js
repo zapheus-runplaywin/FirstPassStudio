@@ -62,6 +62,6 @@ test('the Output page and examples.ts read the list instead of keeping their own
   assert.doesNotMatch(common, /\['Scoreboard', 'scoreboard\.html'\]/);
   assert.doesNotMatch(output, /\['Scoreboard', 'scoreboard\.html'\]/);
   const examples = fs.readFileSync(path.join(ROOT, 'examples.ts'), 'utf8');
-  assert.match(examples, /require\('\.\/public\/pages\.js'\)/);
+  assert.match(examples, /sharedScript<[^>]*>\('pages\.js'\)/);
   assert.doesNotMatch(examples, /'\/clash\.html', 6000/);
 });

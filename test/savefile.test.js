@@ -74,7 +74,7 @@ test('flushSync: a process exiting with saves still in the background leaves the
   const file = path.join(dir, 'scoreboard-state.json');
   // As Studio going off air: saves started, then exit straight away, with the flush on exit.
   const script = `
-    const savefile = require(${JSON.stringify(path.join(__dirname, '..', 'savefile'))});
+    const savefile = require(${JSON.stringify(path.join(__dirname, '..', 'out', 'savefile'))});
     process.on('exit', () => savefile.flushSync());
     const file = ${JSON.stringify(file)};
     savefile.writeFile(file, JSON.stringify({ n: 0, pad: 'x'.repeat(5e6) }));
