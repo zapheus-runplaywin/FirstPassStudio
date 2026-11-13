@@ -1,0 +1,58 @@
+# Publishes FirstPass's own packages in packages/ (@firstpass/playhq) to the public npm registry, where Vantage
+# and HQ install them. A package is published when main has a version of it that npm doesn't have yet: a pull
+# request that changes a package bumps its version in package.json and adds a line to its CHANGELOG.md.
+# npm trusted publishing: npm trusts this workflow in this repository (set once on npmjs.com, in each package's
+# settings), so no npm token is stored anywhere; each version also gets a provenance statement linking it to
+# the commit and run that built it. npm only lets a package that already exists name a trusted publisher, so a
+# new package's first version is published by hand once (npm publish --workspace <name> --access public).
+name: Publish packages
+
+on:
+  push:
+    branches: [main]
+    paths: [packages/**]
+  workflow_dispatch:
+
+# One publish at a time, never cancelled half way.
+concurrency:
+  group: publish-packages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # The OIDC token npm's trusted publishing checks (and the provenance statement).
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@11
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm test --workspaces
+      - run: npm run typecheck --workspaces
+      - run: npm run test:dist --workspaces
+      - name: Publish each package whose version npm doesn't have
+        run: |
+          for dir in packages/*/; do
+            name=$(node -p "require('./${dir}package.json').name")
+            version=$(node -p "require('./${dir}package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name $version is already on npm."
+            else
+              echo "Publishing $name $version."
+              npm publish --workspace "$name" --access public --provenance
+            fi
+          done
