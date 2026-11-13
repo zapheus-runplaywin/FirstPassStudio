@@ -31,8 +31,8 @@ export interface Machine {
   remoteChanges?: boolean; ffmpegPath?: string; apiBaseUrl?: string; gameSummaryPath?: string;
   [key: string]: unknown;
 }
-// CONFIG in server.ts: the machine settings and the competition in use's settings together (none before one is in use).
-export type Config = Machine & Partial<import('./competitions').Settings> & { id?: string };
+// CONFIG in server.ts: the machine settings and the competition in use's settings together (the defaults before one is in use).
+export type Config = Machine & import('./competitions').Settings & { id?: string };
 
 // control.json: the lasting settings Studio keeps for this computer (the board's, the night picked, finals entered by hand).
 export interface ControlData {

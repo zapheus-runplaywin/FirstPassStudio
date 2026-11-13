@@ -27,7 +27,7 @@ type NextRound = { round: string; date: string };
 interface Shooter { name: string; team: string; logo: string | null; playhqIds: string[]; games: number; goals: number; superGoals: number; shots: number; points: number }
 
 interface Deps {
-  log: Log; config: () => Config; competitions: typeof Competitions; finals: typeof Finals; playhq: PlayhqClient; board: BoardApi; control: Control;
+  log: Log; config: () => Config; competitions: typeof Competitions; finals: typeof Finals; playhq: PlayhqClient; board: BoardApi; control: Pick<Control, 'get' | 'save'>;
   logoFor(name: string): string | null; colourFor(name: string): string | null; norm(s: unknown): string; sameTeam(a: unknown, b: unknown): boolean;
   courtPlan?(night: string): Promise<{ key: string; court: string } | null>;
 }
@@ -51,7 +51,8 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // played. A night picked by hand on the control page is kept in control.json (blank means
   // automatic); each division's "this round" is then its round on that night.
   const isDate = (v: unknown): v is string => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
-  let nightChoice = isDate(control.get().night) ? control.get().night : '';
+  const savedNight = control.get().night;
+  let nightChoice = isDate(savedNight) ? savedNight : '';
   if (control.get().round) {
     // Studio used to keep a round picked by hand; a round can be a different night in each division.
     log('info', 'round', `The round picked by hand (${control.get().round}) is now a game night: set back to automatic`);

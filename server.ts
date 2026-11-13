@@ -41,6 +41,21 @@ import * as access from './access';
 import * as securelink from './securelink';
 import * as phonemic from './phonemic';
 import * as uploads from './uploads';
+import * as zip from './zip';
+import * as storiesLib from './stories';
+import { create as createPlayhq } from './playhq';
+import { create as createBoard } from './board';
+import { create as createGames } from './games';
+import { create as createPlanner } from './planner';
+import { create as createSocials } from './socials';
+import { create as createTeams } from './teams';
+import { create as createAthletes } from './athletes';
+import { create as createLowerThird } from './lowerthird';
+import { arr, isObj, obj, own, str } from './check';
+import type { IncomingHttpHeaders, IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
+import type { Duplex } from 'node:stream';
+import type { GameSide } from './playhq';
+import type { Act, Body, Config, ControlData, Log, Machine, Query } from './types';
 
 const ROOT = APP_DIR;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -51,10 +66,10 @@ const DATA = datadir.file;
 // settings it names, so an update can add new ones). Everything about the competition lives
 // in competitions/<id>/settings.json in the data folder, edited on setup.html.
 // CONFIG is the two together, for the competition in use.
-const readConfig = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; } };
-const MACHINE = { ...readConfig(path.join(ROOT, 'config.json')), ...readConfig(DATA('config.json')) };
+const readConfig = (file: string): Machine => { try { return obj(JSON.parse(fs.readFileSync(file, 'utf8'))); } catch { return {}; } };
+const MACHINE: Machine = { ...readConfig(path.join(ROOT, 'config.json')), ...readConfig(DATA('config.json')) };
 delete MACHINE._note;
-let CONFIG = { ...MACHINE };
+let CONFIG: Config = { ...MACHINE, ...competitions.get(null) }; // the defaults until applyCompetition (below) puts the competition in use
 const PORT = Number(process.env.PORT || MACHINE.port || 8080);
 // The start of every page link shown to people (Graphics page, control page, Mac app): the Mac's
 // Bonjour name unless config.json linkHost says otherwise. See linkhost.js.
@@ -84,7 +99,7 @@ const LOG_FILE = path.join(LOG_DIR, 'playhq-graphics.log');
 const LOG_MAX = Math.max(1, Number(MACHINE.logMaxMB) || 15) * 1024 * 1024;
 let logSize = 0;
 try { fs.mkdirSync(LOG_DIR, { recursive: true }); logSize = fs.statSync(LOG_FILE).size; } catch { /* new log */ }
-function log(level, source, message, extra) {
+const log: Log = (level, source, message, extra) => {
   const time = new Date().toISOString();
   let line = `${time} ${String(level).toUpperCase().padEnd(5)} [${source}] ${String(message).replace(/\s+/g, ' ').slice(0, 4000)}`;
   if (extra !== undefined) line += ' ' + (typeof extra === 'string' ? extra : JSON.stringify(extra)).slice(0, 4000);
@@ -102,9 +117,9 @@ function log(level, source, message, extra) {
     logSize += Buffer.byteLength(line);
   } catch (err) { console.error('Could not write the log:', errorMessage(err)); }
   if (level === 'error') console.error(line.trim());
-}
+};
 process.on('uncaughtException', err => { log('error', 'helper', `Crash: ${err.stack || err.message}`); process.exit(1); });
-process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${(err && err.stack) || err}`));
+process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${errorStack(err) || err}`));
 
 // Bring saved settings up to date (migrations.js) before anything reads them.
 const DATA_STATE = migrations.run(log);
@@ -120,18 +135,18 @@ process.on('SIGTERM', () => process.exit(0)); // the Mac app taking Studio off a
 scene.init(log, { ffmpeg: MACHINE.ffmpegPath, outputs: { find: outputs.find, summary: outputs.summary }, record: recorder,
   sequencesFile: () => { const id = competitions.activeId(); return id ? path.join(competitions.DIR, id, 'sequences.json') : null; } });
 // The colours the Output page checks against the chroma key colour.
-const COLOUR_NAMES = { main: 'Main colour', dark: 'Dark colour', panel: 'Panels', panelAlt: 'Every second row', highlight: 'Highlight', accent: 'Accent', text: 'Text', textOnHighlight: 'Text on highlight', muted: 'Small print' };
+const COLOUR_NAMES: Record<string, string> = { main: 'Main colour', dark: 'Dark colour', panel: 'Panels', panelAlt: 'Every second row', highlight: 'Highlight', accent: 'Accent', text: 'Text', textOnHighlight: 'Text on highlight', muted: 'Small print' };
 outputs.init(log, {
   colours: () => [
     ...Object.entries(CONFIG.colours || {}).map(([k, hex]) => ({ name: COLOUR_NAMES[k] || k, hex })),
-    ...Object.entries(CONFIG.clubs || {}).filter(([, c]) => c && c.colour).map(([club, c]) => ({ name: `${club}'s colour`, hex: c.colour })),
+    ...Object.entries(CONFIG.clubs || {}).flatMap(([club, c]) => (c && c.colour ? [{ name: `${club}'s colour`, hex: c.colour }] : [])),
   ],
   removed: id => scene.dropOutput(id),
   changed: () => switcher.refresh(),
   // In 4K: the competition's team and brand logos and the media folder's images and videos that look soft.
   soft: () => {
     const id = competitions.activeId();
-    const comp = kind => (id ? competitions.images(id, kind) : []).map(f => ({ name: f, file: competitions.imageFile(id, kind, f) }));
+    const comp = (kind: 'logos' | 'brand') => (id ? competitions.images(id, kind).flatMap(f => { const file = competitions.imageFile(id, kind, f); return file ? [{ name: f, file }] : []; }) : []);
     return picturesize.soft({ logos: [...comp('logos'), ...comp('brand'), ...scene.imageFiles()], videos: scene.videoSizes() });
   },
 });
@@ -151,7 +166,7 @@ switcher.init(log, { changed: () => { scene.publishSwitcher(); mics.switcherChan
 mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader, level: switcher.micLevel });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
-const playhq = require('./playhq').create({
+const playhq = createPlayhq({
   log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE, record: recorder, practice,
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
 });
@@ -170,9 +185,9 @@ import { errorMessage, errorStack } from './errors';
 // in scoreboard-state.json.
 const CONTROL_FILE = DATA('control.json');
 const LASTING = ['autoSelect', 'autoCourt', 'courtFrom', 'courtNight', 'planCourt', 'followPlayhqClock', 'playhqRefreshSec', 'followOthers', 'showClock', 'tickerSpeed'];
-let control = savefile.readJson(CONTROL_FILE, {}, (err, movedTo) => log('warn', 'helper', `Could not read control.json, starting from the defaults: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
+let control = savefile.readJson<ControlData>(CONTROL_FILE, { boards: {} }, (err, movedTo) => log('warn', 'helper', `Could not read control.json, starting from the defaults: ${errorMessage(err)}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
 if (control.round === undefined) { // the round used to be kept in round-choice.json
-  try { control.round = String(JSON.parse(fs.readFileSync(DATA('round-choice.json'), 'utf8')).round || ''); } catch { control.round = ''; }
+  try { control.round = str(obj(JSON.parse(fs.readFileSync(DATA('round-choice.json'), 'utf8'))).round); } catch { control.round = ''; }
 }
 let controlSaved = JSON.stringify(control);
 control.boards = control.boards && control.boards['1'] ? { 1: control.boards['1'] } : {}; // one scoreboard: an old second board goes at the next save
@@ -187,17 +202,17 @@ function saveControl() {
 // The tests turn both off (FIRSTPASS_NO_BONJOUR, FIRSTPASS_STORIES_CLOUD=off) so test Studios never share with each other
 // or write to the iCloud Drive of the Mac running them; FIRSTPASS_STORIES_CLOUD=<folder> and FIRSTPASS_OTHER_STUDIOS=
 // http://host:port,... stand in for them.
-const stories = require('./stories').create({
+const stories = storiesLib.create({
   log, savefile, dir: datadir.local('game-stories'), studio: datalocation.computerName(), studioId: datalocation.computerId(datadir.LOCAL_DIR), port: PORT,
   cloudDir: process.env.FIRSTPASS_STORIES_CLOUD === 'off' ? '' : process.env.FIRSTPASS_STORIES_CLOUD
-    || (process.platform === 'darwin' && fs.existsSync(datalocation.PROVIDERS.icloud.root()) ? path.join(datalocation.PROVIDERS.icloud.root(), ...require('./stories').CLOUD_FOLDER) : ''),
+    || (process.platform === 'darwin' && fs.existsSync(datalocation.PROVIDERS.icloud.root()) ? path.join(datalocation.PROVIDERS.icloud.root(), ...storiesLib.CLOUD_FOLDER) : ''),
   peers: String(process.env.FIRSTPASS_OTHER_STUDIOS || '').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean),
   bonjour: !process.env.FIRSTPASS_NO_BONJOUR, firstSync: Number(process.env.FIRSTPASS_STORIES_FIRST_SYNC_MS) || undefined,
 });
 process.on('exit', () => stories.stop()); // Bonjour's dns-sd stops announcing this Studio
 
 // ─── The board (board.js): scores, clock, goals, streaks, stats and the worm ──
-const theBoard = require('./board').create({
+const theBoard = createBoard({
   log, datadir, savefile, stories, machine: MACHINE, config: () => CONFIG, competitions, scene, playhq,
   control: { get: () => control, save: () => saveControl(), LASTING, exists: () => fs.existsSync(CONTROL_FILE), markUnsaved: () => { controlSaved = ''; } },
   logoFor: n => logoFor(n), colourFor: n => colourFor(n), rules: d => rules(d), competitionName: () => competitionName(), warmTeamLists: why => warmTeamLists(why),
@@ -207,7 +222,7 @@ const { board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clo
   getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED } = theBoard;
 
 // ─── The games (games.js): this round, fixtures, up next, auto-select, season graphics, finals ──
-const theGames = require('./games').create({
+const theGames = createGames({
   log, config: () => CONFIG, competitions, finals, playhq, board: theBoard,
   control: { get: () => control, save: () => saveControl() },
   logoFor: n => logoFor(n), colourFor: n => colourFor(n), norm: s => norm(s), sameTeam: (a, b) => sameTeam(a, b),
@@ -217,7 +232,7 @@ const { setNightChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, g
   getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, getTopShooters } = theGames;
 
 // ─── The Production Planner (planner.js): each night's court and commentators ──
-const planner = require('./planner').create({
+const planner = createPlanner({
   log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt: theGames.sameCourt, night: theGames.nightChoice,
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '' }), logoFor: n => logoFor(n),
   withLiveScores: theGames.withLiveScores, isLive: theGames.isLive, runOrders: () => scene.state().runOrders || [],
@@ -226,7 +241,7 @@ const planner = require('./planner').create({
 // Output page says so when that cleared anything) once, as the scoreboard moves to the game, picked automatically or
 // by hand. The game on the scoreboard when Studio starts doesn't load it again, so a relaunch mid-game leaves the run
 // order as it was. Checked each second with the game triggers.
-let plannerGame; // the game last seen on the scoreboard (undefined until the first look)
+let plannerGame: string | null | undefined; // the game last seen on the scoreboard (undefined until the first look)
 let plannerBusy = false;
 async function plannerRunOrder() {
   const id = board().gameId || null;
@@ -236,15 +251,16 @@ async function plannerRunOrder() {
   plannerBusy = true;
   try {
     const on = await planner.onAir();
-    if (!on.runOrder || on.gameId !== id || (board().gameId || null) !== id) return;
-    const error = scene.act({ type: 'roLoad', order: on.runOrder, planner: on.game });
+    const order = 'runOrder' in on ? on.runOrder : '';
+    if (!order || on.gameId !== id || (board().gameId || null) !== id) return;
+    const error = scene.act({ type: 'roLoad', order, planner: on.game });
     if (error) log('warn', 'planner', `Couldn't load the run order planned for ${on.game}: ${error}`);
   } catch (err) { log('warn', 'planner', `Couldn't look up the run order planned for this game: ${errorMessage(err)}`); }
   finally { plannerBusy = false; }
 }
 
 // The Socials tab: a game night's pictures for social media, saved by the Mac app (socials.js).
-const socials = require('./socials').create({
+const socials = createSocials({
   log, competitions, savefile, photosDir: datadir.local('socials-photos'), byDate: () => planner.byDate(), onStream: date => planner.onStream(date),
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '', logo: rules().competitionLogoDark, runningShooters: CONFIG.runningShooters || '',
     finalsWinners: CONFIG.finalsWinners === 'premiers' ? 'Premiers' : 'Champions' }),
@@ -329,16 +345,16 @@ setInterval(() => { if (!practice.active()) { theBoard.refreshFollowed(); theBoa
 // break flag and finished status, all from the board, so it costs no PlayHQ calls.
 function gameSnapshot() {
   const b = board();
-  const left = clockLeft(b);
+  const left = clockLeft(b), l = left ?? 0;
   const following = b.source === 'playhq' && b.followPlayhqClock;
   // The super shot period: the last superShotMinutes of the quarter in a division with super shots, as the
   // scoreboard's Super shot tab shows it (public/scoreboard.js superShotTime).
   const window = (CONFIG.superShotMinutes ?? 3) * 60;
-  const superShot = competitions.superShotsFor(CONFIG, b.division) && window > 0 && left > 0 && left <= window && left < b.clock.lengthSec;
+  const superShot = competitions.superShotsFor(CONFIG, b.division) && window > 0 && l > 0 && l <= window && l < b.clock.lengthSec;
   return {
     id: b.gameId || 'manual', label: `${b.home.name} v ${b.away.name}${b.court ? ` on ${b.court}` : ''}`,
     startAt: b.gameId ? startOf({ date: b.date, time: b.time }) : null,
-    period: b.period, last: CONFIG.periodType === 'halves' ? 2 : 4, left, running: !!b.clock.running && left > 0, superShot,
+    period: b.period, last: CONFIG.periodType === 'halves' ? 2 : 4, left, running: !!b.clock.running && l > 0, superShot,
     onBreak: following && !!b.playhqBreak, finished: b.source === 'playhq' && /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(b.playhqStatus || ''),
     breaks: { qt: CONFIG.quarterBreakMinutes, ht: CONFIG.halfTimeMinutes, '3qt': CONFIG.threeQuarterBreakMinutes },
   };
@@ -367,7 +383,9 @@ setInterval(pushBoard, 1000);
 //   /deck/court/Indoor%2001  or  /deck/court/1   (the court for automatic selection)
 //   /deck/ticker/faster  slower  normal   /deck/ticker/speed/150   (pixels per second)
 // (The 4K replay's and practice game's links, /deck/replay/... and /deck/practice/..., are replay.js's and practice.js's deck().)
-function deckAction(parts, q) {
+const STREAK_KINDS: Record<string, string> = { heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal', lead: 'lead', front: 'lead',
+  level: 'level', square: 'level', comeback: 'comeback', siren: 'siren', backtoback: 'backToBack' };
+function deckAction(parts: string[], q: Query): Act | null {
   const [what, verb, arg] = parts;
   if (what === 'home' || what === 'away') {
     const m = String(verb || '').match(/^(add|plus|minus|sub)(\d)$/);
@@ -376,8 +394,7 @@ function deckAction(parts, q) {
   }
   // /deck/streak/heating/home, /deck/streak/fire/away, /deck/streak/goalforgoal, lead, level, comeback, siren, backtoback (streak.html, score unchanged)
   if (what === 'streak') {
-    const kind = { heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal', lead: 'lead', front: 'lead',
-      level: 'level', square: 'level', comeback: 'comeback', siren: 'siren', backtoback: 'backToBack' }[String(verb || '').toLowerCase()];
+    const kind = own(STREAK_KINDS, String(verb || '').toLowerCase());
     if (kind) return { type: 'streak', kind, side: arg === 'away' ? 'away' : 'home' };
   }
   if (what === 'clock') {
@@ -385,7 +402,7 @@ function deckAction(parts, q) {
     if (verb === 'set') { const secs = parseClock(arg || q.time); if (secs !== null) return { type: 'clockSet', secondsLeft: secs }; }
     if (verb === 'adjust') {
       // adjust/10, adjust/-10, adjust/30s, adjust/1m, adjust/-1m, or ?minutes=1&seconds=-30
-      let secs = null;
+      let secs: number | null = null;
       const m = String(arg ?? '').match(/^([+-]?\d+(?:\.\d+)?)([ms]?)$/i);
       if (m) secs = Number(m[1]) * (m[2].toLowerCase() === 'm' ? 60 : 1);
       else if (q.minutes !== undefined || q.seconds !== undefined) secs = Number(q.minutes || 0) * 60 + Number(q.seconds || 0);
@@ -408,11 +425,11 @@ function deckAction(parts, q) {
   return null;
 }
 
-function readBody(req) {
+function readBody(req: IncomingMessage): Promise<Body> {
   return new Promise((resolve, reject) => {
     let s = '';
-    req.on('data', d => { s += d; if (s.length > 1e5) req.destroy(); });
-    req.on('end', () => { try { resolve(s ? JSON.parse(s) : {}); } catch (e) { reject(e); } });
+    req.on('data', (d: Buffer) => { s += d; if (s.length > 1e5) req.destroy(); });
+    req.on('end', () => { try { resolve(s ? obj(JSON.parse(s)) : {}); } catch (e) { reject(e); } });
   });
 }
 
@@ -453,7 +470,7 @@ function health() {
   const sc = scene.state();
   // The sequence playing on the primary output and the triggered one counting down to start, with their names, for
   // the tab bar's chips on every page (studiobar.js); the recorder's state the same way.
-  const nameOf = id => (sc.sequences || []).find(sq => sq.id === id)?.name || '';
+  const nameOf = (id: string) => (sc.sequences || []).find(sq => sq.id === id)?.name || '';
   const playing = sc.playing ? { name: nameOf(sc.playing.id), step: sc.playing.step + 1, steps: sc.playing.steps, paused: !!sc.playing.paused,
     leftMs: sc.playing.leftMs, totalLeftMs: sc.playing.totalLeftMs, totalOpen: !!sc.playing.totalOpen } : null;
   const armed = sc.pending ? { name: nameOf(sc.pending.id), reason: sc.pending.reason || '', leftMs: sc.pending.leftMs } : null;
@@ -482,7 +499,7 @@ function health() {
     // The switcher, for the bar's ATEM chip: set up or not, and whether it's answering.
     switcher: (() => { const s = switcher.status(); return { setUp: !!s.setUp, connected: s.state === 'connected', model: s.model || '' }; })(),
     sourcesOn: (sc.sources || []).filter(s => s.visible).length, sources: (sc.sources || []).length,
-    scene: sc.current || null, sequence: sc.playing ? (playing.name || true) : null,
+    scene: sc.current || null, sequence: playing ? (playing.name || true) : null,
     playing, armed, next,
     score: b.gameId ? { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0, homeName: b.home.name, awayName: b.away.name } : null,
     autoNote: b.autoSelect ? (b.autoNote || '') : '',
@@ -494,7 +511,7 @@ function health() {
 
 function pageVersion() {
   let latest = STARTED_AT;
-  const walk = dir => {
+  const walk = (dir: string) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p); else latest = Math.max(latest, fs.statSync(p).mtimeMs);
@@ -506,7 +523,7 @@ function pageVersion() {
   // line-ups are read mid-game): saving those mustn't reload the graphics on air.
   try {
     latest = Math.max(latest, fs.statSync(competitions.ACTIVE_FILE).mtimeMs);
-    const dir = path.join(competitions.DIR, competitions.activeId());
+    const dir = path.join(competitions.DIR, competitions.activeId() || '');
     latest = Math.max(latest, fs.statSync(path.join(dir, 'settings.json')).mtimeMs);
     for (const kind of competitions.KINDS) if (fs.existsSync(path.join(dir, kind))) walk(path.join(dir, kind));
   } catch {}
@@ -518,15 +535,15 @@ function pageVersion() {
 // different PlayHQ link) clears everything cached from PlayHQ; switching competition also
 // sets the game night back to automatic and puts that competition's first game on every board.
 const MACHINE_KEYS = ['port', 'cacheSeconds', 'playhqRefreshSeconds', 'logMaxMB', 'apiBaseUrl', 'gameSummaryPath', 'remoteChanges'];
-function applyCompetition(why) {
+function applyCompetition(why: string) {
   const id = competitions.activeId();
   const prev = CONFIG;
-  CONFIG = { ...Object.fromEntries(MACHINE_KEYS.filter(k => MACHINE[k] !== undefined).map(k => [k, MACHINE[k]])), ...competitions.get(id), id };
+  CONFIG = { ...Object.fromEntries(MACHINE_KEYS.filter(k => MACHINE[k] !== undefined).map(k => [k, MACHINE[k]])), ...competitions.get(id), id: id || undefined };
   playhq.setOrganisation(CONFIG.organisationUrl);
   theGames.configure(CONFIG);
   theBoard.setQuarterSec(Math.round((Number(CONFIG.quarterMinutes) || 10) * 60));
   const switched = prev.id && prev.id !== id;
-  const sourceChanged = switched || ['organisationUrl', 'competitionName', 'seasonName'].some(k => prev[k] !== CONFIG[k]);
+  const sourceChanged = switched || (['organisationUrl', 'competitionName', 'seasonName'] as const).some(k => prev[k] !== CONFIG[k]);
   if (prev.id && sourceChanged) {
     playhq.resetCaches();
     theGames.resetCaches(); teams.resetCaches();
@@ -546,30 +563,31 @@ function applyCompetition(why) {
 
 // What the setup page shows for one competition.
 // A competition's added font files, as paths, so theme.css can measure them (fonts.js normalise).
-const fontPaths = id => competitions.images(id, 'fonts').map(f => competitions.imageFile(id, 'fonts', f)).filter(Boolean);
+const fontPaths = (id: string | null) => (id ? competitions.images(id, 'fonts').flatMap(f => { const file = competitions.imageFile(id, 'fonts', f); return file ? [file] : []; }) : []);
 
-function setupInfo(id) {
+function setupInfo(id: string) {
   return { id, active: id === competitions.activeId(), settings: competitions.get(id),
     logos: competitions.images(id, 'logos'), brand: competitions.images(id, 'brand'),
     fonts: competitions.images(id, 'fonts'), fontFamilies: fonts.families(competitions.images(id, 'fonts')) };
 }
 
 // The organisation's competitions and seasons on PlayHQ, to pick from on the setup page.
-async function findCompetitions(organisationUrl) {
+async function findCompetitions(organisationUrl: unknown) {
   const u = parsePlayhqUrl(organisationUrl);
   if (!u) throw new Error('That doesn\'t look like a PlayHQ organisation link. Open the organisation on playhq.com and copy the address, e.g. https://www.playhq.com/netball-australia/org/<name>/<8 characters>.');
   const data = await gql('discoverCompetitions', Q_COMPETITIONS, { organisationID: u.orgId }, false, u.tenant);
-  const list = data.discoverCompetitions || [];
-  return { tenant: u.tenant, organisationId: u.orgId, organisation: (list.find(c => c.organisation) || {}).organisation?.name || '',
-    competitions: list.map(c => ({ name: c.name, seasons: (c.seasons || []).map(x => x.name), currentSeason: (pickSeason(c.seasons || []) || {}).name || '' })) };
+  const list = arr(data.discoverCompetitions).map(obj);
+  const seasonsOf = (c: Body) => arr(c.seasons).map(obj).map(x => ({ name: str(x.name), startDate: str(x.startDate) || null, endDate: str(x.endDate) || null, status: x.status }));
+  return { tenant: u.tenant, organisationId: u.orgId, organisation: str(obj(list.find(c => isObj(c.organisation))?.organisation).name),
+    competitions: list.map(c => ({ name: str(c.name), seasons: seasonsOf(c).map(x => x.name), currentSeason: pickSeason(seasonsOf(c))?.name || '' })) };
 }
 
 // Every team in the competition in use, with the logo each one gets, for the setup page.
 // byDivision lists a team once in every division it plays in (the athletes page); otherwise once.
-async function setupTeams({ byDivision = false } = {}) {
+async function setupTeams({ byDivision = false }: { byDivision?: boolean } = {}) {
   const st = await getStructure();
-  const teams = new Map();
-  const add = (name, division) => {
+  const teams = new Map<string, { name: string; division: string }>();
+  const add = (name: string, division: string) => {
     const k = byDivision ? `${norm(division)}|${norm(name)}` : norm(name);
     if (name && name !== 'TBC' && !teams.has(k)) teams.set(k, { name, division });
   };
@@ -582,16 +600,16 @@ async function setupTeams({ byDivision = false } = {}) {
       .map(t => ({ ...t, logo: logoFor(t.name), club: competitions.clubFor(CONFIG, t.name), autoClub: competitions.clubOf(t.name), colour: colourFor(t.name) })) };
 }
 
-function readRaw(req, max) {
+function readRaw(req: IncomingMessage, max: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const parts = []; let size = 0;
-    req.on('data', d => { size += d.length; if (size > max) { reject(new Error(`That file is over ${Math.round(max / 1048576)} MB.`)); req.destroy(); } else parts.push(d); });
+    const parts: Buffer[] = []; let size = 0;
+    req.on('data', (d: Buffer) => { size += d.length; if (size > max) { reject(new Error(`That file is over ${Math.round(max / 1048576)} MB.`)); req.destroy(); } else parts.push(d); });
     req.on('end', () => resolve(Buffer.concat(parts)));
     req.on('error', reject);
   });
 }
 
-async function setupRoute(req, res, url, q) {
+async function setupRoute(req: IncomingMessage, res: ServerResponse, url: URL, q: Query) {
   const m = url.pathname.match(/^\/api\/setup(?:\/([a-z0-9-]+)(?:\/(activate|image|export|template|fontcss))?)?$/);
   // The fonts installed on this Mac, for the setup page's Font box (none on another computer).
   if (url.pathname === '/api/setup-fonts') return send(res, 200, { mac: await fonts.macFonts() });
@@ -599,16 +617,16 @@ async function setupRoute(req, res, url, q) {
   if (url.pathname === '/api/setup-teams') return send(res, 200, await setupTeams());
   if (url.pathname === '/api/setup-new' && req.method === 'POST') {
     const body = await readBody(req);
-    const id = competitions.create(String(body.name || 'New competition').trim() || 'New competition', body.from || null);
+    const id = competitions.create(String(body.name || 'New competition').trim() || 'New competition', str(body.from) || null);
     log('info', 'setup', `New competition setup "${body.name}" (${id})${body.from ? ` copied from ${body.from}` : ''}`);
     return send(res, 200, setupInfo(id));
   }
   if (url.pathname === '/api/setup-template' && req.method === 'POST') {
-    let tpl;
+    let tpl: unknown;
     try { tpl = JSON.parse((await readRaw(req, 100 * 1024 * 1024)).toString('utf8')); } catch { return send(res, 400, { error: "That isn't a FirstPass Studio competition template." }); }
     const hadActive = competitions.activeId();
     const id = competitions.importTemplate(tpl, q.name);
-    sponsors.importFor(id, tpl.sponsors);
+    sponsors.importFor(id, obj(tpl).sponsors);
     log('info', 'setup', `Imported a template file as ${id}`);
     if (!hadActive) applyCompetition('First competition imported');
     return send(res, 200, setupInfo(id));
@@ -616,7 +634,7 @@ async function setupRoute(req, res, url, q) {
   if (url.pathname === '/api/setup-import' && req.method === 'POST') {
     const body = await readBody(req);
     const hadActive = competitions.activeId();
-    const id = competitions.importConfig(String(body.from || ''), body.name);
+    const id = competitions.importConfig(String(body.from || ''), str(body.name) || undefined);
     log('info', 'setup', `Imported the ${body.from} import config as ${id}`);
     if (!hadActive) applyCompetition('First competition imported');
     return send(res, 200, setupInfo(id));
@@ -629,11 +647,12 @@ async function setupRoute(req, res, url, q) {
   if (what === 'export' && req.method === 'POST') {
     const body = await readBody(req);
     try {
-      const importId = competitions.saveAsImport(id, body.importId, !!body.replace);
+      const importId = competitions.saveAsImport(id, str(body.importId) || undefined, !!body.replace);
       log('info', 'setup', `Saved ${id} as the import config imports/${importId}`);
       return send(res, 200, { importId, imports: competitions.imports() });
     } catch (err) {
-      if (err.exists) return send(res, 409, { error: errorMessage(err), exists: err.exists });
+      const exists = obj(err).exists;
+      if (exists) return send(res, 409, { error: errorMessage(err), exists });
       throw err;
     }
   }
@@ -648,13 +667,13 @@ async function setupRoute(req, res, url, q) {
       { mac: await fonts.macFaces(q.font), size: (Number(q.size) || 100) / 100 }), 'text/css; charset=utf-8');
   }
   if (what === 'image') {
-    const kind = ['brand', 'fonts'].includes(q.kind) ? q.kind : 'logos';
+    const kind = q.kind === 'brand' || q.kind === 'fonts' ? q.kind : 'logos';
     if (req.method === 'POST') {
       let name;
       // A file that isn't what it should be (wrong extension, or not the image its name says) is the person's to fix: 400, not 502.
       try { name = competitions.saveImage(id, kind, q.name, await readRaw(req, 15 * 1024 * 1024)); }
       catch (err) { return send(res, 400, { error: errorMessage(err) }); }
-      log('info', 'setup', `${id}: added ${{ brand: 'competition logo', fonts: 'font file' }[kind] || 'team logo'} ${name}`);
+      log('info', 'setup', `${id}: added ${kind === 'brand' ? 'competition logo' : kind === 'fonts' ? 'font file' : 'team logo'} ${name}`);
       return send(res, 200, { name, ...(kind === 'fonts' ? { family: fonts.fontFile(name).family } : {}), ...setupInfo(id) });
     }
     if (req.method === 'DELETE') {
@@ -664,7 +683,8 @@ async function setupRoute(req, res, url, q) {
     }
     // Added files are served as plain files, never as pages of Studio's (uploads.js), as /logos/ and the rest are.
     const file = competitions.imageFile(id, kind, q.name || '');
-    return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
+    if (!file) return send(res, 404, 'Not found', 'text/plain');
+    return fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
   }
   if (req.method === 'POST') {
     competitions.save(id, await readBody(req));
@@ -685,9 +705,9 @@ async function setupRoute(req, res, url, q) {
 
 // ─── Team sheets and shooting stats (teams.js) ──────────────────────────────
 // Name matching, as the athlete register, the team sheets and the lower third do it.
-const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const sameTeam = (a, b) => norm(a) && norm(a) === norm(b);
-const teams = require('./teams').create({
+const norm = (s: unknown) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const sameTeam = (a: unknown, b: unknown) => !!norm(a) && norm(a) === norm(b);
+const teams = createTeams({
   log, config: () => CONFIG, playhq, datadir, board: () => board(), getUpNext: () => getUpNext(),
   squadFor: (n, d) => squadFor(n, d), withSquad: (s, d) => withSquad(s, d), logoFor: n => logoFor(n),
   competitionName: () => competitionName(), rules: d => rules(d), defaultRefreshSec: () => DEFAULT_REFRESH_SEC, sameTeam,
@@ -697,7 +717,7 @@ const { positionOf, warmTeamLists, getTeamSheets } = teams;
 
 // ─── Team logos, athlete photos and the athlete register ────────────────────
 // All in athletes.js; this is the register for the competition in use.
-const athleteRegister = require('./athletes').create({
+const athleteRegister = createAthletes({
   log, config: () => CONFIG, competitions, savefile, playhq, board: () => board(),
   getSeasonGames: g => getSeasonGames(g), getTeamSheets: () => getTeamSheets(), setupTeams: o => setupTeams(o),
   norm: s => norm(s), sameTeam: (a, b) => sameTeam(a, b), send, readBody, readRaw,
@@ -747,12 +767,12 @@ practice.init(log, {
     const grade = (st.grades || []).find(g => g.id === gradeId);
     if (!grade) throw new Error('Pick the division of the game to show.');
     const game = await playhq.getGame(gameId, 10 * 60 * 1000);
-    const teams = [];
+    const teams: string[] = [];
     for (const g of await theGames.getSeasonGames(grade)) for (const n of [g.home.name, g.away.name]) if (n && n !== 'TBC' && !teams.includes(n)) teams.push(n);
-    const side = async s => {
+    const side = async (s: GameSide) => {
       const players = s.players.filter(p => !p.private).map(p => ({ name: p.name, playhqId: p.playhqId, position: p.position, gender: p.gender, private: false }));
       if (players.length < 7) {
-        let squad = [];
+        let squad: Awaited<ReturnType<typeof squadFor>> = [];
         try { squad = await squadFor(s.name, grade.name); } catch (err) { log('warn', 'practice', `${s.name}: no season squad for the demo: ${errorMessage(err)}`); }
         for (const a of squad) if (!players.some(p => p.name === a.name)) players.push({ name: a.name, playhqId: '', position: a.position || '', gender: a.gender || '', private: false });
       }
@@ -762,8 +782,8 @@ practice.init(log, {
   },
 });
 // ─── Person lower third (lowerthird.js) ─────────────────────────────────────
-const lowerThird = require('./lowerthird').create({
-  log, board: () => board(), playhq, competitionName: () => competitionName(), rules: d => rules(d),
+const lowerThird = createLowerThird({
+  log, board: () => board(), playhq, competitionName: () => competitionName(), rules: () => rules(),
   athletes, photoKey, athleteTeams, genderInfo, photoFor, silhouette, logoFor, norm, sameTeam,
 });
 const { getLowerThird, getLowerThirdAthletes } = lowerThird;
@@ -772,22 +792,22 @@ competitions.init(log, { readOnly: DATA_STATE.readOnly });
 applyCompetition('Using competition');
 
 // ─── HTTP ───────────────────────────────────────────────────────────────────
-const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8',
+const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.yaml': 'application/yaml; charset=utf-8',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.ico': 'image/x-icon' };
 
-function send(res, status, body, type, headers) {
+function send(res: ServerResponse, status: number, body: unknown, type?: string, headers?: OutgoingHttpHeaders) {
   // No access-control-allow-origin: Studio's pages are served by Studio, so they are the same origin, and the
   // Stream Deck plugin isn't a browser. A web page from anywhere else can't read Studio's answers; access.crossSite
   // stops it changing anything.
   res.writeHead(status, { 'content-type': type || 'application/json', 'cache-control': 'no-store', ...headers });
-  const text = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
+  const text: string | Buffer = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
   res.end(text);
   recorder.answer(res.req, status, text, type, graphicRead);
 }
 // The user guide's page and pictures (/guide/). The page asks Google for Montserrat, which suits the web copy; in
 // Studio it gets the Montserrat Studio's own pages use (studio.css), so it reads with no internet at the venue.
 const GUIDE_DIR = path.join(ROOT, 'docs', 'user-guide');
-function sendGuide(res, rel) {
+function sendGuide(res: ServerResponse, rel: string) {
   if (!rel || rel === 'index.html') {
     fs.readFile(path.join(GUIDE_DIR, 'index.html'), 'utf8', (err, html) => {
       if (err) return send(res, 404, 'Not found', 'text/plain');
@@ -819,11 +839,11 @@ nav.toc { top: var(--fp-bar-h, 60px) !important; max-height: calc(100vh - var(--
 }
 
 // public/openapi.yaml as JSON, read again only when the file changes.
-let openapiCache = { mtime: 0, json: null };
+let openapiCache: { mtime: number; json: unknown } = { mtime: 0, json: null };
 function openapiJson() {
   const file = path.join(PUBLIC_DIR, 'openapi.yaml');
   const mtime = fs.statSync(file).mtimeMs;
-  if (openapiCache.mtime !== mtime) openapiCache = { mtime, json: require('yaml').parse(fs.readFileSync(file, 'utf8')) };
+  if (openapiCache.mtime !== mtime) openapiCache = { mtime, json: (require('yaml') as typeof import('yaml')).parse(fs.readFileSync(file, 'utf8')) }; // yaml is loaded the first time the API description is asked for
   return openapiCache.json;
 }
 
@@ -831,10 +851,10 @@ function openapiJson() {
 // own, which have the tab bar), never a private one or the recordings themselves.
 const OWN_PAGES = new Set(fs.readdirSync(path.join(APP_DIR, 'public')).filter(n => n.endsWith('.html')
   && fs.readFileSync(path.join(APP_DIR, 'public', n), 'utf8').includes('class="fp-bar"')).map(n => `/${n}`).concat('/', '/guide/'));
-function graphicRead(pathname, headers) {
+function graphicRead(pathname: string, headers: IncomingHttpHeaders) {
   if (access.privateRead('GET', pathname) || pathname.startsWith('/api/recordings')) return false;
   let from;
-  try { from = new URL(headers.referer).pathname; } catch { return false; }
+  try { from = new URL(headers.referer || '').pathname; } catch { return false; }
   return !OWN_PAGES.has(from);
 }
 
@@ -844,19 +864,20 @@ const refusedFrom = new Set();
 // every Studio page (/api/health every 2 s, /api/playback every 3 s) and the Stream Deck's Replay keys' (/api/playback
 // every second).
 const QUIET = new Set(['/api/version', '/api/log', '/api/health', '/api/playback', '/api/scene/events', '/api/switcher/events', '/api/scene/mics/report', '/api/scene/mics/live', '/api/phonemic/offers', '/api/outputs/level', '/api/outputs/sound']);
-const handle = async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
+const handle = async (req: IncomingMessage, res: ServerResponse) => {
+  const url = new URL(req.url || '/', 'http://localhost');
+  const method = req.method || 'GET';
   // A Stream Deck link with this Mac's key in front (/k/<key>/deck/...) is the plain /deck/... link from here on.
   const keyed = /^\/k\/([^/]+)(\/deck(?:\/.*)?)$/.exec(url.pathname);
   if (keyed) url.pathname = keyed[2];
-  const q = Object.fromEntries(url.searchParams);
+  const q: Query = Object.fromEntries(url.searchParams);
   const started = Date.now();
   res.on('finish', () => {
-    const polled = QUIET.has(url.pathname) || (req.method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams' || url.pathname === '/api/goals' || url.pathname === '/api/countdown' || url.pathname === '/api/ticker/speed'));
-    const asset = req.method === 'GET' && !/\.html$|^\/$|^\/api\/|^\/deck\//.test(url.pathname);
+    const polled = QUIET.has(url.pathname) || (method === 'GET' && (url.pathname === '/api/scoreboard' || url.pathname === '/api/teams' || url.pathname === '/api/goals' || url.pathname === '/api/countdown' || url.pathname === '/api/ticker/speed'));
+    const asset = method === 'GET' && !/\.html$|^\/$|^\/api\/|^\/deck\//.test(url.pathname);
     if (res.statusCode >= 400 || !(polled || asset)) {
       log(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http',
-        `${req.method} ${url.pathname}${url.search} ${res.statusCode} ${Date.now() - started}ms`);
+        `${method} ${url.pathname}${url.search} ${res.statusCode} ${Date.now() - started}ms`);
     }
   });
   try {
@@ -865,14 +886,14 @@ const handle = async (req, res) => {
     // sponsor reports, the setup) must be asked for by one of Studio's own names, not a DNS rebinding page's; and
     // config.json "remoteChanges": false keeps changes, and those reads, to this computer and the devices allowed in
     // Devices… (devices.js: a link set's key, a signed plugin press, a paired browser's cookie), within their level.
-    const signed = devices.signed(req.method, req.url, req.headers);
+    const signed = devices.signed(method, req.url || '/', req.headers);
     const keyDevice = keyed ? devices.match(keyed[1]) : null;
-    const device = keyDevice || (signed === 'ok' && devices.byId(req.headers['x-studio-device'])) || devices.fromCookie(req.headers.cookie);
-    const notMac = access.notThisMac(req.method, url.pathname, req.socket.remoteAddress);
-    const refused = (access.changes(req.method, url.pathname) && access.crossSite(req.method, url.pathname, req.headers, PORT, ownHosts(), secureOrigin()))
-      || (access.privateRead(req.method, url.pathname) && access.foreignHost(req.method, url.pathname, req.headers, ownHosts()))
+    const device = keyDevice || (signed === 'ok' && devices.byId(str(req.headers['x-studio-device']))) || devices.fromCookie(req.headers.cookie);
+    const notMac = access.notThisMac(method, url.pathname, req.socket.remoteAddress);
+    const refused = (access.changes(method, url.pathname) && access.crossSite(method, url.pathname, req.headers, PORT, ownHosts(), secureOrigin()))
+      || (access.privateRead(method, url.pathname) && access.foreignHost(method, url.pathname, req.headers, ownHosts()))
       || notMac
-      || access.refusal(MACHINE.remoteChanges, req.method, url.pathname, req.socket.remoteAddress, undefined, device ? device.level : null);
+      || access.refusal(MACHINE.remoteChanges, method, url.pathname, req.socket.remoteAddress, undefined, device ? device.level : null);
     if (refused) {
       const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
       if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
@@ -884,11 +905,11 @@ const handle = async (req, res) => {
     // and scoreboard can't be changed (nor a practice game started) until it's stopped, so the live setup is left as it
     // was. The outputs can still be changed (4K on, an output on).
     if (replay.active()) {
-      if (req.method === 'GET' && url.pathname.startsWith('/api/') && graphicRead(url.pathname, req.headers)) {
+      if (method === 'GET' && url.pathname.startsWith('/api/') && graphicRead(url.pathname, req.headers)) {
         const night = replay.answer(url.pathname + url.search);
         if (night !== undefined) return send(res, 200, night);
       }
-      const changing = (req.method !== 'GET' && /^\/api\/(scene|scoreboard|practice|sequences|music|mics)(\/|$)/.test(url.pathname))
+      const changing = (method !== 'GET' && /^\/api\/(scene|scoreboard|practice|sequences|music|mics)(\/|$)/.test(url.pathname))
         || (/^\/deck\//.test(url.pathname) && !/^\/deck\/(output|replay)\//.test(url.pathname));
       if (changing) return send(res, 409, { error: 'A 4K replay is running. Stop it on the Recordings tab first.' });
     }
@@ -908,14 +929,14 @@ const handle = async (req, res) => {
     }
     if (url.pathname === '/api/deck-key') return send(res, 200, { key: devices.linkKey(), base: deckBase() });
     // Another device asks to control Studio (devices.js ask()); it learns the answer from GET /api/pair/<id> with its token.
-    if (url.pathname === '/api/pair' && req.method === 'POST') {
+    if (url.pathname === '/api/pair' && method === 'POST') {
       const body = await readBody(req);
-      const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), body.publicKey, body.browser === true);
-      return send(res, asked.error ? 409 : 202, asked);
+      const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), str(body.publicKey) || undefined, body.browser === true);
+      return send(res, 'error' in asked ? 409 : 202, asked);
     }
     // A QR code that opens one of Studio's pages on a phone (Open on your phone): the pair page by this Mac's link, which
     // goes on to the page once the phone is paired (or at once when it is already). Only Studio's own pages.
-    if (url.pathname === '/api/phone-link' && req.method === 'GET') {
+    if (url.pathname === '/api/phone-link' && method === 'GET') {
       const page = url.searchParams.get('page') || '/socials.html';
       if (!/^\/[a-z]+\.html$/.test(page)) return send(res, 400, { error: 'Only one of Studio\'s own pages opens on a phone.' });
       // The secure link when it's working (a phone page that needs the mic or the share sheet works only there).
@@ -924,23 +945,23 @@ const handle = async (req, res) => {
     }
     // A phone as a backup commentator headset (phonemic.js): the Commentator page's offer (a paired phone, or this Mac),
     // the phone collecting the answer, and Output 1's window (this Mac only) taking the offers and answering them.
-    if (url.pathname === '/api/phonemic/offer' && req.method === 'POST') {
+    if (url.pathname === '/api/phonemic/offer' && method === 'POST') {
       const local = access.isLocal(req.socket.remoteAddress);
       const phone = device && device.kind === 'browser' ? { id: device.id, name: device.name } : local ? { id: 'this-mac', name: 'This Mac' } : null;
       if (!phone) return send(res, 403, { error: 'Pair this phone first: open the Commentator page from its QR code on the Output page, and press Allow on the Mac.' });
       const made = phonemic.offer(phone, (await readBody(req)).sdp);
       return send(res, made.error ? 409 : 200, made);
     }
-    if (url.pathname === '/api/phonemic/offers' && req.method === 'GET') return send(res, 200, { offers: phonemic.waiting() });
+    if (url.pathname === '/api/phonemic/offers' && method === 'GET') return send(res, 200, { offers: phonemic.waiting() });
     const phoneSession = /^\/api\/phonemic\/([\w-]+)(\/answer)?$/.exec(url.pathname);
     if (phoneSession && phoneSession[1] !== 'offer' && phoneSession[1] !== 'offers') {
       const id = phoneSession[1];
-      if (phoneSession[2] && req.method === 'POST') {
+      if (phoneSession[2] && method === 'POST') {
         if (!access.isLocal(req.socket.remoteAddress)) return send(res, 403, { error: 'Only Output 1\'s window on the Mac answers a phone.' });
         const done = phonemic.answer(id, (await readBody(req)).sdp);
         return send(res, done.error ? 404 : 200, done);
       }
-      if (!phoneSession[2] && req.method === 'GET') {
+      if (!phoneSession[2] && method === 'GET') {
         const phoneId = device && device.kind === 'browser' ? device.id : access.isLocal(req.socket.remoteAddress) ? 'this-mac' : '';
         const got = phonemic.collect(id, phoneId, mics.live().mixing);
         return send(res, got.gone ? 404 : 200, got);
@@ -952,37 +973,40 @@ const handle = async (req, res) => {
       return send(res, 200, me ? { paired: true, name: me.name, level: me.level } : { paired: false });
     }
     const pair = /^\/api\/pair\/([^/]+)$/.exec(url.pathname);
-    if (pair && req.method === 'GET') {
-      const { cookie, ...got } = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair']);
+    if (pair && method === 'GET') {
+      const collected = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair']);
+      const cookie = 'cookie' in collected ? collected.cookie : undefined;
+      const got: Body = Object.fromEntries(Object.entries(collected).filter(([k]) => k !== 'cookie'));
       // A browser's key goes only in its cookie: HttpOnly, so no page script can read it, and SameSite=Strict, so no
       // other site's page can send it (and Secure on the secure link, so it never goes over http from there). 400 days is
       // as long as browsers keep one; unused for 90 days it stops counting.
-      const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000${req.socket.encrypted ? '; Secure' : ''}` } : {};
-      return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${got.key}` } : got, undefined, headers);
+      const secure = 'encrypted' in req.socket && req.socket.encrypted === true;
+      const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000${secure ? '; Secure' : ''}` } : {};
+      return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${str(got.key)}` } : got, undefined, headers);
     }
     // The secure phone link (securelink.js), set up on the Devices tab, on this Mac only (access.notThisMac()): where it is,
     // and its settings ({ zoneId, keyId, secret, on }; the secret is never read back).
-    if (url.pathname === '/api/securelink' && req.method === 'GET') return send(res, 200, await securelink.status());
-    if (url.pathname === '/api/securelink' && req.method === 'POST') {
+    if (url.pathname === '/api/securelink' && method === 'GET') return send(res, 200, await securelink.status());
+    if (url.pathname === '/api/securelink' && method === 'POST') {
       const done = await securelink.set(await readBody(req));
-      return send(res, done.error ? 400 : 200, done);
+      return send(res, 'error' in done && done.error ? 400 : 200, done);
     }
     // The Devices list at the top of the Devices tab (api.html), on this Mac only (access.notThisMac()).
-    if (url.pathname === '/api/devices' && req.method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
+    if (url.pathname === '/api/devices' && method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
     // Named link sets (Output page and Stream Deck page, on this Mac): make one, read its key for copying links, give it a new key.
-    if (url.pathname === '/api/devices/links' && req.method === 'POST') {
+    if (url.pathname === '/api/devices/links' && method === 'POST') {
       const made = devices.addLinks((await readBody(req)).name);
       if (!made) return send(res, 400, { error: 'Give the link set a name, such as "Office Stream Deck".' });
       return send(res, 200, { ...made, base: `${LINK_BASE}/k/${devices.linkKey(made.id)}` });
     }
     // A paired browser's level: scoring only, or everything.
     const level = /^\/api\/devices\/([^/]+)\/level$/.exec(url.pathname);
-    if (level && req.method === 'POST') {
+    if (level && method === 'POST') {
       if (!devices.setLevel(decodeURIComponent(level[1]), (await readBody(req)).level)) return send(res, 404, { error: 'Only a paired browser has a level, scoring or everything.' });
       return send(res, 200, { devices: devices.list() });
     }
     const setKey = /^\/api\/devices\/([^/]+)\/(key|renew)$/.exec(url.pathname);
-    if (setKey && (setKey[2] === 'key' ? req.method === 'GET' : req.method === 'POST')) {
+    if (setKey && (setKey[2] === 'key' ? method === 'GET' : method === 'POST')) {
       const id = decodeURIComponent(setKey[1]);
       if (setKey[2] === 'renew' && !devices.renew(id)) return send(res, 404, { error: 'That link set isn\'t in the list.' });
       const key = devices.linkKey(id);
@@ -990,19 +1014,19 @@ const handle = async (req, res) => {
       return send(res, 200, { key, base: `${LINK_BASE}/k/${key}`, devices: devices.list() });
     }
     const answer = /^\/api\/devices\/requests\/([^/]+)\/(allow|deny)$/.exec(url.pathname);
-    if (answer && req.method === 'POST') {
+    if (answer && method === 'POST') {
       if (!devices.answer(decodeURIComponent(answer[1]), answer[2] === 'allow', (await readBody(req)).level)) return send(res, 404, { error: 'That request was already answered or has run out.' });
       return send(res, 200, { devices: devices.list(), asking: devices.pending() });
     }
     const revoke = /^\/api\/devices\/([^/]+)\/revoke$/.exec(url.pathname);
-    if (revoke && req.method === 'POST') {
+    if (revoke && method === 'POST') {
       if (!devices.revoke(decodeURIComponent(revoke[1]))) return send(res, 404, { error: 'That device isn\'t in the list.' });
       return send(res, 200, { devices: devices.list() });
     }
     if (url.pathname === '/api/log') {
-      if (req.method === 'POST') {
+      if (method === 'POST') {
         const e = await readBody(req);
-        log(['error', 'warn'].includes(e.level) ? e.level : 'info', `page ${String(e.page || '?').slice(0, 80)}`, errorMessage(e) || '', e.detail);
+        log(e.level === 'error' || e.level === 'warn' ? e.level : 'info', `page ${String(e.page || '?').slice(0, 80)}`, errorMessage(e) || '', e.detail);
         return send(res, 204, '');
       }
       // Open http://localhost:8080/api/log to read the log in a browser.
@@ -1020,9 +1044,10 @@ const handle = async (req, res) => {
         && access.refusal(MACHINE.remoteChanges, 'POST', '/api/athletes/approval', req.socket.remoteAddress, undefined, device ? device.level : null)) {
         return send(res, 404, 'Not found', 'text/plain');
       }
-      const file = competitions.imageFile(competitions.activeId(), kind, name);
+      const file = competitions.imageFile(competitions.activeId() || '', kind, name);
       // Added files are served as plain files, never as pages of Studio's (uploads.js).
-      return fs.readFile(file || '', (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
+      if (!file) return send(res, 404, 'Not found', 'text/plain');
+      return fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
     }
     if (url.pathname === '/api/ladder') {
       const st = await getStructure();
@@ -1036,14 +1061,14 @@ const handle = async (req, res) => {
     }
     if (url.pathname === '/api/version') return send(res, 200, { version: pageVersion(), base: LINK_BASE });
     if (url.pathname === '/api/health') return send(res, 200, health());
-    if (url.pathname === '/api/settings/export' && req.method === 'GET') {
+    if (url.pathname === '/api/settings/export' && method === 'GET') {
       // Every setting in one zip with its summary (datalocation.exportEntries); ?media=0 leaves out the media folder, ?notes= heads the summary.
       const name = datalocation.exportName();
       const { list, skipped } = datalocation.exportEntries(datadir.DATA_DIR, { media: q.media !== '0', folder: name, about: { studio: pageVersion() }, notes: String(q.notes || '').slice(0, 5000) });
       if (skipped.length) log('warn', 'settings', `Exporting the settings without ${skipped.join(', ')}: not downloaded from iCloud yet`);
       res.writeHead(200, { 'content-type': 'application/zip', 'cache-control': 'no-store', 'content-disposition': `attachment; filename="${name}.zip"` });
       try {
-        await require('./zip').write(res, list);
+        await zip.write(res, list);
         log('info', 'settings', `Exported the settings as ${name}.zip: ${list.length - 2} files`);
       } catch (err) { log('warn', 'settings', `Settings export stopped: ${errorMessage(err)}`); res.destroy(); }
       return;
@@ -1058,9 +1083,9 @@ const handle = async (req, res) => {
       if (await socials.route(req, res, url, { send, readBody, readRaw, port: PORT })) return;
     }
     if (url.pathname === '/api/rounds') {
-      if (req.method === 'POST') {
+      if (method === 'POST') {
         const body = await readBody(req);
-        try { await setNightChoice(body.night !== undefined ? body.night : body.round); } catch (err) { return send(res, 400, { error: errorMessage(err) }); }
+        try { await setNightChoice(str(body.night !== undefined ? body.night : body.round)); } catch (err) { return send(res, 400, { error: errorMessage(err) }); }
         await autoPick();
       }
       return send(res, 200, await getRoundInfo());
@@ -1079,11 +1104,11 @@ const handle = async (req, res) => {
     if (url.pathname === '/api/topshooters') return send(res, 200, await getTopShooters(q));
     if (url.pathname === '/api/fixtures') return send(res, 200, await getFixtures(q));
     if (url.pathname === '/api/finals') return send(res, 200, await getFinals(q));
-    if (url.pathname === '/api/finals/result' && req.method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
+    if (url.pathname === '/api/finals/result' && method === 'POST') return send(res, 200, await setFinalsResult(await readBody(req)));
     // What's playing back, for the strip under every Studio page's tab bar and the Stream Deck plugin's Replay keys: one read.
     if (url.pathname === '/api/playback') return send(res, 200, { replay: replay.state(), practice: practice.state() });
     if (url.pathname === '/api/replay') {
-      if (req.method === 'POST' && practice.active()) return send(res, 409, { error: 'A practice game is running. Stop it first.', ...replay.state() });
+      if (method === 'POST' && practice.active()) return send(res, 409, { error: 'A practice game is running. Stop it first.', ...replay.state() });
       if (await replay.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname === '/api/practice' || url.pathname === '/api/practice/games') {
@@ -1105,7 +1130,7 @@ const handle = async (req, res) => {
       if (await viewers.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname.startsWith('/api/sponsors') || url.pathname.startsWith('/sponsors/')) {
-      const saveSettings = (id, changes) => { competitions.save(id, changes); if (id === competitions.activeId()) applyCompetition('Sponsor settings saved'); };
+      const saveSettings = (id: string, changes: unknown) => { competitions.save(id, changes); if (id === competitions.activeId()) applyCompetition('Sponsor settings saved'); };
       if (await exposure.route(req, res, url, { send })) return;
       if (await sponsors.route(req, res, url, { send, readBody, readRaw, saveSettings, gave: exposure.gave, flash: exposure.flash })) return;
     }
@@ -1146,8 +1171,9 @@ const handle = async (req, res) => {
     }
     if (url.pathname === '/api/scoreboard') {
       const b = board();
-      if (req.method === 'POST') {
-        const action = await readBody(req);
+      if (method === 'POST') {
+        const body = await readBody(req);
+        const action = { ...body, type: str(body.type) };
         log('info', 'scoreboard', `${action.type || '?'}`, action);
         applyAction(b, action);
         if (['autoSelect', 'autoCourt', 'reset'].includes(action.type)) await autoPick();
@@ -1163,21 +1189,22 @@ const handle = async (req, res) => {
     // openapi.yaml read for the Devices tab's Links list (devices.js), which has no YAML reader of its own.
     if (url.pathname === '/openapi.json') return send(res, 200, openapiJson());
     // / is the Output page; results.html is the fixture page showing finished games.
-    const ALIASES = { '/': 'output.html', '/results.html': 'fixtures.html' };
+    const ALIASES: Record<string, string> = { '/': 'output.html', '/results.html': 'fixtures.html' };
     // The Docs page (graphics.html, the home page at /index.html before that) is now the user guide: old links still find it.
     if (url.pathname === '/index.html' || url.pathname === '/graphics.html') { res.writeHead(302, { location: '/guide/' }); return res.end(); }
     let file = path.normalize(path.join(PUBLIC_DIR, ALIASES[url.pathname] || decodeURIComponent(url.pathname)));
     if (file !== PUBLIC_DIR && !file.startsWith(PUBLIC_DIR + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');
     fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file)] || 'application/octet-stream'));
   } catch (err) {
-    log('error', 'http', `${req.method} ${url.pathname}${url.search} failed: ${errorMessage(err)}`, errorStack(err) ? errorStack(err).split('\n').slice(1, 4).join(' | ') : undefined);
+    const stack = errorStack(err);
+    log('error', 'http', `${method} ${url.pathname}${url.search} failed: ${errorMessage(err)}`, stack ? stack.split('\n').slice(1, 4).join(' | ') : undefined);
     send(res, 502, { error: errorMessage(err) });
   }
 };
-function handleUpgrade(req, socket) {
+function handleUpgrade(req: IncomingMessage, socket: Duplex) {
   // WebSockets: the scene's live updates for Studio's pages (scene.js). A page on another site gets
   // no socket (it could read the scene and the board through one; there is no CORS check on sockets).
-  const url = new URL(req.url, 'http://localhost');
+  const url = new URL(req.url || '/', 'http://localhost');
   const refused = access.crossSite('WEBSOCKET', url.pathname, req.headers, PORT, ownHosts(), secureOrigin());
   if (refused) {
     const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
@@ -1190,7 +1217,8 @@ function handleUpgrade(req, socket) {
   }
   if (!scene.upgrade(req, socket)) socket.destroy();
 }
-http.createServer(handle).on('upgrade', handleUpgrade).on('error', err => {
+http.createServer(handle).on('upgrade', handleUpgrade).on('error', (err: NodeJS.ErrnoException) => {
+
   // Without this Node throws, the helper dies with a stack trace and the Mac app restarts it
   // five times before giving up with a generic message. Say what is wrong instead.
   if (err.code === 'EADDRINUSE') {

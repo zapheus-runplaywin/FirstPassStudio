@@ -20,6 +20,10 @@ export function num(v: unknown, fallback = 0): number {
   const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN;
   return Number.isFinite(n) ? n : fallback;
 }
+// A table's value by its key, never one of Object's own (such as constructor): undefined for any other key.
+export function own<T>(table: Record<string, T>, key: unknown): T | undefined {
+  return typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : undefined;
+}
 // Whether v is a plain object.
 export function isObj(v: unknown): v is Body {
   return v !== null && typeof v === 'object' && !Array.isArray(v);

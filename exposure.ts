@@ -24,7 +24,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Log, Send } from './types';
 
 // A source in the scene that's on (scene.ts): sponsor is the sponsor whose ad it plays; air false when its output is off.
-interface Showing { id?: string; name: string; url?: string; sponsor?: string; air?: boolean }
+interface Showing { id?: string; name: string; url?: string; sponsor?: string | null; air?: boolean }
 // One stretch of a sponsor on screen, and the lines of a night's file.
 interface Segment { s: string; c: string | null; p: string; src: string; air: boolean; qr: boolean; from: number }
 type Seen = Segment & { t: 'seen'; to: number };

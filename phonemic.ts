@@ -28,7 +28,7 @@ const MAX_SDP = 20000;
 
 let mics: typeof Mics | null = null;
 // scene.act({ type: 'micAdd' }): adds, saves and tells the windows; an error's words, or ''.
-let addMic: (changes: { name: string; on: 'phone'; phone: string }) => string = () => 'Studio isn\'t ready.';
+let addMic: (changes: { name: string; on: 'phone'; phone: string }) => string | null = () => 'Studio isn\'t ready.';
 let log: Log = () => {};
 const sessions = new Map<string, Session>();
 

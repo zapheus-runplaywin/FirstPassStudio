@@ -84,7 +84,7 @@ import { TEMPLATE_FONTS } from './fonts';
 import { ROUND as FINALS_ROUND } from './finals';
 import * as stats from './socialstats';
 import { errorMessage } from './errors';
-import { arr, isObj, num, obj, str } from './check';
+import { arr, isObj, num, obj, own, str } from './check';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type * as Competitions from './competitions';
 import type * as SaveFile from './savefile';
@@ -254,8 +254,6 @@ const MADE_KEPT = 5;
 
 const isDate = (v: unknown): v is string => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
 const slotOf = (g: { time?: string | null }) => String(g.time || '').slice(0, 5);
-// A value of one of the tables above by its key (never one of Object's own, such as constructor).
-const own = <T>(table: Record<string, T>, key: unknown): T | undefined => typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : undefined;
 const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function create({ log, competitions, savefile, photosDir, byDate, onStream, about, logoFor, sponsorsFor, ladderFor, tallyShooters, superShots,

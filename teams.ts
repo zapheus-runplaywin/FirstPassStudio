@@ -36,7 +36,7 @@ interface Deps {
 // A team in PlayHQ's Game Summary, found by its list of people.
 interface SummaryTeam { id: unknown; name: string; isHome: unknown; raw: Body; players: unknown[] }
 // A team sheet's side: a line up (PlayHQ's game page, or the Game Summary) with the team's own counts when known.
-type SheetSide = Pick<GameSide, 'name' | 'logo'> & { players: unknown[]; totals?: unknown; squad?: boolean };
+type SheetSide = Pick<GameSide, 'name' | 'logo'> & { players: GameSide['players']; totals?: unknown; squad?: boolean };
 
 function create({ log, config, playhq, datadir, board, getUpNext, squadFor, withSquad, logoFor, competitionName, rules, defaultRefreshSec, sameTeam, courtShown = b => b.court }: Deps) {
   const { getGame, getLive } = playhq;

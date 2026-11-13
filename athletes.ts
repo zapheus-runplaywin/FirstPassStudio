@@ -43,7 +43,9 @@ type Apps = Record<string, Appearance[]>;
 // A player the register is told about (a line up's, or a name with ids).
 type Who = string | { name: string; team?: string; playhqId?: string; playhqIds?: string[] };
 // A team sheet answer withPhotos adds photos to: each side's players.
-interface SheetSide { name: string; players: Player[] }
+// A player on a team sheet: PlayHQ's line up has every field, a scorer's sheet some.
+type SheetPlayer = Pick<Player, 'name'> & Partial<Player>;
+interface SheetSide { name: string; players: SheetPlayer[] }
 interface Sheets { division?: string; stale?: unknown; home?: SheetSide; away?: SheetSide }
 // One athlete of a team's season line ups (seasonLineups).
 interface SeasonAthlete { name: string; number: string; positions: Record<string, number>; games: number; captain: boolean; lastDate: string; gender: Gender }
@@ -142,7 +144,7 @@ function create({ log, config, competitions, savefile, playhq, board, getSeasonG
     } catch (err) { log('warn', 'athletes', `Could not save athletes.json: ${errorMessage(err)}`); }
   }
   // Adds a team's line up to the register: a new athlete, a new team or division, a PlayHQ id or gender.
-  function recordPlayers(team: string, division: string | undefined, players: Pick<Player, 'name' | 'playhqId' | 'gender' | 'private'>[] | undefined) {
+  function recordPlayers(team: string, division: string | undefined, players: SheetPlayer[] | undefined) {
     const data = athletes();
     for (const p of players || []) {
       const k = photoKey(p.name);
