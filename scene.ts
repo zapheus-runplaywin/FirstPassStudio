@@ -33,6 +33,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pipeline } from 'node:stream';
+import { spawn } from 'node:child_process';
 import * as datadir from './datadir';
 import * as savefile from './savefile';
 import * as sequences from './sequences';
@@ -44,20 +45,53 @@ import * as competitions from './competitions';
 import * as exposure from './exposure';
 import { unpacked } from './unpacked';
 import * as uploads from './uploads';
+import * as zip from './zip';
 import { errorCode, errorMessage } from './errors';
+import { obj, str, arr, isObj } from './check';
+import type { Log, Act, Body, Query, Send, ReadBody } from './types';
+import type { SwitcherAction } from './switcher';
+import type { GameReading, StepLength } from './sequences';
+import type * as Outputs from './outputs';
+import type { Duplex } from 'node:stream';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+
+// ─── What the scene is (clean() and cleanScene() make each from what's saved or sent) ────
+type SourceType = 'browser' | 'image' | 'video';
+interface Source {
+  id: string; type: SourceType; name: string; visible: boolean; fadeMs: number; x: number; y: number; scale: number; loadSeq: number; showSeq: number;
+  out: Record<string, true>; outSeq: Record<string, number>;
+  url?: string; width?: number; height?: number; reloadOnShow?: boolean;
+  file?: string; loop?: boolean; restartOnShow?: boolean; hideWhenDone?: boolean; sound?: boolean; volume?: number;
+  // Not saved: a video's sound fading out on an output, and when each output's showing of a video began.
+  soundOut?: Record<string, { at: number; ms: number; showSeq: number }>; playAt?: Record<string, number>;
+}
+interface Scene { id: string; name: string; colour: string; states: Record<string, string>; quiet: boolean; switcher?: SwitcherAction[] }
+interface SceneData { sources: Source[]; scenes: Scene[]; current: string | null; currentOut: Record<string, string> }
+// The outputs as the scene asks them (outputs.js find and summary).
+interface OutputsApi { find(ref: unknown): { id: string } | null; summary?(): ReturnType<typeof Outputs.summary> }
+// recorder.js, for the game recording.
+interface RecordApi { board(json: unknown): void; scene(state: unknown, json: string): void }
+// What a Stream Deck link gives (deck()).
+type DeckOut = { status: number; body: unknown } | null;
+// A sponsor ad ready to play (sponsorAd()).
+interface AdPlay { source: string; name: string; sponsor: string | null; length: StepLength }
+type AdKind = 'video' | 'image' | 'house';
+// A media file in the media folder's list (mediaList()).
+interface Media { name: string; kind: string | null; size?: number; duration?: number | null; converting?: boolean; levelled?: boolean; converted?: string; opaque?: string; uses?: unknown[] }
+interface Use { type: string; name: string; onAir?: boolean; competition?: string }
 
 const FILE = datadir.file('scene.json');
 const MEDIA_DIR = datadir.file('media');
 const WIDTH = 1920, HEIGHT = 1080;
-const TYPES = ['browser', 'image', 'video'];
-const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
-const VIDEO_TYPES = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
+const TYPES = ['browser', 'image', 'video'] as const;
+const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
+const VIDEO_TYPES: Record<string, string> = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
 const AUDIO_TYPES = music.AUDIO_TYPES;
-const MEDIA_TYPES = { ...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES };
+const MEDIA_TYPES: Record<string, string> = { ...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES };
 const MAX_IMAGE = 50 * 1024 * 1024, MAX_VIDEO = 20 * 1024 * 1024 * 1024, MAX_AUDIO = 2 * 1024 * 1024 * 1024;
 // The Studio Stream Deck plugin (plugins/studio-deck), packed by the Mac app's build so it ships with the app.
 const STREAMDECK_PLUGIN = unpacked(path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin'));
-const kindOf = f => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPES[x] ? 'image' : VIDEO_TYPES[x] ? 'video' : AUDIO_TYPES[x] ? 'audio' : null; };
+const kindOf = (f: string) => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPES[x] ? 'image' : VIDEO_TYPES[x] ? 'video' : (AUDIO_TYPES as Record<string, string>)[x] ? 'audio' : null; };
 
 // ─── Sponsor ads ─────────────────────────────────────────────────────────
 // Ads play in their own sources, made the first time they're needed and kept on top of the scene: Sponsor
@@ -65,13 +99,13 @@ const kindOf = f => { const x = path.extname(f).toLowerCase(); return IMAGE_TYPE
 // Each ad sets the source's file; a new file reloads it. Returns what a sequence step needs, or null.
 // Another output plays its ads in its own three (ad<v|i|h><output id>), so two outputs' ads never fight over one
 // file; they go when the output does.
-const AD_SOURCES = {
+const AD_SOURCES: Record<AdKind, Partial<Source> & { id: string; type: SourceType; name: string }> = {
   video: { id: 'sponsoradvideo', type: 'video', name: 'Sponsor ad (video)', sound: true, hideWhenDone: true, restartOnShow: true },
   image: { id: 'sponsoradimage', type: 'image', name: 'Sponsor ad (still)' },
   house: { id: 'sponsoradhouse', type: 'browser', name: 'House ad', url: 'ad.html' },
 };
-const adSourceId = (kind, out) => out ? `ad${kind[0]}${out}` : AD_SOURCES[kind].id;
-function adSource(kind, file, out = null) {
+const adSourceId = (kind: string, out: string | null) => out ? `ad${kind[0]}${out}` : AD_SOURCES[kind as AdKind].id;
+function adSource(kind: AdKind, file: string | null, out: string | null = null): Source | undefined {
   const spec = AD_SOURCES[kind];
   const id = adSourceId(kind, out);
   let src = scene.sources.find(s => s.id === id);
@@ -85,18 +119,18 @@ function adSource(kind, file, out = null) {
   return src;
 }
 // Which sponsor's ad each Sponsor ad source has in it, for the exposure report (exposure.js).
-const adSponsor = new Map();
+const adSponsor = new Map<string, string>();
 // Whether what's on an output counts in the sponsors' exposure report: always the primary's; another output's
 // only with Counts for sponsors ticked (Studio can't tell whether it's on the stream: a camera's keyer, a
 // commentary monitor).
-const countsForSponsors = out => !out || !!outputsApi.summary?.().find(o => o.id === out)?.sponsors;
+const countsForSponsors = (out: string | null) => !out || !!outputsApi.summary?.().find(o => o.id === out)?.sponsors;
 // The sources on now, for the exposure report: [{ id, name, url, sponsor, air }], on the primary and on each output
 // that counts for sponsors (named "Ladder (Wide camera)" there). air: its output is sending, so it's on air (an
 // output that's off, or set to Web links only, isn't, even while another one is); left out without outputs to ask.
 function showing() {
   const outs = outputsApi.summary?.() || [];
-  const sending = id => { const o = outs.find(x => x.id === id); return o ? { air: !!o.sending } : {}; };
-  const view = (s, where, air) => ({ id: s.id, name: where ? `${s.name} (${where})` : s.name, url: s.type === 'browser' ? s.url : '', sponsor: adSponsor.get(s.id) || null, ...air });
+  const sending = (id: string) => { const o = outs.find(x => x.id === id); return o ? { air: !!o.sending } : {}; };
+  const view = (s: Source, where: string, air: { air?: boolean }) => ({ id: s.id, name: where ? `${s.name} (${where})` : s.name, url: s.type === 'browser' ? s.url : '', sponsor: adSponsor.get(s.id) || null, ...air });
   const list = scene.sources.filter(s => s.visible).map(s => view(s, '', sending(PRIMARY)));
   for (const o of outs) {
     if (o.id !== PRIMARY && o.sponsors) list.push(...scene.sources.filter(s => s.out[o.id]).map(s => view(s, o.name, { air: !!o.sending })));
@@ -104,13 +138,14 @@ function showing() {
   return list;
 }
 // The next sponsor ad, in the ad sources of an output (null: the primary).
-function sponsorAd(opts = {}, out = null) {
+function sponsorAd(opts: { house?: boolean } = {}, out: string | null = null): AdPlay | null {
   // An output that doesn't count for sponsors (a commentary monitor) shows whose turn it is without taking it, so the
   // rotation on air stays in order.
   const counts = countsForSponsors(out);
   const ad = sponsors.nextAd(competitions.activeId(), { exists: f => fs.existsSync(path.join(MEDIA_DIR, cleanFile(f))), count: counts });
   if (!ad && !opts.house) return null;
-  const src = ad ? adSource(ad.kind, ad.file, out) : adSource('house', null, out);
+  const src = ad ? adSource(ad.kind === 'image' ? 'image' : 'video', ad.file, out) : adSource('house', null, out);
+  if (!src) return null;
   if (ad) {
     log('info', 'scene', `Sponsor ad: ${ad.sponsor.name} (${ad.file})${out ? ` on ${outputName(out)}` : ''}`);
     adSponsor.set(src.id, ad.sponsor.id);
@@ -121,21 +156,21 @@ function sponsorAd(opts = {}, out = null) {
     length: ad && ad.kind === 'image' ? { type: 'time', sec: ad.seconds } : { type: 'done' } };
 }
 
-let log = () => {};
+let log: Log = () => {};
 // The outputs (outputs.js), to find one by its name or number in a Stream Deck link. Without them, only
 // the primary output.
 const PRIMARY = 'main';
-let outputsApi = { find: ref => (ref === PRIMARY || ref === '1' ? { id: PRIMARY } : null) };
-let scene = { sources: [], scenes: [], current: null, currentOut: {} };
+let outputsApi: OutputsApi = { find: ref => (ref === PRIMARY || ref === '1' ? { id: PRIMARY } : null) };
+let scene: SceneData = { sources: [], scenes: [], current: null, currentOut: {} };
 // Sources set on in the current scene that went off by themselves (a video that hides when it's
 // done): not a change from the scene. The primary's (kept with the scene), and the other outputs' by id.
-let ended = new Set();
-const endedOut = new Map();
-const endedOf = out => out ? (endedOut.get(out) || endedOut.set(out, new Set()).get(out)) : ended;
-function clearEnded(out) { if (out) endedOut.delete(out); else ended = new Set(); }
+let ended = new Set<string>();
+const endedOut = new Map<string, Set<string>>();
+const endedOf = (out: string | null) => { if (!out) return ended; let s = endedOut.get(out); if (!s) endedOut.set(out, s = new Set()); return s; };
+function clearEnded(out: string | null) { if (out) endedOut.delete(out); else ended = new Set(); }
 // A source on (or off) on an output: null for the primary, else an output's id.
-const isOn = (s, out) => out ? !!s.out[out] : s.visible;
-function setOn(s, on, out) {
+const isOn = (s: Source, out: string | null) => out ? !!s.out[out] : s.visible;
+function setOn(s: Source, on: boolean, out: string | null) {
   if (!out) s.visible = on;
   else if (on) s.out[out] = true;
   else delete s.out[out];
@@ -144,12 +179,12 @@ function setOn(s, on, out) {
 }
 // A video's sound fading out on an output (out, or the primary) over sec, as the next step's music starts under the
 // end of it (sequences.js planCross): soundOut { [output]: { at, ms, showSeq } } on the source, for that showing.
-function fadeSound(id, out, sec) {
+function fadeSound(id: string, out: string | null, sec: number) {
   const s = scene.sources.find(x => x.id === id);
   if (!s || s.type !== 'video') return;
   s.soundOut = { ...(s.soundOut || {}), [out || PRIMARY]: { at: Date.now(), ms: Math.round(sec * 1000), showSeq: out ? (s.outSeq[out] || 0) : s.showSeq } };
 }
-const soundFading = (s, out) => !!(s.soundOut && s.soundOut[out || PRIMARY]);
+const soundFading = (s: Source, out: string | null) => !!(s.soundOut && s.soundOut[out || PRIMARY]);
 // The same for a video that went off some other way (finished and switched itself off).
 function tidySoundOut() {
   for (const s of scene.sources) {
@@ -159,28 +194,28 @@ function tidySoundOut() {
   }
 }
 // Videos that finished but stay on screen (not set to switch off when done): their sound has stopped.
-const soundDone = new Set();
+const soundDone = new Set<string>();
 // Sources on after the last change, so each time one comes on its showSeq goes up: a page or video that
 // says it's done names the showing it means, and a late word from an earlier showing is ignored.
-let wasOn = new Set();
-let stillTimer = null; // takes a still sponsor ad played by hand (/deck/sponsor/ad) off after its seconds
+let wasOn = new Set<string>();
+let stillTimer: NodeJS.Timeout | undefined; // takes a still sponsor ad played by hand (/deck/sponsor/ad) off after its seconds
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 const STATES = ['on', 'off'];
 // Scene link names that are the next/prev/again links instead.
 const RESERVED = new Set(['next', 'prev', 'previous', 'again']);
 let rev = 0;
-const listeners = new Set(); // server-sent events (/api/scene/events): the Stream Deck plugin
-const sockets = new Set();   // WebSockets (/api/scene/socket): Studio's own pages
+const listeners = new Set<ServerResponse>(); // server-sent events (/api/scene/events): the Stream Deck plugin
+const sockets = new Set<Duplex>();   // WebSockets (/api/scene/socket): Studio's own pages
 // The scoreboard over the same socket, for the pages that asked for it ({"subscribe":"board"}): the
 // scoreboard, the control page, the goals and the countdown follow it instead of polling. server.js
 // gives boardSource (the scoreboard's JSON) and calls publishBoard when the board may have changed.
-const boardSockets = new Set();
-let boardSource = null;
+const boardSockets = new Set<Duplex>();
+let boardSource: (() => Body) | null = null;
 // The switcher (switcher.js) the same way, for the pages that asked ({"subscribe":"switcher"}): the Output page.
-const switcherSockets = new Set();
-let switcherSource = null;
-function switcherFrame(json) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'switcher', switcher: json }))); }
-function setSwitcherSource(fn) { switcherSource = fn; }
+const switcherSockets = new Set<Duplex>();
+let switcherSource: (() => unknown) | null = null;
+function switcherFrame(json: unknown) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'switcher', switcher: json }))); }
+function setSwitcherSource(fn: () => unknown) { switcherSource = fn; }
 function publishSwitcher() {
   if (!switcherSource || !switcherSockets.size) return;
   const frame = switcherFrame(switcherSource());
@@ -188,9 +223,9 @@ function publishSwitcher() {
 }
 let lastBoardKey = '';
 // recorder.js, for the game recording: the scene and the board as they're sent (init's record).
-let recordApi = null;
-function boardFrame(json) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'board', board: json }))); }
-function setBoardSource(fn) { boardSource = fn; }
+let recordApi: RecordApi | null = null;
+function boardFrame(json: unknown) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'board', board: json }))); }
+function setBoardSource(fn: () => Body) { boardSource = fn; }
 function publishBoard() {
   if (replayBoardJson) return; // a replay's board is on the pages (replayBoard)
   if (!boardSource || (!boardSockets.size && !recordApi)) return;
@@ -204,15 +239,15 @@ function publishBoard() {
   for (const s of boardSockets) s.write(frame);
 }
 
-const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+const clamp = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 // The name used in Stream Deck links: "Up Next" is /deck/layer/up-next/on.
-const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const slug = (s: unknown) => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const newId = () => Math.random().toString(36).slice(2, 10);
 
 // A browser source's address: a Studio page ("scoreboard.html?position=top-center") or a full http(s) link.
 // A browser source's address: one of Studio's own pages (a relative link, or a full one on localhost
 // made relative) or an http(s) page elsewhere. Anything else (javascript:, data:, file:) is dropped.
-function cleanUrl(u) {
+function cleanUrl(u: unknown) {
   const s = String(u || '').trim().replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i, '');
   let parsed;
   try { parsed = new URL(s, 'http://studio.invalid/'); } catch { return ''; }
@@ -222,27 +257,27 @@ function cleanUrl(u) {
   if (/^[\\/]{2}/.test(s)) return '';
   return s.replace(/^\/+/, '');
 }
-const cleanFile = f => path.basename(String(f || ''));
+const cleanFile = (f: unknown) => path.basename(String(f || ''));
 
-function uniqueName(name, id) {
+function uniqueName(name: unknown, id: string) {
   const base = String(name || '').trim().slice(0, 60) || 'Source';
   const taken = new Set(scene.sources.filter(s => s.id !== id).map(s => slug(s.name)));
   if (!taken.has(slug(base)) && slug(base)) return base;
   for (let i = 2; ; i++) if (!taken.has(slug(`${base} ${i}`))) return `${base} ${i}`;
 }
 
-function defaultName(src) {
+function defaultName(src: Source) {
   if (src.type !== 'browser') return path.basename(src.file || (src.type === 'video' ? 'Video' : 'Image'), path.extname(src.file || ''));
-  const page = String(src.url || '').split(/[?#]/)[0].split('/').pop().replace(/\.html?$/i, '');
+  const page = (String(src.url || '').split(/[?#]/)[0].split('/').pop() || '').replace(/\.html?$/i, '');
   const words = page.replace(/[-_]+/g, ' ').trim();
   return words ? words[0].toUpperCase() + words.slice(1) : 'Browser';
 }
 
 // Fills in and tidies every setting, so a hand-edited or older scene.json is always usable.
-function clean(src, existing = {}) {
-  const s = { ...existing, ...src };
-  const type = TYPES.includes(s.type) ? s.type : 'browser';
-  const out = {
+function clean(given: unknown, existing: Partial<Source> = {}): Source {
+  const s: Body = { ...existing, ...obj(given) };
+  const type = TYPES.find(t => t === s.type) || 'browser';
+  const out: Source = {
     id: String(existing.id || s.id || newId()).replace(/[^a-z0-9]/gi, '').slice(0, 20) || newId(),
     type,
     name: '',
@@ -255,7 +290,7 @@ function clean(src, existing = {}) {
     showSeq: Math.round(clamp(s.showSeq, 0, 1e9, 0)),
     // On for each output besides the primary, and (not saved) each output's showSeq, as showSeq is the primary's.
     out: cleanOut(s.out),
-    outSeq: { ...(s.outSeq && typeof s.outSeq === 'object' ? s.outSeq : {}) },
+    outSeq: Object.fromEntries(Object.entries(obj(s.outSeq)).map(([k, v]) => [k, Number(v) || 0])),
   };
   if (type === 'browser') {
     out.url = cleanUrl(s.url) || 'scoreboard.html';
@@ -277,13 +312,13 @@ function clean(src, existing = {}) {
 }
 
 const OUTPUT_ID = /^[a-z0-9]{1,20}$/i;
-function cleanOut(o) {
-  const out = {};
-  for (const [k, v] of Object.entries(o && typeof o === 'object' ? o : {})) if (v === true && OUTPUT_ID.test(k) && k !== PRIMARY) out[k] = true;
+function cleanOut(o: unknown) {
+  const out: Record<string, true> = {};
+  for (const [k, v] of Object.entries(obj(o))) if (v === true && OUTPUT_ID.test(k) && k !== PRIMARY) out[k] = true;
   return out;
 }
 
-function uniqueSceneName(name, id) {
+function uniqueSceneName(name: unknown, id: string) {
   const base = String(name || '').trim().slice(0, 60) || 'Scene';
   const taken = new Set([...RESERVED, ...scene.scenes.filter(s => s.id !== id).map(s => slug(s.name))]);
   if (!taken.has(slug(base)) && slug(base)) return base;
@@ -291,15 +326,15 @@ function uniqueSceneName(name, id) {
 }
 
 // A scene: its name, colour group (its place in the Output page's list), and on or off for each source it sets (by source id).
-function cleanScene(sc, existing = {}) {
-  const s = { ...existing, ...sc };
+function cleanScene(given: unknown, existing: Partial<Scene> = {}): Scene {
+  const s: Body = { ...existing, ...obj(given) };
   const ids = new Set(scene.sources.map(x => x.id));
-  const states = {};
-  for (const [id, v] of Object.entries(s.states && typeof s.states === 'object' ? s.states : {})) if (ids.has(id) && STATES.includes(v)) states[id] = v;
-  const out = {
+  const states: Record<string, string> = {};
+  for (const [id, v] of Object.entries(obj(s.states))) if (ids.has(id) && typeof v === 'string' && STATES.includes(v)) states[id] = v;
+  const out: Scene = {
     id: String(existing.id || s.id || newId()).replace(/[^a-z0-9]/gi, '').slice(0, 20) || newId(),
     name: '',
-    colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
+    colour: typeof s.colour === 'string' && COLOURS.includes(s.colour) ? s.colour : 'blue',
     states,
     quiet: !!s.quiet,  // Ducks the music when this scene is picked (an interview on court); the key keeps its old name
   };
@@ -311,20 +346,20 @@ function cleanScene(sc, existing = {}) {
 }
 
 // What's on and off now, for every source.
-const liveStates = out => Object.fromEntries(scene.sources.map(s => [s.id, isOn(s, out) ? 'on' : 'off']));
+const liveStates = (out: string | null) => Object.fromEntries(scene.sources.map(s => [s.id, isOn(s, out) ? 'on' : 'off']));
 
-function findScene(ref) {
+function findScene(ref: unknown) {
   const r = String(ref || '');
   return scene.scenes.find(s => s.id === r) || scene.scenes.find(s => slug(s.name) === slug(r)) || null;
 }
 // The current scene on an output (null: the primary).
-const currentScene = (out = null) => scene.scenes.find(s => s.id === (out ? scene.currentOut[out] : scene.current)) || null;
-function setCurrent(out, id) {
+const currentScene = (out: string | null = null) => scene.scenes.find(s => s.id === (out ? scene.currentOut[out] : scene.current)) || null;
+function setCurrent(out: string | null, id: string | null) {
   if (out) { if (id) scene.currentOut[out] = id; else delete scene.currentOut[out]; } else scene.current = id;
 }
 
 // The sources that differ from the current scene's saved state, on an output (null: the primary).
-function changed(out = null) {
+function changed(out: string | null = null) {
   const cur = currentScene(out);
   if (!cur) return [];
   const done = endedOf(out);
@@ -340,7 +375,7 @@ function changed(out = null) {
 // Picking a scene stops a playing sequence, unless it's the sequence's own Then going there.
 // A sequence's scene step (step) leaves the music alone unless the scene quiets it. out: the output it's
 // set on, null for the primary.
-function goTo(sc, fromSequence, step, out = null) {
+function goTo(sc: Scene, fromSequence: boolean, step: boolean, out: string | null = null) {
   if (!fromSequence) sequences.beforeScene(sc, out || PRIMARY);
   let on = 0, off = 0;
   for (const s of scene.sources) {
@@ -361,15 +396,15 @@ function goTo(sc, fromSequence, step, out = null) {
 
 function load() {
   try {
-    const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    const saved = obj(JSON.parse(fs.readFileSync(FILE, 'utf8')));
     scene = { sources: [], scenes: [], current: null, currentOut: {} };
-    for (const s of Array.isArray(saved.sources) ? saved.sources : []) scene.sources.push(clean(s));
-    for (const sc of Array.isArray(saved.scenes) ? saved.scenes : []) if (sc && typeof sc === 'object') scene.scenes.push(cleanScene(sc));
-    scene.current = scene.scenes.some(sc => sc.id === saved.current) ? saved.current : null;
-    for (const [o, id] of Object.entries(saved.currentOut && typeof saved.currentOut === 'object' ? saved.currentOut : {})) {
-      if (OUTPUT_ID.test(o) && o !== PRIMARY && scene.scenes.some(sc => sc.id === id)) scene.currentOut[o] = id;
+    for (const s of arr(saved.sources)) scene.sources.push(clean(s));
+    for (const sc of arr(saved.scenes)) if (isObj(sc)) scene.scenes.push(cleanScene(sc));
+    scene.current = scene.scenes.some(sc => sc.id === saved.current) ? str(saved.current) : null;
+    for (const [o, id] of Object.entries(obj(saved.currentOut))) {
+      if (OUTPUT_ID.test(o) && o !== PRIMARY && typeof id === 'string' && scene.scenes.some(sc => sc.id === id)) scene.currentOut[o] = id;
     }
-    ended = new Set((Array.isArray(saved.ended) ? saved.ended : []).filter(id => scene.sources.some(s => s.id === id)));
+    ended = new Set(arr(saved.ended).filter((id): id is string => typeof id === 'string' && scene.sources.some(s => s.id === id)));
     wasOn = new Set(scene.sources.filter(s => s.visible).map(s => s.id));
   } catch (err) {
     if (errorCode(err) !== 'ENOENT') log('warn', 'scene', `Could not read scene.json, starting with an empty scene: ${errorMessage(err)}`);
@@ -398,7 +433,7 @@ function notify() {
   if (recordApi) recordApi.scene(st, json);
   if (!replayState) broadcast(json);
 }
-function broadcast(json) {
+function broadcast(json: string) {
   const body = `data: ${json}\n\n`;
   for (const res of listeners) res.write(body);
   const frame = wsFrame(1, Buffer.from(json));
@@ -408,12 +443,12 @@ function broadcast(json) {
 // A 4K replay (replay.js) puts a recorded scene and board on the pages instead of the live ones: replay(state)
 // sends one, replay(null) the live scene again; replayBoard(json) and replayBoard(null) the same for the board.
 // The live scene goes on changing underneath (saved as ever), just not shown while a replay runs.
-let replayState = null, replayBoardJson = null;
-function replay(st) {
+let replayState: unknown = null, replayBoardJson: unknown = null;
+function replay(st: unknown) {
   replayState = st || null;
   broadcast(JSON.stringify(replayState || state()));
 }
-function replayBoard(json) {
+function replayBoard(json: unknown) {
   replayBoardJson = json || null;
   lastBoardKey = '';
   if (replayBoardJson) { const frame = boardFrame(replayBoardJson); for (const s of boardSockets) s.write(frame); }
@@ -427,7 +462,7 @@ const replaying = () => !!replayState;
 // outputs) holding one used them up, so a click's request waited until a page closed. WebSockets
 // don't count towards that. Just enough of the protocol for this: the server sends the scene as text,
 // answers pings and closes.
-function wsFrame(opcode, payload) {
+function wsFrame(opcode: number, payload: Buffer) {
   const n = payload.length;
   const head = n < 126 ? Buffer.from([0x80 | opcode, n])
     : n < 65536 ? Buffer.from([0x80 | opcode, 126, n >> 8, n & 255])
@@ -439,12 +474,12 @@ function wsFrame(opcode, payload) {
 const WS_MAX_IN = 64 * 1024;
 
 // The http server's 'upgrade' event for /api/scene/socket: true when taken.
-function upgrade(req, socket) {
+function upgrade(req: IncomingMessage, socket: Duplex & { setNoDelay?(on: boolean): void }) {
   const key = req.headers['sec-websocket-key'];
-  if (new URL(req.url, 'http://localhost').pathname !== '/api/scene/socket' || !key) return false;
+  if (new URL(req.url || '/', 'http://localhost').pathname !== '/api/scene/socket' || !key) return false;
   const accept = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
   socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
-  socket.setNoDelay(true);
+  socket.setNoDelay?.(true);
   sockets.add(socket);
   const drop = () => { sockets.delete(socket); boardSockets.delete(socket); switcherSockets.delete(socket); socket.destroy(); };
   socket.on('close', drop);
@@ -454,7 +489,7 @@ function upgrade(req, socket) {
   // frame, isn't one of Studio's pages: it's closed (1009, too big) rather than held in memory.
   let pending = Buffer.alloc(0);
   const tooBig = () => { const code = Buffer.alloc(2); code.writeUInt16BE(1009); socket.end(wsFrame(8, code)); drop(); };
-  socket.on('data', chunk => {
+  socket.on('data', (chunk: Buffer) => {
     pending = Buffer.concat([pending, chunk]);
     if (pending.length > WS_MAX_IN + 14) return tooBig();
     while (pending.length >= 2) {
@@ -473,10 +508,10 @@ function upgrade(req, socket) {
       if (opcode === 8) { socket.end(wsFrame(8, Buffer.alloc(0))); sockets.delete(socket); return; }
       if (opcode === 9) socket.write(wsFrame(10, payload));
       if (opcode === 1) { // a text frame from the page: what it wants besides the scene
-        let msg = null;
-        try { msg = JSON.parse(payload.toString()); } catch { /* not for us */ }
-        if (msg && msg.subscribe === 'board' && boardSource) { boardSockets.add(socket); socket.write(boardFrame(replayBoardJson || boardSource())); }
-        if (msg && msg.subscribe === 'switcher' && switcherSource) { switcherSockets.add(socket); socket.write(switcherFrame(switcherSource())); }
+        let msg: Body = {};
+        try { msg = obj(JSON.parse(payload.toString())); } catch { /* not for us */ }
+        if (msg.subscribe === 'board' && boardSource) { boardSockets.add(socket); socket.write(boardFrame(replayBoardJson || boardSource())); }
+        if (msg.subscribe === 'switcher' && switcherSource) { switcherSockets.add(socket); socket.write(switcherFrame(switcherSource())); }
       }
     }
   });
@@ -488,7 +523,7 @@ function state() {
   // The mics dip under the music and a video's sound (mics.js): brought up to date whenever the scene is read.
   mics.follow(music.state().music, videoOn());
   // The other outputs' current scenes and changes by output id.
-  const currentOut = {}, changedOut = {};
+  const currentOut: Record<string, string> = {}, changedOut: Record<string, string[]> = {};
   for (const o of outputsApi.summary?.() || []) {
     if (o.id === PRIMARY) continue;
     const cur = currentScene(o.id);
@@ -501,38 +536,39 @@ function state() {
     converting: [...converting.keys()], ...sequences.state(), ...music.state(), ...mics.state() };
 }
 
-function find(ref) {
+function find(ref: unknown) {
   const r = String(ref || '');
   return scene.sources.find(s => s.id === r) || scene.sources.find(s => slug(s.name) === slug(r)) || null;
 }
 
 // One change to the scene, from the Output page or the Stream Deck. Returns an error or null.
-function apply(a) {
-  const error = change(a);
+function apply(given: unknown): string | null {
+  const a = obj(given);
+  const error = change({ ...a, type: str(a.type) });
   noteShowings();
   return error;
 }
 // A change Studio makes by itself (the Production Planner loading a game's run order, server.js): made, saved and
 // sent to the pages like one from the Output page. Returns the error, or null.
-function act(a) {
+function act(a: Act) {
   const error = apply(a);
   if (!error) save();
   return error;
 }
 // Music gets out of the way while a video with its sound on plays, or a page playing a theme song (the intro and outro's
 // ?theme=; its effects alone don't count), on an output the music plays on.
-const playsTheme = s => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
+const playsTheme = (s: Source) => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
 // A stinger with ?music=quiet or duck ducks the music as it comes on, by the time it covers the frame (0.22 of its length);
 // duck (dip, its old name, still works) brings it back up when it goes off. It's set on the Switcher card (Music under it)
 // or in the source's options, and goes by the output the stinger plays on (switcher.js stingerOutput: the one on a
 // downstream key, Output 1 unless another that's on is), so it works on a night Output 1 is off.
-const isStinger = s => s.type === 'browser' && /^\/?stinger\.html(\?|$)/.test(String(s.url || ''));
-function stingerMusic(s, on) {
+const isStinger = (s: Source) => s.type === 'browser' && /^\/?stinger\.html(\?|$)/.test(String(s.url || ''));
+function stingerMusic(s: Source, on: boolean) {
   if (!isStinger(s)) return;
   const q = new URLSearchParams(String(s.url).split('?')[1] || '');
   const mode = q.get('music') === 'duck' ? 'dip' : q.get('music');
   if (mode !== 'quiet' && mode !== 'dip') return;
-  const length = Math.min(3, Math.max(.5, parseFloat(q.get('length')) || 1));
+  const length = Math.min(3, Math.max(.5, parseFloat(q.get('length') || '') || 1));
   music.stinger(mode, on, Math.max(.2, .22 * length));
 }
 // A video with its sound on (or a page playing a theme song) showing on the primary, where the music and mics are.
@@ -543,7 +579,7 @@ const videoOn = () => {
 function videoSound() { music.videoSound(videoOn()); }
 // The output the stinger plays on: null for the primary, else its id.
 function stingerOut() {
-  let o;
+  let o: string;
   try { o = switcher.stingerOutput().id; } catch { o = PRIMARY; }
   return o && o !== PRIMARY && outputsApi.find(o) ? o : null;
 }
@@ -559,15 +595,15 @@ function noteShowings() {
   for (const s of scene.sources) for (const o of Object.keys(s.out)) if (!wasOnOut.has(`${s.id}|${o}`)) s.outSeq[o] = (s.outSeq[o] || 0) + 1;
   wasOnOut = new Set(scene.sources.flatMap(s => Object.keys(s.out).map(o => `${s.id}|${o}`)));
 }
-let wasOnOut = new Set();
+let wasOnOut = new Set<string>();
 // When each output's showing of a video began (playAt { [output]: ms }, not saved), from the top again on a
 // restart: a page that opens part way through, like a Scene View, joins it where the output has got to. Brought up
 // to date as the scene is sent (notify), whatever changed it.
-const playWas = new Map(); // `${id}|${output}` → the loadSeq and showing playAt was set for
+const playWas = new Map<string, string>(); // `${id}|${output}` → the loadSeq and showing playAt was set for
 function notePlays() {
   for (const s of scene.sources) {
     if (s.type !== 'video') continue;
-    const at = {};
+    const at: Record<string, number> = {};
     for (const o of [PRIMARY, ...Object.keys(s.out)]) {
       const key = `${s.id}|${o}`;
       if (!isOn(s, o === PRIMARY ? null : o)) { playWas.delete(key); continue; }
@@ -581,14 +617,14 @@ function notePlays() {
 
 // For switcher.js's stinger cuts: the scene's stinger (a stinger.html source; ref is its id or name, else the
 // first), and playing it from the top on an output (the primary unless output names another; reloaded if it's on there already).
-function stingerSource(ref) {
+function stingerSource(ref?: unknown) {
   const list = scene.sources.filter(isStinger);
   const r = String(ref || '');
   return (r && (list.find(s => s.id === r) || list.find(s => slug(s.name) === slug(r)))) || (r ? null : list[0]) || null;
 }
 // The stinger on an output (the primary when left out). Already on there, it's restarted: that reloads it in every window, so a copy left on Output 1 replays too (its
 // report is no cue to cut, as the switcher only listens to the stinger's own output).
-function playStinger(id, output) {
+function playStinger(id: string, output?: string | null) {
   const s = scene.sources.find(x => x.id === id);
   if (!s) return false;
   const out = output && output !== PRIMARY ? output : null;
@@ -600,13 +636,13 @@ function playStinger(id, output) {
 
 // The output a change is for: null for the primary (the source's own visible), an output's id for one of
 // the others, or undefined if there's no such output.
-function outputOf(a) {
+function outputOf(a: Act) {
   if (a.output === undefined || a.output === null || a.output === '' || a.output === PRIMARY) return null;
   const o = outputsApi.find(String(a.output));
   return !o ? undefined : o.id === PRIMARY ? null : o.id;
 }
 // A change to one source on an output other than the primary: on, off, toggle, ended (hides it there).
-function changeOnOutput(a, src, out) {
+function changeOnOutput(a: Act, src: Source, out: string) {
   if (a.type === 'ended') {
     const seq = src.outSeq[out] || 0;
     if (!src.out[out] || Number(a.loadSeq) !== src.loadSeq || (a.showSeq !== undefined && Number(a.showSeq) !== seq)) return null;
@@ -625,23 +661,25 @@ function changeOnOutput(a, src, out) {
   if (!on) sequences.turnedOff(src, out);
   return null;
 }
-const outputName = id => outputsApi.summary?.().find(o => o.id === id)?.name || 'another output';
+const outputName = (id: string) => outputsApi.summary?.().find(o => o.id === id)?.name || 'another output';
 // An output was removed: nothing is on for it any more.
-function dropOutput(id) {
+function dropOutput(id: string) {
   let any = false;
   sequences.dropOutput(id);
   for (const s of scene.sources) if (s.out[id]) { delete s.out[id]; delete s.outSeq[id]; any = true; }
   if (scene.currentOut[id]) { delete scene.currentOut[id]; any = true; }
   endedOut.delete(id);
   // Its own ad sources go with it.
-  for (const kind of Object.keys(AD_SOURCES)) if (find(adSourceId(kind, id))) { change({ type: 'remove', id: adSourceId(kind, id) }); any = true; }
+  for (const kind of Object.keys(AD_SOURCES) as AdKind[]) if (find(adSourceId(kind, id))) { change({ type: 'remove', id: adSourceId(kind, id) }); any = true; }
   if (any) { noteShowings(); save(); }
 }
-function change(a) {
-  const src = a.id || a.name ? find(a.id || a.name) : null;
-  const need = () => src ? null : `No source "${a.id || a.name || ''}" in the scene.`;
+function change(a: Act): string | null {
+  const found = a.id || a.name ? find(a.id || a.name) : null;
+  const need = () => found ? null : `No source "${str(a.id || a.name)}" in the scene.`;
+  // The cases that need the source check need() first.
+  const src = found || scene.sources[0];
   const out = outputOf(a);
-  if (out === undefined) return `No output "${a.output}".`;
+  if (out === undefined) return `No output "${str(a.output)}".`;
   if (out && ['show', 'hide', 'toggle', 'ended'].includes(a.type)) return need() || changeOnOutput(a, src, out);
   if (out && a.type === 'hideAll') {
     sequences.allOff(out);
@@ -659,7 +697,7 @@ function change(a) {
     case 'add': {
       // One source (source) or several (sources, top first). New sources go on top, or just
       // above the source named by before (the one selected on the Output page).
-      const list = (Array.isArray(a.sources) ? a.sources : [a.source]).filter(Boolean).slice(0, 100).map(x => clean({ ...x, visible: false }));
+      const list = (Array.isArray(a.sources) ? a.sources : [a.source]).filter(Boolean).slice(0, 100).map(x => clean({ ...obj(x), visible: false }));
       if (!list.length) return 'Nothing to add.';
       const above = a.before ? find(a.before) : null;
       scene.sources.splice(above ? scene.sources.indexOf(above) : 0, 0, ...list);
@@ -671,7 +709,7 @@ function change(a) {
     case 'update': {
       if (need()) return need();
       const i = scene.sources.indexOf(src);
-      const { id, type, loadSeq, showSeq, ...changes } = a.changes || {};
+      const { id, type, loadSeq, showSeq, ...changes } = obj(a.changes);
       scene.sources[i] = clean(changes, src);
       return null;
     }
@@ -744,14 +782,16 @@ const orderedScenes = () => [...scene.scenes].sort(sequences.byColour);
 
 // Changes to the scenes, and going to one. a.scene names the scene by id or name.
 // a.output: the output (null for the primary) it's done on: Go, Again, Next, Previous, and saving what's on.
-function applyScene(a) {
-  const sc = a.scene ? findScene(a.scene) : null;
-  const need = () => sc ? null : `No scene "${a.scene || ''}".`;
-  const out = a.output || null;
+function applyScene(a: Act): string | null {
+  const found = a.scene ? findScene(a.scene) : null;
+  const need = () => found ? null : `No scene "${str(a.scene)}".`;
+  // The cases that need the scene check need() first.
+  const sc = found || scene.scenes[0];
+  const out = str(a.output) || null;
   switch (a.type) {
     case 'sceneSave': {
       // A new scene from what's on now (it becomes the current scene), or from the states given, at the end of the list.
-      const made = cleanScene({ name: a.name, colour: a.colour, states: a.states || liveStates(out) }, { id: newId() });
+      const made = cleanScene({ name: a.name, colour: a.colour, states: isObj(a.states) ? a.states : liveStates(out) }, { id: newId() });
       scene.scenes.push(made);
       if (!a.states) { setCurrent(out, made.id); clearEnded(out); }
       log('info', 'scene', `Saved scene "${made.name}"`);
@@ -760,9 +800,9 @@ function applyScene(a) {
     case 'sceneUpdate': {
       // Name, colour, and states: 'on', 'off' or 'leave' for each source changed.
       if (need()) return need();
-      const { id, ...changes } = a.changes || {};
-      const states = { ...sc.states };
-      for (const [k, v] of Object.entries(changes.states || {})) if (v === 'leave') delete states[k]; else states[k] = v;
+      const { id, ...changes } = obj(a.changes);
+      const states: Record<string, unknown> = { ...sc.states };
+      for (const [k, v] of Object.entries(obj(changes.states))) if (v === 'leave') delete states[k]; else states[k] = v;
       scene.scenes[scene.scenes.indexOf(sc)] = cleanScene({ ...changes, states }, sc);
       return null;
     }
@@ -811,15 +851,17 @@ function applyScene(a) {
       // Stops at the ends, from the output's current scene. With no current scene, Next goes to the first and Previous to the last.
       const list = orderedScenes();
       if (!list.length) return 'There are no scenes.';
-      const i = list.indexOf(currentScene(out));
+      const now = currentScene(out);
+      const i = now ? list.indexOf(now) : -1;
       const to = i < 0 ? (a.type === 'sceneNext' ? 0 : list.length - 1) : i + (a.type === 'sceneNext' ? 1 : -1);
       if (to >= 0 && to < list.length) goTo(list[to], false, false, out);
       return null;
     }
     default: {
-      let error = sequences.apply(a);
-      if (error === undefined) error = music.apply(a);
-      if (error === undefined) error = mics.apply(a);
+      const asked: Act = { ...a, output: a.output ?? undefined };
+      let error = sequences.apply(asked);
+      if (error === undefined) error = music.apply(asked);
+      if (error === undefined) error = mics.apply(asked);
       return error === undefined ? `Unknown scene change "${a.type}".` : error;
     }
   }
@@ -828,7 +870,7 @@ function applyScene(a) {
 // /deck/layer/<name>/on|off|toggle|restart, /deck/layer/<name>/sound/on|off|toggle,
 // /deck/layers/off and /deck/scene/<name>|next|prev|again. Returns null when the link
 // isn't a scene link, so the scoreboard's own links carry on as before.
-function deck(parts, q = {}) {
+function deck(parts: string[], q: Query = {}): DeckOut {
   // /deck/output/<output>/layer/... and /deck/output/<output>/layers/off: one output's sources. The
   // primary's are the plain /deck/layer/... links.
   if (parts[0] === 'output' && ['layer', 'layers', 'scene', 'sequence', 'runorder'].includes(parts[2])) {
@@ -839,7 +881,7 @@ function deck(parts, q = {}) {
     // (the run order is Output 1's: a /deck/output/<output>/runorder/... link answers 404 saying so)
     if (parts[2] === 'scene') {
       if (!parts[3] || parts.length !== 4) return { status: 404, body: { error: `Use /deck/output/${parts[1]}/scene/<name>, next, prev or again.` } };
-      const type = { next: 'sceneNext', prev: 'scenePrev', previous: 'scenePrev', again: 'sceneAgain' }[parts[3]];
+      const type = ({ next: 'sceneNext', prev: 'scenePrev', previous: 'scenePrev', again: 'sceneAgain' } as Record<string, string>)[parts[3]];
       const error = apply(type ? { type, output: o.id } : { type: 'sceneGo', scene: parts[3], output: o.id });
       if (error) return { status: 404, body: { error } };
       save();
@@ -849,14 +891,14 @@ function deck(parts, q = {}) {
     if (parts[2] === 'sequence' || parts[2] === 'runorder') {
       const r = sequences.deck(parts.slice(2), o.id);
       if (!r) return null;
-      if (r.error) return { status: r.status, body: { error: r.error } };
+      if (r.error) return { status: r.status || 400, body: { error: r.error } };
       save();
       return { status: 200, body: { ...r.body, output: outputName(o.id) } };
     }
     const [, , w, n, v] = parts;
-    let action = null;
+    let action: Act | null = null;
     if (w === 'layers' && n === 'off' && parts.length === 4) action = { type: 'hideAll', output: o.id };
-    const type = { on: 'show', show: 'show', off: 'hide', hide: 'hide', toggle: 'toggle' }[v];
+    const type = ({ on: 'show', show: 'show', off: 'hide', hide: 'hide', toggle: 'toggle' } as Record<string, string>)[v];
     if (w === 'layer' && n && type && parts.length === 5) action = { type, name: n, output: o.id };
     if (w === 'layer' && n && (v === 'restart' || v === 'reload') && parts.length === 5) action = { type: 'restart', name: n };
     if (!action) return { status: 404, body: { error: `Use /deck/output/${parts[1]}/layer/<source>/on, off, toggle or restart, or /deck/output/${parts[1]}/layers/off.` } };
@@ -869,14 +911,15 @@ function deck(parts, q = {}) {
   const [what, name, verb] = parts;
   if (what === 'mics' || what === 'mic') {
     const r = mics.deck(parts, q);
-    if (r.error) return { status: r.status, body: { error: r.error } };
+    if (!r) return null;
+    if (r.error) return { status: r.status || 400, body: { error: r.error } };
     notify();
     return { status: 200, body: r.body };
   }
   if (what === 'music') {
     const r = music.deck(parts, q);
     if (!r) return null;
-    if (r.error) return { status: r.status, body: { error: r.error } };
+    if (r.error) return { status: r.status || 400, body: { error: r.error } };
     notify();
     return { status: 200, body: r.body };
   }
@@ -886,11 +929,13 @@ function deck(parts, q = {}) {
     const ad = sponsorAd({ house: false });
     if (!ad) return { status: 404, body: { error: 'No sponsor of the competition in use has an ad to play. Add ads on the Sponsors page.' } };
     const src = find(ad.source);
+    if (!src) return { status: 404, body: { error: 'The Sponsor ad source has gone.' } };
     if (src.visible) { src.loadSeq++; soundDone.delete(src.id); } else apply({ type: 'show', id: src.id });
-    if (ad.length.type === 'time') {
+    const len = ad.length;
+    if (len.type === 'time') {
       clearTimeout(stillTimer);
       const file = src.file, load = src.loadSeq;
-      stillTimer = setTimeout(() => { if (src.visible && src.file === file && src.loadSeq === load) { apply({ type: 'hide', id: src.id }); save(); } }, ad.length.sec * 1000);
+      stillTimer = setTimeout(() => { if (src.visible && src.file === file && src.loadSeq === load) { apply({ type: 'hide', id: src.id }); save(); } }, len.sec * 1000);
     }
     save();
     return { status: 200, body: { ok: true, sponsor: ad.name, source: src.name } };
@@ -898,20 +943,20 @@ function deck(parts, q = {}) {
   if (what === 'sequence' || what === 'runorder') {
     const r = sequences.deck(parts);
     if (!r) return null;
-    if (r.error) return { status: r.status, body: { error: r.error } };
+    if (r.error) return { status: r.status || 400, body: { error: r.error } };
     save();
     return { status: 200, body: r.body };
   }
-  let action = null;
+  let action: Act | null = null;
   if (what === 'layers' && name === 'off') action = { type: 'hideAll' };
   if (what === 'scene' && name && !verb) {
-    action = { next: { type: 'sceneNext' }, prev: { type: 'scenePrev' }, previous: { type: 'scenePrev' }, again: { type: 'sceneAgain' } }[name]
+    action = ({ next: { type: 'sceneNext' }, prev: { type: 'scenePrev' }, previous: { type: 'scenePrev' }, again: { type: 'sceneAgain' } } as Record<string, Act>)[name]
       || { type: 'sceneGo', scene: name };
   }
   if (what === 'layer' && name) {
-    const type = { on: 'show', show: 'show', off: 'hide', hide: 'hide', toggle: 'toggle', restart: 'restart', reload: 'restart' }[verb];
+    const type = ({ on: 'show', show: 'show', off: 'hide', hide: 'hide', toggle: 'toggle', restart: 'restart', reload: 'restart' } as Record<string, string>)[verb];
     if (type) action = { type, name };
-    const sound = { on: 'soundOn', off: 'soundOff', toggle: 'soundToggle' }[parts[3]];
+    const sound = ({ on: 'soundOn', off: 'soundOff', toggle: 'soundToggle' } as Record<string, string>)[parts[3]];
     if (verb === 'sound' && sound) action = { type: sound, name };
   }
   if (!action) return null;
@@ -927,8 +972,8 @@ function deck(parts, q = {}) {
 }
 
 // ─── Media folder ─────────────────────────────────────────────────────────
-const converting = new Map(); // .mov file -> its WebM, while ffmpeg runs
-const opaque = new Map(); // .mov file -> its video codec, when it had no transparency to keep
+const converting = new Map<string, string>(); // .mov file -> its WebM, while ffmpeg runs
+const opaque = new Map<string, string>(); // .mov file -> its video codec, when it had no transparency to keep
 // Pixel formats that carry alpha, as ffmpeg names them (ProRes 4444 with alpha is yuva444p12le).
 const HAS_ALPHA = /^(yuva|gbrap|ya\d)|rgba|argb|bgra|abgr|ayuv/;
 let ffmpegSetting = '';
@@ -936,20 +981,21 @@ let ffmpegSetting = '';
 // ffmpeg from config.json's ffmpegPath, else the one the Mac app bundles (vendor/ffmpeg,
 // built by vendor/ffmpeg/build.sh), else Homebrew's, else the PATH.
 const BUNDLED_FFMPEG = unpacked(path.join(APP_DIR, 'vendor', 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'));
-function ffmpegPath() {
+function ffmpegPath(): string | null {
   const candidates = [ffmpegSetting, BUNDLED_FFMPEG, '/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg',
     ...String(process.env.PATH || '').split(path.delimiter).map(d => path.join(d, 'ffmpeg'))];
   return candidates.find(c => { try { return c && fs.statSync(c).isFile(); } catch { return false; } }) || null;
 }
-const webmFor = f => path.basename(f, path.extname(f)) + '.webm';
+const webmFor = (f: string) => path.basename(f, path.extname(f)) + '.webm';
 
 // How long each video is, in seconds, from ffmpeg (null until it's been measured). A sequence's
 // Until it finishes step waits that long at most, and the Output page shows it. The same reading gives a video's
 // picture size, for the Output page's list of what looks soft in 4K (videoSizes).
-const durations = new Map(); // file -> { mtimeMs, sec, width, height } (sec null while measuring or if ffmpeg couldn't tell)
-function duration(name) {
+const durations = new Map<string, { mtimeMs: number; sec: number | null; width?: number; height?: number }>(); // file -> { mtimeMs, sec, width, height } (sec null while measuring or if ffmpeg couldn't tell)
+function duration(name: string | undefined): number | null {
+  if (!name) return null;
   const file = path.join(MEDIA_DIR, cleanFile(name));
-  let mtimeMs;
+  let mtimeMs: number;
   try { mtimeMs = fs.statSync(file).mtimeMs; } catch { return null; }
   const known = durations.get(name);
   if (known && known.mtimeMs === mtimeMs) return known.sec;
@@ -957,7 +1003,7 @@ function duration(name) {
   if (!bin) return null;
   durations.set(name, { mtimeMs, sec: null });
   let out = '';
-  const child = require('child_process').spawn(bin, ['-hide_banner', '-i', file], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn(bin, ['-hide_banner', '-i', file], { stdio: ['ignore', 'ignore', 'pipe'] });
   child.stderr.on('data', d => { if (out.length < 20000) out += d; });
   child.on('error', () => {});
   child.on('close', () => {
@@ -971,11 +1017,11 @@ function duration(name) {
   return null;
 }
 
-function mediaList() {
-  let files = [];
+function mediaList(): Media[] {
+  let files: string[] = [];
   try { files = fs.readdirSync(MEDIA_DIR).filter(f => kindOf(f) && !f.startsWith('.')).sort((a, b) => a.localeCompare(b)); } catch { /* none yet */ }
   return files.map(name => {
-    const m = { name, kind: kindOf(name) };
+    const m: Media = { name, kind: kindOf(name) };
     try { m.size = fs.statSync(path.join(MEDIA_DIR, name)).size; } catch { /* just gone */ }
     if (m.kind === 'video' || m.kind === 'audio') m.duration = duration(name);
     if (m.kind === 'audio') {
@@ -996,14 +1042,14 @@ function mediaList() {
 // competition) whose music it is, the music player's playlists, super shot song and queue, and sponsors' ads.
 // onAir marks a use that's on screen or playing now, which stops it being removed.
 // A sequence names its track by file, or as a link spells it (music.js findTrack), which a file of that exact name wins.
-const sameTrack = (ref, file) => ref === file || (!fs.existsSync(path.join(MEDIA_DIR, cleanFile(ref))) && slug(String(ref).replace(/\.[^.]+$/, '')) === slug(file.replace(/\.[^.]+$/, '')));
+const sameTrack = (ref: string, file: string) => ref === file || (!fs.existsSync(path.join(MEDIA_DIR, cleanFile(ref))) && slug(String(ref).replace(/\.[^.]+$/, '')) === slug(file.replace(/\.[^.]+$/, '')));
 function sequenceFiles() {
-  const files = new Map([[sequences.file(), null], [datadir.file('sequences.json'), null]]);
+  const files = new Map<string | null, string | null>([[sequences.file(), null], [datadir.file('sequences.json'), null]]);
   for (const c of competitions.list()) files.set(path.join(competitions.DIR, c.id, 'sequences.json'), c.name);
-  return [...files].filter(([f]) => f);
+  return [...files].flatMap(([f, c]) => (f ? [[f, c] as const] : []));
 }
-function mediaUses(file) {
-  const uses = [];
+function mediaUses(file: string): Use[] {
+  const uses: Use[] = [];
   const ads = new Set(Object.values(AD_SOURCES).map(a => a.id));
   for (const s of scene.sources) {
     // The Sponsor ad sources hold whichever ad played last: only one on screen counts.
@@ -1017,13 +1063,14 @@ function mediaUses(file) {
   if (kindOf(file) === 'audio') {
     const seen = new Set();
     for (const [f, competition] of sequenceFiles()) {
-      let list = [];
-      try { list = JSON.parse(fs.readFileSync(f, 'utf8')).sequences || []; } catch { continue; }
-      for (const sq of list) {
-        const key = `${competition} ${sq.id}`;
-        if (sq && sq.music && sq.music.track && !sq.music.playlist && sameTrack(sq.music.track, file) && !seen.has(key)) {
+      let list: unknown[] = [];
+      try { list = arr(obj(JSON.parse(fs.readFileSync(f, 'utf8'))).sequences); } catch { continue; }
+      for (const v of list) {
+        const sq = obj(v), m = obj(sq.music);
+        const key = `${competition} ${str(sq.id)}`;
+        if (m.track && !m.playlist && sameTrack(str(m.track), file) && !seen.has(key)) {
           seen.add(key);
-          uses.push({ type: 'sequence', name: sq.name, ...(competition ? { competition } : {}) });
+          uses.push({ type: 'sequence', name: str(sq.name), ...(competition ? { competition } : {}) });
         }
       }
     }
@@ -1036,7 +1083,7 @@ function mediaUses(file) {
 // separately). Lists keeping it (playlists, the super shot song, sponsors' ads) let go of it; sources, page
 // themes and sequence music keep its name and show it as missing, so their settings and Stream Deck keys stay
 // for a replacement. Returns { error, status, uses } when it can't.
-function removeMedia(file, force) {
+function removeMedia(file: string, force?: boolean): { error?: string; status?: number; uses?: Use[] } {
   if (!file || file.startsWith('.') || !kindOf(file) || !fs.existsSync(path.join(MEDIA_DIR, file))) return { status: 404, error: `No ${file} in the media folder.` };
   if (converting.has(file) || [...converting.values()].includes(file)) return { status: 409, error: `${file} is still being converted. Try again once it's done.` };
   const uses = mediaUses(file);
@@ -1056,7 +1103,7 @@ function removeMedia(file, force) {
 }
 
 // Converts a .mov (ProRes 4444 keeps its transparency) to a VP9 WebM Chromium can play.
-function convert(name) {
+function convert(name: string) {
   const bin = ffmpegPath();
   if (!bin) { log('warn', 'scene', `Can't convert ${name}: no ffmpeg. The Mac app has its own; from a checkout run vendor/ffmpeg/build.sh or brew install ffmpeg, or set ffmpegPath in config.json`); return false; }
   if (converting.has(name)) return true;
@@ -1067,7 +1114,7 @@ function convert(name) {
   const args = ['-hide_banner', '-loglevel', 'info', '-nostats', '-y', '-i', path.join(MEDIA_DIR, name),
     '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '20', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2', '-auto-alt-ref', '0',
     '-c:a', 'libopus', '-b:a', '192k', '-f', 'webm', part];
-  const child = require('child_process').spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
   let errors = '', head = '';
   child.stderr.on('data', d => {
     if (head.length < 8000) head += d;
@@ -1078,7 +1125,7 @@ function convert(name) {
     const m = /Stream #\d+:\d+[^\n]*?: Video: (\w+)[^\n]*?, (\w+)[(,\s]/.exec(head);
     return m ? { codec: m[1], pixels: m[2] } : null;
   };
-  const finish = ok => {
+  const finish = (ok: boolean) => {
     converting.delete(name);
     if (ok) {
       try { fs.renameSync(part, path.join(MEDIA_DIR, out)); } catch (err) { errors = errorMessage(err); ok = false; }
@@ -1108,8 +1155,8 @@ function convert(name) {
 // Evens out a song's loudness (EBU R128, -16 LUFS, like streaming services) into an M4A beside it, so
 // tracks from different places play at the same level. The original is kept in media/originals.
 const ORIGINALS = path.join(MEDIA_DIR, 'originals');
-const levelled = name => { try { return fs.readdirSync(ORIGINALS).some(f => path.basename(f, path.extname(f)) === path.basename(name, path.extname(name))); } catch { return false; } };
-function level(name) {
+const levelled = (name: string) => { try { return fs.readdirSync(ORIGINALS).some(f => path.basename(f, path.extname(f)) === path.basename(name, path.extname(name))); } catch { return false; } };
+function level(name: string) {
   const bin = ffmpegPath();
   if (!bin) { log('warn', 'scene', `Can't even out the loudness of ${name}: no ffmpeg`); return false; }
   const out = path.basename(name, path.extname(name)) + '.m4a', part = path.join(MEDIA_DIR, `.${out}.part`);
@@ -1120,10 +1167,10 @@ function level(name) {
   const started = Date.now();
   log('info', 'scene', `Evening out the loudness of ${name} into ${out}`);
   const args = ['-hide_banner', '-loglevel', 'error', '-nostats', '-y', '-i', original, '-vn', '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '48000', '-c:a', 'aac', '-b:a', '256k', '-f', 'mp4', part];
-  const child = require('child_process').spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
   let errors = '';
   child.stderr.on('data', d => { errors = (errors + d).slice(-2000); });
-  const finish = ok => {
+  const finish = (ok: boolean) => {
     if (!converting.has(out)) return;
     converting.delete(out);
     if (ok) {
@@ -1147,8 +1194,8 @@ function level(name) {
 // Saves an upload straight to disk (videos can be gigabytes), then converts a .mov. Each upload writes its own
 // part file, so two uploads of the same name at once can't trip over each other, and a failed rename fails only
 // that upload: an error thrown here would otherwise end the helper and take every graphic off air.
-function saveUpload(req, name, max) {
-  return new Promise((resolve, reject) => {
+function saveUpload(req: IncomingMessage, name: string, max: number) {
+  return new Promise<number>((resolve, reject) => {
     fs.mkdirSync(MEDIA_DIR, { recursive: true });
     const part = path.join(MEDIA_DIR, `.${name}.${crypto.randomBytes(6).toString('hex')}.part`);
     const out = fs.createWriteStream(part);
@@ -1170,7 +1217,7 @@ function saveUpload(req, name, max) {
 // full and then holds the connection open, and a browser has only six to Studio. With three outputs and the Scene
 // View each holding a few videos, every Studio page's requests waited (Next and Play took 15 s or more).
 const MEDIA_CHUNK = 2 * 1024 * 1024;
-function sendMedia(req, res, file, type, send) {
+function sendMedia(req: IncomingMessage, res: ServerResponse, file: string, type: string, send: Send) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return send(res, 404, 'Not found', 'text/plain');
     const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
@@ -1198,12 +1245,12 @@ function sendMedia(req, res, file, type, send) {
 // An export with scenes replaces the scenes too. One without (from before scenes) keeps the
 // scenes there are, dropping sources that have gone; a source new to them is off in each.
 
-function exportFiles(withMedia) {
+function exportFiles(withMedia: boolean) {
   const sources = scene.sources.map(({ loadSeq, showSeq, outSeq, soundOut, playAt, ...s }) => s);
-  const files = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources, scenes: scene.scenes }, null, 2) + '\n') }];
-  const missing = [];
+  const files: ({ name: string; data: Buffer } | { name: string; file: string })[] = [{ name: 'scene.json', data: Buffer.from(JSON.stringify({ studio: VERSION, exported: new Date().toISOString(), sources, scenes: scene.scenes }, null, 2) + '\n') }];
+  const missing: string[] = [];
   if (withMedia) {
-    for (const f of new Set(sources.filter(s => s.file).map(s => s.file))) {
+    for (const f of new Set(sources.flatMap(s => (s.file ? [s.file] : [])))) {
       const file = path.join(MEDIA_DIR, f);
       if (fs.existsSync(file)) files.push({ name: `media/${f}`, file }); else missing.push(f);
     }
@@ -1212,42 +1259,42 @@ function exportFiles(withMedia) {
 }
 
 // Compared by checksum, so a file already in the media folder isn't copied in twice.
-const sha1 = f => new Promise((ok, fail) => { const h = crypto.createHash('sha1'); fs.createReadStream(f).on('data', d => h.update(d)).on('end', () => ok(h.digest('hex'))).on('error', fail); });
-const sameFile = async (a, b) => fs.statSync(a).size === fs.statSync(b).size && await sha1(a) === await sha1(b);
+const sha1 = (f: string) => new Promise<string>((ok, fail) => { const h = crypto.createHash('sha1'); fs.createReadStream(f).on('data', d => h.update(d)).on('end', () => ok(h.digest('hex'))).on('error', fail); });
+const sameFile = async (a: string, b: string) => fs.statSync(a).size === fs.statSync(b).size && await sha1(a) === await sha1(b);
 
 // Imports an uploaded export (saved at file). Returns { sources, scenes, copied, missing }.
-async function importFile(file) {
-  const zip = require('./zip');
+async function importFile(file: string) {
   const head = Buffer.alloc(2);
   const fd = fs.openSync(file, 'r');
   fs.readSync(fd, head, 0, 2, 0);
   fs.closeSync(fd);
-  let saved, list = [];
+  let saved: string, list: zip.ZipEntry[] = [];
   if (head.toString('latin1') === 'PK') {
     list = zip.entries(file);
     // The scene.json at the top, or in the one folder Finder adds when it zips a folder.
     const json = list.find(e => /^([^/]+\/)?scene\.json$/i.test(e.name) && !e.name.startsWith('__MACOSX'));
     if (!json) throw new Error("There's no scene.json in that zip. Pick a file made with Export on the Output page.");
-    const chunks = [];
+    const chunks: Buffer[] = [];
     for await (const c of zip.open(file, json)) chunks.push(c);
     saved = Buffer.concat(chunks).toString('utf8');
   } else if (fs.statSync(file).size > 10 * 1024 * 1024) throw new Error("That isn't a scene export. Pick the .zip (or scene.json) made with Export on the Output page.");
   else saved = fs.readFileSync(file, 'utf8');
-  let parsed;
-  try { parsed = JSON.parse(saved); } catch { throw new Error("That isn't a scene export: its scene.json can't be read."); }
-  if (!parsed || !Array.isArray(parsed.sources)) throw new Error("That isn't a scene export: it has no sources.");
+  let parsed: Body;
+  try { parsed = obj(JSON.parse(saved)); } catch { throw new Error("That isn't a scene export: its scene.json can't be read."); }
+  const exported = parsed.sources;
+  if (!Array.isArray(exported)) throw new Error("That isn't a scene export: it has no sources.");
 
   // Media: each file the zip has goes in the media folder. One already there with the same name
   // and contents is used as it is; one with the same name but different contents is kept under a
   // new name, so nothing in the media folder is overwritten.
   fs.mkdirSync(MEDIA_DIR, { recursive: true });
-  const renamed = new Map(), copied = [];
+  const renamed = new Map<string, string>(), copied: string[] = [];
   for (const e of list) {
     const m = /^(?:[^/]+\/)?media\/([^/]+)$/.exec(e.name);
     if (!m || e.name.startsWith('__MACOSX') || m[1].startsWith('.') || !kindOf(m[1])) continue;
     const name = cleanFile(m[1]);
     const part = path.join(MEDIA_DIR, `.import-${name}.part`);
-    await new Promise((resolve, reject) => zip.open(file, e).on('error', reject).pipe(fs.createWriteStream(part)).on('finish', resolve).on('error', reject));
+    await new Promise<void>((resolve, reject) => zip.open(file, e).on('error', reject).pipe(fs.createWriteStream(part)).on('finish', resolve).on('error', reject));
     let target = name;
     for (let i = 2; fs.existsSync(path.join(MEDIA_DIR, target)); i++) {
       if (await sameFile(part, path.join(MEDIA_DIR, target))) break;
@@ -1258,12 +1305,12 @@ async function importFile(file) {
     if (target !== name) renamed.set(name, target);
   }
 
-  const sources = [];
+  const sources: Source[] = [];
   const before = new Set(scene.sources.map(s => s.id));
-  const ids = new Map(); // the export's source id -> the id it has now
+  const ids = new Map<string, string>(); // the export's source id -> the id it has now
   scene.sources = [];
-  for (const s of parsed.sources.slice(0, 500)) {
-    if (!s || typeof s !== 'object') continue;
+  for (const s of exported.slice(0, 500)) {
+    if (!isObj(s)) continue;
     const src = clean({ ...s, visible: false, file: renamed.get(cleanFile(s.file)) || s.file });
     // Two sources with the same id (an export edited by hand) would fight over Stream Deck keys.
     if (scene.sources.some(x => x.id === src.id)) src.id = newId();
@@ -1271,11 +1318,12 @@ async function importFile(file) {
     scene.sources.push(src);
     sources.push(src);
   }
-  if (Array.isArray(parsed.scenes)) {
+  const scenes = parsed.scenes;
+  if (Array.isArray(scenes)) {
     scene.scenes = [];
-    for (const sc of parsed.scenes.slice(0, 200)) {
-      if (!sc || typeof sc !== 'object') continue;
-      const states = Object.fromEntries(Object.entries(sc.states && typeof sc.states === 'object' ? sc.states : {}).map(([k, v]) => [ids.get(k) || k, v]));
+    for (const sc of scenes.slice(0, 200)) {
+      if (!isObj(sc)) continue;
+      const states = Object.fromEntries(Object.entries(obj(sc.states)).map(([k, v]) => [ids.get(k) || k, v]));
       const made = cleanScene({ ...sc, states });
       if (scene.scenes.some(x => x.id === made.id)) made.id = newId();
       scene.scenes.push(made);
@@ -1291,20 +1339,20 @@ async function importFile(file) {
   scene.currentOut = {};
   ended = new Set();
   endedOut.clear();
-  const missing = [...new Set(sources.filter(s => s.file && !fs.existsSync(path.join(MEDIA_DIR, s.file))).map(s => s.file))];
+  const missing = [...new Set(sources.flatMap(s => (s.file && !fs.existsSync(path.join(MEDIA_DIR, s.file)) ? [s.file] : [])))];
   // A .mov the sources play that hasn't been converted yet starts converting now.
-  for (const f of new Set(sources.filter(s => s.type === 'video' && /\.mov$/i.test(s.file)).map(s => s.file))) {
+  for (const f of new Set(sources.flatMap(s => (s.type === 'video' && s.file && /\.mov$/i.test(s.file) ? [s.file] : [])))) {
     if (fs.existsSync(path.join(MEDIA_DIR, f)) && !fs.existsSync(path.join(MEDIA_DIR, webmFor(f)))) convert(f);
   }
-  log('info', 'scene', `Imported a scene with ${sources.length} sources${Array.isArray(parsed.scenes) ? ` and ${scene.scenes.length} scenes` : ''}${parsed.studio ? ` (exported from Studio ${parsed.studio}${parsed.exported ? ` on ${parsed.exported}` : ''})` : ''}`
+  log('info', 'scene', `Imported a scene with ${sources.length} sources${Array.isArray(scenes) ? ` and ${scene.scenes.length} scenes` : ''}${parsed.studio ? ` (exported from Studio ${str(parsed.studio)}${parsed.exported ? ` on ${str(parsed.exported)}` : ''})` : ''}`
     + `${copied.length ? `, copied ${copied.join(', ')} to the media folder` : ''}${missing.length ? `; missing media ${missing.join(', ')}` : ''}`);
-  return { sources: sources.length, scenes: Array.isArray(parsed.scenes) ? scene.scenes.length : null, copied, missing };
+  return { sources: sources.length, scenes: Array.isArray(scenes) ? scene.scenes.length : null, copied, missing };
 }
 
 // The scene's HTTP routes: /api/scene, /api/scene/events, /api/scene/media (GET, POST and DELETE), /api/scene/export and
 // /api/scene/import, and /media/<file>.
 // Returns false for anything else.
-async function route(req, res, url, { send, readBody }) {
+async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send, readBody }: { send: Send; readBody: ReadBody }) {
   const p = url.pathname;
   if (p === '/api/scene' && req.method === 'GET') return send(res, 200, outward()), true;
   if (p === '/api/scene' && req.method === 'POST') {
@@ -1335,7 +1383,7 @@ async function route(req, res, url, { send, readBody }) {
     const name = `FirstPass Studio scene ${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}.zip`;
     res.writeHead(200, { 'content-type': 'application/zip', 'cache-control': 'no-store', 'content-disposition': `attachment; filename="${name}"` });
     try {
-      await require('./zip').write(res, files);
+      await zip.write(res, files);
       log('info', 'scene', `Exported the scene: ${scene.sources.length} sources, ${scene.scenes.length} scenes and ${files.length - 1} media files`);
     } catch (err) { log('warn', 'scene', `Scene export stopped: ${errorMessage(err)}`); res.destroy(); }
     return true;
@@ -1361,7 +1409,7 @@ async function route(req, res, url, { send, readBody }) {
     // Opening the .streamDeckPlugin file hands it to the Stream Deck app, which installs (or updates) it.
     if (!fs.existsSync(STREAMDECK_PLUGIN)) return send(res, 404, { error: 'The Stream Deck plugin comes with the Mac app. From a checkout, run npm run pack in plugins/studio-deck first.' }), true;
     const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', STREAMDECK_PLUGIN]] : ['open', [STREAMDECK_PLUGIN]];
-    require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', err => log('warn', 'scene', `Couldn't open the Stream Deck plugin: ${err.message}`)).unref();
+    spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', err => log('warn', 'scene', `Couldn't open the Stream Deck plugin: ${err.message}`)).unref();
     log('info', 'scene', 'Opened the Stream Deck plugin to install it');
     return send(res, 200, { ok: true }), true;
   }
@@ -1373,7 +1421,7 @@ async function route(req, res, url, { send, readBody }) {
   if (p === '/api/scene/media' && req.method === 'DELETE') {
     const name = cleanFile(url.searchParams.get('name'));
     const out = removeMedia(name, url.searchParams.get('force') === '1');
-    if (out.error) return send(res, out.status, { error: out.error, uses: out.uses || [] }), true;
+    if (out.error) return send(res, out.status || 400, { error: out.error, uses: out.uses || [] }), true;
     return send(res, 200, { removed: name, uses: out.uses, media: mediaList() }), true;
   }
   if (p === '/api/scene/media' && req.method === 'POST') {
@@ -1418,7 +1466,8 @@ async function route(req, res, url, { send, readBody }) {
 }
 
 // outputs: outputs.js's find and summary, for the outputs besides the primary.
-function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
+interface Hooks { ffmpeg?: string; sequencesFile?(): string | null; outputs?: OutputsApi; record?: RecordApi }
+function init(logger: Log | null, { ffmpeg, sequencesFile, outputs, record }: Hooks = {}) {
   log = logger || log;
   if (record) recordApi = record;
   if (outputs) outputsApi = outputs;
@@ -1433,12 +1482,12 @@ function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
   mics.init(log, { changed: () => notify() });
   sequences.init(log, {
     source: id => scene.sources.find(s => s.id === id) || null,
-    isOn: (s, out) => isOn(s, out === PRIMARY ? null : out),
-    setOn: (s, on, out) => { const o = out === PRIMARY ? null : out; setOn(s, on, o); endedOf(o).delete(s.id); },
+    isOn: (s: Source, out: string) => isOn(s, out === PRIMARY ? null : out),
+    setOn: (s: Source, on: boolean, out: string) => { const o = out === PRIMARY ? null : out; setOn(s, on, o); endedOf(o).delete(s.id); },
     hasOutput: id => outputsApi.find(id)?.id === id,
     scene: id => scene.scenes.find(s => s.id === id) || null,
     sceneNamed: ref => scene.scenes.find(s => slug(s.name) === slug(ref)) || null,
-    goTo: (sc, step, out) => goTo(sc, true, step, out === PRIMARY ? null : out),
+    goTo: (sc: Scene, step: boolean, out: string) => goTo(sc, true, step, out === PRIMARY ? null : out),
     duration,
     fadeSound: (id, out, sec) => fadeSound(id, out === PRIMARY ? null : out, sec),
     sponsorAd: (opts, out) => sponsorAd(opts, out === PRIMARY ? null : out),
@@ -1452,7 +1501,7 @@ function init(logger, { ffmpeg, sequencesFile, outputs, record } = {}) {
 function competitionChanged() { if (sequences.reload()) notify(); }
 
 // The scoreboard, each second, for the sequences' game triggers (sequences.js game()) and the super shot song.
-function game(snapshot) {
+function game(snapshot: (GameReading & { superShot: boolean }) | null) {
   sequences.game(snapshot);
   if (music.superShotPeriod(snapshot)) notify();
 }
@@ -1469,4 +1518,6 @@ function videoSizes() {
     .filter(v => v.width && v.height).map(({ name, width, height }) => ({ name, width, height }));
 }
 
-export { act, replay, replayBoard, replaying, videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, rearmGame, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };
+export type { Source as SceneSource, Scene, SceneData };
+export { act, replay,
+ replayBoard, replaying, videoSizes, imageFiles, stingerSource, playStinger, STREAMDECK_PLUGIN, dropOutput, cleanUrl, mediaUses, removeMedia, importFile, exportFiles, init, route, upgrade, deck, apply, state, showing, slug, competitionChanged, game, rearmGame, setBoardSource, publishBoard, setSwitcherSource, publishSwitcher, FILE, MEDIA_DIR };
