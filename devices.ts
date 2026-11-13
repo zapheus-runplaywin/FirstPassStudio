@@ -23,7 +23,10 @@
 //
 // devices.json in the local data folder: never in iCloud, a backup or a template (datalocation.ts LOCAL_ONLY).
 //   [{ id, name, kind: 'links' | 'program' | 'plugin' | 'browser', level: 'full' | 'scoring', secret | publicKey, address,
-//      created, lastSeen }]
+//      created, lastSeen, secure? }]
+// secure: a browser that collected its cookie over the secure link (https), so the cookie has never crossed the network
+// in the clear. Only such a browser may read FirstPass stats (access.firstpassRefusal()); one paired at the .local
+// address over plain http has to pair again over the secure link to see them.
 // The secrets never leave this module except as This Mac's key (linkKey(), which the Output page puts in the links
 // it copies); list() leaves them out.
 //
@@ -45,7 +48,7 @@ type Level = 'full' | 'scoring';
 // A device in devices.json: secret for a link set, program or browser; publicKey for a plugin.
 interface Device {
   id: string; name: string; kind: Kind; level: Level; secret?: string; publicKey?: string; address?: string;
-  created: string; lastSeen: string | null;
+  created: string; lastSeen: string | null; secure?: boolean;
 }
 // The open request to be added.
 interface Asking {
@@ -283,10 +286,15 @@ function answer(id: string, allow: boolean, level?: unknown): boolean {
 
 // The asking device collects the answer with its token: { status: 'waiting' | 'allowed' | 'denied' | 'gone' }, and
 // once allowed its device id, level and its key (a program; a browser gets it as cookie, for server.ts to set as a
-// cookie and never show). The key is handed over once; the request ends with any answer.
-function collect(id: string, token: unknown) {
+// cookie and never show). The key is handed over once; the request ends with any answer. secure: the request came
+// over the secure link (https), so a browser's cookie never crosses the network in the clear (Device secure).
+function collect(id: string, token: unknown, secure = false) {
   if (!asking || asking.id !== id || !same(asking.token, token || '')) return { status: 'gone' };
   if (!asking.answer) return { status: 'waiting', expires: new Date(asking.at + ASK_MS).toISOString() };
+  if (asking.answer === 'allow' && asking.kind === 'browser' && secure) {
+    const d = all().find(x => x.id === asking?.deviceId);
+    if (d) { d.secure = true; save(); }
+  }
   const secret = asking.secret ? (asking.kind === 'browser' ? { cookie: asking.secret } : { key: asking.secret }) : {};
   const done = asking.answer === 'allow' ? { status: 'allowed', ...secret, device: asking.deviceId, level: asking.level } : { status: 'denied' };
   endAsking();
