@@ -4,11 +4,13 @@
 
 async function viewersNow() {
   try {
-    const v = await (await fetch('/api/viewers', { cache: 'no-store' })).json();
+    // The live viewers (/api/viewers, viewers.ts).
+    const v: { total: number; streams?: { name?: string; platform: string; at?: number; error?: string; live?: boolean; count: number }[] } = await (await fetch('/api/viewers', { cache: 'no-store' })).json();
     const box = $('viewersNow');
-    box.hidden = !v.streams || !v.streams.length;
+    const streams = v.streams || [];
+    box.hidden = !streams.length;
     if (box.hidden) return;
-    const read = v.streams.filter(x => x.at);
+    const read = streams.filter(x => x.at);
     const parts = read.map(x => `${x.name || (x.platform === 'facebook' ? 'Facebook' : 'YouTube')} ${x.error ? 'error' : x.live ? x.count.toLocaleString() : 'not live'}`);
     box.textContent = !read.length ? 'Live viewers: read every 30 seconds while a video output is on.'
       : `👁 ${v.total.toLocaleString()} watching · ${parts.join(' · ')}`;
@@ -23,7 +25,7 @@ setInterval(viewersNow, 15000);
 // devices can change things: otherwise their links stay plain).
 const redrawLinks = () => { renderForm(); if (sceneAll.scenes) show(sceneAll); };
 fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base; deckBase = base; })
-  .then(() => linkSets($('linkSet'), b => { deckBase = b; redrawLinks(); }))
+  .then(() => linkSets($<HTMLSelectElement>('linkSet'), b => { deckBase = b; redrawLinks(); }))
   .then(onMac => {
     $('linkSetRow').classList.toggle('hidden', !onMac);
     if (onMac) return;
@@ -31,7 +33,7 @@ fetch('/api/version').then(r => r.json()).then(v => { if (v.base) base = v.base;
   })
   .catch(() => {}).finally(redrawLinks);
 let pref = '1'; try { pref = localStorage.getItem('outputPreview') ?? '1'; } catch {}
-$('previewOn').onchange = () => setPreview($('previewOn').checked);
+$<HTMLInputElement>('previewOn').onchange = () => setPreview($<HTMLInputElement>('previewOn').checked);
 setPreview(pref !== '0');
 addEventListener('resize', fitPreview);
 fitPreview();

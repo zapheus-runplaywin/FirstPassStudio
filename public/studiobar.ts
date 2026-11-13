@@ -16,7 +16,7 @@ interface StudioHealth {
   output?: { on?: boolean, outputs?: { name: string, colour?: string, on?: boolean }[] },
   game?: { label: string, court?: string, phase?: string, ended?: boolean } | null,
   source?: string,
-  playhq?: { waiting?: boolean, state?: string, trouble?: string, troubleSays?: string, holding?: boolean },
+  playhq?: { waiting?: string, state?: string, trouble?: string, troubleSays?: string, holding?: boolean },
   clock?: { left?: number | null, running?: boolean, period?: number, periodLabel?: string, following?: boolean },
   playing?: { name?: string, step: number, steps: number, paused?: boolean, leftMs?: number | null } | null,
   armed?: { name?: string, leftMs?: number | null } | null,

@@ -7,17 +7,17 @@
 // was, so Stream Deck links and tests do too.
 
 // Settings, in the row over the picture: opens the picked output's set-up as a drawer under the row.
-function setOutCfg(open) {
+function setOutCfg(open: boolean) {
   $('outSection').classList.toggle('cfgOpen', open);
-  $('outCfg').setAttribute('aria-pressed', String(open));
+  $<HTMLButtonElement>('outCfg').setAttribute('aria-pressed', String(open));
   if (open && isFolded($('outSection'))) setFolded($('outSection'), false);
   requestAnimationFrame(fitPreview);
 }
-$('outCfg').onclick = () => setOutCfg(!$('outSection').classList.contains('cfgOpen'));
+$<HTMLButtonElement>('outCfg').onclick = () => setOutCfg(!$('outSection').classList.contains('cfgOpen'));
 if (location.hash === '#outSection') setOutCfg(true); // a link to the output's settings opens the drawer
 
 // Done under a source's settings closes them (the pencil in its row does too).
-$('settingsDone').onclick = () => { editOpen = false; renderList(); };
+$<HTMLButtonElement>('settingsDone').onclick = () => { editOpen = false; renderList(); };
 
 // Music and Ducking: Settings in the header unfolds the section's form (output.html's styles key off cfgOpen).
 for (const [btn, sec] of [['musicCfg', 'musicSection'], ['duckCfg', 'duckSection']]) {

@@ -16,20 +16,20 @@ const roItems = () => scene.runOrder || [];
 const roPlayedItems = () => scene.runOrderPlayed || [];
 // What's playing and the scene on Output 1, whatever tab is picked.
 const roMain = () => viewFor(sceneAll, 'main');
-const roAct = a => act({ ...a, output: 'main' });
+const roAct = (a: SceneAct) => act({ ...a, output: 'main' });
 const RO_PLAYED_SHOWN = 2; // played rows shown above what's on air; the rest fold behind "N earlier"
 let roAllPlayed = false;
-const roColourOf = it => {
+const roColourOf = (it: RunItem) => {
   const x = it.kind === 'scene' ? (scene.scenes || []).find(s => s.id === it.id) : sequences().find(s => s.id === it.id);
   return x ? x.colour : 'grey';
 };
 // A sequence that plays on other outputs too: a line for each, in its colour, saying what it does there after the
 // sequence. Play next starts it on all of them; when the run order moves on by itself, an output joins only if
 // nothing is playing there. After it, each other output does its own Then.
-function roAlsoOn(sq) {
+function roAlsoOn(sq: Sequence | undefined) {
   const list = (out && out.outputs) || [];
   if (!sq || !scene.viewMany) return [];
-  return (sq.playsOn || ['main']).filter(o => o !== 'main').map(o => list.find(x => x.id === o)).filter(Boolean).map(o => {
+  return (sq.playsOn || ['main']).filter(o => o !== 'main').map(o => list.find(x => x.id === o)).filter((o): o is OutputInfo => !!o).map(o => {
     const line = document.createElement('small');
     line.className = 'also';
     line.style.setProperty('--c', o.colour || 'var(--fp-muted)');
@@ -40,18 +40,18 @@ function roAlsoOn(sq) {
 // The played rows and the ON AIR row. What's on air is the sequence playing on Output 1, else its scene; when the run
 // order played it, its own played row becomes the ON AIR row.
 function renderPlayed() {
-  const m = roMain(), box = $('roPlayed'), p = m.playing, sc = !p ? (m.scenes || []).find(s => s.id === m.current) || null : null;
+  const m = roMain(), box = $<HTMLOListElement>('roPlayed'), p = m.playing, sc = !p ? (m.scenes || []).find(s => s.id === m.current) || null : null;
   const air = p ? { kind: 'sequence', id: p.id } : sc ? { kind: 'scene', id: sc.id } : null;
   const played = roPlayedItems(), last = played[played.length - 1];
   const fromOrder = !!(air && last && last.kind === air.kind && last.id === air.id);
   const done = fromOrder ? played.slice(0, -1) : played;
   box.innerHTML = '';
-  const row = (cls, n, colour) => {
+  const row = (cls: string, n: string, colour?: string) => {
     const li = document.createElement('li');
     li.className = cls;
     li.innerHTML = '<span class="n"></span><span class="what"><b></b><small></small></span><span></span>';
-    li.querySelector('.n').textContent = n;
-    if (colour) li.querySelector('.n').classList.add(colour);
+    pick(li, '.n').textContent = n;
+    if (colour) pick(li, '.n').classList.add(colour);
     box.append(li);
     return li;
   };
@@ -66,44 +66,45 @@ function renderPlayed() {
   }
   for (const it of roAllPlayed ? done : done.slice(-RO_PLAYED_SHOWN)) {
     const li = row('done', '✓', roColourOf(it));
-    li.querySelector('b').textContent = it.name;
-    li.querySelector('small').textContent = `${it.kind} · played ${clockTime(it.at)}`;
+    pick(li, 'b').textContent = it.name;
+    pick(li, 'small').textContent = `${it.kind} · played ${clockTime(it.at || 0)}`;
   }
   if (!air) return;
   const li = row('air', '●');
-  const b = li.querySelector('b');
+  const b = pick(li, 'b');
   b.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: p && p.paused ? 'ON AIR · PAUSED' : 'ON AIR' }));
-  b.append(p ? (sequences().find(s => s.id === p.id)?.name || 'A sequence') : sc.name);
+  b.append(p ? (sequences().find(s => s.id === p.id)?.name || 'A sequence') : sc?.name || '');
   b.title = b.textContent;
-  const when = fromOrder ? ` · since ${clockTime(last.at)}` : '';
+  const when = fromOrder ? ` · since ${clockTime(last.at || 0)}` : '';
   if (p) {
     const ssc = p.scene && (scene.scenes || []).find(x => x.id === p.scene);
     const names = ssc ? ssc.name : p.ad !== undefined ? (p.ad ? `ad: ${p.ad}` : 'no ad to play') : (p.sources || []).map(nameOf).filter(Boolean).join(', ');
-    li.querySelector('small').textContent = `step ${p.step + 1} of ${p.steps}${names ? ` · ${names}` : ''}${when}`;
+    pick(li, 'small').textContent = `step ${p.step + 1} of ${p.steps}${names ? ` · ${names}` : ''}${when}`;
     const dots = document.createElement('div');
     dots.className = 'dots';
     for (let i = 0; i < p.steps; i++) dots.appendChild(Object.assign(document.createElement('i'), { className: i < p.step ? 'done' : i === p.step ? 'now' : '' }));
-    li.querySelector('.what').append(dots);
-    li.lastChild.className = 'airLeft';
-    li.lastChild.innerHTML = '<b></b><small></small>';
-  } else li.querySelector('small').textContent = `scene${when}`;
+    pick(li, '.what').append(dots);
+    const leftEl = li.lastElementChild as HTMLElement;
+    leftEl.className = 'airLeft';
+    leftEl.innerHTML = '<b></b><small></small>';
+  } else pick(li, 'small').textContent = `scene${when}`;
   roTick();
 }
 // The ON AIR row's time left: the step's, big, and the whole sequence's under it (like its card's).
 function roTick() {
-  const p = sceneAll && roMain().playing, el = document.querySelector('#roPlayed li.air .airLeft');
+  const p = sceneAll && roMain().playing, el = document.querySelector<HTMLElement>('#roPlayed li.air .airLeft');
   if (!p || !el) return;
   const since = p.paused || p.leftMs === null || p.leftMs === undefined ? 0 : performance.now() - heardAt;
   const left = p.leftMs === null || p.leftMs === undefined ? (p.length === 'next' ? 'waits' : p.length === 'game' ? 'game' : '') : fmt(p.leftMs - since);
-  el.firstChild.textContent = left;
+  (el.firstElementChild as HTMLElement).textContent = left;
   const total = totalText(p, since);
-  el.lastChild.textContent = total ? `${p.repeats ? 'This time round' : 'Total'} ${total}` : '';
+  (el.lastElementChild as HTMLElement).textContent = total ? `${p.repeats ? 'This time round' : 'Total'} ${total}` : '';
 }
 setInterval(roTick, 250);
-let roDrag = null;
+let roDrag: string | null = null;
 function renderRunOrder() {
   renderPlayed();
-  const items = roItems(), list = $('roList');
+  const items = roItems(), list = $<HTMLOListElement>('roList');
   const head = items.find(it => !it.gone) || null;
   list.innerHTML = '';
   items.forEach((it, i) => {
@@ -112,17 +113,17 @@ function renderRunOrder() {
     li.draggable = true;
     li.dataset.key = it.key;
     li.innerHTML = '<span class="n"></span><span class="what"><b></b><small></small></span><span class="row"><button class="alt up" title="Earlier">↑</button><button class="alt down" title="Later">↓</button><button class="alt del" title="Take it out of the run order">×</button></span>';
-    li.querySelector('.n').textContent = i + 1;
-    li.querySelector('.n').classList.add(roColourOf(it));
-    li.querySelector('b').textContent = it.name;
-    li.querySelector('small').textContent = it.gone ? `${it.kind} deleted: skipped when its turn comes` : it.kind === 'scene' ? 'scene' : (() => { const sq = sequences().find(s => s.id === it.id); return sq ? `sequence · ${runText(sq)}` : 'sequence'; })();
-    if (!it.gone && it.kind === 'sequence') li.querySelector('.what').append(...roAlsoOn(sequences().find(s => s.id === it.id)));
-    li.querySelector('.up').disabled = i === 0;
-    li.querySelector('.down').disabled = i === items.length - 1;
-    li.querySelector('.up').onclick = () => roAct({ type: 'roMove', key: it.key, direction: 'up' });
-    li.querySelector('.down').onclick = () => roAct({ type: 'roMove', key: it.key, direction: 'down' });
-    li.querySelector('.del').onclick = () => roAct({ type: 'roRemove', key: it.key });
-    li.ondragstart = e => { roDrag = it.key; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+    pick(li, '.n').textContent = String(i + 1);
+    pick(li, '.n').classList.add(roColourOf(it));
+    pick(li, 'b').textContent = it.name;
+    pick(li, 'small').textContent = it.gone ? `${it.kind} deleted: skipped when its turn comes` : it.kind === 'scene' ? 'scene' : (() => { const sq = sequences().find(s => s.id === it.id); return sq ? `sequence · ${runText(sq)}` : 'sequence'; })();
+    if (!it.gone && it.kind === 'sequence') pick(li, '.what').append(...roAlsoOn(sequences().find(s => s.id === it.id)));
+    pick<HTMLButtonElement>(li, '.up').disabled = i === 0;
+    pick<HTMLButtonElement>(li, '.down').disabled = i === items.length - 1;
+    pick<HTMLButtonElement>(li, '.up').onclick = () => roAct({ type: 'roMove', key: it.key, direction: 'up' });
+    pick<HTMLButtonElement>(li, '.down').onclick = () => roAct({ type: 'roMove', key: it.key, direction: 'down' });
+    pick<HTMLButtonElement>(li, '.del').onclick = () => roAct({ type: 'roRemove', key: it.key });
+    li.ondragstart = e => { roDrag = it.key; li.classList.add('dragging'); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; };
     li.ondragend = () => { roDrag = null; list.querySelectorAll('li').forEach(x => x.classList.remove('dragging', 'dropBefore', 'dropAfter')); };
     li.ondragover = e => {
       if (!roDrag || roDrag === it.key) return;
@@ -147,21 +148,21 @@ function renderRunOrder() {
   $('roNoticeText').textContent = notice ? notice.text : '';
   // Play next and Skip, and what Play next does right now (▶ the head, ⏭ what follows it).
   const p = roMain().playing;
-  $('roNext').disabled = !head && !p;
-  $('roSkip').disabled = !head;
-  $('roNext').title = head ? `Play ${head.name} now` : p ? 'Nothing queued: ends the sequence playing (its Then)' : 'Nothing queued and nothing playing';
+  $<HTMLButtonElement>('roNext').disabled = !head && !p;
+  $<HTMLButtonElement>('roSkip').disabled = !head;
+  $<HTMLButtonElement>('roNext').title = head ? `Play ${head.name} now` : p ? 'Nothing queued: ends the sequence playing (its Then)' : 'Nothing queued and nothing playing';
   const second = head ? items.slice(items.indexOf(head) + 1).find(it => !it.gone) : null;
   $('roNote').textContent = head ? `▶ ${head.name}${second ? `  ⏭ ${second.name}` : '  ⏭ each sequence\'s own Then'}` : p ? 'Nothing queued: when this sequence ends it does its own Then' : '';
   $('roEmpty').hidden = !!items.length || !!roPlayedItems().length;
   $('roEmpty').innerHTML = 'Tonight\'s order: <b>Add…</b> puts a scene or sequence at the end (Run-up, Walk out, Live, Quarter time, Live…), or load a saved order. '
     + '<b>Play next</b> plays the head now, and a sequence that ends plays what is queued after it. With nothing here, each sequence does its own <b>Then</b>.';
   // The pickers: Add… lists the scenes and sequences; Saved… the saved orders, with Save as… at the end.
-  const add = $('roAdd');
+  const add = $<HTMLSelectElement>('roAdd');
   add.innerHTML = '<option value="">Add…</option>';
-  const grp = (label, opts) => { if (!opts.length) return; const g = document.createElement('optgroup'); g.label = label; for (const [v, t] of opts) g.append(new Option(t, v)); add.append(g); };
-  grp('Sequences', sequences().filter(s => !s.hidden || showHidden).map(s => [`sequence:${s.id}`, s.name]));
-  grp('Scenes', (scene.scenes || []).map(s => [`scene:${s.id}`, s.name]));
-  const saved = $('roSaved');
+  const grp = (label: string, opts: [string, string][]) => { if (!opts.length) return; const g = document.createElement('optgroup'); g.label = label; for (const [v, t] of opts) g.append(new Option(t, v)); add.append(g); };
+  grp('Sequences', sequences().filter(s => !s.hidden || showHidden).map((s): [string, string] => [`sequence:${s.id}`, s.name]));
+  grp('Scenes', (scene.scenes || []).map((s): [string, string] => [`scene:${s.id}`, s.name]));
+  const saved = $<HTMLSelectElement>('roSaved');
   saved.innerHTML = '<option value="">Saved…</option>';
   for (const o of scene.runOrders || []) saved.append(new Option(`${o.name} (${o.count})`, `load:${o.id}`));
   if (items.length) saved.append(new Option('Save tonight\'s order as…', 'save'));
@@ -169,17 +170,17 @@ function renderRunOrder() {
   if ((scene.runOrders || []).length) saved.append(new Option('Delete a saved order…', 'delete'));
   if (items.length || roPlayedItems().length) saved.append(new Option('Clear the run order', 'clear'));
 }
-$('roNoticeClose').onclick = () => roAct({ type: 'roNoticeClose' });
-$('roNext').onclick = () => roAct({ type: 'roNext' });
-$('roSkip').onclick = () => roAct({ type: 'roSkip' });
-$('roAdd').onchange = () => {
-  const [kind, id] = $('roAdd').value.split(':');
-  $('roAdd').value = '';
+$<HTMLButtonElement>('roNoticeClose').onclick = () => roAct({ type: 'roNoticeClose' });
+$<HTMLButtonElement>('roNext').onclick = () => roAct({ type: 'roNext' });
+$<HTMLButtonElement>('roSkip').onclick = () => roAct({ type: 'roSkip' });
+$<HTMLSelectElement>('roAdd').onchange = () => {
+  const [kind, id] = $<HTMLSelectElement>('roAdd').value.split(':');
+  $<HTMLSelectElement>('roAdd').value = '';
   if (kind && id) roAct({ type: 'roAdd', kind, id });
 };
-$('roSaved').onchange = async () => {
-  const v = $('roSaved').value;
-  $('roSaved').value = '';
+$<HTMLSelectElement>('roSaved').onchange = async () => {
+  const v = $<HTMLSelectElement>('roSaved').value;
+  $<HTMLSelectElement>('roSaved').value = '';
   const items = roItems();
   if (v.startsWith('load:')) {
     const o = (scene.runOrders || []).find(x => x.id === v.slice(5));

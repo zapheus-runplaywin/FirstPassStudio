@@ -5,11 +5,11 @@
 // ─── Export and import ────────────────────────────────────────────────
 // Export downloads a .zip of the sources (and the images and videos they use) to keep or to
 // import on another Mac. Import replaces every source with the ones in the file, all hidden.
-const sceneNote = text => { $('sceneNote').textContent = text; $('sceneNote').classList.toggle('hidden', !text); };
-$('exportScene').onclick = async () => {
+const sceneNote = (text: string) => { $('sceneNote').textContent = text; $('sceneNote').classList.toggle('hidden', !text); };
+$<HTMLButtonElement>('exportScene').onclick = async () => {
   $('err').textContent = ''; sceneNote('');
   if (!scene.sources.length) { $('err').textContent = 'There are no sources to export yet.'; return; }
-  const withMedia = $('exportMedia').checked;
+  const withMedia = $<HTMLInputElement>('exportMedia').checked;
   // A link rather than a fetch, so a big video streams straight to the file instead of through this page.
   const a = document.createElement('a');
   a.href = `/api/scene/export${withMedia ? '' : '?media=0'}`;
@@ -20,20 +20,20 @@ $('exportScene').onclick = async () => {
     + (withMedia ? '' : ' Its images and videos have to be in the other Studio\'s media folder already.'));
   console.log(`Exporting the scene (${scene.sources.length} sources${withMedia ? ', with media' : ', without media'})`);
 };
-$('importScene').onclick = () => $('importFile').click();
-$('importFile').onchange = async () => {
-  const file = $('importFile').files[0];
-  $('importFile').value = '';
+$<HTMLButtonElement>('importScene').onclick = () => $<HTMLInputElement>('importFile').click();
+$<HTMLInputElement>('importFile').onchange = async () => {
+  const file = $<HTMLInputElement>('importFile').files?.[0];
+  $<HTMLInputElement>('importFile').value = '';
   if (!file) return;
   $('err').textContent = ''; sceneNote('');
   if (scene.sources.length && !await askConfirm(`Replace the ${scene.sources.length} source${scene.sources.length === 1 ? '' : 's'} in the scene with the ones in ${file.name}?`,
     'The imported sources start hidden, and Stream Deck keys for sources that aren\'t in the file stop working.'
     + ' If the file has scenes they replace these scenes; an older file without them keeps these scenes.', { ok: 'Replace' })) return;
-  $('importScene').disabled = true;
+  $<HTMLButtonElement>('importScene').disabled = true;
   sceneNote(`Importing ${file.name}…`);
   try {
     const r = await fetch('/api/scene/import', { method: 'POST', body: file });
-    const body = await r.json();
+    const body: { error?: string; media?: MediaFile[]; sources: number; scenes?: number | null; copied: string[]; missing: string[] } = await r.json();
     if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
     selected = null; renderForm(); drawBox();
     if (body.media) media = body.media;
@@ -41,6 +41,6 @@ $('importFile').onchange = async () => {
       + (body.copied.length ? ` Added ${body.copied.join(', ')} to the media folder.` : '')
       + (body.missing.length ? ` Missing from the media folder: ${body.missing.join(', ')}. Add ${body.missing.length === 1 ? 'it' : 'them'} with Add image or Add video.` : ''));
     console.log(`Imported ${file.name}: ${body.sources} sources`);
-  } catch (err) { sceneNote(''); $('err').textContent = `Couldn't import it: ${err.message}`; }
-  $('importScene').disabled = false;
+  } catch (err) { sceneNote(''); $('err').textContent = `Couldn't import it: ${err instanceof Error ? err.message : String(err)}`; }
+  $<HTMLButtonElement>('importScene').disabled = false;
 };

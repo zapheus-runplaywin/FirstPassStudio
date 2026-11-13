@@ -9,15 +9,22 @@ const { startStudio } = require('./support/studio');
 const { openPage } = require('./support/browser');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
-const FILES = ['output', 'planner', 'control', 'recordings', 'socials', 'setup', 'sponsors', 'athletes', 'api', 'devices', 'sponsorreport']
-  .map(n => `${n}.html`).concat(fs.readdirSync(path.join(PUBLIC, 'output')).map(f => `output/${f}`));
+const PAGES = ['output', 'planner', 'control', 'recordings', 'socials', 'setup', 'sponsors', 'athletes', 'api', 'devices', 'sponsorreport'];
+// A page's own script: public/<page>.ts beside it, or for the Output page its parts in public/output/.
+const scriptsOf = n => n === 'output'
+  ? fs.readdirSync(path.join(PUBLIC, 'output')).filter(f => f.endsWith('.ts')).map(f => `output/${f}`)
+  : fs.existsSync(path.join(PUBLIC, `${n}.ts`)) ? [`${n}.ts`] : [];
+const read = f => fs.readFileSync(path.join(PUBLIC, f), 'utf8').replace(/\/\/[^\n]*/g, '');
 
 test('no Studio page uses the browser\'s confirm(), alert() or prompt()', () => {
-  for (const f of FILES) {
-    const src = fs.readFileSync(path.join(PUBLIC, f), 'utf8').replace(/\/\/[^\n]*/g, '');
-    const hits = [...src.matchAll(/(?<![\w.])(confirm|alert|prompt)\(/g)].map(m => m[1]);
-    assert.deepEqual(hits, [], `${f} calls ${hits.join(', ')}`);
-    if (f.endsWith('.html') && /askConfirm|askChoice|askText|tell\(/.test(src)) assert.match(src, /asktext\.js/, `${f} loads asktext.js`);
+  for (const n of PAGES) {
+    const html = read(`${n}.html`);
+    for (const f of [`${n}.html`, ...scriptsOf(n)]) {
+      const hits = [...read(f).matchAll(/(?<![\w.])(confirm|alert|prompt)\(/g)].map(m => m[1]);
+      assert.deepEqual(hits, [], `${f} calls ${hits.join(', ')}`);
+    }
+    const src = [html, ...scriptsOf(n).map(read)].join('\n');
+    if (/askConfirm|askChoice|askText|tell\(/.test(src)) assert.match(html, /asktext\.js/, `${n}.html loads asktext.js`);
   }
 });
 

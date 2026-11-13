@@ -73,7 +73,7 @@ test('an added output\'s sources take its name; the setting is saved and kept', 
 test('the Output page has the tick box and shows the name the sources go by', () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
   assert.match(page, /id="outNdiOwn"/);
-  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'output', 'settings.js'), 'utf8');
-  assert.match(js, /\$\('outNdiName'\)\.value = so\.ndiSource/);
-  assert.match(js, /\$\('outNdiName'\)\.disabled = !so\.ndiOwnName/);
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'output', 'settings.ts'), 'utf8');
+  assert.match(js, /\$<HTMLInputElement>\('outNdiName'\)\.value = so\.ndiSource/);
+  assert.match(js, /\$<HTMLInputElement>\('outNdiName'\)\.disabled = !so\.ndiOwnName/);
 });

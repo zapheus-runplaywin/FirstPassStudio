@@ -3,37 +3,37 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 // ─── The media folder: every file, where it's used, and Remove ───────────
-const KIND_NAMES = { audio: 'Song or sound', video: 'Video', image: 'Image' };
-const size = b => b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
-const useName = u => ({
+const KIND_NAMES: Record<string, string> = { audio: 'Song or sound', video: 'Video', image: 'Image' };
+const size = (b: number) => b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
+const useName = (u: { type: string; name: string; onAir?: boolean; competition?: string }) => (({
   source: `Source “${u.name}”`, theme: `Theme of “${u.name}”`, sequence: `Sequence “${u.name}” music${u.competition ? ` (${u.competition})` : ''}`,
   playlist: `Playlist “${u.name}”`, superShot: 'Super shot song', player: 'Loaded in the music player', sponsor: `Sponsor “${u.name}” ad`,
-}[u.type] || u.name) + (u.onAir ? ' (on air now)' : '');
-let library = [];
+} as Record<string, string>)[u.type] || u.name) + (u.onAir ? ' (on air now)' : '');
+let library: MediaFile[] = [];
 async function loadLibrary() {
   try { library = (await (await fetch('/api/scene/media?uses=1')).json()).media || []; } catch { library = []; }
   renderLibrary();
 }
 function renderLibrary() {
-  const list = $('mediaList'), kind = $('mediaKind').value, shown = library.filter(m => !kind || m.kind === kind);
+  const list = $<HTMLUListElement>('mediaList'), kind = $<HTMLSelectElement>('mediaKind').value, shown = library.filter(m => !kind || m.kind === kind);
   $('mediaCount').textContent = library.length ? `${library.length} file${library.length === 1 ? '' : 's'}, ${size(library.reduce((t, m) => t + (m.size || 0), 0))}` : '';
   list.innerHTML = '';
   if (!shown.length) { list.innerHTML = `<li class="empty">${library.length ? 'None of those.' : 'Nothing in the media folder yet.'}</li>`; return; }
   for (const m of shown) {
     const li = document.createElement('li');
     li.innerHTML = '<div><div class="name"></div><div class="uses"></div></div><button class="danger">Remove</button>';
-    li.querySelector('.name').textContent = m.name;
+    pick(li, '.name').textContent = m.name;
     const small = document.createElement('small');
-    small.textContent = [KIND_NAMES[m.kind], m.duration ? fmt(m.duration * 1000) : '', m.size ? size(m.size) : '', m.converting ? 'converting…' : ''].filter(Boolean).join(' · ');
-    li.querySelector('.name').append(small);
+    small.textContent = [KIND_NAMES[m.kind || ''], m.duration ? fmt(m.duration * 1000) : '', m.size ? size(m.size) : '', m.converting ? 'converting…' : ''].filter(Boolean).join(' · ');
+    pick(li, '.name').append(small);
     const uses = m.uses || [];
-    li.querySelector('.uses').innerHTML = uses.length ? 'Used by: ' : 'Not used';
-    uses.forEach((u, i) => { const b = document.createElement(u.onAir ? 'b' : 'span'); b.textContent = (i ? ', ' : '') + useName(u); li.querySelector('.uses').append(b); });
-    li.querySelector('button').onclick = () => removeMedia(m.name);
+    pick(li, '.uses').innerHTML = uses.length ? 'Used by: ' : 'Not used';
+    uses.forEach((u, i) => { const b = document.createElement(u.onAir ? 'b' : 'span'); b.textContent = (i ? ', ' : '') + useName(u); pick(li, '.uses').append(b); });
+    pick<HTMLButtonElement>(li, 'button').onclick = () => removeMedia(m.name);
     list.append(li);
   }
 }
-async function removeMedia(name) {
+async function removeMedia(name: string) {
   $('mediaErr').textContent = '';
   await loadLibrary(); // where it's used now, not when the list was drawn
   const m = library.find(x => x.name === name);
@@ -47,20 +47,20 @@ async function removeMedia(name) {
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || res.statusText);
     console.log(`Removed ${name} from the media folder`);
-  } catch (err) { $('mediaErr').textContent = `Couldn't remove ${name}: ${err.message}`; }
+  } catch (err) { $('mediaErr').textContent = `Couldn't remove ${name}: ${err instanceof Error ? err.message : String(err)}`; }
   await loadMedia();
 }
-$('mediaKind').onchange = renderLibrary;
+$<HTMLSelectElement>('mediaKind').onchange = renderLibrary;
 // Its list loads when the section opens (the Sponsors page links to #mediaSection, which opens it, to remove ads' files).
 $('mediaSection').addEventListener('fold', e => { if (e.detail.open) loadLibrary(); });
 // Adding a source: a dialog, so it's clear the choices are for the new source. It goes above the selected
 // source (or on top), and is selected once added, ready to set up.
 const usedPages = () => new Set(scene.sources.filter(x => x.type === 'browser').map(x => String(x.url).split('?')[0].replace(/^\/+/, '')));
 function fillPages() {
-  const used = usedPages(), sel = $('newPage'), keep = sel.value;
+  const used = usedPages(), sel = $<HTMLSelectElement>('newPage'), keep = sel.value;
   sel.innerHTML = '';
   const unused = PAGES.filter(p => !used.has(p[1])), inScene = PAGES.filter(p => used.has(p[1]));
-  for (const [label, list] of [['Not in the scene yet', unused], ['Already in the scene', inScene]]) {
+  for (const [label, list] of [['Not in the scene yet', unused], ['Already in the scene', inScene]] as const) {
     if (!list.length) continue;
     const g = document.createElement('optgroup');
     g.label = label;
@@ -69,11 +69,11 @@ function fillPages() {
   }
   sel.add(new Option('Another address…', ''));
   sel.value = [...sel.options].some(o => o.value === keep && keep) ? keep : (unused[0] || inScene[0] || ['', ''])[1];
-  $('newUrl').value = sel.value;
-  $('addAllUnused').textContent = `Add all unused pages (${unused.length})`;
-  $('addAllUnused').disabled = !unused.length;
+  $<HTMLInputElement>('newUrl').value = sel.value;
+  $<HTMLButtonElement>('addAllUnused').textContent = `Add all unused pages (${unused.length})`;
+  $<HTMLButtonElement>('addAllUnused').disabled = !unused.length;
 }
-function openAdd(type) {
+function openAdd(type: 'browser' | 'image' | 'video') {
   adding = type;
   $('addErr').textContent = '';
   $('addTitle').textContent = { browser: 'Add a page', image: 'Add an image', video: 'Add a video' }[type];
@@ -83,81 +83,83 @@ function openAdd(type) {
   $('addMediaForm').classList.toggle('hidden', type === 'browser');
   if (type === 'browser') fillPages();
   else {
-    $('newFileLabel').textContent = type === 'video' ? 'Video' : 'Image';
-    $('upload').accept = ACCEPT[type];
+    $<HTMLLabelElement>('newFileLabel').textContent = type === 'video' ? 'Video' : 'Image';
+    $<HTMLInputElement>('upload').accept = ACCEPT[type];
     loadMedia();
   }
-  $('addDialog').showModal();
+  $<HTMLDialogElement>('addDialog').showModal();
 }
-function closeAdd() { adding = null; if ($('addDialog').open) $('addDialog').close(); }
-$('addDialog').addEventListener('close', () => { adding = null; });
-$('addBrowser').onclick = () => openAdd('browser');
-$('addImage').onclick = () => openAdd('image');
-$('addVideo').onclick = () => openAdd('video');
-$('addCancel').onclick = closeAdd;
-$('newPage').onchange = () => { $('newUrl').value = $('newPage').value; };
+function closeAdd() { adding = null; if ($<HTMLDialogElement>('addDialog').open) $<HTMLDialogElement>('addDialog').close(); }
+$<HTMLDialogElement>('addDialog').addEventListener('close', () => { adding = null; });
+$<HTMLButtonElement>('addBrowser').onclick = () => openAdd('browser');
+$<HTMLButtonElement>('addImage').onclick = () => openAdd('image');
+$<HTMLButtonElement>('addVideo').onclick = () => openAdd('video');
+$<HTMLButtonElement>('addCancel').onclick = closeAdd;
+$<HTMLSelectElement>('newPage').onchange = () => { $<HTMLInputElement>('newUrl').value = $<HTMLSelectElement>('newPage').value; };
 // Adds the sources above the selected one and selects the first of them.
-async function addSources(sources) {
+// A source to add: a page by its address, or an image or video from the media folder.
+interface NewSource { type: string; url?: string; name?: string; file?: string }
+async function addSources(sources: NewSource[]) {
   $('addErr').textContent = '';
   const before = new Set(scene.sources.map(x => x.id));
   const body = await act({ type: 'add', sources, before: selected || undefined });
   if (!body) { $('addErr').textContent = $('err').textContent; return; }
-  const added = body.sources.find(x => !before.has(x.id));
+  const added = (body.sources || []).find(x => !before.has(x.id));
   if (added) { selected = added.id; editOpen = true; }
   closeAdd(); renderList(); renderForm(true); drawBox();
 }
-$('addAllUnused').onclick = () => {
+$<HTMLButtonElement>('addAllUnused').onclick = () => {
   const used = usedPages();
-  const list = PAGES.filter(p => !used.has(p[1])).map(([name, url]) => ({ type: 'browser', url, name }));
+  const list: NewSource[] = PAGES.filter(p => !used.has(p[1])).map(([name, url]) => ({ type: 'browser', url, name }));
   if (list.length) addSources(list);
 };
-$('upload').onchange = async () => {
-  const file = $('upload').files[0];
+$<HTMLInputElement>('upload').onchange = async () => {
+  const file = $<HTMLInputElement>('upload').files?.[0];
   if (!file) return;
   $('addErr').textContent = '';
   $('mediaNote').textContent = `Adding ${file.name} to the media folder…`;
   try {
     const res = await fetch('/api/scene/media?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
-    const body = await res.json();
+    const body: { error?: string; file?: string; cantConvert?: boolean } = await res.json();
     if (!res.ok) throw new Error(body.error || res.statusText);
     if (body.cantConvert) $('addErr').textContent = `${body.file} is in the media folder, but it can only play once it's converted, and this copy of Studio has no ffmpeg (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg).`;
     await loadMedia(body.file);
-  } catch (err) { $('addErr').textContent = `Could not add ${file.name}: ${err.message}`; mediaNote(); }
-  $('upload').value = '';
+  } catch (err) { $('addErr').textContent = `Could not add ${file.name}: ${err instanceof Error ? err.message : String(err)}`; mediaNote(); }
+  $<HTMLInputElement>('upload').value = '';
 };
-$('addGo').onclick = async () => {
-  let source;
+$<HTMLButtonElement>('addGo').onclick = async () => {
+  let source: NewSource;
   if (adding === 'browser') {
-    const url = $('newUrl').value.trim();
+    const url = $<HTMLInputElement>('newUrl').value.trim();
     if (!url) { $('addErr').textContent = 'Pick a page or type an address.'; return; }
     const known = PAGES.find(p => p[1] === url);
     source = { type: 'browser', url, name: known ? known[0] : undefined };
   } else {
-    if (!$('newFile').value) { $('addErr').textContent = `Add ${adding === 'video' ? 'a video' : 'an image'} to the media folder first.`; return; }
-    const m = media.find(x => x.name === $('newFile').value);
-    source = { type: adding, file: m && m.converted ? m.converted : $('newFile').value };
+    if (!$<HTMLSelectElement>('newFile').value) { $('addErr').textContent = `Add ${adding === 'video' ? 'a video' : 'an image'} to the media folder first.`; return; }
+    const m = media.find(x => x.name === $<HTMLSelectElement>('newFile').value);
+    source = { type: adding || '', file: m && m.converted ? m.converted : $<HTMLSelectElement>('newFile').value };
   }
   addSources([source]);
 };
 
-async function copy(text, btn) {
+async function copy(text: string, btn: HTMLElement) {
   try { await navigator.clipboard.writeText(text); } catch { askText('Copy this link', text); return; } // prompt() does nothing in the Mac app
   const was = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = was; }, 1200);
 }
 
 let wasConverting = '';
 let cardMicNames = '';
-function show(s) {
+function show(s: SceneState) {
   sceneAll = s;
   scene = viewFor(s, previewOutput);
   // Which output clicks play them on, once there's more than one.
-  for (const [h, word] of [['scenesHead', 'Scenes'], ['seqHead', 'Sequences'], ['roHead', 'Run order']]) {
+  for (const [h, word] of [['scenesHead', 'Scenes'], ['seqHead', 'Sequences'], ['roHead', 'Run order']] as const) {
     // The output named in a chip after the heading, so the heading never reads as what's playing.
     $(h).textContent = word;
     if (scene.viewMany) {
       // The run order is Output 1's, whatever tab is picked.
       const v = h === 'roHead' ? viewFor(s, 'main') : scene;
-      const chip = Object.assign(document.createElement('span'), { className: 'outChip', textContent: v.viewName, title: h === 'roHead' ? `The run order plays on ${v.viewName}, whichever output is picked` : `Clicks here play on ${v.viewName}` });
+      const chip = Object.assign(document.createElement('span'), { className: 'outChip', textContent: v.viewName || '', title: h === 'roHead' ? `The run order plays on ${v.viewName}, whichever output is picked` : `Clicks here play on ${v.viewName}` });
       chip.style.setProperty('--c', v.viewColour || 'var(--fp-muted)');
       $(h).append(chip);
     }
@@ -168,14 +170,15 @@ function show(s) {
   // The output cards name the mics sent with the sound ("Sound: SDI + Mixer (Crowd mic)"): a mic added or renamed,
   // or the scene arriving after the outputs, draws them again.
   const micNames = micsOf().map(m => `${m.id}=${m.name}`).join('|');
-  if (micNames !== cardMicNames && out && out.outputs) { cardMicNames = micNames; renderOutputs(out, selectedOutput()); }
+  const so = selectedOutput();
+  if (micNames !== cardMicNames && out && so) { cardMicNames = micNames; renderOutputs(out, so); }
   if (selected && !current()) selected = null;
   renderList(); renderForm(); drawBox(); renderScenes(); renderSequences(); renderRunOrder(); renderMusic(); renderMics();
   // A source added, renamed or removed while the editor is open.
-  if (draft && $('seqDialog').open && !$('sqSteps').contains(document.activeElement)) renderSteps();
+  if (draft && $<HTMLDialogElement>('seqDialog').open && !$('sqSteps').contains(document.activeElement)) renderSteps();
 }
 
 // Follow the scene live, so Stream Deck presses show here too.
-sceneEvents(show, { switcher: showSwitcher });
+sceneEvents<SceneState, unknown, SwitcherState>(show, { switcher: showSwitcher });
 
 // Live viewers on the competition's streams (Competitions setup, Live viewers), read by Studio while on air.

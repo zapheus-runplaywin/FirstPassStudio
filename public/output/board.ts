@@ -8,10 +8,11 @@
 // output's sound: where it goes, what it plays at and how loud), the switcher and the recording (with Record games on or off),
 // and the next game across both columns. It draws from what the page already has: /api/health (common.js, every 2 s), the scene (sceneAll), the
 // outputs (out), the switcher (sw) and the mics' live levels (micLive), and counts the clocks down between reads.
-const boardEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const boardMmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const BOARD_ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+const boardEsc = (t: unknown) => String(t == null ? '' : t).replace(/[&<>"]/g, c => BOARD_ESC[c]);
+const boardMmss = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 // A countdown that may be hours or days away: 4:05 under an hour, 1:12:05 under a day, then 2 days (never 2892:22).
-const boardLeft = ms => {
+const boardLeft = (ms: number) => {
   const s = Math.max(0, Math.round(ms / 1000));
   if (s < 3600) return boardMmss(ms);
   if (s < 86400) return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -19,22 +20,22 @@ const boardLeft = ms => {
   return `${d} day${d === 1 ? '' : 's'}`;
 };
 // A time of day, with the day when it isn't today: "7:30 pm", "7:30 pm Tue".
-const boardAt = ms => {
+const boardAt = (ms: number) => {
   const d = new Date(ms);
   return `${clockTime(ms)}${d.toDateString() === new Date().toDateString() ? '' : ` ${d.toLocaleDateString([], { weekday: 'short' })}`}`;
 };
-const boardAgo = ms => ms == null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`;
+const boardAgo = (ms: number | null | undefined) => ms == null ? 'not yet' : ms < 1500 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`;
 // The time sits to the right; with below, it goes under the words instead (the music's "0:47 / 3:25" is too wide
 // for a column, and squeezed the song's name to nothing; a countdown beside a sequence's name did the same). With wrap,
 // the name runs to two lines before it is cut (the grey line under it always may). more is a further line under the
 // grey one (the next game's switch time, the mics' duck), and full makes the line span both columns.
-const boardLine = (lbl, dot, main, sub, bar, tm, extra = '', { below = false, wrap = false, more = '', full = false } = {}) =>
+const boardLine = (lbl: string, dot: string, main: string, sub: string, bar: string | null, tm: string, extra = '', { below = false, wrap = false, more = '', full = false } = {}) =>
   `<div class="line${full ? ' full' : ''}"><span class="dot ${dot}"></span><span class="lbl">${lbl}</span><span class="txt"><b${wrap ? ' class="wrap"' : ''}>${main}</b>${sub ? `<small>${sub}</small>` : ''}${more}${below && tm ? `<span class="tm under">${tm}</span>` : ''}${bar || ''}</span><span class="tm">${below ? '' : tm || ''}${extra}</span></div>`;
-const boardBar = (pct, cls = '') => pct == null ? '' : `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span>`;
+const boardBar = (pct: number | null, cls = '') => pct == null ? '' : `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span>`;
 
 // Bytes as people read them: 820 B, 14.2 KB, 1.3 MB.
-const boardBytes = n => {
-  n = Math.max(0, Number(n) || 0);
+const boardBytes = (bytes: number | undefined) => {
+  const n = Math.max(0, Number(bytes) || 0);
   if (n < 1000) return `${Math.round(n)} B`;
   if (n < 1e6) return `${(n / 1000).toFixed(n < 1e4 ? 1 : 0)} KB`;
   return `${(n / 1e6).toFixed(n < 1e7 ? 1 : 0)} MB`;
@@ -42,11 +43,11 @@ const boardBytes = n => {
 // The ping's light: green under half a second, amber to a second and a half, red slower or with no answer.
 const PING_OK_MS = 500, PING_SLOW_MS = 1500;
 // The PlayHQ chips, on one line: status, ping, how often it's checked, bandwidth and data (the last three as icons). Status says the same as the bar's PlayHQ dot.
-function boardPlayhq(h) {
-  const p = h.playhq || {}, n = p.net || {};
+function boardPlayhq(h: Health) {
+  const p: Partial<Health['playhq']> = h.playhq || {}, n: Partial<Health['playhq']['net']> = p.net || {};
   // lbl is a word, or an icon (ic) for the chips that are numbers alone, so the line fits on one row.
-  const chip = (cls, dot, lbl, val, tip) => `<span class="pqchip ${cls}" title="${boardEsc(tip)}">${dot == null ? '' : `<span class="dot ${dot}"></span>`}${lbl.startsWith('<svg') ? lbl : `<span class="k">${lbl}</span>`}<b>${val}</b></span>`;
-  const ic = (label, d) => `<svg class="ic" viewBox="0 0 16 16" aria-label="${label}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const chip = (cls: string, dot: string | null, lbl: string, val: string, tip: string) => `<span class="pqchip ${cls}" title="${boardEsc(tip)}">${dot == null ? '' : `<span class="dot ${dot}"></span>`}${lbl.startsWith('<svg') ? lbl : `<span class="k">${lbl}</span>`}<b>${val}</b></span>`;
+  const ic = (label: string, d: string) => `<svg class="ic" viewBox="0 0 16 16" aria-label="${label}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   let sDot = 'ok', sWord = 'Answering', sTip = p.readAgoMs != null ? `Last live score ${boardAgo(p.readAgoMs)}` : 'PlayHQ is answering';
   if (!h.game) { sDot = ''; sWord = 'No game'; sTip = 'No game picked, so the live score isn\'t read'; }
   else if (h.source !== 'playhq') { sDot = ''; sWord = 'By hand'; sTip = 'Scores are by hand, so the live score isn\'t read'; }
@@ -82,17 +83,17 @@ function renderBoard() {
   if (!box) return;
   const h = lastHealth;
   const since = h ? Date.now() - lastHealthAt : 0;
-  const left = ms => ms == null ? null : Math.max(0, ms - since);
+  const left = (ms: number) => Math.max(0, ms - since);
   const outs = (out && out.outputs) || [];
-  const s = sceneAll || {};
+  const s = sceneAll;
   // (The outputs, the switcher and REC are the bar's chips, on every page.)
-  const swOn = sw && sw.state === 'connected';
+  const swc = swNow(), swOn = !!swc;
   // The game: the score with the team names. (PlayHQ, the quarter and the clock are the bar's chips, on every page.)
   let game = '';
   if (!h) game = '<span class="pq bad"><span class="dot bad"></span>Studio isn\'t answering</span>';
   else if (!h.game) game = `<span class="pq"><span class="dot"></span>${boardEsc(h.competition || 'No competition')}: no game picked</span>`;
   else {
-    const sc = h.score || {};
+    const sc: Partial<NonNullable<Health['score']>> = h.score || {};
     game = `<span class="score" title="${boardEsc(h.game.label)}${h.game.court ? ` · ${boardEsc(h.game.court)}` : ''}"><span class="tname">${boardEsc(sc.homeName || '')}</span><span class="num">${sc.home ?? ''} – ${sc.away ?? ''}</span><span class="tname away">${boardEsc(sc.awayName || '')}</span></span>`;
   }
   // The PlayHQ line above the score: the link, the ping, the download a second over the last minute and the total
@@ -103,46 +104,46 @@ function renderBoard() {
   const seqLine = pl
     ? boardLine('Sequence', pl.paused ? 'warn' : 'live', boardEsc(pl.name || 'Sequence'), `step ${pl.step} of ${pl.steps}${pl.paused ? ' · paused' : ''}${pl.totalLeftMs != null ? ` · ${boardMmss(left(pl.totalLeftMs))} in all${pl.totalOpen ? '+' : ''}` : ''}`,
       boardBar(pl.steps ? (pl.step - (pl.leftMs != null ? 0.5 : 0)) / pl.steps * 100 : null), pl.leftMs != null ? boardLeft(pl.paused ? pl.leftMs : left(pl.leftMs)) : '', '', { below: true, wrap: true })
-    : boardLine('Sequence', '', 'Nothing playing', s.current && (s.scenes || []).find(x => x.id === s.current) ? `scene: ${boardEsc((s.scenes || []).find(x => x.id === s.current).name)}` : '', null, '', '', { wrap: true });
+    : boardLine('Sequence', '', 'Nothing playing', s.current && (s.scenes || []).find(x => x.id === s.current) ? `scene: ${boardEsc((s.scenes || []).find(x => x.id === s.current)?.name)}` : '', null, '', '', { wrap: true });
   // The run order line: a triggered start counting down, else the run order (▶ what Play next plays, ⏭ what follows),
   // else the next start before the game, else nothing armed. "Next" is left to the Sequences panel's step button.
   const ar = h && h.armed;
   const ro = (s.runOrder || []).filter(it => !it.gone);
-  const next = !ar && s.nextAuto && (s.sequences || []).find(x => x.id === s.nextAuto.id);
-  const sym = c => `<span class="sym">${c}</span>`;
+  const nextAuto = s.nextAuto, next = !ar && nextAuto && (s.sequences || []).find(x => x.id === nextAuto.id);
+  const sym = (c: string) => `<span class="sym">${c}</span>`;
   const armedLine = ar
     ? boardLine('Armed', 'ok', boardEsc(ar.name || 'sequence'), ar.leftMs == null ? 'after the one playing' : 'counting down', null, ar.leftMs == null ? '' : `in ${boardLeft(left(ar.leftMs))}`, '', { below: true, wrap: true })
     : ro.length ? boardLine('Run order', 'ok', `${sym('▶')}${boardEsc(ro[0].name)}`, ro[1] ? `${sym('⏭')}${boardEsc(ro[1].name)}${ro.length > 2 ? ` · ${ro.length - 2} more` : ''}` : 'last in the run order', null, '', '', { wrap: true })
-    : next ? boardLine('Starts by itself', 'ok', boardEsc(next.name), `at ${boardEsc(boardAt(s.nextAuto.at))}${next.start && next.start.min ? ` · ${next.start.min} min before the game` : ''}`, null, s.nextAuto.at ? `in ${boardLeft(s.nextAuto.at - Date.now())}` : '', '', { below: true, wrap: true })
-    : boardLine('Run order', '', 'Empty', s.seqAuto === false || (s.sequences || []).every(x => !x.start || x.start.type === 'hand') ? 'sequences start by hand' : 'sequences start by hand or by their triggers', null, '', '', { wrap: true });
+    : next && nextAuto ? boardLine('Starts by itself', 'ok', boardEsc(next.name), `at ${boardEsc(boardAt(nextAuto.at))}${next.start.type === 'before' ? ` · ${next.start.min} min before the game` : ''}`, null, nextAuto.at ? `in ${boardLeft(nextAuto.at - Date.now())}` : '', '', { below: true, wrap: true })
+    : boardLine('Run order', '', 'Empty', s.auto === false || (s.sequences || []).every(x => !x.start || x.start.type === 'hand') ? 'sequences start by hand' : 'sequences start by hand or by their triggers', null, '', '', { wrap: true });
   // Music and mics: from what their own sections already drew.
-  const m = s.music || {};
+  const m: Partial<MusicState> = s.music || {};
   const musicOn = m.status === 'playing';
   // Playing, paused or stopped is a symbol by the time (▶ ❚❚ ■), as on the player, rather than a word.
   const mSym = musicOn ? '<span class="sym">▶</span>' : m.status === 'paused' ? '<span class="sym">❚❚</span>' : m.track ? '<span class="sym">■</span>' : '';
   // Why the music is ducked, so it isn't mistaken for the mics' duck: a scene or sequence that ducks it, a stinger, or by hand.
-  const mDuck = m.ducked ? `ducked${({ quiet: ' · scene or sequence', stinger: ' · stinger', hand: ' · by hand' })[m.duckedBy] || ''}` : '';
+  const mDuck = m.ducked ? `ducked${({ quiet: ' · scene or sequence', stinger: ' · stinger', hand: ' · by hand' } as Record<string, string>)[m.duckedBy || ''] || ''}` : '';
   const mFlags = [m.muted ? 'muted' : '', mDuck].filter(Boolean).join(' · ');
   const musicLine = boardLine('Music', musicOn ? 'live' : m.status === 'paused' ? 'warn' : '', boardEsc($('mTrack') ? $('mTrack').textContent : 'Music'), m.track ? mFlags : 'nothing loaded',
     m.length ? boardBar(($('mBar') && parseFloat($('mBar').style.width)) || 0) : null, m.track && $('mTime') ? `${mSym}${boardEsc($('mTime').textContent)}` : '', '', { below: true, wrap: true });
-  const meters = [...document.querySelectorAll('#mxList .mxMeter i')];
+  const meters = [...document.querySelectorAll<HTMLElement>('#mxList .mxMeter i')];
   const level = meters.length ? Math.max(...meters.map(i => parseFloat(i.style.width) || 0)) : null;
   const hot = meters.some(i => i.classList.contains('hot')), warm = meters.some(i => i.classList.contains('warm'));
-  const mx = s.mics || {};
+  const mx: Partial<MicsState> = s.mics || {};
   // The mics' duck is an amber line on the Mics line, only while they are ducked (at full level there's nothing to say).
-  const dipWhy = mx.dipped ? boardEsc((mx.why || []).join ? (mx.why || []).join(', ') : mx.why || '') : '';
+  const dipWhy = mx.dipped ? boardEsc((mx.why || []).join(', ')) : '';
   const mb = scene.mics ? micsBoard() : { word: 'Mics', why: '', dot: '' };
   const micsLine = boardLine('Mics', mx.dipped && mb.dot === 'ok' ? 'warn' : mb.dot, boardEsc(mb.word), boardEsc(mb.why),
     level == null ? null : `<span class="bar meter"><i class="${hot ? 'hot' : warm ? 'warm' : ''}" style="width:${level}%"></i></span>`, '', '',
     { wrap: true, more: mx.dipped ? `<small class="dip">ducked to ${boardEsc(mx.dipTo ?? '')}%${dipWhy ? ` · ${dipWhy}` : ''}</small>` : '' });
   // Every output's sound, where it goes and how loud: the Sound out tile, across the board.
   const soundTile = boardSound(outs);
-  const prg = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.program) : null, pvw = swOn && sw.inputs ? sw.inputs.find(i => i.id === sw.preview) : null;
+  const prg = swc?.inputs.find(i => i.id === swc.program), pvw = swc?.inputs.find(i => i.id === swc.preview);
   const swLine = boardLine('Switcher', swOn ? 'ok' : sw && sw.setUp ? 'bad' : '', swOn ? `PGM ${boardEsc(prg ? prg.name : '?')}` : sw && sw.setUp ? 'Not answering' : 'Not set up',
-    swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(sw.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
-  const r = (h && h.recording) || {};
+    swOn ? `PVW ${boardEsc(pvw ? pvw.name : '?')} · ${boardEsc(swc?.model || '')}` : sw && sw.setUp ? boardEsc(sw.model || '') : 'cuts and keys from the Switcher section', null, '');
+  const r: Partial<Health['recording']> = (h && h.recording) || {};
   // A recording's name is its date, time and teams; the board keeps the teams (the Recordings tab has the rest).
-  const recLine = boardLine('Recording', r.on ? 'bad' : '', r.on ? boardEsc(r.name.replace(/\.jsonl(\.gz)?$/, '').replace(/^\d{4}-\d\d-\d\d \d{4} /, '')) : r.record ? 'Waiting for a game' : 'Off',
+  const recLine = boardLine('Recording', r.on ? 'bad' : '', r.on ? boardEsc((r.name || '').replace(/\.jsonl(\.gz)?$/, '').replace(/^\d{4}-\d\d-\d\d \d{4} /, '')) : r.record ? 'Waiting for a game' : 'Off',
     r.on ? 'recording this game' : r.record ? 'each PlayHQ game on air' : 'not recording games', null, '', '',
     { wrap: true, more: `<button class="alt" id="boardRecord" title="${r.record ? 'Stop recording games (the recording in progress ends)' : 'Record each PlayHQ game on air'}">${r.record ? 'Stop' : 'Record'}</button>` });
   const auto = h && h.autoNote ? h.autoNote.replace(/\s*Picking a game.*$/, '') : '';
@@ -154,11 +155,11 @@ function renderBoard() {
     : boardLine('Next game', '', auto ? boardEsc(auto.replace(/^Next:\s*/, '')) : h && h.game ? 'Picked by hand' : 'No game',
       auto ? '' : 'Scoreboard control picks the next one', null, '', '', { wrap: true, full: true });
   box.innerHTML = `<div class="game">${pqLine}${game}</div><div class="sgrid">${seqLine}${armedLine}${musicLine}${micsLine}${soundTile}${swLine}${recLine}${nextGame}</div>`;
-  const rb = $('boardRecord');
+  const rb = document.getElementById('boardRecord') as HTMLButtonElement | null;
   if (rb) rb.onclick = async () => {
     rb.disabled = true;
     try { await fetch('/api/recordings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ record: !r.record }) }); await health(); }
-    catch (err) { studioStatus(`Couldn't change recording: ${err.message}`, 'error'); }
+    catch (err) { studioStatus(`Couldn't change recording: ${err instanceof Error ? err.message : String(err)}`, 'error'); }
   };
 }
 // ─── Sound out ──────────────────────────────────────────────────────────────
@@ -168,13 +169,13 @@ function renderBoard() {
 // from the Mac app's capture of the sound going into it, the rest from the windows playing it. The SDI's format is
 // what Studio sends it (16-bit, 48 kHz, stereo, uncompressed: 1.5 Mbps); a Mac device's is its sample rate and
 // channels (macOS doesn't tell a page its bit depth).
-let soundLevels = {};
-const soundHold = new Map(); // "output|where" -> [{ v, at }, { v, at }]: each side's highest in the last SOUND_HOLD_MS
+let soundLevels: Record<string, SoundLevel> = {};
+const soundHold = new Map<string, { v: number; at: number }[]>(); // "output|where" -> [{ v, at }, { v, at }]: each side's highest in the last SOUND_HOLD_MS
 const SOUND_HOLD_MS = 3000;
 // A meter's scale is -60 to 0 dBFS; amber from -12 and red from -3, as on the mics' meters.
 const SOUND_FLOOR_DB = -60, SOUND_WARM_DB = -12, SOUND_HOT_DB = -3;
-const soundDb = v => v > 0 ? 20 * Math.log10(v) : -Infinity;
-const soundPct = db => Math.max(0, Math.min(100, (db - SOUND_FLOOR_DB) / -SOUND_FLOOR_DB * 100));
+const soundDb = (v: number) => v > 0 ? 20 * Math.log10(v) : -Infinity;
+const soundPct = (db: number) => Math.max(0, Math.min(100, (db - SOUND_FLOOR_DB) / -SOUND_FLOOR_DB * 100));
 async function pollSound() {
   if (document.hidden) return;
   try { soundLevels = (await (await fetch('/api/outputs/sound', { cache: 'no-store' })).json()).levels || {}; } catch { return; }
@@ -190,7 +191,7 @@ setInterval(pollSound, 500);
 
 // Which reading a destination shows: the SDI's capture for a Blackmagic output's own sound (and the Mac's, which hears
 // the same sound), the window's for the Mac's sound output, a sound copy's by its device's name.
-function soundKey(o, d) {
+function soundKey(o: OutputInfo, d: SoundDest) {
   if (d.device === 'own' || d.device === 'mac') {
     if (o.mode === 'decklink' && soundLevels[`${o.id}|sdi`]) return `${o.id}|sdi`;
     return `${o.id}|own`;
@@ -198,15 +199,15 @@ function soundKey(o, d) {
   return `${o.id}|${d.device}`;
 }
 const SDI_FORMAT = '<b>PCM 16-bit</b> · 48 kHz · stereo · 1.5 Mbps';
-function soundFormat(o, d, l) {
-  if (o.mode === 'decklink' && d.device === 'own' && ['sdi', 'both'].includes(o.decklinkStatus?.sound)) return SDI_FORMAT;
+function soundFormat(o: OutputInfo, d: SoundDest, l: SoundLevel | null | undefined) {
+  if (o.mode === 'decklink' && d.device === 'own' && ['sdi', 'both'].includes(o.decklinkStatus?.sound || '')) return SDI_FORMAT;
   if (!l || !l.rate) return '–';
   const ch = l.channels === 1 ? 'mono' : l.channels === 2 || !l.channels ? 'stereo' : `${l.channels} channels`;
   return `<b>${l.rate % 1000 ? (l.rate / 1000).toFixed(1) : l.rate / 1000} kHz</b> · ${ch}`;
 }
-function soundMeter(id, l) {
+function soundMeter(id: string, l: SoundLevel | null | undefined) {
   const h = soundHold.get(id);
-  const side = i => {
+  const side = (i: number) => {
     if (!l) return '<span></span>';
     const db = soundDb(l.peak[i]), hold = h ? soundDb(h[i].v) : -Infinity;
     const cls = db >= SOUND_HOT_DB ? 'hot' : db >= SOUND_WARM_DB ? 'warm' : '';
@@ -216,7 +217,7 @@ function soundMeter(id, l) {
   const dbText = loud == null ? '–' : loud <= SOUND_FLOOR_DB ? 'quiet' : `${Math.round(loud)} dB`.replace('-', '−');
   return `<span class="smeter" title="Each side's loudest moment in the last half second; the tick is the highest in the last 3 s">${side(0)}${side(1)}</span><span class="sdb">${dbText}</span>`;
 }
-function boardSound(outs) {
+function boardSound(outs: OutputInfo[]) {
   if (!outs.length) return `<div class="stile full"><span class="lbl">Sound out</span><div class="srow"><span class="dot"></span><span class="sname"><b>Checking</b></span><span class="sfmt"></span>${soundMeter('', null)}</div></div>`; // until the outputs have loaded
   const many = outs.length > 1;
   const rows = outs.map(o => {
@@ -226,7 +227,7 @@ function boardSound(outs) {
     if (!(o.sound || []).length) return `${head}<div class="srow"><span class="dot"></span><span class="sname"><b>Nowhere</b><small>No sound</small></span><span class="sfmt">–</span><span class="snone">No Audio</span></div>`;
     const where = soundWhere(o);
     return head + (o.sound || []).map((d, i) => {
-      const st = (o.soundState || [])[i] || { state: 'off' };
+      const st: Partial<SoundDestState> = (o.soundState || [])[i] || { state: 'off' };
       const part = where.parts[i] || { name: d.device, ticked: [] };
       const id = soundKey(o, d);
       const l = st.state === 'sending' || st.state === 'problem' ? soundLevels[id] : null;
