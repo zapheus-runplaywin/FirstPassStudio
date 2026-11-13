@@ -1,7 +1,7 @@
 // Sound from graphics pages (the intro and outro): the page sends its plan to the scene (pagesound.js), every scene
 // window plays it (a silent one at no volume) until the source goes off, and the Output page's source options warn
 // when the theme and the animation are more than 25% apart, checking again when the style changes.
-// The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
+// The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

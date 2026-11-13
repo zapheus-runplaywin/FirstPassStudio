@@ -1,7 +1,7 @@
 // Fonts other than Montserrat measure like it (fonts.ts normalise): font files are measured, every
 // font's capitals are sized to Montserrat's (narrow fonts a little taller, and the setup's Text
 // size on top) and sit in a line box as tall as Montserrat's, centred as Montserrat's are. The
-// last test checks it in a real browser (Chromium, through Playwright), as pages.test.js does.
+// last test checks it in a real browser (Chromium, through Playwright), as pages.test.mts does.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

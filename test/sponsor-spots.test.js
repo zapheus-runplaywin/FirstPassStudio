@@ -1,7 +1,7 @@
 // Sponsor spots on the existing graphics (public/sponsorspot.ts): the naming rights sponsor on the scoreboard,
 // title and countdown, the next sponsor in rotation in the stat card footers and the ticker, and the sponsor
 // strip on the end of night card, each left off with ?sponsor=0 (?sponsors=0 for the strip), in a real browser.
-// Skipped without one, like pages.test.js.
+// Skipped without one, like pages.test.mts.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startStudio } = require('./support/studio.mts');
