@@ -338,7 +338,7 @@ function list(dir = DIR): { id: string; name: string; competitionName: string; o
 }
 
 // The settings of a competition; with no id (no competitions yet) the defaults.
-function get(id: string | null | undefined): Settings { return id ? clean(readJson(path.join(dirOf(id), 'settings.json'))) : clean({}); }
+function get(id?: string | null): Settings { return id ? clean(readJson(path.join(dirOf(id), 'settings.json'))) : clean({}); }
 function save(id: string, input: unknown): Settings {
   writable();
   const s = clean(input, get(id));
