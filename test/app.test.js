@@ -209,10 +209,30 @@ test('closing the last Studio window asks first: Cancel stays on air, Take Off A
   await studio.onAir();
 });
 
-test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at their full size, see-through where they should be', async t => {
+test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at their full size, see-through where they should be, or as JPEGs to post', async t => {
   const playhq = await startPlayhq(createWorld());
   t.after(() => playhq.close());
-  const studio = await launch(t, { PLAYHQ_API_URL: playhq.url, PLAYHQ_SPECTATOR_URL: playhq.spectatorUrl, TZ: localZone(playhq.world.now).tz });
+  // A stand-in Facebook for posting (posting.ts; the rest of posting is test/posting.test.mts): a Page token's Page,
+  // and its photos, each upload kept.
+  const uploads = [];
+  const meta = require('node:http').createServer(async (req, res) => {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const url = new URL(req.url, 'http://x');
+    const json = (code, v) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(v)); };
+    if (url.pathname === '/me/accounts') return json(400, { error: { code: 100, message: 'nonexisting field (accounts) on node type (Page)' } });
+    if (url.pathname === '/me') return json(200, { id: '1001', name: 'Thunder League Netball' });
+    if (url.pathname === '/1001/photos') {
+      const form = await new Response(Buffer.concat(chunks), { headers: { 'content-type': req.headers['content-type'] } }).formData();
+      uploads.push(Buffer.from(await form.get('source').arrayBuffer()));
+      return json(200, { id: `photo${uploads.length}`, post_id: `1001_photo${uploads.length}` });
+    }
+    json(404, { error: { code: 100, message: `no ${url.pathname}` } });
+  });
+  await new Promise(r => meta.listen(0, '127.0.0.1', r));
+  t.after(() => new Promise(r => { meta.closeAllConnections(); meta.close(r); }));
+  const studio = await launch(t, { PLAYHQ_API_URL: playhq.url, PLAYHQ_SPECTATOR_URL: playhq.spectatorUrl, TZ: localZone(playhq.world.now).tz,
+    FIRSTPASS_POSTING_API: `http://127.0.0.1:${meta.address().port}`, POSTING_KEYCHAIN: '0' });
   if (!studio) return;
   await studio.onAir();
   const tpl = fs.readFileSync(path.join(ROOT, 'templates', 'Thunder League.json'));
@@ -308,6 +328,16 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   const gotZip = await fetch(`http://127.0.0.1:${studio.port}${phone.made.zip.url}`);
   assert.equal(gotZip.headers.get('content-type'), 'application/zip');
   assert.match(gotZip.headers.get('content-disposition'), /^attachment; filename="Thunder League .* Results\.zip"/);
+  // To post: drawn as a JPEG on white at its full size (Instagram takes only JPEGs) and sent to the Page, nothing kept in Pictures.
+  const connected = await studio.post('/api/posting/account', { token: 'EAApage0123456789abcdefghijklmnopqrstuvwxyz' });
+  assert.equal(connected.account.page.name, 'Thunder League Netball', connected.error);
+  const posted = await studio.post('/api/posting/post', { facebook: true, caption: 'Results are in', date: played, set: 'results', items: [
+    { name: 'Results', link: `/social.html?kind=results&size=portrait&date=${played}`, size: 'portrait' }] });
+  assert.equal(posted.facebook.state, 'posted', posted.error || posted.facebook.error);
+  assert.equal(uploads.length, 1);
+  assert.deepEqual([...uploads[0].subarray(0, 3)], [0xff, 0xd8, 0xff], 'a JPEG');
+  assert.deepEqual(await studio.app.evaluate(({ nativeImage }, b64) => nativeImage.createFromBuffer(Buffer.from(b64, 'base64')).getSize(), uploads[0].toString('base64')), { width: 1080, height: 1350 });
+  assert.deepEqual(inPictures(), before, 'nothing kept in Pictures');
   // Nothing at all to save is still an error.
   const none = await fetch(`http://127.0.0.1:${studio.port}/api/socials/export`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ date: played, set: 'results', items: [{ name: 'Spotlight', link: `/social.html?kind=spotlight&size=square&date=${played}`, size: 'square' }] }) });

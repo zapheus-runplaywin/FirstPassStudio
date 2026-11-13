@@ -29,13 +29,13 @@ type Level = 'full' | 'scoring' | null;
 
 // Reads of private data rather than graphics: the settings and scene backups (every photo, logo and
 // media file), the athlete register, the debug log, the sponsor exposure report, the Stream Deck key,
-// the Socials pictures saved for a phone, the Production Planner's commentators and nights (who is on the mic now and the fixture board, /api/planner/onair and
+// the Socials pictures saved for a phone, the Facebook and Instagram posts (/api/posting), the Production Planner's commentators and nights (who is on the mic now and the fixture board, /api/planner/onair and
 // /api/planner/fixtureboard, stay open for the graphics) and the competition setup. With remoteChanges off these too answer only this computer; every graphic, the scoreboard,
 // the scene and the media files stay open so the Output page, OBS and the Stream Deck work from anywhere.
 const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key', '/api/planner'];
 function privateRead(method: string, pathname: string): boolean {
   if (method !== 'GET' && method !== 'HEAD') return false;
-  return PRIVATE.includes(pathname) || firstpass(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || pathname.startsWith('/api/socials/made/') || macOnly(pathname);
+  return PRIVATE.includes(pathname) || firstpass(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || pathname.startsWith('/api/socials/made/') || pathname === '/api/posting' || macOnly(pathname);
 }
 
 // FirstPass stats (/api/firstpass/...): figures a club's FirstPass HQ holds about its athletes, many of them under 18,
@@ -64,7 +64,7 @@ function firstpassRefusal(method: string, pathname: string, remoteAddress: strin
 
 // Who may change things from another device (the Devices… window, devices.ts), the secure phone link's settings and
 // key (securelink.ts), signing in to each club's FirstPass HQ (hqauth.ts), and the AI captions' provider, keys and spend (captions.ts): read and changed only on this Mac, whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
-const MAC_ONLY = ['/api/devices', '/api/securelink', '/api/phonemic/offers', '/api/firstpass/clubs', '/api/captions'];
+const MAC_ONLY = ['/api/devices', '/api/securelink', '/api/phonemic/offers', '/api/firstpass/clubs', '/api/captions', '/api/posting/account'];
 const macOnly = (pathname: string) => MAC_ONLY.some(p => pathname === p || pathname.startsWith(p + '/'));
 // The 403 message for one of those asked for from another address, or null.
 function notThisMac(method: string, pathname: string, remoteAddress: string | undefined, own?: Set<string>): string | null {

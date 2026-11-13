@@ -1,6 +1,6 @@
 // FirstPass Studio Mac app - saves the Socials tab's pictures (socials.js in the helper asks, over the app's message
 // port): each one is the helper's social.html drawn off screen at its full size (1080 wide, up to 1920 tall) and
-// saved as a PNG, see-through where the picture is, in Pictures/FirstPass Studio/<competition> <date> <set>/, and
+// saved as a PNG, see-through where the picture is (or a JPEG on white, to post: posting.ts), in Pictures/FirstPass Studio/<competition> <date> <set>/, and
 // with zip ticked in <competition> <date> <set>.zip beside it as well. Then Finder shows the folder (or the zip), or
 // the Mac's Share menu (AirDrop, Messages, Mail...) opens with the pictures (or the one zip).
 
@@ -12,19 +12,21 @@ import { obj, arr, str, num } from '../check';
 import type { Body } from '../types';
 import { errorMessage } from '../errors';
 
-interface Picture { label: string, url: string, width: number, height: number }
+// opaque: drawn on white with no see-through parts, for a JPEG (a picture to post).
+interface Picture { label: string, url: string, width: number, height: number, opaque?: boolean }
 
 // Waits for social.html's window.socialReady (true, or a message when it has nothing to draw).
 const READY = 'Promise.resolve(window.socialReady)';
 const PICTURE_TIMEOUT_MS = 20000;
 const SETTLE_MS = 300;
+const JPEG_QUALITY = 92; // a picture to post: Instagram takes JPEGs of 8 MB at most
 
 // One picture: a hidden, see-through window at the picture's size, drawn off screen; the first paint after the page
 // says it's ready is the picture. Like the outputs' scene window (scenewindow.js), a size bigger than the screen
 // falls back to half the size at twice the density.
-async function take({ url, width, height }: Picture): Promise<NativeImage> {
+async function take({ url, width, height, opaque }: Picture): Promise<NativeImage> {
   const make = (scale: number) => new BrowserWindow({
-    width: width / scale, height: height / scale, show: false, frame: false, transparent: true, backgroundColor: '#00000000',
+    width: width / scale, height: height / scale, show: false, frame: false, transparent: !opaque, backgroundColor: opaque ? '#ffffff' : '#00000000',
     useContentSize: true, resizable: false, enableLargerThanScreen: true,
     webPreferences: { offscreen: { deviceScaleFactor: scale }, backgroundThrottling: false },
   });
@@ -68,7 +70,8 @@ function clearOldTemp() {
 }
 
 function create({ log }: { log: (message: string) => void }) {
-  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], captions, share, zip, quiet }.
+  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], captions, share, zip, quiet, format }.
+  // format 'jpeg' (pictures to post: posting.ts) draws each on white and saves it as "<NN> <label>.jpg" instead.
   // Each picture is saved as "<NN> <label>.png", numbered in order, and the captions (text, when any) as Captions.txt
   // beside them (in the zip too, but not shared: the Share menu takes just the pictures). quiet (saved for a phone, which fetches them) makes
   // them in a temporary folder instead, cleared after an hour, and opens neither Finder nor the Share menu. Answers
@@ -80,11 +83,13 @@ function create({ log }: { log: (message: string) => void }) {
       const folder = msg.quiet ? path.join(tempRoot(), String(msg.id).replace(/[^\w-]/g, ''), name) : path.join(app.getPath('pictures'), 'FirstPass Studio', name);
       if (msg.quiet) clearOldTemp();
       fs.mkdirSync(folder, { recursive: true });
-      const fileOf = (p: Picture, n: number) => path.join(folder, path.basename(`${String(n).padStart(2, '0')} ${p.label}.png`));
+      const jpeg = msg.format === 'jpeg';
+      const fileOf = (p: Picture, n: number) => path.join(folder, path.basename(`${String(n).padStart(2, '0')} ${p.label}.${jpeg ? 'jpg' : 'png'}`));
+      const bytes = (image: NativeImage) => (jpeg ? image.toJPEG(JPEG_QUALITY) : image.toPNG());
       // A carousel picture draws its place (?page=2/6), so it needs the count of the pictures that are saved.
       const urlOf = (p: Picture, n: number, of: number) => (msg.carousel ? `${p.url}&page=${n}/${of}` : p.url);
       // A picture that can't be made (nothing to draw, or too slow to draw) is skipped and the rest are still saved.
-      const all = arr(msg.pictures).map((x): Picture => { const p = obj(x); return { label: str(p.label), url: str(p.url), width: num(p.width), height: num(p.height) }; });
+      const all = arr(msg.pictures).map((x): Picture => { const p = obj(x); return { label: str(p.label), url: str(p.url), width: num(p.width), height: num(p.height), opaque: jpeg }; });
       const files: string[] = [], skipped: { name: string, reason: string }[] = [], kept: Picture[] = [];
       for (const [i, p] of all.entries()) {
         const file = fileOf(p, i + 1);
@@ -92,11 +97,11 @@ function create({ log }: { log: (message: string) => void }) {
         try {
           image = await take({ ...p, url: urlOf(p, i + 1, all.length) });
         } catch (err) {
-          skipped.push({ name: path.basename(file, '.png'), reason: errorMessage(err) });
-          log(`Socials: skipped ${path.basename(file, '.png')}: ${errorMessage(err)}`);
+          skipped.push({ name: path.basename(file, path.extname(file)), reason: errorMessage(err) });
+          log(`Socials: skipped ${path.basename(file, path.extname(file))}: ${errorMessage(err)}`);
           continue;
         }
-        fs.writeFileSync(file, image.toPNG());
+        fs.writeFileSync(file, bytes(image));
         files.push(file);
         kept.push(p);
       }
@@ -110,7 +115,7 @@ function create({ log }: { log: (message: string) => void }) {
         files.length = 0;
         for (const [i, p] of kept.entries()) {
           const file = fileOf(p, i + 1);
-          fs.writeFileSync(file, (await take({ ...p, url: urlOf(p, i + 1, kept.length) })).toPNG());
+          fs.writeFileSync(file, bytes(await take({ ...p, url: urlOf(p, i + 1, kept.length) })));
           files.push(file);
         }
       }

@@ -53,6 +53,7 @@ import { create as createGames } from './games';
 import { create as createPlanner } from './planner';
 import { create as createSocials } from './socials';
 import { create as createCaptions } from './captions';
+import { create as createPosting } from './posting';
 import { create as createTeams } from './teams';
 import { create as createAthletes } from './athletes';
 import { create as createLowerThird } from './lowerthird';
@@ -327,6 +328,13 @@ const captions = createCaptions({
   log, night: q => socials.pictureNight(q),
   kindOf: kind => socials.KIND_NAMES.find(k => k.kind === kind) || null,
   hashtags: () => socials.settings().hashtags,
+});
+// Posting the Socials pictures to the competition's Facebook Page and Instagram (posting.ts), now or later, with the
+// token kept on this Mac; the Mac app makes the pictures as JPEGs.
+const posting = createPosting({
+  log,
+  competition: () => { const id = competitions.activeId(); if (!id) return null; try { return { id, name: competitions.get(id).name || id }; } catch { return { id, name: id }; } },
+  render: (body, port) => socials.picturesForPost(body, port),
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
@@ -1125,6 +1133,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     if (stories.route(req, res, url, { send })) return;
     if ((url.pathname === '/api/captions' || url.pathname.startsWith('/api/captions/') || url.pathname === '/api/socials/caption')
       && await captions.route(req, res, url, { send, readBody })) return;
+    if ((url.pathname === '/api/posting' || url.pathname.startsWith('/api/posting/')) && await posting.route(req, res, url, { send, readBody, port: PORT })) return;
     if (url.pathname.startsWith('/api/socials') || url.pathname.startsWith('/socials/')) {
       if (await socials.route(req, res, url, { send, readBody, readRaw, port: PORT })) return;
     }

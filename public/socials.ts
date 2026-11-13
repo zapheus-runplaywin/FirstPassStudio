@@ -744,8 +744,8 @@ async function load() {
       $('save').title = 'Then press and hold a picture to add it to Photos';
       $('share').hidden = !canShareFiles();
     }
-    $('captionsCard').hidden = d.here === false;
-    if (d.here !== false) loadCaptions();
+    $('captionsCard').hidden = $('postingCard').hidden = d.here === false;
+    if (d.here !== false) { loadCaptions(); loadPosting(); }
     $<HTMLInputElement>('mark').checked = d.settings.mark;
     $<HTMLInputElement>('pivt').checked = d.settings.pivt;
     drawTemplates();
@@ -1086,6 +1086,65 @@ function drawCaptions() {
   field('Hashtags', tags);
   $('capBody').replaceChildren(...(capError ? [el('p', 'error', capError)] : []), grid,
     el('p', 'help', `Each caption is written by ${p.name} from the facts its picture shows, never negative stats, and paid for with your own key. Prices are US dollars from LiteLLM's public price list, checked weekly; your provider's bill is the real figure.`));
+}
+
+// The Facebook and Instagram card, on this Mac only: the competition's Page and the Instagram account linked to it,
+// from a Page access token kept in the Mac's Keychain (posting.ts). Pictures are posted from Post… (or held for later).
+interface PostingAccount { page: { id: string; name: string }; instagram: { id: string; username: string } | null; token: string; warning: string }
+interface PostingStatus { error?: string; competition: string | null; account: PostingAccount | null; pages?: { id: string; name: string }[] }
+let postStatus: PostingStatus | null = null;
+let postPages: { id: string; name: string }[] = [];
+let postError = '';
+async function loadPosting() {
+  try {
+    const d = await (await fetch('/api/posting', { cache: 'no-store' })).json() as PostingStatus;
+    if (d.error) throw new Error(d.error);
+    postStatus = d;
+  } catch (err) { postError = `Couldn't read the Facebook and Instagram settings: ${err instanceof Error ? err.message : err}`; }
+  drawPosting();
+}
+async function postingAccount(body: object) {
+  try {
+    const d = await (await fetch('/api/posting/account', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json() as PostingStatus;
+    if (d.error) throw new Error(d.error);
+    // A token that reaches several Pages: pick one, then connect again.
+    if (d.pages) { postPages = d.pages; postError = ''; } else { postStatus = d; postPages = []; postError = ''; }
+  } catch (err) { postError = err instanceof Error ? err.message : String(err); }
+  drawPosting();
+}
+function drawPosting() {
+  const s = postStatus;
+  const a = s?.account || null;
+  $('postSummary').textContent = a ? `${a.page.name}${a.instagram ? `, @${a.instagram.username}` : ''}` : 'not connected';
+  const grid = el('div', 'grid');
+  const field = (label: string, ...parts: (Node | string)[]) => { const v = el('div', 'row'); v.append(...parts); grid.append(el('b', '', label), v); };
+  const link = (text: string, href: string) => { const x = el('a', '', text); x.href = href; x.target = '_blank'; x.rel = 'noopener'; return x; };
+  if (a) {
+    field('Facebook Page', link(a.page.name, `https://www.facebook.com/${encodeURIComponent(a.page.id)}`));
+    field('Instagram', a.instagram ? link(`@${a.instagram.username}`, `https://www.instagram.com/${encodeURIComponent(a.instagram.username)}/`) : el('span', 'help', 'Not linked'));
+  }
+  const token = el('input');
+  token.type = 'password'; token.autocomplete = 'off';
+  token.placeholder = a ? 'Paste a new token to change it' : 'Paste a Page access token';
+  token.setAttribute('aria-label', 'Facebook access token');
+  const connect = el('button', 'small', 'Connect');
+  connect.type = 'button';
+  connect.onclick = () => { if (!token.value.trim()) return; connect.disabled = true; connect.textContent = 'Checking…'; postingAccount({ token: token.value, page: pick.value }); };
+  const pick = el('select');
+  pick.setAttribute('aria-label', 'Facebook Page');
+  pick.hidden = !postPages.length;
+  for (const p of postPages) { const o = el('option', '', p.name); o.value = p.id; pick.append(o); }
+  const parts: (Node | string)[] = [];
+  if (a) {
+    const rm = el('button', 'alt small', 'Disconnect');
+    rm.type = 'button';
+    rm.onclick = () => postingAccount({ remove: true });
+    parts.push(el('code', '', a.token), rm);
+  }
+  field('Token', ...parts, token, pick, connect, link('Make one in Meta\'s Graph API Explorer', 'https://developers.facebook.com/tools/explorer/'));
+  $('postBody').replaceChildren(...(postError ? [el('p', 'error', postError)] : []), ...(postPages.length ? [el('p', 'help', 'That token reaches more than one Page: pick the competition\'s, then Connect again.')] : []),
+    grid, ...(a?.warning ? [el('p', 'warn', a.warning)] : []),
+    el('p', 'help', `Posts to ${s?.competition || 'this competition'}'s own Facebook Page and the Instagram account linked to it. The token comes from your club's Meta app with pages_manage_posts and instagram_content_publish; it's kept in this Mac's Keychain and only its last four characters show.`));
 }
 
 $('night').onchange = () => loadNight($<HTMLSelectElement>('night').value);
