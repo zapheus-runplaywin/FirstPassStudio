@@ -7,6 +7,13 @@
 import { isFinished, startOf, localDate } from './playhq';
 import { errorMessage } from './errors';
 
+// A division's playing rules and the competition's branding, for the pages (GET /api/rules and the board).
+export interface Rules {
+  periodType: 'quarters' | 'halves' | undefined; periods: number; periodLabel: 'Q' | 'H'; periodMinutes: number | undefined;
+  superShots: boolean; superShotMinutes: number; finalsPlaces: number;
+  competitionLogo: string | null; competitionLogoLight: string | null; competitionLogoDark: string | null; competitionName: string;
+}
+
 function create({ log, config, competitions, finals, playhq, board: theBoard, control, logoFor, colourFor, norm, sameTeam, courtPlan = async () => null }) {
   const { getStructure, getLadder, findGrade, getRounds, getRoundGames, readGame, eachLimited, PLAYHQ_AT_ONCE, getLive, liveScore, PERIOD_NUMBER } = playhq;
   const { board, applyAction, saveBoards, courtShown, TICKER_SPEED } = theBoard;
@@ -534,7 +541,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   function competitionName() { const st = playhq.structureNow(); return (st && st.competition) || config().displayName || config().competitionName; }
   // The competition's rules and look, for pages that change with them. With a division, super
   // shots are that division's (a competition can play them in some divisions only).
-  function rules(division) {
+  function rules(division?: string): Rules {
     // Light and dark mode competition logos; when only one is set it is used for both.
     const brandUrl = f => f ? '/brand/' + encodeURIComponent(f) : null;
     const light = brandUrl(config().competitionLogo || config().competitionLogoDark), dark = brandUrl(config().competitionLogoDark || config().competitionLogo);

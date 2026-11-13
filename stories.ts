@@ -64,7 +64,7 @@ type Via = 'network' | 'icloud';
 interface Story {
   gameId: string; savedAt: number; followed?: boolean; ended?: boolean; final?: boolean;
   studio?: string; studioId?: string; from?: { studio: string; via: Via }; filled?: string[];
-  worm?: { gaps?: unknown[] }; stats?: { gapInHistory?: unknown }; moments?: unknown[]; goalOrder?: unknown[];
+  worm?: { gaps?: unknown[] }; stats?: { gapInHistory?: unknown }; moments?: unknown[]; goalOrder?: unknown;
   [key: string]: unknown;
 }
 // board.js mergeStories: the better story with its gaps filled from the other (how many in filledGaps), or null.

@@ -151,7 +151,7 @@ const DIVISION_WORD = /^(\d+u|u\d+|\d+|men'?s?|women'?s?|ladies|mixed|open|reser
 // names it), or a word in its name: "Open" covers "Open" and "Division 1 Open", "21" covers
 // "21&Under", "Men" covers "Men's" (but not "Women's"). An exact name wins, then the longest word
 // that matches; a division none of them match follows the competition's superShots.
-function superShotsFor(s: Pick<Settings, 'divisionSuperShots' | 'superShots'> | null | undefined, division: unknown): boolean {
+function superShotsFor(s: Partial<Pick<Settings, 'divisionSuperShots' | 'superShots'>> | null | undefined, division: unknown): boolean {
   const own = (s && s.divisionSuperShots) || {};
   const name = String(division || '').trim().toLowerCase();
   if (name) {

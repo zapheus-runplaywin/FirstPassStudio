@@ -23,6 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isFinished, startOf, localDate } from './playhq';
 import { errorMessage } from './errors';
+import { isObj, str } from './check';
 import type * as Datadir from './datadir';
 import type * as Savefile from './savefile';
 import type * as Competitions from './competitions';
@@ -69,20 +70,36 @@ interface GameBoard {
   playhqStatus?: string; playhqPeriodSeen?: string | null; playhqClock?: LiveClock | null; playhqClockKey?: string | null; playhqBreak?: string | null;
   clockRanAt?: number; updatedAt?: number; followed?: boolean; streamed?: boolean; done?: boolean; replay?: boolean;
   wait?: { n: number; until: number };
+  // Kept on the scoreboard only (see Board), but read wherever a game board is.
+  courtName?: string; playhqRefreshSec?: number; superShot?: { n: number; side: Side; at: number; how: string }; breakFrom?: { period: number; at: number } | null;
+  playhqError?: string; playhqWaiting?: string; playhqTrouble?: Trouble; playhqSeen?: string; followHold?: { at: number; logged?: boolean } | null;
+  clockMatchedAt?: number; takenOver?: string | null;
 }
 // The scoreboard: the game on Output 1, its score, clock and period, and the lasting settings (LASTING).
 interface Board extends GameBoard {
   source: 'manual' | 'playhq'; roundId: string | null; date: string; time: string; venue: string; courtName: string;
   clock: Clock; periodLabel: string; showClock: boolean; followPlayhqClock: boolean;
   autoSelect: boolean; autoCourt: string; courtFrom: string; courtNight: string; planCourt?: string; playhqRefreshSec: number; followOthers: boolean; tickerSpeed: number; updatedAt: number;
-  superShot?: { n: number; side: Side; at: number; how: string }; breakFrom?: { period: number; at: number } | null;
-  playhqError?: string; playhqWaiting?: string; playhqTrouble?: Trouble; playhqSeen?: string;
-  followHold?: { at: number; logged?: boolean } | null; lastGame?: { id: string; home: Team; away: Team }; handPickedOn?: string; takenOver?: string | null;
-  clockMatchedAt?: number;
+  lastGame?: { id: string; home: Team; away: Team }; handPickedOn?: string;
   // Automatic game selection (games.js).
   autoNote?: string; autoNext?: unknown; autoHold?: string;
 }
 type Trouble = '' | 'not-live' | 'quiet';
+type RealGoal = Extract<Goal, { side: Side }>;
+// What a story's stats, worm and moments are worked out from (goalOrderOf), so a gap can be filled from another Mac's.
+interface GoalOrder {
+  home: Team; away: Team; court: string; period: number; clock: { lengthSec: number; elapsedMs: number } | null;
+  goals: Goal[]; counts: Record<Side, Counts> | null; periodTrack: PeriodTrack | null;
+}
+// A story as mergeStories reads it: this Mac's own, or one from another Mac (its goal order checked by goalOrderIn).
+type StoryOf = { gameId: string; goalOrder?: unknown; division?: unknown; round?: unknown; studio?: string };
+// A story's goal order, when it has one with its goals: Studio wrote it (goalOrderOf), on this Mac or another.
+function goalOrderIn(s: StoryOf | null | undefined): GoalOrder | null {
+  const o = s && s.goalOrder;
+  return isObj(o) && Array.isArray(o.goals) && isObj(o.home) && isObj(o.away) ? o as unknown as GoalOrder : null;
+}
+// The goals in a goal order, without its gaps.
+const realGoals = (goals: Goal[]) => goals.filter((g): g is RealGoal => !g.gap);
 // A followed game's board: a game board with what following it needs.
 type Followed = GameBoard & { gameId: string; followed: true; source: 'playhq'; followPlayhqClock: boolean; wait: { n: number; until: number }; date: string; time: string; clock: Clock };
 // A change to the scoreboard: from the control page, the Stream Deck, a page, automatic selection or a recording.
@@ -107,7 +124,8 @@ interface Deps {
 }
 
 function create({ log, datadir, savefile, stories = { keep() {}, read: () => null }, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }: Deps) {
-  const { getRoundGames, liveScore, scoringNotYet, PERIOD_NUMBER } = playhq;
+  const { getRoundGames, liveScore, scoringNotYet } = playhq;
+  const PERIOD_NUMBER: Record<string, number | undefined> = playhq.PERIOD_NUMBER;
   const MACHINE = machine;
   const { LASTING } = controlFile;
   const saveControl = () => controlFile.save();
@@ -117,10 +135,10 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // settings (LASTING) also go to control.json, which wins when both have them. Studio runs one
   // scoreboard (one Studio per court); both files keep it under "1", as when there could be more.
   const STATE_FILE = datadir.local('scoreboard-state.json');
-  let boards = savefile.readJson(STATE_FILE, {}, (err, movedTo) => log('warn', 'scoreboard', `Could not read scoreboard-state.json, starting fresh: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
+  let boards = savefile.readJson<{ '1'?: Board }>(STATE_FILE, {}, (err, movedTo) => log('warn', 'scoreboard', `Could not read scoreboard-state.json, starting fresh: ${errorMessage(err)}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
   boards = boards['1'] ? { 1: boards['1'] } : {}; // one scoreboard: drop any old second board
   // The scoreboard as the pages see it (GET /api/scoreboard, and the board message on the scene socket).
-  function scoreboardJson(b: GameBoard = board()) {
+  function scoreboardJson(b: Board = board()) {
     const logos = { home: logoFor(b.home.name), away: logoFor(b.away.name) };
     const teamColours = { home: colourFor(b.home.name), away: colourFor(b.away.name) };
     const venueName = config().venueName || b.venue || '';
@@ -136,26 +154,28 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes): { kind: 'break', at, name }. Otherwise null.
   // The break's start is kept on the board (breakFrom: { period, at }) so a page opened mid-break, or a relaunch,
   // counts from the real start; it's cleared when the clock runs again or the period is wound back.
-  const BREAK_NAMES = { qt: 'Quarter time', ht: 'Half time', '3qt': 'Three quarter time' };
-  const BREAK_MINUTES = { qt: 'quarterBreakMinutes', ht: 'halfTimeMinutes', '3qt': 'threeQuarterBreakMinutes' };
-  function countdownFor(b: GameBoard) {
+  type Break = 'qt' | 'ht' | '3qt';
+  const BREAK_NAMES: Record<Break, string> = { qt: 'Quarter time', ht: 'Half time', '3qt': 'Three quarter time' };
+  const BREAK_MINUTES = { qt: 'quarterBreakMinutes', ht: 'halfTimeMinutes', '3qt': 'threeQuarterBreakMinutes' } as const;
+  function countdownFor(b: Board) {
     const last = config().periodType === 'halves' ? 2 : 4;
     const period = Number(b.period) || 1;
-    const running = !!b.clock.running && clockLeft(b) > 0; // a clock left running reads 0:00 at the end, so that's stopped too
-    const atBreak = !running && period < last && (clockLeft(b) === 0 || (b.source === 'playhq' && b.followPlayhqClock && !!b.playhqBreak));
+    const left = clockLeft(b);
+    const running = !!b.clock.running && !!left; // a clock left running reads 0:00 at the end, so that's stopped too
+    const atBreak = !running && period < last && (left === 0 || (b.source === 'playhq' && b.followPlayhqClock && !!b.playhqBreak));
     const from = b.breakFrom;
     if (running || (from && period < from.period) || (from && period > from.period + 1)) { if (from) { b.breakFrom = null; saveBoards(); } }
     else if (atBreak && !from) { b.breakFrom = { period, at: Date.now() }; saveBoards(); }
     if (b.breakFrom) {
-      const which = last === 2 ? 'ht' : ['qt', 'ht', '3qt'][b.breakFrom.period - 1];
-      const minutes = Number(config()[BREAK_MINUTES[which]]) || 0;
-      return minutes > 0 ? { kind: 'break', at: b.breakFrom.at + minutes * 60000, name: BREAK_NAMES[which] } : null;
+      const which: Break | undefined = last === 2 ? 'ht' : (['qt', 'ht', '3qt'] as const)[b.breakFrom.period - 1];
+      const minutes = which ? Number(config()[BREAK_MINUTES[which]]) || 0 : 0;
+      return which && minutes > 0 ? { kind: 'break', at: b.breakFrom.at + minutes * 60000, name: BREAK_NAMES[which] } : null;
     }
     const start = b.gameId ? startOf(b) : null;
     return start !== null && !gameStarted(b) ? { kind: 'start', at: start } : null;
   }
   // Pushes the board to the pages following it (scene.js), once the current change has finished.
-  let boardPushTimer = null;
+  let boardPushTimer: NodeJS.Immediate | null = null;
   function pushBoard() {
     if (boardPushTimer) return;
     boardPushTimer = setImmediate(() => { boardPushTimer = null; try { scene.publishBoard(); } catch (err) { log('warn', 'scoreboard', `Board not pushed: ${errorMessage(err)}`); } });
@@ -168,12 +188,12 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // only followed in the background (see "The night's other games") is marked followed, and stories.js prefers a
   // streamed story of the same game from another Mac over it.
   const STORY_EVERY = 15 * 1000;
-  const storyAt = new Map(); // game id -> when its story was last kept
+  const storyAt = new Map<string, number>(); // game id -> when its story was last kept
   // Games with a change not yet in their story (it came within STORY_EVERY of the last save): kept once that's passed
   // (keepOwedStories, each second from server.js), so the story a late Mac asks for (stories.js liveFrom) isn't left behind.
-  const storyOwed = new Map(); // game id -> its board
+  const storyOwed = new Map<string, GameBoard>(); // game id -> its board
   function keepOwedStories() { for (const [id, b] of [...storyOwed]) { if (b.gameId === id) keepStory(false, b); else storyOwed.delete(id); } }
-  function keepStory(now, b = boards['1']) {
+  function keepStory(now: boolean, b: GameBoard | undefined = boards['1']) {
     if (!b || !b.gameId || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.some(g => !g.gap)) return;
     if (!now && Date.now() - (storyAt.get(b.gameId) || 0) < STORY_EVERY) { storyOwed.set(b.gameId, b); return; }
     storyAt.set(b.gameId, Date.now());
@@ -185,7 +205,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     } catch (err) { log('warn', 'stats', `The story of ${b.home.name} v ${b.away.name} wasn't kept: ${errorMessage(err)}`); }
   }
   // A game's kept story (this Mac's own, or a copy from another Studio), or null when no Studio streamed or followed it.
-  const gameStory = id => stories.read(id);
+  const gameStory = (id: string) => stories.read(id);
   // What a story's stats, worm and moments were worked out from, so a gap in it can be filled from another Mac's story of
   // the same game (mergeStories) and they worked out again.
   const goalOrderOf = (b: GameBoard) => ({ home: { name: b.home.name, score: Number(b.home.score) || 0 }, away: { name: b.away.name, score: Number(b.away.score) || 0 },
@@ -195,8 +215,9 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   function saveBoards() {
     keepStory(false);
     pushBoard();
-    savefile.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), err => { if (err) log('warn', 'scoreboard', `scoreboard-state.json not saved: ${err.message}`); });
-    if (boards['1']) controlFile.get().boards['1'] = Object.fromEntries(LASTING.map(k => [k, boards['1'][k]]));
+    savefile.writeFile(STATE_FILE, JSON.stringify(boards, null, 2), err => { if (err) log('warn', 'scoreboard', `scoreboard-state.json not saved: ${errorMessage(err)}`); });
+    const b = boards['1'];
+    if (b) controlFile.get().boards['1'] = pickKeys(b, LASTING);
     saveControl();
   }
 
@@ -204,9 +225,9 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   let QUARTER_SEC = 600;
   // The ticker's scroll speed in pixels per second: the default, the limits and one Faster / Slower step.
   const TICKER_SPEED = 120, TICKER_MIN = 20, TICKER_MAX = 600, TICKER_STEP = 20;
-  const tickerSpeed = v => Math.max(TICKER_MIN, Math.min(TICKER_MAX, Math.round(Number(v) || TICKER_SPEED)));
+  const tickerSpeed = (v: unknown) => Math.max(TICKER_MIN, Math.min(TICKER_MAX, Math.round(Number(v) || TICKER_SPEED)));
 
-  function newBoard() {
+  function newBoard(): Board {
     return {
       source: 'manual',          // 'playhq' = scores follow PlayHQ, 'manual' = scores from the control page
       gameId: null, roundId: null,
@@ -231,18 +252,21 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // The court's name on the graphics: the one typed on Scoreboard control, else PlayHQ's for the game on. Matching
   // games to a court (following a court, up next, the Production Planner) uses PlayHQ's, b.court.
   const courtShown = (b: GameBoard) => String(b.courtName || '').trim() || b.court || '';
-  function board() {
-    if (!boards['1']) boards['1'] = { ...newBoard(), ...pickKeys(controlFile.get().boards['1'], LASTING) };
-    const b = boards['1'];
+  function board(): Board {
+    const b = boards['1'] ??= { ...newBoard(), ...pickKeys(controlFile.get().boards['1'], LASTING) };
     if (b.autoSelect === undefined) { const n = newBoard(); b.autoSelect = n.autoSelect; b.autoCourt = n.autoCourt; b.courtFrom = n.courtFrom; } // saved before these existed
     return b;
   }
 
-  const pickKeys = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined).map(k => [k, o[k]]));
+  // The lasting settings (keys) a saved board has: Partial<Board> as they're unchecked saved values of Board's own keys.
+  function pickKeys(o: Partial<Board> | undefined, keys: string[]): Partial<Board> {
+    const from: Record<string, unknown> = o || {};
+    return Object.fromEntries(keys.filter(k => from[k] !== undefined).map(k => [k, from[k]]));
+  }
   if (boards['1']) Object.assign(boards['1'], pickKeys(controlFile.get().boards['1'], LASTING));
   if (!controlFile.exists()) { controlFile.markUnsaved(); saveBoards(); } // none yet: write it from what was in use
 
-  function clockElapsed(c) { return c.elapsedMs + (c.running && c.startedAt ? Date.now() - c.startedAt : 0); }
+  function clockElapsed(c: Clock) { return c.elapsedMs + (c.running && c.startedAt ? Date.now() - c.startedAt : 0); }
 
   // Clock buttons pressed by a person stop the clock following PlayHQ (like score buttons do for the score).
   const MANUAL_CLOCK = new Set(['clockStart', 'clockStop', 'clockToggle', 'clockReset', 'clockSet', 'clockAdjust']);
@@ -250,7 +274,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // (the buttons, the Stream Deck, a score press, or a game being picked), following the
   // PlayHQ scorer's clock is switched to match. Changing the clock afterwards still wins.
   const SETS_SOURCE = new Set(['source', 'selectGame']);
-  function applyAction(b: GameBoard, a) {
+  function applyAction(b: Board, a: Action) {
     record.action(a);
     const sourceBefore = b.source;
     applyOne(b, a);
@@ -271,37 +295,38 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // count unchanged (or unknown) counts. The first reading after a game is picked or scores
   // switch to PlayHQ only sets the starting point, so catching up never plays it, nor does a reading that is
   // PlayHQ catching up (catchUpIn: a scorebench back on line), and nothing plays once the game is finished.
-  const superSeen = new WeakMap(); // board -> last PlayHQ reading compared against
-  function superShot(b: GameBoard, side, how) {
+  interface SuperReading { key: string; home: SideReading; away: SideReading }
+  interface SideReading { score: number | null; goals: number | null | undefined; superGoals: number | null | undefined }
+  const superSeen = new WeakMap<GameBoard, SuperReading>(); // board -> last PlayHQ reading compared against
+  function superShot(b: GameBoard, side: Side, how: string) {
     if (!competitions.superShotsFor(config(), b.division)) return;
     const n = ((b.superShot && b.superShot.n) || 0) + 1;
     b.superShot = { n, side, at: Date.now(), how };
     log('info', 'supershot', `Super shot for ${b[side].name} (${side}, ${how}), number ${n}`);
   }
-  function watchSuperShots(b: GameBoard, game, live, kind, catchUp) {
-    const read = k => ({ score: game[k].score, goals: live ? live[k].goals : null, superGoals: live ? live[k].superGoals : null });
-    const now = { key: `${b.gameId} ${kind}`, home: read('home'), away: read('away') };
+  function watchSuperShots(b: GameBoard, game: Reading, live: Live | null | undefined, kind: string, catchUp: unknown) {
+    const read = (k: Side): SideReading => ({ score: game[k].score, goals: live ? live[k].goals : null, superGoals: live ? live[k].superGoals : null });
+    const now: SuperReading = { key: `${b.gameId} ${kind}`, home: read('home'), away: read('away') };
     const before = superSeen.get(b);
     superSeen.set(b, now);
     if (!before || before.key !== now.key || isFinished(game) || catchUp) return; // a catch-up's super shot was minutes ago
-    for (const k of ['home', 'away']) {
+    for (const k of SIDES) {
       const was = before[k], is = now[k];
       if (was.score == null || is.score == null) continue;
       const up = is.score - was.score;
-      const counted = was.superGoals != null && is.superGoals != null;
-      if (counted ? is.superGoals - was.superGoals === 1 && up >= 2
+      if (was.superGoals != null && is.superGoals != null ? is.superGoals - was.superGoals === 1 && up >= 2
         : up === 2 && (was.goals == null || is.goals == null || is.goals === was.goals)) superShot(b, k, 'playhq');
     }
   }
 
-  function applyOne(b: GameBoard, a) {
+  function applyOne(b: Board, a: Action) {
     trackPeriods(b); // anything PlayHQ put on the board before this goes to the period it came in
     applyOneAction(b, a);
     if (b.followHold && (b.source !== 'playhq' || ['selectGame', 'reset', 'resetScores', 'setScore', 'score'].includes(a.type))) b.followHold = null;
     if (a.type === 'resetScores' || a.type === 'reset') b.periodTrack = null;
     trackPeriods(b);
   }
-  function applyOneAction(b: GameBoard, a) {
+  function applyOneAction(b: Board, a: Action) {
     if (['score', 'setScore', 'resetScores', 'selectGame', 'source', 'reset'].includes(a.type)) superSeen.delete(b); // start again from the next reading
     if (MANUAL_CLOCK.has(a.type) && b.followPlayhqClock && !a.fromToggle) {
       b.followPlayhqClock = false;
@@ -320,10 +345,10 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       }
       case 'superShot': superShot(b, a.side === 'away' ? 'away' : 'home', 'test'); break; // plays it without changing the score
       case 'streak': { // plays streak.html without changing the score
-        const kind = STREAK_NAMES[a.kind] ? a.kind : 'heating';
+        const kind: StreakKind = isStreakKind(a.kind) ? a.kind : 'heating';
         const side = a.side === 'away' ? 'away' : 'home';
         const both = kind === 'goalForGoal' || kind === 'level';
-        streak(b, { kind, side: both ? '' : side, goals: STREAK_GOALS[kind] || 0, from: kind === 'goalForGoal' ? side : '', down: kind === 'comeback' ? COMEBACK_DOWN + 1 : 0 }, 'test');
+        streak(b, { kind, side: both ? '' : side, goals: streakGoals(kind), from: kind === 'goalForGoal' ? side : '', down: kind === 'comeback' ? COMEBACK_DOWN + 1 : 0 }, 'test');
         break;
       }
       case 'setScore': {
@@ -344,17 +369,21 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
         if (!a.auto && b.autoSelect) { b.autoSelect = false; log('info', 'auto', 'Game picked by hand, so automatic game selection is off'); }
         if (!a.auto) b.handPickedOn = localDate(); // a new night turns automatic selection back on, but not over a pick made that night
         // The game it leaves, with the score it had, for the fixture board's finished game until PlayHQ has the result.
-        if (b.gameId && b.gameId !== a.game.id) { b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } }; keepStory(true); handOn(b); }
-        Object.assign(b, { gameId: a.game.id, roundId: a.game.roundId, division: a.game.division || '', court: a.game.court || '', source: 'playhq',
-          round: a.game.round || '', date: a.game.date || '', time: a.game.time || '', venue: a.game.venue || '', playhqStatus: a.game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null, endedAt: null, breakFrom: null });
-        b.home = { name: a.game.home.name, score: a.game.home.score ?? 0 };
-        b.away = { name: a.game.away.name, score: a.game.away.score ?? 0 };
-        if (b.goalsGameId !== a.game.id) clearGoals(b, a.game.id);
+      {
+        const game = a.game;
+        if (!game) break;
+        if (b.gameId && b.gameId !== game.id) { b.lastGame = { id: b.gameId, home: { ...b.home }, away: { ...b.away } }; keepStory(true); handOn(b); }
+        Object.assign(b, { gameId: game.id, roundId: game.roundId ?? null, division: game.division || '', court: game.court || '', source: 'playhq',
+          round: game.round || '', date: game.date || '', time: game.time || '', venue: game.venue || '', playhqStatus: game.status || '', playhqPeriodSeen: null, playhqClock: null, playhqClockKey: null, playhqBreak: null, endedAt: null, breakFrom: null });
+        b.home = { name: game.home.name, score: game.home.score ?? 0 };
+        b.away = { name: game.away.name, score: game.away.score ?? 0 };
+        if (b.goalsGameId !== game.id) clearGoals(b, game.id);
         // A game followed in the background: the board carries on from its goals, quarters and clock (takenOver says so,
         // so games.js switchTo doesn't put it back to Q1 with a full clock).
-        b.takenOver = takeOver(b, a.game.id) ? a.game.id : null;
+        b.takenOver = takeOver(b, game.id) ? game.id : null;
         setImmediate(() => warmTeamLists(a.auto ? 'game picked automatically' : 'game picked'));
         break;
+      }
       case 'source': {
         const want = a.value === 'toggle' ? (b.source === 'playhq' ? 'manual' : 'playhq') : a.value;
         const was = b.source;
@@ -372,7 +401,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       case 'autoCourt': // choosing a court means "follow this court", so it also turns automatic selection on (a court
         // from the plan or the fallback doesn't, over a game picked by hand that night)
         b.autoCourt = String(a.value || '').trim(); b.autoHold = '';
-        b.courtFrom = a.from !== undefined ? a.from : 'hand'; // by hand (control page, Stream Deck) lasts the night
+        b.courtFrom = a.from ?? 'hand'; // by hand (control page, Stream Deck) lasts the night
         if (b.autoCourt && !b.autoSelect && (b.courtFrom === 'hand' || b.handPickedOn !== localDate())) { b.autoSelect = true; log('info', 'auto', `Court set to ${b.autoCourt}, so automatic game selection is on`); }
         break;
       case 'followPlayhqClock': {
@@ -383,7 +412,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       case 'period': {
         // Quarters 1-4 or halves 1-2, then 5 for extra time.
         const last = config().periodType === 'halves' ? 2 : 4;
-        let next = a.value === 'next' ? b.period + 1 : a.value === 'prev' ? b.period - 1 : Number(a.value) || 1;
+        let next: number = a.value === 'next' ? b.period + 1 : a.value === 'prev' ? b.period - 1 : Number(a.value) || 1;
         if (next > last && next < 5) next = a.value === 'prev' ? last : 5;
         if (a.value === 'prev' && b.period === 5) next = last;
         b.period = Math.max(1, Math.min(5, next));
@@ -434,11 +463,11 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   //             clock is running; in a live game the longest stretch seen without one was about 2.5 minutes
   const NOT_LIVE_AFTER_MS = 5 * 60000, QUIET_MS = 4 * 60000;
   const RUNNING = /^(RESUME|RESUMED|START|STARTED|RUNNING)$/i;
-  const TROUBLE_SAYS = {
+  const TROUBLE_SAYS: Record<Exclude<Trouble, ''>, string> = {
     'not-live': 'PlayHQ says the game is under way, but its live scoring isn\'t coming through: the scorebench may be off line. Fix the scorebench, or score by hand (a score press switches to Manual).',
     quiet: `Nothing new from PlayHQ's scorer for ${QUIET_MS / 60000} minutes while its clock runs: the scorebench may be off line. Fix the scorebench, or score by hand (a score press switches to Manual).`,
   };
-  function playhqTrouble(b: GameBoard, now = Date.now()) {
+  function playhqTrouble(b: GameBoard, now = Date.now()): Trouble {
     if (b.source !== 'playhq' || !b.gameId || b.playhqWaiting || isFinished({ status: b.playhqStatus || '' }) || !playhq.liveSeenFor) return '';
     const seen = playhq.liveSeenFor(b.gameId);
     if (seen.notScoredAt > seen.okAt) {
@@ -458,7 +487,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     else log('info', 'scoreboard', `PlayHQ's live scoring for ${b.home.name} v ${b.away.name} is coming through again`);
     b.playhqTrouble = t;
   }
-  const troubleSays = t => TROUBLE_SAYS[t] || '';
+  const troubleSays = (t: Trouble | undefined) => t ? TROUBLE_SAYS[t] : '';
 
   // ─── Back to Follow PlayHQ from a score kept by hand ────────────────────────
   // When the scorebench drops off line, the operator scores by hand and presses Follow PlayHQ once it's back. Pressed
@@ -467,8 +496,9 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // quarter and clock while PlayHQ's score is behind it and PlayHQ's live feed hasn't changed since the press. As soon
   // as PlayHQ has caught up (level or ahead for both teams), or its feed has anything new (the scorebench is back, and
   // PlayHQ is then the scorer's word, even a goal lower), the board follows PlayHQ as usual.
-  function holdHandScore(b: GameBoard, s) {
+  function holdHandScore(b: GameBoard, s: { home: number; away: number }) {
     const h = b.followHold;
+    if (!h) return false;
     const seen = playhq.liveSeenFor ? playhq.liveSeenFor(b.gameId) : null;
     const changed = !!(seen && seen.changedAt > h.at);
     const behind = s.home < (Number(b.home.score) || 0) || s.away < (Number(b.away.score) || 0);
@@ -494,10 +524,12 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     // A reading that comes back after scores were switched to Manual or another game was picked belongs to before
     // then, so it's dropped: it would otherwise put PlayHQ's score over the one being scored by hand.
     const gameId = b.gameId;
+    const roundId = b.roundId;
+    if (!gameId) return;
     const stillFollowing = () => b.source === 'playhq' && b.gameId === gameId;
     try {
       const maxAge = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
-      let game = null;
+      let game: Reading | undefined;
       const s = await liveScore({ id: gameId }, maxAge);
       if (!stillFollowing()) return;
       if (s && b.followHold && holdHandScore(b, s)) { b.playhqError = ''; watchTrouble(b); return; }
@@ -515,7 +547,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       } else {
         // Last resort: the round fixture, which only has scores once a game is final. One kept from before PlayHQ
         // failed isn't a reading: the board keeps its score and says why.
-        const games = await getRoundGames(b.roundId, maxAge);
+        const games: Reading[] & { stale?: string } = await getRoundGames(roundId, maxAge);
         if (!stillFollowing()) return;
         if (games.stale) throw new Error(games.stale);
         game = games.find(g => g.id === gameId);
@@ -564,43 +596,48 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   const MAX_STEP = 3;
   const MIN_GOAL_SEC = 10;
   // Whether this reading is a catch-up (see above): false, or which team scored how many times at once.
-  function catchUpIn(b: GameBoard, game, live) {
+  type CatchUp = false | { side: Side; events: number; points: number };
+  function catchUpIn(b: GameBoard, game: Reading, live: Live | null | undefined): CatchUp {
     if (!b.goalsBaseline || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId) return false; // the first reading has its own rule
     const allowed = Math.max(1, Math.floor((b.playhqRefreshSec || DEFAULT_REFRESH_SEC) / MIN_GOAL_SEC));
-    for (const side of ['home', 'away']) {
+    for (const side of SIDES) {
       const d = (game[side].score ?? b[side].score) - (Number(b[side].score) || 0);
       if (d <= 0) continue;
       const was = b.playhqCounts && b.playhqCounts[side], is = live && live[side];
-      const counted = was && is && [was.goals, was.superGoals, is.goals, is.superGoals].every(n => n != null);
       // Each goal or super shot is 1 or 2 points, so a rise of d is between d/2 and d of them, whatever the counts say
       // (after scoring by hand, PlayHQ's counts also hold goals already on the board).
-      const events = Math.min(d, Math.max(Math.ceil(d / 2), counted ? (is.goals - was.goals) + (is.superGoals - was.superGoals) : 0));
+      const counted = was && is && was.goals != null && was.superGoals != null && is.goals != null && is.superGoals != null
+        ? (is.goals - was.goals) + (is.superGoals - was.superGoals) : 0;
+      const events = Math.min(d, Math.max(Math.ceil(d / 2), counted));
       if (events > allowed) return { side, events, points: d };
     }
     return false;
   }
-  function clearGoals(b: GameBoard, gameId) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; momentsFrom(b); }
+  function clearGoals(b: GameBoard, gameId: string | null | undefined) { b.goals = []; b.goalsGameId = gameId || null; b.goalsBaseline = false; b.goalsSeq = 0; b.playhqCounts = null; b.streakFired = {}; momentsFrom(b); }
   function clockLeft(b: GameBoard) { return b.clock ? Math.max(0, Math.ceil(b.clock.lengthSec - clockElapsed(b.clock) / 1000)) : null; }
-  function pushGoal(b: GameBoard, side, points, how) {
+  function pushGoal(b: GameBoard, side: Side, points: number, how: string) {
     b.goalsSeq = (b.goalsSeq || 0) + 1;
+    b.goals ??= [];
     b.goals.push({ id: b.goalsSeq, side, points, period: b.period, clockLeft: clockLeft(b), periodSec: b.clock ? b.clock.lengthSec : null, at: Date.now(), how });
     if (b.goals.length > GOALS_KEPT) b.goals.splice(0, b.goals.length - GOALS_KEPT);
   }
   // A gap: the score moved without Studio seeing the goals. `set` is the score it moved to
   // ({ home, away }, or just the side that jumped), so worm.html can carry on from there.
-  function pushGap(b: GameBoard, set) {
-    b.goals.push({ id: ++b.goalsSeq, gap: true, set, period: b.period, clockLeft: clockLeft(b), periodSec: b.clock ? b.clock.lengthSec : null, at: Date.now() });
+  function pushGap(b: GameBoard, set: Partial<Record<Side, number>> | undefined) {
+    b.goalsSeq = (b.goalsSeq || 0) + 1;
+    (b.goals ??= []).push({ id: b.goalsSeq, gap: true, set, period: b.period, clockLeft: clockLeft(b), periodSec: b.clock ? b.clock.lengthSec : null, at: Date.now() });
   }
   // A score taken off (a correction) removes that team's latest goals.
-  function takeGoals(b: GameBoard, side, points) {
-    for (let i = b.goals.length - 1; i >= 0 && points > 0; i--) {
-      const g = b.goals[i];
-      if (g.side !== side || g.gap) continue;
-      if (g.points <= points) { points -= g.points; b.goals.splice(i, 1); }
+  function takeGoals(b: GameBoard, side: Side, points: number) {
+    const goals = b.goals || [];
+    for (let i = goals.length - 1; i >= 0 && points > 0; i--) {
+      const g = goals[i];
+      if (g.gap || g.side !== side) continue;
+      if (g.points <= points) { points -= g.points; goals.splice(i, 1); }
       else { g.points -= points; points = 0; } // a super goal taken down by 1
     }
   }
-  function noteGoals(b: GameBoard, side, delta, how, split) {
+  function noteGoals(b: GameBoard, side: Side, delta: number, how: string, split?: { goals: number; superGoals: number } | null) {
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
     if (how === 'manual') b.goalsBaseline = true; // the board's score is now the one goals are counted from
     if (!delta) return;
@@ -611,10 +648,11 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     for (let i = 0; i < goals; i++) pushGoal(b, side, 1, how);
   }
   // Called with each PlayHQ reading before it is put on the board. Returns true if goals changed.
-  function goalsFromPlayhq(b: GameBoard, game, live, catchUp) {
+  function goalsFromPlayhq(b: GameBoard, game: Reading, live: Live | null | undefined, catchUp: CatchUp) {
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
-    const counts = live ? { home: { goals: live.home.goals, superGoals: live.home.superGoals, shots: live.home.shots }, away: { goals: live.away.goals, superGoals: live.away.superGoals, shots: live.away.shots } } : null;
-    const before = b.goals.length, seq = b.goalsSeq;
+    const counts: Record<Side, Counts> | null = live ? { home: { goals: live.home.goals, superGoals: live.home.superGoals, shots: live.home.shots }, away: { goals: live.away.goals, superGoals: live.away.superGoals, shots: live.away.shots } } : null;
+    const goalList = b.goals ??= [];
+    const before = goalList.length, seq = b.goalsSeq;
     const deltas = { home: (game.home.score ?? b.home.score) - (Number(b.home.score) || 0), away: (game.away.score ?? b.away.score) - (Number(b.away.score) || 0) };
     if (!b.goalsBaseline) {
       // First reading for this game: only a game that hasn't started yet (0-0 on the board) is followed goal by goal from here.
@@ -633,16 +671,16 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       if (counts) b.playhqCounts = counts;
       return true;
     }
-    for (const side of ['home', 'away']) {
+    for (const side of SIDES) {
       const d = deltas[side];
       if (!d) continue;
       if (d > MAX_STEP) {
         log('info', 'goals', `${b[side].name} went up ${d} points between readings, too many to list one by one; noted as a gap`);
-        pushGap(b, { [side]: game[side].score });
+        pushGap(b, { [side]: game[side].score ?? 0 });
         continue;
       }
       const was = b.playhqCounts && b.playhqCounts[side], now = counts && counts[side];
-      let split = null;
+      let split: { goals: number; superGoals: number } | null = null;
       if (d > 0 && was && now && now.goals != null && now.superGoals != null && was.goals != null && was.superGoals != null) {
         const g = now.goals - was.goals, sg = now.superGoals - was.superGoals;
         if (g >= 0 && sg >= 0 && g + 2 * sg === d) split = { goals: g, superGoals: sg };
@@ -651,7 +689,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       log('info', 'goals', `${b[side].name} ${d > 0 ? '+' : ''}${d} (${split ? `${split.goals} goal${split.goals === 1 ? '' : 's'}, ${split.superGoals} super from PlayHQ's counts` : 'split worked out from the score'})`);
     }
     if (counts) b.playhqCounts = counts;
-    return b.goals.length !== before || b.goalsSeq !== seq;
+    return goalList.length !== before || b.goalsSeq !== seq;
   }
   // ─── Hot streaks and game moments (for streak.html) ─────────────────────────
   // Worked out from the goal order above, where a super goal is one goal, and the score:
@@ -672,23 +710,28 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // once the game is finished. Each one bumps b.streak.n and is added to b.streakLog (with its
   // gameId), and streak.html plays the ones it hasn't seen.
   const STREAK_GOALS = { heating: 3, fire: 5, goalForGoal: 10 };
+  const streakGoals = (kind: StreakKind) => kind === 'heating' || kind === 'fire' || kind === 'goalForGoal' ? STREAK_GOALS[kind] : 0;
   const GAME_MOMENTS_KEPT = 80;
-  const MOMENT_ORDER = ['siren', 'backToBack', 'fire', 'lead', 'comeback', 'level', 'goalForGoal', 'heating'];
-  const STREAK_NAMES = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square',
+  const MOMENT_ORDER: StreakKind[] = ['siren', 'backToBack', 'fire', 'lead', 'comeback', 'level', 'goalForGoal', 'heating'];
+  const isStreakKind = (k: unknown): k is StreakKind => (MOMENT_ORDER as unknown[]).includes(k);
+  const STREAK_NAMES: Record<StreakKind, string> = { heating: 'heating up', fire: 'on fire', goalForGoal: 'goal for goal', lead: 'hits the front', level: 'all square',
     comeback: 'coming back', siren: 'on the siren', backToBack: 'back to back super shots' };
   const COMEBACK_DOWN = 5, COMEBACK_WITHIN = 2, LEVEL_LAST_SEC = 120, SIREN_LAST_SEC = 10, SIREN_STOPPED_MS = 15000;
-  const leaderOf = (h, a) => (h > a ? 'home' : a > h ? 'away' : '');
+  const leaderOf = (h: number, a: number): Side | '' => (h > a ? 'home' : a > h ? 'away' : '');
   // also: the other moments the same goal made, which streak.html doesn't play (one per goal on air) but the
   // Commentator stats page lists, so a goal that's a team's third in a row and puts them in front shows both.
-  function streak(b: GameBoard, ev, how, also = []) {
+  function streak(b: GameBoard, ev: StreakEvent, how: string, also: StreakEvent[] = []) {
     const n = ((b.streak && b.streak.n) || 0) + 1;
-    b.streak = { n, side: '', goals: 0, from: '', ...ev, also, gameId: b.gameId || null, score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
+    const s: Streak = { n, kind: ev.kind, side: ev.side ?? '', goals: ev.goals ?? 0, from: ev.from ?? '', down: ev.down ?? 0, also, gameId: b.gameId || null,
+      score: { home: Number(b.home.score) || 0, away: Number(b.away.score) || 0 },
       period: b.period, periodLabel: rules(b.division).periodLabel, clockLeft: clockLeft(b), at: Date.now(), how };
-    b.streakLog = [...(b.streakLog || []), b.streak].slice(-6);
+    b.streak = s;
+    b.streakLog = [...(b.streakLog || []), s].slice(-6);
     // Every moment of this game, for the Socials tab's Moments of the game (the log above keeps only the last few).
     if (b.gameMomentsId !== b.gameId) { b.gameMoments = []; b.gameMomentsId = b.gameId; }
-    b.gameMoments = [...b.gameMoments, { kind: ev.kind, side: ev.side || '', goals: ev.goals || 0, down: ev.down || 0, also: also.map(x => ({ kind: x.kind, side: x.side || '' })),
-      score: b.streak.score, period: b.period, periodLabel: b.streak.periodLabel, clockLeft: b.streak.clockLeft }].slice(-GAME_MOMENTS_KEPT);
+    const moment: GameMoment = { kind: ev.kind, side: ev.side || '', goals: ev.goals || 0, down: ev.down || 0, also: also.map(x => ({ kind: x.kind, side: x.side || '' })),
+      score: s.score, period: b.period, periodLabel: s.periodLabel, clockLeft: s.clockLeft };
+    b.gameMoments = [...(b.gameMoments || []), moment].slice(-GAME_MOMENTS_KEPT);
     if (!b.replay) log('info', 'streak', `${ev.side ? `${b[ev.side].name} (${ev.side}) ` : ''}${STREAK_NAMES[ev.kind]}${ev.goals ? `, ${ev.goals} goals` : ''}${ev.down ? `, was ${ev.down} down` : ''} (${how}), number ${n}`);
   }
   // The score moments start from here: on a new game, after a gap, and the first time they're looked at.
@@ -697,21 +740,22 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     b.moments = { home: h, away: a, lastLeader: leaderOf(h, a), worst: { home: Math.max(0, a - h), away: Math.max(0, h - a) }, levelAt: null, lastId: b.goalsSeq || 0 };
   }
   // Whether the clock is running, or was running a moment ago (PlayHQ's reading comes up to 5 seconds after the goal).
-  function noteClock(b: GameBoard) { if (b.clock && b.clock.running && clockLeft(b) > 0) b.clockRanAt = Date.now(); }
+  function noteClock(b: GameBoard) { if (b.clock && b.clock.running && (clockLeft(b) ?? 0) > 0) b.clockRanAt = Date.now(); }
   const clockRecent = (b: GameBoard) => (b.clock && b.clock.running) || Date.now() - (b.clockRanAt || 0) < SIREN_STOPPED_MS;
-  function watchStreaks(b: GameBoard, how) {
-    if (!Array.isArray(b.goals)) return;
+  function watchStreaks(b: GameBoard, how: string) {
+    const goals = b.goals;
+    if (!Array.isArray(goals)) return;
     const fired = b.streakFired || (b.streakFired = {});
-    const found = [];
+    const found: StreakEvent[] = [];
     // Back from the latest goal: the current run by one team, and the stretch of goals going one each way.
-    let run = 0, runStart = null, runSide = '', alt = 0, altStart = null, altSide = '', last = '';
-    for (let i = b.goals.length - 1; i >= 0; i--) {
-      const g = b.goals[i];
+    let run = 0, runStart: number | null = null, runSide: Side | '' = '', alt = 0, altStart: number | null = null, altSide: Side | '' = '', last = '';
+    for (let i = goals.length - 1; i >= 0; i--) {
+      const g = goals[i];
       if (g.gap || (runSide && g.side !== runSide)) break;
       runSide = g.side; run++; runStart = g.id;
     }
-    for (let i = b.goals.length - 1; i >= 0; i--) {
-      const g = b.goals[i];
+    for (let i = goals.length - 1; i >= 0; i--) {
+      const g = goals[i];
       if (g.gap || (last && g.side === last)) break;
       last = altSide = g.side; alt++; altStart = g.id;
     }
@@ -721,56 +765,58 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
 
     // The score moments, from the score at the last look; after a gap they start again from this score.
     const m = b.moments;
-    if (!m || b.goals.some(g => g.gap && g.id > m.lastId)) momentsFrom(b);
-    else scoreMoments(b, m, found);
+    if (!m || goals.some(g => g.gap && g.id > m.lastId)) momentsFrom(b);
+    else scoreMoments(b, goals, m, found);
     found.sort((x, y) => MOMENT_ORDER.indexOf(x.kind) - MOMENT_ORDER.indexOf(y.kind));
     if (found.length > 1 && !b.replay) log('info', 'streak', `Also ${found.slice(1).map(f => STREAK_NAMES[f.kind]).join(', ')}, not played (one moment per goal)`);
     if (found.length) streak(b, found[0], how, found.slice(1));
   }
-  function scoreMoments(b: GameBoard, m, found) {
-    const fired = b.streakFired;
+  function scoreMoments(b: GameBoard, goals: Goal[], m: Moments, found: StreakEvent[]) {
+    const fired = b.streakFired ??= {};
     const h = Number(b.home.score) || 0, a = Number(b.away.score) || 0;
-    const fresh = b.goals.filter(g => !g.gap && g.id > m.lastId);
-    const latest = b.goals[b.goals.length - 1];
+    const fresh = goals.filter(g => !g.gap && g.id > m.lastId);
+    const latest = goals[goals.length - 1];
     if (h + a > m.home + m.away && fresh.length) {
       const now = leaderOf(h, a);
       if (now && m.lastLeader && now !== m.lastLeader) found.push({ kind: 'lead', side: now });
       const left = clockLeft(b);
       if (!now && h > 0 && left !== null && left <= LEVEL_LAST_SEC && m.levelAt !== h) { m.levelAt = h; found.push({ kind: 'level' }); }
-      for (const side of ['home', 'away']) {
+      for (const side of SIDES) {
         const down = side === 'home' ? a - h : h - a, wasDown = side === 'home' ? m.away - m.home : m.home - m.away;
         if (m.worst[side] >= COMEBACK_DOWN && down <= COMEBACK_WITHIN && down < wasDown) { found.push({ kind: 'comeback', side, down: m.worst[side] }); m.worst[side] = Math.max(0, down); }
       }
       const g = fresh[fresh.length - 1];
+      if (g.gap) return; // fresh has no gaps; this tells the compiler
       if (g.clockLeft !== null && g.clockLeft <= SIREN_LAST_SEC && clockRecent(b)) found.push({ kind: 'siren', side: g.side });
       // Back to back super shots: the latest two goals, both super goals by the same team.
-      const prev = b.goals[b.goals.length - 2];
+      const prev = goals[goals.length - 2];
       if (latest === g && g.points === 2 && prev && !prev.gap && prev.side === g.side && prev.points === 2 && fired.backToBack !== g.id) {
         fired.backToBack = g.id; found.push({ kind: 'backToBack', side: g.side });
       }
     }
-    for (const side of ['home', 'away']) m.worst[side] = Math.max(m.worst[side], side === 'home' ? a - h : h - a);
+    for (const side of SIDES) m.worst[side] = Math.max(m.worst[side], side === 'home' ? a - h : h - a);
     m.home = h; m.away = a; m.lastLeader = leaderOf(h, a) || m.lastLeader; m.lastId = b.goalsSeq || 0;
   }
 
   // What goals.html shows: the last `count` goals (oldest first), the current run and the tally.
-  function getGoals(count) {
+  function getGoals(count: unknown) {
     const b = board();
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
+    const goals = b.goals || [];
     const n = Math.max(3, Math.min(30, Math.round(Number(count) || 10)));
     // Take the last n goals; a gap inside them is kept so the page can mark it.
-    const out = [];
+    const out: Goal[] = [];
     let found = 0;
-    for (let i = b.goals.length - 1; i >= 0 && found < n; i--) {
-      out.unshift(b.goals[i]);
-      if (!b.goals[i].gap) found++;
+    for (let i = goals.length - 1; i >= 0 && found < n; i--) {
+      out.unshift(goals[i]);
+      if (!goals[i].gap) found++;
     }
     while (out.length && out[0].gap) out.shift();
-    const real = out.filter(g => !g.gap);
-    const tally = side => ({ goals: real.filter(g => g.side === side).length, points: real.filter(g => g.side === side).reduce((t, g) => t + g.points, 0) });
-    let run = null;
-    for (let i = b.goals.length - 1; i >= 0; i--) {
-      const g = b.goals[i];
+    const real = realGoals(out);
+    const tally = (side: Side) => ({ goals: real.filter(g => g.side === side).length, points: real.filter(g => g.side === side).reduce((t, g) => t + g.points, 0) });
+    let run: { side: Side; goals: number; points: number } | null = null;
+    for (let i = goals.length - 1; i >= 0; i--) {
+      const g = goals[i];
       if (g.gap) break;
       if (!run) run = { side: g.side, goals: 0, points: 0 };
       if (g.side !== run.side) break;
@@ -783,7 +829,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       home: { name: b.home.name, score: b.home.score, logo: logoFor(b.home.name), colour: colourFor(b.home.name) },
       away: { name: b.away.name, score: b.away.score, logo: logoFor(b.away.name), colour: colourFor(b.away.name) },
       count: n, goals: out, tally: { home: tally('home'), away: tally('away') }, run,
-      totalGoals: b.goals.filter(g => !g.gap).length, gapInHistory: b.goals.some(g => g.gap),
+      totalGoals: realGoals(goals).length, gapInHistory: goals.some(g => g.gap),
     };
   }
 
@@ -796,7 +842,8 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // typed in). Quarters before the one the game was picked up in aren't known at all. A jump that comes from
   // PlayHQ while PlayHQ is still on the quarter it's put on (playhqQuarter, as when a scorebench back on line
   // catches up before the next quarter starts) is all that quarter's, so the quarter stays sure.
-  function trackPeriods(b: GameBoard, score, playhqQuarter = null) {
+  function trackPeriods(b: GameBoard, score?: { home?: number | null; away?: number | null } | null, playhqQuarter: number | null | undefined = null) {
+
     const now = { home: Number(score && score.home != null ? score.home : b.home.score) || 0, away: Number(score && score.away != null ? score.away : b.away.score) || 0 };
     let t = b.periodTrack;
     if (!t || t.gameId !== (b.gameId || null)) {
@@ -807,7 +854,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       return;
     }
     const p = t.periods[t.period] || (t.periods[t.period] = { home: 0, away: 0, sure: true });
-    for (const side of ['home', 'away']) {
+    for (const side of SIDES) {
       const d = now[side] - t.base[side];
       if (!d) continue;
       if (Math.abs(d) > MAX_STEP && p.sure && playhqQuarter !== t.period) { p.sure = false; log('info', 'stats', `${b[side].name} went ${d > 0 ? 'up' : 'down'} ${Math.abs(d)} at once in ${rules(b.division).periodLabel}${t.period}, so that quarter's split isn't sure`); }
@@ -823,15 +870,15 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // quarter (a "next quarter" press at the siren, then a shot after the siren) when the scores
   // weren't level at the end of normal time belongs to the last quarter. `extra` is the points
   // put on the periods after it.
-  function playedExtraTime(b: GameBoard, extra) {
+  function playedExtraTime(b: GameBoard, extra: Partial<Record<Side, number>>) {
     const h = (Number(b.home.score) || 0) - (extra.home || 0), a = (Number(b.away.score) || 0) - (extra.away || 0);
     return h === a;
   }
   // Runs: goals in a row by one team (a super goal is one goal, as on the Last 10 goals graphic).
   // A gap in the goal order (picked up part way, a jump) ends a run.
-  function runsFrom(goals) {
-    const runs = [];
-    let run = null;
+  function runsFrom(goals: Goal[]) {
+    const runs: { side: Side; goals: number; period: number }[] = [];
+    let run: { side: Side; goals: number; period: number } | null = null;
     for (const g of goals) {
       if (g.gap) { run = null; continue; }
       if (!run || run.side !== g.side) runs.push(run = { side: g.side, goals: 0, period: g.period });
@@ -843,7 +890,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     trackPeriods(b);
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
     const r = rules(b.division);
-    const t = b.periodTrack;
+    const t = b.periodTrack ?? { gameId: b.gameId, period: b.period, base: { home: 0, away: 0 }, periods: {} }; // trackPeriods made it
     let last = Math.max(r.periods, ...Object.keys(t.periods).map(Number));
     let current = t.period;
     const tracked = { ...t.periods };
@@ -857,26 +904,31 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
         current = Math.min(current, r.periods + 1); // the last quarter counts as finished
       }
     }
-    const periods = [];
+    interface Quarter { n: number; label: string; played: boolean; home: number | null; away: number | null; sure: boolean }
+    const periods: Quarter[] = [];
     for (let n = 1; n <= last; n++) {
       const p = tracked[n];
       if (n > r.periods && !p) continue; // no extra time
       periods.push({ n, label: n > r.periods ? 'ET' : `${r.periodLabel}${n}`, played: !!p || n < current,
         home: p ? p.home : null, away: p ? p.away : null, sure: !!(p && p.sure) && n <= current });
     }
-    const sure = periods.filter(p => p.sure && p.n <= r.periods && (p.n < current || p.home || p.away));
-    const won = side => sure.filter(p => p[side] > p[side === 'home' ? 'away' : 'home']).length;
-    const best = side => sure.reduce((top, p) => (!top || p[side] > top.points ? { n: p.n, label: p.label, points: p[side] } : top), null);
-    const goals = b.goals.filter(g => !g.gap);
-    const counts = b.playhqCounts || {};
-    const supers = side => Math.max(goals.filter(g => g.side === side && g.points === 2).length, Number(counts[side] && counts[side].superGoals) || 0);
-    const runs = runsFrom(b.goals);
-    const runsOf = (side, n) => runs.filter(x => x.side === side && x.goals >= n).length;
-    const longest = side => runs.filter(x => x.side === side).reduce((m, x) => Math.max(m, x.goals), 0);
-    const both = f => ({ home: f('home'), away: f('away') });
+    // The quarters sure of their split have both scores (sure is only set on a played quarter).
+    const sure = periods.filter((p): p is Quarter & { home: number; away: number } => p.sure && p.n <= r.periods && (p.n < current || !!p.home || !!p.away));
+    const other = (side: Side): Side => side === 'home' ? 'away' : 'home';
+    const won = (side: Side) => sure.filter(p => p[side] > p[other(side)]).length;
+    type Best = { n: number; label: string; points: number } | null;
+    const best = (side: Side) => sure.reduce<Best>((top, p) => (!top || p[side] > top.points ? { n: p.n, label: p.label, points: p[side] } : top), null);
+    const allGoals = b.goals || [];
+    const goals = realGoals(allGoals);
+    const counts: Partial<Record<Side, Counts>> = b.playhqCounts || {};
+    const supers = (side: Side) => Math.max(goals.filter(g => g.side === side && g.points === 2).length, Number(counts[side] && counts[side].superGoals) || 0);
+    const runs = runsFrom(allGoals);
+    const runsOf = (side: Side, n: number) => runs.filter(x => x.side === side && x.goals >= n).length;
+    const longest = (side: Side) => runs.filter(x => x.side === side).reduce((m, x) => Math.max(m, x.goals), 0);
+    const both = <T>(f: (side: Side) => T) => ({ home: f('home'), away: f('away') });
     // Shooting from PlayHQ's live counts (goals and super shots made, from every shot: GOAL_ATTEMPT), when following
     // PlayHQ and its scorer records shots; null otherwise (presses on the control page don't say how many were missed).
-    const shooting = side => {
+    const shooting = (side: Side) => {
       const c = counts[side];
       if (!c || c.shots == null) return null;
       const made = (Number(c.goals) || 0) + (Number(c.superGoals) || 0), shots = Number(c.shots) || 0;
@@ -895,7 +947,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
         runs3: both(side => runsOf(side, 3)), runs5: both(side => runsOf(side, 5)), longestRun: both(longest),
         shooting: both(shooting),
       },
-      totalGoals: goals.length, gapInHistory: b.goals.some(g => g.gap),
+      totalGoals: goals.length, gapInHistory: allGoals.some(g => g.gap),
     };
   }
 
@@ -910,19 +962,20 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId) clearGoals(b, b.gameId);
     const r = rules(b.division);
     const defaultSec = (Number(r.periodMinutes) || 10) * 60;
-    const fraction = (left, sec) => {
+    const fraction = (left: number | null, sec: number | null | undefined) => {
       const len = Number(sec) || defaultSec;
       return left == null ? null : Math.max(0, Math.min(1, (len - left) / len));
     };
-    const entries = b.goals.map(g => ({ g, period: Number(g.period) || 1, frac: fraction(g.clockLeft, g.periodSec) }));
+    interface Entry { g: Goal; period: number; frac: number | null; atSiren?: boolean; spread?: boolean }
+    const entries: Entry[] = (b.goals || []).map(g => ({ g, period: Number(g.period) || 1, frac: fraction(g.clockLeft, g.periodSec) }));
     // Goals after the last quarter without a level score at its end (see playedExtraTime) were on the siren of the last quarter.
     const extra = { home: 0, away: 0 };
     for (const e of entries) if (!e.g.gap && e.period > r.periods) extra[e.g.side] += e.g.points;
     const extraTime = (extra.home || extra.away || (Number(b.period) || 1) > r.periods) && playedExtraTime(b, extra);
     if (!extraTime) for (const e of entries) if (e.period > r.periods) { e.period = r.periods; e.frac = 1; e.atSiren = true; }
     // Goals in a quarter without usable clock times (none running, or all at the same moment) are spread evenly.
-    const byPeriod = new Map();
-    for (const e of entries) if (!e.g.gap) (byPeriod.get(e.period) || byPeriod.set(e.period, []).get(e.period)).push(e);
+    const byPeriod = new Map<number, Entry[]>();
+    for (const e of entries) if (!e.g.gap) { const list = byPeriod.get(e.period); if (list) list.push(e); else byPeriod.set(e.period, [e]); }
     for (const list of byPeriod.values()) {
       const timed = list.filter(e => !e.atSiren);
       const fracs = timed.map(e => e.frac);
@@ -931,21 +984,24 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       }
     }
     const score = { home: 0, away: 0 };
-    const segments = [], gaps = [];
-    let seg = null, lastT = 0;
-    const point = (t, extra) => ({ t: Math.round(t * 10000) / 10000, home: score.home, away: score.away, margin: score.home - score.away, ...extra });
+    interface Point { t: number; home: number; away: number; margin: number; side?: Side; points?: number }
+    type Segment = Point[] & { fromGap?: boolean };
+    const segments: Segment[] = [], gaps: { from: number; to: number }[] = [];
+    let seg: Segment = [], lastT = 0;
+    const point = (t: number, extra?: { side: Side; points: number }): Point => ({ t: Math.round(t * 10000) / 10000, home: score.home, away: score.away, margin: score.home - score.away, ...extra });
     if (entries.length && !entries[0].g.gap) segments.push(seg = [point(0)]);
     if (!entries.length) segments.push(seg = [point(0)]);
     for (const e of entries) {
       let t = e.frac == null ? lastT : e.period - 1 + e.frac;
       t = Math.max(t, lastT);
       if (e.g.gap) {
-        for (const side of ['home', 'away']) if (e.g.set && e.g.set[side] != null) score[side] = Number(e.g.set[side]) || 0;
-        if (seg && seg.length === 1 && seg.fromGap) { // gaps in a row (both scores typed in): one gap, to the last of them
+        const set = e.g.set;
+        for (const side of SIDES) if (set && set[side] != null) score[side] = Number(set[side]) || 0;
+        if (seg.length === 1 && seg.fromGap) { // gaps in a row (both scores typed in): one gap, to the last of them
           seg[0] = point(t);
           gaps[gaps.length - 1].to = t;
         } else {
-          gaps.push({ from: seg ? lastT : 0, to: t });
+          gaps.push({ from: segments.length ? lastT : 0, to: t });
           segments.push(seg = [point(t)]);
           seg.fromGap = true;
         }
@@ -967,7 +1023,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       segments.push(seg = [point(end)]);
     } else if (end > lastT) seg.push(point(end));
     const all = segments.flat();
-    const lead = side => all.reduce((top, p) => {
+    const lead = (side: Side) => all.reduce<{ margin: number; t: number } | null>((top, p) => {
       const m = side === 'home' ? p.margin : -p.margin;
       return m > 0 && (!top || m > top.margin) ? { margin: m, t: p.t } : top;
     }, null);
@@ -979,16 +1035,16 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     let superShot = null;
     const ssSec = (Number(r.superShotMinutes) || 0) * 60;
     if (r.superShots && ssSec > 0) {
-      const windows = [];
+      const windows: { n: number; from: number; to: number }[] = [];
       for (let n = 1; n <= r.periods; n++) {
         const seen = entries.find(e => e.period === n && e.g.periodSec);
         const len = Number(seen ? seen.g.periodSec : n === Number(b.period) && b.clock ? b.clock.lengthSec : 0) || defaultSec;
         windows.push({ n, from: n - Math.min(ssSec, len) / len, to: n });
       }
-      const inWindow = entries.filter(e => !e.g.gap && !e.spread && e.g.clockLeft != null && e.g.clockLeft <= ssSec && e.period <= r.periods);
-      const pts = side => inWindow.filter(e => e.g.side === side).reduce((t, e) => t + e.g.points, 0);
+      const inWindow = entries.filter((e): e is Entry & { g: RealGoal } => !e.g.gap && !e.spread && e.g.clockLeft != null && e.g.clockLeft <= ssSec && e.period <= r.periods);
+      const pts = (side: Side) => inWindow.filter(e => e.g.side === side).reduce((t, e) => t + e.g.points, 0);
       // byPeriod: each quarter's super shot period on its own, for the Socials tab's Super shot time.
-      const ptsIn = (side, n) => inWindow.filter(e => e.g.side === side && e.period === n).reduce((t, e) => t + e.g.points, 0);
+      const ptsIn = (side: Side, n: number) => inWindow.filter(e => e.g.side === side && e.period === n).reduce((t, e) => t + e.g.points, 0);
       superShot = { minutes: r.superShotMinutes, windows, points: { home: pts('home'), away: pts('away') },
         byPeriod: windows.map(w => ({ n: w.n, home: ptsIn('home', w.n), away: ptsIn('away', w.n) })), timed: entries.some(e => !e.g.gap && !e.spread) };
     }
@@ -1012,20 +1068,20 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // whose moments are played through again without logging). Quarters a filled gap could have covered (from the last
   // goal before it to the reading after it) are worked out from the goals once no gap is left in them; the rest are as
   // base had them. Answers null when no gap was filled. stories.js does the choosing (see better()) and the keeping.
-  function goalWalk(goals) { // the score before each entry, and which gap-free stretch it's in
-    const score = { home: 0, away: 0 }, at = [];
+  function goalWalk(goals: Goal[]) { // the score before each entry, and which gap-free stretch it's in
+    const score = { home: 0, away: 0 }, at: { home: number; away: number; stretch: number }[] = [];
     let stretch = 0;
     for (const g of goals) {
       at.push({ home: score.home, away: score.away, stretch });
-      if (g.gap) { for (const side of ['home', 'away']) if (g.set && g.set[side] != null) score[side] = Number(g.set[side]) || 0; stretch++; }
+      if (g.gap) { const set = g.set; for (const side of SIDES) if (set && set[side] != null) score[side] = Number(set[side]) || 0; stretch++; }
       else score[g.side] += Number(g.points) || 0;
     }
     at.push({ home: score.home, away: score.away, stretch });
     return at;
   }
   // The periods each run of gaps could have hidden goals in: from the last goal's before it (1 at the start) to its own.
-  function gapPeriods(goals) {
-    const out = new Set();
+  function gapPeriods(goals: Goal[]) {
+    const out = new Set<number>();
     let last = 1;
     for (const g of goals) {
       if (!g.gap) { last = Number(g.period) || last; continue; }
@@ -1033,28 +1089,31 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     }
     return out;
   }
-  function mergeStories(base, other) {
-    const A = base && base.goalOrder, B = other && other.goalOrder;
-    if (!A || !B || !Array.isArray(A.goals) || !Array.isArray(B.goals) || !A.goals.some(g => g.gap) || !B.goals.some(g => !g.gap)) return null;
+  function mergeStories(base: StoryOf, other: StoryOf) {
+    const A = goalOrderIn(base), B = goalOrderIn(other);
+    if (!A || !B || !A.goals.some(g => g.gap) || !B.goals.some(g => !g.gap)) return null;
     if (base.gameId !== other.gameId) return null;
     const theirs = goalWalk(B.goals);
-    const same = (x, y) => x.home === y.home && x.away === y.away;
+    const same = (x: Record<Side, number>, y: Record<Side, number>) => x.home === y.home && x.away === y.away;
     // B's goals from score `from` to score `to`, none of them a gap, or null.
-    const stretchOf = (from, to) => {
+    const stretchOf = (from: Record<Side, number>, to: Record<Side, number>) => {
       for (let i = 0; i < theirs.length; i++) {
         if (!same(theirs[i], from)) continue;
         for (let j = i + 1; j < theirs.length && theirs[j].stretch === theirs[i].stretch; j++) if (same(theirs[j], to)) return B.goals.slice(i, j);
       }
       return null;
     };
-    const goals = [], score = { home: 0, away: 0 };
+    const goals: Goal[] = [], score = { home: 0, away: 0 };
     let filled = 0;
     for (let i = 0; i < A.goals.length;) {
       const g = A.goals[i];
       if (!g.gap) { goals.push(g); score[g.side] += Number(g.points) || 0; i++; continue; }
       const from = { ...score };
       let j = i;
-      for (; j < A.goals.length && A.goals[j].gap; j++) for (const side of ['home', 'away']) if (A.goals[j].set && A.goals[j].set[side] != null) score[side] = Number(A.goals[j].set[side]) || 0;
+      for (let gj = A.goals[j]; j < A.goals.length && gj.gap; gj = A.goals[++j]) {
+        const set = gj.set;
+        for (const side of SIDES) if (set && set[side] != null) score[side] = Number(set[side]) || 0;
+      }
       const fill = !same(from, score) && stretchOf(from, score);
       if (fill) { goals.push(...fill); filled++; } else goals.push(...A.goals.slice(i, j));
       i = j;
@@ -1063,32 +1122,33 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     goals.forEach((g, k) => { goals[k] = { ...g, id: k + 1 }; });
     // The quarters: the ones a filled gap could have covered are added up from the goals, once no gap is left in them.
     const before = gapPeriods(A.goals), after = gapPeriods(goals);
-    const periods = { ...((A.periodTrack && A.periodTrack.periods) || {}) };
+    const periods: Record<number, PeriodScore> = { ...((A.periodTrack && A.periodTrack.periods) || {}) };
     for (const p of before) {
       if (after.has(p)) continue;
-      const mine = goals.filter(g => !g.gap && (Number(g.period) || 1) === p);
-      periods[p] = { home: 0, away: 0, sure: true };
-      for (const g of mine) periods[p][g.side] += Number(g.points) || 0;
+      const sum: PeriodScore = periods[p] = { home: 0, away: 0, sure: true };
+      for (const g of realGoals(goals)) if ((Number(g.period) || 1) === p) sum[g.side] += Number(g.points) || 0;
     }
-    const b = { replay: true, gameId: base.gameId, division: base.division || '', round: base.round || '', court: A.court || '',
+    const b: GameBoard = { replay: true, gameId: base.gameId, division: str(base.division), round: str(base.round), court: A.court || '',
       home: { ...A.home }, away: { ...A.away }, period: A.period || 1,
       clock: A.clock ? { lengthSec: A.clock.lengthSec, elapsedMs: A.clock.elapsedMs, running: false, startedAt: null } : null,
       goals, goalsSeq: goals.length, goalsGameId: base.gameId, goalsBaseline: true, playhqCounts: A.counts || B.counts || null,
       periodTrack: { gameId: base.gameId, period: A.period || 1, base: { home: A.home.score, away: A.away.score }, periods } };
     // The moments, played through again goal by goal, each at its own clock time.
-    const r = { ...b, home: { ...b.home, score: 0 }, away: { ...b.away, score: 0 }, goals: [], goalsSeq: 0, streakFired: {}, gameMoments: [], gameMomentsId: b.gameId };
+    const replayed: Goal[] = [];
+    const r: GameBoard = { ...b, home: { ...b.home, score: 0 }, away: { ...b.away, score: 0 }, goals: replayed, goalsSeq: 0, streakFired: {}, gameMoments: [], gameMomentsId: b.gameId };
     momentsFrom(r);
     for (const g of goals) {
-      r.goals.push(g);
+      replayed.push(g);
       r.goalsSeq = g.id;
-      if (g.gap) { for (const side of ['home', 'away']) if (g.set && g.set[side] != null) r[side].score = Number(g.set[side]) || 0; }
+      if (g.gap) { const set = g.set; for (const side of SIDES) if (set && set[side] != null) r[side].score = Number(set[side]) || 0; }
       else r[g.side].score += Number(g.points) || 0;
       r.period = g.period;
       const len = Number(g.periodSec) || QUARTER_SEC;
       r.clock = g.clockLeft == null ? null : { lengthSec: len, elapsedMs: Math.max(0, len - g.clockLeft) * 1000, running: true, startedAt: null };
       watchStreaks(r, 'merged');
     }
-    return { stats: getStats(b), worm: getWorm(b), moments: r.gameMoments, goalOrder: { ...A, goals, periodTrack: b.periodTrack }, filledGaps: filled, streakFired: r.streakFired };
+    const goalOrder: GoalOrder = { ...A, goals, periodTrack: b.periodTrack ?? null };
+    return { stats: getStats(b), worm: getWorm(b), moments: r.gameMoments, goalOrder, filledGaps: filled, streakFired: r.streakFired };
   }
   if (stories.useMerge) stories.useMerge(mergeStories);
 
@@ -1099,7 +1159,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // moments already played aren't played again (the streaks fired come with the goals). Another Mac's story is kept at
   // most every STORY_EVERY, so a gap only just made waits for its next save.
   const PEER_FILL_EVERY = 30 * 1000;
-  const peerAsked = new Map(); // game id -> when it last asked
+  const peerAsked = new Map<string, number>(); // game id -> when it last asked
   async function fillFromPeers(b: GameBoard) {
     if (!stories.liveFrom || !b || !b.gameId || b.source !== 'playhq' || b.endedAt || b.done || !Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.some(g => g.gap)) return false;
     if (Date.now() - (peerAsked.get(b.gameId) || 0) < PEER_FILL_EVERY) return false;
@@ -1108,10 +1168,11 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     const theirs = await stories.liveFrom(id);
     if (b.gameId !== id || b.goalsSeq !== seq) return false; // moved on, or new goals while it asked: next time
     const mine = { gameId: id, goalOrder: goalOrderOf(b) };
-    let best = null;
+    let best: { m: NonNullable<ReturnType<typeof mergeStories>>; studio: string | undefined } | null = null;
+    const gapsIn = (o: GoalOrder) => o.goals.filter(g => g.gap).length;
     for (const other of theirs) {
       const m = mergeStories(mine, other);
-      if (m && (!best || m.goalOrder.goals.filter(g => g.gap).length < best.m.goalOrder.goals.filter(g => g.gap).length)) best = { m, studio: other.studio };
+      if (m && (!best || gapsIn(m.goalOrder) < gapsIn(best.m.goalOrder))) best = { m, studio: other.studio };
     }
     if (!best) return false;
     const { m } = best;
@@ -1122,7 +1183,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     b.gameMomentsId = id;
     b.streakFired = m.streakFired || {};
     momentsFrom(b);
-    log('info', b.followed ? 'follow' : 'goals', `${b.home.name} v ${b.away.name}: filled ${m.filledGaps} gap${m.filledGaps === 1 ? '' : 's'} in the goal order from ${best.studio}'s Studio, ${b.goals.filter(g => !g.gap).length} goals now`);
+    log('info', b.followed ? 'follow' : 'goals', `${b.home.name} v ${b.away.name}: filled ${m.filledGaps} gap${m.filledGaps === 1 ? '' : 's'} in the goal order from ${best.studio}'s Studio, ${realGoals(b.goals).length} goals now`);
     storyAt.delete(id); // its story kept again at the next save, filled
     if (b.followed) saveFollowed(); else saveBoards();
     pushBoard();
@@ -1130,7 +1191,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   }
   // Each second (server.js): the scoreboard's game and every followed one.
   function fillGapsFromPeers() {
-    for (const b of [board(), ...Object.values(followed)]) fillFromPeers(b).catch(err => log('warn', 'goals', `Filling a gap from another Studio failed: ${err.message}`));
+    for (const b of [board(), ...Object.values(followed)]) fillFromPeers(b).catch((err: unknown) => log('warn', 'goals', `Filling a gap from another Studio failed: ${errorMessage(err)}`));
   }
 
   // ─── The night's other games, followed in the background ────────────────────
@@ -1148,46 +1209,48 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   const BACKOFF_MS = 10 * 1000, BACKOFF_MAX_MS = 5 * 60 * 1000;
   // What a game's goal order is made of: what a followed board and the scoreboard hand each other.
   const GOAL_STATE = ['home', 'away', 'period', 'clock', 'goals', 'goalsSeq', 'goalsGameId', 'goalsBaseline', 'playhqCounts', 'periodTrack',
-    'moments', 'streakFired', 'gameMoments', 'gameMomentsId', 'playhqPeriodSeen', 'playhqStatus', 'endedAt', 'streamed'];
-  const goalState = (b: GameBoard) => JSON.parse(JSON.stringify(Object.fromEntries(GOAL_STATE.filter(k => b[k] !== undefined).map(k => [k, b[k]]))));
-  let followed = savefile.readJson(FOLLOWED_FILE, {}, (err, movedTo) => log('warn', 'follow', `Could not read followed-games.json, starting fresh: ${err.message}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
+    'moments', 'streakFired', 'gameMoments', 'gameMomentsId', 'playhqPeriodSeen', 'playhqStatus', 'endedAt', 'streamed'] as const satisfies (keyof GameBoard)[];
+  // A deep copy of those (JSON.parse gives back what JSON.stringify was handed, so it's still Partial<GameBoard>).
+  const goalState = (b: GameBoard): Partial<GameBoard> => JSON.parse(JSON.stringify(Object.fromEntries(GOAL_STATE.filter(k => b[k] !== undefined).map(k => [k, b[k]]))));
+  let followed: Record<string, Followed> = savefile.readJson<Record<string, Followed>>(FOLLOWED_FILE, {}, (err, movedTo) => log('warn', 'follow', `Could not read followed-games.json, starting fresh: ${errorMessage(err)}${movedTo ? ` (moved to ${path.basename(movedTo)})` : ''}`));
   if (!followed || typeof followed !== 'object' || Array.isArray(followed)) followed = {};
   {
     const yesterday = localDate(new Date(Date.now() - 86400000)); // a late night's games carry on past midnight
     for (const [id, f] of Object.entries(followed)) if (!f || typeof f !== 'object' || !f.gameId || String(f.date || '') < yesterday) delete followed[id];
   }
-  const saveFollowed = () => savefile.writeFile(FOLLOWED_FILE, JSON.stringify(followed), err => { if (err) log('warn', 'follow', `followed-games.json not saved: ${err.message}`); });
+  const saveFollowed = () => savefile.writeFile(FOLLOWED_FILE, JSON.stringify(followed), err => { if (err) log('warn', 'follow', `followed-games.json not saved: ${errorMessage(err)}`); });
   const followOthers = () => board().followOthers !== false;
-  function followedBoard(game) {
+  function followedBoard(game: GameChoice): Followed {
     return { followed: true, source: 'playhq', followPlayhqClock: true, gameId: game.id, roundId: game.roundId || null,
       division: game.division || '', court: game.court || '', round: game.round || '', date: game.date || '', time: game.time || '', venue: game.venue || '',
       home: { name: game.home.name, score: 0 }, away: { name: game.away.name, score: 0 }, period: 1,
       clock: { lengthSec: QUARTER_SEC, elapsedMs: 0, running: false, startedAt: null }, playhqStatus: game.status || '', wait: { n: 0, until: 0 } };
   }
   // The scoreboard picked a game that was being followed: it takes over its goals, quarters, clock and moments.
-  function takeOver(b: GameBoard, id) {
+  function takeOver(b: GameBoard, id: string) {
     const f = followed[id];
     if (!f) return false;
     delete followed[id];
     saveFollowed();
     if (b.gameId !== id || !Array.isArray(f.goals) || f.goalsGameId !== id) return false;
     Object.assign(b, goalState(f));
-    log('info', 'follow', `The scoreboard takes over ${b.home.name} v ${b.away.name} at ${b.home.score}-${b.away.score} from following it in the background, with its ${f.goals.filter(g => !g.gap).length} goals`);
+    log('info', 'follow', `The scoreboard takes over ${b.home.name} v ${b.away.name} at ${b.home.score}-${b.away.score} from following it in the background, with its ${realGoals(f.goals).length} goals`);
     return true;
   }
   // The scoreboard left a game before it ended: it goes on being followed from where the board was.
   function handOn(b: GameBoard) {
     if (!b.gameId || b.source !== 'playhq' || b.endedAt || isFinished({ status: b.playhqStatus || '', date: b.date, home: b.home, away: b.away }) || !followOthers()) return;
     if (!Array.isArray(b.goals) || b.goalsGameId !== b.gameId || !b.goals.length) return;
-    const f = followedBoard({ id: b.gameId, roundId: b.roundId, division: b.division, court: b.court, round: b.round, date: b.date, time: b.time, venue: b.venue, home: b.home, away: b.away, status: b.playhqStatus });
-    followed[b.gameId] = Object.assign(f, goalState(b), { streamed: true, followPlayhqClock: true, playhqClockKey: null });
+    const id = b.gameId;
+    const f = followedBoard({ id, roundId: b.roundId, division: b.division, court: b.court, round: b.round, date: b.date, time: b.time, venue: b.venue, home: b.home, away: b.away, status: b.playhqStatus });
+    followed[id] = Object.assign(f, goalState(b), { streamed: true, followPlayhqClock: true, playhqClockKey: null });
     saveFollowed();
     log('info', 'follow', `${b.home.name} v ${b.away.name} goes on being followed in the background at ${b.home.score}-${b.away.score}`);
   }
   // The night's games (games.js, every so often): the ones not on the scoreboard and not finished are followed. Games no
   // longer on the night (another night picked, the setting off) are let go, their stories kept.
-  function followGames(games) {
-    const want = new Map();
+  function followGames(games: GameChoice[] | null | undefined) {
+    const want = new Map<string, GameChoice>();
     if (followOthers()) for (const g of games || []) if (g && g.id && g.id !== board().gameId && !g.toBeDecided && g.home && g.away) want.set(g.id, g);
     let changed = false;
     for (const [id, f] of Object.entries(followed)) {
@@ -1207,14 +1270,14 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     if (changed) saveFollowed();
   }
   // One reading for a followed game: as refreshFromPlayhq does for the board, with nothing played on air.
-  async function readFollowed(f) {
+  async function readFollowed(f: Followed) {
     const now = Date.now();
     if (f.done || now < (f.wait.until || 0) || scoringNotYet(f)) return;
     const maxAge = (board().playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
-    let live;
+    let live: Live;
     try { live = await playhq.getLive(f.gameId, maxAge); }
     catch (err) {
-      if (err.notYet || err.notScored) return; // the scorer hasn't started: asked again next time, as the board does
+      if (isObj(err) && (err.notYet || err.notScored)) return; // the scorer hasn't started: asked again next time, as the board does
       f.wait = { n: f.wait.n + 1, until: Date.now() + Math.min(BACKOFF_MAX_MS, BACKOFF_MS * 2 ** f.wait.n) };
       log('warn', 'follow', `Reading ${f.home.name} v ${f.away.name} failed (${errorMessage(err)}), so it waits ${Math.round((f.wait.until - Date.now()) / 1000)} s`);
       return;
@@ -1224,13 +1287,13 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     noteClock(f);
     const score = { home: live.home.score, away: live.away.score };
     if (score.home == null && score.away == null) return;
-    const q = PERIOD_NUMBER[live.period];
+    const q = live.period ? PERIOD_NUMBER[live.period] : undefined;
     if (q && f.playhqPeriodSeen !== live.period) {
       if (f.period !== q) { trackPeriods(f, { home: score.home ?? f.home.score, away: score.away ?? f.away.score }); f.period = q; }
       f.playhqPeriodSeen = live.period;
     }
     if (live.clock) followClock(f, live);
-    const game = { id: f.gameId, status: live.status, home: { name: f.home.name, score: score.home }, away: { name: f.away.name, score: score.away } };
+    const game: Reading = { id: f.gameId, status: live.status, home: { name: f.home.name, score: score.home ?? null }, away: { name: f.away.name, score: score.away ?? null } };
     const catchUp = catchUpIn(f, game, live);
     const goalsChanged = goalsFromPlayhq(f, game, live, catchUp);
     if (score.home != null) f.home.score = score.home;
@@ -1247,19 +1310,19 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   }
   // Each second (server.js): every followed game due a reading. Each is read through the live feed's cache, so PlayHQ is
   // asked once per playhqRefreshSec per game, and a game still being read is left alone.
-  const reading = new Set();
+  const reading = new Set<string>();
   function refreshFollowed() {
     for (const f of Object.values(followed)) {
       if (reading.has(f.gameId) || f.gameId === board().gameId) continue; // the scoreboard reads its own game
       reading.add(f.gameId);
-      readFollowed(f).catch(err => log('error', 'follow', `Following ${f.home.name} v ${f.away.name} failed: ${err.message}`)).finally(() => reading.delete(f.gameId));
+      readFollowed(f).catch((err: unknown) => log('error', 'follow', `Following ${f.home.name} v ${f.away.name} failed: ${errorMessage(err)}`)).finally(() => reading.delete(f.gameId));
     }
   }
   // What Scoreboard control lists under the switch: each followed game and where it's up to (recorder.js records them from it).
   function followedGames() {
     return Object.values(followed).map(f => ({ gameId: f.gameId, home: f.home.name, away: f.away.name, court: f.court, date: f.date, time: f.time, division: f.division, round: f.round,
       score: { home: Number(f.home.score) || 0, away: Number(f.away.score) || 0 }, period: f.period, done: !!f.done, waiting: !!(f.wait && f.wait.n),
-      started: !!f.goalsBaseline, goals: Array.isArray(f.goals) ? f.goals.filter(g => !g.gap).length : 0 }))
+      started: !!f.goalsBaseline, goals: Array.isArray(f.goals) ? realGoals(f.goals).length : 0 }))
       .sort((x, y) => String(x.time).localeCompare(String(y.time)) || String(x.court).localeCompare(String(y.court)));
   }
 
@@ -1267,8 +1330,9 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // { period: "4th Quarter", periodValue: "FOURTH_QTR", status: "RESUME", time: "00:00", lastUpdatedAt: "<ms>" }.
   // Read as: `time` is the time left when the scorer last touched the clock (lastUpdatedAt),
   // and RESUME/START mean it is running. Every reading is logged so this can be checked.
-  function followClock(b: GameBoard, live) {
+  function followClock(b: GameBoard, live: Live) {
     const c = live.clock;
+    if (!c) return;
     b.playhqClock = c;
     b.playhqBreak = live.break || null;
     const key = `${c.periodValue || c.period} ${c.status} ${c.time} ${c.lastUpdatedAt} ${live.break || ''}`;
@@ -1276,28 +1340,28 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     b.playhqClockKey = key;
     const secs = parseClock(c.time);
     const running = /^(RESUME|RESUMED|START|STARTED|RUNNING)$/i.test(c.status || '') && !live.break;
-    const updated = Number(c.lastUpdatedAt) || Date.parse(c.lastUpdatedAt) || 0;
+    const updated = Number(c.lastUpdatedAt) || Date.parse(String(c.lastUpdatedAt)) || 0;
     const lagMs = running && updated ? Math.max(0, Math.min(120000, Date.now() - updated)) : 0;
     if (!b.followed) log('info', 'clock', `PlayHQ clock ${c.periodValue || c.period || '?'} ${c.status || '?'} ${c.time ?? '?'} (updated ${updated ? Math.round((Date.now() - updated) / 1000) + 's ago' : '?'})${live.break ? ' break ' + live.break : ''}${b.followPlayhqClock ? '' : ' (not followed)'}`);
-    if (!b.followPlayhqClock || secs === null) return;
+    if (!b.followPlayhqClock || secs === null || !b.clock) return;
     if (secs > b.clock.lengthSec) b.clock.lengthSec = secs;
     const leftMs = Math.max(0, secs * 1000 - lagMs);
     b.clock = { ...b.clock, elapsedMs: b.clock.lengthSec * 1000 - leftMs, running: running && leftMs > 0, startedAt: running && leftMs > 0 ? Date.now() : null };
     b.updatedAt = Date.now();
   }
 
-  function parseClock(t) {
+  function parseClock(t: unknown) {
     const m = String(t || '').match(/^(\d{1,2})(?:[:.](\d{1,2}))?$/);
     return m ? Number(m[1]) * 60 + Number(m[2] || 0) : null;
   }
 
   // The quarter length from the competition setup, applied by server.js when the setup changes.
   const quarterSec = () => QUARTER_SEC;
-  const setQuarterSec = n => { QUARTER_SEC = n; };
+  const setQuarterSec = (n: number) => { QUARTER_SEC = n; };
 
   // A copy of the scoreboard, and putting one back (practice.js: a practice game leaves it as it was).
-  const snapshot = () => JSON.parse(JSON.stringify(board()));
-  function restore(s) {
+  const snapshot = (): Board => JSON.parse(JSON.stringify(board()));
+  function restore(s: Board | null | undefined) {
     if (!s) return;
     boards['1'] = s;
     saveBoards();
@@ -1308,17 +1372,18 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // or by hand the last period run down to 0:00 with the clock stopped, or extra time's) for an hour, then 'over'.
   // The end is kept on the board (endedAt), so a relaunch keeps the colour, and cleared if the period is wound back.
   const ENDED_FOR_MS = 60 * 60000;
-  function gameEnded(b: GameBoard) {
+  function gameEnded(b: Board) {
     if (!b.gameId) return false;
     if (isFinished({ status: b.playhqStatus || '' })) return true;
     const last = config().periodType === 'halves' ? 2 : 4;
     return Number(b.period) >= last && !b.clock.running && clockLeft(b) === 0;
   }
-  function gameStarted(b: GameBoard) {
+  function gameStarted(b: Board) {
     return !!b.clock.running || clockElapsed(b.clock) > 0 || Number(b.period) > 1 || (Number(b.home.score) || 0) > 0 || (Number(b.away.score) || 0) > 0
       || /PROGRESS|LIVE|STARTED/i.test(b.playhqStatus || '');
   }
-  function gamePhase(b: GameBoard = board()) {
+  function gamePhase(b: Board = board()) {
+
     if (!b.gameId) return 'none';
     const ended = gameEnded(b);
     if (ended && !b.endedAt) { b.endedAt = Date.now(); keepStory(true); saveBoards(); }
