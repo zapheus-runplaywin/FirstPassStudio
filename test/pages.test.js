@@ -37,7 +37,7 @@ const SHOWS = {
   'teamlist.html': ['Blizzardz GS'],
   'control.html': ['Blizzardz'],
   'gamestats.html': ['Blizzardz', 'Game stats'],
-  'commentatorstats.html?refresh=0': ['Blizzardz', 'Game stats', 'Shooting', 'Lead changes', 'Blizzardz GS', 'games', 'Moments', 'Score worm'],
+  'commentatorstats.html?refresh=0': ['Blizzardz', 'Game stats', 'Shooting', 'Blizzardz GS', 'games', 'Moments', 'Score worm'],
   'worm.html': ['Blizzardz', 'Score worm', 'Lead changes'],
   'social.html': ['Game night', 'Blizzardz', 'Court 2'],
   'recordings.html': ['Record each PlayHQ game on air', 'after full time', 'Blizzardz v'],

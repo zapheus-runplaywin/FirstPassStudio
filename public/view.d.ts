@@ -158,3 +158,28 @@ interface SwitcherState {
   stinger: string; stingerId: string; stingerMusic: string; keys: SwKeyCheck[]; fps?: number;
   model: string; inputs: SwInput[]; program: number | null; preview: number | null; inTransition: boolean; usk: boolean[]; dsk: boolean[]; ftb: boolean;
 }
+
+// What /api/teams answers (teams.ts getTeamSheets): the board's game with each side's line up, for loadTeams().
+interface SheetPlayer {
+  name: string; number: string | number | null; position: string; captain?: boolean; viceCaptain?: boolean; fromSquad?: boolean; photo?: string | null; silhouette?: string;
+  shooting?: { goals: number; superGoals: number; shots: number | null; points: number } | null;
+}
+interface SheetSide { name: string; logo?: string | null; players: SheetPlayer[]; totals?: { goals: number; superGoals: number; shots: number | null } | null; squad?: boolean }
+interface TeamSheets {
+  home: SheetSide; away: SheetSide; division?: string; court?: string; period?: number; competition?: string; error?: string; scoring?: string;
+  score?: { home: number; away: number }; rules?: { superShots?: boolean; [more: string]: unknown };
+}
+
+// The competition logos in a setup's rules (/api/scoreboard and others), for a light or a dark picture behind them.
+interface LogoRules { competitionLogo?: string; competitionLogoLight?: string; competitionLogoDark?: string }
+
+// What /api/scoreboard answers (board.ts scoreboardJson): the board's game with the setup's rules, the teams' logos and
+// colours, and the board's clock. These are the fields the graphics read; a page that reads more extends it.
+interface ScoreboardView {
+  competition?: string; division?: string; round?: string; date?: string; time?: string; court?: string; venue?: string; venueName?: string;
+  home: { name: string; score: number }; away: { name: string; score: number }; period: number; periodLabel?: string;
+  logos?: { home?: string | null; away?: string | null }; teamColours?: { home?: string | null; away?: string | null };
+  rules?: LogoRules & { superShots?: boolean; periodType?: string; periods?: number; [more: string]: unknown };
+  superShot?: { n: number; side: 'home' | 'away'; at: number; how?: string }; serverNow?: number; source?: string;
+  clock?: { running: boolean; lengthSec: number }; clockElapsedMs?: number;
+}
