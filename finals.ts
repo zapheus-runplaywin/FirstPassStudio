@@ -23,7 +23,31 @@
 // the number of teams the division has.
 
 
-const MARKS = {
+type Mark = 'final' | 'double' | 'bye' | 'elim' | 'third' | 'placing';
+// A finals game in a format: who plays (a slot, as above) in which week.
+interface GameDef { id: string; name: string; week: number; home: string; away: string; placing?: number; ifNeeded?: boolean }
+// A finals format. all: every team on the ladder plays (sized() gives it its games).
+interface Format {
+  id: string; teams: number; name: string; summary: string; marks: Mark[]; weeks: string[]; games: GameDef[];
+  series?: boolean; all?: boolean;
+}
+// A side of a finals game as resolve() works it out.
+interface Side { name: string | null; slot: string; placeholder?: string; seed?: number; score?: number | null; outcome?: string }
+// A PlayHQ finals game, for resolve().
+interface Played {
+  week: number; home: { name: string; score?: number | null; outcome?: string }; away: { name: string; score?: number | null; outcome?: string };
+  finished?: boolean; date?: string; time?: string; court?: string; status?: string; id?: string; round?: string;
+}
+// A finals game as resolve() works it out.
+interface Game {
+  id: string; name: string; week: number; weekName: string; placing: number | null; ifNeeded: boolean; home: Side; away: Side;
+  winner: string | null; loser: string | null; source: 'playhq' | 'manual' | null; notNeeded?: boolean; manual?: boolean;
+  playhqId?: string; date?: string; time?: string; court?: string; status?: string; round?: string;
+}
+// A result entered on the control page.
+interface Manual { winner?: string; homeScore?: number; awayScore?: number }
+
+const MARKS: Record<Mark, string> = {
   final: 'Plays for the title',
   double: 'Double chance',
   bye: 'Week off',
@@ -32,7 +56,7 @@ const MARKS = {
   placing: 'Plays for a place',
 };
 
-const FORMATS = [
+const FORMATS: Format[] = [
   { id: 'top2-gf', teams: 2, name: 'Grand final', summary: '1 v 2, one game.',
     marks: ['final', 'final'], weeks: ['Grand final'],
     games: [{ id: 'GF', name: 'Grand final', week: 1, home: 's1', away: 's2' }] },
@@ -145,24 +169,24 @@ const FORMATS = [
 ];
 
 // Every team plays: 1 v 2 in the grand final, then 3 v 4, 5 v 6... for the places below.
-const PLACE_WORDS = { 3: 'Third', 5: 'Fifth', 7: 'Seventh', 9: 'Ninth', 11: 'Eleventh', 13: 'Thirteenth', 15: 'Fifteenth', 17: 'Seventeenth', 19: 'Nineteenth' };
-function sized(format, count) {
+const PLACE_WORDS: Record<number, string> = { 3: 'Third', 5: 'Fifth', 7: 'Seventh', 9: 'Ninth', 11: 'Eleventh', 13: 'Thirteenth', 15: 'Fifteenth', 17: 'Seventeenth', 19: 'Nineteenth' };
+function sized<F extends Format | null>(format: F, count: unknown): F {
   if (!format || !format.all) return format;
   const n = Math.max(2, (Number(count) || 0) - ((Number(count) || 0) % 2));
-  const games = [], marks = [];
+  const games: GameDef[] = [], marks: Mark[] = [];
   for (let p = 1; p < n; p += 2) {
     games.push(p === 1 ? { id: 'GF', name: 'Grand final', week: 1, home: 's1', away: 's2' }
       : { id: `P${p}`, name: `${PLACE_WORDS[p] || ordinal(p)} place play-off`, week: 1, home: `s${p}`, away: `s${p + 1}`, placing: p });
-    marks.push(...(p === 1 ? ['final', 'final'] : ['placing', 'placing']));
+    marks.push(...(p === 1 ? ['final', 'final'] as const : ['placing', 'placing'] as const));
   }
   return { ...format, teams: n, marks, games };
 }
 
-const byId = id => FORMATS.find(f => f.id === id) || null;
+const byId = (id: unknown): Format | null => FORMATS.find(f => f.id === id) || null;
 
 // The nearest format for a setup saved with only a number of finals places.
-function fromPlaces(n) {
-  n = Number(n) || 0;
+function fromPlaces(places: unknown): string {
+  const n = Number(places) || 0;
   if (n <= 0) return '';
   if (n <= 2) return 'top2-gf';
   if (n <= 4) return 'top4-page';
@@ -172,7 +196,7 @@ function fromPlaces(n) {
 
 // The format a division uses: its own, else the competition's. With the number of teams
 // on its ladder, a format for every team gets its games.
-function formatFor(settings, division, count) {
+function formatFor(settings: { divisionFinals?: Record<string, string>; finalsFormat?: string }, division: string, count?: number): Format | null {
   const own = (settings.divisionFinals || {})[division];
   if (own === 'none') return null;
   const f = byId(own) || byId(settings.finalsFormat) || null;
@@ -185,14 +209,14 @@ function list() {
 }
 
 // For the ladder: what each place earns, and the words for each.
-function ladderMarks(format) {
+function ladderMarks(format: Format | null): { places: number; marks: Mark[]; legend: { mark: Mark; label: string }[] } {
   if (!format) return { places: 0, marks: [], legend: [] };
   const kinds = [...new Set(format.marks)];
   return { places: format.teams, marks: format.marks, legend: kinds.map(k => ({ mark: k, label: MARKS[k] })) };
 }
 
 // Words for a team not known yet.
-function placeholder(slot, gameName) {
+function placeholder(slot: string, gameName: (id: string) => string): string {
   const [kind, rest] = String(slot).split(':');
   if (/^s\d+$/.test(slot)) return `${ordinal(Number(slot.slice(1)))} on the ladder`;
   const ids = (rest || '').split(',');
@@ -202,12 +226,12 @@ function placeholder(slot, gameName) {
   if (kind === 'Whigh') return `Higher winner ${ids.join(' / ')}`;
   return 'TBC';
 }
-function ordinal(n) {
+function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const norm = (s: unknown) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // A PlayHQ round that is part of the finals: "final" or "play-off" in its name (Semi Finals, Grand Final).
 const ROUND = /final|play.?off/i;
@@ -218,26 +242,27 @@ const ROUND = /final|play.?off/i;
 //   manual   { gameId: { winner, homeScore, awayScore } } entered on the control page
 // A PlayHQ game counts when it has the same two teams (either way round), or, while one
 // team isn't known yet, when it's the same finals week and has the team that is known.
-function resolve(format, seeds, played = [], manual = {}) {
-  const done = new Map(); // id -> game
-  const seedOf = name => { const i = seeds.findIndex(s => norm(s) === norm(name)); return i < 0 ? 99 : i + 1; };
-  const used = new Set();
-  const gameName = id => String((format.games.find(g => g.id === id) || {}).name || id).toLowerCase();
-  const team = slot => {
+function resolve(format: Format, seeds: string[], played: Played[] = [], manual: Record<string, Manual> = {}): { games: Game[]; champion: string | null } {
+  const done = new Map<string, Game>();
+  const seedOf = (name: string) => { const i = seeds.findIndex(s => norm(s) === norm(name)); return i < 0 ? 99 : i + 1; };
+  const used = new Set<Played>();
+  const gameName = (id: string) => String((format.games.find(g => g.id === id) || {}).name || id).toLowerCase();
+  const team = (slot: string): string | null => {
     if (/^s\d+$/.test(slot)) return seeds[Number(slot.slice(1)) - 1] || null;
     const [kind, rest] = slot.split(':');
     const ids = rest.split(',');
     const games = ids.map(id => done.get(id));
     if (games.some(g => !g || !g.winner)) return null;
-    if (kind === 'W') return games[0].winner;
-    if (kind === 'L') return games[0].loser;
-    const winners = games.map(g => g.winner).sort((a, b) => seedOf(a) - seedOf(b));
+    const known = games as Game[];
+    if (kind === 'W') return known[0].winner;
+    if (kind === 'L') return known[0].loser;
+    const winners = known.map(g => g.winner as string).sort((a, b) => seedOf(a) - seedOf(b));
     return kind === 'Whigh' ? winners[0] : winners[winners.length - 1];
   };
-  const out = [];
-  let series = null;
+  const out: Game[] = [];
+  let series: Record<string, number> | null = null;
   for (const def of format.games) {
-    const g = { id: def.id, name: def.name, week: def.week, weekName: format.weeks[def.week - 1] || `Week ${def.week}`, placing: def.placing || (def.id === 'GF' ? 1 : null),
+    const g: Game = { id: def.id, name: def.name, week: def.week, weekName: format.weeks[def.week - 1] || `Week ${def.week}`, placing: def.placing || (def.id === 'GF' ? 1 : null),
       ifNeeded: !!def.ifNeeded, home: { name: team(def.home), slot: def.home }, away: { name: team(def.away), slot: def.away },
       winner: null, loser: null, source: null };
     g.home.placeholder = placeholder(def.home, gameName);
@@ -245,9 +270,9 @@ function resolve(format, seeds, played = [], manual = {}) {
     if (g.home.name) g.home.seed = seedOf(g.home.name);
     if (g.away.name) g.away.seed = seedOf(g.away.name);
     // A best of three is over after two wins: game 3 isn't needed.
-    if (format.series && def.ifNeeded && series && Object.values(series).some(w => w >= 2)) { g.notNeeded = true; out.push(g); done.set(def.id, g); continue; }
+    if (format.series && def.ifNeeded && series && Object.values(series as Record<string, number>).some(w => w >= 2)) { g.notNeeded = true; out.push(g); done.set(def.id, g); continue; }
 
-    const known = [g.home.name, g.away.name].filter(Boolean);
+    const known = [g.home.name, g.away.name].filter((n): n is string => !!n);
     const both = known.length === 2;
     let ph = played.find(p => !used.has(p) && both && ((norm(p.home.name) === norm(g.home.name) && norm(p.away.name) === norm(g.away.name)) ||
       (norm(p.home.name) === norm(g.away.name) && norm(p.away.name) === norm(g.home.name))) && (!format.series || p.week === def.week));
@@ -279,18 +304,20 @@ function resolve(format, seeds, played = [], manual = {}) {
   }
   // The champion: the grand final's winner, or two wins in a best of three.
   let champion = null;
-  if (format.series && series) champion = Object.keys(series).find(t => series[t] >= 2) || null;
+  const wins = series as Record<string, number> | null;
+  if (format.series && wins) champion = Object.keys(wins).find(t => wins[t] >= 2) || null;
   else { const gf = done.get('GF'); champion = gf && gf.winner || null; }
   return { games: out, champion };
 }
 
 // The winner from the score, or PlayHQ's outcome when the score is level (a forfeit, extra time).
-function winnerOf(g) {
-  const o = side => String(g[side].outcome || '').toUpperCase();
+function winnerOf(g: Game): string | null {
+  const o = (side: 'home' | 'away') => String(g[side].outcome || '').toUpperCase();
   if (/WIN|WON/.test(o('home'))) return g.home.name;
   if (/WIN|WON/.test(o('away'))) return g.away.name;
   if (g.home.score != null && g.away.score != null && g.home.score !== g.away.score) return g.home.score > g.away.score ? g.home.name : g.away.name;
   return null;
 }
 
+export type { Format, Mark, Game, GameDef, Played, Manual, Side };
 export { FORMATS, MARKS, ROUND, byId, sized, fromPlaces, formatFor, list, ladderMarks, resolve, ordinal };

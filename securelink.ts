@@ -36,6 +36,17 @@ import * as savefile from './savefile';
 import * as route53 from './route53';
 import * as acme from './acme';
 import { errorMessage } from './errors';
+import { obj } from './check';
+import type { IncomingMessage, RequestListener } from 'node:http';
+import type { Duplex } from 'node:stream';
+import type { Log } from './types';
+
+// securelink.json. secret is kept here only when the Keychain isn't used (npm start, the tests).
+interface Saved {
+  v: number; on: boolean; zoneId: string; domain: string; keyId: string; secret: string; name: string; address: string;
+  account: acme.Account | null; cert: string; key: string;
+}
+type Upgrade = (req: IncomingMessage, socket: Duplex, head: Buffer) => void;
 
 const FILE = datadir.local('securelink.json');
 const KEYCHAIN = process.env.SECURELINK_KEYCHAIN ? process.env.SECURELINK_KEYCHAIN === '1' : (process.platform === 'darwin' && !!process.parentPort);
@@ -45,37 +56,37 @@ const ADDRESS_EVERY = 60 * 1000;           // how often the Mac's address is loo
 const CHECK_EVERY = 12 * 3600 * 1000;      // and the certificate's age
 const RETRY = [5, 15, 60].map(m => m * 60 * 1000); // after a problem, tries again after these (then every hour)
 
-let log = () => {};
+let log: Log = () => {};
 let port = 8443;
-let handler = null;
-let upgrade = null;
+let handler: RequestListener | null = null;
+let upgrade: Upgrade | null = null;
 let saved = defaults();
-let state = 'off';      // off | starting | ready | problem
+let state: 'off' | 'starting' | 'ready' | 'problem' = 'off';
 let step = '';          // what it's doing now, while starting
 let problem = '';
-let server = null;      // the https server, once there's a certificate
+let server: https.Server | null = null; // the https server, once there's a certificate
 let serving = '';       // the certificate it serves
-let running = null;     // the run going now (a promise)
+let running: Promise<void> | null = null; // the run going now
 let again = false;      // a run was asked for while one was going
 let failures = 0;
-let retryTimer = null;
+let retryTimer: NodeJS.Timeout | undefined;
 let recordSet = '';     // the address the A record was set to by this run of Studio
-let secretCache = null;
+let secretCache: string | null = null;
 
-function defaults() { return { v: 1, on: false, zoneId: '', domain: '', keyId: '', secret: '', name: '', address: '', account: null, cert: '', key: '' }; }
+function defaults(): Saved { return { v: 1, on: false, zoneId: '', domain: '', keyId: '', secret: '', name: '', address: '', account: null, cert: '', key: '' }; }
 
 const host = () => (saved.name && saved.domain ? `${saved.name}.${saved.domain}` : '');
 const link = () => (state === 'ready' ? `https://${host()}:${port}` : null);
 const save = () => { try { savefile.writeJsonSync(FILE, saved); } catch (err) { log('error', 'securelink', `Couldn't save securelink.json: ${errorMessage(err)}`); } };
 
 // ─── The secret ────────────────────────────────────────────────────────────
-const security = args => new Promise(resolve => execFile('/usr/bin/security', args, { timeout: 10000 }, (err, out) => resolve(err ? null : String(out).trim())));
-async function readSecret() {
+const security = (args: string[]) => new Promise<string | null>(resolve => execFile('/usr/bin/security', args, { timeout: 10000 }, (err, out) => resolve(err ? null : String(out).trim())));
+async function readSecret(): Promise<string> {
   if (!KEYCHAIN) return saved.secret || '';
   if (secretCache === null) secretCache = (await security(['find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', 'route53', '-w'])) || '';
   return secretCache;
 }
-async function writeSecret(secret) {
+async function writeSecret(secret: string): Promise<boolean> {
   if (!KEYCHAIN) { saved.secret = secret; return true; }
   const ok = (await security(['add-generic-password', '-U', '-s', KEYCHAIN_SERVICE, '-a', 'route53', '-w', secret])) !== null;
   if (ok) secretCache = secret;
@@ -84,7 +95,7 @@ async function writeSecret(secret) {
 
 // ─── This Mac's address ────────────────────────────────────────────────────
 // Its IPv4 address on the network the phones are on: Wi-Fi or Ethernet (en0 first), not a link-local one.
-function address() {
+function address(): string {
   if (process.env.SECURELINK_ADDRESS) return process.env.SECURELINK_ADDRESS;
   const all = os.networkInterfaces();
   const names = Object.keys(all).sort((a, b) => (a === 'en0' ? -1 : b === 'en0' ? 1 : a.localeCompare(b)));
@@ -97,7 +108,7 @@ function address() {
 }
 
 // ─── The certificate ───────────────────────────────────────────────────────
-function certInfo(pem) {
+function certInfo(pem: string): { expires: Date; names: string[] } | null {
   try {
     const c = new crypto.X509Certificate(pem);
     return { expires: new Date(c.validTo), names: String(c.subjectAltName || '').split(/,\s*/).map(s => s.replace(/^DNS:/, '')) };
@@ -105,10 +116,10 @@ function certInfo(pem) {
 }
 function needsCert() {
   const info = saved.cert && saved.key ? certInfo(saved.cert) : null;
-  return !info || !info.names.includes(host()) || info.expires - Date.now() < RENEW_DAYS * 24 * 3600 * 1000;
+  return !info || !info.names.includes(host()) || info.expires.getTime() - Date.now() < RENEW_DAYS * 24 * 3600 * 1000;
 }
 
-function serve() {
+function serve(): Promise<void> {
   if (server && serving === saved.cert) return Promise.resolve();
   if (server) {
     server.setSecureContext({ cert: saved.cert, key: saved.key });
@@ -117,10 +128,10 @@ function serve() {
     return Promise.resolve();
   }
   return new Promise((resolve, reject) => {
-    const s = https.createServer({ cert: saved.cert, key: saved.key }, handler);
+    const s = handler ? https.createServer({ cert: saved.cert, key: saved.key }, handler) : https.createServer({ cert: saved.cert, key: saved.key });
     if (upgrade) s.on('upgrade', upgrade);
     s.on('tlsClientError', () => {}); // a phone giving up mid-handshake, a scanner: nothing to report
-    s.once('error', err => reject(new Error(err.code === 'EADDRINUSE' ? `Port ${port} is in use by another program, so Studio can't answer on https. Set another "securePort" in config.json.` : `Studio couldn't answer on https: ${err.message}`)));
+    s.once('error', (err: NodeJS.ErrnoException) => reject(new Error(err.code === 'EADDRINUSE' ? `Port ${port} is in use by another program, so Studio can't answer on https. Set another "securePort" in config.json.` : `Studio couldn't answer on https: ${err.message}`)));
     s.listen(port, () => {
       server = s;
       serving = saved.cert;
@@ -170,7 +181,7 @@ async function runOnce() {
     if (needsCert()) {
       step = 'Getting a certificate from Let\'s Encrypt (about a minute)';
       log('info', 'securelink', `Asking Let's Encrypt for a certificate for ${host()}`);
-      const txt = { name: `_acme-challenge.${host()}`, type: 'TXT', ttl: 60 };
+      const txt = { name: `_acme-challenge.${host()}`, type: 'TXT', ttl: 60 } as const;
       const got = await acme.issue({
         name: host(), account: saved.account, log,
         setTxt: value => route53.change(key, saved.zoneId, { ...txt, action: 'UPSERT', values: [value] }),
@@ -178,7 +189,7 @@ async function runOnce() {
       });
       Object.assign(saved, { cert: got.cert, key: got.key, account: got.account });
       save();
-      log('info', 'securelink', `Got a certificate for ${host()}, good until ${certInfo(got.cert).expires.toISOString().slice(0, 10)}`);
+      log('info', 'securelink', `Got a certificate for ${host()}, good until ${certInfo(got.cert)?.expires.toISOString().slice(0, 10)}`);
     }
     step = 'Starting https';
     await serve();
@@ -193,12 +204,12 @@ async function runOnce() {
     retryTimer = setTimeout(run, RETRY[Math.min(failures++, RETRY.length - 1)]);
   }
 }
-function needsCertExpired() { const info = certInfo(saved.cert); return !info || info.expires <= Date.now(); }
+function needsCertExpired() { const info = certInfo(saved.cert); return !info || info.expires.getTime() <= Date.now(); }
 
 // At launch: a certificate still good for the name is served at once, before anything is asked of Route 53 (on
 // another network, or none yet, the name is pointed at the Mac as soon as it has an address); then the steps run.
 async function launch() {
-  if (saved.domain && saved.cert && saved.key && !needsCertExpired() && certInfo(saved.cert).names.includes(host())) {
+  if (saved.domain && saved.cert && saved.key && !needsCertExpired() && certInfo(saved.cert)?.names.includes(host())) {
     try {
       await serve();
       state = 'ready';
@@ -209,20 +220,20 @@ async function launch() {
 }
 
 // Runs the steps, one run at a time (a run asked for during one goes once it ends).
-function run() {
+function run(): Promise<void> {
   if (running) { again = true; return running; }
   running = runOnce().finally(() => { running = null; if (again) { again = false; run(); } });
   return running;
 }
 
 // Reads securelink.json and starts, if it's on. opts: { log, port, handler, upgrade } (server.js's request handlers).
-function start(opts = {}) {
+function start(opts: { log?: Log; port?: number | string; handler?: RequestListener; upgrade?: Upgrade } = {}): void {
   if (opts.log) log = opts.log;
   if (opts.port) port = Number(opts.port);
   handler = opts.handler || handler;
   upgrade = opts.upgrade || upgrade;
-  const read = savefile.readJson(FILE, null, (err, movedTo) => log('error', 'securelink', `securelink.json couldn't be read (${err.message})${movedTo ? `; moved aside as ${movedTo}` : ''}`));
-  saved = { ...defaults(), ...(read && typeof read === 'object' ? read : {}) };
+  const read = savefile.readJson<Partial<Saved> | null>(FILE, null, (err, movedTo) => log('error', 'securelink', `securelink.json couldn't be read (${errorMessage(err)})${movedTo ? `; moved aside as ${movedTo}` : ''}`));
+  saved = { ...defaults(), ...obj(read) };
   if (saved.on) launch();
   setInterval(() => { if (saved.on && !running && address() !== recordSet) run(); }, ADDRESS_EVERY).unref();
   setInterval(() => { if (saved.on && !running) run(); }, CHECK_EVERY).unref();
@@ -240,8 +251,8 @@ async function status() {
 
 // Changes the settings from the Devices tab: { zoneId, keyId, secret ('' or left out keeps it), on }. Any change, or
 // none ({}), tries the steps again now. Gives { error } for something that can't be right.
-async function set(body = {}) {
-  const next = {};
+async function set(body: { zoneId?: unknown; keyId?: unknown; secret?: unknown; on?: unknown } = {}): Promise<{ error: string } | Awaited<ReturnType<typeof status>>> {
+  const next: Partial<Saved> = {};
   if (body.zoneId !== undefined) {
     const z = route53.zoneIdOf(body.zoneId);
     if (z && !/^Z[A-Z0-9]{4,40}$/.test(z)) return { error: 'A hosted zone ID starts with Z, then capital letters and numbers (Route 53 › Hosted zones).' };
