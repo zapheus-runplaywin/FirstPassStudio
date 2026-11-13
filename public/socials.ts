@@ -745,7 +745,9 @@ async function load() {
       $('share').hidden = !canShareFiles();
     }
     $('captionsCard').hidden = $('postingCard').hidden = d.here === false;
-    if (d.here !== false) { loadCaptions(); loadPosting(); }
+    if (d.here !== false) loadCaptions();
+    // Posting: the card that connects is this Mac's; Post… and the posts list are on any device allowed to change things.
+    loadPosting();
     $<HTMLInputElement>('mark').checked = d.settings.mark;
     $<HTMLInputElement>('pivt').checked = d.settings.pivt;
     drawTemplates();
@@ -1091,7 +1093,10 @@ function drawCaptions() {
 // The Facebook and Instagram card, on this Mac only: the competition's Page and the Instagram account linked to it,
 // from a Page access token kept in the Mac's Keychain (posting.ts). Pictures are posted from Post… (or held for later).
 interface PostingAccount { page: { id: string; name: string }; instagram: { id: string; username: string } | null; token: string; warning: string }
-interface PostingStatus { error?: string; competition: string | null; account: PostingAccount | null; pages?: { id: string; name: string }[] }
+type PostState = 'scheduled' | 'waiting' | 'posting' | 'posted' | 'failed' | 'missed' | 'cancelled';
+interface PostTarget { state: PostState; url?: string; error?: string; at?: number }
+interface PostView { id: string; made: number; at: number | null; caption: string; story: boolean; names: string[]; facebook?: PostTarget; instagram?: PostTarget }
+interface PostingStatus { error?: string; competition: string | null; account: PostingAccount | null; pages?: { id: string; name: string }[]; posts?: PostView[] }
 let postStatus: PostingStatus | null = null;
 let postPages: { id: string; name: string }[] = [];
 let postError = '';
@@ -1113,6 +1118,8 @@ async function postingAccount(body: object) {
   drawPosting();
 }
 function drawPosting() {
+  drawPosts();
+  $('postBtn').hidden = !postStatus?.account || !info?.app;
   const s = postStatus;
   const a = s?.account || null;
   $('postSummary').textContent = a ? `${a.page.name}${a.instagram ? `, @${a.instagram.username}` : ''}` : 'not connected';
@@ -1146,6 +1153,174 @@ function drawPosting() {
     grid, ...(a?.warning ? [el('p', 'warn', a.warning)] : []),
     el('p', 'help', `Posts to ${s?.competition || 'this competition'}'s own Facebook Page and the Instagram account linked to it. The token comes from your club's Meta app with pages_manage_posts and instagram_content_publish; it's kept in this Mac's Keychain and only its last four characters show.`));
 }
+
+// ─── Post… ──────────────────────────────────────────────────────────────────
+// The ticked pictures as posts: one each (with its own caption), or one carousel (As a carousel), or Stories when the
+// size is Story. Shown to check before anything goes; nothing posts until Post (or Schedule) is pressed.
+const SOONEST_FB_MIN = 10;
+const localInput = (ms: number) => { const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
+const when = (ms: number) => new Date(ms).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+interface Planned { pictures: Picture[]; caption: string; text?: HTMLTextAreaElement }
+function showPost() {
+  const a = postStatus?.account;
+  if (!a) return;
+  const ticked = sizes();
+  const carousel = $<HTMLInputElement>('carousel').checked;
+  const list = (carousel ? carouselList() : pictures()).filter(p => !off.has(p.key) && !p.missing);
+  if (!list.length) return setStatus('Tick a picture to post first.', true);
+  if (!ticked.length) return setStatus('Tick a size first.', true);
+  let d = $<HTMLDialogElement>('postBox');
+  if (!d) { d = document.body.appendChild(el('dialog', 'post')); d.id = 'postBox'; }
+  const box = d;
+  // The size: Story goes as Stories; Square or Portrait as posts. One size at a time.
+  const sizePick = el('select');
+  sizePick.setAttribute('aria-label', 'Size to post');
+  for (const sz of ticked) { const o = el('option', '', sz === 'story' ? 'Story (as Stories)' : SIZE_LABELS[sz]); o.value = sz; sizePick.append(o); }
+  sizePick.value = ticked.find(sz => sz !== 'story') || ticked[0];
+  const fb = el('input'); fb.type = 'checkbox'; fb.checked = true;
+  const ig = el('input'); ig.type = 'checkbox'; ig.checked = !!a.instagram; ig.disabled = !a.instagram;
+  const fbL = el('label'); fbL.append(fb, ` Facebook (${a.page.name})`);
+  const igL = el('label'); igL.append(ig, a.instagram ? ` Instagram (@${a.instagram.username})` : ' Instagram (not linked)');
+  const now = el('input'); now.type = 'radio'; now.name = 'postWhen'; now.checked = true;
+  const later = el('input'); later.type = 'radio'; later.name = 'postWhen';
+  const at = el('input'); at.type = 'datetime-local'; at.setAttribute('aria-label', 'When to post');
+  at.value = localInput(Math.ceil((Date.now() + 3600000) / 3600000) * 3600000);
+  at.oninput = () => { later.checked = true; check(); };
+  const nowL = el('label'); nowL.append(now, ' Now');
+  const laterL = el('label'); laterL.append(later, ' Later: ', at);
+  const posts = el('div');
+  const note = el('p', 'help');
+  const go = el('button', '', 'Post');
+  go.type = 'button';
+  const cancel = el('button', 'alt', 'Cancel');
+  cancel.type = 'button'; cancel.onclick = () => box.close();
+  let planned: Planned[] = [];
+  const story = () => sizePick.value === 'story';
+  function plan() {
+    // As a carousel: one post with them all, its caption the first one written. Else a post (or Story) each.
+    planned = story() || !carousel ? list.map(p => ({ pictures: [p], caption: (captions[p.key]?.text || '').trim() }))
+      : [{ pictures: list, caption: (list.map(p => captions[p.key]?.text || '').find(t => t.trim()) || '').trim() }];
+    posts.replaceChildren(...planned.map(x => {
+      const one = el('div', 'one');
+      one.append(el('b', '', x.pictures.length > 1 ? `Carousel of ${x.pictures.length}: ${x.pictures.map(p => p.name).join(', ')}` : `${story() ? 'Story' : 'Post'}: ${x.pictures[0].name}`));
+      if (story()) one.append(el('span', 'help', 'Stories carry no caption.'));
+      else {
+        const t = el('textarea'); t.value = x.caption; t.maxLength = 2200; t.placeholder = 'No caption yet: write one here, or with Caption under the picture.';
+        t.setAttribute('aria-label', `Caption for ${x.pictures[0].name}`);
+        // A single picture's caption is its own: changed here, changed under the picture too.
+        t.oninput = () => { x.caption = t.value; if (x.pictures.length === 1) { const c = captionOf(x.pictures[0].key); c.text = t.value; redrawCaption(x.pictures[0].key); } };
+        x.text = t;
+        one.append(t);
+      }
+      return one;
+    }));
+    check();
+  }
+  function check() {
+    const n = planned.length;
+    const t = later.checked ? new Date(at.value).getTime() : null;
+    let warn = '';
+    if (!fb.checked && !ig.checked) warn = 'Tick Facebook, Instagram or both.';
+    else if (planned.some(x => x.pictures.length > 20)) warn = 'A carousel takes 20 pictures at most.';
+    else if (t !== null && !(t > Date.now())) warn = 'Pick a time from now on.';
+    else if (t !== null && fb.checked && !story() && t < Date.now() + SOONEST_FB_MIN * 60000) warn = `Facebook schedules posts ${SOONEST_FB_MIN} minutes ahead at the soonest.`;
+    else if (t !== null && t > Date.now() + 30 * 24 * 3600000) warn = 'Pick a time within 30 days.';
+    const where = [fb.checked ? 'Facebook' : '', ig.checked ? 'Instagram' : ''].filter(Boolean).join(' and ');
+    const held = t !== null && (ig.checked || story());
+    note.className = warn ? 'warn' : 'help';
+    note.textContent = warn || `${n} ${story() ? 'Stor' + (n === 1 ? 'y' : 'ies') : 'post' + (n === 1 ? '' : 's')} to ${where}, ${t === null ? 'now' : when(t)}.${held ? ' Studio posts the Instagram part (and Stories) at that time, so leave this Mac on with Studio open.' : ''}`;
+    go.textContent = t === null ? 'Post' : 'Schedule';
+    go.disabled = !!warn;
+  }
+  for (const x of [fb, ig, now, later]) x.onchange = check;
+  sizePick.onchange = plan;
+  go.onclick = async () => {
+    go.disabled = true; cancel.disabled = true;
+    const t = later.checked ? new Date(at.value).getTime() : null;
+    const results: string[] = [];
+    let bad = false;
+    for (const [i, x] of planned.entries()) {
+      note.className = 'help';
+      note.textContent = `Posting ${i + 1} of ${planned.length}…`;
+      try {
+        const res = await fetch('/api/posting/post', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+          facebook: fb.checked, instagram: ig.checked, story: story(), carousel: x.pictures.length > 1, caption: x.text ? x.text.value : x.caption,
+          at: t, date: theNight().date, set: set(), items: x.pictures.map(p => ({ name: p.name, link: link(p, sizePick.value as Size), size: sizePick.value })) }) });
+        const p = await res.json() as PostView & { error?: string };
+        if (p.error) throw new Error(p.error);
+        const failed = [p.facebook, p.instagram].filter(y => y && y.state === 'failed').map(y => y!.error);
+        if (failed.length) { bad = true; results.push(`${x.pictures[0].name}: ${failed.join(' ')}`); }
+      } catch (err) { bad = true; results.push(`${x.pictures[0].name}: ${err instanceof Error ? err.message : err}`); }
+    }
+    await loadPosting();
+    cancel.disabled = false; cancel.textContent = 'Done';
+    note.className = bad ? 'error' : 'help';
+    note.textContent = bad ? `Not everything went: ${results.join(' · ')} It's on the Posts list to try again.` : `${t === null ? 'Posted' : 'Scheduled'}. It's on the Posts list.`;
+    if (!bad) { box.close(); setStatus(`${t === null ? 'Posted' : `Scheduled for ${when(t)}`}: see Posts.`); $<HTMLDetailsElement>('postsCard').open = true; }
+  };
+  box.replaceChildren(el('h2', '', 'Post to Facebook and Instagram'),
+    rowOf(fbL, igL), rowOf(el('span', '', 'Size'), sizePick), rowOf(nowL, laterL), posts, note, rowOf(cancel, go));
+  box.lastElementChild!.className = 'actions';
+  plan();
+  if (!box.open) box.showModal();
+}
+function rowOf(...parts: (Node | string)[]) { const r = el('div', 'row'); r.append(...parts); return r; }
+
+// The posts list: each post with where it's up to on Facebook and Instagram, and what can still be done with it.
+const STATE_TEXT: Record<PostState, string> = { scheduled: 'Scheduled', waiting: 'Waiting', posting: 'Posting…', posted: 'Posted', failed: 'Didn\'t post', missed: 'Missed', cancelled: 'Cancelled' };
+async function changePost(id: string, body: object) {
+  try {
+    const d = await (await fetch(`/api/posting/posts/${encodeURIComponent(id)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json() as { error?: string };
+    if (d.error) throw new Error(d.error);
+    setStatus('');
+  } catch (err) { setStatus(`Couldn't change that post: ${err instanceof Error ? err.message : err}`, true); }
+  loadPosting();
+}
+function drawPosts() {
+  const s = postStatus;
+  $('postsCard').hidden = !s?.account;
+  const list = s?.posts || [];
+  const open = list.filter(p => [p.facebook, p.instagram].some(t => t && ['scheduled', 'waiting', 'missed', 'failed', 'posting'].includes(t.state)));
+  $('postsSummary').textContent = open.length ? `${open.length} to come or to look at` : list.length ? 'all posted' : 'none yet';
+  const items = list.map(p => {
+    const item = el('div', 'item');
+    item.append(el('b', '', `${p.story ? 'Story' : p.names.length > 1 ? 'Carousel' : 'Post'}: ${p.names.join(', ')}`), ' ',
+      el('span', 'help', p.at ? when(p.at) : when(p.made)));
+    const row = el('div', 'row');
+    for (const [net, name] of [['facebook', 'Facebook'], ['instagram', 'Instagram']] as const) {
+      const t = p[net];
+      if (!t) continue;
+      const chip = el('span', `chip ${t.state}`, `${name}: ${STATE_TEXT[t.state]}`);
+      if (t.state === 'scheduled') chip.title = 'Facebook posts it at its time';
+      if (t.state === 'waiting') chip.title = 'Studio posts it at its time: leave this Mac on with Studio open';
+      if (t.state === 'missed') chip.title = 'Studio wasn\'t open at its time';
+      row.append(chip);
+      if (t.url) { const v = el('a', '', 'View'); v.href = t.url; v.target = '_blank'; v.rel = 'noopener'; row.append(v); }
+      if (t.error) row.append(el('span', 'warn', t.error));
+    }
+    item.append(row);
+    const can = [p.facebook, p.instagram].some(t => t && ['scheduled', 'waiting', 'missed', 'failed'].includes(t.state));
+    if (can) {
+      const acts = el('div', 'row');
+      const nowB = el('button', 'small', 'Post now'); nowB.type = 'button';
+      nowB.onclick = () => { nowB.disabled = true; changePost(p.id, { now: true }); };
+      const at = el('input'); at.type = 'datetime-local'; at.setAttribute('aria-label', 'New time'); at.value = localInput(p.at || Date.now() + 3600000);
+      const move = el('button', 'alt small', 'Change time'); move.type = 'button';
+      move.onclick = () => changePost(p.id, { at: new Date(at.value).getTime() });
+      const cancel = el('button', 'alt small', 'Cancel post'); cancel.type = 'button';
+      cancel.onclick = () => changePost(p.id, { cancel: true });
+      acts.append(nowB, at, move, cancel);
+      item.append(acts);
+    }
+    return item;
+  });
+  const wrap = el('div', 'posts');
+  wrap.append(...items);
+  $('postsBody').replaceChildren(...(items.length ? [wrap] : [el('p', 'help', 'Nothing posted from Studio yet. Tick pictures, then Post… beside Save.')]));
+}
+// While the list is open, it follows the posts Studio holds as they go.
+setInterval(() => { if ($<HTMLDetailsElement>('postsCard').open && document.visibilityState === 'visible') loadPosting(); }, 30000);
+$('postBtn').onclick = () => showPost();
 
 $('night').onchange = () => loadNight($<HTMLSelectElement>('night').value);
 for (const c of document.querySelectorAll<HTMLInputElement>('[data-size], [name=set]')) c.onchange = draw;
