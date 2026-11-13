@@ -215,7 +215,7 @@
       <button class="alt" id="reloadGames">Refresh list</button>
     </div>
     <div class="row" style="margin-top:10px">
-      <label>Check PlayHQ every <input id="refreshSec" type="number" min="1" max="120" style="width:70px"> seconds</label>
+      <label>Check PlayHQ every <input id="refreshSec" type="number" min="1" max="120" style="width:70px"> seconds during a game</label>
     </div>
     <div class="row" style="margin-top:10px">
       <label class="fp-switch"><input id="followOthers" type="checkbox"> Also follow the night's other games, for their stats</label>
@@ -278,7 +278,7 @@
     $('srcManual').setAttribute('aria-pressed', String(s.source === 'manual'));
     $('srcPlayhq').disabled = !s.gameId;
     $('sourceNote').textContent = s.source === 'playhq'
-      ? `Scores update from PlayHQ every ${s.playhqRefreshSec || 5} seconds, if the game is being live-scored there. Pressing a score button switches to manual.`
+      ? `Scores update from PlayHQ every ${s.playhqRefreshSec || 5} seconds during the game (from 2 minutes before it starts until 2 minutes after PlayHQ finishes it), if it's being live-scored there; every 30 seconds once its scoring opens before that, and every 5 minutes otherwise. Pressing a score button switches to manual.`
       : 'Scores only change when you press the buttons here.';
     if (s.playhqWaiting && s.source === 'playhq') $('sourceNote').textContent += ` ${s.playhqWaiting}`;
     if (s.playhqError && s.source === 'playhq') $('sourceNote').textContent += ` Last PlayHQ error: ${s.playhqError}`;
@@ -407,11 +407,12 @@
   $('round').onchange = async () => { await loadRounds({ night: $('round').value }); loadGames(); };
   loadRounds();
 
-  async function loadGames() {
+  // fresh: Refresh list, which reads the night's games from PlayHQ now rather than from what Studio kept.
+  async function loadGames(fresh = false) {
     const sel = $('games');
     sel.innerHTML = '<option>Loading this game night\'s games from PlayHQ…</option>';
     try {
-      const res = await fetch('/api/games', { cache: 'no-store' });
+      const res = await fetch(fresh ? '/api/games?fresh=1' : '/api/games', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       games = data.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '').localeCompare(String(b.time || '')) || a.court.localeCompare(b.court));
@@ -441,7 +442,7 @@
   $('autoSelect').onchange = () => act({ type: 'autoSelect', value: $('autoSelect').checked });
   $('autoCourt').onchange = () => act({ type: 'autoCourt', value: $('autoCourt').value.trim() });
   $('useGame').onclick = () => { const g = games[$('games').value]; if (g) act({ type: 'selectGame', game: g }); };
-  $('reloadGames').onclick = loadGames;
+  $('reloadGames').onclick = () => loadGames(true);
   $('srcPlayhq').onclick = () => act({ type: 'source', value: 'playhq' });
   $('srcManual').onclick = () => act({ type: 'source', value: 'manual' });
   $('homeName').onchange = () => act({ type: 'setTeams', home: $('homeName').value });
@@ -493,7 +494,7 @@
     } catch {}
   }
   pollTeams(); setInterval(pollTeams, 10000);
-  firstBoard.then(loadGames);
+  firstBoard.then(() => loadGames());
   setInterval(tick, 250);
 })();
 </script>

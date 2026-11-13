@@ -62,12 +62,14 @@ function boardPlayhq(h) {
     pVal = `${n.pingMs} ms`;
     pTip = `How long PlayHQ took to answer, ${boardAgo(n.pingAgoMs)}`;
   }
-  // How often PlayHQ is checked (Check PlayHQ every, on Scoreboard control): an icon and the seconds, grey while
-  // nothing is being checked (by hand, no game, not scoring yet).
+  // How often PlayHQ is checked now: Check PlayHQ every (Scoreboard control) during the game, 30 s once its scoring opens
+  // before that, 5 minutes otherwise; an icon and the time, grey while nothing is being checked (by hand, no game, not
+  // scoring yet).
   const checking = h.game && h.source === 'playhq' && !p.waiting;
   const rSec = p.refreshSec;
-  const rVal = rSec == null ? '–' : `${rSec % 1 ? rSec.toFixed(1) : rSec} s`;
-  const refresh = `<span class="pqchip rf${checking ? '' : ' idle'}" title="${boardEsc(checking ? `Checks PlayHQ every ${rVal}` : `Would check PlayHQ every ${rVal}; nothing is being checked now`)}">`
+  const rVal = rSec == null ? '–' : rSec >= 60 ? `${Math.round(rSec / 60)} min` : `${rSec % 1 ? rSec.toFixed(1) : rSec} s`;
+  const why = p.pace === 'warmup' ? ', until 2 minutes before the start' : p.pace === 'gentle' ? ', as the game isn\'t on' : ' during the game';
+  const refresh = `<span class="pqchip rf${checking ? '' : ' idle'}" title="${boardEsc(checking ? `Checks PlayHQ every ${rVal}${why}` : `Would check PlayHQ every ${rVal}; nothing is being checked now`)}">`
     + `<svg class="ic" viewBox="0 0 16 16" aria-label="Checks every"><path d="M13.5 8a5.5 5.5 0 0 1-9.6 3.7M2.5 8a5.5 5.5 0 0 1 9.6-3.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12.6 1.6v3h-3M3.4 14.4v-3h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><b>${rVal}</b></span>`;
   return `<span class="pqrow">${chip(`st ${sDot}`, sDot, 'PlayHQ', sWord, sTip)}${chip(`ping ${pDot}`, pDot, 'Ping', pVal, pTip)}${refresh}`
     // Bandwidth: a download arrow and the rate; data: a disc stack and the total since on air.

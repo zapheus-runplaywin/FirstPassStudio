@@ -4,7 +4,6 @@
   "securePort": 8443,
   "linkHost": "bonjour",
   "playhqRefreshSeconds": 5,
-  "cacheSeconds": 60,
   "apiBaseUrl": "https://api.playhq.com",
   "gameSummaryPath": "/v2/games/{id}/summary",
   "logMaxMB": 15

@@ -17,13 +17,14 @@
 //
 // create(deps) gives one client for the competition in use. deps:
 //   log(level, source, message, extra)   the debug log
-//   apiUrl, cacheMs, linkBase            from config.json (the link is only for error messages)
+//   apiUrl, linkBase                     from config.json (the link is only for error messages)
 //   config()                             the competition settings in use (CONFIG in server.js)
 //   leadMs()                             how long before a game electronic scoring opens (autoSelectMinutesBefore)
 //   logoFor(teamName), positionOf(player) the competition's team logo and the netball position code
 //   record, practice                     recorder.js and practice.js (optional)
 // setOrganisation(url) points it at a PlayHQ organisation (tenant and id from the link); resetCaches()
-// forgets everything cached when the competition changes. The pure helpers (parsePlayhqUrl,
+// forgets everything cached when the competition changes; askAgain() makes the next read of the fixtures and ladders
+// fresh (Refresh list on Scoreboard control). How often PlayHQ is asked is set here: see "Being kind to PlayHQ". The pure helpers (parsePlayhqUrl,
 // isFinished, startOf, localDate) are exported on their own as well.
 
 'use strict';
@@ -38,7 +39,7 @@ const savefile = require('./savefile');
 const net = require('./playhqnet');
 
 function create(deps) {
-  const { log, apiUrl, cacheMs, linkBase, config, leadMs, logoFor, positionOf } = deps;
+  const { log, apiUrl, linkBase, config, leadMs, logoFor, positionOf } = deps;
   // recorder.js, for the game recording: every answer PlayHQ gives (record.playhq, record.live).
   const record = deps.record || { playhq() {}, live() {} };
   // practice.js: while a practice game runs, its recording answers instead of PlayHQ (practice.answer, practice.live);
@@ -162,11 +163,11 @@ function create(deps) {
     return structure;
   }
 
-  // A division's ladder (kept cacheMs; the last good one, marked stale, while PlayHQ fails). A column PlayHQ doesn't
-  // have for the sport is left out, and the page leaves it out too.
+  // A division's ladder (kept a minute during a game, else 5 minutes, see dataAge; the last good one, marked stale,
+  // while PlayHQ fails). A column PlayHQ doesn't have for the sport is left out, and the page leaves it out too.
   const ladders = createKeeper();
   async function getLadder(gradeId) {
-    const kept = await ladders.get(gradeId, cacheMs, async () => {
+    const kept = await ladders.get(gradeId, dataAge(DURING_GAME_MS, ladders.peek(gradeId)), async () => {
       const l = await api.ladder(gradeId);
       return { grade: l.grade, pools: l.pools, updatedAt: new Date().toISOString() };
     });
@@ -181,12 +182,12 @@ function create(deps) {
   }
 
   // ─── Games (for the scoreboard) ─────────────────────────────────────────────
-  // A round's games, read again once older than maxAgeMs. If PlayHQ fails then, the last ones read are given, with
+  // A round's games, read again once older than maxAgeMs (at least 5 minutes while no game is on, see dataAge). If PlayHQ fails then, the last ones read are given, with
   // .stale saying why (the fixtures, countdown, up next and the game list keep showing), and PlayHQ is asked again
   // next time.
   const roundGames = createKeeper();
   async function getRoundGames(roundId, maxAgeMs) {
-    const kept = await roundGames.get(roundId, maxAgeMs, async () => {
+    const kept = await roundGames.get(roundId, dataAge(maxAgeMs, roundGames.peek(roundId)), async () => {
       const games = await api.roundGames(roundId);
       for (const g of games) noteStart(g);
       return games;
@@ -261,9 +262,11 @@ function create(deps) {
     if (parsed.home.players.length || parsed.away.players.length) keepFinished(g.id, parsed);
     return parsed;
   }
+  // Read again once older than maxAgeMs: as the live feed is (liveAge) for a game being played, else as the fixtures are.
   async function getGame(gameId, maxAgeMs) {
     const hit = gameCache.get(gameId);
-    if (hit && Date.now() - hit.at < maxAgeMs) return hit.game;
+    const age = pace(gameId) === 'game' ? maxAgeMs : dataAge(maxAgeMs, hit);
+    if (hit && Date.now() - hit.at < age) return hit.game;
     if (!gameInFlight.has(gameId)) {
       gameInFlight.set(gameId, api.game(gameId)
         .then(g => { const game = withLogos(g); gameCache.set(gameId, { at: Date.now(), game }); return game; })
@@ -289,7 +292,11 @@ function create(deps) {
   // default 10) minutes before a game. Before then PlayHQ's live feed only answers "game could
   // not be found or was not electronically scored", so it isn't asked at all.
   const gameStarts = new Map(); // game id -> { date, time, status } from the fixtures
-  function noteStart(g) { if (g && g.id && g.date && g.time) gameStarts.set(g.id, { date: g.date, time: g.time, status: g.status }); }
+  function noteStart(g) {
+    if (!g || !g.id) return;
+    if (g.date && g.time) gameStarts.set(g.id, { date: g.date, time: g.time, status: g.status });
+    noteFinished(g.id, g.status);
+  }
   function scoringOpensAt(game) {
     const g = game && game.date && game.time ? game : gameStarts.get(game && game.id ? game.id : game);
     if (!g || /PROGRESS|LIVE|STARTED|COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(g.status || '')) return null;
@@ -321,19 +328,79 @@ function create(deps) {
     s.live = live;
   }
   const liveSeenFor = id => ({ ...seenOf(id) });
+  // A game's live feed, read again once older than liveAge(maxAgeMs): maxAgeMs is Check PlayHQ every (playhqRefreshSec),
+  // or longer for a caller that needs it less often (the ticker's 20 s). "Not electronically scored" is kept as long as
+  // a reading, so a game the scorer hasn't started isn't asked every second.
   async function getLive(gameId, maxAgeMs) {
     const hit = liveCache.get(gameId);
-    if (hit && Date.now() - hit.at < maxAgeMs) return hit.live;
+    if (hit && Date.now() - hit.at < liveAge(gameId, maxAgeMs)) { if (hit.error) throw hit.error; return hit.live; }
     const wait = scoringNotYet(gameId);
     if (wait) throw Object.assign(new Error(wait), { notYet: true });
     if (!liveInFlight.has(gameId)) {
       liveInFlight.set(gameId, fetchLive(gameId)
-        .then(live => { liveCache.set(gameId, { at: Date.now(), live }); lastLive.at = Date.now(); lastLive.error = ''; noteLive(gameId, live); return live; })
-        .catch(err => { if (err.notScored) seenOf(gameId).notScoredAt = Date.now(); else { lastLive.error = err.message; lastLive.errorAt = Date.now(); } throw err; })
+        .then(live => { liveCache.set(gameId, { at: Date.now(), live }); lastLive.at = Date.now(); lastLive.error = ''; noteLive(gameId, live); noteFinished(gameId, live.status); return live; })
+        .catch(err => {
+          if (err.notScored) { seenOf(gameId).notScoredAt = Date.now(); liveCache.set(gameId, { at: Date.now(), error: err }); }
+          else { lastLive.error = err.message; lastLive.errorAt = Date.now(); }
+          throw err;
+        })
         .finally(() => liveInFlight.delete(gameId)));
     }
     return liveInFlight.get(gameId);
   }
+
+  // ─── Being kind to PlayHQ ───────────────────────────────────────────────────
+  // PlayHQ is only asked often while a game is being played. Each game has a pace:
+  //   'game'    from SOON_MS (2 minutes) before its start until AFTER_MS (2 minutes) after PlayHQ says it's finished, and
+  //             whenever its live feed or the fixture says it's under way (a game started early, or running late): read every maxAgeMs
+  //             (Check PlayHQ every, on Scoreboard control).
+  //   'warmup'  from when electronic scoring opens (autoSelectMinutesBefore, default 10 minutes before) until then: every
+  //             WARMUP_MS (30 s), so a scorer who starts early is noticed before the first goals.
+  //   'gentle'  otherwise: every GENTLE_MS (5 minutes). That's a game finished more than 2 minutes ago (a late correction
+  //             still shows), one with no start time, and one LONGEST_MS (3 hours) past its start that PlayHQ never
+  //             finished. Before scoring opens the live feed isn't asked at all (scoringNotYet).
+  // The fixtures, ladders and game pages (dataAge) are read on start-up and when the competition changes, then every
+  // DURING_GAME_MS (a minute) or what the caller asks while any game is at 'game' or 'warmup' pace, else every 5 minutes.
+  const SOON_MS = 2 * 60 * 1000, AFTER_MS = 2 * 60 * 1000, WARMUP_MS = 30 * 1000, GENTLE_MS = 5 * 60 * 1000;
+  const LONGEST_MS = 3 * 60 * 60 * 1000, DURING_GAME_MS = 60 * 1000;
+  const finishedSeen = new Map(); // game id -> when PlayHQ first said it was finished
+  function noteFinished(id, status) { if (saysFinished(status || '') && !finishedSeen.has(id)) finishedSeen.set(id, Date.now()); }
+  const UNDER_WAY = /PROGRESS|LIVE|STARTED/i;
+  function pace(id, now = Date.now()) {
+    const done = finishedSeen.get(id);
+    if (done !== undefined) return now - done < AFTER_MS ? 'game' : 'gentle';
+    const hit = liveCache.get(id);
+    if (hit && hit.live && (UNDER_WAY.test(hit.live.status || '') || hit.live.home.score || hit.live.away.score)) return 'game';
+    const g = gameStarts.get(id);
+    const start = g ? startOf(g) : null;
+    if (start !== null && now >= start + LONGEST_MS) return 'gentle';
+    if (g && UNDER_WAY.test(g.status || '')) return 'game'; // the fixture says it's being played
+    if (start === null) return 'gentle';
+    if (now >= start - SOON_MS) return 'game';
+    if (now >= start - leadMs()) return 'warmup';
+    return 'gentle';
+  }
+  // How old a game's live reading may get: maxAgeMs during the game, longer either side of it.
+  function liveAge(id, maxAgeMs) {
+    const p = pace(id);
+    return p === 'game' ? maxAgeMs : Math.max(maxAgeMs, p === 'warmup' ? WARMUP_MS : GENTLE_MS);
+  }
+  // Whether any game the fixtures know of is being played or about to be (its scoring open).
+  function gameOn(now = Date.now()) {
+    for (const id of new Set([...gameStarts.keys(), ...liveCache.keys()])) if (pace(id, now) !== 'gentle') return true;
+    return false;
+  }
+  // How old the fixtures, ladders and game pages may get: as asked while a game is on, at least 5 minutes otherwise,
+  // and nothing for one read before Refresh list was pressed (askAgain).
+  let askedAgainAt = 0;
+  function dataAge(maxAgeMs, kept) {
+    if (kept && kept.at < askedAgainAt) return 0;
+    return gameOn() ? maxAgeMs : Math.max(maxAgeMs, GENTLE_MS);
+  }
+  // A game known some other way than the fixtures (picked for the scoreboard with its day and time): its start, for its
+  // pace, unless the fixtures have said already.
+  function noteGame(g) { if (g && g.id && !gameStarts.has(g.id)) noteStart(g); }
+  function askAgain() { askedAgainAt = Date.now() + 1; } // +1: what was read in this same millisecond is read again too
 
   // Live score for any game: the live feed first, then the game page data, then the round fixture.
   async function liveScore(game, maxAgeMs) {
@@ -345,7 +412,7 @@ function create(deps) {
       if (!err.notScored) log('warn', 'live', `Live feed failed for ${game.id}: ${err.message}`);
     }
     try {
-      const d = await getGame(game.id, maxAgeMs);
+      const d = await getGame(game.id, liveAge(game.id, maxAgeMs));
       if (d.home.score != null || d.away.score != null) return { home: d.home.score ?? 0, away: d.away.score ?? 0, status: d.status };
     } catch (err) { log('warn', 'live', `Game detail failed for ${game.id}: ${err.message}`); }
     return null;
@@ -368,7 +435,7 @@ function create(deps) {
     return { tenant: transport.tenant(), orgId: ORG_ID };
   }
   function resetCaches() {
-    for (const cache of [ladders, roundGames, rounds, gameCache, liveCache, gameStarts, liveSeen]) cache.clear();
+    for (const cache of [ladders, roundGames, rounds, gameCache, liveCache, gameStarts, liveSeen, finishedSeen]) cache.clear();
     transport.reset();
   }
 
@@ -379,6 +446,7 @@ function create(deps) {
     competitions, getStructure, getLadder, findGrade, pickSeason,
     getRounds, getRoundGames, getGame, readGame, eachLimited, PLAYHQ_AT_ONCE, POSITION_RANK,
     getLive, liveScore, scoringNotYet, PERIOD_NUMBER, lastLive, liveSeenFor,
+    liveAge, pace: id => pace(id), gameOn: () => gameOn(), askAgain, noteGame,
   };
 }
 

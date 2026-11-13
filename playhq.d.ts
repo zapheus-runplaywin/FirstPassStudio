@@ -69,7 +69,7 @@ export interface Scored extends Timed { home?: { score?: number | null }; away?:
 export type Each<T> = { value: T; error?: undefined } | { value?: undefined; error: unknown };
 
 export interface Deps {
-  log: Log; apiUrl: string; cacheMs: number; linkBase: string;
+  log: Log; apiUrl: string; linkBase: string;
   config(): import('./types').Config; leadMs(): number;
   logoFor(teamName: string): string | null; positionOf(player: unknown): string;
   record?: { playhq(...args: unknown[]): void; live(gameId: string, json: unknown): void };
@@ -99,7 +99,19 @@ export interface Client {
   PERIOD_NUMBER: Record<string, number | undefined>;
   lastLive: { at: number; error: string; errorAt: number };
   liveSeenFor(id: string): LiveSeen;
+  /** How old a game's live reading may get: maxAgeMs during the game, 30 s while its scoring is open before it, 5 minutes otherwise. */
+  liveAge(id: string, maxAgeMs: number): number;
+  /** How often a game is read now: 'game' (Check PlayHQ every), 'warmup' (30 s) or 'gentle' (5 minutes). */
+  pace(id: string): Pace;
+  /** Whether any game is being played or about to be, so the fixtures and ladders are read every minute rather than every 5. */
+  gameOn(): boolean;
+  /** The next read of the fixtures and ladders asks PlayHQ, whatever was kept (Refresh list). */
+  askAgain(): void;
+  /** A game's day and time from elsewhere than the fixtures (the scoreboard's pick), for its pace when the fixtures haven't said. */
+  noteGame(g: Timed & { id: string }): void;
 }
+
+export type Pace = 'game' | 'warmup' | 'gentle';
 
 export function create(deps: Deps): Client;
 export function parsePlayhqUrl(url: unknown): { tenant: string; orgId: string } | null;

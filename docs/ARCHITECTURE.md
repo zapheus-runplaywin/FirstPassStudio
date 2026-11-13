@@ -106,8 +106,12 @@ debug log), `autoreload.js`.
    otherwise one call goes to PlayHQ and every page asking at the same moment shares it. Fixtures, ladders, rounds and
    `discoverGame` use `api.playhq.com/graphql` with a guest cookie; the running score, clock and quarter come from
    `spectator.playhq.com/graphql`.
-4. The live feed is read only inside the scoring window: from "electronic scoring starts N minutes before the game"
-   (competition setup) until the game is final. Before then "not electronically scored" is logged once per game.
+4. The live feed is read only from "electronic scoring starts N minutes before the game" (competition setup), and only
+   often while the game is played (`playhq.js` "Being kind to PlayHQ"): at **Check PlayHQ every** from 2 minutes before
+   the start until 2 minutes after PlayHQ finishes it (or whenever the feed says it's under way), every 30 s before
+   that, every 5 minutes after it. "Not electronically scored" is logged once per game and kept as long as a reading.
+   Fixtures, ladders and game pages are kept as their caller asks while any game is on, at least 5 minutes when none
+   is; `/api/games?fresh=1` (Refresh list) reads afresh (`askAgain`).
 5. Scores, the clock and manual overrides live on the board in memory and are saved to `scoreboard-state.json` so a
    restart picks up where it was.
 6. Anything that changes the scene (a source on or off, a scene or sequence starting) goes through `scene.ts`, which
@@ -129,9 +133,9 @@ harmlessly or had already happened and is written over.
 
 | Where | Every | Does |
 | --- | --- | --- |
-| `server.ts` refreshTick | 1 s | Refreshes the board from PlayHQ when the last reading is older than **Check PlayHQ every** (control page, default 5 s), while a game is followed and scoring has opened. Runs whatever windows are open (review decision D1). |
+| `server.ts` refreshTick | 1 s | Refreshes the board from PlayHQ when the last reading is older than the game's pace (`playhq.js` liveAge): **Check PlayHQ every** (control page, default 5 s) from 2 minutes before the start until 2 minutes after PlayHQ finishes it, 30 s from scoring opening until then, 5 minutes otherwise; nothing before scoring opens. Runs whatever windows are open (review decision D1). |
 | `server.ts` followNight | 15 s | The game night's games (`games.getCurrentGames`, PlayHQ's fixture through its cache) to `board.followGames`, so the night's other games are followed in the background (Scoreboard control's **Also follow the night's other games**). Not during a practice game. |
-| `server.ts` refreshFollowed | 1 s | Reads each followed game due a reading, at the same **Check PlayHQ every** rate, once its scoring has opened, until PlayHQ says it's finished; a failed read waits 10 s, doubling to 5 minutes. |
+| `server.ts` refreshFollowed | 1 s | Reads each followed game due a reading, at the same pace as the board (`playhq.js` liveAge), once its scoring has opened, until PlayHQ says it's finished; a failed read waits 10 s, doubling to 5 minutes. |
 | `server.ts` autoPick | 15 s (first after 3 s) | Game auto-select: sets tonight's court when a game night arrives (the Production Planner's, else the competition's fallback court; a court changed by hand lasts that night; a court name typed for the graphics is cleared too), then picks the next game on it when its scoring window opens. |
 | `server.ts` scene.game | 1 s | Hands the game snapshot to the scene for game triggers (quarter breaks, full time) and the super shot song. |
 | `viewers.ts` | 30 s per stream | Live viewer counts, only while a video output is on. |

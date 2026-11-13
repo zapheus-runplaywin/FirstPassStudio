@@ -21,11 +21,12 @@ test.before(async () => { playhq = await startPlayhq(createWorld()); process.env
 test.after(async () => { await playhq.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
 test.beforeEach(() => { playhq.world.fail = {}; playhq.world.answers = {}; playhq.world.calls.length = 0; logged = []; });
 
-// A PlayHQ client for the Thunder League. cacheMs 0: every ladder is asked for again.
+// A PlayHQ client for the Thunder League. Every ladder is asked for again (askAgain, as Refresh list does), however
+// recently it was read.
 function client(opts = {}) {
   const c = require('../out/playhq').create({
     log: (level, source, message) => logged.push(`${level} ${source} ${message}`),
-    apiUrl: opts.apiUrl || playhq.url, cacheMs: opts.cacheMs ?? 0, linkBase: 'http://studio.test:8080',
+    apiUrl: opts.apiUrl || playhq.url, linkBase: 'http://studio.test:8080',
     config: () => ({ name: 'Thunder League', competitionName: 'Thunder League' }),
     leadMs: () => 10 * 60 * 1000, logoFor: () => '', positionOf: p => (p.playerPosition && p.playerPosition.shortName) || '',
   });
@@ -41,12 +42,14 @@ test('the ladder keeps showing the last good one while PlayHQ is down, marked st
   assert.equal(good.pools[0].length, 4);
   assert.equal(good.stale, undefined);
   playhq.world.fail.gradeLadder = 503;
+  c.askAgain();
   const kept = await c.getLadder('grade-div1');
   assert.deepEqual(kept.pools, good.pools, 'the same standings as before PlayHQ went down');
   assert.equal(kept.updatedAt, good.updatedAt, 'still says when it was last read');
   assert.equal(kept.stale, true);
   assert.match(kept.error, /HTTP 503/);
   playhq.world.fail = {};
+  c.askAgain();
   const back = await c.getLadder('grade-div1');
   assert.equal(back.stale, undefined, 'fresh again once PlayHQ answers');
 });

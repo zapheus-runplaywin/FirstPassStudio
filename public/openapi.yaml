@@ -142,7 +142,8 @@ paths:
       tags: [Scoring mode]
       summary: Follow PlayHQ or score manually
       description: |
-        `playhq` takes scores from PlayHQ every 5 seconds, or as set on the control page (only works once a
+        `playhq` takes scores from PlayHQ every 5 seconds during the game, or as set on the control page (every 30 seconds
+        just before it, every 5 minutes otherwise; only works once a
         game has been picked on the control page, and only if the game is
         live-scored in PlayHQ). `manual` uses the score buttons. `toggle` swaps
         between the two. Following the PlayHQ scorer's clock is switched on or off to match
