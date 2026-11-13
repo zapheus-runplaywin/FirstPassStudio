@@ -29,6 +29,7 @@
     "@anthropic-ai/sdk": "1.8.0",
     "@firstpass/playhq": "0.2.0",
     "@google/genai": "3.3.0",
+    "@supabase/realtime-js": "2.119.0",
     "atem-connection": "3.10.3",
     "electron-updater": "6.8.11",
     "openai": "7.56.0",
@@ -45,7 +46,7 @@
   "build": {
     "appId": "com.runplaywin.firstpassstudio",
     "productName": "FirstPass Studio",
-    "copyright": "\u00a9 PIVT",
+    "copyright": "© PIVT",
     "asar": true,
     "asarUnpack": [
       "vendor/ffmpeg/**",

@@ -90,6 +90,7 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
   const problems = new Map<string, string>();
   const pending = new Map<string, { server: http.Server; timer: NodeJS.Timeout }>();
   let timer: NodeJS.Timeout | undefined;
+  const signOutListeners: ((code: string) => void)[] = [];
 
   const readMeta = (): Record<string, Meta> => {
     const got = obj(savefile.readJson<unknown>(metaFile, {}));
@@ -150,6 +151,7 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
     states.set(code, 'signed-out');
     if (why !== 'signed out') problems.set(code, why); else problems.delete(code);
     store.forget(code, why);
+    for (const fn of signOutListeners) { try { fn(code); } catch { /* a listener's own problem */ } }
     log('info', 'hq', `${code}: ${why}; its sign-in and FirstPass stats are deleted`);
     return true;
   }
@@ -300,7 +302,10 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
     pending.clear();
   }
 
-  return { list, signIn, signOut, refresh, accessToken, start, stop, club: (code: string) => byCode.get(code) || null };
+  // Called with a club's code whenever it is signed out (hqstats.ts stops following its game).
+  const onSignOut = (fn: (code: string) => void) => { signOutListeners.push(fn); };
+
+  return { list, signIn, signOut, refresh, accessToken, start, stop, onSignOut, club: (code: string) => byCode.get(code) || null };
 }
 
 type HqAuth = ReturnType<typeof create>;
