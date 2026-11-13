@@ -61,6 +61,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
+      # The shared FirstPass packages on GitHub Packages (see the install step).
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,9 +73,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          # FirstPass's shared packages (@firstpass/playhq) come from GitHub Packages, where they are published
+          # as @zapheus-runplaywin/*; the install step gives this run's own token to read them (packages: read).
+          registry-url: https://npm.pkg.github.com
+          scope: '@zapheus-runplaywin'
       # Install scripts don't run (a package's postinstall is code from outside this repository running next
       # to the signing certificate); Electron's own download, the one script the build needs, runs on purpose.
       - run: npm ci --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Electron's download, and electron-builder's own tools (the DMG and 7-Zip bundles, the icon set), come from
       # GitHub releases, which sometimes answer 504 for a while. A copy of each is kept between builds under its
       # version, so a newer Electron or electron-builder isn't found and is downloaded fresh. Each copy is kept as

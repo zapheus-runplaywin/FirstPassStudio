@@ -26,6 +26,8 @@ concurrency:
 
 permissions:
   contents: read
+  # The shared FirstPass packages on GitHub Packages (see the install steps).
+  packages: read
 
 jobs:
   studio:
@@ -38,8 +40,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          # FirstPass's shared packages (@firstpass/playhq) come from GitHub Packages, where they are published
+          # as @zapheus-runplaywin/*; the install step gives this run's own token to read them (packages: read).
+          registry-url: https://npm.pkg.github.com
+          scope: '@zapheus-runplaywin'
       # No install scripts (as in mac-app.yml); Electron's binary is fetched on its own below, for the app's test.
       - run: npm ci --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Known vulnerabilities in the packages Studio ships (electron-updater, qrcode-generator and what they
       # pull in). Build-time packages are left out: they never run on anyone's Mac.
       - run: npm audit --omit=dev --audit-level=high
@@ -113,10 +121,14 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             plugins/studio-deck/package-lock.json
+          registry-url: https://npm.pkg.github.com
+          scope: '@zapheus-runplaywin'
       # The end-to-end test starts a real Studio (server.js), which needs Studio's own packages: the
       # Switcher key's test drives Studio's ATEM connection (atem-connection) against the stand-in switcher.
       - run: npm ci --omit=dev --ignore-scripts
         working-directory: .
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm ci --ignore-scripts
       # The plugin's shipped packages (@elgato/streamdeck and what it pulls in), as above. A warning rather
       # than a failure for now: @elgato/streamdeck 3.0.3 (the latest) pulls in a zod with a known

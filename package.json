@@ -18,6 +18,7 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
+    "@firstpass/playhq": "npm:@zapheus-runplaywin/playhq@^0.1.0",
     "atem-connection": "3.10.3",
     "electron-updater": "6.8.11",
     "qrcode-generator": "2.0.4",
