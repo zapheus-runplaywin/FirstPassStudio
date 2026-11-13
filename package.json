@@ -7,8 +7,12 @@
   "license": "MIT",
   "private": true,
   "main": "desktop/main.js",
+  "workspaces": [
+    "packages/playhq"
+  ],
   "scripts": {
     "start": "node server.js",
+    "build": "npm run build --workspaces",
     "test": "node --test test/*.test.js",
     "test:ci": "node --test --test-timeout=480000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mjs --test-reporter-destination=stdout test/*.test.js",
     "iconpack": "node plugins/characters-iconpack/build.js",
@@ -18,6 +22,7 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
+    "@firstpass/playhq": "0.2.0",
     "atem-connection": "3.10.3",
     "electron-updater": "6.8.11",
     "qrcode-generator": "2.0.4",

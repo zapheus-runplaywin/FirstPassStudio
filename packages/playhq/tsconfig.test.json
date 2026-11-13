@@ -1,0 +1,11 @@
+{
+  // Type-checks the source and the tests together without building (npm run typecheck).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}
