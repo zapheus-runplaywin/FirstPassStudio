@@ -332,12 +332,7 @@ The fuses leave `file://` as a browser has it, which can't read inside the archi
 What's new, Back up settings, off air) are served as `studio://app/desktop/...` by `desktop/windows.js`, from `desktop/`
 and `public/` only.
 
-Studio uses FirstPass's shared PlayHQ package, `@firstpass/playhq`, which is private on GitHub Packages (published as
-`@zapheus-runplaywin/playhq`; `.npmrc` points npm there). So `npm install` needs a GitHub token that can read packages,
-once, in `~/.npmrc`: a classic personal access token with `read:packages`, as the line
-`//npm.pkg.github.com/:_authToken=<token>`. The Tests check and the Mac app build use their own run's token.
-
-To build on your own Mac instead: `npm install`, then `npm run dist` (signs with the Developer ID certificate in your
+To build on your own Mac instead: `npm install` (which also builds FirstPass's shared packages in `packages/`, such as `@firstpass/playhq`), then `npm run dist` (signs with the Developer ID certificate in your
 keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to notarise). The app is in `dist/`.
 `npm run app` runs it from the repository without building (needs Node.js, the LTS version, from https://nodejs.org).
 `npm start` runs Studio on its own, without the app, for working on the pages; it uses the same data folder and port,

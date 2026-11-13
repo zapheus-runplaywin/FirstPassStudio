@@ -1,7 +1,8 @@
 # Runs the tests on every pull request (and on main after a merge), so a change that breaks
 # something shows as a red check on the pull request before it's merged.
 #   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, every page in a browser, and the
-#   Mac app itself (Electron, on a virtual display).
+#   Mac app itself (Electron, on a virtual display); and FirstPass's own packages in packages/ (@firstpass/playhq):
+#   built, their tests, type check, and the built files loaded as Studio loads them.
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
 #   NDI output module: native/ndi built, and its send timing against a stand-in NDI runtime.
 #   Packages: npm audit on the packages that ship (not the build tools), so a known vulnerability in
@@ -26,8 +27,6 @@ concurrency:
 
 permissions:
   contents: read
-  # The shared FirstPass packages on GitHub Packages (see the install steps).
-  packages: read
 
 jobs:
   studio:
@@ -40,14 +39,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          # FirstPass's shared packages (@firstpass/playhq) come from GitHub Packages, where they are published
-          # as @zapheus-runplaywin/*; the install step gives this run's own token to read them (packages: read).
-          registry-url: https://npm.pkg.github.com
-          scope: '@zapheus-runplaywin'
       # No install scripts (as in mac-app.yml); Electron's binary is fetched on its own below, for the app's test.
       - run: npm ci --ignore-scripts
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # FirstPass's own packages in packages/ (@firstpass/playhq), built to dist/ for Studio's require(), then
+      # their own tests: vitest against a stand-in PlayHQ, the type check, and the built files loaded as Studio does.
+      - run: npm run build
+      - run: npm test --workspaces
+      - run: npm run typecheck --workspaces
+      - run: npm run test:dist --workspaces
       # Known vulnerabilities in the packages Studio ships (electron-updater, qrcode-generator and what they
       # pull in). Build-time packages are left out: they never run on anyone's Mac.
       - run: npm audit --omit=dev --audit-level=high
@@ -121,14 +120,13 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             plugins/studio-deck/package-lock.json
-          registry-url: https://npm.pkg.github.com
-          scope: '@zapheus-runplaywin'
       # The end-to-end test starts a real Studio (server.js), which needs Studio's own packages: the
       # Switcher key's test drives Studio's ATEM connection (atem-connection) against the stand-in switcher.
-      - run: npm ci --omit=dev --ignore-scripts
+      # Build-time packages too, to build FirstPass's own packages in packages/ (@firstpass/playhq).
+      - run: npm ci --ignore-scripts
         working-directory: .
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm run build
+        working-directory: .
       - run: npm ci --ignore-scripts
       # The plugin's shipped packages (@elgato/streamdeck and what it pulls in), as above. A warning rather
       # than a failure for now: @elgato/streamdeck 3.0.3 (the latest) pulls in a zod with a known

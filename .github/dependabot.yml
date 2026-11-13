@@ -4,18 +4,9 @@
 # repository, so the labels that raise the Mac app's version are named build-major and build-minor
 # (mac-app.yml "Pick the version") and a dependency's major update can't raise it by accident.
 version: 2
-# FirstPass's shared packages (@firstpass/playhq, published as @zapheus-runplaywin/* on GitHub Packages, see .npmrc).
-# Dependabot reads them with its own secret, FIRSTPASS_PACKAGES_TOKEN (Settings > Secrets and variables > Dependabot):
-# a classic personal access token with read:packages.
-registries:
-  firstpass-packages:
-    type: npm-registry
-    url: https://npm.pkg.github.com
-    token: ${{secrets.FIRSTPASS_PACKAGES_TOKEN}}
 updates:
   - package-ecosystem: npm
     directory: /
-    registries: [firstpass-packages]
     schedule: { interval: monthly }
     labels: [dependencies]
     groups:
