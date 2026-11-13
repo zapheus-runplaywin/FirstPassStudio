@@ -1,4 +1,4 @@
-// An NDI output whose sender failed to start (desktop/ndi.js) tries again on the next change, as it did before
+// An NDI output whose sender failed to start (desktop/ndi.ts) tries again on the next change, as it did before
 // there could be more than one: a failure isn't kept as if it were running. Electron, the scene window and the
 // native module are stood in for.
 const test = require('node:test');
@@ -15,10 +15,10 @@ const addon = {
 const load = Module._load;
 Module._load = function (request, parent, ...rest) {
   if (request.endsWith('ndi.node')) return addon;
-  if (request === './scenewindow') return () => ({ destroy() {}, contents: () => null });
+  if (request === './scenewindow') return { create: () => ({ destroy() {}, contents: () => null }) };
   return load.call(this, request, parent, ...rest);
 };
-const ndi = require('../out/desktop/ndi');
+const ndi = require('../out/desktop/ndi').create;
 Module._load = load;
 
 test('a sender that failed to start is tried again on the next change, and its error shows until then', t => {

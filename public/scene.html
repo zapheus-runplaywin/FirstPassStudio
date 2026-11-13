@@ -9,7 +9,7 @@
   It follows the helper's scene straight away (server-sent events), so a Stream Deck press
   shows at once. ?mute=1 silences every video and the music (the Output page's preview). The
   other pages still work on their own at their own links.
-  The Mac app's display outputs (desktop/outputs.js) open it full screen with ?fit=1 (scales the
+  The Mac app's display outputs (desktop/outputs.ts) open it full screen with ?fit=1 (scales the
   frame to the window), ?bg=<hex> (a background colour: black for fill, the chroma colour for chroma)
   and ?key=1 (the key signal: white wherever the scene isn't see-through, grey where it's partly
   see-through, on black). The chroma outputs add ?chromaKey=true (chroma.js): every source drawn
@@ -22,7 +22,7 @@
   them, and the other outputs' windows play without them.
   Output 1's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
   Mac (mics.ts), so they go out with the rest of its sound; a Scene View never plays them.
-  ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, a named device in the Output page's "Sound
+  ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.ts, a named device in the Output page's "Sound
   goes to"): a hidden window playing that output's sound to that one sound output of the Mac (its mixers' setSinkId), such as
   the commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it; ?mics=all for every one, on
   Output 1's main destination). It says nothing to Studio (videos ending, the music ending, the mics' meters): the

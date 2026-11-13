@@ -197,7 +197,7 @@ test('scene.html draws another output\'s sources with their sound, without the m
   const page = fs.readFileSync(path.join(__dirname, '..', 'public', 'output.html'), 'utf8');
   for (const id of ['outAdd', 'outList', 'outName', 'outRemove', 'outTabs']) assert.match(page, new RegExp(`id="${id}"`));
   assert.doesNotMatch(page, /id="outFilter"/, 'the Sources list follows the output tab');
-  const win = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'scenewindow.js'), 'utf8');
+  const win = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'scenewindow.ts'), 'utf8');
   assert.match(win, /&output=\$\{encodeURIComponent\(output\)\}`/);
   assert.match(win, /mute \? '&mute=1' : ''/, 'muted only when the output has no sound destination of its own');
 });

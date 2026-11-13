@@ -2,7 +2,7 @@
 //
 // Each Studio page (not the graphics) has an empty <header class="fp-bar"></header> and loads this
 // script straight after it, which fills in the mark and wordmark, the tabs and the status chips, and marks
-// the page it is on. Add a tab here and every page and the Mac app's Go menu (desktop/windows.js reads
+// the page it is on. Add a tab here and every page and the Mac app's Go menu (desktop/windows.ts reads
 // STUDIO_PAGES too, with ⌘1, ⌘2... in this order) have it. The list is in Matt's keyboard order: Output,
 // Production Planner, Scoreboard control, Recordings, Socials, Competitions setup, Sponsors, Athletes, Stream Deck,
 // Docs (the tenth tab is ⌘0). The bar shows them in three groups, by what the operator is doing (UI level-up,
@@ -146,7 +146,7 @@
     // Each output's dot takes that output's colour (the one thing here studio.css can't know).
     for (const d of chips.querySelectorAll('.odot')) d.style.setProperty('--c', d.dataset.colour);
   };
-  // Page zoom (the Mac app, desktop/windows.js): the app says the level after each change and each load; while it
+  // Page zoom (the Mac app, desktop/windows.ts): the app says the level after each change and each load; while it
   // isn't 100% a chip at the right of the bar shows it, and a click asks for 100% (the app watches for #zoom=100).
   const zoomChip = document.createElement('a');
   zoomChip.className = 'chip zoom';

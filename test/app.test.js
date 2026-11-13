@@ -1,4 +1,4 @@
-// The Mac app itself (desktop/main.js and windows.js), run for real with Playwright's Electron driver: it starts
+// The Mac app itself (desktop/main.ts and windows.ts), run for real with Playwright's Electron driver: it starts
 // in the menu bar off air, Open Studio puts it on air with the Output page, a helper that crashes mid-stream is
 // started again with the scores it had, and closing the last Studio window asks, then takes Studio off air.
 // The app runs in a settings folder of its own (XDG_CONFIG_HOME on Linux, where CI runs it under xvfb-run; on a

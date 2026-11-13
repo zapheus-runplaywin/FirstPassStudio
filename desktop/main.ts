@@ -11,23 +11,38 @@
 // menu (datalocation.ts), in a subfolder named after this Mac. Updates download in the background and
 // are installed when the app quits, so they never interrupt a stream.
 
-'use strict';
+import { app, Tray, Menu, shell, dialog, nativeImage, nativeTheme, utilityProcess, clipboard, BrowserWindow, autoUpdater as squirrel,
+  type MenuItemConstructorOptions, type NativeImage, type UtilityProcess } from 'electron';
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { linkHost } from '../linkhost';
+import * as location from '../datalocation';
+import * as savefile from '../savefile';
+import * as zip from '../zip';
+import { obj } from '../check';
+import { errorMessage } from '../errors';
+import { APP_DIR } from '../appdir'; // this file runs compiled, from out/desktop/
+import { INSTALL_TIMEOUT, createUpdates } from './updates';
+import * as whatsnew from './whatsnew';
+import * as windowsLib from './windows';
+import * as socialsLib from './socials';
+import * as outputsLib from './outputs';
+import { unpacked } from '../unpacked';
 
-const { app, Tray, Menu, shell, dialog, nativeImage, nativeTheme, utilityProcess, clipboard, BrowserWindow } = require('electron');
-const fs = require('fs');
-const http = require('http');
-const path = require('path');
-const { linkHost } = require('../linkhost');
-const location = require('../datalocation');
-const savefile = require('../savefile');
-const { INSTALL_TIMEOUT } = require('./updates');
-const whatsnew = require('./whatsnew');
-const { unpacked } = require('../unpacked');
+// What the app keeps on the helper's process.
+declare global {
+  namespace Electron {
+    interface UtilityProcess {
+      stopping?: boolean, // stopped on purpose: not restarted
+      restarting?: boolean, // stopped to start again (or to move the settings): not restarted here
+    }
+  }
+}
 
 // server.ts exits with this when its port is already taken (EXIT_PORT_IN_USE there).
 const EXIT_PORT_IN_USE = 3;
 
-const { APP_DIR } = require('../appdir'); // this file runs compiled, from out/desktop/
 // Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
 const STREAMDECK_PLUGIN = unpacked(path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin'));
 // Electron names this folder after productName: ~/Library/Application Support/FirstPass Studio,
@@ -50,7 +65,7 @@ const LAST_STARTED = (() => {
   } catch { return null; }
 })();
 
-function log(message) {
+function log(message: string) {
   try {
     fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
     fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} ${message}\n`);
@@ -71,26 +86,27 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // This computer's settings from config.json (the app's defaults, then the data folder's).
-function machineConfig() {
-  const read = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return {}; } };
+// config.json's own settings, as saved (the helper checks each one; the app reads port, linkHost and remoteChanges).
+function machineConfig(): Record<string, unknown> {
+  const read = (f: string): Record<string, unknown> => { try { return obj(JSON.parse(fs.readFileSync(f, 'utf8'))); } catch { return {}; } };
   return { ...read(path.join(APP_DIR, 'config.json')), ...read(path.join(dataDir(), 'config.json')) };
 }
 const MACHINE = machineConfig();
 // Changes one of this computer's settings in the data folder's config.json (the app's own config.json keeps the defaults).
-function setMachineConfig(key, value) {
+function setMachineConfig(key: string, value: unknown) {
   const file = path.join(dataDir(), 'config.json');
   const own = (() => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; } })();
   try { savefile.writeJsonSync(file, { ...own, [key]: value }); log(`${key} is now ${JSON.stringify(value)}`); }
-  catch (err) { log(`Couldn't save ${key} to config.json: ${err.message}`); dialog.showMessageBox({ type: 'error', message: `Couldn't save the setting`, detail: err.message }); }
+  catch (err) { log(`Couldn't save ${key} to config.json: ${errorMessage(err)}`); dialog.showMessageBox({ type: 'error', message: `Couldn't save the setting`, detail: errorMessage(err) }); }
 }
 const PORT = Number(MACHINE.port) || 8080;
 // Links opened and copied from the menu use the Mac's Bonjour name (linkhost.ts), the same as
 // the Graphics page shows. The app checks the helper on localhost, which always works.
-const HOST = linkHost(MACHINE.linkHost);
-const pageUrl = p => `http://${HOST}:${PORT}${p}`;
+const HOST = linkHost(typeof MACHINE.linkHost === 'string' ? MACHINE.linkHost : undefined);
+const pageUrl = (p: string) => `http://${HOST}:${PORT}${p}`;
 // Opens a page in the app's own window (or, with guide, the user guide in a window of its own), putting Studio on air first (with the splash, the
 // 1P Studio logo, while it starts). Nothing opens if Studio can't start (something else has the port).
-async function openPage(p, { guide = false } = {}) {
+async function openPage(p: string, { guide = false } = {}) {
   if (!helper) {
     windows.showSplash();
     if (!await settingsReady() || !await startHelperChecked()) return windows.closeSplash(true);
@@ -103,7 +119,7 @@ async function openPage(p, { guide = false } = {}) {
 
 // Whether something already answers on the port (another copy, or server.ts run by hand).
 function answering() {
-  return new Promise(resolve => {
+  return new Promise<boolean>(resolve => {
     const req = http.get(`http://localhost:${PORT}/api/version`, { timeout: 1500 }, res => { res.resume(); resolve(true); });
     req.on('error', () => resolve(false));
     req.on('timeout', () => { req.destroy(); resolve(false); });
@@ -112,19 +128,20 @@ function answering() {
 
 // The app's own settings (not the helper's): where the main window was.
 const APP_SETTINGS = path.join(LOCAL_DIR, 'app-settings.json');
-function appSettings() { try { return JSON.parse(fs.readFileSync(APP_SETTINGS, 'utf8')); } catch { return {}; } }
-function saveAppSetting(key, value) {
-  try { savefile.writeJsonSync(APP_SETTINGS, { ...appSettings(), [key]: value }); } catch (err) { log(`Couldn't save ${key}: ${err.message}`); }
+function appSettings(): Record<string, unknown> { try { return obj(JSON.parse(fs.readFileSync(APP_SETTINGS, 'utf8'))); } catch { return {}; } }
+function saveAppSetting(key: string, value: unknown) {
+  try { savefile.writeJsonSync(APP_SETTINGS, { ...appSettings(), [key]: value }); } catch (err) { log(`Couldn't save ${key}: ${errorMessage(err)}`); }
 }
 // Light, dark or the Mac's own (app-settings.json `appearance`): the menu bar icon's Appearance.
-const appearance = () => ['light', 'dark'].includes(appSettings().appearance) ? appSettings().appearance : 'system';
-function setAppearance(v) {
+type Appearance = 'system' | 'light' | 'dark';
+const appearance = (): Appearance => { const a = appSettings().appearance; return a === 'light' || a === 'dark' ? a : 'system'; };
+function setAppearance(v: Appearance) {
   saveAppSetting('appearance', v);
   nativeTheme.themeSource = v;
   refreshMenu();
 }
 
-const windows = require('./windows')({
+const windows = windowsLib.create({
   port: PORT, linkHost: HOST, appSettings, saveAppSetting, log,
   isOnAir: () => wanted && !!helper,
   // A window opened another way (File > New Window, a link opening a new tab) puts Studio on air too.
@@ -133,17 +150,18 @@ const windows = require('./windows')({
   onAllClosed: () => { log('Last Studio window closed'); stopHelper(); },
 });
 
-// The Socials tab's pictures, saved as PNGs when the helper asks (desktop/socials.js).
-const socials = require('./socials')({ log });
+// The Socials tab's pictures, saved as PNGs when the helper asks (desktop/socials.ts).
+const socials = socialsLib.create({ log });
 
 // The scene full screen on the Mac's displays (chroma, or fill and key), set up on the Output page.
 // Made once the app is ready, since it needs the screen module.
-let outputs = null;
+let outputs: ReturnType<typeof outputsLib.create> | null = null;
 
 // ─── The helper ─────────────────────────────────────────────────────────────
 // wanted: whether it should be running (a Studio window is open), so a pending restart doesn't
 // bring back a helper that was just stopped.
-let helper = null, wanted = false, status = 'Studio is off air', quitting = false, restarts = 0, tray = null;
+let helper: UtilityProcess | null = null, wanted = false, status = 'Studio is off air', quitting = false, restarts = 0;
+let tray: Tray | null = null;
 
 function startHelper() {
   status = 'Starting…'; refreshMenu();
@@ -156,7 +174,7 @@ function startHelper() {
     env: { ...process.env, FIRSTPASS_DATA_DIR: dataDir(), FIRSTPASS_LOCAL_DIR: LOCAL_DIR, FIRSTPASS_PACKAGED: app.isPackaged ? '1' : '' },
   });
   outputs?.attach(child);
-  child.on('message', msg => socials.message(child, msg) || askToPair(child, msg));
+  child.on('message', (msg: unknown) => socials.message(child, msg) || askToPair(child, msg));
   const started = Date.now();
   child.on('spawn', async () => {
     for (let i = 0; i < 40 && helper === child; i++) {
@@ -193,15 +211,16 @@ function startHelper() {
 // stray Return can't let anything in. A phone or browser (pair.html) is allowed to score only, or to change everything.
 // The dialog closes by itself when the request is answered on the Devices page or runs out (five minutes); the helper
 // says so with pairDone.
-const pairDialogs = new Map();
-function askToPair(child, msg) {
-  if (msg?.type === 'pairDone') { pairDialogs.get(msg.id)?.abort(); pairDialogs.delete(msg.id); return; }
-  if (msg?.type !== 'pair' || !msg.request) return;
-  const { id, name, address, browser } = msg.request;
+const pairDialogs = new Map<unknown, AbortController>();
+function askToPair(child: UtilityProcess, message: unknown) {
+  const msg = obj(message);
+  if (msg.type === 'pairDone') { pairDialogs.get(msg.id)?.abort(); pairDialogs.delete(msg.id); return; }
+  if (msg.type !== 'pair' || !msg.request) return;
+  const { id, name, address, browser } = obj(msg.request);
   const stop = new AbortController();
   pairDialogs.set(id, stop);
   app.focus({ steal: true });
-  const choices = browser
+  const choices: { label: string, allow: boolean, level?: string }[] = browser
     ? [{ label: 'Allow scoring only', allow: true, level: 'scoring' }, { label: 'Allow everything', allow: true, level: 'full' }, { label: 'Deny', allow: false }]
     : [{ label: 'Allow', allow: true }, { label: 'Deny', allow: false }];
   const deny = choices.length - 1;
@@ -279,13 +298,15 @@ function restartHelper() {
 // ─── Menu bar ───────────────────────────────────────────────────────────────
 
 // A small symbol for a menu item: desktop/<name>Template.png (and @2x), drawn in the menu's colour.
-const menuIcons = {};
-function menuIcon(name) {
-  if (!menuIcons[name]) {
-    menuIcons[name] = nativeImage.createFromPath(path.join(APP_DIR, 'desktop', `${name}Template.png`));
-    menuIcons[name].setTemplateImage(true);
+const menuIcons = new Map<string, NativeImage>();
+function menuIcon(name: string): NativeImage {
+  let icon = menuIcons.get(name);
+  if (!icon) {
+    icon = nativeImage.createFromPath(path.join(APP_DIR, 'desktop', `${name}Template.png`));
+    icon.setTemplateImage(true);
+    menuIcons.set(name, icon);
   }
-  return menuIcons[name];
+  return icon;
 }
 
 function refreshMenu() {
@@ -295,7 +316,7 @@ function refreshMenu() {
   const pending = !helper && wanted && status === 'Restarting…';
   tray.setToolTip(`FirstPass Studio: ${status}`);
   // Studio starts by opening one of its pages; Stop Studio only shows while it is on air.
-  tray.setContextMenu(Menu.buildFromTemplate([
+  const menu: MenuItemConstructorOptions[] = [
     { label: `FirstPass Studio ${app.getVersion()}`, enabled: false },
     { label: status, enabled: false },
     ...(running || pending ? [{ label: 'Stop Studio', click: stopStudio }] : []),
@@ -323,7 +344,7 @@ function refreshMenu() {
     // The Studio pages follow the Mac's appearance (studio.css, prefers-color-scheme) unless pinned here; Electron's
     // nativeTheme.themeSource is what the pages see, so a change applies to every open window at once. The graphics
     // keep the competition's own colours whichever is picked.
-    { label: 'Appearance', submenu: ['system', 'light', 'dark'].map(v => ({ label: { system: 'Follow the Mac', light: 'Light', dark: 'Dark' }[v], type: 'radio', checked: appearance() === v, click: () => setAppearance(v) })) },
+    { label: 'Appearance', submenu: (['system', 'light', 'dark'] as const).map((v): MenuItemConstructorOptions => ({ label: { system: 'Follow the Mac', light: 'Light', dark: 'Dark' }[v], type: 'radio', checked: appearance() === v, click: () => setAppearance(v) })) },
     // config.json remoteChanges (access.ts): off (ticked), only this Mac can change scores, the scene, settings and media;
     // other devices can still open every page. Ticked again at every launch (start()); unticking lasts until Quit. The
     // helper reads config.json when it starts, so it restarts on a change.
@@ -333,13 +354,14 @@ function refreshMenu() {
     { label: 'What\'s new…', enabled: !!whatsnew.since(whatsnew.load(), null, app.getVersion()).length, click: () => showWhatsNew(whatsnew.since(whatsnew.load(), null, app.getVersion()).slice(0, 10), { recent: true }) },
     { type: 'separator' },
     { label: 'Quit FirstPass Studio', click: () => app.quit() },
-  ]));
+  ];
+  tray.setContextMenu(Menu.buildFromTemplate(menu));
 }
 
 // ─── Settings folder ────────────────────────────────────────────────────────
 // On this Mac, or in iCloud Drive in a subfolder named after this Mac (datalocation.ts).
 
-function settingsFolderMenu() {
+function settingsFolderMenu(): MenuItemConstructorOptions {
   const where = location.current(LOCAL_DIR);
   return {
     label: 'Settings folder',
@@ -398,15 +420,15 @@ function helperStopped() {
   const child = helper;
   child.restarting = true;
   helper = null;
-  return new Promise(resolve => { child.once('exit', resolve); child.kill(); setTimeout(resolve, 5000); });
+  return new Promise<void>(resolve => { child.once('exit', () => resolve()); child.kill(); setTimeout(resolve, 5000); });
 }
 
-let moving = false;
+let moving: false | true | 'backup' = false;
 // Moves the settings into a folder in a cloud drive (provider 'icloud'), or back to this Mac
 // (provider null). Studio goes off air for the move and comes back on after.
-async function moveSettings(provider) {
+async function moveSettings(provider: 'icloud' | null) {
   const where = location.current(LOCAL_DIR);
-  let target = { provider: null, dataDir: LOCAL_DIR };
+  let target: { provider: 'icloud' | null, dataDir: string, folder?: string, computer?: string } = { provider: null, dataDir: LOCAL_DIR };
   if (provider) {
     const drive = location.PROVIDERS[provider];
     if (!fs.existsSync(drive.root())) {
@@ -437,7 +459,7 @@ async function moveSettings(provider) {
     });
     if (response === 1) return;
   }
-  let existing = null;
+  let existing: 'use' | 'replace' | null = null;
   if (location.hasSettings(target.dataDir)) {
     const { response } = await dialog.showMessageBox({
       type: 'question', buttons: ['Use those', 'Replace them', 'Cancel'], defaultId: 0, cancelId: 2,
@@ -470,8 +492,8 @@ async function moveSettings(provider) {
       detail: `${target.dataDir}${result.backup ? `\n\nA copy of the settings as they were is in ${result.backup}.` : ''}${provider ? '\n\nThe debug log, the scores and the clock stay on this Mac.' : ''}`,
     });
   } catch (err) {
-    log(`Couldn't move the settings: ${err.message}`);
-    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t move the settings', detail: `${err.message}\n\nStudio carries on with the settings in ${where.dataDir}.` });
+    log(`Couldn't move the settings: ${errorMessage(err)}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t move the settings', detail: `${errorMessage(err)}\n\nStudio carries on with the settings in ${where.dataDir}.` });
   } finally {
     moving = false;
     status = 'Studio is off air';
@@ -484,8 +506,8 @@ async function moveSettings(provider) {
 async function restoreFromMac() {
   const where = location.current(LOCAL_DIR);
   const drive = location.PROVIDERS.icloud;
-  let from = null;
-  const others = where.local ? [] : location.otherMacs(where.folder, where.dataDir).slice(0, 4);
+  let from: string | null = null;
+  const others = where.local ? [] : location.otherMacs(where.folder || '', where.dataDir).slice(0, 4);
   if (others.length) {
     const { response } = await dialog.showMessageBox({
       type: 'question', buttons: [...others.map(o => o.computer), 'Choose a folder…', 'Cancel'], cancelId: others.length + 1,
@@ -528,7 +550,7 @@ async function restoreFromMac() {
     const left = await location.download(from);
     if (left.length) throw new Error(`${left.length} files are still downloading from ${drive.name}. Try again in a minute`);
     // Settings on the Mac itself go to iCloud Drive too, in this Mac's subfolder beside the other Mac's.
-    const result = where.local
+    const result: { backup: string | null, files: number, target?: { dataDir: string } } = where.local
       ? location.restoreToCloud({ from, localDir: LOCAL_DIR, log })
       : location.restore({ from, to: where.dataDir, localDir: LOCAL_DIR, log });
     const into = result.target ? result.target.dataDir : where.dataDir;
@@ -537,8 +559,8 @@ async function restoreFromMac() {
       detail: `${result.files} files copied into ${into}${result.target ? `, this Mac's own folder in ${drive.name}. This Mac keeps its settings there from now on` : ''}.${result.backup ? `\n\nThis Mac's settings as they were are in ${result.backup}.` : ''}`,
     });
   } catch (err) {
-    log(`Couldn't restore the settings: ${err.message}`);
-    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t restore the settings', detail: err.message });
+    log(`Couldn't restore the settings: ${errorMessage(err)}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t restore the settings', detail: errorMessage(err) });
   } finally {
     moving = false;
     status = 'Studio is off air';
@@ -555,7 +577,7 @@ async function exportSettings() {
   const where = location.current(LOCAL_DIR);
   if (!fs.existsSync(where.dataDir)) return dialog.showMessageBox({ type: 'warning', message: 'The settings folder can\'t be found', detail: where.dataDir });
   const media = location.exportEntries(where.dataDir).list.filter(e => e.file && e.name.split('/')[1] === 'media');
-  const mb = media.reduce((n, e) => n + fs.statSync(e.file).size, 0) / 1e6;
+  const mb = media.reduce((n, e) => n + (e.file ? fs.statSync(e.file).size : 0), 0) / 1e6;
   const choice = await windows.askExport({ mediaLabel: media.length ? `Include the media folder (${media.length} files, ${mb < 1 ? '<1' : Math.round(mb)} MB)` : '' });
   if (!choice) return;
   const name = location.exportName();
@@ -573,8 +595,8 @@ async function exportSettings() {
     if (!where.local && location.placeholders(where.dataDir).length) await location.download(where.dataDir);
     const { list, skipped, summary } = location.exportEntries(where.dataDir, { media: choice.media, folder: name, about: { studio: app.getVersion() }, notes: choice.notes });
     const out = fs.createWriteStream(part);
-    const done = new Promise((resolve, reject) => { out.on('finish', resolve); out.on('error', reject); });
-    await require('../zip').write(out, list);
+    const done = new Promise<void>((resolve, reject) => { out.on('finish', () => resolve()); out.on('error', reject); });
+    await zip.write(out, list);
     await done;
     fs.renameSync(part, pick.filePath);
     fs.writeFileSync(summaryFile, summary);
@@ -587,8 +609,8 @@ async function exportSettings() {
     if (response === 0) shell.showItemInFolder(pick.filePath);
   } catch (err) {
     fs.rmSync(part, { force: true });
-    log(`Couldn't back up the settings: ${err.message}`);
-    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t back up the settings', detail: err.message });
+    log(`Couldn't back up the settings: ${errorMessage(err)}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t back up the settings', detail: errorMessage(err) });
   } finally {
     exporting = false; refreshMenu();
   }
@@ -609,10 +631,10 @@ async function restoreFromBackup() {
   const file = pick.filePaths[0];
   let backup;
   try { backup = await location.readBackup(file); } catch (err) {
-    return dialog.showMessageBox({ type: 'warning', message: 'Can\'t restore that file', detail: err.message });
+    return dialog.showMessageBox({ type: 'warning', message: 'Can\'t restore that file', detail: errorMessage(err) });
   }
   const { about, summary } = backup;
-  const made = about.exported ? new Date(about.exported).toLocaleString('en-AU', { dateStyle: 'long', timeStyle: 'short' }) : 'an unknown date';
+  const made = about.exported ? new Date(String(about.exported)).toLocaleString('en-AU', { dateStyle: 'long', timeStyle: 'short' }) : 'an unknown date';
   const notes = location.backupNotes(summary);
   const counts = (summary.match(/^[A-Z][a-z]+ \(\d+\)$/gm) || []).join(', ');
   const wasOn = !!helper || wanted;
@@ -637,8 +659,8 @@ async function restoreFromBackup() {
       detail: `${result.files} files from ${path.basename(file)} are now in ${where.dataDir}.${result.backup ? `\n\nThis Mac's settings as they were are in ${result.backup}.` : ''}`,
     });
   } catch (err) {
-    log(`Couldn't restore the backup: ${err.message}`);
-    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t restore the backup', detail: `${err.message}\n\nThis Mac's settings weren't changed.` });
+    log(`Couldn't restore the backup: ${errorMessage(err)}`);
+    dialog.showMessageBox({ type: 'error', message: 'Couldn\'t restore the backup', detail: `${errorMessage(err)}\n\nThis Mac's settings weren't changed.` });
   } finally {
     moving = false;
     status = 'Studio is off air';
@@ -649,16 +671,16 @@ async function restoreFromBackup() {
 // ─── Updates ────────────────────────────────────────────────────────────────
 // From GitHub Releases (updates.js). A new version downloads in the background and is installed
 // the next time the app quits; "Restart to update" in the menu installs the newest one straight away.
-let updates = null;
+let updates: ReturnType<typeof createUpdates> | null = null;
 function appUpdates() {
   if (!updates && app.isPackaged) {
-    const { autoUpdater } = require('electron-updater');
-    autoUpdater.logger = { info: m => log(`[update] ${m}`), warn: m => log(`[update] ${m}`), error: m => log(`[update] ${m}`), debug: () => {} };
+    // Loaded only in the packaged app: from a checkout there is nothing to update.
+    const { autoUpdater } = require('electron-updater') as typeof import('electron-updater');
+    autoUpdater.logger = { info: (m: unknown) => log(`[update] ${m}`), warn: (m: unknown) => log(`[update] ${m}`), error: (m: unknown) => log(`[update] ${m}`), debug: () => {} };
     // Logs a failed check or download in full; the dialog below keeps it short.
     autoUpdater.on('error', (err, detail) => log(`[update] ${detail || err.message}`));
-    updates = require('./updates').createUpdates({ updater: autoUpdater, log, onChange: refreshMenu, onInstall: () => { quitting = true; } });
+    updates = createUpdates({ updater: autoUpdater, log, onChange: refreshMenu, onInstall: () => { quitting = true; } });
     // macOS's updater (Squirrel), underneath: each step in the log, to show where an install stops.
-    const squirrel = require('electron').autoUpdater;
     squirrel.on('checking-for-update', () => log('[update] Handing the update to macOS'));
     squirrel.on('update-downloaded', () => log('[update] macOS has the update'));
     squirrel.on('before-quit-for-update', beforeInstall);
@@ -698,8 +720,8 @@ function installFailed() {
   outputs?.setQuitting(false);
 }
 
-function updateMenuItem() {
-  const { ready, fetching, installing } = updates ? updates.state() : {};
+function updateMenuItem(): MenuItemConstructorOptions {
+  const { ready, fetching, installing } = updates ? updates.state() : { ready: null, fetching: null, installing: false };
   if (fetching) return { label: `Downloading ${fetching}…`, enabled: false };
   if (installing) return { label: `Installing ${ready}…`, enabled: false };
   if (ready) return { label: `Restart to update to ${ready}`, click: restartToUpdate };
@@ -707,7 +729,7 @@ function updateMenuItem() {
 }
 
 // A newer version than the one the menu named has come out: get it first, or install the named one?
-async function askNewer(ready, newer) {
+async function askNewer(ready: string | null, newer: string) {
   const { response } = await dialog.showMessageBox({
     type: 'question', buttons: [`Get ${newer}`, `Install ${ready} now`], defaultId: 0, cancelId: 1,
     message: `Version ${newer} is out`,
@@ -717,17 +739,18 @@ async function askNewer(ready, newer) {
 }
 
 function restartToUpdate() {
-  appUpdates().restartToUpdate({ askNewer }).then(ok => {
+  appUpdates()?.restartToUpdate({ askNewer }).then(ok => {
     if (ok === false) installFailed();
     if (ok === false) dialog.showMessageBox({ type: 'warning', message: 'Couldn\'t install the update', detail: 'Try again, or quit FirstPass Studio to install it. The details are in the debug log.' });
   });
 }
 
-function checkForUpdates(byHand) {
-  if (!appUpdates()) return;
-  updates.check().then(r => {
+function checkForUpdates(byHand: boolean) {
+  const u = appUpdates();
+  if (!u) return;
+  u.check().then(r => {
     if (byHand && (!r || !r.isUpdateAvailable)) dialog.showMessageBox({ message: 'FirstPass Studio is up to date', detail: `Version ${app.getVersion()}` });
-    else if (byHand) dialog.showMessageBox({ message: `Downloading version ${r.updateInfo.version}`, detail: 'It installs when you quit FirstPass Studio, or choose "Restart to update" from the menu bar icon once it has downloaded.' });
+    else if (byHand) dialog.showMessageBox({ message: `Downloading version ${r?.updateInfo.version}`, detail: 'It installs when you quit FirstPass Studio, or choose "Restart to update" from the menu bar icon once it has downloaded.' });
   }).catch(err => {
     if (byHand) dialog.showMessageBox({ type: 'warning', message: 'Couldn\'t check for updates', detail: updateErrorText(err) });
   });
@@ -735,7 +758,8 @@ function checkForUpdates(byHand) {
 
 // The updater's errors carry the whole HTTP response (headers and all); this is the part a
 // person can act on. The full error is in the debug log.
-function updateErrorText(err) {
+function updateErrorText(error: unknown) {
+  const err: Error & { statusCode?: number } = error instanceof Error ? error : new Error(String(error));
   const status = err.statusCode || Number((/HttpError: (\d{3})/.exec(err.message) || [])[1]);
   if (status === 404) return 'The updates page on GitHub couldn\'t be found. The FirstPassStudio-releases repository needs to be public, with at least one published release.';
   if (status) return `GitHub answered with error ${status}. Try again in a few minutes. The details are in the debug log.`;
@@ -748,26 +772,26 @@ function updateErrorText(err) {
 // last opened, every change between the two (whatsnew.js, from the release notes bundled at build time). Opened at login it
 // waits until Studio is first opened, rather than popping up as the Mac starts. The version it
 // was shown for is saved in app-settings.json (whatsNewSeen), so it shows once.
-let whatsNewLater = null;
+let whatsNewLater: whatsnew.Release[] | null = null;
 function whatsNewOnLaunch() {
-  const { show, seen } = whatsnew.onLaunch({ data: whatsnew.load(), current: app.getVersion(), lastSeen: appSettings().whatsNewSeen || LAST_STARTED, usedBefore: USED_BEFORE });
+  const { show, seen } = whatsnew.onLaunch({ data: whatsnew.load(), current: app.getVersion(), lastSeen: (typeof appSettings().whatsNewSeen === 'string' ? String(appSettings().whatsNewSeen) : '') || LAST_STARTED, usedBefore: USED_BEFORE });
   if (seen) saveAppSetting('whatsNewSeen', seen);
   if (!show) return;
   log(`What's new: ${show.map(r => r.version).join(', ')}`);
   if (app.getLoginItemSettings().wasOpenedAtLogin) whatsNewLater = show;
   else showWhatsNew(show);
 }
-function showWhatsNew(releases, options) {
+function showWhatsNew(releases: whatsnew.Release[], options?: { recent?: boolean }) {
   windows.showWhatsNew(releases, options).then(choice => { if (choice === 'open') openPage('/'); });
 }
 
 // ─── Start ──────────────────────────────────────────────────────────────────
 async function start() {
-  if (process.platform === 'darwin') app.dock.hide(); // a menu bar app (Info.plist LSUIElement does the same when installed)
+  if (process.platform === 'darwin') app.dock?.hide(); // a menu bar app (Info.plist LSUIElement does the same when installed)
   const icon = nativeImage.createFromPath(path.join(APP_DIR, 'desktop', 'trayTemplate.png'));
   icon.setTemplateImage(true);
   tray = new Tray(icon);
-  outputs = require('./outputs')({ port: PORT, log });
+  outputs = outputsLib.create({ port: PORT, log });
   // Every launch starts with only this Mac able to change things; "Only this Mac can change things" is unticked by
   // hand to let other devices in, until Quit.
   if (machineConfig().remoteChanges !== false) setMachineConfig('remoteChanges', false);
@@ -784,7 +808,8 @@ async function start() {
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
 }
 
-app.on('window-all-closed', e => e.preventDefault()); // no windows: the app stays in the menu bar, off air
+// No windows: the app stays in the menu bar, off air (listening at all keeps Electron from quitting).
+app.on('window-all-closed', () => {});
 // Clicking the Dock icon with no window open opens Studio.
 app.on('activate', (e, hasWindows) => { if (!hasWindows) openPage('/'); });
 // Quitting always quits: the helper is stopped, and if anything still holds the app up after a
@@ -797,7 +822,7 @@ app.on('before-quit', e => {
   quitStarted = quitting = true;
   log('Quitting');
   if (helper) { helper.stopping = true; helper.kill(); }
-  const exitAfter = s => setTimeout(() => { log(`Still running ${s} s after Quit: exiting`); app.exit(0); }, s * 1000).unref();
+  const exitAfter = (s: number) => setTimeout(() => { log(`Still running ${s} s after Quit: exiting`); app.exit(0); }, s * 1000).unref();
   if (updates && updates.pending()) {
     e.preventDefault();
     updates.installOnQuit().then(ok => { if (!ok) app.exit(0); });

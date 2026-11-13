@@ -66,27 +66,27 @@ test('unpacked() turns an archive path into the copy beside it, and leaves every
   assert.equal(unpacked('/x/app.asar.unpacked/y'), '/x/app.asar.unpacked/y', 'not applied twice');
   assert.equal(unpacked('C:\\Studio\\resources\\app.asar\\vendor\\ffmpeg\\ffmpeg.exe'), 'C:\\Studio\\resources\\app.asar.unpacked\\vendor\\ffmpeg\\ffmpeg.exe');
   // Everything run or loaded from disk goes through it.
-  for (const [file, name] of [['scene.ts', 'BUNDLED_FFMPEG'], ['scene.ts', 'STREAMDECK_PLUGIN'], ['desktop/main.js', 'STREAMDECK_PLUGIN'], ['desktop/ndi.js', 'MODULE'], ['desktop/decklink.js', 'MODULE']]) {
+  for (const [file, name] of [['scene.ts', 'BUNDLED_FFMPEG'], ['scene.ts', 'STREAMDECK_PLUGIN'], ['desktop/main.ts', 'STREAMDECK_PLUGIN'], ['desktop/ndi.ts', 'MODULE'], ['desktop/decklink.ts', 'MODULE']]) {
     const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
     const line = src.split('\n').find(l => l.startsWith(`const ${name} = `));
     assert.ok(line && /unpacked\(/.test(line), `${file}: ${name} must go through unpacked()`);
   }
   // The helper can't have the archive as its working directory.
-  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'desktop/main.js'), 'utf8'), /cwd: APP_DIR/);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'desktop/main.ts'), 'utf8'), /cwd: APP_DIR/);
 });
 
 // With grantFileProtocolExtraPrivileges off, file:// can't read inside app.asar: the app's own pages
 // failed to load in the shipped app (the splash had no logo, What's new never opened). They're served
-// as studio://app/... (desktop/windows.js) instead, and every file they use must be in desktop/ or public/.
+// as studio://app/... (desktop/windows.ts) instead, and every file they use must be in desktop/ or public/.
 test("the app's own pages come from the archive by studio://, not file://", () => {
-  const src = fs.readFileSync(path.join(ROOT, 'desktop/windows.js'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, 'desktop/windows.ts'), 'utf8');
   assert.doesNotMatch(src, /loadFile\(/, 'loadFile is file://, which the fuses keep out of the archive');
   const pages = [...src.matchAll(/loadPage\(\w+, '([^']+)'/g)].map(m => m[1]);
   assert.deepEqual([...new Set(pages)].sort(), ['export.html', 'offair.html', 'splash.html', 'whatsnew.html']);
-  // The hidden page that hears an output's sound (desktop/soundtap.js) loads the same way.
-  const tap = fs.readFileSync(path.join(ROOT, 'desktop/soundtap.js'), 'utf8');
+  // The hidden page that hears an output's sound (desktop/soundtap.ts) loads the same way.
+  const tap = fs.readFileSync(path.join(ROOT, 'desktop/soundtap.ts'), 'utf8');
   assert.doesNotMatch(tap, /loadFile\(/);
-  assert.match(tap, /loadPage\(win, 'soundtap\.html'\)/);
+  assert.match(tap, /loadPage\(\w+, 'soundtap\.html'\)/);
   pages.push('soundtap.html');
   for (const page of pages) {
     const html = fs.readFileSync(path.join(ROOT, 'desktop', page), 'utf8');

@@ -16,7 +16,7 @@
 //
 // Either way, with changes not saved yet:
 // - leaving the page from the Mac app's Go menu, Back or Forward asks (window.studioBeforeLeave,
-//   see desktop/windows.js), and so does a link in the page, such as a tab at the top;
+//   see desktop/windows.ts), and so does a link in the page, such as a tab at the top;
 // - closing the window or reloading asks whether to leave without saving.
 // Needs asktext.js (askChoice).
 
@@ -61,7 +61,7 @@
       if (await settle()) location.href = to.href;
     });
     // Anything else (closing the window, reloading): the browser's own "Leave page?" question; the
-    // Mac app asks Leave or Stay itself (desktop/windows.js), as Electron would cancel it silently.
+    // Mac app asks Leave or Stay itself (desktop/windows.ts), as Electron would cancel it silently.
     addEventListener('beforeunload', e => { if (guards.some(x => x.changed())) { e.preventDefault(); e.returnValue = ''; } });
   }
 

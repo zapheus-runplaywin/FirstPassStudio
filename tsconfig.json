@@ -17,5 +17,5 @@
     "sourceMap": true,
     "skipLibCheck": true
   },
-  "include": ["*.ts", "*.js", "desktop/*.js"]
+  "include": ["*.ts", "*.js", "desktop/*.ts"]
 }

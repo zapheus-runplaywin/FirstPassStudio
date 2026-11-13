@@ -10,14 +10,30 @@
 // Studio is on air only while one of these windows is open: opening one starts it (main.js) and
 // closing the last one takes it off air, after asking if it is on air.
 
-'use strict';
+import { app, BrowserWindow, Menu, shell, clipboard, screen, dialog, protocol, nativeTheme, type MenuItemConstructorOptions, type MessageBoxOptions, type Rectangle, type WebContents } from 'electron';
+import fs from 'node:fs';
+import path from 'node:path';
+import { APP_DIR as APP_ROOT, sharedScript } from '../appdir'; // this file runs compiled, from out/desktop/
+import type { Release } from './whatsnew';
 
-const { app, BrowserWindow, Menu, shell, clipboard, screen, dialog, protocol, nativeTheme } = require('electron');
-const fs = require('fs');
-const path = require('path');
+// What the app keeps on each window it opens.
+declare global {
+  namespace Electron {
+    interface BrowserWindow {
+      studioUrl?: string, // the Studio page it shows (or last showed, while it says off air)
+      isPvw?: boolean, // a source or page preview (pvw.html)
+      isSplash?: boolean, // the splash
+      isPanel?: boolean, // a small panel (Back up settings, What's new)
+      confirmedClose?: boolean, // closes without asking about going off air
+      asking?: boolean, // asking about going off air now
+      closeAfterMin?: () => void, // the splash: closes once it has been up long enough
+    }
+  }
+}
+
 // The Studio pages, in tab order, shared with the tab bar on every page (public/studiobar.js).
-const { APP_DIR: APP_ROOT, sharedScript } = require('../appdir'); // this file runs compiled, from out/desktop/
-const { STUDIO_PAGES: TABS } = sharedScript('studiobar.js');
+interface Tab { href: string, label: string, also?: string[], group?: string }
+const { STUDIO_PAGES: TABS } = sharedScript<{ STUDIO_PAGES: Tab[] }>('studiobar.js');
 
 // The pages with the Studio header (body class "fp"); everything else (the overlays, the
 // debug log) gets a normal title bar.
@@ -35,7 +51,7 @@ const HEADER_CSS = `
 // file://, since the shipped app's fuses (package.json) leave file:// as a browser has it, which
 // can't read inside app.asar: the pages failed to load, so the splash had no logo and What's new
 // never opened. Only files in desktop/ and public/ are served.
-const TYPES = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 protocol.registerSchemesAsPrivileged([{ scheme: 'studio', privileges: { standard: true, secure: true } }]);
 // Answers studio:// from the first page loaded on. Set up then, not on app.whenReady: main.js's own
 // whenReady (start, which can open What's new straight away) runs first, and a page asked for
@@ -53,11 +69,17 @@ function serve() {
   });
 }
 // Loads one of the pages above in a window.
-const loadPage = (win, page, query = {}) => { serve(); return win.loadURL(`studio://app/desktop/${page}?${new URLSearchParams(query)}`); };
-const isAppPage = u => u.startsWith('studio:');
+const loadPage = (win: BrowserWindow, page: string, query: Record<string, string> = {}) => { serve(); return win.loadURL(`studio://app/desktop/${page}?${new URLSearchParams(query)}`); };
+const isAppPage = (u: string) => u.startsWith('studio:');
 
-module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, onWindowOpened, onAllClosed }) {
-  const local = p => `http://localhost:${port}${p}`;
+interface Options {
+  port: number, linkHost: string, log: (message: string) => void,
+  appSettings: () => Record<string, unknown>, saveAppSetting: (key: string, value: unknown) => void,
+  isOnAir: () => boolean, onWindowOpened: () => void, onAllClosed: () => void,
+}
+
+function create({ port, linkHost, appSettings, saveAppSetting, log, isOnAir, onWindowOpened, onAllClosed }: Options) {
+  const local = (p: string) => `http://localhost:${port}${p}`;
 
   // ─── Page zoom ──────────────────────────────────────────────────────────
   // Like Safari's: one level for every Studio window, in steps, remembered on this Mac (pageZoom in the app's
@@ -66,21 +88,21 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // it (zoom-changed). Actual Size is ⌘⌥0, since ⌘0 is the Docs tab.
   const ZOOM_STEPS = [50, 67, 75, 85, 100, 115, 125, 150, 175, 200];
   let zoomPct = ZOOM_STEPS.includes(Number(appSettings().pageZoom)) ? Number(appSettings().pageZoom) : 100;
-  const tellZoom = wc => wc.executeJavaScript(`document.dispatchEvent(new CustomEvent('studio-zoom', { detail: ${zoomPct} }))`, true).catch(() => {});
-  function setZoom(pct) {
+  const tellZoom = (wc: WebContents) => wc.executeJavaScript(`document.dispatchEvent(new CustomEvent('studio-zoom', { detail: ${zoomPct} }))`, true).catch(() => {});
+  function setZoom(pct: number) {
     zoomPct = ZOOM_STEPS.includes(pct) ? pct : 100;
     saveAppSetting('pageZoom', zoomPct);
     for (const w of pageWindows()) { w.webContents.setZoomFactor(zoomPct / 100); tellZoom(w.webContents); }
     refreshMenu();
   }
-  const stepZoom = dir => setZoom(ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, ZOOM_STEPS.indexOf(zoomPct) + dir))]);
+  const stepZoom = (dir: number) => setZoom(ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, ZOOM_STEPS.indexOf(zoomPct) + dir))]);
   // A new page in a Studio window: at the level in use, and told it so the bar can show the chip.
-  function applyZoom(wc) {
+  function applyZoom(wc: WebContents) {
     wc.setZoomFactor(zoomPct / 100);
     tellZoom(wc);
   }
   // A page on this Studio: localhost, or the .local name the Studio links use.
-  const isStudio = u => {
+  const isStudio = (u: string) => {
     try {
       const url = new URL(u);
       return url.protocol === 'http:' && Number(url.port || 80) === port &&
@@ -88,9 +110,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     } catch { return false; }
   };
   // The same page on the link name, for the browser and for copying.
-  const linkFor = u => { const url = new URL(u); url.hostname = linkHost; return url.toString(); };
+  const linkFor = (u: string) => { const url = new URL(u); url.hostname = linkHost; return url.toString(); };
 
-  let main = null; // the window "Open Studio" reuses
+  let main: BrowserWindow | null = null; // the window "Open Studio" reuses
   let quitting = false; // quitting closes every window without asking again
   // Quitting, or installing an update (main.js calls it then, since macOS's updater closes the
   // windows before the app is told it's quitting): no window asks before it closes. false: the
@@ -105,12 +127,13 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // would stop the graphics and the Stream Deck.
   const closingGoesOffAir = () => isOnAir();
   // Asks without blocking (a blocking dialog inside a window's close can lock the app up).
-  async function confirmOffAir(parent) {
-    const { response } = await dialog.showMessageBox(parent || undefined, {
+  async function confirmOffAir(parent: BrowserWindow | null) {
+    const options: MessageBoxOptions = {
       type: 'warning', buttons: ['Take Off Air', 'Cancel'], defaultId: 1, cancelId: 1,
       message: 'Take Studio off air?',
       detail: 'Studio only runs while a Studio window is open. Closing the last one stops the graphics and Stream Deck buttons until Studio is opened again.',
-    });
+    };
+    const { response } = await (parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options));
     return response === 0 && !quitting;
   }
 
@@ -119,10 +142,10 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // bar icon). It stays up for at least SPLASH_MIN so it doesn't flash, then closes as Studio's
   // first window shows. It never stays longer than SPLASH_MAX, whatever happens.
   const SPLASH_MIN = 1500, SPLASH_MAX = 30000;
-  let splash = null, splashDone = Promise.resolve();
+  let splash: BrowserWindow | null = null, splashDone = Promise.resolve();
   // The splash and small panels (Export settings) aren't Studio pages: they don't put the app in
   // the Dock, take the app menu or keep Studio on air.
-  const isSplash = w => w && (w.isSplash || w.isPanel);
+  const isSplash = (w: BrowserWindow | null) => !!w && !!(w.isSplash || w.isPanel);
   // Every window but the splash and panels.
   const pageWindows = () => BrowserWindow.getAllWindows().filter(w => !w.isDestroyed() && !isSplash(w));
 
@@ -136,8 +159,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     });
     win.isSplash = true;
     const shownAt = Date.now();
-    let finish;
-    splashDone = new Promise(resolve => { finish = resolve; });
+    let finish = () => {};
+    splashDone = new Promise<void>(resolve => { finish = resolve; });
     win.closeAfterMin = () => setTimeout(() => { if (!win.isDestroyed()) win.close(); }, Math.max(0, shownAt + SPLASH_MIN - Date.now()));
     win.once('ready-to-show', () => { win.show(); app.focus({ steal: true }); });
     win.on('closed', () => { if (splash === win) splash = null; finish(); });
@@ -149,11 +172,11 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   function closeSplash(now = false) {
     const win = splash;
     if (!win || win.isDestroyed()) return;
-    if (now) win.close(); else win.closeAfterMin();
+    if (now) win.close(); else win.closeAfterMin?.();
   }
 
   // The line under the logo ("Studio is on air"), and whether the bar stops sweeping.
-  function splashStatus(text, done = false) {
+  function splashStatus(text: string, done = false) {
     if (splash && !splash.isDestroyed()) splash.webContents.executeJavaScript(`setStatus(${JSON.stringify(text)}, ${done})`).catch(() => {});
   }
 
@@ -161,7 +184,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // Asks for notes to put at the top of the backup's summary, and whether to include the media
   // folder (mediaLabel says how big it is; none: no media to ask about). Resolves with
   // { notes, media }, or null if cancelled or closed.
-  function askExport({ mediaLabel = '' } = {}) {
+  function askExport({ mediaLabel = '' } = {}): Promise<{ notes: string, media: boolean } | null> {
     const win = new BrowserWindow({
       width: 520, height: mediaLabel ? 420 : 380, center: true, resizable: false, minimizable: false, maximizable: false,
       fullscreenable: false, show: false, backgroundColor: '#0F172A', title: 'Back up settings',
@@ -174,7 +197,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       win.on('closed', () => resolve(null));
       win.webContents.once('did-finish-load', () => {
         win.webContents.executeJavaScript('window.choice', true)
-          .then(choice => { resolve(choice && typeof choice === 'object' ? { notes: String(choice.notes || '').slice(0, 5000), media: !!choice.media } : null); })
+          .then((choice: unknown) => { resolve(choice && typeof choice === 'object' && 'notes' in choice && 'media' in choice ? { notes: String(choice.notes || '').slice(0, 5000), media: !!choice.media } : null); })
           .catch(() => resolve(null))
           .finally(() => { if (!win.isDestroyed()) win.close(); });
       });
@@ -184,9 +207,9 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // ─── What's new ─────────────────────────────────────────────────────────
   // The changes since the version last opened (whatsnew.js), shown once after an update. A panel,
   // so it doesn't put Studio on air. recent: the latest releases, from the menu bar. Resolves 'open' (Open Studio) or null (Close, or closed).
-  let whatsNew = null;
+  let whatsNew: BrowserWindow | null = null;
   // Each step is logged (app.log): on the Mac it opened neither at launch nor from the menu.
-  function showWhatsNew(releases, { recent = false } = {}) {
+  function showWhatsNew(releases: Release[], { recent = false } = {}): Promise<'open' | null> {
     if (whatsNew && !whatsNew.isDestroyed()) {
       log(`What's new: already open (${whatsNew.isVisible() ? 'showing' : 'not showing yet'}), bringing it to the front`);
       whatsNew.show();
@@ -203,7 +226,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     // Links in a change's title (there shouldn't be any) never open in the panel.
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', e => e.preventDefault());
-    const showIt = why => {
+    const showIt = (why: string) => {
       if (win.isDestroyed() || win.isVisible()) return;
       log(`What's new: showing (${why})`);
       win.show();
@@ -221,8 +244,8 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       win.on('closed', () => { if (whatsNew === win) whatsNew = null; log("What's new closed"); resolve(null); });
       win.webContents.once('did-finish-load', () => {
         win.webContents.executeJavaScript(`show(${JSON.stringify(releases)}, ${JSON.stringify(app.getVersion())}, ${recent}); window.choice`, true)
-          .then(choice => { log(`What's new: ${choice === 'open' ? 'Open Studio' : 'Close'}`); resolve(choice === 'open' ? 'open' : null); })
-          .catch(err => { log(`What's new couldn't list the changes: ${String(err && err.message).split('\n')[0]}`); resolve(null); })
+          .then((choice: unknown) => { log(`What's new: ${choice === 'open' ? 'Open Studio' : 'Close'}`); resolve(choice === 'open' ? 'open' : null); })
+          .catch((err: Error | null) => { log(`What's new couldn't list the changes: ${String(err && err.message).split('\n')[0]}`); resolve(null); })
           .finally(() => { if (!win.isDestroyed()) win.close(); });
       });
     });
@@ -234,14 +257,14 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   function refreshDock() {
     // Never while quitting: changing the Dock as the windows close can stop the app quitting.
     if (process.platform !== 'darwin' || quitting) return;
-    if (pageWindows().length) app.dock.show().catch(() => {});
-    else app.dock.hide();
+    if (pageWindows().length) app.dock?.show().catch(() => {});
+    else app.dock?.hide();
   }
 
   // ─── Windows ────────────────────────────────────────────────────────────
-  function create(url, { isMain = false } = {}) {
+  function openWindow(url: string, { isMain = false } = {}): BrowserWindow {
     const studioPage = STUDIO_PAGES.has(new URL(url).pathname);
-    const saved = isMain && appSettings().windowBounds;
+    const saved = isMain ? boundsOf(appSettings().windowBounds) : null;
     // The popped-out preview starts at 16:9 (it fits the scene to whatever size it's made).
     const popout = new URL(url).pathname === '/preview.html';
     // A source or page preview (PVW, Preview) starts at half size, each one a step down and right of
@@ -282,7 +305,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     wc.on('dom-ready', () => { if (studioPage) wc.insertCSS(HEADER_CSS).catch(() => {}); });
     // Pages that open a new tab: Studio pages get an app window, anything else the browser.
     wc.setWindowOpenHandler(({ url: to }) => {
-      if (isStudio(to)) create(to);
+      if (isStudio(to)) openWindow(to);
       else if (/^https?:|^mailto:/.test(to)) shell.openExternal(to);
       return { action: 'deny' };
     });
@@ -347,14 +370,21 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     return win;
   }
 
-  const onScreen = b => screen.getAllDisplays().some(d => {
+  // The main window's place as saved (windowBounds), or null when it isn't one.
+  const boundsOf = (v: unknown): Rectangle | null => {
+    const b = v && typeof v === 'object' ? v as Record<string, unknown> : {};
+    const n = (k: string) => typeof b[k] === 'number' ? b[k] : NaN;
+    const r = { x: n('x'), y: n('y'), width: n('width'), height: n('height') };
+    return Object.values(r).every(Number.isFinite) ? r : null;
+  };
+  const onScreen = (b: Rectangle) => screen.getAllDisplays().some(d => {
     const a = d.workArea;
     return b.x < a.x + a.width - 80 && b.x + b.width > a.x + 80 && b.y >= a.y - 20 && b.y < a.y + a.height - 80;
   });
 
   // Opens a Studio page (a path such as /control.html) in the app's window, reusing the main
   // one.
-  function open(p) {
+  function open(p: string) {
     const url = local(p);
     if (main && !main.isDestroyed()) {
       if (main.studioUrl !== url) main.loadURL(url);
@@ -363,7 +393,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       main.show();
       main.focus();
     } else {
-      create(url, { isMain: true });
+      openWindow(url, { isMain: true });
     }
     app.focus({ steal: true });
   }
@@ -373,7 +403,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   function openGuide() {
     const url = local('/guide/');
     const open = BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && w.studioUrl && new URL(w.studioUrl).pathname.startsWith('/guide/'));
-    if (open) { if (open.isMinimized()) open.restore(); open.show(); open.focus(); } else create(url);
+    if (open) { if (open.isMinimized()) open.restore(); open.show(); open.focus(); } else openWindow(url);
     app.focus({ steal: true });
   }
 
@@ -397,18 +427,20 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
   // Quitting takes Studio off air, so ⌘Q mid-stream asks first.
   async function quit() {
     if (!isOnAir()) return app.quit();
-    const { response } = await dialog.showMessageBox(current() || undefined, {
+    const options: MessageBoxOptions = {
       type: 'warning', buttons: ['Quit', 'Cancel'], defaultId: 1, cancelId: 1,
       message: 'Quit FirstPass Studio?',
       detail: 'Quitting takes Studio off air: the graphics, outputs and Stream Deck buttons stop working.',
-    });
+    };
+    const parent = current();
+    const { response } = await (parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options));
     if (response === 0) app.quit();
   }
 
   // After Stop Studio: open pages say Studio is off air rather than failing quietly.
   function showOffAir() {
     for (const w of pageWindows()) {
-      if (isStudio(w.webContents.getURL())) loadPage(w, 'offair.html', { to: w.studioUrl, on: '' });
+      if (isStudio(w.webContents.getURL())) loadPage(w, 'offair.html', { to: w.studioUrl || '', on: '' });
     }
   }
 
@@ -417,14 +449,14 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
 
   // Before the menu loads another page in a window: a page with unsaved changes
   // (window.studioBeforeLeave, Competitions setup) asks Save, Don't save or Cancel first.
-  function leaving(w, then) {
+  function leaving(w: BrowserWindow, then: () => void) {
     w.webContents.executeJavaScript('window.studioBeforeLeave ? window.studioBeforeLeave() : true', true)
       .catch(() => true)
       .then(ok => { if (ok && !w.isDestroyed()) then(); });
   }
 
   function refreshMenu() {
-    const go = p => ({ click: () => { const w = current(); if (w) leaving(w, () => w.loadURL(local(p))); else open(p); } });
+    const go = (p: string) => ({ click: () => { const w = current(); if (w) leaving(w, () => w.loadURL(local(p))); else open(p); } });
     const w = current();
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       {
@@ -443,10 +475,10 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
       {
         label: 'File',
         submenu: [
-          { label: 'New Window', accelerator: 'CmdOrCtrl+N', click: () => create(local('/')) },
+          { label: 'New Window', accelerator: 'CmdOrCtrl+N', click: () => openWindow(local('/')) },
           { type: 'separator' },
-          { label: 'Open in Browser', accelerator: 'CmdOrCtrl+Shift+O', enabled: !!w, click: () => { const c = current(); if (c) shell.openExternal(linkFor(c.studioUrl)); } },
-          { label: 'Copy Page Link', accelerator: 'CmdOrCtrl+Shift+C', enabled: !!w, click: () => { const c = current(); if (c) clipboard.writeText(linkFor(c.studioUrl)); } },
+          { label: 'Open in Browser', accelerator: 'CmdOrCtrl+Shift+O', enabled: !!w, click: () => { const c = current(); if (c?.studioUrl) shell.openExternal(linkFor(c.studioUrl)); } },
+          { label: 'Copy Page Link', accelerator: 'CmdOrCtrl+Shift+C', enabled: !!w, click: () => { const c = current(); if (c?.studioUrl) clipboard.writeText(linkFor(c.studioUrl)); } },
           { type: 'separator' },
           { role: 'close' },
         ],
@@ -468,7 +500,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
           { type: 'separator' },
           { role: 'togglefullscreen' },
           // Developer tools only from a checkout (npm run app): the shipped app has no use for them.
-          ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' }]),
+          ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' } as const]),
         ],
       },
       {
@@ -482,6 +514,7 @@ module.exports = function studioWindows({ port, linkHost, appSettings, saveAppSe
     ]));
   }
   return { open, openGuide, reloadOffAir, showOffAir, refreshMenu, closeAll, showSplash, closeSplash, splashStatus, askExport, showWhatsNew, setQuitting, isQuitting: () => quitting };
-};
-// For the app's hidden pages opened elsewhere (desktop/soundtap.js).
-module.exports.loadPage = loadPage;
+}
+
+// loadPage: for the app's hidden pages opened elsewhere (desktop/soundtap.ts).
+export { create, loadPage };

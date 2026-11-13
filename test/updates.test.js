@@ -1,4 +1,4 @@
-// The Mac app's updates (desktop/updates.js) always install the newest version: an update that
+// The Mac app's updates (desktop/updates.ts) always install the newest version: an update that
 // came out after another had downloaded installs in one restart, not two.
 const test = require('node:test');
 const assert = require('node:assert/strict');

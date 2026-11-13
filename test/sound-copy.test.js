@@ -1,4 +1,4 @@
-// Sound goes to (outputs.ts sound, desktop/soundcopy.js, scene.html?copy=1): where an output's sound plays. The first
+// Sound goes to (outputs.ts sound, desktop/soundcopy.ts, scene.html?copy=1): where an output's sound plays. The first
 // destination is the output's own route; a destination that is one of the Mac's sound outputs by name, such as the
 // commentators' mixer, is a sound copy with only the mics ticked for it. The Mac app opens a copy only while its
 // output is on; the copy's window finds the device by name and plays everything there (never on the Mac's own

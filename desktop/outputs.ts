@@ -8,25 +8,33 @@
 // at other apps, and the scene scales to fit whatever size it is. They aren't Studio windows: closing
 // them doesn't take Studio off air, and they close when Studio does. Closing one, or clicking it and
 // pressing Esc, turns the output off, in case it ends up over the screen you're working on.
-// A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.js, NDI to desktop/ndi.js, and an
-// output's sound sent to the Mac's other sound outputs (Sound goes to) to desktop/soundcopy.js.
+// A Blackmagic UltraStudio or DeckLink output goes to desktop/decklink.ts, NDI to desktop/ndi.ts, and an
+// output's sound sent to the Mac's other sound outputs (Sound goes to) to desktop/soundcopy.ts.
 
-'use strict';
+import { app, BrowserWindow, screen, type UtilityProcess } from 'electron';
+import * as decklinkLib from './decklink';
+import * as soundCopyLib from './soundcopy';
+import * as ndiLib from './ndi';
+import * as perfLib from './perf';
+import { obj, arr } from '../check';
 
-const { app, BrowserWindow, screen } = require('electron');
+// A display output from the helper (outputs.ts there): fill, key or chroma on one of the Mac's displays.
+interface DisplayWanted { kind: 'fill' | 'key' | 'chroma', display: string, output?: string, sound?: string, color?: string, safe?: boolean }
+// Every window the helper wants: the display outputs, the Blackmagic output and the NDI outputs, told apart by kind.
+type Wanted = DisplayWanted | (decklinkLib.Wanted & { kind: 'decklink' }) | (ndiLib.Wanted & { kind: 'ndi' });
 
-module.exports = function outputs({ port, log }) {
-  const open = new Map(); // display id -> { win, key }
+function create({ port, log }: { port: number, log: (message: string) => void }) {
+  const open = new Map<string, { win: BrowserWindow, url: string, output?: string, hz: number }>(); // display id -> its window
   let quitting = false; // quitting closes the windows, which mustn't turn the output off for next time
   app.on('before-quit', () => { quitting = true; });
-  let helper = null;
-  const decklink = require('./decklink')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }),
+  let helper: UtilityProcess | null = null;
+  const decklink = decklinkLib.create({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'decklinkStatus', status, output }),
     onLevel: (level, output) => helper?.postMessage({ type: 'soundLevel', output, device: 'sdi', ...level }),
     onTimecode: t => helper?.postMessage({ type: 'sdiTimecode', ...t }) });
-  const soundCopy = require('./soundcopy')({ port, log });
-  const ndi = require('./ndi')({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'ndiStatus', status, output }) });
-  // How hard each output is working (desktop/perf.js), while any output is showing.
-  const perf = require('./perf')({
+  const soundCopy = soundCopyLib.create({ port, log });
+  const ndi = ndiLib.create({ port, log, onStatus: (status, output) => helper?.postMessage({ type: 'ndiStatus', status, output }) });
+  // How hard each output is working (desktop/perf.ts), while any output is showing.
+  const perf = perfLib.create({
     windows: () => [
       ...[...open.values()].map(o => ({ output: o.output || 'main', contents: o.win.isDestroyed() ? null : o.win.webContents, target: o.hz })),
       ...decklink.windows(), ...ndi.windows(),
@@ -60,21 +68,21 @@ module.exports = function outputs({ port, log }) {
     if (helper) helper.postMessage({ type: 'displays', displays: displays() });
   }
 
-  const pageFor = w => {
+  const pageFor = (w: DisplayWanted) => {
     const q = new URLSearchParams({ fit: '1' });
     if (w.kind === 'key' || w.sound === 'none') q.set('mute', '1'); // the key is the fill's shape: the fill plays the sound; none: only its sound copies play it
     if (w.kind === 'key') q.set('key', '1');
     if (w.output && w.output !== 'main') q.set('output', w.output); // another output's sources and their sound
-    q.set('bg', w.kind === 'chroma' ? w.color.replace('#', '') : '000000');
+    q.set('bg', w.kind === 'chroma' ? (w.color || '#00ff00').replace('#', '') : '000000');
     if (w.safe) q.set('chromaKey', 'true'); // chroma key safe (public/chroma.js)
     return `http://localhost:${port}/scene.html?${q}`;
   };
 
-  function show(list) {
-    decklink.show(list.find(w => w.kind === 'decklink') || null);
-    ndi.show(list.filter(w => w.kind === 'ndi'));
+  function show(list: Wanted[]) {
+    decklink.show(list.flatMap(w => w.kind === 'decklink' ? [w] : [])[0] || null);
+    ndi.show(list.flatMap(w => w.kind === 'ndi' ? [w] : []));
     if (list.length) perf.start(); // it stops itself once nothing is showing
-    const wanted = new Map(list.filter(w => w.display).map(w => [w.display, w]));
+    const wanted = new Map(list.flatMap((w): [string, DisplayWanted][] => w.kind !== 'decklink' && w.kind !== 'ndi' && w.display ? [[w.display, w]] : []));
     for (const [id, o] of open) {
       if (!wanted.has(id)) { o.win.destroy(); open.delete(id); }
     }
@@ -88,7 +96,7 @@ module.exports = function outputs({ port, log }) {
       const win = new BrowserWindow({
         x: d.workArea.x, y: d.workArea.y, width: d.workArea.width, height: d.workArea.height,
         show: false, fullscreenable: true,
-        backgroundColor: w.kind === 'chroma' ? w.color : '#000000',
+        backgroundColor: w.kind === 'chroma' ? w.color || '#00ff00' : '#000000',
         title: `FirstPass Studio output: ${{ fill: 'Fill', key: 'Key', chroma: 'Chroma' }[w.kind]} (${d.label || 'display'})`,
         webPreferences: { backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' },
       });
@@ -99,7 +107,7 @@ module.exports = function outputs({ port, log }) {
       // Opens full screen on its display, without taking the focus from the window you're working in.
       win.once('ready-to-show', () => { win.showInactive(); win.setFullScreen(true); });
       // Closed by hand (not by Studio): the output is off, rather than reopening on the next change.
-      win.on('close', () => { if (!quitting && open.get(id)?.win === win && helper) helper.postMessage({ type: 'escape', output: open.get(id).output }); });
+      win.on('close', () => { const now = open.get(id); if (!quitting && now?.win === win && helper) helper.postMessage({ type: 'escape', output: now.output }); });
       win.on('closed', () => { if (open.get(id)?.win === win) open.delete(id); });
       win.loadURL(url);
       open.set(id, { win, url, output: w.output, hz: d.displayFrequency || 60 });
@@ -117,29 +125,32 @@ module.exports = function outputs({ port, log }) {
   }
 
   // Displays plugged in, unplugged or changed: tell the helper, and drop the windows of a display that's gone.
-  for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) {
-    screen.on(ev, () => {
-      sendDisplays();
-      for (const [id, o] of open) {
-        const d = screen.getAllDisplays().find(x => String(x.id) === id);
-        if (!d) { o.win.destroy(); open.delete(id); }
-      }
-    });
-  }
+  const displaysChanged = () => {
+    sendDisplays();
+    for (const [id, o] of open) {
+      const d = screen.getAllDisplays().find(x => String(x.id) === id);
+      if (!d) { o.win.destroy(); open.delete(id); }
+    }
+  };
+  screen.on('display-added', displaysChanged);
+  screen.on('display-removed', displaysChanged);
+  screen.on('display-metrics-changed', displaysChanged);
 
   return {
     // A new helper (Studio on air): give it the displays and follow what it asks for.
-    attach(child) {
+    attach(child: UtilityProcess) {
       helper = child;
-      child.on('message', msg => {
-        if (msg?.type === 'ready') { sendDisplays(); sendDecklink(); sendNdi(); } // the helper is listening now
-        if (msg?.type === 'scan') { sendDecklink(); sendNdi(); }
-        if (msg?.type === 'outputs') { show(msg.windows || []); soundCopy.show(msg.copies || []); }
-        if (msg?.type === 'readTimecode') decklink.readInput(msg.device === null || msg.device === undefined ? null : { device: String(msg.device) }); // a 4K replay following the SDI input
+      child.on('message', (message: unknown) => {
+        const msg = obj(message);
+        if (msg.type === 'ready') { sendDisplays(); sendDecklink(); sendNdi(); } // the helper is listening now
+        if (msg.type === 'scan') { sendDecklink(); sendNdi(); }
+        // The helper's own lists (outputs.ts there builds them), taken as they come: the windows by kind, the copies by device.
+        if (msg.type === 'outputs') { show(arr(msg.windows) as Wanted[]); soundCopy.show(arr(msg.copies) as soundCopyLib.Copy[]); }
+        if (msg.type === 'readTimecode') decklink.readInput(msg.device === null || msg.device === undefined ? null : { device: String(msg.device) }); // a 4K replay following the SDI input
       });
     },
     // Studio off air: the outputs go dark.
-    detach(child) {
+    detach(child: UtilityProcess) {
       if (helper === child) helper = null;
       closeAll();
     },
@@ -148,4 +159,6 @@ module.exports = function outputs({ port, log }) {
     // when the new version opens. false: the install failed and the app carries on.
     setQuitting(on = true) { quitting = on; },
   };
-};
+}
+
+export { create };

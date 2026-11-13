@@ -4,7 +4,7 @@
 // what Studio already has: the season's fixture and results, read through the same cache as every other page (so the
 // tab adds nothing to what PlayHQ is asked), the ladders, the night's shooting from each finished game's line ups (read
 // once and kept, as for Top shooters), the Production Planner's court and commentators, the competition's sponsors
-// and logos. Two sets: Upcoming (before the night) and Results (after it). The Mac app takes the pictures (desktop/socials.js): the helper asks it over the app's message port, it
+// and logos. Two sets: Upcoming (before the night) and Results (after it). The Mac app takes the pictures (desktop/socials.ts): the helper asks it over the app's message port, it
 // draws each link off screen at its full size and saves the PNGs in Pictures/FirstPass Studio/, then opens the folder
 // or the Mac's Share menu. Saved from a phone (or another computer), the Mac makes them in a temporary folder and the
 // phone fetches them to keep. Without the Mac app (npm start) the previews work and Export says it needs the app.
@@ -133,7 +133,7 @@ interface About { competition: string; venue: string; logo: string | null; runni
 interface SponsorPick { id: string; name: string; tier: string; tagline: string; website: string; logo: string | null }
 // A player the athlete register knows (athletes.ts photoFor).
 type Who = Parameters<AthletesApi['photoFor']>[0];
-// What the Mac app answers when it has saved the pictures (desktop/socials.js).
+// What the Mac app answers when it has saved the pictures (desktop/socials.ts).
 interface Saved { error?: string; folder: string | null; files: string[]; zip?: string; zipFile?: string; shared: boolean; skipped: { name: string; reason: string }[] }
 // A division's ladder in a night's pictures (ladders).
 interface NightLadderOut {
