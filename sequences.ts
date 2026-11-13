@@ -58,22 +58,78 @@ import * as savefile from './savefile';
 import * as music from './music';
 import * as switcher from './switcher';
 import { errorCode, errorMessage } from './errors';
+import { obj, str, isObj } from './check';
+import type { Log, Act } from './types';
+import type { SwitcherAction } from './switcher';
+
+// ─── What a sequence is (clean() makes each from what's saved or sent) ────
+type Length = { type: 'time'; sec: number } | { type: 'done' | 'next' | 'game' | 'now'; sec?: undefined };
+interface SourcesStep { id: string; kind?: undefined; sources: string[]; length: Length; switcher?: SwitcherAction[] }
+interface SceneStep { id: string; kind: 'scene'; scene: string; sources: string[]; length: Length; switcher?: SwitcherAction[] }
+interface SequenceStep { id: string; kind: 'sequence'; sequence: string; sources?: undefined }
+interface AdsStep { id: string; kind: 'ads'; count: number; house: boolean; sources?: undefined }
+type Step = SourcesStep | SceneStep | SequenceStep | AdsStep;
+type Start = { type: 'hand' } | { type: 'before'; min: number } | { type: 'fulltime'; afterSec: number } | { type: 'break'; breaks: string[]; afterSec: number };
+type Then = { type: 'scene'; scene: string } | { type: 'sequence'; sequence: string } | { type: 'off' | 'leave' };
+interface Music { playlist?: string; track?: string; startStep: number; startAtSec: number; fadeInSec: number; underVideo?: true }
+type MusicEnd = { type: 'fade' | 'crossfade'; sec: number } | { type: 'cut' | 'continue'; sec?: undefined };
+type Until = { moment: 'before'; min: number } | { moment: 'resume'; min?: undefined };
+interface Sequence {
+  id: string; name: string; colour: string; repeat: string; start: Start; then: Then; music: Music | null; musicEnd: MusicEnd;
+  quiet: boolean; hidden: boolean; playsOn: string[]; thenOn: Record<string, Then>; steps: Step[]; until?: Until;
+}
+// Where a step played is: the sequence, its step and which time through it (flatten()).
+interface At { id: string; i: number; occ: number }
+// A step as it plays, sequences inside opened out (flatten()); an ad step is filled in as it comes on (fillAd()).
+interface FlatStep {
+  id: string; kind?: 'scene' | 'ad'; sources: string[]; length: Length; scene?: string; switcher?: SwitcherAction[]; house?: boolean; ad?: string | null;
+  top: number; path: At[]; via?: string[];
+}
+// What's playing on an output (see start()).
+interface Run {
+  id: string; steps: FlatStep[]; step: number; loop: number; startedAt: number; loopAt: number; shown: Set<string>; stepAt: number;
+  endsAt: number | null; paused: boolean; pausedLeft: number | null; ready: boolean; waiting: Set<string> | null; finishing: string | null;
+  fadeEndsAt?: number | null; crossTimer?: NodeJS.Timeout; crossed?: number | null;
+}
+interface Pending { id: string; reason: string; at: number; afterEnd: boolean; queued?: boolean; now?: boolean }
+type ItemKind = 'sequence' | 'scene';
+interface Item { key: string; kind: ItemKind; id: string }
+interface Order { id: string; name: string; items: { kind: ItemKind; id: string }[] }
+interface Runner { run: Run | null; timer?: NodeJS.Timeout; fadeTimer?: NodeJS.Timeout; pending: Pending | null; pendTimer?: NodeJS.Timeout; cut: string | null; queue: Item[]; played: (Item & { at: number })[] }
+// The scoreboard each second (gameTick()).
+interface GameReading {
+  id: string; label?: string; startAt?: number | null; period: number; last?: number; left?: number | null; running: boolean; onBreak?: boolean; finished?: boolean;
+  breaks?: Record<string, number> | null;
+}
+interface Watch { id: string; fired: Set<string>; ranIn: number; everRan: boolean; zeroAt: number | null; running: boolean; period: number; onBreak: boolean; finished: boolean }
+type Moment = { kind: 'resume' } | { kind: 'fulltime' } | { kind: 'break'; which: string };
+// The scene, as the sequences use it (scene.js gives it to init()).
+interface Source { id: string; name: string; type: string; file?: string; loop?: boolean; sound?: boolean; visible?: boolean }
+interface SceneRef { id: string; name: string; states: Record<string, string>; quiet?: boolean }
+interface Api {
+  source(id: string): Source | null; isOn?(s: Source, out: string): boolean; setOn(s: Source, on: boolean, out: string): void; hasOutput?(id: string): boolean;
+  scene(id: string): SceneRef | null; sceneNamed?(ref: string): SceneRef | null; goTo(sc: SceneRef, step: boolean, out: string): void;
+  duration(file: string | undefined): number | null | undefined; fadeSound?(id: string, out: string, sec: number): void;
+  sponsorAd?(opts: { house?: boolean }, out: string): { source: string; length: Length; name: string } | null; changed(): void;
+}
+// What a Stream Deck link gives (deck()).
+type DeckResult = { error: string; status: number } | { body: Record<string, unknown> } | null;
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 // Scenes and sequences are listed by their colour group, in the order of a stream (pre-game, live stream,
 // quarter time, post-game, ads), then by name. Stream Deck Next and Previous go in this order too.
 const COLOUR_ORDER = ['green', 'blue', 'purple', 'grey', 'yellow'];
-const byColour = (a, b) => (COLOUR_ORDER.indexOf(a.colour) - COLOUR_ORDER.indexOf(b.colour)) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' });
-const LENGTHS = ['time', 'done', 'next', 'game', 'now'];
-const KINDS = ['sources', 'scene', 'sequence', 'ads'];
+const byColour = (a: { colour: string; name: string }, b: { colour: string; name: string }) => (COLOUR_ORDER.indexOf(a.colour) - COLOUR_ORDER.indexOf(b.colour)) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' });
+const LENGTHS = ['time', 'done', 'next', 'game', 'now'] as const;
+const KINDS = ['sources', 'scene', 'sequence', 'ads'] as const;
 // How deep sequences inside sequences go, and how many steps one can flatten to.
 const MAX_DEPTH = 8, MAX_FLAT = 1000;
-const REPEATS = ['once', 'loop', 'until'];
-const STARTS = ['hand', 'before', 'break', 'fulltime'];
+const REPEATS = ['once', 'loop', 'until'] as const;
+const STARTS = ['hand', 'before', 'break', 'fulltime'] as const;
 const BREAKS = ['qt', 'ht', '3qt'];
-const BREAK_NAMES = { qt: 'quarter time', ht: 'half time', '3qt': 'three quarter time' };
-const THENS = ['scene', 'off', 'leave', 'sequence'];
-const MUSIC_ENDS = ['fade', 'cut', 'continue', 'crossfade'];
+const BREAK_NAMES: Record<string, string> = { qt: 'quarter time', ht: 'half time', '3qt': 'three quarter time' };
+const THENS = ['scene', 'off', 'leave', 'sequence'] as const;
+const MUSIC_ENDS = ['fade', 'cut', 'continue', 'crossfade'] as const;
 // Sequence link names that are the playing-sequence links instead (/deck/sequence/next).
 const RESERVED = new Set(['next', 'advance', 'stop', 'pause', 'resume', 'now', 'cancel', 'auto']);
 // Until it finishes stops waiting after this: a page that never says it's done, a video of unknown length.
@@ -82,32 +138,33 @@ const PAGE_LIMIT_MS = 60000, VIDEO_LIMIT_MS = 10 * 60000, VIDEO_SPARE_MS = 3000;
 // can touch 0:00 for a moment).
 const SETTLE_MS = 3000;
 
-let log = () => {};
-let api = null;       // the scene, from scene.js
-let fileOf = () => null;
-let file = null;      // sequences.json of the competition in use
-let list = [];
+let log: Log = () => {};
+// The scene, from scene.js (init() sets it before anything else is called).
+let api: Api = { source: () => null, setOn() {}, scene: () => null, goTo() {}, duration: () => null, changed() {} };
+let fileOf = (): string | null => null;
+let file: string | null = null; // sequences.json of the competition in use
+let list: Sequence[] = [];
 // The runner of the output being worked on (here): the functions below use these. Each output's are kept
 // in runners while another's are in use; within() switches.
-let run = null;       // what's playing
-let timer = null;
-let fadeTimer = null; // starts a music fade out early, so it's done as the step (and the music with it) ends
-let pending = null;   // a triggered start waiting its few seconds: { id, reason, at, afterEnd }
-let pendTimer = null;
-let cut = null;       // the sequence that last ended here (played out or cut short), until it plays again
-let queue = [];       // the run order here (Output 1's; always empty on the others): [{ key, kind: 'sequence' | 'scene', id }], the head first
-let played = [];      // what the run order has played here tonight, oldest first: [{ key, kind, id, at }] (not saved: a relaunch starts it again)
-let orders = [];      // the saved run orders of the competition in use: [{ id, name, items }]
-let roNotice = null;  // the Production Planner loaded a game's run order over items queued: { text, at }, until closed (not saved)
+let run: Run | null = null; // what's playing
+let timer: NodeJS.Timeout | undefined;
+let fadeTimer: NodeJS.Timeout | undefined; // starts a music fade out early, so it's done as the step (and the music with it) ends
+let pending: Pending | null = null; // a triggered start waiting its few seconds: { id, reason, at, afterEnd }
+let pendTimer: NodeJS.Timeout | undefined;
+let cut: string | null = null; // the sequence that last ended here (played out or cut short), until it plays again
+let queue: Item[] = [];  // the run order here (Output 1's; always empty on the others): [{ key, kind: 'sequence' | 'scene', id }], the head first
+let played: (Item & { at: number })[] = []; // what the run order has played here tonight, oldest first: [{ key, kind, id, at }] (not saved: a relaunch starts it again)
+let orders: Order[] = []; // the saved run orders of the competition in use: [{ id, name, items }]
+let roNotice: { text: string; at: number } | null = null; // the Production Planner loaded a game's run order over items queued: { text, at }, until closed (not saved)
 const PRIMARY = 'main';
 let here = PRIMARY;
-const runners = new Map(); // output id -> { run, timer, fadeTimer, pending, pendTimer, cut, queue, played }
+const runners = new Map<string, Runner>(); // output id -> { run, timer, fadeTimer, pending, pendTimer, cut, queue, played }
 const MAX_QUEUE = 100, MAX_ORDERS = 30, MAX_PLAYED = 50;
 const ITEM_KINDS = ['sequence', 'scene'];
 let auto = true;      // the Automatic sequences switch
-let settingsFile = null;
-let game = null;      // the latest scoreboard reading, from game()
-let watch = null;     // what's been seen of that game: { id, fired, ranIn, everRan, zeroAt, running, period, onBreak }
+let settingsFile = '';
+let game: GameReading | null = null; // the latest scoreboard reading, from game()
+let watch: Watch | null = null; // what's been seen of that game: { id, fired, ranIn, everRan, zeroAt, running, period, onBreak }
 let studioStartedAt = Date.now(); // when Studio started: a "before the start" moment passed before then is skipped
 // When a practice game last started or jumped with Run game-timed sequences again (rearm()), less a minute's
 // grace so "Starts in" set to a sequence's minutes still runs it: from then on a "before the start" moment passed before
@@ -115,17 +172,19 @@ let studioStartedAt = Date.now(); // when Studio started: a "before the start" m
 const REARM_GRACE_MS = 60000;
 let rearmedAt = 0;
 
-const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
-const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const clamp = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+const slug = (s: unknown) => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const newId = () => Math.random().toString(36).slice(2, 10);
-const cleanId = (id, fallback) => String(id || '').replace(/[^a-z0-9]/gi, '').slice(0, 20) || fallback;
-const ids = v => [...new Set((Array.isArray(v) ? v : []).map(x => cleanId(x, '')).filter(Boolean))].slice(0, 50);
+const cleanId = (id: unknown, fallback: string) => String(id || '').replace(/[^a-z0-9]/gi, '').slice(0, 20) || fallback;
+const ids = (v: unknown) => [...new Set((Array.isArray(v) ? v : []).map(x => cleanId(x, '')).filter(Boolean))].slice(0, 50);
+// A value from what's saved or sent, as one of a list's words, else the default.
+const oneOf = <T extends string>(words: readonly T[], v: unknown, d: T): T => (words as readonly unknown[]).includes(v) ? words.find(w => w === v) || d : d;
 
 // ─── One runner per output ───────────────────────────────────────────────
 function stash() { runners.set(here, { run, timer, fadeTimer, pending, pendTimer, cut, queue, played }); }
-function unstash() { ({ run = null, timer = null, fadeTimer = null, pending = null, pendTimer = null, cut = null, queue = [], played = [] } = runners.get(here) || {}); }
+function unstash() { ({ run = null, timer = undefined, fadeTimer = undefined, pending = null, pendTimer = undefined, cut = null, queue = [], played = [] } = runners.get(here) || {} as Partial<Runner>); }
 // Runs fn with output out's runner in use.
-function within(out, fn) {
+function within<T>(out: string | null | undefined, fn: () => T): T {
   out = out || PRIMARY;
   if (out === here) return fn();
   const was = here;
@@ -133,25 +192,26 @@ function within(out, fn) {
   try { return fn(); } finally { stash(); here = was; unstash(); }
 }
 // fn for every output with a runner.
-function each(fn) { for (const out of new Set([here, ...runners.keys()])) within(out, fn); }
+function each(fn: () => void) { for (const out of new Set([here, ...runners.keys()])) within(out, fn); }
 // A timer's callback, run with the runner that set it.
-const bound = fn => { const out = here; return () => within(out, fn); };
+const bound = (fn: () => void) => { const out = here; return () => within(out, fn); };
 // The outputs a sequence plays on together: its playsOn (the primary unless set) that are still there. With
 // all of them removed it's none, and it doesn't start by itself: falling back to Output 1 would put a
 // commentary monitor's loop on air.
-const has = o => o === PRIMARY || !api?.hasOutput || api.hasOutput(o);
-const outsOf = sq => !api?.hasOutput ? [PRIMARY] : (sq?.playsOn?.length ? sq.playsOn : [PRIMARY]).filter(has);
-const gone = sq => !!sq && !outsOf(sq).length;
-const goneNote = (sq, when) => log('info', 'sequence', `"${sq.name}" won't start by itself ${when}: the outputs it plays on have been removed (pick another in the sequence)`);
+const has = (o: string) => o === PRIMARY || !api.hasOutput || api.hasOutput(o);
+const outsOf = (sq: Sequence) => !api.hasOutput ? [PRIMARY] : (sq.playsOn.length ? sq.playsOn : [PRIMARY]).filter(has);
+const gone = (sq: Sequence) => !outsOf(sq).length;
+const goneNote = (sq: Sequence, when: string) => log('info', 'sequence', `"${sq.name}" won't start by itself ${when}: the outputs it plays on have been removed (pick another in the sequence)`);
 // The outputs a play or stop on output out reaches: all the sequence's own when out is one of them, else out alone.
-const groupOf = (sq, out, only) => !only && outsOf(sq).includes(out) ? outsOf(sq) : [out];
+const groupOf = (sq: Sequence, out: string, only?: unknown) => !only && outsOf(sq).includes(out) ? outsOf(sq) : [out];
 // What output out does when the sequence ends there: its own Then, else the sequence's.
-const thenFor = (sq, out) => (sq.thenOn && sq.thenOn[out]) || sq.then;
+const thenFor = (sq: Sequence, out: string) => (sq.thenOn && sq.thenOn[out]) || sq.then;
 // The music is Output 1's: its runner plays, quiets and stops it, and the other outputs' runners play without it.
-const SILENT = { stopFor() {}, quiet() {}, playFor() {}, handOver() {} };
-const sound = () => here === PRIMARY ? music : SILENT;
+interface Sound { stopFor(seqId: string, sec?: number): void; quiet(on: unknown): void; playFor(seqId: string, m: music.SeqMusic, fadeSec?: number): void; handOver(fromId: string, toId: string): void }
+const SILENT: Sound = { stopFor() {}, quiet() {}, playFor() {}, handOver() {} };
+const sound = (): Sound => here === PRIMARY ? music : SILENT;
 
-function uniqueName(name, id) {
+function uniqueName(name: unknown, id: string) {
   const base = String(name || '').trim().slice(0, 60) || 'Sequence';
   const taken = new Set([...RESERVED, ...list.filter(s => s.id !== id).map(s => slug(s.name))]);
   if (!taken.has(slug(base)) && slug(base)) return base;
@@ -160,27 +220,27 @@ function uniqueName(name, id) {
 
 // A step: sources (kind left out), a scene to go to, or another sequence played in its place (no length:
 // its own steps have theirs). 'now' (straight on) is for scene steps.
-function cleanStep(st) {
-  const s = st && typeof st === 'object' ? st : {};
-  const kind = KINDS.includes(s.kind) ? s.kind : 'sources';
+function cleanStep(st: unknown): Step {
+  const s = obj(st);
+  const kind = oneOf(KINDS, s.kind, 'sources');
   const id = cleanId(s.id, newId());
   if (kind === 'sequence') return { id, kind, sequence: cleanId(s.sequence, '') };
   // Sponsor ads: the next count ads in the sponsors' rotation, each as long as it is; house: the house ad
   // (ad.html) plays when no sponsor has an ad.
   if (kind === 'ads') return { id, kind, count: Math.round(clamp(s.count, 1, 5, 1)), house: s.house !== false };
-  const l = s.length && typeof s.length === 'object' ? s.length : {};
-  let type = LENGTHS.includes(l.type) ? l.type : kind === 'scene' ? 'now' : 'time';
+  const l = obj(s.length);
+  let type = oneOf(LENGTHS, l.type, kind === 'scene' ? 'now' : 'time');
   if (type === 'now' && kind !== 'scene') type = 'time';
-  const length = type === 'time' ? { type, sec: Math.round(clamp(l.sec, 1, 3600, 20)) } : { type };
+  const length: Length = type === 'time' ? { type, sec: Math.round(clamp(l.sec, 1, 3600, 20)) } : { type };
   // Switcher actions (switcher.js) done as the step starts, or a few seconds in.
   const sw = switcher.cleanActions(s.switcher);
   const extra = sw.length ? { switcher: sw } : {};
   if (kind === 'scene') return { id, kind, scene: cleanId(s.scene, ''), sources: [], length, ...extra };
   return { id, sources: ids(s.sources), length, ...extra };
 }
-function cleanStart(v) {
-  const s = v && typeof v === 'object' ? v : {};
-  const type = STARTS.includes(s.type) ? s.type : 'hand';
+function cleanStart(v: unknown): Start {
+  const s = obj(v);
+  const type = oneOf(STARTS, s.type, 'hand');
   if (type === 'before') return { type, min: Math.round(clamp(s.min, 1, 120, 10)) };
   const afterSec = Math.round(clamp(s.afterSec, 0, 120, 5));
   if (type === 'fulltime') return { type, afterSec };
@@ -191,54 +251,56 @@ function cleanStart(v) {
   return { type };
 }
 // A sequence's music: a track or a playlist, starting at a step (from 1), from a start mark, with a fade in.
-function cleanMusic(v) {
-  const m = v && typeof v === 'object' ? v : null;
+function cleanMusic(v: unknown): Music | null {
+  const m = isObj(v) ? v : null;
   if (!m || (!m.track && !m.playlist)) return null;
   return {
-    ...(m.playlist ? { playlist: cleanId(m.playlist, '') } : { track: String(m.track).split(/[\\/]/).pop().slice(0, 200) }),
+    ...(m.playlist ? { playlist: cleanId(m.playlist, '') } : { track: (String(m.track).split(/[\\/]/).pop() || '').slice(0, 200) }),
     startStep: Math.round(clamp(m.startStep, 1, 100, 1)),
     startAtSec: Math.round(clamp(m.startAtSec, 0, 3600, 0) * 10) / 10,
     fadeInSec: clamp(m.fadeInSec, 0, 30, 2),
     // Starts under the end of a video with its sound on in the step before, its fade in long, while the video's sound
     // fades out (a crossfade from the video).
-    ...(m.underVideo ? { underVideo: true } : {}),
+    ...(m.underVideo ? { underVideo: true as const } : {}),
   };
 }
 // How the music ends with the sequence: fade out (sec), cut, carry on into the sequence it hands over to, or
 // crossfade (sec): when other music starts straight after it (a sequence inside's, or the next sequence's), it plays
 // on to the end and fades out under the new music as that fades in; with none, it fades out as fade does.
-function cleanMusicEnd(v) {
-  const e = v && typeof v === 'object' ? v : {};
-  const type = MUSIC_ENDS.includes(e.type) ? e.type : 'fade';
+function cleanMusicEnd(v: unknown): MusicEnd {
+  const e = obj(v);
+  const type = oneOf(MUSIC_ENDS, e.type, 'fade');
   return type === 'fade' || type === 'crossfade' ? { type, sec: clamp(e.sec, 0.5, 30, 3) } : { type };
 }
-function cleanUntil(v) {
-  const u = v && typeof v === 'object' ? v : {};
+function cleanUntil(v: unknown): Until {
+  const u = obj(v);
   return u.moment === 'before' ? { moment: 'before', min: Math.round(clamp(u.min, 0, 120, 2)) } : { moment: 'resume' };
 }
 
 // Then: go to a scene, play a sequence, turn off what it turned on, or leave it all.
-function cleanThen(v) {
-  const t = v && typeof v === 'object' ? v : {};
-  return THENS.includes(t.type) ? { type: t.type, ...(t.type === 'scene' ? { scene: cleanId(t.scene, '') } : t.type === 'sequence' ? { sequence: cleanId(t.sequence, '') } : {}) } : { type: 'off' };
+function cleanThen(v: unknown): Then {
+  const t = obj(v);
+  const type = oneOf(THENS, t.type, 'off');
+  return type === 'scene' ? { type, scene: cleanId(t.scene, '') } : type === 'sequence' ? { type, sequence: cleanId(t.sequence, '') } : { type };
 }
 
 // Fills in and tidies every setting, so a hand-edited or older sequences.json is always usable.
-function clean(input, existing = {}) {
-  const s = { ...existing, ...input };
+function clean(given: unknown, existing: Partial<Sequence> & { startOn?: string } = {}): Sequence {
+  const input = obj(given);
+  const s: Record<string, unknown> = { ...existing, ...input };
   // Older sequences.json (and callers) name one output, startOn; it's the first of playsOn now.
   const on = Array.isArray(input.playsOn) ? input.playsOn : input.startOn ? [input.startOn] : Array.isArray(existing.playsOn) ? existing.playsOn : [existing.startOn || PRIMARY];
   const playsOn = ids(on).slice(0, 4);
-  const thenOn = {};
-  for (const [o, t] of Object.entries(s.thenOn && typeof s.thenOn === 'object' ? s.thenOn : {})) {
+  const thenOn: Record<string, Then> = {};
+  for (const [o, t] of Object.entries(obj(s.thenOn))) {
     const k = cleanId(o, '');
-    if (k && playsOn.includes(k) && t && THENS.includes(t.type)) thenOn[k] = cleanThen(t);
+    if (k && playsOn.includes(k) && isObj(t) && (THENS as readonly unknown[]).includes(t.type)) thenOn[k] = cleanThen(t);
   }
-  const out = {
+  const out: Sequence = {
     id: cleanId(existing.id || s.id, newId()),
     name: '',
-    colour: COLOURS.includes(s.colour) ? s.colour : 'blue',
-    repeat: REPEATS.includes(s.repeat) ? s.repeat : 'once',
+    colour: oneOf(COLOURS, s.colour, 'blue'),
+    repeat: oneOf(REPEATS, s.repeat, 'once'),
     start: cleanStart(s.start),
     then: cleanThen(s.then),
     music: cleanMusic(s.music),
@@ -251,23 +313,23 @@ function clean(input, existing = {}) {
   };
   // Sources once kept on for the whole sequence (a scene step does that now) join each of its source steps.
   const kept = ids(s.keepOn);
-  if (kept.length) for (const st of out.steps) if (!st.kind || st.kind === 'sources') st.sources = [...new Set([...kept, ...st.sources])];
+  if (kept.length) for (const st of out.steps) if (!st.kind) st.sources = [...new Set([...kept, ...st.sources])];
   if (out.repeat === 'until') out.until = cleanUntil(s.until);
   out.name = uniqueName(s.name, out.id);
   return out;
 }
 
-function find(ref) {
+function find(ref: unknown) {
   const r = String(ref || '');
   return list.find(s => s.id === r) || list.find(s => slug(s.name) === slug(r)) || null;
 }
-const playing = () => run ? list.find(s => s.id === run.id) || null : null;
+const playing = () => { const r = run; return r ? list.find(s => s.id === r.id) || null : null; };
 
 // A sequence's steps as they play: sequence steps replaced by that sequence's own steps, over and over for sequences inside those. top is the step of the
 // sequence itself each one comes from; a sequence already on the way in (one inside itself) is skipped.
 // path is where each one is: the sequence, its step and which time through it (occ, 0 for the sequence
 // itself), from the sequence itself in to the one the step belongs to.
-function flatten(sq, chain = [], out = [], top = null, path = [], count = { occ: 0 }) {
+function flatten(sq: Sequence | null | undefined, chain: string[] = [], out: FlatStep[] = [], top: number | null = null, path: At[] = [], count = { occ: 0 }): FlatStep[] {
   if (!sq || chain.includes(sq.id) || chain.length >= MAX_DEPTH) return out;
   const inner = [...chain, sq.id];
   const occ = count.occ++;
@@ -279,7 +341,7 @@ function flatten(sq, chain = [], out = [], top = null, path = [], count = { occ:
       const sub = list.find(x => x.id === st.sequence);
       const from = out.length;
       flatten(sub, inner, out, at, here, count);
-      for (let k = from; k < out.length; k++) out[k].via = [sub.name, ...(out[k].via || [])];
+      if (sub) for (let k = from; k < out.length; k++) out[k].via = [sub.name, ...(out[k].via || [])];
     } else if (st.kind === 'ads') {
       // One step per ad, filled in with the ad as it comes on (fillAd); until then it waits, as far as anyone can tell.
       for (let n = 0; n < st.count && out.length < MAX_FLAT; n++) out.push({ id: `${st.id}${n}`, kind: 'ad', house: st.house, sources: [], length: { type: 'next' }, top: at, path: here });
@@ -288,13 +350,13 @@ function flatten(sq, chain = [], out = [], top = null, path = [], count = { occ:
   return out;
 }
 // Whether sq plays the sequence id somewhere inside it (so id can't play sq).
-function contains(sq, id, seen = new Set()) {
+function contains(sq: Sequence | undefined, id: string, seen = new Set<string>()): boolean {
   if (!sq || seen.has(sq.id)) return false;
   seen.add(sq.id);
   return sq.steps.some(st => st.kind === 'sequence' && (st.sequence === id || contains(list.find(x => x.id === st.sequence), id, seen)));
 }
 // A sequence about to be saved that would play itself: the reason it can't, or null.
-function loops(sq) {
+function loops(sq: Sequence) {
   for (const st of sq.steps) {
     if (st.kind !== 'sequence') continue;
     const sub = list.find(x => x.id === st.sequence);
@@ -304,18 +366,21 @@ function loops(sq) {
   return null;
 }
 // What a sequence shows first, kept on when it takes over from another.
-const firstOf = sq => flatten(sq)[0]?.sources || [];
-const current = () => run && run.steps ? run.steps[run.step] : null;
+const firstOf = (sq: Sequence) => flatten(sq)[0]?.sources || [];
+const current = (): FlatStep | null => run && run.steps ? run.steps[run.step] || null : null;
+// The runner's run, for the code that only runs while one is playing (the timers, enter() and the rest).
+function cur(): Run { if (!run) throw new Error('No sequence is playing.'); return run; }
 // How the music on a step ends: as the sequence playing it says (the outermost with music, so the
 // sequence itself when it has some), whichever sequence the step belongs to.
-const musicEndAt = (step, sq) => (musicOf(step)?.sq || sq).musicEnd;
-const quietStep = step => step?.kind === 'scene' && !!api.scene(step.scene)?.quiet;
+const musicEndAt = (step: FlatStep | null | undefined, sq: Sequence) => (musicOf(step)?.sq || sq).musicEnd;
+const quietStep = (step: FlatStep | null | undefined) => step?.kind === 'scene' && !!api.scene(step.scene || '')?.quiet;
 // Whose music a step plays: the sequence's own, else that of the outermost sequence inside it (on the way
 // to the step) that has some, with the step it's at in that one.
-function musicOf(step) {
+type MusicAt = At & { sq: Sequence & { music: Music } };
+function musicOf(step: FlatStep | null | undefined): MusicAt | null {
   for (const at of step?.path || []) {
     const sq = list.find(x => x.id === at.id);
-    if (sq && sq.music) return { sq, ...at };
+    if (sq && sq.music) return { sq: { ...sq, music: sq.music }, ...at };
   }
   return null;
 }
@@ -326,14 +391,15 @@ function load() {
   orders = [];
   roNotice = null;
   try {
-    const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!file) throw Object.assign(new Error('no sequences file'), { code: 'ENOENT' });
+    const saved = obj(JSON.parse(fs.readFileSync(file, 'utf8')));
     list = [];
-    for (const s of Array.isArray(saved.sequences) ? saved.sequences : []) if (s && typeof s === 'object') list.push(clean(s));
+    for (const s of Array.isArray(saved.sequences) ? saved.sequences : []) if (isObj(s)) list.push(clean(s));
     // Output 1's run order as it was (a relaunch picks the night up where it was), and the saved orders. One kept for
     // another output from when each had its own is dropped.
-    const ro = saved.runOrder && typeof saved.runOrder === 'object' ? saved.runOrder : {};
+    const ro = obj(saved.runOrder);
     if (ro[PRIMARY]) within(PRIMARY, () => { queue = cleanItems(ro[PRIMARY]); });
-    for (const o of Array.isArray(saved.runOrders) ? saved.runOrders : []) if (o && typeof o === 'object') orders.push(cleanOrder(o));
+    for (const o of Array.isArray(saved.runOrders) ? saved.runOrders : []) if (isObj(o)) orders.push(cleanOrder(o));
     orders = orders.slice(0, MAX_ORDERS);
   } catch (err) {
     if (errorCode(err) !== 'ENOENT') log('warn', 'sequence', `Could not read ${file}, starting with no sequences: ${errorMessage(err)}`);
@@ -343,7 +409,7 @@ function load() {
 function save() {
   if (file) {
     try {
-      const runOrder = {};
+      const runOrder: Record<string, { kind: ItemKind; id: string }[]> = {};
       within(PRIMARY, () => { if (queue.length) runOrder[PRIMARY] = queue.map(({ kind, id }) => ({ kind, id })); });
       savefile.writeJsonSync(file, { sequences: list, ...(Object.keys(runOrder).length ? { runOrder } : {}), ...(orders.length ? { runOrders: orders } : {}) });
     } catch (err) { log('error', 'sequence', `Could not save ${file}: ${errorMessage(err)}`); }
@@ -353,14 +419,14 @@ function save() {
 // ─── The run order ───────────────────────────────────────────────────────
 // Items are references: a sequence or scene renamed is renamed in the order too, and one deleted shows as gone
 // (skipped when its turn comes).
-const cleanItem = v => {
-  const it = v && typeof v === 'object' ? v : {};
-  const kind = ITEM_KINDS.includes(it.kind) ? it.kind : 'sequence';
+const cleanItem = (v: unknown): Item | null => {
+  const it = obj(v);
+  const kind: ItemKind = it.kind === 'scene' ? 'scene' : 'sequence';
   const id = cleanId(it.id, '');
   return id ? { key: newId(), kind, id } : null;
 };
-const cleanItems = v => (Array.isArray(v) ? v : []).map(cleanItem).filter(Boolean).slice(0, MAX_QUEUE);
-function cleanOrder(o) {
+const cleanItems = (v: unknown) => (Array.isArray(v) ? v : []).map(cleanItem).filter((x): x is Item => !!x).slice(0, MAX_QUEUE);
+function cleanOrder(o: Record<string, unknown>): Order {
   const base = String(o.name || '').trim().slice(0, 60) || 'Run order';
   const taken = new Set(orders.filter(x => x.id !== o.id).map(x => slug(x.name)));
   let name = base;
@@ -368,15 +434,15 @@ function cleanOrder(o) {
   return { id: cleanId(o.id, newId()), name, items: cleanItems(o.items).map(({ kind, id }) => ({ kind, id })) };
 }
 // What an item refers to now, or null when it has gone.
-const itemOf = it => it.kind === 'scene' ? api.scene(it.id) : list.find(s => s.id === it.id) || null;
-const itemName = it => itemOf(it)?.name || (it.kind === 'scene' ? 'a scene that has gone' : 'a sequence that has gone');
+const itemOf = (it: Item) => it.kind === 'scene' ? api.scene(it.id) : list.find(s => s.id === it.id) || null;
+const itemName = (it: Item) => itemOf(it)?.name || (it.kind === 'scene' ? 'a scene that has gone' : 'a sequence that has gone');
 // Something in the order changed here: the page and the file.
 function queueChanged() { save(); }
 // The head of the run order that still exists; gone ones in front of it are dropped with a note.
 function nextQueued() {
   while (queue.length && !itemOf(queue[0])) {
     const it = queue.shift();
-    log('info', 'sequence', `Run order: skipped ${itemName(it)}`);
+    if (it) log('info', 'sequence', `Run order: skipped ${itemName(it)}`);
   }
   return queue[0] || null;
 }
@@ -384,18 +450,19 @@ function nextQueued() {
 // last of them above what's on air, so the list reads like a playlist).
 function takeHead() {
   const it = queue.shift();
+  if (!it) return;
   played.push({ key: it.key, kind: it.kind, id: it.id, at: now() });
   if (played.length > MAX_PLAYED) played.splice(0, played.length - MAX_PLAYED);
   queueChanged();
 }
 // The head leaves the queue as it starts, however it was started.
-function consume(kind, id) {
+function consume(kind: ItemKind, id: string) {
   if (!queue.length || queue[0].kind !== kind || queue[0].id !== id) return;
   takeHead();
 }
 // Next in the run order: the head plays (a sequence starts, a scene is gone to). With nothing queued, the
 // sequence playing ends and does its Then; with nothing playing either, nothing to do.
-function playHead(why) {
+function playHead(why: string): string | null {
   const it = nextQueued();
   if (!it) {
     if (!run) return 'Nothing is in the run order, and no sequence is playing.';
@@ -405,12 +472,14 @@ function playHead(why) {
   if (it.kind === 'scene') {
     const sc = api.scene(it.id);
     takeHead();
+    if (!sc) return null; // nextQueued() only gives one that's there
     if (run) interrupt(new Set(Object.keys(sc.states).filter(id => sc.states[id] === 'on')), `the run order went on to scene "${sc.name}"`);
     log('info', 'sequence', `Run order: going to scene "${sc.name}"`);
     api.goTo(sc, false, here);
     return null;
   }
   const sq = list.find(s => s.id === it.id);
+  if (!sq) return null;
   if (pending && pending.id === sq.id) { pending.now = true; startPending(); return null; }
   if (!flatten(sq).length) { queue.shift(); queueChanged(); log('info', 'sequence', `Run order: "${sq.name}" has no steps, skipped`); return playHead(why); }
   if (run) interrupt(new Set(firstOf(sq)), `the run order went on to "${sq.name}"`);
@@ -420,11 +489,11 @@ function playHead(why) {
   return null;
 }
 // Adds an item (a sequence or scene, by id or name) at the end, or at a place.
-function enqueue(kind, ref, at) {
-  const target = kind === 'scene' ? api.scene(ref) || api.sceneNamed?.(ref) : find(ref);
-  if (!target) return `No ${kind} "${ref}".`;
+function enqueue(kind: ItemKind, ref: unknown, at: unknown) {
+  const target = kind === 'scene' ? api.scene(str(ref)) || api.sceneNamed?.(str(ref)) : find(ref);
+  if (!target) return `No ${kind} "${str(ref)}".`;
   if (queue.length >= MAX_QUEUE) return `The run order is full (${MAX_QUEUE} items).`;
-  const it = { key: newId(), kind, id: target.id };
+  const it: Item = { key: newId(), kind, id: target.id };
   const i = at === undefined ? queue.length : Math.round(clamp(at, 0, queue.length, queue.length));
   queue.splice(i, 0, it);
   queueChanged();
@@ -436,7 +505,7 @@ const playedState = () => played.map(it => ({ key: it.key, kind: it.kind, id: it
 
 // The Automatic sequences switch, kept in the data folder for every competition.
 function loadSettings() {
-  try { auto = JSON.parse(fs.readFileSync(settingsFile, 'utf8')).auto !== false; }
+  try { auto = obj(JSON.parse(fs.readFileSync(settingsFile, 'utf8'))).auto !== false; }
   catch (err) { if (errorCode(err) !== 'ENOENT') log('warn', 'sequence', `Could not read ${settingsFile}: ${errorMessage(err)}`); }
 }
 function saveSettings() {
@@ -462,17 +531,18 @@ function reload() {
 
 // ─── Playing ─────────────────────────────────────────────────────────────
 const now = () => Date.now();
-const source = id => api.source(id);
+const source = (id: string) => api.source(id);
 
 // On and off on the output this runner is for.
-const isOn = s => api.isOn ? api.isOn(s, here) : s.visible;
-function turnOn(id) {
+const isOn = (s: Source) => api.isOn ? api.isOn(s, here) : !!s.visible;
+function turnOn(id: string) {
   const s = source(id);
   if (!s || isOn(s)) return;
   api.setOn(s, true, here);
-  run.shown.add(id);
+  cur().shown.add(id);
 }
-function turnOff(id) {
+function turnOff(id: string) {
+  const run = cur();
   if (!run.shown.has(id)) return;
   run.shown.delete(id);
   const s = source(id);
@@ -480,7 +550,7 @@ function turnOff(id) {
 }
 
 // How long Until it finishes waits for a step at most.
-function limitFor(step) {
+function limitFor(step: FlatStep) {
   let ms = 0;
   for (const id of step.sources) {
     const s = source(id);
@@ -493,7 +563,7 @@ function limitFor(step) {
   return ms || PAGE_LIMIT_MS;
 }
 // The sources an Until it finishes step waits for: its videos (that don't loop) and pages that are on.
-function finishers(step) {
+function finishers(step: FlatStep) {
   return new Set(step.sources.filter(id => {
     const s = source(id);
     return s && isOn(s) && (s.type === 'browser' || (s.type === 'video' && !s.loop));
@@ -502,7 +572,7 @@ function finishers(step) {
 
 function schedule() {
   clearTimeout(timer);
-  timer = null;
+  timer = undefined;
   if (run && !run.paused && run.endsAt !== null) timer = setTimeout(bound(tick), Math.max(0, run.endsAt - now()));
   planFade();
   planCross();
@@ -510,8 +580,10 @@ function schedule() {
 // How long the music fades out over as step i ends, when it ends there: the sequence's music on its last
 // step (played once), or a sequence inside's music on that one's last step. 0 when it doesn't end, cuts, or
 // crossfades into music that starts on the step after (it plays on to the end and fades out under the new music).
-function fadeOutSecFor(i) {
+function fadeOutSecFor(i: number): number {
+  const run = cur();
   const sq = playing(), st = run.steps[i], nx = run.steps[i + 1];
+  if (!sq) return 0;
   if (!nx) {
     const end = musicEndAt(st, sq);
     if (sq.repeat !== 'once' || !fades(end)) return 0;
@@ -519,36 +591,39 @@ function fadeOutSecFor(i) {
     return next && crossesInto(musicOf(st), musicStartsOn(flatten(next)[0])) ? 0 : end.sec;
   }
   const m = musicOf(st);
-  if (!m || !m.occ || musicOf(nx)?.occ === m.occ || !fades(m.sq.musicEnd)) return 0;
-  return m.sq.musicEnd.type === 'crossfade' && crossesInto(m, musicStartsOn(nx)) ? 0 : m.sq.musicEnd.sec;
+  const e = m?.sq.musicEnd;
+  if (!m || !e || !m.occ || musicOf(nx)?.occ === m.occ || !fades(e)) return 0;
+  return e.type === 'crossfade' && crossesInto(m, musicStartsOn(nx)) ? 0 : e.sec;
 }
-const fades = end => !!end && (end.type === 'fade' || end.type === 'crossfade');
+const fades = (end: MusicEnd | undefined): end is { type: 'fade' | 'crossfade'; sec: number } => !!end && (end.type === 'fade' || end.type === 'crossfade');
 // The music a step starts (the first step played from its sequence's music), or null.
-function musicStartsOn(step) {
+function musicStartsOn(step: FlatStep | undefined) {
   const m = musicOf(step);
   return m && m.i === Math.min(m.sq.music.startStep, m.sq.steps.length) - 1 ? m : null;
 }
 // Whether music from crossfades into to: there is new music, and it isn't the same song or playlist.
-const crossesInto = (from, to) => !!(from && to) && (to.sq.music.playlist ? to.sq.music.playlist !== from.sq.music.playlist : to.sq.music.track !== from.sq.music.track || !!from.sq.music.playlist);
+const crossesInto = (from: MusicAt | null, to: MusicAt | null) => !!(from && to) && (to.sq.music.playlist ? to.sq.music.playlist !== from.sq.music.playlist : to.sq.music.track !== from.sq.music.track || !!from.sq.music.playlist);
 // The sequence that plays after sq ends here, as finish() picks it: the run order's head, else its Then.
-function nextAfter(sq) {
+function nextAfter(sq: Sequence) {
   const q = queue.find(it => itemOf(it));
   if (q) return q.kind === 'sequence' ? list.find(s => s.id === q.id) || null : null;
   const then = thenFor(sq, here);
   return then.type === 'sequence' ? list.find(s => s.id === then.sequence && s.id !== sq.id) || null : null;
 }
 // How long a step after this one lasts, when it's known ahead: a set time, or a scene step that goes straight on.
-const lengthMs = st => st.length.type === 'time' ? st.length.sec * 1000 : st.length.type === 'now' ? 0 : null;
+const lengthMs = (st: FlatStep) => st.length.type === 'time' ? st.length.sec * 1000 : st.length.type === 'now' ? 0 : null;
 // Whether the music playing on step k ends with it: the last step, or the last of a sequence inside's part.
-function partEndsAt(k) {
+function partEndsAt(k: number) {
+  const run = cur();
   const nx = run.steps[k + 1], m = musicOf(run.steps[k]);
   return !nx || !m || (!!m.occ && musicOf(nx)?.occ !== m.occ);
 }
 // When the music on the step playing now fades out: the end of its part (this step, or a later one when the
 // steps between have set times) and the fade's length, { sec, endAt }, or null.
 function fadePlan() {
+  const run = cur();
   if (!musicOf(current())) return null;
-  let ms = Math.max(0, run.endsAt - now());
+  let ms = Math.max(0, (run.endsAt ?? now()) - now());
   for (let k = run.step; k < run.steps.length; k++) {
     if (k > run.step) {
       const len = lengthMs(run.steps[k]);
@@ -567,12 +642,12 @@ function fadePlan() {
 // an earlier step). A step ended early by Next fades out from then.
 function planFade() {
   clearTimeout(fadeTimer);
-  fadeTimer = null;
+  fadeTimer = undefined;
   if (!run || run.paused || run.endsAt === null || run.fadeEndsAt || current()?.length.type !== 'time') return;
   const plan = fadePlan();
   if (!plan) return;
   fadeTimer = setTimeout(bound(() => {
-    fadeTimer = null;
+    fadeTimer = undefined;
     if (!run || run.paused || run.endsAt === null) return;
     run.fadeEndsAt = plan.endAt;
     const sec = Math.max(0, plan.endAt - now()) / 1000;
@@ -589,22 +664,22 @@ function planFade() {
 function planCross() {
   if (!run) return;
   clearTimeout(run.crossTimer);
-  run.crossTimer = null;
+  run.crossTimer = undefined;
   const st = current(), nx = run.steps[run.step + 1];
   if (run.paused || !st || !nx || run.crossed === run.step + 1) return;
   const m = musicStartsOn(nx);
   if (!m || !m.sq.music.underVideo || !(m.sq.music.fadeInSec > 0)) return;
   if (musicOf(st)?.occ === m.occ) return;
   const vids = st.sources.filter(id => { const s = source(id); return s && s.type === 'video' && s.sound && !s.loop && isOn(s); });
-  const lens = vids.map(id => api.duration(source(id).file)).filter(Boolean);
+  const lens = vids.map(id => api.duration(source(id)?.file)).filter((x): x is number => !!x);
   if (!lens.length) return;
   let endAt = run.stepAt + Math.max(...lens) * 1000;
-  if (st.length.type === 'time') endAt = Math.min(endAt, run.endsAt);
+  if (st.length.type === 'time') endAt = Math.min(endAt, run.endsAt ?? endAt);
   else if (st.length.type !== 'done') return;
   const r = run;
   run.crossTimer = setTimeout(bound(() => {
     if (run !== r) return;
-    run.crossTimer = null;
+    run.crossTimer = undefined;
     if (run.paused) return;
     const sec = Math.max(0.1, (endAt - now()) / 1000);
     run.crossed = run.step + 1;
@@ -615,9 +690,9 @@ function planCross() {
   }), Math.max(0, endAt - m.sq.music.fadeInSec * 1000 - now()));
 }
 // What's left of a fade out already under way, or the whole of it.
-const fadeLeft = (r, sec) => r.fadeEndsAt ? Math.max(0, r.fadeEndsAt - now()) / 1000 : sec;
+const fadeLeft = (r: { fadeEndsAt?: number | null }, sec: number) => r.fadeEndsAt ? Math.max(0, r.fadeEndsAt - now()) / 1000 : sec;
 function tick() {
-  timer = null;
+  timer = undefined;
   if (run && !run.paused && run.endsAt !== null && run.endsAt <= now()) { advance(); api.changed(); }
   else schedule();
 }
@@ -625,7 +700,7 @@ function tick() {
 // A Sponsor ads step coming on: the next ad in the rotation, in the scene's Sponsor ad source (scene.js
 // sponsorAd), as long as the ad: a video until it finishes, a still for its seconds. With no ad to play
 // (and no house ad), it goes straight on.
-function fillAd(step) {
+function fillAd(step: FlatStep) {
   // On another output, in that output's own ad sources.
   const ad = api.sponsorAd ? api.sponsorAd({ house: step.house }, here) : null;
   step.sources = ad ? [ad.source] : [];
@@ -633,8 +708,10 @@ function fillAd(step) {
   step.ad = ad ? ad.name : null;
 }
 
-function enter(i) {
+function enter(i: number) {
+  const run = cur();
   const sq = playing();
+  if (!sq) return;
   // A scene step before's switcher actions still to come are called off (this step's own are run below).
   if (here === PRIMARY) switcher.cancel('sequenceScene');
   const before = run.steps[run.step];
@@ -644,7 +721,7 @@ function enter(i) {
   // This step's music already started under the end of the video before it (planCross).
   const crossed = run.crossed === i;
   run.crossed = null;
-  const sc = step.kind === 'scene' ? api.scene(step.scene) : null;
+  const sc = step.kind === 'scene' ? api.scene(step.scene || '') : null;
   // Sources of the step before that this step doesn't keep go off as these come on.
   const keep = new Set([...step.sources, ...(sc ? Object.keys(sc.states).filter(id => sc.states[id] === 'on') : [])]);
   if (before) for (const id of before.sources) if (!keep.has(id)) turnOff(id);
@@ -655,14 +732,16 @@ function enter(i) {
   // A scene step that ducks the music ducked it: the music comes back up as the sequence moves on.
   if (quietStep(before) && !(sc && sc.quiet)) sound().quiet(sq.quiet);
   // A fade out under way carries on into the next step of the same music (it started early to last its whole time).
-  const going = before && i === run.step + 1 && musicOf(before) && musicOf(step)?.occ === musicOf(before).occ ? run.fadeEndsAt : null;
+  const going = before && i === run.step + 1 && musicOf(before) && musicOf(step)?.occ === musicOf(before)?.occ ? run.fadeEndsAt : null;
   Object.assign(run, { step: i, stepAt: now(), paused: false, pausedLeft: null, ready: false, waiting: null, fadeEndsAt: going || null });
-  if (step.length.type === 'now') run.endsAt = now();
-  else if (step.length.type === 'time') run.endsAt = now() + step.length.sec * 1000;
-  else if (step.length.type === 'next' || step.length.type === 'game') run.endsAt = null;
+  const len = step.length;
+  if (len.type === 'now') run.endsAt = now();
+  else if (len.type === 'time') run.endsAt = now() + len.sec * 1000;
+  else if (len.type === 'next' || len.type === 'game') run.endsAt = null;
   else {
-    run.waiting = finishers(step);
-    run.endsAt = now() + (run.waiting.size ? limitFor(step) : 0);
+    const waiting = finishers(step);
+    run.waiting = waiting;
+    run.endsAt = now() + (waiting.size ? limitFor(step) : 0);
   }
   const what = step.kind === 'scene' ? `scene "${sc ? sc.name : 'gone'}"` : step.kind === 'ad' ? (step.ad ? `ad: ${step.ad}` : 'no ad to play') : step.sources.map(id => source(id)?.name).filter(Boolean).join(', ');
   log('info', 'sequence', `"${sq.name}" step ${i + 1} of ${run.steps.length}${step.via ? ` (in ${step.via.join(' › ')})` : ''}${what ? `: ${what}` : ''}`);
@@ -673,7 +752,7 @@ function enter(i) {
   const m = musicOf(step), was = before ? musicOf(before) : null;
   // Out of a sequence inside whose music was on: it ends as that sequence's music ends (fade or cut).
   if (was && was.occ && (!m || m.occ !== was.occ) && was.sq.musicEnd.type !== 'continue' && !crossed) {
-    const sec = was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || music.stopFadeSec());
+    const sec = was.sq.musicEnd.type === 'cut' ? 0 : fadeLeft(faded, was.sq.musicEnd.sec || Number(music.stopFadeSec()));
     sound().stopFor(run.id, sec);
   }
   // It starts at its step (the first one played from it). The sequence's own starts the first time through
@@ -686,9 +765,9 @@ function enter(i) {
   schedule();
 }
 
-function advance() {
+function advance(): void {
   const sq = playing();
-  if (!sq) return;
+  if (!sq || !run) return;
   // A repeat until that has had its moment ends with the step that was on.
   if (run.finishing) return finish(run.finishing);
   if (run.step + 1 < run.steps.length) return enter(run.step + 1);
@@ -702,39 +781,39 @@ function advance() {
   finish('it finished');
 }
 
-function start(sq, why) {
+function start(sq: Sequence, why?: string) {
   if (pending && pending.id === sq.id) cancelPending(null);
   if (cut === sq.id) cut = null;
   consume('sequence', sq.id);
-  run = { id: sq.id, steps: flatten(sq), step: -1, loop: 0, startedAt: now(), loopAt: now(), shown: new Set(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, ready: false, waiting: null, finishing: null };
+  run = { id: sq.id, steps: flatten(sq), step: -1, loop: 0, startedAt: now(), loopAt: now(), shown: new Set<string>(), stepAt: now(), endsAt: null, paused: false, pausedLeft: null, ready: false, waiting: null, finishing: null };
   log('info', 'sequence', `Started "${sq.name}"${why ? `: ${why}` : ''}`);
   sound().quiet(sq.quiet);
   if (run.steps.length) enter(0); else finish('it has no steps');
 }
 
 // The end of a sequence, played out or stopped: its Then.
-function finish(why) {
+function finish(why: string) {
   const sq = playing();
+  const ended = cur();
   clearTimeout(timer);
   clearTimeout(fadeTimer);
-  clearTimeout(run.crossTimer);
-  timer = fadeTimer = null;
-  const ended = run;
+  clearTimeout(ended.crossTimer);
+  timer = fadeTimer = undefined;
   // The card says Stopped for it here until it plays again.
   cut = sq ? sq.id : null;
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // The run order first: its head plays instead of the Then. Else this output's own Then (a sequence played on
   // two outputs can go somewhere different on each).
   const queued = nextQueued();
-  const then = queued ? (queued.kind === 'scene' ? { type: 'scene', scene: queued.id } : { type: 'sequence', sequence: queued.id }) : sq ? thenFor(sq, here) : { type: 'off' };
+  const then: Then = queued ? (queued.kind === 'scene' ? { type: 'scene', scene: queued.id } : { type: 'sequence', sequence: queued.id }) : sq ? thenFor(sq, here) : { type: 'off' };
   const sc = then.type === 'scene' ? api.scene(then.scene) : null;
-  const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && (queued || s.id !== ended.id)) : null;
+  const next = then.type === 'sequence' ? list.find(s => s.id === then.sequence && (queued || s.id !== ended.id)) || null : null;
   // A queued scene leaves the order now (it plays); a queued sequence as it starts (start() takes it), unless it can't.
   if (queued && sc) takeHead();
   else if (queued && next && !flatten(next).length) { queue.shift(); queueChanged(); }
-  const end = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: music.stopFadeSec() };
+  const end: MusicEnd = sq ? musicEndAt(ended.steps[ended.step], sq) : { type: 'fade', sec: Number(music.stopFadeSec()) };
   if (next && end.type === 'continue') sound().handOver(ended.id, next.id);
-  else sound().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || music.stopFadeSec()));
+  else sound().stopFor(ended.id, end.type === 'cut' ? 0 : fadeLeft(ended, end.sec || Number(music.stopFadeSec())));
   if (next) {
     // Hands over to the next sequence: its own sources go off as the next one's first step comes on.
     const keep = new Set(firstOf(next));
@@ -750,7 +829,7 @@ function finish(why) {
   if (sc) api.goTo(sc, false, here);
   // A sequence with no steps would end at once, so a chain of them can't go round for ever.
   if (next && flatten(next).length && !(pending && pending.afterEnd)) {
-    start(next, `after "${sq.name}"`);
+    start(next, `after "${sq ? sq.name : '?'}"`);
     // The run order moved on by itself: the sequence's other outputs join only where nothing is playing. One that
     // played the sequence that just ended does its own Then there instead (Matt, 1 Nov 2026).
     if (queued) joinOthers(next, ended.id);
@@ -762,7 +841,7 @@ function finish(why) {
 // A sequence the run order started on this output also starts on the other outputs it plays on together (its card
 // does the same). With after (the sequence that just ended here, when the run order moved on by itself), an output
 // joins only when nothing is playing or waiting there and it wasn't playing that sequence, which does its own Then.
-function joinOthers(sq, after) {
+function joinOthers(sq: Sequence, after?: string) {
   const from = here;
   for (const o of groupOf(sq, from)) {
     if (o === from) continue;
@@ -777,19 +856,19 @@ function joinOthers(sq, after) {
 
 // Stopped by something else (a scene, another sequence, every source off): no Then, and its own
 // sources go off unless keep says they stay on.
-function interrupt(keep, why) {
+function interrupt(keep: Set<string>, why: string) {
   if (!run) return;
   const sq = playing();
   clearTimeout(timer);
   clearTimeout(fadeTimer);
   clearTimeout(run.crossTimer);
-  timer = fadeTimer = null;
+  timer = fadeTimer = undefined;
   for (const id of [...run.shown]) if (!keep.has(id)) turnOff(id);
   cut = sq ? sq.id : null;
   if (here === PRIMARY) { switcher.cancel('sequence'); switcher.cancel('sequenceScene'); }
   // The music fades out over its own Music ends time (or cuts), as when the sequence ends.
-  const end = sq ? musicEndAt(current(), sq) : { type: 'fade' };
-  const sec = end.type === 'cut' ? 0 : fadeLeft(run, fades(end) ? end.sec : music.stopFadeSec());
+  const end: MusicEnd | undefined = sq ? musicEndAt(current(), sq) : undefined;
+  const sec = end?.type === 'cut' ? 0 : fadeLeft(run, fades(end) ? end.sec : Number(music.stopFadeSec()));
   sound().stopFor(run.id, sec);
   run = null;
   log('info', 'sequence', `Stopped "${sq ? sq.name : '?'}" because ${why}`);
@@ -800,7 +879,7 @@ function interrupt(keep, why) {
 // ─── Game triggers ───────────────────────────────────────────────────────
 // A repeat until sequence that has had its moment finishes the step on screen, then ends. A step that
 // only ends with Next or the game ends now.
-function finishSoon(why) {
+function finishSoon(why: string) {
   if (!run || run.finishing) return;
   run.finishing = why;
   const step = current();
@@ -810,14 +889,14 @@ function finishSoon(why) {
 
 function schedulePending() {
   clearTimeout(pendTimer);
-  pendTimer = null;
+  pendTimer = undefined;
   if (!pending || pending.afterEnd) return;
   pendTimer = setTimeout(bound(() => {
-    pendTimer = null;
+    pendTimer = undefined;
     if (pending && pending.at <= now()) { startPending(); api.changed(); } else schedulePending();
   }), Math.max(0, pending.at - now()));
 }
-function cancelPending(why) {
+function cancelPending(why: string | null) {
   if (!pending) return;
   if (why) log('info', 'sequence', `"${find(pending.id)?.name || '?'}" won't start: ${why}`);
   // A trigger put it at the head of the run order: Cancel takes it out again (one queued by hand stays).
@@ -829,7 +908,7 @@ function cancelPending(why) {
 function startPending() {
   const p = pending;
   const sq = p && find(p.id);
-  if (!sq) { cancelPending(null); return; }
+  if (!p || !sq) { cancelPending(null); return; }
   if (run && run.finishing && run.id !== sq.id && !p.now) {
     p.afterEnd = true;
     schedulePending();
@@ -842,7 +921,7 @@ function startPending() {
   start(sq, p.reason);
 }
 // A game moment that starts a sequence: it waits afterSec as pending, unless Automatic sequences is off.
-function trigger(sq, reason, afterSec) {
+function trigger(sq: Sequence, reason: string, afterSec: number) {
   if (!auto) { log('info', 'sequence', `${reason}: "${sq.name}" would start, but Automatic sequences is off`); return; }
   if (run && run.id === sq.id) return;
   // The sequence on screen repeats until the next trigger: this is it.
@@ -852,7 +931,7 @@ function trigger(sq, reason, afterSec) {
   const main = here === PRIMARY;
   const was = main ? queue.findIndex(it => it.kind === 'sequence' && it.id === sq.id) : 0;
   if (was !== 0) {
-    queue.unshift(was > 0 ? queue.splice(was, 1)[0] : { key: newId(), kind: 'sequence', id: sq.id });
+    queue.unshift(was > 0 ? queue.splice(was, 1)[0] : { key: newId(), kind: 'sequence' as const, id: sq.id });
     queueChanged();
   }
   // queued: the trigger put it in the order, so Cancel takes it out again (one queued by hand stays, at the head).
@@ -861,15 +940,15 @@ function trigger(sq, reason, afterSec) {
   if (afterSec) schedulePending(); else startPending();
 }
 
-function breakAfter(period, last) {
+function breakAfter(period: number, last: number) {
   if (last === 2) return period === 1 ? 'ht' : null;
   return BREAKS[period - 1] || null;
 }
 // The end of a quarter (or half): a break, or full time after the last one. Each counts once a game.
-function periodEnded(period) {
-  const last = game.last || 4;
+function periodEnded(period: number): Moment | null {
+  const last = game?.last || 4;
   const key = period >= last ? 'fulltime' : `end${period}`;
-  if (watch.fired.has(key)) return null;
+  if (!watch || watch.fired.has(key)) return null;
   watch.fired.add(key);
   if (period >= last) return { kind: 'fulltime' };
   const which = breakAfter(period, last);
@@ -878,15 +957,17 @@ function periodEnded(period) {
 
 // The scoreboard now, each second: { id, label, startAt, period, last, left (seconds), running, onBreak,
 // finished, breaks: { qt, ht, '3qt' } (minutes) }. Works out the game's moments and acts on them.
-function gameTick(g) {
+function gameTick(g: GameReading | null | undefined) {
   const t = now();
   const was = game;
   game = g && g.id ? g : null;
   if (!game) { watch = null; if (was) api.changed(); return; }
-  if (!watch || watch.id !== game.id) watch = { id: game.id, fired: new Set(), ranIn: 0, everRan: false, zeroAt: null, running: game.running, period: game.period, onBreak: !!game.onBreak, finished: !!game.finished };
+  const game_ = game;
+  if (!watch || watch.id !== game.id) watch = { id: game.id, fired: new Set<string>(), ranIn: 0, everRan: false, zeroAt: null, running: game.running, period: game.period, onBreak: !!game.onBreak, finished: !!game.finished };
+  const watch_ = watch;
   // Back to an earlier quarter (the scoreboard reset for another game by hand): its breaks count again.
-  if (game.period < watch.period) Object.assign(watch, { fired: new Set(), ranIn: 0, everRan: false, zeroAt: null });
-  const moments = [];
+  if (game.period < watch.period) Object.assign(watch, { fired: new Set<string>(), ranIn: 0, everRan: false, zeroAt: null });
+  const moments: Moment[] = [];
   let changed = !was || was.id !== game.id || was.label !== game.label || was.startAt !== game.startAt;
   if (game.running && !watch.running) moments.push({ kind: 'resume' });
   if (game.running) { watch.ranIn = game.period; watch.everRan = true; }
@@ -899,46 +980,51 @@ function gameTick(g) {
   Object.assign(watch, { running: game.running, period: game.period, onBreak: !!game.onBreak, finished: !!game.finished });
 
   for (const m of moments) {
-    log('info', 'sequence', `Game moment: ${m.kind === 'resume' ? 'the clock started' : m.kind === 'break' ? BREAK_NAMES[m.which] : 'full time'} (${game.label || game.id})`);
+    log('info', 'sequence', `Game moment: ${m.kind === 'resume' ? 'the clock started' : m.kind === 'break' ? BREAK_NAMES[m.which] : 'full time'} (${game_.label || game_.id})`);
     changed = true;
     // A step until the game moves on ends; a sequence repeating until play resumes finishes its step.
     each(() => { if (current()?.length.type === 'game') advance(); });
     if (m.kind === 'resume') {
       each(() => {
-        if (playing()?.repeat === 'until' && playing().until.moment === 'resume') finishSoon('play resumed');
+        if (playing()?.repeat === 'until' && playing()?.until?.moment === 'resume') finishSoon('play resumed');
         if (pending && !pending.afterEnd) cancelPending('play resumed first');
       });
       continue;
     }
     // The first sequence for the moment on each output starts there.
-    const forMoment = s => m.kind === 'break' ? s.start.type === 'break' && s.start.breaks.includes(m.which) : s.start.type === 'fulltime';
+    const forMoment = (s: Sequence) => m.kind === 'break' ? s.start.type === 'break' && s.start.breaks.includes(m.which) : s.start.type === 'fulltime';
+    const afterOf = (s: Sequence) => (s.start.type === 'break' || s.start.type === 'fulltime' ? s.start.afterSec : 0);
     for (const out of new Set(list.flatMap(outsOf))) {
       const next = list.find(s => outsOf(s).includes(out) && forMoment(s));
-      if (next) within(out, () => trigger(next, m.kind === 'break' ? `It's ${BREAK_NAMES[m.which]}` : `It's full time`, next.start.afterSec));
+      if (next) within(out, () => trigger(next, m.kind === 'break' ? `It's ${BREAK_NAMES[m.which]}` : `It's full time`, afterOf(next)));
     }
     for (const sq of list) if (gone(sq) && forMoment(sq)) goneNote(sq, m.kind === 'break' ? `at ${BREAK_NAMES[m.which]}` : 'at full time');
   }
   // Before the start: N minutes before the scheduled start, while the game hasn't begun.
-  if (game.startAt && !watch.everRan && t < game.startAt) {
+  const startAt = game.startAt;
+  if (startAt && !watch.everRan && t < startAt) {
     each(() => {
       const on = playing();
-      if (on && on.repeat === 'until' && on.until.moment === 'before' && !run.finishing && t >= game.startAt - on.until.min * 60000) {
-        finishSoon(`${on.until.min} min before the start`);
+      const until = on?.until;
+      if (on && on.repeat === 'until' && until?.moment === 'before' && run && !run.finishing && t >= startAt - until.min * 60000) {
+        finishSoon(`${until.min} min before the start`);
         changed = true;
       }
     });
     for (const sq of list) {
-      const at = game.startAt - sq.start.min * 60000;
-      if (sq.start.type !== 'before' || t < at || watch.fired.has(`before:${sq.id}`)) continue;
-      watch.fired.add(`before:${sq.id}`);
+      const st = sq.start;
+      if (st.type !== 'before') continue;
+      const at = startAt - st.min * 60000;
+      if (t < at || watch_.fired.has(`before:${sq.id}`)) continue;
+      watch_.fired.add(`before:${sq.id}`);
       // Its moment came while Studio wasn't running (it was opened inside the window), or before a practice game
       // started: left to the operator.
       if (at < (rearmedAt || studioStartedAt)) {
-        log('info', 'sequence', `"${sq.name}" won't start by itself: ${rearmedAt ? 'the practice game started after' : 'Studio wasn\'t running'} ${sq.start.min} min before ${game.label || 'the game'}`);
+        log('info', 'sequence', `"${sq.name}" won't start by itself: ${rearmedAt ? 'the practice game started after' : 'Studio wasn\'t running'} ${st.min} min before ${game_.label || 'the game'}`);
         continue;
       }
-      if (gone(sq)) { goneNote(sq, `${sq.start.min} min before ${game.label || 'the game'}`); continue; }
-      for (const o of outsOf(sq)) within(o, () => trigger(sq, `${sq.start.min} min before ${game.label || 'the game'}`, 0));
+      if (gone(sq)) { goneNote(sq, `${st.min} min before ${game_.label || 'the game'}`); continue; }
+      for (const o of outsOf(sq)) within(o, () => trigger(sq, `${st.min} min before ${game_.label || 'the game'}`, 0));
       changed = true;
     }
   }
@@ -957,7 +1043,7 @@ function rearm() {
 // The next start before the game, for the Output page: { id, at }.
 function nextAuto() {
   if (!auto || !game || !game.startAt || (watch && watch.everRan)) return null;
-  let best = null;
+  let best: { id: string; at: number } | null = null;
   for (const sq of list) {
     if (sq.start.type !== 'before' || gone(sq) || (watch && watch.fired.has(`before:${sq.id}`))) continue;
     const at = game.startAt - sq.start.min * 60000;
@@ -968,8 +1054,8 @@ function nextAuto() {
 
 // ─── What the scene tells the sequence ───────────────────────────────────
 // A source finished by itself (a video ended, a page said it's done) on output out (the primary if left out).
-function ended(src, out) { within(out, () => endedHere(src)); }
-function endedHere(src) {
+function ended(src: { id: string }, out?: string | null) { within(out, () => endedHere(src)); }
+function endedHere(src: { id: string }) {
   if (!run || !run.waiting || !run.waiting.has(src.id)) return;
   run.waiting.delete(src.id);
   if (run.waiting.size) return;
@@ -979,23 +1065,23 @@ function endedHere(src) {
   schedule();
 }
 // A source turned off by hand (on output out): if it's one the step is showing, on to the next step.
-function turnedOff(src, out) { within(out, () => turnedOffHere(src)); }
-function turnedOffHere(src) {
+function turnedOff(src: { id: string; name: string }, out?: string | null) { within(out, () => turnedOffHere(src)); }
+function turnedOffHere(src: { id: string; name: string }) {
   if (!run) return;
   run.shown.delete(src.id);
   const step = current();
   if (step && step.sources.includes(src.id)) { log('info', 'sequence', `"${src.name}" turned off by hand, next step`); advance(); }
 }
 // A scene picked on output out stops the sequence playing there.
-function beforeScene(sc, out) {
+function beforeScene(sc: SceneRef, out?: string | null) {
   within(out, () => {
     if (run) interrupt(new Set(Object.keys(sc.states).filter(id => sc.states[id] === 'on')), `scene "${sc.name}" was picked`);
     consume('scene', sc.id);
   });
 }
-function allOff(out) { within(out, () => { if (run) interrupt(new Set(), 'every source was turned off'); }); }
+function allOff(out?: string | null) { within(out, () => { if (run) interrupt(new Set(), 'every source was turned off'); }); }
 // An output was removed: what played there stops (its sequences play on the primary from now on).
-function dropOutput(out) {
+function dropOutput(out: string) {
   if (!out || out === PRIMARY) return;
   within(out, () => {
     if (run) interrupt(new Set(), 'its output was removed');
@@ -1003,12 +1089,12 @@ function dropOutput(out) {
   });
   runners.delete(out);
 }
-function sourceRemoved(id) {
+function sourceRemoved(id: string) {
   let changedAny = false;
   for (const sq of list) {
     const count = () => sq.steps.reduce((n, st) => n + (st.sources || []).length, 0);
     const k = count();
-    for (const st of sq.steps) if (st.sources) st.sources = st.sources.filter(x => x !== id);
+    for (const st of sq.steps) if (st.kind === undefined || st.kind === 'scene') st.sources = st.sources.filter(x => x !== id);
     if (k !== count()) changedAny = true;
   }
   each(() => { if (run) { run.shown.delete(id); run.waiting?.delete(id); for (const st of run.steps) st.sources = st.sources.filter(x => x !== id); } });
@@ -1019,10 +1105,10 @@ function sourceRemoved(id) {
 // Returns an error, null when done, or undefined when the change isn't a sequence change. a.output (an
 // output's id, from scene.js; the primary without one) is the output to play on, and the one Next, Stop,
 // Pause and the like act on. Run order changes (ro…) always act on Output 1's.
-function apply(a) {
+function apply(a: Act): string | null | undefined {
   const sq = a.sequence ? find(a.sequence) : null;
   // The run order is Output 1's, whatever output a change names.
-  return within(/^ro[A-Z]/.test(a.type) ? PRIMARY : a.output || PRIMARY, () => applyHere(a, sq));
+  return within(/^ro[A-Z]/.test(a.type) ? PRIMARY : str(a.output) || PRIMARY, () => applyHere(a, sq));
 }
 // The playing sequence (or one playing it inside) keeps going with its new steps, on every output.
 function refreshPlaying() {
@@ -1033,14 +1119,16 @@ function refreshPlaying() {
   });
 }
 // Stops sq where it's playing on outs, each output doing its own Then.
-function stopOn(outs, sq) {
+function stopOn(outs: string[], sq: Sequence) {
   for (const o of outs) within(o, () => { if (run && run.id === sq.id) finish('Stop was pressed'); });
 }
-function applyHere(a, sq) {
-  const need = () => sq ? null : `No sequence "${a.sequence || ''}".`;
+function applyHere(a: Act, found: Sequence | null): string | null | undefined {
+  const need = () => found ? null : `No sequence "${str(a.sequence)}".`;
+  // The cases that need the sequence check need() first.
+  const sq = found || list[0];
   switch (a.type) {
     case 'seqAdd': {
-      const made = clean({ ...(a.changes || {}), id: undefined }, { id: newId() });
+      const made = clean({ ...obj(a.changes), id: undefined }, { id: newId() });
       if (loops(made)) return loops(made);
       list.push(made);
       save();
@@ -1049,7 +1137,7 @@ function applyHere(a, sq) {
     }
     case 'seqUpdate': {
       if (need()) return need();
-      const { id, ...changes } = a.changes || {};
+      const { id, ...changes } = obj(a.changes);
       const i = list.indexOf(sq);
       const updated = clean(changes, sq);
       if (loops(updated)) return loops(updated);
@@ -1060,7 +1148,7 @@ function applyHere(a, sq) {
     }
     case 'seqCopy': {
       if (need()) return need();
-      const copy = clean({ ...JSON.parse(JSON.stringify(sq)), name: `${sq.name} copy` }, { id: newId() });
+      const copy = clean({ ...obj(JSON.parse(JSON.stringify(sq))), name: `${sq.name} copy` }, { id: newId() });
       copy.steps = copy.steps.map(st => ({ ...st, id: newId() }));
       list.splice(list.indexOf(sq) + 1, 0, copy);
       save();
@@ -1099,7 +1187,7 @@ function applyHere(a, sq) {
     }
     case 'seqStop':
       // Stop naming the sequence stops it on every output it plays on together; plain Stop, this output's.
-      if (a.sequence) { if (sq) stopOn(groupOf(sq, here, a.only), sq); return null; }
+      if (a.sequence) { if (found) stopOn(groupOf(found, here, a.only), found); return null; }
       if (run) finish('Stop was pressed');
       return null;
     case 'seqNext':
@@ -1111,7 +1199,7 @@ function applyHere(a, sq) {
       // Next only for a step waiting on it (Until I press Next), the one on now, so one key fits every
       // sequence: anything else (a timed step, nothing playing) and the press does nothing.
       if (!run || current()?.length.type !== 'next') { log('info', 'sequence', 'Next (when waiting) pressed, nothing waiting for it'); return null; }
-      log('info', 'sequence', `Next (when waiting) pressed: "${playing().name}" moves on`);
+      log('info', 'sequence', `Next (when waiting) pressed: "${playing()?.name}" moves on`);
       advance();
       return null;
     case 'seqPause': case 'seqResume': case 'seqPauseToggle': {
@@ -1121,12 +1209,12 @@ function applyHere(a, sq) {
         run.paused = true;
         run.pausedLeft = run.endsAt === null ? null : Math.max(0, run.endsAt - now());
         run.endsAt = null;
-        log('info', 'sequence', `Paused "${playing().name}"`);
+        log('info', 'sequence', `Paused "${playing()?.name}"`);
       } else if (!pause && run.paused) {
         run.paused = false;
         run.endsAt = run.pausedLeft === null ? null : now() + run.pausedLeft;
         run.pausedLeft = null;
-        log('info', 'sequence', `Carried on with "${playing().name}"`);
+        log('info', 'sequence', `Carried on with "${playing()?.name}"`);
       }
       schedule();
       return null;
@@ -1168,7 +1256,7 @@ function applyHere(a, sq) {
       if (i < 0) return 'That item isn\'t in the run order any more.';
       const [it] = queue.splice(i, 1);
       queueChanged();
-      log('info', 'sequence', `Run order: took out ${itemName(it)}`);
+      if (it) log('info', 'sequence', `Run order: took out ${itemName(it)}`);
       return null;
     }
     case 'roMove': {
@@ -1207,7 +1295,7 @@ function applyHere(a, sq) {
     }
     case 'roLoad': {
       const o = orders.find(x => x.id === String(a.order || '')) || orders.find(x => slug(x.name) === slug(a.order));
-      if (!o) return `No saved run order "${a.order || ''}".`;
+      if (!o) return `No saved run order "${str(a.order)}".`;
       // Loaded in place of what's queued (the Output page asks first when the queue isn't empty). a.planner: the
       // game the Production Planner loaded it for, as the scoreboard moved to it (server.js plannerRunOrder); nobody
       // was asked then, so when that dropped anything queued, the run order panel says so until it's closed.
@@ -1225,7 +1313,7 @@ function applyHere(a, sq) {
     case 'roRename': {
       // A saved order under a new name. It keeps its id, so a game in the Production Planner it's assigned to keeps it.
       const o = orders.find(x => x.id === String(a.order || '')) || orders.find(x => slug(x.name) === slug(a.order));
-      if (!o) return `No saved run order "${a.order || ''}".`;
+      if (!o) return `No saved run order "${str(a.order)}".`;
       const name = String(a.name || '').trim().slice(0, 60);
       if (!name) return 'Give the run order a name, such as "Thursday night".';
       if (orders.some(x => x !== o && slug(x.name) === slug(name))) return `There's already a saved run order called "${name}".`;
@@ -1238,10 +1326,10 @@ function applyHere(a, sq) {
     }
     case 'roDeleteOrder': {
       const i = orders.findIndex(x => x.id === String(a.order || '') || slug(x.name) === slug(a.order));
-      if (i < 0) return `No saved run order "${a.order || ''}".`;
+      if (i < 0) return `No saved run order "${str(a.order)}".`;
       const [o] = orders.splice(i, 1);
       save();
-      log('info', 'sequence', `Run order: deleted the saved order "${o.name}"`);
+      log('info', 'sequence', `Run order: deleted the saved order "${o?.name}"`);
       return null;
     }
     default:
@@ -1252,14 +1340,14 @@ function applyHere(a, sq) {
 // /deck/sequence/<name> (play), /deck/sequence/<name>/play|toggle|stop|only (play on this output alone), for whatever is playing
 // /deck/sequence/next|stop|pause|resume, for one about to start by itself /deck/sequence/now|cancel, and the Automatic sequences switch /deck/sequence/auto/on|off|toggle.
 // out: the output these act on (/deck/output/<output>/sequence/…), the primary by default.
-function deck(parts, out = PRIMARY) {
+function deck(parts: string[], out = PRIMARY): DeckResult {
   const [what, name, verb] = parts;
   // The run order: /deck/runorder/next (play the head), skip, clear, add/<sequence or scene name>, load/<saved order>.
   if (what === 'runorder') {
     if (!name) return null;
     if (out !== PRIMARY) return { error: 'The run order is Output 1\'s: use /deck/runorder/… instead.', status: 404 };
-    const simple = { next: 'roNext', skip: 'roSkip', clear: 'roClear' };
-    let action = null;
+    const simple: Record<string, string> = { next: 'roNext', skip: 'roSkip', clear: 'roClear' };
+    let action: Act | null = null;
     if (simple[name] && !verb) action = { type: simple[name], output: out };
     else if (name === 'add' && verb) action = { type: 'roAdd', output: out, kind: find(verb) ? 'sequence' : 'scene', name: verb };
     else if (name === 'load' && verb) action = { type: 'roLoad', output: out, order: verb };
@@ -1277,10 +1365,10 @@ function deck(parts, out = PRIMARY) {
     apply({ type: 'seqAuto', value: verb || 'toggle' });
     return { body: { ok: true, auto } };
   }
-  const PLAYING = { next: 'seqNext', advance: 'seqAdvance', stop: 'seqStop', pause: 'seqPauseToggle', resume: 'seqResume', now: 'seqStartNow', cancel: 'seqCancel' };
+  const PLAYING: Record<string, string> = { next: 'seqNext', advance: 'seqAdvance', stop: 'seqStop', pause: 'seqPauseToggle', resume: 'seqResume', now: 'seqStartNow', cancel: 'seqCancel' };
   // only: on this output alone, not every output the sequence plays on together.
-  const ONE = { play: 'seqPlay', start: 'seqPlay', toggle: 'seqToggle', stop: 'seqStop', only: 'seqPlay' };
-  const action = !verb ? (PLAYING[name] ? { type: PLAYING[name], output: out } : { type: 'seqPlay', sequence: name, output: out }) : ONE[verb] ? { type: ONE[verb], sequence: name, output: out, ...(verb === 'only' ? { only: true } : {}) } : null;
+  const ONE: Record<string, string> = { play: 'seqPlay', start: 'seqPlay', toggle: 'seqToggle', stop: 'seqStop', only: 'seqPlay' };
+  const action: Act | null = !verb ? (PLAYING[name] ? { type: PLAYING[name], output: out } : { type: 'seqPlay', sequence: name, output: out }) : ONE[verb] ? { type: ONE[verb], sequence: name, output: out, ...(verb === 'only' ? { only: true } : {}) } : null;
   if (!action) return null;
   if (action.sequence && !find(action.sequence)) return { error: `No sequence "${name}".`, status: 404 };
   const error = apply(action);
@@ -1293,10 +1381,10 @@ function deck(parts, out = PRIMARY) {
 
 // How long a step still to come will take: its set time or its videos' length. open: it waits (Next, the
 // game, a page, a video of unknown length), so it takes at least that.
-function lengthOf(step) {
-  const t = step.length.type;
+function lengthOf(step: FlatStep) {
+  const len = step.length, t = len.type;
   if (t === 'now') return { ms: 0, open: false };
-  if (t === 'time') return { ms: step.length.sec * 1000, open: false };
+  if (len.type === 'time') return { ms: len.sec * 1000, open: false };
   if (t !== 'done') return { ms: 0, open: true };
   let ms = 0, open = false;
   for (const id of step.sources) {
@@ -1309,13 +1397,14 @@ function lengthOf(step) {
 }
 // Time left in the whole sequence: the step on now and every step after it (one time through when it repeats,
 // unless it's finishing). open: some of it waits, so it's at least that.
-function totalLeft(stepLeftMs) {
+function totalLeft(stepLeftMs: number | null) {
+  const run = cur();
   const step = current();
   let ms = 0, open = stepLeftMs === null;
   if (stepLeftMs !== null) {
     ms = stepLeftMs;
     // Until it finishes counts to the video's end, not the few seconds' grace after it.
-    if (step.length.type === 'done' && !run.ready && !run.paused) {
+    if (step && step.length.type === 'done' && !run.ready && !run.paused) {
       const est = lengthOf(step);
       if (!est.open && est.ms) ms = Math.min(ms, Math.max(0, est.ms - (now() - run.stepAt)));
     }
@@ -1333,14 +1422,14 @@ function playingHere() {
       // step and steps count every step as it plays (sequences inside opened out); top is the sequence's own
       // step it comes from, via the sequences it's inside, and what it shows.
       id: run.id, step: run.step, steps: run.steps.length, loop: run.loop, paused: run.paused,
-      top: current()?.top ?? null, via: current()?.via || [], scene: current()?.kind === 'scene' ? current().scene : null, sources: current()?.sources || [],
-      ad: current()?.kind === 'ad' ? current().ad || null : undefined,
+      top: current()?.top ?? null, via: current()?.via || [], scene: current()?.kind === 'scene' ? current()?.scene : null, sources: current()?.sources || [],
+      ad: current()?.kind === 'ad' ? current()?.ad || null : undefined,
       // Time left on the step, when it has one: the page counts down from when it hears this.
       leftMs: stepLeft,
       length: current()?.length.type || null, ready: run.ready,
       // Time left in the whole sequence (counting down like leftMs while the step does); totalOpen: part of it
       // waits (Next, the game, a page), so it's at least that; repeats: it goes round again after this time through.
-      totalLeftMs: total.ms, totalOpen: total.open, repeats: sq.repeat !== 'once' && !run.finishing,
+      totalLeftMs: total?.ms, totalOpen: total?.open, repeats: sq.repeat !== 'once' && !run.finishing,
       waiting: run.waiting ? [...run.waiting] : [], finishing: !!run.finishing,
     } : null;
 }
@@ -1351,7 +1440,7 @@ function state() {
   // The primary's at the top (playing, pending), as before there could be more than one output; the
   // others' by output id (playingOut, pendingOut), only while there's something to say.
   // stoppedOn: the sequence that last ended on each output (played out or cut short), until it plays again.
-  const playingOut = {}, pendingOut = {}, stoppedOn = {};
+  const playingOut: Record<string, unknown> = {}, pendingOut: Record<string, unknown> = {}, stoppedOn: Record<string, string> = {};
   each(() => {
     if (cut && (!run || run.id !== cut)) stoppedOn[here] = cut;
     if (here === PRIMARY) return;
@@ -1384,7 +1473,7 @@ function state() {
   };
 }
 
-function init(logger, hooks, sequencesFile) {
+function init(logger: Log | null, hooks: Api, sequencesFile?: () => string | null) {
   studioStartedAt = now();
   log = logger || log;
   api = hooks;
@@ -1395,4 +1484,6 @@ function init(logger, hooks, sequencesFile) {
 }
 
 const fileName = () => file;
-export { init, reload, fileName as file, apply, deck, state, byColour, gameTick as game, rearm, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
+export type { Sequence, SceneRef as SequenceScene, Source as SequenceSource, GameReading, Length as StepLength };
+export { init, reload,
+ fileName as file, apply, deck, state, byColour, gameTick as game, rearm, ended, turnedOff, beforeScene, allOff, sourceRemoved, dropOutput, slug, PRIMARY };
