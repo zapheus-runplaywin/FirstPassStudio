@@ -9,22 +9,37 @@
 //   athletes(), photoKey(name), athleteTeams(name), genderInfo(name), photoFor(name), silhouette(gender), logoFor(team)   from athletes.js
 //   norm(s), sameTeam(a, b)       name matching, as server.js does it
 
-function create({ log, board, playhq, competitionName, rules, athletes, photoKey, athleteTeams, genderInfo, photoFor, silhouette, logoFor, norm, sameTeam }) {
+import type { Client as PlayhqClient } from './playhq';
+import type { AthletesApi } from './athletes';
+import type { Board } from './board';
+import type { Rules } from './games';
+import type { Log, Query } from './types';
+
+interface Deps {
+  log: Log; board: () => Board; playhq: PlayhqClient; competitionName(): string; rules(): Rules;
+  athletes: AthletesApi['athletes']; photoKey: AthletesApi['photoKey']; athleteTeams: AthletesApi['athleteTeams']; genderInfo: AthletesApi['genderInfo'];
+  photoFor: AthletesApi['photoFor']; silhouette: AthletesApi['silhouette']; logoFor: AthletesApi['logoFor'];
+  norm(s: unknown): string; sameTeam(a: unknown, b: unknown): boolean;
+}
+type Team = { team: string; division: string };
+
+function create({ log, board, playhq, competitionName, rules, athletes, photoKey, athleteTeams, genderInfo, photoFor, silhouette, logoFor, norm, sameTeam }: Deps) {
   // The person lower third (lowerthird.html). An athlete is found in the athlete register by name (case,
   // punctuation and word order don't matter, like the photos): their team, its club logo and their photo.
   // ?team= picks the team for an athlete in more than one; otherwise one of the game's two teams if they
   // play for it, else the first the register has. A guest or commentator needs nothing from here but the
   // competition's logos, which every answer carries (commentators.html's box reads them with ?type=guest).
-  function getLowerThird(q) {
+  function getLowerThird(q: Query) {
     const r = rules();
-    const out = { competition: competitionName(), competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark };
+    const out: { competition: string; competitionLogoLight: string | null; competitionLogoDark: string | null; athlete?: unknown } =
+      { competition: competitionName(), competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark };
     if (q.type === 'guest' || !String(q.name || '').trim()) return out;
     const e = athletes()[photoKey(q.name)];
     const name = (e && e.name) || String(q.name).trim();
     const teams = athleteTeams(name);
     const b = board();
     const playing = [b.home.name, b.away.name];
-    const pick = (q.team && (teams.find(t => sameTeam(t.team, q.team)) || { team: String(q.team).trim(), division: '' })) ||
+    const pick: Team | null = (q.team && (teams.find(t => sameTeam(t.team, q.team)) || { team: String(q.team).trim(), division: '' })) ||
       teams.find(t => playing.some(n => sameTeam(n, t.team)) && (!b.division || t.division === b.division)) ||
       teams.find(t => playing.some(n => sameTeam(n, t.team))) || teams[0] || null;
     if (!e) log('info', 'lowerthird', `${name} is not in the athlete register yet (it fills as line ups are read)`);
@@ -39,12 +54,13 @@ function create({ log, board, playhq, competitionName, rules, athletes, photoKey
   // from an earlier season isn't offered). Each has their teams, so the page can narrow them to one team or
   // to the two teams in the game picked on the control page. Nothing here asks PlayHQ.
   function getLowerThirdAthletes() {
-    const divisions = new Set(((playhq.structureNow() || {}).grades || []).map(g => norm(g.name)));
+    const divisions = new Set((playhq.structureNow()?.grades || []).map(g => norm(g.name)));
     let list = Object.values(athletes()).map(e => ({ name: e.name, teams: athleteTeams(e.name) })).filter(a => a.teams.length);
     const current = list.filter(a => a.teams.some(t => divisions.has(norm(t.division))));
     if (current.length) list = current.map(a => ({ ...a, teams: a.teams.filter(t => divisions.has(norm(t.division))) }));
     list.sort((a, b) => a.name.localeCompare(b.name));
-    const teams = [];
+    const teams: Team[] = [];
+
     for (const a of list) for (const t of a.teams) if (!teams.some(x => x.team === t.team && x.division === t.division)) teams.push(t);
     teams.sort((a, b) => a.team.localeCompare(b.team) || a.division.localeCompare(b.division, 'en', { numeric: true }));
     const b = board();
